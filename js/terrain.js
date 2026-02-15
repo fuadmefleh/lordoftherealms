@@ -113,6 +113,16 @@ const Terrain = {
         const riverCount = params.riverCount !== undefined ? params.riverCount : 40;
         const continentCount = params.continentCount || 3;
 
+        // Generate continent seed points
+        const seeds = [];
+        for (let i = 0; i < continentCount; i++) {
+            seeds.push({
+                q: Math.random() * width,
+                r: Math.random() * (height * 0.6) + (height * 0.2), // Keep away from extreme poles
+                radius: (width / continentCount) * (0.6 + Math.random() * 0.6) // Randomize size
+            });
+        }
+
         for (let r = 0; r < height; r++) {
             const row = [];
             for (let q = 0; q < width; q++) {
@@ -131,15 +141,22 @@ const Terrain = {
                 let ridged = 1.0 - Math.abs(Utils.fbm(nx * terrainFreq * 2 + 50, ny_r * terrainFreq * 2 + 50, 4, 2.0, 0.5));
                 ridged = Math.pow(ridged, 2.5);
 
-                // Create Continents Bias - increased frequency slightly to encourage more blobs
+                // Create Continents Bias
                 const continentNoise = Utils.fbm(nx * 1.2, ny_r * 1.2, 2, 2.0, 0.5);
-                let continentWeight = (continentNoise + 1) / 2; // 0-1
 
-                // Enforce split: continentCount major "land" zones separated by ocean gaps
-                // We use a periodic mask to ensure distinct longitudinal masses
-                const maskFreq = continentCount / 2;
-                const continentMask = Math.pow(Math.cos(angle * maskFreq), 2);
-                continentWeight *= (0.4 + 0.6 * continentMask);
+                // Calculate bias from overlapping seeds
+                let maxBias = 0;
+                for (const seed of seeds) {
+                    const dist = Hex.wrappingDistance(q, r, seed.q, seed.r, width);
+                    const bias = 1.0 - Utils.clamp(dist / seed.radius, 0, 1);
+                    if (bias > maxBias) maxBias = bias;
+                }
+
+                // Convert max distance bias to final seed bias
+                let seedBias = Math.pow(maxBias, 0.5); // Flatten the curve for broader landmasses
+
+                let continentWeight = (continentNoise * 0.4) + (seedBias * 0.6);
+                continentWeight = Utils.clamp(continentWeight, 0, 1);
 
                 // Increase base land presence (more continentWeight, less ridged dominance)
                 let elevation = (baseElev * 0.3) + (continentWeight * 0.6) + (ridged * 0.1);

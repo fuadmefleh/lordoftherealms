@@ -113,13 +113,27 @@ const Terrain = {
         const riverCount = params.riverCount !== undefined ? params.riverCount : 40;
         const continentCount = params.continentCount || 3;
 
-        // Generate continent seed points
+        // Generate continent seed points using a jittered grid for better distribution
         const seeds = [];
+        const cols = Math.ceil(Math.sqrt(continentCount * (width / height)));
+        const rows = Math.ceil(continentCount / cols);
+
         for (let i = 0; i < continentCount; i++) {
+            const gridCol = i % cols;
+            const gridRow = Math.floor(i / cols);
+
+            // Jittered grid placement
+            const targetQ = (gridCol + 0.5 + (Math.random() - 0.5) * 0.6) * (width / cols);
+            const targetR = (gridRow + 0.5 + (Math.random() - 0.5) * 0.6) * (height / rows);
+
+            // Clamp R to keep somewhat away from extreme poles for better playability
+            const finalR = Utils.clamp(targetR, height * 0.2, height * 0.8);
+
             seeds.push({
-                q: Math.random() * width,
-                r: Math.random() * (height * 0.6) + (height * 0.2), // Keep away from extreme poles
-                radius: (width / continentCount) * (0.6 + Math.random() * 0.6) // Randomize size
+                q: targetQ,
+                r: finalR,
+                // Reduce radius as count increases to keep them distinct
+                radius: (width / (cols * 1.8)) * (0.8 + Math.random() * 0.4)
             });
         }
 
@@ -152,14 +166,14 @@ const Terrain = {
                     if (bias > maxBias) maxBias = bias;
                 }
 
-                // Convert max distance bias to final seed bias
-                let seedBias = Math.pow(maxBias, 0.5); // Flatten the curve for broader landmasses
+                // Sharpen the seed bias for more distinct continent edges
+                let seedBias = Math.pow(maxBias, 0.8);
 
-                let continentWeight = (continentNoise * 0.4) + (seedBias * 0.6);
+                let continentWeight = (continentNoise * 0.3) + (seedBias * 0.7);
                 continentWeight = Utils.clamp(continentWeight, 0, 1);
 
-                // Increase base land presence (more continentWeight, less ridged dominance)
-                let elevation = (baseElev * 0.3) + (continentWeight * 0.6) + (ridged * 0.1);
+                // Increase base land presence
+                let elevation = (baseElev * 0.25) + (continentWeight * 0.65) + (ridged * 0.1);
 
                 // Polar bias: encourage water at poles (r=0 and r=height)
                 // Tapered more to keep land closer to poles

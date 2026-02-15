@@ -7,6 +7,8 @@ class WorldUnit {
         this.type = type;
         this.q = q;
         this.r = r;
+        this.sourceQ = q;
+        this.sourceR = r;
         this.id = Math.random().toString(36).substr(2, 9);
         this.targetQ = targetQ;
         this.targetR = targetR;
@@ -65,6 +67,14 @@ class WorldUnit {
                 this.strength = Utils.randInt(12, 20);
                 this.inventory = this.generateInitialInventory('pirate');
                 break;
+            case 'fishing_boat':
+                this.icon = '🛶';
+                this.name = 'Fishing Boat';
+                this.speed = 1;
+                this.population = Utils.randInt(2, 5);
+                this.strength = 1;
+                this.inventory = {};
+                break;
             default:
                 this.icon = '❓';
                 this.name = 'Unknown Unit';
@@ -106,7 +116,7 @@ class WorldUnit {
      */
     update(world) {
         this.age++;
-        if (this.age > this.maxAge && this.type !== 'settler') {
+        if (this.age > this.maxAge && this.type !== 'settler' && this.type !== 'fishing_boat') {
             this.destroyed = true;
             return;
         }
@@ -126,6 +136,9 @@ class WorldUnit {
                 break;
             case 'settler':
                 this.updateSettler(world);
+                break;
+            case 'fishing_boat':
+                this.updateFishingBoat(world);
                 break;
         }
     }
@@ -362,7 +375,7 @@ class WorldUnit {
             const tile = world.getTile(wq, n.r);
 
             // Ship/Pirate only on water, others only on land
-            const isWater = (this.type === 'ship' || this.type === 'pirate');
+            const isWater = (this.type === 'ship' || this.type === 'pirate' || this.type === 'fishing_boat');
             if (!tile) continue;
 
             const tileIsWater = ['ocean', 'deep_ocean', 'coast', 'lake', 'sea'].includes(tile.terrain.id);
@@ -382,6 +395,77 @@ class WorldUnit {
         } else {
             // Stuck? 
             this.age += 5; // Age faster if stuck
+        }
+    }
+
+    /**
+     * Fishing Boat Logic
+     */
+    updateFishingBoat(world) {
+        // Stats
+        this.maxAge = 1000; // Boats last a while
+
+        // 1. Heading to fishing grounds
+        if (!this.fishing && !this.returning) {
+            if (this.targetQ !== null && this.targetR !== null) {
+                const dist = Hex.wrappingDistance(this.q, this.r, this.targetQ, this.targetR, world.width);
+                if (dist <= 0) {
+                    // Arrived
+                    this.fishing = true;
+                    this.fishingTimer = 5; // Fish for 5 days
+                    this.fishingSpotQ = this.targetQ; // Remember spot
+                    this.fishingSpotR = this.targetR;
+                } else {
+                    this.moveTowardsTarget(world);
+                }
+            } else {
+                this.destroyed = true; // No target
+            }
+        }
+        // 2. Fishing
+        else if (this.fishing) {
+            this.fishingTimer--;
+            if (this.fishingTimer <= 0) {
+                // Done fishing, return home
+                this.fishing = false;
+                this.returning = true;
+                this.inventory['fish'] = (this.inventory['fish'] || 0) + Utils.randInt(5, 15);
+
+                // Set target to home
+                if (this.homeWharf) {
+                    this.targetQ = this.homeWharf.q;
+                    this.targetR = this.homeWharf.r;
+                }
+            }
+        }
+        // 3. Returning home
+        else if (this.returning) {
+            const dist = Hex.wrappingDistance(this.q, this.r, this.targetQ, this.targetR, world.width);
+            if (dist <= 0) {
+                // Arrived home
+                this.returning = false;
+
+                // Deposit fish
+                const tile = world.getTile(this.q, this.r);
+                if (tile && tile.playerProperty && tile.playerProperty.type === 'fishing_wharf') {
+                    tile.playerProperty.storage = (tile.playerProperty.storage || 0) + (this.inventory['fish'] || 0);
+                    this.inventory['fish'] = 0;
+
+                    // Go back out to same spot
+                    if (this.fishingSpotQ !== undefined) {
+                        this.targetQ = this.fishingSpotQ;
+                        this.targetR = this.fishingSpotR;
+                    } else {
+                        // If we didn't save it, die or idle
+                        this.destroyed = true;
+                    }
+                } else {
+                    // Wharf is gone?
+                    this.destroyed = true;
+                }
+            } else {
+                this.moveTowardsTarget(world);
+            }
         }
     }
 }

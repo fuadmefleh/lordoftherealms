@@ -157,6 +157,7 @@ const Kingdom = {
                     population: Utils.randInt(5000, 15000),
                     level: 3,
                     kingdom: kingdom.id,
+                    founded: Utils.randInt(300, 500),
                 };
 
                 // Place 1-2 towns nearby
@@ -209,6 +210,7 @@ const Kingdom = {
             population: Utils.randInt(500, 3000),
             level: 1,
             kingdom: kingdom.id,
+            founded: Utils.randInt(500, 840),
         };
     },
 
@@ -247,6 +249,57 @@ const Kingdom = {
 
         const cultureNames = names[culture] || names.Imperial;
         return Utils.randPick(cultureNames);
+    },
+
+    /**
+     * Generate a ruler name based on culture
+     */
+    generateRulerName(culture) {
+        const titles = {
+            Imperial: ['King', 'Queen', 'Emperor', 'Empress'],
+            Woodland: ['Queen', 'King', 'Elder', 'Sage'],
+            Nomadic: ['Khan', 'Chieftain', 'Warlord'],
+            Religious: ['High Priest', 'High Priestess', 'Prophet', 'Oracle'],
+            Maritime: ['Consul', 'Admiral', 'Lord', 'Lady']
+        };
+
+        const names = {
+            Imperial: [
+                'Aldric', 'Cedric', 'Edmund', 'Roland', 'Theron', 'Victor',
+                'Helena', 'Isabella', 'Morgana', 'Rowena', 'Vivienne'
+            ],
+            Woodland: [
+                'Elara', 'Sylvan', 'Thalia', 'Rowan', 'Faelan', 'Arden',
+                'Lyra', 'Elowen', 'Briar', 'Cypress', 'Willow'
+            ],
+            Nomadic: [
+                'Borga', 'Temur', 'Khal', 'Drogo', 'Ragnar', 'Ulfric',
+                'Yara', 'Khara', 'Nara', 'Zara', 'Shara'
+            ],
+            Religious: [
+                'Solon', 'Matthias', 'Ezekiel', 'Silas', 'Tobias',
+                'Miriam', 'Seraphina', 'Celeste', 'Evangeline', 'Theodora'
+            ],
+            Maritime: [
+                'Lyanna', 'Marcus', 'Octavia', 'Tiberius', 'Cassius',
+                'Marina', 'Cordelia', 'Nerissa', 'Portia', 'Caspian'
+            ]
+        };
+
+        const epithets = [
+            'the Wise', 'the Bold', 'the Just', 'the Great', 'the Fair',
+            'the Strong', 'the Brave', 'the Merciful', 'the Stern', 'the Cunning',
+            'Ironhand', 'Stormborn', 'the Unifier', 'the Defender', 'the Reformer'
+        ];
+
+        const cultureTitles = titles[culture] || titles.Imperial;
+        const cultureNames = names[culture] || names.Imperial;
+
+        const title = Utils.randPick(cultureTitles);
+        const name = Utils.randPick(cultureNames);
+        const epithet = Utils.randPick(epithets);
+
+        return `${title} ${name} ${epithet}`;
     },
 
     /**

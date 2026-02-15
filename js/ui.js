@@ -16,6 +16,10 @@ class UI {
         document.getElementById('btnSettings').addEventListener('click', () => this.showNotification('Settings', 'Settings coming soon!', 'info'));
         document.getElementById('btnInventory').addEventListener('click', () => this.showInventoryPanel());
         document.getElementById('btnQuests').addEventListener('click', () => this.showQuestsPanel());
+        const btnHistory = document.getElementById('btnHistory');
+        if (btnHistory) {
+            btnHistory.addEventListener('click', () => this.showHistoryPanel());
+        }
 
         // Global Control buttons
         document.getElementById('btnToggleResources').addEventListener('click', () => {
@@ -172,7 +176,11 @@ class UI {
                 <div class="info-section-title">Settlement</div>
                 <div class="info-row">
                     <span class="info-label">Name</span>
-                    <span class="info-value" style="color:#ffffff !important;">${tile.settlement.name}</span>
+                    <span class="info-value" style="color:#ffffff !important; cursor: pointer; text-decoration: underline;" onclick="window.game.ui.showSettlementDetails(${q}, ${r})">${tile.settlement.name}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Founded</span>
+                    <span class="info-value">${tile.settlement.founded ? `Year ${tile.settlement.founded} (${this.game.world.year - tile.settlement.founded} years ago)` : 'Unknown'}</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Type</span>
@@ -258,6 +266,10 @@ class UI {
                 <div class="info-row">
                     <span class="info-value" style="color:#ffffff !important;">${tile.improvement.icon} ${tile.improvement.name}</span>
                 </div>
+                <div class="info-row">
+                    <span class="info-label">Discovered</span>
+                    <span class="info-value">${tile.improvement.founded ? `Year ${tile.improvement.founded} (${this.game.world.year - tile.improvement.founded} years ago)` : 'Unknown'}</span>
+                </div>
             `;
         }
 
@@ -287,6 +299,18 @@ class UI {
                     destStr = `<div style="font-size:11px; color:var(--text-secondary); margin-left:22px;">📍 Heading to: <span style="color:#ffffff !important;">${destName}</span></div>`;
                 }
 
+                // Format origin string
+                let originStr = '';
+                if (unit.sourceQ !== undefined && unit.sourceR !== undefined) {
+                    let originName = `(${unit.sourceQ}, ${unit.sourceR})`;
+                    // Try to find a settlement at source coordinates
+                    const sourceTile = this.game.world.getTile(unit.sourceQ, unit.sourceR);
+                    if (sourceTile && sourceTile.settlement) {
+                        originName = sourceTile.settlement.name;
+                    }
+                    originStr = `<div style="font-size:11px; color:var(--text-secondary); margin-left:22px;">🚩 Coming from: <span style="color:#ffffff !important;">${originName}</span></div>`;
+                }
+
                 html += `
                     <div class="info-row" style="flex-direction:column; align-items:flex-start; height:auto; padding:4px 0;">
                         <div style="display:flex; justify-content:space-between; width:100%;">
@@ -294,6 +318,7 @@ class UI {
                             <span class="info-value" style="font-size:11px;">👫 ${unit.population} | ⚔️ ${unit.strength}</span>
                         </div>
                         ${invStr}
+                        ${originStr}
                         ${destStr}
                     </div>
                 `;
@@ -609,7 +634,18 @@ class UI {
     showCustomPanel(title, htmlContent) {
         // Remove existing custom panel if any
         const existing = document.getElementById('customPanel');
-        if (existing) existing.remove();
+        if (existing) {
+            // If panel exists, just update the content body to prevent "blips"
+            const contentBody = existing.querySelector('.custom-panel-body');
+            if (contentBody) {
+                contentBody.innerHTML = htmlContent;
+            }
+            const titleEl = existing.querySelector('.custom-panel-title');
+            if (titleEl) {
+                titleEl.textContent = title;
+            }
+            return; // Done update
+        }
 
         const panel = document.createElement('div');
         panel.id = 'customPanel';
@@ -630,14 +666,16 @@ class UI {
             z-index: 1000;
             box-shadow: 0 10px 40px rgba(0,0,0,0.8);
             overflow: hidden;
+            display: flex;
+            flex-direction: column; 
         `;
 
         panel.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <h3 style="margin: 0; font-family: var(--font-display); color: var(--gold);">${title}</h3>
+                <h3 class="custom-panel-title" style="margin: 0; font-family: var(--font-display); color: var(--gold);">${title}</h3>
                 <button id="closeCustomPanel" style="background: none; border: none; color: var(--text-primary); font-size: 20px; cursor: pointer;">✕</button>
             </div>
-            <div style="padding: 16px; overflow-y: auto; max-height: calc(80vh - 60px);">
+            <div class="custom-panel-body" style="padding: 16px; overflow-y: auto; max-height: calc(80vh - 60px);">
                 ${htmlContent}
             </div>
         `;
@@ -785,5 +823,319 @@ class UI {
         setTimeout(() => {
             titleScreen.classList.add('hidden');
         }, 800);
+    }
+
+    /**
+     * Show world history panel
+     */
+    showHistoryPanel() {
+        if (!this.game.world.history || this.game.world.history.length === 0) {
+            this.showCustomPanel('World History', '<p style="color: var(--text-secondary);">No known history recorded.</p>');
+            return;
+        }
+
+        // Sort history by year
+        const sortedHistory = [...this.game.world.history].sort((a, b) => a.year - b.year);
+
+        let html = '<div class="history-timeline" style="position: relative; padding-left: 20px;">';
+
+        // Vertical line
+        html += '<div style="position: absolute; left: 6px; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,0.1);"></div>';
+
+        for (const event of sortedHistory) {
+            html += `
+                <div class="history-event" style="margin-bottom: 20px; position: relative;">
+                    <div style="position: absolute; left: -20px; top: 4px; width: 14px; height: 14px; background: var(--gold); border-radius: 50%; box-shadow: 0 0 10px var(--gold);"></div>
+                    <div style="font-family: var(--font-display); color: var(--gold); font-size: 18px; margin-bottom: 4px;">Year ${event.year}</div>
+                    <div style="color: var(--text-primary); line-height: 1.5; font-size: 14px;">${event.text}</div>
+                </div>
+            `;
+        }
+
+        html += '</div>';
+
+        this.showCustomPanel('World History', html);
+    }
+
+    /**
+     * Show settlement details modal
+     */
+    showSettlementDetails(q, r) {
+        const tile = this.game.world.getTile(q, r);
+        if (!tile || !tile.settlement) {
+            this.showNotification('Error', 'No settlement found at this location', 'error');
+            return;
+        }
+
+        const settlement = tile.settlement;
+        const kingdom = settlement.kingdom ? this.game.world.getKingdom(settlement.kingdom) : null;
+        const econ = Economy.getSummary(settlement, tile, this.game.world);
+
+        // Find the lord of this settlement (for now, use kingdom lord)
+        const lord = kingdom && kingdom.lord ? kingdom.lord : null;
+
+        let html = `
+            <div style="max-width: 600px;">
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="font-size: 48px; margin-bottom: 8px;">${settlement.type === 'capital' ? '🏰' : settlement.type === 'town' ? '🏘️' : '🏠'}</div>
+                    <h2 style="margin: 0; color: var(--gold); font-family: var(--font-display);">${settlement.name}</h2>
+                    <div style="color: var(--text-secondary); font-size: 14px; margin-top: 4px;">${settlement.type.charAt(0).toUpperCase() + settlement.type.slice(1)}</div>
+                </div>
+
+                <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                    <div class="info-row">
+                        <span class="info-label">Population</span>
+                        <span class="info-value">${Utils.formatNumber(settlement.population)}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Founded</span>
+                        <span class="info-value">${settlement.founded ? `Year ${settlement.founded} (${this.game.world.year - settlement.founded} years ago)` : 'Ancient times'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Coordinates</span>
+                        <span class="info-value">${q}, ${r}</span>
+                    </div>
+                </div>
+        `;
+
+        // Kingdom and Lord Information
+        if (kingdom) {
+            html += `
+                <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                    <div class="info-section-title">Allegiance</div>
+                    <div class="info-row">
+                        <span class="info-label">Kingdom</span>
+                        <span class="info-value" style="cursor: pointer; text-decoration: underline; color: ${kingdom.color};" onclick="window.game.ui.showKingdomDetails('${kingdom.id}')">
+                            <span class="kingdom-dot" style="color:${kingdom.color}; background:${kingdom.color}"></span>
+                            ${kingdom.name}
+                        </span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Ruler</span>
+                        <span class="info-value">${kingdom.ruler}</span>
+                    </div>
+            `;
+
+            if (lord) {
+                const traitNames = lord.traits.map(t => t.name).join(', ');
+                html += `
+                    <div class="info-row">
+                        <span class="info-label">Lord</span>
+                        <span class="info-value">${lord.name}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Age</span>
+                        <span class="info-value">${lord.age} years</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Traits</span>
+                        <span class="info-value">${traitNames || 'None'}</span>
+                    </div>
+                `;
+            }
+
+            html += `</div>`;
+        } else {
+            html += `
+                <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                    <div class="info-section-title">Allegiance</div>
+                    <div class="info-row">
+                        <span class="info-label">Status</span>
+                        <span class="info-value" style="color: #95a5a6;">Independent</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Economy
+        html += `
+            <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px;">
+                <div class="info-section-title">Economy</div>
+                <div class="info-row">
+                    <span class="info-label">💰 Gold Production</span>
+                    <span class="info-value" style="color: #f1c40f;">+${econ.production.gold}/day</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">🌾 Food Production</span>
+                    <span class="info-value" style="color: #2ecc71;">+${econ.production.food}/day</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">📦 Goods Production</span>
+                    <span class="info-value" style="color: #3498db;">+${econ.production.goods}/day</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Trade Routes</span>
+                    <span class="info-value">${econ.tradeRoutes}</span>
+                </div>
+            </div>
+        `;
+
+        html += '</div>';
+
+        this.showCustomPanel(`${settlement.name}`, html);
+    }
+
+    /**
+     * Show kingdom details modal
+     */
+    showKingdomDetails(kingdomId) {
+        const kingdom = this.game.world.getKingdom(kingdomId);
+        if (!kingdom) {
+            this.showNotification('Error', 'Kingdom not found', 'error');
+            return;
+        }
+
+        const lord = kingdom.lord;
+
+        // Count settlements
+        const settlements = this.game.world.getAllSettlements().filter(s => s.kingdom === kingdom.id);
+        const capitals = settlements.filter(s => s.type === 'capital');
+        const towns = settlements.filter(s => s.type === 'town');
+        const villages = settlements.filter(s => s.type === 'village');
+
+        // Calculate total population
+        const totalPopulation = settlements.reduce((sum, s) => sum + s.population, 0);
+
+        let html = `
+            <div style="max-width: 700px;">
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="font-size: 64px; margin-bottom: 8px;">👑</div>
+                    <h2 style="margin: 0; color: ${kingdom.color}; font-family: var(--font-display);">${kingdom.name}</h2>
+                    <div style="color: var(--text-secondary); font-size: 14px; margin-top: 4px;">${kingdom.culture} Culture</div>
+                </div>
+
+                <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                    <div class="info-row">
+                        <span class="info-label">Ruler</span>
+                        <span class="info-value" style="color: var(--gold);">${kingdom.ruler}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Status</span>
+                        <span class="info-value" style="color: ${kingdom.isAlive ? '#2ecc71' : '#e74c3c'};">${kingdom.isAlive ? 'Active' : 'Fallen'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Founded</span>
+                        <span class="info-value">Year ${kingdom.foundedDay || 1}</span>
+                    </div>
+                </div>
+        `;
+
+        // Lord Details
+        if (lord) {
+            const traitNames = lord.traits.map(t => t.name).join(', ');
+            html += `
+                <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                    <div class="info-section-title">Lord of the Realm</div>
+                    <div class="info-row">
+                        <span class="info-label">Name</span>
+                        <span class="info-value">${lord.name}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Age</span>
+                        <span class="info-value">${lord.age} years</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Traits</span>
+                        <span class="info-value">${traitNames || 'None'}</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px;">
+                        <div class="info-row" style="margin: 0;">
+                            <span class="info-label">⚔️ Martial</span>
+                            <span class="info-value">${lord.martial}/10</span>
+                        </div>
+                        <div class="info-row" style="margin: 0;">
+                            <span class="info-label">🤝 Diplomacy</span>
+                            <span class="info-value">${lord.diplomacy}/10</span>
+                        </div>
+                        <div class="info-row" style="margin: 0;">
+                            <span class="info-label">📊 Stewardship</span>
+                            <span class="info-value">${lord.stewardship}/10</span>
+                        </div>
+                        <div class="info-row" style="margin: 0;">
+                            <span class="info-label">🎯 Ambition</span>
+                            <span class="info-value">${lord.ambition}/10</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Territory and Population
+        html += `
+            <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                <div class="info-section-title">Territory</div>
+                <div class="info-row">
+                    <span class="info-label">Total Population</span>
+                    <span class="info-value">${Utils.formatNumber(totalPopulation)}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Settlements</span>
+                    <span class="info-value">${settlements.length} (${capitals.length} capital, ${towns.length} towns, ${villages.length} villages)</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Territory Tiles</span>
+                    <span class="info-value">${kingdom.territory ? kingdom.territory.length : 0}</span>
+                </div>
+            </div>
+        `;
+
+        // Diplomacy
+        html += `
+            <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                <div class="info-section-title">Diplomacy</div>
+        `;
+
+        const otherKingdoms = this.game.world.kingdoms.filter(k => k.id !== kingdom.id && k.isAlive);
+        if (otherKingdoms.length > 0) {
+            for (const other of otherKingdoms) {
+                const relation = kingdom.relations[other.id] || 0;
+                const atWar = kingdom.wars && kingdom.wars.includes(other.id);
+                let relationText = '';
+                let relationColor = '';
+
+                if (atWar) {
+                    relationText = '⚔️ At War';
+                    relationColor = '#e74c3c';
+                } else if (relation > 50) {
+                    relationText = '🤝 Friendly';
+                    relationColor = '#2ecc71';
+                } else if (relation > 0) {
+                    relationText = '😐 Neutral';
+                    relationColor = '#95a5a6';
+                } else if (relation > -50) {
+                    relationText = '😠 Unfriendly';
+                    relationColor = '#e67e22';
+                } else {
+                    relationText = '💢 Hostile';
+                    relationColor = '#e74c3c';
+                }
+
+                html += `
+                    <div class="info-row">
+                        <span class="info-label">
+                            <span class="kingdom-dot" style="color:${other.color}; background:${other.color}"></span>
+                            ${other.name}
+                        </span>
+                        <span class="info-value" style="color: ${relationColor};">${relationText} (${relation})</span>
+                    </div>
+                `;
+            }
+        } else {
+            html += `<div style="color: var(--text-secondary); font-style: italic;">No other kingdoms</div>`;
+        }
+
+        html += `</div>`;
+
+        // Description
+        html += `
+            <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px;">
+                <div class="info-section-title">About</div>
+                <p style="color: var(--text-secondary); line-height: 1.6; margin: 0;">${kingdom.description}</p>
+            </div>
+        `;
+
+        html += '</div>';
+
+        this.showCustomPanel(kingdom.name, html);
     }
 }

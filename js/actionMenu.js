@@ -397,8 +397,35 @@ const ActionMenu = {
             </div>
         `;
 
-        html += `</div>`;
+        // Fishing Wharf Logic
+        const isFishingWharf = prop.type === 'fishing_wharf';
+        if (isFishingWharf) {
+            html += `
+            <div style="margin-bottom:24px; background:linear-gradient(135deg, rgba(10,30,50,0.8) 0%, rgba(30,50,80,0.8) 100%); padding:20px; border-radius:8px; border:1px solid rgba(135,206,250,0.3); box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+                <h4 style="margin:0 0 12px 0; color:#aaddff; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">Fishing Operations</h4>
+                
+                <div style="font-size:12px; color:#aaddff; margin-bottom:12px;">Active Boats: ${ActionMenu.countFishingBoats(game, tile)} / ${prop.level}</div>
+                
+                <div style="margin-bottom:8px; font-weight:bold; font-size:12px; color:var(--text-secondary);">Select Fishing Grounds:</div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; max-height:150px; overflow-y:auto; margin-bottom:12px;">
+                    ${ActionMenu.getVariablesFishingGrounds(game, tile)}
+                </div>
+            </div>
+            `;
 
+            // Add helpers
+            window.sendFishingBoat = (targetQ, targetR) => {
+                const result = PlayerEconomy.sendFishingBoat(game.player, tile, targetQ, targetR, game.world);
+                if (result.success) {
+                    game.ui.showNotification('Boat Dispatched', 'A fishing boat is heading out.', 'success');
+                    ActionMenu.showManagePropertyMenu(game, tile); // Refresh
+                } else {
+                    game.ui.showNotification('Cannot Dispatch', result.reason, 'error');
+                }
+            };
+        }
+
+        html += `</div>`;
         game.ui.showCustomPanel('Manage Property', html);
 
         // Bind window functions
@@ -969,6 +996,99 @@ const ActionMenu = {
                 game.ui.showNotification('Cannot Perform', result.reason, 'error');
             }
         };
+    },
+
+    /**
+     * Count active fishing boats for a wharf
+     */
+    countFishingBoats(game, tile) {
+        return game.world.units.filter(u =>
+            u.type === 'fishing_boat' &&
+            u.sourceQ === tile.q &&
+            u.sourceR === tile.r &&
+            !u.destroyed
+        ).length;
+    },
+
+    /**
+     * Get HTML for fishing grounds list
+     */
+    getVariablesFishingGrounds(game, tile) {
+        // Search radius 10 for water tiles
+        const potentialspots = [];
+        const radius = 10;
+
+        // Scan area
+        for (let q = tile.q - radius; q <= tile.q + radius; q++) {
+            for (let r = tile.r - radius; r <= tile.r + radius; r++) {
+                // Check dist
+                if (Hex.distance(tile.q, tile.r, q, r) > radius) continue;
+
+                // Wrap coords
+                const wq = Hex.wrapQ(q, game.world.width);
+                const t = game.world.getTile(wq, r);
+
+                if (t && ['ocean', 'deep_ocean', 'coast', 'lake', 'sea'].includes(t.terrain.id)) {
+                    // Found water
+                    // Check if it has 'fishing_grounds' resource
+                    // OR just assume all water can be fished? 
+                    // User asked to add "Fishing Grounds" resource earlier.
+                    // Let's check for t.resource.id === 'fishing_grounds'
+                    // If user hasn't added resource gen logic yet, this might return nothing.
+                    // Let's fallback to "Any Coastal Water" if no resources found.
+
+                    let fullness = "Normal";
+                    let type = "Water";
+                    let isHotSpot = false;
+
+                    if (t.resource && (t.resource.id === 'fishing_grounds' || t.resource.id === 'fish')) {
+                        fullness = "Abundant";
+                        type = "Fishing Ground";
+                        isHotSpot = true;
+                    } else if (t.terrain.id === 'deep_ocean') {
+                        // Skip deep ocean for basic fishing? Or harder?
+                        continue;
+                    }
+
+                    // Calculate distance
+                    const dist = Hex.wrappingDistance(tile.q, tile.r, wq, r, game.world.width);
+
+                    potentialspots.push({
+                        q: wq, r: r,
+                        dist,
+                        type,
+                        fullness,
+                        isHotSpot
+                    });
+                }
+            }
+        }
+
+        // Sort: Hotspots first, then distance
+        potentialspots.sort((a, b) => {
+            if (a.isHotSpot && !b.isHotSpot) return -1;
+            if (!a.isHotSpot && b.isHotSpot) return 1;
+            return a.dist - b.dist;
+        });
+
+        // Limit to top 10
+        const topSpots = potentialspots.slice(0, 10);
+
+        if (topSpots.length === 0) return '<div style="grid-column: span 2; color:var(--text-secondary); font-style:italic;">No fishing waters nearby.</div>';
+
+        return topSpots.map(s => `
+            <button onclick="window.sendFishingBoat(${s.q}, ${s.r})" style="
+                display:flex; justify-content:space-between; align-items:center;
+                padding:8px; background:rgba(0,0,0,0.3); border:1px solid ${s.isHotSpot ? '#ffd700' : 'rgba(255,255,255,0.1)'};
+                border-radius:4px; cursor:pointer; text-align:left; color:white;
+            ">
+                <div>
+                    <div style="font-weight:bold; font-size:11px; color:${s.isHotSpot ? '#ffd700' : 'white'};">${s.type}</div>
+                    <div style="font-size:10px; color:var(--text-secondary);">${s.dist} hexes</div>
+                </div>
+                <div style="font-size:16px;">🎣</div>
+            </button>
+        `).join('');
     },
 
     /**

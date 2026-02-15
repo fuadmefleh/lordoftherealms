@@ -73,6 +73,17 @@ const PlayerEconomy = {
             requiredSettlement: true,
             description: 'Attracts traveling merchants. Upkeep: 5g/day'
         },
+        FISHING_WHARF: {
+            id: 'fishing_wharf',
+            name: 'Fishing Wharf',
+            icon: '⚓',
+            cost: 800,
+            produces: 'fish',
+            productionRate: 0, // Depends on boats
+            upkeep: 10,
+            requiredTerrain: ['coast', 'beach'],
+            description: 'Send boats to collect fish from nearby waters. Upkeep: 10g/day'
+        },
     },
 
     /**
@@ -82,6 +93,8 @@ const PlayerEconomy = {
         GRAIN: { id: 'grain', name: 'Grain', icon: '🌾', basePrice: 5 },
         FLOUR: { id: 'flour', name: 'Flour', icon: '🥡', basePrice: 10 },
         BREAD: { id: 'bread', name: 'Bread', icon: '🍞', basePrice: 15 },
+        FISH: { id: 'fish', name: 'Raw Fish', icon: '🐟', basePrice: 8 },
+        PRESERVED_FISH: { id: 'preserved_fish', name: 'Smoked Fish', icon: '🍥', basePrice: 20 },
         WOOD: { id: 'wood', name: 'Wood', icon: '🌲', basePrice: 8 },
         FIREWOOD: { id: 'firewood', name: 'Firewood', icon: '🔥', basePrice: 12 },
         WOOL: { id: 'wool', name: 'Wool', icon: '🐑', basePrice: 10 },
@@ -105,6 +118,7 @@ const PlayerEconomy = {
         FIREWOOD: { id: 'firewood', name: 'Split Firewood', input: 'wood', inputQty: 2, output: 'firewood', outputQty: 5, description: 'Prepare fuel for heating.' },
         FLOUR: { id: 'flour', name: 'Mill Flour', input: 'grain', inputQty: 2, output: 'flour', outputQty: 2, description: 'Grind grain into flour.' },
         BREAD: { id: 'bread', name: 'Bake Bread', input: 'flour', inputQty: 1, output: 'bread', outputQty: 4, description: 'Bake nutritious bread.' },
+        PRESERVED_FISH: { id: 'preserved_fish', name: 'Smoke Fish', input: 'fish', inputQty: 2, output: 'preserved_fish', outputQty: 3, description: 'Preserve fish for long-term storage.' },
         TEXTILES: { id: 'textiles', name: 'Weave Textiles', input: 'wool', inputQty: 3, output: 'textiles', outputQty: 2, description: 'Weave wool into cloth.' },
         CLOTHES: { id: 'clothes', name: 'Tailor Clothes', input: 'textiles', inputQty: 1, output: 'clothes', outputQty: 2, description: 'Sew warm clothing.' },
         TOOLS: { id: 'tools', name: 'Forge Tools', input: 'iron', inputQty: 1, output: 'tools', outputQty: 2, description: 'Smith essential tools.' },
@@ -131,7 +145,32 @@ const PlayerEconomy = {
 
         // Check terrain requirements
         if (prop.requiredTerrain && !prop.requiredTerrain.includes(tile.terrain.id)) {
-            return { canBuild: false, reason: `Requires ${prop.requiredTerrain.join(' or ')} terrain` };
+            // Special case for Fishing Wharf: can be built on coastal land adjacent to water
+            if (propertyType.toUpperCase() === 'FISHING_WHARF') {
+                // Nothing special here actually, we handle it by setting requiredTerrain to coast/beach.
+                // But typically wharfs are built on land NEXT to water, or ON water?
+                // Let's assume on land next to water for simplicity, or on coastal tiles.
+                // If the user wants to build it on a 'plain' next to the ocean, that might fail if we restrict to 'coast'.
+                // The 'coast' terrain type in this game seems to be shallow water (impassable).
+                // 'beach' is passable.
+                // Let's allow building on any passable land IF it has an adjacent water tile.
+
+                const nearbyWater = Hex.neighbors(tile.q, tile.r).some(n => {
+                    const nt = world.getTile(n.q, n.r);
+                    return nt && ['ocean', 'deep_ocean', 'coast', 'lake', 'sea'].includes(nt.terrain.id);
+                });
+
+                if (!nearbyWater && !prop.requiredTerrain.includes(tile.terrain.id)) {
+                    return { canBuild: false, reason: `Requires coastal location` };
+                }
+
+                if (!tile.terrain.passable) {
+                    return { canBuild: false, reason: `Must be built on land` };
+                }
+
+            } else {
+                return { canBuild: false, reason: `Requires ${prop.requiredTerrain.join(' or ')} terrain` };
+            }
         }
 
         // Check resource requirements
@@ -142,8 +181,25 @@ const PlayerEconomy = {
         }
 
         // Check settlement requirements
-        if (prop.requiredSettlement && !tile.settlement) {
-            return { canBuild: false, reason: 'Requires a settlement' };
+        if (prop.requiredSettlement) {
+            let hasSettlement = tile.settlement != null;
+
+            // Allow Workshops to be built adjacent to settlements
+            if (!hasSettlement && propertyType.toUpperCase() === 'WORKSHOP') {
+                // Check neighbors
+                const neighbors = Hex.neighbors(tile.q, tile.r);
+                for (const n of neighbors) {
+                    const nTile = world.getTile(n.q, n.r);
+                    if (nTile && nTile.settlement) {
+                        hasSettlement = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!hasSettlement) {
+                return { canBuild: false, reason: 'Requires a settlement (or adjacent for Workshops)' };
+            }
         }
 
         return { canBuild: true, property: prop };
@@ -642,6 +698,41 @@ const PlayerEconomy = {
         tile.playerProperty.inputStorage = (tile.playerProperty.inputStorage || 0) + amount;
 
         return { success: true };
+    },
+
+    /**
+     * Send a fishing boat to a resource
+     */
+    sendFishingBoat(player, tile, targetQ, targetR, world) {
+        if (!tile.playerProperty || tile.playerProperty.type !== 'fishing_wharf') return { success: false, reason: 'Not a fishing wharf' };
+
+        const cost = 50;
+        if (player.gold < cost) return { success: false, reason: `Need ${cost} gold` };
+
+        // Limit boats per wharf
+        const activeBoats = world.units.filter(u =>
+            u.type === 'fishing_boat' &&
+            u.sourceQ === tile.q &&
+            u.sourceR === tile.r &&
+            !u.destroyed
+        );
+
+        if (activeBoats.length >= tile.playerProperty.level) {
+            return { success: false, reason: `Max boats dispatched (Upgrade for more)` };
+        }
+
+        player.gold -= cost;
+
+        // Create Unit
+        const boat = new WorldUnit('fishing_boat', tile.q, tile.r, targetQ, targetR);
+        // Explicitly set source on the boat instance
+        boat.sourceQ = tile.q;
+        boat.sourceR = tile.r;
+        boat.homeWharf = { q: tile.q, r: tile.r }; // Reference to home
+
+        world.units.push(boat);
+
+        return { success: true, boat };
     },
 };
 

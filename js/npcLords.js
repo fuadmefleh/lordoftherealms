@@ -159,7 +159,7 @@ const NPCLords = {
             case 'wealth':
                 // Focus on trade
                 if (Math.random() < 0.6) {
-                    Economy.establishRoutes(kingdom, world);
+                    TradeRoutes.establishRoutes(kingdom, world);
                 }
                 break;
 

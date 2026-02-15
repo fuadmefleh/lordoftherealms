@@ -10,7 +10,9 @@ class World {
         this.kingdoms = [];
         this.day = 1;
         this.season = 'Spring';
-        this.year = 1;
+        this.baseYear = 853;
+        this.year = this.baseYear;
+        this.history = [];
         this.events = [];
         this.units = [];
         this.weather = new WeatherSystem(this);
@@ -48,6 +50,9 @@ class World {
         console.log('Placing points of interest...');
         // Place some villages as points of interest
         this.placePointsOfInterest();
+
+        console.log('Generating world history...');
+        this.history = WorldEvents.generateHistory(this);
 
         console.log(`World generated: ${this.width}x${this.height}, ${this.kingdoms.length} kingdoms`);
     }
@@ -94,6 +99,7 @@ class World {
                     population: Utils.randInt(50, 500),
                     level: 0,
                     kingdom: null,
+                    founded: Utils.randInt(500, 800),
                 };
 
                 tile.settlement = newSettlement;
@@ -155,6 +161,7 @@ class World {
                     icon: poi.icon,
                     name: poi.name,
                     explored: false,
+                    founded: Utils.randInt(100, 600),
                 };
                 existingPOIs.push({ q, r });
                 break;
@@ -188,7 +195,7 @@ class World {
         const seasonNum = Math.floor(((this.day - 1) % 120) / 30);
         const seasons = ['Spring', 'Summer', 'Autumn', 'Winter'];
         this.season = seasons[seasonNum];
-        this.year = Math.floor((this.day - 1) / 120) + 1;
+        this.year = this.baseYear + Math.floor((this.day - 1) / 120);
 
         // Clear previous events
         this.events = [];

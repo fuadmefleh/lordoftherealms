@@ -21,6 +21,7 @@ class Game {
         this.mouseDown = false;
         this.mouseDownTime = 0;
         this.mouseDownPos = { x: 0, y: 0 };
+        this.isProcessingTurn = false;
 
         this.setupInputHandlers();
         this.initTitleScreen();
@@ -472,106 +473,121 @@ class Game {
      */
     endDay() {
         if (!this.world || !this.player) return;
+        if (this.isProcessingTurn) return;
 
-        // Process player's daily activities
-        const playerResults = PlayerActions.endDay(this.player, this.world);
+        this.isProcessingTurn = true;
+        document.body.style.cursor = 'wait';
 
-        // Process world turn
-        const result = this.world.advanceDay();
-        this.player.endDay();
-        this.player.updateVisibility(this.world, 3);
+        // Use setTimeout to allow UI to update (show loading state) before heavy processing
+        setTimeout(() => {
+            try {
+                // Process player's daily activities
+                const playerResults = PlayerActions.endDay(this.player, this.world);
 
-        // Show reachable hexes for the new day
-        this.renderer.reachableHexes = this.player.getReachableHexes(this.world);
+                // Process world turn
+                const result = this.world.advanceDay();
+                this.player.endDay();
+                this.player.updateVisibility(this.world, 3);
 
-        this.ui.updateStats(this.player, this.world);
-        this.minimap.invalidate();
+                // Show reachable hexes for the new day
+                this.renderer.reachableHexes = this.player.getReachableHexes(this.world);
 
-        // Show player production notifications
-        if (playerResults.production && Object.keys(playerResults.production).length > 0) {
-            let msg = 'Produced: ';
-            const parts = [];
-            for (const [good, amount] of Object.entries(playerResults.production)) {
-                if (amount > 0) {
-                    const icon = PlayerEconomy.GOODS[good.toUpperCase()] ? PlayerEconomy.GOODS[good.toUpperCase()].icon : '';
-                    const name = PlayerEconomy.GOODS[good.toUpperCase()] ? PlayerEconomy.GOODS[good.toUpperCase()].name : good;
-                    parts.push(`${icon} ${amount} ${name}`);
+                this.ui.updateStats(this.player, this.world);
+                this.minimap.invalidate();
+
+                // Show player production notifications
+                if (playerResults.production && Object.keys(playerResults.production).length > 0) {
+                    let msg = 'Produced: ';
+                    const parts = [];
+                    for (const [good, amount] of Object.entries(playerResults.production)) {
+                        if (amount > 0) {
+                            const icon = PlayerEconomy.GOODS[good.toUpperCase()] ? PlayerEconomy.GOODS[good.toUpperCase()].icon : '';
+                            const name = PlayerEconomy.GOODS[good.toUpperCase()] ? PlayerEconomy.GOODS[good.toUpperCase()].name : good;
+                            parts.push(`${icon} ${amount} ${name}`);
+                        }
+                    }
+                    if (parts.length > 0) {
+                        this.ui.showNotification('Production', msg + parts.join(', '), 'success');
+                        this.ui.showNotification('Storage', 'Visit properties to collect produced goods', 'info');
+                    }
                 }
+
+                if (playerResults.faithIncome > 0) {
+                    this.ui.showNotification('Faith Income', `+${playerResults.faithIncome} gold from followers`, 'success');
+                }
+
+                // Chance for traveling merchants
+                PlayerEconomy.spawnTravelingMerchant(this.player, this.world);
+
+                if (playerResults.upkeepCost > 0) {
+                    this.ui.showNotification('Army Upkeep', `-${playerResults.upkeepCost} gold`, 'default');
+                }
+
+                if (playerResults.unitsLost > 0) {
+                    this.ui.showNotification('Desertion!', `Lost ${playerResults.unitsLost} units (couldn't pay upkeep)`, 'error');
+                }
+
+                // Caravan completions
+                for (const caravan of playerResults.caravansCompleted) {
+                    this.ui.showNotification('Caravan Arrived!', `${caravan.from} → ${caravan.to}: +${caravan.finalProfit} gold`, 'success');
+                }
+
+                // Contract updates
+                if (playerResults.contractUpdate && playerResults.contractUpdate.completed) {
+                    const c = playerResults.contractUpdate;
+                    if (c.casualties > 0) {
+                        this.ui.showNotification('Contract Complete', `${c.contract.name} finished. Lost ${c.casualties} units. +${c.payment} gold`, 'default');
+                    } else {
+                        this.ui.showNotification('Contract Complete!', `${c.contract.name} finished successfully! +${c.payment} gold`, 'success');
+                    }
+                }
+
+                // Faith spread
+                if (playerResults.followersGained > 0) {
+                    this.ui.showNotification('Faith Spreads', `+${playerResults.followersGained} followers`, 'info');
+                }
+
+                // Blessings expired
+                for (const blessing of playerResults.blessingsExpired) {
+                    this.ui.showNotification('Blessing Faded', `${blessing} blessing has expired`, 'default');
+                }
+
+                // Show day events
+                if (result.events.length > 0) {
+                    for (const event of result.events) {
+                        this.ui.showNotification('World Event', event.text, 'info');
+                    }
+                }
+
+                // Check for completed quests
+                const completedQuests = Quests.updateProgress(this.player, this.world);
+                for (const quest of completedQuests) {
+                    this.ui.showNotification('Quest Complete!', `${quest.title} - Rewards: ${JSON.stringify(quest.rewards)}`, 'success');
+                }
+
+                // Check for new achievements
+                const newAchievements = Achievements.checkAchievements(this.player, this.world);
+                for (const achievement of newAchievements) {
+                    this.ui.showNotification('Achievement Unlocked!', `${achievement.icon} ${achievement.name}: ${achievement.description}`, 'success');
+                }
+
+                // Auto-save every 5 days
+                if (this.world.day % SaveLoad.AUTO_SAVE_INTERVAL === 0) {
+                    const result = SaveLoad.saveGame(this);
+                    if (result.success) {
+                        this.ui.showNotification('Auto-Saved', 'Game progress saved', 'default');
+                    }
+                }
+
+                this.ui.showNotification('New Day', `Day ${((this.world.day - 1) % 30) + 1} of ${this.world.season}, Year ${this.world.year}`, 'default');
+            } catch (e) {
+                console.error("Error ending day:", e);
+                this.ui.showNotification('Error', 'Failed to end day. Check console.', 'error');
+            } finally {
+                this.isProcessingTurn = false;
+                document.body.style.cursor = 'default';
             }
-            if (parts.length > 0) {
-                this.ui.showNotification('Production', msg + parts.join(', '), 'success');
-                this.ui.showNotification('Storage', 'Visit properties to collect produced goods', 'info');
-            }
-        }
-
-        if (playerResults.faithIncome > 0) {
-            this.ui.showNotification('Faith Income', `+${playerResults.faithIncome} gold from followers`, 'success');
-        }
-
-        // Chance for traveling merchants
-        PlayerEconomy.spawnTravelingMerchant(this.player, this.world);
-
-        if (playerResults.upkeepCost > 0) {
-            this.ui.showNotification('Army Upkeep', `-${playerResults.upkeepCost} gold`, 'default');
-        }
-
-        if (playerResults.unitsLost > 0) {
-            this.ui.showNotification('Desertion!', `Lost ${playerResults.unitsLost} units (couldn't pay upkeep)`, 'error');
-        }
-
-        // Caravan completions
-        for (const caravan of playerResults.caravansCompleted) {
-            this.ui.showNotification('Caravan Arrived!', `${caravan.from} → ${caravan.to}: +${caravan.finalProfit} gold`, 'success');
-        }
-
-        // Contract updates
-        if (playerResults.contractUpdate && playerResults.contractUpdate.completed) {
-            const c = playerResults.contractUpdate;
-            if (c.casualties > 0) {
-                this.ui.showNotification('Contract Complete', `${c.contract.name} finished. Lost ${c.casualties} units. +${c.payment} gold`, 'default');
-            } else {
-                this.ui.showNotification('Contract Complete!', `${c.contract.name} finished successfully! +${c.payment} gold`, 'success');
-            }
-        }
-
-        // Faith spread
-        if (playerResults.followersGained > 0) {
-            this.ui.showNotification('Faith Spreads', `+${playerResults.followersGained} followers`, 'info');
-        }
-
-        // Blessings expired
-        for (const blessing of playerResults.blessingsExpired) {
-            this.ui.showNotification('Blessing Faded', `${blessing} blessing has expired`, 'default');
-        }
-
-        // Show day events
-        if (result.events.length > 0) {
-            for (const event of result.events) {
-                this.ui.showNotification('World Event', event.text, 'info');
-            }
-        }
-
-        // Check for completed quests
-        const completedQuests = Quests.updateProgress(this.player, this.world);
-        for (const quest of completedQuests) {
-            this.ui.showNotification('Quest Complete!', `${quest.title} - Rewards: ${JSON.stringify(quest.rewards)}`, 'success');
-        }
-
-        // Check for new achievements
-        const newAchievements = Achievements.checkAchievements(this.player, this.world);
-        for (const achievement of newAchievements) {
-            this.ui.showNotification('Achievement Unlocked!', `${achievement.icon} ${achievement.name}: ${achievement.description}`, 'success');
-        }
-
-        // Auto-save every 5 days
-        if (this.world.day % SaveLoad.AUTO_SAVE_INTERVAL === 0) {
-            const result = SaveLoad.saveGame(this);
-            if (result.success) {
-                this.ui.showNotification('Auto-Saved', 'Game progress saved', 'default');
-            }
-        }
-
-        this.ui.showNotification('New Day', `Day ${((this.world.day - 1) % 30) + 1} of ${this.world.season}, Year ${this.world.year}`, 'default');
+        }, 50);
     }
 
     /**

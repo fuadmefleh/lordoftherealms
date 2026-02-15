@@ -4,6 +4,69 @@
 
 const WorldEvents = {
     /**
+     * Generate initial world history
+     */
+    generateHistory(world) {
+        const history = [];
+        const startYear = 1;
+        const currentYear = world.year || 853;
+
+        // Key historical milestones
+        history.push({ year: 1, text: "The Great Awakening: The first civilizations emerge from the chaos." });
+
+        // Generate random history between start and now
+        for (let y = startYear + 20; y < currentYear; y += Utils.randInt(10, 50)) {
+            const event = this.generateHistoricalEvent(world, y);
+            if (event) {
+                history.push(event);
+            }
+        }
+
+        return history;
+    },
+
+    /**
+     * Generate a single historical event
+     */
+    generateHistoricalEvent(world, year) {
+        const types = ['war', 'plague', 'founding', 'disaster', 'discovery', 'golden_age'];
+        const type = Utils.randPick(types);
+
+        const kingdom = Utils.randPick(world.kingdoms);
+        if (!kingdom) return null;
+
+        let text = "";
+
+        switch (type) {
+            case 'war':
+                const enemy = Utils.randPick(world.kingdoms.filter(k => k.id !== kingdom.id));
+                if (enemy) {
+                    text = `The ${Utils.randPick(['Great', 'Bloody', 'Long', 'Bitter'])} War between ${kingdom.name} and ${enemy.name} began.`;
+                } else {
+                    text = `${kingdom.name} faced a massive internal rebellion.`;
+                }
+                break;
+            case 'plague':
+                text = `The ${Utils.randPick(['Red', 'Black', 'Blue', 'Shadow'])} Plague ravaged the lands of ${kingdom.name}.`;
+                break;
+            case 'founding':
+                text = `${kingdom.name} established a new major settlement during a period of expansion.`;
+                break;
+            case 'disaster':
+                text = `A massive ${Utils.randPick(['earthquake', 'flood', 'volcanic eruption', 'drought'])} struck ${kingdom.name}.`;
+                break;
+            case 'discovery':
+                text = `Scholars in ${kingdom.name} discovered ${Utils.randPick(['ancient texts', 'new agricultural techniques', 'a new star', 'magical artifacts'])}.`;
+                break;
+            case 'golden_age':
+                text = `${kingdom.name} entered a Golden Age of prosperity and art.`;
+                break;
+        }
+
+        return { year, text };
+    },
+
+    /**
      * Event categories
      */
     CATEGORIES: {
@@ -84,17 +147,19 @@ const WorldEvents = {
 
             case 'rebellion':
                 // Small rebellion reduces population
-                const settlement = Utils.randPick(kingdom.settlements);
-                if (settlement) {
-                    const tile = world.getTile(settlement.q, settlement.r);
-                    if (tile && tile.settlement) {
-                        tile.settlement.population = Math.floor(tile.settlement.population * 0.9);
-                        return {
-                            category: WorldEvents.CATEGORIES.POLITICAL,
-                            text: `${kingdom.name}: Rebellion in ${settlement.name}! Population reduced.`,
-                            kingdom: kingdom.id,
-                            impact: 'negative',
-                        };
+                if (kingdom.settlements && kingdom.settlements.length > 0) {
+                    const settlement = Utils.randPick(kingdom.settlements);
+                    if (settlement) {
+                        const tile = world.getTile(settlement.q, settlement.r);
+                        if (tile && tile.settlement) {
+                            tile.settlement.population = Math.floor(tile.settlement.population * 0.9);
+                            return {
+                                category: WorldEvents.CATEGORIES.POLITICAL,
+                                text: `${kingdom.name}: Rebellion in ${settlement.name}! Population reduced.`,
+                                kingdom: kingdom.id,
+                                impact: 'negative',
+                            };
+                        }
                     }
                 }
                 break;
@@ -193,15 +258,17 @@ const WorldEvents = {
                 };
 
             case 'discovery':
-                const settlement = Utils.randPick(kingdom.settlements);
-                if (settlement) {
-                    kingdom.treasury += 800;
-                    return {
-                        category: WorldEvents.CATEGORIES.ECONOMIC,
-                        text: `${kingdom.name}: Rich mineral deposit discovered near ${settlement.name}!`,
-                        kingdom: kingdom.id,
-                        impact: 'positive',
-                    };
+                if (kingdom.settlements && kingdom.settlements.length > 0) {
+                    const settlement = Utils.randPick(kingdom.settlements);
+                    if (settlement) {
+                        kingdom.treasury += 800;
+                        return {
+                            category: WorldEvents.CATEGORIES.ECONOMIC,
+                            text: `${kingdom.name}: Rich mineral deposit discovered near ${settlement.name}!`,
+                            kingdom: kingdom.id,
+                            impact: 'positive',
+                        };
+                    }
                 }
                 break;
         }
@@ -288,18 +355,20 @@ const WorldEvents = {
 
         switch (type) {
             case 'plague':
-                const settlement = Utils.randPick(kingdom.settlements);
-                if (settlement) {
-                    const tile = world.getTile(settlement.q, settlement.r);
-                    if (tile && tile.settlement) {
-                        tile.settlement.population = Math.floor(tile.settlement.population * 0.7);
-                        kingdom.population = Math.floor(kingdom.population * 0.9);
-                        return {
-                            category: WorldEvents.CATEGORIES.NATURAL,
-                            text: `${kingdom.name}: Plague strikes ${settlement.name}! Population devastated.`,
-                            kingdom: kingdom.id,
-                            impact: 'negative',
-                        };
+                if (kingdom.settlements && kingdom.settlements.length > 0) {
+                    const settlement = Utils.randPick(kingdom.settlements);
+                    if (settlement) {
+                        const tile = world.getTile(settlement.q, settlement.r);
+                        if (tile && tile.settlement) {
+                            tile.settlement.population = Math.floor(tile.settlement.population * 0.7);
+                            kingdom.population = Math.floor(kingdom.population * 0.9);
+                            return {
+                                category: WorldEvents.CATEGORIES.NATURAL,
+                                text: `${kingdom.name}: Plague strikes ${settlement.name}! Population devastated.`,
+                                kingdom: kingdom.id,
+                                impact: 'negative',
+                            };
+                        }
                     }
                 }
                 break;
@@ -315,15 +384,17 @@ const WorldEvents = {
                 };
 
             case 'flood':
-                const floodSettlement = Utils.randPick(kingdom.settlements);
-                if (floodSettlement) {
-                    kingdom.treasury = Math.floor(kingdom.treasury * 0.85);
-                    return {
-                        category: WorldEvents.CATEGORIES.NATURAL,
-                        text: `${kingdom.name}: Devastating floods near ${floodSettlement.name}. Infrastructure damaged.`,
-                        kingdom: kingdom.id,
-                        impact: 'negative',
-                    };
+                if (kingdom.settlements && kingdom.settlements.length > 0) {
+                    const floodSettlement = Utils.randPick(kingdom.settlements);
+                    if (floodSettlement) {
+                        kingdom.treasury = Math.floor(kingdom.treasury * 0.85);
+                        return {
+                            category: WorldEvents.CATEGORIES.NATURAL,
+                            text: `${kingdom.name}: Devastating floods near ${floodSettlement.name}. Infrastructure damaged.`,
+                            kingdom: kingdom.id,
+                            impact: 'negative',
+                        };
+                    }
                 }
                 break;
 

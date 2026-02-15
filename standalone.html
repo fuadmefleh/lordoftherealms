@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Standalone Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #1a1a2e;
+            color: #00ff00;
+        }
+
+        h1 {
+            color: #f5c542;
+        }
+
+        .box {
+            background: #16213e;
+            padding: 20px;
+            margin: 10px 0;
+            border: 2px solid #0f3460;
+            border-radius: 8px;
+        }
+
+        button {
+            background: #f5c542;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background: #ffd700;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🎮 Lord of the Realms - Standalone Test</h1>
+
+    <div class="box">
+        <h2>✅ If you can see this, your browser works!</h2>
+        <p>This is a completely standalone HTML file with no dependencies.</p>
+    </div>
+
+    <div class="box">
+        <h2>Test JavaScript</h2>
+        <button onclick="testJS()">Click Me to Test JavaScript</button>
+        <p id="result"></p>
+    </div>
+
+    <div class="box">
+        <h2>Instructions:</h2>
+        <ol>
+            <li>If you can see this page, your browser is working</li>
+            <li>Click the button above - if it shows a message, JavaScript works</li>
+            <li>Open Developer Tools (F12) and check the Console tab</li>
+            <li>Tell me what you see in the console</li>
+        </ol>
+    </div>
+
+    <script>
+        console.log('✅ JavaScript is working!');
+        console.log('Browser:', navigator.userAgent);
+
+        function testJS() {
+            document.getElementById('result').innerHTML = '✅ <strong>SUCCESS!</strong> JavaScript is working perfectly!';
+            console.log('Button clicked - JavaScript is functional');
+        }
+
+        // Auto-test on load
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('✅ Page loaded successfully');
+            console.log('✅ DOM is ready');
+        });
+    </script>
+</body>
+
+</html>

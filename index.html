@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lord of the Realms</title>
+    <meta name="description"
+        content="Rise from nobody to ruler in a dynamic hex-grid world of kingdoms, trade, warfare, and faith.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&family=MedievalSharp&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <!-- Main Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Top Bar -->
+    <div id="topBar">
+        <div id="topBarLeft">
+            <div class="stat-item" id="goldStat">
+                <span class="stat-icon">💰</span>
+                <span class="stat-label">Gold</span>
+                <span class="stat-value" id="goldValue">100</span>
+            </div>
+            <div class="stat-item" id="karmaStat">
+                <span class="stat-icon">☯</span>
+                <span class="stat-label">Karma</span>
+                <span class="stat-value" id="karmaValue">0</span>
+            </div>
+            <div class="stat-item" id="reputationStat">
+                <span class="stat-icon">⭐</span>
+                <span class="stat-label">Renown</span>
+                <span class="stat-value" id="renownValue">0</span>
+            </div>
+            <div class="stat-item" id="movementStat">
+                <span class="stat-icon">🏃</span>
+                <span class="stat-label">Movement</span>
+                <span class="stat-value" id="movementValue">10/10</span>
+            </div>
+        </div>
+        <div id="topBarCenter">
+            <span id="gameTitle">Lord of the Realms</span>
+            <span id="turnDisplay">Day 1 — Spring, Year 1</span>
+        </div>
+        <div id="topBarRight">
+            <button class="top-btn" id="btnToggleResources" title="Toggle Resource Icons">💎</button>
+            <button class="top-btn" id="btnEndTurn" title="End Day">⏭</button>
+            <button class="top-btn" id="btnCharacter" title="Character">👤</button>
+            <button class="top-btn" id="btnInventory" title="Inventory">🎒</button>
+            <button class="top-btn" id="btnQuests" title="Quests">📜</button>
+            <button class="top-btn" id="btnSettings" title="Settings">⚙️</button>
+        </div>
+    </div>
+
+    <!-- Minimap -->
+    <div id="minimapContainer">
+        <div id="minimapLabel">World Map</div>
+        <canvas id="minimapCanvas"></canvas>
+        <div id="minimapViewport"></div>
+    </div>
+
+    <!-- Hex Info Panel (shows on hover/click) -->
+    <div id="hexInfoPanel" class="side-panel hidden">
+        <div class="panel-header">
+            <span id="hexInfoTitle">Tile Info</span>
+            <button class="panel-close" id="hexInfoClose">✕</button>
+        </div>
+        <div class="panel-body" id="hexInfoBody">
+            <!-- Dynamic content -->
+        </div>
+    </div>
+
+    <!-- Kingdom Info Panel -->
+    <div id="kingdomPanel" class="side-panel hidden">
+        <div class="panel-header">
+            <span id="kingdomTitle">Kingdom</span>
+            <button class="panel-close" id="kingdomClose">✕</button>
+        </div>
+        <div class="panel-body" id="kingdomBody">
+            <!-- Dynamic content -->
+        </div>
+    </div>
+
+    <!-- Character Panel -->
+    <div id="characterPanel" class="modal-panel hidden">
+        <div class="modal-header">
+            <span>Character Sheet</span>
+            <button class="panel-close" id="characterClose">✕</button>
+        </div>
+        <div class="modal-body" id="characterBody">
+            <!-- Dynamic content -->
+        </div>
+    </div>
+
+    <!-- Notification Area -->
+    <div id="notificationArea"></div>
+
+    <!-- Tooltip -->
+    <div id="tooltip" class="hidden"></div>
+
+    <!-- Title Screen Overlay -->
+    <div id="titleScreen">
+        <div id="titleContent">
+            <h1 id="titleText">Lord of the Realms</h1>
+            <p id="titleSubtext">Rise from Nothing. Forge Your Legacy.</p>
+            <div id="titleButtons">
+                <button class="title-btn primary" id="btnNewGame">New Game</button>
+                <button class="title-btn" id="btnContinue" disabled>Continue</button>
+            </div>
+            <div id="titleVersion">v0.1.0 — Early Foundation</div>
+        </div>
+        <canvas id="titleBgCanvas"></canvas>
+    </div>
+
+    <!-- Settings Screen -->
+    <div id="settingsScreen" class="hidden">
+        <div id="settingsContent">
+            <h2 class="settings-title">New Game Initialization</h2>
+
+            <div class="settings-groups-container">
+                <!-- Character Settings -->
+                <div class="settings-group">
+                    <h3>Character Profile</h3>
+                    <div class="input-row">
+                        <label for="charName">Name:</label>
+                        <input type="text" id="charName" placeholder="Wanderer" maxlength="20">
+                    </div>
+                    <div class="input-row">
+                        <label for="charGender">Gender:</label>
+                        <select id="charGender">
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="input-row">
+                        <label for="charAge">Age:</label>
+                        <input type="number" id="charAge" value="20" min="16" max="60">
+                    </div>
+                </div>
+
+                <!-- World Generation Settings -->
+                <div class="settings-group">
+                    <h3>World Generation</h3>
+                    <div class="input-row">
+                        <label for="worldWidth">Width:</label>
+                        <input type="range" id="worldWidth" min="40" max="250" value="120">
+                        <span class="range-value" id="valWorldWidth">120</span>
+                    </div>
+                    <div class="input-row">
+                        <label for="worldHeight">Height:</label>
+                        <input type="range" id="worldHeight" min="30" max="150" value="80">
+                        <span class="range-value" id="valWorldHeight">80</span>
+                    </div>
+                    <div class="input-row">
+                        <label for="continentCount">Continents:</label>
+                        <input type="range" id="continentCount" min="1" max="6" value="3">
+                        <span class="range-value" id="valContinentCount">3</span>
+                    </div>
+                    <div class="input-row">
+                        <label for="terrainFreq">Land Density:</label>
+                        <input type="range" id="terrainFreq" min="0.5" max="3.0" step="0.1" value="1.1">
+                        <span class="range-value" id="valTerrainFreq">1.1</span>
+                    </div>
+                    <div class="input-row">
+                        <label for="riverCount">River Frequency:</label>
+                        <input type="range" id="riverCount" min="0" max="100" value="40">
+                        <span class="range-value" id="valRiverCount">40</span>
+                    </div>
+                    <div class="input-row">
+                        <label for="waterLevel">Sea Level:</label>
+                        <input type="range" id="waterLevel" min="0.2" max="0.6" step="0.01" value="0.42">
+                        <span class="range-value" id="valWaterLevel">0.42</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-actions">
+                <button class="title-btn" id="btnBackToTitle">Back</button>
+                <button class="title-btn primary" id="btnStartGame">Forge My Destiny</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/utils.js"></script>
+    <script src="js/hex.js"></script>
+    <script src="js/terrain.js"></script>
+    <script src="js/kingdom.js"></script>
+    <script src="js/economy.js"></script>
+    <script src="js/kingdomAI.js"></script>
+    <script src="js/worldEvents.js"></script>
+    <script src="js/npcLords.js"></script>
+    <script src="js/quests.js"></script>
+    <script src="js/achievements.js"></script>
+    <script src="js/saveLoad.js"></script>
+    <script src="js/weather.js"></script>
+    <script src="js/world.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/playerEconomy.js"></script>
+    <script src="js/playerMilitary.js"></script>
+    <script src="js/playerReligion.js"></script>
+    <script src="js/camera.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/playerActions.js"></script>
+    <script src="js/actionMenu.js"></script>
+    <script src="js/minimap.js"></script>
+    <script src="js/game.js"></script>
+</body>
+
+</html>

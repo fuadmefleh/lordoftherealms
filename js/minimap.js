@@ -118,17 +118,30 @@ class Minimap {
      */
     renderViewportIndicator(ctx, tileW, tileH) {
         const camera = this.game.camera;
-        const hexSize = this.game.renderer.hexSize;
+        const renderer = this.game.renderer;
+        const world = this.game.world;
+        const hexSize = renderer.hexSize;
+        const hexWidth = Math.sqrt(3) * hexSize;
+        const rowHeight = hexWidth * 0.75;
         const bounds = camera.getVisibleBounds();
 
-        // Convert world pixel bounds to hex coords approximately
-        const topLeftHex = Hex.pixelToAxial(bounds.left, bounds.top, hexSize);
-        const bottomRightHex = Hex.pixelToAxial(bounds.right, bounds.bottom, hexSize);
+        // Convert world pixel bounds to offset grid coords (q, r)
+        // Inverse of getHexPixelPos:
+        // py = r * rowHeight => r = py / rowHeight
+        // px = q * hexWidth + offsetX => q = (px - offsetX) / hexWidth
 
-        const x1 = Hex.wrapQ(topLeftHex.q, this.game.world.width) * tileW;
-        const y1 = Math.max(0, topLeftHex.r) * tileH;
-        const x2 = Hex.wrapQ(bottomRightHex.q, this.game.world.width) * tileW;
-        const y2 = Math.min(this.game.world.height, bottomRightHex.r) * tileH;
+        const r1 = bounds.top / rowHeight;
+        const r2 = bounds.bottom / rowHeight;
+
+        // We take the average offsetX for the column calculation to keep the box rectangular on the minimap
+        // or just use columns derived from left/right
+        const q1 = (bounds.left) / hexWidth;
+        const q2 = (bounds.right) / hexWidth;
+
+        const x1 = q1 * tileW;
+        const y1 = r1 * tileH;
+        const x2 = q2 * tileW;
+        const y2 = r2 * tileH;
 
         ctx.strokeStyle = 'rgba(245, 197, 66, 0.7)';
         ctx.lineWidth = 1;
@@ -147,9 +160,8 @@ class Minimap {
         const q = Math.floor((mx / this.canvas.width) * world.width);
         const r = Math.floor((my / this.canvas.height) * world.height);
 
-        // Move camera to this position
-        const hexSize = this.game.renderer.hexSize;
-        const pos = Hex.axialToPixel(q, r, hexSize);
+        // Move camera to this position using the renderer's coordinate system
+        const pos = this.game.renderer.getHexPixelPos(q, r);
         this.game.camera.follow(pos.x, pos.y);
     }
 

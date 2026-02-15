@@ -208,6 +208,17 @@ class WorldUnit {
 
         this.moveTowardsTarget(world);
 
+        // Check if arrived at target
+        if (this.targetQ !== null && this.targetR !== null &&
+            this.q === this.targetQ && this.r === this.targetR) {
+            this.arrived = true;
+
+            // If not player owned, just disappear (NPC trade specific logic elsewhere?)
+            if (!this.playerOwned) {
+                this.destroyed = true;
+            }
+        }
+
         // Check for raiders nearby
         const raider = world.units.find(u => (u.type === 'raider' || u.type === 'pirate') && Hex.wrappingDistance(this.q, this.r, u.q, u.r, world.width) < 1);
         if (raider) {

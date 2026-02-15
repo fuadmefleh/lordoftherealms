@@ -79,6 +79,14 @@ const Kingdom = {
             foundedDay: 1,
             wars: [],
             allies: [],
+            royalBank: {        // Each kingdom has its own royal bank
+                treasury: Utils.randInt(5000, 15000),
+                interestRates: {
+                    small: 0.10,
+                    medium: 0.15,
+                    large: 0.20
+                }
+            },
         };
     },
 

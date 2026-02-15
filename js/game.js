@@ -76,6 +76,20 @@ class Game {
         this.renderer.setWorld(this.world);
         this.renderer.setPlayer(this.player);
 
+        // Initialize market dynamics
+        MarketDynamics.initialize();
+
+        // Initialize character system for kingdoms that don't have it yet (older saves)
+        if (typeof Characters !== 'undefined') {
+            for (const kingdom of this.world.kingdoms) {
+                if (kingdom.isAlive && !kingdom.characterData) {
+                    const familyData = Characters.generateRoyalFamily(kingdom, this.world);
+                    kingdom.characterData = familyData;
+                    kingdom.ruler = Characters.getDisplayName(familyData.ruler, kingdom);
+                }
+            }
+        }
+
         // Bounds
         const worldPixelWidth = Math.sqrt(3) * this.renderer.hexSize * this.world.width;
         const worldPixelHeight = 1.5 * this.renderer.hexSize * this.world.height;
@@ -228,6 +242,17 @@ class Game {
         // Initialize quests and achievements
         Quests.initialize(this.player);
         Achievements.initialize(this.player);
+
+        // Initialize market dynamics
+        MarketDynamics.initialize();
+
+        // Initialize technology system
+        if (typeof Technology !== 'undefined') {
+            Technology.initPlayer(this.player);
+        }
+
+        // Initialize player's tax rate
+        if (!this.player.taxRate) this.player.taxRate = 'moderate';
 
         console.log('Game started!');
         // Hide title and settings screen
@@ -448,14 +473,12 @@ class Game {
 
         // If arrived at a point of interest
         if (tile.improvement && !tile.improvement.explored) {
-            tile.improvement.explored = true;
+            // Just notify discovery, don't mark as explored (use Explore action for full rewards)
             this.ui.showNotification(
-                tile.improvement.name,
-                `You discovered ${tile.improvement.name}! ${tile.improvement.icon}`,
-                'success'
+                'Location Discovered',
+                `You found ${tile.improvement.name}! ${tile.improvement.icon} Use the Explore action to investigate.`,
+                'info'
             );
-            this.player.renown += 1;
-            this.ui.updateStats(this.player, this.world);
         }
 
         // If tile has resources
@@ -488,6 +511,45 @@ class Game {
                 const result = this.world.advanceDay();
                 this.player.endDay();
                 this.player.updateVisibility(this.world, 3);
+
+                // Update market prices
+                MarketDynamics.updatePrices(this.world);
+
+                // Process informants and expire old intel
+                if (typeof Tavern !== 'undefined') {
+                    Tavern.expireOldIntel(this.player, this.world.day);
+                    const intelResult = Tavern.processInformants(this.player, this.world);
+                    if (intelResult.cost > 0) {
+                        this.ui.showNotification('Informants', `-${intelResult.cost}g upkeep`, 'default');
+                    }
+                    if (intelResult.lostInformants > 0) {
+                        this.ui.showNotification('Informant Lost', `${intelResult.lostInformants} informant(s) left — couldn't pay`, 'error');
+                    }
+                    if (intelResult.newRumors && intelResult.newRumors.length > 0) {
+                        this.ui.showNotification('New Intel', `${intelResult.newRumors.length} new report(s) from informants`, 'info');
+                    }
+                }
+
+                // Process loans
+                const loanResults = Banking.processLoans(this.player, this.world);
+                if (loanResults.paid > 0) {
+                    this.ui.showNotification('Loan Payment', `-${loanResults.paid} gold`, 'default');
+                }
+                for (const defaulted of loanResults.defaulted) {
+                    if (defaulted.seizedProperty) {
+                        this.ui.showNotification('Property Seized!', `Couldn't pay loan - property confiscated!`, 'error');
+                    } else {
+                        this.ui.showNotification('Loan Default', `Missed payment! +5% penalty`, 'error');
+                    }
+                }
+
+                // Collect taxes (every 7 days)
+                if (this.world.day % 7 === 0) {
+                    const taxResults = Taxation.collectTaxes(this.player, this.world);
+                    if (taxResults.collected > 0) {
+                        this.ui.showNotification('Tax Collection', `+${taxResults.collected} gold from settlements`, 'success');
+                    }
+                }
 
                 // Show reachable hexes for the new day
                 this.renderer.reachableHexes = this.player.getReachableHexes(this.world);
@@ -550,6 +612,36 @@ class Game {
                 // Blessings expired
                 for (const blessing of playerResults.blessingsExpired) {
                     this.ui.showNotification('Blessing Faded', `${blessing} blessing has expired`, 'default');
+                }
+
+                // Technology research progress
+                if (playerResults.researchUpdate) {
+                    if (playerResults.researchUpdate.completed) {
+                        this.ui.showNotification('Research Complete!', `🔬 ${playerResults.researchUpdate.tech.name} blueprint acquired! Craft parts to implement.`, 'success');
+                    } else if (playerResults.researchUpdate.remaining) {
+                        if (playerResults.researchUpdate.remaining <= 1) {
+                            this.ui.showNotification('Research', `Almost done! 1 day remaining`, 'info');
+                        }
+                    }
+                }
+
+                // Parts crafting progress
+                if (playerResults.craftingUpdate) {
+                    if (playerResults.craftingUpdate.completed) {
+                        this.ui.showNotification('Crafting Complete!', `🔧 ${playerResults.craftingUpdate.quantity}x parts crafted and added to inventory!`, 'success');
+                    } else if (playerResults.craftingUpdate.remaining) {
+                        if (playerResults.craftingUpdate.remaining <= 1) {
+                            this.ui.showNotification('Crafting', `Parts almost ready! 1 day remaining`, 'info');
+                        }
+                    }
+                }
+
+                // Cultural building income
+                if (playerResults.cultureIncome > 0) {
+                    this.ui.showNotification('Cultural Income', `+${playerResults.cultureIncome} gold from cultural buildings`, 'success');
+                }
+                if (playerResults.cultureRenown > 0) {
+                    this.ui.showNotification('Cultural Renown', `+${playerResults.cultureRenown} renown from monuments`, 'info');
                 }
 
                 // Show day events

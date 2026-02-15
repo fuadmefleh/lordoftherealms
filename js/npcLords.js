@@ -132,6 +132,24 @@ const NPCLords = {
      */
     lordDies(kingdom, world) {
         const oldLord = kingdom.lord;
+
+        // Delegate to Characters system if available
+        if (typeof Characters !== 'undefined' && kingdom.characterData) {
+            const result = Characters.handleSuccession(kingdom, world);
+            if (result) {
+                // Sync NPC lord data with new ruler
+                const newRuler = kingdom.characterData.ruler;
+                kingdom.lord = NPCLords.generateLord(kingdom);
+                kingdom.lord.name = kingdom.ruler;
+                kingdom.lord.age = newRuler.age;
+                kingdom.lord.martial = newRuler.skills.martial;
+                kingdom.lord.diplomacy = newRuler.skills.diplomacy;
+                kingdom.lord.stewardship = newRuler.skills.stewardship;
+                return;
+            }
+        }
+
+        // Fallback: original behavior
         const newLord = NPCLords.generateLord(kingdom);
         kingdom.lord = newLord;
         kingdom.ruler = newLord.name;

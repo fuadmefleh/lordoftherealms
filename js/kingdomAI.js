@@ -100,6 +100,13 @@ const KingdomAI = {
         kingdom.population = totalPopulation;
         kingdom.food = totalFood;
         kingdom.goods = totalGoods;
+
+        // Apply character bonuses to treasury
+        if (kingdom.characterBonuses) {
+            const b = kingdom.characterBonuses;
+            if (b.treasury) kingdom.treasury = Math.floor(kingdom.treasury * (1 + b.treasury));
+            if (b.population) kingdom.population = Math.floor(kingdom.population * (1 + b.population));
+        }
     },
 
     /**
@@ -155,7 +162,15 @@ const KingdomAI = {
         const currentRelation = kingdom.relations[target.id] || 0;
 
         // Improve or worsen relations based on various factors
-        const change = Utils.randInt(-5, 10);
+        let change = Utils.randInt(-5, 10);
+        // Character diplomacy bonus
+        if (kingdom.characterBonuses && kingdom.characterBonuses.diplomacy) {
+            change += Math.floor(kingdom.characterBonuses.diplomacy * 10);
+        }
+        // Religious compatibility: same faith → +5, different militant faiths → penalty
+        if (typeof Religion !== 'undefined') {
+            change += Math.floor(Religion.faithCompatibility(kingdom, target) * 0.3);
+        }
         kingdom.relations[target.id] = Utils.clamp(currentRelation + change, -100, 100);
 
         // Form alliance if relations are very good
@@ -237,6 +252,12 @@ const KingdomAI = {
                 if (res.id === 'iron') military *= 1.2;
                 if (res.id === 'horses') military *= 1.15;
             }
+        }
+
+        // Apply character bonuses to military
+        if (kingdom.characterBonuses) {
+            const b = kingdom.characterBonuses;
+            if (b.military) military *= (1 + b.military);
         }
 
         kingdom.military = Math.floor(military);

@@ -53,6 +53,7 @@ class Player {
         this.properties = [];       // Farms, mines, workshops
         this.caravans = [];         // Active trade caravans
         this.activeContract = null; // Mercenary contract
+        this.loans = {};            // Loans per kingdom: { kingdomId: [loan1, loan2] }
 
         // Military path
         this.army = [];             // Recruited units
@@ -63,6 +64,10 @@ class Player {
 
         // Reputation per kingdom
         this.reputation = {};
+
+        // Kingdom allegiance
+        this.allegiance = null;      // Kingdom ID the player is pledged to
+        this.kingdomTitle = null;    // Title within kingdom (e.g., 'king', 'treasurer', 'lord')
 
         // Visuals
         this.color = '#ffffff';
@@ -201,7 +206,7 @@ class Player {
             }
 
             // Check stamina
-            const moveCost = tile.terrain.moveCost;
+            const moveCost = (typeof Infrastructure !== 'undefined') ? Infrastructure.getEffectiveMoveCost(tile) : tile.terrain.moveCost;
             if (this.movementRemaining < moveCost) {
                 this.isMoving = false;
                 this.path = null;
@@ -219,40 +224,13 @@ class Player {
             this.revealArea(world, 4);
             this.updateVisibility(world, 4);
 
-            // Check for improvements (POIs)
+            // Check for improvements (POIs) - just track visitation, don't auto-reward
+            // (Use the Explore action for full rewards)
             if (tile.improvement) {
                 const impKey = `${tile.q},${tile.r}`;
                 if (!this.visitedImprovements.has(impKey)) {
                     this.visitedImprovements.add(impKey);
-
-                    // Reward
-                    let xp = 10;
-                    let gold = 50;
-                    let msg = 'Discovered ' + tile.improvement.name;
-
-                    if (tile.improvement.id === 'ruins') {
-                        xp = 50;
-                        gold = 200;
-                        msg = 'Explored Ancient Ruins! Found ancient treasures.';
-                    } else if (tile.improvement.id === 'shrine') {
-                        xp = 20;
-                        gold = 20; // Offerings?
-                        this.karma += 5;
-                        msg = 'Prayed at a Shrine. Felt a spiritual presence.';
-                    } else if (tile.improvement.id === 'monument') {
-                        xp = 30;
-                        this.renown += 5;
-                        msg = 'Visited a Monument. Your renown grows.';
-                    }
-
-                    this.gold += gold;
-                    // TODO: Add XP system properly, for now just gold/karma/renown
-
-                    // Show notification via global UI access (a bit hacky but works for now)
-                    if (window.game && window.game.ui) {
-                        window.game.ui.showNotification('Discovery!', `${msg} (+${gold} Gold)`, 'success');
-                        window.game.ui.updateStats(this, world);
-                    }
+                    // Discovery notification is now handled in game.js
                 }
             }
 
@@ -291,7 +269,12 @@ class Player {
      * Rest (end day — restore stamina)
      */
     endDay() {
-        this.movementRemaining = this.stamina;
+        // Apply technology movement bonus
+        let staminaBonus = 0;
+        if (typeof Technology !== 'undefined') {
+            staminaBonus = Technology.getMovementBonus(this);
+        }
+        this.movementRemaining = this.stamina + staminaBonus;
         this.health = Math.min(this.health + 5, this.maxHealth);
     }
 
@@ -315,7 +298,7 @@ class Player {
                 const tile = world.getTile(wq, wr);
                 if (!tile || !tile.terrain.passable) continue;
 
-                const newCost = current.cost + tile.terrain.moveCost;
+                const newCost = current.cost + ((typeof Infrastructure !== 'undefined') ? Infrastructure.getEffectiveMoveCost(tile) : tile.terrain.moveCost);
                 const key = `${wq},${wr}`;
 
                 if (newCost <= this.movementRemaining && (!reachable.has(key) || reachable.get(key) > newCost)) {
@@ -326,5 +309,55 @@ class Player {
         }
 
         return reachable;
+    }
+
+    /**
+     * Pledge allegiance to a kingdom
+     * Player can only be pledged to one kingdom at a time
+     */
+    pledgeAllegiance(kingdomId, world) {
+        if (this.allegiance) {
+            return { success: false, reason: `Already pledged to ${world.getKingdom(this.allegiance)?.name}` };
+        }
+
+        const kingdom = world.getKingdom(kingdomId);
+        if (!kingdom) {
+            return { success: false, reason: 'Kingdom not found' };
+        }
+
+        this.allegiance = kingdomId;
+        this.kingdomTitle = 'citizen'; // Default title
+        this.title = `Citizen of ${kingdom.name}`;
+
+        return { success: true, kingdom };
+    }
+
+    /**
+     * Break allegiance with current kingdom
+     */
+    breakAllegiance(world) {
+        if (!this.allegiance) {
+            return { success: false, reason: 'Not pledged to any kingdom' };
+        }
+
+        const oldKingdom = world.getKingdom(this.allegiance);
+        this.allegiance = null;
+        this.kingdomTitle = null;
+        this.title = 'Nobody';
+
+        return { success: true, oldKingdom };
+    }
+
+    /**
+     * Set kingdom title (e.g., 'king', 'treasurer', 'lord')
+     * This would typically be granted by game events or player actions
+     */
+    setKingdomTitle(title) {
+        if (!this.allegiance) {
+            return { success: false, reason: 'Must be pledged to a kingdom first' };
+        }
+
+        this.kingdomTitle = title;
+        return { success: true };
     }
 }

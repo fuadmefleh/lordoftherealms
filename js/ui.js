@@ -20,6 +20,37 @@ class UI {
         if (btnHistory) {
             btnHistory.addEventListener('click', () => this.showHistoryPanel());
         }
+        document.getElementById('btnTreasury').addEventListener('click', () => this.showTreasuryPanel(this.game.player, this.game.world));
+
+        // Dynasties button
+        const btnDynasties = document.getElementById('btnDynasties');
+        if (btnDynasties) {
+            btnDynasties.addEventListener('click', () => this.showDynastiesPanel());
+        }
+
+        // Intel Journal button
+        const btnIntel = document.getElementById('btnIntel');
+        if (btnIntel) {
+            btnIntel.addEventListener('click', () => ActionMenu.showIntelJournal(this.game));
+        }
+
+        // Technology button
+        const btnTech = document.getElementById('btnTechnology');
+        if (btnTech) {
+            btnTech.addEventListener('click', () => this.showTechnologyPanel(this.game.player, this.game.world));
+        }
+
+        // Religion & Culture button
+        const btnReligion = document.getElementById('btnReligion');
+        if (btnReligion) {
+            btnReligion.addEventListener('click', () => this.showReligionCulturePanel(this.game.player, this.game.world));
+        }
+
+        // Peoples & Subcultures button
+        const btnPeoples = document.getElementById('btnPeoples');
+        if (btnPeoples) {
+            btnPeoples.addEventListener('click', () => this.showPeoplesPanel());
+        }
 
         // Global Control buttons
         document.getElementById('btnToggleResources').addEventListener('click', () => {
@@ -130,9 +161,27 @@ class UI {
             </div>
             <div class="info-row">
                 <span class="info-label">Movement Cost</span>
-                <span class="info-value">${tile.terrain.moveCost === Infinity ? '∞' : tile.terrain.moveCost}</span>
+                <span class="info-value">${tile.terrain.moveCost === Infinity ? '∞' : tile.terrain.moveCost}${tile.infrastructure ? ` → ${typeof Infrastructure !== 'undefined' ? Infrastructure.getEffectiveMoveCost(tile) : tile.terrain.moveCost} (${tile.infrastructure.name})` : ''}</span>
             </div>
         `;
+
+        // Show infrastructure info
+        if (tile.infrastructure) {
+            html += `
+                <div class="info-section-title">Infrastructure</div>
+                <div class="info-row">
+                    <span class="info-label">${tile.infrastructure.icon} ${tile.infrastructure.name}</span>
+                </div>
+            `;
+            if (tile.infrastructure.productivityBonus > 0) {
+                html += `
+                    <div class="info-row">
+                        <span class="info-label">Farm Bonus</span>
+                        <span class="info-value" style="color: #4FC3F7;">+${Math.round(tile.infrastructure.productivityBonus * 100)}%</span>
+                    </div>
+                `;
+            }
+        }
 
         // Add Actions button if player is here
         if (this.game.player.q === q && this.game.player.r === r) {
@@ -208,33 +257,38 @@ class UI {
                     <span class="info-value">${econ.tradeRoutes}</span>
                 </div>
             `;
+
+            // Cultural demographics
+            if (typeof Peoples !== 'undefined' && tile.settlement.demographics) {
+                html += Peoples.buildDemographicsHTML(tile.settlement);
+            }
         }
 
-        if (tile.playerProperty) {
-            const prop = tile.playerProperty;
-            html += `
-                <div class="info-section-title">Property</div>
-                <div class="info-row">
-                    <span class="info-label">Building</span>
-                    <span class="info-value" style="color:#ffffff !important;">${prop.icon} ${prop.name}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Owner</span>
-                    <span class="info-value" style="color:var(--gold);">You</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Level</span>
-                    <span class="info-value">${prop.level}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Production</span>
-                    <span class="info-value">${prop.productionRate}/day (${prop.produces})</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Storage</span>
-                    <span class="info-value">${prop.storage}</span>
-                </div>
-            `;
+        if (tile.playerProperties && tile.playerProperties.length > 0) {
+            html += `<div class="info-section-title">Properties (${tile.playerProperties.length})</div>`;
+
+            for (const prop of tile.playerProperties) {
+                html += `
+                    <div style="background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                        <div class="info-row">
+                            <span class="info-label">Building</span>
+                            <span class="info-value" style="color:#ffffff !important;">${prop.icon} ${prop.name}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Level</span>
+                            <span class="info-value">${prop.level}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Production</span>
+                            <span class="info-value">${prop.productionRate}/day (${prop.produces})</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Storage</span>
+                            <span class="info-value">${prop.storage}</span>
+                        </div>
+                    </div>
+                `;
+            }
         }
 
         if (tile.religiousBuilding) {
@@ -257,6 +311,49 @@ class UI {
                     <span class="info-label">Followers</span>
                     <span class="info-value">${Utils.formatNumber(building.followers)}</span>
                 </div>
+            `;
+        }
+
+        if (tile.holySite) {
+            const site = tile.holySite;
+            const faith = site.faithId && typeof Religion !== 'undefined' ? Religion.FAITHS[site.faithId] : null;
+            html += `
+                <div class="info-section-title">⛲ Holy Site</div>
+                <div class="info-row">
+                    <span class="info-label">Name</span>
+                    <span class="info-value" style="color:var(--gold);">${site.icon} ${site.name}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Description</span>
+                    <span class="info-value" style="font-size:11px;">${site.description}</span>
+                </div>
+                ${faith ? `<div class="info-row"><span class="info-label">Faith</span><span class="info-value">${faith.icon} ${faith.name}</span></div>` : ''}
+                ${site.controller ? `<div class="info-row"><span class="info-label">Controller</span><span class="info-value">${this.game.world.getKingdom(site.controller)?.name || 'Unknown'}</span></div>` : '<div class="info-row"><span class="info-label">Status</span><span class="info-value" style="color:#f39c12;">Unclaimed</span></div>'}
+                <div class="info-row">
+                    <span class="info-label">Pilgrims</span>
+                    <span class="info-value">${Utils.formatNumber(site.pilgrimCount || 0)}</span>
+                </div>
+            `;
+        }
+
+        if (tile.culturalBuilding) {
+            const building = tile.culturalBuilding;
+            html += `
+                <div class="info-section-title">📚 Cultural Building</div>
+                <div class="info-row">
+                    <span class="info-label">Name</span>
+                    <span class="info-value" style="color:#ffffff !important;">${building.icon} ${building.name}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Influence</span>
+                    <span class="info-value">+${building.influencePerDay}/day (radius ${building.influenceRadius})</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Scholarship</span>
+                    <span class="info-value">+${building.scholarshipBonus}</span>
+                </div>
+                ${building.researchBonus ? `<div class="info-row"><span class="info-label">Research Bonus</span><span class="info-value">+${Math.round(building.researchBonus * 100)}%</span></div>` : ''}
+                ${building.incomeBonus ? `<div class="info-row"><span class="info-label">Income</span><span class="info-value">+${building.incomeBonus}/day</span></div>` : ''}
             `;
         }
 
@@ -445,9 +542,125 @@ class UI {
             }
         }
 
-        // Lord information
+        // Lord information — enhanced with Character system data
         let lordHtml = '';
-        if (kingdom.lord) {
+        if (kingdom.characterData) {
+            const cd = kingdom.characterData;
+            const ruler = cd.ruler;
+            if (ruler && ruler.isAlive) {
+                const traitBadges = ruler.traits.map(t => {
+                    const colorMap = { positive: '#27ae60', negative: '#c0392b', neutral: '#f1c40f' };
+                    const color = colorMap[t.category] || '#9a8e7e';
+                    return `<span style="background:${color}22; color:${color}; padding:1px 6px; border-radius:4px; font-size:11px; margin-right:3px;" title="${t.description}">${t.icon || ''} ${t.name}</span>`;
+                }).join('');
+
+                const skillBar = (label, val) => {
+                    const pct = (val / 20) * 100;
+                    return `<div class="info-row">
+                        <span class="info-label">${label}</span>
+                        <span class="info-value" style="display:flex;align-items:center;gap:6px;">
+                            <div style="width:60px;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;">
+                                <div style="width:${pct}%;height:100%;background:var(--gold);border-radius:3px;"></div>
+                            </div>
+                            <span>${val}</span>
+                        </span>
+                    </div>`;
+                };
+
+                lordHtml = `
+                    <div class="info-section-title">👑 Ruler</div>
+                    <div class="info-row">
+                        <span class="info-label">Name</span>
+                        <span class="info-value">${Characters.getFullName(ruler)}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Age</span>
+                        <span class="info-value">${ruler.age} years ${ruler.isIll ? '🤒' : ''}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Health</span>
+                        <span class="info-value">${ruler.health}%</span>
+                    </div>
+                    <div style="margin:6px 0;">${traitBadges}</div>
+                    ${skillBar('⚔️ Martial', ruler.skills.martial)}
+                    ${skillBar('🗣️ Diplomacy', ruler.skills.diplomacy)}
+                    ${skillBar('💰 Stewardship', ruler.skills.stewardship)}
+                    ${skillBar('🗝️ Intrigue', ruler.skills.intrigue)}
+                    ${skillBar('📖 Learning', ruler.skills.learning)}
+                `;
+
+                // Dynasty info
+                if (cd.dynasty) {
+                    lordHtml += `
+                        <div class="info-section-title">🏰 Dynasty: ${cd.dynasty.name}</div>
+                        <div class="info-row">
+                            <span class="info-label">Prestige</span>
+                            <span class="info-value">⭐ ${cd.dynasty.prestige}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Rulers in Line</span>
+                            <span class="info-value">${cd.dynasty.bloodline.length}</span>
+                        </div>
+                    `;
+                }
+
+                // Spouse
+                if (cd.spouse && cd.spouse.isAlive) {
+                    lordHtml += `
+                        <div class="info-section-title">💒 Consort</div>
+                        <div class="info-row">
+                            <span class="info-label">Name</span>
+                            <span class="info-value">${Characters.getFullName(cd.spouse)}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Age</span>
+                            <span class="info-value">${cd.spouse.age} years</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Culture</span>
+                            <span class="info-value">${cd.spouse.culture}${cd.spouse.culture !== kingdom.culture ? ' (Foreign)' : ''}</span>
+                        </div>
+                    `;
+                }
+
+                // Children (heirs)
+                if (cd.children && cd.children.length > 0) {
+                    const livingChildren = cd.children.filter(c => c.isAlive);
+                    if (livingChildren.length > 0) {
+                        lordHtml += `<div class="info-section-title">👨‍👧‍👦 Heirs (${livingChildren.length})</div>`;
+                        for (const child of livingChildren.sort((a, b) => b.age - a.age)) {
+                            const isEligible = child.age >= 16;
+                            lordHtml += `
+                                <div class="info-row">
+                                    <span class="info-label">${Characters.getFullName(child)}</span>
+                                    <span class="info-value">${child.age}y ${child.gender === 'male' ? '♂' : '♀'} ${isEligible ? '✅' : '👶'}</span>
+                                </div>
+                            `;
+                        }
+                    }
+                }
+
+                // Advisors
+                if (cd.advisors) {
+                    lordHtml += `<div class="info-section-title">📋 Royal Council</div>`;
+                    for (const [roleId, advisor] of Object.entries(cd.advisors)) {
+                        if (!advisor) continue;
+                        const role = Characters.ADVISOR_ROLES[roleId];
+                        const loyaltyColor = advisor.loyalty > 60 ? '#27ae60' : advisor.loyalty > 30 ? '#f39c12' : '#c0392b';
+                        lordHtml += `
+                            <div class="info-row">
+                                <span class="info-label">${role.icon} ${role.name}</span>
+                                <span class="info-value">${Characters.getFullName(advisor)}</span>
+                            </div>
+                            <div class="info-row" style="padding-left:20px;">
+                                <span class="info-label" style="font-size:11px">Skill ${advisor.skills[role.primarySkill]}/20</span>
+                                <span class="info-value" style="color:${loyaltyColor}; font-size:11px">Loyalty: ${advisor.loyalty}%</span>
+                            </div>
+                        `;
+                    }
+                }
+            }
+        } else if (kingdom.lord) {
             const lord = kingdom.lord;
             const traitNames = lord.traits.map(t => t.name).join(', ');
             lordHtml = `
@@ -471,6 +684,52 @@ class UI {
                 <div class="info-row">
                     <span class="info-label">Diplomacy</span>
                     <span class="info-value">${lord.diplomacy}/10</span>
+                </div>
+            `;
+        }
+
+        // Religion & Culture info for the kingdom
+        let religionHtml = '';
+        if (kingdom.religion && typeof Religion !== 'undefined') {
+            const faith = Religion.FAITHS[kingdom.religion.faithId];
+            religionHtml = `
+                <div class="info-section-title">Religion</div>
+                <div class="info-row">
+                    <span class="info-label">Faith</span>
+                    <span class="info-value" style="color:var(--gold);">${faith ? faith.icon : ''} ${kingdom.religion.name}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Piety</span>
+                    <span class="info-value">${Math.floor(kingdom.religion.piety)}/100</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Unity</span>
+                    <span class="info-value">${Math.floor(kingdom.religion.unity)}/100</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Holy Sites</span>
+                    <span class="info-value">${kingdom.religion.holySites ? kingdom.religion.holySites.length : 0}</span>
+                </div>
+                ${kingdom.religion.pilgrimIncome > 0 ? `<div class="info-row"><span class="info-label">Pilgrim Income</span><span class="info-value">+${kingdom.religion.pilgrimIncome}/day</span></div>` : ''}
+                ${kingdom.religion.heresies && kingdom.religion.heresies.length > 0 ? `<div class="info-row"><span class="info-label">⚠️ Heresies</span><span class="info-value" style="color:#e74c3c;">${kingdom.religion.heresies.map(h => h.name).join(', ')}</span></div>` : ''}
+            `;
+        }
+
+        let cultureHtml = '';
+        if (kingdom.cultureData && typeof Culture !== 'undefined') {
+            cultureHtml = `
+                <div class="info-section-title">Cultural</div>
+                <div class="info-row">
+                    <span class="info-label">Tradition</span>
+                    <span class="info-value">${kingdom.cultureData.tradition ? kingdom.cultureData.tradition.icon + ' ' + kingdom.cultureData.tradition.name : kingdom.culture}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Influence</span>
+                    <span class="info-value">${Math.floor(kingdom.cultureData.influence)}/100</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Scholarship</span>
+                    <span class="info-value">${Math.floor(kingdom.cultureData.scholarship)}/100</span>
                 </div>
             `;
         }
@@ -505,6 +764,8 @@ class UI {
             <p style="margin-top:12px; color: var(--text-secondary); font-size: 12px; font-style: italic;">
                 "${kingdom.description}"
             </p>
+            ${religionHtml}
+            ${cultureHtml}
             ${warsHtml ? `<div class="info-section-title">Active Wars</div>${warsHtml}` : ''}
             ${alliesHtml ? `<div class="info-section-title">Allies</div>${alliesHtml}` : ''}
             <div class="info-section-title">Relations</div>
@@ -612,6 +873,95 @@ class UI {
         `;
 
         this.showPanel('characterPanel');
+    }
+
+    /**
+     * Show the Dynasties & Characters overview panel
+     */
+    showDynastiesPanel() {
+        if (!this.game.world || typeof Characters === 'undefined') return;
+
+        let html = '';
+
+        for (const kingdom of this.game.world.kingdoms) {
+            if (!kingdom.isAlive) continue;
+            const cd = kingdom.characterData;
+            if (!cd) continue;
+
+            const ruler = cd.ruler;
+            if (!ruler || !ruler.isAlive) continue;
+
+            // Trait badges
+            const traitBadges = ruler.traits.map(t => {
+                const colorMap = { positive: '#27ae60', negative: '#c0392b', neutral: '#f1c40f' };
+                const col = colorMap[t.category] || '#9a8e7e';
+                return `<span style="background:${col}22;color:${col};padding:1px 5px;border-radius:3px;font-size:10px;" title="${t.description}">${t.icon||''} ${t.name}</span>`;
+            }).join(' ');
+
+            // Heirs count
+            const livingHeirs = cd.children ? cd.children.filter(c => c.isAlive && c.age >= 16).length : 0;
+            const totalChildren = cd.children ? cd.children.filter(c => c.isAlive).length : 0;
+
+            // Advisor summary
+            let advisorSummary = '';
+            if (cd.advisors) {
+                const advisorLines = Object.entries(cd.advisors).map(([roleId, adv]) => {
+                    if (!adv) return '';
+                    const role = Characters.ADVISOR_ROLES[roleId];
+                    const loyColor = adv.loyalty > 60 ? '#27ae60' : adv.loyalty > 30 ? '#f39c12' : '#c0392b';
+                    return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;">
+                        <span>${role.icon} ${role.name}: ${Characters.getFullName(adv)}</span>
+                        <span style="color:${loyColor}">${adv.loyalty}%</span>
+                    </div>`;
+                }).join('');
+                advisorSummary = advisorLines;
+            }
+
+            // Kingdom bonuses from characters
+            let bonusHtml = '';
+            if (kingdom.characterBonuses) {
+                const b = kingdom.characterBonuses;
+                const bonusList = [];
+                if (b.military) bonusList.push(`⚔️ Military ${b.military > 0 ? '+' : ''}${(b.military * 100).toFixed(0)}%`);
+                if (b.treasury) bonusList.push(`💰 Treasury ${b.treasury > 0 ? '+' : ''}${(b.treasury * 100).toFixed(0)}%`);
+                if (b.diplomacy) bonusList.push(`🗣️ Diplomacy ${b.diplomacy > 0 ? '+' : ''}${(b.diplomacy * 100).toFixed(0)}%`);
+                if (b.stability) bonusList.push(`🏛️ Stability ${b.stability > 0 ? '+' : ''}${(b.stability * 100).toFixed(0)}%`);
+                if (bonusList.length > 0) {
+                    bonusHtml = `<div style="font-size:10px;color:var(--text-secondary);margin-top:4px;">${bonusList.join(' · ')}</div>`;
+                }
+            }
+
+            html += `
+                <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-left:3px solid ${kingdom.color};border-radius:6px;padding:12px;margin-bottom:10px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <span style="font-family:var(--font-display);color:var(--gold);font-size:14px;">
+                            ${kingdom.name}
+                        </span>
+                        <span style="font-size:11px;color:var(--text-secondary);">
+                            Dynasty: ${cd.dynasty.name} (⭐${cd.dynasty.prestige})
+                        </span>
+                    </div>
+                    <div style="font-size:12px;margin-bottom:4px;">
+                        👑 <strong>${Characters.getDisplayName(ruler, kingdom)}</strong>, Age ${ruler.age} ${ruler.isIll ? '🤒' : ''}
+                    </div>
+                    <div style="margin-bottom:4px;">${traitBadges}</div>
+                    ${cd.spouse && cd.spouse.isAlive ? `<div style="font-size:11px;color:var(--text-secondary);">💒 Consort: ${Characters.getFullName(cd.spouse)} (${cd.spouse.culture}${cd.spouse.culture !== kingdom.culture ? ' — Foreign' : ''})</div>` : ''}
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">
+                        👨‍👧‍👦 Children: ${totalChildren} (${livingHeirs} eligible heirs)
+                    </div>
+                    ${bonusHtml}
+                    <div style="margin-top:6px;border-top:1px solid rgba(255,255,255,0.05);padding-top:6px;">
+                        ${advisorSummary}
+                    </div>
+                </div>
+            `;
+        }
+
+        if (!html) {
+            html = '<p style="color:var(--text-secondary);">No kingdoms with dynasty data available.</p>';
+        }
+
+        this.showCustomPanel('👑 Dynasties & Characters', html);
     }
 
     /**
@@ -826,20 +1176,175 @@ class UI {
     }
 
     /**
+     * Show Religion & Culture overview panel
+     */
+    showReligionCulturePanel(player, world) {
+        let html = '<div style="max-width: 650px;">';
+
+        // ── PLAYER RELIGION ──
+        html += '<div class="info-section-title">🙏 Your Religion</div>';
+        if (player.religion) {
+            html += `
+                <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                    <div style="font-size: 18px; color: var(--gold); font-family: var(--font-display);">${player.religion.name}</div>
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Tenets: ${player.religion.tenets.join(', ')}</div>
+                    <div style="display: flex; gap: 16px; margin-top: 8px; font-size: 13px;">
+                        <span>👥 ${Utils.formatNumber(player.religion.followers)} followers</span>
+                        <span>📿 ${player.religion.influence} influence</span>
+                        <span>🏛️ ${player.religion.buildings.length} buildings</span>
+                        <span>💰 +${PlayerReligion.getFaithIncome(player)}/day</span>
+                    </div>
+                </div>
+            `;
+        } else {
+            html += '<p style="color: var(--text-secondary); font-size: 13px;">You have not founded a religion yet. Build a temple to get started (requires 10 karma).</p>';
+        }
+
+        // ── PLAYER CULTURAL BUILDINGS ──
+        html += '<div class="info-section-title">📚 Your Cultural Buildings</div>';
+        if (player.culturalBuildings && player.culturalBuildings.length > 0) {
+            for (const bRef of player.culturalBuildings) {
+                const tile = world.getTile(bRef.q, bRef.r);
+                if (!tile || !tile.culturalBuilding) continue;
+                const b = tile.culturalBuilding;
+                html += `
+                    <div style="padding: 8px 12px; margin-bottom: 6px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-size: 16px;">${b.icon}</span> <strong>${b.name}</strong>
+                            <span style="font-size: 11px; color: var(--text-secondary);"> at (${bRef.q}, ${bRef.r})</span>
+                        </div>
+                        <div style="font-size: 12px;">
+                            Influence +${b.influencePerDay} | Scholar +${b.scholarshipBonus}
+                            ${b.researchBonus ? ` | Research +${Math.round(b.researchBonus * 100)}%` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+            const totalInfluence = typeof Culture !== 'undefined' ? Culture.getInfluence(player, world) : 0;
+            html += `<div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Total cultural influence: ${totalInfluence}</div>`;
+        } else {
+            html += '<p style="color: var(--text-secondary); font-size: 13px;">No cultural buildings yet. Visit settlements to build libraries, theaters, or universities.</p>';
+        }
+
+        // ── WORLD RELIGIONS ──
+        if (typeof Religion !== 'undefined') {
+            html += '<div class="info-section-title" style="margin-top: 16px;">☀️ World Religions</div>';
+
+            // Active faiths
+            const activeFaiths = Object.values(Religion.FAITHS).filter(f => !f.extinct);
+            html += '<div style="font-size: 13px; color: var(--gold); margin-bottom: 6px;">Active Faiths</div>';
+            for (const faith of activeFaiths) {
+                const kingdoms = world.kingdoms.filter(k => k.isAlive && k.religion && k.religion.faithId === faith.id);
+                html += `
+                    <div style="padding: 10px 12px; margin-bottom: 6px; background: rgba(255,255,255,0.05); border-radius: 4px; border-left: 3px solid ${faith.holyColor};">
+                        <div style="display: flex; justify-content: space-between;">
+                            <div><span style="font-size: 18px;">${faith.icon}</span> <strong>${faith.name}</strong></div>
+                            <span style="font-size: 11px; color: var(--text-secondary);">Founded yr ${faith.founded}</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">${faith.description}</div>
+                        <div style="font-size: 11px; margin-top: 4px;">Tenets: ${faith.tenets.join(', ')}</div>
+                        ${kingdoms.length > 0 ? `<div style="font-size: 11px; margin-top: 2px;">Practised by: ${kingdoms.map(k => k.name).join(', ')}</div>` : ''}
+                    </div>
+                `;
+            }
+
+            // Extinct faiths
+            const extinctFaiths = Object.values(Religion.FAITHS).filter(f => f.extinct);
+            if (extinctFaiths.length > 0) {
+                html += '<div style="font-size: 13px; color: #95a5a6; margin: 12px 0 6px;">Extinct Faiths</div>';
+                for (const faith of extinctFaiths) {
+                    html += `
+                        <div style="padding: 8px 12px; margin-bottom: 6px; background: rgba(255,255,255,0.03); border-radius: 4px; border-left: 3px solid #555; opacity: 0.7;">
+                            <div><span style="font-size: 16px;">${faith.icon}</span> <strong>${faith.name}</strong> <span style="font-size: 11px; color: #777;">(${faith.founded} – ${faith.extinctYear})</span></div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">${faith.description}</div>
+                        </div>
+                    `;
+                }
+            }
+
+            // ── HOLY SITES ──
+            const holySites = [];
+            for (let r = 0; r < world.height; r++) {
+                for (let q = 0; q < world.width; q++) {
+                    const tile = world.getTile(q, r);
+                    if (tile && tile.holySite) {
+                        holySites.push({ q, r, site: tile.holySite });
+                    }
+                }
+            }
+            if (holySites.length > 0) {
+                html += '<div class="info-section-title" style="margin-top: 16px;">⛲ Holy Sites</div>';
+                for (const hs of holySites) {
+                    const controller = hs.site.controller ? world.getKingdom(hs.site.controller) : null;
+                    html += `
+                        <div style="padding: 8px 12px; margin-bottom: 6px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span style="font-size: 16px;">${hs.site.icon}</span> <strong>${hs.site.name}</strong>
+                                <span style="font-size: 11px; color: var(--text-secondary);"> (${hs.q}, ${hs.r})</span>
+                            </div>
+                            <div style="font-size: 12px;">
+                                ${controller ? `<span style="color: ${controller.color};">${controller.name}</span>` : '<span style="color: #f39c12;">Unclaimed</span>'}
+                                | 🧑‍🤝‍🧑 ${Utils.formatNumber(hs.site.pilgrimCount || 0)} pilgrims
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        // ── KINGDOM CULTURAL DATA ──
+        if (typeof Culture !== 'undefined') {
+            html += '<div class="info-section-title" style="margin-top: 16px;">🎭 Kingdom Cultures</div>';
+            for (const kingdom of world.kingdoms) {
+                if (!kingdom.isAlive || !kingdom.cultureData) continue;
+                html += `
+                    <div style="padding: 8px 12px; margin-bottom: 6px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span class="kingdom-dot" style="color:${kingdom.color}; background:${kingdom.color}"></span>
+                            <strong>${kingdom.name}</strong>
+                            <span style="font-size: 12px; color: var(--text-secondary);"> – ${kingdom.cultureData.tradition.name}</span>
+                        </div>
+                        <div style="font-size: 12px;">
+                            📖 ${Math.floor(kingdom.cultureData.scholarship)} | 🌐 ${Math.floor(kingdom.cultureData.influence)}
+                            ${kingdom.religion ? ` | ${kingdom.religion.icon} ${Math.floor(kingdom.religion.piety)} piety` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        html += '</div>';
+        this.showCustomPanel('🙏 Religion & Culture', html);
+    }
+
+    /**
      * Show world history panel
      */
     showHistoryPanel() {
-        if (!this.game.world.history || this.game.world.history.length === 0) {
+        // Use merged history if Peoples system is available (includes tribal history)
+        let mergedHistory;
+        if (typeof Peoples !== 'undefined') {
+            mergedHistory = Peoples.getMergedHistory(this.game.world);
+        } else {
+            mergedHistory = (this.game.world.history || []).map(e => ({ ...e, source: 'world' }));
+        }
+
+        if (!mergedHistory || mergedHistory.length === 0) {
             this.showCustomPanel('World History', '<p style="color: var(--text-secondary);">No known history recorded.</p>');
             return;
         }
 
-        // Sort history by year
-        const sortedHistory = [...this.game.world.history].sort((a, b) => a.year - b.year);
+        // Use the rich Peoples history display if available
+        if (typeof Peoples !== 'undefined') {
+            const html = Peoples.buildTribalHistoryHTML(this.game.world);
+            this.showCustomPanel('📜 History of the Peoples', html);
+            return;
+        }
+
+        // Fallback: simple timeline
+        const sortedHistory = [...mergedHistory].sort((a, b) => a.year - b.year);
 
         let html = '<div class="history-timeline" style="position: relative; padding-left: 20px;">';
-
-        // Vertical line
         html += '<div style="position: absolute; left: 6px; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,0.1);"></div>';
 
         for (const event of sortedHistory) {
@@ -853,7 +1358,6 @@ class UI {
         }
 
         html += '</div>';
-
         this.showCustomPanel('World History', html);
     }
 
@@ -969,6 +1473,15 @@ class UI {
                 </div>
             </div>
         `;
+
+        // Cultural Demographics
+        if (typeof Peoples !== 'undefined' && settlement.demographics) {
+            html += `
+                <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-top: 16px;">
+            `;
+            html += Peoples.buildDemographicsHTML(settlement);
+            html += `</div>`;
+        }
 
         html += '</div>';
 
@@ -1128,14 +1641,764 @@ class UI {
 
         // Description
         html += `
-            <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px;">
+            <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
                 <div class="info-section-title">About</div>
                 <p style="color: var(--text-secondary); line-height: 1.6; margin: 0;">${kingdom.description}</p>
             </div>
         `;
 
+        // Constituent Peoples
+        if (typeof Peoples !== 'undefined') {
+            const kingdomTribes = Peoples.getTribesForCulture(kingdom.culture);
+            if (kingdomTribes.length > 0) {
+                html += `
+                    <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                        <div class="info-section-title">Constituent Peoples</div>
+                        <p style="color: var(--text-secondary); font-size: 12px; line-height: 1.4; margin: 0 0 12px 0;">
+                            This realm was forged from the union of ancient tribes, each bringing their own heritage to the kingdom.
+                        </p>
+                `;
+                for (const tribe of kingdomTribes) {
+                    html += `
+                        <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid ${tribe.color};">
+                            <div style="color: #fff; font-size: 14px; margin-bottom: 4px;">${tribe.icon} <strong>${tribe.name}</strong></div>
+                            <div style="color: var(--text-secondary); font-size: 11px; margin-bottom: 4px;">Origin: ${tribe.origin} | Traits: ${tribe.traits.join(', ')}</div>
+                            <div style="color: var(--text-secondary); font-size: 11px; font-style: italic;">${tribe.proverb}</div>
+                            <div style="color: var(--gold); font-size: 11px; margin-top: 4px;">🎨 ${tribe.artForms.join(', ')} &nbsp;|&nbsp; 🍲 ${tribe.cuisine.slice(0, 2).join(', ')}</div>
+                        </div>
+                    `;
+                }
+                html += `</div>`;
+            }
+        }
+
         html += '</div>';
 
         this.showCustomPanel(kingdom.name, html);
+    }
+
+    /**
+     * Show Peoples & Subcultures panel — a dedicated view of the multicultural world.
+     */
+    showPeoplesPanel() {
+        if (typeof Peoples === 'undefined') {
+            this.showNotification('Unavailable', 'Peoples system not loaded', 'error');
+            return;
+        }
+
+        let html = `<div style="max-width: 700px;">`;
+
+        // Header
+        html += `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="font-size: 48px; margin-bottom: 8px;">🏛️</div>
+                <h2 style="margin: 0; color: var(--gold); font-family: var(--font-display);">Peoples of the Realm</h2>
+                <p style="color: var(--text-secondary); margin: 8px 0 0 0; font-size: 13px; line-height: 1.5;">
+                    Every kingdom is a tapestry of ancient tribal peoples — each with their own customs, cuisine, art, and ancestral memories. 
+                    Click a settlement to see its unique demographic composition.
+                </p>
+            </div>
+        `;
+
+        // Show each kingdom's constituent peoples
+        for (const kingdom of this.game.world.kingdoms) {
+            if (!kingdom.isAlive) continue;
+
+            const tribes = Peoples.getTribesForCulture(kingdom.culture);
+            if (tribes.length === 0) continue;
+
+            html += `
+                <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px; border-left: 4px solid ${kingdom.color};">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <div>
+                            <span style="color: ${kingdom.color}; font-family: var(--font-display); font-size: 16px;">${kingdom.name}</span>
+                            <span style="color: var(--text-secondary); font-size: 12px; margin-left: 8px;">${kingdom.culture} Culture</span>
+                        </div>
+                    </div>
+            `;
+
+            for (const tribe of tribes) {
+                html += `
+                    <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; margin-bottom: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span style="color: #fff; font-size: 14px;">${tribe.icon} <strong>${tribe.name}</strong></span>
+                            <span style="color: var(--text-secondary); font-size: 11px;">${tribe.origin}</span>
+                        </div>
+                        <div style="color: var(--text-secondary); font-size: 11px; margin-bottom: 4px;">
+                            Traits: <span style="color: #fff;">${tribe.traits.join(', ')}</span>
+                        </div>
+                        <div style="color: var(--text-secondary); font-size: 11px; margin-bottom: 4px;">
+                            🎨 <span style="color: #fff;">${tribe.artForms.join(', ')}</span>
+                        </div>
+                        <div style="color: var(--text-secondary); font-size: 11px; margin-bottom: 4px;">
+                            🍲 <span style="color: #fff;">${tribe.cuisine.join(', ')}</span>
+                        </div>
+                        <div style="color: var(--text-secondary); font-size: 11px; margin-bottom: 4px;">
+                            🎉 <span style="color: #fff;">${tribe.customs.join(', ')}</span>
+                        </div>
+                        <div style="color: var(--gold); font-size: 11px; font-style: italic; margin-bottom: 4px;">
+                            📜 ${tribe.proverb}
+                        </div>
+                        <div style="color: var(--text-secondary); font-size: 11px; font-style: italic; line-height: 1.4;">
+                            ${tribe.ancestralMemory}
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += `</div>`;
+        }
+
+        // Most diverse settlements
+        const allSettlements = this.game.world.getAllSettlements()
+            .filter(s => s.demographics && s.demographics.length > 0)
+            .sort((a, b) => (b.demographics ? b.demographics.length : 0) - (a.demographics ? a.demographics.length : 0))
+            .slice(0, 5);
+
+        if (allSettlements.length > 0) {
+            html += `
+                <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                    <div class="info-section-title">🌍 Most Diverse Settlements</div>
+            `;
+
+            for (const s of allSettlements) {
+                const tile = this.game.world.getTile(s.q, s.r);
+                const settlement = tile ? tile.settlement : s;
+                const harmony = settlement.culturalHarmony || 50;
+                const harmonyDisplay = Peoples.getHarmonyDisplay(harmony);
+                const numPeoples = settlement.demographics ? settlement.demographics.length : 0;
+                const tribeIcons = settlement.demographics
+                    ? settlement.demographics.map(d => d.tribe.icon).join(' ')
+                    : '';
+
+                html += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer;" onclick="window.game.ui.showSettlementDetails(${s.q}, ${s.r})">
+                        <div>
+                            <span style="color: #fff; font-size: 13px;">${s.name || settlement.name}</span>
+                            <span style="color: var(--text-secondary); font-size: 11px; margin-left: 8px;">${numPeoples} peoples</span>
+                            <span style="font-size: 11px; margin-left: 4px;">${tribeIcons}</span>
+                        </div>
+                        <span style="color: ${harmonyDisplay.color}; font-size: 11px;">${harmonyDisplay.icon} ${harmonyDisplay.label}</span>
+                    </div>
+                `;
+            }
+
+            html += `</div>`;
+        }
+
+        html += `</div>`;
+        this.showCustomPanel('🏛️ Peoples & Subcultures', html);
+    }
+
+    /**
+     * Show Technology & Research Panel
+     */
+    showTechnologyPanel(player, world) {
+        if (typeof Technology === 'undefined') {
+            this.showNotification('Unavailable', 'Technology system not loaded', 'error');
+            return;
+        }
+
+        Technology.initPlayer(player);
+
+        const categories = Technology.getTechsByCategory();
+        const researched = player.technology.researched;
+        const implemented = player.technology.implemented;
+        const current = player.technology.currentResearch;
+        const currentCraft = player.technology.currentCrafting;
+
+        // ── Header: Current Research & Crafting Status ──
+        let statusHtml = '';
+
+        if (current) {
+            const tech = Technology.getTechByID(current.techId);
+            const pct = Math.floor((current.progress / current.totalDays) * 100);
+            const remaining = current.totalDays - current.progress;
+            statusHtml += `
+                <div style="background: rgba(156, 39, 176, 0.15); border: 1px solid rgba(156, 39, 176, 0.4); border-radius: 6px; padding: 14px; margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div>
+                            <span style="font-size: 18px;">🔬</span>
+                            <strong style="color: var(--gold); margin-left: 4px;">Researching: ${tech.name}</strong>
+                            <span style="color: var(--text-secondary); font-size: 12px; margin-left: 8px;">${remaining} day${remaining !== 1 ? 's' : ''} remaining</span>
+                        </div>
+                        <button onclick="window.cancelResearch()" style="padding: 4px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;">Cancel</button>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.3); border-radius: 4px; height: 8px; overflow: hidden;">
+                        <div style="background: linear-gradient(90deg, #9c27b0, #e040fb); height: 100%; width: ${pct}%;"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (currentCraft) {
+            const recipe = Technology.PARTS_CRAFTING[currentCraft.partsType];
+            const craftPct = Math.floor((currentCraft.progress / currentCraft.totalDays) * 100);
+            const craftRemaining = currentCraft.totalDays - currentCraft.progress;
+            statusHtml += `
+                <div style="background: rgba(255, 152, 0, 0.12); border: 1px solid rgba(255, 152, 0, 0.4); border-radius: 6px; padding: 14px; margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div>
+                            <span style="font-size: 18px;">🔧</span>
+                            <strong style="color: #ff9800; margin-left: 4px;">Crafting: ${recipe ? recipe.name : currentCraft.partsType}</strong>
+                            <span style="color: var(--text-secondary); font-size: 12px; margin-left: 8px;">${craftRemaining} day${craftRemaining !== 1 ? 's' : ''} left — ${currentCraft.quantity} parts</span>
+                        </div>
+                        <button onclick="window.cancelCrafting()" style="padding: 4px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;">Cancel</button>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.3); border-radius: 4px; height: 8px; overflow: hidden;">
+                        <div style="background: linear-gradient(90deg, #ff9800, #ffb74d); height: 100%; width: ${craftPct}%;"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (!current && !currentCraft) {
+            statusHtml += `
+                <div style="background: rgba(255,255,255,0.04); border: 1px dashed rgba(255,255,255,0.15); border-radius: 6px; padding: 12px; margin-bottom: 8px; text-align: center; color: var(--text-secondary);">
+                    No active research or crafting. Build a lab on a property to begin.
+                </div>
+            `;
+        }
+
+        // ── Labs Overview ──
+        const labs = Technology.getPlayerLabs(player, world);
+        let labsHtml = '<div style="margin-bottom: 12px;">';
+        if (labs.length === 0) {
+            labsHtml += '<div style="font-size: 12px; color: #e74c3c; padding: 6px 8px; background: rgba(231,76,60,0.08); border-radius: 4px;">⚠️ You have no labs. Build a lab on a Farm, Workshop, or Trading Post to research.</div>';
+        } else {
+            labsHtml += '<div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px;">Your Labs</div>';
+            labsHtml += '<div style="display: flex; gap: 6px; flex-wrap: wrap;">';
+            for (const lab of labs) {
+                const catNames = lab.config.categories.map(c => {
+                    const cat = Object.values(Technology.CATEGORIES).find(cc => cc.id === c);
+                    return cat ? cat.icon : c;
+                }).join(' ');
+                labsHtml += `<div style="padding: 4px 10px; background: rgba(156,39,176,0.1); border: 1px solid rgba(156,39,176,0.2); border-radius: 4px; font-size: 12px;">${lab.property.labIcon || '🔬'} ${lab.property.labName || lab.config.labName} ${catNames}</div>`;
+            }
+            labsHtml += '</div>';
+        }
+        labsHtml += '</div>';
+
+        // ── Parts Inventory ──
+        let partsHtml = '<div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">';
+        for (const [cat, partsType] of Object.entries(Technology.CATEGORY_PARTS)) {
+            const qty = (player.inventory && player.inventory[partsType]) || 0;
+            const recipe = Technology.PARTS_CRAFTING[partsType];
+            partsHtml += `<div style="padding: 4px 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; font-size: 12px;">${recipe ? recipe.icon : '🔧'} ${recipe ? recipe.name : partsType}: <strong>${qty}</strong></div>`;
+        }
+        partsHtml += '</div>';
+
+        // ── Stats ──
+        const statsHtml = `
+            <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+                <div style="background: rgba(255,255,255,0.04); padding: 6px 10px; border-radius: 4px; flex: 1; min-width: 80px; text-align: center;">
+                    <div style="font-size: 11px; color: var(--text-secondary);">Researched</div>
+                    <div style="font-weight: bold; color: #ce93d8;">${researched.length}</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.04); padding: 6px 10px; border-radius: 4px; flex: 1; min-width: 80px; text-align: center;">
+                    <div style="font-size: 11px; color: var(--text-secondary);">Implemented</div>
+                    <div style="font-weight: bold; color: #4caf50;">${implemented.length}</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.04); padding: 6px 10px; border-radius: 4px; flex: 1; min-width: 80px; text-align: center;">
+                    <div style="font-size: 11px; color: var(--text-secondary);">Intelligence</div>
+                    <div style="font-weight: bold;">${player.intelligence || 5}</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.04); padding: 6px 10px; border-radius: 4px; flex: 1; min-width: 80px; text-align: center;">
+                    <div style="font-size: 11px; color: var(--text-secondary);">Gold</div>
+                    <div style="font-weight: bold; color: var(--gold);">${Math.floor(player.gold)}</div>
+                </div>
+            </div>
+        `;
+
+        // ── Category Tabs ──
+        const catKeys = Object.keys(Technology.CATEGORIES);
+        let tabsHtml = '<div style="display: flex; gap: 2px; margin-bottom: 12px; flex-wrap: wrap;">';
+        for (let i = 0; i < catKeys.length; i++) {
+            const cat = Technology.CATEGORIES[catKeys[i]];
+            const isActive = i === 0;
+            const hasLab = Technology.hasLabForCategory(player, cat.id, world);
+            tabsHtml += `<button onclick="window.game.ui.openTechTab('${cat.id}', this)" class="tech-tab-btn" style="flex:1; min-width: 70px; padding:6px 4px; background:${isActive ? 'rgba(255,255,255,0.1)' : 'none'}; border:none; color:${isActive ? 'var(--gold)' : hasLab ? 'var(--text-secondary)' : '#666'}; cursor:pointer; border-bottom:2px solid ${isActive ? cat.color : 'transparent'}; font-size: 11px; font-weight: ${isActive ? 'bold' : 'normal'};">${cat.icon} ${cat.name}${!hasLab ? ' 🔒' : ''}</button>`;
+        }
+        tabsHtml += '</div>';
+
+        // ── Tech Lists by Category ──
+        let techListsHtml = '';
+        for (const catKey of catKeys) {
+            const cat = Technology.CATEGORIES[catKey];
+            const techs = categories[cat.id] || [];
+            const isFirst = catKey === catKeys[0];
+            const hasLab = Technology.hasLabForCategory(player, cat.id, world);
+            const requiredPropType = Technology.getRequiredPropertyType(cat.id);
+            const labConfig = Technology.LAB_CONFIG[requiredPropType];
+
+            techListsHtml += `<div id="techTab_${cat.id}" class="tech-tab-content" style="display:${isFirst ? 'block' : 'none'};">`;
+
+            if (!hasLab) {
+                techListsHtml += `<div style="padding: 12px; background: rgba(231,76,60,0.08); border: 1px dashed rgba(231,76,60,0.3); border-radius: 6px; margin-bottom: 12px; color: var(--text-secondary); font-size: 13px;">
+                    🔒 <strong>Lab Required</strong> — Build a <em>${labConfig ? labConfig.labName : 'lab'}</em> on a ${requiredPropType ? requiredPropType.replace(/_/g, ' ') : 'property'} to research ${cat.name} technologies.
+                </div>`;
+            }
+
+            // Group by tier
+            const tiers = {};
+            for (const tech of techs) {
+                if (!tiers[tech.tier]) tiers[tech.tier] = [];
+                tiers[tech.tier].push(tech);
+            }
+
+            for (const [tier, tierTechs] of Object.entries(tiers)) {
+                techListsHtml += `<div style="margin-bottom: 4px; font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">Tier ${tier}</div>`;
+
+                for (const tech of tierTechs) {
+                    const status = Technology.getTechStatus(player, tech.id);
+                    const info = Technology.getResearchInfo(tech.id);
+                    const canRes = Technology.canResearch(player, tech.id, world);
+                    const canImpl = Technology.canImplement(player, tech.id);
+                    const prereqsMet = tech.requires.every(r => researched.includes(r));
+
+                    let statusIcon = '🔒';
+                    let borderColor = 'rgba(255,255,255,0.08)';
+                    let bgColor = 'rgba(255,255,255,0.02)';
+                    let opacity = '0.5';
+                    let statusLabel = '';
+
+                    if (status === 'implemented') {
+                        statusIcon = '✅';
+                        borderColor = 'rgba(76, 175, 80, 0.4)';
+                        bgColor = 'rgba(76, 175, 80, 0.08)';
+                        opacity = '1';
+                        statusLabel = '<span style="color: #4caf50; font-weight: bold; font-size: 11px;">ACTIVE</span>';
+                    } else if (status === 'researched') {
+                        statusIcon = '🔧';
+                        borderColor = 'rgba(255, 152, 0, 0.4)';
+                        bgColor = 'rgba(255, 152, 0, 0.08)';
+                        opacity = '1';
+                        statusLabel = '<span style="color: #ff9800; font-weight: bold; font-size: 11px;">NEEDS PARTS</span>';
+                    } else if (status === 'in_progress') {
+                        statusIcon = '⏳';
+                        borderColor = 'rgba(156, 39, 176, 0.5)';
+                        bgColor = 'rgba(156, 39, 176, 0.1)';
+                        opacity = '1';
+                        statusLabel = '<span style="color: #e040fb; font-weight: bold; font-size: 11px;">IN PROGRESS</span>';
+                    } else if (canRes.can) {
+                        statusIcon = '🔓';
+                        borderColor = 'rgba(245, 197, 66, 0.4)';
+                        bgColor = 'rgba(245, 197, 66, 0.06)';
+                        opacity = '1';
+                    } else if (prereqsMet) {
+                        statusIcon = '🔓';
+                        opacity = '0.7';
+                    }
+
+                    // Effects
+                    let effectsHtml = '';
+                    const e = tech.effects;
+                    const effectParts = [];
+                    if (e.farmProductionBonus) effectParts.push(`🌾+${Math.round(e.farmProductionBonus * 100)}%`);
+                    if (e.pastureProductionBonus) effectParts.push(`🐑+${Math.round(e.pastureProductionBonus * 100)}%`);
+                    if (e.mineProductionBonus) effectParts.push(`⛏️+${Math.round(e.mineProductionBonus * 100)}%`);
+                    if (e.loggingProductionBonus) effectParts.push(`🪓+${Math.round(e.loggingProductionBonus * 100)}%`);
+                    if (e.workshopProductionBonus) effectParts.push(`🔨+${Math.round(e.workshopProductionBonus * 100)}%`);
+                    if (e.unitStrengthBonus) effectParts.push(`⚔️+${Math.round(e.unitStrengthBonus * 100)}%`);
+                    if (e.tradeProfitBonus) effectParts.push(`💰+${Math.round(e.tradeProfitBonus * 100)}%`);
+                    if (e.movementBonus) effectParts.push(`🏃+${e.movementBonus}`);
+                    if (e.visionRadiusBonus) effectParts.push(`👁️+${e.visionRadiusBonus}`);
+                    if (e.defenseBonus) effectParts.push(`🏰+${Math.round(e.defenseBonus * 100)}%`);
+                    if (e.buildingCostReduction) effectParts.push(`🏗️-${Math.round(e.buildingCostReduction * 100)}%`);
+                    if (e.unlockBuilding) effectParts.push(`🏠 ${e.unlockBuilding.replace(/_/g, ' ')}`);
+                    if (e.unlockUnit) effectParts.push(`⚔️ ${e.unlockUnit.replace(/_/g, ' ')}`);
+                    if (e.unlockInfrastructure) effectParts.push(`🛤️ ${e.unlockInfrastructure.replace(/_/g, ' ')}`);
+                    if (e.unlockRecipe) effectParts.push(`📜 ${e.unlockRecipe.replace(/_/g, ' ')}`);
+                    if (effectParts.length > 0) {
+                        effectsHtml = `<div style="font-size: 11px; color: #81c784; margin-top: 3px;">${effectParts.join(' · ')}</div>`;
+                    }
+
+                    // Prerequisites
+                    let prereqHtml = '';
+                    if (tech.requires.length > 0) {
+                        const prereqNames = tech.requires.map(r => {
+                            const rt = Technology.getTechByID(r);
+                            const done = researched.includes(r);
+                            return `<span style="color: ${done ? '#4caf50' : '#e74c3c'};">${done ? '✓' : '✗'} ${rt ? rt.name : r}</span>`;
+                        }).join(', ');
+                        prereqHtml = `<div style="font-size: 11px; margin-top: 2px;">Requires: ${prereqNames}</div>`;
+                    }
+
+                    // Cost info
+                    const materialsStr = Technology.formatMaterials(info.materials);
+                    const costHtml = `<div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Research: ${info.gold}g${materialsStr ? ' + ' + materialsStr : ''} · ${info.days} days · ${info.partsToImplement} part${info.partsToImplement > 1 ? 's' : ''} to implement</div>`;
+
+                    // Action button
+                    let actionHtml = '';
+                    if (status === 'implemented') {
+                        actionHtml = statusLabel;
+                    } else if (status === 'researched') {
+                        if (canImpl.can) {
+                            actionHtml = `<button onclick="window.implementTech('${tech.id}')" style="padding: 5px 10px; background: #ff9800; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; color: black;">Implement (${info.partsToImplement} parts)</button>`;
+                        } else {
+                            actionHtml = `<div style="font-size: 11px; color: #ff9800;">${canImpl.reason}</div>`;
+                        }
+                    } else if (status === 'in_progress') {
+                        actionHtml = statusLabel;
+                    } else if (canRes.can) {
+                        actionHtml = `<button onclick="window.startResearch('${tech.id}')" style="padding: 5px 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;">Research</button>`;
+                    } else {
+                        actionHtml = `<span style="font-size: 11px; color: #e74c3c;">${canRes.reason}</span>`;
+                    }
+
+                    techListsHtml += `
+                        <div style="padding: 10px; margin-bottom: 6px; background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 6px; opacity: ${opacity};">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div style="flex: 1;">
+                                    <div>
+                                        <span style="font-size: 16px;">${tech.icon}</span>
+                                        <strong style="margin-left: 3px; font-size: 13px;">${tech.name}</strong>
+                                        <span style="margin-left: 4px; font-size: 12px;">${statusIcon}</span>
+                                    </div>
+                                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">${tech.description}</div>
+                                    ${costHtml}
+                                    ${effectsHtml}
+                                    ${prereqHtml}
+                                </div>
+                                <div style="text-align: right; min-width: 85px; margin-left: 8px;">
+                                    ${actionHtml}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            techListsHtml += '</div>';
+        }
+
+        const html = statusHtml + labsHtml + partsHtml + statsHtml + tabsHtml + techListsHtml;
+        this.showCustomPanel('🔬 Technology & Research', html);
+
+        // Wire up global handlers
+        window.startResearch = (techId) => {
+            const result = Technology.startResearch(player, techId, world);
+            if (result.success) {
+                this.showNotification('Research Started', `${result.tech.name} — ${result.estimatedDays} days`, 'info');
+                this.showTechnologyPanel(player, world);
+                this.updateStats(player, world);
+            } else {
+                this.showNotification('Cannot Research', result.reason, 'error');
+            }
+        };
+
+        window.cancelResearch = () => {
+            const result = Technology.cancelResearch(player);
+            if (result.success) {
+                this.showNotification('Research Cancelled', `${result.tech.name} cancelled. Refund: ${result.refund} gold (materials lost)`, 'default');
+                this.showTechnologyPanel(player, world);
+                this.updateStats(player, world);
+            }
+        };
+
+        window.cancelCrafting = () => {
+            const result = Technology.cancelCrafting(player);
+            if (result.success) {
+                this.showNotification('Crafting Cancelled', `Refund: ${result.refund} gold (materials lost)`, 'default');
+                this.showTechnologyPanel(player, world);
+                this.updateStats(player, world);
+            }
+        };
+
+        window.implementTech = (techId) => {
+            const result = Technology.implementTech(player, techId);
+            if (result.success) {
+                this.showNotification('Tech Implemented!', `✅ ${result.tech.name} is now active!`, 'success');
+                this.showTechnologyPanel(player, world);
+                this.updateStats(player, world);
+            } else {
+                this.showNotification('Cannot Implement', result.reason, 'error');
+            }
+        };
+    }
+
+    /**
+     * Open a tech tree category tab
+     */
+    openTechTab(tabId, btn) {
+        // Hide all tech tab contents
+        document.querySelectorAll('.tech-tab-content').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.tech-tab-btn').forEach(el => {
+            el.style.background = 'none';
+            el.style.color = 'var(--text-secondary)';
+            el.style.borderBottom = '2px solid transparent';
+            el.style.fontWeight = 'normal';
+        });
+
+        // Show selected tab
+        const tabEl = document.getElementById('techTab_' + tabId);
+        if (tabEl) tabEl.style.display = 'block';
+
+        // Find category color
+        const cat = Object.values(Technology.CATEGORIES).find(c => c.id === tabId);
+        if (btn) {
+            btn.style.background = 'rgba(255,255,255,0.1)';
+            btn.style.color = 'var(--gold)';
+            btn.style.borderBottom = `2px solid ${cat ? cat.color : 'var(--gold)'}`;
+            btn.style.fontWeight = 'bold';
+        }
+    }
+
+    /**
+     * Show Treasury Panel: Market, Bank, Taxes
+     */
+    showTreasuryPanel(player, world) {
+        // Prepare Market data - show local market prices
+        const market = MarketDynamics.getMarketSummary(player.q, player.r, world);
+        let marketHtml = `
+            <div id="tabMarket" class="tab-content" style="display:block;">
+                <div style="background:rgba(0,0,0,0.2); padding:10px; border-radius:4px; margin-bottom:15px;">
+                    <div style="margin-bottom:10px; color:var(--text-secondary); font-style:italic;">Showing prices at: <span style="color:var(--gold);">${market.length > 0 && market[0].location ? market[0].location : 'Current Location'}</span></div>
+                    <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap:10px; padding-bottom:5px; border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:5px; font-weight:bold; color:var(--text-secondary); font-size:12px;">
+                        <div>Item</div>
+                        <div style="text-align:right;">Price</div>
+                        <div style="text-align:center;">Trend</div>
+                        <div style="text-align:right;">Supply</div>
+                        <div style="text-align:right;">Demand</div>
+                    </div>
+        `;
+
+        for (const item of market) {
+            let trendIcon = '➡️';
+            let trendColor = '#95a5a6';
+            if (item.trend === 'rising') { trendIcon = '↗️'; trendColor = '#2ecc71'; }
+            else if (item.trend === 'falling') { trendIcon = '↘️'; trendColor = '#e74c3c'; }
+
+            const priceColor = item.price > item.basePrice ? '#e74c3c' : (item.price < item.basePrice ? '#2ecc71' : 'var(--text-primary)');
+
+            marketHtml += `
+                <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap:10px; padding:8px 0; align-items:center; border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <div style="display:flex; align-items:center;">
+                        <span style="font-size:18px; margin-right:8px;">${item.icon}</span>
+                        <span style="color:var(--text-primary);">${item.name}</span>
+                    </div>
+                    <div style="text-align:right; font-weight:bold; color:${priceColor};">${item.price}g</div>
+                    <div style="text-align:center; color:${trendColor};">${trendIcon}</div>
+                    <div style="text-align:right; color:var(--text-secondary);">${item.supply}</div>
+                    <div style="text-align:right; color:var(--text-secondary);">${item.demand}</div>
+                </div>
+            `;
+        }
+        marketHtml += '</div></div>';
+
+        // Prepare Bank data - get all kingdoms
+        const allLoans = [];
+        let totalLoanCount = 0;
+        if (player.loans) {
+            for (const [kingdomId, loans] of Object.entries(player.loans)) {
+                for (const loan of loans) {
+                    allLoans.push({ ...loan, kingdomId });
+                    totalLoanCount++;
+                }
+            }
+        }
+
+        let bankHtml = `
+            <div id="tabBank" class="tab-content" style="display:none;">
+                <div style="background:rgba(0,0,0,0.2); padding:15px; border-radius:4px; margin-bottom:15px;">
+                    <h3 style="margin-top:0; color:var(--gold);">Royal Banks</h3>
+                    <div style="color:var(--text-secondary); font-style:italic; margin-bottom:15px;">"Each kingdom maintains its own royal treasury and lending services."</div>
+        `;
+
+        if (allLoans.length > 0) {
+            bankHtml += `<div class="info-section-title">Active Loans (${totalLoanCount} total)</div>`;
+            for (const loan of allLoans) {
+                const kingdom = world.getKingdom(loan.kingdomId);
+                const kingdomName = kingdom ? kingdom.name : 'Unknown Kingdom';
+                bankHtml += `
+                    <div style="background:rgba(231, 76, 60, 0.1); border:1px solid rgba(231, 76, 60, 0.3); padding:10px; border-radius:4px; margin-bottom:10px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                            <span style="font-weight:bold; color:#e74c3c;">${loan.totalOwed}g Owed</span>
+                            <span style="color:var(--text-secondary);">${loan.remainingDays} days left</span>
+                        </div>
+                        <div style="font-size:11px; color:var(--text-secondary); margin-bottom:3px;">From: ${kingdomName}</div>
+                        <div style="font-size:12px; color:var(--text-secondary);">Daily Payment: ${loan.dailyPayment}g</div>
+                        <button onclick="window.game.ui.repayLoan('${loan.id}')" style="margin-top:8px; width:100%; padding:6px; background:#e74c3c; color:white; border:none; border-radius:3px; cursor:pointer;">Repay Full Amount (${loan.totalOwed}g)</button>
+                    </div>
+                `;
+            }
+        } else {
+            bankHtml += `<div style="padding:10px; text-align:center; color:var(--text-secondary);">No active loans. You are debt free!</div>`;
+        }
+
+        bankHtml += `<div class="info-section-title" style="margin-top:15px;">Available Royal Banks</div>`;
+        
+        // Show loan options from each kingdom
+        for (const kingdom of world.kingdoms) {
+            const kingdomLoans = player.loans[kingdom.id] || [];
+            const options = Banking.getLoanOptions(player, kingdom.id);
+            
+            bankHtml += `
+                <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:4px; margin-bottom:10px;">
+                    <div style="font-weight:bold; color:${kingdom.color}; margin-bottom:8px;">
+                        ${kingdom.name} Royal Bank
+                        <span style="font-size:11px; color:var(--text-secondary);">(${kingdomLoans.length}/3 loans)</span>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+            `;
+
+            for (const opt of options) {
+                const canTake = opt.available && kingdomLoans.length < 3;
+                if (canTake) {
+                    bankHtml += `
+                        <div style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:4px; text-align:center;">
+                            <div style="font-weight:bold; color:var(--gold); margin-bottom:5px;">${opt.amount}g</div>
+                            <div style="font-size:11px; color:#aaa; margin-bottom:8px;">${(opt.interestRate * 100).toFixed(0)}% Interest<br>${opt.duration} Days</div>
+                            <button onclick="window.game.ui.takeLoan('${opt.id}', '${kingdom.id}')" style="width:100%; padding:4px; font-size:12px; background:var(--gold); border:none; border-radius:3px; cursor:pointer;">Take Loan</button>
+                        </div>
+                    `;
+                } else {
+                    bankHtml += `
+                        <div style="flex:1; background:rgba(255,255,255,0.02); padding:10px; border-radius:4px; text-align:center; opacity:0.5;">
+                            <div style="font-weight:bold; color:var(--text-secondary); margin-bottom:5px;">${opt.amount}g</div>
+                            <div style="font-size:11px; color:#aaa;">${!opt.available ? 'Requires more<br>collateral' : 'Max loans<br>reached'}</div>
+                        </div>
+                    `;
+                }
+            }
+
+            bankHtml += `</div></div>`;
+        }
+        bankHtml += `</div></div>`;
+
+        // Prepare Taxes data
+        const currentRate = player.taxRate || 'moderate';
+        const policy = Taxation.TAX_RATES[currentRate.toUpperCase()];
+        const estimatedTax = Taxation.collectTaxes({ ...player }, world).collected; // Dry run roughly
+
+        let taxHtml = `
+            <div id="tabTax" class="tab-content" style="display:none;">
+                <div style="background:rgba(0,0,0,0.2); padding:15px; border-radius:4px; margin-bottom:15px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                        <div>
+                            <div style="color:var(--text-secondary); font-size:12px;">Current Policy</div>
+                            <div style="font-size:18px; font-weight:bold; color:var(--gold);">${policy.name}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="color:var(--text-secondary); font-size:12px;">Est. Weekly Revenue</div>
+                            <div style="font-size:18px; font-weight:bold; color:#2ecc71;">~${estimatedTax}g</div>
+                        </div>
+                    </div>
+                    
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
+                        <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:4px; text-align:center;">
+                            <div style="font-size:24px;">😊</div>
+                            <div style="font-weight:bold; margin:5px 0;">${policy.happinessBonus > 0 ? '+' : ''}${policy.happinessBonus}</div>
+                            <div style="font-size:11px; color:var(--text-secondary);">Happiness</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:4px; text-align:center;">
+                            <div style="font-size:24px;">📈</div>
+                            <div style="font-weight:bold; margin:5px 0;">${policy.growthBonus > 0 ? '+' : ''}${(policy.growthBonus * 100).toFixed(0)}%</div>
+                            <div style="font-size:11px; color:var(--text-secondary);">Growth</div>
+                        </div>
+                    </div>
+                    
+                    <div class="info-section-title">Adjust Tax Rate</div>
+                    <div style="display:flex; flex-direction:column; gap:5px;">
+        `;
+
+        for (const [key, rate] of Object.entries(Taxation.TAX_RATES)) {
+            const isSelected = rate.id === currentRate;
+            taxHtml += `
+                <button onclick="window.game.ui.setTaxRate('${rate.id}')" style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:${isSelected ? 'var(--gold)' : 'rgba(255,255,255,0.05)'}; color:${isSelected ? 'black' : 'var(--text-primary)'}; border:none; border-radius:4px; cursor:pointer; text-align:left;">
+                    <span style="font-weight:bold;">${rate.name}</span>
+                    <span style="font-size:12px; opacity:0.8;">Happ: ${rate.happinessBonus > 0 ? '+' : ''}${rate.happinessBonus} | Growth: ${rate.growthBonus > 0 ? '+' : ''}${(rate.growthBonus * 100).toFixed(0)}%</span>
+                </button>
+            `;
+        }
+        taxHtml += `</div></div></div>`;
+
+        // Combine into simple tabs
+        const html = `
+            <div style="display:flex; border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:15px;">
+                <button onclick="window.game.ui.openTreasuryTab('tabMarket', this)" class="tab-btn active" style="flex:1; padding:10px; background:none; border:none; color:var(--text-primary); cursor:pointer; border-bottom:2px solid var(--gold); font-weight:bold;">Global Market</button>
+                <button onclick="window.game.ui.openTreasuryTab('tabBank', this)" class="tab-btn" style="flex:1; padding:10px; background:none; border:none; color:var(--text-secondary); cursor:pointer;">Royal Bank</button>
+                <button onclick="window.game.ui.openTreasuryTab('tabTax', this)" class="tab-btn" style="flex:1; padding:10px; background:none; border:none; color:var(--text-secondary); cursor:pointer;">Treasury</button>
+            </div>
+            
+            ${marketHtml}
+            ${bankHtml}
+            ${taxHtml}
+        `;
+
+        this.showCustomPanel('Royal Treasury', html);
+    }
+
+    /**
+     * Switch tabs in treasury panel
+     */
+    openTreasuryTab(tabId, btn) {
+        // Hide all tabs
+        const tabs = document.getElementsByClassName('tab-content');
+        for (let i = 0; i < tabs.length; i++) {
+            tabs[i].style.display = 'none';
+        }
+
+        // Show selected tab
+        document.getElementById(tabId).style.display = 'block';
+
+        // Reset buttons
+        const btns = document.getElementsByClassName('tab-btn');
+        for (let i = 0; i < btns.length; i++) {
+            btns[i].style.color = 'var(--text-secondary)';
+            btns[i].style.borderBottom = 'none';
+            btns[i].style.fontWeight = 'normal';
+        }
+
+        // Highlight active button
+        btn.style.color = 'var(--text-primary)';
+        btn.style.borderBottom = '2px solid var(--gold)';
+        btn.style.fontWeight = 'bold';
+    }
+
+    /**
+     * Take a loan (UI Action)
+     */
+    takeLoan(loanId, kingdomId) {
+        const result = Banking.takeLoan(this.game.player, loanId, kingdomId);
+        if (result.success) {
+            const kingdom = this.game.world.getKingdom(kingdomId);
+            const kingdomName = kingdom ? kingdom.name : 'a kingdom';
+            this.showNotification('Loan Approved', `${result.loan.principal}g from ${kingdomName} added to Treasury`, 'success');
+            // Refresh panel
+            this.showTreasuryPanel(this.game.player, this.game.world);
+            this.updateStats(this.game.player, this.game.world);
+        } else {
+            this.showNotification('Loan Denied', result.reason, 'error');
+        }
+    }
+
+    /**
+     * Repay a loan (UI Action)
+     */
+    repayLoan(loanId) {
+        const result = Banking.repayLoan(this.game.player, loanId);
+        if (result.success) {
+            this.showNotification('Loan Repaid', `Debt cleared!`, 'success');
+            // Refresh panel
+            this.showTreasuryPanel(this.game.player, this.game.world);
+            this.updateStats(this.game.player, this.game.world);
+        } else {
+            this.showNotification('Repayment Failed', result.reason, 'error');
+        }
+    }
+
+    /**
+     * Set Tax Rate (UI Action)
+     */
+    setTaxRate(rateId) {
+        const result = Taxation.setTaxRate(this.game.player, rateId);
+        if (result.success) {
+            this.showNotification('Policy Updated', `Tax rate set to ${result.policy.name}`, 'info');
+            // Refresh panel
+            this.showTreasuryPanel(this.game.player, this.game.world);
+        } else {
+            this.showNotification('Update Failed', result.reason, 'error');
+        }
     }
 }

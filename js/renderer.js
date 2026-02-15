@@ -405,6 +405,12 @@ class Renderer {
         // Render improvements / POI
         this.renderImprovements(ctx);
 
+        // Render holy sites & cultural buildings
+        this.renderHolySitesAndCulture(ctx);
+
+        // Render infrastructure (roads, bridges, irrigation)
+        this.renderInfrastructure(ctx);
+
         // Render player-built structures (Farms, Mines, Temples)
         this.renderBuiltStructures(ctx);
 
@@ -728,28 +734,6 @@ class Renderer {
         }
 
         ctx.restore();
-
-        // Hex outline (subtle)
-        ctx.beginPath();
-        ctx.moveTo(corners[0].x, corners[0].y);
-        for (let i = 1; i < 6; i++) {
-            ctx.lineTo(corners[i].x, corners[i].y);
-        }
-        ctx.closePath();
-
-        if (tile.kingdom && tile.visible) {
-            const kingdom = this.world.getKingdom(tile.kingdom);
-            if (kingdom) {
-                // Very subtle internal outline
-                ctx.strokeStyle = this.dimColor(kingdom.color, 0.25);
-                ctx.lineWidth = 0.5;
-                ctx.stroke();
-            }
-        } else {
-            ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-            ctx.lineWidth = 0.5;
-            ctx.stroke();
-        }
     }
 
     /**
@@ -1025,6 +1009,196 @@ class Renderer {
 
                     ctx.fillStyle = '#ffffff';
                     ctx.fillText(tile.improvement.name, screen.x, screen.y + renderSize * 0.35);
+                }
+            }
+        }
+    }
+
+    /**
+     * Render holy sites and cultural buildings on the map
+     */
+    renderHolySitesAndCulture(ctx) {
+        const world = this.world;
+        const size = this.hexSize;
+
+        for (let r = 0; r < world.height; r++) {
+            for (let q = 0; q < world.width; q++) {
+                const tile = world.tiles[r][q];
+                const hasHoly = !!tile.holySite;
+                const hasCultural = !!tile.culturalBuilding;
+                if (!hasHoly && !hasCultural) continue;
+
+                const pos = this.getHexPixelPos(q, r);
+                const screen = this.camera.worldToScreen(pos.x, pos.y);
+                const renderSize = size * this.camera.zoom;
+
+                if (screen.x < -60 || screen.x > this.canvas.width + 60) continue;
+                if (screen.y < -60 || screen.y > this.canvas.height + 60) continue;
+
+                if (hasHoly) {
+                    const site = tile.holySite;
+                    // Glow effect for holy sites
+                    ctx.save();
+                    ctx.shadowColor = '#f5c542';
+                    ctx.shadowBlur = renderSize * 0.6;
+                    ctx.globalAlpha = 0.6;
+                    ctx.beginPath();
+                    ctx.arc(screen.x, screen.y, renderSize * 0.4, 0, Math.PI * 2);
+                    ctx.fillStyle = '#f5c542';
+                    ctx.fill();
+                    ctx.restore();
+
+                    // Icon
+                    const iconSize = Math.max(14, renderSize * 0.85);
+                    ctx.font = `${iconSize}px serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.globalAlpha = 1.0;
+                    ctx.fillText(site.icon, screen.x, screen.y);
+
+                    // Label
+                    if (this.camera.zoom > 0.5) {
+                        const fsize = Math.max(9, 10 * this.camera.zoom);
+                        ctx.font = `700 ${fsize}px 'Cinzel', serif`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'top';
+                        ctx.shadowColor = 'transparent';
+                        ctx.shadowBlur = 0;
+                        ctx.fillStyle = 'rgba(0,0,0,0.9)';
+                        ctx.fillText(site.name, screen.x + 1, screen.y + renderSize * 0.4 + 1);
+                        ctx.fillStyle = '#f5c542';
+                        ctx.fillText(site.name, screen.x, screen.y + renderSize * 0.4);
+                    }
+                }
+
+                if (hasCultural) {
+                    const building = tile.culturalBuilding;
+                    const iconSize = Math.max(12, renderSize * 0.7);
+                    ctx.font = `${iconSize}px serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.globalAlpha = 1.0;
+                    ctx.fillText(building.icon, screen.x, screen.y);
+
+                    if (this.camera.zoom > 0.7) {
+                        const fsize = Math.max(8, 9 * this.camera.zoom);
+                        ctx.font = `700 ${fsize}px 'Cinzel', serif`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'top';
+                        ctx.shadowColor = 'transparent';
+                        ctx.shadowBlur = 0;
+                        ctx.globalAlpha = 1.0;
+                        ctx.fillStyle = 'rgba(0,0,0,0.9)';
+                        ctx.fillText(building.name, screen.x + 1, screen.y + renderSize * 0.35 + 1);
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillText(building.name, screen.x, screen.y + renderSize * 0.35);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Render infrastructure (roads, bridges, irrigation channels)
+     */
+    renderInfrastructure(ctx) {
+        const world = this.world;
+        const size = this.hexSize;
+
+        for (let r = 0; r < world.height; r++) {
+            for (let q = 0; q < world.width; q++) {
+                const tile = world.tiles[r][q];
+                if (!tile.infrastructure) continue;
+
+                const pos = this.getHexPixelPos(q, r);
+                const screen = this.camera.worldToScreen(pos.x, pos.y);
+                const renderSize = size * this.camera.zoom;
+
+                // Culling
+                if (screen.x < -100 || screen.x > this.canvas.width + 100) continue;
+                if (screen.y < -100 || screen.y > this.canvas.height + 100) continue;
+
+                const infra = tile.infrastructure;
+
+                if (infra.id === 'dirt_road' || infra.id === 'stone_road') {
+                    // Draw road segments to neighbors that also have roads
+                    const neighbors = Hex.neighbors(q, r);
+                    ctx.strokeStyle = infra.renderColor || '#8B7355';
+                    ctx.lineWidth = (infra.renderWidth || 2) * this.camera.zoom;
+                    ctx.lineCap = 'round';
+
+                    let hasConnection = false;
+                    for (const n of neighbors) {
+                        const wq = Hex.wrapQ(n.q, world.width);
+                        const wr = n.r;
+                        if (wr < 0 || wr >= world.height) continue;
+
+                        const nTile = world.getTile(wq, wr);
+                        if (!nTile || !nTile.infrastructure) continue;
+                        if (!['dirt_road', 'stone_road', 'bridge'].includes(nTile.infrastructure.id)) continue;
+
+                        const nPos = this.getHexPixelPos(wq, wr);
+                        const nScreen = this.camera.worldToScreen(nPos.x, nPos.y);
+
+                        ctx.beginPath();
+                        ctx.moveTo(screen.x, screen.y);
+                        ctx.lineTo(nScreen.x, nScreen.y);
+                        ctx.stroke();
+                        hasConnection = true;
+                    }
+
+                    // Draw center dot if no connections (standalone road tile)
+                    if (!hasConnection) {
+                        ctx.beginPath();
+                        ctx.arc(screen.x, screen.y, renderSize * 0.15, 0, Math.PI * 2);
+                        ctx.fillStyle = infra.renderColor || '#8B7355';
+                        ctx.fill();
+                    }
+
+                    // Dotted line pattern for dirt roads
+                    if (infra.id === 'dirt_road') {
+                        ctx.setLineDash([]);
+                    }
+                } else if (infra.id === 'bridge') {
+                    // Draw bridge icon
+                    ctx.font = `${Math.max(14, renderSize * 0.7)}px serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('🌉', screen.x, screen.y - renderSize * 0.1);
+                } else if (infra.id === 'irrigation_channel') {
+                    // Draw irrigation - blue wavy lines
+                    ctx.strokeStyle = infra.renderColor || '#4FC3F7';
+                    ctx.lineWidth = (infra.renderWidth || 2) * this.camera.zoom;
+                    ctx.globalAlpha = 0.7;
+
+                    // Draw a small water channel pattern
+                    const s = renderSize * 0.3;
+                    ctx.beginPath();
+                    ctx.moveTo(screen.x - s, screen.y + renderSize * 0.25);
+                    ctx.quadraticCurveTo(screen.x - s * 0.5, screen.y + renderSize * 0.15, screen.x, screen.y + renderSize * 0.25);
+                    ctx.quadraticCurveTo(screen.x + s * 0.5, screen.y + renderSize * 0.35, screen.x + s, screen.y + renderSize * 0.25);
+                    ctx.stroke();
+                    ctx.globalAlpha = 1.0;
+
+                    // Small label
+                    if (this.camera.zoom > 0.8) {
+                        ctx.font = `${Math.max(10, renderSize * 0.35)}px serif`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText('💧', screen.x, screen.y + renderSize * 0.45);
+                    }
+                }
+
+                // Draw infrastructure name label at higher zoom
+                if (this.camera.zoom > 1.0) {
+                    const fsize = Math.max(8, 9 * this.camera.zoom);
+                    ctx.font = `${fsize}px 'Cinzel', serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'top';
+                    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                    ctx.fillText(infra.name, screen.x + 1, screen.y + renderSize * 0.55 + 1);
+                    ctx.fillStyle = infra.renderColor || '#ccc';
+                    ctx.fillText(infra.name, screen.x, screen.y + renderSize * 0.55);
                 }
             }
         }

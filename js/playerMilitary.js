@@ -95,6 +95,11 @@ const PlayerMilitary = {
             strength *= (1 + (unit.level - 1) * 0.2);
             // Combat skill bonus
             strength *= (1 + player.skills.combat * 0.1);
+            // Technology strength bonus
+            if (typeof Technology !== 'undefined') {
+                const techBonus = Technology.getUnitStrengthBonus(player, unit.type);
+                if (techBonus > 0) strength *= (1 + techBonus);
+            }
             total += strength;
         }
 

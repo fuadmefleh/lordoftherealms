@@ -109,6 +109,12 @@ const PlayerEconomy = {
         SPICES: { id: 'spices', name: 'Spices', icon: '🧂', basePrice: 45 },
         HORSES: { id: 'horses', name: 'Horses', icon: '🐴', basePrice: 55 },
         LUXURIES: { id: 'luxuries', name: 'Luxuries', icon: '💍', basePrice: 100 },
+        // Technology Parts
+        AGRI_PARTS: { id: 'agri_parts', name: 'Agricultural Implements', icon: '🌱', basePrice: 50 },
+        INDUSTRY_PARTS: { id: 'industry_parts', name: 'Industrial Components', icon: '⚙️', basePrice: 75 },
+        MILITARY_PARTS: { id: 'military_parts', name: 'Military Supplies', icon: '🗡️', basePrice: 80 },
+        INFRA_PARTS: { id: 'infra_parts', name: 'Engineering Plans', icon: '📐', basePrice: 60 },
+        COMMERCE_PARTS: { id: 'commerce_parts', name: 'Trade Documents', icon: '📜', basePrice: 50 },
     },
 
     /**
@@ -138,23 +144,18 @@ const PlayerEconomy = {
             return { canBuild: false, reason: `Need ${prop.cost} gold (have ${player.gold})` };
         }
 
-        // Check if already has property here
-        if (tile.playerProperty) {
-            return { canBuild: false, reason: 'Already have a property here' };
+        // Check if already has THIS TYPE of property here (allow multiple different types)
+        if (tile.playerProperties) {
+            const existingOfType = tile.playerProperties.find(p => p.type === prop.id);
+            if (existingOfType) {
+                return { canBuild: false, reason: `Already have a ${prop.name} here` };
+            }
         }
 
         // Check terrain requirements
         if (prop.requiredTerrain && !prop.requiredTerrain.includes(tile.terrain.id)) {
             // Special case for Fishing Wharf: can be built on coastal land adjacent to water
             if (propertyType.toUpperCase() === 'FISHING_WHARF') {
-                // Nothing special here actually, we handle it by setting requiredTerrain to coast/beach.
-                // But typically wharfs are built on land NEXT to water, or ON water?
-                // Let's assume on land next to water for simplicity, or on coastal tiles.
-                // If the user wants to build it on a 'plain' next to the ocean, that might fail if we restrict to 'coast'.
-                // The 'coast' terrain type in this game seems to be shallow water (impassable).
-                // 'beach' is passable.
-                // Let's allow building on any passable land IF it has an adjacent water tile.
-
                 const nearbyWater = Hex.neighbors(tile.q, tile.r).some(n => {
                     const nt = world.getTile(n.q, n.r);
                     return nt && ['ocean', 'deep_ocean', 'coast', 'lake', 'sea'].includes(nt.terrain.id);
@@ -223,8 +224,8 @@ const PlayerEconomy = {
             produces = tile.resource.id; // Mine produces whatever resource is there
         }
 
-        // Create property
-        tile.playerProperty = {
+        // Create property object
+        const newProperty = {
             type: prop.id,
             name: prop.name,
             icon: prop.icon,
@@ -234,14 +235,22 @@ const PlayerEconomy = {
             level: 1,
             daysOwned: 0,
             storage: 0,
-            upkeep: prop.upkeep || 0,
-            level: 1,
-            daysOwned: 0,
-            storage: 0,
             inputStorage: 0, // For workshops
             activeRecipe: null, // For workshops
             autoSell: false,
+            hasLab: false,   // Lab upgrade for technology research
         };
+
+        // Initialize playerProperties array if it doesn't exist
+        if (!tile.playerProperties) {
+            tile.playerProperties = [];
+        }
+
+        // Add property to tile's array
+        tile.playerProperties.push(newProperty);
+
+        // Also maintain the old playerProperty for backwards compatibility (use the first one)
+        tile.playerProperty = tile.playerProperties[0];
 
         // Add to player's properties list
         if (!player.properties) player.properties = [];
@@ -290,6 +299,18 @@ const PlayerEconomy = {
 
             // Commerce skill bonus (5% per level)
             amount *= (1 + player.skills.commerce * 0.05);
+
+            // Technology production bonus
+            if (typeof Technology !== 'undefined') {
+                const techBonus = Technology.getProductionBonus(player, property.type);
+                if (techBonus > 0) amount *= (1 + techBonus);
+            }
+
+            // Infrastructure irrigation bonus (for farms/irrigated farms)
+            if (typeof Infrastructure !== 'undefined' && (property.type === 'farm' || property.type === 'irrigated_farm')) {
+                const irrigBonus = Infrastructure.getIrrigationBonus(tile);
+                if (irrigBonus > 0) amount *= (1 + irrigBonus);
+            }
 
             amount = Math.floor(amount);
 
@@ -544,11 +565,19 @@ const PlayerEconomy = {
             distance: dist,
             goods: { ...goods },
             expectedProfit,
-            daysRemaining: Math.ceil(dist / 2),
+            daysRemaining: dist, // Still useful for estimate, but actual movement handled by unit
             status: 'traveling',
             isInternalTransfer,
-            targetPropertyType: toSettlement.isPlayerProperty ? toSettlement.type : null
+            targetPropertyType: toSettlement.isPlayerProperty ? toSettlement.type : null,
+            unitId: null // To be filled
         };
+
+        // Spawn physical unit
+        const caravanUnit = new WorldUnit('caravan', tile.q, tile.r, toSettlement.q, toSettlement.r);
+        caravanUnit.playerOwned = true; // Mark as player's
+        caravanUnit.goods = { ...goods }; // Give it the goods
+        world.units.push(caravanUnit);
+        caravan.unitId = caravanUnit.id;
 
         if (!player.caravans) player.caravans = [];
         player.caravans.push(caravan);
@@ -587,42 +616,93 @@ const PlayerEconomy = {
             const caravan = player.caravans[i];
 
             if (caravan.status === 'traveling') {
-                caravan.daysRemaining--;
+                // If using physical units
+                if (caravan.unitId) {
+                    const unit = world.units.find(u => u.id === caravan.unitId);
 
-                if (caravan.daysRemaining <= 0) {
-                    // Caravan arrived!
-                    caravan.status = 'completed';
-
-                    if (caravan.isInternalTransfer) {
-                        // Deposit goods into target property input storage
-                        const targetTile = world.getTile(caravan.toPos.q, caravan.toPos.r);
-                        // Verify target exists and is still ours
-                        if (targetTile && targetTile.playerProperty && targetTile.playerProperty.type === 'workshop') {
-                            // Add to input storage
-                            for (const qty of Object.values(caravan.goods)) {
-                                targetTile.playerProperty.inputStorage = (targetTile.playerProperty.inputStorage || 0) + qty;
-                            }
-                        }
-                        // No gold gained, but log valid completion
-                        completed.push({ ...caravan, finalProfit: 0 });
-                    } else {
-                        // Commercial Trade Logic
-                        const bonus = 1 + player.skills.commerce * 0.05;
-                        const finalProfit = Math.floor(caravan.expectedProfit * bonus);
-
-                        player.gold += finalProfit;
-                        completed.push({ ...caravan, finalProfit });
-
-                        // Track for quests
-                        Quests.trackCaravanCompleted(player);
-
-                        // Increase commerce skill
-                        player.skills.commerce = Math.min(10, player.skills.commerce + 0.2);
+                    if (!unit) {
+                        // Unit is gone! Likely destroyed by raiders or bug
+                        // Check if it was robbed? World events would have logged it.
+                        caravan.status = 'lost';
+                        // Maybe notify player here via return object?
+                        // For now just remove
+                        player.caravans.splice(i, 1);
+                        continue;
                     }
 
-                    // Remove from active caravans
-                    player.caravans.splice(i, 1);
+                    // Update caravan position for UI tracking
+                    caravan.currentPos = { q: unit.q, r: unit.r };
+
+                    // Update remaining distance estimate
+                    const dist = Hex.wrappingDistance(unit.q, unit.r, caravan.toPos.q, caravan.toPos.r, world.width);
+                    caravan.daysRemaining = Math.ceil(dist / unit.speed);
+
+                    if (unit.arrived) {
+                        // Mark for completion processing below
+                        // We handled the physical arrival, now handle the economic transaction
+                        unit.destroyed = true; // Remove the physical unit now
+                    } else if (unit.destroyed) {
+                        caravan.status = 'lost';
+                        player.caravans.splice(i, 1);
+                        continue;
+                    } else {
+                        // Still traveling
+                        continue;
+                    }
+                } else {
+                    // Fallback for old saves or logical-only caravans (legacy)
+                    caravan.daysRemaining--;
+                    if (caravan.daysRemaining > 0) continue;
                 }
+
+                // processing completion (either physical arrival or legacy timer)
+                caravan.status = 'completed';
+
+                if (caravan.isInternalTransfer) {
+                    // ... (existing logic)
+                    const targetTile = world.getTile(caravan.toPos.q, caravan.toPos.r);
+                    if (targetTile && targetTile.playerProperty && targetTile.playerProperty.type === 'workshop') {
+                        for (const qty of Object.values(caravan.goods)) {
+                            targetTile.playerProperty.inputStorage = (targetTile.playerProperty.inputStorage || 0) + qty;
+                        }
+                    }
+                    completed.push({ ...caravan, finalProfit: 0 });
+                } else {
+                    // ... (existing commercial logic)
+                    // Recalculate based on current market prices
+                    let marketValue = 0;
+                    for (const [goodId, qty] of Object.entries(caravan.goods)) {
+                        const currentPrice = MarketDynamics.getPrice(goodId);
+                        marketValue += currentPrice * qty;
+                    }
+
+                    const dist = Hex.wrappingDistance(caravan.fromPos.q, caravan.fromPos.r, caravan.toPos.q, caravan.toPos.r, world.width);
+                    const distanceMultiplier = 1 + (dist * 0.05); // 5% per hex
+
+                    const targetTile = world.getTile(caravan.toPos.q, caravan.toPos.r);
+                    let settlementMultiplier = 1.0;
+                    if (targetTile && targetTile.settlement) {
+                        if (targetTile.settlement.type === 'capital') settlementMultiplier = 1.5;
+                        else if (targetTile.settlement.type === 'city') settlementMultiplier = 1.2;
+                    }
+
+                    const grossRevenue = Math.floor(marketValue * distanceMultiplier * settlementMultiplier);
+
+                    const bonus = 1 + player.skills.commerce * 0.05;
+                    const finalProfit = Math.floor(grossRevenue * bonus);
+
+                    player.gold += finalProfit;
+                    completed.push({ ...caravan, finalProfit });
+
+                    // Track for quests
+                    Quests.trackCaravanCompleted(player);
+
+                    // Increase commerce skill
+                    player.skills.commerce = Math.min(10, player.skills.commerce + 0.2);
+                }
+
+                // Remove from active caravans
+                player.caravans.splice(i, 1);
             }
         }
 

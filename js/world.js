@@ -43,6 +43,12 @@ class World {
         // Initialize lords for all kingdoms
         NPCLords.initializeLords(this);
 
+        console.log('Initializing character system...');
+        // Initialize dynasty, advisors, marriages for all kingdoms
+        if (typeof Characters !== 'undefined') {
+            Characters.initialize(this);
+        }
+
         console.log('Placing independent settlements...');
         // Scatter some independent settlements
         this.placeIndependentSettlements();
@@ -53,6 +59,24 @@ class World {
 
         console.log('Generating world history...');
         this.history = WorldEvents.generateHistory(this);
+
+        // Initialize world religion system
+        console.log('Initializing religions & holy sites...');
+        if (typeof Religion !== 'undefined') {
+            Religion.initialize(this);
+        }
+
+        // Initialize cultural system
+        console.log('Initializing cultural traditions...');
+        if (typeof Culture !== 'undefined') {
+            Culture.initialize(this);
+        }
+
+        // Initialize multicultural peoples system
+        console.log('Initializing multicultural peoples...');
+        if (typeof Peoples !== 'undefined') {
+            Peoples.initialize(this);
+        }
 
         console.log(`World generated: ${this.width}x${this.height}, ${this.kingdoms.length} kingdoms`);
     }
@@ -121,7 +145,7 @@ class World {
             { type: 'monument', icon: '🗿', name: 'Stone Monument' },
         ];
 
-        const numPOI = Utils.randInt(10, 20);
+        const numPOI = Utils.randInt(15, 30); // Increased from 10-20 to make them more common
         const existingSettlements = this.getAllSettlements();
         // Also track existing POIs
         const existingPOIs = [];
@@ -167,6 +191,8 @@ class World {
                 break;
             }
         }
+        
+        console.log(`[World] Placed ${existingPOIs.length} Points of Interest`);
     }
 
     /**
@@ -214,12 +240,32 @@ class World {
             }
         }
 
+        // Process character system (dynasties, advisors, succession, marriages)
+        if (typeof Characters !== 'undefined') {
+            Characters.processTurn(this);
+        }
+
         // Process wars
         KingdomAI.processWars(this);
 
         // Generate world events
         const worldEvents = WorldEvents.generateEvents(this);
         this.events.push(...worldEvents);
+
+        // Process world religion (pilgrim income, heresies, holy site contestation)
+        if (typeof Religion !== 'undefined') {
+            Religion.processTurn(this);
+        }
+
+        // Process cultural events & influence
+        if (typeof Culture !== 'undefined') {
+            Culture.processTurn(this);
+        }
+
+        // Process multicultural peoples dynamics
+        if (typeof Peoples !== 'undefined') {
+            Peoples.processTurn(this);
+        }
 
         // Process units
         this.processUnits();

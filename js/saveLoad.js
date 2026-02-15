@@ -96,6 +96,9 @@ const SaveLoad = {
                     kingdom: tile.kingdom,
                     settlement: tile.settlement,
                     improvement: tile.improvement,
+                    infrastructure: tile.infrastructure || null,
+                    playerProperties: tile.playerProperties || null,
+                    playerProperty: tile.playerProperty || null,
                     // Terrain is regenerated, not saved
                 });
             }
@@ -127,6 +130,7 @@ const SaveLoad = {
             wars: k.wars,
             allies: k.allies,
             lord: k.lord,
+            characterData: typeof Characters !== 'undefined' ? Characters.serialize(k) : (k.characterData || null),
         }));
     },
 
@@ -154,9 +158,11 @@ const SaveLoad = {
             contract: player.contract,
             religion: player.religion,
             blessings: player.blessings,
+            technology: player.technology || null,
             quests: SaveLoad.serializeQuests(player.quests),
             achievements: player.achievements,
             miraclesPerformed: player.miraclesPerformed,
+            intel: player.intel || null,
         };
     },
 
@@ -196,6 +202,9 @@ const SaveLoad = {
                 tile.kingdom = savedTile.kingdom;
                 tile.settlement = savedTile.settlement;
                 tile.improvement = savedTile.improvement;
+                tile.infrastructure = savedTile.infrastructure || null;
+                tile.playerProperties = savedTile.playerProperties || null;
+                tile.playerProperty = savedTile.playerProperty || null;
             }
         }
 
@@ -205,6 +214,11 @@ const SaveLoad = {
             const kingdom = world.kingdoms[i];
 
             Object.assign(kingdom, savedKingdom);
+
+            // Restore character data
+            if (typeof Characters !== 'undefined' && savedKingdom.characterData) {
+                Characters.deserialize(kingdom, savedKingdom.characterData);
+            }
         }
     },
 

@@ -70,7 +70,7 @@ class WorldUnit {
             case 'fishing_boat':
                 this.icon = '🛶';
                 this.name = 'Fishing Boat';
-                this.speed = 1;
+                this.speed = 2; // Move 2 tiles per day
                 this.population = Utils.randInt(2, 5);
                 this.strength = 1;
                 this.inventory = {};
@@ -374,13 +374,24 @@ class WorldUnit {
             const wq = Hex.wrapQ(n.q, world.width);
             const tile = world.getTile(wq, n.r);
 
-            // Ship/Pirate only on water, others only on land
-            const isWater = (this.type === 'ship' || this.type === 'pirate' || this.type === 'fishing_boat');
+            // Ship/Pirate/Fishing Boat only on water, others only on land
+            const isWaterUnit = (this.type === 'ship' || this.type === 'pirate' || this.type === 'fishing_boat');
             if (!tile) continue;
 
             const tileIsWater = ['ocean', 'deep_ocean', 'coast', 'lake', 'sea'].includes(tile.terrain.id);
-            if (isWater && !tileIsWater) continue;
-            if (!isWater && !tile.terrain.passable) continue;
+
+            // Special case for fishing boats returning to wharf
+            const isFishingBoatReturning = this.type === 'fishing_boat' && this.returning && this.homeWharf;
+            const isNearHome = isFishingBoatReturning &&
+                Hex.wrappingDistance(wq, n.r, this.homeWharf.q, this.homeWharf.r, world.width) <= 1;
+
+            // Special case for fishing boats starting from wharf (on land)
+            const currentTile = world.getTile(this.q, this.r);
+            const isFishingBoatOnLand = this.type === 'fishing_boat' && currentTile && currentTile.terrain.passable;
+
+            // Allow fishing boats to move onto land when near their home wharf OR move from land to water when starting
+            if (isWaterUnit && !tileIsWater && !isNearHome && !isFishingBoatOnLand) continue;
+            if (!isWaterUnit && !tile.terrain.passable) continue;
 
             const d = Hex.wrappingDistance(wq, n.r, this.targetQ, this.targetR, world.width);
             if (d < minDist) {
@@ -405,28 +416,48 @@ class WorldUnit {
         // Stats
         this.maxAge = 1000; // Boats last a while
 
+        console.log(`Fishing boat update: pos(${this.q},${this.r}) target(${this.targetQ},${this.targetR}) fishing=${this.fishing} returning=${this.returning}`);
+
         // 1. Heading to fishing grounds
         if (!this.fishing && !this.returning) {
             if (this.targetQ !== null && this.targetR !== null) {
                 const dist = Hex.wrappingDistance(this.q, this.r, this.targetQ, this.targetR, world.width);
+                console.log(`Heading to fishing grounds, distance: ${dist}`);
                 if (dist <= 0) {
                     // Arrived
+                    console.log('Arrived at fishing grounds!');
                     this.fishing = true;
-                    this.fishingTimer = 5; // Fish for 5 days
+                    this.fishingTimer = 1; // Fish for 1 day
                     this.fishingSpotQ = this.targetQ; // Remember spot
                     this.fishingSpotR = this.targetR;
                 } else {
-                    this.moveTowardsTarget(world);
+                    // Move multiple times based on speed
+                    for (let i = 0; i < this.speed; i++) {
+                        const currentDist = Hex.wrappingDistance(this.q, this.r, this.targetQ, this.targetR, world.width);
+                        if (currentDist <= 0) {
+                            this.fishing = true;
+                            this.fishingTimer = 1;
+                            this.fishingSpotQ = this.targetQ;
+                            this.fishingSpotR = this.targetR;
+                            break;
+                        }
+                        console.log(`Moving towards target (step ${i + 1}/${this.speed})`);
+                        this.moveTowardsTarget(world);
+                        console.log(`New position: (${this.q},${this.r})`);
+                    }
                 }
             } else {
+                console.log('No target, destroying boat');
                 this.destroyed = true; // No target
             }
         }
         // 2. Fishing
         else if (this.fishing) {
             this.fishingTimer--;
+            console.log(`Fishing... timer: ${this.fishingTimer}`);
             if (this.fishingTimer <= 0) {
                 // Done fishing, return home
+                console.log('Done fishing, returning home');
                 this.fishing = false;
                 this.returning = true;
                 this.inventory['fish'] = (this.inventory['fish'] || 0) + Utils.randInt(5, 15);
@@ -435,14 +466,17 @@ class WorldUnit {
                 if (this.homeWharf) {
                     this.targetQ = this.homeWharf.q;
                     this.targetR = this.homeWharf.r;
+                    console.log(`Home wharf at (${this.targetQ},${this.targetR})`);
                 }
             }
         }
         // 3. Returning home
         else if (this.returning) {
             const dist = Hex.wrappingDistance(this.q, this.r, this.targetQ, this.targetR, world.width);
+            console.log(`Returning home, distance: ${dist}`);
             if (dist <= 0) {
                 // Arrived home
+                console.log('Arrived at wharf!');
                 this.returning = false;
 
                 // Deposit fish
@@ -450,21 +484,35 @@ class WorldUnit {
                 if (tile && tile.playerProperty && tile.playerProperty.type === 'fishing_wharf') {
                     tile.playerProperty.storage = (tile.playerProperty.storage || 0) + (this.inventory['fish'] || 0);
                     this.inventory['fish'] = 0;
+                    console.log(`Deposited fish. Storage now: ${tile.playerProperty.storage}`);
 
                     // Go back out to same spot
                     if (this.fishingSpotQ !== undefined) {
                         this.targetQ = this.fishingSpotQ;
                         this.targetR = this.fishingSpotR;
+                        console.log(`Heading back to fishing spot (${this.targetQ},${this.targetR})`);
                     } else {
                         // If we didn't save it, die or idle
+                        console.log('No fishing spot saved, destroying boat');
                         this.destroyed = true;
                     }
                 } else {
                     // Wharf is gone?
+                    console.log('Wharf not found, destroying boat');
                     this.destroyed = true;
                 }
             } else {
-                this.moveTowardsTarget(world);
+                // Move multiple times based on speed
+                for (let i = 0; i < this.speed; i++) {
+                    const currentDist = Hex.wrappingDistance(this.q, this.r, this.targetQ, this.targetR, world.width);
+                    if (currentDist <= 0) {
+                        // Arrived - will be handled on next update
+                        break;
+                    }
+                    console.log(`Moving towards home (step ${i + 1}/${this.speed})`);
+                    this.moveTowardsTarget(world);
+                    console.log(`New position: (${this.q},${this.r})`);
+                }
             }
         }
     }

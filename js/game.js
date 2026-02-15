@@ -64,6 +64,9 @@ class Game {
         this.world.generate(); // Regenerate terrain
         SaveLoad.restoreWorld(data.world, this.world);
 
+        // Recalculate regions for routing (important for older saves)
+        Terrain.identifyRegions(this.world.tiles, this.world.width, this.world.height);
+
         // Reconstruct player
         this.player = new Player();
         SaveLoad.restorePlayer(data.player, this.player);
@@ -253,6 +256,12 @@ class Game {
         // Update camera
         this.camera.update(deltaTime);
 
+        // Space to center on player
+        if (this.camera.keys[' ']) {
+            const pos = Hex.axialToPixel(this.player.q, this.player.r, this.renderer.hexSize);
+            this.camera.follow(pos.x, pos.y);
+        }
+
         // Update weather
         if (this.world && this.world.weather) {
             this.world.weather.update(deltaTime);
@@ -270,9 +279,9 @@ class Game {
                     this.onPlayerArrived();
                 }
 
-                // Camera follow
-                const pos = Hex.axialToPixel(this.player.q, this.player.r, this.renderer.hexSize);
-                this.camera.follow(pos.x, pos.y);
+                // Camera follow removed to allow free-panning while moving
+                // const pos = Hex.axialToPixel(this.player.q, this.player.r, this.renderer.hexSize);
+                // this.camera.follow(pos.x, pos.y);
             }
         }
 

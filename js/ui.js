@@ -23,6 +23,11 @@ class UI {
             renderer.showResources = !renderer.showResources;
             this.showNotification('Display', `Resource Icons: ${renderer.showResources ? 'ON' : 'OFF'}`, 'info');
         });
+        document.getElementById('btnToggleBorders').addEventListener('click', () => {
+            const renderer = this.game.renderer;
+            renderer.showTerritories = !renderer.showTerritories;
+            this.showNotification('Display', `Kingdom Borders: ${renderer.showTerritories ? 'ON' : 'OFF'}`, 'info');
+        });
         document.getElementById('btnEndTurn').addEventListener('click', () => this.game.endDay());
 
         // Panel close buttons
@@ -69,6 +74,7 @@ class UI {
         const body = document.getElementById('hexInfoBody');
 
         title.textContent = tile.terrain.name;
+        title.style.color = '#ffffff';
 
         // Calculate Temperature & Weather
         const temp = this.game.world.weather.getTemperature(q, r);
@@ -102,7 +108,7 @@ class UI {
         let html = `
             <div class="info-row">
                 <span class="info-label">Terrain</span>
-                <span class="info-value">${tile.terrain.icon} ${tile.terrain.name}</span>
+                <span class="info-value" style="color:#ffffff !important;">${tile.terrain.icon} ${tile.terrain.name}</span>
             </div>
             <div class="info-row">
                 <span class="info-label">Coordinates</span>
@@ -149,7 +155,7 @@ class UI {
                     <div class="info-section-title">Territory</div>
                     <div class="info-row">
                         <span class="info-label">Kingdom</span>
-                        <span class="info-value">
+                        <span class="info-value" style="color:#ffffff !important;">
                             <span class="kingdom-dot" style="color:${kingdom.color}; background:${kingdom.color}"></span>
                             ${kingdom.name}
                         </span>
@@ -166,7 +172,7 @@ class UI {
                 <div class="info-section-title">Settlement</div>
                 <div class="info-row">
                     <span class="info-label">Name</span>
-                    <span class="info-value">${tile.settlement.name}</span>
+                    <span class="info-value" style="color:#ffffff !important;">${tile.settlement.name}</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Type</span>
@@ -196,13 +202,102 @@ class UI {
             `;
         }
 
+        if (tile.playerProperty) {
+            const prop = tile.playerProperty;
+            html += `
+                <div class="info-section-title">Property</div>
+                <div class="info-row">
+                    <span class="info-label">Building</span>
+                    <span class="info-value" style="color:#ffffff !important;">${prop.icon} ${prop.name}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Owner</span>
+                    <span class="info-value" style="color:var(--gold);">You</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Level</span>
+                    <span class="info-value">${prop.level}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Production</span>
+                    <span class="info-value">${prop.productionRate}/day (${prop.produces})</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Storage</span>
+                    <span class="info-value">${prop.storage}</span>
+                </div>
+            `;
+        }
+
+        if (tile.religiousBuilding) {
+            const building = tile.religiousBuilding;
+            html += `
+                <div class="info-section-title">Religious Building</div>
+                <div class="info-row">
+                    <span class="info-label">Name</span>
+                    <span class="info-value" style="color:#ffffff !important;">${building.icon} ${building.name}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Religion</span>
+                    <span class="info-value" style="color:var(--gold);">${building.religion}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Faith Gain</span>
+                    <span class="info-value">+${building.faithGain}/day</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Followers</span>
+                    <span class="info-value">${Utils.formatNumber(building.followers)}</span>
+                </div>
+            `;
+        }
+
         if (tile.improvement) {
             html += `
                 <div class="info-section-title">Point of Interest</div>
                 <div class="info-row">
-                    <span class="info-label">${tile.improvement.icon} ${tile.improvement.name}</span>
+                    <span class="info-value" style="color:#ffffff !important;">${tile.improvement.icon} ${tile.improvement.name}</span>
                 </div>
             `;
+        }
+
+        // Add units on this tile
+        const units = this.game.world.units.filter(u => u.q === q && u.r === r);
+        if (units.length > 0) {
+            html += `<div class="info-section-title">Units</div>`;
+            for (const unit of units) {
+                // Format inventory string
+                let invStr = '';
+                if (unit.inventory && Object.keys(unit.inventory).length > 0) {
+                    const items = Object.entries(unit.inventory)
+                        .map(([item, qty]) => `${qty} ${item.charAt(0).toUpperCase() + item.slice(1)}`)
+                        .join(', ');
+                    invStr = `<div style="font-size:11px; color:var(--text-secondary); margin-left:22px;">📦 Carrying: ${items}</div>`;
+                }
+
+                // Format destination string
+                let destStr = '';
+                if (unit.targetQ !== null && unit.targetR !== null) {
+                    let destName = `(${unit.targetQ}, ${unit.targetR})`;
+                    // Try to find a settlement at target coordinates
+                    const targetTile = this.game.world.getTile(unit.targetQ, unit.targetR);
+                    if (targetTile && targetTile.settlement) {
+                        destName = targetTile.settlement.name;
+                    }
+                    destStr = `<div style="font-size:11px; color:var(--text-secondary); margin-left:22px;">📍 Heading to: <span style="color:#ffffff !important;">${destName}</span></div>`;
+                }
+
+                html += `
+                    <div class="info-row" style="flex-direction:column; align-items:flex-start; height:auto; padding:4px 0;">
+                        <div style="display:flex; justify-content:space-between; width:100%;">
+                            <span class="info-label">${unit.icon} ${unit.name}</span>
+                            <span class="info-value" style="font-size:11px;">👫 ${unit.population} | ⚔️ ${unit.strength}</span>
+                        </div>
+                        ${invStr}
+                        ${destStr}
+                    </div>
+                `;
+            }
         }
 
         body.innerHTML = html;
@@ -550,8 +645,16 @@ class UI {
         document.body.appendChild(panel);
 
         document.getElementById('closeCustomPanel').addEventListener('click', () => {
-            panel.remove();
+            this.hideCustomPanel();
         });
+    }
+
+    /**
+     * Hide the custom panel
+     */
+    hideCustomPanel() {
+        const panel = document.getElementById('customPanel');
+        if (panel) panel.remove();
     }
 
     /**

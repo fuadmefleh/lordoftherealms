@@ -311,6 +311,9 @@ const Terrain = {
             }
         }
 
+        // Identify connected regions for reachable pathfinding
+        Terrain.identifyRegions(tiles, width, height);
+
         return tiles;
     },
 
@@ -631,6 +634,53 @@ const Terrain = {
                 if (tile.elevation > 0.38) {
                     tile.elevation = 0.38;
                     tile.waterBodyType = 'ocean'; // Force classification
+                }
+            }
+        }
+    },
+
+    identifyRegions(tiles, width, height) {
+        const visited = new Set();
+        let regionCounter = 0;
+
+        for (let r = 0; r < height; r++) {
+            for (let q = 0; q < width; q++) {
+                const tile = tiles[r][q];
+                const key = `${q},${r}`;
+
+                if (!visited.has(key)) {
+                    regionCounter++;
+                    const queue = [tile];
+                    visited.add(key);
+                    tile.regionId = regionCounter;
+
+                    const getCategory = (t) => {
+                        if (['ocean', 'deep_ocean', 'coast', 'lake', 'sea'].includes(t.terrain.id)) return 'water';
+                        if (t.terrain.passable) return 'land';
+                        return 'impassable';
+                    };
+
+                    const category = getCategory(tile);
+
+                    let ptr = 0;
+                    while (ptr < queue.length) {
+                        const curr = queue[ptr++];
+                        const neighbors = Hex.neighbors(curr.q, curr.r);
+
+                        for (const n of neighbors) {
+                            const wq = Hex.wrapQ(n.q, width);
+                            if (n.r < 0 || n.r >= height) continue;
+
+                            const neighbor = tiles[n.r][wq];
+                            const nKey = `${wq},${n.r}`;
+
+                            if (!visited.has(nKey) && getCategory(neighbor) === category) {
+                                visited.add(nKey);
+                                neighbor.regionId = regionCounter;
+                                queue.push(neighbor);
+                            }
+                        }
+                    }
                 }
             }
         }

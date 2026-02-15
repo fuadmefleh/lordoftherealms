@@ -12,40 +12,66 @@ const PlayerEconomy = {
             name: 'Farm',
             icon: '🌾',
             cost: 500,
-            produces: 'food',
-            productionRate: 10, // units per day
+            produces: 'grain', // Changed from 'food'
+            productionRate: 10,
+            upkeep: 5,
             requiredTerrain: ['plains', 'grassland'],
-            description: 'Produces food that can be sold'
+            description: 'Produces grain that can be milled or sold. Upkeep: 5g/day'
+        },
+        PASTURE: {
+            id: 'pasture',
+            name: 'Pasture',
+            icon: '🐑',
+            cost: 500,
+            produces: 'wool',
+            productionRate: 8,
+            upkeep: 5,
+            requiredTerrain: ['plains', 'grassland', 'hills'],
+            description: 'Raises sheep for wool. Upkeep: 5g/day'
+        },
+        LOGGING_CAMP: {
+            id: 'logging_camp',
+            name: 'Logging Camp',
+            icon: '🪓',
+            cost: 400,
+            produces: 'wood',
+            productionRate: 6,
+            upkeep: 5,
+            requiredTerrain: ['forest', 'dense_forest', 'woodland', 'boreal_forest', 'seasonal_forest', 'temperate_rainforest', 'tropical_rainforest'],
+            description: 'Harvests wood from forests. Upkeep: 5g/day'
         },
         MINE: {
             id: 'mine',
             name: 'Mine',
             icon: '⛏️',
             cost: 1000,
-            produces: 'iron', // or gold_ore, gems, stone based on resource
+            produces: 'iron',
             productionRate: 5,
+            upkeep: 15,
             requiredResource: ['iron', 'gold_ore', 'gems', 'stone'],
-            description: 'Extracts valuable resources for sale'
+            description: 'Extracts valuable resources for sale. Upkeep: 15g/day'
         },
         WORKSHOP: {
             id: 'workshop',
             name: 'Workshop',
             icon: '🔨',
             cost: 800,
-            produces: 'goods',
-            productionRate: 8,
+            produces: null, // Variable based on recipe
+            productionRate: 5, // Process rate
+            upkeep: 10,
             requiredSettlement: true,
-            description: 'Crafts goods for sale'
+            description: 'Processes raw materials into goods. Upkeep: 10g/day'
         },
         TRADING_POST: {
             id: 'trading_post',
             name: 'Trading Post',
             icon: '🏪',
             cost: 600,
-            produces: null, // Doesn't produce, attracts traders
+            produces: null,
             productionRate: 0,
+            upkeep: 5,
             requiredSettlement: true,
-            description: 'Attracts traveling merchants who buy your goods'
+            description: 'Attracts traveling merchants. Upkeep: 5g/day'
         },
     },
 
@@ -53,18 +79,37 @@ const PlayerEconomy = {
      * Goods and their base prices
      */
     GOODS: {
-        FOOD: { id: 'food', name: 'Food', icon: '🌾', basePrice: 5 },
+        GRAIN: { id: 'grain', name: 'Grain', icon: '🌾', basePrice: 5 },
+        FLOUR: { id: 'flour', name: 'Flour', icon: '🥡', basePrice: 10 },
+        BREAD: { id: 'bread', name: 'Bread', icon: '🍞', basePrice: 15 },
         WOOD: { id: 'wood', name: 'Wood', icon: '🌲', basePrice: 8 },
+        FIREWOOD: { id: 'firewood', name: 'Firewood', icon: '🔥', basePrice: 12 },
+        WOOL: { id: 'wool', name: 'Wool', icon: '🐑', basePrice: 10 },
+        TEXTILES: { id: 'textiles', name: 'Textiles', icon: '🧵', basePrice: 25 },
+        CLOTHES: { id: 'clothes', name: 'Clothes', icon: '👕', basePrice: 40 },
         STONE: { id: 'stone', name: 'Stone', icon: '⛰️', basePrice: 8 },
         IRON: { id: 'iron', name: 'Iron', icon: '⚒️', basePrice: 20 },
-        GOLD_ORE: { id: 'gold_ore', name: 'Gold Ore', icon: '💰', basePrice: 40 },
-        GEMS: { id: 'gems', name: 'Gems', icon: '💎', basePrice: 60 },
-        TEXTILES: { id: 'textiles', name: 'Textiles', icon: '🧵', basePrice: 25 },
-        SPICES: { id: 'spices', name: 'Spices', icon: '🧂', basePrice: 45 },
-        HORSES: { id: 'horses', name: 'Horses', icon: '🐴', basePrice: 55 },
         TOOLS: { id: 'tools', name: 'Tools', icon: '🔧', basePrice: 35 },
         WEAPONS: { id: 'weapons', name: 'Weapons', icon: '⚔️', basePrice: 60 },
+        GOLD_ORE: { id: 'gold_ore', name: 'Gold Ore', icon: '💰', basePrice: 40 },
+        GEMS: { id: 'gems', name: 'Gems', icon: '💎', basePrice: 60 },
+        SPICES: { id: 'spices', name: 'Spices', icon: '🧂', basePrice: 45 },
+        HORSES: { id: 'horses', name: 'Horses', icon: '🐴', basePrice: 55 },
         LUXURIES: { id: 'luxuries', name: 'Luxuries', icon: '💍', basePrice: 100 },
+    },
+
+    /**
+     * Crafting Recipes for Workshops
+     */
+    RECIPES: {
+        FIREWOOD: { id: 'firewood', name: 'Split Firewood', input: 'wood', inputQty: 2, output: 'firewood', outputQty: 5, description: 'Prepare fuel for heating.' },
+        FLOUR: { id: 'flour', name: 'Mill Flour', input: 'grain', inputQty: 2, output: 'flour', outputQty: 2, description: 'Grind grain into flour.' },
+        BREAD: { id: 'bread', name: 'Bake Bread', input: 'flour', inputQty: 1, output: 'bread', outputQty: 4, description: 'Bake nutritious bread.' },
+        TEXTILES: { id: 'textiles', name: 'Weave Textiles', input: 'wool', inputQty: 3, output: 'textiles', outputQty: 2, description: 'Weave wool into cloth.' },
+        CLOTHES: { id: 'clothes', name: 'Tailor Clothes', input: 'textiles', inputQty: 1, output: 'clothes', outputQty: 2, description: 'Sew warm clothing.' },
+        TOOLS: { id: 'tools', name: 'Forge Tools', input: 'iron', inputQty: 1, output: 'tools', outputQty: 2, description: 'Smith essential tools.' },
+        WEAPONS: { id: 'weapons', name: 'Forge Weapons', input: 'iron', inputQty: 2, output: 'weapons', outputQty: 1, description: 'Forge weapons for war.' },
+        LUXURIES: { id: 'luxuries', name: 'Refine Luxuries', input: 'gold_ore', inputQty: 2, output: 'luxuries', outputQty: 1, description: 'Craft fine jewelry.' },
     },
 
     /**
@@ -129,9 +174,17 @@ const PlayerEconomy = {
             icon: prop.icon,
             produces,
             productionRate: prop.productionRate,
+            upkeep: prop.upkeep || 0,
             level: 1,
             daysOwned: 0,
-            storage: 0, // Stored goods waiting to be collected
+            storage: 0,
+            upkeep: prop.upkeep || 0,
+            level: 1,
+            daysOwned: 0,
+            storage: 0,
+            inputStorage: 0, // For workshops
+            activeRecipe: null, // For workshops
+            autoSell: false,
         };
 
         // Add to player's properties list
@@ -171,6 +224,11 @@ const PlayerEconomy = {
             // Calculate production
             let amount = property.productionRate;
 
+            // Resource Bonus for Logging Camp
+            if (property.type === 'logging_camp' && tile.resource && tile.resource.id === 'timber') {
+                amount *= 1.5; // 50% bonus for timber resource
+            }
+
             // Level bonus (10% per level)
             amount *= (1 + (property.level - 1) * 0.1);
 
@@ -179,18 +237,77 @@ const PlayerEconomy = {
 
             amount = Math.floor(amount);
 
-            // Add to property storage
-            property.storage = (property.storage || 0) + amount;
+            let producedAmount = amount;
+            let producedGood = property.produces;
+            let consumedInput = false;
 
-            // Track production
-            production[property.produces] = (production[property.produces] || 0) + amount;
+            // Workshop Specific Logic
+            if (property.type === 'workshop') {
+                if (!property.activeRecipe) {
+                    producedAmount = 0; // No recipe, no production
+                } else {
+                    const recipe = PlayerEconomy.RECIPES[property.activeRecipe];
+                    if (recipe) {
+                        // Check input storage
+                        const inputNeeded = recipe.inputQty;
+                        const outputQty = recipe.outputQty;
+
+                        // Calculate max runs based on input
+                        const maxRuns = Math.floor((property.inputStorage || 0) / inputNeeded);
+
+                        // Calculate desired runs based on production rate (which we treat as number of runs or output? Let's treat rate as raw output capacity)
+                        // But for simplicity, let's say rate = number of recipe runs per day?
+                        // Or rate = amount of output units? 
+                        // Let's stick to rate = output units.
+                        // So desired runs = amount / outputQty
+
+                        let runs = Math.floor(amount / outputQty);
+                        if (runs < 1) runs = 1; // Minimum 1 run if rate allows at least something? Or maybe strict.
+
+                        const actualRuns = Math.min(runs, maxRuns);
+
+                        if (actualRuns > 0) {
+                            property.inputStorage -= actualRuns * inputNeeded;
+                            producedAmount = actualRuns * outputQty;
+                            producedGood = recipe.output;
+                            consumedInput = true;
+                        } else {
+                            producedAmount = 0; // Not enough input
+                        }
+                    }
+                }
+            }
+
+            // Pay upkeep
+            const upkeepCost = (property.upkeep || 0) * property.level;
+
+            // Only produce if upkeep paid (and inputs valid for workshop)
+            if (player.gold >= upkeepCost) {
+                player.gold -= upkeepCost;
+
+                if (producedAmount > 0) {
+                    // Add to property storage if upkeep paid
+                    property.storage = (property.storage || 0) + producedAmount;
+
+                    // Track production
+                    production[producedGood] = (production[producedGood] || 0) + producedAmount;
+                }
+            }
 
             // Increment days owned
             property.daysOwned++;
 
-            // Chance to level up (every 30 days)
-            if (property.daysOwned % 30 === 0 && property.level < 5) {
-                property.level++;
+            // Auto sell if enabled (simple logic)
+            if (property.autoSell && property.storage > 0 && producedAmount > 0) {
+                const sellAmount = property.storage;
+                // ... same as before
+                const goodType = producedGood.toUpperCase();
+                const good = PlayerEconomy.GOODS[goodType];
+                if (good) {
+                    const income = Math.floor(sellAmount * good.basePrice * 0.5);
+                    player.gold += income;
+                    property.storage = 0;
+                }
             }
         }
 
@@ -303,6 +420,106 @@ const PlayerEconomy = {
     },
 
     /**
+     * Start a caravan specifically from property storage
+     * toSettlement can be a Settlement OR a Player Property object (must have q, r, name, type)
+     */
+    startStorageCaravan(player, tile, toSettlement, world) {
+        if (!tile.playerProperty) return { success: false, reason: 'No property here' };
+
+        const property = tile.playerProperty;
+        if (property.storage <= 0) return { success: false, reason: 'Storage is empty' };
+
+        // Determine property output
+        const outputGood = property.produces;
+        if (!outputGood) return { success: false, reason: 'Nothing to ship' };
+
+        const goods = {};
+        goods[outputGood] = property.storage;
+
+        // Use regular caravan logic but don't deduct from inventory, deduct from storage
+        const cost = 200;
+        if (player.gold < cost) {
+            return { success: false, reason: `Need ${cost} gold` };
+        }
+
+        const dist = Hex.wrappingDistance(
+            tile.q, tile.r,
+            toSettlement.q, toSettlement.r,
+            world.width
+        );
+
+        if (dist > 20) return { success: false, reason: 'Destination too far' };
+
+        // Calculate expected profit OR just mark as internal transfer
+        let expectedProfit = 0;
+        let isInternalTransfer = false;
+
+        // Internal Transfer Logic: If destination is a Workshop owned by player
+        if (toSettlement.isPlayerProperty && toSettlement.type === 'workshop') {
+            isInternalTransfer = true;
+            expectedProfit = 0; // No gold profit, materials transfer
+        } else {
+            // Standard Trade
+            const goodId = outputGood.toUpperCase();
+            const good = PlayerEconomy.GOODS[goodId];
+
+            if (good) {
+                let price = good.basePrice;
+                price *= (1 + dist * 0.05); // Distance bonus
+                const sizeMultiplier = {
+                    village: 0.8, town: 1.0, city: 1.2, capital: 1.5
+                };
+                price *= sizeMultiplier[toSettlement.type] || 1.0;
+                expectedProfit = Math.floor(price * property.storage);
+            }
+        }
+
+        // Deduct cost and storage
+        player.gold -= cost;
+        property.storage = 0;
+
+        // Create caravan
+        const caravan = {
+            from: property.name,
+            to: toSettlement.name,
+            fromPos: { q: tile.q, r: tile.r },
+            toPos: { q: toSettlement.q, r: toSettlement.r },
+            currentPos: { q: tile.q, r: tile.r },
+            distance: dist,
+            goods: { ...goods },
+            expectedProfit,
+            daysRemaining: Math.ceil(dist / 2),
+            status: 'traveling',
+            isInternalTransfer,
+            targetPropertyType: toSettlement.isPlayerProperty ? toSettlement.type : null
+        };
+
+        if (!player.caravans) player.caravans = [];
+        player.caravans.push(caravan);
+
+        return { success: true, caravan };
+    },
+
+    /**
+     * Upgrade a property
+     */
+    upgradeProperty(player, tile) {
+        if (!tile.playerProperty) return { success: false, reason: 'No property' };
+
+        const property = tile.playerProperty;
+        if (property.level >= 5) return { success: false, reason: 'Max level reached' };
+
+        const cost = Math.floor(PlayerEconomy.PROPERTY_TYPES[property.type.toUpperCase()].cost * 0.5 * (property.level + 1));
+
+        if (player.gold < cost) return { success: false, reason: `Need ${cost} gold` };
+
+        player.gold -= cost;
+        property.level++;
+
+        return { success: true, level: property.level, cost };
+    },
+
+    /**
      * Update all player caravans
      */
     updateCaravans(player, world) {
@@ -320,21 +537,35 @@ const PlayerEconomy = {
                     // Caravan arrived!
                     caravan.status = 'completed';
 
-                    // Commerce skill bonus
-                    const bonus = 1 + player.skills.commerce * 0.05;
-                    const finalProfit = Math.floor(caravan.expectedProfit * bonus);
+                    if (caravan.isInternalTransfer) {
+                        // Deposit goods into target property input storage
+                        const targetTile = world.getTile(caravan.toPos.q, caravan.toPos.r);
+                        // Verify target exists and is still ours
+                        if (targetTile && targetTile.playerProperty && targetTile.playerProperty.type === 'workshop') {
+                            // Add to input storage
+                            for (const qty of Object.values(caravan.goods)) {
+                                targetTile.playerProperty.inputStorage = (targetTile.playerProperty.inputStorage || 0) + qty;
+                            }
+                        }
+                        // No gold gained, but log valid completion
+                        completed.push({ ...caravan, finalProfit: 0 });
+                    } else {
+                        // Commercial Trade Logic
+                        const bonus = 1 + player.skills.commerce * 0.05;
+                        const finalProfit = Math.floor(caravan.expectedProfit * bonus);
 
-                    player.gold += finalProfit;
-                    completed.push({ ...caravan, finalProfit });
+                        player.gold += finalProfit;
+                        completed.push({ ...caravan, finalProfit });
 
-                    // Track for quests
-                    Quests.trackCaravanCompleted(player);
+                        // Track for quests
+                        Quests.trackCaravanCompleted(player);
+
+                        // Increase commerce skill
+                        player.skills.commerce = Math.min(10, player.skills.commerce + 0.2);
+                    }
 
                     // Remove from active caravans
                     player.caravans.splice(i, 1);
-
-                    // Increase commerce skill
-                    player.skills.commerce = Math.min(10, player.skills.commerce + 0.2);
                 }
             }
         }
@@ -378,6 +609,40 @@ const PlayerEconomy = {
 
         return null;
     },
+    /**
+     * Set active recipe for a workshop
+     */
+    setWorkshopRecipe(tile, recipeId) {
+        if (!tile.playerProperty || tile.playerProperty.type !== 'workshop') return { success: false };
+        tile.playerProperty.activeRecipe = recipeId;
+        const recipe = PlayerEconomy.RECIPES[recipeId];
+        if (recipe) {
+            tile.playerProperty.produces = recipe.output;
+        }
+        return { success: true };
+    },
+
+    /**
+     * Deposit goods into workshop input storage
+     */
+    depositToWorkshop(player, tile, goodId, amount) {
+        if (!tile.playerProperty || tile.playerProperty.type !== 'workshop') return { success: false, reason: 'Not a workshop' };
+
+        if (!player.inventory[goodId] || player.inventory[goodId] < amount) {
+            return { success: false, reason: 'Not enough goods' };
+        }
+
+        // Validate good matches recipe input? 
+        // Or just allow generic input storage. Let's validate against current recipe to be safe.
+        const recipe = PlayerEconomy.RECIPES[tile.playerProperty.activeRecipe];
+        if (!recipe) return { success: false, reason: 'No recipe selected' };
+        if (recipe.input !== goodId) return { success: false, reason: `Recipe needs ${recipe.input}` };
+
+        player.inventory[goodId] -= amount;
+        tile.playerProperty.inputStorage = (tile.playerProperty.inputStorage || 0) + amount;
+
+        return { success: true };
+    },
 };
 
 // ============================================
@@ -403,9 +668,9 @@ const Trading = {
             });
         };
 
-        // All settlements have food and common goods
-        addGood('FOOD', 0.1);
-        addGood('GOODS', 0.05);
+        // All settlements have basic food
+        addGood('GRAIN', 0.1);
+        addGood('BREAD', 0.05);
 
         // Larger settlements have more variety
         if (settlement.type === 'town' || settlement.type === 'city' || settlement.type === 'capital') {
@@ -438,9 +703,33 @@ const Trading = {
         };
         price *= sizeMultiplier[settlement.type] || 1.0;
 
+        // Temperature based demand for Firewood and Warm Clothes
+        const world = (typeof window !== 'undefined' && window.game) ? window.game.world : null;
+
+        if (world && world.weather) {
+            const temp = tile.temperature ?? 15; // default 15
+            const isCold = temp < 5;
+
+            if (good.id === 'firewood') {
+                if (isCold) price *= 1.5; // High demand in cold
+                else price *= 0.8; // Low demand elsewhere
+            }
+            if (good.id === 'clothes') {
+                if (isCold) price *= 1.3;
+            }
+        } else {
+            // Fallback to biome based logic
+            const isCold = ['tundra', 'snowy_wasteland', 'ice_sheet', 'taiga', 'boreal_forest'].includes(tile.terrain.id);
+            if (good.id === 'firewood') {
+                if (isCold) price *= 1.5;
+                else price *= 0.8;
+            }
+        }
+
         // Resource bonuses affect prices
         if (tile.resource) {
-            if (good.id === 'food' && ['wheat', 'fish'].includes(tile.resource.id)) price *= 0.7;
+            if (good.id === 'grain' && ['wheat'].includes(tile.resource.id)) price *= 0.7;
+            if ((good.id === 'bread' || good.id === 'flour') && ['wheat'].includes(tile.resource.id)) price *= 0.85;
             if (good.id === 'weapons' && tile.resource.id === 'iron') price *= 0.8;
             if (good.id === 'luxuries' && ['gems', 'spices'].includes(tile.resource.id)) price *= 0.85;
             if (good.id === 'stone' && tile.resource.id === 'stone') price *= 0.7;
@@ -449,6 +738,8 @@ const Trading = {
 
         return Math.floor(price);
     },
+
+    // Moved to PlayerEconomy object
 
     /**
      * Buy goods from a settlement

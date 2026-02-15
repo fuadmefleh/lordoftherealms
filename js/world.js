@@ -12,6 +12,7 @@ class World {
         this.season = 'Spring';
         this.year = 1;
         this.events = [];
+        this.units = [];
         this.weather = new WeatherSystem(this);
     }
 
@@ -68,7 +69,14 @@ class World {
                 const tile = this.tiles[r][q];
 
                 if (!tile.terrain.passable || tile.settlement || tile.kingdom) continue;
-                if (tile.terrain.id === 'coast' || tile.terrain.id === 'beach') continue;
+
+                // Coastal preference: higher chance if next to ocean
+                const isCoastal = Hex.neighbors(q, r).some(n => {
+                    const nt = this.getTile(n.q, n.r);
+                    return nt && (nt.terrain.id === 'ocean' || nt.terrain.id === 'deep_ocean');
+                });
+
+                if (!isCoastal && Math.random() < 0.75) continue;
 
                 // Check distance to all other settlements
                 let tooClose = false;
@@ -206,12 +214,146 @@ class World {
         const worldEvents = WorldEvents.generateEvents(this);
         this.events.push(...worldEvents);
 
+        // Process units
+        this.processUnits();
+
         return {
             day: this.day,
             season: this.season,
             year: this.year,
             events: this.events,
         };
+    }
+
+    /**
+     * Process all world units
+     */
+    processUnits() {
+        if (!this.units) this.units = [];
+
+        // Move units
+        for (let i = this.units.length - 1; i >= 0; i--) {
+            const unit = this.units[i];
+            unit.update(this);
+            if (unit.destroyed) {
+                this.units.splice(i, 1);
+            }
+        }
+
+        // Spawn new units if needed
+        this.spawnUnits();
+    }
+
+    /**
+     * Spawn dynamic units
+     */
+    spawnUnits() {
+        const settlements = this.getAllSettlements();
+        if (settlements.length < 2) return;
+
+        // Spawn caravan
+        if (this.units.filter(u => u.type === 'caravan').length < settlements.length) {
+            if (Math.random() < 0.4) {
+                const s1 = Utils.randPick(settlements);
+                const t1 = this.getTile(s1.q, s1.r);
+                if (t1) {
+                    const reachable = settlements.filter(s => {
+                        if (s.name === s1.name) return false;
+                        const t2 = this.getTile(s.q, s.r);
+                        return t2 && t2.regionId === t1.regionId;
+                    });
+
+                    if (reachable.length > 0) {
+                        const s2 = Utils.randPick(reachable);
+                        const caravan = new WorldUnit('caravan', s1.q, s1.r, s2.q, s2.r);
+                        this.units.push(caravan);
+                    }
+                }
+            }
+        }
+
+        // Spawn ship
+        const coastalSettlements = settlements.filter(s => {
+            return Hex.neighbors(s.q, s.r).some(n => {
+                const nt = this.getTile(n.q, n.r);
+                return nt && (nt.terrain.id === 'ocean' || nt.terrain.id === 'deep_ocean');
+            });
+        });
+        if (coastalSettlements.length >= 2 && this.units.filter(u => u.type === 'ship').length < coastalSettlements.length * 2) {
+            if (Math.random() < 0.4) {
+                const s1 = Utils.randPick(coastalSettlements);
+
+                // Find water region for ship
+                let waterRegionId = null;
+                const neighbors1 = Hex.neighbors(s1.q, s1.r);
+                for (const n of neighbors1) {
+                    const nt = this.getTile(n.q, n.r);
+                    if (nt && !nt.terrain.passable) {
+                        waterRegionId = nt.regionId;
+                        break;
+                    }
+                }
+
+                if (waterRegionId !== null) {
+                    const reachable = coastalSettlements.filter(s => {
+                        if (s.name === s1.name) return false;
+                        const neighbors2 = Hex.neighbors(s.q, s.r);
+                        return neighbors2.some(n => {
+                            const nt = this.getTile(n.q, n.r);
+                            return nt && nt.regionId === waterRegionId;
+                        });
+                    });
+
+                    if (reachable.length > 0) {
+                        const s2 = Utils.randPick(reachable);
+                        const ship = new WorldUnit('ship', s1.q, s1.r, s2.q, s2.r);
+                        this.units.push(ship);
+                    }
+                }
+            }
+        }
+
+        // Spawn raider
+        if (this.units.filter(u => u.type === 'raider').length < 8) {
+            // Only spawn raiders if zoomed in enough to see them, or if camera is not defined (e.g., headless mode)
+            if (!this.camera || this.camera.zoom > 0.4) {
+                if (Math.random() < 0.2) {
+                    const q = Utils.randInt(0, this.width - 1);
+                    const r = Utils.randInt(0, this.height - 1);
+                    if (this.isPassable(q, r)) {
+                        this.units.push(new WorldUnit('raider', q, r));
+                    }
+                }
+            }
+        }
+
+        // Spawn pirate
+        if (this.units.filter(u => u.type === 'pirate').length < 6) {
+            if (Math.random() < 0.1) {
+                const q = Utils.randInt(0, this.width - 1);
+                const r = Utils.randInt(0, this.height - 1);
+                const tile = this.getTile(q, r);
+                if (tile && (tile.terrain.id === 'ocean' || tile.terrain.id === 'deep_ocean')) {
+                    this.units.push(new WorldUnit('pirate', q, r));
+                }
+            }
+        }
+
+        // Spawn patrol
+        if (this.units.filter(u => u.type === 'patrol').length < 4) {
+            if (Math.random() < 0.05) {
+                const capital = settlements.find(s => s.type === 'capital');
+                if (capital) {
+                    this.units.push(new WorldUnit('patrol', capital.q, capital.r));
+                }
+            }
+        }
+
+        // Spawn settler
+        if (this.day % 20 === 0 && Math.random() < 0.1 && this.units.filter(u => u.type === 'settler').length < 2) {
+            const s = Utils.randPick(settlements);
+            this.units.push(new WorldUnit('settler', s.q, s.r));
+        }
     }
 
     /**
@@ -226,9 +368,9 @@ class World {
             const k2 = Utils.randPick(this.kingdoms.filter(k => k.isAlive && k.id !== k1.id));
             if (k1 && k2) {
                 const eventTypes = [
-                    { text: `Tensions rise between ${k1.name} and ${k2.name}`, type: 'diplomatic' },
-                    { text: `A trade agreement is signed between ${k1.name} and ${k2.name}`, type: 'trade' },
-                    { text: `Border skirmish reported between ${k1.name} and ${k2.name}`, type: 'military' },
+                    { text: `Tensions rise between ${k1.name} and ${k2.name} `, type: 'diplomatic' },
+                    { text: `A trade agreement is signed between ${k1.name} and ${k2.name} `, type: 'trade' },
+                    { text: `Border skirmish reported between ${k1.name} and ${k2.name} `, type: 'military' },
                 ];
                 this.events.push(Utils.randPick(eventTypes));
             }
@@ -236,7 +378,7 @@ class World {
 
         if (Math.random() < 0.03) {
             this.events.push({
-                text: `Traveling merchants report a bountiful harvest in the ${this.season}`,
+                text: `Traveling merchants report a bountiful harvest in the ${this.season} `,
                 type: 'economic'
             });
         }

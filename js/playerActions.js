@@ -58,12 +58,27 @@ const PlayerActions = {
                 icon: '🙏',
                 description: 'Spread your faith and gain followers'
             });
+
+            // Ship Passage (Coastal Settlements)
+            const isCoastal = Hex.neighbors(tile.q, tile.r).some(n => {
+                const nt = world.getTile(n.q, n.r);
+                return nt && ['ocean', 'deep_ocean', 'coast', 'lake', 'sea'].includes(nt.terrain.id);
+            });
+
+            if (isCoastal) {
+                actions.push({
+                    type: 'ship_passage',
+                    label: 'Pay for Passage',
+                    icon: '⛴️',
+                    description: 'Hire a ship to travel to another coastal settlement'
+                });
+            }
         }
 
         // 3. Building / Property Actions
         // Can build if tile is empty (no settlement, no existing property)
         // And terrain is valid (not water, etc. - checked in PlayerEconomy really, but roughly here)
-        if (!tile.settlement && !tile.playerProperty && !tile.structure && !tile.improvement && tile.terrain.passable) {
+        if ((!tile.settlement || tile.settlement.type) && !tile.playerProperty && !tile.structure && !tile.improvement && tile.terrain.passable) {
             actions.push({
                 type: 'build_property',
                 label: 'Build Property',
@@ -76,7 +91,7 @@ const PlayerActions = {
         // Build Temple (needs empty spot or inside own settlement?)
         // Let's say we can build temples in empty spots too, or perhaps specific spots.
         // For now, allow on empty tiles if player has a religion
-        if (!tile.settlement && !tile.playerProperty && !tile.improvement && tile.terrain.passable) {
+        if ((!tile.settlement || tile.settlement.type) && !tile.playerProperty && !tile.improvement && tile.terrain.passable) {
             actions.push({
                 type: 'build_temple',
                 label: 'Build Temple',
@@ -87,8 +102,16 @@ const PlayerActions = {
 
         // 5. Property Interaction
         if (tile.playerProperty) {
-            // Collect goods if storage > 0
-            if (tile.playerProperty.storage && tile.playerProperty.storage > 0) {
+            // Manage Action (covers collecting, upgrading, shipping)
+            actions.push({
+                type: 'manage_property',
+                label: 'Manage Property',
+                icon: '🛠️',
+                description: 'Collect goods, upgrade, or send caravans'
+            });
+
+            // Collect goods shortcut (keep if convenient, or remove to force using manage)
+            if (tile.playerProperty.produces && tile.playerProperty.storage && tile.playerProperty.storage > 0) {
                 actions.push({
                     type: 'collect_goods',
                     label: 'Collect Goods',
@@ -109,5 +132,44 @@ const PlayerActions = {
         }
 
         return actions;
-    }
+    },
+    /**
+     * Process end of day for player
+     */
+    endDay(player, world) {
+        const results = {
+            production: {},     // New production
+            faithIncome: 0,
+            upkeepCost: 0,
+            caravansCompleted: [],
+            contractUpdate: null,
+            followersGained: 0,
+            blessingsExpired: [],
+        };
+
+        // Produce goods from properties
+        results.production = PlayerEconomy.produceGoods(player, world);
+
+        // Collect faith income
+        results.faithIncome = PlayerReligion.collectFaithIncome(player);
+
+        // Pay army upkeep
+        const upkeep = PlayerMilitary.payUpkeep(player);
+        results.upkeepCost = upkeep.cost || 0;
+        results.unitsLost = upkeep.unitsLost || 0;
+
+        // Update caravans
+        results.caravansCompleted = PlayerEconomy.updateCaravans(player, world);
+
+        // Update contract
+        results.contractUpdate = PlayerMilitary.updateContract(player);
+
+        // Spread faith
+        results.followersGained = PlayerReligion.spreadFaith(player, world);
+
+        // Update blessings
+        results.blessingsExpired = PlayerReligion.updateBlessings(player);
+
+        return results;
+    },
 };

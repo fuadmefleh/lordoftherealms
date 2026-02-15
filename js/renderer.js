@@ -32,6 +32,7 @@ class Renderer {
 
         // Display settings
         this.showResources = true;
+        this.showTerritories = false;
 
         this.resize();
         window.addEventListener('resize', () => this.resize());
@@ -118,6 +119,35 @@ class Renderer {
 
 
         const promises = [];
+
+        // Building / Population Center Sprites
+        const POP_PATH = 'assets/tiles/pop_center_images/';
+        const POP_IMAGES = {
+            'settlement_capital': ['walledCity.png'],
+            'settlement_town': ['village00.png', 'village01.png', 'village02.png', 'village03.png'],
+            'settlement_village': ['villageSmall00.png', 'villageSmall01.png', 'villageSmall02.png', 'villageSmall03.png'],
+            'property_farm': ['farm00.png', 'farm01.png', 'farm02.png', 'farm03.png'],
+            'property_mine': ['mine00.png', 'mine01.png', 'mine02.png', 'mine03.png'],
+            'property_workshop': ['smithy.png'],
+            'property_trading_post': ['inn.png'],
+            'religion_shrine': ['standingStones.png'],
+            'religion_temple': ['temple.png', 'hexDirtTemple00.png'],
+            'religion_monastery': ['elvenLodge.png'],
+            'poi_ruins': ['castleRuinDirt.png', 'castleRuinForest.png', 'castleRuinMarsh.png', 'desertRuins00.png', 'hexDirtTempleRuins00.png', 'templeRuins.png'],
+            'poi_oasis': ['oasis00.png', 'oasis01.png', 'hexDesertDunesOasis00.png'],
+            'poi_cave': ['hexMountainCave00.png', 'hexMountainCave01.png', 'volcanoCave.png'],
+            'poi_monument': ['obelisk00.png', 'standingStones.png', 'hexPlainsHenge00.png'],
+            'poi_shrine': ['hexDirtTemple00.png', 'standingStonesMossy.png'],
+            'property_logging_camp': ['forester_hut00.png', 'forester_hut01.png', 'forester_hut02.png']
+        };
+
+        for (const [type, images] of Object.entries(POP_IMAGES)) {
+            for (const imgName of images) {
+                if (!this.tileSprites.has(imgName)) {
+                    promises.push(this.loadTileSprite(imgName, POP_PATH + imgName));
+                }
+            }
+        }
 
         for (const [terrain, images] of Object.entries(TERRAIN_IMAGES)) {
             for (const imgName of images) {
@@ -375,6 +405,9 @@ class Renderer {
         // Render improvements / POI
         this.renderImprovements(ctx);
 
+        // Render player-built structures (Farms, Mines, Temples)
+        this.renderBuiltStructures(ctx);
+
         // Render resources
         this.renderResources(ctx);
 
@@ -403,10 +436,85 @@ class Renderer {
             this.renderHexHighlight(ctx, this.selectedHex.q, this.selectedHex.r, 'rgba(245,197,66,0.15)', 'rgba(245,197,66,0.6)');
         }
 
+        // Render units
+        this.renderUnits(ctx);
+
+        // Render caravans
+        this.renderCaravans(ctx);
+
         // Render weather
         this.renderWeather(ctx);
 
         ctx.restore();
+    }
+
+    /**
+     * Render active caravans
+     */
+    renderCaravans(ctx) {
+        if (!this.player || !this.player.caravans) return;
+
+        const size = this.hexSize;
+        const hexWidth = Math.sqrt(3) * size;
+        const worldWidthPx = hexWidth * this.world.width;
+
+        for (const caravan of this.player.caravans) {
+            if (caravan.status !== 'traveling') continue;
+
+            const start = this.getHexPixelPos(caravan.fromPos.q, caravan.fromPos.r);
+            const end = this.getHexPixelPos(caravan.toPos.q, caravan.toPos.r);
+
+            // Handle wrapping logic for shortest path interpolation
+            let sx = start.x;
+            let ex = end.x;
+            const sy = start.y;
+            const ey = end.y;
+
+            if (Math.abs(ex - sx) > worldWidthPx / 2) {
+                if (ex > sx) ex -= worldWidthPx;
+                else ex += worldWidthPx;
+            }
+
+            const totalDays = Math.max(1, Math.ceil(caravan.distance / 2));
+            const progress = 1 - (caravan.daysRemaining / totalDays);
+
+            // Interpolate
+            const cx = sx + (ex - sx) * progress;
+            const cy = sy + (ey - sy) * progress;
+
+            // Get screen position
+            const screen = this.camera.worldToScreen(cx, cy);
+
+            // Check visibility
+            if (screen.x < -50 || screen.x > this.canvas.width + 50) continue;
+            if (screen.y < -50 || screen.y > this.canvas.height + 50) continue;
+
+            const renderSize = size * this.camera.zoom;
+
+            // Draw Icon
+            ctx.font = `${renderSize * 0.8}px serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Glowing effect
+            ctx.shadowColor = 'rgba(255, 215, 0, 0.8)';
+            ctx.shadowBlur = 10;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText('🐪', screen.x, screen.y);
+
+            // Reset shadow
+            ctx.shadowBlur = 0;
+
+            // Draw Label
+            if (this.camera.zoom > 0.6) {
+                ctx.font = `bold 12px sans-serif`;
+                ctx.fillStyle = '#ffcc00';
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 2;
+                ctx.strokeText(`${caravan.daysRemaining} days`, screen.x, screen.y - renderSize * 0.6);
+                ctx.fillText(`${caravan.daysRemaining} days`, screen.x, screen.y - renderSize * 0.6);
+            }
+        }
     }
 
     /**
@@ -609,7 +717,7 @@ class Renderer {
         }*/
 
         // Kingdom tint (overlay if visible and territory)
-        if (tile.kingdom && tile.visible) {
+        if (this.showTerritories && tile.kingdom && tile.visible) {
             const kingdom = this.world.getKingdom(tile.kingdom);
             if (kingdom) {
                 ctx.globalCompositeOperation = 'overlay'; // Blend mode for better looking tint
@@ -648,7 +756,7 @@ class Renderer {
      * Render territory border lines between different kingdoms
      */
     renderTerritoryBorders(ctx) {
-        if (!this.world) return;
+        if (!this.world || !this.showTerritories) return;
         const bounds = this.camera.getVisibleBounds();
         const world = this.world;
         const size = this.hexSize;
@@ -775,45 +883,62 @@ class Renderer {
                 if (screen.y < -50 || screen.y > this.canvas.height + 50) continue;
 
                 const settlement = tile.settlement;
-                let icon, labelSize;
+                let imageName = '', labelSize = 10;
 
                 switch (settlement.type) {
                     case 'capital':
-                        icon = '🏰';
-                        labelSize = 12;
+                        imageName = 'walledCity.png';
+                        labelSize = 13;
                         break;
                     case 'town':
-                        icon = '🏘️';
-                        labelSize = 10;
+                        const townVariants = ['village00.png', 'village01.png', 'village02.png', 'village03.png'];
+                        imageName = townVariants[(q + r) % townVariants.length];
+                        labelSize = 11;
                         break;
                     case 'village':
-                        icon = '🏠';
-                        labelSize = 9;
+                        const villageVariants = ['villageSmall00.png', 'villageSmall01.png', 'villageSmall02.png', 'villageSmall03.png'];
+                        imageName = villageVariants[(q + r) % villageVariants.length];
+                        labelSize = 10;
                         break;
                     default:
-                        icon = '📍';
                         labelSize = 9;
                 }
 
-                // Draw icon
-                const iconSize = Math.max(14, renderSize * 0.9);
-                ctx.font = `${iconSize}px serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(icon, screen.x, screen.y - renderSize * 0.15);
+                // Draw Sprite
+                const sprite = this.tileSprites.get(imageName);
+                if (sprite) {
+                    const imgW = renderSize * 2.3;
+                    const imgH = imgW * (sprite.height / sprite.width);
+                    ctx.globalAlpha = 1.0;
+                    ctx.drawImage(sprite, screen.x - imgW / 2, screen.y - imgH * 0.72, imgW, imgH);
+                } else {
+                    // Fallback to icon if image failed to load
+                    const icon = settlement.type === 'capital' ? '🏰' : (settlement.type === 'town' ? '🏘️' : '🏠');
+                    const iconSize = Math.max(14, renderSize * 0.9);
+                    ctx.font = `${iconSize}px serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(icon, screen.x, screen.y - renderSize * 0.15);
+                }
 
                 // Draw name label
-                if (this.camera.zoom > 0.6) {
-                    const fsize = Math.max(8, labelSize * this.camera.zoom);
-                    ctx.font = `600 ${fsize}px 'Cinzel', serif`;
+                if (this.camera.zoom > 0.4) {
+                    const fsize = Math.max(10, labelSize * 1.1 * this.camera.zoom);
+                    ctx.font = `700 ${fsize}px 'Cinzel', serif`;
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'top';
 
-                    // Text shadow
-                    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                    // Reset any inherited shadow/alpha
+                    ctx.shadowColor = 'transparent';
+                    ctx.shadowBlur = 0;
+                    ctx.globalAlpha = 1.0;
+
+                    // Sharp, clean black shadow for contrast
+                    ctx.fillStyle = 'rgba(0,0,0,0.9)';
                     ctx.fillText(settlement.name, screen.x + 1, screen.y + renderSize * 0.45 + 1);
 
-                    ctx.fillStyle = tile.visible ? '#e8e0d4' : '#6b6156';
+                    // Pure white text
+                    ctx.fillStyle = '#ffffff';
                     ctx.fillText(settlement.name, screen.x, screen.y + renderSize * 0.45);
                 }
             }
@@ -839,13 +964,154 @@ class Renderer {
                 if (screen.x < -50 || screen.x > this.canvas.width + 50) continue;
                 if (screen.y < -50 || screen.y > this.canvas.height + 50) continue;
 
-                const iconSize = Math.max(12, renderSize * 0.7);
-                ctx.font = `${iconSize}px serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.globalAlpha = tile.visible ? 1 : 0.4;
-                ctx.fillText(tile.improvement.icon, screen.x, screen.y);
-                ctx.globalAlpha = 1;
+                const poi = tile.improvement;
+                let imageName = '';
+
+                switch (poi.type) {
+                    case 'ruins':
+                        if (tile.terrain.id === 'desert') imageName = 'desertRuins00.png';
+                        else if (tile.terrain.id === 'forest') imageName = 'castleRuinForest.png';
+                        else if (tile.terrain.id === 'swamp') imageName = 'castleRuinMarsh.png';
+                        else if (tile.terrain.id.includes('mountain')) imageName = 'templeRuins.png';
+                        else imageName = 'castleRuinDirt.png';
+                        break;
+                    case 'oasis':
+                        imageName = (q + r) % 2 === 0 ? 'oasis00.png' : 'hexDesertDunesOasis00.png';
+                        break;
+                    case 'cave':
+                        if (tile.terrain.id.includes('volcano')) imageName = 'volcanoCave.png';
+                        else imageName = (q + r) % 2 === 0 ? 'hexMountainCave00.png' : 'hexMountainCave01.png';
+                        break;
+                    case 'monument':
+                        imageName = (q + r) % 2 === 0 ? 'obelisk00.png' : 'standingStones.png';
+                        break;
+                    case 'shrine':
+                        imageName = (q + r) % 2 === 0 ? 'hexDirtTemple00.png' : 'standingStonesMossy.png';
+                        break;
+                }
+
+                // Draw Sprite
+                const sprite = this.tileSprites.get(imageName);
+                if (sprite) {
+                    const imgW = renderSize * 1.8;
+                    const imgH = imgW * (sprite.height / sprite.width);
+                    ctx.globalAlpha = 1.0;
+                    ctx.drawImage(sprite, screen.x - imgW / 2, screen.y - imgH * 0.7, imgW, imgH);
+                } else {
+                    // Fallback to Icon
+                    const iconSize = Math.max(12, renderSize * 0.7);
+                    ctx.font = `${iconSize}px serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.globalAlpha = 1.0;
+                    ctx.fillText(poi.icon, screen.x, screen.y);
+                }
+
+                // Draw name label for POIs
+                if (this.camera.zoom > 0.7) {
+                    const fsize = Math.max(9, 10 * this.camera.zoom);
+                    ctx.font = `700 ${fsize}px 'Cinzel', serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'top';
+
+                    // Reset any inherited shadow/alpha
+                    ctx.shadowColor = 'transparent';
+                    ctx.shadowBlur = 0;
+                    ctx.globalAlpha = 1.0;
+
+                    // Text shadow
+                    ctx.fillStyle = 'rgba(0,0,0,0.9)';
+                    ctx.fillText(tile.improvement.name, screen.x + 1, screen.y + renderSize * 0.35 + 1);
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillText(tile.improvement.name, screen.x, screen.y + renderSize * 0.35);
+                }
+            }
+        }
+    }
+
+    /**
+     * Render player built properties and religious buildings
+     */
+    renderBuiltStructures(ctx) {
+        const world = this.world;
+        const size = this.hexSize;
+
+        for (let r = 0; r < world.height; r++) {
+            for (let q = 0; q < world.width; q++) {
+                const tile = world.tiles[r][q];
+                const structure = tile.playerProperty || tile.religiousBuilding;
+                if (!structure) continue;
+
+                const pos = this.getHexPixelPos(q, r);
+                const screen = this.camera.worldToScreen(pos.x, pos.y);
+                const renderSize = size * this.camera.zoom;
+
+                if (screen.x < -100 || screen.x > this.canvas.width + 100) continue;
+                if (screen.y < -100 || screen.y > this.canvas.height + 100) continue;
+
+                let imageName = '';
+
+                // If there's a settlement, don't draw the structure sprite on top of it
+                // Instead, maybe we could draw a small indicator badge, but for now just skip the sprite
+                if (tile.settlement) {
+                    // Do nothing, let the settlement sprite be the main visual
+                } else if (tile.playerProperty) {
+                    switch (tile.playerProperty.type) {
+                        case 'farm':
+                            const farmVars = ['farm00.png', 'farm01.png', 'farm02.png', 'farm03.png'];
+                            imageName = farmVars[(q + r) % farmVars.length];
+                            break;
+                        case 'mine':
+                            const mineVars = ['mine00.png', 'mine01.png', 'mine02.png', 'mine03.png'];
+                            imageName = mineVars[(q + r) % mineVars.length];
+                            break;
+                        case 'workshop': imageName = 'smithy.png'; break;
+                        case 'trading_post': imageName = 'inn.png'; break;
+                        case 'logging_camp':
+                            const loggingVars = ['forester_hut00.png', 'forester_hut01.png', 'forester_hut02.png'];
+                            imageName = loggingVars[(q + r) % loggingVars.length];
+                            break;
+                        case 'pasture':
+                            const pastureVars = ['corral00.png', 'corral01.png', 'corral02.png'];
+                            imageName = pastureVars[(q + r) % pastureVars.length];
+                            break;
+                    }
+                } else if (tile.religiousBuilding) {
+                    switch (tile.religiousBuilding.type) {
+                        case 'shrine': imageName = 'standingStones.png'; break;
+                        case 'temple': imageName = 'temple.png'; break;
+                        case 'monastery': imageName = 'elvenLodge.png'; break;
+                    }
+                }
+
+                const sprite = this.tileSprites.get(imageName);
+                if (sprite) {
+                    const imgW = renderSize * 1.9;
+                    const imgH = imgW * (sprite.height / sprite.width);
+                    ctx.globalAlpha = 1.0;
+                    ctx.drawImage(sprite, screen.x - imgW / 2, screen.y - imgH * 0.7, imgW, imgH);
+                } else {
+                    // Fallback Icon
+                    ctx.font = `${Math.max(14, renderSize * 0.8)}px serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(structure.icon, screen.x, screen.y - renderSize * 0.1);
+                }
+
+                // Draw name label
+                if (this.camera.zoom > 0.6) {
+                    const fsize = Math.max(9, 10 * this.camera.zoom);
+                    ctx.font = `600 ${fsize}px 'Cinzel', serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'top';
+
+                    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+                    ctx.fillText(structure.name, screen.x + 1, screen.y + renderSize * 0.4 + 1);
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillText(structure.name, screen.x, screen.y + renderSize * 0.4);
+                }
             }
         }
     }
@@ -1087,6 +1353,60 @@ class Renderer {
      */
     renderRivers(ctx) {
         // Rivers are now rendered as overlays in renderHexGrid
+    }
+
+    /**
+     * Render dynamic world units
+     */
+    renderUnits(ctx) {
+        if (!this.world || !this.world.units) return;
+
+        const bounds = this.camera.getVisibleBounds();
+        const size = this.hexSize;
+
+        for (const unit of this.world.units) {
+            const pos = this.getHexPixelPos(unit.q, unit.r);
+            const screen = this.camera.worldToScreen(pos.x, pos.y);
+            const renderSize = size * this.camera.zoom;
+
+            // Simple culling
+            if (screen.x < -100 || screen.x > this.canvas.width + 100) continue;
+            if (screen.y < -100 || screen.y > this.canvas.height + 100) continue;
+
+            const iconSize = Math.max(14, renderSize * 0.85);
+            ctx.font = `${iconSize}px serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Draw unit icon
+            ctx.save();
+            ctx.globalAlpha = 1.0;
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = 'rgba(0,0,0,0.8)';
+            ctx.shadowBlur = 6;
+            ctx.fillText(unit.icon, screen.x, screen.y);
+            ctx.restore();
+
+            // Unit name label
+            if (this.camera.zoom > 0.4) {
+                const fsize = Math.max(8, 10 * this.camera.zoom);
+                ctx.font = `500 ${fsize}px 'Inter', sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillText(unit.name, screen.x + 1, screen.y + renderSize * 0.4 + 1);
+
+                let color = '#ffffff';
+                if (unit.type === 'raider' || unit.type === 'pirate') color = '#ff6666';
+                if (unit.type === 'patrol') color = '#66ccff';
+                if (unit.type === 'settler') color = '#ccff66';
+
+                ctx.fillStyle = color;
+                ctx.fillText(unit.name, screen.x, screen.y + renderSize * 0.4);
+            }
+        }
     }
 
     /**

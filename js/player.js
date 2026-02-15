@@ -12,7 +12,7 @@ class Player {
         this.title = 'Nobody';
 
         // Core stats
-        this.gold = 100;
+        this.gold = 10000;
         this.karma = 0;
         this.renown = 0;
         this.health = 100;

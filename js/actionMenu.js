@@ -132,7 +132,83 @@ const ActionMenu = {
             case 'miracle':
                 ActionMenu.showMiracleMenu(game);
                 break;
+            case 'ship_passage':
+                ActionMenu.showShipPassageMenu(game, tile);
+                break;
+            case 'manage_property':
+                ActionMenu.showManagePropertyMenu(game, tile);
+                break;
         }
+    },
+
+    /**
+     * Show ship passage menu
+     */
+    showShipPassageMenu(game, tile) {
+        const settlements = game.world.getAllSettlements();
+        const coastalSettlements = settlements.filter(s => {
+            if (s.q === tile.q && s.r === tile.r) return false;
+            return Hex.neighbors(s.q, s.r).some(n => {
+                const nt = game.world.getTile(n.q, n.r);
+                return nt && ['ocean', 'deep_ocean', 'coast', 'lake', 'sea'].includes(nt.terrain.id);
+            });
+        });
+
+        if (coastalSettlements.length === 0) {
+            game.ui.showNotification('No Destinations', 'No other coastal settlements found!', 'default');
+            return;
+        }
+
+        let html = '<div style="max-height: 400px; overflow-y: auto;">';
+        html += '<h4 style="margin-top: 0;">Hire a Ship</h4>';
+        html += '<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Travel across the seas to distant shores.</p>';
+
+        for (const dest of coastalSettlements) {
+            const dist = Hex.wrappingDistance(tile.q, tile.r, dest.q, dest.r, game.world.width);
+            const cost = 100 + (dist * 5);
+            const canAfford = game.player.gold >= cost;
+
+            html += `
+                <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between; align-items: center; ${!canAfford ? 'opacity: 0.6;' : ''}">
+                    <div>
+                        <div style="font-weight: bold; color: white;">${dest.name}</div>
+                        <div style="font-size: 11px; color: var(--text-secondary);">Distance: ${dist} hexes</div>
+                    </div>
+                    <button onclick="window.payForPassage(${dest.q}, ${dest.r}, ${cost}, '${dest.name}')" 
+                            ${!canAfford ? 'disabled' : ''} 
+                            style="padding: 6px 14px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                        ${cost} gold
+                    </button>
+                </div>
+            `;
+        }
+
+        html += '</div>';
+
+        game.ui.showCustomPanel('Coastal Travel', html);
+
+        window.payForPassage = (q, r, cost, name) => {
+            if (game.player.gold >= cost) {
+                game.player.gold -= cost;
+                game.player.q = q;
+                game.player.r = r;
+                game.player.isMoving = false;
+                game.player.path = [];
+
+                // Teleport and advance time
+                game.endDay();
+
+                // Reposition camera
+                const pos = Hex.axialToPixel(q, r, game.renderer.hexSize);
+                game.camera.centerOn(pos.x, pos.y);
+
+                game.ui.showNotification('Safe Voyage', `You arrived at ${name}. The journey took one day.`, 'success');
+                game.ui.updateStats(game.player, game.world);
+                game.ui.hideCustomPanel();
+            } else {
+                game.ui.showNotification('Insufficient Gold', 'You do not have enough gold for passage.', 'error');
+            }
+        };
     },
 
     /**
@@ -155,6 +231,354 @@ const ActionMenu = {
 
         game.ui.showNotification('Goods Collected', `Collected ${amount} ${goodName}`, 'success');
         game.ui.updateStats(game.player, game.world);
+    },
+
+    /**
+     * Show Manage Property Menu
+     */
+    showManagePropertyMenu(game, tile) {
+        if (!tile.playerProperty) return;
+
+        const prop = tile.playerProperty;
+        const propType = PlayerEconomy.PROPERTY_TYPES[prop.type.toUpperCase()];
+        const isWorkshop = prop.type === 'workshop';
+
+        // Calculate upgrade info
+        const isMaxLevel = prop.level >= 5;
+        const upgradeCost = Math.floor(propType.cost * 0.5 * (prop.level + 1));
+        const canAffordUpgrade = game.player.gold >= upgradeCost;
+
+        // Calculate upkeep
+        const upkeep = (prop.upkeep || 0) * prop.level;
+
+        // Determine what is being produced and rate
+        let productionText = 'Nothing selected';
+        let prodRateText = '0';
+
+        if (isWorkshop) {
+            if (prop.activeRecipe) {
+                const recipe = PlayerEconomy.RECIPES[prop.activeRecipe];
+                if (recipe) {
+                    const outputGood = PlayerEconomy.GOODS[recipe.output.toUpperCase()];
+                    productionText = `${outputGood ? outputGood.name : recipe.output}`;
+                    // Rate is tricky for workshop, maybe just show base rate
+                    prodRateText = `${prop.productionRate * prop.level}`;
+                }
+            }
+        } else {
+            // Standard prop
+            const goodKey = (prop.produces || '').toUpperCase();
+            const good = PlayerEconomy.GOODS[goodKey];
+            productionText = good ? good.name : (prop.produces || 'Nothing');
+            prodRateText = `${prop.productionRate * prop.level}`;
+        }
+
+        // Render menu
+        let html = `<div style="padding: 8px;">`;
+
+        // Header info
+        html += `
+            <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:16px;">
+                <div style="font-size:48px; border:2px solid var(--gold); border-radius:8px; padding:8px; background:rgba(0,0,0,0.3);">${prop.icon}</div>
+                <div style="flex-grow:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                        <h3 style="margin:0; color:var(--gold); font-family:var(--font-display); font-size:24px;">${prop.name} <span style="font-size:16px; color:white; opacity:0.7;">Lvl ${prop.level}</span></h3>
+                        <div style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">Owned: ${prop.daysOwned} days</div>
+                    </div>
+                    <div style="color:var(--text-secondary); font-size:13px; margin-top:4px;">${propType.description}</div>
+                </div>
+            </div>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:24px;">
+                <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">
+                    <div style="font-size:11px; color:var(--text-secondary); margin-bottom:4px; letter-spacing:1px;">PRODUCTION</div>
+                    <div style="font-size:18px; font-weight:bold; color:#2ecc71;">${productionText}</div>
+                    <div style="font-size:12px; color:var(--text-secondary);">Rate: ${prodRateText}/day</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">
+                    <div style="font-size:11px; color:var(--text-secondary); margin-bottom:4px; letter-spacing:1px;">UPKEEP</div>
+                    <div style="font-size:24px; font-weight:bold; color:#e74c3c;">-${upkeep}g<span style="font-size:14px; color:var(--text-secondary);">/day</span></div>
+                </div>
+                <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">
+                    <div style="font-size:11px; color:var(--text-secondary); margin-bottom:4px; letter-spacing:1px;">STORAGE (OUTPUT)</div>
+                     <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="font-size:24px; font-weight:bold;">${prop.storage}</div>
+                        <button onclick="window.collectPropertyGoods()" ${prop.storage <= 0 ? 'disabled' : ''} style="padding:6px 12px; background:var(--gold); border:none; border-radius:4px; cursor:pointer; font-weight:bold; opacity:${prop.storage <= 0 ? 0.5 : 1}">Collect</button>
+                    </div>
+                </div>
+                 <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">
+                    <div style="font-size:11px; color:var(--text-secondary); margin-bottom:4px; letter-spacing:1px;">AUTO-SELL (50% Value)</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="font-size:14px; font-weight:bold; color:${prop.autoSell ? '#2ecc71' : '#95a5a6'};">${prop.autoSell ? 'ENABLED' : 'DISABLED'}</div>
+                        <button onclick="window.toggleAutoSell()" style="padding:6px 12px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; border-radius:4px; cursor:pointer;">${prop.autoSell ? 'Disable' : 'Enable'}</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Workshop Specific Section: Recipe Selector & Input
+        if (isWorkshop) {
+            html += `
+            <div style="margin-bottom:24px; background:rgba(255,255,255,0.03); padding:16px; border-radius:8px; border:1px dashed rgba(255,255,255,0.1);">
+                <h4 style="margin:0 0 12px 0; color:var(--gold); border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">Workshop Configuration</h4>
+                
+                <div style="margin-bottom:16px;">
+                    <div style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">Active Recipe</div>
+                    <select id="workshopRecipeSelector" onchange="window.selectRecipe(this.value)" style="width:100%; padding:8px; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.2); color:white; border-radius:4px;">
+                        <option value="">-- Select Recipe --</option>
+                        ${Object.values(PlayerEconomy.RECIPES).map(r => `
+                            <option value="${r.id.toUpperCase()}" ${prop.activeRecipe === r.id.toUpperCase() ? 'selected' : ''}>
+                                ${r.name} (${r.inputQty} ${PlayerEconomy.GOODS[r.input.toUpperCase()]?.name} ➔ ${r.outputQty} ${PlayerEconomy.GOODS[r.output.toUpperCase()]?.name})
+                            </option>
+                        `).join('')}
+                    </select>
+                </div>
+            `;
+
+            if (prop.activeRecipe) {
+                const recipe = PlayerEconomy.RECIPES[prop.activeRecipe];
+                const inputGood = PlayerEconomy.GOODS[recipe.input.toUpperCase()];
+                const playerHas = (game.player.inventory && game.player.inventory[recipe.input]) || 0;
+
+                html += `
+                <div style="display:flex; justify-content:space-between; items-center;">
+                    <div>
+                        <div style="font-size:12px; color:var(--text-secondary);">Input Storage (${inputGood.name})</div>
+                        <div style="font-size:20px; font-weight:bold;">${prop.inputStorage || 0} <span style="font-size:12px; font-weight:normal; opacity:0.6;">stored</span></div>
+                    </div>
+                    <div>
+                        <div style="font-size:12px; color:var(--text-secondary); text-align:right;">In Inventory: ${playerHas}</div>
+                        <div style="display:flex; gap:8px; margin-top:4px;">
+                             <button onclick="window.depositToWorkshop('${recipe.input}', 1)" ${playerHas < 1 ? 'disabled' : ''} style="padding:4px 8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; cursor:pointer;">+1</button>
+                             <button onclick="window.depositToWorkshop('${recipe.input}', 10)" ${playerHas < 10 ? 'disabled' : ''} style="padding:4px 8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; cursor:pointer;">+10</button>
+                             <button onclick="window.depositToWorkshop('${recipe.input}', 100)" ${playerHas < 100 ? 'disabled' : ''} style="padding:4px 8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; cursor:pointer;">+100</button>
+                             <button onclick="window.depositToWorkshop('${recipe.input}', ${playerHas})" ${playerHas < 1 ? 'disabled' : ''} style="padding:4px 8px; background:var(--gold); border:1px solid var(--gold); color:black; font-weight:bold; cursor:pointer;">+All</button>
+                        </div>
+                    </div>
+                </div>
+                `;
+            } else {
+                html += `<div style="color:var(--text-secondary); font-style:italic;">Select a recipe to enable production.</div>`;
+            }
+
+            html += `</div>`;
+        }
+
+        // Upgrade Section
+        const upgradeBtnLocked = isMaxLevel || !canAffordUpgrade;
+        html += `
+            <div style="margin-bottom:24px; background:linear-gradient(135deg, rgba(20,20,30,0.8) 0%, rgba(40,40,50,0.8) 100%); padding:20px; border-radius:8px; border:1px solid rgba(255,215,0,0.3); box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+                <h4 style="margin:0 0 12px 0; color:white; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">Expansion & Upgrades</h4>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-weight:bold; color:var(--text-primary); font-size:16px;">Upgrade to Level ${prop.level + 1}</div>
+                        <div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">Increases production by 10% base value. Increases upkeep.</div>
+                    </div>
+                    <button onclick="window.upgradePropertyAction()" 
+                        ${upgradeBtnLocked ? 'disabled' : ''}
+                        style="padding:10px 20px; background:${isMaxLevel ? '#555' : 'var(--gold)'}; border:none; border-radius:4px; cursor:pointer; font-weight:bold; color:${isMaxLevel ? '#888' : 'var(--text-primary)'}; box-shadow:0 2px 4px rgba(0,0,0,0.2); min-width:120px; text-align:center;">
+                        ${isMaxLevel ? 'MAX LEVEL' : `${upgradeCost} gold`}
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Caravan Logistics Section
+        html += `
+            <div style="margin-bottom:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <h4 style="margin:0;">Logistics Network</h4>
+                    <span style="font-size:11px; background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px;">Cost: 200g/caravan</span>
+                </div>
+                <p style="font-size:12px; color:var(--text-secondary); margin-bottom:12px;">Hire a caravan to transport your stored goods directly to a market for max profit.</p>
+                <div id="caravanDestinations" style="display:grid; gap:8px; max-height:200px; overflow-y:auto; padding-right:4px;">
+                    ${ActionMenu.getLogisticsDestinationsHtml(game, tile)}
+                </div>
+            </div>
+        `;
+
+        html += `</div>`;
+
+        game.ui.showCustomPanel('Manage Property', html);
+
+        // Bind window functions
+        window.collectPropertyGoods = () => {
+            ActionMenu.collectGoods(game, tile);
+            ActionMenu.showManagePropertyMenu(game, tile); // Refresh
+        };
+
+        window.toggleAutoSell = () => {
+            if (tile.playerProperty) {
+                tile.playerProperty.autoSell = !tile.playerProperty.autoSell;
+                game.ui.showNotification('Settings Updated', `Auto-sell ${tile.playerProperty.autoSell ? 'enabled' : 'disabled'}`, 'info');
+                ActionMenu.showManagePropertyMenu(game, tile); // Refresh
+            }
+        };
+
+        window.upgradePropertyAction = () => {
+            const result = PlayerEconomy.upgradeProperty(game.player, tile);
+            if (result.success) {
+                game.ui.showNotification('Upgrade Complete!', `Property upgraded to Level ${result.level}`, 'success');
+                game.ui.updateStats(game.player, game.world);
+                ActionMenu.showManagePropertyMenu(game, tile); // Refresh
+            } else {
+                game.ui.showNotification('Cannot Upgrade', result.reason, 'error');
+            }
+        };
+
+        window.sendStorageCaravan = (q, r) => {
+            const targetTile = game.world.getTile(q, r);
+            if (!targetTile) return;
+
+            let toObject = null;
+            if (targetTile.settlement) {
+                toObject = { ...targetTile.settlement, q: targetTile.q, r: targetTile.r, isPlayerProperty: false };
+            } else if (targetTile.playerProperty) {
+                toObject = {
+                    type: targetTile.playerProperty.type,
+                    name: targetTile.playerProperty.name,
+                    q: targetTile.q,
+                    r: targetTile.r,
+                    isPlayerProperty: true
+                };
+            }
+
+            if (!toObject) return;
+
+            const result = PlayerEconomy.startStorageCaravan(game.player, tile, toObject, game.world);
+
+            if (result.success) {
+                game.ui.showNotification('Caravan Dispatched', `Transporting goods to ${toObject.name}`, 'success');
+                game.ui.updateStats(game.player, game.world);
+                ActionMenu.showManagePropertyMenu(game, tile); // Refresh
+            } else {
+                game.ui.showNotification('Logistics Error', result.reason, 'error');
+            }
+        };
+
+        window.selectRecipe = (recipeId) => {
+            if (!recipeId) return;
+            const result = PlayerEconomy.setWorkshopRecipe(tile, recipeId);
+            if (result.success) {
+                ActionMenu.showManagePropertyMenu(game, tile);
+            }
+        };
+
+        window.depositToWorkshop = (goodId, amount) => {
+            const result = PlayerEconomy.depositToWorkshop(game.player, tile, goodId, amount);
+            if (result.success) {
+                game.ui.showNotification('Deposited', `Added ${amount} ${goodId} to workshop`, 'success');
+                game.ui.updateStats(game.player, game.world);
+                ActionMenu.showManagePropertyMenu(game, tile);
+            } else {
+                game.ui.showNotification('Deposit Failed', result.reason, 'error');
+            }
+        };
+    },
+
+    /**
+     * Helper to generate destination list for logistics
+     */
+    getLogisticsDestinationsHtml(game, tile) {
+        if (!tile.playerProperty || tile.playerProperty.storage <= 0) {
+            return '<div style="padding:16px; text-align:center; background:rgba(255,255,255,0.03); border-radius:4px; color:var(--text-secondary); font-style:italic; border:1px dashed rgba(255,255,255,0.1);">No goods in storage to transport.<br>wait for production or collect manually.</div>';
+        }
+
+        const settlements = game.world.getAllSettlements();
+        let html = '';
+        let count = 0;
+
+        // Sort by distance
+        settlements.sort((a, b) => {
+            const da = Hex.wrappingDistance(tile.q, tile.r, a.q, a.r, game.world.width);
+            const db = Hex.wrappingDistance(tile.q, tile.r, b.q, b.r, game.world.width);
+            return da - db;
+        });
+
+        for (const s of settlements) {
+            const dist = Hex.wrappingDistance(tile.q, tile.r, s.q, s.r, game.world.width);
+
+            // Filter: max range 20, don't show current tile if it's a settlement
+            if (dist > 0 && dist <= 20) {
+                let multiplier = 1.0;
+                if (s.type === 'capital') multiplier = 1.5;
+                else if (s.type === 'city') multiplier = 1.2;
+
+                const good = PlayerEconomy.GOODS[tile.playerProperty.produces.toUpperCase()];
+                const basePrice = good ? good.basePrice : 10;
+
+                // Estimate value
+                const estValue = Math.floor(basePrice * (1 + dist * 0.05) * multiplier * tile.playerProperty.storage);
+
+                html += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); border-radius:4px; transition:background 0.2s;">
+                        <div style="flex-grow:1;">
+                            <div style="font-weight:bold; color:var(--text-primary);">${s.name} <span style="font-size:10px; opacity:0.6; font-weight:normal;">(${s.type})</span></div>
+                            <div style="display:flex; gap:12px; margin-top:2px;">
+                                <div style="font-size:10px; color:var(--text-secondary);">📏 ${dist} hexes</div>
+                                <div style="font-size:10px; color:#2ecc71;">💰 ~${estValue}g profit</div>
+                            </div>
+                        </div>
+                        <button onclick="window.sendStorageCaravan(${s.q}, ${s.r})" style="padding:6px 12px; font-size:11px; background:var(--gold); border:none; border-radius:3px; cursor:pointer; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                            Send
+                        </button>
+                    </div>
+                `;
+                count++;
+            }
+        }
+
+        // Add Player Workshops to destinations
+        const playerWorkshops = game.player.properties.filter(p => {
+            const t = game.world.getTile(p.q, p.r);
+            return t && t.playerProperty && t.playerProperty.type === 'workshop';
+        });
+
+        const producedGood = tile.playerProperty.produces;
+
+        for (const ws of playerWorkshops) {
+            // Don't ship to self
+            if (ws.q === tile.q && ws.r === tile.r) continue;
+
+            const wsTile = game.world.getTile(ws.q, ws.r);
+            const wsProp = wsTile.playerProperty;
+
+            // Check if workshop needs this good
+            let needsGood = false;
+            if (wsProp.activeRecipe) {
+                const recipe = PlayerEconomy.RECIPES[wsProp.activeRecipe];
+                if (recipe && recipe.input === producedGood) {
+                    needsGood = true;
+                }
+            }
+
+            if (needsGood) {
+                const dist = Hex.wrappingDistance(tile.q, tile.r, ws.q, ws.r, game.world.width);
+                if (dist > 0 && dist <= 20) {
+                    html += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:rgba(255,255,255,0.03); border:1px dashed rgba(100,200,255,0.3); border-radius:4px; transition:background 0.2s;">
+                        <div style="flex-grow:1;">
+                            <div style="font-weight:bold; color:#aaddff;">${ws.name} <span style="font-size:10px; opacity:0.6; font-weight:normal;">(Workshop)</span></div>
+                            <div style="display:flex; gap:12px; margin-top:2px;">
+                                <div style="font-size:10px; color:var(--text-secondary);">📏 ${dist} hexes</div>
+                                <div style="font-size:10px; color:#aaddff;">📦 Internal Transfer</div>
+                            </div>
+                        </div>
+                        <button onclick="window.sendStorageCaravan(${ws.q}, ${ws.r})" style="padding:6px 12px; font-size:11px; background:#3498db; color:white; border:none; border-radius:3px; cursor:pointer; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                            Transfer
+                        </button>
+                    </div>
+                `;
+                    count++;
+                }
+            }
+        }
+
+        if (count === 0) {
+            return '<div style="padding:16px; text-align:center; color:var(--text-secondary);">No valid destinations within range (20 hexes).</div>';
+        }
+
+        return html;
     },
 
     /**

@@ -50,7 +50,7 @@ class Player {
         this.travelDestination = null; // {q, r} final destination for multi-day travel
 
         // Inventory
-        this.inventory = {};
+        this.inventory = { bread: 20 };
         this.maxInventory = 20;
 
         // Maps collection (cartography system)
@@ -174,6 +174,38 @@ class Player {
     }
 
     /**
+     * Food types that can sustain travel (best consumed first for efficiency)
+     */
+    static FOOD_TYPES = ['bread', 'preserved_fish', 'fish', 'grain'];
+
+    /**
+     * Get total food count across all food types
+     */
+    getFoodCount() {
+        if (!this.inventory) return 0;
+        let total = 0;
+        for (const food of Player.FOOD_TYPES) {
+            total += (this.inventory[food] || 0);
+        }
+        return total;
+    }
+
+    /**
+     * Consume 1 unit of food (best type first). Returns true if food was consumed.
+     */
+    consumeFood() {
+        if (!this.inventory) return false;
+        for (const food of Player.FOOD_TYPES) {
+            if (this.inventory[food] && this.inventory[food] > 0) {
+                this.inventory[food]--;
+                if (this.inventory[food] <= 0) delete this.inventory[food];
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Request to move to target hex
      */
     moveTo(targetQ, targetR, world) {
@@ -272,6 +304,12 @@ class Player {
             this.q = nextHex.q;
             this.r = nextHex.r;
             this.movementRemaining -= moveCost;
+
+            // Consume food for travel
+            if (!this.consumeFood()) {
+                // No food — take health damage
+                this.health = Math.max(0, this.health - 3);
+            }
 
             // Reveal area
             this.revealArea(world, 4);

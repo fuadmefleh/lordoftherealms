@@ -109,6 +109,14 @@ class UI {
             movementDisplay.textContent = `${Math.floor(player.movementRemaining)}/${player.maxStamina}`;
         }
 
+        // Update food display
+        const foodDisplay = document.getElementById('foodValue');
+        if (foodDisplay) {
+            const foodCount = player.getFoodCount ? player.getFoodCount() : 0;
+            foodDisplay.textContent = foodCount;
+            foodDisplay.style.color = foodCount === 0 ? '#e74c3c' : foodCount < 10 ? '#f39c12' : '';
+        }
+
         // Show servitude status if active
         let servitudeEl = document.getElementById('servitudeDisplay');
         if (player.indenturedServitude) {

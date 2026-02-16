@@ -446,6 +446,19 @@ class Game {
 
                 const success = this.player.moveTo(hex.q, hex.r, this.world);
                 if (success) {
+                    // Warn if insufficient food for the journey
+                    const pathLen = this.player.path ? this.player.path.length - 1 : 0;
+                    const foodCount = this.player.getFoodCount();
+                    if (foodCount < pathLen) {
+                        const deficit = pathLen - foodCount;
+                        if (foodCount === 0) {
+                            this.ui.showNotification('⚠️ No Food!',
+                                `You have no food! You will lose health traveling ${pathLen} tiles. Buy food at a settlement.`, 'error');
+                        } else {
+                            this.ui.showNotification('⚠️ Low Food',
+                                `You have ${foodCount} food for a ${pathLen}-tile journey. You\'ll starve for the last ${deficit} tiles.`, 'error');
+                        }
+                    }
                     this.renderer.selectedHex = null;
                     // Update reachable hexes
                     this.renderer.reachableHexes = null;

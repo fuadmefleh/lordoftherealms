@@ -138,6 +138,23 @@ class UI {
         const title = document.getElementById('hexInfoTitle');
         const body = document.getElementById('hexInfoBody');
 
+        // Unexplored tiles: show only coordinates
+        if (!tile.explored) {
+            title.textContent = 'Unexplored';
+            title.style.color = '#888888';
+            body.innerHTML = `
+                <div class="info-row">
+                    <span class="info-label">Coordinates</span>
+                    <span class="info-value">${q}, ${r}</span>
+                </div>
+                <div style="color:#666; font-style:italic; margin-top:8px; font-size:12px;">
+                    This area has not been explored yet. Travel nearby or acquire maps to reveal it.
+                </div>
+            `;
+            panel.classList.add('visible');
+            return;
+        }
+
         title.textContent = tile.terrain.name;
         title.style.color = '#ffffff';
 

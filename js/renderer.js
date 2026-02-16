@@ -38,6 +38,10 @@ class Renderer {
         this.showResources = true;
         this.showTerritories = false;
 
+        // Map mode system
+        // Modes: 'normal','political','religion','wealth','military','trade','culture'
+        this.mapMode = 'normal';
+
         this.resize();
         window.addEventListener('resize', () => this.resize());
 
@@ -538,6 +542,9 @@ class Renderer {
         // Render territory borders
         this.renderTerritoryBorders(ctx);
 
+        // Render trade route lines (map mode)
+        this.renderTradeRoutes(ctx);
+
         // Render settlements
         this.renderSettlements(ctx);
 
@@ -868,14 +875,19 @@ class Renderer {
         }*/
 
         // Kingdom tint (overlay if visible and territory)
-        if (this.showTerritories && tile.kingdom && tile.visible) {
+        if (this.showTerritories && tile.kingdom && tile.visible && this.mapMode === 'normal') {
             const kingdom = this.world.getKingdom(tile.kingdom);
             if (kingdom) {
-                ctx.globalCompositeOperation = 'overlay'; // Blend mode for better looking tint
+                ctx.globalCompositeOperation = 'overlay';
                 ctx.fillStyle = kingdom.colorLight;
                 ctx.fill();
-                ctx.globalCompositeOperation = 'source-over'; // Reset
+                ctx.globalCompositeOperation = 'source-over';
             }
+        }
+
+        // Map mode overlay
+        if (this.mapMode !== 'normal') {
+            this.renderMapModeOverlay(ctx, tile);
         }
 
         ctx.restore();
@@ -1821,6 +1833,295 @@ class Renderer {
             // Darken
             ctx.fillStyle = 'rgba(0, 0, 20, 0.15)';
             ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+    }
+
+    // ============================================
+    // MAP MODE OVERLAY SYSTEM
+    // ============================================
+
+    /**
+     * Render a map-mode colour overlay on a single hex.
+     * Called inside renderSpriteHex after the hex clip path is set.
+     */
+    renderMapModeOverlay(ctx, tile) {
+        let color = null;
+        let alpha = 0.45;
+
+        switch (this.mapMode) {
+            case 'political': {
+                if (tile.kingdom) {
+                    const k = this.world.getKingdom(tile.kingdom);
+                    if (k) color = k.color;
+                    alpha = 0.35;
+                } else {
+                    color = '#222';
+                    alpha = 0.15;
+                }
+                break;
+            }
+
+            case 'religion': {
+                let faithId = null;
+                if (tile.holySite) {
+                    faithId = tile.holySite.faithId;
+                    alpha = 0.65;
+                } else if (tile.religiousBuilding) {
+                    faithId = tile.religiousBuilding.faithId || (tile.kingdom && this.world.getKingdom(tile.kingdom)?.religion?.faithId);
+                    alpha = 0.55;
+                } else if (tile.kingdom) {
+                    const k = this.world.getKingdom(tile.kingdom);
+                    faithId = k?.religion?.faithId;
+                    alpha = 0.30;
+                }
+                if (faithId && Religion.FAITHS[faithId]) {
+                    color = Religion.FAITHS[faithId].holyColor;
+                } else {
+                    color = '#1a1a2e';
+                    alpha = 0.20;
+                }
+                break;
+            }
+
+            case 'wealth': {
+                if (tile.settlement) {
+                    const prod = Economy.calculateDetailedProduction(tile.settlement, tile, this.world);
+                    const gold = prod ? prod.gold : 0;
+                    // Scale: 0→red, 50→yellow, 150+→green
+                    const t = Math.min(1, gold / 150);
+                    const r = Math.round(255 * (1 - t));
+                    const g = Math.round(200 * t);
+                    color = `rgb(${r},${g},40)`;
+                    alpha = 0.55;
+                } else if (tile.resource) {
+                    color = '#d4a017';
+                    alpha = 0.30;
+                } else if (tile.kingdom) {
+                    const k = this.world.getKingdom(tile.kingdom);
+                    if (k) {
+                        const wealthPerHex = k.treasury / Math.max(1, k.territory.length);
+                        const t = Math.min(1, wealthPerHex / 30);
+                        const r = Math.round(200 * (1 - t));
+                        const g = Math.round(180 * t);
+                        color = `rgb(${r},${g},50)`;
+                        alpha = 0.25;
+                    }
+                } else {
+                    color = '#111';
+                    alpha = 0.15;
+                }
+                break;
+            }
+
+            case 'military': {
+                if (tile.kingdom) {
+                    const k = this.world.getKingdom(tile.kingdom);
+                    if (k) {
+                        // Normalise military 0-5000 → intensity
+                        const ratio = Math.min(1, k.military / 5000);
+                        const r = Math.round(255 * ratio);
+                        const g = Math.round(60 * (1 - ratio));
+                        color = `rgb(${r},${g},30)`;
+                        alpha = 0.35;
+                        // Capital gets stronger tint
+                        if (k.capital && tile.settlement && tile.settlement.type === 'capital') alpha = 0.55;
+                    }
+                } else {
+                    color = '#111';
+                    alpha = 0.10;
+                }
+                break;
+            }
+
+            case 'trade': {
+                if (tile.hasRoad || (tile.infrastructure && tile.infrastructure.id)) {
+                    color = '#f5c542';
+                    alpha = 0.50;
+                } else if (tile.settlement) {
+                    color = '#e08e45';
+                    alpha = 0.45;
+                } else if (tile.resource) {
+                    color = '#d4a017';
+                    alpha = 0.30;
+                } else if (tile.terrain && !tile.terrain.passable) {
+                    color = '#0a0a20';
+                    alpha = 0.40;
+                } else {
+                    color = '#111';
+                    alpha = 0.10;
+                }
+                break;
+            }
+
+            case 'culture': {
+                if (tile.culturalBuilding) {
+                    const owner = tile.culturalBuilding.owner;
+                    if (owner) {
+                        const k = this.world.getKingdom(owner);
+                        color = k ? k.color : '#9b59b6';
+                    } else {
+                        color = '#9b59b6';
+                    }
+                    alpha = 0.60;
+                } else if (tile.kingdom) {
+                    const k = this.world.getKingdom(tile.kingdom);
+                    if (k && k.cultureData) {
+                        const influence = k.cultureData.influence || 0;
+                        const t = Math.min(1, influence / 100);
+                        const r = Math.round(100 + 155 * t);
+                        const g = Math.round(60 * (1 - t));
+                        const b = Math.round(120 + 60 * t);
+                        color = `rgb(${r},${g},${b})`;
+                        alpha = 0.30;
+                    }
+                } else {
+                    color = '#111';
+                    alpha = 0.10;
+                }
+                break;
+            }
+        }
+
+        if (color) {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+        }
+    }
+
+    /**
+     * Render trade route lines between settlements (used in 'trade' map mode)
+     */
+    renderTradeRoutes(ctx) {
+        if (this.mapMode !== 'trade' || !this.world) return;
+
+        const settlements = this.world.getAllSettlements();
+        if (!settlements || settlements.length < 2) return;
+
+        ctx.save();
+        ctx.strokeStyle = 'rgba(245, 197, 66, 0.25)';
+        ctx.lineWidth = 2 * this.camera.zoom;
+        ctx.setLineDash([6 * this.camera.zoom, 4 * this.camera.zoom]);
+
+        // Draw connections between settlements within the same kingdom
+        for (let i = 0; i < settlements.length; i++) {
+            for (let j = i + 1; j < settlements.length; j++) {
+                const a = settlements[i];
+                const b = settlements[j];
+                if (a.kingdom !== b.kingdom) continue;
+
+                const dist = Hex.wrappingDistance(a.q, a.r, b.q, b.r, this.world.width);
+                if (dist > 12) continue; // Only show nearby trade links
+
+                const posA = this.getHexPixelPos(a.q, a.r);
+                const posB = this.getHexPixelPos(b.q, b.r);
+                const screenA = this.camera.worldToScreen(posA.x, posA.y);
+                const screenB = this.camera.worldToScreen(posB.x, posB.y);
+
+                ctx.beginPath();
+                ctx.moveTo(screenA.x, screenA.y);
+                ctx.lineTo(screenB.x, screenB.y);
+                ctx.stroke();
+            }
+        }
+
+        // Also draw pilgrim routes if Religion system shows them
+        if (typeof Religion !== 'undefined' && Religion.PILGRIM_ROUTES) {
+            ctx.strokeStyle = 'rgba(200, 160, 255, 0.30)';
+            ctx.lineWidth = 2.5 * this.camera.zoom;
+            ctx.setLineDash([4 * this.camera.zoom, 6 * this.camera.zoom]);
+
+            for (const route of Religion.PILGRIM_ROUTES) {
+                if (!route.from || !route.to) continue;
+                const posA = this.getHexPixelPos(route.from.q, route.from.r);
+                const posB = this.getHexPixelPos(route.to.q, route.to.r);
+                const screenA = this.camera.worldToScreen(posA.x, posA.y);
+                const screenB = this.camera.worldToScreen(posB.x, posB.y);
+
+                ctx.beginPath();
+                ctx.moveTo(screenA.x, screenA.y);
+                ctx.lineTo(screenB.x, screenB.y);
+                ctx.stroke();
+            }
+        }
+
+        ctx.setLineDash([]);
+        ctx.restore();
+    }
+
+    /**
+     * Get colour for a tile based on current map mode (used by Minimap)
+     */
+    getMapModeColor(tile) {
+        switch (this.mapMode) {
+            case 'political':
+                if (tile.kingdom) {
+                    const k = this.world.getKingdom(tile.kingdom);
+                    return k ? k.color : tile.terrain.color;
+                }
+                return this.dimColor(tile.terrain.color, 0.5);
+
+            case 'religion': {
+                let faithId = null;
+                if (tile.holySite) faithId = tile.holySite.faithId;
+                else if (tile.kingdom) {
+                    const k = this.world.getKingdom(tile.kingdom);
+                    faithId = k?.religion?.faithId;
+                }
+                if (faithId && Religion.FAITHS[faithId]) return Religion.FAITHS[faithId].holyColor;
+                return '#1a1a2e';
+            }
+
+            case 'wealth': {
+                if (tile.settlement) {
+                    const prod = Economy.calculateDetailedProduction(tile.settlement, tile, this.world);
+                    const g = prod ? prod.gold : 0;
+                    const t = Math.min(1, g / 150);
+                    return `rgb(${Math.round(255*(1-t))},${Math.round(200*t)},40)`;
+                }
+                if (tile.resource) return '#d4a017';
+                if (tile.kingdom) return '#4a3520';
+                return '#111';
+            }
+
+            case 'military': {
+                if (tile.kingdom) {
+                    const k = this.world.getKingdom(tile.kingdom);
+                    if (k) {
+                        const ratio = Math.min(1, k.military / 5000);
+                        return `rgb(${Math.round(255*ratio)},${Math.round(60*(1-ratio))},30)`;
+                    }
+                }
+                return '#111';
+            }
+
+            case 'trade': {
+                if (tile.hasRoad || tile.infrastructure) return '#f5c542';
+                if (tile.settlement) return '#e08e45';
+                if (tile.resource) return '#d4a017';
+                return tile.terrain.passable ? '#2a2520' : '#0a0a20';
+            }
+
+            case 'culture': {
+                if (tile.culturalBuilding) return '#9b59b6';
+                if (tile.kingdom) {
+                    const k = this.world.getKingdom(tile.kingdom);
+                    if (k && k.cultureData) {
+                        const inf = Math.min(1, (k.cultureData.influence || 0) / 100);
+                        return `rgb(${Math.round(100+155*inf)},${Math.round(60*(1-inf))},${Math.round(120+60*inf)})`;
+                    }
+                }
+                return '#111';
+            }
+
+            default:
+                if (tile.kingdom) {
+                    const k = this.world.getKingdom(tile.kingdom);
+                    return k ? k.color : tile.terrain.color;
+                }
+                return tile.terrain.color;
         }
     }
 }

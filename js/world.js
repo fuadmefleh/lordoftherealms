@@ -81,6 +81,18 @@ class World {
             Peoples.initialize(this);
         }
 
+        // Initialize colonization system (indigenous populations, kingdom policies)
+        console.log('Initializing colonization system...');
+        if (typeof Colonization !== 'undefined') {
+            Colonization.initialize(this);
+        }
+
+        // Initialize cartography system (ancient maps in ruins, kingdom cartography)
+        console.log('Initializing cartography system...');
+        if (typeof Cartography !== 'undefined') {
+            Cartography.initialize(this);
+        }
+
         // Populate the world with initial units so it feels alive from the start
         console.log('Spawning initial world units...');
         this.spawnInitialUnits();
@@ -433,6 +445,16 @@ class World {
         // Process multicultural peoples dynamics
         if (typeof Peoples !== 'undefined') {
             Peoples.processTurn(this);
+        }
+
+        // Process colonization (colony loyalty, indigenous, AI expansion)
+        if (typeof Colonization !== 'undefined') {
+            Colonization.processTurn(this);
+        }
+
+        // Process cartography (propaganda maps, kingdom cartography)
+        if (typeof Cartography !== 'undefined') {
+            Cartography.processTurn(this);
         }
 
         // Process units

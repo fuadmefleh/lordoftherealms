@@ -34,6 +34,7 @@ class Player {
             leadership: 1,
             diplomacy: 1,
             stealth: 1,
+            cartography: 0,
         };
 
         // Movement
@@ -48,6 +49,9 @@ class Player {
         // Inventory
         this.inventory = {};
         this.maxInventory = 20;
+
+        // Maps collection (cartography system)
+        this.maps = [];
 
         // Economic path
         this.properties = [];       // Farms, mines, workshops

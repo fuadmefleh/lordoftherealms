@@ -369,6 +369,18 @@ class Game {
         this.canvas.addEventListener('dblclick', (e) => {
             this.handleDoubleClick(e.clientX, e.clientY);
         });
+
+        // Keyboard shortcut: M to cycle map modes
+        window.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+            if (e.key === 'm' || e.key === 'M') {
+                const modes = ['normal', 'political', 'religion', 'wealth', 'military', 'trade', 'culture'];
+                const current = this.renderer.mapMode;
+                const idx = modes.indexOf(current);
+                const next = modes[(idx + 1) % modes.length];
+                this.ui.setMapMode(next);
+            }
+        });
     }
 
     /**

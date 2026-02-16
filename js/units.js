@@ -371,8 +371,25 @@ class WorldUnit {
         }
 
         if (this.q === this.targetQ && this.r === this.targetR) {
-            // Build village!
             const tile = world.getTile(this.q, this.r);
+
+            // Kingdom pioneer settler — found a proper colony
+            if (this.isPioneer && this.kingdomId && typeof Colonization !== 'undefined') {
+                Colonization.onKingdomPioneerArrival(this, world);
+                this.destroyed = true;
+                return;
+            }
+
+            // Player pioneer settler — found a player colony
+            if (this.isPlayerPioneer && typeof Colonization !== 'undefined') {
+                // Player reference from game global
+                const player = (typeof game !== 'undefined' && game.player) ? game.player : null;
+                Colonization.onPioneerArrival(this, world, player);
+                this.destroyed = true;
+                return;
+            }
+
+            // Default: build neutral village
             if (tile && !tile.settlement) {
                 const name = Kingdom.generateCityName(Utils.randPick(['Imperial', 'Woodland', 'Nomadic', 'Religious', 'Maritime']));
                 tile.settlement = {

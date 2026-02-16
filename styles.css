@@ -862,3 +862,56 @@ body {
         opacity: 0.6;
     }
 }
+
+/* ── Map Mode Dropdown ── */
+.map-mode-option:hover {
+    background: rgba(245, 197, 66, 0.10) !important;
+}
+
+.map-mode-option.active {
+    background: rgba(245, 197, 66, 0.14) !important;
+}
+
+#mapModeDropdown {
+    animation: fadeSlideDown 0.15s ease-out;
+}
+
+@keyframes fadeSlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Map mode active indicator on button */
+#btnMapModes {
+    position: relative;
+    transition: border-bottom 0.2s;
+}
+
+/* Event log filter buttons */
+.event-log-filter {
+    font-family: var(--font-body);
+    transition: background 0.15s, transform 0.1s;
+}
+
+.event-log-filter:hover {
+    transform: scale(1.05);
+}
+
+.event-log-filter.active {
+    font-weight: bold;
+}
+
+/* Event log entries */
+.event-log-entry {
+    transition: background 0.15s;
+}
+
+.event-log-entry:hover {
+    background: rgba(255, 255, 255, 0.04) !important;
+}

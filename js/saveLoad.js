@@ -99,6 +99,7 @@ const SaveLoad = {
                     infrastructure: tile.infrastructure || null,
                     playerProperties: tile.playerProperties || null,
                     playerProperty: tile.playerProperty || null,
+                    indigenous: tile.indigenous || null,
                     // Terrain is regenerated, not saved
                 });
             }
@@ -131,6 +132,8 @@ const SaveLoad = {
             allies: k.allies,
             lord: k.lord,
             characterData: typeof Characters !== 'undefined' ? Characters.serialize(k) : (k.characterData || null),
+            colonization: k.colonization || null,
+            cartography: k.cartography || null,
         }));
     },
 
@@ -173,6 +176,8 @@ const SaveLoad = {
             strength: player.strength,
             financeHistory: player.financeHistory || [],
             financeToday: player.financeToday || null,
+            colonies: player.colonies || [],
+            maps: player.maps || [],
         };
     },
 
@@ -215,6 +220,7 @@ const SaveLoad = {
                 tile.infrastructure = savedTile.infrastructure || null;
                 tile.playerProperties = savedTile.playerProperties || null;
                 tile.playerProperty = savedTile.playerProperty || null;
+                tile.indigenous = savedTile.indigenous || null;
             }
         }
 

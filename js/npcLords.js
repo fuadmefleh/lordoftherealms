@@ -58,6 +58,7 @@ const NPCLords = {
                 case 'ambitious':
                     goals.push({ type: 'expand', priority: 'high' });
                     goals.push({ type: 'conquer', priority: 'medium' });
+                    goals.push({ type: 'colonize', priority: 'medium' });
                     break;
                 case 'greedy':
                     goals.push({ type: 'wealth', priority: 'high' });
@@ -207,6 +208,13 @@ const NPCLords = {
                     if (enemy) {
                         KingdomAI.makePeace(kingdom, enemy, world);
                     }
+                }
+                break;
+
+            case 'colonize':
+                // Establish colonies in wilderness
+                if (typeof Colonization !== 'undefined' && Math.random() < 0.3) {
+                    Colonization.processKingdomColonization(world);
                 }
                 break;
         }

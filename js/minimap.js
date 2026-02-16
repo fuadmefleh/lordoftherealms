@@ -58,8 +58,12 @@ class Minimap {
 
                 let color = tile.terrain.color;
 
-                // Override with kingdom color for territory
-                if (tile.kingdom) {
+                // If renderer has an active map mode, use its colour scheme
+                const renderer = this.game.renderer;
+                if (renderer && renderer.mapMode !== 'normal') {
+                    color = renderer.getMapModeColor(tile);
+                } else if (tile.kingdom) {
+                    // Default: override with kingdom color for territory
                     const kingdom = world.getKingdom(tile.kingdom);
                     if (kingdom) {
                         color = kingdom.color;

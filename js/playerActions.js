@@ -125,7 +125,7 @@ const PlayerActions = {
                 tile.improvement.explored = false;
             }
             
-            if (!tile.improvement.explored) {
+            if (!tile.improvement.explored && tile.improvement.type !== 'treasure_cache') {
                 actions.push({
                     type: 'explore_poi',
                     label: `Explore ${tile.improvement.name}`,
@@ -233,6 +233,93 @@ const PlayerActions = {
                 icon: '⛲',
                 description: `Visit ${tile.holySite.name} — gain gold, karma, and renown`
             });
+        }
+
+        // 5f. Colonization Actions
+        if (typeof Colonization !== 'undefined') {
+            // Found a colony on unclaimed wilderness
+            if (Colonization.canPlayerFoundColony(player, tile, world, player.q, player.r).can) {
+                actions.push({
+                    type: 'found_colony',
+                    label: 'Found Colony',
+                    icon: '🏴',
+                    description: `Establish a frontier colony here (${Colonization.COLONY_COST} gold)`
+                });
+            }
+
+            // Send pioneers to distant wilderness
+            if (player.gold >= 200 && tile.settlement && tile.settlement.kingdom === player.allegiance) {
+                actions.push({
+                    type: 'send_pioneers',
+                    label: 'Send Pioneers',
+                    icon: '🧭',
+                    description: 'Dispatch a pioneering party to settle distant lands (200 gold)'
+                });
+            }
+
+            // Manage existing colony
+            if (tile.settlement && tile.settlement.colony && 
+                (tile.settlement.colony.isPlayerColony || tile.settlement.kingdom === player.allegiance)) {
+                actions.push({
+                    type: 'manage_colony',
+                    label: 'Manage Colony',
+                    icon: '📋',
+                    description: `Manage ${tile.settlement.name} — loyalty, garrison, indigenous relations`
+                });
+            }
+
+            // Negotiate with indigenous population
+            if (tile.indigenous && tile.indigenous.population > 0) {
+                actions.push({
+                    type: 'negotiate_indigenous',
+                    label: 'Negotiate with Natives',
+                    icon: '🤝',
+                    description: `Meet with the ${tile.indigenous.tribeName} (${tile.indigenous.population} people)`
+                });
+            }
+        }
+
+        // 5g. Cartography Actions
+        if (typeof Cartography !== 'undefined') {
+            // Create a map (always available on passable terrain)
+            if (tile.terrain.passable) {
+                actions.push({
+                    type: 'cartography',
+                    label: 'Cartography',
+                    icon: '🗺️',
+                    description: 'Create maps, manage your collection, or trade maps'
+                });
+            }
+
+            // Buy/sell maps at settlements
+            if (tile.settlement) {
+                actions.push({
+                    type: 'map_trade',
+                    label: 'Map Trader',
+                    icon: '📜',
+                    description: 'Buy or sell maps at this settlement'
+                });
+            }
+
+            // Steal maps (stealth check, risky)
+            if (tile.settlement && tile.settlement.type !== 'village') {
+                actions.push({
+                    type: 'steal_map',
+                    label: 'Steal Maps',
+                    icon: '🗡️',
+                    description: 'Attempt to steal maps from local archives (risky)'
+                });
+            }
+
+            // Dig for treasure (on treasure_cache tiles)
+            if (tile.improvement && tile.improvement.type === 'treasure_cache' && !tile.improvement.explored) {
+                actions.push({
+                    type: 'dig_treasure',
+                    label: 'Dig for Treasure',
+                    icon: '💎',
+                    description: 'Dig at the marked location for buried treasure'
+                });
+            }
         }
 
         // 6. Miracles (Global/Self action really, but put here if high karma?)

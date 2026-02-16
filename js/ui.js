@@ -63,6 +63,13 @@ class UI {
             renderer.showTerritories = !renderer.showTerritories;
             this.showNotification('Display', `Kingdom Borders: ${renderer.showTerritories ? 'ON' : 'OFF'}`, 'info');
         });
+
+        // Map Modes button
+        const btnMapModes = document.getElementById('btnMapModes');
+        if (btnMapModes) {
+            btnMapModes.addEventListener('click', () => this.showMapModeSelector());
+        }
+
         document.getElementById('btnEndTurn').addEventListener('click', () => this.game.endDay());
 
         // Gold stat click — show finance tracker
@@ -1044,7 +1051,7 @@ class UI {
             border-radius: 8px;
             padding: 0;
             min-width: 400px;
-            max-width: 600px;
+            max-width: 700px;
             max-height: 80vh;
             z-index: 1000;
             box-shadow: 0 10px 40px rgba(0,0,0,0.8);
@@ -2608,5 +2615,613 @@ class UI {
         } else {
             this.showNotification('Update Failed', result.reason, 'error');
         }
+    }
+
+    // ============================================
+    // MAP MODES & DATA VISUALIZATION
+    // ============================================
+
+    /**
+     * Toggle the map mode selector dropdown
+     */
+    showMapModeSelector() {
+        const existing = document.getElementById('mapModeDropdown');
+        if (existing) {
+            existing.remove();
+            return;
+        }
+
+        const modes = [
+            { id: 'normal',    icon: '🗺️', label: 'Normal',    desc: 'Default terrain view' },
+            { id: 'political', icon: '🏰', label: 'Political',  desc: 'Kingdom territories' },
+            { id: 'religion',  icon: '🙏', label: 'Religion',   desc: 'Faith distribution' },
+            { id: 'wealth',    icon: '💰', label: 'Wealth',     desc: 'Economic output' },
+            { id: 'military',  icon: '⚔️', label: 'Military',  desc: 'Army strength' },
+            { id: 'trade',     icon: '🐪', label: 'Trade',      desc: 'Routes & resources' },
+            { id: 'culture',   icon: '🎭', label: 'Culture',    desc: 'Cultural influence' },
+        ];
+
+        const currentMode = this.game.renderer.mapMode;
+
+        const dropdown = document.createElement('div');
+        dropdown.id = 'mapModeDropdown';
+        dropdown.style.cssText = `
+            position: fixed;
+            top: 52px;
+            right: 10px;
+            background: rgba(12, 18, 32, 0.96);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--gold);
+            border-radius: 8px;
+            padding: 8px 0;
+            z-index: 500;
+            min-width: 200px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+        `;
+
+        let html = `<div style="padding: 4px 14px 8px; font-family: var(--font-display); color: var(--gold); font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 4px;">Map Mode</div>`;
+
+        for (const m of modes) {
+            const active = m.id === currentMode;
+            html += `<div class="map-mode-option${active ? ' active' : ''}" data-mode="${m.id}" style="
+                display: flex; align-items: center; gap: 10px; padding: 8px 14px; cursor: pointer;
+                background: ${active ? 'rgba(245,197,66,0.12)' : 'transparent'};
+                border-left: 3px solid ${active ? 'var(--gold)' : 'transparent'};
+                transition: background 0.15s;
+            ">
+                <span style="font-size: 18px;">${m.icon}</span>
+                <div>
+                    <div style="color: ${active ? 'var(--gold)' : 'var(--text-primary)'}; font-size: 13px; font-weight: ${active ? 'bold' : 'normal'};">${m.label}</div>
+                    <div style="color: var(--text-secondary); font-size: 11px;">${m.desc}</div>
+                </div>
+            </div>`;
+        }
+
+        // Extra buttons for data panels
+        html += `<div style="border-top: 1px solid rgba(255,255,255,0.08); margin-top: 4px; padding-top: 4px;">`;
+        html += `<div class="map-mode-option" data-action="graphs" style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;">
+            <span style="font-size:18px;">📊</span>
+            <div>
+                <div style="color:var(--text-primary);font-size:13px;">Economic Trends</div>
+                <div style="color:var(--text-secondary);font-size:11px;">Graphs & kingdom stats</div>
+            </div>
+        </div>`;
+        html += `<div class="map-mode-option" data-action="eventlog" style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;">
+            <span style="font-size:18px;">📜</span>
+            <div>
+                <div style="color:var(--text-primary);font-size:13px;">Event Log</div>
+                <div style="color:var(--text-secondary);font-size:11px;">Major world events</div>
+            </div>
+        </div>`;
+        html += `<div class="map-mode-option" data-action="compare" style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;">
+            <span style="font-size:18px;">⚖️</span>
+            <div>
+                <div style="color:var(--text-primary);font-size:13px;">Kingdom Comparison</div>
+                <div style="color:var(--text-secondary);font-size:11px;">Side-by-side analysis</div>
+            </div>
+        </div>`;
+        html += `</div>`;
+
+        dropdown.innerHTML = html;
+        document.body.appendChild(dropdown);
+
+        // Event handlers
+        dropdown.querySelectorAll('.map-mode-option').forEach(el => {
+            el.addEventListener('mouseenter', () => el.style.background = 'rgba(245,197,66,0.08)');
+            el.addEventListener('mouseleave', () => {
+                const isActive = el.dataset.mode === currentMode;
+                el.style.background = isActive ? 'rgba(245,197,66,0.12)' : 'transparent';
+            });
+
+            el.addEventListener('click', () => {
+                if (el.dataset.mode) {
+                    this.setMapMode(el.dataset.mode);
+                } else if (el.dataset.action === 'graphs') {
+                    this.showEconomicTrends();
+                } else if (el.dataset.action === 'eventlog') {
+                    this.showEventLog();
+                } else if (el.dataset.action === 'compare') {
+                    this.showKingdomComparison();
+                }
+                dropdown.remove();
+            });
+        });
+
+        // Close on click outside
+        setTimeout(() => {
+            const closeHandler = (e) => {
+                if (!dropdown.contains(e.target) && e.target.id !== 'btnMapModes') {
+                    dropdown.remove();
+                    document.removeEventListener('click', closeHandler);
+                }
+            };
+            document.addEventListener('click', closeHandler);
+        }, 10);
+    }
+
+    /**
+     * Set the active map mode
+     */
+    setMapMode(mode) {
+        this.game.renderer.mapMode = mode;
+        // Force minimap redraw
+        if (this.game.minimap) this.game.minimap.invalidate();
+
+        const labels = {
+            normal: 'Normal', political: 'Political', religion: 'Religion',
+            wealth: 'Wealth', military: 'Military', trade: 'Trade Routes', culture: 'Culture'
+        };
+        this.showNotification('Map Mode', `${labels[mode] || mode} view active`, 'info');
+
+        // Update button indicator
+        const btn = document.getElementById('btnMapModes');
+        if (btn) {
+            btn.style.borderBottom = mode !== 'normal' ? '2px solid var(--gold)' : 'none';
+        }
+    }
+
+    /**
+     * Show economic trends with canvas-drawn sparkline graphs
+     */
+    showEconomicTrends() {
+        const world = this.game.world;
+        const player = this.game.player;
+
+        // Collect kingdom economic data
+        const kingdoms = world.kingdoms.filter(k => k.isAlive);
+
+        // Build kingdom summary table
+        let kingdomRows = '';
+        for (const k of kingdoms) {
+            const popStr = Utils.formatNumber(k.population);
+            const milStr = Utils.formatNumber(k.military);
+            const treasuryStr = Utils.formatNumber(k.treasury);
+            const territories = k.territory.length;
+            const faithName = k.religion ? (Religion.FAITHS[k.religion.faithId]?.name || 'Unknown') : 'None';
+            const cultureInf = k.cultureData ? Math.round(k.cultureData.influence) : 0;
+
+            kingdomRows += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                <td style="padding:8px;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${k.color};margin-right:6px;"></span>${k.name}</td>
+                <td style="padding:8px;text-align:right;">${popStr}</td>
+                <td style="padding:8px;text-align:right;color:#e74c3c;">${milStr}</td>
+                <td style="padding:8px;text-align:right;color:#f5c542;">${treasuryStr}</td>
+                <td style="padding:8px;text-align:right;">${territories}</td>
+                <td style="padding:8px;text-align:right;">${cultureInf}%</td>
+            </tr>`;
+        }
+
+        // Player finance sparkline
+        const history = player.financeHistory || [];
+        let sparklineHtml = '';
+        if (history.length > 1) {
+            sparklineHtml = `
+                <div style="margin-top:16px;">
+                    <div class="info-section-title">Your Financial Trends (Last ${history.length} days)</div>
+                    <canvas id="financeSparkline" width="520" height="160" style="width:100%;height:160px;border-radius:6px;background:rgba(0,0,0,0.3);margin-top:8px;"></canvas>
+                    <div style="display:flex;gap:16px;margin-top:6px;font-size:11px;">
+                        <span style="color:#27ae60;">● Gold Balance</span>
+                        <span style="color:#3498db;">● Daily Income</span>
+                        <span style="color:#e74c3c;">● Daily Expenses</span>
+                    </div>
+                </div>`;
+        }
+
+        // Market price trends
+        let marketHtml = '';
+        if (typeof MarketDynamics !== 'undefined') {
+            const summary = MarketDynamics.getMarketSummary(player.q, player.r, world);
+            if (summary && summary.prices) {
+                let priceRows = '';
+                for (const [goodId, data] of Object.entries(summary.prices)) {
+                    const trendIcon = data.trend === 'rising' ? '📈' : data.trend === 'falling' ? '📉' : '➡️';
+                    const trendColor = data.trend === 'rising' ? '#e74c3c' : data.trend === 'falling' ? '#27ae60' : 'var(--text-secondary)';
+                    priceRows += `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                        <td style="padding:6px;">${goodId}</td>
+                        <td style="padding:6px;text-align:right;color:var(--gold);">${Math.round(data.price || data.currentPrice || 0)}</td>
+                        <td style="padding:6px;text-align:right;color:${trendColor};">${trendIcon} ${data.trend || 'stable'}</td>
+                    </tr>`;
+                }
+                if (priceRows) {
+                    marketHtml = `
+                        <div style="margin-top:16px;">
+                            <div class="info-section-title">Market Prices Near You</div>
+                            <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:12px;">
+                                <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.15);">
+                                    <th style="text-align:left;padding:6px;color:var(--text-secondary);">Good</th>
+                                    <th style="text-align:right;padding:6px;color:var(--text-secondary);">Price</th>
+                                    <th style="text-align:right;padding:6px;color:var(--text-secondary);">Trend</th>
+                                </tr></thead>
+                                <tbody>${priceRows}</tbody>
+                            </table>
+                        </div>`;
+                }
+            }
+        }
+
+        const html = `
+            <div class="info-section-title">Kingdom Economic Overview</div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:12px;">
+                    <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.15);">
+                        <th style="text-align:left;padding:8px;color:var(--text-secondary);">Kingdom</th>
+                        <th style="text-align:right;padding:8px;color:var(--text-secondary);">Pop.</th>
+                        <th style="text-align:right;padding:8px;color:var(--text-secondary);">Military</th>
+                        <th style="text-align:right;padding:8px;color:var(--text-secondary);">Treasury</th>
+                        <th style="text-align:right;padding:8px;color:var(--text-secondary);">Tiles</th>
+                        <th style="text-align:right;padding:8px;color:var(--text-secondary);">Culture</th>
+                    </tr></thead>
+                    <tbody>${kingdomRows}</tbody>
+                </table>
+            </div>
+            ${sparklineHtml}
+            ${marketHtml}
+        `;
+
+        this.showCustomPanel('📊 Economic Trends', html);
+
+        // Draw sparkline after DOM is ready
+        if (history.length > 1) {
+            setTimeout(() => this.drawFinanceSparkline(history), 50);
+        }
+    }
+
+    /**
+     * Draw finance sparkline chart on a canvas element
+     */
+    drawFinanceSparkline(history) {
+        const canvas = document.getElementById('financeSparkline');
+        if (!canvas) return;
+
+        // Set high-DPI resolution
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+
+        const w = rect.width;
+        const h = rect.height;
+        const pad = { top: 10, right: 10, bottom: 24, left: 50 };
+        const plotW = w - pad.left - pad.right;
+        const plotH = h - pad.top - pad.bottom;
+
+        // Extract data series
+        const goldData = history.map(d => d.gold);
+        const incomeData = history.map(d => d.totalIncome || 0);
+        const expenseData = history.map(d => d.totalExpenses || 0);
+
+        const allValues = [...goldData, ...incomeData, ...expenseData];
+        const maxVal = Math.max(...allValues, 1);
+        const minVal = Math.min(...allValues, 0);
+        const range = maxVal - minVal || 1;
+
+        // Grid lines
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+            const y = pad.top + (plotH * i / 4);
+            ctx.beginPath();
+            ctx.moveTo(pad.left, y);
+            ctx.lineTo(w - pad.right, y);
+            ctx.stroke();
+
+            // Labels
+            const val = maxVal - (range * i / 4);
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.font = '10px Inter, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(Math.round(val), pad.left - 6, y + 4);
+        }
+
+        // X-axis labels
+        const step = Math.max(1, Math.floor(history.length / 6));
+        for (let i = 0; i < history.length; i += step) {
+            const x = pad.left + (plotW * i / (history.length - 1));
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.font = '10px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`D${history[i].day || i + 1}`, x, h - 6);
+        }
+
+        // Helper: draw line
+        const drawLine = (data, color, lineWidth = 2) => {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.beginPath();
+            for (let i = 0; i < data.length; i++) {
+                const x = pad.left + (plotW * i / Math.max(1, data.length - 1));
+                const y = pad.top + plotH - (plotH * (data[i] - minVal) / range);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        };
+
+        drawLine(goldData, '#27ae60', 2.5);
+        drawLine(incomeData, '#3498db', 1.5);
+        drawLine(expenseData, '#e74c3c', 1.5);
+    }
+
+    /**
+     * Show detailed event log panel
+     */
+    showEventLog() {
+        const world = this.game.world;
+        const events = world.events || [];
+        const history = world.history || [];
+
+        // Combine and sort
+        const allEvents = [];
+
+        // Current game events
+        for (const ev of events) {
+            allEvents.push({
+                day: ev.day || world.day,
+                year: ev.year || world.year,
+                category: ev.category || 'GENERAL',
+                text: ev.text || ev.description || JSON.stringify(ev),
+                kingdom: ev.kingdom || null,
+                impact: ev.impact || null,
+            });
+        }
+
+        // Historical events
+        for (const h of history) {
+            allEvents.push({
+                day: 0,
+                year: h.year || 0,
+                category: 'HISTORY',
+                text: h.text || '',
+                kingdom: h.kingdom || null,
+                impact: null,
+            });
+        }
+
+        // Sort: recent first
+        allEvents.sort((a, b) => {
+            if (b.year !== a.year) return b.year - a.year;
+            return (b.day || 0) - (a.day || 0);
+        });
+
+        // Category colors
+        const catColors = {
+            POLITICAL: '#3498db',
+            ECONOMIC: '#f5c542',
+            MILITARY: '#e74c3c',
+            NATURAL: '#27ae60',
+            RELIGIOUS: '#8e44ad',
+            HISTORY: '#7f8c8d',
+            GENERAL: '#95a5a6',
+        };
+
+        const catIcons = {
+            POLITICAL: '👑',
+            ECONOMIC: '💰',
+            MILITARY: '⚔️',
+            NATURAL: '🌿',
+            RELIGIOUS: '🙏',
+            HISTORY: '📖',
+            GENERAL: '📌',
+        };
+
+        // Filter tabs
+        let filterHtml = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">`;
+        filterHtml += `<button class="event-log-filter active" data-cat="ALL" style="padding:4px 10px;border-radius:12px;border:1px solid var(--gold);background:rgba(245,197,66,0.15);color:var(--gold);cursor:pointer;font-size:11px;">All</button>`;
+        for (const [cat, color] of Object.entries(catColors)) {
+            filterHtml += `<button class="event-log-filter" data-cat="${cat}" style="padding:4px 10px;border-radius:12px;border:1px solid ${color};background:transparent;color:${color};cursor:pointer;font-size:11px;">${catIcons[cat] || ''} ${cat[0] + cat.slice(1).toLowerCase()}</button>`;
+        }
+        filterHtml += `</div>`;
+
+        // Event entries
+        let eventsHtml = `<div id="eventLogEntries">`;
+        if (allEvents.length === 0) {
+            eventsHtml += `<p style="color:var(--text-secondary);text-align:center;padding:20px;">No events recorded yet.</p>`;
+        } else {
+            const maxShow = Math.min(allEvents.length, 150);
+            for (let i = 0; i < maxShow; i++) {
+                const ev = allEvents[i];
+                const cat = (ev.category || 'GENERAL').toUpperCase();
+                const color = catColors[cat] || '#95a5a6';
+                const icon = catIcons[cat] || '📌';
+                const timeStr = ev.year > 0 ? (ev.day > 0 ? `Day ${((ev.day - 1) % 30) + 1}, Year ${ev.year}` : `Year ${ev.year}`) : '';
+
+                let impactHtml = '';
+                if (ev.impact) {
+                    const impacts = typeof ev.impact === 'object' ? ev.impact : {};
+                    const parts = [];
+                    for (const [k, v] of Object.entries(impacts)) {
+                        if (typeof v === 'number') {
+                            parts.push(`<span style="color:${v >= 0 ? '#27ae60' : '#e74c3c'};font-size:10px;">${k}: ${v >= 0 ? '+' : ''}${v}</span>`);
+                        }
+                    }
+                    if (parts.length) impactHtml = `<div style="margin-top:3px;">${parts.join(' · ')}</div>`;
+                }
+
+                eventsHtml += `<div class="event-log-entry" data-category="${cat}" style="
+                    padding: 8px 12px; margin-bottom: 4px; border-radius: 6px;
+                    border-left: 3px solid ${color}; background: rgba(255,255,255,0.02);
+                ">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span style="font-size:13px;">${icon} ${ev.text}</span>
+                        <span style="color:var(--text-secondary);font-size:10px;white-space:nowrap;margin-left:8px;">${timeStr}</span>
+                    </div>
+                    ${impactHtml}
+                </div>`;
+            }
+            if (allEvents.length > maxShow) {
+                eventsHtml += `<p style="color:var(--text-secondary);text-align:center;font-size:11px;padding:8px;">... and ${allEvents.length - maxShow} more events</p>`;
+            }
+        }
+        eventsHtml += `</div>`;
+
+        const html = `
+            <div style="margin-bottom:8px;color:var(--text-secondary);font-size:12px;">
+                ${allEvents.length} events recorded · ${history.length} historical · ${events.length} current game
+            </div>
+            ${filterHtml}
+            ${eventsHtml}
+        `;
+
+        this.showCustomPanel('📜 World Event Log', html);
+
+        // Wire filter buttons
+        setTimeout(() => {
+            document.querySelectorAll('.event-log-filter').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    // Toggle active
+                    document.querySelectorAll('.event-log-filter').forEach(b => {
+                        b.classList.remove('active');
+                        b.style.background = 'transparent';
+                    });
+                    btn.classList.add('active');
+                    btn.style.background = 'rgba(245,197,66,0.15)';
+
+                    const cat = btn.dataset.cat;
+                    document.querySelectorAll('.event-log-entry').forEach(entry => {
+                        if (cat === 'ALL' || entry.dataset.category === cat) {
+                            entry.style.display = 'block';
+                        } else {
+                            entry.style.display = 'none';
+                        }
+                    });
+                });
+            });
+        }, 50);
+    }
+
+    /**
+     * Show kingdom comparison panel with bar charts
+     */
+    showKingdomComparison() {
+        const world = this.game.world;
+        const kingdoms = world.kingdoms.filter(k => k.isAlive);
+
+        if (kingdoms.length === 0) {
+            this.showCustomPanel('⚖️ Kingdom Comparison', '<p style="color:var(--text-secondary);">No living kingdoms to compare.</p>');
+            return;
+        }
+
+        // Gather data for comparison
+        const metrics = [
+            { key: 'population', label: 'Population', icon: '👥', format: v => Utils.formatNumber(v) },
+            { key: 'military', label: 'Military Strength', icon: '⚔️', format: v => Utils.formatNumber(v) },
+            { key: 'treasury', label: 'Treasury', icon: '💰', format: v => Utils.formatNumber(v) },
+            { key: 'territory', label: 'Territory Size', icon: '🏴', format: v => v },
+            { key: 'settlements', label: 'Settlements', icon: '🏘️', format: v => v },
+            { key: 'piety', label: 'Piety', icon: '🙏', format: v => Math.round(v) },
+            { key: 'culture', label: 'Cultural Influence', icon: '🎭', format: v => Math.round(v) + '%' },
+            { key: 'scholarship', label: 'Scholarship', icon: '📚', format: v => Math.round(v) },
+        ];
+
+        // Build data
+        const data = kingdoms.map(k => {
+            // Count settlements
+            let settlementCount = 0;
+            for (const t of k.territory) {
+                const tile = world.getTile(t.q, t.r);
+                if (tile && tile.settlement) settlementCount++;
+            }
+
+            return {
+                kingdom: k,
+                population: k.population,
+                military: k.military,
+                treasury: k.treasury,
+                territory: k.territory.length,
+                settlements: settlementCount,
+                piety: k.religion ? (k.religion.piety || 0) : 0,
+                culture: k.cultureData ? (k.cultureData.influence || 0) : 0,
+                scholarship: k.cultureData ? (k.cultureData.scholarship || 0) : 0,
+            };
+        });
+
+        let html = '';
+
+        // Radar-style summary with bar charts per metric
+        for (const metric of metrics) {
+            const values = data.map(d => d[metric.key]);
+            const maxVal = Math.max(...values, 1);
+
+            html += `<div style="margin-bottom:16px;">
+                <div class="info-section-title" style="font-size:12px;">${metric.icon} ${metric.label}</div>`;
+
+            for (let i = 0; i < data.length; i++) {
+                const d = data[i];
+                const k = d.kingdom;
+                const val = d[metric.key];
+                const pct = Math.round((val / maxVal) * 100);
+
+                html += `<div style="display:flex;align-items:center;gap:8px;margin:4px 0;">
+                    <span style="width:100px;font-size:11px;color:var(--text-secondary);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${k.name}">${k.name.split(' ').pop()}</span>
+                    <div style="flex:1;height:18px;background:rgba(255,255,255,0.05);border-radius:9px;overflow:hidden;position:relative;">
+                        <div style="height:100%;width:${pct}%;background:${k.color};border-radius:9px;transition:width 0.3s;"></div>
+                    </div>
+                    <span style="width:60px;font-size:11px;color:var(--text-primary);text-align:right;">${metric.format(val)}</span>
+                </div>`;
+            }
+
+            html += `</div>`;
+        }
+
+        // Diplomatic relations matrix
+        html += `<div style="margin-top:16px;">
+            <div class="info-section-title" style="font-size:12px;">🤝 Diplomatic Relations</div>
+            <div style="overflow-x:auto;margin-top:8px;">
+                <table style="border-collapse:collapse;font-size:11px;width:100%;">
+                    <thead><tr>
+                        <th style="padding:4px;"></th>`;
+
+        for (const k of kingdoms) {
+            html += `<th style="padding:4px;color:${k.color};text-align:center;font-size:10px;" title="${k.name}">${k.name.split(' ').pop().substring(0, 5)}</th>`;
+        }
+        html += `</tr></thead><tbody>`;
+
+        for (const k1 of kingdoms) {
+            html += `<tr><td style="padding:4px;color:${k1.color};font-size:10px;" title="${k1.name}">${k1.name.split(' ').pop().substring(0, 7)}</td>`;
+            for (const k2 of kingdoms) {
+                if (k1.id === k2.id) {
+                    html += `<td style="padding:4px;text-align:center;color:var(--text-secondary);">—</td>`;
+                } else {
+                    const rel = k1.relations ? (k1.relations[k2.id] || 0) : 0;
+                    const relColor = rel > 30 ? '#27ae60' : rel < -30 ? '#e74c3c' : '#f5c542';
+                    const atWar = k1.wars && k1.wars.includes(k2.id);
+                    const allied = k1.allies && k1.allies.includes(k2.id);
+                    let relText = rel.toString();
+                    if (atWar) relText = '⚔️';
+                    if (allied) relText = '🤝';
+                    html += `<td style="padding:4px;text-align:center;color:${relColor};font-size:10px;" title="${k1.name} → ${k2.name}: ${rel}">${relText}</td>`;
+                }
+            }
+            html += `</tr>`;
+        }
+        html += `</tbody></table></div></div>`;
+
+        // Power ranking
+        html += `<div style="margin-top:16px;">
+            <div class="info-section-title" style="font-size:12px;">🏆 Power Ranking</div>`;
+
+        const ranked = [...data].sort((a, b) => {
+            const scoreA = a.population * 0.3 + a.military * 2 + a.treasury * 0.5 + a.territory * 10;
+            const scoreB = b.population * 0.3 + b.military * 2 + b.treasury * 0.5 + b.territory * 10;
+            return scoreB - scoreA;
+        });
+
+        for (let i = 0; i < ranked.length; i++) {
+            const d = ranked[i];
+            const k = d.kingdom;
+            const score = Math.round(d.population * 0.3 + d.military * 2 + d.treasury * 0.5 + d.territory * 10);
+            const medals = ['🥇', '🥈', '🥉', '4th', '5th'];
+
+            html += `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+                <span style="font-size:16px;min-width:24px;text-align:center;">${medals[i] || (i+1)+'th'}</span>
+                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${k.color};"></span>
+                <span style="flex:1;color:var(--text-primary);font-size:12px;">${k.name}</span>
+                <span style="color:var(--gold);font-size:12px;font-weight:bold;">${Utils.formatNumber(score)} pts</span>
+            </div>`;
+        }
+        html += `</div>`;
+
+        this.showCustomPanel('⚖️ Kingdom Comparison', html);
     }
 }

@@ -125,6 +125,18 @@ const Tavern = {
             available: !alreadySoldToday,
         });
 
+        // 8. Buy maps from a shady cartographer (if Cartography is loaded)
+        if (typeof Cartography !== 'undefined') {
+            options.push({
+                id: 'buy_tavern_map',
+                label: 'Browse maps from a traveler',
+                icon: '🗺️',
+                cost: 0,
+                description: 'A wandering cartographer has maps for sale — regional charts, treasure maps, and ancient fragments',
+                available: true,
+            });
+        }
+
         return options;
     },
 
@@ -150,6 +162,8 @@ const Tavern = {
                 return Tavern._checkRumorBoard(player, tile, world);
             case 'sell_soul':
                 return Tavern._sellSoul(player, tile, world);
+            case 'buy_tavern_map':
+                return Tavern._buyTavernMap(player, tile, world);
             default:
                 return [];
         }
@@ -946,5 +960,20 @@ const Tavern = {
         if (age <= 7) return { label: 'Recent', color: '#f1c40f' };
         if (age <= 15) return { label: 'Aging', color: '#e67e22' };
         return { label: 'Stale', color: '#c0392b' };
+    },
+
+    /**
+     * Buy maps at the tavern — opens the map trade menu via ActionMenu
+     */
+    _buyTavernMap(player, tile, world) {
+        // This returns a special signal that the tavern UI should handle
+        // by opening the map trade panel
+        return [{
+            text: '🗺️ A weathered cartographer spreads maps across the table...',
+            category: 'TRADE_OPPORTUNITIES',
+            reliability: Tavern.RELIABILITY.MERCHANT_INFO,
+            day: world.day,
+            openMapTrade: true,
+        }];
     },
 };

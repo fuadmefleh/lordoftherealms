@@ -45,6 +45,9 @@ class Player {
         this.moveAnimProgress = 0;
         this.prevQ = 0;
         this.prevR = 0;
+        this.queuedPath = null;     // Remaining path for multi-day travel
+        this.queuedPathIndex = 0;
+        this.travelDestination = null; // {q, r} final destination for multi-day travel
 
         // Inventory
         this.inventory = {};
@@ -188,9 +191,48 @@ class Player {
             this.path = path;
             this.pathIndex = 1; // Skip first element (current position)
             this.isMoving = true;
+            // Store destination for multi-day travel
+            this.travelDestination = { q: targetQ, r: targetR };
+            // Clear any previous queued path
+            this.queuedPath = null;
+            this.queuedPathIndex = 0;
             return true;
         }
         return false;
+    }
+
+    /**
+     * Cancel any queued multi-day travel
+     */
+    cancelTravel() {
+        this.queuedPath = null;
+        this.queuedPathIndex = 0;
+        this.travelDestination = null;
+        if (this.isMoving) {
+            this.isMoving = false;
+            this.path = null;
+        }
+    }
+
+    /**
+     * Resume queued path after a new day (stamina restored)
+     */
+    resumeQueuedPath() {
+        if (!this.queuedPath || this.queuedPathIndex >= this.queuedPath.length) {
+            this.queuedPath = null;
+            this.queuedPathIndex = 0;
+            this.travelDestination = null;
+            return false;
+        }
+
+        this.path = this.queuedPath;
+        this.pathIndex = this.queuedPathIndex;
+        this.isMoving = true;
+        this.moveAnimProgress = 0;
+        // Clear queued state (now active)
+        this.queuedPath = null;
+        this.queuedPathIndex = 0;
+        return true;
     }
 
     /**
@@ -248,7 +290,15 @@ class Player {
             this.pathIndex++;
             this.moveAnimProgress = 0;
 
-            if (this.pathIndex >= this.path.length || this.movementRemaining <= 0) {
+            if (this.pathIndex >= this.path.length) {
+                // Arrived at destination
+                this.isMoving = false;
+                this.path = null;
+                this.travelDestination = null;
+            } else if (this.movementRemaining <= 0) {
+                // Out of stamina — queue remaining path for next day
+                this.queuedPath = this.path;
+                this.queuedPathIndex = this.pathIndex;
                 this.isMoving = false;
                 this.path = null;
             }

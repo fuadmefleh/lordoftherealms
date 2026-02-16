@@ -178,6 +178,9 @@ const SaveLoad = {
             financeToday: player.financeToday || null,
             colonies: player.colonies || [],
             maps: player.maps || [],
+            queuedPath: player.queuedPath || null,
+            queuedPathIndex: player.queuedPathIndex || 0,
+            travelDestination: player.travelDestination || null,
         };
     },
 

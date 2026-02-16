@@ -305,7 +305,16 @@ class Game {
 
                 // Check if arrived at destination
                 if (!this.player.isMoving) {
-                    this.onPlayerArrived();
+                    if (this.player.queuedPath) {
+                        // Ran out of stamina mid-journey — auto-end day to continue
+                        const dest = this.player.travelDestination;
+                        const remaining = this.player.queuedPath.length - this.player.queuedPathIndex;
+                        this.ui.showNotification('Resting for the Night',
+                            `~${remaining} tiles remaining to destination. Press Escape to cancel.`, 'info');
+                        this.endDay();
+                    } else {
+                        this.onPlayerArrived();
+                    }
                 }
 
                 // Camera follow removed to allow free-panning while moving
@@ -382,6 +391,13 @@ class Game {
                 const idx = modes.indexOf(current);
                 const next = modes[(idx + 1) % modes.length];
                 this.ui.setMapMode(next);
+            }
+            if (e.key === 'Escape') {
+                if (this.player && (this.player.queuedPath || this.player.isMoving)) {
+                    this.player.cancelTravel();
+                    this.renderer.reachableHexes = this.player.getReachableHexes(this.world);
+                    this.ui.showNotification('Travel Cancelled', 'You stopped your journey.', 'default');
+                }
             }
         });
     }
@@ -566,6 +582,17 @@ class Game {
                     taxCollected = taxResults.collected || 0;
                     if (taxCollected > 0) {
                         this.ui.showNotification('Tax Collection', `+${taxCollected} gold from settlements`, 'success');
+                    }
+                }
+
+                // Resume queued multi-day travel if any
+                if (this.player.queuedPath) {
+                    const resumed = this.player.resumeQueuedPath();
+                    if (resumed) {
+                        const dest = this.player.travelDestination;
+                        const remaining = this.player.path.length - this.player.pathIndex;
+                        this.ui.showNotification('Resuming Travel',
+                            `Continuing journey${dest ? ` to (${dest.q}, ${dest.r})` : ''} — ~${remaining} tiles remaining`, 'info');
                     }
                 }
 

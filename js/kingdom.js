@@ -95,46 +95,80 @@ const Kingdom = {
      */
     placeKingdoms(kingdoms, tiles, mapWidth, mapHeight) {
         const placedCapitals = [];
-        const minCapitalDistance = Math.floor(mapWidth / 4); // Keep kingdoms apart
+        const idealMinDistance = Math.floor(mapWidth / 4); // Ideal spacing
 
         for (const kingdom of kingdoms) {
             let bestTile = null;
             let bestScore = -Infinity;
-            let attempts = 0;
-            const maxAttempts = 1000;
 
-            while (attempts < maxAttempts) {
-                attempts++;
-                const q = Utils.randInt(0, mapWidth - 1);
-                const r = Utils.randInt(Math.floor(mapHeight * 0.15), Math.floor(mapHeight * 0.85)); // avoid poles
+            // Try with decreasing minimum distance until placement succeeds
+            // This allows multiple kingdoms on the same continent when there aren't enough
+            let minCapitalDistance = idealMinDistance;
+            const minAllowedDistance = Math.max(4, Math.floor(mapWidth / 10)); // absolute floor — at least 4 tiles apart
 
-                const tile = tiles[r][q];
+            while (minCapitalDistance >= minAllowedDistance) {
+                let attempts = 0;
+                const maxAttempts = 1000;
 
-                // Must be passable land
-                if (!tile.terrain.passable) continue;
-                if (tile.terrain.id === 'coast' || tile.terrain.id === 'beach') continue;
+                while (attempts < maxAttempts) {
+                    attempts++;
+                    const q = Utils.randInt(0, mapWidth - 1);
+                    const r = Utils.randInt(Math.floor(mapHeight * 0.15), Math.floor(mapHeight * 0.85)); // avoid poles
 
-                // Preferred terrain bonus
-                const terrainBonus = kingdom.preferredTerrain.includes(tile.terrain.id) ? 50 : 0;
+                    const tile = tiles[r][q];
 
-                // Distance from other capitals
-                let tooClose = false;
-                let distScore = 0;
-                for (const cap of placedCapitals) {
-                    const dist = Hex.wrappingDistance(q, r, cap.q, cap.r, mapWidth);
-                    if (dist < minCapitalDistance) {
-                        tooClose = true;
-                        break;
+                    // Must be passable land
+                    if (!tile.terrain.passable) continue;
+                    if (tile.terrain.id === 'coast' || tile.terrain.id === 'beach') continue;
+
+                    // Preferred terrain bonus
+                    const terrainBonus = kingdom.preferredTerrain.includes(tile.terrain.id) ? 50 : 0;
+
+                    // Distance from other capitals
+                    let tooClose = false;
+                    let distScore = 0;
+                    for (const cap of placedCapitals) {
+                        const dist = Hex.wrappingDistance(q, r, cap.q, cap.r, mapWidth);
+                        if (dist < minCapitalDistance) {
+                            tooClose = true;
+                            break;
+                        }
+                        distScore += dist;
                     }
-                    distScore += dist;
-                }
-                if (tooClose) continue;
+                    if (tooClose) continue;
 
-                // Score: prefer terrain match + distance from others + some randomness
-                const score = terrainBonus + distScore * 0.5 + Utils.randFloat(0, 20);
-                if (score > bestScore) {
-                    bestScore = score;
+                    // Score: prefer terrain match + distance from others + some randomness
+                    const score = terrainBonus + distScore * 0.5 + Utils.randFloat(0, 20);
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestTile = { q, r };
+                    }
+                }
+
+                // If we found a valid position, stop reducing distance
+                if (bestTile) break;
+
+                // Reduce minimum distance and retry
+                minCapitalDistance = Math.floor(minCapitalDistance * 0.6);
+            }
+
+            if (!bestTile) {
+                // Last resort: find any passable land tile not already a capital
+                console.warn(`Kingdom ${kingdom.name}: couldn't place with distance constraints, using fallback`);
+                for (let attempt = 0; attempt < 2000; attempt++) {
+                    const q = Utils.randInt(0, mapWidth - 1);
+                    const r = Utils.randInt(Math.floor(mapHeight * 0.15), Math.floor(mapHeight * 0.85));
+                    const tile = tiles[r][q];
+                    if (!tile.terrain.passable) continue;
+                    if (tile.terrain.id === 'coast' || tile.terrain.id === 'beach') continue;
+                    // Just make sure we're not directly on top of another capital
+                    let onCapital = false;
+                    for (const cap of placedCapitals) {
+                        if (cap.q === q && cap.r === r) { onCapital = true; break; }
+                    }
+                    if (onCapital) continue;
                     bestTile = { q, r };
+                    break;
                 }
             }
 

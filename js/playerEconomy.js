@@ -841,15 +841,20 @@ const Trading = {
      */
     getAvailableGoods(settlement, tile) {
         const goods = [];
+        if (!settlement.marketStock) settlement.marketStock = {};
 
         // Helper to add good
         const addGood = (goodKey, qtyMult) => {
             const good = PlayerEconomy.GOODS[goodKey];
             if (!good) return;
 
+            const baseQty = Math.floor(settlement.population * qtyMult);
+            const bought = settlement.marketStock[good.id] || 0;
+            const available = Math.max(0, baseQty - bought);
+
             goods.push({
                 ...good,
-                quantity: Math.floor(settlement.population * qtyMult),
+                quantity: available,
                 price: Trading.calculatePrice(good, settlement, tile),
             });
         };
@@ -952,6 +957,10 @@ const Trading = {
         // Add to player inventory
         if (!player.inventory) player.inventory = {};
         player.inventory[good.id] = (player.inventory[good.id] || 0) + quantity;
+
+        // Reduce settlement stock
+        if (!settlement.marketStock) settlement.marketStock = {};
+        settlement.marketStock[good.id] = (settlement.marketStock[good.id] || 0) + quantity;
 
         // Increase commerce skill
         player.skills.commerce = Math.min(10, player.skills.commerce + 0.1);

@@ -457,6 +457,21 @@ class World {
             Cartography.processTurn(this);
         }
 
+        // Replenish market stock — settlements gradually restock goods
+        const allSettlements = this.getAllSettlements();
+        for (const s of allSettlements) {
+            const tile = this.getTile(s.q, s.r);
+            if (!tile || !tile.settlement || !tile.settlement.marketStock) continue;
+            const stock = tile.settlement.marketStock;
+            for (const goodId in stock) {
+                if (stock[goodId] > 0) {
+                    // Replenish ~10% per day (full restock in ~10 days)
+                    const replenish = Math.max(1, Math.ceil(stock[goodId] * 0.1));
+                    stock[goodId] = Math.max(0, stock[goodId] - replenish);
+                }
+            }
+        }
+
         // Process units
         this.processUnits();
 

@@ -960,13 +960,22 @@ const ActionMenu = {
         html += '<h4 style="margin-top: 0;">Buy Goods</h4>';
 
         for (const good of goods) {
-            html += `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                    <span>${good.icon} ${good.name}</span>
-                    <span>${good.price} gold (${good.quantity} available)</span>
-                    <button onclick="window.buyGood('${good.id}', ${good.price}, ${good.quantity})" style="padding: 4px 12px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer;">Buy</button>
-                </div>
-            `;
+            if (good.quantity <= 0) {
+                html += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); opacity: 0.4;">
+                        <span>${good.icon} ${good.name}</span>
+                        <span style="color: #e74c3c;">Sold Out</span>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <span>${good.icon} ${good.name}</span>
+                        <span>${good.price} gold (${good.quantity} available)</span>
+                        <button onclick="window.buyGood('${good.id}', ${good.price}, ${good.quantity})" style="padding: 4px 12px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer;">Buy</button>
+                    </div>
+                `;
+            }
         }
 
         // Sell goods section

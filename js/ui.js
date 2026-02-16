@@ -1574,9 +1574,10 @@ class UI {
             return;
         }
 
-        // Use the rich Peoples history display if available
+        // Use the rich Peoples history display if available — gated by discovered lore
         if (typeof Peoples !== 'undefined') {
-            const html = Peoples.buildTribalHistoryHTML(this.game.world);
+            const discoveredLore = this.game.player.discoveredLore || new Set();
+            const html = Peoples.buildTribalHistoryHTML(this.game.world, discoveredLore);
             this.showCustomPanel('📜 History of the Peoples', html);
             return;
         }

@@ -82,6 +82,7 @@ class Player {
 
         // Tracking
         this.visitedImprovements = new Set();
+        this.discoveredLore = new Set(); // IDs of discovered world history entries
 
         // Finance tracking — rolling history of daily income/expenses
         this.financeHistory = [];  // Array of { day, gold, income: {}, expenses: {} }

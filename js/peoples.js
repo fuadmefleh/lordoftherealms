@@ -861,21 +861,72 @@ const Peoples = {
     getMergedHistory(world) {
         const merged = [];
 
-        // Regular world history
+        // Regular world history — assign stable IDs
         if (world.history) {
-            for (const event of world.history) {
-                merged.push({ ...event, source: 'world' });
+            for (let i = 0; i < world.history.length; i++) {
+                const event = world.history[i];
+                merged.push({ ...event, id: event.id || `world_${i}`, source: 'world' });
             }
         }
 
-        // Tribal/peoples history
+        // Tribal/peoples history — assign stable IDs
         if (world.tribalHistory) {
-            for (const event of world.tribalHistory) {
-                merged.push({ ...event, source: 'peoples' });
+            for (let i = 0; i < world.tribalHistory.length; i++) {
+                const event = world.tribalHistory[i];
+                merged.push({ ...event, id: event.id || `tribal_${i}`, source: 'peoples' });
             }
         }
 
         return merged.sort((a, b) => a.year - b.year);
+    },
+
+    /**
+     * Discover a random piece of world history for the player.
+     * @param {Player} player - The player
+     * @param {Object} world - The world
+     * @param {Object} [options] - Optional filters
+     * @param {string} [options.kingdom] - Kingdom ID to prefer entries about
+     * @param {string} [options.type] - Preferred entry type (e.g., 'tribal_origin', 'kingdom_formation')
+     * @param {number[]} [options.eraRange] - [minYear, maxYear] to filter by era
+     * @param {number} [options.count] - Number of entries to discover (default: 1)
+     * @returns {Array} Array of newly discovered history entries (empty if nothing new)
+     */
+    discoverLore(player, world, options = {}) {
+        if (!player.discoveredLore) player.discoveredLore = new Set();
+
+        const allHistory = Peoples.getMergedHistory(world);
+        let candidates = allHistory.filter(e => !player.discoveredLore.has(e.id));
+
+        // Apply filters to narrow candidates
+        if (options.kingdom) {
+            const kingdomEntries = candidates.filter(e => e.kingdom === options.kingdom || (e.text && e.text.includes(world.getKingdom(options.kingdom)?.name)));
+            if (kingdomEntries.length > 0) candidates = kingdomEntries;
+        }
+
+        if (options.type) {
+            const typeEntries = candidates.filter(e => e.type === options.type);
+            if (typeEntries.length > 0) candidates = typeEntries;
+        }
+
+        if (options.eraRange) {
+            const eraEntries = candidates.filter(e => e.year >= options.eraRange[0] && e.year < options.eraRange[1]);
+            if (eraEntries.length > 0) candidates = eraEntries;
+        }
+
+        if (candidates.length === 0) return [];
+
+        const count = Math.min(options.count || 1, candidates.length);
+        const discovered = [];
+
+        for (let i = 0; i < count; i++) {
+            const idx = Math.floor(Math.random() * candidates.length);
+            const entry = candidates[idx];
+            player.discoveredLore.add(entry.id);
+            discovered.push(entry);
+            candidates.splice(idx, 1);
+        }
+
+        return discovered;
     },
 
     /**
@@ -991,19 +1042,35 @@ const Peoples = {
 
     /**
      * Build HTML for displaying tribal history in the Peoples History panel.
+     * If discoveredLore is provided, only discovered entries are shown; others appear as hidden.
      */
-    buildTribalHistoryHTML(world) {
+    buildTribalHistoryHTML(world, discoveredLore) {
         const history = Peoples.getMergedHistory(world);
         if (!history || history.length === 0) return '<p style="color: var(--text-secondary);">No recorded history.</p>';
+
+        const totalEntries = history.length;
+        const hasDiscoveryFilter = discoveredLore instanceof Set;
+        const discoveredCount = hasDiscoveryFilter ? history.filter(e => discoveredLore.has(e.id)).length : totalEntries;
 
         let html = `
             <div style="margin-bottom: 16px;">
                 <p style="color: var(--text-secondary); font-size: 13px; line-height: 1.5; margin-bottom: 12px;">
-                    The peoples of this world trace their roots to ancient tribes that roamed the land. Over centuries, 
-                    these tribes learned to cooperate — sharing fires, breaking bread, and building villages together. 
-                    From those first tentative alliances grew the great kingdoms of today, each a tapestry of many peoples 
-                    united under one banner but proud of their distinct heritages.
+                    ${hasDiscoveryFilter
+                        ? 'Piece together the world\'s history by exploring ruins, talking to locals, visiting taverns, and discovering ancient places. Each interaction may reveal a fragment of the past.'
+                        : 'The peoples of this world trace their roots to ancient tribes that roamed the land. Over centuries, these tribes learned to cooperate — sharing fires, breaking bread, and building villages together. From those first tentative alliances grew the great kingdoms of today, each a tapestry of many peoples united under one banner but proud of their distinct heritages.'
+                    }
                 </p>
+                ${hasDiscoveryFilter ? `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 6px; margin-bottom: 8px;">
+                    <span style="color: var(--gold); font-size: 13px;">📜 Lore Discovered</span>
+                    <span style="color: ${discoveredCount === totalEntries ? '#2ecc71' : 'var(--text-secondary)'}; font-size: 13px; font-weight: bold;">
+                        ${discoveredCount} / ${totalEntries}
+                    </span>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 6px; margin-bottom: 12px; overflow: hidden;">
+                    <div style="background: var(--gold); height: 100%; width: ${Math.round(discoveredCount / totalEntries * 100)}%; border-radius: 4px; transition: width 0.3s;"></div>
+                </div>
+                ` : ''}
             </div>
         `;
 
@@ -1020,23 +1087,42 @@ const Peoples = {
             const eraEvents = history.filter(e => e.year >= era.range[0] && e.year < era.range[1]);
             if (eraEvents.length === 0) continue;
 
+            const eraDiscovered = hasDiscoveryFilter ? eraEvents.filter(e => discoveredLore.has(e.id)).length : eraEvents.length;
+
             html += `
                 <div style="margin-bottom: 20px;">
-                    <div style="font-family: var(--font-display); color: var(--gold); font-size: 16px; margin-bottom: 4px;">${era.name}</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="font-family: var(--font-display); color: var(--gold); font-size: 16px; margin-bottom: 4px;">${era.name}</div>
+                        ${hasDiscoveryFilter ? `<span style="color: var(--text-secondary); font-size: 11px;">${eraDiscovered}/${eraEvents.length}</span>` : ''}
+                    </div>
                     <div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 12px; font-style: italic;">${era.desc}</div>
                     <div style="position: relative; padding-left: 20px;">
                         <div style="position: absolute; left: 6px; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,0.1);"></div>
             `;
 
             for (const event of eraEvents) {
-                const dotColor = event.source === 'peoples' ? 'var(--gold)' : '#3498db';
-                html += `
-                    <div style="margin-bottom: 14px; position: relative;">
-                        <div style="position: absolute; left: -20px; top: 4px; width: 10px; height: 10px; background: ${dotColor}; border-radius: 50%; box-shadow: 0 0 6px ${dotColor};"></div>
-                        <div style="color: var(--gold); font-size: 13px; margin-bottom: 2px;">Year ${event.year}</div>
-                        <div style="color: var(--text-primary); line-height: 1.4; font-size: 13px;">${event.text}</div>
-                    </div>
-                `;
+                const isDiscovered = !hasDiscoveryFilter || discoveredLore.has(event.id);
+                const dotColor = isDiscovered
+                    ? (event.source === 'peoples' ? 'var(--gold)' : '#3498db')
+                    : 'rgba(255,255,255,0.15)';
+
+                if (isDiscovered) {
+                    html += `
+                        <div style="margin-bottom: 14px; position: relative;">
+                            <div style="position: absolute; left: -20px; top: 4px; width: 10px; height: 10px; background: ${dotColor}; border-radius: 50%; box-shadow: 0 0 6px ${dotColor};"></div>
+                            <div style="color: var(--gold); font-size: 13px; margin-bottom: 2px;">Year ${event.year}</div>
+                            <div style="color: var(--text-primary); line-height: 1.4; font-size: 13px;">${event.text}</div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div style="margin-bottom: 14px; position: relative; opacity: 0.4;">
+                            <div style="position: absolute; left: -20px; top: 4px; width: 10px; height: 10px; background: ${dotColor}; border-radius: 50%;"></div>
+                            <div style="color: var(--text-secondary); font-size: 13px; margin-bottom: 2px;">Year ???</div>
+                            <div style="color: var(--text-secondary); line-height: 1.4; font-size: 13px; font-style: italic;">Undiscovered — explore the world to learn more...</div>
+                        </div>
+                    `;
+                }
             }
 
             html += `</div></div>`;

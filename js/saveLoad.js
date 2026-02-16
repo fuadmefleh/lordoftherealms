@@ -178,6 +178,7 @@ const SaveLoad = {
             financeToday: player.financeToday || null,
             colonies: player.colonies || [],
             maps: player.maps || [],
+            discoveredLore: Array.from(player.discoveredLore || []),
             queuedPath: player.queuedPath || null,
             queuedPathIndex: player.queuedPathIndex || 0,
             travelDestination: player.travelDestination || null,
@@ -250,6 +251,13 @@ const SaveLoad = {
         // Restore quests (convert Array back to Set)
         if (player.quests && player.quests.settlementsVisited) {
             player.quests.settlementsVisited = new Set(player.quests.settlementsVisited);
+        }
+
+        // Restore discoveredLore (convert Array back to Set)
+        if (player.discoveredLore && Array.isArray(player.discoveredLore)) {
+            player.discoveredLore = new Set(player.discoveredLore);
+        } else {
+            player.discoveredLore = new Set();
         }
     },
 

@@ -1727,6 +1727,23 @@ const ActionMenu = {
             poi.loot = []; // Clear loot after pickup
         }
 
+        // Discover world history lore from POI exploration
+        let discoveredLoreEntry = null;
+        if (typeof Peoples !== 'undefined') {
+            const loreOptions = {};
+            // POI type determines what kind of lore you discover
+            if (poi.type === 'ruins' || poi.type === 'monument') {
+                loreOptions.eraRange = [0, 450]; // Ancient history
+            } else if (poi.type === 'shrine') {
+                loreOptions.type = 'tribal_origin'; // Tribal/spiritual origins
+            }
+            const kingdom = tile.kingdom || (tile.settlement && tile.settlement.kingdom) || null;
+            if (kingdom) loreOptions.kingdom = kingdom;
+
+            const discovered = Peoples.discoverLore(game.player, game.world, loreOptions);
+            if (discovered.length > 0) discoveredLoreEntry = discovered[0];
+        }
+
         // Show exploration result panel
         let html = '<div style="max-height: 400px; overflow-y: auto;">';
         html += `<div style="text-align: center; margin-bottom: 12px;">`;
@@ -1743,6 +1760,16 @@ const ActionMenu = {
         if (explorationResults.lore) {
             html += `<div style="padding: 10px; background: rgba(155,89,182,0.1); border-left: 3px solid #9b59b6; border-radius: 0 4px 4px 0; font-size: 11px; color: var(--text-secondary); font-style: italic; margin-bottom: 12px;">`;
             html += `📜 ${explorationResults.lore}`;
+            html += `</div>`;
+        }
+
+        // Show discovered lore from history
+        if (discoveredLoreEntry) {
+            html += `<div style="padding: 12px; background: rgba(155,89,182,0.15); border: 1px solid rgba(155,89,182,0.3); border-radius: 6px; margin-bottom: 12px;">`;
+            html += `<div style="font-weight: bold; color: #9b59b6; margin-bottom: 6px;">📜 Historical Lore Discovered!</div>`;
+            html += `<div style="color: var(--gold); font-size: 12px; margin-bottom: 4px;">Year ${discoveredLoreEntry.year}</div>`;
+            html += `<div style="font-size: 12px; color: var(--text-primary); line-height: 1.4;">${discoveredLoreEntry.text}</div>`;
+            html += `<div style="font-size: 10px; color: var(--text-secondary); margin-top: 6px; font-style: italic;">View in 📜 World History panel</div>`;
             html += `</div>`;
         }
 
@@ -1960,8 +1987,17 @@ const ActionMenu = {
                 ActionMenu.showMapTradeMenu(game, tile);
                 return;
             }
-            if (rumors.length > 0) {
-                ActionMenu._showRumorResults(game, rumors, tile);
+
+            // 25% chance to discover world history lore when buying drinks
+            let discoveredLoreEntry = null;
+            if (actionId === 'buy_drinks' && typeof Peoples !== 'undefined' && Math.random() < 0.25) {
+                const kingdom = tile.kingdom || (tile.settlement && tile.settlement.kingdom) || null;
+                const discovered = Peoples.discoverLore(game.player, game.world, { kingdom });
+                if (discovered.length > 0) discoveredLoreEntry = discovered[0];
+            }
+
+            if (rumors.length > 0 || discoveredLoreEntry) {
+                ActionMenu._showRumorResults(game, rumors, tile, discoveredLoreEntry);
             } else {
                 game.ui.showNotification('Tavern', 'You didn\'t learn anything new.', 'default');
             }
@@ -1990,9 +2026,17 @@ const ActionMenu = {
         const boardRumors = Tavern._checkRumorBoard(game.player, tile, game.world);
         rumors.push(...boardRumors);
 
-        if (rumors.length > 0) {
-            Tavern._storeRumors(game.player, rumors);
-            ActionMenu._showRumorResults(game, rumors, tile);
+        // 30% chance to discover a piece of world history from local stories
+        let discoveredLoreEntry = null;
+        if (typeof Peoples !== 'undefined' && Math.random() < 0.3) {
+            const kingdom = tile.kingdom || (tile.settlement && tile.settlement.kingdom) || null;
+            const discovered = Peoples.discoverLore(game.player, game.world, { kingdom });
+            if (discovered.length > 0) discoveredLoreEntry = discovered[0];
+        }
+
+        if (rumors.length > 0 || discoveredLoreEntry) {
+            if (rumors.length > 0) Tavern._storeRumors(game.player, rumors);
+            ActionMenu._showRumorResults(game, rumors, tile, discoveredLoreEntry);
         } else {
             game.ui.showNotification('Locals', 'The villagers don\'t have much to say today.', 'default');
         }
@@ -2001,7 +2045,7 @@ const ActionMenu = {
     /**
      * Display rumor results from a tavern/locals interaction
      */
-    _showRumorResults(game, rumors, tile) {
+    _showRumorResults(game, rumors, tile, discoveredLoreEntry) {
         let html = '<div style="max-height: 450px; overflow-y: auto;">';
         html += `<p style="font-size: 12px; color: var(--text-secondary); margin-top: 0;">You learned ${rumors.length} piece${rumors.length > 1 ? 's' : ''} of information:</p>`;
 
@@ -2021,6 +2065,28 @@ const ActionMenu = {
                         </span>
                     </div>
                     <div style="font-size: 12px; color: var(--text-secondary); white-space: pre-line;">${rumor.text}</div>
+                </div>
+            `;
+        }
+
+        // Show discovered lore entry if any
+        if (discoveredLoreEntry) {
+            html += `
+                <div style="padding: 12px; margin-bottom: 8px; background: rgba(155,89,182,0.1);
+                    border-left: 3px solid #9b59b6; border-radius: 0 4px 4px 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <span style="font-weight: bold; font-size: 13px; color: #9b59b6;">
+                            📜 Historical Lore Discovered!
+                        </span>
+                        <span style="font-size: 10px; padding: 2px 6px; border-radius: 3px;
+                            background: rgba(155,89,182,0.2); color: #9b59b6;">
+                            Year ${discoveredLoreEntry.year}
+                        </span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-primary); line-height: 1.4;">${discoveredLoreEntry.text}</div>
+                    <div style="font-size: 10px; color: var(--text-secondary); margin-top: 4px; font-style: italic;">
+                        View in 📜 World History panel
+                    </div>
                 </div>
             `;
         }

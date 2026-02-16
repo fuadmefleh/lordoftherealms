@@ -19,80 +19,225 @@ const ActionMenu = {
     },
 
     /**
-     * Create the action menu UI
+     * Categorize actions into groups for the tabbed UI
+     */
+    _categorizeActions(actions) {
+        const categories = {
+            general:    { label: 'General',    icon: '🏕️', actions: [] },
+            commerce:   { label: 'Commerce',   icon: '💰', actions: [] },
+            social:     { label: 'Social',     icon: '🗣️', actions: [] },
+            military:   { label: 'Military',   icon: '⚔️', actions: [] },
+            building:   { label: 'Build',      icon: '🏗️', actions: [] },
+            frontier:   { label: 'Frontier',   icon: '🧭', actions: [] },
+            cartography:{ label: 'Maps',       icon: '🗺️', actions: [] },
+            servitude:  { label: 'Servitude',  icon: '⛓️', actions: [] },
+        };
+
+        const mapping = {
+            rest: 'general', explore_poi: 'general', clear_trees: 'general', dig_treasure: 'general',
+            trade: 'commerce', contract: 'commerce', ship_passage: 'commerce',
+            collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
+            tavern: 'social', talk_locals: 'social', preach: 'social',
+            pilgrimage: 'social', miracle: 'social',
+            recruit: 'military',
+            build_property: 'building', build_temple: 'building',
+            build_cultural: 'building', build_infrastructure: 'building',
+            demolish_infrastructure: 'building',
+            found_colony: 'frontier', send_pioneers: 'frontier',
+            manage_colony: 'frontier', negotiate_indigenous: 'frontier',
+            cartography: 'cartography', map_trade: 'cartography',
+            steal_map: 'cartography',
+            servitude_wait: 'servitude', servitude_escape: 'servitude',
+            servitude_buy_freedom: 'servitude',
+        };
+
+        for (const action of actions) {
+            const cat = mapping[action.type] || 'general';
+            categories[cat].actions.push(action);
+        }
+
+        // Return only categories that have actions, preserving order
+        const ordered = ['general', 'commerce', 'social', 'military', 'building', 'frontier', 'cartography', 'servitude'];
+        return ordered
+            .filter(key => categories[key].actions.length > 0)
+            .map(key => ({ id: key, ...categories[key] }));
+    },
+
+    /**
+     * Create the action menu UI — categorized with tabs
      */
     createMenu(game, tile, actions) {
         // Remove existing menu if any
         ActionMenu.close();
 
+        const categories = ActionMenu._categorizeActions(actions);
+
+        // If servitude, show simple flat list (very few actions)
+        const isServitude = categories.length === 1 && categories[0].id === 'servitude';
+
         const menu = document.createElement('div');
         menu.id = 'actionMenu';
-        menu.className = 'action-menu';
         menu.style.cssText = `
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(20, 24, 32, 0.98);
-            backdrop-filter: blur(10px);
-            border: 2px solid var(--gold);
-            border-radius: 8px;
-            padding: 20px;
-            min-width: 300px;
-            max-width: 500px;
+            background: rgba(16, 20, 28, 0.98);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(245, 197, 66, 0.4);
+            border-radius: 10px;
+            min-width: 360px;
+            max-width: 420px;
             z-index: 1000;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            box-shadow: 0 12px 48px rgba(0,0,0,0.85), 0 0 0 1px rgba(245,197,66,0.1);
+            overflow: hidden;
+            font-family: var(--font-body);
         `;
 
-        let html = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <h3 style="margin: 0; font-family: var(--font-display); color: var(--gold);">Actions</h3>
-                <button id="closeActionMenu" style="background: none; border: none; color: var(--text-primary); font-size: 20px; cursor: pointer;">✕</button>
-            </div>
-            <div style="display: grid; gap: 8px;">
-        `;
-
-        for (const action of actions) {
-            html += `
-                <button class="action-menu-btn" data-action="${action.type}" style="
-                    background: rgba(255,255,255,0.05);
-                    border: 1px solid rgba(255,255,255,0.1);
-                    padding: 12px;
-                    border-radius: 4px;
-                    color: var(--text-primary);
-                    cursor: pointer;
-                    text-align: left;
-                    transition: all 0.2s;
-                    font-family: var(--font-body);
-                ">
-                    <span style="font-size: 20px; margin-right: 8px;">${action.icon}</span>
-                    <span>${action.label}</span>
-                </button>
-            `;
+        // ── Header ──
+        let locationInfo = '';
+        if (tile.settlement) {
+            locationInfo = `${tile.settlement.name} (${tile.settlement.type})`;
+        } else if (tile.improvement) {
+            locationInfo = tile.improvement.name;
+        } else {
+            locationInfo = tile.terrain.name || tile.terrain.id;
         }
 
-        html += `</div>`;
+        let html = `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px 10px;
+                border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(245,197,66,0.04);">
+                <div>
+                    <div style="font-family: var(--font-display); font-size: 15px; color: var(--gold); letter-spacing: 0.5px;">Actions</div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${locationInfo}</div>
+                </div>
+                <button id="closeActionMenu" style="background: none; border: none; color: rgba(255,255,255,0.4);
+                    font-size: 18px; cursor: pointer; padding: 4px 6px; line-height: 1;
+                    transition: color 0.15s;"
+                    onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">✕</button>
+            </div>
+        `;
+
+        if (isServitude) {
+            // Simple flat layout for servitude
+            html += `<div style="padding: 12px; display: grid; gap: 6px;">`;
+            for (const action of categories[0].actions) {
+                html += ActionMenu._renderActionButton(action);
+            }
+            html += `</div>`;
+        } else if (categories.length === 1) {
+            // Single category — no need for tabs
+            html += `<div style="padding: 12px; display: grid; gap: 6px; max-height: 400px; overflow-y: auto;">`;
+            for (const action of categories[0].actions) {
+                html += ActionMenu._renderActionButton(action);
+            }
+            html += `</div>`;
+        } else {
+            // ── Category tabs ──
+            html += `<div id="actionTabs" style="display: flex; gap: 0; padding: 6px 8px 0; overflow-x: auto;
+                border-bottom: 1px solid rgba(255,255,255,0.06); scrollbar-width: none;">`;
+            categories.forEach((cat, i) => {
+                const isFirst = i === 0;
+                html += `
+                    <button class="action-tab" data-tab="${cat.id}" style="
+                        flex-shrink: 0;
+                        padding: 7px 12px 9px;
+                        font-size: 12px;
+                        font-family: var(--font-body);
+                        background: ${isFirst ? 'rgba(245,197,66,0.12)' : 'transparent'};
+                        border: none;
+                        border-bottom: 2px solid ${isFirst ? 'var(--gold)' : 'transparent'};
+                        color: ${isFirst ? 'var(--gold)' : 'rgba(255,255,255,0.5)'};
+                        cursor: pointer;
+                        transition: all 0.15s;
+                        white-space: nowrap;
+                        border-radius: 6px 6px 0 0;
+                    ">${cat.icon} ${cat.label}
+                        <span style="font-size: 10px; opacity: 0.6; margin-left: 2px;">${cat.actions.length}</span>
+                    </button>
+                `;
+            });
+            html += `</div>`;
+
+            // ── Tab content panels ──
+            categories.forEach((cat, i) => {
+                const isFirst = i === 0;
+                html += `<div class="action-tab-content" data-tab="${cat.id}" style="
+                    display: ${isFirst ? 'grid' : 'none'};
+                    gap: 6px;
+                    padding: 10px 12px 14px;
+                    max-height: 360px;
+                    overflow-y: auto;
+                ">`;
+                for (const action of cat.actions) {
+                    html += ActionMenu._renderActionButton(action);
+                }
+                html += `</div>`;
+            });
+        }
+
         menu.innerHTML = html;
         document.body.appendChild(menu);
 
-        // Add event listeners
+        // ── Event listeners ──
         document.getElementById('closeActionMenu').addEventListener('click', () => ActionMenu.close());
 
+        // Tab switching
+        const tabs = menu.querySelectorAll('.action-tab');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabId = tab.getAttribute('data-tab');
+                // Update tab styles
+                tabs.forEach(t => {
+                    const isActive = t.getAttribute('data-tab') === tabId;
+                    t.style.background = isActive ? 'rgba(245,197,66,0.12)' : 'transparent';
+                    t.style.borderBottom = isActive ? '2px solid var(--gold)' : '2px solid transparent';
+                    t.style.color = isActive ? 'var(--gold)' : 'rgba(255,255,255,0.5)';
+                });
+                // Show/hide content
+                const panels = menu.querySelectorAll('.action-tab-content');
+                panels.forEach(p => {
+                    p.style.display = p.getAttribute('data-tab') === tabId ? 'grid' : 'none';
+                });
+            });
+        });
+
+        // Action buttons
         const buttons = menu.querySelectorAll('.action-menu-btn');
         buttons.forEach(btn => {
-            btn.addEventListener('mouseover', () => {
-                btn.style.background = 'rgba(245, 197, 66, 0.2)';
-                btn.style.borderColor = 'var(--gold)';
-            });
-            btn.addEventListener('mouseout', () => {
-                btn.style.background = 'rgba(255,255,255,0.05)';
-                btn.style.borderColor = 'rgba(255,255,255,0.1)';
-            });
             btn.addEventListener('click', () => {
                 const actionType = btn.getAttribute('data-action');
                 ActionMenu.handleAction(game, tile, actionType);
             });
         });
+    },
+
+    /**
+     * Render a single action button with icon, label, and description
+     */
+    _renderActionButton(action) {
+        return `
+            <button class="action-menu-btn" data-action="${action.type}" style="
+                display: flex; align-items: center; gap: 10px;
+                background: rgba(255,255,255,0.03);
+                border: 1px solid rgba(255,255,255,0.07);
+                padding: 10px 12px;
+                border-radius: 6px;
+                color: var(--text-primary);
+                cursor: pointer;
+                text-align: left;
+                transition: background 0.15s, border-color 0.15s, transform 0.1s;
+                font-family: var(--font-body);
+            " onmouseover="this.style.background='rgba(245,197,66,0.1)';this.style.borderColor='rgba(245,197,66,0.35)'"
+               onmouseout="this.style.background='rgba(255,255,255,0.03)';this.style.borderColor='rgba(255,255,255,0.07)'">
+                <span style="font-size: 22px; width: 30px; text-align: center; flex-shrink: 0;">${action.icon}</span>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 13px; font-weight: 600; color: #e0e0e0;">${action.label}</div>
+                    <div style="font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px;
+                        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${action.description || ''}</div>
+                </div>
+            </button>
+        `;
     },
 
     /**
@@ -2991,7 +3136,9 @@ const ActionMenu = {
 
         const result = Cartography.buyMap(game.player, item.map, item.price);
         if (result.success) {
-            game.ui.showNotification('Map Purchased!', `Acquired ${item.map.name}!`, 'success');
+            // Auto-reveal the map area on the world
+            Cartography.applyMap(game.player, item.map, game.world);
+            game.ui.showNotification('Map Purchased!', `Acquired ${item.map.name}! The area has been revealed on your map.`, 'success');
             game.ui.updateStats(game.player, game.world);
             // Refresh the trade menu
             const tile = game.world.getTile(tileQ, tileR);
@@ -3023,7 +3170,9 @@ const ActionMenu = {
         const result = Cartography.attemptStealMap(game.player, game.world, tile);
 
         if (result.success) {
-            game.ui.showNotification('Map Stolen!', result.message, 'success');
+            // Auto-reveal the stolen map area on the world
+            Cartography.applyMap(game.player, result.map, game.world);
+            game.ui.showNotification('Map Stolen!', result.message + ' The area has been revealed on your map.', 'success');
         } else if (result.caught) {
             game.ui.showNotification('Caught!', result.message, 'error');
         } else {

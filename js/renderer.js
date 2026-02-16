@@ -718,7 +718,7 @@ class Renderer {
                 const wq = Hex.wrapQ(q, world.width);
                 const tile = world.tiles[r][wq];
 
-                // if (!tile.explored) continue; // FOW Disabled
+                if (!tile.explored) continue; // FOW: skip unexplored tiles
 
                 // Calculate Pixel Position using Offset Logic
                 // q is column (x), r is row (y)
@@ -781,9 +781,9 @@ class Renderer {
         let fillColor = tile.terrain.color;
 
         // Dim if not currently visible (explored but not in LOS)
-        /*if (!tile.visible) {
+        if (!tile.visible) {
             fillColor = this.dimColor(fillColor, 0.45);
-        }*/
+        }
 
         // Kingdom territory tint
         if (tile.kingdom && tile.visible) {
@@ -869,10 +869,10 @@ class Renderer {
         ctx.clip();
 
         // Fog dimming (dark overlay if not visible)
-        /*if (!tile.visible) {
+        if (!tile.visible) {
             ctx.fillStyle = 'rgba(10, 14, 23, 0.55)'; // Dark blue-black tint
             ctx.fill();
-        }*/
+        }
 
         // Kingdom tint (overlay if visible and territory)
         if (this.showTerritories && tile.kingdom && tile.visible && this.mapMode === 'normal') {
@@ -928,7 +928,7 @@ class Renderer {
                 const wq = Hex.wrapQ(q, world.width);
                 const tile = world.tiles[r][wq];
 
-                if (!tile.kingdom) continue;
+                if (!tile.kingdom || !tile.explored) continue;
 
                 const px = q * hexWidth + offsetX;
                 const py = r * rowHeight;
@@ -1014,7 +1014,7 @@ class Renderer {
         for (let r = 0; r < world.height; r++) {
             for (let q = 0; q < world.width; q++) {
                 const tile = world.tiles[r][q];
-                if (!tile.settlement) continue; // FOW Disabled: removed !tile.explored check
+                if (!tile.settlement || !tile.explored) continue;
 
                 const pos = this.getHexPixelPos(q, r);
                 const screen = this.camera.worldToScreen(pos.x, pos.y);
@@ -1096,7 +1096,7 @@ class Renderer {
         for (let r = 0; r < world.height; r++) {
             for (let q = 0; q < world.width; q++) {
                 const tile = world.tiles[r][q];
-                if (!tile.improvement) continue; // FOW Disabled: removed !tile.explored check
+                if (!tile.improvement || !tile.explored) continue;
 
                 const pos = this.getHexPixelPos(q, r);
                 const screen = this.camera.worldToScreen(pos.x, pos.y);
@@ -1181,6 +1181,7 @@ class Renderer {
         for (let r = 0; r < world.height; r++) {
             for (let q = 0; q < world.width; q++) {
                 const tile = world.tiles[r][q];
+                if (!tile.explored) continue;
                 const hasHoly = !!tile.holySite;
                 const hasCultural = !!tile.culturalBuilding;
                 if (!hasHoly && !hasCultural) continue;
@@ -1265,7 +1266,7 @@ class Renderer {
         for (let r = 0; r < world.height; r++) {
             for (let q = 0; q < world.width; q++) {
                 const tile = world.tiles[r][q];
-                if (!tile.infrastructure) continue;
+                if (!tile.infrastructure || !tile.explored) continue;
 
                 const pos = this.getHexPixelPos(q, r);
                 const screen = this.camera.worldToScreen(pos.x, pos.y);
@@ -1371,6 +1372,7 @@ class Renderer {
         for (let r = 0; r < world.height; r++) {
             for (let q = 0; q < world.width; q++) {
                 const tile = world.tiles[r][q];
+                if (!tile.explored) continue;
                 const structure = tile.playerProperty || tile.religiousBuilding;
                 if (!structure) continue;
 
@@ -1459,7 +1461,7 @@ class Renderer {
         for (let r = 0; r < world.height; r++) {
             for (let q = 0; q < world.width; q++) {
                 const tile = world.tiles[r][q];
-                if (!tile.resource) continue; // FOW Disabled: removed !tile.visible check
+                if (!tile.resource || !tile.visible) continue; // Resources only visible when in LOS
 
                 const pos = this.getHexPixelPos(q, r);
                 const screen = this.camera.worldToScreen(pos.x, pos.y);
@@ -1696,6 +1698,10 @@ class Renderer {
         const size = this.hexSize;
 
         for (const unit of this.world.units) {
+            // FOW: only show units on tiles the player can currently see
+            const unitTile = this.world.getTile(unit.q, unit.r);
+            if (!unitTile || !unitTile.visible) continue;
+
             const pos = this.getHexPixelPos(unit.q, unit.r);
             const screen = this.camera.worldToScreen(pos.x, pos.y);
             const renderSize = size * this.camera.zoom;

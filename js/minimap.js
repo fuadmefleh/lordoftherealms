@@ -50,10 +50,15 @@ class Minimap {
                 const tile = world.tiles[r][q];
 
                 if (!tile.explored) {
-                    // For "show whole map", we can still dim unconnected areas or just show everything
-                    // IF user wants "whole map", we likely just show it all.
-                    // But maybe we keep a slight shroud? 
-                    // Let's show everything clearly as requested for "better world gen" feedback.
+                    // Unexplored tiles are dark
+                    ctx.fillStyle = '#090d14';
+                    ctx.fillRect(
+                        Math.floor(q * tileW),
+                        Math.floor(r * tileH),
+                        Math.ceil(tileW) + 1,
+                        Math.ceil(tileH) + 1
+                    );
+                    continue;
                 }
 
                 let color = tile.terrain.color;
@@ -77,6 +82,17 @@ class Minimap {
                     Math.ceil(tileW) + 1,
                     Math.ceil(tileH) + 1
                 );
+
+                // Dim explored-but-not-visible tiles (fog of war)
+                if (!tile.visible) {
+                    ctx.fillStyle = 'rgba(9, 13, 20, 0.55)';
+                    ctx.fillRect(
+                        Math.floor(q * tileW),
+                        Math.floor(r * tileH),
+                        Math.ceil(tileW) + 1,
+                        Math.ceil(tileH) + 1
+                    );
+                }
             }
         }
 

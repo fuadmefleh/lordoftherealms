@@ -40,7 +40,7 @@ Here are several feature ideas designed to enhance gameplay depth, immersion, an
     - Rock-paper-scissors unit counters (Cavalry > Archers > Pikemen > Cavalry).
     - Terrain bonuses (Archers on hills, Cavalry on plains).
 - **Hero Units**:
-    - Powerful unique units with skill trees (Generals, Battlemages).
+    - Powerful unique units with skill trees (Generals, Champions).
     - Can equip legendary items.
 - **Siege Mechanics**:
     - Construct siege engines (trebuchets, battering rams) to take fortified cities.
@@ -65,3 +65,32 @@ Here are several feature ideas designed to enhance gameplay depth, immersion, an
     - Designate towns as "Mining Towns", "Trade Hubs", or "Fortresses" for specialized bonuses.
 - **Statues & Monuments**:
     - Build monuments to commemorate victories or high renown.
+## � Science & Innovation
+- **Tech Trees**:
+    - Different paths for different playstyles (e.g., Agricultural vs. Military vs. Civil Engineering).
+    - "Lost Knowledge" that can only be found in ancient libraries or ruins.
+- **Engineering Schools**:
+    - Siege engineering for better war machines.
+    - Civil engineering for better roads and aqueducts.
+- **Herbalism & Medicine**:
+    - Creation of poultices to heal units faster.
+    - Developing cures for plagues.
+
+## 🛐 Religion & Culture
+- **Pantheon System**:
+    - Choose a patron deity for your kingdom with specific bonuses.
+    - "Holy Wars" against rival religions.
+- **Cultural Masterpieces**:
+    - Commission great works of art or writing to boost renown.
+    - "Cultural Victory" condition through overwhelming influence.
+- **Pilgrimages**:
+    - Safe routes for pilgrims generate massive gold but attract bandits.
+
+## ⚙️ Quality of Life & Meta
+- **Scenario Editor**:
+    - Create custom maps and starting conditions to share with friends.
+- **Ironman Mode**:
+    - Single save file, auto-saves only. For the hardcore experience.
+- **Statistics Hall**:
+    - Detailed graphs of your kingdom's economy and population over time.
+    - "Replay" feature to watch how the map evolved at the end of a game.

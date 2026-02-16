@@ -72,6 +72,9 @@ class Game {
         this.player = new Player();
         SaveLoad.restorePlayer(data.player, this.player);
 
+        // Restore fog of war visibility around player position
+        this.player.updateVisibility(this.world, 4);
+
         // Setup renderer
         this.renderer.setWorld(this.world);
         this.renderer.setPlayer(this.player);
@@ -522,7 +525,7 @@ class Game {
                 // Process world turn
                 const result = this.world.advanceDay();
                 this.player.endDay();
-                this.player.updateVisibility(this.world, 3);
+                this.player.updateVisibility(this.world, 4);
 
                 // Update market prices
                 MarketDynamics.updatePrices(this.world);

@@ -3323,10 +3323,6 @@ const ActionMenu = {
         game.ui.updateStats(game.player, game.world);
     },
 
-        }
-        game.ui.updateStats(game.player, game.world);
-    },
-
     /**
      * Show siege confirmation panel for attacking a settlement
      */

@@ -509,6 +509,18 @@ const PlayerMilitary = {
     attackUnit(player, worldUnit, world) {
         const combatResult = PlayerMilitary.combat(player, worldUnit.strength, worldUnit.name);
 
+        // Handle no-army edge case
+        if (combatResult.reason) {
+            return {
+                ...combatResult,
+                noArmy: true,
+                enemyName: worldUnit.name,
+                karmaChange: 0,
+                renownChange: 0,
+                inventoryLoot: {},
+            };
+        }
+
         let karmaChange = 0;
         let renownChange = 0;
         let inventoryLoot = {};
@@ -577,6 +589,7 @@ const PlayerMilitary = {
 
         return {
             ...combatResult,
+            enemyName: combatResult.enemyName || worldUnit.name,
             karmaChange,
             renownChange,
             inventoryLoot,

@@ -1,0 +1,215 @@
+{
+    "unitTypes": {
+        "caravan": {
+            "icon": "🐫",
+            "name": "Trade Caravan",
+            "speed": 4,
+            "population": { "min": 5, "max": 15 },
+            "strength": { "min": 2, "max": 5 },
+            "inventoryTheme": "trade",
+            "domain": "land"
+        },
+        "raider": {
+            "icon": "🏇",
+            "name": "Raider Band",
+            "speed": 6,
+            "population": { "min": 10, "max": 30 },
+            "strength": { "min": 8, "max": 15 },
+            "inventoryTheme": "military",
+            "domain": "land"
+        },
+        "patrol": {
+            "icon": "💂",
+            "name": "Kingdom Patrol",
+            "speed": 6,
+            "population": { "min": 15, "max": 40 },
+            "strength": { "min": 15, "max": 25 },
+            "inventoryTheme": null,
+            "domain": "land"
+        },
+        "settler": {
+            "icon": "⛺",
+            "name": "Settler Group",
+            "speed": 2,
+            "population": { "min": 20, "max": 50 },
+            "strength": { "min": 5, "max": 10 },
+            "inventoryTheme": null,
+            "initialInventory": { "food": 100, "tools": 20 },
+            "domain": "land"
+        },
+        "ship": {
+            "icon": "⛵",
+            "name": "Trading Ship",
+            "speed": 8,
+            "population": { "min": 10, "max": 25 },
+            "strength": { "min": 5, "max": 12 },
+            "inventoryTheme": "sea_trade",
+            "domain": "sea"
+        },
+        "pirate": {
+            "icon": "🏴‍☠️",
+            "name": "Pirate Ship",
+            "speed": 8,
+            "population": { "min": 15, "max": 35 },
+            "strength": { "min": 12, "max": 20 },
+            "inventoryTheme": "pirate",
+            "domain": "sea"
+        },
+        "fishing_boat": {
+            "icon": "🛶",
+            "name": "Fishing Boat",
+            "speed": 6,
+            "population": { "min": 2, "max": 5 },
+            "strength": 1,
+            "inventoryTheme": null,
+            "domain": "sea"
+        },
+        "lord_party": {
+            "icon": "👑",
+            "name": "Royal Procession",
+            "speed": 3,
+            "population": { "min": 30, "max": 60 },
+            "strength": { "min": 30, "max": 60 },
+            "inventoryTheme": null,
+            "domain": "land",
+            "extraFields": {
+                "kingdomId": null,
+                "lordName": null,
+                "daysAtLocation": 0,
+                "stayDuration": 0
+            }
+        },
+        "mercenary_band": {
+            "icon": "⚔️",
+            "name": "Mercenary Company",
+            "speed": 5,
+            "population": { "min": 20, "max": 50 },
+            "strength": { "min": 20, "max": 40 },
+            "inventoryTheme": "military",
+            "domain": "land"
+        },
+        "pilgrim_group": {
+            "icon": "🙏",
+            "name": "Pilgrim Caravan",
+            "speed": 3,
+            "population": { "min": 10, "max": 40 },
+            "strength": { "min": 2, "max": 8 },
+            "inventoryTheme": "pilgrim",
+            "domain": "land"
+        },
+        "war_fleet": {
+            "icon": "🚢",
+            "name": "War Fleet",
+            "speed": 7,
+            "population": { "min": 40, "max": 80 },
+            "strength": { "min": 30, "max": 50 },
+            "inventoryTheme": "military",
+            "domain": "sea"
+        },
+        "smuggler": {
+            "icon": "🌙",
+            "name": "Smuggler",
+            "speed": 7,
+            "population": { "min": 3, "max": 10 },
+            "strength": { "min": 5, "max": 12 },
+            "inventoryTheme": "contraband",
+            "domain": "land"
+        },
+        "refugee": {
+            "icon": "🏃",
+            "name": "Refugee Column",
+            "speed": 2,
+            "population": { "min": 30, "max": 100 },
+            "strength": { "min": 1, "max": 5 },
+            "inventoryTheme": null,
+            "domain": "land"
+        },
+        "beast": {
+            "icon": "🐺",
+            "name": "Wild Beast Pack",
+            "speed": 7,
+            "population": { "min": 5, "max": 15 },
+            "strength": { "min": 10, "max": 25 },
+            "inventoryTheme": null,
+            "domain": "land"
+        },
+        "monster": {
+            "icon": "🐉",
+            "name": "Legendary Creature",
+            "speed": 4,
+            "population": { "min": 1, "max": 1 },
+            "strength": { "min": 80, "max": 200 },
+            "inventoryTheme": "treasure",
+            "domain": "land"
+        },
+        "diplomatic_envoy": {
+            "icon": "🏳️",
+            "name": "Diplomatic Envoy",
+            "speed": 6,
+            "population": { "min": 5, "max": 15 },
+            "strength": { "min": 8, "max": 15 },
+            "inventoryTheme": "diplomatic",
+            "domain": "land"
+        }
+    },
+    "inventoryThemes": {
+        "trade": {
+            "gold": { "min": 50, "max": 200 },
+            "randomItem": {
+                "choices": ["silk", "spices", "tools", "gems"],
+                "quantity": { "min": 5, "max": 20 }
+            }
+        },
+        "sea_trade": {
+            "gold": { "min": 100, "max": 500 },
+            "randomItem": {
+                "choices": ["fish", "wine", "silk", "spices"],
+                "quantity": { "min": 10, "max": 40 }
+            }
+        },
+        "military": {
+            "gold": { "min": 10, "max": 50 },
+            "food": { "min": 20, "max": 60 }
+        },
+        "pirate": {
+            "gold": { "min": 50, "max": 300 },
+            "rum": { "min": 5, "max": 15 }
+        },
+        "pilgrim": {
+            "gold": { "min": 10, "max": 50 },
+            "randomItem": {
+                "choices": ["holy_water", "relics", "incense", "scriptures"],
+                "quantity": { "min": 1, "max": 5 }
+            }
+        },
+        "contraband": {
+            "gold": { "min": 100, "max": 400 },
+            "randomItem": {
+                "choices": ["poison", "stolen_goods", "forged_documents", "rare_herbs"],
+                "quantity": { "min": 3, "max": 12 }
+            }
+        },
+        "treasure": {
+            "gold": { "min": 500, "max": 2000 },
+            "randomItem": {
+                "choices": ["gems", "ancient_artifact", "enchanted_weapon", "dragon_scale"],
+                "quantity": { "min": 1, "max": 3 }
+            }
+        },
+        "diplomatic": {
+            "gold": { "min": 200, "max": 500 },
+            "randomItem": {
+                "choices": ["royal_seal", "treaty", "gift_chest", "fine_wine"],
+                "quantity": { "min": 1, "max": 3 }
+            }
+        }
+    },
+    "defaults": {
+        "icon": "❓",
+        "name": "Unknown Unit",
+        "speed": 1,
+        "population": 1,
+        "strength": 1
+    },
+    "maxAge": { "min": 50, "max": 200 }
+}

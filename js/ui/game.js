@@ -860,22 +860,18 @@ class Game {
 // BOOT
 // ============================================
 
-window.addEventListener('DOMContentLoaded', () => {
-    window.game = new Game();
-
-    /**
-     * To load custom PNG tile sprites, call:
-     *
-     * game.loadTileSprites({
-     *     plains: 'assets/tiles/plains.png',
-     *     ocean: 'assets/tiles/ocean.png',
-     *     forest: 'assets/tiles/forest.png',
-     *     mountain: 'assets/tiles/mountain.png',
-     *     // ... etc
-     * });
-     *
-     * Place your PNG files in an assets/tiles/ directory.
-     * Each PNG should be a square image (e.g., 128x128) that will be
-     * clipped to the hex shape and rendered as the terrain texture.
-     */
+window.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // Load all game data from JSON files before initializing
+        await DataLoader.initializeAll();
+        window.game = new Game();
+    } catch (error) {
+        console.error('Failed to initialize game:', error);
+        document.body.innerHTML = `
+            <div style="color:#ff4444;background:#1a1a2e;padding:40px;font-family:monospace;">
+                <h1>Failed to Load Game Data</h1>
+                <p>${error.message}</p>
+                <p>Make sure you are running from a web server (use run.bat or run.sh).</p>
+            </div>`;
+    }
 });

@@ -283,83 +283,25 @@ const Kingdom = {
 
     /**
      * Generate a city name based on culture
+     * Uses data from Kingdom._cityNames (loaded from kingdoms.json)
      */
     generateCityName(culture) {
-        const names = {
-            Imperial: [
-                'Crownhaven', 'Irongate', 'Stonewall', 'Highkeep', 'Kingsbridge',
-                'Whitehall', 'Greywatch', 'Northhold', 'Eastmere', 'Dragonspire',
-                'Goldcrest', 'Silverford', 'Hammerfell', 'Thornwall', 'Embervale'
-            ],
-            Woodland: [
-                'Greenhollow', 'Mosswood', 'Ferndale', 'Willowmere', 'Birchroot',
-                'Dewglen', 'Oakshade', 'Starbloom', 'Moongrove', 'Leafveil',
-                'Blossomreach', 'Thornheart', 'Misthaven', 'Elderwood', 'Sunpetal'
-            ],
-            Nomadic: [
-                'Windspear', 'Sunrock', 'Dusthold', 'Bonecrest', 'Ironhoof',
-                'Skyfall', 'Redmane', 'Thundercamp', 'Ashplain', 'Stormridge',
-                'Hawknest', 'Bloodsand', 'Flamepeak', 'Wolfden', 'Eaglerock'
-            ],
-            Religious: [
-                'Holyspire', 'Solarum', 'Celestia', 'Sanctum', 'Divinara',
-                'Soulkeep', 'Blessingford', 'Lightreach', 'Gracemere', 'Faithhold',
-                'Templeguard', 'Starfall', 'Oraclewatch', 'Hymnsgate', 'Prayerveil'
-            ],
-            Maritime: [
-                'Tidewatch', 'Harbordeep', 'Saltbay', 'Coralhaven', 'Wavecrest',
-                'Anchorpoint', 'Stormport', 'Seabreeze', 'Pearlshore', 'Driftwood',
-                'Sailmere', 'Shellhaven', 'Fogport', 'Riptide', 'Deepwater'
-            ]
-        };
-
-        const cultureNames = names[culture] || names.Imperial;
+        const names = Kingdom._cityNames || {};
+        const cultureNames = names[culture] || names.Imperial || ['Settlement'];
         return Utils.randPick(cultureNames);
     },
 
     /**
      * Generate a ruler name based on culture
+     * Uses data from Kingdom._rulerTitles, _rulerNames, _epithets (loaded from kingdoms.json)
      */
     generateRulerName(culture) {
-        const titles = {
-            Imperial: ['King', 'Queen', 'Emperor', 'Empress'],
-            Woodland: ['Queen', 'King', 'Elder', 'Sage'],
-            Nomadic: ['Khan', 'Chieftain', 'Warlord'],
-            Religious: ['High Priest', 'High Priestess', 'Prophet', 'Oracle'],
-            Maritime: ['Consul', 'Admiral', 'Lord', 'Lady']
-        };
+        const titles = Kingdom._rulerTitles || {};
+        const names = Kingdom._rulerNames || {};
+        const epithets = Kingdom._epithets || ['the Great'];
 
-        const names = {
-            Imperial: [
-                'Aldric', 'Cedric', 'Edmund', 'Roland', 'Theron', 'Victor',
-                'Helena', 'Isabella', 'Morgana', 'Rowena', 'Vivienne'
-            ],
-            Woodland: [
-                'Elara', 'Sylvan', 'Thalia', 'Rowan', 'Faelan', 'Arden',
-                'Lyra', 'Elowen', 'Briar', 'Cypress', 'Willow'
-            ],
-            Nomadic: [
-                'Borga', 'Temur', 'Khal', 'Drogo', 'Ragnar', 'Ulfric',
-                'Yara', 'Khara', 'Nara', 'Zara', 'Shara'
-            ],
-            Religious: [
-                'Solon', 'Matthias', 'Ezekiel', 'Silas', 'Tobias',
-                'Miriam', 'Seraphina', 'Celeste', 'Evangeline', 'Theodora'
-            ],
-            Maritime: [
-                'Lyanna', 'Marcus', 'Octavia', 'Tiberius', 'Cassius',
-                'Marina', 'Cordelia', 'Nerissa', 'Portia', 'Caspian'
-            ]
-        };
-
-        const epithets = [
-            'the Wise', 'the Bold', 'the Just', 'the Great', 'the Fair',
-            'the Strong', 'the Brave', 'the Merciful', 'the Stern', 'the Cunning',
-            'Ironhand', 'Stormborn', 'the Unifier', 'the Defender', 'the Reformer'
-        ];
-
-        const cultureTitles = titles[culture] || titles.Imperial;
-        const cultureNames = names[culture] || names.Imperial;
+        const cultureTitles = titles[culture] || titles.Imperial || ['Ruler'];
+        const cultureNames = names[culture] || names.Imperial || ['Unknown'];
 
         const title = Utils.randPick(cultureTitles);
         const name = Utils.randPick(cultureNames);

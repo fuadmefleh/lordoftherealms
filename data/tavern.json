@@ -1,0 +1,23 @@
+{
+  "config": {
+    "drinkCost": 5,
+    "bribeCost": 50,
+    "hireInformantCost": 200,
+    "intelDecayDays": 30,
+    "maxRumors": 40
+  },
+  "reliability": {
+    "TAVERN_GOSSIP": { "accuracy": 0.55, "label": "Tavern Gossip", "color": "#9a8e7e" },
+    "LOCAL_TALK": { "accuracy": 0.70, "label": "Local Talk", "color": "#f1c40f" },
+    "MERCHANT_INFO": { "accuracy": 0.85, "label": "Merchant Report", "color": "#27ae60" },
+    "INFORMANT": { "accuracy": 0.95, "label": "Informant", "color": "#3498db" }
+  },
+  "categories": {
+    "MARKET_PRICES": "market_prices",
+    "CHARACTER_LOCATION": "character_location",
+    "KINGDOM_AFFAIRS": "kingdom_affairs",
+    "MILITARY": "military",
+    "RUMORS_GOSSIP": "rumors_gossip",
+    "TRADE_OPPORTUNITIES": "trade_opportunities"
+  }
+}

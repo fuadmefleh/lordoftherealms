@@ -83,6 +83,8 @@ class Player {
         // Tracking
         this.visitedImprovements = new Set();
         this.discoveredLore = new Set(); // IDs of discovered world history entries
+        this.discoveredHolySites = new Set(); // "q,r" keys of discovered holy sites
+        this.discoveredExtinctFaiths = new Set(); // IDs of discovered extinct religions
 
         // Kingdom knowledge — what the player has learned about each kingdom
         // Categories: basics, ruler, peoples, religion, military, diplomacy, economy
@@ -140,6 +142,9 @@ class Player {
 
         // Reveal area around player
         this.revealArea(world, 4);
+
+        // Discover holy sites in initial visible area
+        this.discoverNearbyHolySites(world, 4);
     }
 
     /**
@@ -221,7 +226,11 @@ class Player {
             this.q, this.r,
             targetQ, targetR,
             world.width, world.height,
-            (q, r) => world.isPassable(q, r)
+            (q, r) => world.isPassable(q, r),
+            (q, r) => {
+                const tile = world.getTile(q, r);
+                return Infrastructure.getEffectiveMoveCost(tile);
+            }
         );
 
         if (path && path.length > 1) {
@@ -319,6 +328,9 @@ class Player {
             // Reveal area
             this.revealArea(world, 4);
             this.updateVisibility(world, 4);
+
+            // Discover holy sites on explored tiles
+            this.discoverNearbyHolySites(world, 4);
 
             // Check for improvements (POIs) - just track visitation, don't auto-reward
             // (Use the Explore action for full rewards)
@@ -469,6 +481,40 @@ class Player {
 
         this.kingdomTitle = title;
         return { success: true };
+    }
+
+    /**
+     * Discover holy sites within visible radius
+     */
+    discoverNearbyHolySites(world, radius) {
+        const neighbors = Hex.hexesInRange(this.q, this.r, radius);
+        for (const { q, r } of neighbors) {
+            const tile = world.getTile(q, r);
+            if (tile && tile.holySite) {
+                const key = `${q},${r}`;
+                if (!this.discoveredHolySites.has(key)) {
+                    this.discoveredHolySites.add(key);
+                    // Also discover the associated extinct faith if applicable
+                    if (tile.holySite.faithId && typeof Religion !== 'undefined') {
+                        const faith = Religion.FAITHS[tile.holySite.faithId];
+                        if (faith && faith.extinct) {
+                            this.discoverExtinctFaith(faith.id, tile.holySite.name);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Discover an extinct faith by ID
+     * @returns {boolean} true if newly discovered
+     */
+    discoverExtinctFaith(faithId, source) {
+        if (!this.discoveredExtinctFaiths) this.discoveredExtinctFaiths = new Set();
+        if (this.discoveredExtinctFaiths.has(faithId)) return false;
+        this.discoveredExtinctFaiths.add(faithId);
+        return true;
     }
 
     /**

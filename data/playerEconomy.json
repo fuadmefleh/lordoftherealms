@@ -1,0 +1,135 @@
+{
+    "PROPERTY_TYPES": {
+        "FARM": {
+            "id": "farm",
+            "name": "Farm",
+            "icon": "🌾",
+            "cost": 500,
+            "produces": "grain",
+            "productionRate": 10,
+            "upkeep": 5,
+            "requiredTerrain": ["plains", "grassland"],
+            "description": "Produces grain that can be milled or sold. Upkeep: 5g/day"
+        },
+        "PASTURE": {
+            "id": "pasture",
+            "name": "Pasture",
+            "icon": "🐑",
+            "cost": 500,
+            "produces": "wool",
+            "productionRate": 8,
+            "upkeep": 5,
+            "requiredTerrain": ["plains", "grassland", "hills"],
+            "description": "Raises sheep for wool. Upkeep: 5g/day"
+        },
+        "LOGGING_CAMP": {
+            "id": "logging_camp",
+            "name": "Logging Camp",
+            "icon": "🪓",
+            "cost": 400,
+            "produces": "wood",
+            "productionRate": 6,
+            "upkeep": 5,
+            "requiredTerrain": ["forest", "dense_forest", "woodland", "boreal_forest", "seasonal_forest", "temperate_rainforest", "tropical_rainforest"],
+            "description": "Harvests wood from forests. Upkeep: 5g/day"
+        },
+        "MINE": {
+            "id": "mine",
+            "name": "Mine",
+            "icon": "⛏️",
+            "cost": 1000,
+            "produces": "iron",
+            "productionRate": 5,
+            "upkeep": 15,
+            "requiredResource": ["iron", "gold_ore", "gems", "stone"],
+            "description": "Extracts valuable resources for sale. Upkeep: 15g/day"
+        },
+        "WORKSHOP": {
+            "id": "workshop",
+            "name": "Workshop",
+            "icon": "🔨",
+            "cost": 800,
+            "produces": null,
+            "productionRate": 5,
+            "upkeep": 10,
+            "requiredSettlement": true,
+            "description": "Processes raw materials into goods. Upkeep: 10g/day"
+        },
+        "TRADING_POST": {
+            "id": "trading_post",
+            "name": "Trading Post",
+            "icon": "🏪",
+            "cost": 600,
+            "produces": null,
+            "productionRate": 0,
+            "upkeep": 5,
+            "requiredSettlement": true,
+            "description": "Attracts traveling merchants. Upkeep: 5g/day"
+        },
+        "FISHING_WHARF": {
+            "id": "fishing_wharf",
+            "name": "Fishing Wharf",
+            "icon": "⚓",
+            "cost": 800,
+            "produces": "fish",
+            "productionRate": 0,
+            "upkeep": 10,
+            "requiredTerrain": ["coast", "beach"],
+            "description": "Send boats to collect fish from nearby waters. Upkeep: 10g/day"
+        },
+        "BREWERY": {
+            "id": "brewery",
+            "name": "Brewery",
+            "icon": "🍺",
+            "cost": 700,
+            "produces": null,
+            "productionRate": 6,
+            "upkeep": 8,
+            "requiredSettlement": true,
+            "description": "Brews beer from grain or distills liquor. Sells well at taverns. Upkeep: 8g/day"
+        }
+    },
+
+    "GOODS": {
+        "GRAIN": { "id": "grain", "name": "Grain", "icon": "🌾", "basePrice": 5 },
+        "FLOUR": { "id": "flour", "name": "Flour", "icon": "🥡", "basePrice": 10 },
+        "BREAD": { "id": "bread", "name": "Bread", "icon": "🍞", "basePrice": 15 },
+        "FISH": { "id": "fish", "name": "Raw Fish", "icon": "🐟", "basePrice": 8 },
+        "PRESERVED_FISH": { "id": "preserved_fish", "name": "Smoked Fish", "icon": "🍥", "basePrice": 20 },
+        "WOOD": { "id": "wood", "name": "Wood", "icon": "🌲", "basePrice": 8 },
+        "FIREWOOD": { "id": "firewood", "name": "Firewood", "icon": "🔥", "basePrice": 12 },
+        "WOOL": { "id": "wool", "name": "Wool", "icon": "🐑", "basePrice": 10 },
+        "TEXTILES": { "id": "textiles", "name": "Textiles", "icon": "🧵", "basePrice": 25 },
+        "CLOTHES": { "id": "clothes", "name": "Clothes", "icon": "👕", "basePrice": 40 },
+        "STONE": { "id": "stone", "name": "Stone", "icon": "⛰️", "basePrice": 8 },
+        "IRON": { "id": "iron", "name": "Iron", "icon": "⚒️", "basePrice": 20 },
+        "TOOLS": { "id": "tools", "name": "Tools", "icon": "🔧", "basePrice": 35 },
+        "WEAPONS": { "id": "weapons", "name": "Weapons", "icon": "⚔️", "basePrice": 60 },
+        "GOLD_ORE": { "id": "gold_ore", "name": "Gold Ore", "icon": "💰", "basePrice": 40 },
+        "GEMS": { "id": "gems", "name": "Gems", "icon": "💎", "basePrice": 60 },
+        "SPICES": { "id": "spices", "name": "Spices", "icon": "🧂", "basePrice": 45 },
+        "HORSES": { "id": "horses", "name": "Horses", "icon": "🐴", "basePrice": 55 },
+        "BEER": { "id": "beer", "name": "Beer", "icon": "🍺", "basePrice": 12 },
+        "LIQUOR": { "id": "liquor", "name": "Liquor", "icon": "🥃", "basePrice": 30 },
+        "LUXURIES": { "id": "luxuries", "name": "Luxuries", "icon": "💍", "basePrice": 100 },
+        "AGRI_PARTS": { "id": "agri_parts", "name": "Agricultural Implements", "icon": "🌱", "basePrice": 50 },
+        "INDUSTRY_PARTS": { "id": "industry_parts", "name": "Industrial Components", "icon": "⚙️", "basePrice": 75 },
+        "MILITARY_PARTS": { "id": "military_parts", "name": "Military Supplies", "icon": "🗡️", "basePrice": 80 },
+        "INFRA_PARTS": { "id": "infra_parts", "name": "Engineering Plans", "icon": "📐", "basePrice": 60 },
+        "COMMERCE_PARTS": { "id": "commerce_parts", "name": "Trade Documents", "icon": "📜", "basePrice": 50 }
+    },
+
+    "RECIPES": {
+        "FIREWOOD": { "id": "firewood", "name": "Split Firewood", "input": "wood", "inputQty": 2, "output": "firewood", "outputQty": 5, "description": "Prepare fuel for heating." },
+        "FLOUR": { "id": "flour", "name": "Mill Flour", "input": "grain", "inputQty": 2, "output": "flour", "outputQty": 2, "description": "Grind grain into flour." },
+        "BREAD": { "id": "bread", "name": "Bake Bread", "input": "flour", "inputQty": 1, "output": "bread", "outputQty": 4, "description": "Bake nutritious bread." },
+        "PRESERVED_FISH": { "id": "preserved_fish", "name": "Smoke Fish", "input": "fish", "inputQty": 2, "output": "preserved_fish", "outputQty": 3, "description": "Preserve fish for long-term storage." },
+        "TEXTILES": { "id": "textiles", "name": "Weave Textiles", "input": "wool", "inputQty": 3, "output": "textiles", "outputQty": 2, "description": "Weave wool into cloth." },
+        "CLOTHES": { "id": "clothes", "name": "Tailor Clothes", "input": "textiles", "inputQty": 1, "output": "clothes", "outputQty": 2, "description": "Sew warm clothing." },
+        "TOOLS": { "id": "tools", "name": "Forge Tools", "input": "iron", "inputQty": 1, "output": "tools", "outputQty": 2, "description": "Smith essential tools." },
+        "WEAPONS": { "id": "weapons", "name": "Forge Weapons", "input": "iron", "inputQty": 2, "output": "weapons", "outputQty": 1, "description": "Forge weapons for war." },
+        "LUXURIES": { "id": "luxuries", "name": "Refine Luxuries", "input": "gold_ore", "inputQty": 2, "output": "luxuries", "outputQty": 1, "description": "Craft fine jewelry." },
+        "BEER": { "id": "beer", "name": "Brew Beer", "input": "grain", "inputQty": 3, "output": "beer", "outputQty": 4, "description": "Brew ale from grain. Popular at taverns." },
+        "LIQUOR": { "id": "liquor", "name": "Distill Liquor", "input": "grain", "inputQty": 5, "output": "liquor", "outputQty": 2, "description": "Distill strong spirits from grain. High value." }
+    }
+}

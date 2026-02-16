@@ -1,0 +1,465 @@
+{
+  "questTemplates": {
+    "MERCHANT_APPRENTICE": {
+      "id": "merchant_apprentice",
+      "title": "Merchant Apprentice",
+      "description": "Prove yourself as a trader by accumulating wealth.",
+      "type": "economic",
+      "objectives": [
+        { "type": "gold", "target": 1000, "current": 0, "text": "Accumulate 1000 gold" }
+      ],
+      "rewards": { "gold": 500, "renown": 10 },
+      "difficulty": "easy"
+    },
+    "TRADE_EMPIRE": {
+      "id": "trade_empire",
+      "title": "Trade Empire",
+      "description": "Build a network of profitable properties.",
+      "type": "economic",
+      "objectives": [
+        { "type": "properties", "target": 5, "current": 0, "text": "Own 5 properties" }
+      ],
+      "rewards": { "gold": 2000, "renown": 25 },
+      "difficulty": "medium"
+    },
+    "CARAVAN_MASTER": {
+      "id": "caravan_master",
+      "title": "Caravan Master",
+      "description": "Successfully complete multiple trade caravans.",
+      "type": "economic",
+      "objectives": [
+        { "type": "caravans_completed", "target": 10, "current": 0, "text": "Complete 10 caravans" }
+      ],
+      "rewards": { "gold": 1500, "renown": 20 },
+      "difficulty": "medium"
+    },
+    "FIRST_BLOOD": {
+      "id": "first_blood",
+      "title": "First Blood",
+      "description": "Recruit your first military unit.",
+      "type": "military",
+      "objectives": [
+        { "type": "army_size", "target": 1, "current": 0, "text": "Recruit 1 unit" }
+      ],
+      "rewards": { "gold": 200, "renown": 5 },
+      "difficulty": "easy"
+    },
+    "MERCENARY_CAPTAIN": {
+      "id": "mercenary_captain",
+      "title": "Mercenary Captain",
+      "description": "Complete mercenary contracts to build your reputation.",
+      "type": "military",
+      "objectives": [
+        { "type": "contracts_completed", "target": 5, "current": 0, "text": "Complete 5 contracts" }
+      ],
+      "rewards": { "gold": 1000, "renown": 30 },
+      "difficulty": "medium"
+    },
+    "WARLORD": {
+      "id": "warlord",
+      "title": "Warlord",
+      "description": "Build a formidable army.",
+      "type": "military",
+      "objectives": [
+        { "type": "army_strength", "target": 200, "current": 0, "text": "Reach 200 army strength" }
+      ],
+      "rewards": { "gold": 3000, "renown": 50 },
+      "difficulty": "hard"
+    },
+    "FAITHFUL_SERVANT": {
+      "id": "faithful_servant",
+      "title": "Faithful Servant",
+      "description": "Gain karma through righteous deeds.",
+      "type": "religious",
+      "objectives": [
+        { "type": "karma", "target": 20, "current": 0, "text": "Reach 20 karma" }
+      ],
+      "rewards": { "gold": 500, "karma": 5 },
+      "difficulty": "easy"
+    },
+    "PROPHET": {
+      "id": "prophet",
+      "title": "Prophet",
+      "description": "Found your own religion and spread the faith.",
+      "type": "religious",
+      "objectives": [
+        { "type": "religion_founded", "target": 1, "current": 0, "text": "Found a religion" },
+        { "type": "followers", "target": 1000, "current": 0, "text": "Gain 1000 followers" }
+      ],
+      "rewards": { "gold": 2000, "karma": 20, "renown": 40 },
+      "difficulty": "hard"
+    },
+    "TEMPLE_BUILDER": {
+      "id": "temple_builder",
+      "title": "Temple Builder",
+      "description": "Construct religious buildings to spread your faith.",
+      "type": "religious",
+      "objectives": [
+        { "type": "temples_built", "target": 3, "current": 0, "text": "Build 3 religious buildings" }
+      ],
+      "rewards": { "gold": 1500, "karma": 10 },
+      "difficulty": "medium"
+    },
+    "WANDERER": {
+      "id": "wanderer",
+      "title": "Wanderer",
+      "description": "Explore the world and discover new lands.",
+      "type": "exploration",
+      "objectives": [
+        { "type": "tiles_explored", "target": 100, "current": 0, "text": "Explore 100 tiles" }
+      ],
+      "rewards": { "gold": 300, "renown": 10 },
+      "difficulty": "easy"
+    },
+    "WORLD_TRAVELER": {
+      "id": "world_traveler",
+      "title": "World Traveler",
+      "description": "Visit settlements across the realm.",
+      "type": "exploration",
+      "objectives": [
+        { "type": "settlements_visited", "target": 10, "current": 0, "text": "Visit 10 settlements" }
+      ],
+      "rewards": { "gold": 800, "renown": 20 },
+      "difficulty": "medium"
+    },
+    "PEACEMAKER": {
+      "id": "peacemaker",
+      "title": "Peacemaker",
+      "description": "Build positive relations with kingdoms.",
+      "type": "diplomatic",
+      "objectives": [
+        { "type": "positive_relations", "target": 3, "current": 0, "text": "Reach +50 reputation with 3 kingdoms" }
+      ],
+      "rewards": { "gold": 1000, "renown": 25 },
+      "difficulty": "medium"
+    },
+    "RENOWNED": {
+      "id": "renowned",
+      "title": "Renowned",
+      "description": "Become famous throughout the land.",
+      "type": "diplomatic",
+      "objectives": [
+        { "type": "renown", "target": 100, "current": 0, "text": "Reach 100 renown" }
+      ],
+      "rewards": { "gold": 5000 },
+      "difficulty": "hard"
+    },
+    "GOLD_HOARDER": {
+      "id": "gold_hoarder",
+      "title": "Gold Hoarder",
+      "description": "Amass a dragon-worthy treasure hoard.",
+      "type": "economic",
+      "objectives": [
+        { "type": "gold", "target": 25000, "current": 0, "text": "Accumulate 25,000 gold" }
+      ],
+      "rewards": { "gold": 5000, "renown": 40 },
+      "difficulty": "hard"
+    },
+    "MARKET_MANIPULATOR": {
+      "id": "market_manipulator",
+      "title": "Market Manipulator",
+      "description": "Buy low and sell high — dominate the trade markets.",
+      "type": "economic",
+      "objectives": [
+        { "type": "trade_profit", "target": 5000, "current": 0, "text": "Earn 5000 gold in trade profit" }
+      ],
+      "rewards": { "gold": 2000, "renown": 20 },
+      "difficulty": "medium"
+    },
+    "SILK_ROAD": {
+      "id": "silk_road",
+      "title": "The Silk Road",
+      "description": "Establish long-distance trade routes across the realm.",
+      "type": "economic",
+      "objectives": [
+        { "type": "caravans_completed", "target": 25, "current": 0, "text": "Complete 25 caravans" },
+        { "type": "gold", "target": 10000, "current": 0, "text": "Accumulate 10,000 gold" }
+      ],
+      "rewards": { "gold": 5000, "renown": 35 },
+      "difficulty": "hard"
+    },
+    "REAL_ESTATE_MAGNATE": {
+      "id": "real_estate_magnate",
+      "title": "Real Estate Magnate",
+      "description": "Own properties in every kingdom.",
+      "type": "economic",
+      "objectives": [
+        { "type": "properties", "target": 15, "current": 0, "text": "Own 15 properties" }
+      ],
+      "rewards": { "gold": 8000, "renown": 50 },
+      "difficulty": "hard"
+    },
+    "BATTLE_HARDENED": {
+      "id": "battle_hardened",
+      "title": "Battle Hardened",
+      "description": "Win your first military engagements.",
+      "type": "military",
+      "objectives": [
+        { "type": "battles_won", "target": 5, "current": 0, "text": "Win 5 battles" }
+      ],
+      "rewards": { "gold": 800, "renown": 15 },
+      "difficulty": "easy"
+    },
+    "CONQUEROR": {
+      "id": "conqueror",
+      "title": "Conqueror",
+      "description": "Capture enemy settlements by force.",
+      "type": "military",
+      "objectives": [
+        { "type": "settlements_captured", "target": 3, "current": 0, "text": "Capture 3 settlements" }
+      ],
+      "rewards": { "gold": 5000, "renown": 60 },
+      "difficulty": "hard"
+    },
+    "IRON_LEGION": {
+      "id": "iron_legion",
+      "title": "Iron Legion",
+      "description": "Build a massive, unstoppable army.",
+      "type": "military",
+      "objectives": [
+        { "type": "army_strength", "target": 500, "current": 0, "text": "Reach 500 army strength" },
+        { "type": "army_size", "target": 20, "current": 0, "text": "Command 20 units" }
+      ],
+      "rewards": { "gold": 10000, "renown": 80 },
+      "difficulty": "legendary"
+    },
+    "BANDIT_SLAYER": {
+      "id": "bandit_slayer",
+      "title": "Bandit Slayer",
+      "description": "Clear the roads of bandits and raiders.",
+      "type": "military",
+      "objectives": [
+        { "type": "raiders_defeated", "target": 10, "current": 0, "text": "Defeat 10 raider bands" }
+      ],
+      "rewards": { "gold": 1200, "renown": 20 },
+      "difficulty": "medium"
+    },
+    "SIEGE_MASTER": {
+      "id": "siege_master",
+      "title": "Siege Master",
+      "description": "Complete siege contracts for kingdoms.",
+      "type": "military",
+      "objectives": [
+        { "type": "contracts_completed", "target": 10, "current": 0, "text": "Complete 10 contracts" },
+        { "type": "army_strength", "target": 100, "current": 0, "text": "Maintain 100 army strength" }
+      ],
+      "rewards": { "gold": 3000, "renown": 40 },
+      "difficulty": "hard"
+    },
+    "HOLY_CRUSADER": {
+      "id": "holy_crusader",
+      "title": "Holy Crusader",
+      "description": "Spread your faith through righteous combat.",
+      "type": "religious",
+      "objectives": [
+        { "type": "battles_won", "target": 10, "current": 0, "text": "Win 10 battles" },
+        { "type": "karma", "target": 30, "current": 0, "text": "Reach 30 karma" }
+      ],
+      "rewards": { "gold": 3000, "karma": 15, "renown": 35 },
+      "difficulty": "hard"
+    },
+    "MIRACLE_WORKER_QUEST": {
+      "id": "miracle_worker_quest",
+      "title": "Miracle Worker",
+      "description": "Perform divine miracles to prove your devotion.",
+      "type": "religious",
+      "objectives": [
+        { "type": "miracles_performed", "target": 5, "current": 0, "text": "Perform 5 miracles" }
+      ],
+      "rewards": { "gold": 1000, "karma": 15 },
+      "difficulty": "medium"
+    },
+    "PILGRIMAGE": {
+      "id": "pilgrimage",
+      "title": "The Great Pilgrimage",
+      "description": "Visit every holy site in the realm.",
+      "type": "religious",
+      "objectives": [
+        { "type": "holy_sites_visited", "target": 5, "current": 0, "text": "Visit 5 holy sites" }
+      ],
+      "rewards": { "gold": 2000, "karma": 20, "renown": 25 },
+      "difficulty": "medium"
+    },
+    "HERESY_HUNTER": {
+      "id": "heresy_hunter",
+      "title": "Heresy Hunter",
+      "description": "Root out heretical movements threatening the faith.",
+      "type": "religious",
+      "objectives": [
+        { "type": "heresies_suppressed", "target": 3, "current": 0, "text": "Suppress 3 heresies" }
+      ],
+      "rewards": { "gold": 2500, "karma": 10, "renown": 30 },
+      "difficulty": "hard"
+    },
+    "CARTOGRAPHER_QUEST": {
+      "id": "cartographer_quest",
+      "title": "The Cartographer's Dream",
+      "description": "Map the entire known world.",
+      "type": "exploration",
+      "objectives": [
+        { "type": "tiles_explored", "target": 500, "current": 0, "text": "Explore 500 tiles" }
+      ],
+      "rewards": { "gold": 3000, "renown": 40 },
+      "difficulty": "hard"
+    },
+    "RUINS_EXPLORER": {
+      "id": "ruins_explorer",
+      "title": "Ruins Explorer",
+      "description": "Discover and explore ancient ruins.",
+      "type": "exploration",
+      "objectives": [
+        { "type": "ruins_explored", "target": 5, "current": 0, "text": "Explore 5 ruins" }
+      ],
+      "rewards": { "gold": 2000, "renown": 20 },
+      "difficulty": "medium"
+    },
+    "TREASURE_HUNTER": {
+      "id": "treasure_hunter",
+      "title": "Treasure Hunter",
+      "description": "Find hidden treasures scattered across the realm.",
+      "type": "exploration",
+      "objectives": [
+        { "type": "treasures_found", "target": 10, "current": 0, "text": "Find 10 hidden treasures" }
+      ],
+      "rewards": { "gold": 5000, "renown": 30 },
+      "difficulty": "hard"
+    },
+    "MOUNTAIN_CLIMBER": {
+      "id": "mountain_climber",
+      "title": "Mountain Climber",
+      "description": "Traverse the highest mountain peaks in the realm.",
+      "type": "exploration",
+      "objectives": [
+        { "type": "mountain_tiles_explored", "target": 30, "current": 0, "text": "Explore 30 mountain tiles" }
+      ],
+      "rewards": { "gold": 1000, "renown": 15 },
+      "difficulty": "medium"
+    },
+    "DIPLOMAT": {
+      "id": "diplomat",
+      "title": "Diplomat",
+      "description": "Establish diplomatic relations with multiple kingdoms.",
+      "type": "diplomatic",
+      "objectives": [
+        { "type": "positive_relations", "target": 5, "current": 0, "text": "Reach +50 reputation with 5 kingdoms" }
+      ],
+      "rewards": { "gold": 3000, "renown": 40 },
+      "difficulty": "hard"
+    },
+    "KINGMAKER": {
+      "id": "kingmaker",
+      "title": "Kingmaker",
+      "description": "Become so influential you can sway the fate of kingdoms.",
+      "type": "diplomatic",
+      "objectives": [
+        { "type": "renown", "target": 200, "current": 0, "text": "Reach 200 renown" },
+        { "type": "positive_relations", "target": 3, "current": 0, "text": "Reach +80 reputation with 3 kingdoms" }
+      ],
+      "rewards": { "gold": 10000, "renown": 50 },
+      "difficulty": "legendary"
+    },
+    "ALLIANCE_BROKER": {
+      "id": "alliance_broker",
+      "title": "Alliance Broker",
+      "description": "Forge alliances between warring kingdoms.",
+      "type": "diplomatic",
+      "objectives": [
+        { "type": "alliances_formed", "target": 3, "current": 0, "text": "Help form 3 alliances" }
+      ],
+      "rewards": { "gold": 4000, "renown": 45 },
+      "difficulty": "hard"
+    },
+    "SPY_NETWORK": {
+      "id": "spy_network",
+      "title": "Spy Network",
+      "description": "Build an intelligence network throughout the realm.",
+      "type": "diplomatic",
+      "objectives": [
+        { "type": "informants_hired", "target": 5, "current": 0, "text": "Hire 5 informants" },
+        { "type": "settlements_visited", "target": 15, "current": 0, "text": "Visit 15 settlements" }
+      ],
+      "rewards": { "gold": 2000, "renown": 25 },
+      "difficulty": "medium"
+    },
+    "TAVERN_REGULAR": {
+      "id": "tavern_regular",
+      "title": "Tavern Regular",
+      "description": "Become a well-known figure in the taverns of the realm.",
+      "type": "exploration",
+      "objectives": [
+        { "type": "taverns_visited", "target": 10, "current": 0, "text": "Visit 10 taverns" }
+      ],
+      "rewards": { "gold": 500, "renown": 10 },
+      "difficulty": "easy"
+    },
+    "SCHOLAR": {
+      "id": "scholar",
+      "title": "Scholar",
+      "description": "Research new technologies to advance your domain.",
+      "type": "economic",
+      "objectives": [
+        { "type": "technologies_researched", "target": 5, "current": 0, "text": "Research 5 technologies" }
+      ],
+      "rewards": { "gold": 1500, "renown": 20 },
+      "difficulty": "medium"
+    },
+    "MASTER_ARCHITECT": {
+      "id": "master_architect",
+      "title": "Master Architect",
+      "description": "Construct buildings across your settlements.",
+      "type": "economic",
+      "objectives": [
+        { "type": "buildings_constructed", "target": 10, "current": 0, "text": "Construct 10 buildings" }
+      ],
+      "rewards": { "gold": 3000, "renown": 30 },
+      "difficulty": "medium"
+    },
+    "ROAD_BUILDER": {
+      "id": "road_builder",
+      "title": "Road Builder",
+      "description": "Connect settlements with roads.",
+      "type": "economic",
+      "objectives": [
+        { "type": "roads_built", "target": 20, "current": 0, "text": "Build 20 road segments" }
+      ],
+      "rewards": { "gold": 1000, "renown": 15 },
+      "difficulty": "medium"
+    },
+    "DRAGON_HUNTER": {
+      "id": "dragon_hunter",
+      "title": "Dragon Hunter",
+      "description": "Track and slay the legendary beasts terrorizing the land.",
+      "type": "military",
+      "objectives": [
+        { "type": "special_creatures_defeated", "target": 1, "current": 0, "text": "Defeat a legendary creature" },
+        { "type": "army_strength", "target": 150, "current": 0, "text": "Maintain 150 army strength" }
+      ],
+      "rewards": { "gold": 8000, "renown": 75 },
+      "difficulty": "legendary"
+    },
+    "PEOPLES_CHAMPION": {
+      "id": "peoples_champion",
+      "title": "People's Champion",
+      "description": "Help the common folk with their problems.",
+      "type": "diplomatic",
+      "objectives": [
+        { "type": "quests_completed", "target": 10, "current": 0, "text": "Complete 10 quests" }
+      ],
+      "rewards": { "gold": 2000, "renown": 30, "karma": 10 },
+      "difficulty": "medium"
+    },
+    "DIVINE_MANDATE": {
+      "id": "divine_mandate",
+      "title": "Divine Mandate",
+      "description": "Become the supreme religious authority in the realm.",
+      "type": "religious",
+      "objectives": [
+        { "type": "followers", "target": 5000, "current": 0, "text": "Gain 5000 followers" },
+        { "type": "temples_built", "target": 10, "current": 0, "text": "Build 10 religious buildings" },
+        { "type": "karma", "target": 50, "current": 0, "text": "Reach 50 karma" }
+      ],
+      "rewards": { "gold": 15000, "karma": 30, "renown": 100 },
+      "difficulty": "legendary"
+    }
+  }
+}

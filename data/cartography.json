@@ -1,0 +1,74 @@
+{
+  "quality": {
+    "crude": { "label": "Crude", "icon": "📜", "accuracy": 0.40, "minSkill": 0, "value": 15 },
+    "basic": { "label": "Basic", "icon": "🗺️", "accuracy": 0.60, "minSkill": 2, "value": 30 },
+    "detailed": { "label": "Detailed", "icon": "📐", "accuracy": 0.80, "minSkill": 4, "value": 60 },
+    "masterwork": { "label": "Masterwork", "icon": "🏆", "accuracy": 0.95, "minSkill": 7, "value": 120 }
+  },
+  "mapTypes": {
+    "regional": {
+      "id": "regional",
+      "name": "Regional Map",
+      "icon": "🗺️",
+      "description": "Shows terrain and settlements in a region",
+      "radius": 15,
+      "cost": 30
+    },
+    "survey": {
+      "id": "survey",
+      "name": "Survey Map",
+      "icon": "📐",
+      "description": "Detailed survey showing resources and terrain",
+      "radius": 10,
+      "cost": 80
+    },
+    "kingdom": {
+      "id": "kingdom",
+      "name": "Kingdom Map",
+      "icon": "👑",
+      "description": "Reveals all territory of a kingdom",
+      "radius": 0,
+      "cost": 120
+    },
+    "propaganda": {
+      "id": "propaganda",
+      "name": "Propaganda Map",
+      "icon": "📣",
+      "description": "Shows exaggerated borders — may be inaccurate",
+      "radius": 25,
+      "cost": 0
+    },
+    "ancient": {
+      "id": "ancient",
+      "name": "Ancient Map",
+      "icon": "📜",
+      "description": "Fragment of an old map revealing forgotten places",
+      "radius": 15,
+      "cost": 0
+    },
+    "stolen": {
+      "id": "stolen",
+      "name": "Stolen Map",
+      "icon": "🗡️",
+      "description": "Acquired through dubious means",
+      "radius": 18,
+      "cost": 0
+    },
+    "treasure": {
+      "id": "treasure",
+      "name": "Treasure Map",
+      "icon": "💎",
+      "description": "Marks the location of buried valuables",
+      "radius": 3,
+      "cost": 0
+    },
+    "continent": {
+      "id": "continent",
+      "name": "Continent Map",
+      "icon": "🌍",
+      "description": "Reveals an entire continent — extremely rare",
+      "radius": 0,
+      "cost": 5000
+    }
+  }
+}

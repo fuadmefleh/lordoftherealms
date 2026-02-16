@@ -1,0 +1,267 @@
+{
+  "unitTypes": {
+    "MILITIA": {
+      "id": "militia",
+      "name": "Militia",
+      "icon": "🗡️",
+      "cost": 50,
+      "upkeep": 2,
+      "strength": 5,
+      "description": "Basic fighters, cheap but weak"
+    },
+    "SOLDIER": {
+      "id": "soldier",
+      "name": "Soldier",
+      "icon": "⚔️",
+      "cost": 100,
+      "upkeep": 5,
+      "strength": 10,
+      "description": "Trained warriors, reliable in battle"
+    },
+    "KNIGHT": {
+      "id": "knight",
+      "name": "Knight",
+      "icon": "🛡️",
+      "cost": 300,
+      "upkeep": 15,
+      "strength": 30,
+      "description": "Elite cavalry, devastating in combat"
+    },
+    "ARCHER": {
+      "id": "archer",
+      "name": "Archer",
+      "icon": "🏹",
+      "cost": 80,
+      "upkeep": 4,
+      "strength": 8,
+      "description": "Ranged attackers, good for defense"
+    },
+    "PIKEMAN": {
+      "id": "pikeman",
+      "name": "Pikeman",
+      "icon": "🔱",
+      "cost": 120,
+      "upkeep": 6,
+      "strength": 12,
+      "description": "Anti-cavalry specialists with long pikes"
+    },
+    "CROSSBOWMAN": {
+      "id": "crossbowman",
+      "name": "Crossbowman",
+      "icon": "🎯",
+      "cost": 150,
+      "upkeep": 7,
+      "strength": 14,
+      "description": "Heavy ranged unit with armor-piercing bolts"
+    },
+    "CAVALRY": {
+      "id": "cavalry",
+      "name": "Light Cavalry",
+      "icon": "🐎",
+      "cost": 200,
+      "upkeep": 10,
+      "strength": 18,
+      "description": "Fast-moving scouts and flankers"
+    },
+    "WAR_ELEPHANT": {
+      "id": "war_elephant",
+      "name": "War Elephant",
+      "icon": "🐘",
+      "cost": 500,
+      "upkeep": 25,
+      "strength": 50,
+      "description": "Massive war beasts that trample enemy formations"
+    },
+    "SIEGE_ENGINE": {
+      "id": "siege_engine",
+      "name": "Siege Engine",
+      "icon": "🏰",
+      "cost": 400,
+      "upkeep": 20,
+      "strength": 5,
+      "siegeBonus": 40,
+      "description": "Catapults and trebuchets for breaching walls"
+    },
+    "BERSERKER": {
+      "id": "berserker",
+      "name": "Berserker",
+      "icon": "🪓",
+      "cost": 180,
+      "upkeep": 8,
+      "strength": 22,
+      "description": "Frenzied warriors who fight with reckless fury"
+    },
+    "ASSASSIN": {
+      "id": "assassin",
+      "name": "Assassin",
+      "icon": "🗡️",
+      "cost": 350,
+      "upkeep": 18,
+      "strength": 15,
+      "specialAbility": "Can eliminate enemy commanders",
+      "description": "Shadow operatives trained for targeted kills"
+    },
+    "BATTLE_MAGE": {
+      "id": "battle_mage",
+      "name": "Battle Mage",
+      "icon": "🔮",
+      "cost": 450,
+      "upkeep": 22,
+      "strength": 25,
+      "specialAbility": "Deals area damage",
+      "description": "Sorcerers trained for warfare, hurling destructive spells"
+    },
+    "LONGBOWMAN": {
+      "id": "longbowman",
+      "name": "Longbowman",
+      "icon": "🏹",
+      "cost": 130,
+      "upkeep": 6,
+      "strength": 11,
+      "rangeBonus": 2,
+      "description": "Elite archers with extended range"
+    },
+    "SHIELD_WALL": {
+      "id": "shield_wall",
+      "name": "Shield Wall",
+      "icon": "🛡️",
+      "cost": 160,
+      "upkeep": 8,
+      "strength": 8,
+      "defenseBonus": 25,
+      "description": "Heavily armored defensive formation"
+    },
+    "WAR_GALLEY": {
+      "id": "war_galley",
+      "name": "War Galley",
+      "icon": "⛵",
+      "cost": 350,
+      "upkeep": 15,
+      "strength": 20,
+      "domain": "sea",
+      "description": "Armed warship for naval combat"
+    },
+    "SCOUT": {
+      "id": "scout",
+      "name": "Scout",
+      "icon": "🏃",
+      "cost": 40,
+      "upkeep": 2,
+      "strength": 3,
+      "speed": 8,
+      "sightRange": 4,
+      "description": "Fast reconnaissance unit with extended vision"
+    }
+  },
+  "contractTypes": {
+    "GUARD_DUTY": {
+      "id": "guard_duty",
+      "name": "Guard Duty",
+      "icon": "🛡️",
+      "payment": 100,
+      "duration": 3,
+      "minStrength": 20,
+      "description": "Guard a settlement for 3 days"
+    },
+    "BANDIT_HUNT": {
+      "id": "bandit_hunt",
+      "name": "Bandit Hunt",
+      "icon": "🗡️",
+      "payment": 200,
+      "duration": 5,
+      "minStrength": 50,
+      "risk": 0.3,
+      "description": "Hunt down bandits threatening trade routes"
+    },
+    "ESCORT_CARAVAN": {
+      "id": "escort_caravan",
+      "name": "Escort Caravan",
+      "icon": "🚚",
+      "payment": 150,
+      "duration": 4,
+      "minStrength": 30,
+      "risk": 0.2,
+      "description": "Protect a merchant caravan"
+    },
+    "SIEGE_SUPPORT": {
+      "id": "siege_support",
+      "name": "Siege Support",
+      "icon": "🏰",
+      "payment": 500,
+      "duration": 10,
+      "minStrength": 100,
+      "risk": 0.5,
+      "description": "Support a kingdom in a siege"
+    },
+    "MONSTER_HUNT": {
+      "id": "monster_hunt",
+      "name": "Monster Hunt",
+      "icon": "🐉",
+      "payment": 800,
+      "duration": 7,
+      "minStrength": 80,
+      "risk": 0.6,
+      "description": "Track and slay a dangerous creature terrorizing the land"
+    },
+    "PATROL_ROADS": {
+      "id": "patrol_roads",
+      "name": "Patrol Roads",
+      "icon": "🛤️",
+      "payment": 120,
+      "duration": 5,
+      "minStrength": 25,
+      "risk": 0.15,
+      "description": "Keep the trade roads safe from bandits and wild beasts"
+    },
+    "BORDER_DEFENSE": {
+      "id": "border_defense",
+      "name": "Border Defense",
+      "icon": "🚧",
+      "payment": 300,
+      "duration": 7,
+      "minStrength": 60,
+      "risk": 0.35,
+      "description": "Defend a kingdom's border from encroaching enemies"
+    },
+    "PIRATE_RAID": {
+      "id": "pirate_raid",
+      "name": "Raid Pirate Cove",
+      "icon": "🏴‍☠️",
+      "payment": 600,
+      "duration": 8,
+      "minStrength": 70,
+      "risk": 0.45,
+      "description": "Assault a pirate stronghold and recover stolen goods"
+    },
+    "RUIN_CLEARANCE": {
+      "id": "ruin_clearance",
+      "name": "Ruin Clearance",
+      "icon": "🏚️",
+      "payment": 350,
+      "duration": 5,
+      "minStrength": 40,
+      "risk": 0.35,
+      "description": "Clear dangerous creatures from ancient ruins"
+    },
+    "REBEL_SUPPRESSION": {
+      "id": "rebel_suppression",
+      "name": "Rebel Suppression",
+      "icon": "🔱",
+      "payment": 400,
+      "duration": 6,
+      "minStrength": 75,
+      "risk": 0.40,
+      "description": "Quell a peasant rebellion in a troubled province"
+    },
+    "ASSASSINATION_CONTRACT": {
+      "id": "assassination",
+      "name": "Assassination Contract",
+      "icon": "🎭",
+      "payment": 1000,
+      "duration": 3,
+      "minStrength": 15,
+      "risk": 0.70,
+      "description": "Eliminate a high-value target — extremely dangerous"
+    }
+  }
+}

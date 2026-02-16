@@ -53,21 +53,99 @@
             <span id="turnDisplay">Day 1 — Spring, Year 1</span>
         </div>
         <div id="topBarRight">
-            <button class="top-btn" id="btnToggleResources" title="Toggle Resource Icons">💎</button>
-            <button class="top-btn" id="btnToggleBorders" title="Toggle Kingdom Borders">🏰</button>
-            <button class="top-btn" id="btnMapModes" title="Map Modes & Data">🗺️</button>
-            <button class="top-btn" id="btnEndTurn" title="End Day">⏭</button>
-            <button class="top-btn" id="btnCharacter" title="Character">👤</button>
-            <button class="top-btn" id="btnInventory" title="Inventory">🎒</button>
-            <button class="top-btn" id="btnQuests" title="Quests">📜</button>
-            <button class="top-btn" id="btnHistory" title="World History">🕰️</button>
-            <button class="top-btn" id="btnDynasties" title="Dynasties & Characters">👑</button>
-            <button class="top-btn" id="btnIntel" title="Intel Journal">📖</button>
-            <button class="top-btn" id="btnTreasury" title="Treasury: Market, Bank & Taxes">💰</button>
-            <button class="top-btn" id="btnTechnology" title="Technology & Research">🔬</button>
-            <button class="top-btn" id="btnReligion" title="Religion & Culture">🙏</button>
-            <button class="top-btn" id="btnPeoples" title="Peoples & Subcultures">🏛️</button>
-            <button class="top-btn" id="btnSettings" title="Settings">⚙️</button>
+            <!-- Civ-style grouped menu buttons -->
+            <div class="civ-menu-group">
+                <button class="civ-menu-btn" id="civMapBtn" title="Map Options">
+                    <span class="civ-menu-icon">🗺️</span>
+                    <span class="civ-menu-label">Map</span>
+                </button>
+                <div class="civ-dropdown" id="civMapDropdown">
+                    <button class="civ-dropdown-item" id="btnToggleResources">
+                        <span class="civ-dd-icon">💎</span>
+                        <span class="civ-dd-text">Resource Icons</span>
+                        <span class="civ-dd-toggle" id="resourceToggleState">OFF</span>
+                    </button>
+                    <button class="civ-dropdown-item" id="btnToggleBorders">
+                        <span class="civ-dd-icon">🏰</span>
+                        <span class="civ-dd-text">Kingdom Borders</span>
+                        <span class="civ-dd-toggle" id="borderToggleState">OFF</span>
+                    </button>
+                    <div class="civ-dd-separator"></div>
+                    <button class="civ-dropdown-item" id="btnMapModes">
+                        <span class="civ-dd-icon">📊</span>
+                        <span class="civ-dd-text">Map Modes</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="civ-menu-group">
+                <button class="civ-menu-btn" id="civEmpireBtn" title="Empire Overview">
+                    <span class="civ-menu-icon">👑</span>
+                    <span class="civ-menu-label">Empire</span>
+                </button>
+                <div class="civ-dropdown" id="civEmpireDropdown">
+                    <button class="civ-dropdown-item" id="btnCharacter">
+                        <span class="civ-dd-icon">👤</span>
+                        <span class="civ-dd-text">Character</span>
+                    </button>
+                    <button class="civ-dropdown-item" id="btnInventory">
+                        <span class="civ-dd-icon">🎒</span>
+                        <span class="civ-dd-text">Inventory</span>
+                    </button>
+                    <button class="civ-dropdown-item" id="btnTreasury">
+                        <span class="civ-dd-icon">💰</span>
+                        <span class="civ-dd-text">Treasury & Market</span>
+                    </button>
+                    <div class="civ-dd-separator"></div>
+                    <button class="civ-dropdown-item" id="btnTechnology">
+                        <span class="civ-dd-icon">🔬</span>
+                        <span class="civ-dd-text">Technology</span>
+                    </button>
+                    <button class="civ-dropdown-item" id="btnReligion">
+                        <span class="civ-dd-icon">🙏</span>
+                        <span class="civ-dd-text">Religion & Culture</span>
+                    </button>
+                    <button class="civ-dropdown-item" id="btnPeoples">
+                        <span class="civ-dd-icon">🏛️</span>
+                        <span class="civ-dd-text">Peoples</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="civ-menu-group">
+                <button class="civ-menu-btn" id="civJournalBtn" title="Reports & History">
+                    <span class="civ-menu-icon">📜</span>
+                    <span class="civ-menu-label">Journal</span>
+                </button>
+                <div class="civ-dropdown" id="civJournalDropdown">
+                    <button class="civ-dropdown-item" id="btnQuests">
+                        <span class="civ-dd-icon">📜</span>
+                        <span class="civ-dd-text">Quests</span>
+                    </button>
+                    <button class="civ-dropdown-item" id="btnHistory">
+                        <span class="civ-dd-icon">🕰️</span>
+                        <span class="civ-dd-text">World History</span>
+                    </button>
+                    <button class="civ-dropdown-item" id="btnDynasties">
+                        <span class="civ-dd-icon">👑</span>
+                        <span class="civ-dd-text">Dynasties</span>
+                    </button>
+                    <button class="civ-dropdown-item" id="btnIntel">
+                        <span class="civ-dd-icon">📖</span>
+                        <span class="civ-dd-text">Intel Journal</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="civ-separator-vert"></div>
+
+            <!-- Prominent End Turn button (Civ-style) -->
+            <button class="civ-end-turn-btn" id="btnEndTurn" title="End Day">
+                <span class="civ-end-turn-label">End Day</span>
+                <span class="civ-end-turn-icon">⏭</span>
+            </button>
+
+            <button class="civ-settings-btn" id="btnSettings" title="Settings">⚙️</button>
         </div>
     </div>
 
@@ -201,42 +279,53 @@
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="js/utils.js"></script>
-    <script src="js/hex.js"></script>
-    <script src="js/terrain.js"></script>
-    <script src="js/kingdom.js"></script>
-    <script src="js/economy.js"></script>
-    <script src="js/kingdomAI.js"></script>
-    <script src="js/worldEvents.js"></script>
-    <script src="js/characters.js"></script>
-    <script src="js/npcLords.js"></script>
-    <script src="js/quests.js"></script>
-    <script src="js/achievements.js"></script>
-    <script src="js/saveLoad.js"></script>
-    <script src="js/weather.js"></script>
-    <script src="js/units.js"></script>
-    <script src="js/world.js"></script>
-    <script src="js/player.js"></script>
-    <script src="js/playerEconomy.js"></script>
-    <script src="js/marketDynamics.js"></script>
-    <script src="js/tavern.js"></script>
-    <script src="js/playerMilitary.js"></script>
-    <script src="js/technology.js"></script>
-    <script src="js/infrastructure.js"></script>
-    <script src="js/religion.js"></script>
-    <script src="js/culture.js"></script>
-    <script src="js/peoples.js"></script>
-    <script src="js/colonization.js"></script>
-    <script src="js/cartography.js"></script>
-    <script src="js/playerReligion.js"></script>
-    <script src="js/camera.js"></script>
-    <script src="js/renderer.js"></script>
-    <script src="js/ui.js"></script>
-    <script src="js/playerActions.js"></script>
-    <script src="js/actionMenu.js"></script>
-    <script src="js/minimap.js"></script>
-    <script src="js/game.js"></script>
+    <!-- Scripts — Core -->
+    <script src="js/core/utils.js"></script>
+    <script src="js/core/hex.js"></script>
+    <script src="js/core/dataLoader.js"></script>
+
+    <!-- Scripts — World -->
+    <script src="js/world/terrain.js"></script>
+    <script src="js/world/kingdom.js"></script>
+    <script src="js/world/economy.js"></script>
+    <script src="js/world/kingdomAI.js"></script>
+    <script src="js/world/worldEvents.js"></script>
+    <script src="js/world/characters.js"></script>
+    <script src="js/world/npcLords.js"></script>
+    <script src="js/world/weather.js"></script>
+    <script src="js/world/units.js"></script>
+    <script src="js/world/world.js"></script>
+    <script src="js/world/colonization.js"></script>
+
+    <!-- Scripts — Player (loaded before Systems that depend on it) -->
+    <script src="js/player/player.js"></script>
+    <script src="js/player/playerEconomy.js"></script>
+
+    <!-- Scripts — Systems -->
+    <script src="js/systems/quests.js"></script>
+    <script src="js/systems/achievements.js"></script>
+    <script src="js/systems/saveLoad.js"></script>
+    <script src="js/systems/technology.js"></script>
+    <script src="js/systems/infrastructure.js"></script>
+    <script src="js/systems/religion.js"></script>
+    <script src="js/systems/culture.js"></script>
+    <script src="js/systems/peoples.js"></script>
+    <script src="js/systems/cartography.js"></script>
+    <script src="js/systems/marketDynamics.js"></script>
+
+    <!-- Scripts — Player (remaining) -->
+    <script src="js/player/tavern.js"></script>
+    <script src="js/player/playerMilitary.js"></script>
+    <script src="js/player/playerReligion.js"></script>
+    <script src="js/player/playerActions.js"></script>
+
+    <!-- Scripts — UI -->
+    <script src="js/ui/camera.js"></script>
+    <script src="js/ui/renderer.js"></script>
+    <script src="js/ui/ui.js"></script>
+    <script src="js/ui/actionMenu.js"></script>
+    <script src="js/ui/minimap.js"></script>
+    <script src="js/ui/game.js"></script>
 </body>
 
 </html>

@@ -1,0 +1,398 @@
+{
+  "faiths": {
+    "solaris": {
+      "id": "solaris",
+      "name": "The Solar Covenant",
+      "icon": "☀️",
+      "founded": 42,
+      "extinct": false,
+      "tenets": ["Order", "Justice", "Light"],
+      "description": "Worship of the Eternal Sun — the oldest surviving faith. Temples face east, and adherents mark holy days at dawn.",
+      "holyColor": "#f5c542",
+      "virtues": { "unity": 3, "militancy": 1, "scholarship": 1 }
+    },
+    "tidemother": {
+      "id": "tidemother",
+      "name": "Faith of the Tidemother",
+      "icon": "🌊",
+      "founded": 189,
+      "extinct": false,
+      "tenets": ["Generosity", "Exploration", "Adaptability"],
+      "description": "Seafarers' faith centred on the Tidemother — goddess of currents, storms, and safe harbour.",
+      "holyColor": "#3498db",
+      "virtues": { "unity": 1, "militancy": 0, "scholarship": 2 }
+    },
+    "earthroot": {
+      "id": "earthroot",
+      "name": "The Earthroot Communion",
+      "icon": "🌿",
+      "founded": 310,
+      "extinct": false,
+      "tenets": ["Harmony", "Growth", "Patience"],
+      "description": "Nature worship venerating the world-tree whose roots bind all living things. Shrines stand in forest glades.",
+      "holyColor": "#27ae60",
+      "virtues": { "unity": 2, "militancy": 0, "scholarship": 2 }
+    },
+    "ironfaith": {
+      "id": "ironfaith",
+      "name": "The Iron Creed",
+      "icon": "⚒️",
+      "founded": 487,
+      "extinct": false,
+      "tenets": ["Strength", "Honour", "Endurance"],
+      "description": "Born among mountain clans, the Iron Creed teaches that the soul is forged through trial and labour.",
+      "holyColor": "#7f8c8d",
+      "virtues": { "unity": 1, "militancy": 3, "scholarship": 0 }
+    },
+    "starseers": {
+      "id": "starseers",
+      "name": "Order of the Starseers",
+      "icon": "⭐",
+      "founded": 612,
+      "extinct": false,
+      "tenets": ["Wisdom", "Prophecy", "Charity"],
+      "description": "Mystic scholar-monks who chart the heavens and claim to read fate in the constellations.",
+      "holyColor": "#8e44ad",
+      "virtues": { "unity": 2, "militancy": 0, "scholarship": 3 }
+    },
+    "stoneheart": {
+      "id": "stoneheart",
+      "name": "The Stoneheart Pact",
+      "icon": "⛰️",
+      "founded": 95,
+      "extinct": false,
+      "tenets": ["Endurance", "Craftsmanship", "Ancestry"],
+      "description": "Mountain-dwellers who believe the gods sleep inside stone and that every carved hall is a prayer.",
+      "holyColor": "#795548",
+      "virtues": { "unity": 2, "militancy": 2, "scholarship": 1 }
+    },
+    "serpentway": {
+      "id": "serpentway",
+      "name": "The Serpent's Way",
+      "icon": "🐍",
+      "founded": 220,
+      "extinct": false,
+      "tenets": ["Cunning", "Transformation", "Balance"],
+      "description": "Swamp mystics who worship the Great Serpent — symbol of death, rebirth, and the cycle of decay and renewal.",
+      "holyColor": "#2d6a4f",
+      "virtues": { "unity": 0, "militancy": 1, "scholarship": 3 }
+    },
+    "arcanum": {
+      "id": "arcanum",
+      "name": "The Arcane Orthodoxy",
+      "icon": "🔮",
+      "founded": 445,
+      "extinct": false,
+      "tenets": ["Knowledge", "Discipline", "Mastery"],
+      "description": "Less a religion than a philosophical order — practitioners believe magic itself is divine and study is worship.",
+      "holyColor": "#00bcd4",
+      "virtues": { "unity": 1, "militancy": 0, "scholarship": 4 }
+    },
+    "stormfather": {
+      "id": "stormfather",
+      "name": "Cult of the Stormfather",
+      "icon": "⚡",
+      "founded": 130,
+      "extinct": false,
+      "tenets": ["Courage", "Freedom", "Glory"],
+      "description": "Northern raiders worship the Stormfather — god of thunder, war, and the open sea. Sacrifices are made before raids.",
+      "holyColor": "#90caf9",
+      "virtues": { "unity": 1, "militancy": 3, "scholarship": 0 }
+    },
+    "dunewalkers": {
+      "id": "dunewalkers",
+      "name": "The Dunewalker Creed",
+      "icon": "🏜️",
+      "founded": 280,
+      "extinct": false,
+      "tenets": ["Hospitality", "Endurance", "Trade"],
+      "description": "Desert faith teaching that the gods test mortals with heat and thirst. Water-sharing is the holiest act.",
+      "holyColor": "#ff8f00",
+      "virtues": { "unity": 2, "militancy": 1, "scholarship": 1 }
+    },
+    "dreamweavers": {
+      "id": "dreamweavers",
+      "name": "The Dreamweaver Circle",
+      "icon": "🌙",
+      "founded": 560,
+      "extinct": false,
+      "tenets": ["Vision", "Creativity", "Compassion"],
+      "description": "Practitioners enter dream-trances to commune with spirits. They believe waking life is the lesser reality.",
+      "holyColor": "#7b1fa2",
+      "virtues": { "unity": 1, "militancy": 0, "scholarship": 2 }
+    },
+    "ashwalkers": {
+      "id": "ashwalkers",
+      "name": "The Ashwalker Path",
+      "icon": "🔥",
+      "founded": 15,
+      "extinctYear": 234,
+      "extinct": true,
+      "tenets": ["Purification", "Rebirth", "Sacrifice"],
+      "description": "Fire-worshippers who practised ritual immolation. Suppressed after the Great Pyre Rebellion of 230.",
+      "holyColor": "#e67e22",
+      "virtues": { "unity": 0, "militancy": 3, "scholarship": 0 }
+    },
+    "voidcallers": {
+      "id": "voidcallers",
+      "name": "The Cult of the Void",
+      "icon": "🌑",
+      "founded": 120,
+      "extinctYear": 401,
+      "extinct": true,
+      "tenets": ["Entropy", "Secrets", "Transcendence"],
+      "description": "An esoteric cult that worshipped the emptiness between stars. Banned after the Mindbreak Plague of 400.",
+      "holyColor": "#2c3e50",
+      "virtues": { "unity": 0, "militancy": 1, "scholarship": 2 }
+    },
+    "bonesingers": {
+      "id": "bonesingers",
+      "name": "The Bonesinger Rites",
+      "icon": "💀",
+      "founded": 78,
+      "extinctYear": 550,
+      "extinct": true,
+      "tenets": ["Ancestor Veneration", "Memory", "Duty"],
+      "description": "Ancestor-worship tradition where the dead were preserved and \"sang\" through wind-harps atop burial spires. Faded after prolonged plague.",
+      "holyColor": "#bdc3c7",
+      "virtues": { "unity": 2, "militancy": 1, "scholarship": 1 }
+    },
+    "flameheralds": {
+      "id": "flameheralds",
+      "name": "Heralds of the Eternal Flame",
+      "icon": "🕯️",
+      "founded": 355,
+      "extinctYear": 710,
+      "extinct": true,
+      "tenets": ["Illumination", "Purity", "Zeal"],
+      "description": "A militant offshoot of the Solar Covenant. Launched three crusades before collapsing into internal schism.",
+      "holyColor": "#d35400",
+      "virtues": { "unity": 1, "militancy": 3, "scholarship": 0 }
+    },
+    "bloodmoon": {
+      "id": "bloodmoon",
+      "name": "The Blood Moon Covenant",
+      "icon": "🩸",
+      "founded": 50,
+      "extinctYear": 390,
+      "extinct": true,
+      "tenets": ["Sacrifice", "Power", "Domination"],
+      "description": "Blood-sacrifice cult that performed rituals under the red moon. Eradicated by a combined crusade of the Solar Covenant and Iron Creed.",
+      "holyColor": "#8b0000",
+      "virtues": { "unity": 0, "militancy": 4, "scholarship": 0 }
+    },
+    "silentorder": {
+      "id": "silentorder",
+      "name": "The Silent Order",
+      "icon": "🤐",
+      "founded": 340,
+      "extinctYear": 620,
+      "extinct": true,
+      "tenets": ["Silence", "Meditation", "Detachment"],
+      "description": "Monks who took vows of eternal silence, believing all speech corrupted divine truth. Died out when no new followers could be recruited.",
+      "holyColor": "#9e9e9e",
+      "virtues": { "unity": 3, "militancy": 0, "scholarship": 1 }
+    }
+  },
+  "kingdomFaiths": {
+    "valdoria": "solaris",
+    "sylvaris": "earthroot",
+    "kharzun": "ironfaith",
+    "azurath": "starseers",
+    "merathis": "tidemother",
+    "durheim": "stoneheart",
+    "miregloom": "serpentway",
+    "luminara": "arcanum",
+    "frostmark": "stormfather",
+    "ashkari": "dunewalkers"
+  },
+  "holySiteTypes": [
+    { "id": "sacred_spring", "name": "Sacred Spring", "icon": "⛲", "bonusType": "healing", "faithBonus": 8, "incomeBonus": 50, "description": "Blessed waters said to cure ailments" },
+    { "id": "ancient_altar", "name": "Ancient Altar", "icon": "🗿", "bonusType": "unity", "faithBonus": 12, "incomeBonus": 30, "description": "Stone altar predating written history" },
+    { "id": "celestial_observatory", "name": "Celestial Observatory", "icon": "🔭", "bonusType": "scholarship", "faithBonus": 10, "incomeBonus": 40, "description": "Star-gazing tower aligned to constellations" },
+    { "id": "world_tree", "name": "World-Tree Sapling", "icon": "🌳", "bonusType": "growth", "faithBonus": 15, "incomeBonus": 60, "description": "A sapling of the legendary world-tree" },
+    { "id": "reliquary", "name": "Grand Reliquary", "icon": "⚱️", "bonusType": "pilgrimage", "faithBonus": 20, "incomeBonus": 80, "description": "Repository of sacred relics from many faiths" },
+    { "id": "dragon_bones", "name": "Dragon Bone Shrine", "icon": "🦴", "bonusType": "military", "faithBonus": 14, "incomeBonus": 45, "description": "Shrine built around the petrified bones of an ancient dragon" },
+    { "id": "crystal_cavern", "name": "Crystal Cavern", "icon": "💎", "bonusType": "arcane", "faithBonus": 16, "incomeBonus": 55, "description": "Underground cavern where crystals hum with divine resonance" },
+    { "id": "storm_peak", "name": "Storm Peak Altar", "icon": "⛈️", "bonusType": "militancy", "faithBonus": 12, "incomeBonus": 35, "description": "Mountain summit where lightning strikes are divine omens" },
+    { "id": "sunken_temple", "name": "Sunken Temple", "icon": "🏚️", "bonusType": "mystery", "faithBonus": 18, "incomeBonus": 70, "description": "Half-submerged ruins of an ancient temple to forgotten gods" },
+    { "id": "oasis_shrine", "name": "Oasis Shrine", "icon": "🏝️", "bonusType": "trade", "faithBonus": 10, "incomeBonus": 65, "description": "Desert oasis believed to have been created by divine intervention" },
+    { "id": "moonwell", "name": "Moonwell", "icon": "🌕", "bonusType": "prophecy", "faithBonus": 13, "incomeBonus": 50, "description": "A still pool that reflects the stars even during daylight" },
+    { "id": "blood_stone", "name": "The Blood Stone", "icon": "🔴", "bonusType": "sacrifice", "faithBonus": 22, "incomeBonus": 20, "description": "A crimson megalith that seems to pulse with inner warmth" }
+  ],
+  "heresies": [
+    { "id": "dualist_heresy", "name": "Dualist Heresy", "description": "Claims the divine has both a light and dark aspect, equal in power", "unityPenalty": -15, "scholarshipBonus": 5, "spreadChance": 0.03 },
+    { "id": "iconoclasm", "name": "Iconoclast Movement", "description": "Demands destruction of all religious imagery and relics", "unityPenalty": -20, "scholarshipBonus": 0, "spreadChance": 0.02 },
+    { "id": "free_prophets", "name": "Free Prophet Schism", "description": "Anyone may declare prophecy — no central authority", "unityPenalty": -10, "scholarshipBonus": 8, "spreadChance": 0.04 },
+    { "id": "ascetic_revolt", "name": "Ascetic Revolt", "description": "Extreme poverty movement rejecting all temple wealth", "unityPenalty": -12, "scholarshipBonus": 3, "spreadChance": 0.025 },
+    { "id": "blood_rite", "name": "Blood Rite Revival", "description": "Attempts to revive forbidden sacrificial practices", "unityPenalty": -25, "scholarshipBonus": -5, "spreadChance": 0.015 },
+    { "id": "nature_heresy", "name": "Wild Faith", "description": "Rejects all temples and structure — worship only in the untamed wild", "unityPenalty": -18, "scholarshipBonus": 2, "spreadChance": 0.035 },
+    { "id": "machine_cult", "name": "Mechanist Doctrine", "description": "Claims the divine is a great machine and prayer is merely engineering", "unityPenalty": -14, "scholarshipBonus": 10, "spreadChance": 0.02 },
+    { "id": "ancestor_revival", "name": "Ancestor Revival", "description": "Bonesinger rites resurface — the dead should guide the living", "unityPenalty": -12, "scholarshipBonus": 4, "spreadChance": 0.03 },
+    { "id": "void_whisper", "name": "Void Whisper", "description": "Secretive resurgence of Void worship, promising forbidden knowledge", "unityPenalty": -22, "scholarshipBonus": 8, "spreadChance": 0.01 },
+    { "id": "sun_moon_schism", "name": "Sun-Moon Schism", "description": "Solar Covenant splits over whether the moon is the sun's equal or enemy", "unityPenalty": -16, "scholarshipBonus": 3, "spreadChance": 0.025 },
+    { "id": "living_god", "name": "Living God Movement", "description": "A charismatic preacher claims to be a god incarnate", "unityPenalty": -20, "scholarshipBonus": -2, "spreadChance": 0.04 }
+  ],
+  "buildingTypes": {
+    "SHRINE": {
+      "id": "shrine",
+      "name": "Shrine",
+      "icon": "⛩️",
+      "cost": 300,
+      "faithGain": 5,
+      "influenceRadius": 3,
+      "description": "Small place of worship, spreads faith locally"
+    },
+    "TEMPLE": {
+      "id": "temple",
+      "name": "Temple",
+      "icon": "🛕",
+      "cost": 1000,
+      "faithGain": 15,
+      "influenceRadius": 5,
+      "description": "Grand temple, attracts many followers"
+    },
+    "MONASTERY": {
+      "id": "monastery",
+      "name": "Monastery",
+      "icon": "🏛️",
+      "cost": 800,
+      "faithGain": 10,
+      "influenceRadius": 4,
+      "karmaBonus": 2,
+      "description": "Peaceful retreat, generates karma and faith"
+    },
+    "CATHEDRAL": {
+      "id": "cathedral",
+      "name": "Cathedral",
+      "icon": "⛪",
+      "cost": 2500,
+      "faithGain": 30,
+      "influenceRadius": 8,
+      "karmaBonus": 3,
+      "description": "Magnificent cathedral, the pinnacle of religious architecture"
+    },
+    "ORACLE_TOWER": {
+      "id": "oracle_tower",
+      "name": "Oracle Tower",
+      "icon": "🗼",
+      "cost": 1200,
+      "faithGain": 12,
+      "influenceRadius": 6,
+      "scholarshipBonus": 5,
+      "description": "A tower where oracles divine the future through ritual and stargazing"
+    },
+    "PILGRIM_HOSPICE": {
+      "id": "pilgrim_hospice",
+      "name": "Pilgrim Hospice",
+      "icon": "🏥",
+      "cost": 600,
+      "faithGain": 8,
+      "influenceRadius": 3,
+      "incomeBonus": 30,
+      "description": "A waystation offering shelter and healing to pilgrims"
+    },
+    "SACRED_GROVE": {
+      "id": "sacred_grove",
+      "name": "Sacred Grove",
+      "icon": "🌲",
+      "cost": 500,
+      "faithGain": 7,
+      "influenceRadius": 4,
+      "karmaBonus": 1,
+      "description": "A consecrated woodland clearing for nature worship"
+    },
+    "RELIQUARY_VAULT": {
+      "id": "reliquary_vault",
+      "name": "Reliquary Vault",
+      "icon": "🏺",
+      "cost": 1500,
+      "faithGain": 20,
+      "influenceRadius": 5,
+      "renownPerDay": 1,
+      "description": "A fortified vault housing powerful religious relics"
+    }
+  },
+  "miracles": {
+    "HEALING": {
+      "id": "healing",
+      "name": "Divine Healing",
+      "icon": "✨",
+      "karmaCost": 10,
+      "effect": "Restore full health",
+      "description": "Invoke divine power to heal all wounds"
+    },
+    "BLESSING": {
+      "id": "blessing",
+      "name": "Blessing of Prosperity",
+      "icon": "🌟",
+      "karmaCost": 15,
+      "effect": "Double income for 5 days",
+      "description": "Bless your properties with prosperity"
+    },
+    "PROTECTION": {
+      "id": "protection",
+      "name": "Divine Protection",
+      "icon": "🛡️",
+      "karmaCost": 20,
+      "effect": "Invulnerable for 3 days",
+      "description": "Shield yourself from harm"
+    },
+    "CONVERSION": {
+      "id": "conversion",
+      "name": "Mass Conversion",
+      "icon": "🙏",
+      "karmaCost": 25,
+      "effect": "Gain 1000 followers instantly",
+      "description": "Convert many to your faith at once"
+    },
+    "HARVEST": {
+      "id": "harvest",
+      "name": "Bountiful Harvest",
+      "icon": "🌾",
+      "karmaCost": 12,
+      "effect": "All farms produce triple for 3 days",
+      "description": "Invoke divine fertility upon the land"
+    },
+    "SMITE": {
+      "id": "smite",
+      "name": "Divine Smite",
+      "icon": "⚡",
+      "karmaCost": 30,
+      "effect": "Deal massive damage to an enemy unit",
+      "description": "Call down divine wrath upon your enemies"
+    },
+    "REVELATION": {
+      "id": "revelation",
+      "name": "Revelation",
+      "icon": "👁️",
+      "karmaCost": 18,
+      "effect": "Reveal all tiles in a large radius",
+      "description": "The divine grants sight beyond mortal ken"
+    },
+    "SANCTUARY": {
+      "id": "sanctuary",
+      "name": "Holy Sanctuary",
+      "icon": "🕊️",
+      "karmaCost": 22,
+      "effect": "Create a safe zone where no combat can occur for 5 days",
+      "description": "Consecrate the ground so no blood may be shed upon it"
+    },
+    "RESURRECTION": {
+      "id": "resurrection",
+      "name": "Resurrection",
+      "icon": "💫",
+      "karmaCost": 40,
+      "effect": "Restore a destroyed unit to full strength",
+      "description": "Call the fallen back from beyond the veil"
+    },
+    "PLAGUE": {
+      "id": "plague",
+      "name": "Divine Plague",
+      "icon": "☠️",
+      "karmaCost": 35,
+      "effect": "Enemy settlement loses 30% population",
+      "description": "Unleash a terrible pestilence upon the unfaithful"
+    }
+  }
+}

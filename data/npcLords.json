@@ -1,0 +1,26 @@
+{
+  "traits": {
+    "AMBITIOUS": { "id": "ambitious", "name": "Ambitious", "expansionBonus": 0.3, "warBonus": 0.2 },
+    "CAUTIOUS": { "id": "cautious", "name": "Cautious", "expansionBonus": -0.2, "diplomacyBonus": 0.3 },
+    "GREEDY": { "id": "greedy", "name": "Greedy", "tradeBonus": 0.4, "taxBonus": 0.2 },
+    "HONORABLE": { "id": "honorable", "name": "Honorable", "diplomacyBonus": 0.3, "loyaltyBonus": 0.2 },
+    "CRUEL": { "id": "cruel", "name": "Cruel", "warBonus": 0.3, "loyaltyBonus": -0.3 },
+    "PIOUS": { "id": "pious", "name": "Pious", "faithBonus": 0.4, "karmaBonus": 0.2 },
+    "CUNNING": { "id": "cunning", "name": "Cunning", "diplomacyBonus": 0.2, "tradeBonus": 0.2 },
+    "BRAVE": { "id": "brave", "name": "Brave", "warBonus": 0.3, "loyaltyBonus": 0.1 },
+    "PARANOID": { "id": "paranoid", "name": "Paranoid", "defenseBonus": 0.3, "diplomacyBonus": -0.3 },
+    "GENEROUS": { "id": "generous", "name": "Generous", "loyaltyBonus": 0.3, "taxBonus": -0.2 },
+    "SCHOLARLY": { "id": "scholarly", "name": "Scholarly", "researchBonus": 0.4, "warBonus": -0.1 },
+    "RUTHLESS": { "id": "ruthless", "name": "Ruthless", "warBonus": 0.4, "diplomacyBonus": -0.2 },
+    "DIPLOMAT": { "id": "diplomat", "name": "Diplomat", "diplomacyBonus": 0.4, "warBonus": -0.2 },
+    "MERCHANT": { "id": "merchant", "name": "Merchant", "tradeBonus": 0.5, "warBonus": -0.1 },
+    "EXPANSIONIST": { "id": "expansionist", "name": "Expansionist", "expansionBonus": 0.5, "diplomacyBonus": -0.1 },
+    "HEDONIST": { "id": "hedonist", "name": "Hedonist", "loyaltyBonus": -0.1, "taxBonus": -0.3, "stabilityBonus": -0.2 },
+    "ZEALOUS": { "id": "zealous", "name": "Zealous", "faithBonus": 0.5, "diplomacyBonus": -0.2 },
+    "BUILDER": { "id": "builder", "name": "Builder", "constructionBonus": 0.4, "warBonus": -0.1 },
+    "TYRANT": { "id": "tyrant", "name": "Tyrant", "taxBonus": 0.3, "loyaltyBonus": -0.4, "warBonus": 0.2 },
+    "JUST": { "id": "just", "name": "Just", "loyaltyBonus": 0.3, "stabilityBonus": 0.2 },
+    "ISOLATIONIST": { "id": "isolationist", "name": "Isolationist", "defenseBonus": 0.3, "tradeBonus": -0.3, "diplomacyBonus": -0.2 },
+    "WARMONGER": { "id": "warmonger", "name": "Warmonger", "warBonus": 0.5, "diplomacyBonus": -0.4, "loyaltyBonus": -0.1 }
+  }
+}

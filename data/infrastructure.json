@@ -1,0 +1,63 @@
+{
+  "types": {
+    "DIRT_ROAD": {
+      "id": "dirt_road",
+      "name": "Dirt Road",
+      "icon": "🛤️",
+      "cost": 30,
+      "buildTime": 0,
+      "moveCostOverride": null,
+      "moveCostReduction": 0.5,
+      "requiredTech": "road_building",
+      "requiredTerrain": null,
+      "description": "A cleared dirt path. Halves movement cost on this hex.",
+      "renderColor": "#8B7355",
+      "renderWidth": 2
+    },
+    "STONE_ROAD": {
+      "id": "stone_road",
+      "name": "Stone Road",
+      "icon": "🛣️",
+      "cost": 80,
+      "buildTime": 0,
+      "moveCostOverride": 1,
+      "moveCostReduction": null,
+      "requiredTech": "paved_roads",
+      "requiredTerrain": null,
+      "upgradesFrom": "dirt_road",
+      "description": "A paved stone road. Movement cost is always 1.",
+      "renderColor": "#A0A0A0",
+      "renderWidth": 3
+    },
+    "BRIDGE": {
+      "id": "bridge",
+      "name": "Bridge",
+      "icon": "🌉",
+      "cost": 150,
+      "buildTime": 0,
+      "moveCostOverride": 1,
+      "moveCostReduction": null,
+      "requiredTech": "bridge_construction",
+      "requiredTerrain": ["swamp", "highlands"],
+      "allowRiverTiles": true,
+      "description": "A sturdy bridge. Negates river and swamp penalties (cost = 1).",
+      "renderColor": "#8B4513",
+      "renderWidth": 4
+    },
+    "IRRIGATION_CHANNEL": {
+      "id": "irrigation_channel",
+      "name": "Irrigation Channel",
+      "icon": "💧",
+      "cost": 60,
+      "buildTime": 0,
+      "moveCostOverride": null,
+      "moveCostReduction": null,
+      "requiredTech": "irrigation",
+      "requiredTerrain": ["plains", "grassland", "savanna", "desert", "hills"],
+      "description": "Water channels that boost farm productivity on this hex by 50%.",
+      "productivityBonus": 0.50,
+      "renderColor": "#4FC3F7",
+      "renderWidth": 2
+    }
+  }
+}

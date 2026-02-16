@@ -1,0 +1,20 @@
+{
+    "productionRates": {
+        "capital": { "baseGold": 50, "baseFood": 100, "baseGoods": 30 },
+        "city": { "baseGold": 30, "baseFood": 60, "baseGoods": 20 },
+        "town": { "baseGold": 15, "baseFood": 30, "baseGoods": 10 },
+        "village": { "baseGold": 5, "baseFood": 15, "baseGoods": 3 }
+    },
+    "resourceBonuses": {
+        "iron": { "goods": 1.3, "military": 1.2 },
+        "gold_ore": { "gold": 1.5 },
+        "gems": { "gold": 1.8, "trade": 1.2 },
+        "timber": { "goods": 1.2, "construction": 1.3 },
+        "wheat": { "food": 1.5 },
+        "fish": { "food": 1.3 },
+        "horses": { "military": 1.4, "trade": 1.1 },
+        "spices": { "gold": 1.3, "trade": 1.4 },
+        "stone": { "construction": 1.5, "goods": 1.1 },
+        "salt": { "food": 1.2, "trade": 1.2 }
+    }
+}

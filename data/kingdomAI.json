@@ -1,0 +1,9 @@
+{
+  "personalities": {
+    "militaristic": { "expansionChance": 0.3, "warChance": 0.4, "tradeChance": 0.2 },
+    "peaceful": { "expansionChance": 0.1, "warChance": 0.05, "tradeChance": 0.5 },
+    "mercantile": { "expansionChance": 0.15, "warChance": 0.1, "tradeChance": 0.6 },
+    "aggressive": { "expansionChance": 0.4, "warChance": 0.5, "tradeChance": 0.1 },
+    "balanced": { "expansionChance": 0.2, "warChance": 0.2, "tradeChance": 0.3 }
+  }
+}

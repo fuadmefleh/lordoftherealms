@@ -1,0 +1,32 @@
+{
+  "taxRates": {
+    "VERY_LOW": { "id": "very_low", "name": "Very Low (5%)", "rate": 0.05, "happinessBonus": 10, "growthBonus": 0.05 },
+    "LOW": { "id": "low", "name": "Low (10%)", "rate": 0.10, "happinessBonus": 5, "growthBonus": 0.02 },
+    "MODERATE": { "id": "moderate", "name": "Moderate (15%)", "rate": 0.15, "happinessBonus": 0, "growthBonus": 0 },
+    "HIGH": { "id": "high", "name": "High (25%)", "rate": 0.25, "happinessBonus": -10, "growthBonus": -0.05 },
+    "VERY_HIGH": { "id": "very_high", "name": "Very High (40%)", "rate": 0.40, "happinessBonus": -20, "growthBonus": -0.10 }
+  },
+  "loanOptions": [
+    {
+      "id": "small",
+      "name": "Small Loan",
+      "amount": 500,
+      "interestRate": 0.10,
+      "duration": 30
+    },
+    {
+      "id": "medium",
+      "name": "Medium Loan",
+      "amount": 2000,
+      "interestRate": 0.15,
+      "duration": 60
+    },
+    {
+      "id": "large",
+      "name": "Large Loan",
+      "amount": 5000,
+      "interestRate": 0.20,
+      "duration": 90
+    }
+  ]
+}

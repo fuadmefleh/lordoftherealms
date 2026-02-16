@@ -1,0 +1,298 @@
+{
+  "achievements": {
+    "FIRST_FORTUNE": {
+      "id": "first_fortune",
+      "name": "First Fortune",
+      "description": "Accumulate 1,000 gold",
+      "icon": "💰",
+      "tier": "bronze"
+    },
+    "WEALTHY": {
+      "id": "wealthy",
+      "name": "Wealthy",
+      "description": "Accumulate 10,000 gold",
+      "icon": "💎",
+      "tier": "silver"
+    },
+    "TYCOON": {
+      "id": "tycoon",
+      "name": "Tycoon",
+      "description": "Accumulate 50,000 gold",
+      "icon": "👑",
+      "tier": "gold"
+    },
+    "RECRUIT": {
+      "id": "recruit",
+      "name": "Recruit",
+      "description": "Recruit your first unit",
+      "icon": "⚔️",
+      "tier": "bronze"
+    },
+    "COMMANDER": {
+      "id": "commander",
+      "name": "Commander",
+      "description": "Command an army of 10 units",
+      "icon": "🛡️",
+      "tier": "silver"
+    },
+    "GENERAL": {
+      "id": "general",
+      "name": "General",
+      "description": "Build an army with 500+ strength",
+      "icon": "⚡",
+      "tier": "gold"
+    },
+    "BELIEVER": {
+      "id": "believer",
+      "name": "Believer",
+      "description": "Reach 10 karma",
+      "icon": "☯️",
+      "tier": "bronze"
+    },
+    "HOLY": {
+      "id": "holy",
+      "name": "Holy",
+      "description": "Found a religion",
+      "icon": "🙏",
+      "tier": "silver"
+    },
+    "DIVINE": {
+      "id": "divine",
+      "name": "Divine",
+      "description": "Gain 10,000 followers",
+      "icon": "✨",
+      "tier": "gold"
+    },
+    "EXPLORER": {
+      "id": "explorer",
+      "name": "Explorer",
+      "description": "Explore 100 tiles",
+      "icon": "🗺️",
+      "tier": "bronze"
+    },
+    "CARTOGRAPHER": {
+      "id": "cartographer",
+      "name": "Cartographer",
+      "description": "Explore 500 tiles",
+      "icon": "🧭",
+      "tier": "silver"
+    },
+    "LANDLORD": {
+      "id": "landlord",
+      "name": "Landlord",
+      "description": "Own 5 properties",
+      "icon": "🏘️",
+      "tier": "bronze"
+    },
+    "MOGUL": {
+      "id": "mogul",
+      "name": "Mogul",
+      "description": "Own 20 properties",
+      "icon": "🏰",
+      "tier": "gold"
+    },
+    "KNOWN": {
+      "id": "known",
+      "name": "Known",
+      "description": "Reach 50 renown",
+      "icon": "⭐",
+      "tier": "bronze"
+    },
+    "FAMOUS": {
+      "id": "famous",
+      "name": "Famous",
+      "description": "Reach 100 renown",
+      "icon": "🌟",
+      "tier": "silver"
+    },
+    "LEGENDARY": {
+      "id": "legendary",
+      "name": "Legendary",
+      "description": "Reach 200 renown",
+      "icon": "💫",
+      "tier": "gold"
+    },
+    "SURVIVOR": {
+      "id": "survivor",
+      "name": "Survivor",
+      "description": "Survive 100 days",
+      "icon": "📅",
+      "tier": "bronze"
+    },
+    "VETERAN": {
+      "id": "veteran",
+      "name": "Veteran",
+      "description": "Survive 365 days (1 year)",
+      "icon": "🗓️",
+      "tier": "silver"
+    },
+    "IMMORTAL": {
+      "id": "immortal",
+      "name": "Immortal",
+      "description": "Survive 1000 days",
+      "icon": "⏳",
+      "tier": "gold"
+    },
+    "JACK_OF_TRADES": {
+      "id": "jack_of_trades",
+      "name": "Jack of All Trades",
+      "description": "Reach level 5 in all three paths",
+      "icon": "🎯",
+      "tier": "gold"
+    },
+    "MIRACLE_WORKER": {
+      "id": "miracle_worker",
+      "name": "Miracle Worker",
+      "description": "Perform 10 miracles",
+      "icon": "✝️",
+      "tier": "silver"
+    },
+    "PEACEKEEPER": {
+      "id": "peacekeeper",
+      "name": "Peacekeeper",
+      "description": "Maintain positive relations with all kingdoms",
+      "icon": "🕊️",
+      "tier": "gold"
+    },
+    "FIRST_KILL": {
+      "id": "first_kill",
+      "name": "First Kill",
+      "description": "Win your first battle",
+      "icon": "🗡️",
+      "tier": "bronze"
+    },
+    "DRAGON_SLAYER": {
+      "id": "dragon_slayer",
+      "name": "Dragon Slayer",
+      "description": "Defeat a legendary creature",
+      "icon": "🐉",
+      "tier": "gold"
+    },
+    "MERCHANT_PRINCE": {
+      "id": "merchant_prince",
+      "name": "Merchant Prince",
+      "description": "Complete 25 caravans",
+      "icon": "🐫",
+      "tier": "silver"
+    },
+    "ROAD_WARRIOR": {
+      "id": "road_warrior",
+      "name": "Road Warrior",
+      "description": "Build 50 road segments",
+      "icon": "🛤️",
+      "tier": "silver"
+    },
+    "MASTER_BUILDER": {
+      "id": "master_builder",
+      "name": "Master Builder",
+      "description": "Construct 20 buildings",
+      "icon": "🏗️",
+      "tier": "silver"
+    },
+    "SCHOLAR_SUPREME": {
+      "id": "scholar_supreme",
+      "name": "Scholar Supreme",
+      "description": "Research 15 technologies",
+      "icon": "📚",
+      "tier": "gold"
+    },
+    "HERESY_HUNTER": {
+      "id": "heresy_hunter",
+      "name": "Heresy Hunter",
+      "description": "Suppress 5 heresies",
+      "icon": "🔥",
+      "tier": "silver"
+    },
+    "BOUNTY_HUNTER": {
+      "id": "bounty_hunter",
+      "name": "Bounty Hunter",
+      "description": "Complete 10 military contracts",
+      "icon": "💀",
+      "tier": "silver"
+    },
+    "WARLORD_SUPREME": {
+      "id": "warlord_supreme",
+      "name": "Warlord Supreme",
+      "description": "Win 50 battles",
+      "icon": "⚔️",
+      "tier": "gold"
+    },
+    "TREASURE_SEEKER": {
+      "id": "treasure_seeker",
+      "name": "Treasure Seeker",
+      "description": "Find 5 hidden treasures",
+      "icon": "🗝️",
+      "tier": "bronze"
+    },
+    "RUIN_DELVER": {
+      "id": "ruin_delver",
+      "name": "Ruin Delver",
+      "description": "Explore 10 ancient ruins",
+      "icon": "🏚️",
+      "tier": "silver"
+    },
+    "TAVERN_CRAWLER": {
+      "id": "tavern_crawler",
+      "name": "Tavern Crawler",
+      "description": "Visit 20 different taverns",
+      "icon": "🍺",
+      "tier": "bronze"
+    },
+    "SPYMASTER": {
+      "id": "spymaster",
+      "name": "Spymaster",
+      "description": "Hire 10 informants",
+      "icon": "🕵️",
+      "tier": "silver"
+    },
+    "QUEST_MASTER": {
+      "id": "quest_master",
+      "name": "Quest Master",
+      "description": "Complete 20 quests",
+      "icon": "📋",
+      "tier": "gold"
+    },
+    "GLOBE_TROTTER": {
+      "id": "globe_trotter",
+      "name": "Globe Trotter",
+      "description": "Visit every kingdom in the realm",
+      "icon": "🌍",
+      "tier": "gold"
+    },
+    "PIRATE_HUNTER": {
+      "id": "pirate_hunter",
+      "name": "Pirate Hunter",
+      "description": "Defeat 5 pirate ships",
+      "icon": "🏴‍☠️",
+      "tier": "silver"
+    },
+    "CATHEDRAL_BUILDER": {
+      "id": "cathedral_builder",
+      "name": "Cathedral Builder",
+      "description": "Build a cathedral",
+      "icon": "⛪",
+      "tier": "gold"
+    },
+    "MOUNTAIN_KING": {
+      "id": "mountain_king",
+      "name": "Mountain King",
+      "description": "Own properties in a mountain settlement",
+      "icon": "⛰️",
+      "tier": "bronze"
+    },
+    "PATRON_OF_ARTS": {
+      "id": "patron_of_arts",
+      "name": "Patron of the Arts",
+      "description": "Build a theater and a university",
+      "icon": "🎭",
+      "tier": "silver"
+    },
+    "UNDYING": {
+      "id": "undying",
+      "name": "Undying",
+      "description": "Survive 5 battles at below 20% health",
+      "icon": "💪",
+      "tier": "gold"
+    }
+  }
+}

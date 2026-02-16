@@ -1,0 +1,159 @@
+{
+    "defaults": [
+        {
+            "id": "valdoria",
+            "name": "Kingdom of Valdoria",
+            "ruler": "King Aldric the Wise",
+            "color": "#e74c3c",
+            "colorLight": "rgba(231, 76, 60, 0.2)",
+            "culture": "Imperial",
+            "description": "A proud and ancient kingdom known for its disciplined armies and grand cities.",
+            "preferredTerrain": ["plains", "grassland", "hills"],
+            "traits": ["militaristic", "orderly"]
+        },
+        {
+            "id": "sylvaris",
+            "name": "Kingdom of Sylvaris",
+            "ruler": "Queen Elara the Green",
+            "color": "#27ae60",
+            "colorLight": "rgba(39, 174, 96, 0.2)",
+            "culture": "Woodland",
+            "description": "Forest dwellers who live in harmony with nature, masters of archery and herbal lore.",
+            "preferredTerrain": ["forest", "dense_forest", "grassland"],
+            "traits": ["peaceful", "nature-loving"]
+        },
+        {
+            "id": "kharzun",
+            "name": "Khanate of Kharzun",
+            "ruler": "Khan Borga Ironhand",
+            "color": "#f39c12",
+            "colorLight": "rgba(243, 156, 18, 0.2)",
+            "culture": "Nomadic",
+            "description": "Fierce horse riders of the steppes, united under a mighty Khan.",
+            "preferredTerrain": ["plains", "savanna", "desert"],
+            "traits": ["aggressive", "mobile"]
+        },
+        {
+            "id": "azurath",
+            "name": "Theocracy of Azurath",
+            "ruler": "High Priest Solon",
+            "color": "#8e44ad",
+            "colorLight": "rgba(142, 68, 173, 0.2)",
+            "culture": "Religious",
+            "description": "A nation governed by faith, where priests hold more power than warriors.",
+            "preferredTerrain": ["desert", "hills", "plains"],
+            "traits": ["religious", "scholarly"]
+        },
+        {
+            "id": "merathis",
+            "name": "Republic of Merathis",
+            "ruler": "Consul Lyanna of Tidewatch",
+            "color": "#2980b9",
+            "colorLight": "rgba(41, 128, 185, 0.2)",
+            "culture": "Maritime",
+            "description": "Expert sailors and traders who dominate the coastal trade routes.",
+            "preferredTerrain": ["coast", "beach", "grassland"],
+            "traits": ["mercantile", "naval"]
+        },
+        {
+            "id": "durheim",
+            "name": "Holds of Durheim",
+            "ruler": "Thane Grimvar Stonefist",
+            "color": "#795548",
+            "colorLight": "rgba(121, 85, 72, 0.2)",
+            "culture": "Mountain",
+            "description": "Dwarven-built strongholds carved into mountain peaks. Masters of siege craft and mineral wealth.",
+            "preferredTerrain": ["mountains", "hills", "tundra"],
+            "traits": ["defensive", "industrious"]
+        },
+        {
+            "id": "miregloom",
+            "name": "Dominion of Miregloom",
+            "ruler": "Witch-Queen Vasska the Veiled",
+            "color": "#2d6a4f",
+            "colorLight": "rgba(45, 106, 79, 0.2)",
+            "culture": "Swamp",
+            "description": "Reclusive marsh-dwellers who command dark alchemy and know poisons no healer can cure.",
+            "preferredTerrain": ["swamp", "wetland", "forest"],
+            "traits": ["secretive", "alchemical"]
+        },
+        {
+            "id": "luminara",
+            "name": "Conclave of Luminara",
+            "ruler": "Archmage Thalendros the Eternal",
+            "color": "#00bcd4",
+            "colorLight": "rgba(0, 188, 212, 0.2)",
+            "culture": "Arcane",
+            "description": "A magocracy ruled by a council of sorcerers. Knowledge and arcane power are currency here.",
+            "preferredTerrain": ["hills", "plains", "desert"],
+            "traits": ["scholarly", "arcane"]
+        },
+        {
+            "id": "frostmark",
+            "name": "Jarldom of Frostmark",
+            "ruler": "Jarl Sigrun Icecrown",
+            "color": "#90caf9",
+            "colorLight": "rgba(144, 202, 249, 0.2)",
+            "culture": "Nordic",
+            "description": "Hardy northern clans who worship the storm and raid southern shores each thaw season.",
+            "preferredTerrain": ["tundra", "mountains", "coast"],
+            "traits": ["aggressive", "seafaring"]
+        },
+        {
+            "id": "ashkari",
+            "name": "Sultanate of Ashkari",
+            "ruler": "Sultan Rashid al-Nuur",
+            "color": "#ff8f00",
+            "colorLight": "rgba(255, 143, 0, 0.2)",
+            "culture": "Desert",
+            "description": "Oasis lords who control the great desert trade routes and guard ancient buried treasures.",
+            "preferredTerrain": ["desert", "savanna", "plains"],
+            "traits": ["mercantile", "resilient"]
+        }
+    ],
+    "cityNames": {
+        "Imperial": ["Crownhaven", "Irongate", "Stonewall", "Highkeep", "Kingsbridge", "Whitehall", "Greywatch", "Northhold", "Eastmere", "Dragonspire", "Goldcrest", "Silverford", "Hammerfell", "Thornwall", "Embervale"],
+        "Woodland": ["Greenhollow", "Mosswood", "Ferndale", "Willowmere", "Birchroot", "Dewglen", "Oakshade", "Starbloom", "Moongrove", "Leafveil", "Blossomreach", "Thornheart", "Misthaven", "Elderwood", "Sunpetal"],
+        "Nomadic": ["Windspear", "Sunrock", "Dusthold", "Bonecrest", "Ironhoof", "Skyfall", "Redmane", "Thundercamp", "Ashplain", "Stormridge", "Hawknest", "Bloodsand", "Flamepeak", "Wolfden", "Eaglerock"],
+        "Religious": ["Holyspire", "Solarum", "Celestia", "Sanctum", "Divinara", "Soulkeep", "Blessingford", "Lightreach", "Gracemere", "Faithhold", "Templeguard", "Starfall", "Oraclewatch", "Hymnsgate", "Prayerveil"],
+        "Maritime": ["Tidewatch", "Harbordeep", "Saltbay", "Coralhaven", "Wavecrest", "Anchorpoint", "Stormport", "Seabreeze", "Pearlshore", "Driftwood", "Sailmere", "Shellhaven", "Fogport", "Riptide", "Deepwater"],
+        "Mountain": ["Ironpeak", "Stonedeep", "Granithall", "Forgehollow", "Anvilheim", "Darkmine", "Thunderhelm", "Crystalvein", "Hammerfall", "Deepforge", "Boulderkeep", "Ridgewatch", "Peakguard", "Coalhearth", "Drakestone"],
+        "Swamp": ["Murkwater", "Boghollow", "Fenroot", "Mistmarsh", "Rotwood", "Gloomfen", "Vilethorn", "Stillwater", "Blackmire", "Dankhollow", "Venomreach", "Huskshore", "Witchpool", "Mossgrave", "Shademarsh"],
+        "Arcane": ["Spellhaven", "Runeward", "Aetherspire", "Crystalis", "Glyphgate", "Manafount", "Starweave", "Voidholt", "Enchantia", "Prismkeep", "Sigilwatch", "Arcanum", "Shimmerhold", "Nexuspoint", "Leystone"],
+        "Nordic": ["Frostholm", "Stormveil", "Icehaven", "Rimhold", "Snowpeak", "Glaciermaw", "Wolfstead", "Thunderfjord", "Bonechill", "Hearthstone", "Longbarrow", "Dragonrest", "Shieldwall", "Blizzardkeep", "Ashenfell"],
+        "Desert": ["Sunshard", "Oasisfall", "Dunehold", "Miragegate", "Sandspire", "Scorchkeep", "Goldenveil", "Emberwatch", "Dusthaven", "Palmrest", "Serpentmere", "Heatforge", "Starpool", "Camelford", "Windridge"]
+    },
+    "rulerTitles": {
+        "Imperial": ["King", "Queen", "Emperor", "Empress"],
+        "Woodland": ["Queen", "King", "Elder", "Sage"],
+        "Nomadic": ["Khan", "Chieftain", "Warlord"],
+        "Religious": ["High Priest", "High Priestess", "Prophet", "Oracle"],
+        "Maritime": ["Consul", "Admiral", "Lord", "Lady"],
+        "Mountain": ["Thane", "Stone-King", "Stone-Queen", "Forgelord"],
+        "Swamp": ["Witch-Queen", "Witch-King", "Bog-Lord", "Hag-Mother"],
+        "Arcane": ["Archmage", "High Sorcerer", "Grand Enchanter", "Magister"],
+        "Nordic": ["Jarl", "High King", "Shield-Maiden", "Stormcaller"],
+        "Desert": ["Sultan", "Sultana", "Emir", "Vizier"]
+    },
+    "rulerNames": {
+        "Imperial": ["Aldric", "Cedric", "Edmund", "Roland", "Theron", "Victor", "Helena", "Isabella", "Morgana", "Rowena", "Vivienne"],
+        "Woodland": ["Elara", "Sylvan", "Thalia", "Rowan", "Faelan", "Arden", "Lyra", "Elowen", "Briar", "Cypress", "Willow"],
+        "Nomadic": ["Borga", "Temur", "Khal", "Drogo", "Ragnar", "Ulfric", "Yara", "Khara", "Nara", "Zara", "Shara"],
+        "Religious": ["Solon", "Matthias", "Ezekiel", "Silas", "Tobias", "Miriam", "Seraphina", "Celeste", "Evangeline", "Theodora"],
+        "Maritime": ["Lyanna", "Marcus", "Octavia", "Tiberius", "Cassius", "Marina", "Cordelia", "Nerissa", "Portia", "Caspian"],
+        "Mountain": ["Grimvar", "Thorin", "Durak", "Bragni", "Tormund", "Helga", "Brynhild", "Gerta", "Steinra", "Ulfhild"],
+        "Swamp": ["Vasska", "Morwen", "Cressida", "Gregor", "Thane", "Hilda", "Nethra", "Sable", "Grendel", "Isolde"],
+        "Arcane": ["Thalendros", "Myrinda", "Vexius", "Solenne", "Caelum", "Oriana", "Zyphros", "Ilyana", "Ferenis", "Astraea"],
+        "Nordic": ["Sigrun", "Bjorn", "Freya", "Harald", "Ivar", "Astrid", "Gunnar", "Thyra", "Eirik", "Ragna"],
+        "Desert": ["Rashid", "Farid", "Zainab", "Khalil", "Amira", "Tariq", "Layla", "Harun", "Soraya", "Mustafa"]
+    },
+    "epithets": [
+        "the Wise", "the Bold", "the Just", "the Great", "the Fair",
+        "the Strong", "the Brave", "the Merciful", "the Stern", "the Cunning",
+        "Ironhand", "Stormborn", "the Unifier", "the Defender", "the Reformer",
+        "the Eternal", "the Veiled", "the Unyielding", "the Radiant", "the Dread",
+        "Stonefist", "the Alchemist", "the Conqueror", "the Pious", "Frostbane",
+        "the Wanderer", "Dragonslayer", "the Golden", "the Silent", "Oathbreaker",
+        "the Beloved", "the Feared", "the Architect", "Thunderborn", "the Undying"
+    ]
+}

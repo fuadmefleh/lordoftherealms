@@ -1,0 +1,21 @@
+{
+  "name": "lord-of-the-realms",
+  "version": "0.3.0",
+  "description": "A deep hex-grid strategy game — rise from wanderer to ruler through trade, warfare, faith, and diplomacy.",
+  "private": true,
+  "scripts": {
+    "start": "npx http-server . -p 8081 -c-1 --cors",
+    "test": "npx http-server . -p 8082 -c-1 --cors -o tests/index.html"
+  },
+  "keywords": [
+    "strategy",
+    "hex-grid",
+    "game",
+    "canvas",
+    "vanilla-js"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

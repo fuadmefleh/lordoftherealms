@@ -750,6 +750,7 @@ const Technology = {
      */
     canResearch(player, techId, world) {
         Technology.initPlayer(player);
+        if (!Technology.TECHS) return { can: false, reason: 'Technology system not initialized' };
         const tech = Technology.TECHS[techId.toUpperCase()] || Object.values(Technology.TECHS).find(t => t.id === techId);
         if (!tech) return { can: false, reason: 'Unknown technology' };
 
@@ -1076,6 +1077,7 @@ const Technology = {
      * Get tech definition by its id string
      */
     getTechByID(techId) {
+        if (!Technology.TECHS) return null;
         return Object.values(Technology.TECHS).find(t => t.id === techId) || null;
     },
 
@@ -1093,6 +1095,7 @@ const Technology = {
     getAvailableTechs(player) {
         Technology.initPlayer(player);
         const available = [];
+        if (!Technology.TECHS) return available;
         for (const tech of Object.values(Technology.TECHS)) {
             if (player.technology.researched.includes(tech.id)) continue;
             const prereqsMet = tech.requires.every(req => player.technology.researched.includes(req));
@@ -1109,6 +1112,7 @@ const Technology = {
         for (const cat of Object.values(Technology.CATEGORIES)) {
             result[cat.id] = [];
         }
+        if (!Technology.TECHS) return result;
         for (const tech of Object.values(Technology.TECHS)) {
             if (result[tech.category]) {
                 result[tech.category].push(tech);

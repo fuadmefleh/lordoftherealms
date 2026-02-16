@@ -1,0 +1,126 @@
+{
+    "firstNames": {
+        "Imperial": {
+            "male": ["Aldric", "Cedric", "Edmund", "Roland", "Theron", "Victor", "Cassian", "Lucius", "Hadrian", "Maximilian", "Aurelius", "Valerius", "Titus", "Gaius", "Cato", "Darius", "Reginald", "Baldwin", "Godfrey", "Percival"],
+            "female": ["Helena", "Isabella", "Morgana", "Rowena", "Vivienne", "Serena", "Octavia", "Livia", "Cornelia", "Agrippina", "Faustina", "Theodora", "Adelaide", "Matilda", "Eleanor", "Beatrice", "Constance", "Alyssandra", "Valentina", "Marcella"]
+        },
+        "Woodland": {
+            "male": ["Sylvan", "Rowan", "Faelan", "Arden", "Thorne", "Alder", "Branwen", "Celyn", "Eryn", "Linden", "Ash", "Briar", "Cypress", "Elm", "Yarrow", "Fennel", "Sage", "Reed", "Hazel", "Wren"],
+            "female": ["Elara", "Thalia", "Lyra", "Elowen", "Willow", "Ivy", "Marigold", "Primrose", "Fern", "Laurel", "Dahlia", "Jasmine", "Lily", "Rose", "Violet", "Hawthorn", "Blossom", "Aurora", "Luna", "Celeste"]
+        },
+        "Nomadic": {
+            "male": ["Borga", "Temur", "Khal", "Ragnar", "Ulfric", "Oghuz", "Targon", "Bataar", "Erlik", "Toghrul", "Chagatai", "Subotai", "Jebe", "Mongke", "Hulagu", "Argun", "Berke", "Nogai", "Batu", "Timur"],
+            "female": ["Yara", "Khara", "Nara", "Zara", "Shara", "Altani", "Mandukhai", "Borte", "Khulan", "Sorghaghtani", "Ayanga", "Sarangerel", "Tsetseg", "Odval", "Enkhtuya", "Oyuun", "Solongo", "Narantsetseg", "Ariunaa", "Bayarmaa"]
+        },
+        "Religious": {
+            "male": ["Solon", "Matthias", "Ezekiel", "Silas", "Tobias", "Elijah", "Isaiah", "Malachi", "Nathaniel", "Zachariah", "Jeremiah", "Gabriel", "Raphael", "Michael", "Uriel", "Solomon", "Abraham", "Moses", "Aaron", "Josiah"],
+            "female": ["Miriam", "Seraphina", "Celeste", "Evangeline", "Theodora", "Magdalena", "Bethany", "Naomi", "Ruth", "Esther", "Deborah", "Hannah", "Sarah", "Abigail", "Tabitha", "Priscilla", "Lydia", "Martha", "Mary", "Judith"]
+        },
+        "Maritime": {
+            "male": ["Marcus", "Tiberius", "Cassius", "Caspian", "Neptune", "Drake", "Triton", "Corsair", "Sterling", "Harbour", "Maren", "Reef", "Tide", "Storm", "Anchor", "Navarro", "Aegeus", "Peleus", "Odysseus", "Ajax"],
+            "female": ["Lyanna", "Octavia", "Marina", "Cordelia", "Nerissa", "Portia", "Ariel", "Coral", "Pearl", "Tempest", "Siren", "Ondine", "Cascade", "Isla", "Delta", "Nautica", "Calypso", "Tethys", "Amphitrite", "Galatea"]
+        },
+        "Mountain": {
+            "male": ["Grimvar", "Thorin", "Durak", "Bragni", "Tormund", "Dolgrin", "Kragg", "Rurik", "Baldr", "Grundar", "Morak", "Thrain", "Dvalinn", "Sindri", "Brokkr", "Haldor", "Jotunn", "Magni", "Volund", "Dain"],
+            "female": ["Helga", "Brynhild", "Gerta", "Steinra", "Ulfhild", "Sigrid", "Dagny", "Hilda", "Gudrun", "Ragnhild", "Thora", "Ingrid", "Bergljot", "Alfhild", "Gunnhild", "Solveig", "Runa", "Hertha", "Freja", "Astrid"]
+        },
+        "Swamp": {
+            "male": ["Gregor", "Thane", "Grendel", "Morkul", "Svarthos", "Fenric", "Blight", "Corvin", "Draven", "Malachar", "Rotgar", "Vexis", "Nocturn", "Thorn", "Wraith", "Shadric", "Grimshaw", "Bogdan", "Marrow", "Sulk"],
+            "female": ["Vasska", "Morwen", "Cressida", "Hilda", "Nethra", "Sable", "Isolde", "Bramble", "Nightshade", "Hemlock", "Belladonna", "Muriel", "Wilta", "Fen", "Morrigan", "Circe", "Medea", "Ravenna", "Nyx", "Umbra"]
+        },
+        "Arcane": {
+            "male": ["Thalendros", "Vexius", "Caelum", "Zyphros", "Ferenis", "Alderon", "Malakai", "Sylas", "Orion", "Zephyrus", "Arcturus", "Endymion", "Helios", "Morpheus", "Daedalus", "Phaeton", "Icarus", "Proteus", "Kronos", "Atlas"],
+            "female": ["Myrinda", "Solenne", "Oriana", "Ilyana", "Astraea", "Selene", "Circe", "Hecate", "Ariadne", "Pandora", "Callista", "Olympia", "Theia", "Rhea", "Maia", "Phoebe", "Vesta", "Minerva", "Athena", "Cassandra"]
+        },
+        "Nordic": {
+            "male": ["Bjorn", "Harald", "Ivar", "Gunnar", "Eirik", "Leif", "Thorvald", "Halfdan", "Sigurd", "Olaf", "Sven", "Ragnar", "Fenrir", "Baldur", "Tyr", "Vidar", "Brynjar", "Njord", "Skald", "Hakon"],
+            "female": ["Sigrun", "Freya", "Astrid", "Thyra", "Ragna", "Lagertha", "Ingrid", "Brynhild", "Gudrun", "Sif", "Idun", "Skuld", "Hel", "Nanna", "Ran", "Alvilda", "Geirahod", "Hervor", "Svanhild", "Yrsa"]
+        },
+        "Desert": {
+            "male": ["Rashid", "Farid", "Khalil", "Tariq", "Harun", "Mustafa", "Salim", "Omar", "Nassir", "Aziz", "Karim", "Jamal", "Idris", "Malik", "Faisal", "Rami", "Zayd", "Badr", "Qasim", "Hamza"],
+            "female": ["Zainab", "Amira", "Layla", "Soraya", "Fatima", "Yasmin", "Nahla", "Samira", "Dalila", "Leila", "Nadia", "Safiya", "Aisha", "Khadija", "Maryam", "Hana", "Rania", "Dunya", "Farida", "Zahra"]
+        }
+    },
+    "dynastyNames": {
+        "Imperial": ["Valorian", "Drakonhart", "Highcrown", "Ironthrone", "Goldenhelm", "Steelblood", "Stormborne", "Lionmane", "Eaglecrest", "Wolfsbane"],
+        "Woodland": ["Greenleaf", "Mosshart", "Starbough", "Dawnroot", "Moonpetal", "Silverbirch", "Goldenbark", "Thornbloom", "Willowsong", "Fernwhisper"],
+        "Nomadic": ["Ironhoof", "Skyrider", "Stormclaw", "Thundermane", "Bloodhawk", "Windfang", "Bonecrusher", "Ashwalker", "Sandviper", "Firemane"],
+        "Religious": ["Lightbringer", "Divineheart", "Soulkeeper", "Stargaze", "Holyflame", "Sanctimonious", "Graceborn", "Radiant", "Celestine", "Oracleblood"],
+        "Maritime": ["Tidecaller", "Stormhaven", "Deepwater", "Saltblood", "Wavecrest", "Coralking", "Anchorstone", "Seafoam", "Driftborn", "Riptide"],
+        "Mountain": ["Stonefist", "Ironforge", "Deepminer", "Hammervein", "Graniteborn", "Obsidianhart", "Boulderkin", "Peakwalker", "Crystalblood", "Anvilstrike"],
+        "Swamp": ["Bogweaver", "Mistwalker", "Rotspore", "Gloomthorn", "Venomblood", "Nightroot", "Murkmaw", "Witchfen", "Swamphollow", "Blightborn"],
+        "Arcane": ["Spellweaver", "Runeblood", "Starfire", "Voidwalker", "Manastorm", "Crystalmind", "Aethersong", "Glyphborn", "Sigilhart", "Prismkeeper"],
+        "Nordic": ["Stormborn", "Frostbane", "Wolfclaw", "Ravenblood", "Thunderson", "Icemane", "Bearclaw", "Snowdrift", "Ironhelm", "Shieldbreaker"],
+        "Desert": ["al-Nuur", "al-Sahir", "al-Rashid", "al-Farid", "al-Qadir", "al-Hakim", "al-Mansur", "al-Zahir", "al-Wazir", "al-Khalid"]
+    },
+    "rulerTraits": {
+        "brilliant_strategist": { "id": "brilliant_strategist", "name": "Brilliant Strategist", "icon": "🗡️", "category": "positive", "effects": { "military": 0.20, "warBonus": 0.15 }, "description": "Exceptional military mind" },
+        "silver_tongue": { "id": "silver_tongue", "name": "Silver Tongue", "icon": "🗣️", "category": "positive", "effects": { "diplomacy": 0.25, "tradeBonus": 0.10 }, "description": "Master negotiator and diplomat" },
+        "just_ruler": { "id": "just_ruler", "name": "Just Ruler", "icon": "⚖️", "category": "positive", "effects": { "loyalty": 0.20, "stability": 0.15 }, "description": "Fair and beloved by the people" },
+        "master_builder": { "id": "master_builder", "name": "Master Builder", "icon": "🏗️", "category": "positive", "effects": { "construction": 0.25, "population": 0.10 }, "description": "Great architect and city planner" },
+        "wise": { "id": "wise", "name": "Wise", "icon": "📖", "category": "positive", "effects": { "stewardship": 0.15, "research": 0.20 }, "description": "Deep thinker who makes sound decisions" },
+        "charismatic": { "id": "charismatic", "name": "Charismatic", "icon": "✨", "category": "positive", "effects": { "loyalty": 0.15, "diplomacy": 0.15 }, "description": "Natural leader who inspires others" },
+        "frugal": { "id": "frugal", "name": "Frugal", "icon": "💎", "category": "positive", "effects": { "treasury": 0.20, "upkeep": -0.15 }, "description": "Careful with money and resources" },
+        "fertile": { "id": "fertile", "name": "Fertile", "icon": "🌱", "category": "positive", "effects": { "heirs": 0.30 }, "description": "Blessed with many children" },
+        "brave": { "id": "brave", "name": "Brave", "icon": "🛡️", "category": "positive", "effects": { "military": 0.10, "loyalty": 0.10 }, "description": "Fearless in battle, admired by troops" },
+        "devout": { "id": "devout", "name": "Devout", "icon": "🙏", "category": "positive", "effects": { "faith": 0.25, "stability": 0.10 }, "description": "Deeply religious, favored by clergy" },
+        "cruel": { "id": "cruel", "name": "Cruel", "icon": "💀", "category": "negative", "effects": { "loyalty": -0.25, "military": 0.10 }, "description": "Rules through fear and punishment" },
+        "paranoid": { "id": "paranoid", "name": "Paranoid", "icon": "👁️", "category": "negative", "effects": { "diplomacy": -0.20, "intrigue": 0.20 }, "description": "Trusts no one, suspects treachery everywhere" },
+        "decadent": { "id": "decadent", "name": "Decadent", "icon": "🍷", "category": "negative", "effects": { "treasury": -0.20, "stability": -0.15 }, "description": "Wastes gold on lavish excess" },
+        "weak_willed": { "id": "weak_willed", "name": "Weak-Willed", "icon": "😰", "category": "negative", "effects": { "loyalty": -0.10, "stability": -0.20 }, "description": "Easily manipulated by advisors and nobles" },
+        "wrathful": { "id": "wrathful", "name": "Wrathful", "icon": "🔥", "category": "negative", "effects": { "diplomacy": -0.15, "warBonus": 0.10 }, "description": "Quick to anger, slow to forgive" },
+        "slothful": { "id": "slothful", "name": "Slothful", "icon": "😴", "category": "negative", "effects": { "stewardship": -0.20, "construction": -0.15 }, "description": "Lazy and neglectful of duties" },
+        "greedy": { "id": "greedy", "name": "Greedy", "icon": "🤑", "category": "negative", "effects": { "treasury": 0.15, "loyalty": -0.20 }, "description": "Hoards wealth at the people's expense" },
+        "cowardly": { "id": "cowardly", "name": "Cowardly", "icon": "🐀", "category": "negative", "effects": { "military": -0.20, "loyalty": -0.10 }, "description": "Flees from danger, despised by warriors" },
+        "ambitious": { "id": "ambitious", "name": "Ambitious", "icon": "🔱", "category": "neutral", "effects": { "expansion": 0.25, "stability": -0.10 }, "description": "Driven to expand and conquer" },
+        "cunning": { "id": "cunning", "name": "Cunning", "icon": "🦊", "category": "neutral", "effects": { "intrigue": 0.25, "diplomacy": 0.10 }, "description": "Clever schemer who plays the long game" }
+    },
+    "advisorRoles": {
+        "general": {
+            "id": "general", "name": "Military General", "icon": "⚔️",
+            "description": "Commands the armies and oversees defense",
+            "primarySkill": "martial", "secondarySkill": "leadership",
+            "bonuses": { "military": 0.15, "warBonus": 0.10 }
+        },
+        "treasurer": {
+            "id": "treasurer", "name": "Royal Treasurer", "icon": "💰",
+            "description": "Manages the kingdom's finances and trade",
+            "primarySkill": "stewardship", "secondarySkill": "commerce",
+            "bonuses": { "treasury": 0.15, "tradeBonus": 0.10 }
+        },
+        "spymaster": {
+            "id": "spymaster", "name": "Spymaster", "icon": "🗝️",
+            "description": "Handles espionage, counter-intelligence, and intrigue",
+            "primarySkill": "intrigue", "secondarySkill": "cunning",
+            "bonuses": { "intrigue": 0.20, "stability": 0.05 }
+        },
+        "chancellor": {
+            "id": "chancellor", "name": "Grand Chancellor", "icon": "📜",
+            "description": "Manages diplomacy and foreign affairs",
+            "primarySkill": "diplomacy", "secondarySkill": "charisma",
+            "bonuses": { "diplomacy": 0.20, "relations": 0.10 }
+        },
+        "steward": {
+            "id": "steward", "name": "High Steward", "icon": "🏛️",
+            "description": "Oversees internal administration and construction",
+            "primarySkill": "stewardship", "secondarySkill": "administration",
+            "bonuses": { "construction": 0.15, "population": 0.10 }
+        }
+    },
+    "characterEvents": [
+        { "id": "heir_born", "weight": 15, "minAge": 18, "maxAge": 50, "requires": "married", "text": "{ruler} and {spouse} have been blessed with a child, {child}!", "type": "dynasty", "impact": "positive" },
+        { "id": "ruler_ill", "weight": 8, "minAge": 40, "maxAge": 100, "text": "{ruler} has fallen gravely ill. The court prays for recovery.", "type": "health", "impact": "negative" },
+        { "id": "ruler_recovers", "weight": 6, "requires": "ill", "text": "{ruler} has recovered from illness! The realm celebrates.", "type": "health", "impact": "positive" },
+        { "id": "assassination_attempt", "weight": 3, "text": "An assassination attempt on {ruler}! The spymaster investigates.", "type": "intrigue", "impact": "negative" },
+        { "id": "trait_gained", "weight": 5, "text": "{ruler} has developed a reputation as {trait}.", "type": "character", "impact": "neutral" },
+        { "id": "advisor_scandal", "weight": 4, "text": "Scandal! The {advisorRole} of {kingdom} has been caught in corruption.", "type": "intrigue", "impact": "negative" },
+        { "id": "marriage_proposal", "weight": 6, "text": "{kingdom} proposes a marriage alliance between {char1} and {char2}.", "type": "diplomacy", "impact": "neutral" },
+        { "id": "succession_crisis", "weight": 2, "requires": "no_heirs", "text": "With no clear heir, {kingdom} faces a succession crisis!", "type": "political", "impact": "negative" },
+        { "id": "feast", "weight": 8, "text": "{ruler} hosts a grand feast, improving relations with neighboring rulers.", "type": "diplomacy", "impact": "positive" },
+        { "id": "tournament", "weight": 6, "text": "A grand tournament is held in {kingdom}! Knights from across the realm compete.", "type": "military", "impact": "positive" },
+        { "id": "advisor_betrayal", "weight": 2, "text": "The {advisorRole} of {kingdom} has been secretly working for a rival kingdom!", "type": "intrigue", "impact": "negative" },
+        { "id": "dynasty_feud", "weight": 4, "text": "A bitter feud erupts within the {dynasty} dynasty over inheritance rights.", "type": "dynasty", "impact": "negative" },
+        { "id": "brilliant_child", "weight": 3, "requires": "has_children", "text": "Young {child} of {kingdom} shows exceptional talent, impressing the court.", "type": "dynasty", "impact": "positive" },
+        { "id": "marriage_celebration", "weight": 5, "requires": "unmarried_heir", "text": "{heir} of {kingdom} celebrates a royal wedding with {spouse}.", "type": "dynasty", "impact": "positive" }
+    ]
+}

@@ -179,6 +179,8 @@ const SaveLoad = {
             colonies: player.colonies || [],
             maps: player.maps || [],
             discoveredLore: Array.from(player.discoveredLore || []),
+            discoveredHolySites: Array.from(player.discoveredHolySites || []),
+            discoveredExtinctFaiths: Array.from(player.discoveredExtinctFaiths || []),
             kingdomKnowledge: player.kingdomKnowledge || {},
             queuedPath: player.queuedPath || null,
             queuedPathIndex: player.queuedPathIndex || 0,
@@ -259,6 +261,20 @@ const SaveLoad = {
             player.discoveredLore = new Set(player.discoveredLore);
         } else {
             player.discoveredLore = new Set();
+        }
+
+        // Restore discoveredHolySites (convert Array back to Set)
+        if (player.discoveredHolySites && Array.isArray(player.discoveredHolySites)) {
+            player.discoveredHolySites = new Set(player.discoveredHolySites);
+        } else {
+            player.discoveredHolySites = new Set();
+        }
+
+        // Restore discoveredExtinctFaiths (convert Array back to Set)
+        if (player.discoveredExtinctFaiths && Array.isArray(player.discoveredExtinctFaiths)) {
+            player.discoveredExtinctFaiths = new Set(player.discoveredExtinctFaiths);
+        } else {
+            player.discoveredExtinctFaiths = new Set();
         }
     },
 

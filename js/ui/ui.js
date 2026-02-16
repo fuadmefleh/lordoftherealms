@@ -56,11 +56,21 @@ class UI {
         document.getElementById('btnToggleResources').addEventListener('click', () => {
             const renderer = this.game.renderer;
             renderer.showResources = !renderer.showResources;
+            const stateEl = document.getElementById('resourceToggleState');
+            if (stateEl) {
+                stateEl.textContent = renderer.showResources ? 'ON' : 'OFF';
+                stateEl.classList.toggle('on', renderer.showResources);
+            }
             this.showNotification('Display', `Resource Icons: ${renderer.showResources ? 'ON' : 'OFF'}`, 'info');
         });
         document.getElementById('btnToggleBorders').addEventListener('click', () => {
             const renderer = this.game.renderer;
             renderer.showTerritories = !renderer.showTerritories;
+            const stateEl = document.getElementById('borderToggleState');
+            if (stateEl) {
+                stateEl.textContent = renderer.showTerritories ? 'ON' : 'OFF';
+                stateEl.classList.toggle('on', renderer.showTerritories);
+            }
             this.showNotification('Display', `Kingdom Borders: ${renderer.showTerritories ? 'ON' : 'OFF'}`, 'info');
         });
 
@@ -71,6 +81,9 @@ class UI {
         }
 
         document.getElementById('btnEndTurn').addEventListener('click', () => this.game.endDay());
+
+        // --- Civ-style dropdown menu behavior ---
+        this.setupCivDropdowns();
 
         // Gold stat click — show finance tracker
         const goldStat = document.getElementById('goldStat');
@@ -83,6 +96,69 @@ class UI {
         document.getElementById('hexInfoClose').addEventListener('click', () => this.hidePanel('hexInfoPanel'));
         document.getElementById('kingdomClose').addEventListener('click', () => this.hidePanel('kingdomPanel'));
         document.getElementById('characterClose').addEventListener('click', () => this.hidePanel('characterPanel'));
+    }
+
+    /**
+     * Setup Civ-style dropdown menus for the top bar
+     */
+    setupCivDropdowns() {
+        const menuPairs = [
+            { btn: 'civMapBtn', dropdown: 'civMapDropdown' },
+            { btn: 'civEmpireBtn', dropdown: 'civEmpireDropdown' },
+            { btn: 'civJournalBtn', dropdown: 'civJournalDropdown' },
+        ];
+
+        // Toggle dropdown on button click
+        menuPairs.forEach(({ btn, dropdown }) => {
+            const btnEl = document.getElementById(btn);
+            const dropEl = document.getElementById(dropdown);
+            if (!btnEl || !dropEl) return;
+
+            btnEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isOpen = dropEl.classList.contains('open');
+                // Close all dropdowns first
+                this.closeAllCivDropdowns(menuPairs);
+                // Toggle the clicked one
+                if (!isOpen) {
+                    dropEl.classList.add('open');
+                    btnEl.classList.add('active');
+                }
+            });
+        });
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', () => {
+            this.closeAllCivDropdowns(menuPairs);
+        });
+
+        // Prevent dropdown clicks from closing (except for action items)
+        document.querySelectorAll('.civ-dropdown').forEach(dd => {
+            dd.addEventListener('click', (e) => {
+                // Close dropdown after clicking an action item (not toggle items)
+                const item = e.target.closest('.civ-dropdown-item');
+                if (item) {
+                    // Don't auto-close for toggle items (resources/borders)
+                    const hasToggle = item.querySelector('.civ-dd-toggle');
+                    if (!hasToggle) {
+                        this.closeAllCivDropdowns(menuPairs);
+                    }
+                }
+                e.stopPropagation();
+            });
+        });
+    }
+
+    /**
+     * Close all Civ-style dropdown menus
+     */
+    closeAllCivDropdowns(menuPairs) {
+        menuPairs.forEach(({ btn, dropdown }) => {
+            const btnEl = document.getElementById(btn);
+            const dropEl = document.getElementById(dropdown);
+            if (btnEl) btnEl.classList.remove('active');
+            if (dropEl) dropEl.classList.remove('open');
+        });
     }
 
     /**
@@ -1331,7 +1407,7 @@ class UI {
             inventoryHtml = '<div style="display: grid; gap: 8px;">';
             for (const [itemId, quantity] of Object.entries(player.inventory)) {
                 // Try to find the item in PlayerEconomy.GOODS
-                const item = PlayerEconomy.GOODS[itemId.toUpperCase()];
+                const item = PlayerEconomy.GOODS ? PlayerEconomy.GOODS[itemId.toUpperCase()] : null;
                 if (item && quantity > 0) {
                     inventoryHtml += `
                         <div style="display: flex; justify-content: space-between; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
@@ -1536,11 +1612,14 @@ class UI {
                 html += `<div style="color: #95a5a6; font-style: italic; font-size: 12px; margin-bottom: 8px;">There ${unknownCount === 1 ? 'is' : 'are'} ${unknownCount} other faith${unknownCount === 1 ? '' : 's'} in the world you have yet to learn about.</div>`;
             }
 
-            // Extinct faiths — always show (historical knowledge)
+            // Extinct faiths — only show ones the player has discovered
             const extinctFaiths = Object.values(Religion.FAITHS).filter(f => f.extinct);
-            if (extinctFaiths.length > 0) {
+            const discoveredExtinct = extinctFaiths.filter(f => player.discoveredExtinctFaiths && player.discoveredExtinctFaiths.has(f.id));
+            const undiscoveredExtinctCount = extinctFaiths.length - discoveredExtinct.length;
+
+            if (discoveredExtinct.length > 0 || undiscoveredExtinctCount > 0) {
                 html += '<div style="font-size: 13px; color: #95a5a6; margin: 12px 0 6px;">Extinct Faiths</div>';
-                for (const faith of extinctFaiths) {
+                for (const faith of discoveredExtinct) {
                     html += `
                         <div style="padding: 8px 12px; margin-bottom: 6px; background: rgba(255,255,255,0.03); border-radius: 4px; border-left: 3px solid #555; opacity: 0.7;">
                             <div><span style="font-size: 16px;">${faith.icon}</span> <strong>${faith.name}</strong> <span style="font-size: 11px; color: #777;">(${faith.founded} – ${faith.extinctYear})</span></div>
@@ -1548,23 +1627,36 @@ class UI {
                         </div>
                     `;
                 }
+                if (undiscoveredExtinctCount > 0) {
+                    html += `<div style="color: #95a5a6; font-style: italic; font-size: 12px; margin-bottom: 8px;">There ${undiscoveredExtinctCount === 1 ? 'is' : 'are'} ${undiscoveredExtinctCount} forgotten faith${undiscoveredExtinctCount === 1 ? '' : 's'} lost to history. Explore ancient holy sites, study ruins, or seek knowledge in taverns to uncover them.</div>`;
+                }
             }
 
-            // ── HOLY SITES ── (only show for known kingdoms or unclaimed)
+            // ── HOLY SITES ── (only show ones the player has discovered via exploration)
             const holySites = [];
+            const discoveredHS = player.discoveredHolySites || new Set();
             for (let r = 0; r < world.height; r++) {
                 for (let q = 0; q < world.width; q++) {
                     const tile = world.getTile(q, r);
                     if (tile && tile.holySite) {
-                        const controller = tile.holySite.controller;
-                        // Show if unclaimed or player knows the controlling kingdom's religion
-                        if (!controller || player.knowsAbout(controller, 'religion')) {
+                        // Only show if the player has explored this tile or discovered via other means
+                        if (discoveredHS.has(`${q},${r}`)) {
                             holySites.push({ q, r, site: tile.holySite });
                         }
                     }
                 }
             }
-            if (holySites.length > 0) {
+            // Count total holy sites for hint
+            let totalHolySites = 0;
+            for (let r = 0; r < world.height; r++) {
+                for (let q = 0; q < world.width; q++) {
+                    const tile = world.getTile(q, r);
+                    if (tile && tile.holySite) totalHolySites++;
+                }
+            }
+            const undiscoveredSiteCount = totalHolySites - holySites.length;
+
+            if (holySites.length > 0 || undiscoveredSiteCount > 0) {
                 html += '<div class="info-section-title" style="margin-top: 16px;">⛲ Holy Sites</div>';
                 for (const hs of holySites) {
                     const controller = hs.site.controller ? world.getKingdom(hs.site.controller) : null;
@@ -1580,6 +1672,9 @@ class UI {
                             </div>
                         </div>
                     `;
+                }
+                if (undiscoveredSiteCount > 0) {
+                    html += `<div style="color: #95a5a6; font-style: italic; font-size: 12px; margin-top: 4px;">Rumors suggest ${undiscoveredSiteCount} more holy site${undiscoveredSiteCount === 1 ? ' exists' : 's exist'} in unexplored lands.</div>`;
                 }
             }
         }

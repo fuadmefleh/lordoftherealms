@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lord of the Realms — Test Suite</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background: #0d1117;
+            color: #c9d1d9;
+            padding: 24px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #58a6ff;
+            margin-bottom: 8px;
+            font-size: 24px;
+        }
+        .subtitle {
+            color: #8b949e;
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+        #status {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        .status-running { background: #1f2937; color: #f59e0b; border: 1px solid #f59e0b; }
+        .status-passed { background: #064e3b; color: #34d399; border: 1px solid #34d399; }
+        .status-failed { background: #7f1d1d; color: #f87171; border: 1px solid #f87171; }
+
+        #summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .summary-card {
+            padding: 16px;
+            border-radius: 6px;
+            background: #161b22;
+            border: 1px solid #30363d;
+            text-align: center;
+        }
+        .summary-card .label { font-size: 12px; color: #8b949e; text-transform: uppercase; }
+        .summary-card .value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+        .summary-card.total .value { color: #58a6ff; }
+        .summary-card.passed .value { color: #34d399; }
+        .summary-card.failed .value { color: #f87171; }
+        .summary-card.time .value { color: #f59e0b; }
+
+        #log {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 16px;
+            max-height: 600px;
+            overflow-y: auto;
+            font-size: 13px;
+        }
+        .log-line { padding: 2px 0; }
+        .log-suite {
+            color: #58a6ff;
+            font-weight: 600;
+            margin-top: 12px;
+            border-bottom: 1px solid #21262d;
+            padding-bottom: 4px;
+        }
+        .log-pass { color: #34d399; }
+        .log-fail { color: #f87171; }
+        .log-skip { color: #f59e0b; }
+        .log-error { color: #f87171; padding-left: 24px; font-size: 12px; }
+
+        button {
+            background: #238636;
+            color: #fff;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+        button:hover { background: #2ea043; }
+        button:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
+    </style>
+</head>
+
+<body>
+    <h1>🧪 Lord of the Realms — Test Suite</h1>
+    <p class="subtitle">Automated tests for game systems, data integrity, and core modules</p>
+
+    <button id="btnRun" onclick="runTests()">▶ Run All Tests</button>
+
+    <div id="status" class="status-running">Ready to run</div>
+
+    <div id="summary">
+        <div class="summary-card total">
+            <div class="label">Total</div>
+            <div class="value" id="totalCount">-</div>
+        </div>
+        <div class="summary-card passed">
+            <div class="label">Passed</div>
+            <div class="value" id="passedCount">-</div>
+        </div>
+        <div class="summary-card failed">
+            <div class="label">Failed</div>
+            <div class="value" id="failedCount">-</div>
+        </div>
+        <div class="summary-card time">
+            <div class="label">Time</div>
+            <div class="value" id="timeValue">-</div>
+        </div>
+    </div>
+
+    <div id="log"></div>
+
+    <!-- Hidden canvas required by some modules (Renderer, Game) -->
+    <canvas id="gameCanvas" style="display:none;"></canvas>
+
+    <!-- Core -->
+    <script src="js/core/utils.js"></script>
+    <script src="js/core/hex.js"></script>
+    <script src="js/core/dataLoader.js"></script>
+
+    <!-- World -->
+    <script src="js/world/terrain.js"></script>
+    <script src="js/world/kingdom.js"></script>
+    <script src="js/world/economy.js"></script>
+    <script src="js/world/kingdomAI.js"></script>
+    <script src="js/world/worldEvents.js"></script>
+    <script src="js/world/characters.js"></script>
+    <script src="js/world/npcLords.js"></script>
+    <script src="js/world/weather.js"></script>
+    <script src="js/world/units.js"></script>
+    <script src="js/world/world.js"></script>
+    <script src="js/world/colonization.js"></script>
+
+    <!-- Player (core economy loaded first) -->
+    <script src="js/player/player.js"></script>
+    <script src="js/player/playerEconomy.js"></script>
+
+    <!-- Systems -->
+    <script src="js/systems/quests.js"></script>
+    <script src="js/systems/achievements.js"></script>
+    <script src="js/systems/saveLoad.js"></script>
+    <script src="js/systems/technology.js"></script>
+    <script src="js/systems/infrastructure.js"></script>
+    <script src="js/systems/religion.js"></script>
+    <script src="js/systems/culture.js"></script>
+    <script src="js/systems/peoples.js"></script>
+    <script src="js/systems/cartography.js"></script>
+    <script src="js/systems/marketDynamics.js"></script>
+
+    <!-- Player (remaining) -->
+    <script src="js/player/tavern.js"></script>
+    <script src="js/player/playerMilitary.js"></script>
+    <script src="js/player/playerReligion.js"></script>
+    <script src="js/player/playerActions.js"></script>
+
+    <!-- Test Framework -->
+    <script src="tests/testRunner.js"></script>
+
+    <!-- Test Suites -->
+    <script src="tests/test.utils.js"></script>
+    <script src="tests/test.hex.js"></script>
+    <script src="tests/test.data.js"></script>
+    <script src="tests/test.terrain.js"></script>
+    <script src="tests/test.kingdom.js"></script>
+    <script src="tests/test.player.js"></script>
+    <script src="tests/test.systems.js"></script>
+
+    <script>
+        // Intercept console.log to display in the HTML log panel
+        const logEl = document.getElementById('log');
+        const originalLog = console.log;
+        const originalError = console.error;
+
+        console.log = function (...args) {
+            originalLog.apply(console, args);
+            const msg = args.join(' ');
+            const div = document.createElement('div');
+            div.className = 'log-line';
+
+            if (msg.startsWith('\n📋')) {
+                div.className = 'log-line log-suite';
+                div.textContent = msg.replace('\n', '');
+            } else if (msg.includes('✅')) {
+                div.className = 'log-line log-pass';
+                div.textContent = msg;
+            } else if (msg.includes('❌')) {
+                div.className = 'log-line log-fail';
+                div.textContent = msg;
+            } else if (msg.includes('⏭')) {
+                div.className = 'log-line log-skip';
+                div.textContent = msg;
+            } else {
+                div.textContent = msg;
+            }
+
+            logEl.appendChild(div);
+            logEl.scrollTop = logEl.scrollHeight;
+        };
+
+        console.error = function (...args) {
+            originalError.apply(console, args);
+            const div = document.createElement('div');
+            div.className = 'log-line log-fail';
+            div.textContent = args.join(' ');
+            logEl.appendChild(div);
+        };
+
+        async function runTests() {
+            const btn = document.getElementById('btnRun');
+            const statusEl = document.getElementById('status');
+            btn.disabled = true;
+            logEl.innerHTML = '';
+
+            statusEl.textContent = 'Loading game data...';
+            statusEl.className = 'status-running';
+
+            try {
+                // Load all game data first
+                DataLoader.clearCache();
+                await DataLoader.initializeAll();
+
+                statusEl.textContent = 'Running tests...';
+
+                const startTime = performance.now();
+                const results = await TestRunner.runAll();
+                const elapsed = (performance.now() - startTime).toFixed(1);
+
+                const total = results.passed + results.failed + results.skipped;
+                document.getElementById('totalCount').textContent = total;
+                document.getElementById('passedCount').textContent = results.passed;
+                document.getElementById('failedCount').textContent = results.failed;
+                document.getElementById('timeValue').textContent = elapsed + 'ms';
+
+                if (results.failed === 0) {
+                    statusEl.textContent = `All ${total} tests passed!`;
+                    statusEl.className = 'status-passed';
+                } else {
+                    statusEl.textContent = `${results.failed} of ${total} tests failed`;
+                    statusEl.className = 'status-failed';
+                }
+            } catch (error) {
+                statusEl.textContent = `Error: ${error.message}`;
+                statusEl.className = 'status-failed';
+                console.error(error);
+            }
+
+            btn.disabled = false;
+        }
+    </script>
+</body>
+
+</html>

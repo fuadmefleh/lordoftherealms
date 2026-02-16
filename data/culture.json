@@ -1,0 +1,147 @@
+{
+  "buildingTypes": {
+    "LIBRARY": {
+      "id": "library",
+      "name": "Library",
+      "icon": "📚",
+      "cost": 600,
+      "description": "Repository of knowledge. Increases research speed and spreads cultural influence.",
+      "influenceRadius": 3,
+      "influencePerDay": 2,
+      "scholarshipBonus": 5,
+      "researchBonus": 0.15,
+      "incomeBonus": 15,
+      "requiredSettlement": true
+    },
+    "THEATER": {
+      "id": "theater",
+      "name": "Theater",
+      "icon": "🎭",
+      "cost": 800,
+      "description": "Stage for drama, music, and storytelling. Boosts morale and attracts visitors.",
+      "influenceRadius": 4,
+      "influencePerDay": 3,
+      "scholarshipBonus": 2,
+      "moraleBonus": 10,
+      "incomeBonus": 25,
+      "requiredSettlement": true
+    },
+    "UNIVERSITY": {
+      "id": "university",
+      "name": "University",
+      "icon": "🏫",
+      "cost": 1500,
+      "description": "Centre of higher learning. Major boost to research, technology, and cultural prestige.",
+      "influenceRadius": 6,
+      "influencePerDay": 5,
+      "scholarshipBonus": 12,
+      "researchBonus": 0.30,
+      "incomeBonus": 40,
+      "requiredSettlement": true,
+      "requiredPopulation": 1000
+    },
+    "MONUMENT": {
+      "id": "monument",
+      "name": "Grand Monument",
+      "icon": "🏛️",
+      "cost": 1000,
+      "description": "An imposing monument celebrating your achievements. Generates renown.",
+      "influenceRadius": 5,
+      "influencePerDay": 4,
+      "scholarshipBonus": 1,
+      "renownPerDay": 1,
+      "incomeBonus": 20,
+      "requiredSettlement": false
+    },
+    "SCRIPTORIUM": {
+      "id": "scriptorium",
+      "name": "Scriptorium",
+      "icon": "📜",
+      "cost": 400,
+      "description": "A workshop for copying manuscripts and recording history.",
+      "influenceRadius": 2,
+      "influencePerDay": 1,
+      "scholarshipBonus": 8,
+      "researchBonus": 0.10,
+      "incomeBonus": 10,
+      "requiredSettlement": false
+    }
+  },
+  "traditions": {
+    "Imperial": {
+      "name": "Imperial Tradition",
+      "icon": "👑",
+      "bonuses": { "military": 10, "diplomacy": 5, "trade": 5 },
+      "description": "Strict hierarchy, formal courts, codified law"
+    },
+    "Woodland": {
+      "name": "Sylvan Tradition",
+      "icon": "🌿",
+      "bonuses": { "nature": 15, "stealth": 10, "archery": 10 },
+      "description": "Oral histories sung under ancient oaks"
+    },
+    "Nomadic": {
+      "name": "Steppe Tradition",
+      "icon": "🐎",
+      "bonuses": { "cavalry": 15, "endurance": 10, "raiding": 5 },
+      "description": "Songs around campfires, horse epics, sky worship"
+    },
+    "Religious": {
+      "name": "Theocratic Tradition",
+      "icon": "📖",
+      "bonuses": { "faith": 15, "scholarship": 10, "diplomacy": 5 },
+      "description": "Scripture study, philosophical debate, illumination"
+    },
+    "Maritime": {
+      "name": "Maritime Tradition",
+      "icon": "⚓",
+      "bonuses": { "trade": 15, "navigation": 10, "exploration": 5 },
+      "description": "Sea shanties, port festivals, navigation charts"
+    },
+    "Mountain": {
+      "name": "Mountain Tradition",
+      "icon": "⛰️",
+      "bonuses": { "mining": 15, "defense": 10, "craftsmanship": 10 },
+      "description": "Forge-songs, stone-carving, deep-hall feasts beneath the earth"
+    },
+    "Swamp": {
+      "name": "Swamp Tradition",
+      "icon": "🐍",
+      "bonuses": { "alchemy": 15, "stealth": 10, "poison": 10 },
+      "description": "Whispered rites, herbal lore, communion with swamp spirits"
+    },
+    "Arcane": {
+      "name": "Arcane Tradition",
+      "icon": "🔮",
+      "bonuses": { "scholarship": 15, "research": 15, "magic": 10 },
+      "description": "Spellcraft lectures, arcane duels, runic calligraphy"
+    },
+    "Nordic": {
+      "name": "Nordic Tradition",
+      "icon": "⚡",
+      "bonuses": { "naval": 10, "raiding": 10, "endurance": 10 },
+      "description": "Sagas of heroes, mead-hall boasts, rune-carving"
+    },
+    "Desert": {
+      "name": "Desert Tradition",
+      "icon": "🏜️",
+      "bonuses": { "trade": 10, "endurance": 15, "hospitality": 10 },
+      "description": "Oasis gatherings, star-navigation, sand-glass artistry"
+    }
+  },
+  "culturalEvents": [
+    { "id": "grand_festival", "name": "Grand Festival", "icon": "🎉", "effect": "morale", "value": 15, "cost": 300, "description": "A kingdom-wide celebration of art and music" },
+    { "id": "book_fair", "name": "Book Fair", "icon": "📖", "effect": "scholarship", "value": 10, "cost": 150, "description": "Scholars and scribes gather to trade manuscripts" },
+    { "id": "bardic_competition", "name": "Bardic Competition", "icon": "🎵", "effect": "renown", "value": 8, "cost": 200, "description": "The finest bards compete for glory and patronage" },
+    { "id": "philosophical_debate", "name": "Philosophical Debate", "icon": "💭", "effect": "scholarship", "value": 12, "cost": 100, "description": "Great minds clash over fundamental questions" },
+    { "id": "art_exhibition", "name": "Art Exhibition", "icon": "🎨", "effect": "influence", "value": 10, "cost": 250, "description": "Masterworks displayed for public admiration" },
+    { "id": "forge_festival", "name": "Forge Festival", "icon": "🔨", "effect": "industry", "value": 12, "cost": 200, "description": "Smiths and craftsmen compete to create the finest works" },
+    { "id": "horse_race", "name": "Great Horse Race", "icon": "🏇", "effect": "morale", "value": 18, "cost": 350, "description": "The swiftest riders compete across the open steppe" },
+    { "id": "arcane_symposium", "name": "Arcane Symposium", "icon": "🔮", "effect": "research", "value": 15, "cost": 400, "description": "Mages gather to share discoveries and debate magical theory" },
+    { "id": "harvest_feast", "name": "Harvest Feast", "icon": "🌽", "effect": "morale", "value": 12, "cost": 150, "description": "A communal feast celebrating the year's harvest" },
+    { "id": "naval_regatta", "name": "Naval Regatta", "icon": "⛵", "effect": "trade", "value": 10, "cost": 300, "description": "Ships race along the coast in a show of maritime prowess" },
+    { "id": "spirit_walk", "name": "Spirit Walk", "icon": "🌙", "effect": "faith", "value": 10, "cost": 100, "description": "A mystical night-time procession to commune with spirits" },
+    { "id": "gladiatorial_games", "name": "Gladiatorial Games", "icon": "🏟️", "effect": "morale", "value": 20, "cost": 500, "description": "Fierce combat exhibitions draw crowds and boost morale" },
+    { "id": "camel_caravan_festival", "name": "Caravan Festival", "icon": "🐫", "effect": "trade", "value": 15, "cost": 250, "description": "Desert merchants gather for a grand trading fair at the oasis" }
+  ]
+}

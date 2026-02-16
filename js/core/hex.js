@@ -195,7 +195,7 @@ const Hex = {
     /**
      * A* pathfinding on hex grid with wrapping (heavily optimized)
      */
-    findPath(startQ, startR, endQ, endR, mapWidth, mapHeight, isPassable) {
+    findPath(startQ, startR, endQ, endR, mapWidth, mapHeight, isPassable, getCost) {
         const startTime = performance.now();
         console.log(`[PATHFIND] Start: (${startQ},${startR}) -> (${endQ},${endR})`);
 
@@ -272,7 +272,9 @@ const Hex = {
 
                 if (!isPassable(nq, nr)) continue;
 
-                const tentG = (gScore.get(currentKey) || 0) + 1; // uniform cost for now
+                // Use actual movement cost if provided, otherwise default to 1
+                const moveCost = getCost ? getCost(nq, nr) : 1;
+                const tentG = (gScore.get(currentKey) || 0) + moveCost;
 
                 if (tentG < (gScore.get(nKey) || Infinity)) {
                     cameFrom.set(nKey, currentKey);

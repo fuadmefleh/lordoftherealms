@@ -26,11 +26,13 @@ const MarketDynamics = {
             };
             
             // Initialize with base prices
-            for (const [key, good] of Object.entries(PlayerEconomy.GOODS)) {
-                market.prices[good.id] = good.basePrice;
-                market.supply[good.id] = 50; // Neutral starting supply
-                market.demand[good.id] = 50; // Neutral starting demand
-                market.priceHistory[good.id] = [good.basePrice];
+            if (typeof PlayerEconomy !== 'undefined' && PlayerEconomy.GOODS) {
+                for (const [key, good] of Object.entries(PlayerEconomy.GOODS)) {
+                    market.prices[good.id] = good.basePrice;
+                    market.supply[good.id] = 50; // Neutral starting supply
+                    market.demand[good.id] = 50; // Neutral starting demand
+                    market.priceHistory[good.id] = [good.basePrice];
+                }
             }
             
             this.regionalMarkets[settlementId] = market;
@@ -188,7 +190,7 @@ const MarketDynamics = {
         if (!nearestSettlement) {
             // Return base prices if no settlement nearby
             const summary = [];
-            for (const [key, good] of Object.entries(PlayerEconomy.GOODS)) {
+            for (const [key, good] of Object.entries(PlayerEconomy.GOODS || {})) {
                 summary.push({
                     id: good.id,
                     name: good.name,
@@ -209,7 +211,7 @@ const MarketDynamics = {
         const market = this.getOrCreateSettlementMarket(settlementId);
         const summary = [];
         
-        for (const [key, good] of Object.entries(PlayerEconomy.GOODS)) {
+        for (const [key, good] of Object.entries(PlayerEconomy.GOODS || {})) {
             const price = market.prices[good.id] || good.basePrice;
             const history = market.priceHistory[good.id];
             let trend = 'stable';

@@ -87,7 +87,7 @@ const ActionMenu = {
             backdrop-filter: blur(12px);
             border: 1px solid rgba(245, 197, 66, 0.4);
             border-radius: 10px;
-            width: 400px;
+            width: 550px;
             z-index: 1000;
             box-shadow: 0 12px 48px rgba(0,0,0,0.85), 0 0 0 1px rgba(245,197,66,0.1);
             overflow: hidden;

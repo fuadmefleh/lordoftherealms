@@ -42,6 +42,10 @@ class Renderer {
         // Modes: 'normal','political','religion','wealth','military','trade','culture'
         this.mapMode = 'normal';
 
+        // Label management system to prevent overlapping
+        this.labels = [];
+        this.labelPadding = 5; // Extra space around labels for collision detection
+
         this.resize();
         window.addEventListener('resize', () => this.resize());
 
@@ -127,6 +131,7 @@ class Renderer {
 
         const ROAD_PATH = 'assets/tiles/roads/';
         const ROAD_IMAGES = [
+            "hexRoadBridge-001001-00.png","hexRoadBridge-010010-00.png","hexRoadBridge-100100-00.png",
             "hexRoad-000001-00.png","hexRoad-000001-01.png","hexRoad-000001-02.png","hexRoad-000001-03.png",
             "hexRoad-000010-00.png","hexRoad-000010-01.png","hexRoad-000010-02.png","hexRoad-000010-03.png",
             "hexRoad-000011-00.png","hexRoad-000011-01.png","hexRoad-000011-02.png",
@@ -194,10 +199,19 @@ class Renderer {
 
         // Cache for road variant lookup
         this.roadVariants = new Map();
+        this.bridgeVariants = new Map();
         for (const img of ROAD_IMAGES) {
-            const match = img.match(/hexRoad-([01]{6})-(\d+)\.png/);
-            if (match) {
-                const key = match[1];
+            const roadMatch = img.match(/hexRoad-([01]{6})-(\d+)\.png/);
+            const bridgeMatch = img.match(/hexRoadBridge-([01]{6})-(\d+)\.png/);
+            
+            if (bridgeMatch) {
+                const key = bridgeMatch[1];
+                if (!this.bridgeVariants.has(key)) {
+                    this.bridgeVariants.set(key, []);
+                }
+                this.bridgeVariants.get(key).push(img);
+            } else if (roadMatch) {
+                const key = roadMatch[1];
                 if (!this.roadVariants.has(key)) {
                     this.roadVariants.set(key, []);
                 }
@@ -516,6 +530,52 @@ class Renderer {
     }
 
     /**
+     * Get the bridge overlay image for a tile (when road and river overlap)
+     */
+    getBridgeImage(tile, q, r, width, height) {
+        if (!tile.hasRoad || !tile.hasRiver) return null;
+
+        const neighbors = Hex.neighbors(q, r);
+        let riverMask = 0;
+
+        // Determine river direction by checking connected river neighbors
+        for (let i = 0; i < 6; i++) {
+            const n = neighbors[i];
+            const nwq = Hex.wrapQ(n.q, width);
+
+            if (n.r < 0 || n.r >= height) continue;
+
+            const neighbor = this.world.tiles[n.r][nwq];
+            if (!neighbor) continue;
+
+            // Check if neighbor has river connection
+            const isWater = ['ocean', 'deep_ocean', 'lake', 'sea', 'coast'].includes(neighbor.terrain.id) || neighbor.elevation < 0.42;
+            let connected = false;
+
+            if ((neighbor.hasRiver) && Math.abs(neighbor.elevation - tile.elevation) > 0.0001) {
+                connected = true;
+            } else if (isWater && tile.elevation > neighbor.elevation) {
+                connected = true;
+            }
+
+            if (connected) {
+                // Map direction to bitmask
+                riverMask |= (1 << ((i + 3) % 6));
+            }
+        }
+
+        if (riverMask === 0) return null;
+
+        const key = riverMask.toString(2).padStart(6, '0');
+        const variants = this.bridgeVariants ? this.bridgeVariants.get(key) : null;
+
+        if (!variants || variants.length === 0) return null;
+
+        const hash = (tile.q * 73856093 ^ tile.r * 19349663) % variants.length;
+        return variants[Math.abs(hash)];
+    }
+
+    /**
      * Main render loop call
      */
     render(deltaTime) {
@@ -597,7 +657,102 @@ class Renderer {
         // Render weather
         this.renderWeather(ctx);
 
+        // Render all labels (with collision detection)
+        this.renderLabels(ctx);
+
         ctx.restore();
+    }
+
+    /**
+     * Add a label to the render queue with priority
+     * @param {string} text - The label text
+     * @param {number} x - Screen x position
+     * @param {number} y - Screen y position
+     * @param {number} priority - Higher priority labels are rendered first (1-10)
+     * @param {object} style - Text style (font, fillStyle, strokeStyle, etc.)
+     */
+    addLabel(text, x, y, priority, style) {
+        this.labels.push({ text, x, y, priority, style });
+    }
+
+    /**
+     * Check if two label bounds overlap
+     */
+    labelsOverlap(label1, label2) {
+        const padding = this.labelPadding;
+        return !(
+            label1.right + padding < label2.left - padding ||
+            label1.left - padding > label2.right + padding ||
+            label1.bottom + padding < label2.top - padding ||
+            label1.top - padding > label2.bottom + padding
+        );
+    }
+
+    /**
+     * Measure and get bounds for a label
+     */
+    getLabelBounds(ctx, label) {
+        ctx.font = label.style.font;
+        const metrics = ctx.measureText(label.text);
+        const width = metrics.width;
+        const height = parseInt(label.style.font) || 12; // Extract font size as height approximation
+        
+        return {
+            left: label.x - width / 2,
+            right: label.x + width / 2,
+            top: label.y - height / 2,
+            bottom: label.y + height / 2
+        };
+    }
+
+    /**
+     * Render all non-overlapping labels based on priority
+     */
+    renderLabels(ctx) {
+        if (this.labels.length === 0) return;
+
+        // Sort labels by priority (highest first)
+        this.labels.sort((a, b) => b.priority - a.priority);
+
+        const renderedLabels = [];
+
+        // Render labels that don't overlap with higher priority ones
+        for (const label of this.labels) {
+            const bounds = this.getLabelBounds(ctx, label);
+            
+            // Check if this label overlaps with any already rendered label
+            let overlaps = false;
+            for (const rendered of renderedLabels) {
+                if (this.labelsOverlap({ ...label, ...bounds }, { ...rendered, ...rendered.bounds })) {
+                    overlaps = true;
+                    break;
+                }
+            }
+
+            // If no overlap, render this label
+            if (!overlaps) {
+                // Apply style
+                ctx.font = label.style.font;
+                ctx.textAlign = label.style.textAlign || 'center';
+                ctx.textBaseline = label.style.textBaseline || 'middle';
+
+                // Draw shadow if specified
+                if (label.style.shadowColor) {
+                    ctx.fillStyle = label.style.shadowColor;
+                    ctx.fillText(label.text, label.x + 1, label.y + 1);
+                }
+
+                // Draw main text
+                ctx.fillStyle = label.style.fillStyle;
+                ctx.fillText(label.text, label.x, label.y);
+
+                // Save this label as rendered
+                renderedLabels.push({ ...label, bounds });
+            }
+        }
+
+        // Clear labels for next frame
+        this.labels = [];
     }
 
     /**
@@ -752,10 +907,25 @@ class Renderer {
                 }
 
                 const sprite = imgName ? this.tileSprites.get(imgName) : null;
-                const riverImgName = this.getRiverImage(tile, q, r, world.width, world.height);
-                const riverSprite = riverImgName ? this.tileSprites.get(riverImgName) : null;
-                const roadImgName = this.getRoadImage(tile, q, r, world.width, world.height);
-                const roadSprite = roadImgName ? this.tileSprites.get(roadImgName) : null;
+                
+                // Check for bridge first (road + river overlap)
+                const bridgeImgName = this.getBridgeImage(tile, q, r, world.width, world.height);
+                const bridgeSprite = bridgeImgName ? this.tileSprites.get(bridgeImgName) : null;
+                
+                // If we have a bridge, use it instead of separate river and road
+                let riverSprite = null;
+                let roadSprite = null;
+                
+                if (bridgeSprite) {
+                    // Bridge replaces both river and road
+                    roadSprite = bridgeSprite;
+                } else {
+                    // No bridge, render river and road separately
+                    const riverImgName = this.getRiverImage(tile, q, r, world.width, world.height);
+                    riverSprite = riverImgName ? this.tileSprites.get(riverImgName) : null;
+                    const roadImgName = this.getRoadImage(tile, q, r, world.width, world.height);
+                    roadSprite = roadImgName ? this.tileSprites.get(roadImgName) : null;
+                }
 
                 if (sprite || riverSprite || roadSprite) {
                     this.renderSpriteHex(ctx, screen.x, screen.y, renderSize, sprite, tile, riverSprite, roadSprite);
@@ -1065,22 +1235,27 @@ class Renderer {
                 // Draw name label
                 if (this.camera.zoom > 0.4) {
                     const fsize = Math.max(10, labelSize * 1.1 * this.camera.zoom);
-                    ctx.font = `700 ${fsize}px 'Cinzel', serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'top';
+                    const font = `700 ${fsize}px 'Cinzel', serif`;
+                    
+                    // Add to label queue with priority based on settlement type
+                    let priority = 5; // Default
+                    if (settlement.type === 'capital') priority = 9;
+                    else if (settlement.type === 'town') priority = 7;
+                    else if (settlement.type === 'village') priority = 5;
 
-                    // Reset any inherited shadow/alpha
-                    ctx.shadowColor = 'transparent';
-                    ctx.shadowBlur = 0;
-                    ctx.globalAlpha = 1.0;
-
-                    // Sharp, clean black shadow for contrast
-                    ctx.fillStyle = 'rgba(0,0,0,0.9)';
-                    ctx.fillText(settlement.name, screen.x + 1, screen.y + renderSize * 0.45 + 1);
-
-                    // Pure white text
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillText(settlement.name, screen.x, screen.y + renderSize * 0.45);
+                    this.addLabel(
+                        settlement.name,
+                        screen.x,
+                        screen.y + renderSize * 0.45,
+                        priority,
+                        {
+                            font: font,
+                            fillStyle: '#ffffff',
+                            shadowColor: 'rgba(0,0,0,0.9)',
+                            textAlign: 'center',
+                            textBaseline: 'top'
+                        }
+                    );
                 }
             }
         }
@@ -1151,21 +1326,22 @@ class Renderer {
                 // Draw name label for POIs
                 if (this.camera.zoom > 0.7) {
                     const fsize = Math.max(9, 10 * this.camera.zoom);
-                    ctx.font = `700 ${fsize}px 'Cinzel', serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'top';
-
-                    // Reset any inherited shadow/alpha
-                    ctx.shadowColor = 'transparent';
-                    ctx.shadowBlur = 0;
-                    ctx.globalAlpha = 1.0;
-
-                    // Text shadow
-                    ctx.fillStyle = 'rgba(0,0,0,0.9)';
-                    ctx.fillText(tile.improvement.name, screen.x + 1, screen.y + renderSize * 0.35 + 1);
-
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillText(tile.improvement.name, screen.x, screen.y + renderSize * 0.35);
+                    const font = `700 ${fsize}px 'Cinzel', serif`;
+                    
+                    // Add to label queue with medium priority
+                    this.addLabel(
+                        tile.improvement.name,
+                        screen.x,
+                        screen.y + renderSize * 0.35,
+                        4, // POIs have priority 4
+                        {
+                            font: font,
+                            fillStyle: '#ffffff',
+                            shadowColor: 'rgba(0,0,0,0.9)',
+                            textAlign: 'center',
+                            textBaseline: 'top'
+                        }
+                    );
                 }
             }
         }
@@ -1217,15 +1393,22 @@ class Renderer {
                     // Label
                     if (this.camera.zoom > 0.5) {
                         const fsize = Math.max(9, 10 * this.camera.zoom);
-                        ctx.font = `700 ${fsize}px 'Cinzel', serif`;
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'top';
-                        ctx.shadowColor = 'transparent';
-                        ctx.shadowBlur = 0;
-                        ctx.fillStyle = 'rgba(0,0,0,0.9)';
-                        ctx.fillText(site.name, screen.x + 1, screen.y + renderSize * 0.4 + 1);
-                        ctx.fillStyle = '#f5c542';
-                        ctx.fillText(site.name, screen.x, screen.y + renderSize * 0.4);
+                        const font = `700 ${fsize}px 'Cinzel', serif`;
+                        
+                        // Add to label queue with high priority
+                        this.addLabel(
+                            site.name,
+                            screen.x,
+                            screen.y + renderSize * 0.4,
+                            8, // Holy sites have high priority
+                            {
+                                font: font,
+                                fillStyle: '#f5c542',
+                                shadowColor: 'rgba(0,0,0,0.9)',
+                                textAlign: 'center',
+                                textBaseline: 'top'
+                            }
+                        );
                     }
                 }
 
@@ -1240,16 +1423,22 @@ class Renderer {
 
                     if (this.camera.zoom > 0.7) {
                         const fsize = Math.max(8, 9 * this.camera.zoom);
-                        ctx.font = `700 ${fsize}px 'Cinzel', serif`;
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'top';
-                        ctx.shadowColor = 'transparent';
-                        ctx.shadowBlur = 0;
-                        ctx.globalAlpha = 1.0;
-                        ctx.fillStyle = 'rgba(0,0,0,0.9)';
-                        ctx.fillText(building.name, screen.x + 1, screen.y + renderSize * 0.35 + 1);
-                        ctx.fillStyle = '#ffffff';
-                        ctx.fillText(building.name, screen.x, screen.y + renderSize * 0.35);
+                        const font = `700 ${fsize}px 'Cinzel', serif`;
+                        
+                        // Add to label queue with low priority
+                        this.addLabel(
+                            building.name,
+                            screen.x,
+                            screen.y + renderSize * 0.35,
+                            3, // Cultural buildings have lower priority
+                            {
+                                font: font,
+                                fillStyle: '#ffffff',
+                                shadowColor: 'rgba(0,0,0,0.9)',
+                                textAlign: 'center',
+                                textBaseline: 'top'
+                            }
+                        );
                     }
                 }
             }
@@ -1350,13 +1539,22 @@ class Renderer {
                 // Draw infrastructure name label at higher zoom
                 if (this.camera.zoom > 1.0) {
                     const fsize = Math.max(8, 9 * this.camera.zoom);
-                    ctx.font = `${fsize}px 'Cinzel', serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'top';
-                    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-                    ctx.fillText(infra.name, screen.x + 1, screen.y + renderSize * 0.55 + 1);
-                    ctx.fillStyle = infra.renderColor || '#ccc';
-                    ctx.fillText(infra.name, screen.x, screen.y + renderSize * 0.55);
+                    const font = `${fsize}px 'Cinzel', serif`;
+                    
+                    // Add to label queue with low priority
+                    this.addLabel(
+                        infra.name,
+                        screen.x,
+                        screen.y + renderSize * 0.55,
+                        2, // Infrastructure has priority 2
+                        {
+                            font: font,
+                            fillStyle: infra.renderColor || '#ccc',
+                            shadowColor: 'rgba(0,0,0,0.7)',
+                            textAlign: 'center',
+                            textBaseline: 'top'
+                        }
+                    );
                 }
             }
         }
@@ -1435,15 +1633,22 @@ class Renderer {
                 // Draw name label
                 if (this.camera.zoom > 0.6) {
                     const fsize = Math.max(9, 10 * this.camera.zoom);
-                    ctx.font = `600 ${fsize}px 'Cinzel', serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'top';
-
-                    ctx.fillStyle = 'rgba(0,0,0,0.8)';
-                    ctx.fillText(structure.name, screen.x + 1, screen.y + renderSize * 0.4 + 1);
-
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillText(structure.name, screen.x, screen.y + renderSize * 0.4);
+                    const font = `600 ${fsize}px 'Cinzel', serif`;
+                    
+                    // Add to label queue with low priority
+                    this.addLabel(
+                        structure.name,
+                        screen.x,
+                        screen.y + renderSize * 0.4,
+                        3, // Built structures have priority 3
+                        {
+                            font: font,
+                            fillStyle: '#ffffff',
+                            shadowColor: 'rgba(0,0,0,0.8)',
+                            textAlign: 'center',
+                            textBaseline: 'top'
+                        }
+                    );
                 }
             }
         }
@@ -1615,13 +1820,22 @@ class Renderer {
         // Direction indicator / name
         if (this.camera.zoom > 0.7) {
             const fsize = Math.max(9, 11 * this.camera.zoom);
-            ctx.font = `700 ${fsize}px 'Inter', sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'top';
-            ctx.fillStyle = 'rgba(0,0,0,0.6)';
-            ctx.fillText(this.player.name, screen.x + 1, screen.y + renderSize * 0.55 + 1);
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(this.player.name, screen.x, screen.y + renderSize * 0.55);
+            const font = `700 ${fsize}px 'Inter', sans-serif`;
+            
+            // Add to label queue with highest priority
+            this.addLabel(
+                this.player.name,
+                screen.x,
+                screen.y + renderSize * 0.55,
+                10, // Player has highest priority
+                {
+                    font: font,
+                    fillStyle: '#ffffff',
+                    shadowColor: 'rgba(0,0,0,0.6)',
+                    textAlign: 'center',
+                    textBaseline: 'top'
+                }
+            );
         }
     }
 
@@ -1728,20 +1942,27 @@ class Renderer {
             // Unit name label
             if (this.camera.zoom > 0.4) {
                 const fsize = Math.max(8, 10 * this.camera.zoom);
-                ctx.font = `500 ${fsize}px 'Inter', sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'top';
-
-                ctx.fillStyle = 'rgba(0,0,0,0.7)';
-                ctx.fillText(unit.name, screen.x + 1, screen.y + renderSize * 0.4 + 1);
+                const font = `500 ${fsize}px 'Inter', sans-serif`;
 
                 let color = '#ffffff';
                 if (unit.type === 'raider' || unit.type === 'pirate') color = '#ff6666';
                 if (unit.type === 'patrol') color = '#66ccff';
                 if (unit.type === 'settler') color = '#ccff66';
 
-                ctx.fillStyle = color;
-                ctx.fillText(unit.name, screen.x, screen.y + renderSize * 0.4);
+                // Add to label queue with medium-low priority
+                this.addLabel(
+                    unit.name,
+                    screen.x,
+                    screen.y + renderSize * 0.4,
+                    3, // Units have priority 3
+                    {
+                        font: font,
+                        fillStyle: color,
+                        shadowColor: 'rgba(0,0,0,0.7)',
+                        textAlign: 'center',
+                        textBaseline: 'top'
+                    }
+                );
             }
         }
     }

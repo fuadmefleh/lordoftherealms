@@ -1,0 +1,53 @@
+{
+  "indigenousTribes": [
+    { "id": "forest_folk", "name": "Forest Folk", "icon": "🌲", "terrains": ["forest", "dense_forest", "woodland", "boreal_forest", "seasonal_forest", "temperate_rainforest", "tropical_rainforest"], "hostility": 0.3, "tradeability": 0.6 },
+    { "id": "steppe_riders", "name": "Steppe Riders", "icon": "🐎", "terrains": ["plains", "savanna", "grassland", "steppe"], "hostility": 0.5, "tradeability": 0.4 },
+    { "id": "mountain_clans", "name": "Mountain Clans", "icon": "⛰️", "terrains": ["mountains", "hills", "highland"], "hostility": 0.4, "tradeability": 0.3 },
+    { "id": "desert_nomads", "name": "Desert Nomads", "icon": "🏜️", "terrains": ["desert", "arid", "mesa", "badlands"], "hostility": 0.2, "tradeability": 0.7 },
+    { "id": "swamp_dwellers", "name": "Swamp Dwellers", "icon": "🐊", "terrains": ["swamp", "wetland", "marsh", "mangrove"], "hostility": 0.6, "tradeability": 0.2 },
+    { "id": "coastal_tribes", "name": "Coastal Tribes", "icon": "🐚", "terrains": ["coast", "beach"], "hostility": 0.1, "tradeability": 0.8 },
+    { "id": "tundra_people", "name": "Tundra People", "icon": "❄️", "terrains": ["tundra", "snow", "ice", "cold_desert", "polar"], "hostility": 0.2, "tradeability": 0.3 }
+  ],
+  "policies": {
+    "manifest_destiny": {
+      "id": "manifest_destiny",
+      "name": "Manifest Destiny",
+      "icon": "🌅",
+      "description": "Aggressive expansion — higher growth, but indigenous hostility increases.",
+      "expansionBonus": 1.5,
+      "indigenousRelation": -0.3,
+      "loyaltyBonus": 0.05,
+      "productionBonus": 0.1
+    },
+    "coexistence": {
+      "id": "coexistence",
+      "name": "Coexistence",
+      "icon": "🤝",
+      "description": "Peaceful integration — slower growth, but indigenous trade and harmony.",
+      "expansionBonus": 0.8,
+      "indigenousRelation": 0.4,
+      "loyaltyBonus": 0.15,
+      "productionBonus": 0.0
+    },
+    "exploitation": {
+      "id": "exploitation",
+      "name": "Exploitation",
+      "icon": "⛏️",
+      "description": "Strip resources fast — high income, but massive unrest and decay.",
+      "expansionBonus": 1.0,
+      "indigenousRelation": -0.6,
+      "loyaltyBonus": -0.1,
+      "productionBonus": 0.3
+    },
+    "missionary": {
+      "id": "missionary",
+      "name": "Missionary",
+      "icon": "⛪",
+      "description": "Spread faith to new lands — moderate growth, high cultural influence.",
+      "expansionBonus": 1.0,
+      "indigenousRelation": 0.1,
+      "loyaltyBonus": 0.1,
+      "productionBonus": 0.05
+    }
+  }
+}

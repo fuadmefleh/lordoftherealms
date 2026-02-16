@@ -137,6 +137,18 @@ const Tavern = {
             });
         }
 
+        // 9. Ask about religious lore (holy sites & extinct faiths)
+        if (typeof Religion !== 'undefined') {
+            options.push({
+                id: 'ask_religious_lore',
+                label: 'Ask about sacred places',
+                icon: '⛲',
+                cost: Tavern.BRIBE_COST,
+                description: `Seek knowledge of holy sites and ancient faiths (${Tavern.BRIBE_COST}g)`,
+                available: player.gold >= Tavern.BRIBE_COST,
+            });
+        }
+
         return options;
     },
 
@@ -164,6 +176,8 @@ const Tavern = {
                 return Tavern._sellSoul(player, tile, world);
             case 'buy_tavern_map':
                 return Tavern._buyTavernMap(player, tile, world);
+            case 'ask_religious_lore':
+                return Tavern._askReligiousLore(player, tile, world);
             default:
                 return [];
         }
@@ -428,6 +442,96 @@ const Tavern = {
             day: world.day,
             source: tile.settlement.name,
         });
+
+        Tavern._storeRumors(player, rumors);
+        return rumors;
+    },
+
+    /**
+     * Ask about religious lore — discover holy sites and extinct faiths
+     */
+    _askReligiousLore(player, tile, world) {
+        player.gold -= Tavern.BRIBE_COST;
+        const rumors = [];
+
+        if (!player.discoveredHolySites) player.discoveredHolySites = new Set();
+        if (!player.discoveredExtinctFaiths) player.discoveredExtinctFaiths = new Set();
+
+        // Find undiscovered holy sites
+        const undiscoveredSites = [];
+        for (let r = 0; r < world.height; r++) {
+            for (let q = 0; q < world.width; q++) {
+                const t = world.getTile(q, r);
+                if (t && t.holySite && !player.discoveredHolySites.has(`${q},${r}`)) {
+                    undiscoveredSites.push({ q, r, site: t.holySite });
+                }
+            }
+        }
+
+        // Reveal 1-3 holy sites, biased toward closer ones
+        const revealCount = Math.min(undiscoveredSites.length, Utils.randInt(1, 3));
+        const sorted = undiscoveredSites.sort((a, b) => {
+            const dA = Hex.wrappingDistance(tile.q, tile.r, a.q, a.r, world.width);
+            const dB = Hex.wrappingDistance(tile.q, tile.r, b.q, b.r, world.width);
+            return dA - dB;
+        });
+        // Weight towards closer sites but allow distant ones
+        const candidates = sorted.slice(0, Math.max(revealCount * 2, sorted.length));
+        const revealed = Utils.shuffle(candidates).slice(0, revealCount);
+
+        for (const hs of revealed) {
+            player.discoveredHolySites.add(`${hs.q},${hs.r}`);
+            rumors.push({
+                category: Tavern.CATEGORIES.RUMORS_GOSSIP,
+                icon: hs.site.icon,
+                title: `Holy Site Discovered: ${hs.site.name}`,
+                text: `"There is a sacred place called ${hs.site.name} at (${hs.q}, ${hs.r}). ${hs.site.description}."`,
+                reliability: Tavern.RELIABILITY.LOCAL_TALK,
+                day: world.day,
+            });
+
+            // If associated with an extinct faith, discover that too
+            if (hs.site.faithId && Religion.FAITHS[hs.site.faithId]?.extinct) {
+                const faith = Religion.FAITHS[hs.site.faithId];
+                if (player.discoverExtinctFaith(faith.id)) {
+                    rumors.push({
+                        category: Tavern.CATEGORIES.RUMORS_GOSSIP,
+                        icon: faith.icon,
+                        title: `Ancient Faith Uncovered: ${faith.name}`,
+                        text: `"The site was sacred to the followers of ${faith.name}, a faith that vanished around year ${faith.extinctYear}. ${faith.description}."`,
+                        reliability: Tavern.RELIABILITY.LOCAL_TALK,
+                        day: world.day,
+                    });
+                }
+            }
+        }
+
+        // Also chance to discover extinct faiths not tied to known holy sites
+        const undiscoveredFaiths = Object.values(Religion.FAITHS).filter(f => f.extinct && !player.discoveredExtinctFaiths.has(f.id));
+        if (undiscoveredFaiths.length > 0 && Math.random() < 0.5) {
+            const faith = Utils.randPick(undiscoveredFaiths);
+            if (player.discoverExtinctFaith(faith.id)) {
+                rumors.push({
+                    category: Tavern.CATEGORIES.RUMORS_GOSSIP,
+                    icon: faith.icon,
+                    title: `Ancient Faith Uncovered: ${faith.name}`,
+                    text: `An elderly scholar whispers: "Long ago, the ${faith.name} held sway. Founded in year ${faith.founded}, it perished by ${faith.extinctYear}. ${faith.description}."`,
+                    reliability: Tavern.RELIABILITY.LOCAL_TALK,
+                    day: world.day,
+                });
+            }
+        }
+
+        if (rumors.length === 0) {
+            rumors.push({
+                category: Tavern.CATEGORIES.RUMORS_GOSSIP,
+                icon: '⛲',
+                title: 'Nothing New',
+                text: '"I\'ve told you everything I know about the sacred places of this land. Perhaps try exploring further afield."',
+                reliability: 1.0,
+                day: world.day,
+            });
+        }
 
         Tavern._storeRumors(player, rumors);
         return rumors;

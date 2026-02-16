@@ -247,8 +247,9 @@ const PlayerActions = {
                 });
             }
 
-            // Send pioneers to distant wilderness
-            if (player.gold >= 200 && tile.settlement && tile.settlement.kingdom === player.allegiance) {
+            // Send pioneers to distant wilderness (must be head of this settlement — player colony)
+            if (player.gold >= 200 && tile.settlement && 
+                tile.settlement.colony && tile.settlement.colony.isPlayerColony) {
                 actions.push({
                     type: 'send_pioneers',
                     label: 'Send Pioneers',

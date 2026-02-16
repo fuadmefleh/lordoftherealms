@@ -1025,6 +1025,10 @@ const ActionMenu = {
                     const result = Trading.buyGoods(game.player, good, qty, tile.settlement);
                     if (result.success) {
                         game.ui.showNotification('Purchase Complete', `Bought ${qty}x ${good.name} for ${result.spent} gold`, 'success');
+                        // Discover economy knowledge through trade
+                        if (tile.settlement.kingdom) {
+                            game.player.learnAboutKingdom(tile.settlement.kingdom, 'economy');
+                        }
                         game.ui.updateStats(game.player, game.world);
                         ActionMenu.showTradeMenu(game, tile); // Refresh
                     } else {
@@ -1040,6 +1044,10 @@ const ActionMenu = {
                 if (result.success) {
                     const good = PlayerEconomy.GOODS[goodId.toUpperCase()];
                     game.ui.showNotification('Sale Complete', `Sold ${qty}x ${good.name} for ${result.earned} gold`, 'success');
+                    // Discover economy knowledge through trade
+                    if (tile.settlement.kingdom) {
+                        game.player.learnAboutKingdom(tile.settlement.kingdom, 'economy');
+                    }
                     game.ui.updateStats(game.player, game.world);
                     ActionMenu.showTradeMenu(game, tile); // Refresh
                 } else {
@@ -1758,6 +1766,12 @@ const ActionMenu = {
 
             const discovered = Peoples.discoverLore(game.player, game.world, loreOptions);
             if (discovered.length > 0) discoveredLoreEntry = discovered[0];
+
+            // Exploring POIs can reveal peoples and religion knowledge
+            if (kingdom) {
+                const poiCats = poi.type === 'shrine' ? ['religion'] : ['peoples', 'religion'];
+                game.player.learnAboutKingdom(kingdom, poiCats);
+            }
         }
 
         // Show exploration result panel
@@ -2004,6 +2018,18 @@ const ActionMenu = {
                 return;
             }
 
+            // Discover kingdom knowledge from tavern — wider range of categories
+            const tavernKingdomId = tile.kingdom || (tile.settlement && tile.settlement.kingdom);
+            if (tavernKingdomId) {
+                const tavernCat = Utils.randPick(['ruler', 'peoples', 'religion', 'military', 'diplomacy', 'economy']);
+                const learned = game.player.learnAboutKingdom(tavernKingdomId, tavernCat);
+                if (learned.length > 0) {
+                    const k = game.world.getKingdom(tavernKingdomId);
+                    const catNames = learned.join(', ');
+                    game.ui.showNotification('Knowledge Gained', `Tavern gossip revealed ${k ? k.name + "'s" : 'the kingdom\'s'} ${catNames}.`, 'info');
+                }
+            }
+
             // 25% chance to discover world history lore when buying drinks
             let discoveredLoreEntry = null;
             if (actionId === 'buy_drinks' && typeof Peoples !== 'undefined' && Math.random() < 0.25) {
@@ -2041,6 +2067,18 @@ const ActionMenu = {
         // Check notice board automatically
         const boardRumors = Tavern._checkRumorBoard(game.player, tile, game.world);
         rumors.push(...boardRumors);
+
+        // Discover kingdom knowledge from talking to locals — random category
+        const localKingdomId = tile.kingdom || (tile.settlement && tile.settlement.kingdom);
+        if (localKingdomId) {
+            const randomCat = Utils.randPick(['ruler', 'peoples', 'religion']);
+            const learned = game.player.learnAboutKingdom(localKingdomId, randomCat);
+            if (learned.length > 0) {
+                const k = game.world.getKingdom(localKingdomId);
+                const catNames = learned.join(', ');
+                game.ui.showNotification('Knowledge Gained', `The locals told you about ${k ? k.name + "'s" : 'the kingdom\'s'} ${catNames}.`, 'info');
+            }
+        }
 
         // 30% chance to discover a piece of world history from local stories
         let discoveredLoreEntry = null;
@@ -4102,6 +4140,12 @@ const ActionMenu = {
         if (!lordUnit) return;
         const kingdom = world.getKingdom(lordUnit.kingdomId);
         if (!kingdom || !kingdom.lord) return;
+
+        // Meeting a lord and asking about their realm reveals ALL knowledge
+        const learned = player.learnAboutKingdom(kingdom.id, ['basics', 'ruler', 'peoples', 'religion', 'military', 'diplomacy', 'economy']);
+        if (learned.length > 0) {
+            game.ui.showNotification('Knowledge Gained', `${kingdom.lord.name} has revealed much about ${kingdom.name}: ${learned.join(', ')}.`, 'info');
+        }
 
         const lord = kingdom.lord;
         const opinion = NPCLords.getLordOpinion(lord, player);

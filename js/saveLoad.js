@@ -179,6 +179,7 @@ const SaveLoad = {
             colonies: player.colonies || [],
             maps: player.maps || [],
             discoveredLore: Array.from(player.discoveredLore || []),
+            kingdomKnowledge: player.kingdomKnowledge || {},
             queuedPath: player.queuedPath || null,
             queuedPathIndex: player.queuedPathIndex || 0,
             travelDestination: player.travelDestination || null,

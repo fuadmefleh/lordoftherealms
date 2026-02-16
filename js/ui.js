@@ -275,16 +275,15 @@ class UI {
         if (tile.settlement) {
             // Get economic summary
             const econ = Economy.getSummary(tile.settlement, tile, this.game.world);
+            const kId = tile.settlement.kingdom;
+            const knowsEcon = kId ? this.game.player.knowsAbout(kId, 'economy') : false;
+            const knowsPeoples = kId ? this.game.player.knowsAbout(kId, 'peoples') : false;
 
             html += `
                 <div class="info-section-title">Settlement</div>
                 <div class="info-row">
                     <span class="info-label">Name</span>
                     <span class="info-value" style="color:#ffffff !important; cursor: pointer; text-decoration: underline;" onclick="window.game.ui.showSettlementDetails(${q}, ${r})">${tile.settlement.name}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Founded</span>
-                    <span class="info-value">${tile.settlement.founded ? `Year ${tile.settlement.founded} (${this.game.world.year - tile.settlement.founded} years ago)` : 'Unknown'}</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Type</span>
@@ -294,6 +293,10 @@ class UI {
                     <span class="info-label">Population</span>
                     <span class="info-value">${Utils.formatNumber(tile.settlement.population)}</span>
                 </div>
+            `;
+
+            if (knowsEcon) {
+                html += `
                 <div class="info-section-title">Economy</div>
                 <div class="info-row economic-row" onclick="window.game.ui.showEconomicBreakdown('${q},${r}')" style="cursor:pointer; transition: background 0.2s; border-radius: 4px; padding: 4px;" title="Click for economic breakdown">
                     <span class="info-label">💰 Gold Production</span>
@@ -312,9 +315,10 @@ class UI {
                     <span class="info-value">${econ.tradeRoutes}</span>
                 </div>
             `;
+            }
 
             // Cultural demographics
-            if (typeof Peoples !== 'undefined' && tile.settlement.demographics) {
+            if (knowsPeoples && typeof Peoples !== 'undefined' && tile.settlement.demographics) {
                 html += Peoples.buildDemographicsHTML(tile.settlement);
             }
         }
@@ -541,10 +545,13 @@ class UI {
         const panel = document.getElementById('kingdomPanel');
         const title = document.getElementById('kingdomTitle');
         const body = document.getElementById('kingdomBody');
+        const player = this.game.player;
+        const knows = (cat) => player.knowsAbout(kingdom.id, cat);
 
         title.innerHTML = `<span class="kingdom-dot" style="color:${kingdom.color}; background:${kingdom.color}"></span> ${kingdom.name}`;
 
         let relationsHtml = '';
+        if (knows('diplomacy')) {
         for (const k of this.game.world.kingdoms) {
             if (k.id === kingdom.id) continue;
             const rel = kingdom.relations[k.id] || 0;
@@ -560,9 +567,12 @@ class UI {
                 </div>
             `;
         }
+        } else {
+            relationsHtml = '<div style="color:#666; font-size:12px; font-style:italic;">You know nothing of their diplomatic ties.</div>';
+        }
 
         let warsHtml = '';
-        if (kingdom.wars && kingdom.wars.length > 0) {
+        if (knows('military') && kingdom.wars && kingdom.wars.length > 0) {
             for (const enemyId of kingdom.wars) {
                 const enemy = this.game.world.getKingdom(enemyId);
                 if (enemy) {
@@ -580,7 +590,7 @@ class UI {
         }
 
         let alliesHtml = '';
-        if (kingdom.allies && kingdom.allies.length > 0) {
+        if (knows('diplomacy') && kingdom.allies && kingdom.allies.length > 0) {
             for (const allyId of kingdom.allies) {
                 const ally = this.game.world.getKingdom(allyId);
                 if (ally) {
@@ -599,7 +609,9 @@ class UI {
 
         // Lord information — enhanced with Character system data
         let lordHtml = '';
-        if (kingdom.characterData) {
+        if (!knows('ruler')) {
+            lordHtml = '<div class="info-section-title">👑 Ruler</div><div style="color:#666; font-size:12px; font-style:italic;">You know little of their ruler. Visit their lands or speak with travelers to learn more.</div>';
+        } else if (kingdom.characterData) {
             const cd = kingdom.characterData;
             const ruler = cd.ruler;
             if (ruler && ruler.isAlive) {
@@ -745,7 +757,7 @@ class UI {
 
         // Religion & Culture info for the kingdom
         let religionHtml = '';
-        if (kingdom.religion && typeof Religion !== 'undefined') {
+        if (knows('religion') && kingdom.religion && typeof Religion !== 'undefined') {
             const faith = Religion.FAITHS[kingdom.religion.faithId];
             religionHtml = `
                 <div class="info-section-title">Religion</div>
@@ -771,7 +783,7 @@ class UI {
         }
 
         let cultureHtml = '';
-        if (kingdom.cultureData && typeof Culture !== 'undefined') {
+        if (knows('peoples') && kingdom.cultureData && typeof Culture !== 'undefined') {
             cultureHtml = `
                 <div class="info-section-title">Cultural</div>
                 <div class="info-row">
@@ -792,11 +804,11 @@ class UI {
         body.innerHTML = `
             <div class="info-row">
                 <span class="info-label">Ruler</span>
-                <span class="info-value">${kingdom.ruler}</span>
+                <span class="info-value">${knows('ruler') ? kingdom.ruler : '<span style="color:#666;">Unknown</span>'}</span>
             </div>
             <div class="info-row">
                 <span class="info-label">Culture</span>
-                <span class="info-value">${kingdom.culture}</span>
+                <span class="info-value">${knows('peoples') ? kingdom.culture : '<span style="color:#666;">Unknown</span>'}</span>
             </div>
             ${lordHtml}
             <div class="info-section-title">Kingdom Stats</div>
@@ -808,14 +820,20 @@ class UI {
                 <span class="info-label">Population</span>
                 <span class="info-value">${Utils.formatNumber(kingdom.population || 0)}</span>
             </div>
-            <div class="info-row">
+            ${knows('military') ? `<div class="info-row">
                 <span class="info-label">Military</span>
                 <span class="info-value">⚔️ ${Utils.formatNumber(kingdom.military || 0)}</span>
-            </div>
-            <div class="info-row">
+            </div>` : `<div class="info-row">
+                <span class="info-label">Military</span>
+                <span class="info-value" style="color:#666;">Unknown</span>
+            </div>`}
+            ${knows('economy') ? `<div class="info-row">
                 <span class="info-label">Treasury</span>
                 <span class="info-value">💰 ${Utils.formatNumber(kingdom.treasury)}</span>
-            </div>
+            </div>` : `<div class="info-row">
+                <span class="info-label">Treasury</span>
+                <span class="info-value" style="color:#666;">Unknown</span>
+            </div>`}
             <p style="margin-top:12px; color: var(--text-secondary); font-size: 12px; font-style: italic;">
                 "${kingdom.description}"
             </p>
@@ -946,6 +964,7 @@ class UI {
     showDynastiesPanel() {
         if (!this.game.world || typeof Characters === 'undefined') return;
 
+        const player = this.game.player;
         let html = '';
 
         for (const kingdom of this.game.world.kingdoms) {
@@ -955,6 +974,21 @@ class UI {
 
             const ruler = cd.ruler;
             if (!ruler || !ruler.isAlive) continue;
+
+            // Gate behind ruler knowledge
+            if (!player.knowsAbout(kingdom.id, 'ruler')) {
+                html += `
+                    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-left:3px solid ${kingdom.color};border-radius:6px;padding:12px;margin-bottom:10px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                            <span style="font-family:var(--font-display);color:var(--gold);font-size:14px;">
+                                ${kingdom.name}
+                            </span>
+                        </div>
+                        <div style="color: #95a5a6; font-style: italic; font-size: 12px;">You know nothing of this kingdom's ruling dynasty. Visit their settlements, speak with locals, or meet their lord to learn more.</div>
+                    </div>
+                `;
+                continue;
+            }
 
             // Trait badges
             const traitBadges = ruler.traits.map(t => {
@@ -1466,29 +1500,43 @@ class UI {
             html += '<p style="color: var(--text-secondary); font-size: 13px;">No cultural buildings yet. Visit settlements to build libraries, theaters, or universities.</p>';
         }
 
-        // ── WORLD RELIGIONS ──
+        // ── WORLD RELIGIONS ── (gated behind religion knowledge)
         if (typeof Religion !== 'undefined') {
             html += '<div class="info-section-title" style="margin-top: 16px;">☀️ World Religions</div>';
 
-            // Active faiths
+            // Active faiths — only show faiths the player knows about via kingdom knowledge or own faith
             const activeFaiths = Object.values(Religion.FAITHS).filter(f => !f.extinct);
-            html += '<div style="font-size: 13px; color: var(--gold); margin-bottom: 6px;">Active Faiths</div>';
-            for (const faith of activeFaiths) {
-                const kingdoms = world.kingdoms.filter(k => k.isAlive && k.religion && k.religion.faithId === faith.id);
-                html += `
-                    <div style="padding: 10px 12px; margin-bottom: 6px; background: rgba(255,255,255,0.05); border-radius: 4px; border-left: 3px solid ${faith.holyColor};">
-                        <div style="display: flex; justify-content: space-between;">
-                            <div><span style="font-size: 18px;">${faith.icon}</span> <strong>${faith.name}</strong></div>
-                            <span style="font-size: 11px; color: var(--text-secondary);">Founded yr ${faith.founded}</span>
+            const knownActiveFaiths = activeFaiths.filter(faith => {
+                // Always show player's own faith
+                if (player.religion && player.religion.faithId === faith.id) return true;
+                // Show if the player knows the religion of any kingdom that practices this faith
+                return world.kingdoms.some(k => k.isAlive && k.religion && k.religion.faithId === faith.id && player.knowsAbout(k.id, 'religion'));
+            });
+
+            if (knownActiveFaiths.length > 0) {
+                html += '<div style="font-size: 13px; color: var(--gold); margin-bottom: 6px;">Active Faiths</div>';
+                for (const faith of knownActiveFaiths) {
+                    const kingdoms = world.kingdoms.filter(k => k.isAlive && k.religion && k.religion.faithId === faith.id && player.knowsAbout(k.id, 'religion'));
+                    html += `
+                        <div style="padding: 10px 12px; margin-bottom: 6px; background: rgba(255,255,255,0.05); border-radius: 4px; border-left: 3px solid ${faith.holyColor};">
+                            <div style="display: flex; justify-content: space-between;">
+                                <div><span style="font-size: 18px;">${faith.icon}</span> <strong>${faith.name}</strong></div>
+                                <span style="font-size: 11px; color: var(--text-secondary);">Founded yr ${faith.founded}</span>
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">${faith.description}</div>
+                            <div style="font-size: 11px; margin-top: 4px;">Tenets: ${faith.tenets.join(', ')}</div>
+                            ${kingdoms.length > 0 ? `<div style="font-size: 11px; margin-top: 2px;">Practised by: ${kingdoms.map(k => k.name).join(', ')}</div>` : ''}
                         </div>
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">${faith.description}</div>
-                        <div style="font-size: 11px; margin-top: 4px;">Tenets: ${faith.tenets.join(', ')}</div>
-                        ${kingdoms.length > 0 ? `<div style="font-size: 11px; margin-top: 2px;">Practised by: ${kingdoms.map(k => k.name).join(', ')}</div>` : ''}
-                    </div>
-                `;
+                    `;
+                }
             }
 
-            // Extinct faiths
+            if (knownActiveFaiths.length < activeFaiths.length) {
+                const unknownCount = activeFaiths.length - knownActiveFaiths.length;
+                html += `<div style="color: #95a5a6; font-style: italic; font-size: 12px; margin-bottom: 8px;">There ${unknownCount === 1 ? 'is' : 'are'} ${unknownCount} other faith${unknownCount === 1 ? '' : 's'} in the world you have yet to learn about.</div>`;
+            }
+
+            // Extinct faiths — always show (historical knowledge)
             const extinctFaiths = Object.values(Religion.FAITHS).filter(f => f.extinct);
             if (extinctFaiths.length > 0) {
                 html += '<div style="font-size: 13px; color: #95a5a6; margin: 12px 0 6px;">Extinct Faiths</div>';
@@ -1502,13 +1550,17 @@ class UI {
                 }
             }
 
-            // ── HOLY SITES ──
+            // ── HOLY SITES ── (only show for known kingdoms or unclaimed)
             const holySites = [];
             for (let r = 0; r < world.height; r++) {
                 for (let q = 0; q < world.width; q++) {
                     const tile = world.getTile(q, r);
                     if (tile && tile.holySite) {
-                        holySites.push({ q, r, site: tile.holySite });
+                        const controller = tile.holySite.controller;
+                        // Show if unclaimed or player knows the controlling kingdom's religion
+                        if (!controller || player.knowsAbout(controller, 'religion')) {
+                            holySites.push({ q, r, site: tile.holySite });
+                        }
                     }
                 }
             }
@@ -1532,11 +1584,14 @@ class UI {
             }
         }
 
-        // ── KINGDOM CULTURAL DATA ──
+        // ── KINGDOM CULTURAL DATA ── (gated behind religion knowledge per kingdom)
         if (typeof Culture !== 'undefined') {
             html += '<div class="info-section-title" style="margin-top: 16px;">🎭 Kingdom Cultures</div>';
+            let anyKnown = false;
             for (const kingdom of world.kingdoms) {
                 if (!kingdom.isAlive || !kingdom.cultureData) continue;
+                if (!player.knowsAbout(kingdom.id, 'religion')) continue;
+                anyKnown = true;
                 html += `
                     <div style="padding: 8px 12px; margin-bottom: 6px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
                         <div>
@@ -1550,6 +1605,9 @@ class UI {
                         </div>
                     </div>
                 `;
+            }
+            if (!anyKnown) {
+                html += `<div style="color: #95a5a6; font-style: italic; font-size: 12px;">You have not yet learned about the cultural traditions of any kingdom. Visit settlements and speak with locals to discover them.</div>`;
             }
         }
 
@@ -1643,6 +1701,9 @@ class UI {
                 </div>
         `;
 
+        const player = this.game.player;
+        const knows = (cat) => kingdom ? player.knowsAbout(kingdom.id, cat) : false;
+
         // Kingdom and Lord Information
         if (kingdom) {
             html += `
@@ -1657,11 +1718,11 @@ class UI {
                     </div>
                     <div class="info-row">
                         <span class="info-label">Ruler</span>
-                        <span class="info-value">${kingdom.ruler}</span>
+                        <span class="info-value">${knows('ruler') ? kingdom.ruler : '<span style="color:#95a5a6;font-style:italic;">Unknown</span>'}</span>
                     </div>
             `;
 
-            if (lord) {
+            if (knows('ruler') && lord) {
                 const traitNames = lord.traits.map(t => t.name).join(', ');
                 html += `
                     <div class="info-row">
@@ -1692,36 +1753,54 @@ class UI {
             `;
         }
 
-        // Economy
-        html += `
-            <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px;">
-                <div class="info-section-title">Economy</div>
-                <div class="info-row">
-                    <span class="info-label">💰 Gold Production</span>
-                    <span class="info-value" style="color: #f1c40f;">+${econ.production.gold}/day</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">🌾 Food Production</span>
-                    <span class="info-value" style="color: #2ecc71;">+${econ.production.food}/day</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">📦 Goods Production</span>
-                    <span class="info-value" style="color: #3498db;">+${econ.production.goods}/day</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Trade Routes</span>
-                    <span class="info-value">${econ.tradeRoutes}</span>
-                </div>
-            </div>
-        `;
-
-        // Cultural Demographics
-        if (typeof Peoples !== 'undefined' && settlement.demographics) {
+        // Economy — gated behind knowledge
+        if (knows('economy')) {
             html += `
-                <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-top: 16px;">
+                <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px;">
+                    <div class="info-section-title">Economy</div>
+                    <div class="info-row">
+                        <span class="info-label">💰 Gold Production</span>
+                        <span class="info-value" style="color: #f1c40f;">+${econ.production.gold}/day</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">🌾 Food Production</span>
+                        <span class="info-value" style="color: #2ecc71;">+${econ.production.food}/day</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">📦 Goods Production</span>
+                        <span class="info-value" style="color: #3498db;">+${econ.production.goods}/day</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Trade Routes</span>
+                        <span class="info-value">${econ.tradeRoutes}</span>
+                    </div>
+                </div>
             `;
-            html += Peoples.buildDemographicsHTML(settlement);
-            html += `</div>`;
+        } else {
+            html += `
+                <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px;">
+                    <div class="info-section-title">Economy</div>
+                    <div style="color: #95a5a6; font-style: italic; padding: 8px 0;">You don't know enough about this settlement's economy. Try trading here or asking locals.</div>
+                </div>
+            `;
+        }
+
+        // Cultural Demographics — gated behind knowledge
+        if (typeof Peoples !== 'undefined' && settlement.demographics) {
+            if (knows('peoples')) {
+                html += `
+                    <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-top: 16px;">
+                `;
+                html += Peoples.buildDemographicsHTML(settlement);
+                html += `</div>`;
+            } else {
+                html += `
+                    <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-top: 16px;">
+                        <div class="info-section-title">Demographics</div>
+                        <div style="color: #95a5a6; font-style: italic; padding: 8px 0;">You know little of the peoples who dwell here. Speak with locals or visit the tavern to learn more.</div>
+                    </div>
+                `;
+            }
         }
 
         html += '</div>';
@@ -1740,6 +1819,12 @@ class UI {
         }
 
         const lord = kingdom.lord;
+        const player = this.game.player;
+        const knows = (cat) => player.knowsAbout(kingdom.id, cat);
+        const unknownBox = (label) => `<div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+            <div class="info-section-title">${label}</div>
+            <div style="color:#666; font-size:12px; font-style:italic;">You haven't discovered this yet. Talk to locals, visit taverns, or meet their lord to learn more.</div>
+        </div>`;
 
         // Count settlements
         const settlements = this.game.world.getAllSettlements().filter(s => s.kingdom === kingdom.id);
@@ -1755,13 +1840,13 @@ class UI {
                 <div style="text-align: center; margin-bottom: 24px;">
                     <div style="font-size: 64px; margin-bottom: 8px;">👑</div>
                     <h2 style="margin: 0; color: ${kingdom.color}; font-family: var(--font-display);">${kingdom.name}</h2>
-                    <div style="color: var(--text-secondary); font-size: 14px; margin-top: 4px;">${kingdom.culture} Culture</div>
+                    <div style="color: var(--text-secondary); font-size: 14px; margin-top: 4px;">${knows('peoples') ? kingdom.culture + ' Culture' : 'Culture unknown'}</div>
                 </div>
 
                 <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
                     <div class="info-row">
                         <span class="info-label">Ruler</span>
-                        <span class="info-value" style="color: var(--gold);">${kingdom.ruler}</span>
+                        <span class="info-value" style="color: var(--gold);">${knows('ruler') ? kingdom.ruler : '<span style=color:#666>Unknown</span>'}</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">Status</span>
@@ -1775,7 +1860,9 @@ class UI {
         `;
 
         // Lord Details
-        if (lord) {
+        if (!knows('ruler')) {
+            html += unknownBox('Lord of the Realm');
+        } else if (lord) {
             const traitNames = lord.traits.map(t => t.name).join(', ');
             html += `
                 <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
@@ -1834,6 +1921,7 @@ class UI {
         `;
 
         // Diplomacy
+        if (knows('diplomacy')) {
         html += `
             <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
                 <div class="info-section-title">Diplomacy</div>
@@ -1879,8 +1967,9 @@ class UI {
         }
 
         html += `</div>`;
-
-        // Description
+        } else {
+            html += unknownBox('Diplomacy');
+        }
         html += `
             <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
                 <div class="info-section-title">About</div>
@@ -1889,7 +1978,7 @@ class UI {
         `;
 
         // Constituent Peoples
-        if (typeof Peoples !== 'undefined') {
+        if (knows('peoples') && typeof Peoples !== 'undefined') {
             const kingdomTribes = Peoples.getTribesForCulture(kingdom.culture);
             if (kingdomTribes.length > 0) {
                 html += `
@@ -1941,58 +2030,66 @@ class UI {
             </div>
         `;
 
-        // Show each kingdom's constituent peoples
+        const player = this.game.player;
+
+        // Show each kingdom's constituent peoples — gated behind knowledge
         for (const kingdom of this.game.world.kingdoms) {
             if (!kingdom.isAlive) continue;
 
             const tribes = Peoples.getTribesForCulture(kingdom.culture);
             if (tribes.length === 0) continue;
 
+            const knowsPeoples = player.knowsAbout(kingdom.id, 'peoples');
+
             html += `
                 <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px; border-left: 4px solid ${kingdom.color};">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <div>
                             <span style="color: ${kingdom.color}; font-family: var(--font-display); font-size: 16px;">${kingdom.name}</span>
-                            <span style="color: var(--text-secondary); font-size: 12px; margin-left: 8px;">${kingdom.culture} Culture</span>
+                            <span style="color: var(--text-secondary); font-size: 12px; margin-left: 8px;">${knowsPeoples ? kingdom.culture + ' Culture' : 'Culture unknown'}</span>
                         </div>
                     </div>
             `;
 
-            for (const tribe of tribes) {
-                html += `
-                    <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                            <span style="color: #fff; font-size: 14px;">${tribe.icon} <strong>${tribe.name}</strong></span>
-                            <span style="color: var(--text-secondary); font-size: 11px;">${tribe.origin}</span>
+            if (knowsPeoples) {
+                for (const tribe of tribes) {
+                    html += `
+                        <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; margin-bottom: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <span style="color: #fff; font-size: 14px;">${tribe.icon} <strong>${tribe.name}</strong></span>
+                                <span style="color: var(--text-secondary); font-size: 11px;">${tribe.origin}</span>
+                            </div>
+                            <div style="color: var(--text-secondary); font-size: 11px; margin-bottom: 4px;">
+                                Traits: <span style="color: #fff;">${tribe.traits.join(', ')}</span>
+                            </div>
+                            <div style="color: var(--text-secondary); font-size: 11px; margin-bottom: 4px;">
+                                🎨 <span style="color: #fff;">${tribe.artForms.join(', ')}</span>
+                            </div>
+                            <div style="color: var(--text-secondary); font-size: 11px; margin-bottom: 4px;">
+                                🍲 <span style="color: #fff;">${tribe.cuisine.join(', ')}</span>
+                            </div>
+                            <div style="color: var(--text-secondary); font-size: 11px; margin-bottom: 4px;">
+                                🎉 <span style="color: #fff;">${tribe.customs.join(', ')}</span>
+                            </div>
+                            <div style="color: var(--gold); font-size: 11px; font-style: italic; margin-bottom: 4px;">
+                                📜 ${tribe.proverb}
+                            </div>
+                            <div style="color: var(--text-secondary); font-size: 11px; font-style: italic; line-height: 1.4;">
+                                ${tribe.ancestralMemory}
+                            </div>
                         </div>
-                        <div style="color: var(--text-secondary); font-size: 11px; margin-bottom: 4px;">
-                            Traits: <span style="color: #fff;">${tribe.traits.join(', ')}</span>
-                        </div>
-                        <div style="color: var(--text-secondary); font-size: 11px; margin-bottom: 4px;">
-                            🎨 <span style="color: #fff;">${tribe.artForms.join(', ')}</span>
-                        </div>
-                        <div style="color: var(--text-secondary); font-size: 11px; margin-bottom: 4px;">
-                            🍲 <span style="color: #fff;">${tribe.cuisine.join(', ')}</span>
-                        </div>
-                        <div style="color: var(--text-secondary); font-size: 11px; margin-bottom: 4px;">
-                            🎉 <span style="color: #fff;">${tribe.customs.join(', ')}</span>
-                        </div>
-                        <div style="color: var(--gold); font-size: 11px; font-style: italic; margin-bottom: 4px;">
-                            📜 ${tribe.proverb}
-                        </div>
-                        <div style="color: var(--text-secondary); font-size: 11px; font-style: italic; line-height: 1.4;">
-                            ${tribe.ancestralMemory}
-                        </div>
-                    </div>
-                `;
+                    `;
+                }
+            } else {
+                html += `<div style="color: #95a5a6; font-style: italic; padding: 8px 0;">You know nothing of the peoples of ${kingdom.name}. Visit their settlements, speak with locals, or ask their lord to learn more.</div>`;
             }
 
             html += `</div>`;
         }
 
-        // Most diverse settlements
+        // Most diverse settlements — only show known kingdoms
         const allSettlements = this.game.world.getAllSettlements()
-            .filter(s => s.demographics && s.demographics.length > 0)
+            .filter(s => s.demographics && s.demographics.length > 0 && s.kingdom && player.knowsAbout(s.kingdom, 'peoples'))
             .sort((a, b) => (b.demographics ? b.demographics.length : 0) - (a.demographics ? a.demographics.length : 0))
             .slice(0, 5);
 

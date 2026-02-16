@@ -84,6 +84,10 @@ class Player {
         this.visitedImprovements = new Set();
         this.discoveredLore = new Set(); // IDs of discovered world history entries
 
+        // Kingdom knowledge — what the player has learned about each kingdom
+        // Categories: basics, ruler, peoples, religion, military, diplomacy, economy
+        this.kingdomKnowledge = {}; // { kingdomId: { basics:bool, ruler:bool, peoples:bool, religion:bool, military:bool, diplomacy:bool, economy:bool } }
+
         // Finance tracking — rolling history of daily income/expenses
         this.financeHistory = [];  // Array of { day, gold, income: {}, expenses: {} }
         this.financeToday = null;  // Current day's running tally
@@ -465,5 +469,39 @@ class Player {
 
         this.kingdomTitle = title;
         return { success: true };
+    }
+
+    /**
+     * Check if the player knows a specific category about a kingdom
+     */
+    knowsAbout(kingdomId, category) {
+        if (!kingdomId) return false;
+        if (!this.kingdomKnowledge) this.kingdomKnowledge = {};
+        const k = this.kingdomKnowledge[kingdomId];
+        if (!k) return false;
+        return !!k[category];
+    }
+
+    /**
+     * Learn something about a kingdom
+     * @param {string} kingdomId
+     * @param {string|string[]} categories - one or more of: basics, ruler, peoples, religion, military, diplomacy, economy
+     * @returns {string[]} newly learned categories
+     */
+    learnAboutKingdom(kingdomId, categories) {
+        if (!kingdomId) return [];
+        if (!this.kingdomKnowledge) this.kingdomKnowledge = {};
+        if (!this.kingdomKnowledge[kingdomId]) {
+            this.kingdomKnowledge[kingdomId] = {};
+        }
+        const cats = Array.isArray(categories) ? categories : [categories];
+        const newlyLearned = [];
+        for (const cat of cats) {
+            if (!this.kingdomKnowledge[kingdomId][cat]) {
+                this.kingdomKnowledge[kingdomId][cat] = true;
+                newlyLearned.push(cat);
+            }
+        }
+        return newlyLearned;
     }
 }

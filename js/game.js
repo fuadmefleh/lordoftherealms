@@ -513,6 +513,14 @@ class Game {
                 `You have arrived at this ${sType}. Population: ${Utils.formatNumber(tile.settlement.population)}.`,
                 'success'
             );
+            // Discover basic kingdom knowledge by visiting a settlement
+            if (tile.settlement.kingdom) {
+                const learned = this.player.learnAboutKingdom(tile.settlement.kingdom, 'basics');
+                if (learned.length > 0) {
+                    const k = this.world.getKingdom(tile.settlement.kingdom);
+                    if (k) this.ui.showNotification('Knowledge Gained', `You have learned about the realm of ${k.name}.`, 'info');
+                }
+            }
         }
 
         // If arrived at a point of interest

@@ -86,12 +86,13 @@ const ActionMenu = {
             backdrop-filter: blur(12px);
             border: 1px solid rgba(245, 197, 66, 0.4);
             border-radius: 10px;
-            min-width: 360px;
-            max-width: 420px;
+            width: 400px;
             z-index: 1000;
             box-shadow: 0 12px 48px rgba(0,0,0,0.85), 0 0 0 1px rgba(245,197,66,0.1);
             overflow: hidden;
             font-family: var(--font-body);
+            display: flex;
+            flex-direction: column;
         `;
 
         // ── Header ──
@@ -105,8 +106,8 @@ const ActionMenu = {
         }
 
         let html = `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px 10px;
-                border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(245,197,66,0.04);">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px 10px;
+                border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(245,197,66,0.04); flex-shrink: 0;">
                 <div>
                     <div style="font-family: var(--font-display); font-size: 15px; color: var(--gold); letter-spacing: 0.5px;">Actions</div>
                     <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${locationInfo}</div>
@@ -133,47 +134,48 @@ const ActionMenu = {
             }
             html += `</div>`;
         } else {
-            // ── Category tabs ──
-            html += `<div id="actionTabs" style="display: flex; gap: 0; padding: 6px 8px 0; overflow-x: auto;
-                border-bottom: 1px solid rgba(255,255,255,0.06); scrollbar-width: none;">`;
+            // ── Category tabs — wrap to fit ──
+            html += `<div id="actionTabs" style="display: flex; flex-wrap: wrap; gap: 2px; padding: 6px 6px 0;
+                border-bottom: 1px solid rgba(255,255,255,0.06); flex-shrink: 0;">`;
             categories.forEach((cat, i) => {
                 const isFirst = i === 0;
                 html += `
                     <button class="action-tab" data-tab="${cat.id}" style="
-                        flex-shrink: 0;
-                        padding: 7px 12px 9px;
-                        font-size: 12px;
+                        padding: 5px 8px 7px;
+                        font-size: 11px;
                         font-family: var(--font-body);
-                        background: ${isFirst ? 'rgba(245,197,66,0.12)' : 'transparent'};
-                        border: none;
-                        border-bottom: 2px solid ${isFirst ? 'var(--gold)' : 'transparent'};
+                        background: ${isFirst ? 'rgba(245,197,66,0.15)' : 'rgba(255,255,255,0.03)'};
+                        border: 1px solid ${isFirst ? 'rgba(245,197,66,0.3)' : 'rgba(255,255,255,0.06)'};
+                        border-bottom: none;
                         color: ${isFirst ? 'var(--gold)' : 'rgba(255,255,255,0.5)'};
                         cursor: pointer;
                         transition: all 0.15s;
                         white-space: nowrap;
-                        border-radius: 6px 6px 0 0;
-                    ">${cat.icon} ${cat.label}
-                        <span style="font-size: 10px; opacity: 0.6; margin-left: 2px;">${cat.actions.length}</span>
-                    </button>
+                        border-radius: 5px 5px 0 0;
+                    ">${cat.icon} ${cat.label}</button>
                 `;
             });
             html += `</div>`;
 
-            // ── Tab content panels ──
+            // ── Tab content panels — fixed height so menu doesn't resize ──
+            html += `<div style="height: 300px; overflow: hidden; position: relative;">`;
             categories.forEach((cat, i) => {
                 const isFirst = i === 0;
                 html += `<div class="action-tab-content" data-tab="${cat.id}" style="
                     display: ${isFirst ? 'grid' : 'none'};
                     gap: 6px;
                     padding: 10px 12px 14px;
-                    max-height: 360px;
+                    height: 100%;
+                    box-sizing: border-box;
                     overflow-y: auto;
+                    align-content: start;
                 ">`;
                 for (const action of cat.actions) {
                     html += ActionMenu._renderActionButton(action);
                 }
                 html += `</div>`;
             });
+            html += `</div>`;
         }
 
         menu.innerHTML = html;
@@ -190,8 +192,9 @@ const ActionMenu = {
                 // Update tab styles
                 tabs.forEach(t => {
                     const isActive = t.getAttribute('data-tab') === tabId;
-                    t.style.background = isActive ? 'rgba(245,197,66,0.12)' : 'transparent';
-                    t.style.borderBottom = isActive ? '2px solid var(--gold)' : '2px solid transparent';
+                    t.style.background = isActive ? 'rgba(245,197,66,0.15)' : 'rgba(255,255,255,0.03)';
+                    t.style.border = isActive ? '1px solid rgba(245,197,66,0.3)' : '1px solid rgba(255,255,255,0.06)';
+                    t.style.borderBottom = 'none';
                     t.style.color = isActive ? 'var(--gold)' : 'rgba(255,255,255,0.5)';
                 });
                 // Show/hide content

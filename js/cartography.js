@@ -47,7 +47,7 @@ const Cartography = {
             name: 'Regional Map',
             icon: '🗺️',
             description: 'Shows terrain and settlements in a region',
-            radius: 8,
+            radius: 15,
             cost: 30,
         },
         survey: {
@@ -55,15 +55,15 @@ const Cartography = {
             name: 'Survey Map',
             icon: '📐',
             description: 'Detailed survey showing resources and terrain',
-            radius: 5,
+            radius: 10,
             cost: 80,
         },
         kingdom: {
             id: 'kingdom',
             name: 'Kingdom Map',
             icon: '👑',
-            description: 'Shows borders and territories of a kingdom',
-            radius: 15,
+            description: 'Reveals all territory of a kingdom',
+            radius: 0,  // Uses kingdom territory tiles, not radius
             cost: 120,
         },
         propaganda: {
@@ -71,7 +71,7 @@ const Cartography = {
             name: 'Propaganda Map',
             icon: '📣',
             description: 'Shows exaggerated borders — may be inaccurate',
-            radius: 20,
+            radius: 25,
             cost: 0,
         },
         ancient: {
@@ -79,7 +79,7 @@ const Cartography = {
             name: 'Ancient Map',
             icon: '📜',
             description: 'Fragment of an old map revealing forgotten places',
-            radius: 10,
+            radius: 15,
             cost: 0,
         },
         stolen: {
@@ -87,7 +87,7 @@ const Cartography = {
             name: 'Stolen Map',
             icon: '🗡️',
             description: 'Acquired through dubious means',
-            radius: 12,
+            radius: 18,
             cost: 0,
         },
         treasure: {
@@ -97,6 +97,14 @@ const Cartography = {
             description: 'Marks the location of buried valuables',
             radius: 3,
             cost: 0,
+        },
+        continent: {
+            id: 'continent',
+            name: 'Continent Map',
+            icon: '🌍',
+            description: 'Reveals an entire continent — extremely rare',
+            radius: 0,  // Uses regionId, not radius
+            cost: 5000,
         },
     },
 
@@ -470,16 +478,53 @@ const Cartography = {
         const accuracy = map.accuracy || 0.5;
         let tilesRevealed = 0;
 
-        const hexes = Hex.hexesInRange(map.centerQ, map.centerR, map.radius);
-        for (const hex of hexes) {
-            const tile = world.getTile(hex.q, hex.r);
-            if (!tile) continue;
-
-            // Accuracy check — lower quality maps may miss tiles
-            if (Math.random() > accuracy) continue;
-
-            tile.explored = true;
-            tilesRevealed++;
+        // Kingdom maps: reveal all kingdom territory tiles
+        if (map.type === 'kingdom' && map.tiles && map.tiles.length > 0) {
+            for (const t of map.tiles) {
+                const tile = world.getTile(t.q, t.r);
+                if (!tile) continue;
+                tile.explored = true;
+                tilesRevealed++;
+            }
+            // Also reveal a radius around the capital for border context
+            if (map.centerQ !== undefined && map.centerR !== undefined) {
+                const hexes = Hex.hexesInRange(map.centerQ, map.centerR, 5);
+                for (const hex of hexes) {
+                    const tile = world.getTile(hex.q, hex.r);
+                    if (!tile) continue;
+                    if (!tile.explored) {
+                        tile.explored = true;
+                        tilesRevealed++;
+                    }
+                }
+            }
+        }
+        // Continent maps: reveal all tiles with matching regionId
+        else if (map.type === 'continent' && map.regionId !== undefined) {
+            for (let r = 0; r < world.height; r++) {
+                for (let q = 0; q < world.width; q++) {
+                    const tile = world.getTile(q, r);
+                    if (!tile) continue;
+                    if (tile.regionId === map.regionId) {
+                        if (Math.random() > accuracy) continue;
+                        if (!tile.explored) {
+                            tile.explored = true;
+                            tilesRevealed++;
+                        }
+                    }
+                }
+            }
+        }
+        // Standard maps: use radius circle
+        else {
+            const hexes = Hex.hexesInRange(map.centerQ, map.centerR, map.radius);
+            for (const hex of hexes) {
+                const tile = world.getTile(hex.q, hex.r);
+                if (!tile) continue;
+                if (Math.random() > accuracy) continue;
+                tile.explored = true;
+                tilesRevealed++;
+            }
         }
 
         // Mark treasure maps
@@ -620,7 +665,7 @@ const Cartography = {
                     kingdomId: kingdom.id,
                     centerQ: kingdom.capital.q,
                     centerR: kingdom.capital.r,
-                    radius: 12,
+                    radius: Cartography.MAP_TYPES.stolen.radius,
                     createdDay: world.day,
                     createdBy: `${kingdom.name} Archives`,
                     value: Utils.randInt(40, 100),
@@ -646,11 +691,11 @@ const Cartography = {
                 accuracy: 0.5 + Math.random() * 0.3,
                 centerQ: q,
                 centerR: r,
-                radius: 8,
+                radius: Cartography.MAP_TYPES.regional.radius,
                 createdDay: world.day,
                 createdBy: 'Unknown',
                 value: Utils.randInt(20, 60),
-                tiles: Cartography._chartTiles(q, r, 8, world, 0.6),
+                tiles: Cartography._chartTiles(q, r, Cartography.MAP_TYPES.regional.radius, world, 0.6),
                 deliberateErrors: [],
                 isPropaganda: false,
                 isStolen: true,
@@ -689,11 +734,11 @@ const Cartography = {
                 accuracy: isCity ? 0.8 : 0.6,
                 centerQ: q,
                 centerR: r,
-                radius: 8,
+                radius: Cartography.MAP_TYPES.regional.radius,
                 createdDay: world.day,
                 createdBy: `${settlement.name} Cartographer`,
                 value: isCity ? 60 : 30,
-                tiles: Cartography._chartTiles(q, r, 8, world, isCity ? 0.8 : 0.6),
+                tiles: Cartography._chartTiles(q, r, Cartography.MAP_TYPES.regional.radius, world, isCity ? 0.8 : 0.6),
                 deliberateErrors: [],
                 isPropaganda: false,
                 isStolen: false,
@@ -718,7 +763,7 @@ const Cartography = {
                         kingdomId: tile.kingdom,
                         centerQ: kingdom.capital.q,
                         centerR: kingdom.capital.r,
-                        radius: 15,
+                        radius: 0,
                         createdDay: world.day,
                         createdBy: `Royal Cartographer of ${kingdom.name}`,
                         value: 100,
@@ -769,6 +814,47 @@ const Cartography = {
                         price: Utils.randInt(20, 50),
                     });
                 }
+            }
+        }
+
+        // Continent map — extremely rare (3% chance, capitals only)
+        if (settlement.type === 'capital' && Math.random() < 0.03) {
+            const currentTile = world.getTile(q, r);
+            if (currentTile && currentTile.regionId !== undefined) {
+                // Count tiles in this continent for pricing
+                let continentSize = 0;
+                for (let cr = 0; cr < world.height; cr++) {
+                    for (let cq = 0; cq < world.width; cq++) {
+                        const ct = world.getTile(cq, cr);
+                        if (ct && ct.regionId === currentTile.regionId) continentSize++;
+                    }
+                }
+                const price = Math.max(5000, Math.floor(continentSize * 10));
+
+                maps.push({
+                    map: {
+                        id: `sale_continent_${currentTile.regionId}`,
+                        type: 'continent',
+                        name: `Grand Continental Atlas`,
+                        icon: '🌍',
+                        quality: 'masterwork',
+                        accuracy: 0.95,
+                        centerQ: q,
+                        centerR: r,
+                        regionId: currentTile.regionId,
+                        radius: 0,
+                        createdDay: world.day,
+                        createdBy: `Royal Geographic Society of ${settlement.name}`,
+                        value: price,
+                        tiles: [],
+                        deliberateErrors: [],
+                        isPropaganda: false,
+                        isStolen: false,
+                        isAncient: false,
+                        notes: `A masterwork atlas covering the entire continent. Painstakingly compiled over decades.`,
+                    },
+                    price: price,
+                });
             }
         }
 

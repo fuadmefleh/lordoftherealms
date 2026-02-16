@@ -39,7 +39,7 @@ const ActionMenu = {
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
             tavern: 'social', talk_locals: 'social', preach: 'social',
             pilgrimage: 'social', miracle: 'social',
-            recruit: 'military',
+            recruit: 'military', attack_unit: 'military',
             build_property: 'building', build_temple: 'building',
             build_cultural: 'building', build_infrastructure: 'building',
             demolish_infrastructure: 'building',
@@ -342,6 +342,9 @@ const ActionMenu = {
                 break;
             case 'dig_treasure':
                 ActionMenu.digTreasure(game, tile);
+                break;
+            case 'attack_unit':
+                ActionMenu.showAttackConfirm(game, tile, actionType);
                 break;
         }
     },
@@ -3198,6 +3201,113 @@ const ActionMenu = {
             game.ui.showNotification('Nothing Here', result.reason, 'default');
         }
         game.ui.updateStats(game.player, game.world);
+    },
+
+    /**
+     * Show attack confirmation for a world unit
+     */
+    showAttackConfirm(game, tile, actionType) {
+        // Find units on this tile
+        const unitsOnTile = game.world.units.filter(u => u.q === game.player.q && u.r === game.player.r && !u.destroyed);
+        if (unitsOnTile.length === 0) {
+            game.ui.showNotification('No Target', 'There are no units here to attack.', 'default');
+            return;
+        }
+
+        let html = '<div style="padding:10px;">';
+        html += '<p style="margin-bottom:10px;color:#ccc;">Choose a target to engage in combat:</p>';
+
+        for (const unit of unitsOnTile) {
+            const dangerColor = unit.strength > PlayerMilitary.getArmyStrength(game.player) ? '#ff6666' : '#66ff66';
+            html += `<button onclick="ActionMenu.performAttack(window.game, '${unit.id}')" style="
+                display:flex; align-items:center; gap:10px; width:100%; padding:10px;
+                margin-bottom:8px; background:#2a2a2a; border:1px solid #555;
+                border-radius:6px; cursor:pointer; color:#eee; text-align:left;
+            ">
+                <span style="font-size:28px;">${unit.icon}</span>
+                <div style="flex:1;">
+                    <div style="font-weight:bold;">${unit.name}</div>
+                    <div style="font-size:12px; color:#aaa;">Population: ${unit.population} | Strength: <span style="color:${dangerColor}">${unit.strength}</span></div>
+                    <div style="font-size:11px; color:#888;">${unit.type === 'caravan' || unit.type === 'ship' || unit.type === 'fishing_boat' ? '⚠️ Attacking traders hurts your karma' : unit.type === 'patrol' ? '⚠️ Attacking patrols angers kingdoms' : '💀 Hostile unit'}</div>
+                </div>
+            </button>`;
+        }
+
+        const playerStr = PlayerMilitary.getArmyStrength(game.player);
+        html += `<div style="margin-top:8px; padding:8px; background:#1a1a2e; border-radius:4px; font-size:12px; color:#aaa;">
+            Your army strength: <strong style="color:#4fc3f7;">${playerStr}</strong> (${game.player.army.length} units)
+        </div>`;
+        html += '</div>';
+
+        game.ui.showCustomPanel('⚔️ Attack Unit', html);
+    },
+
+    /**
+     * Execute attack against a world unit
+     */
+    performAttack(game, unitId) {
+        game.ui.hideCustomPanel();
+
+        const unit = game.world.units.find(u => u.id === unitId && !u.destroyed);
+        if (!unit) {
+            game.ui.showNotification('Target Gone', 'The unit is no longer here.', 'default');
+            return;
+        }
+
+        const result = PlayerMilitary.attackUnit(game.player, unit, game.world);
+
+        let html = '<div style="padding:10px;">';
+
+        if (result.noArmy) {
+            html += '<p style="color:#ff6666;">You have no army to fight with! Recruit soldiers first.</p>';
+        } else if (result.victory) {
+            html += `<div style="text-align:center; margin-bottom:10px;">
+                <span style="font-size:48px;">🏆</span>
+                <h3 style="color:#66ff66; margin:5px 0;">Victory!</h3>
+                <p style="color:#aaa;">You defeated the ${result.enemyName}!</p>
+            </div>`;
+            html += `<div style="background:#1a2e1a; padding:8px; border-radius:4px; margin-bottom:8px;">`;
+            html += `<div>💰 Gold looted: <strong style="color:#ffd700;">${result.loot}</strong></div>`;
+            if (result.inventoryLoot && Object.keys(result.inventoryLoot).length > 0) {
+                html += `<div style="margin-top:4px;">📦 Supplies captured:</div>`;
+                for (const [item, qty] of Object.entries(result.inventoryLoot)) {
+                    html += `<div style="margin-left:12px; color:#aaa;">• ${item}: ${qty}</div>`;
+                }
+            }
+            html += `</div>`;
+            if (result.casualties > 0) {
+                html += `<div style="color:#ff9800;">⚠️ You lost ${result.casualties} soldier${result.casualties > 1 ? 's' : ''} in the battle.</div>`;
+            }
+            if (result.karmaChange < 0) {
+                html += `<div style="color:#ff6666;">😈 Karma: ${result.karmaChange}</div>`;
+            }
+            if (result.renownChange > 0) {
+                html += `<div style="color:#4fc3f7;">⭐ Renown +${result.renownChange}</div>`;
+            }
+        } else {
+            html += `<div style="text-align:center; margin-bottom:10px;">
+                <span style="font-size:48px;">💀</span>
+                <h3 style="color:#ff6666;">Defeat!</h3>
+                <p style="color:#aaa;">The ${result.enemyName} overpowered you!</p>
+            </div>`;
+            html += `<div style="background:#2e1a1a; padding:8px; border-radius:4px; margin-bottom:8px;">`;
+            html += `<div style="color:#ff9800;">Lost ${result.casualties} soldier${result.casualties > 1 ? 's' : ''}.</div>`;
+            if (result.captured) {
+                html += `<div style="color:#ff6666; margin-top:4px;">⛓️ You have been captured into indentured servitude for ${result.servitudeDays} days!</div>`;
+                html += `<div style="color:#ffd700;">💰 ${result.goldConfiscated} gold confiscated.</div>`;
+            }
+            html += `</div>`;
+        }
+
+        html += `<button onclick="game.ui.hideCustomPanel(); game.ui.updateStats(game.player, game.world);" style="
+            width:100%; padding:10px; margin-top:10px;
+            background:#444; border:1px solid #666; border-radius:6px;
+            color:#eee; cursor:pointer; font-size:14px;
+        ">Continue</button></div>`;
+
+        game.ui.showCustomPanel(result.victory ? '⚔️ Victory!' : '⚔️ Defeat', html);
+        game.ui.updateStats(game.player, game.world);
+        game.endDay();
     },
 
     /**

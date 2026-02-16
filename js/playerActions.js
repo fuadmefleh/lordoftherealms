@@ -322,6 +322,20 @@ const PlayerActions = {
             }
         }
 
+        // 5b. Attack world units on same tile
+        if (world.units && world.units.length > 0) {
+            const unitsOnTile = world.units.filter(u => u.q === player.q && u.r === player.r && !u.destroyed);
+            for (const unit of unitsOnTile) {
+                actions.push({
+                    type: 'attack_unit',
+                    label: `Attack ${unit.name}`,
+                    icon: '⚔️',
+                    description: `Engage the ${unit.name} (Strength: ${unit.strength}, Pop: ${unit.population})`,
+                    unitId: unit.id
+                });
+            }
+        }
+
         // 6. Miracles (Global/Self action really, but put here if high karma?)
         if (player.karma >= 10) {
             actions.push({

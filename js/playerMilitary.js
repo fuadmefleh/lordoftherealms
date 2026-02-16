@@ -502,4 +502,84 @@ const PlayerMilitary = {
 
         return result;
     },
+
+    /**
+     * Attack a world unit on the player's tile
+     */
+    attackUnit(player, worldUnit, world) {
+        const combatResult = PlayerMilitary.combat(player, worldUnit.strength, worldUnit.name);
+
+        let karmaChange = 0;
+        let renownChange = 0;
+        let inventoryLoot = {};
+
+        if (combatResult.victory) {
+            // Transfer unit inventory to player
+            if (worldUnit.inventory) {
+                for (const [item, qty] of Object.entries(worldUnit.inventory)) {
+                    if (qty > 0) {
+                        if (!player.inventory) player.inventory = {};
+                        player.inventory[item] = (player.inventory[item] || 0) + qty;
+                        inventoryLoot[item] = qty;
+                    }
+                }
+            }
+
+            // Destroy the unit
+            worldUnit.destroyed = true;
+
+            // Karma/reputation effects by unit type
+            switch (worldUnit.type) {
+                case 'caravan':
+                case 'ship':
+                case 'fishing_boat':
+                    karmaChange = -3;
+                    player.karma += karmaChange;
+                    break;
+                case 'settler':
+                    karmaChange = -5;
+                    player.karma += karmaChange;
+                    break;
+                case 'raider':
+                case 'pirate':
+                    karmaChange = 1;
+                    renownChange = Math.floor(worldUnit.strength / 5) + 2;
+                    player.karma += karmaChange;
+                    player.renown += renownChange;
+                    break;
+                case 'patrol':
+                    karmaChange = -2;
+                    player.karma += karmaChange;
+                    // Anger the patrol's kingdom
+                    if (worldUnit.kingdom) {
+                        player.reputation[worldUnit.kingdom] =
+                            (player.reputation[worldUnit.kingdom] || 0) - 25;
+                    }
+                    break;
+            }
+
+            // Log event
+            if (world.events) {
+                world.events.push({
+                    text: `${player.name || 'The player'} defeated a ${worldUnit.name}!`,
+                    type: 'military'
+                });
+            }
+        } else {
+            // Log defeat event
+            if (world.events) {
+                world.events.push({
+                    text: `${player.name || 'The player'} was defeated by a ${worldUnit.name}!`,
+                    type: 'military'
+                });
+            }
+        }
+
+        return {
+            ...combatResult,
+            karmaChange,
+            renownChange,
+            inventoryLoot,
+        };
+    },
 };

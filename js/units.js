@@ -22,7 +22,7 @@ class WorldUnit {
             case 'caravan':
                 this.icon = '🐫';
                 this.name = 'Trade Caravan';
-                this.speed = 1;
+                this.speed = 4;
                 this.population = Utils.randInt(5, 15);
                 this.strength = Utils.randInt(2, 5);
                 this.inventory = this.generateInitialInventory('trade');
@@ -30,7 +30,7 @@ class WorldUnit {
             case 'raider':
                 this.icon = '🏇';
                 this.name = 'Raider Band';
-                this.speed = 2;
+                this.speed = 6;
                 this.population = Utils.randInt(10, 30);
                 this.strength = Utils.randInt(8, 15);
                 this.inventory = this.generateInitialInventory('military');
@@ -38,7 +38,7 @@ class WorldUnit {
             case 'patrol':
                 this.icon = '💂';
                 this.name = 'Kingdom Patrol';
-                this.speed = 2;
+                this.speed = 6;
                 this.population = Utils.randInt(15, 40);
                 this.strength = Utils.randInt(15, 25);
                 this.inventory = {};
@@ -46,7 +46,7 @@ class WorldUnit {
             case 'settler':
                 this.icon = '⛺';
                 this.name = 'Settler Group';
-                this.speed = 1;
+                this.speed = 2;
                 this.population = Utils.randInt(20, 50);
                 this.strength = Utils.randInt(5, 10);
                 this.inventory = { 'food': 100, 'tools': 20 };
@@ -54,7 +54,7 @@ class WorldUnit {
             case 'ship':
                 this.icon = '⛵';
                 this.name = 'Trading Ship';
-                this.speed = 2;
+                this.speed = 8;
                 this.population = Utils.randInt(10, 25);
                 this.strength = Utils.randInt(5, 12);
                 this.inventory = this.generateInitialInventory('sea_trade');
@@ -62,7 +62,7 @@ class WorldUnit {
             case 'pirate':
                 this.icon = '🏴‍☠️';
                 this.name = 'Pirate Ship';
-                this.speed = 2;
+                this.speed = 8;
                 this.population = Utils.randInt(15, 35);
                 this.strength = Utils.randInt(12, 20);
                 this.inventory = this.generateInitialInventory('pirate');
@@ -70,7 +70,7 @@ class WorldUnit {
             case 'fishing_boat':
                 this.icon = '🛶';
                 this.name = 'Fishing Boat';
-                this.speed = 2; // Move 2 tiles per day
+                this.speed = 6;
                 this.population = Utils.randInt(2, 5);
                 this.strength = 1;
                 this.inventory = {};
@@ -206,7 +206,11 @@ class WorldUnit {
             }
         }
 
-        this.moveTowardsTarget(world);
+        // Move multiple times based on speed
+        for (let i = 0; i < this.speed; i++) {
+            if (this.q === this.targetQ && this.r === this.targetR) break;
+            this.moveTowardsTarget(world);
+        }
 
         // Check if arrived at target
         if (this.targetQ !== null && this.targetR !== null &&
@@ -222,6 +226,10 @@ class WorldUnit {
         // Check for raiders nearby
         const raider = world.units.find(u => (u.type === 'raider' || u.type === 'pirate') && Hex.wrappingDistance(this.q, this.r, u.q, u.r, world.width) < 1);
         if (raider) {
+            // Transfer caravan's inventory to the raider
+            for (const [item, amount] of Object.entries(this.inventory)) {
+                raider.inventory[item] = (raider.inventory[item] || 0) + amount;
+            }
             world.events.push({ text: `${this.name} was robbed by ${raider.name}!`, type: 'economic' });
             this.destroyed = true;
         }
@@ -267,7 +275,11 @@ class WorldUnit {
             this.path = [];
         }
 
-        this.moveTowardsTarget(world);
+        // Move multiple times based on speed
+        for (let i = 0; i < this.speed; i++) {
+            if (this.targetQ !== null && this.q === this.targetQ && this.r === this.targetR) break;
+            this.moveTowardsTarget(world);
+        }
 
         // Check for patrols nearby
         const patrol = world.units.find(u => u.type === 'patrol' && Hex.wrappingDistance(this.q, this.r, u.q, u.r, world.width) < 1);
@@ -317,7 +329,11 @@ class WorldUnit {
             }
         }
 
-        this.moveTowardsTarget(world);
+        // Move multiple times based on speed
+        for (let i = 0; i < this.speed; i++) {
+            if (this.targetQ !== null && this.q === this.targetQ && this.r === this.targetR) break;
+            this.moveTowardsTarget(world);
+        }
     }
 
     /**
@@ -348,6 +364,12 @@ class WorldUnit {
             if (this.targetQ === null) { this.destroyed = true; return; }
         }
 
+        // Move multiple times based on speed
+        for (let i = 0; i < this.speed; i++) {
+            if (this.q === this.targetQ && this.r === this.targetR) break;
+            this.moveTowardsTarget(world);
+        }
+
         if (this.q === this.targetQ && this.r === this.targetR) {
             // Build village!
             const tile = world.getTile(this.q, this.r);
@@ -365,8 +387,6 @@ class WorldUnit {
             this.destroyed = true;
             return;
         }
-
-        this.moveTowardsTarget(world);
     }
 
     /**

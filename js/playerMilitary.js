@@ -308,6 +308,36 @@ const PlayerMilitary = {
             // Increase combat skill
             player.skills.combat = Math.min(10, player.skills.combat + 0.3);
             player.renown += Math.floor(enemyStrength / 10);
+        } else {
+            // Defeat — chance of capture and indentured servitude
+            if (player.army.length === 0 && Math.random() < 0.4) {
+                // Player is captured! Enter indentured servitude
+                const servitudeDays = Utils.randInt(5, 15);
+                const captor = enemyName;
+                player.indenturedServitude = {
+                    captor: captor,
+                    daysRemaining: servitudeDays,
+                    totalDays: servitudeDays,
+                    dailyWage: 0, // Captors take your labor
+                    goldConfiscated: Math.min(player.gold, Math.floor(player.gold * 0.3)),
+                    canBuyFreedom: true,
+                    freedomCost: 200 + Math.floor(enemyStrength * 2),
+                    escapeChance: 0.1 + (player.skills.stealth || 0) * 0.03,
+                };
+                player.gold -= player.indenturedServitude.goldConfiscated;
+
+                return {
+                    victory: false,
+                    casualties,
+                    loot: 0,
+                    enemyName,
+                    playerStrength,
+                    enemyStrength,
+                    captured: true,
+                    servitudeDays,
+                    goldConfiscated: player.indenturedServitude.goldConfiscated,
+                };
+            }
         }
 
         return {
@@ -317,6 +347,107 @@ const PlayerMilitary = {
             enemyName,
             playerStrength,
             enemyStrength,
+        };
+    },
+
+    /**
+     * Process daily indentured servitude
+     */
+    processServitude(player, world) {
+        if (!player.indenturedServitude) return null;
+
+        const servitude = player.indenturedServitude;
+        servitude.daysRemaining--;
+
+        // Player can attempt escape each day
+        const escaped = false;
+
+        // Captors may force you to work their properties (generate small gold for them)
+        // Player earns nothing but may gain skills
+        player.skills.commerce = Math.min(10, (player.skills.commerce || 1) + 0.05);
+        player.strength = Math.min(20, (player.strength || 5) + 0.1);
+
+        // Movement is locked during servitude
+        player.stamina = 0;
+        player.movementRemaining = 0;
+
+        if (servitude.daysRemaining <= 0) {
+            // Freedom! Servitude period over
+            const result = {
+                freed: true,
+                type: 'served',
+                message: `Your period of indentured servitude under ${servitude.captor} has ended. You are free once more.`,
+                daysServed: servitude.totalDays,
+            };
+            player.indenturedServitude = null;
+            player.stamina = player.maxStamina;
+            player.movementRemaining = player.maxStamina;
+            player.karma += 2; // Sympathy karma
+            return result;
+        }
+
+        return {
+            freed: false,
+            daysRemaining: servitude.daysRemaining,
+            captor: servitude.captor,
+            message: `You toil under ${servitude.captor}. ${servitude.daysRemaining} days of servitude remain.`,
+        };
+    },
+
+    /**
+     * Attempt to escape indentured servitude
+     */
+    attemptEscape(player) {
+        if (!player.indenturedServitude) return { success: false, reason: 'Not in servitude' };
+
+        const servitude = player.indenturedServitude;
+        const roll = Math.random();
+
+        if (roll < servitude.escapeChance) {
+            // Successful escape!
+            const result = {
+                success: true,
+                message: `You slipped away in the night and escaped ${servitude.captor}! You are free, but they may seek revenge.`,
+            };
+            player.indenturedServitude = null;
+            player.stamina = player.maxStamina;
+            player.movementRemaining = player.maxStamina;
+            player.karma -= 1; // Minor karma hit for breaking contract
+            player.skills.stealth = Math.min(10, (player.skills.stealth || 1) + 0.5);
+            return result;
+        } else {
+            // Failed escape — punishment
+            servitude.daysRemaining += Utils.randInt(2, 5);
+            servitude.escapeChance = Math.max(0.05, servitude.escapeChance - 0.02); // Harder next time
+            player.health = Math.max(10, player.health - Utils.randInt(5, 15));
+            return {
+                success: false,
+                message: `Your escape attempt failed! The guards caught you and beat you. +${servitude.daysRemaining - (servitude.totalDays - servitude.daysRemaining)} days added to your sentence.`,
+                healthLost: true,
+            };
+        }
+    },
+
+    /**
+     * Buy freedom from indentured servitude
+     */
+    buyFreedom(player) {
+        if (!player.indenturedServitude) return { success: false, reason: 'Not in servitude' };
+        if (!player.indenturedServitude.canBuyFreedom) return { success: false, reason: 'Captor refuses to negotiate' };
+
+        const cost = player.indenturedServitude.freedomCost;
+        if (player.gold < cost) return { success: false, reason: `Need ${cost} gold (have ${player.gold})` };
+
+        player.gold -= cost;
+        const captor = player.indenturedServitude.captor;
+        player.indenturedServitude = null;
+        player.stamina = player.maxStamina;
+        player.movementRemaining = player.maxStamina;
+
+        return {
+            success: true,
+            message: `You paid ${cost} gold to ${captor} for your freedom. You are no longer bound.`,
+            cost,
         };
     },
 

@@ -162,6 +162,15 @@ const ActionMenu = {
             case 'pilgrimage':
                 ActionMenu.visitHolySite(game, tile);
                 break;
+            case 'servitude_wait':
+                game.endDay();
+                break;
+            case 'servitude_escape':
+                ActionMenu.attemptServitudeEscape(game);
+                break;
+            case 'servitude_buy_freedom':
+                ActionMenu.buyFreedom(game);
+                break;
         }
     },
 
@@ -2061,6 +2070,32 @@ const ActionMenu = {
                 game.ui.showNotification('Cannot Complete', result.reason, 'error');
             }
         };
+    },
+
+    /**
+     * Attempt to escape indentured servitude
+     */
+    attemptServitudeEscape(game) {
+        const result = PlayerMilitary.attemptEscape(game.player);
+        if (result.success) {
+            game.ui.showNotification('Escaped!', result.message, 'success');
+        } else {
+            game.ui.showNotification('Escape Failed!', result.message, 'error');
+        }
+        game.ui.updateStats(game.player, game.world);
+    },
+
+    /**
+     * Buy freedom from indentured servitude
+     */
+    buyFreedom(game) {
+        const result = PlayerMilitary.buyFreedom(game.player);
+        if (result.success) {
+            game.ui.showNotification('Freedom Bought!', result.message, 'success');
+        } else {
+            game.ui.showNotification('Cannot Buy Freedom', result.reason, 'error');
+        }
+        game.ui.updateStats(game.player, game.world);
     },
 
     /**

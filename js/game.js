@@ -516,9 +516,10 @@ class Game {
                 MarketDynamics.updatePrices(this.world);
 
                 // Process informants and expire old intel
+                let intelResult = { cost: 0 };
                 if (typeof Tavern !== 'undefined') {
                     Tavern.expireOldIntel(this.player, this.world.day);
-                    const intelResult = Tavern.processInformants(this.player, this.world);
+                    intelResult = Tavern.processInformants(this.player, this.world);
                     if (intelResult.cost > 0) {
                         this.ui.showNotification('Informants', `-${intelResult.cost}g upkeep`, 'default');
                     }
@@ -544,10 +545,12 @@ class Game {
                 }
 
                 // Collect taxes (every 7 days)
+                let taxCollected = 0;
                 if (this.world.day % 7 === 0) {
                     const taxResults = Taxation.collectTaxes(this.player, this.world);
-                    if (taxResults.collected > 0) {
-                        this.ui.showNotification('Tax Collection', `+${taxResults.collected} gold from settlements`, 'success');
+                    taxCollected = taxResults.collected || 0;
+                    if (taxCollected > 0) {
+                        this.ui.showNotification('Tax Collection', `+${taxCollected} gold from settlements`, 'success');
                     }
                 }
 
@@ -644,6 +647,16 @@ class Game {
                     this.ui.showNotification('Cultural Renown', `+${playerResults.cultureRenown} renown from monuments`, 'info');
                 }
 
+                // Indentured servitude updates
+                if (playerResults.servitudeUpdate) {
+                    const su = playerResults.servitudeUpdate;
+                    if (su.freed) {
+                        this.ui.showNotification('Freedom!', su.message, 'success');
+                    } else {
+                        this.ui.showNotification('Indentured Servitude', su.message, 'default');
+                    }
+                }
+
                 // Show day events
                 if (result.events.length > 0) {
                     for (const event of result.events) {
@@ -669,6 +682,64 @@ class Game {
                     if (result.success) {
                         this.ui.showNotification('Auto-Saved', 'Game progress saved', 'default');
                     }
+                }
+
+                // ── Record daily finances ──────────────────────────────
+                const dayFinance = {
+                    day: this.world.day,
+                    season: this.world.season,
+                    year: this.world.year,
+                    goldEnd: this.player.gold,
+                    income: {},
+                    expenses: {},
+                };
+
+                // Income sources
+                if (playerResults.faithIncome > 0) dayFinance.income.faith = playerResults.faithIncome;
+                if (playerResults.cultureIncome > 0) dayFinance.income.culture = playerResults.cultureIncome;
+
+                // Caravan profits
+                let caravanProfit = 0;
+                for (const c of playerResults.caravansCompleted) {
+                    caravanProfit += c.finalProfit || 0;
+                }
+                if (caravanProfit > 0) dayFinance.income.caravans = caravanProfit;
+
+                // Contract payment
+                if (playerResults.contractUpdate && playerResults.contractUpdate.completed) {
+                    dayFinance.income.contracts = playerResults.contractUpdate.payment || 0;
+                }
+
+                // Tax income
+                if (taxCollected > 0) dayFinance.income.taxes = taxCollected;
+
+                // Expense sources
+                if (playerResults.upkeepCost > 0) dayFinance.expenses.armyUpkeep = playerResults.upkeepCost;
+                if (loanResults && loanResults.paid > 0) dayFinance.expenses.loanPayments = loanResults.paid;
+                if (typeof Tavern !== 'undefined' && intelResult && intelResult.cost > 0) dayFinance.expenses.informants = intelResult.cost;
+
+                // Property upkeep (calculated from properties)
+                let propertyUpkeep = 0;
+                if (this.player.properties) {
+                    for (const prop of this.player.properties) {
+                        const tile = this.world.getTile(prop.q, prop.r);
+                        if (tile && tile.playerProperty) {
+                            propertyUpkeep += (tile.playerProperty.upkeep || 0) * (tile.playerProperty.level || 1);
+                        }
+                    }
+                }
+                if (propertyUpkeep > 0) dayFinance.expenses.propertyUpkeep = propertyUpkeep;
+
+                // Calculate totals
+                dayFinance.totalIncome = Object.values(dayFinance.income).reduce((a, b) => a + b, 0);
+                dayFinance.totalExpenses = Object.values(dayFinance.expenses).reduce((a, b) => a + b, 0);
+                dayFinance.netChange = dayFinance.totalIncome - dayFinance.totalExpenses;
+
+                // Store — keep last 90 days
+                if (!this.player.financeHistory) this.player.financeHistory = [];
+                this.player.financeHistory.push(dayFinance);
+                if (this.player.financeHistory.length > 90) {
+                    this.player.financeHistory = this.player.financeHistory.slice(-90);
                 }
 
                 this.ui.showNotification('New Day', `Day ${((this.world.day - 1) % 30) + 1} of ${this.world.season}, Year ${this.world.year}`, 'default');

@@ -57,6 +57,9 @@ class World {
         // Place some villages as points of interest
         this.placePointsOfInterest();
 
+        console.log('Generating road network...');
+        this.generateRoads();
+
         console.log('Generating world history...');
         this.history = WorldEvents.generateHistory(this);
 
@@ -77,6 +80,10 @@ class World {
         if (typeof Peoples !== 'undefined') {
             Peoples.initialize(this);
         }
+
+        // Populate the world with initial units so it feels alive from the start
+        console.log('Spawning initial world units...');
+        this.spawnInitialUnits();
 
         console.log(`World generated: ${this.width}x${this.height}, ${this.kingdoms.length} kingdoms`);
     }
@@ -196,6 +203,167 @@ class World {
     }
 
     /**
+     * Generate roads connecting settlements within the same region.
+     * Uses A* pathfinding over passable land, preferring low-cost terrain.
+     */
+    generateRoads() {
+        const settlements = this.getAllSettlements();
+        if (settlements.length < 2) return;
+
+        // Group settlements by regionId
+        const regionGroups = new Map();
+        for (const s of settlements) {
+            const tile = this.getTile(s.q, s.r);
+            if (!tile) continue;
+            const rid = tile.regionId;
+            if (rid === undefined || rid === null) continue;
+            if (!regionGroups.has(rid)) regionGroups.set(rid, []);
+            regionGroups.get(rid).push(s);
+        }
+
+        let totalRoadTiles = 0;
+
+        for (const [regionId, regionSettlements] of regionGroups) {
+            if (regionSettlements.length < 2) continue;
+
+            // Build a minimum spanning tree of settlements by distance
+            // to get a connected road network without redundant paths
+            const connected = new Set();
+            const edges = [];
+
+            // Start with first settlement
+            connected.add(0);
+
+            while (connected.size < regionSettlements.length) {
+                let bestEdge = null;
+                let bestDist = Infinity;
+
+                for (const ci of connected) {
+                    for (let j = 0; j < regionSettlements.length; j++) {
+                        if (connected.has(j)) continue;
+                        const d = Hex.wrappingDistance(
+                            regionSettlements[ci].q, regionSettlements[ci].r,
+                            regionSettlements[j].q, regionSettlements[j].r,
+                            this.width
+                        );
+                        if (d < bestDist) {
+                            bestDist = d;
+                            bestEdge = { from: ci, to: j };
+                        }
+                    }
+                }
+
+                if (!bestEdge) break;
+                connected.add(bestEdge.to);
+                edges.push(bestEdge);
+            }
+
+            // Pathfind each edge and mark tiles with hasRoad
+            for (const edge of edges) {
+                const s1 = regionSettlements[edge.from];
+                const s2 = regionSettlements[edge.to];
+
+                const path = this.findRoadPath(s1.q, s1.r, s2.q, s2.r);
+                if (path) {
+                    for (const step of path) {
+                        const tile = this.getTile(step.q, step.r);
+                        if (tile && tile.terrain.passable) {
+                            tile.hasRoad = true;
+                            totalRoadTiles++;
+                        }
+                    }
+                }
+            }
+        }
+
+        console.log(`[World] Generated road network: ${totalRoadTiles} road tiles`);
+    }
+
+    /**
+     * A* pathfinding for road generation — prefers low moveCost terrain
+     */
+    findRoadPath(startQ, startR, endQ, endR) {
+        const width = this.width;
+        const height = this.height;
+        const endWQ = Hex.wrapQ(endQ, width);
+
+        const startKey = `${startQ},${startR}`;
+        const endKey = `${endWQ},${endR}`;
+
+        const openSet = [{ key: startKey, f: 0 }];
+        const closedSet = new Set();
+        const cameFrom = new Map();
+        const gScore = new Map();
+        gScore.set(startKey, 0);
+
+        let iterations = 0;
+        const maxIterations = 3000;
+
+        while (openSet.length > 0 && iterations < maxIterations) {
+            iterations++;
+
+            // Find node with lowest fScore
+            let bestIdx = 0;
+            for (let i = 1; i < openSet.length; i++) {
+                if (openSet[i].f < openSet[bestIdx].f) bestIdx = i;
+            }
+            const current = openSet.splice(bestIdx, 1)[0];
+            const currentKey = current.key;
+
+            if (currentKey === endKey) {
+                // Reconstruct path
+                const path = [];
+                let node = currentKey;
+                while (node) {
+                    const [q, r] = node.split(',').map(Number);
+                    path.unshift({ q, r });
+                    node = cameFrom.get(node);
+                }
+                return path;
+            }
+
+            closedSet.add(currentKey);
+            const [cq, cr] = currentKey.split(',').map(Number);
+
+            const neighbors = Hex.neighbors(cq, cr);
+            for (const n of neighbors) {
+                const nq = Hex.wrapQ(n.q, width);
+                const nr = n.r;
+                if (nr < 0 || nr >= height) continue;
+
+                const nKey = `${nq},${nr}`;
+                if (closedSet.has(nKey)) continue;
+
+                const nTile = this.getTile(nq, nr);
+                if (!nTile || !nTile.terrain.passable) continue;
+
+                // Cost: use terrain moveCost so roads prefer easy terrain
+                const moveCost = nTile.terrain.moveCost || 1;
+                // Bonus: prefer tiles that already have a road
+                const roadBonus = nTile.hasRoad ? 0.1 : 0;
+                const tentG = (gScore.get(currentKey) || 0) + moveCost - roadBonus;
+
+                if (tentG < (gScore.get(nKey) || Infinity)) {
+                    cameFrom.set(nKey, currentKey);
+                    gScore.set(nKey, tentG);
+                    const h = Hex.wrappingDistance(nq, nr, endWQ, endR, width);
+                    const nF = tentG + h;
+
+                    // Check if already in openSet
+                    const existing = openSet.findIndex(o => o.key === nKey);
+                    if (existing >= 0) {
+                        openSet[existing].f = nF;
+                    } else {
+                        openSet.push({ key: nKey, f: nF });
+                    }
+                }
+            }
+        }
+
+        return null; // No path found
+    }
+
+    /**
      * Get tile at wrapped coordinates
      */
     getTile(q, r) {
@@ -276,6 +444,124 @@ class World {
             year: this.year,
             events: this.events,
         };
+    }
+
+    /**
+     * Spawn a healthy population of units at game start so the world feels alive
+     */
+    spawnInitialUnits() {
+        const settlements = this.getAllSettlements();
+        if (settlements.length < 2) return;
+
+        // --- Caravans: one per settlement pair ---
+        const caravanCount = Math.min(settlements.length, 12);
+        for (let i = 0; i < caravanCount; i++) {
+            const s1 = settlements[i % settlements.length];
+            const t1 = this.getTile(s1.q, s1.r);
+            if (!t1) continue;
+            const reachable = settlements.filter(s => {
+                if (s.q === s1.q && s.r === s1.r) return false;
+                const t2 = this.getTile(s.q, s.r);
+                return t2 && t2.regionId === t1.regionId;
+            });
+            if (reachable.length > 0) {
+                const s2 = Utils.randPick(reachable);
+                this.units.push(new WorldUnit('caravan', s1.q, s1.r, s2.q, s2.r));
+            }
+        }
+
+        // --- Ships: from coastal settlements ---
+        const coastalSettlements = settlements.filter(s => {
+            return Hex.neighbors(s.q, s.r).some(n => {
+                const nt = this.getTile(n.q, n.r);
+                return nt && (nt.terrain.id === 'ocean' || nt.terrain.id === 'deep_ocean' || nt.terrain.id === 'sea');
+            });
+        });
+        const shipCount = Math.min(coastalSettlements.length * 2, 10);
+        for (let i = 0; i < shipCount; i++) {
+            const s1 = coastalSettlements[i % coastalSettlements.length];
+            let waterRegionId = null;
+            const neighbors1 = Hex.neighbors(s1.q, s1.r);
+            for (const n of neighbors1) {
+                const nt = this.getTile(n.q, n.r);
+                if (nt && !nt.terrain.passable) {
+                    waterRegionId = nt.regionId;
+                    break;
+                }
+            }
+            if (waterRegionId !== null) {
+                const reachable = coastalSettlements.filter(s => {
+                    if (s.q === s1.q && s.r === s1.r) return false;
+                    return Hex.neighbors(s.q, s.r).some(n => {
+                        const nt = this.getTile(n.q, n.r);
+                        return nt && nt.regionId === waterRegionId;
+                    });
+                });
+                if (reachable.length > 0) {
+                    const s2 = Utils.randPick(reachable);
+                    this.units.push(new WorldUnit('ship', s1.q, s1.r, s2.q, s2.r));
+                }
+            }
+        }
+
+        // --- Raiders: scattered on land ---
+        for (let i = 0; i < 8; i++) {
+            let attempts = 0;
+            while (attempts < 50) {
+                attempts++;
+                const q = Utils.randInt(0, this.width - 1);
+                const r = Utils.randInt(0, this.height - 1);
+                if (this.isPassable(q, r)) {
+                    this.units.push(new WorldUnit('raider', q, r));
+                    break;
+                }
+            }
+        }
+
+        // --- Pirates: on ocean tiles ---
+        for (let i = 0; i < 5; i++) {
+            let attempts = 0;
+            while (attempts < 50) {
+                attempts++;
+                const q = Utils.randInt(0, this.width - 1);
+                const r = Utils.randInt(0, this.height - 1);
+                const tile = this.getTile(q, r);
+                if (tile && (tile.terrain.id === 'ocean' || tile.terrain.id === 'deep_ocean')) {
+                    this.units.push(new WorldUnit('pirate', q, r));
+                    break;
+                }
+            }
+        }
+
+        // --- Patrols: from kingdom capitals ---
+        for (const kingdom of this.kingdoms) {
+            if (!kingdom.isAlive) continue;
+            const capital = settlements.find(s => s.kingdom === kingdom.id && s.type === 'capital');
+            if (capital) {
+                // 2 patrols per kingdom
+                this.units.push(new WorldUnit('patrol', capital.q, capital.r));
+                this.units.push(new WorldUnit('patrol', capital.q, capital.r));
+            }
+        }
+
+        // --- Settlers: a couple already on the move ---
+        for (let i = 0; i < 2; i++) {
+            const s = Utils.randPick(settlements);
+            if (s) {
+                this.units.push(new WorldUnit('settler', s.q, s.r));
+            }
+        }
+
+        // Advance all units a few steps so they're mid-journey, not all clustered at settlements
+        for (let step = 0; step < 5; step++) {
+            for (const unit of this.units) {
+                unit.update(this);
+            }
+            // Remove destroyed ones
+            this.units = this.units.filter(u => !u.destroyed);
+        }
+
+        console.log(`Spawned ${this.units.length} initial world units`);
     }
 
     /**

@@ -84,6 +84,17 @@ const PlayerEconomy = {
             requiredTerrain: ['coast', 'beach'],
             description: 'Send boats to collect fish from nearby waters. Upkeep: 10g/day'
         },
+        BREWERY: {
+            id: 'brewery',
+            name: 'Brewery',
+            icon: '🍺',
+            cost: 700,
+            produces: null, // Variable based on recipe (beer or liquor)
+            productionRate: 6,
+            upkeep: 8,
+            requiredSettlement: true,
+            description: 'Brews beer from grain or distills liquor. Sells well at taverns. Upkeep: 8g/day'
+        },
     },
 
     /**
@@ -108,6 +119,8 @@ const PlayerEconomy = {
         GEMS: { id: 'gems', name: 'Gems', icon: '💎', basePrice: 60 },
         SPICES: { id: 'spices', name: 'Spices', icon: '🧂', basePrice: 45 },
         HORSES: { id: 'horses', name: 'Horses', icon: '🐴', basePrice: 55 },
+        BEER: { id: 'beer', name: 'Beer', icon: '🍺', basePrice: 12 },
+        LIQUOR: { id: 'liquor', name: 'Liquor', icon: '🥃', basePrice: 30 },
         LUXURIES: { id: 'luxuries', name: 'Luxuries', icon: '💍', basePrice: 100 },
         // Technology Parts
         AGRI_PARTS: { id: 'agri_parts', name: 'Agricultural Implements', icon: '🌱', basePrice: 50 },
@@ -130,6 +143,8 @@ const PlayerEconomy = {
         TOOLS: { id: 'tools', name: 'Forge Tools', input: 'iron', inputQty: 1, output: 'tools', outputQty: 2, description: 'Smith essential tools.' },
         WEAPONS: { id: 'weapons', name: 'Forge Weapons', input: 'iron', inputQty: 2, output: 'weapons', outputQty: 1, description: 'Forge weapons for war.' },
         LUXURIES: { id: 'luxuries', name: 'Refine Luxuries', input: 'gold_ore', inputQty: 2, output: 'luxuries', outputQty: 1, description: 'Craft fine jewelry.' },
+        BEER: { id: 'beer', name: 'Brew Beer', input: 'grain', inputQty: 3, output: 'beer', outputQty: 4, description: 'Brew ale from grain. Popular at taverns.' },
+        LIQUOR: { id: 'liquor', name: 'Distill Liquor', input: 'grain', inputQty: 5, output: 'liquor', outputQty: 2, description: 'Distill strong spirits from grain. High value.' },
     },
 
     /**
@@ -185,8 +200,8 @@ const PlayerEconomy = {
         if (prop.requiredSettlement) {
             let hasSettlement = tile.settlement != null;
 
-            // Allow Workshops to be built adjacent to settlements
-            if (!hasSettlement && propertyType.toUpperCase() === 'WORKSHOP') {
+            // Allow Workshops and Breweries to be built adjacent to settlements
+            if (!hasSettlement && (propertyType.toUpperCase() === 'WORKSHOP' || propertyType.toUpperCase() === 'BREWERY')) {
                 // Check neighbors
                 const neighbors = Hex.neighbors(tile.q, tile.r);
                 for (const n of neighbors) {
@@ -318,8 +333,8 @@ const PlayerEconomy = {
             let producedGood = property.produces;
             let consumedInput = false;
 
-            // Workshop Specific Logic
-            if (property.type === 'workshop') {
+            // Workshop & Brewery Specific Logic (recipe-based production)
+            if (property.type === 'workshop' || property.type === 'brewery') {
                 if (!property.activeRecipe) {
                     producedAmount = 0; // No recipe, no production
                 } else {
@@ -532,7 +547,7 @@ const PlayerEconomy = {
         let isInternalTransfer = false;
 
         // Internal Transfer Logic: If destination is a Workshop owned by player
-        if (toSettlement.isPlayerProperty && toSettlement.type === 'workshop') {
+        if (toSettlement.isPlayerProperty && (toSettlement.type === 'workshop' || toSettlement.type === 'brewery')) {
             isInternalTransfer = true;
             expectedProfit = 0; // No gold profit, materials transfer
         } else {
@@ -661,7 +676,7 @@ const PlayerEconomy = {
                 if (caravan.isInternalTransfer) {
                     // ... (existing logic)
                     const targetTile = world.getTile(caravan.toPos.q, caravan.toPos.r);
-                    if (targetTile && targetTile.playerProperty && targetTile.playerProperty.type === 'workshop') {
+                    if (targetTile && targetTile.playerProperty && (targetTile.playerProperty.type === 'workshop' || targetTile.playerProperty.type === 'brewery')) {
                         for (const qty of Object.values(caravan.goods)) {
                             targetTile.playerProperty.inputStorage = (targetTile.playerProperty.inputStorage || 0) + qty;
                         }
@@ -749,7 +764,7 @@ const PlayerEconomy = {
      * Set active recipe for a workshop
      */
     setWorkshopRecipe(tile, recipeId) {
-        if (!tile.playerProperty || tile.playerProperty.type !== 'workshop') return { success: false };
+        if (!tile.playerProperty || (tile.playerProperty.type !== 'workshop' && tile.playerProperty.type !== 'brewery')) return { success: false };
         tile.playerProperty.activeRecipe = recipeId;
         const recipe = PlayerEconomy.RECIPES[recipeId];
         if (recipe) {
@@ -762,7 +777,7 @@ const PlayerEconomy = {
      * Deposit goods into workshop input storage
      */
     depositToWorkshop(player, tile, goodId, amount) {
-        if (!tile.playerProperty || tile.playerProperty.type !== 'workshop') return { success: false, reason: 'Not a workshop' };
+        if (!tile.playerProperty || (tile.playerProperty.type !== 'workshop' && tile.playerProperty.type !== 'brewery')) return { success: false, reason: 'Not a workshop or brewery' };
 
         if (!player.inventory[goodId] || player.inventory[goodId] < amount) {
             return { success: false, reason: 'Not enough goods' };
@@ -854,6 +869,12 @@ const Trading = {
             addGood('WEAPONS', 0.01);
             addGood('LUXURIES', 0.005);
             addGood('GEMS', 0.002);
+        }
+
+        // All settlements with taverns sell beer and liquor
+        if (settlement.type === 'town' || settlement.type === 'capital') {
+            addGood('BEER', 0.08);
+            addGood('LIQUOR', 0.03);
         }
 
         return goods;

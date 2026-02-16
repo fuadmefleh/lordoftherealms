@@ -75,6 +75,10 @@ class Player {
 
         // Tracking
         this.visitedImprovements = new Set();
+
+        // Finance tracking — rolling history of daily income/expenses
+        this.financeHistory = [];  // Array of { day, gold, income: {}, expenses: {} }
+        this.financeToday = null;  // Current day's running tally
     }
 
     /**
@@ -166,6 +170,9 @@ class Player {
      * Request to move to target hex
      */
     moveTo(targetQ, targetR, world) {
+        // Can't move during indentured servitude
+        if (this.indenturedServitude) return false;
+
         const path = Hex.findPath(
             this.q, this.r,
             targetQ, targetR,
@@ -276,6 +283,12 @@ class Player {
         }
         this.movementRemaining = this.stamina + staminaBonus;
         this.health = Math.min(this.health + 5, this.maxHealth);
+
+        // Block movement if in servitude
+        if (this.indenturedServitude) {
+            this.movementRemaining = 0;
+            this.stamina = 0;
+        }
     }
 
     /**

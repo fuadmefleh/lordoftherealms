@@ -225,6 +225,7 @@ const Terrain = {
                     explored: false,
                     visible: false,
                     hasRiver: false,
+                    hasRoad: false,
                     riverSource: false
                 });
             }

@@ -30,6 +30,10 @@ class Renderer {
         // Animation time
         this.time = 0;
 
+        // Water animation
+        this.waterAnimInterval = 1.2; // seconds between frame changes
+        this.waterAnimFrame = 0;
+
         // Display settings
         this.showResources = true;
         this.showTerritories = false;
@@ -117,6 +121,85 @@ class Renderer {
             }
         }
 
+        const ROAD_PATH = 'assets/tiles/roads/';
+        const ROAD_IMAGES = [
+            "hexRoad-000001-00.png","hexRoad-000001-01.png","hexRoad-000001-02.png","hexRoad-000001-03.png",
+            "hexRoad-000010-00.png","hexRoad-000010-01.png","hexRoad-000010-02.png","hexRoad-000010-03.png",
+            "hexRoad-000011-00.png","hexRoad-000011-01.png","hexRoad-000011-02.png",
+            "hexRoad-000100-00.png","hexRoad-000100-01.png","hexRoad-000100-02.png","hexRoad-000100-03.png",
+            "hexRoad-000101-00.png","hexRoad-000101-01.png","hexRoad-000101-02.png",
+            "hexRoad-000110-00.png","hexRoad-000110-01.png","hexRoad-000110-02.png",
+            "hexRoad-000111-00.png","hexRoad-000111-01.png",
+            "hexRoad-001000-00.png","hexRoad-001000-01.png","hexRoad-001000-02.png","hexRoad-001000-03.png",
+            "hexRoad-001001-00.png","hexRoad-001001-01.png","hexRoad-001001-02.png",
+            "hexRoad-001010-00.png","hexRoad-001010-01.png","hexRoad-001010-02.png",
+            "hexRoad-001011-00.png",
+            "hexRoad-001100-00.png","hexRoad-001100-01.png","hexRoad-001100-02.png",
+            "hexRoad-001101-00.png",
+            "hexRoad-001110-00.png","hexRoad-001110-01.png",
+            "hexRoad-001111-00.png",
+            "hexRoad-010000-00.png","hexRoad-010000-01.png","hexRoad-010000-02.png","hexRoad-010000-03.png",
+            "hexRoad-010001-00.png","hexRoad-010001-01.png","hexRoad-010001-02.png",
+            "hexRoad-010010-00.png","hexRoad-010010-01.png","hexRoad-010010-02.png",
+            "hexRoad-010011-00.png",
+            "hexRoad-010100-00.png","hexRoad-010100-01.png","hexRoad-010100-02.png",
+            "hexRoad-010101-00.png","hexRoad-010101-01.png",
+            "hexRoad-010110-00.png","hexRoad-010110-01.png",
+            "hexRoad-010111-00.png",
+            "hexRoad-011000-00.png","hexRoad-011000-01.png","hexRoad-011000-02.png",
+            "hexRoad-011001-00.png","hexRoad-011001-01.png",
+            "hexRoad-011010-00.png","hexRoad-011010-01.png",
+            "hexRoad-011011-00.png",
+            "hexRoad-011100-00.png","hexRoad-011100-01.png",
+            "hexRoad-011101-00.png",
+            "hexRoad-011110-00.png",
+            "hexRoad-011111-00.png",
+            "hexRoad-100000-00.png","hexRoad-100000-01.png","hexRoad-100000-02.png","hexRoad-100000-03.png",
+            "hexRoad-100001-00.png","hexRoad-100001-01.png","hexRoad-100001-02.png",
+            "hexRoad-100010-00.png","hexRoad-100010-01.png","hexRoad-100010-02.png",
+            "hexRoad-100011-00.png",
+            "hexRoad-100100-00.png","hexRoad-100100-01.png","hexRoad-100100-02.png",
+            "hexRoad-100101-00.png","hexRoad-100101-01.png",
+            "hexRoad-100110-00.png",
+            "hexRoad-100111-00.png",
+            "hexRoad-101000-00.png","hexRoad-101000-01.png","hexRoad-101000-02.png",
+            "hexRoad-101001-00.png",
+            "hexRoad-101010-00.png",
+            "hexRoad-101011-00.png",
+            "hexRoad-101100-00.png",
+            "hexRoad-101101-00.png",
+            "hexRoad-101110-00.png",
+            "hexRoad-101111-00.png",
+            "hexRoad-110000-00.png","hexRoad-110000-01.png","hexRoad-110000-02.png",
+            "hexRoad-110001-00.png","hexRoad-110001-01.png",
+            "hexRoad-110010-00.png","hexRoad-110010-01.png",
+            "hexRoad-110011-00.png",
+            "hexRoad-110100-00.png","hexRoad-110100-01.png",
+            "hexRoad-110101-00.png","hexRoad-110101-01.png",
+            "hexRoad-110110-00.png","hexRoad-110110-01.png",
+            "hexRoad-110111-00.png","hexRoad-110111-01.png","hexRoad-110111-02.png","hexRoad-110111-03.png",
+            "hexRoad-111000-00.png","hexRoad-111000-01.png",
+            "hexRoad-111001-00.png","hexRoad-111001-01.png",
+            "hexRoad-111010-00.png","hexRoad-111010-01.png","hexRoad-111010-02.png",
+            "hexRoad-111011-00.png","hexRoad-111011-01.png","hexRoad-111011-02.png",
+            "hexRoad-111100-00.png","hexRoad-111100-01.png",
+            "hexRoad-111101-00.png","hexRoad-111101-01.png",
+            "hexRoad-111110-00.png","hexRoad-111110-01.png","hexRoad-111110-02.png",
+            "hexRoad-111111-00.png","hexRoad-111111-01.png","hexRoad-111111-02.png"
+        ];
+
+        // Cache for road variant lookup
+        this.roadVariants = new Map();
+        for (const img of ROAD_IMAGES) {
+            const match = img.match(/hexRoad-([01]{6})-(\d+)\.png/);
+            if (match) {
+                const key = match[1];
+                if (!this.roadVariants.has(key)) {
+                    this.roadVariants.set(key, []);
+                }
+                this.roadVariants.get(key).push(img);
+            }
+        }
 
         const promises = [];
 
@@ -161,6 +244,12 @@ class Renderer {
         for (const imgName of RIVER_IMAGES) {
             if (!this.tileSprites.has(imgName)) {
                 promises.push(this.loadTileSprite(imgName, RIVER_PATH + imgName));
+            }
+        }
+
+        for (const imgName of ROAD_IMAGES) {
+            if (!this.tileSprites.has(imgName)) {
+                promises.push(this.loadTileSprite(imgName, ROAD_PATH + imgName));
             }
         }
 
@@ -210,21 +299,25 @@ class Renderer {
         const hash = (tile.q * 73856093 ^ tile.r * 19349663) % 100;
 
         let variants = [];
+        let isAnimatedWater = false;
 
         // Map terrain ID to image variants
         switch (tile.terrain.id) {
             case 'deep_ocean':
                 // Strictly dark, calm water from the ocean folder
-                variants = ['ocean/hexOceanCalm00.png', 'ocean/hexOceanCalm01.png'];
+                variants = ['ocean/hexOceanCalm00.png', 'ocean/hexOceanCalm01.png', 'ocean/hexOceanCalm02.png', 'ocean/hexOceanCalm03.png'];
+                isAnimatedWater = true;
                 break;
             case 'ocean':
                 // Standard ocean variants from the ocean folder
                 variants = ['ocean/hexOceanCalm00.png', 'ocean/hexOceanCalm01.png', 'ocean/hexOceanCalm02.png', 'ocean/hexOceanCalm03.png'];
+                isAnimatedWater = true;
                 break;
             case 'sea':
             case 'coast':
                 // Lighter ocean variants for shallower water
-                variants = ['ocean/hexOceanCalm01.png', 'ocean/hexOceanCalm02.png', 'ocean/hexOceanCalm03.png'];
+                variants = ['ocean/hexOceanCalm00.png', 'ocean/hexOceanCalm01.png', 'ocean/hexOceanCalm02.png', 'ocean/hexOceanCalm03.png'];
+                isAnimatedWater = true;
                 break;
             case 'island':
                 // Islands also use ocean folder assets
@@ -233,6 +326,7 @@ class Renderer {
             case 'lake':
                 // Lake uses ocean folder variants specifically for lakes
                 variants = ['ocean/hexLake00.png', 'ocean/hexLake01.png', 'ocean/hexLake02.png', 'ocean/hexLake03.png'];
+                isAnimatedWater = true;
                 break;
             case 'beach':
                 // Mix of plain sand and palms
@@ -319,6 +413,14 @@ class Renderer {
         }
 
         if (variants.length === 0) return null;
+
+        // Water animation disabled for now
+        // if (isAnimatedWater && variants.length > 1) {
+        //     const tileOffset = Math.abs(hash) % variants.length;
+        //     const index = (this.waterAnimFrame + tileOffset) % variants.length;
+        //     return variants[index];
+        // }
+
         const index = Math.abs(hash) % variants.length;
         return variants[index];
     }
@@ -374,10 +476,47 @@ class Renderer {
     }
 
     /**
+     * Get the road overlay image for a tile
+     */
+    getRoadImage(tile, q, r, width, height) {
+        if (!tile.hasRoad) return null;
+
+        const neighbors = Hex.neighbors(q, r);
+        let mask = 0;
+
+        for (let i = 0; i < 6; i++) {
+            const n = neighbors[i];
+            const nwq = Hex.wrapQ(n.q, width);
+
+            if (n.r < 0 || n.r >= height) continue;
+
+            const neighbor = this.world.tiles[n.r][nwq];
+            if (!neighbor) continue;
+
+            if (neighbor.hasRoad || neighbor.settlement) {
+                // Same bitmask mapping as rivers:
+                // Direction index -> bit position
+                mask |= (1 << ((i + 3) % 6));
+            }
+        }
+
+        if (mask === 0) return null;
+
+        const key = mask.toString(2).padStart(6, '0');
+        const variants = this.roadVariants ? this.roadVariants.get(key) : null;
+
+        if (!variants || variants.length === 0) return null;
+
+        const hash = (tile.q * 73856093 ^ tile.r * 19349663) % variants.length;
+        return variants[Math.abs(hash)];
+    }
+
+    /**
      * Main render loop call
      */
     render(deltaTime) {
         this.time += deltaTime;
+        this.waterAnimFrame = Math.floor(this.time / this.waterAnimInterval);
         const ctx = this.ctx;
         const w = this.canvas.width;
         const h = this.canvas.height;
@@ -608,9 +747,11 @@ class Renderer {
                 const sprite = imgName ? this.tileSprites.get(imgName) : null;
                 const riverImgName = this.getRiverImage(tile, q, r, world.width, world.height);
                 const riverSprite = riverImgName ? this.tileSprites.get(riverImgName) : null;
+                const roadImgName = this.getRoadImage(tile, q, r, world.width, world.height);
+                const roadSprite = roadImgName ? this.tileSprites.get(roadImgName) : null;
 
-                if (sprite || riverSprite) {
-                    this.renderSpriteHex(ctx, screen.x, screen.y, renderSize, sprite, tile, riverSprite);
+                if (sprite || riverSprite || roadSprite) {
+                    this.renderSpriteHex(ctx, screen.x, screen.y, renderSize, sprite, tile, riverSprite, roadSprite);
                 }
             }
         }
@@ -668,7 +809,7 @@ class Renderer {
     /**
      * Render a hex with a PNG sprite (clipped to hex shape)
      */
-    renderSpriteHex(ctx, cx, cy, size, sprite, tile, overlaySprite = null) {
+    renderSpriteHex(ctx, cx, cy, size, sprite, tile, overlaySprite = null, roadSprite = null) {
         const corners = Hex.hexCorners(cx, cy, size);
 
         ctx.save();
@@ -683,7 +824,7 @@ class Renderer {
         let targetHeight = targetWidth;
 
         // Scale to COVER hex (max of width/height ratios)
-        if (sprite.width && sprite.height) {
+        if (sprite && sprite.width && sprite.height) {
             const scaleX = (hexWidth / sprite.width);
             const scaleY = (hexHeight / sprite.height);
             const scale = Math.max(scaleX, scaleY); // fit exact
@@ -699,6 +840,10 @@ class Renderer {
 
         if (sprite) {
             ctx.drawImage(sprite, drawX, drawY, targetWidth, targetHeight);
+        }
+
+        if (roadSprite) {
+            ctx.drawImage(roadSprite, drawX, drawY, targetWidth, targetHeight);
         }
 
         if (overlaySprite) {

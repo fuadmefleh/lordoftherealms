@@ -238,8 +238,8 @@ const KingdomAI = {
      * Update military strength based on population and resources
      */
     updateMilitary(kingdom, world) {
-        // Base military from population (1% of population)
-        let military = Math.floor(kingdom.population * 0.01);
+        // Base military from population (5% of population)
+        let military = Math.floor(kingdom.population * 0.05);
 
         // Bonus from iron and horses
         const settlements = world.getAllSettlements().filter(s => s.kingdom === kingdom.id);

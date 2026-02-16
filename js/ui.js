@@ -65,6 +65,13 @@ class UI {
         });
         document.getElementById('btnEndTurn').addEventListener('click', () => this.game.endDay());
 
+        // Gold stat click — show finance tracker
+        const goldStat = document.getElementById('goldStat');
+        if (goldStat) {
+            goldStat.style.cursor = 'pointer';
+            goldStat.addEventListener('click', () => this.showFinancesPanel(this.game.player, this.game.world));
+        }
+
         // Panel close buttons
         document.getElementById('hexInfoClose').addEventListener('click', () => this.hidePanel('hexInfoPanel'));
         document.getElementById('kingdomClose').addEventListener('click', () => this.hidePanel('kingdomPanel'));
@@ -93,6 +100,22 @@ class UI {
         const movementDisplay = document.getElementById('movementValue');
         if (movementDisplay) {
             movementDisplay.textContent = `${Math.floor(player.movementRemaining)}/${player.maxStamina}`;
+        }
+
+        // Show servitude status if active
+        let servitudeEl = document.getElementById('servitudeDisplay');
+        if (player.indenturedServitude) {
+            if (!servitudeEl) {
+                servitudeEl = document.createElement('div');
+                servitudeEl.id = 'servitudeDisplay';
+                servitudeEl.style.cssText = 'color: #e74c3c; font-weight: bold; font-size: 12px; text-align: center; padding: 4px 8px; background: rgba(231,76,60,0.15); border-radius: 4px; margin-top: 4px;';
+                const topBar = document.getElementById('topBar');
+                if (topBar) topBar.appendChild(servitudeEl);
+            }
+            servitudeEl.textContent = `⛓️ Indentured Servitude — ${player.indenturedServitude.daysRemaining} days remain`;
+            servitudeEl.style.display = 'block';
+        } else if (servitudeEl) {
+            servitudeEl.style.display = 'none';
         }
 
         const dayInSeason = ((world.day - 1) % 30) + 1;
@@ -867,6 +890,16 @@ class UI {
                 <span class="info-label">🍀 Luck</span>
                 <span class="info-value">${player.luck}</span>
             </div>
+            ${player.soulSoldCount ? `
+            <div class="info-row" style="color: #e74c3c;">
+                <span class="info-label">🔥 Soul</span>
+                <span class="info-value">Sold ×${player.soulSoldCount}</span>
+            </div>` : ''}
+            ${player.indenturedServitude ? `
+            <div class="info-row" style="color: #e67e22;">
+                <span class="info-label">⛓️ Servitude</span>
+                <span class="info-value">${player.indenturedServitude.daysRemaining} days under ${player.indenturedServitude.captor}</span>
+            </div>` : ''}
 
             <div class="info-section-title">Skills</div>
             ${skillsHtml}
@@ -1043,6 +1076,181 @@ class UI {
     hideCustomPanel() {
         const panel = document.getElementById('customPanel');
         if (panel) panel.remove();
+    }
+
+    /**
+     * Show the finances tracking modal
+     */
+    showFinancesPanel(player, world) {
+        if (!player) return;
+
+        const history = player.financeHistory || [];
+        const recent = history.slice(-30); // Last 30 days
+
+        // ── Summary stats ──
+        let totalIncome = 0, totalExpenses = 0;
+        const incomeByType = {};
+        const expenseByType = {};
+        for (const entry of recent) {
+            totalIncome += entry.totalIncome || 0;
+            totalExpenses += entry.totalExpenses || 0;
+            for (const [k, v] of Object.entries(entry.income || {})) {
+                incomeByType[k] = (incomeByType[k] || 0) + v;
+            }
+            for (const [k, v] of Object.entries(entry.expenses || {})) {
+                expenseByType[k] = (expenseByType[k] || 0) + v;
+            }
+        }
+        const netChange = totalIncome - totalExpenses;
+        const avgDaily = recent.length > 0 ? Math.round(netChange / recent.length) : 0;
+
+        // Label mapping for nice display
+        const labels = {
+            faith: '🙏 Faith Income',
+            culture: '📚 Cultural Income',
+            caravans: '🚚 Caravan Profits',
+            contracts: '📜 Contract Pay',
+            taxes: '🏛️ Tax Collection',
+            armyUpkeep: '⚔️ Army Upkeep',
+            loanPayments: '🏦 Loan Payments',
+            informants: '🕵️ Informant Upkeep',
+            propertyUpkeep: '🏗️ Property Upkeep',
+        };
+
+        let html = '<div style="max-height: 500px; overflow-y: auto;">';
+
+        // ── Current Balance ──
+        html += `
+            <div style="text-align: center; margin-bottom: 16px; padding: 16px; background: rgba(255,255,255,0.04); border-radius: 8px;">
+                <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">Current Balance</div>
+                <div style="font-size: 32px; font-weight: bold; color: var(--gold); font-family: var(--font-display);">💰 ${Utils.formatNumber(player.gold)}</div>
+                <div style="font-size: 13px; color: ${avgDaily >= 0 ? '#27ae60' : '#e74c3c'}; margin-top: 4px;">
+                    ${avgDaily >= 0 ? '▲' : '▼'} ${avgDaily >= 0 ? '+' : ''}${avgDaily} gold/day avg (last ${recent.length} days)
+                </div>
+            </div>
+        `;
+
+        // ── Summary cards row ──
+        html += `
+            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                <div style="flex: 1; padding: 12px; background: rgba(39,174,96,0.1); border: 1px solid rgba(39,174,96,0.3); border-radius: 6px; text-align: center;">
+                    <div style="font-size: 11px; color: #27ae60; text-transform: uppercase;">Income (${recent.length}d)</div>
+                    <div style="font-size: 20px; font-weight: bold; color: #27ae60;">+${Utils.formatNumber(totalIncome)}</div>
+                </div>
+                <div style="flex: 1; padding: 12px; background: rgba(231,76,60,0.1); border: 1px solid rgba(231,76,60,0.3); border-radius: 6px; text-align: center;">
+                    <div style="font-size: 11px; color: #e74c3c; text-transform: uppercase;">Expenses (${recent.length}d)</div>
+                    <div style="font-size: 20px; font-weight: bold; color: #e74c3c;">-${Utils.formatNumber(totalExpenses)}</div>
+                </div>
+                <div style="flex: 1; padding: 12px; background: rgba(${netChange >= 0 ? '39,174,96' : '231,76,60'},0.1); border: 1px solid rgba(${netChange >= 0 ? '39,174,96' : '231,76,60'},0.3); border-radius: 6px; text-align: center;">
+                    <div style="font-size: 11px; color: ${netChange >= 0 ? '#27ae60' : '#e74c3c'}; text-transform: uppercase;">Net (${recent.length}d)</div>
+                    <div style="font-size: 20px; font-weight: bold; color: ${netChange >= 0 ? '#27ae60' : '#e74c3c'};">${netChange >= 0 ? '+' : ''}${Utils.formatNumber(netChange)}</div>
+                </div>
+            </div>
+        `;
+
+        // ── Income breakdown ──
+        const incomeKeys = Object.keys(incomeByType).sort((a, b) => incomeByType[b] - incomeByType[a]);
+        if (incomeKeys.length > 0) {
+            html += `<div style="margin-bottom: 16px;">`;
+            html += `<div style="font-weight: bold; color: #27ae60; font-size: 13px; margin-bottom: 8px; border-bottom: 1px solid rgba(39,174,96,0.3); padding-bottom: 4px;">Income Sources</div>`;
+            for (const k of incomeKeys) {
+                const pct = totalIncome > 0 ? Math.round(incomeByType[k] / totalIncome * 100) : 0;
+                html += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px;">
+                        <span style="color: var(--text-secondary);">${labels[k] || k}</span>
+                        <span style="display: flex; align-items: center; gap: 8px;">
+                            <span style="width: 60px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; display: inline-block; overflow: hidden;">
+                                <span style="display: block; width: ${pct}%; height: 100%; background: #27ae60; border-radius: 3px;"></span>
+                            </span>
+                            <span style="color: #27ae60; font-weight: bold; min-width: 60px; text-align: right;">+${Utils.formatNumber(incomeByType[k])}</span>
+                        </span>
+                    </div>
+                `;
+            }
+            html += `</div>`;
+        }
+
+        // ── Expense breakdown ──
+        const expenseKeys = Object.keys(expenseByType).sort((a, b) => expenseByType[b] - expenseByType[a]);
+        if (expenseKeys.length > 0) {
+            html += `<div style="margin-bottom: 16px;">`;
+            html += `<div style="font-weight: bold; color: #e74c3c; font-size: 13px; margin-bottom: 8px; border-bottom: 1px solid rgba(231,76,60,0.3); padding-bottom: 4px;">Expense Sources</div>`;
+            for (const k of expenseKeys) {
+                const pct = totalExpenses > 0 ? Math.round(expenseByType[k] / totalExpenses * 100) : 0;
+                html += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px;">
+                        <span style="color: var(--text-secondary);">${labels[k] || k}</span>
+                        <span style="display: flex; align-items: center; gap: 8px;">
+                            <span style="width: 60px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; display: inline-block; overflow: hidden;">
+                                <span style="display: block; width: ${pct}%; height: 100%; background: #e74c3c; border-radius: 3px;"></span>
+                            </span>
+                            <span style="color: #e74c3c; font-weight: bold; min-width: 60px; text-align: right;">-${Utils.formatNumber(expenseByType[k])}</span>
+                        </span>
+                    </div>
+                `;
+            }
+            html += `</div>`;
+        }
+
+        // ── Gold history chart (ASCII-style bar chart) ──
+        if (recent.length > 1) {
+            html += `<div style="margin-bottom: 8px;">`;
+            html += `<div style="font-weight: bold; color: var(--gold); font-size: 13px; margin-bottom: 8px; border-bottom: 1px solid rgba(245,197,66,0.3); padding-bottom: 4px;">Gold Over Time (last ${recent.length} days)</div>`;
+
+            const goldValues = recent.map(e => e.goldEnd);
+            const maxGold = Math.max(...goldValues, 1);
+            const minGold = Math.min(...goldValues, 0);
+            const range = maxGold - minGold || 1;
+
+            html += `<div style="display: flex; align-items: flex-end; gap: 1px; height: 80px; padding: 4px 0;">`;
+            for (let i = 0; i < recent.length; i++) {
+                const entry = recent[i];
+                const heightPct = Math.max(2, ((entry.goldEnd - minGold) / range) * 100);
+                const color = entry.netChange >= 0 ? '#27ae60' : '#e74c3c';
+                const barWidth = Math.max(3, Math.floor(360 / recent.length) - 1);
+                html += `<div title="Day ${entry.day}: ${Utils.formatNumber(entry.goldEnd)}g (${entry.netChange >= 0 ? '+' : ''}${entry.netChange})" 
+                    style="width: ${barWidth}px; height: ${heightPct}%; background: ${color}; border-radius: 2px 2px 0 0; min-height: 2px; cursor: help; opacity: 0.8;"></div>`;
+            }
+            html += `</div>`;
+            html += `<div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); margin-top: 2px;">
+                <span>${Utils.formatNumber(minGold)}g</span>
+                <span>${Utils.formatNumber(maxGold)}g</span>
+            </div>`;
+            html += `</div>`;
+        }
+
+        // ── Recent daily log ──
+        if (recent.length > 0) {
+            html += `<div>`;
+            html += `<div style="font-weight: bold; color: white; font-size: 13px; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 4px;">Daily Log</div>`;
+            const lastDays = recent.slice(-10).reverse(); // Show last 10 entries, newest first
+            for (const entry of lastDays) {
+                const dayInSeason = ((entry.day - 1) % 30) + 1;
+                const incomeStr = entry.totalIncome > 0 ? `<span style="color: #27ae60;">+${entry.totalIncome}</span>` : '';
+                const expenseStr = entry.totalExpenses > 0 ? `<span style="color: #e74c3c;">-${entry.totalExpenses}</span>` : '';
+                const netColor = entry.netChange >= 0 ? '#27ae60' : '#e74c3c';
+                html += `
+                    <div style="display: flex; justify-content: space-between; padding: 3px 0; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.04);">
+                        <span style="color: var(--text-secondary); min-width: 110px;">Day ${dayInSeason}, ${entry.season} Y${entry.year}</span>
+                        <span style="display: flex; gap: 12px;">
+                            ${incomeStr}
+                            ${expenseStr}
+                            <span style="color: ${netColor}; font-weight: bold; min-width: 50px; text-align: right;">= ${entry.netChange >= 0 ? '+' : ''}${entry.netChange}</span>
+                            <span style="color: var(--gold); min-width: 65px; text-align: right;">${Utils.formatNumber(entry.goldEnd)}g</span>
+                        </span>
+                    </div>
+                `;
+            }
+            html += `</div>`;
+        }
+
+        if (recent.length === 0) {
+            html += `<p style="color: var(--text-secondary); text-align: center; padding: 20px;">No financial data yet. End a day to start tracking.</p>`;
+        }
+
+        html += '</div>';
+
+        this.showCustomPanel('💰 Finances', html);
     }
 
     /**

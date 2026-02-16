@@ -112,6 +112,19 @@ const Tavern = {
             available: true,
         });
 
+        // 7. Sell Your Soul (dark pact for gold — repeatable once per day)
+        const alreadySoldToday = player.lastSoulSoldDay === world.day;
+        options.push({
+            id: 'sell_soul',
+            label: 'Sell Your Soul',
+            icon: '🔥',
+            cost: 0,
+            description: alreadySoldToday
+                ? 'The shadowy figure waves you off. "Come back tomorrow..."'
+                : 'A shadowy figure offers a dark bargain — a pittance of gold for a piece of your soul. Lowers karma and renown.',
+            available: !alreadySoldToday,
+        });
+
         return options;
     },
 
@@ -135,6 +148,8 @@ const Tavern = {
                 return Tavern._hireInformant(player, tile, world);
             case 'rumor_board':
                 return Tavern._checkRumorBoard(player, tile, world);
+            case 'sell_soul':
+                return Tavern._sellSoul(player, tile, world);
             default:
                 return [];
         }
@@ -402,6 +417,66 @@ const Tavern = {
 
         Tavern._storeRumors(player, rumors);
         return rumors;
+    },
+
+    /**
+     * Sell Your Soul — repeatable dark pact, once per day, small gold, costs karma & renown
+     */
+    _sellSoul(player, tile, world) {
+        // Once per day check
+        if (player.lastSoulSoldDay === world.day) {
+            return [{
+                category: Tavern.CATEGORIES.RUMORS_GOSSIP,
+                icon: '🔥',
+                title: 'Come Back Tomorrow',
+                text: 'The shadowy figure waves you off. "Patience... come back tomorrow. Your soul needs time to regrow what I\'ve taken."',
+                reliability: Tavern.RELIABILITY.INFORMANT,
+                accurate: true,
+                day: world.day,
+                source: tile.settlement.name,
+            }];
+        }
+
+        // Track how many times soul has been sold
+        player.soulSoldCount = (player.soulSoldCount || 0) + 1;
+        player.lastSoulSoldDay = world.day;
+
+        // Gold reward: 5-10 gold
+        const goldReward = Utils.randInt(5, 10);
+
+        // Karma and renown penalties scale slightly with how often you do it
+        const karmaPenalty = 1 + Math.floor(player.soulSoldCount / 5);
+        const renownPenalty = 1 + Math.floor(player.soulSoldCount / 3);
+
+        player.gold += goldReward;
+        player.karma -= karmaPenalty;
+        player.renown = Math.max(0, (player.renown || 0) - renownPenalty);
+
+        // Flavor text varies with how many times you've sold
+        const count = player.soulSoldCount;
+        let flavorText;
+        if (count === 1) {
+            flavorText = `A shadowy figure in the corner beckoned you over. "Just a sliver of your soul... nothing you\'ll miss." You shook the cold hand.`;
+        } else if (count < 5) {
+            flavorText = `The shadowy figure grins as you approach. "Back again? Of course you are." The exchange is quick. You feel a little emptier.`;
+        } else if (count < 15) {
+            flavorText = `The figure barely looks up. "The usual?" They slide the coins across the table. Your hands tremble slightly.`;
+        } else if (count < 30) {
+            flavorText = `You sit down before the figure even notices. The coins appear. You don\'t remember agreeing. Does it matter anymore?`;
+        } else {
+            flavorText = `The figure looks almost pitiful. "There\'s barely anything left, you know." The coins feel heavier each time. Or maybe you\'re just weaker.`;
+        }
+
+        return [{
+            category: Tavern.CATEGORIES.RUMORS_GOSSIP,
+            icon: '🔥',
+            title: `Soul Sold (×${count})`,
+            text: `${flavorText} +${goldReward} gold. Karma −${karmaPenalty}. Renown −${renownPenalty}.`,
+            reliability: Tavern.RELIABILITY.INFORMANT,
+            accurate: true,
+            day: world.day,
+            source: tile.settlement.name,
+        }];
     },
 
     // ────────────────────────────────────────────────────────────────────

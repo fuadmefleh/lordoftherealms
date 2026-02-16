@@ -173,8 +173,32 @@ const Kingdom = {
                 for (let i = 0; i < numTowns; i++) {
                     Kingdom.placeTown(kingdom, tiles, mapWidth, mapHeight);
                 }
+
+                // Initialize population and military from settlements
+                Kingdom.initializeKingdomStats(kingdom, tiles, mapWidth, mapHeight);
             }
         }
+    },
+
+    /**
+     * Initialize kingdom population & military from its settlements
+     * Called at world generation so kingdoms don't start with 0 troops
+     */
+    initializeKingdomStats(kingdom, tiles, mapWidth, mapHeight) {
+        let totalPop = 0;
+        for (let r = 0; r < mapHeight; r++) {
+            for (let q = 0; q < mapWidth; q++) {
+                const tile = tiles[r][q];
+                if (tile.settlement && tile.kingdom === kingdom.id) {
+                    totalPop += tile.settlement.population;
+                }
+            }
+        }
+        kingdom.population = totalPop;
+
+        // Military: 5-8% of population — kingdoms maintain standing armies
+        const militaryPercent = Utils.randFloat(0.05, 0.08);
+        kingdom.military = Math.floor(totalPop * militaryPercent);
     },
 
     /**

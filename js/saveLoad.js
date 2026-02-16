@@ -163,6 +163,16 @@ const SaveLoad = {
             achievements: player.achievements,
             miraclesPerformed: player.miraclesPerformed,
             intel: player.intel || null,
+            soulSoldCount: player.soulSoldCount || 0,
+            lastSoulSoldDay: player.lastSoulSoldDay || 0,
+            indenturedServitude: player.indenturedServitude || null,
+            inventory: player.inventory || {},
+            allegiance: player.allegiance || null,
+            kingdomTitle: player.kingdomTitle || null,
+            luck: player.luck,
+            strength: player.strength,
+            financeHistory: player.financeHistory || [],
+            financeToday: player.financeToday || null,
         };
     },
 

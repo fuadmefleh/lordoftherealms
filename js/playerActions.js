@@ -9,6 +9,32 @@ const PlayerActions = {
     getAvailableActions(player, tile, world) {
         const actions = [];
 
+        // If player is in indentured servitude, only show servitude actions
+        if (player.indenturedServitude) {
+            const servitude = player.indenturedServitude;
+            actions.push({
+                type: 'servitude_wait',
+                label: 'Endure Servitude',
+                icon: '⛓️',
+                description: `${servitude.daysRemaining} days remain under ${servitude.captor}. Work and wait for freedom.`
+            });
+            actions.push({
+                type: 'servitude_escape',
+                label: 'Attempt Escape',
+                icon: '🏃',
+                description: `Try to slip away (${Math.floor(servitude.escapeChance * 100)}% chance). Failure means punishment and extra days.`
+            });
+            if (servitude.canBuyFreedom && player.gold >= servitude.freedomCost) {
+                actions.push({
+                    type: 'servitude_buy_freedom',
+                    label: 'Buy Your Freedom',
+                    icon: '💰',
+                    description: `Pay ${servitude.freedomCost} gold to end your servitude immediately.`
+                });
+            }
+            return actions;
+        }
+
         // 1. Rest (always available)
         actions.push({
             type: 'rest',
@@ -237,7 +263,13 @@ const PlayerActions = {
             craftingUpdate: null,
             cultureIncome: 0,
             cultureRenown: 0,
+            servitudeUpdate: null,
         };
+
+        // Process indentured servitude if active
+        if (player.indenturedServitude) {
+            results.servitudeUpdate = PlayerMilitary.processServitude(player, world);
+        }
 
         // Produce goods from properties
         results.production = PlayerEconomy.produceGoods(player, world);

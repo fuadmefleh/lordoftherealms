@@ -75,6 +75,18 @@ class WorldUnit {
                 this.strength = 1;
                 this.inventory = {};
                 break;
+            case 'lord_party':
+                this.icon = '👑';
+                this.name = 'Royal Procession';
+                this.speed = 3;              // Lords travel slowly with retinue
+                this.population = Utils.randInt(30, 60);
+                this.strength = Utils.randInt(30, 60);
+                this.inventory = {};
+                this.kingdomId = null;        // Set after construction
+                this.lordName = null;         // Set after construction
+                this.daysAtLocation = 0;      // How long they've stayed
+                this.stayDuration = 0;        // How long they plan to stay
+                break;
             default:
                 this.icon = '❓';
                 this.name = 'Unknown Unit';
@@ -139,6 +151,9 @@ class WorldUnit {
                 break;
             case 'fishing_boat':
                 this.updateFishingBoat(world);
+                break;
+            case 'lord_party':
+                this.updateLordParty(world);
                 break;
         }
     }
@@ -409,6 +424,108 @@ class WorldUnit {
     /**
      * Basic A* or direct movement towards target
      */
+    /**
+     * Lord party logic: Travel between owned settlements, stay for a few days
+     */
+    updateLordParty(world) {
+        // Don't age out — lords are permanent until killed or kingdom falls
+        this.maxAge = 999999;
+
+        // Check if our kingdom is still alive
+        if (this.kingdomId) {
+            const kingdom = world.getKingdom(this.kingdomId);
+            if (!kingdom || !kingdom.isAlive) {
+                this.destroyed = true;
+                return;
+            }
+            // Sync lord name in case of succession
+            if (kingdom.lord) {
+                this.lordName = kingdom.lord.name;
+                this.name = `${this.lordName}'s Procession`;
+            }
+        }
+
+        // If staying at a location, count down
+        if (this.stayDuration > 0) {
+            this.daysAtLocation++;
+            if (this.daysAtLocation >= this.stayDuration) {
+                this.stayDuration = 0;
+                this.daysAtLocation = 0;
+                // Pick next destination
+                this._pickNextLordDestination(world);
+            }
+            return; // Don't move while staying
+        }
+
+        // If arrived at target, stay for a while
+        if (this.targetQ !== null && this.q === this.targetQ && this.r === this.targetR) {
+            const tile = world.getTile(this.q, this.r);
+            if (tile && tile.settlement) {
+                this.stayDuration = Utils.randInt(3, 10); // Stay 3-10 days
+                this.daysAtLocation = 0;
+            } else {
+                this._pickNextLordDestination(world);
+            }
+            return;
+        }
+
+        // If no target, pick one
+        if (this.targetQ === null) {
+            this._pickNextLordDestination(world);
+        }
+
+        // Move towards target (slower than patrols)
+        for (let i = 0; i < this.speed; i++) {
+            if (this.targetQ !== null && this.q === this.targetQ && this.r === this.targetR) break;
+            this.moveTowardsTarget(world);
+        }
+    }
+
+    /**
+     * Pick next settlement destination for a lord party
+     */
+    _pickNextLordDestination(world) {
+        if (!this.kingdomId) return;
+
+        const currentTile = world.getTile(this.q, this.r);
+        const regionId = currentTile ? currentTile.regionId : null;
+
+        // Get all settlements belonging to this kingdom
+        const settlements = world.getAllSettlements().filter(s => {
+            if (s.kingdom !== this.kingdomId) return false;
+            if (s.q === this.q && s.r === this.r) return false;
+            const t = world.getTile(s.q, s.r);
+            return t && t.regionId === regionId;
+        });
+
+        if (settlements.length > 0) {
+            // Prefer capital, then cities, then towns
+            const capitals = settlements.filter(s => s.type === 'capital');
+            const cities = settlements.filter(s => s.type === 'city' || s.type === 'capital');
+
+            let dest;
+            if (capitals.length > 0 && Math.random() < 0.4) {
+                dest = Utils.randPick(capitals);
+            } else if (cities.length > 0 && Math.random() < 0.5) {
+                dest = Utils.randPick(cities);
+            } else {
+                dest = Utils.randPick(settlements);
+            }
+
+            this.targetQ = dest.q;
+            this.targetR = dest.r;
+            this.path = [];
+        } else {
+            // No reachable settlements — head home to capital
+            const kingdom = world.getKingdom(this.kingdomId);
+            if (kingdom && kingdom.capital) {
+                this.targetQ = kingdom.capital.q;
+                this.targetR = kingdom.capital.r;
+                this.path = [];
+            }
+        }
+    }
+
     moveTowardsTarget(world) {
         const dist = Hex.wrappingDistance(this.q, this.r, this.targetQ, this.targetR, world.width);
         if (dist === 0) return;

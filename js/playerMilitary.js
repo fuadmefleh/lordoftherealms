@@ -504,6 +504,197 @@ const PlayerMilitary = {
     },
 
     /**
+     * Attack a settlement to conquer it.
+     * Harder than raiding — the entire garrison must be defeated.
+     */
+    attackSettlement(player, settlement, tile, world) {
+        const playerStrength = PlayerMilitary.getArmyStrength(player);
+
+        if (playerStrength === 0) {
+            return { success: false, reason: 'You have no army! Recruit soldiers first.' };
+        }
+
+        if (playerStrength < 50) {
+            return { success: false, reason: 'Army too weak to siege a settlement (need 50+ strength)' };
+        }
+
+        // Settlement defense — stronger than raiding since garrison fights to the last
+        const defenseMultiplier = {
+            village: 0.8,
+            town: 1.5,
+            city: 3.0,
+            capital: 5.0,
+        };
+
+        // Garrison = population-based defense + kingdom military contribution
+        let garrisonStrength = Math.floor(
+            settlement.population * 0.03 * (defenseMultiplier[settlement.type] || 1)
+        );
+
+        // Kingdom military reinforcements (if settlement belongs to a kingdom)
+        if (settlement.kingdom) {
+            const kingdom = world.getKingdom(settlement.kingdom);
+            if (kingdom && kingdom.military > 0) {
+                // Capital gets 40% of kingdom military, other settlements get 15%
+                const militaryShare = settlement.type === 'capital' ? 0.4 : 0.15;
+                garrisonStrength += Math.floor(kingdom.military * militaryShare);
+            }
+        }
+
+        // Walls bonus for cities and capitals
+        if (settlement.type === 'city' || settlement.type === 'capital') {
+            garrisonStrength = Math.floor(garrisonStrength * 1.3); // 30% wall bonus
+        }
+
+        // Combat
+        const result = PlayerMilitary.combat(player, garrisonStrength, settlement.name);
+        result.garrisonStrength = garrisonStrength;
+
+        const previousKingdom = settlement.kingdom;
+
+        if (result.victory) {
+            // --- CONQUEST ---
+            result.conquered = true;
+
+            // Plunder gold from the settlement
+            const plunder = Math.floor(settlement.population * Utils.randFloat(1, 3));
+            player.gold += plunder;
+            result.plunder = plunder;
+
+            // Population suffers from the siege
+            settlement.population = Math.floor(settlement.population * 0.7);
+
+            // Remove settlement from old kingdom
+            if (previousKingdom) {
+                const oldKingdom = world.getKingdom(previousKingdom);
+                if (oldKingdom) {
+                    // Remove from kingdom territory
+                    oldKingdom.territory = oldKingdom.territory.filter(t =>
+                        t.q !== tile.q || t.r !== tile.r
+                    );
+                    // Take military losses
+                    const militaryLoss = settlement.type === 'capital' ? 0.3 : 0.1;
+                    oldKingdom.military = Math.floor(oldKingdom.military * (1 - militaryLoss));
+                    // Update population
+                    oldKingdom.population = Math.max(0, oldKingdom.population - settlement.population);
+
+                    // Check if this was their capital
+                    if (oldKingdom.capital && oldKingdom.capital.q === tile.q && oldKingdom.capital.r === tile.r) {
+                        result.capitalCaptured = true;
+                        // Try to relocate capital to another settlement
+                        const remainingSettlements = [];
+                        for (const t of oldKingdom.territory) {
+                            const kt = world.getTile(t.q, t.r);
+                            if (kt && kt.settlement && kt.settlement.kingdom === previousKingdom) {
+                                remainingSettlements.push(t);
+                            }
+                        }
+                        if (remainingSettlements.length > 0) {
+                            oldKingdom.capital = remainingSettlements[0];
+                        } else {
+                            // Kingdom destroyed!
+                            oldKingdom.isAlive = false;
+                            result.kingdomDestroyed = true;
+                        }
+                    }
+                }
+            }
+
+            // Transfer ownership to the player's kingdom, or make independent
+            if (player.allegiance) {
+                settlement.kingdom = player.allegiance;
+                tile.kingdom = player.allegiance;
+                const playerKingdom = world.getKingdom(player.allegiance);
+                if (playerKingdom) {
+                    playerKingdom.territory.push({ q: tile.q, r: tile.r });
+                    playerKingdom.population += settlement.population;
+                }
+                result.newOwner = playerKingdom ? playerKingdom.name : 'your kingdom';
+            } else {
+                // No allegiance — settlement becomes a player colony
+                settlement.kingdom = null;
+                tile.kingdom = null;
+                if (!settlement.colony) settlement.colony = {};
+                settlement.colony.isPlayerColony = true;
+                settlement.colony.foundedDay = world.day;
+                settlement.colony.loyalty = 30; // Low initial loyalty after conquest
+                if (!player.colonies) player.colonies = [];
+                player.colonies.push({ q: tile.q, r: tile.r, name: settlement.name, foundedDay: world.day });
+                result.newOwner = 'you (independent colony)';
+            }
+
+            // Clear market stock (looted)
+            settlement.marketStock = {};
+
+            // Massive karma and reputation hit
+            player.karma -= 10;
+            result.karmaChange = -10;
+
+            // Reputation with ALL kingdoms drops
+            for (const k of world.kingdoms) {
+                if (!k.isAlive) continue;
+                const penalty = k.id === previousKingdom ? -50 : -10;
+                player.reputation[k.id] = (player.reputation[k.id] || 0) + penalty;
+            }
+
+            // Renown boost
+            const renownGain = settlement.type === 'capital' ? 50 :
+                               settlement.type === 'city' ? 30 :
+                               settlement.type === 'town' ? 15 : 5;
+            player.renown += renownGain;
+            result.renownChange = renownGain;
+
+            world.events.push({
+                text: `⚔️ ${player.name} has conquered ${settlement.name}!`,
+                type: 'military'
+            });
+        } else {
+            // --- DEFEAT ---
+            result.conquered = false;
+
+            // Reputation hit even for failed attack
+            if (previousKingdom) {
+                player.reputation[previousKingdom] =
+                    (player.reputation[previousKingdom] || 0) - 30;
+            }
+            player.karma -= 5;
+            result.karmaChange = -5;
+        }
+
+        return result;
+    },
+
+    /**
+     * Get the garrison strength of a settlement for display purposes
+     */
+    getSettlementDefense(settlement, world) {
+        const defenseMultiplier = {
+            village: 0.8,
+            town: 1.5,
+            city: 3.0,
+            capital: 5.0,
+        };
+
+        let garrisonStrength = Math.floor(
+            settlement.population * 0.03 * (defenseMultiplier[settlement.type] || 1)
+        );
+
+        if (settlement.kingdom) {
+            const kingdom = world.getKingdom(settlement.kingdom);
+            if (kingdom && kingdom.military > 0) {
+                const militaryShare = settlement.type === 'capital' ? 0.4 : 0.15;
+                garrisonStrength += Math.floor(kingdom.military * militaryShare);
+            }
+        }
+
+        if (settlement.type === 'city' || settlement.type === 'capital') {
+            garrisonStrength = Math.floor(garrisonStrength * 1.3);
+        }
+
+        return garrisonStrength;
+    },
+
+    /**
      * Attack a world unit on the player's tile
      */
     attackUnit(player, worldUnit, world) {

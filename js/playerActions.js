@@ -323,7 +323,22 @@ const PlayerActions = {
             }
         }
 
-        // 5b. Attack world units on same tile
+        // 5b. Attack settlement to conquer it
+        if (tile.settlement && player.army && player.army.length > 0) {
+            // Can attack if not your own settlement/colony and not your kingdom's
+            const isOwnColony = tile.settlement.colony && tile.settlement.colony.isPlayerColony;
+            const isOwnKingdom = player.allegiance && tile.settlement.kingdom === player.allegiance;
+            if (!isOwnColony && !isOwnKingdom) {
+                actions.push({
+                    type: 'attack_settlement',
+                    label: `Attack ${tile.settlement.name}`,
+                    icon: '🏰',
+                    description: `Lay siege to ${tile.settlement.name} and attempt to conquer it`,
+                });
+            }
+        }
+
+        // 5c. Attack world units on same tile
         if (world.units && world.units.length > 0) {
             const unitsOnTile = world.units.filter(u => u.q === player.q && u.r === player.r && !u.destroyed);
             for (const unit of unitsOnTile) {
@@ -334,6 +349,23 @@ const PlayerActions = {
                     description: `Engage the ${unit.name} (Strength: ${unit.strength}, Pop: ${unit.population})`,
                     unitId: unit.id
                 });
+            }
+        }
+
+        // 5d. Request meeting with NPC lord on same tile
+        if (world.units && world.units.length > 0) {
+            const lordParties = world.units.filter(u => u.type === 'lord_party' && u.q === player.q && u.r === player.r && !u.destroyed);
+            for (const lordUnit of lordParties) {
+                const kingdom = world.getKingdom(lordUnit.kingdomId);
+                if (kingdom && kingdom.lord) {
+                    actions.push({
+                        type: 'request_meeting',
+                        label: `Meet Lord ${lordUnit.lordName}`,
+                        icon: '👑',
+                        description: `Request an audience with ${lordUnit.lordName}, ruler of ${kingdom.name}`,
+                        unitId: lordUnit.id
+                    });
+                }
             }
         }
 

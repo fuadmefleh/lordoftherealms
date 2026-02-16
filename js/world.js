@@ -581,6 +581,19 @@ class World {
             }
         }
 
+        // --- Lord Parties: one per kingdom, starting at capital ---
+        for (const kingdom of this.kingdoms) {
+            if (!kingdom.isAlive || !kingdom.lord) continue;
+            const capital = settlements.find(s => s.kingdom === kingdom.id && s.type === 'capital');
+            if (capital) {
+                const lordUnit = new WorldUnit('lord_party', capital.q, capital.r);
+                lordUnit.kingdomId = kingdom.id;
+                lordUnit.lordName = kingdom.lord.name;
+                lordUnit.name = `${kingdom.lord.name}'s Procession`;
+                this.units.push(lordUnit);
+            }
+        }
+
         // --- Settlers: a couple already on the move ---
         for (let i = 0; i < 2; i++) {
             const s = Utils.randPick(settlements);
@@ -729,6 +742,22 @@ class World {
         if (this.day % 20 === 0 && Math.random() < 0.1 && this.units.filter(u => u.type === 'settler').length < 2) {
             const s = Utils.randPick(settlements);
             this.units.push(new WorldUnit('settler', s.q, s.r));
+        }
+
+        // Spawn lord parties for kingdoms that don't have one
+        for (const kingdom of this.kingdoms) {
+            if (!kingdom.isAlive || !kingdom.lord) continue;
+            const hasLordParty = this.units.some(u => u.type === 'lord_party' && u.kingdomId === kingdom.id && !u.destroyed);
+            if (!hasLordParty) {
+                const capital = settlements.find(s => s.kingdom === kingdom.id && s.type === 'capital');
+                if (capital) {
+                    const lordUnit = new WorldUnit('lord_party', capital.q, capital.r);
+                    lordUnit.kingdomId = kingdom.id;
+                    lordUnit.lordName = kingdom.lord.name;
+                    lordUnit.name = `${kingdom.lord.name}'s Procession`;
+                    this.units.push(lordUnit);
+                }
+            }
         }
     }
 

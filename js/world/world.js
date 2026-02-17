@@ -28,8 +28,58 @@ class World {
         console.log('Terrain generated');
 
         console.log('Creating kingdoms...');
-        // Create kingdoms
-        this.kingdoms = Kingdom.DEFAULTS.map(def => Kingdom.create(def));
+        // Create kingdoms — respect kingdomCount parameter
+        const kingdomCount = terrainParams.kingdomCount || Kingdom.DEFAULTS.length;
+        let kingdomDefs = Kingdom.DEFAULTS.slice(0, Math.min(kingdomCount, Kingdom.DEFAULTS.length));
+
+        // If more kingdoms requested than defaults, generate extra ones
+        if (kingdomCount > Kingdom.DEFAULTS.length) {
+            const extraCount = kingdomCount - Kingdom.DEFAULTS.length;
+            const extraColors = ['#e91e63', '#9c27b0', '#3f51b5', '#009688', '#ff5722', '#607d8b', '#cddc39', '#ff9800', '#4caf50', '#673ab7',
+                                 '#f44336', '#00bcd4', '#8bc34a', '#ffc107', '#03a9f4', '#9e9e9e', '#795548', '#ffeb3b', '#2196f3', '#ff6f00'];
+            const extraCultures = ['Imperial', 'Woodland', 'Nomadic', 'Religious', 'Maritime', 'Mountain', 'Nordic', 'Desert', 'Arcane', 'Swamp'];
+            const terrainPrefs = {
+                Imperial: ['plains', 'grassland', 'hills'],
+                Woodland: ['forest', 'dense_forest', 'grassland'],
+                Nomadic: ['plains', 'savanna', 'desert'],
+                Religious: ['desert', 'hills', 'plains'],
+                Maritime: ['coast', 'beach', 'grassland'],
+                Mountain: ['mountains', 'hills', 'tundra'],
+                Nordic: ['tundra', 'mountains', 'coast'],
+                Desert: ['desert', 'savanna', 'plains'],
+                Arcane: ['hills', 'plains', 'desert'],
+                Swamp: ['swamp', 'wetland', 'forest']
+            };
+            const traitsList = [['militaristic', 'orderly'], ['peaceful', 'nature-loving'], ['aggressive', 'mobile'],
+                               ['religious', 'scholarly'], ['mercantile', 'naval'], ['defensive', 'industrious'],
+                               ['aggressive', 'seafaring'], ['mercantile', 'resilient'], ['scholarly', 'arcane'], ['secretive', 'alchemical']];
+            const namePrefix = ['Grand Duchy of', 'Empire of', 'Free City of', 'Chiefdom of', 'Confederation of',
+                               'Principality of', 'Kingdom of', 'Republic of', 'Tribal Lands of', 'Dominion of'];
+            const nameSuffix = ['Thornwall', 'Brightmoor', 'Darkholme', 'Stormreach', 'Ironcliff', 'Sunvale', 'Mistpeak',
+                               'Shadowveil', 'Goldmere', 'Crystalshore', 'Ravencrest', 'Embervale', 'Starfall', 'Ashford',
+                               'Dawnbreak', 'Nighthollow', 'Silversong', 'Flamecrest', 'Windridge', 'Deepwater'];
+
+            for (let i = 0; i < extraCount; i++) {
+                const culture = extraCultures[i % extraCultures.length];
+                const color = extraColors[i % extraColors.length];
+                const r = parseInt(color.slice(1, 3), 16);
+                const g = parseInt(color.slice(3, 5), 16);
+                const b = parseInt(color.slice(5, 7), 16);
+                kingdomDefs.push({
+                    id: 'gen_kingdom_' + (i + 1),
+                    name: namePrefix[i % namePrefix.length] + ' ' + nameSuffix[i % nameSuffix.length],
+                    ruler: 'Ruler ' + (i + 1),
+                    color: color,
+                    colorLight: `rgba(${r}, ${g}, ${b}, 0.2)`,
+                    culture: culture,
+                    description: 'A realm born of the world\'s creation.',
+                    preferredTerrain: terrainPrefs[culture] || ['plains', 'grassland'],
+                    traits: traitsList[i % traitsList.length],
+                });
+            }
+        }
+
+        this.kingdoms = kingdomDefs.map(def => Kingdom.create(def));
 
         console.log('Placing kingdoms on map...');
         // Place kingdoms on map
@@ -51,11 +101,13 @@ class World {
 
         console.log('Placing independent settlements...');
         // Scatter some independent settlements
-        this.placeIndependentSettlements();
+        const indepSettlementFreq = terrainParams.independentSettlements || 'normal';
+        this.placeIndependentSettlements(indepSettlementFreq);
 
         console.log('Placing points of interest...');
         // Place some villages as points of interest
-        this.placePointsOfInterest();
+        const ruinsFreq = terrainParams.ruinsFreq || 'normal';
+        this.placePointsOfInterest(ruinsFreq);
 
         console.log('Generating road network...');
         this.generateRoads();
@@ -103,8 +155,13 @@ class World {
     /**
      * Place independent (unaligned) settlements
      */
-    placeIndependentSettlements() {
-        const numSettlements = Utils.randInt(8, 15);
+    placeIndependentSettlements(freq = 'normal') {
+        const freqMap = { none: 0, few: 0.4, normal: 1.0, many: 2.0 };
+        const mult = freqMap[freq] !== undefined ? freqMap[freq] : 1.0;
+        const scaleFactor = Math.sqrt((this.width * this.height) / (120 * 80));
+        const baseCount = Utils.randInt(8, 15);
+        const numSettlements = Math.round(baseCount * mult * scaleFactor);
+        if (numSettlements === 0) return;
         const existingSettlements = this.getAllSettlements();
         const minDistance = 4; // Minimum distance between settlements
 
@@ -155,7 +212,7 @@ class World {
     /**
      * Place points of interest (ruins, shrines, etc.)
      */
-    placePointsOfInterest() {
+    placePointsOfInterest(freq = 'normal') {
         const poiTypes = [
             { type: 'ruins', icon: '🏚️', name: 'Ancient Ruins' },
             { type: 'shrine', icon: '⛩️', name: 'Roadside Shrine' },
@@ -164,7 +221,12 @@ class World {
             { type: 'monument', icon: '🗿', name: 'Stone Monument' },
         ];
 
-        const numPOI = Utils.randInt(15, 30); // Increased from 10-20 to make them more common
+        const freqMap = { none: 0, few: 0.4, normal: 1.0, many: 2.0 };
+        const mult = freqMap[freq] !== undefined ? freqMap[freq] : 1.0;
+        const scaleFactor = Math.sqrt((this.width * this.height) / (120 * 80));
+        const baseCount = Utils.randInt(15, 30);
+        const numPOI = Math.round(baseCount * mult * scaleFactor);
+        if (numPOI === 0) return;
         const existingSettlements = this.getAllSettlements();
         // Also track existing POIs
         const existingPOIs = [];

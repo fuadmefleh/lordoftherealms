@@ -95,6 +95,10 @@ const DataLoader = {
             'playerEconomy.json',
             'units.json',
             'assets.json',
+            'earlyJobs.json',
+            'relationships.json',
+            'housing.json',
+            'ships.json',
         ];
 
         const data = await this.loadAll(files);
@@ -242,6 +246,30 @@ const DataLoader = {
         if (peData.PROPERTY_TYPES) PlayerEconomy.PROPERTY_TYPES = peData.PROPERTY_TYPES;
         if (peData.GOODS) PlayerEconomy.GOODS = peData.GOODS;
         if (peData.RECIPES) PlayerEconomy.RECIPES = peData.RECIPES;
+
+        // ── Early Jobs ──
+        const earlyJobsData = data['earlyJobs.json'];
+        if (earlyJobsData) {
+            DataLoader.earlyJobs = earlyJobsData;
+        }
+
+        // ── Relationships ──
+        const relationshipsData = data['relationships.json'];
+        if (relationshipsData) {
+            DataLoader.relationships = relationshipsData;
+        }
+
+        // ── Housing ──
+        const housingData = data['housing.json'];
+        if (housingData) {
+            DataLoader.housing = housingData;
+        }
+
+        // ── Ships ──
+        const shipsData = data['ships.json'];
+        if (shipsData) {
+            DataLoader.ships = shipsData;
+        }
 
         const elapsed = (performance.now() - startTime).toFixed(1);
         console.log(`[DataLoader] All game data loaded in ${elapsed}ms`);

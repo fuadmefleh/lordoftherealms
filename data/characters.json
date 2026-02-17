@@ -39,6 +39,18 @@
         "Desert": {
             "male": ["Rashid", "Farid", "Khalil", "Tariq", "Harun", "Mustafa", "Salim", "Omar", "Nassir", "Aziz", "Karim", "Jamal", "Idris", "Malik", "Faisal", "Rami", "Zayd", "Badr", "Qasim", "Hamza"],
             "female": ["Zainab", "Amira", "Layla", "Soraya", "Fatima", "Yasmin", "Nahla", "Samira", "Dalila", "Leila", "Nadia", "Safiya", "Aisha", "Khadija", "Maryam", "Hana", "Rania", "Dunya", "Farida", "Zahra"]
+        },
+        "Frozen": {
+            "male": ["Kolvar", "Yrndir", "Frostulf", "Hrimgar", "Torvak", "Skaeldr", "Glacius", "Brimir", "Vetur", "Kaldr", "Snorri", "Aevar", "Hrothgar", "Thjalfi", "Vindur", "Borealis", "Gelnar", "Iskald", "Nordvik", "Rimfrost"],
+            "female": ["Iselde", "Frostwyn", "Aurvandil", "Skaadi", "Hrimgerd", "Kolga", "Bylgja", "Glacia", "Vintra", "Snjolaug", "Eira", "Tuuli", "Pyry", "Lumia", "Talvi", "Brina", "Crysta", "Polara", "Vetra", "Isen"]
+        },
+        "Subterranean": {
+            "male": ["Gnarlok", "Delveris", "Thundrak", "Moradin", "Grimstone", "Cavernus", "Depthar", "Earthan", "Galenas", "Bedrok", "Magmor", "Obsidian", "Geodik", "Shalevar", "Tunnok", "Pyritus", "Stalagor", "Crevak", "Basalton", "Grothim"],
+            "female": ["Lithara", "Gemma", "Stelara", "Crystael", "Caverna", "Luminos", "Echona", "Shaleena", "Magmara", "Quartzil", "Obsidi", "Geoda", "Basalta", "Depthia", "Grotta", "Tunnelia", "Stalaga", "Oremis", "Coppera", "Amethyne"]
+        },
+        "Tropical": {
+            "male": ["Kalani", "Makoa", "Tane", "Rua", "Ahi", "Manu", "Keanu", "Lono", "Noa", "Pele", "Tavake", "Aroha", "Rangi", "Whenua", "Moana", "Taika", "Wiremu", "Koha", "Tapu", "Hemi"],
+            "female": ["Moana", "Leilani", "Hina", "Aroha", "Tia", "Kaia", "Mahina", "Nalani", "Mele", "Poi", "Hinatea", "Mareva", "Vaiana", "Tiare", "Manea", "Raiatea", "Teura", "Maeva", "Poema", "Titaua"]
         }
     },
     "dynastyNames": {
@@ -51,7 +63,10 @@
         "Swamp": ["Bogweaver", "Mistwalker", "Rotspore", "Gloomthorn", "Venomblood", "Nightroot", "Murkmaw", "Witchfen", "Swamphollow", "Blightborn"],
         "Arcane": ["Spellweaver", "Runeblood", "Starfire", "Voidwalker", "Manastorm", "Crystalmind", "Aethersong", "Glyphborn", "Sigilhart", "Prismkeeper"],
         "Nordic": ["Stormborn", "Frostbane", "Wolfclaw", "Ravenblood", "Thunderson", "Icemane", "Bearclaw", "Snowdrift", "Ironhelm", "Shieldbreaker"],
-        "Desert": ["al-Nuur", "al-Sahir", "al-Rashid", "al-Farid", "al-Qadir", "al-Hakim", "al-Mansur", "al-Zahir", "al-Wazir", "al-Khalid"]
+        "Desert": ["al-Nuur", "al-Sahir", "al-Rashid", "al-Farid", "al-Qadir", "al-Hakim", "al-Mansur", "al-Zahir", "al-Wazir", "al-Khalid"],
+        "Frozen": ["Frostmantle", "Winterborn", "Glacierheart", "Snowpeak", "Icevein", "Rimecrown", "Northwind", "Coldforge", "Blizzardkin", "Auroraborn"],
+        "Subterranean": ["Deepstone", "Cavernborn", "Gemheart", "Echomind", "Stalactite", "Tunnelborne", "Magmakin", "Crystalvein", "Shadowdelve", "Underking"],
+        "Tropical": ["Wavecaller", "Sunblessed", "Reefborn", "Tidewalker", "Palmsong", "Isleborn", "Lagoonheart", "Stormrider", "Coralblood", "Windseeker"]
     },
     "rulerTraits": {
         "brilliant_strategist": { "id": "brilliant_strategist", "name": "Brilliant Strategist", "icon": "🗡️", "category": "positive", "effects": { "military": 0.20, "warBonus": 0.15 }, "description": "Exceptional military mind" },
@@ -73,7 +88,17 @@
         "greedy": { "id": "greedy", "name": "Greedy", "icon": "🤑", "category": "negative", "effects": { "treasury": 0.15, "loyalty": -0.20 }, "description": "Hoards wealth at the people's expense" },
         "cowardly": { "id": "cowardly", "name": "Cowardly", "icon": "🐀", "category": "negative", "effects": { "military": -0.20, "loyalty": -0.10 }, "description": "Flees from danger, despised by warriors" },
         "ambitious": { "id": "ambitious", "name": "Ambitious", "icon": "🔱", "category": "neutral", "effects": { "expansion": 0.25, "stability": -0.10 }, "description": "Driven to expand and conquer" },
-        "cunning": { "id": "cunning", "name": "Cunning", "icon": "🦊", "category": "neutral", "effects": { "intrigue": 0.25, "diplomacy": 0.10 }, "description": "Clever schemer who plays the long game" }
+        "cunning": { "id": "cunning", "name": "Cunning", "icon": "🦊", "category": "neutral", "effects": { "intrigue": 0.25, "diplomacy": 0.10 }, "description": "Clever schemer who plays the long game" },
+        "scholar": { "id": "scholar", "name": "Scholar", "icon": "📚", "category": "positive", "effects": { "research": 0.25, "diplomacy": 0.05 }, "description": "Learned in many fields, accelerates research" },
+        "healer": { "id": "healer", "name": "Healer", "icon": "💊", "category": "positive", "effects": { "population": 0.15, "loyalty": 0.10 }, "description": "Skilled in medicine, reduces plague impact" },
+        "patron_of_arts": { "id": "patron_of_arts", "name": "Patron of the Arts", "icon": "🎭", "category": "positive", "effects": { "culture": 0.25, "loyalty": 0.10 }, "description": "Funds artists and musicians, enriching the realm" },
+        "explorer": { "id": "explorer", "name": "Explorer", "icon": "🧭", "category": "positive", "effects": { "visionRadius": 0.20, "expansion": 0.15 }, "description": "Driven to discover new lands and peoples" },
+        "drunkard": { "id": "drunkard", "name": "Drunkard", "icon": "🍺", "category": "negative", "effects": { "stewardship": -0.15, "diplomacy": -0.10 }, "description": "Fond of drink, often incapacitated" },
+        "envious": { "id": "envious", "name": "Envious", "icon": "💚", "category": "negative", "effects": { "diplomacy": -0.10, "intrigue": 0.15 }, "description": "Covets what others have, prone to scheming" },
+        "tyrannical": { "id": "tyrannical", "name": "Tyrannical", "icon": "⛓️", "category": "negative", "effects": { "loyalty": -0.30, "military": 0.15 }, "description": "Rules with an iron fist, crushing all dissent" },
+        "pious": { "id": "pious", "name": "Pious", "icon": "⛪", "category": "neutral", "effects": { "faith": 0.20, "intrigue": -0.10 }, "description": "Devoted to faith above all worldly concerns" },
+        "merchant_prince": { "id": "merchant_prince", "name": "Merchant Prince", "icon": "💰", "category": "neutral", "effects": { "tradeBonus": 0.25, "military": -0.10 }, "description": "Sees the realm as a business to be managed" },
+        "mystic": { "id": "mystic", "name": "Mystic", "icon": "🔮", "category": "neutral", "effects": { "faith": 0.15, "research": 0.15, "stability": -0.05 }, "description": "Communes with unseen forces, unpredictable but insightful" }
     },
     "advisorRoles": {
         "general": {
@@ -105,6 +130,30 @@
             "description": "Oversees internal administration and construction",
             "primarySkill": "stewardship", "secondarySkill": "administration",
             "bonuses": { "construction": 0.15, "population": 0.10 }
+        },
+        "court_scholar": {
+            "id": "court_scholar", "name": "Court Scholar", "icon": "📖",
+            "description": "Leads research and technological advancement",
+            "primarySkill": "learning", "secondarySkill": "research",
+            "bonuses": { "research": 0.20, "culture": 0.10 }
+        },
+        "high_priest": {
+            "id": "high_priest", "name": "High Priest", "icon": "⛪",
+            "description": "Spiritual leader who guides the faith of the realm",
+            "primarySkill": "faith", "secondarySkill": "charisma",
+            "bonuses": { "faith": 0.20, "stability": 0.10 }
+        },
+        "master_of_trade": {
+            "id": "master_of_trade", "name": "Master of Trade", "icon": "⚖️",
+            "description": "Manages trade agreements, caravans, and market policies",
+            "primarySkill": "commerce", "secondarySkill": "diplomacy",
+            "bonuses": { "tradeBonus": 0.20, "caravanProfitBonus": 0.15 }
+        },
+        "court_physician": {
+            "id": "court_physician", "name": "Court Physician", "icon": "🏥",
+            "description": "Tends to the health of the royal family and court",
+            "primarySkill": "medicine", "secondarySkill": "learning",
+            "bonuses": { "population": 0.10, "rulerHealth": 0.20 }
         }
     },
     "characterEvents": [
@@ -121,6 +170,21 @@
         { "id": "advisor_betrayal", "weight": 2, "text": "The {advisorRole} of {kingdom} has been secretly working for a rival kingdom!", "type": "intrigue", "impact": "negative" },
         { "id": "dynasty_feud", "weight": 4, "text": "A bitter feud erupts within the {dynasty} dynasty over inheritance rights.", "type": "dynasty", "impact": "negative" },
         { "id": "brilliant_child", "weight": 3, "requires": "has_children", "text": "Young {child} of {kingdom} shows exceptional talent, impressing the court.", "type": "dynasty", "impact": "positive" },
-        { "id": "marriage_celebration", "weight": 5, "requires": "unmarried_heir", "text": "{heir} of {kingdom} celebrates a royal wedding with {spouse}.", "type": "dynasty", "impact": "positive" }
+        { "id": "marriage_celebration", "weight": 5, "requires": "unmarried_heir", "text": "{heir} of {kingdom} celebrates a royal wedding with {spouse}.", "type": "dynasty", "impact": "positive" },
+        { "id": "plague_outbreak", "weight": 3, "text": "A terrible plague sweeps through {kingdom}! The court physician works tirelessly.", "type": "health", "impact": "negative" },
+        { "id": "natural_disaster", "weight": 2, "text": "A devastating flood has struck {kingdom}, destroying farmland and displacing villagers.", "type": "disaster", "impact": "negative" },
+        { "id": "great_harvest", "weight": 7, "text": "A bountiful harvest fills the granaries of {kingdom}! The people celebrate.", "type": "economy", "impact": "positive" },
+        { "id": "cultural_renaissance", "weight": 3, "text": "A golden age of art and learning blossoms in {kingdom} under {ruler}'s patronage.", "type": "culture", "impact": "positive" },
+        { "id": "religious_vision", "weight": 4, "text": "{ruler} claims to have received a divine vision, inspiring the faithful.", "type": "religious", "impact": "neutral" },
+        { "id": "trade_boom", "weight": 5, "text": "Merchants flock to {kingdom} as trade routes expand. Gold flows freely.", "type": "economy", "impact": "positive" },
+        { "id": "bandit_uprising", "weight": 4, "text": "Bandits have overrun the roads of {kingdom}! Traders fear for their lives.", "type": "military", "impact": "negative" },
+        { "id": "diplomatic_insult", "weight": 4, "text": "A diplomatic envoy from {kingdom} was insulted at a foreign court. Tensions rise.", "type": "diplomacy", "impact": "negative" },
+        { "id": "holy_relic_found", "weight": 2, "text": "An ancient holy relic has been unearthed in {kingdom}! Pilgrims arrive in droves.", "type": "religious", "impact": "positive" },
+        { "id": "court_intrigue", "weight": 5, "text": "Whispers and plots fill the court of {kingdom}. Who can be trusted?", "type": "intrigue", "impact": "negative" },
+        { "id": "explorer_returns", "weight": 3, "text": "An explorer returns to {kingdom} with tales of distant lands and strange peoples.", "type": "exploration", "impact": "positive" },
+        { "id": "drought", "weight": 4, "text": "A long drought grips {kingdom}. Crops wither and wells run dry.", "type": "disaster", "impact": "negative" },
+        { "id": "comet_sighted", "weight": 2, "text": "A great comet blazes across the sky above {kingdom}. The people take it as an omen.", "type": "supernatural", "impact": "neutral" },
+        { "id": "prodigy_born", "weight": 2, "text": "A child of extraordinary gifts is born in {kingdom}. Scholars marvel at their potential.", "type": "dynasty", "impact": "positive" },
+        { "id": "rebellion_brewing", "weight": 3, "text": "Discontent simmers in the provinces of {kingdom}. A rebellion may be brewing.", "type": "political", "impact": "negative" }
     ]
 }

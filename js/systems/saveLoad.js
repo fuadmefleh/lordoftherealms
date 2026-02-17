@@ -185,6 +185,25 @@ const SaveLoad = {
             queuedPath: player.queuedPath || null,
             queuedPathIndex: player.queuedPathIndex || 0,
             travelDestination: player.travelDestination || null,
+
+            // Dynasty & Relationships
+            dynasty: player.dynasty || null,
+            spouse: player.spouse || null,
+            children: player.children || [],
+            relationships: player.relationships || {},
+            heir: player.heir || null,
+            maxLifespan: player.maxLifespan || 70,
+            birthDay: player.birthDay || 0,
+            marriageDay: player.marriageDay || null,
+            age: player.age || 20,
+            gender: player.gender || 'male',
+            name: player.name || 'Wanderer',
+            _relationshipNpcs: player._relationshipNpcs || [],
+            _relationshipNextId: player._relationshipNextId || 1,
+
+            // Housing & Ships
+            houses: player.houses || [],
+            ships: player.ships || [],
         };
     },
 

@@ -115,6 +115,318 @@ const PlayerActions = {
                     icon: '⛴️',
                     description: 'Hire a ship to travel to another coastal settlement'
                 });
+
+                // Shipyard actions at coastal settlements
+                if (typeof Ships !== 'undefined') {
+                    actions.push({
+                        type: 'visit_shipyard',
+                        label: 'Visit Shipyard',
+                        icon: '⚓',
+                        description: 'Buy, build, or manage ships at the docks'
+                    });
+                }
+
+                // Board own ship if docked here
+                const dockedShips = typeof Ships !== 'undefined' ? Ships.getShipsAt(player, tile.q, tile.r) : [];
+                if (dockedShips.length > 0) {
+                    actions.push({
+                        type: 'board_ship',
+                        label: 'Board Ship',
+                        icon: '🚢',
+                        description: 'Board one of your ships docked here'
+                    });
+                }
+            }
+
+            // Housing actions at settlements
+            if (typeof Housing !== 'undefined') {
+                const ownedHere = Housing.getHouseAt(player, tile.q, tile.r);
+                if (!ownedHere) {
+                    const available = Housing.getAvailableHouses(tile.settlement.type);
+                    if (available.length > 0) {
+                        actions.push({
+                            type: 'buy_house',
+                            label: 'Buy a House',
+                            icon: '🏠',
+                            description: 'Purchase a home in this settlement'
+                        });
+                    }
+                } else {
+                    actions.push({
+                        type: 'manage_house',
+                        label: 'Manage House',
+                        icon: '🏠',
+                        description: 'Upgrade, repair, or sell your property'
+                    });
+                }
+            }
+
+            // --- Early-Game Income: Settlement-based ---
+
+            // Odd Jobs (always available in settlements)
+            actions.push({
+                type: 'odd_jobs',
+                label: 'Look for Work',
+                icon: '🔨',
+                description: 'Take on a day job for modest pay'
+            });
+
+            // Bounty Board (settlements post small tasks)
+            actions.push({
+                type: 'bounty_board',
+                label: 'Notice Board',
+                icon: '📋',
+                description: 'Check the notice board for paid tasks and bounties'
+            });
+
+            // Busking / Street Performance
+            actions.push({
+                type: 'busking',
+                label: 'Street Performance',
+                icon: '🎭',
+                description: 'Perform in the streets for tips and coin'
+            });
+
+            // Gambling (taverns in cities, informal in villages)
+            if (isCity) {
+                actions.push({
+                    type: 'gambling',
+                    label: 'Gambling Den',
+                    icon: '🎲',
+                    description: 'Try your luck at games of chance'
+                });
+            } else if (isVillage) {
+                actions.push({
+                    type: 'gambling',
+                    label: 'Dice Game',
+                    icon: '🎲',
+                    description: 'Join the locals for a friendly wager'
+                });
+            }
+
+            // --- Social / Political ---
+
+            // Donate / Charity (at settlements)
+            if (player.gold >= 10) {
+                actions.push({
+                    type: 'donate',
+                    label: 'Donate to the Poor',
+                    icon: '🪙',
+                    description: 'Give gold to the less fortunate for karma and reputation'
+                });
+            }
+
+            // Pledge Allegiance (at capitals, if unaligned)
+            if (isSettlement && tile.settlement.kingdom && !player.allegiance) {
+                actions.push({
+                    type: 'pledge_allegiance',
+                    label: 'Pledge Allegiance',
+                    icon: '🏛️',
+                    description: `Swear fealty to the kingdom of ${tile.settlement.name}`
+                });
+            }
+
+            // Renounce Allegiance (at any settlement, if aligned)
+            if (isSettlement && player.allegiance) {
+                actions.push({
+                    type: 'renounce_allegiance',
+                    label: 'Renounce Allegiance',
+                    icon: '🚩',
+                    description: 'Break your oath and become a free agent'
+                });
+            }
+
+            // Host Feast (at cities/towns, costs gold)
+            if (isCity && player.gold >= 200) {
+                actions.push({
+                    type: 'host_feast',
+                    label: 'Host a Feast',
+                    icon: '🍖',
+                    description: 'Throw a grand feast to boost renown and reputation (200+ gold)'
+                });
+            }
+
+            // Hold Tournament (at cities, costs gold, need army or combat skill)
+            if (isCity && player.gold >= 300 && (player.skills?.combat >= 2 || (player.army && player.army.length > 0))) {
+                actions.push({
+                    type: 'hold_tournament',
+                    label: 'Hold Tournament',
+                    icon: '🏟️',
+                    description: 'Organize a grand tournament for renown, gold prizes, and combat experience'
+                });
+            }
+
+            // Pickpocket (stealth action at settlements)
+            if (player.skills?.stealth >= 1) {
+                actions.push({
+                    type: 'pickpocket',
+                    label: 'Pickpocket',
+                    icon: '🤏',
+                    description: 'Attempt to lift a purse from the crowd (risky)'
+                });
+            }
+
+            // Smuggle Goods (at settlements with a kingdom border)
+            if (isSettlement && tile.settlement.kingdom && player.skills?.stealth >= 2 && player.inventory) {
+                const hasGoods = Object.keys(player.inventory).length > 0;
+                if (hasGoods) {
+                    actions.push({
+                        type: 'smuggle',
+                        label: 'Smuggle Goods',
+                        icon: '🥷',
+                        description: 'Sell goods on the black market for higher prices (risky)'
+                    });
+                }
+            }
+
+            // Train / Spar (at settlements with military)
+            if (isCity) {
+                actions.push({
+                    type: 'train_combat',
+                    label: 'Train at Barracks',
+                    icon: '⚔️',
+                    description: 'Spar with soldiers to improve combat skill'
+                });
+            }
+
+            // --- Relationships ---
+
+            // Meet People / Socialize (at any settlement)
+            actions.push({
+                type: 'meet_people',
+                label: 'Meet People',
+                icon: '👥',
+                description: 'Get to know the locals — make friends, rivals, or romantic interests'
+            });
+
+            // View Relationships (if player knows anyone)
+            if (player.relationships && Object.keys(player.relationships).length > 0) {
+                actions.push({
+                    type: 'view_relationships',
+                    label: 'Relationships',
+                    icon: '💕',
+                    description: 'View your friends, rivals, loved ones, and family'
+                });
+            }
+
+            // Manage Family / Heirs (if player has children)
+            if (player.children && player.children.length > 0) {
+                actions.push({
+                    type: 'manage_dynasty',
+                    label: 'Dynasty & Heirs',
+                    icon: '👑',
+                    description: 'View your family tree and designate an heir'
+                });
+            }
+
+            // Fleet overview (if player owns ships)
+            if (typeof Ships !== 'undefined' && player.ships && player.ships.length > 0) {
+                actions.push({
+                    type: 'manage_fleet',
+                    label: 'Fleet Overview',
+                    icon: '⚓',
+                    description: 'View the status of all your ships'
+                });
+            }
+        }
+
+        // --- Wilderness & Anywhere Actions ---
+
+        // Meditate / Pray (anywhere on passable terrain)
+        if (tile.terrain.passable) {
+            actions.push({
+                type: 'meditate',
+                label: tile.holySite ? 'Pray at Holy Site' : 'Meditate',
+                icon: '🧘',
+                description: tile.holySite
+                    ? 'Pray here for greater spiritual benefit'
+                    : 'Quiet your mind to restore health and gain karma'
+            });
+        }
+
+        // Personal Fishing (at coast/lake/river adjacent tiles)
+        if (tile.terrain.passable) {
+            const nearWater = Hex.neighbors(tile.q, tile.r).some(n => {
+                const nt = world.getTile(n.q, n.r);
+                return nt && ['ocean', 'deep_ocean', 'coast', 'lake', 'sea'].includes(nt.terrain.id);
+            });
+            const isWaterTerrain = ['coast', 'beach'].includes(tile.terrain.id);
+            if (nearWater || isWaterTerrain) {
+                actions.push({
+                    type: 'fish',
+                    label: 'Go Fishing',
+                    icon: '🎣',
+                    description: 'Spend the day fishing — sell the catch or keep it as food'
+                });
+            }
+        }
+
+        // Prospect / Mine (hills, mountains, highlands)
+        if (!tile.settlement && tile.terrain.passable) {
+            const miningTerrains = ['hills', 'highlands', 'mountain'];
+            if (miningTerrains.includes(tile.terrain.id)) {
+                actions.push({
+                    type: 'prospect',
+                    label: 'Prospect',
+                    icon: '⛏️',
+                    description: 'Search for ore and minerals in the rock'
+                });
+            }
+        }
+
+        // Tame Horse (plains/grassland with horse resource)
+        if (!tile.settlement && tile.terrain.passable && tile.resource && tile.resource.id === 'horses') {
+            actions.push({
+                type: 'tame_horse',
+                label: 'Tame Wild Horse',
+                icon: '🐴',
+                description: 'Attempt to capture and tame a wild horse for faster travel'
+            });
+        }
+
+        // Set up Camp / Craft (wilderness with wood)
+        if (!tile.settlement && tile.terrain.passable && player.inventory) {
+            const hasWood = (player.inventory.wood || 0) >= 2;
+            if (hasWood) {
+                actions.push({
+                    type: 'craft_campfire',
+                    label: 'Build Campfire',
+                    icon: '🔥',
+                    description: 'Use 2 wood to build a campfire — cook food and rest well (+extra health)'
+                });
+            }
+        }
+
+        // --- Early-Game Income: Wilderness-based ---
+
+        // Foraging (non-settlement passable terrain)
+        if (!tile.settlement && tile.terrain.passable) {
+            const foragingTerrains = ['forest', 'dense_forest', 'woodland', 'boreal_forest', 'seasonal_forest',
+                'temperate_rainforest', 'tropical_rainforest', 'plains', 'grassland', 'steppe', 'savanna',
+                'hills', 'highlands', 'mountain', 'coast', 'beach', 'desert', 'arid', 'semi_arid',
+                'swamp', 'marsh', 'wetland', 'mangrove', 'tropical_wetland'];
+            if (foragingTerrains.includes(tile.terrain.id)) {
+                actions.push({
+                    type: 'forage',
+                    label: 'Forage',
+                    icon: '🌿',
+                    description: 'Search the area for herbs, berries, and useful materials'
+                });
+            }
+        }
+
+        // Hunting (wilderness with game)
+        if (!tile.settlement && tile.terrain.passable) {
+            const huntingTerrains = ['forest', 'dense_forest', 'woodland', 'boreal_forest', 'seasonal_forest',
+                'temperate_rainforest', 'tropical_rainforest', 'plains', 'grassland', 'steppe', 'savanna',
+                'hills', 'highlands', 'coast', 'beach'];
+            if (huntingTerrains.includes(tile.terrain.id)) {
+                actions.push({
+                    type: 'hunt',
+                    label: 'Hunt',
+                    icon: '🏹',
+                    description: 'Hunt wild game for meat and pelts to sell'
+                });
             }
         }
 
@@ -439,6 +751,20 @@ const PlayerActions = {
             const cultureResult = Culture.processPlayerCulture(player, world);
             results.cultureIncome = cultureResult.income;
             results.cultureRenown = cultureResult.renown;
+        }
+
+        // Process active bounties — tick down timers and expire old ones
+        if (player.activeBounties && player.activeBounties.length > 0) {
+            const expired = [];
+            for (let i = player.activeBounties.length - 1; i >= 0; i--) {
+                const bounty = player.activeBounties[i];
+                bounty.daysElapsed = (bounty.daysElapsed || 0) + 1;
+                if (bounty.daysElapsed >= bounty.daysLimit) {
+                    expired.push(bounty);
+                    player.activeBounties.splice(i, 1);
+                }
+            }
+            results.bountiesExpired = expired;
         }
 
         return results;

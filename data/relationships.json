@@ -1,0 +1,202 @@
+{
+    "relationshipTypes": {
+        "acquaintance":  { "id": "acquaintance",  "label": "Acquaintance",  "icon": "🤝", "minScore": 10,  "maxScore": 29 },
+        "friend":        { "id": "friend",        "label": "Friend",        "icon": "😊", "minScore": 30,  "maxScore": 59 },
+        "closeFriend":   { "id": "closeFriend",   "label": "Close Friend",  "icon": "💛", "minScore": 60,  "maxScore": 89 },
+        "bestFriend":    { "id": "bestFriend",     "label": "Best Friend",   "icon": "💜", "minScore": 90,  "maxScore": 100 },
+        "rival":         { "id": "rival",          "label": "Rival",         "icon": "⚡", "minScore": -59, "maxScore": -30 },
+        "nemesis":       { "id": "nemesis",        "label": "Nemesis",       "icon": "💀", "minScore": -100,"maxScore": -60 },
+        "lover":         { "id": "lover",          "label": "Lover",         "icon": "💕", "minScore": 50,  "maxScore": 100, "romantic": true },
+        "spouse":        { "id": "spouse",         "label": "Spouse",        "icon": "💍", "romantic": true, "exclusive": true },
+        "exSpouse":      { "id": "exSpouse",       "label": "Former Spouse", "icon": "💔", "romantic": false }
+    },
+
+    "courtingStages": [
+        { "id": "strangers",     "label": "Strangers",     "icon": "👤", "minAffection": 0,   "description": "You don't know each other yet." },
+        { "id": "interested",    "label": "Interested",    "icon": "👀", "minAffection": 15,  "description": "There's a spark of interest." },
+        { "id": "flirting",      "label": "Flirting",      "icon": "😏", "minAffection": 30,  "description": "Playful exchanges and stolen glances." },
+        { "id": "courting",      "label": "Courting",      "icon": "💐", "minAffection": 50,  "description": "Openly pursuing a romantic connection." },
+        { "id": "betrothed",     "label": "Betrothed",     "icon": "💍", "minAffection": 75,  "description": "A proposal has been accepted!" },
+        { "id": "married",       "label": "Married",       "icon": "👫", "minAffection": 80,  "description": "United in matrimony." }
+    ],
+
+    "courtActions": {
+        "chat": {
+            "id": "chat", "label": "Have a Chat", "icon": "💬",
+            "description": "Strike up a conversation. Low reward, always available.",
+            "affectionGain": { "min": 1, "max": 4 },
+            "statBonus": "charisma",
+            "failChance": 0.1,
+            "cost": 0,
+            "minStage": "strangers"
+        },
+        "compliment": {
+            "id": "compliment", "label": "Give a Compliment", "icon": "✨",
+            "description": "Offer a sincere compliment. Charisma helps.",
+            "affectionGain": { "min": 2, "max": 6 },
+            "statBonus": "charisma",
+            "failChance": 0.2,
+            "cost": 0,
+            "minStage": "strangers"
+        },
+        "gift": {
+            "id": "gift", "label": "Give a Gift", "icon": "🎁",
+            "description": "Buy a thoughtful gift. Costs gold.",
+            "affectionGain": { "min": 5, "max": 12 },
+            "statBonus": "intelligence",
+            "failChance": 0.05,
+            "cost": 25,
+            "minStage": "interested"
+        },
+        "serenade": {
+            "id": "serenade", "label": "Serenade", "icon": "🎵",
+            "description": "Sing a romantic ballad. Charisma-intensive.",
+            "affectionGain": { "min": 4, "max": 10 },
+            "statBonus": "charisma",
+            "failChance": 0.3,
+            "failPenalty": -5,
+            "cost": 0,
+            "minStage": "flirting"
+        },
+        "romantic_dinner": {
+            "id": "romantic_dinner", "label": "Romantic Dinner", "icon": "🍷",
+            "description": "Invite them to a lavish dinner. Requires a settlement.",
+            "affectionGain": { "min": 8, "max": 15 },
+            "statBonus": "charisma",
+            "failChance": 0.1,
+            "cost": 50,
+            "minStage": "courting",
+            "requiresSettlement": true
+        },
+        "propose": {
+            "id": "propose", "label": "Propose Marriage", "icon": "💍",
+            "description": "Ask for their hand in marriage. Must be deeply in love.",
+            "affectionGain": { "min": 15, "max": 25 },
+            "statBonus": "charisma",
+            "failChance": 0.15,
+            "failPenalty": -10,
+            "cost": 100,
+            "minStage": "courting",
+            "minAffection": 70
+        }
+    },
+
+    "socialActions": {
+        "befriend": {
+            "id": "befriend", "label": "Be Friendly", "icon": "😊",
+            "description": "Make small talk and build rapport.",
+            "relationGain": { "min": 2, "max": 5 },
+            "statBonus": "charisma",
+            "failChance": 0.1
+        },
+        "train_together": {
+            "id": "train_together", "label": "Train Together", "icon": "⚔️",
+            "description": "Spar or drill with this person. Builds respect.",
+            "relationGain": { "min": 3, "max": 7 },
+            "statBonus": "strength",
+            "failChance": 0.15
+        },
+        "share_meal": {
+            "id": "share_meal", "label": "Share a Meal", "icon": "🍞",
+            "description": "Break bread together. Costs a little gold.",
+            "relationGain": { "min": 3, "max": 6 },
+            "statBonus": "charisma",
+            "failChance": 0.05,
+            "cost": 10
+        },
+        "tell_stories": {
+            "id": "tell_stories", "label": "Tell Stories", "icon": "📖",
+            "description": "Share tales and listen to theirs.",
+            "relationGain": { "min": 2, "max": 6 },
+            "statBonus": "intelligence",
+            "failChance": 0.1
+        },
+        "insult": {
+            "id": "insult", "label": "Insult", "icon": "😤",
+            "description": "Provoke or belittle this person.",
+            "relationGain": { "min": -8, "max": -3 },
+            "statBonus": null,
+            "failChance": 0
+        },
+        "challenge": {
+            "id": "challenge", "label": "Challenge to Duel", "icon": "🗡️",
+            "description": "Challenge them to a friendly (or not) duel.",
+            "relationGain": { "min": -2, "max": 5 },
+            "statBonus": "strength",
+            "failChance": 0.3,
+            "failResult": "humiliation"
+        }
+    },
+
+    "giftItems": [
+        { "id": "flowers",   "name": "Wildflowers",     "icon": "💐", "cost": 5,   "affection": 3,  "description": "A simple but thoughtful bouquet." },
+        { "id": "jewelry",   "name": "Silver Necklace",  "icon": "📿", "cost": 50,  "affection": 8,  "description": "A delicate silver piece." },
+        { "id": "ring",      "name": "Gold Ring",        "icon": "💍", "cost": 100, "affection": 12, "description": "A gleaming ring of fine gold." },
+        { "id": "poem",      "name": "Written Poem",     "icon": "📜", "cost": 0,   "affection": 5,  "description": "A heartfelt poem. Intelligence helps.", "statBonus": "intelligence" },
+        { "id": "sword",     "name": "Fine Blade",       "icon": "🗡️", "cost": 80,  "affection": 7,  "description": "A well-forged weapon. Martial types appreciate this." },
+        { "id": "book",      "name": "Rare Book",        "icon": "📕", "cost": 40,  "affection": 6,  "description": "A book of knowledge or poetry." }
+    ],
+
+    "marriageEffects": {
+        "staminaBonus": 1,
+        "happinessBonus": 10,
+        "reputationBonus": 5,
+        "renownGain": 3,
+        "allianceWithSpouseKingdom": true
+    },
+
+    "childTraits": {
+        "gifted":     { "id": "gifted",     "name": "Gifted",     "icon": "⭐", "chance": 0.1,  "effects": { "allStats": 1 } },
+        "strong":     { "id": "strong",     "name": "Strong",     "icon": "💪", "chance": 0.15, "effects": { "strength": 2 } },
+        "clever":     { "id": "clever",     "name": "Clever",     "icon": "🧠", "chance": 0.15, "effects": { "intelligence": 2 } },
+        "charming":   { "id": "charming",   "name": "Charming",   "icon": "😊", "chance": 0.12, "effects": { "charisma": 2 } },
+        "lucky":      { "id": "lucky",      "name": "Lucky",      "icon": "🍀", "chance": 0.1,  "effects": { "luck": 2 } },
+        "devout":     { "id": "devout",     "name": "Devout",     "icon": "🙏", "chance": 0.1,  "effects": { "faith": 2 } },
+        "sickly":     { "id": "sickly",     "name": "Sickly",     "icon": "🤒", "chance": 0.08, "effects": { "maxHealth": -15 } },
+        "rebellious": { "id": "rebellious", "name": "Rebellious", "icon": "🔥", "chance": 0.1,  "effects": { "stealth": 1, "combat": 1, "diplomacy": -1 } }
+    },
+
+    "npcPersonalities": {
+        "kind":       { "id": "kind",       "label": "Kind",       "icon": "😇", "courtModifier": 1.2, "friendModifier": 1.3, "rivalModifier": 0.5 },
+        "ambitious":  { "id": "ambitious",  "label": "Ambitious",  "icon": "🔱", "courtModifier": 0.8, "friendModifier": 0.9, "rivalModifier": 1.5 },
+        "shy":        { "id": "shy",        "label": "Shy",        "icon": "🫣", "courtModifier": 0.7, "friendModifier": 0.8, "rivalModifier": 0.6 },
+        "bold":       { "id": "bold",       "label": "Bold",       "icon": "🦁", "courtModifier": 1.1, "friendModifier": 1.0, "rivalModifier": 1.3 },
+        "witty":      { "id": "witty",      "label": "Witty",      "icon": "🎭", "courtModifier": 1.3, "friendModifier": 1.1, "rivalModifier": 0.8 },
+        "stoic":      { "id": "stoic",      "label": "Stoic",      "icon": "🗿", "courtModifier": 0.6, "friendModifier": 0.7, "rivalModifier": 1.0 },
+        "passionate": { "id": "passionate", "label": "Passionate", "icon": "🔥", "courtModifier": 1.4, "friendModifier": 1.0, "rivalModifier": 1.4 },
+        "gentle":     { "id": "gentle",     "label": "Gentle",     "icon": "🕊️", "courtModifier": 1.2, "friendModifier": 1.2, "rivalModifier": 0.3 }
+    },
+
+    "heirSettings": {
+        "minAgeToPlay": 16,
+        "inheritanceGoldPercent": 0.75,
+        "inheritanceRenownPercent": 0.5,
+        "inheritanceReputationPercent": 0.3,
+        "startingAge": 16,
+        "childbirthChancePerYear": 0.25,
+        "maxChildren": 6,
+        "motherMinAge": 18,
+        "motherMaxAge": 42,
+        "fatherMinAge": 16,
+        "fatherMaxAge": 65,
+        "playerMaxLifespan": { "min": 55, "max": 85 },
+        "deathChancePerYearOverMax": 0.15,
+        "daysPerYear": 120
+    },
+
+    "npcCourtEvents": [
+        { "id": "npc_flirts", "chance": 0.03, "text": "{npc} gives you a warm smile and says something flattering.", "affectionGain": 3 },
+        { "id": "npc_gift", "chance": 0.02, "text": "{npc} surprises you with a small gift — a {item}.", "affectionGain": 5 },
+        { "id": "npc_jealous", "chance": 0.01, "text": "{npc} seems jealous of someone you were talking to.", "affectionGain": -3 },
+        { "id": "npc_confides", "chance": 0.04, "text": "{npc} confides a personal story to you. You feel closer.", "affectionGain": 4 },
+        { "id": "rival_provokes", "chance": 0.02, "text": "{npc} says something cutting about you in front of others.", "relationGain": -5 }
+    ],
+
+    "marriageEvents": [
+        { "id": "anniversary", "chance": 0.01, "text": "Your spouse {spouse} celebrates your anniversary with a special meal. 💕", "effect": "affection", "value": 5 },
+        { "id": "argument", "chance": 0.02, "text": "You and {spouse} have a disagreement.", "effect": "affection", "value": -3 },
+        { "id": "spouse_gift", "chance": 0.015, "text": "{spouse} gives you a thoughtful gift.", "effect": "affection", "value": 4 },
+        { "id": "spouse_ill", "chance": 0.005, "text": "{spouse} has fallen ill. You tend to them with care.", "effect": "affection", "value": 2 },
+        { "id": "child_milestone", "chance": 0.01, "requiresChildren": true, "text": "Your child {child} took their first steps today!", "effect": "affection", "value": 3 }
+    ]
+}

@@ -4,7 +4,10 @@
         "INDUSTRY": { "id": "industry", "name": "Industry", "icon": "⚒️", "color": "#ff9800" },
         "MILITARY": { "id": "military", "name": "Military", "icon": "⚔️", "color": "#f44336" },
         "INFRASTRUCTURE": { "id": "infrastructure", "name": "Infrastructure", "icon": "🛤️", "color": "#9c27b0" },
-        "COMMERCE": { "id": "commerce", "name": "Commerce", "icon": "💰", "color": "#ffc107" }
+        "COMMERCE": { "id": "commerce", "name": "Commerce", "icon": "💰", "color": "#ffc107" },
+        "NAVAL": { "id": "naval", "name": "Naval", "icon": "⚓", "color": "#0097a7" },
+        "CULTURE": { "id": "culture", "name": "Culture & Learning", "icon": "📚", "color": "#7e57c2" },
+        "MEDICINE": { "id": "medicine", "name": "Medicine", "icon": "💊", "color": "#66bb6a" }
     },
 
     "LAB_CONFIG": {
@@ -34,6 +37,33 @@
             "labMaterials": { "wood": 20 },
             "labUpkeep": 8,
             "description": "A school of commerce, economics, and trade strategy."
+        },
+        "harbor": {
+            "categories": ["naval"],
+            "labName": "Naval Dockyard",
+            "labIcon": "⚓",
+            "labCost": 1800,
+            "labMaterials": { "wood": 40, "iron": 15 },
+            "labUpkeep": 12,
+            "description": "A dedicated facility for naval engineering and seamanship research."
+        },
+        "library": {
+            "categories": ["culture"],
+            "labName": "Academy of Learning",
+            "labIcon": "🏛️",
+            "labCost": 1200,
+            "labMaterials": { "wood": 25, "stone": 20 },
+            "labUpkeep": 8,
+            "description": "A great hall of study for cultural and educational advancement."
+        },
+        "apothecary": {
+            "categories": ["medicine"],
+            "labName": "Apothecary Laboratory",
+            "labIcon": "⚗️",
+            "labCost": 1000,
+            "labMaterials": { "wood": 15, "stone": 10 },
+            "labUpkeep": 7,
+            "description": "A facility for researching herbal remedies, surgery, and disease prevention."
         }
     },
 
@@ -42,7 +72,10 @@
         "industry": "industry_parts",
         "military": "military_parts",
         "infrastructure": "infra_parts",
-        "commerce": "commerce_parts"
+        "commerce": "commerce_parts",
+        "naval": "naval_parts",
+        "culture": "culture_parts",
+        "medicine": "medicine_parts"
     },
 
     "PARTS_CRAFTING": {
@@ -50,7 +83,10 @@
         "industry_parts": { "name": "Industrial Components", "icon": "⚙️", "gold": 200, "materials": { "iron": 10, "wood": 10 }, "quantity": 3, "days": 4 },
         "military_parts": { "name": "Military Supplies", "icon": "🗡️", "gold": 250, "materials": { "iron": 15, "wood": 5 }, "quantity": 3, "days": 4 },
         "infra_parts": { "name": "Engineering Plans", "icon": "📐", "gold": 200, "materials": { "stone": 10, "wood": 10 }, "quantity": 3, "days": 3 },
-        "commerce_parts": { "name": "Trade Documents", "icon": "📜", "gold": 150, "materials": { "wood": 10 }, "quantity": 3, "days": 3 }
+        "commerce_parts": { "name": "Trade Documents", "icon": "📜", "gold": 150, "materials": { "wood": 10 }, "quantity": 3, "days": 3 },
+        "naval_parts": { "name": "Naval Supplies", "icon": "⚓", "gold": 250, "materials": { "wood": 15, "iron": 5 }, "quantity": 3, "days": 4 },
+        "culture_parts": { "name": "Scholarly Materials", "icon": "📜", "gold": 150, "materials": { "wood": 10 }, "quantity": 3, "days": 3 },
+        "medicine_parts": { "name": "Medicinal Ingredients", "icon": "🌿", "gold": 180, "materials": { "grain": 8, "wood": 5 }, "quantity": 3, "days": 3 }
     },
 
     "RESEARCH_COSTS": {
@@ -78,7 +114,28 @@
         "trade_networks":       { "gold": 800,  "materials": { "wood": 15 },                        "days": 18 },
         "currency_minting":     { "gold": 1000, "materials": { "iron": 15, "gold_ore": 5 },         "days": 20 },
         "merchant_guild":       { "gold": 1500, "materials": { "wood": 20, "stone": 20 },           "days": 28 },
-        "banking_systems":      { "gold": 2000, "materials": { "iron": 10, "wood": 10, "gems": 3 }, "days": 35 }
+        "banking_systems":      { "gold": 2000, "materials": { "iron": 10, "wood": 10, "gems": 3 }, "days": 35 },
+        "shipbuilding":         { "gold": 600,  "materials": { "wood": 25, "iron": 10 },            "days": 15 },
+        "navigation":           { "gold": 800,  "materials": { "wood": 15 },                        "days": 18 },
+        "naval_warfare":        { "gold": 1200, "materials": { "iron": 20, "wood": 30 },            "days": 25 },
+        "deep_sea_fishing":     { "gold": 500,  "materials": { "wood": 15 },                        "days": 12 },
+        "lighthouse":           { "gold": 900,  "materials": { "stone": 25, "iron": 10 },           "days": 20 },
+        "herbalism":            { "gold": 300,  "materials": { "grain": 10 },                       "days": 10 },
+        "surgery":              { "gold": 800,  "materials": { "iron": 10 },                        "days": 18 },
+        "plague_prevention":    { "gold": 1200, "materials": { "grain": 15, "wood": 10 },           "days": 25 },
+        "hospital":             { "gold": 1500, "materials": { "stone": 30, "wood": 20 },           "days": 28 },
+        "writing":              { "gold": 300,  "materials": { "wood": 10 },                        "days": 10 },
+        "philosophy":           { "gold": 600,  "materials": { "wood": 10 },                        "days": 15 },
+        "university":           { "gold": 1500, "materials": { "stone": 30, "wood": 20 },           "days": 28 },
+        "printing_press":       { "gold": 2000, "materials": { "iron": 15, "wood": 25 },            "days": 35 },
+        "diplomacy_mastery":    { "gold": 1000, "materials": { "wood": 15 },                        "days": 20 },
+        "espionage":            { "gold": 900,  "materials": { "iron": 10 },                        "days": 18 },
+        "heavy_cavalry":        { "gold": 1200, "materials": { "iron": 25, "horses": 5 },           "days": 22 },
+        "plate_armor":          { "gold": 1500, "materials": { "iron": 35, "wood": 10 },            "days": 28 },
+        "crossbow":             { "gold": 800,  "materials": { "iron": 15, "wood": 15 },            "days": 16 },
+        "windmill":             { "gold": 700,  "materials": { "wood": 25, "stone": 10 },           "days": 15 },
+        "glassmaking":          { "gold": 600,  "materials": { "stone": 15, "iron": 5 },            "days": 14 },
+        "deep_mining":          { "gold": 1200, "materials": { "iron": 25, "wood": 15 },            "days": 25 }
     },
 
     "TECHS": {
@@ -406,6 +463,284 @@
             "description": "Advanced financial institutions and investment returns.",
             "effects": { "dailyInterestIncome": 0.002, "loanInterestReduction": 0.20 },
             "flavorText": "Let money beget money, and prosperity shall follow."
+        },
+
+        "SHIPBUILDING": {
+            "id": "shipbuilding",
+            "name": "Shipbuilding",
+            "icon": "🚢",
+            "category": "naval",
+            "cost": 200,
+            "days": 8,
+            "requires": [],
+            "tier": 1,
+            "description": "Construct seaworthy vessels for trade and exploration.",
+            "effects": { "unlockBuilding": "SHIPYARD", "navalCapacity": 3 },
+            "flavorText": "The first plank laid is a promise to the sea."
+        },
+        "NAVIGATION": {
+            "id": "navigation",
+            "name": "Navigation",
+            "icon": "🧭",
+            "category": "naval",
+            "cost": 250,
+            "days": 10,
+            "requires": ["shipbuilding"],
+            "tier": 2,
+            "description": "Star charts and compass enable long-distance sea voyages.",
+            "effects": { "navalRange": 3, "explorationBonus": 0.25 },
+            "flavorText": "By star and compass, the unknown becomes a road."
+        },
+        "DEEP_SEA_FISHING": {
+            "id": "deep_sea_fishing",
+            "name": "Deep Sea Fishing",
+            "icon": "🐟",
+            "category": "naval",
+            "cost": 150,
+            "days": 6,
+            "requires": ["shipbuilding"],
+            "tier": 2,
+            "description": "Venture into deep waters for bountiful catches.",
+            "effects": { "fishProductionBonus": 0.40, "unlockBuilding": "FISHING_FLEET" },
+            "flavorText": "The deep waters teem with silver bounty."
+        },
+        "NAVAL_WARFARE": {
+            "id": "naval_warfare",
+            "name": "Naval Warfare",
+            "icon": "⚓",
+            "category": "naval",
+            "cost": 350,
+            "days": 12,
+            "requires": ["navigation", "basic_training"],
+            "tier": 3,
+            "description": "Train marines and outfit warships for sea battles.",
+            "effects": { "unlockUnit": "WARSHIP", "navalCombatBonus": 0.30 },
+            "flavorText": "Command the seas, and the land shall kneel."
+        },
+        "LIGHTHOUSE": {
+            "id": "lighthouse",
+            "name": "Lighthouse",
+            "icon": "🗼",
+            "category": "naval",
+            "cost": 250,
+            "days": 8,
+            "requires": ["shipbuilding", "stonecutting"],
+            "tier": 2,
+            "description": "Build coastal lighthouses to protect shipping and boost port trade.",
+            "effects": { "unlockBuilding": "LIGHTHOUSE", "portTradeBonus": 0.20 },
+            "flavorText": "A single flame on the shore saves a thousand souls at sea."
+        },
+
+        "HERBALISM": {
+            "id": "herbalism",
+            "name": "Herbalism",
+            "icon": "🌿",
+            "category": "medicine",
+            "cost": 100,
+            "days": 5,
+            "requires": [],
+            "tier": 1,
+            "description": "Identify and cultivate medicinal plants for basic remedies.",
+            "effects": { "populationGrowthBonus": 0.10, "plagueResistance": 0.15 },
+            "flavorText": "The forest is the oldest apothecary."
+        },
+        "SURGERY": {
+            "id": "surgery",
+            "name": "Surgery",
+            "icon": "🏥",
+            "category": "medicine",
+            "cost": 250,
+            "days": 10,
+            "requires": ["herbalism"],
+            "tier": 2,
+            "description": "Skilled surgeons can save wounded soldiers and treat injuries.",
+            "effects": { "battleCasualtyReduction": 0.20, "woundedRecoveryBonus": 0.30 },
+            "flavorText": "A steady hand and a sharp blade — the surgeon's arts."
+        },
+        "PLAGUE_PREVENTION": {
+            "id": "plague_prevention",
+            "name": "Plague Prevention",
+            "icon": "🛡️",
+            "category": "medicine",
+            "cost": 300,
+            "days": 10,
+            "requires": ["herbalism"],
+            "tier": 2,
+            "description": "Quarantine protocols and sanitation reduce disease spread.",
+            "effects": { "plagueResistance": 0.40, "populationGrowthBonus": 0.15 },
+            "flavorText": "Cleanliness wards off death more surely than any sword."
+        },
+        "HOSPITAL": {
+            "id": "hospital",
+            "name": "Hospital",
+            "icon": "🏨",
+            "category": "medicine",
+            "cost": 400,
+            "days": 14,
+            "requires": ["surgery", "plague_prevention"],
+            "tier": 3,
+            "description": "Establish hospitals for comprehensive healthcare in settlements.",
+            "effects": { "unlockBuilding": "HOSPITAL", "populationGrowthBonus": 0.25, "battleCasualtyReduction": 0.15 },
+            "flavorText": "Where the sick are tended, civilisation endures."
+        },
+
+        "WRITING": {
+            "id": "writing",
+            "name": "Writing",
+            "icon": "✏️",
+            "category": "culture",
+            "cost": 100,
+            "days": 5,
+            "requires": [],
+            "tier": 1,
+            "description": "Develop a writing system for record-keeping and knowledge preservation.",
+            "effects": { "researchBonus": 0.10, "administrationBonus": 0.10 },
+            "flavorText": "With marks on clay, we conquered time itself."
+        },
+        "PHILOSOPHY": {
+            "id": "philosophy",
+            "name": "Philosophy",
+            "icon": "🤔",
+            "category": "culture",
+            "cost": 200,
+            "days": 8,
+            "requires": ["writing"],
+            "tier": 2,
+            "description": "Schools of thought that enrich culture and governance.",
+            "effects": { "stabilityBonus": 0.15, "cultureBonus": 0.20 },
+            "flavorText": "The unexamined realm is not worth ruling."
+        },
+        "DIPLOMACY_MASTERY": {
+            "id": "diplomacy_mastery",
+            "name": "Diplomacy Mastery",
+            "icon": "🕊️",
+            "category": "culture",
+            "cost": 300,
+            "days": 10,
+            "requires": ["philosophy"],
+            "tier": 3,
+            "description": "Advanced diplomatic techniques for treaties and alliances.",
+            "effects": { "diplomacyBonus": 0.30, "allianceCost": -0.20 },
+            "flavorText": "Words, well placed, can accomplish what armies cannot."
+        },
+        "UNIVERSITY": {
+            "id": "university",
+            "name": "University",
+            "icon": "🎓",
+            "category": "culture",
+            "cost": 400,
+            "days": 14,
+            "requires": ["philosophy"],
+            "tier": 3,
+            "description": "Found a great university to accelerate all research.",
+            "effects": { "unlockBuilding": "UNIVERSITY", "researchBonus": 0.30, "cultureBonus": 0.15 },
+            "flavorText": "Knowledge multiplies when minds gather under one roof."
+        },
+        "PRINTING_PRESS": {
+            "id": "printing_press",
+            "name": "Printing Press",
+            "icon": "🖨️",
+            "category": "culture",
+            "cost": 500,
+            "days": 16,
+            "requires": ["university"],
+            "tier": 4,
+            "description": "Mass-produce books and spread literacy across the realm.",
+            "effects": { "researchBonus": 0.25, "stabilityBonus": 0.10, "cultureBonus": 0.30 },
+            "flavorText": "A single press can topple empires — or build them."
+        },
+        "ESPIONAGE": {
+            "id": "espionage",
+            "name": "Espionage",
+            "icon": "🕵️",
+            "category": "culture",
+            "cost": 250,
+            "days": 10,
+            "requires": ["writing"],
+            "tier": 2,
+            "description": "Train spies and establish intelligence networks.",
+            "effects": { "intrigueBonus": 0.25, "visionRadiusBonus": 1 },
+            "flavorText": "The truest weapon is the one your enemy never sees."
+        },
+
+        "HEAVY_CAVALRY": {
+            "id": "heavy_cavalry",
+            "name": "Heavy Cavalry",
+            "icon": "🐎",
+            "category": "military",
+            "cost": 350,
+            "days": 12,
+            "requires": ["cavalry_tactics", "steel_forging"],
+            "tier": 3,
+            "description": "Armored knights on warhorses — the ultimate shock force.",
+            "effects": { "unlockUnit": "HEAVY_CAVALRY", "cavalryStrengthBonus": 0.35 },
+            "flavorText": "The ground trembles before them."
+        },
+        "PLATE_ARMOR": {
+            "id": "plate_armor",
+            "name": "Plate Armor",
+            "icon": "🛡️",
+            "category": "military",
+            "cost": 400,
+            "days": 14,
+            "requires": ["steel_forging"],
+            "tier": 3,
+            "description": "Full plate armor provides extraordinary protection.",
+            "effects": { "unitDefenseBonus": 0.30, "unlockRecipe": "PLATE_ARMOR_SET" },
+            "flavorText": "Encased in steel, a single knight becomes a fortress."
+        },
+        "CROSSBOW": {
+            "id": "crossbow",
+            "name": "Crossbow",
+            "icon": "🎯",
+            "category": "military",
+            "cost": 250,
+            "days": 8,
+            "requires": ["archery_mastery", "improved_tools"],
+            "tier": 2,
+            "description": "Mechanical bows that penetrate heavy armor.",
+            "effects": { "unlockUnit": "CROSSBOWMAN", "rangedPiercing": 0.25 },
+            "flavorText": "Even a peasant with a crossbow can fell a knight."
+        },
+
+        "WINDMILL": {
+            "id": "windmill",
+            "name": "Windmill",
+            "icon": "🌬️",
+            "category": "industry",
+            "cost": 200,
+            "days": 8,
+            "requires": ["improved_tools"],
+            "tier": 2,
+            "description": "Harness wind power for grinding grain and pumping water.",
+            "effects": { "unlockBuilding": "WINDMILL", "farmProductionBonus": 0.15 },
+            "flavorText": "What the wind gives freely, the wise put to work."
+        },
+        "GLASSMAKING": {
+            "id": "glassmaking",
+            "name": "Glassmaking",
+            "icon": "🔮",
+            "category": "industry",
+            "cost": 200,
+            "days": 7,
+            "requires": ["advanced_smelting"],
+            "tier": 2,
+            "description": "Produce glass for windows, lenses, and trade goods.",
+            "effects": { "unlockRecipe": "GLASS_GOODS", "tradeProfitBonus": 0.10 },
+            "flavorText": "From sand, something wondrous — clear as water, hard as stone."
+        },
+        "DEEP_MINING": {
+            "id": "deep_mining",
+            "name": "Deep Mining",
+            "icon": "⛏️",
+            "category": "industry",
+            "cost": 350,
+            "days": 12,
+            "requires": ["advanced_smelting", "stonecutting"],
+            "tier": 3,
+            "description": "Mine deeper veins for rare ores and gems.",
+            "effects": { "mineProductionBonus": 0.35, "gemDiscoveryChance": 0.10 },
+            "flavorText": "The deeper we dig, the richer the earth becomes."
         }
     },
 
@@ -492,6 +827,78 @@
             "requiredSettlement": true,
             "requiredTech": "merchant_guild",
             "description": "A guild hall that boosts all trade profits. Upkeep: 15g/day"
+        },
+        "SHIPYARD": {
+            "id": "shipyard",
+            "name": "Shipyard",
+            "icon": "🚢",
+            "cost": 1200,
+            "produces": null,
+            "productionRate": 0,
+            "upkeep": 12,
+            "requiredTerrain": ["coast"],
+            "requiredTech": "shipbuilding",
+            "description": "Builds and repairs ships for trade and war. Upkeep: 12g/day"
+        },
+        "FISHING_FLEET": {
+            "id": "fishing_fleet",
+            "name": "Fishing Fleet",
+            "icon": "🎣",
+            "cost": 600,
+            "produces": "grain",
+            "productionRate": 15,
+            "upkeep": 8,
+            "requiredTerrain": ["coast"],
+            "requiredTech": "deep_sea_fishing",
+            "description": "A fleet of fishing boats harvesting the deep sea. Upkeep: 8g/day"
+        },
+        "LIGHTHOUSE": {
+            "id": "lighthouse_building",
+            "name": "Lighthouse",
+            "icon": "🗼",
+            "cost": 800,
+            "produces": null,
+            "productionRate": 0,
+            "upkeep": 5,
+            "requiredTerrain": ["coast"],
+            "requiredTech": "lighthouse",
+            "description": "Guides ships safely and boosts port trade revenue. Upkeep: 5g/day"
+        },
+        "HOSPITAL": {
+            "id": "hospital_building",
+            "name": "Hospital",
+            "icon": "🏥",
+            "cost": 1200,
+            "produces": null,
+            "productionRate": 0,
+            "upkeep": 10,
+            "requiredSettlement": true,
+            "requiredTech": "hospital",
+            "description": "Treats the sick and wounded, boosting population growth. Upkeep: 10g/day"
+        },
+        "UNIVERSITY": {
+            "id": "university_building",
+            "name": "University",
+            "icon": "🎓",
+            "cost": 2000,
+            "produces": null,
+            "productionRate": 0,
+            "upkeep": 18,
+            "requiredSettlement": true,
+            "requiredTech": "university",
+            "description": "A center of higher learning that accelerates all research. Upkeep: 18g/day"
+        },
+        "WINDMILL": {
+            "id": "windmill_building",
+            "name": "Windmill",
+            "icon": "🏭",
+            "cost": 700,
+            "produces": null,
+            "productionRate": 0,
+            "upkeep": 5,
+            "requiredTerrain": ["plains", "grassland", "hills"],
+            "requiredTech": "windmill",
+            "description": "Wind-powered mill for grain processing and water pumping. Upkeep: 5g/day"
         }
     },
 
@@ -525,6 +932,36 @@
             "strength": 50,
             "requiredTech": "siege_engineering",
             "description": "Devastating siege weapons for assaulting fortifications"
+        },
+        "WARSHIP": {
+            "id": "warship",
+            "name": "Warship",
+            "icon": "⚓",
+            "cost": 400,
+            "upkeep": 20,
+            "strength": 35,
+            "requiredTech": "naval_warfare",
+            "description": "Armed vessel for naval combat and coastal raids"
+        },
+        "HEAVY_CAVALRY": {
+            "id": "heavy_cavalry",
+            "name": "Heavy Cavalry",
+            "icon": "🐎",
+            "cost": 400,
+            "upkeep": 18,
+            "strength": 35,
+            "requiredTech": "heavy_cavalry",
+            "description": "Heavily armored mounted knights — devastating shock troops"
+        },
+        "CROSSBOWMAN": {
+            "id": "crossbowman",
+            "name": "Crossbowman",
+            "icon": "🏹",
+            "cost": 180,
+            "upkeep": 9,
+            "strength": 18,
+            "requiredTech": "crossbow",
+            "description": "Armored ranged unit with armor-piercing bolts"
         }
     },
 
@@ -548,6 +985,26 @@
             "outputQty": 3,
             "requiredTech": "steel_forging",
             "description": "Forge protective steel armor and equipment."
+        },
+        "PLATE_ARMOR_SET": {
+            "id": "plate_armor_set",
+            "name": "Forge Plate Armor",
+            "input": "iron",
+            "inputQty": 6,
+            "output": "tools",
+            "outputQty": 4,
+            "requiredTech": "plate_armor",
+            "description": "Craft full suits of plate armor for elite warriors."
+        },
+        "GLASS_GOODS": {
+            "id": "glass_goods",
+            "name": "Produce Glass Goods",
+            "input": "stone",
+            "inputQty": 3,
+            "output": "tools",
+            "outputQty": 2,
+            "requiredTech": "glassmaking",
+            "description": "Craft valuable glass items for trade and construction."
         }
     }
 }

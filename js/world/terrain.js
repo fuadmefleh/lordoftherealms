@@ -95,9 +95,18 @@ const Terrain = {
     generateMap(width, height, params = {}) {
         const tiles = [];
 
-        // Noise Parameters from C#
+        // Seeded RNG support
+        let rng;
+        if (params.seed) {
+            const seedVal = typeof params.seed === 'string' ? Math.abs(Utils.hashStr(params.seed)) : params.seed;
+            rng = Utils.seededRandom(seedVal);
+        } else {
+            rng = Math.random;
+        }
+
+        // Noise Parameters
         const terrainOctaves = params.terrainOctaves || 6;
-        const terrainFreq = params.terrainFreq || 1.1; // Reduced from 1.5 for much larger landmasses
+        const terrainFreq = params.terrainFreq || 1.1;
         const heatOctaves = params.heatOctaves || 4;
         const heatFreq = params.heatFreq || 3.0;
         const moistOctaves = params.moistOctaves || 4;
@@ -108,33 +117,104 @@ const Terrain = {
         const shallowWaterLevel = params.shallowWaterLevel || 0.4;
         const waterThreshold = params.waterThreshold || 0.42;
         const dirtLevel = params.dirtLevel || 0.5;
-        const hillsLevel = params.hillsLevel || 0.65;
-        const highlandsLevel = params.highlandsLevel || 0.8;
+        const hillsLevel = params.hillsLevel || 0.52;
+        const highlandsLevel = params.highlandsLevel || 0.60;
+        const mountainLevel = params.mountainLevel || 0.70;
+        const snowPeakLevel = params.snowPeakLevel || 0.88;
         const riverCount = params.riverCount !== undefined ? params.riverCount : 40;
         const continentCount = params.continentCount || 3;
 
+        // New parameters
+        const continentSize = params.continentSize || 'medium';
+        const islandFreq = params.islandFreq !== undefined ? params.islandFreq : 1.0;
+        const landMass = params.landMass !== undefined ? params.landMass : 45; // percentage 15-85
+        const mountainDensity = params.mountainDensity !== undefined ? params.mountainDensity / 100 : 1.0;
+        const hillDensity = params.hillDensity !== undefined ? params.hillDensity / 100 : 1.0;
+        const flatness = params.flatness || 'normal';
+        const temperature = params.temperature || 'normal';
+        const rainfall = params.rainfall || 'normal';
+        const polarIce = params.polarIce || 'normal';
+        const desertFreq = params.desertFreq || 'normal';
+        const forestDensity = params.forestDensity !== undefined ? params.forestDensity / 100 : 1.0;
+        const coastalDetail = params.coastalDetail !== undefined ? params.coastalDetail : 5;
+        const lakeFreq = params.lakeFreq || 'normal';
+        const resourceDensity = params.resourceDensity || 'normal';
+        const strategicRes = params.strategicRes || 'normal';
+
+        // Compute derived factors from high-level params
+        const continentSizeFactors = {
+            small: 0.5,
+            medium: 1.0,
+            large: 1.5,
+            pangaea: 2.5
+        };
+        const sizeFactor = continentSizeFactors[continentSize] || 1.0;
+
+        // Land mass adjustment for continent weight
+        const landBias = (landMass - 45) / 100; // -0.30 to +0.40
+
+        // Temperature bias: shift heat
+        const tempBiasMap = { frozen: -0.35, cold: -0.2, cool: -0.1, normal: 0, warm: 0.1, hot: 0.2, scorching: 0.35 };
+        const tempBias = tempBiasMap[temperature] || 0;
+
+        // Rainfall bias: shift moisture
+        const rainBiasMap = { arid: -0.25, dry: -0.12, normal: 0, wet: 0.12, tropical: 0.25 };
+        const rainBias = rainBiasMap[rainfall] || 0;
+
+        // Polar ice factor
+        const polarIceMap = { none: 0, minimal: 0.05, normal: 0.2, extensive: 0.4, iceAge: 0.65 };
+        const polarFactor = polarIceMap[polarIce] !== undefined ? polarIceMap[polarIce] : 0.2;
+
+        // Flatness: power curve for elevation
+        const flatnessMap = { rugged: 0.8, normal: 1.1, flat: 1.4, veryFlat: 1.8 };
+        const flatnessPow = flatnessMap[flatness] || 1.1;
+
+        // Desert frequency factor
+        const desertFactorMap = { none: 0, few: 0.5, normal: 1.0, many: 1.8, wasteland: 3.0 };
+        const desertFactor = desertFactorMap[desertFreq] || 1.0;
+
         // Generate continent seed points using a jittered grid for better distribution
         const seeds = [];
-        const cols = Math.ceil(Math.sqrt(continentCount * (width / height)));
-        const rows = Math.ceil(continentCount / cols);
 
-        for (let i = 0; i < continentCount; i++) {
-            const gridCol = i % cols;
-            const gridRow = Math.floor(i / cols);
-
-            // Jittered grid placement
-            const targetQ = (gridCol + 0.5 + (Math.random() - 0.5) * 0.6) * (width / cols);
-            const targetR = (gridRow + 0.5 + (Math.random() - 0.5) * 0.6) * (height / rows);
-
-            // Clamp R to keep somewhat away from extreme poles for better playability
-            const finalR = Utils.clamp(targetR, height * 0.2, height * 0.8);
-
+        if (continentSize === 'pangaea') {
+            // Pangaea: one massive central continent with small satellite seeds
             seeds.push({
-                q: targetQ,
-                r: finalR,
-                // Reduce radius as count increases to keep them distinct
-                radius: (width / (cols * 1.8)) * (0.8 + Math.random() * 0.4)
+                q: width * 0.5 + (rng() - 0.5) * width * 0.1,
+                r: height * 0.5 + (rng() - 0.5) * height * 0.1,
+                radius: (width / 2) * 0.9
             });
+            // Add a few small satellite seeds for natural coastline variation
+            for (let i = 0; i < Math.min(continentCount - 1, 4); i++) {
+                const angle = (i / 4) * Math.PI * 2 + rng() * 0.5;
+                const dist = width * 0.25 + rng() * width * 0.15;
+                seeds.push({
+                    q: width * 0.5 + Math.cos(angle) * dist,
+                    r: Utils.clamp(height * 0.5 + Math.sin(angle) * dist * 0.6, height * 0.15, height * 0.85),
+                    radius: (width / 6) * (0.6 + rng() * 0.4)
+                });
+            }
+        } else {
+            const cols = Math.ceil(Math.sqrt(continentCount * (width / height)));
+            const rows = Math.ceil(continentCount / cols);
+
+            for (let i = 0; i < continentCount; i++) {
+                const gridCol = i % cols;
+                const gridRow = Math.floor(i / cols);
+
+                // Jittered grid placement
+                const targetQ = (gridCol + 0.5 + (rng() - 0.5) * 0.6) * (width / cols);
+                const targetR = (gridRow + 0.5 + (rng() - 0.5) * 0.6) * (height / rows);
+
+                // Clamp R to keep somewhat away from extreme poles for better playability
+                const finalR = Utils.clamp(targetR, height * 0.15, height * 0.85);
+
+                seeds.push({
+                    q: targetQ,
+                    r: finalR,
+                    // Scale radius by sizeFactor; reduce as count increases to keep them distinct
+                    radius: (width / (cols * 1.8)) * (0.8 + rng() * 0.4) * sizeFactor
+                });
+            }
         }
 
         for (let r = 0; r < height; r++) {
@@ -147,13 +227,24 @@ const Terrain = {
                 const ny = Math.sin(angle) * 1.0;
                 const ny_r = (r / height) * 2.0; // Y component
 
+                // Coastal detail offset for more interesting coastlines
+                const detailScale = coastalDetail / 5.0;
+
                 // Height Noise (Base)
                 let baseElev = Utils.fbm(nx * terrainFreq + 10, ny_r * terrainFreq + 10, terrainOctaves, 2.0, 0.5);
                 baseElev = (baseElev + 1) / 2; // Normalize 0-1
 
+                // Add coastal detail noise for more fractal coastlines
+                if (detailScale !== 1.0) {
+                    const detailNoise = Utils.fbm(nx * terrainFreq * 3.0 * detailScale + 77, ny_r * terrainFreq * 3.0 * detailScale + 77, 3, 2.0, 0.5);
+                    baseElev += detailNoise * 0.05 * detailScale;
+                }
+
                 // Ridged Noise (for sharper peaks)
                 let ridged = 1.0 - Math.abs(Utils.fbm(nx * terrainFreq * 2 + 50, ny_r * terrainFreq * 2 + 50, 4, 2.0, 0.5));
                 ridged = Math.pow(ridged, 2.5);
+                // Scale ridged noise by mountain density
+                ridged *= mountainDensity;
 
                 // Create Continents Bias
                 const continentNoise = Utils.fbm(nx * 1.2, ny_r * 1.2, 2, 2.0, 0.5);
@@ -172,23 +263,30 @@ const Terrain = {
                 let continentWeight = (continentNoise * 0.3) + (seedBias * 0.7);
                 continentWeight = Utils.clamp(continentWeight, 0, 1);
 
-                // Increase base land presence
-                let elevation = (baseElev * 0.25) + (continentWeight * 0.65) + (ridged * 0.1);
+                // Increase base land presence + apply land mass bias
+                let elevation = (baseElev * 0.25) + (continentWeight * 0.65) + (ridged * 0.1) + landBias;
 
-                // Polar bias: encourage water at poles (r=0 and r=height)
-                // Tapered more to keep land closer to poles
+                // Polar bias: encourage water at poles using the configurable polar factor
                 const polarDist = Math.abs((r / height) - 0.5) * 2; // 0 at equator, 1 at poles
-                elevation -= Math.pow(polarDist, 4) * 0.2; // Power of 4 makes it sharper at the very edges
+                elevation -= Math.pow(polarDist, 4) * polarFactor;
 
                 // Simple longitudinal "Sea Lane" bias to ensure at least one vertical gap
-                // Tapered to be less aggressive
-                const seaLane = Math.cos(angle + 1.0) * 0.5 + 0.5; // 0-1 based on longitude
-                elevation -= Math.pow(seaLane, 6) * 0.1; // Power 6 creates a thinner, more focused lane
+                const seaLane = Math.cos(angle + 1.0) * 0.5 + 0.5;
+                elevation -= Math.pow(seaLane, 6) * 0.1;
 
-                // Power curve to make high peaks rare
-                elevation = Utils.clamp(elevation, -0.2, 1.2); // Allow room for biases before clamp
-                elevation = (elevation < 0) ? elevation : Math.pow(elevation, 1.1);
+                // Power curve for flatness control
+                elevation = Utils.clamp(elevation, -0.2, 1.2);
+                elevation = (elevation < 0) ? elevation : Math.pow(elevation, flatnessPow);
                 elevation = Utils.clamp(elevation, 0, 1);
+
+                // Apply hill density: compress hills region
+                if (elevation > waterThreshold && elevation < mountainLevel) {
+                    const landRange = mountainLevel - waterThreshold;
+                    const normalizedLand = (elevation - waterThreshold) / landRange;
+                    // Compress or expand the hilly part of the elevation
+                    const adjusted = Math.pow(normalizedLand, 1.0 / hillDensity);
+                    elevation = waterThreshold + adjusted * landRange;
+                }
 
                 // Heat Noise
                 let heat = Utils.fbm(nx + 20, ny_r + 20, heatOctaves, 2.0, 0.5);
@@ -196,12 +294,34 @@ const Terrain = {
 
                 // Gradient for Latitude Heat
                 const lat = 1 - Math.abs((r / height) - 0.5) * 2; // 0 at poles, 1 at equator
-                // Simplified heat calculation blending noise and latitude
                 heat = (heat * 0.3) + (lat * 0.7);
+                // Apply temperature bias
+                heat = Utils.clamp(heat + tempBias, 0, 1);
+
+                // Apply desert frequency: shift dry+hot biomes
+                if (desertFactor !== 1.0 && heat > 0.6) {
+                    // Make hot areas drier or wetter depending on desert factor
+                    heat = Utils.clamp(heat + (desertFactor - 1.0) * 0.08, 0, 1);
+                }
 
                 // Moisture Noise
                 let moisture = Utils.fbm(nx + 30, ny_r + 30, moistOctaves, 2.0, 0.5);
                 moisture = (moisture + 1) / 2;
+                // Apply rainfall bias
+                moisture = Utils.clamp(moisture + rainBias, 0, 1);
+
+                // Apply desert factor to moisture (reduce moisture in hot areas)
+                if (desertFactor > 1.0 && heat > 0.55) {
+                    moisture = Utils.clamp(moisture - (desertFactor - 1.0) * 0.12 * heat, 0, 1);
+                } else if (desertFactor < 1.0 && heat > 0.55) {
+                    moisture = Utils.clamp(moisture + (1.0 - desertFactor) * 0.1, 0, 1);
+                }
+
+                // Adjust forest density via moisture in land areas
+                if (forestDensity !== 1.0 && elevation >= waterThreshold) {
+                    // Bias moisture to increase/decrease forest coverage
+                    moisture = Utils.clamp(moisture * (0.5 + forestDensity * 0.5), 0, 1);
+                }
 
                 // Adjust Moisture by Height (C# logic)
                 if (elevation < deepWaterLevel) moisture += 0.8 * elevation;
@@ -232,17 +352,17 @@ const Terrain = {
             tiles.push(row);
         }
 
-        // Sprinkle super-peaks (Post-processing)
-        const numPeaks = Utils.randInt(8, 14);
+        // Sprinkle super-peaks (Post-processing) — scaled by mountain density
+        const numPeaks = Math.round(Utils.randInt(8, 14) * mountainDensity);
         for (let i = 0; i < numPeaks; i++) {
-            const pq = Math.floor(Math.random() * width);
-            const pr = Math.floor(Math.random() * height);
+            const pq = Math.floor(rng() * width);
+            const pr = Math.floor(rng() * height);
             const root = tiles[pr][pq];
 
             // Only boost peaks on existing hills/land to keep them realistic
             if (root.elevation > 0.45) {
                 const peakRadius = Utils.randInt(2, 4);
-                const boost = Utils.randFloat(0.25, 0.45);
+                const boost = Utils.randFloat(0.25, 0.45) * mountainDensity;
 
                 for (let r = pr - peakRadius; r <= pr + peakRadius; r++) {
                     for (let q = pq - peakRadius; q <= pq + peakRadius; q++) {
@@ -259,11 +379,28 @@ const Terrain = {
             }
         }
 
-        // Generate Rivers (C# Logic adaptation)
-        Terrain.generateRivers(tiles, width, height, riverCount);
+        // Generate Rivers — scale count by map size relative to default 120x80
+        const scaledRiverCount = Math.round(riverCount * Math.sqrt((width * height) / (120 * 80)));
+        Terrain.generateRivers(tiles, width, height, scaledRiverCount, lakeFreq);
 
         // Classify Water Bodies (Lake vs Sea vs Ocean)
         Terrain.classifyWaterBodies(tiles, width, height);
+
+        // Store thresholds on Terrain for classifyTerrain to use
+        Terrain._currentThresholds = {
+            waterThreshold,
+            deepWaterLevel,
+            hillsLevel,
+            highlandsLevel,
+            mountainLevel,
+            snowPeakLevel
+        };
+
+        // Resource density multiplier
+        const resDensityMap = { scarce: 0.3, low: 0.6, normal: 1.0, abundant: 1.5, rich: 2.5 };
+        const resMultiplier = resDensityMap[resourceDensity] || 1.0;
+        const strategicMap = { scarce: 0.4, normal: 1.0, abundant: 2.0 };
+        const strategicMultiplier = strategicMap[strategicRes] || 1.0;
 
         // Classify Terrain
         for (let r = 0; r < height; r++) {
@@ -273,18 +410,19 @@ const Terrain = {
 
                 // Functional Island Generation: Convert some water to ISLAND
                 if (tile.terrain.id === 'ocean' || tile.terrain.id === 'coast') {
-                    const seed = Utils.hashStr(`${q}_${r}_island`);
-                    const rng = Utils.seededRandom(Math.abs(seed));
+                    const islandSeed = Utils.hashStr(`${q}_${r}_island`);
+                    const islandRng = Utils.seededRandom(Math.abs(islandSeed));
 
-                    // Even lower frequency: 0.5% chance in ocean, 1% in coast
-                    const chance = (tile.terrain.id === 'ocean') ? 0.005 : 0.01;
-                    if (rng() < chance) {
+                    // Scale island chance by islandFreq parameter
+                    const baseChance = (tile.terrain.id === 'ocean') ? 0.005 : 0.01;
+                    const chance = baseChance * islandFreq;
+                    if (islandRng() < chance) {
                         tile.terrain = Terrain.TYPES.ISLAND;
-                        tile.elevation = 0.45; // Move above water threshold
+                        tile.elevation = 0.45;
                     }
                 }
 
-                tile.resource = Terrain.rollResource(tile.terrain.id, q, r);
+                tile.resource = Terrain.rollResource(tile.terrain.id, q, r, resMultiplier, strategicMultiplier);
             }
         }
 
@@ -318,9 +456,14 @@ const Terrain = {
         return tiles;
     },
 
-    generateRivers(tiles, width, height, riverCount = 40) {
+    generateRivers(tiles, width, height, riverCount = 40, lakeFreq = 'normal') {
         // Only start from mountains (matching classifyTerrain threshold)
         const minRiverHeight = 0.72;
+
+        // Lake expansion based on lakeFreq
+        const lakeExpandMap = { none: 0, few: 0, normal: 0, many: 2, abundant: 4 };
+        const lakeExpand = lakeExpandMap[lakeFreq] || 0;
+        const allowLakes = lakeFreq !== 'none';
 
         // Find viable river sources (mountains)
         let viableTiles = [];
@@ -369,10 +512,25 @@ const Terrain = {
 
                 if (candidates.length === 0) {
                     // Local minimum (Stuck on land) -> Form a Lake!
-                    // Force elevation down to create a lake
-                    current.elevation = 0.38; // Lake level (just below water threshold)
+                    if (allowLakes) {
+                        current.elevation = 0.38; // Lake level (just below water threshold)
+                        // Expand lake based on lakeFreq
+                        if (lakeExpand > 0) {
+                            const lakeNeighbors = Hex.neighbors(current.q, current.r);
+                            let expanded = 0;
+                            for (const ln of lakeNeighbors) {
+                                if (expanded >= lakeExpand) break;
+                                const lwq = Hex.wrapQ(ln.q, width);
+                                if (ln.r < 0 || ln.r >= height) continue;
+                                const lt = tiles[ln.r][lwq];
+                                if (lt.elevation >= 0.42 && lt.elevation < 0.6) {
+                                    lt.elevation = 0.38;
+                                    expanded++;
+                                }
+                            }
+                        }
+                    }
                     reachedWater = true;
-                    // Optional: could expand lake to neighbors here for larger lakes
                     break;
                 }
 
@@ -434,21 +592,30 @@ const Terrain = {
         const { elevation: elev, moisture: moist, temperature: temp, hasRiver } = tile;
         const T = Terrain.TYPES;
 
+        // Use configurable thresholds if available, otherwise defaults
+        const thresholds = Terrain._currentThresholds || {};
+        const waterThresh = thresholds.waterThreshold || 0.42;
+        const deepWater = thresholds.deepWaterLevel || 0.2;
+        const hillsLvl = thresholds.hillsLevel || 0.52;
+        const highlandsLvl = thresholds.highlandsLevel || 0.60;
+        const mountainLvl = thresholds.mountainLevel || 0.70;
+        const snowPeakLvl = thresholds.snowPeakLevel || 0.88;
+
         // Elevation Based Types
-        if (elev < 0.42) {
+        if (elev < waterThresh) {
             // Use pre-calculated water type if available
             if (tile.waterBodyType === 'lake') return T.LAKE;
             if (tile.waterBodyType === 'sea') return T.SEA;
 
             // Default to Ocean/Deep Ocean/Coast
-            if (elev < 0.2) return T.DEEP_OCEAN;
-            if (elev < 0.4) return T.OCEAN;
+            if (elev < deepWater) return T.DEEP_OCEAN;
+            if (elev < waterThresh - 0.02) return T.OCEAN;
             return T.COAST;
         }
-        if (elev > 0.88) return T.SNOW_PEAK;
-        if (elev > 0.70) return T.MOUNTAIN;
-        if (elev > 0.60) return T.HIGHLANDS;
-        if (elev > 0.52) return T.HILLS;
+        if (elev > snowPeakLvl) return T.SNOW_PEAK;
+        if (elev > mountainLvl) return T.MOUNTAIN;
+        if (elev > highlandsLvl) return T.HIGHLANDS;
+        if (elev > hillsLvl) return T.HILLS;
 
         // Force Snow/Ice for below freezing temps on flat land
         if (temp < 0.25) {
@@ -473,15 +640,20 @@ const Terrain = {
         return T.GRASSLAND; // Default
     },
 
-    rollResource(terrainId, q, r) {
+    rollResource(terrainId, q, r, densityMultiplier = 1.0, strategicMultiplier = 1.0) {
         const chances = Terrain.RESOURCE_CHANCES[terrainId];
         if (!chances) return null;
 
         const seed = Utils.hashStr(`${q}_${r}_res`);
         const rng = Utils.seededRandom(Math.abs(seed));
 
+        // Strategic resources list
+        const strategicResources = ['iron', 'gold_ore', 'gems', 'coal', 'oil', 'horses'];
+
         for (const { resource, chance } of chances) {
-            if (rng() < chance) {
+            const isStrategic = strategicResources.includes(resource);
+            const mult = isStrategic ? densityMultiplier * strategicMultiplier : densityMultiplier;
+            if (rng() < chance * mult) {
                 return Terrain.RESOURCES[resource.toUpperCase()];
             }
         }

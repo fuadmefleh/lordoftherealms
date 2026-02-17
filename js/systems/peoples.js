@@ -332,7 +332,11 @@ const Peoples = {
             const primaryCulture = kingdom ? kingdom.culture : Utils.randPick(['Imperial', 'Woodland', 'Nomadic', 'Religious', 'Maritime']);
 
             // Get the subcultures for this parent culture (the "home" peoples)
-            const homeTribes = Object.values(Peoples.TRIBAL_ROOTS).filter(t => t.parentCulture === primaryCulture);
+            let homeTribes = Object.values(Peoples.TRIBAL_ROOTS).filter(t => t.parentCulture === primaryCulture);
+            // Fallback: if no tribes match this culture, pick from all tribes
+            if (homeTribes.length === 0) {
+                homeTribes = Object.values(Peoples.TRIBAL_ROOTS);
+            }
             // And some potential "diaspora" peoples from other cultures
             const foreignTribes = Object.values(Peoples.TRIBAL_ROOTS).filter(t => t.parentCulture !== primaryCulture);
 

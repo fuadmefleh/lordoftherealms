@@ -1,0 +1,361 @@
+{
+    "shipTypes": [
+        {
+            "id": "rowboat",
+            "name": "Rowboat",
+            "icon": "🚣",
+            "description": "A simple wooden rowboat. Slow and vulnerable, but affordable for beginners.",
+            "baseCost": 200,
+            "speed": 2,
+            "cargoCapacity": 5,
+            "combatStrength": 2,
+            "armor": 0,
+            "crewRequired": 1,
+            "dailyUpkeep": 1,
+            "buildDays": 3,
+            "customizations": ["oar_upgrade"],
+            "availableIn": ["village", "town", "capital"]
+        },
+        {
+            "id": "fishing_vessel",
+            "name": "Fishing Vessel",
+            "icon": "🛶",
+            "description": "A sturdy coastal fishing boat. Can handle shallow waters and bring in a catch.",
+            "baseCost": 400,
+            "speed": 3,
+            "cargoCapacity": 10,
+            "combatStrength": 3,
+            "armor": 1,
+            "crewRequired": 2,
+            "dailyUpkeep": 3,
+            "buildDays": 5,
+            "customizations": ["reinforced_hull", "fishing_nets"],
+            "availableIn": ["village", "town", "capital"]
+        },
+        {
+            "id": "sloop",
+            "name": "Sloop",
+            "icon": "⛵",
+            "description": "A fast single-masted vessel. Excellent for coastal trading and light combat.",
+            "baseCost": 800,
+            "speed": 5,
+            "cargoCapacity": 15,
+            "combatStrength": 8,
+            "armor": 3,
+            "crewRequired": 4,
+            "dailyUpkeep": 6,
+            "buildDays": 10,
+            "customizations": ["reinforced_hull", "extra_sails", "ram", "cargo_hold"],
+            "availableIn": ["town", "capital"]
+        },
+        {
+            "id": "cog",
+            "name": "Trading Cog",
+            "icon": "🚢",
+            "description": "A broad-beamed merchant ship built for carrying large cargoes across open seas.",
+            "baseCost": 1500,
+            "speed": 3,
+            "cargoCapacity": 40,
+            "combatStrength": 6,
+            "armor": 5,
+            "crewRequired": 8,
+            "dailyUpkeep": 10,
+            "buildDays": 18,
+            "customizations": ["reinforced_hull", "cargo_hold", "navigator_quarters", "extra_sails"],
+            "availableIn": ["town", "capital"]
+        },
+        {
+            "id": "caravel",
+            "name": "Caravel",
+            "icon": "🚢",
+            "description": "A nimble exploration vessel with lateen sails. Perfect for discovering new lands.",
+            "baseCost": 2500,
+            "speed": 6,
+            "cargoCapacity": 20,
+            "combatStrength": 12,
+            "armor": 5,
+            "crewRequired": 10,
+            "dailyUpkeep": 14,
+            "buildDays": 25,
+            "customizations": ["reinforced_hull", "extra_sails", "navigator_quarters", "crows_nest", "ram"],
+            "availableIn": ["capital"]
+        },
+        {
+            "id": "war_galley",
+            "name": "War Galley",
+            "icon": "⚔️",
+            "description": "An oar-driven warship built for ram-and-board tactics. Dominates coastal waters.",
+            "baseCost": 3000,
+            "speed": 5,
+            "cargoCapacity": 10,
+            "combatStrength": 25,
+            "armor": 8,
+            "crewRequired": 20,
+            "dailyUpkeep": 20,
+            "buildDays": 30,
+            "customizations": ["reinforced_hull", "ram", "ballista", "boarding_planks", "greek_fire"],
+            "availableIn": ["capital"]
+        },
+        {
+            "id": "galleon",
+            "name": "Galleon",
+            "icon": "🏴‍☠️",
+            "description": "A massive multi-decked vessel. The queen of the seas — formidable in both trade and war.",
+            "baseCost": 6000,
+            "speed": 4,
+            "cargoCapacity": 60,
+            "combatStrength": 35,
+            "armor": 12,
+            "crewRequired": 30,
+            "dailyUpkeep": 35,
+            "buildDays": 45,
+            "customizations": ["reinforced_hull", "extra_sails", "cargo_hold", "ballista", "ram", "boarding_planks", "navigator_quarters", "crows_nest", "greek_fire", "luxury_cabin"],
+            "availableIn": ["capital"]
+        }
+    ],
+
+    "customizations": [
+        {
+            "id": "reinforced_hull",
+            "name": "Reinforced Hull",
+            "icon": "🛡️",
+            "description": "Thicker planking and iron bracing to withstand heavy seas and combat.",
+            "cost": 200,
+            "effects": { "armorBonus": 3, "combatBonus": 2 }
+        },
+        {
+            "id": "extra_sails",
+            "name": "Extra Sails",
+            "icon": "🎐",
+            "description": "Additional sail area for greater speed in favorable winds.",
+            "cost": 250,
+            "effects": { "speedBonus": 2 }
+        },
+        {
+            "id": "cargo_hold",
+            "name": "Expanded Cargo Hold",
+            "icon": "📦",
+            "description": "Redesigned hull interior to maximize storage capacity.",
+            "cost": 300,
+            "effects": { "cargoBonus": 15 }
+        },
+        {
+            "id": "ram",
+            "name": "Bronze Ram",
+            "icon": "🐏",
+            "description": "A reinforced prow for devastating ramming attacks.",
+            "cost": 350,
+            "effects": { "combatBonus": 5 }
+        },
+        {
+            "id": "ballista",
+            "name": "Deck Ballista",
+            "icon": "🏹",
+            "description": "A mounted siege weapon for ranged naval combat.",
+            "cost": 500,
+            "effects": { "combatBonus": 8 }
+        },
+        {
+            "id": "boarding_planks",
+            "name": "Boarding Planks",
+            "icon": "🪜",
+            "description": "Drop-bridges for boarding enemy vessels. Improves capture chances.",
+            "cost": 200,
+            "effects": { "combatBonus": 3, "captureBonus": 0.15 }
+        },
+        {
+            "id": "navigator_quarters",
+            "name": "Navigator's Quarters",
+            "icon": "🧭",
+            "description": "Dedicated quarters with charts and instruments. Improves exploration.",
+            "cost": 400,
+            "effects": { "explorationBonus": 3, "speedBonus": 1 }
+        },
+        {
+            "id": "crows_nest",
+            "name": "Crow's Nest",
+            "icon": "👁️",
+            "description": "A high lookout point for spotting land, ships, and danger.",
+            "cost": 150,
+            "effects": { "explorationBonus": 2, "stealthBonus": -1 }
+        },
+        {
+            "id": "greek_fire",
+            "name": "Greek Fire Siphon",
+            "icon": "🔥",
+            "description": "A devastating incendiary weapon that can set enemy ships ablaze.",
+            "cost": 800,
+            "effects": { "combatBonus": 12 }
+        },
+        {
+            "id": "luxury_cabin",
+            "name": "Captain's Luxury Cabin",
+            "icon": "🏆",
+            "description": "Opulent quarters that demonstrate your wealth and status.",
+            "cost": 600,
+            "effects": { "renownBonus": 5, "charismaBonus": 1 }
+        },
+        {
+            "id": "oar_upgrade",
+            "name": "Improved Oars",
+            "icon": "🛶",
+            "description": "Better-crafted oars for improved speed and handling.",
+            "cost": 50,
+            "effects": { "speedBonus": 1 }
+        },
+        {
+            "id": "fishing_nets",
+            "name": "Deep-Sea Nets",
+            "icon": "🐟",
+            "description": "Professional-grade nets for catching larger hauls.",
+            "cost": 100,
+            "effects": { "cargoBonus": 5, "fishingBonus": 2 }
+        }
+    ],
+
+    "usedShipNames": [
+        "The Leaky Bucket", "Sea Witch", "Storm Chaser", "Barnacle",
+        "Old Faithful", "The Driftwood", "Salt Spray", "Lucky Star",
+        "The Wanderer", "Rusty Anchor", "Moonrise", "The Pelican",
+        "Wave Rider", "The Serpent", "Harbor Rat", "Wind Song",
+        "The Albatross", "Coral Queen", "The Privateer", "Starboard"
+    ],
+
+    "usedShipDescriptions": [
+        "A well-used vessel with character",
+        "Seen better days, but still seaworthy",
+        "A salvaged ship, repaired and ready",
+        "Previous owner was lost at sea",
+        "A retired merchant vessel",
+        "Impounded by the harbormaster — now for sale",
+        "Abandoned and reclaimed from a sandbar",
+        "A veteran of many voyages"
+    ],
+
+    "shipNamePrefixes": [
+        "The", "HMS", "SS", "Lady", "Lord", "King's", "Queen's", "Royal"
+    ],
+    "shipNameWords": [
+        "Tempest", "Horizon", "Phoenix", "Dragon", "Eagle", "Thunder",
+        "Valiant", "Defiant", "Fortune", "Glory", "Victory", "Dawn",
+        "Twilight", "Sovereign", "Endeavour", "Intrepid", "Resolute",
+        "Corsair", "Mariner", "Voyager", "Conquest", "Destiny",
+        "Trident", "Leviathan", "Kraken", "Siren", "Neptune",
+        "Aurora", "Celestial", "Harbinger", "Reckoning", "Redemption"
+    ],
+
+    "explorationEvents": [
+        {
+            "id": "floating_cargo",
+            "name": "Floating Cargo",
+            "description": "You discover drifting crates from a shipwreck.",
+            "chance": 0.15,
+            "reward": { "gold": [20, 80] },
+            "icon": "📦"
+        },
+        {
+            "id": "uncharted_island",
+            "name": "Uncharted Island",
+            "description": "You spot a small island not on any charts. Landing reveals hidden treasures.",
+            "chance": 0.08,
+            "reward": { "gold": [50, 200], "renown": 3 },
+            "icon": "🏝️"
+        },
+        {
+            "id": "whale_sighting",
+            "name": "Whale Sighting",
+            "description": "A magnificent whale breaches near your ship. The crew takes it as a good omen.",
+            "chance": 0.12,
+            "reward": { "karma": 2 },
+            "icon": "🐋"
+        },
+        {
+            "id": "sea_monster",
+            "name": "Sea Monster!",
+            "description": "A tentacled beast rises from the deep and attacks your ship!",
+            "chance": 0.05,
+            "danger": { "damage": [10, 30], "combatStrength": 15 },
+            "reward": { "gold": [100, 300], "renown": 5 },
+            "icon": "🐙"
+        },
+        {
+            "id": "stranded_sailors",
+            "name": "Stranded Sailors",
+            "description": "You find shipwrecked sailors clinging to debris. Rescue them for karma and information.",
+            "chance": 0.10,
+            "reward": { "karma": 5, "renown": 2 },
+            "icon": "🆘"
+        },
+        {
+            "id": "merchant_wreck",
+            "name": "Merchant Wreck",
+            "description": "The remains of a merchant vessel with salvageable goods.",
+            "chance": 0.10,
+            "reward": { "gold": [30, 120] },
+            "icon": "🚢"
+        },
+        {
+            "id": "calm_seas",
+            "name": "Calm Seas",
+            "description": "Beautiful weather and smooth sailing. Your crew's morale improves.",
+            "chance": 0.20,
+            "reward": { "stamina": 2 },
+            "icon": "🌅"
+        },
+        {
+            "id": "storm",
+            "name": "Sudden Storm",
+            "description": "A fierce storm batters your ship. Hold fast!",
+            "chance": 0.10,
+            "danger": { "damage": [5, 15] },
+            "icon": "⛈️"
+        },
+        {
+            "id": "pirate_ambush",
+            "name": "Pirate Ambush!",
+            "description": "Pirates emerge from behind a rocky outcrop!",
+            "chance": 0.08,
+            "danger": { "combatStrength": [10, 25] },
+            "reward": { "gold": [50, 200], "renown": 3, "karma": 1 },
+            "icon": "🏴‍☠️"
+        },
+        {
+            "id": "dolphins",
+            "name": "Dolphins",
+            "description": "A pod of dolphins escorts your ship. Sailors say it means good luck.",
+            "chance": 0.12,
+            "reward": { "luck": 1 },
+            "icon": "🐬"
+        }
+    ],
+
+    "pirateStrength": {
+        "min": 8,
+        "max": 30
+    },
+    "piracyKarmaLoss": 5,
+    "piracyRenownLoss": 2,
+    "piracyGoldRange": [50, 300],
+
+    "tradeGoods": [
+        { "name": "Spices", "buyPrice": [10, 25], "sellPrice": [20, 50] },
+        { "name": "Silk", "buyPrice": [15, 30], "sellPrice": [25, 60] },
+        { "name": "Wine", "buyPrice": [5, 15], "sellPrice": [10, 30] },
+        { "name": "Iron", "buyPrice": [8, 20], "sellPrice": [15, 40] },
+        { "name": "Ivory", "buyPrice": [20, 40], "sellPrice": [35, 80] },
+        { "name": "Gems", "buyPrice": [30, 60], "sellPrice": [50, 120] },
+        { "name": "Timber", "buyPrice": [3, 10], "sellPrice": [6, 20] },
+        { "name": "Fish", "buyPrice": [2, 5], "sellPrice": [4, 12] }
+    ],
+
+    "settings": {
+        "usedShipConditionRange": [40, 85],
+        "usedShipPriceMultiplier": [0.4, 0.75],
+        "maxUsedShipsPerSettlement": 3,
+        "buildCostMultiplier": { "village": 1.2, "town": 1.0, "capital": 0.9 },
+        "repairCostPerPercent": 0.005,
+        "conditionDecayChance": 0.04,
+        "shipMovementPerDay": 3,
+        "npcShipBuyChance": 0.02
+    }
+}

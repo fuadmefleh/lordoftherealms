@@ -35,15 +35,25 @@ const ActionMenu = {
 
         const mapping = {
             rest: 'general', explore_poi: 'general', clear_trees: 'general', dig_treasure: 'general',
+            forage: 'general', hunt: 'general', meditate: 'general', fish: 'general',
+            prospect: 'general', tame_horse: 'general', craft_campfire: 'general',
             trade: 'commerce', contract: 'commerce', ship_passage: 'commerce',
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
+            odd_jobs: 'commerce', bounty_board: 'commerce', busking: 'commerce', gambling: 'commerce',
+            smuggle: 'commerce', pickpocket: 'commerce',
             tavern: 'social', talk_locals: 'social', preach: 'social',
-            pilgrimage: 'social', miracle: 'social',
+            pilgrimage: 'social', miracle: 'social', donate: 'social',
+            pledge_allegiance: 'social', renounce_allegiance: 'social',
+            host_feast: 'social', hold_tournament: 'social',
+            meet_people: 'social', view_relationships: 'social', manage_dynasty: 'social',
             recruit: 'military', attack_unit: 'military', attack_settlement: 'military',
+            train_combat: 'military',
             request_meeting: 'social',
             build_property: 'building', build_temple: 'building',
             build_cultural: 'building', build_infrastructure: 'building',
             demolish_infrastructure: 'building',
+            buy_house: 'building', manage_house: 'building',
+            visit_shipyard: 'commerce', board_ship: 'commerce', manage_fleet: 'commerce',
             found_colony: 'frontier', send_pioneers: 'frontier',
             manage_colony: 'frontier', negotiate_indigenous: 'frontier',
             cartography: 'cartography', map_trade: 'cartography',
@@ -211,7 +221,8 @@ const ActionMenu = {
         buttons.forEach(btn => {
             btn.addEventListener('click', () => {
                 const actionType = btn.getAttribute('data-action');
-                ActionMenu.handleAction(game, tile, actionType);
+                const unitId = btn.getAttribute('data-unit-id');
+                ActionMenu.handleAction(game, tile, actionType, unitId);
             });
         });
     },
@@ -221,7 +232,7 @@ const ActionMenu = {
      */
     _renderActionButton(action) {
         return `
-            <button class="action-menu-btn" data-action="${action.type}" style="
+            <button class="action-menu-btn" data-action="${action.type}"${action.unitId ? ` data-unit-id="${action.unitId}"` : ''} style="
                 display: flex; align-items: center; gap: 10px;
                 background: rgba(255,255,255,0.03);
                 border: 1px solid rgba(255,255,255,0.07);
@@ -247,7 +258,7 @@ const ActionMenu = {
     /**
      * Handle action selection
      */
-    handleAction(game, tile, actionType) {
+    handleAction(game, tile, actionType, unitId) {
         ActionMenu.close();
 
         switch (actionType) {
@@ -344,6 +355,72 @@ const ActionMenu = {
             case 'dig_treasure':
                 ActionMenu.digTreasure(game, tile);
                 break;
+            case 'odd_jobs':
+                ActionMenu.showOddJobsMenu(game, tile);
+                break;
+            case 'bounty_board':
+                ActionMenu.showBountyBoardMenu(game, tile);
+                break;
+            case 'busking':
+                ActionMenu.showBuskingMenu(game, tile);
+                break;
+            case 'gambling':
+                ActionMenu.showGamblingMenu(game, tile);
+                break;
+            case 'forage':
+                ActionMenu.doForage(game, tile);
+                break;
+            case 'hunt':
+                ActionMenu.doHunt(game, tile);
+                break;
+            case 'donate':
+                ActionMenu.showDonateMenu(game, tile);
+                break;
+            case 'pledge_allegiance':
+                ActionMenu.doPledgeAllegiance(game, tile);
+                break;
+            case 'renounce_allegiance':
+                ActionMenu.doRenounceAllegiance(game, tile);
+                break;
+            case 'host_feast':
+                ActionMenu.showHostFeastMenu(game, tile);
+                break;
+            case 'hold_tournament':
+                ActionMenu.showTournamentMenu(game, tile);
+                break;
+            case 'pickpocket':
+                ActionMenu.doPickpocket(game, tile);
+                break;
+            case 'smuggle':
+                ActionMenu.showSmuggleMenu(game, tile);
+                break;
+            case 'train_combat':
+                ActionMenu.doTrainCombat(game, tile);
+                break;
+            case 'meditate':
+                ActionMenu.doMeditate(game, tile);
+                break;
+            case 'fish':
+                ActionMenu.doFish(game, tile);
+                break;
+            case 'prospect':
+                ActionMenu.doProspect(game, tile);
+                break;
+            case 'tame_horse':
+                ActionMenu.doTameHorse(game, tile);
+                break;
+            case 'craft_campfire':
+                ActionMenu.doCraftCampfire(game, tile);
+                break;
+            case 'meet_people':
+                ActionMenu.showMeetPeopleMenu(game, tile);
+                break;
+            case 'view_relationships':
+                ActionMenu.showRelationshipsMenu(game, tile);
+                break;
+            case 'manage_dynasty':
+                ActionMenu.showDynastyMenu(game, tile);
+                break;
             case 'attack_unit':
                 ActionMenu.showAttackConfirm(game, tile, actionType);
                 break;
@@ -351,7 +428,22 @@ const ActionMenu = {
                 ActionMenu.showSiegeConfirm(game, tile);
                 break;
             case 'request_meeting':
-                ActionMenu.showLordMeetingMenu(game, tile, actionType);
+                ActionMenu.showLordMeetingMenu(game, tile, { type: actionType, unitId });
+                break;
+            case 'buy_house':
+                ActionMenu.showBuyHouseMenu(game, tile);
+                break;
+            case 'manage_house':
+                ActionMenu.showManageHouseMenu(game, tile);
+                break;
+            case 'visit_shipyard':
+                ActionMenu.showShipyardMenu(game, tile);
+                break;
+            case 'board_ship':
+                ActionMenu.showBoardShipMenu(game, tile);
+                break;
+            case 'manage_fleet':
+                ActionMenu.showFleetMenu(game, tile);
                 break;
         }
     },
@@ -4317,6 +4409,2865 @@ const ActionMenu = {
 
         game.ui.showCustomPanel(`📜 The Realm of ${kingdom.name}`, html);
         game.ui.updateStats(player, world);
+    },
+
+    // ============================================================
+    // EARLY-GAME INCOME SYSTEMS
+    // ============================================================
+
+    /**
+     * Show available odd jobs at this settlement
+     */
+    showOddJobsMenu(game, tile) {
+        const settlement = tile.settlement;
+        if (!settlement) return;
+
+        // Determine settlement tier
+        const tier = settlement.type === 'capital' ? 'capital' : (settlement.type === 'town' ? 'town' : 'village');
+
+        // Get job list from data (or fallback)
+        const jobData = ActionMenu._getJobData();
+        const allJobs = jobData[tier] || jobData['village'];
+
+        // Pick 3 random jobs for today
+        const shuffled = [...allJobs].sort(() => Math.random() - 0.5);
+        const todayJobs = shuffled.slice(0, 3);
+
+        let html = '<div>';
+        html += '<h4 style="margin-top: 0;">🔨 Available Work</h4>';
+        html += `<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Day labor available in ${settlement.name}. Working takes the rest of the day.</p>`;
+
+        for (const job of todayJobs) {
+            const statValue = ActionMenu._getPlayerStat(game.player, job.stat);
+            const bonus = Math.floor(statValue * 1.5);
+            const basePay = Math.floor(Math.random() * (job.pay.max - job.pay.min + 1)) + job.pay.min;
+            const totalPay = basePay + bonus;
+            const statLabel = job.stat.charAt(0).toUpperCase() + job.stat.slice(1);
+
+            html += `
+                <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; border-left: 3px solid var(--gold);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="flex: 1;">
+                            <div><span style="font-size: 18px;">${job.icon}</span> <strong>${job.name}</strong></div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin: 4px 0;">${job.description}</div>
+                            <div style="font-size: 11px; color: #aaa;">💪 ${statLabel} bonus: +${bonus}g</div>
+                        </div>
+                        <button onclick="window._doOddJob('${job.id}', ${totalPay})"
+                                style="padding: 8px 16px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; white-space: nowrap; min-width: 80px;">
+                            ${totalPay} gold
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        html += '</div>';
+        game.ui.showCustomPanel('Day Labor', html);
+
+        window._doOddJob = (jobId, pay) => {
+            game.player.gold += pay;
+            game.player.renown += 1;
+
+            // Track for quests
+            if (!game.player.jobsCompleted) game.player.jobsCompleted = 0;
+            game.player.jobsCompleted++;
+
+            // Skill up depending on job
+            const job = allJobs.find(j => j.id === jobId);
+            if (job && game.player.skills[job.stat] !== undefined) {
+                const skillGain = Math.random() < 0.3 ? 0.1 : 0;
+                if (skillGain) game.player.skills[job.stat] = Math.min(10, game.player.skills[job.stat] + skillGain);
+            }
+
+            // Finance tracking
+            if (game.player.financeToday) {
+                game.player.financeToday.income.jobs = (game.player.financeToday.income.jobs || 0) + pay;
+            }
+
+            game.ui.showNotification('Job Complete!', `Earned ${pay} gold as a ${job ? job.name : 'worker'}`, 'success');
+            game.ui.updateStats(game.player, game.world);
+            game.ui.hideCustomPanel();
+            game.endDay();
+        };
+    },
+
+    /**
+     * Perform foraging on wilderness tiles
+     */
+    doForage(game, tile) {
+        const terrainId = tile.terrain.id;
+        const forageData = ActionMenu._getForageData();
+
+        // Map terrain to forage category
+        const mapping = forageData.terrain_mapping;
+        const category = mapping[terrainId];
+
+        if (!category || !forageData.loot_table[category]) {
+            game.ui.showNotification('Nothing Found', 'This terrain has nothing worth gathering.', 'default');
+            return;
+        }
+
+        const lootTable = forageData.loot_table[category];
+        const found = [];
+        let totalValue = 0;
+
+        // Intelligence bonus → more finds
+        const intBonus = 1 + (game.player.intelligence || 5) * 0.05;
+
+        for (const entry of lootTable) {
+            if (Math.random() < entry.chance * intBonus) {
+                const qty = Math.floor(Math.random() * (entry.qty.max - entry.qty.min + 1)) + entry.qty.min;
+                found.push({ ...entry, foundQty: qty });
+                totalValue += qty * entry.sellPrice;
+            }
+        }
+
+        if (found.length === 0) {
+            game.ui.showNotification('Slim Pickings', 'You searched but found nothing of value today.', 'default');
+            game.endDay();
+            return;
+        }
+
+        // Award gold directly (selling foraged goods)
+        game.player.gold += totalValue;
+        game.player.renown += found.length > 2 ? 1 : 0;
+
+        if (!game.player.foragingTrips) game.player.foragingTrips = 0;
+        game.player.foragingTrips++;
+
+        // Finance tracking
+        if (game.player.financeToday) {
+            game.player.financeToday.income.foraging = (game.player.financeToday.income.foraging || 0) + totalValue;
+        }
+
+        let resultHtml = '<div>';
+        resultHtml += '<h4 style="margin-top: 0;">🌿 Foraging Results</h4>';
+        resultHtml += `<p style="font-size: 12px; color: var(--text-secondary);">You spent the day scouring the ${category} for useful materials.</p>`;
+
+        for (const item of found) {
+            resultHtml += `
+                <div style="padding: 8px 12px; margin-bottom: 4px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                    <div><span style="font-size: 16px;">${item.icon}</span> ${item.name} x${item.foundQty}</div>
+                    <div style="color: var(--gold); font-weight: bold;">${item.foundQty * item.sellPrice}g</div>
+                </div>
+            `;
+        }
+
+        resultHtml += `<div style="margin-top: 12px; padding: 10px; background: rgba(245,197,66,0.1); border-radius: 4px; text-align: center; font-weight: bold; color: var(--gold);">Total: ${totalValue} gold</div>`;
+        resultHtml += `<button onclick="game.ui.hideCustomPanel(); game.endDay();" style="width: 100%; margin-top: 10px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
+        resultHtml += '</div>';
+
+        game.ui.showCustomPanel('Foraging', resultHtml);
+        game.ui.updateStats(game.player, game.world);
+    },
+
+    /**
+     * Hunt wild game on wilderness tiles
+     */
+    doHunt(game, tile) {
+        const terrainId = tile.terrain.id;
+        const huntData = ActionMenu._getHuntData();
+
+        // Map terrain to hunt category using forage mapping
+        const mapping = ActionMenu._getForageData().terrain_mapping;
+        const category = mapping[terrainId];
+
+        if (!category || !huntData.loot_table[category]) {
+            game.ui.showNotification('No Game', 'There is nothing to hunt in this terrain.', 'default');
+            return;
+        }
+
+        const lootTable = huntData.loot_table[category];
+        const found = [];
+        let totalValue = 0;
+
+        // Combat skill bonus → better odds
+        const combatBonus = 1 + ((game.player.skills?.combat || 1) * 0.08);
+        // Strength bonus
+        const strBonus = 1 + ((game.player.strength || 5) * 0.03);
+        const totalBonus = combatBonus * strBonus;
+
+        // Chance of injury while hunting
+        const injuryChance = 0.15 - ((game.player.skills?.combat || 1) * 0.01);
+        let injured = false;
+        let healthLost = 0;
+
+        for (const entry of lootTable) {
+            if (Math.random() < entry.chance * totalBonus) {
+                const qty = Math.floor(Math.random() * (entry.qty.max - entry.qty.min + 1)) + entry.qty.min;
+                found.push({ ...entry, foundQty: qty });
+                totalValue += qty * entry.sellPrice;
+            }
+        }
+
+        // Check for hunting injury
+        if (Math.random() < Math.max(0.02, injuryChance)) {
+            injured = true;
+            healthLost = Math.floor(Math.random() * 15) + 5;
+            game.player.health = Math.max(1, game.player.health - healthLost);
+        }
+
+        if (found.length === 0 && !injured) {
+            game.ui.showNotification('Empty Handed', 'The game eluded you today. Better luck tomorrow.', 'default');
+            game.endDay();
+            return;
+        }
+
+        game.player.gold += totalValue;
+
+        if (!game.player.huntingTrips) game.player.huntingTrips = 0;
+        game.player.huntingTrips++;
+
+        // Slight combat skill up
+        if (game.player.skills && Math.random() < 0.25) {
+            game.player.skills.combat = Math.min(10, (game.player.skills.combat || 1) + 0.1);
+        }
+
+        // Finance tracking
+        if (game.player.financeToday) {
+            game.player.financeToday.income.hunting = (game.player.financeToday.income.hunting || 0) + totalValue;
+        }
+
+        let resultHtml = '<div>';
+        resultHtml += '<h4 style="margin-top: 0;">🏹 Hunting Results</h4>';
+        resultHtml += `<p style="font-size: 12px; color: var(--text-secondary);">You tracked game through the ${category}.</p>`;
+
+        if (injured) {
+            resultHtml += `<div style="padding: 8px 12px; margin-bottom: 8px; background: rgba(231,76,60,0.15); border-radius: 4px; color: #e74c3c;">⚠️ You were injured during the hunt! Lost ${healthLost} health.</div>`;
+        }
+
+        for (const item of found) {
+            resultHtml += `
+                <div style="padding: 8px 12px; margin-bottom: 4px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                    <div><span style="font-size: 16px;">${item.icon}</span> ${item.name} x${item.foundQty}</div>
+                    <div style="color: var(--gold); font-weight: bold;">${item.foundQty * item.sellPrice}g</div>
+                </div>
+            `;
+        }
+
+        if (found.length > 0) {
+            resultHtml += `<div style="margin-top: 12px; padding: 10px; background: rgba(245,197,66,0.1); border-radius: 4px; text-align: center; font-weight: bold; color: var(--gold);">Total: ${totalValue} gold</div>`;
+        } else {
+            resultHtml += `<div style="padding: 10px; color: #aaa; text-align: center;">No game caught today.</div>`;
+        }
+
+        resultHtml += `<button onclick="game.ui.hideCustomPanel(); game.endDay();" style="width: 100%; margin-top: 10px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
+        resultHtml += '</div>';
+
+        game.ui.showCustomPanel('Hunting', resultHtml);
+        game.ui.updateStats(game.player, game.world);
+    },
+
+    /**
+     * Show the bounty board at a settlement
+     */
+    showBountyBoardMenu(game, tile) {
+        const settlement = tile.settlement;
+        if (!settlement) return;
+
+        // Initialize player bounties if needed
+        if (!game.player.activeBounties) game.player.activeBounties = [];
+
+        // Generate 2-4 bounties for this settlement
+        const bountyTemplates = ActionMenu._getBountyData();
+        const numBounties = Math.floor(Math.random() * 3) + 2;
+        const shuffled = [...bountyTemplates].sort(() => Math.random() - 0.5).slice(0, numBounties);
+
+        // Find nearby settlements for delivery bounties
+        const nearbySettlements = [];
+        if (game.world.getAllSettlements) {
+            const allS = game.world.getAllSettlements();
+            for (const s of allS) {
+                if (s.q === tile.q && s.r === tile.r) continue;
+                const dist = Hex.wrappingDistance ? Hex.wrappingDistance(tile.q, tile.r, s.q, s.r, game.world.width) :
+                    Hex.distance(tile.q, tile.r, s.q, s.r);
+                if (dist <= 20) nearbySettlements.push({ ...s, dist });
+            }
+        }
+
+        const bounties = shuffled.map(template => {
+            const pay = Math.floor(Math.random() * (template.pay.max - template.pay.min + 1)) + template.pay.min;
+            const bounty = { ...template, actualPay: pay, fromSettlement: settlement.name, fromQ: tile.q, fromR: tile.r };
+
+            // Fill in destination for delivery bounties
+            if (template.type === 'delivery' && nearbySettlements.length > 0) {
+                const dest = nearbySettlements[Math.floor(Math.random() * nearbySettlements.length)];
+                bounty.description = template.description.replace('{destination}', dest.name);
+                bounty.destQ = dest.q;
+                bounty.destR = dest.r;
+                bounty.destName = dest.name;
+            } else if (template.type === 'delivery') {
+                bounty.description = template.description.replace('{destination}', 'a nearby settlement');
+                bounty.destQ = tile.q;
+                bounty.destR = tile.r;
+                bounty.destName = settlement.name;
+            }
+
+            // Fill in explore bounties
+            if (template.type === 'explore') {
+                bounty.description = template.description.replace('{count}', template.exploreCount || 15);
+                bounty.tilesNeeded = template.exploreCount || 15;
+                bounty.tilesExploredAtStart = 0; // Will be set on accept
+            }
+
+            // Fill in gather bounties
+            if (template.type === 'gather') {
+                const resources = ['wood', 'herbs', 'stone', 'grain'];
+                const res = resources[Math.floor(Math.random() * resources.length)];
+                const qty = Math.floor(Math.random() * 5) + 3;
+                bounty.description = template.description.replace('{qty}', qty).replace('{resource}', res);
+                bounty.resourceNeeded = res;
+                bounty.qtyNeeded = qty;
+            }
+
+            // Fill in instant bounties
+            if (template.type === 'instant') {
+                bounty.description = template.description
+                    .replace('{pest}', ['rats', 'wolves', 'boars', 'snakes'][Math.floor(Math.random() * 4)])
+                    .replace('{location}', ['granary', 'cellar', 'farmsteads', 'market stalls'][Math.floor(Math.random() * 4)]);
+            }
+
+            return bounty;
+        });
+
+        // Show active bounties first
+        let html = '<div style="max-height: 500px; overflow-y: auto;">';
+        html += '<h4 style="margin-top: 0;">📋 Notice Board</h4>';
+
+        // Active bounties
+        if (game.player.activeBounties.length > 0) {
+            html += '<div style="margin-bottom: 12px; padding: 8px; background: rgba(46,204,113,0.08); border: 1px solid rgba(46,204,113,0.3); border-radius: 6px;">';
+            html += '<div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #2ecc71; margin-bottom: 6px;">Active Bounties</div>';
+            for (let i = 0; i < game.player.activeBounties.length; i++) {
+                const b = game.player.activeBounties[i];
+                const daysLeft = b.daysLimit - (b.daysElapsed || 0);
+                const isHere = (b.type === 'delivery' && game.player.q === b.destQ && game.player.r === b.destR) ||
+                               (b.type === 'instant' && game.player.q === b.fromQ && game.player.r === b.fromR);
+                html += `
+                    <div style="padding: 8px; margin-bottom: 4px; background: rgba(0,0,0,0.2); border-radius: 4px;">
+                        <div><span style="font-size: 14px;">${b.icon}</span> <strong>${b.name}</strong> — <span style="color: var(--gold);">${b.actualPay}g</span></div>
+                        <div style="font-size: 11px; color: #aaa;">${b.description}</div>
+                        <div style="font-size: 11px; color: ${daysLeft <= 2 ? '#e74c3c' : '#aaa'};">⏳ ${daysLeft} days remaining</div>
+                        ${isHere ? `<button onclick="window._completeBounty(${i})" style="margin-top: 4px; padding: 4px 12px; background: #2ecc71; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">✓ Complete</button>` : ''}
+                    </div>
+                `;
+            }
+            html += '</div>';
+        }
+
+        // Available bounties
+        html += '<div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); margin-bottom: 8px;">Available Bounties</div>';
+
+        for (let i = 0; i < bounties.length; i++) {
+            const b = bounties[i];
+            const maxBounties = 3;
+            const canAccept = game.player.activeBounties.length < maxBounties;
+
+            html += `
+                <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; border-left: 3px solid ${b.difficulty === 'medium' ? '#f39c12' : '#3498db'}; ${!canAccept ? 'opacity: 0.5;' : ''}">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="flex: 1;">
+                            <div><span style="font-size: 16px;">${b.icon}</span> <strong>${b.name}</strong> <span style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: ${b.difficulty === 'medium' ? 'rgba(243,156,18,0.2)' : 'rgba(52,152,219,0.2)'}; color: ${b.difficulty === 'medium' ? '#f39c12' : '#3498db'};">${b.difficulty}</span></div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin: 4px 0;">${b.description}</div>
+                            <div style="font-size: 11px; color: #aaa;">⏳ ${b.daysLimit} day limit</div>
+                        </div>
+                        <button onclick="window._acceptBounty(${i})" ${!canAccept ? 'disabled' : ''}
+                                style="padding: 8px 16px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; min-width: 80px;">
+                            ${b.actualPay}g
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        html += '</div>';
+        game.ui.showCustomPanel('Notice Board', html);
+
+        window._acceptBounty = (idx) => {
+            const bounty = bounties[idx];
+            if (!bounty) return;
+            if (game.player.activeBounties.length >= 3) {
+                game.ui.showNotification('Too Many', 'You can only have 3 active bounties. Complete some first.', 'error');
+                return;
+            }
+
+            bounty.daysElapsed = 0;
+
+            // For instant bounties, resolve immediately with skill check
+            if (bounty.type === 'instant') {
+                const stat = bounty.stat || 'combat';
+                const statVal = ActionMenu._getPlayerStat(game.player, stat);
+                const roll = Math.random() * 10;
+                const success = roll < statVal + 3;
+
+                if (success) {
+                    game.player.gold += bounty.actualPay;
+                    game.player.renown += 2;
+                    if (game.player.financeToday) {
+                        game.player.financeToday.income.bounties = (game.player.financeToday.income.bounties || 0) + bounty.actualPay;
+                    }
+                    game.ui.showNotification('Bounty Complete!', `${bounty.name} — earned ${bounty.actualPay} gold!`, 'success');
+                } else {
+                    const dmg = Math.floor(Math.random() * 10) + 5;
+                    game.player.health = Math.max(1, game.player.health - dmg);
+                    game.ui.showNotification('Failed!', `${bounty.name} — you struggled and lost ${dmg} health.`, 'error');
+                }
+                game.ui.updateStats(game.player, game.world);
+                game.ui.hideCustomPanel();
+                game.endDay();
+                return;
+            }
+
+            // For other bounties, add to active list
+            game.player.activeBounties.push(bounty);
+            game.ui.showNotification('Bounty Accepted!', `${bounty.name} — ${bounty.daysLimit} days to complete.`, 'success');
+            game.ui.hideCustomPanel();
+            ActionMenu.showBountyBoardMenu(game, tile); // Refresh
+        };
+
+        window._completeBounty = (idx) => {
+            const bounty = game.player.activeBounties[idx];
+            if (!bounty) return;
+
+            game.player.gold += bounty.actualPay;
+            game.player.renown += 3;
+            if (!game.player.bountiesCompleted) game.player.bountiesCompleted = 0;
+            game.player.bountiesCompleted++;
+
+            if (game.player.financeToday) {
+                game.player.financeToday.income.bounties = (game.player.financeToday.income.bounties || 0) + bounty.actualPay;
+            }
+
+            game.player.activeBounties.splice(idx, 1);
+            game.ui.showNotification('Bounty Complete!', `${bounty.name} — earned ${bounty.actualPay} gold!`, 'success');
+            game.ui.updateStats(game.player, game.world);
+            game.ui.hideCustomPanel();
+        };
+    },
+
+    /**
+     * Show gambling menu
+     */
+    showGamblingMenu(game, tile) {
+        const games = ActionMenu._getGamblingData();
+
+        let html = '<div>';
+        html += '<h4 style="margin-top: 0;">🎲 Games of Chance</h4>';
+        html += `<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Your gold: <span style="color: var(--gold); font-weight: bold;">${game.player.gold}</span></p>`;
+
+        for (const g of games) {
+            const canPlay = game.player.gold >= g.minBet;
+            html += `
+                <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; border-left: 3px solid #9b59b6; ${!canPlay ? 'opacity: 0.5;' : ''}">
+                    <div><span style="font-size: 18px;">${g.icon}</span> <strong>${g.name}</strong></div>
+                    <div style="font-size: 12px; color: var(--text-secondary); margin: 4px 0;">${g.description}</div>
+                    <div style="font-size: 11px; color: #aaa; margin-bottom: 8px;">Bet: ${g.minBet}–${Math.min(g.maxBet, game.player.gold)} gold | Payout: ${g.payoutMultiplier}x</div>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <input type="range" id="bet_${g.id}" min="${g.minBet}" max="${Math.min(g.maxBet, game.player.gold)}" value="${g.minBet}"
+                               oninput="document.getElementById('betLabel_${g.id}').textContent = this.value"
+                               style="flex: 1; accent-color: var(--gold);" ${!canPlay ? 'disabled' : ''}>
+                        <span id="betLabel_${g.id}" style="color: var(--gold); font-weight: bold; min-width: 40px; text-align: right;">${g.minBet}</span>g
+                        <button onclick="window._playGamble('${g.id}')" ${!canPlay ? 'disabled' : ''}
+                                style="padding: 6px 16px; background: #9b59b6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                            Bet!
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        html += '</div>';
+        game.ui.showCustomPanel('Gambling', html);
+
+        window._playGamble = (gameId) => {
+            const gameInfo = games.find(g => g.id === gameId);
+            if (!gameInfo) return;
+
+            const betInput = document.getElementById(`bet_${gameId}`);
+            const bet = parseInt(betInput?.value || gameInfo.minBet);
+
+            if (bet > game.player.gold) {
+                game.ui.showNotification('Not Enough', 'You don\'t have enough gold!', 'error');
+                return;
+            }
+
+            // Luck bonus
+            const luckBonus = (game.player.luck || 5) * 0.01;
+            const winChance = gameInfo.houseEdge + luckBonus;
+
+            const roll = Math.random();
+            const won = roll < winChance;
+
+            if (won) {
+                const winnings = Math.floor(bet * gameInfo.payoutMultiplier);
+                game.player.gold += winnings - bet; // Net gain
+                if (game.player.financeToday) {
+                    game.player.financeToday.income.gambling = (game.player.financeToday.income.gambling || 0) + (winnings - bet);
+                }
+                game.ui.showNotification('🎉 You Win!', `Won ${winnings} gold on ${gameInfo.name}!`, 'success');
+            } else {
+                game.player.gold -= bet;
+                if (game.player.financeToday) {
+                    game.player.financeToday.expenses = game.player.financeToday.expenses || {};
+                    game.player.financeToday.expenses.gambling = (game.player.financeToday.expenses.gambling || 0) + bet;
+                }
+                game.ui.showNotification('💸 You Lose!', `Lost ${bet} gold on ${gameInfo.name}.`, 'error');
+            }
+
+            game.ui.updateStats(game.player, game.world);
+
+            // Refresh the menu with updated gold
+            game.ui.hideCustomPanel();
+            ActionMenu.showGamblingMenu(game, tile);
+        };
+    },
+
+    /**
+     * Show busking / street performance menu
+     */
+    showBuskingMenu(game, tile) {
+        const settlement = tile.settlement;
+        if (!settlement) return;
+
+        const performances = ActionMenu._getBuskingData();
+        const tier = settlement.type === 'capital' ? 'capital' : (settlement.type === 'town' ? 'town' : 'village');
+        const crowdMultiplier = { village: 0.5, town: 1.0, capital: 1.8 }[tier] || 1.0;
+
+        let html = '<div>';
+        html += '<h4 style="margin-top: 0;">🎭 Street Performance</h4>';
+        html += `<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Perform for coins in ${settlement.name}. Bigger crowds at larger settlements.</p>`;
+        html += `<p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">Crowd size: <span style="color: var(--gold);">${tier === 'capital' ? 'Large' : tier === 'town' ? 'Moderate' : 'Small'}</span> (${crowdMultiplier}x)</p>`;
+
+        for (const perf of performances) {
+            const statVal = ActionMenu._getPlayerStat(game.player, perf.stat);
+            const basePay = Math.floor(Math.random() * (perf.basePay.max - perf.basePay.min + 1)) + perf.basePay.min;
+            const totalPay = Math.floor(basePay * crowdMultiplier * (1 + statVal * 0.1));
+            const statLabel = perf.stat.charAt(0).toUpperCase() + perf.stat.slice(1);
+
+            html += `
+                <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; border-left: 3px solid #e67e22;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="flex: 1;">
+                            <div><span style="font-size: 18px;">${perf.icon}</span> <strong>${perf.name}</strong></div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin: 4px 0;">${perf.description}</div>
+                            <div style="font-size: 11px; color: #aaa;">Based on: ${statLabel} (${statVal})</div>
+                        </div>
+                        <button onclick="window._doBusk('${perf.id}', ${totalPay}, ${perf.bonusKarma || false})"
+                                style="padding: 8px 16px; background: #e67e22; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; min-width: 80px;">
+                            ~${totalPay}g
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        html += '</div>';
+        game.ui.showCustomPanel('Street Performance', html);
+
+        window._doBusk = (perfId, estimatedPay, bonusKarma) => {
+            // Add some variance (±30%)
+            const variance = 0.7 + Math.random() * 0.6;
+            const actualPay = Math.max(1, Math.floor(estimatedPay * variance));
+
+            game.player.gold += actualPay;
+            game.player.renown += 1;
+
+            if (bonusKarma) {
+                game.player.karma = (game.player.karma || 0) + 1;
+            }
+
+            if (!game.player.performancesGiven) game.player.performancesGiven = 0;
+            game.player.performancesGiven++;
+
+            // Charisma skill up chance
+            if (game.player.skills && Math.random() < 0.2) {
+                game.player.skills.diplomacy = Math.min(10, (game.player.skills.diplomacy || 1) + 0.1);
+            }
+
+            // Finance tracking
+            if (game.player.financeToday) {
+                game.player.financeToday.income.busking = (game.player.financeToday.income.busking || 0) + actualPay;
+            }
+
+            const perf = performances.find(p => p.id === perfId);
+            const name = perf ? perf.name : 'Performance';
+
+            // Random crowd reaction
+            const reactions = [
+                `The crowd loved your ${name.toLowerCase()}! `,
+                `A few coins tossed your way. Not bad! `,
+                `An old woman was moved to tears. `,
+                `A merchant pressed extra coins into your hand. `,
+                `Children gathered, laughing and clapping. `,
+            ];
+            const reaction = reactions[Math.floor(Math.random() * reactions.length)];
+
+            game.ui.showNotification('Performance Complete!', `${reaction}Earned ${actualPay} gold.`, 'success');
+            game.ui.updateStats(game.player, game.world);
+            game.ui.hideCustomPanel();
+            game.endDay();
+        };
+    },
+
+    // ── Data helpers for early-game income ──
+
+    _getJobData() {
+        // Try to load from DataLoader if available
+        if (typeof DataLoader !== 'undefined' && DataLoader.earlyJobs && DataLoader.earlyJobs.oddJobs) {
+            return DataLoader.earlyJobs.oddJobs.settlement_jobs;
+        }
+        // Inline fallback
+        return {
+            village: [
+                { id: 'farm_hand', name: 'Farm Hand', icon: '🌾', description: 'Help local farmers with planting and harvesting.', pay: { min: 10, max: 25 }, stat: 'strength', difficulty: 3 },
+                { id: 'woodcutter', name: 'Woodcutter', icon: '🪓', description: 'Chop firewood for the village hearths.', pay: { min: 12, max: 22 }, stat: 'strength', difficulty: 3 },
+                { id: 'shepherd', name: 'Shepherd', icon: '🐑', description: 'Watch over the village flock for the day.', pay: { min: 8, max: 15 }, stat: 'intelligence', difficulty: 2 },
+                { id: 'herb_picker', name: 'Herb Picker', icon: '🌿', description: 'Gather medicinal herbs for the local healer.', pay: { min: 10, max: 20 }, stat: 'intelligence', difficulty: 3 },
+            ],
+            town: [
+                { id: 'dock_worker', name: 'Dock Worker', icon: '📦', description: 'Load and unload merchant wagons at the market.', pay: { min: 18, max: 35 }, stat: 'strength', difficulty: 4 },
+                { id: 'courier', name: 'Courier', icon: '📨', description: 'Deliver messages and parcels around town.', pay: { min: 15, max: 30 }, stat: 'stamina', difficulty: 3 },
+                { id: 'tavern_bouncer', name: 'Tavern Bouncer', icon: '💪', description: 'Keep the peace at a rowdy tavern tonight.', pay: { min: 20, max: 45 }, stat: 'strength', difficulty: 5 },
+                { id: 'rat_catcher', name: 'Rat Catcher', icon: '🐀', description: 'Clear vermin from cellars and granaries.', pay: { min: 15, max: 30 }, stat: 'stealth', difficulty: 3 },
+                { id: 'scribe_assistant', name: "Scribe's Assistant", icon: '📝', description: 'Help copy documents and ledgers.', pay: { min: 22, max: 40 }, stat: 'intelligence', difficulty: 5 },
+                { id: 'night_watch', name: 'Night Watch', icon: '🔦', description: 'Patrol the town walls through the night.', pay: { min: 18, max: 35 }, stat: 'combat', difficulty: 4 },
+            ],
+            capital: [
+                { id: 'warehouse_guard', name: 'Warehouse Guard', icon: '🛡️', description: "Guard a merchant's warehouse for the day.", pay: { min: 30, max: 55 }, stat: 'combat', difficulty: 4 },
+                { id: 'cargo_hauler', name: 'Cargo Hauler', icon: '🏋️', description: 'Move heavy goods between market districts.', pay: { min: 25, max: 50 }, stat: 'strength', difficulty: 5 },
+                { id: 'arena_fighter', name: 'Arena Fighter', icon: '🗡️', description: 'Fight in exhibition matches for the crowd.', pay: { min: 40, max: 80 }, stat: 'combat', difficulty: 7 },
+                { id: 'herald', name: 'Herald', icon: '📯', description: 'Read royal proclamations in the city square.', pay: { min: 25, max: 50 }, stat: 'charisma', difficulty: 5 },
+                { id: 'tutor', name: 'Tutor', icon: '📖', description: "Teach a noble's children reading and arithmetic.", pay: { min: 30, max: 55 }, stat: 'intelligence', difficulty: 6 },
+                { id: 'pit_fighter', name: 'Pit Fighter', icon: '⚔️', description: 'Bare-knuckle brawling in the underground pits.', pay: { min: 35, max: 75 }, stat: 'combat', difficulty: 7 },
+            ],
+        };
+    },
+
+    _getForageData() {
+        if (typeof DataLoader !== 'undefined' && DataLoader.earlyJobs && DataLoader.earlyJobs.foraging) {
+            return DataLoader.earlyJobs.foraging;
+        }
+        return {
+            terrain_mapping: {
+                forest: 'forest', dense_forest: 'forest', woodland: 'forest',
+                boreal_forest: 'forest', seasonal_forest: 'forest',
+                temperate_rainforest: 'forest', tropical_rainforest: 'forest',
+                plains: 'plains', grassland: 'plains', steppe: 'plains', savanna: 'plains',
+                hills: 'hills', highlands: 'hills', mountain: 'hills',
+                coast: 'coast', beach: 'coast',
+                desert: 'desert', arid: 'desert', semi_arid: 'desert',
+                swamp: 'swamp', marsh: 'swamp', wetland: 'swamp', mangrove: 'swamp', tropical_wetland: 'swamp',
+            },
+            loot_table: {
+                forest: [
+                    { item: 'herbs', name: 'Wild Herbs', icon: '🌿', chance: 0.40, qty: { min: 1, max: 3 }, sellPrice: 5 },
+                    { item: 'berries', name: 'Wild Berries', icon: '🫐', chance: 0.35, qty: { min: 2, max: 5 }, sellPrice: 3 },
+                    { item: 'mushrooms', name: 'Mushrooms', icon: '🍄', chance: 0.25, qty: { min: 1, max: 4 }, sellPrice: 4 },
+                    { item: 'honey', name: 'Wild Honey', icon: '🍯', chance: 0.10, qty: { min: 1, max: 2 }, sellPrice: 12 },
+                    { item: 'truffles', name: 'Truffles', icon: '🟤', chance: 0.05, qty: { min: 1, max: 1 }, sellPrice: 25 },
+                ],
+                plains: [
+                    { item: 'herbs', name: 'Prairie Herbs', icon: '🌿', chance: 0.35, qty: { min: 1, max: 3 }, sellPrice: 5 },
+                    { item: 'berries', name: 'Wild Berries', icon: '🫐', chance: 0.25, qty: { min: 1, max: 3 }, sellPrice: 3 },
+                    { item: 'flax', name: 'Wild Flax', icon: '🌾', chance: 0.20, qty: { min: 1, max: 3 }, sellPrice: 6 },
+                    { item: 'feathers', name: 'Feathers', icon: '🪶', chance: 0.15, qty: { min: 2, max: 5 }, sellPrice: 4 },
+                ],
+                hills: [
+                    { item: 'herbs', name: 'Mountain Herbs', icon: '🌿', chance: 0.30, qty: { min: 1, max: 2 }, sellPrice: 7 },
+                    { item: 'stone', name: 'Loose Stone', icon: '🪨', chance: 0.25, qty: { min: 1, max: 3 }, sellPrice: 3 },
+                    { item: 'ore_scraps', name: 'Ore Scraps', icon: '⛰️', chance: 0.10, qty: { min: 1, max: 2 }, sellPrice: 10 },
+                    { item: 'fossils', name: 'Fossils', icon: '🦴', chance: 0.05, qty: { min: 1, max: 1 }, sellPrice: 20 },
+                ],
+                coast: [
+                    { item: 'shells', name: 'Shells', icon: '🐚', chance: 0.40, qty: { min: 2, max: 6 }, sellPrice: 2 },
+                    { item: 'driftwood', name: 'Driftwood', icon: '🪵', chance: 0.30, qty: { min: 1, max: 3 }, sellPrice: 4 },
+                    { item: 'seaweed', name: 'Edible Seaweed', icon: '🌊', chance: 0.25, qty: { min: 2, max: 4 }, sellPrice: 3 },
+                    { item: 'pearls', name: 'Pearls', icon: '🔮', chance: 0.03, qty: { min: 1, max: 1 }, sellPrice: 35 },
+                    { item: 'ambergris', name: 'Ambergris', icon: '🟡', chance: 0.02, qty: { min: 1, max: 1 }, sellPrice: 50 },
+                ],
+                desert: [
+                    { item: 'cactus_fruit', name: 'Cactus Fruit', icon: '🌵', chance: 0.30, qty: { min: 1, max: 2 }, sellPrice: 6 },
+                    { item: 'scorpion_venom', name: 'Scorpion Venom', icon: '🦂', chance: 0.10, qty: { min: 1, max: 1 }, sellPrice: 15 },
+                    { item: 'desert_rose', name: 'Desert Rose', icon: '🌹', chance: 0.05, qty: { min: 1, max: 1 }, sellPrice: 20 },
+                ],
+                swamp: [
+                    { item: 'leeches', name: 'Medicinal Leeches', icon: '🪱', chance: 0.30, qty: { min: 1, max: 3 }, sellPrice: 8 },
+                    { item: 'mushrooms', name: 'Swamp Mushrooms', icon: '🍄', chance: 0.25, qty: { min: 1, max: 3 }, sellPrice: 5 },
+                    { item: 'peat', name: 'Peat', icon: '🟫', chance: 0.20, qty: { min: 2, max: 4 }, sellPrice: 4 },
+                    { item: 'rare_frog', name: 'Rare Frog', icon: '🐸', chance: 0.05, qty: { min: 1, max: 1 }, sellPrice: 30 },
+                ],
+            },
+        };
+    },
+
+    _getHuntData() {
+        if (typeof DataLoader !== 'undefined' && DataLoader.earlyJobs && DataLoader.earlyJobs.hunting) {
+            return DataLoader.earlyJobs.hunting;
+        }
+        return {
+            loot_table: {
+                forest: [
+                    { item: 'game_meat', name: 'Venison', icon: '🥩', chance: 0.35, qty: { min: 1, max: 3 }, sellPrice: 8 },
+                    { item: 'pelts', name: 'Fur Pelts', icon: '🦊', chance: 0.30, qty: { min: 1, max: 2 }, sellPrice: 12 },
+                    { item: 'antlers', name: 'Antlers', icon: '🦌', chance: 0.15, qty: { min: 1, max: 1 }, sellPrice: 15 },
+                    { item: 'bear_pelt', name: 'Bear Pelt', icon: '🐻', chance: 0.05, qty: { min: 1, max: 1 }, sellPrice: 40 },
+                ],
+                plains: [
+                    { item: 'game_meat', name: 'Game Meat', icon: '🥩', chance: 0.40, qty: { min: 1, max: 4 }, sellPrice: 6 },
+                    { item: 'hides', name: 'Hides', icon: '🟤', chance: 0.35, qty: { min: 1, max: 2 }, sellPrice: 8 },
+                    { item: 'feathers', name: 'Feathers', icon: '🪶', chance: 0.25, qty: { min: 2, max: 5 }, sellPrice: 4 },
+                    { item: 'ivory', name: 'Ivory', icon: '🦣', chance: 0.03, qty: { min: 1, max: 1 }, sellPrice: 45 },
+                ],
+                hills: [
+                    { item: 'game_meat', name: 'Mountain Goat', icon: '🥩', chance: 0.30, qty: { min: 1, max: 2 }, sellPrice: 7 },
+                    { item: 'pelts', name: 'Wolf Pelts', icon: '🐺', chance: 0.20, qty: { min: 1, max: 2 }, sellPrice: 14 },
+                    { item: 'eagle_feathers', name: 'Eagle Feathers', icon: '🦅', chance: 0.10, qty: { min: 1, max: 2 }, sellPrice: 18 },
+                ],
+                coast: [
+                    { item: 'fish', name: 'Fresh Fish', icon: '🐟', chance: 0.50, qty: { min: 2, max: 5 }, sellPrice: 4 },
+                    { item: 'crabs', name: 'Crabs', icon: '🦀', chance: 0.30, qty: { min: 1, max: 3 }, sellPrice: 6 },
+                    { item: 'lobster', name: 'Lobster', icon: '🦞', chance: 0.10, qty: { min: 1, max: 1 }, sellPrice: 18 },
+                ],
+            },
+        };
+    },
+
+    _getBountyData() {
+        if (typeof DataLoader !== 'undefined' && DataLoader.earlyJobs && DataLoader.earlyJobs.bountyBoard) {
+            return DataLoader.earlyJobs.bountyBoard.templates;
+        }
+        return [
+            { id: 'deliver_message', name: 'Deliver a Message', icon: '📨', description: 'Carry a sealed letter to {destination}.', type: 'delivery', pay: { min: 30, max: 80 }, daysLimit: 10, difficulty: 'easy' },
+            { id: 'deliver_package', name: 'Deliver a Package', icon: '📦', description: 'Transport a fragile package safely to {destination}.', type: 'delivery', pay: { min: 50, max: 120 }, daysLimit: 12, difficulty: 'easy' },
+            { id: 'scout_area', name: 'Scout the Wilds', icon: '🔭', description: 'Explore and map {count} tiles.', type: 'explore', pay: { min: 40, max: 90 }, exploreCount: 15, daysLimit: 8, difficulty: 'easy' },
+            { id: 'clear_pests', name: 'Clear Pests', icon: '🐀', description: 'Drive out {pest} plaguing the {location}.', type: 'instant', pay: { min: 25, max: 60 }, stat: 'combat', difficulty: 'easy' },
+            { id: 'wanted_thief', name: 'Catch a Thief', icon: '🏴‍☠️', description: 'A petty thief is hiding in the area.', type: 'instant', pay: { min: 50, max: 120 }, stat: 'stealth', difficulty: 'medium' },
+            { id: 'escort_merchant', name: 'Escort Merchant', icon: '🛡️', description: 'Protect a merchant traveling to {destination}.', type: 'delivery', pay: { min: 80, max: 180 }, daysLimit: 14, difficulty: 'medium' },
+        ];
+    },
+
+    _getGamblingData() {
+        if (typeof DataLoader !== 'undefined' && DataLoader.earlyJobs && DataLoader.earlyJobs.gambling) {
+            return DataLoader.earlyJobs.gambling.games;
+        }
+        return [
+            { id: 'dice_roll', name: 'Crown & Anchor', icon: '🎲', description: 'Roll dice against the house. Match crowns to win.', minBet: 5, maxBet: 200, houseEdge: 0.45, payoutMultiplier: 2.0 },
+            { id: 'coin_flip', name: "Dragon's Flip", icon: '🪙', description: 'Call the coin — dragon or shield. Double or nothing.', minBet: 10, maxBet: 500, houseEdge: 0.48, payoutMultiplier: 2.0 },
+            { id: 'high_low', name: 'High-Low', icon: '📊', description: 'Guess if the next card is higher or lower.', minBet: 5, maxBet: 100, houseEdge: 0.42, payoutMultiplier: 1.8, streakBonus: 0.5 },
+        ];
+    },
+
+    _getBuskingData() {
+        if (typeof DataLoader !== 'undefined' && DataLoader.earlyJobs && DataLoader.earlyJobs.busking) {
+            return DataLoader.earlyJobs.busking.performances;
+        }
+        return [
+            { id: 'storytelling', name: 'Tell Tales', icon: '📖', description: 'Share stories of your travels and adventures.', stat: 'charisma', basePay: { min: 8, max: 25 } },
+            { id: 'singing', name: 'Sing Ballads', icon: '🎵', description: 'Sing old songs and ballads in the market square.', stat: 'charisma', basePay: { min: 10, max: 30 } },
+            { id: 'juggling', name: 'Juggle & Tricks', icon: '🤹', description: 'Perform acrobatics and sleight of hand.', stat: 'dexterity', basePay: { min: 8, max: 22 } },
+            { id: 'fortune_telling', name: 'Read Fortunes', icon: '🔮', description: 'Tell fortunes and read palms. Mostly made up.', stat: 'intelligence', basePay: { min: 12, max: 35 } },
+            { id: 'preaching', name: 'Street Preaching', icon: '📿', description: 'Preach fire and brimstone for donations.', stat: 'faith', basePay: { min: 6, max: 20 }, bonusKarma: true },
+        ];
+    },
+
+    /**
+     * Get a player stat value with fallbacks for different stat names
+     */
+    _getPlayerStat(player, stat) {
+        // Direct attribute
+        if (player[stat] !== undefined) return player[stat];
+        // Skill
+        if (player.skills && player.skills[stat] !== undefined) return player.skills[stat];
+        // Mappings for convenience
+        const aliases = {
+            stamina: 'maxStamina',
+            dexterity: 'luck',
+            combat: 'strength',
+        };
+        if (aliases[stat] && player[aliases[stat]] !== undefined) return player[aliases[stat]];
+        if (aliases[stat] && player.skills && player.skills[aliases[stat]] !== undefined) return player.skills[aliases[stat]];
+        return 5; // Default
+    },
+
+    // ============================================
+    // NEW ACTIONS — Donate, Allegiance, Feast, Tournament
+    //               Pickpocket, Smuggle, Train, Meditate
+    //               Fish, Prospect, Tame Horse, Campfire
+    // ============================================
+
+    /**
+     * Show donation menu — give gold for karma + reputation
+     */
+    showDonateMenu(game, tile) {
+        const player = game.player;
+        const settlement = tile.settlement;
+        const maxDonate = Math.min(player.gold, 500);
+        const kingdomId = settlement ? settlement.kingdom : null;
+        const kingdomName = kingdomId ? (game.world.getKingdom(kingdomId)?.name || 'this realm') : 'the people';
+
+        let html = '<div>';
+        html += '<h4 style="margin-top: 0;">🪙 Make a Donation</h4>';
+        html += `<p style="font-size: 12px; color: var(--text-secondary);">Donate gold to the people of <strong>${settlement ? settlement.name : 'this land'}</strong>. This earns you karma and reputation with ${kingdomName}.</p>`;
+        html += `<p style="font-size: 12px; color: var(--gold);">Your gold: ${player.gold}</p>`;
+        html += `<div style="margin: 12px 0;">`;
+        html += `<label style="font-size: 12px;">Amount to donate:</label><br>`;
+        html += `<input type="range" id="donateAmount" min="10" max="${maxDonate}" value="${Math.min(50, maxDonate)}" oninput="document.getElementById('donateLabel').textContent = this.value" style="width: 100%;">`;
+        html += `<span id="donateLabel" style="color: var(--gold); font-weight: bold;">${Math.min(50, maxDonate)}</span> gold`;
+        html += `</div>`;
+        html += `<button onclick="window._doDonate()" style="width: 100%; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Donate</button>`;
+        html += '</div>';
+
+        game.ui.showCustomPanel('Donation', html);
+
+        window._doDonate = () => {
+            const amount = parseInt(document.getElementById('donateAmount')?.value || 10);
+            if (amount > player.gold) {
+                game.ui.showNotification('Not Enough', 'You can\'t afford that donation!', 'error');
+                return;
+            }
+
+            player.gold -= amount;
+            if (player.financeToday) {
+                player.financeToday.expenses = player.financeToday.expenses || {};
+                player.financeToday.expenses.donation = (player.financeToday.expenses.donation || 0) + amount;
+            }
+
+            // Karma scales with amount
+            const karmaGain = Math.floor(amount / 10) + 1;
+            player.karma = (player.karma || 0) + karmaGain;
+
+            // Reputation gain
+            if (kingdomId && player.reputation) {
+                player.reputation[kingdomId] = (player.reputation[kingdomId] || 0) + Math.floor(amount / 15) + 1;
+            }
+
+            // Renown for large donations
+            let renownGain = 0;
+            if (amount >= 100) {
+                renownGain = Math.floor(amount / 50);
+                player.renown = (player.renown || 0) + renownGain;
+            }
+
+            // Charisma might improve
+            let charismaUp = false;
+            if (amount >= 50 && Math.random() < 0.15) {
+                player.charisma = (player.charisma || 5) + 1;
+                charismaUp = true;
+            }
+
+            let msg = `You donated ${amount} gold. +${karmaGain} karma.`;
+            if (kingdomId) msg += ` Reputation with ${kingdomName} improved.`;
+            if (renownGain > 0) msg += ` +${renownGain} renown!`;
+            if (charismaUp) msg += ' Your generosity has improved your charisma!';
+
+            game.ui.showNotification('🪙 Donation', msg, 'success');
+            game.ui.hideCustomPanel();
+            game.ui.updateStats(player, game.world);
+        };
+    },
+
+    /**
+     * Pledge allegiance to the kingdom controlling this settlement
+     */
+    doPledgeAllegiance(game, tile) {
+        const settlement = tile.settlement;
+        if (!settlement || !settlement.kingdom) {
+            game.ui.showNotification('No Kingdom', 'This settlement has no kingdom to pledge to.', 'error');
+            return;
+        }
+
+        const result = game.player.pledgeAllegiance(settlement.kingdom, game.world);
+        if (result.success) {
+            const kingdom = result.kingdom;
+            // Reputation bonus on pledge
+            if (game.player.reputation) {
+                game.player.reputation[settlement.kingdom] = (game.player.reputation[settlement.kingdom] || 0) + 5;
+            }
+            game.ui.showNotification('⚔️ Allegiance Pledged',
+                `You have sworn allegiance to ${kingdom.name}. You are now a citizen of the realm. +5 reputation.`, 'success');
+            game.ui.updateStats(game.player, game.world);
+        } else {
+            game.ui.showNotification('Cannot Pledge', result.reason, 'error');
+        }
+    },
+
+    /**
+     * Renounce allegiance to current kingdom
+     */
+    doRenounceAllegiance(game, tile) {
+        const player = game.player;
+        if (!player.allegiance) {
+            game.ui.showNotification('No Allegiance', 'You aren\'t pledged to any kingdom.', 'error');
+            return;
+        }
+
+        const oldKingdomId = player.allegiance;
+        const result = player.breakAllegiance(game.world);
+
+        if (result.success) {
+            // Reputation penalty
+            if (player.reputation && oldKingdomId) {
+                player.reputation[oldKingdomId] = (player.reputation[oldKingdomId] || 0) - 15;
+            }
+            // Karma hit
+            player.karma = (player.karma || 0) - 3;
+
+            const name = result.oldKingdom ? result.oldKingdom.name : 'your kingdom';
+            game.ui.showNotification('💔 Allegiance Broken',
+                `You have renounced your allegiance to ${name}. -15 reputation, -3 karma. You are once again a free wanderer.`, 'warning');
+            game.ui.updateStats(player, game.world);
+        } else {
+            game.ui.showNotification('Error', result.reason, 'error');
+        }
+    },
+
+    /**
+     * Host a feast at a settlement — costs gold, gains renown + reputation + diplomacy
+     */
+    showHostFeastMenu(game, tile) {
+        const player = game.player;
+        const settlement = tile.settlement;
+        if (!settlement) return;
+
+        const tier = settlement.type === 'capital' ? 'grand' : (settlement.type === 'town' ? 'fine' : 'modest');
+        const costs = { modest: 200, fine: 400, grand: 800 };
+        const cost = costs[tier];
+
+        let html = '<div>';
+        html += '<h4 style="margin-top: 0;">🍖 Host a Feast</h4>';
+        html += `<p style="font-size: 12px; color: var(--text-secondary);">Host a ${tier} feast in <strong>${settlement.name}</strong>. The locals will remember your generosity.</p>`;
+        html += `<div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; margin: 8px 0; font-size: 12px;">`;
+        html += `<div>💰 Cost: <span style="color: var(--gold);">${cost} gold</span></div>`;
+        html += `<div>📈 Expected: +renown, +reputation, +diplomacy skill</div>`;
+        html += `<div>⏰ Takes the rest of the day</div>`;
+        html += `</div>`;
+
+        if (player.gold >= cost) {
+            html += `<button onclick="window._doFeast(${cost}, '${tier}')" style="width: 100%; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Host the Feast (${cost}g)</button>`;
+        } else {
+            html += `<p style="color: #ff6666; font-size: 12px;">You need ${cost} gold to host this feast.</p>`;
+        }
+        html += '</div>';
+
+        game.ui.showCustomPanel('Host Feast', html);
+
+        window._doFeast = (feastCost, feastTier) => {
+            if (player.gold < feastCost) {
+                game.ui.showNotification('Not Enough Gold', 'You can\'t afford this feast!', 'error');
+                return;
+            }
+
+            player.gold -= feastCost;
+            if (player.financeToday) {
+                player.financeToday.expenses = player.financeToday.expenses || {};
+                player.financeToday.expenses.feast = (player.financeToday.expenses.feast || 0) + feastCost;
+            }
+
+            // Renown
+            const renownGain = { modest: 3, fine: 6, grand: 12 }[feastTier] || 3;
+            player.renown = (player.renown || 0) + renownGain;
+
+            // Karma
+            const karmaGain = { modest: 2, fine: 4, grand: 7 }[feastTier] || 2;
+            player.karma = (player.karma || 0) + karmaGain;
+
+            // Reputation
+            const kingdomId = settlement.kingdom;
+            if (kingdomId && player.reputation) {
+                const repGain = { modest: 3, fine: 6, grand: 10 }[feastTier] || 3;
+                player.reputation[kingdomId] = (player.reputation[kingdomId] || 0) + repGain;
+            }
+
+            // Diplomacy skill up chance
+            let diplomacyUp = false;
+            const skillChance = { modest: 0.15, fine: 0.25, grand: 0.4 }[feastTier] || 0.15;
+            if (Math.random() < skillChance && player.skills) {
+                player.skills.diplomacy = Math.min((player.skills.diplomacy || 1) + 1, 10);
+                diplomacyUp = true;
+            }
+
+            // Charisma up chance
+            let charismaUp = false;
+            if (Math.random() < 0.2) {
+                player.charisma = (player.charisma || 5) + 1;
+                charismaUp = true;
+            }
+
+            let msg = `You hosted a ${feastTier} feast! +${renownGain} renown, +${karmaGain} karma.`;
+            if (diplomacyUp) msg += ' Diplomacy skill improved!';
+            if (charismaUp) msg += ' Your charisma grew!';
+
+            game.ui.hideCustomPanel();
+            game.ui.showNotification('🍖 Feast Complete', msg, 'success');
+            game.ui.updateStats(player, game.world);
+            game.endDay();
+        };
+    },
+
+    /**
+     * Hold a tournament — combat competition for gold and renown
+     */
+    showTournamentMenu(game, tile) {
+        const player = game.player;
+        const settlement = tile.settlement;
+        if (!settlement) return;
+
+        const entryFee = settlement.type === 'capital' ? 300 : 200;
+        const prizePool = entryFee * 4;
+
+        let html = '<div>';
+        html += '<h4 style="margin-top: 0;">⚔️ Hold a Tournament</h4>';
+        html += `<p style="font-size: 12px; color: var(--text-secondary);">Organize a fighting tournament in ${settlement.name}! Champions from across the land will compete.</p>`;
+        html += `<div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; margin: 8px 0; font-size: 12px;">`;
+        html += `<div>💰 Entry/Organization cost: <span style="color: var(--gold);">${entryFee} gold</span></div>`;
+        html += `<div>🏆 Prize pool: <span style="color: var(--gold);">${prizePool} gold</span></div>`;
+        html += `<div>⚔️ Your combat skill: ${player.skills?.combat || 1} | Strength: ${player.strength || 5}</div>`;
+        html += `<div>⏰ Takes the rest of the day</div>`;
+        html += `</div>`;
+        html += `<p style="font-size: 11px; color: #aaa;">You may compete yourself, or simply host and watch.</p>`;
+
+        if (player.gold >= entryFee) {
+            html += `<button onclick="window._doTournament(true)" style="width: 100%; padding: 10px; background: #c97d32; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-bottom: 6px;">Compete (${entryFee}g)</button>`;
+            html += `<button onclick="window._doTournament(false)" style="width: 100%; padding: 8px; background: #555; border: none; border-radius: 4px; cursor: pointer; color: #ccc;">Just Host & Spectate (${Math.floor(entryFee * 0.6)}g)</button>`;
+        } else {
+            html += `<p style="color: #ff6666; font-size: 12px;">You need ${entryFee} gold to organize a tournament.</p>`;
+        }
+        html += '</div>';
+
+        game.ui.showCustomPanel('Tournament', html);
+
+        window._doTournament = (compete) => {
+            const cost = compete ? entryFee : Math.floor(entryFee * 0.6);
+            if (player.gold < cost) {
+                game.ui.showNotification('Not Enough Gold', 'You can\'t afford to host this!', 'error');
+                return;
+            }
+
+            player.gold -= cost;
+            if (player.financeToday) {
+                player.financeToday.expenses = player.financeToday.expenses || {};
+                player.financeToday.expenses.tournament = (player.financeToday.expenses.tournament || 0) + cost;
+            }
+
+            let resultHtml = '<div>';
+            const renownGain = compete ? 5 : 3;
+            player.renown = (player.renown || 0) + renownGain;
+
+            if (compete) {
+                // Combat rounds — player vs 3 opponents
+                const combatSkill = (player.skills?.combat || 1);
+                const strengthBonus = ((player.strength || 5) - 5) * 0.05;
+                const playerPower = combatSkill * 2 + strengthBonus + (Math.random() * 5);
+
+                const opponents = [
+                    { name: 'Local Champion', power: 4 + Math.random() * 6 },
+                    { name: 'Traveling Knight', power: 6 + Math.random() * 7 },
+                    { name: 'Arena Veteran', power: 8 + Math.random() * 8 },
+                ];
+
+                let wins = 0;
+                let healthLost = 0;
+                resultHtml += '<h4 style="margin-top: 0;">⚔️ Tournament Results</h4>';
+
+                for (const opp of opponents) {
+                    const won = playerPower + Math.random() * 3 > opp.power;
+                    if (won) {
+                        wins++;
+                        resultHtml += `<div style="color: #8f8;">✓ Defeated ${opp.name}!</div>`;
+                    } else {
+                        const dmg = Math.floor(Math.random() * 10) + 5;
+                        healthLost += dmg;
+                        resultHtml += `<div style="color: #f88;">✗ Lost to ${opp.name} (-${dmg} HP)</div>`;
+                    }
+                }
+
+                player.health = Math.max(1, player.health - healthLost);
+
+                if (wins === 3) {
+                    // Grand champion!
+                    const winnings = prizePool;
+                    player.gold += winnings;
+                    if (player.financeToday) {
+                        player.financeToday.income.tournament = (player.financeToday.income.tournament || 0) + winnings;
+                    }
+                    player.renown += 5; // Bonus renown
+                    resultHtml += `<div style="color: var(--gold); font-weight: bold; margin-top: 8px;">🏆 GRAND CHAMPION! Won ${winnings} gold! +${renownGain + 5} total renown!</div>`;
+                } else if (wins >= 2) {
+                    const winnings = Math.floor(prizePool * 0.4);
+                    player.gold += winnings;
+                    if (player.financeToday) {
+                        player.financeToday.income.tournament = (player.financeToday.income.tournament || 0) + winnings;
+                    }
+                    resultHtml += `<div style="color: #ccc; margin-top: 8px;">🥈 Runner-up! Won ${winnings} gold. +${renownGain} renown.</div>`;
+                } else {
+                    resultHtml += `<div style="color: #888; margin-top: 8px;">Eliminated early. +${renownGain} renown for participating.</div>`;
+                }
+
+                // Combat skill up chance
+                if (Math.random() < 0.2 + wins * 0.1 && player.skills) {
+                    player.skills.combat = Math.min((player.skills.combat || 1) + 1, 10);
+                    resultHtml += `<div style="color: #88f; margin-top: 4px;">Combat skill improved!</div>`;
+                }
+
+                if (healthLost > 0) {
+                    resultHtml += `<div style="color: #f88; margin-top: 4px;">Total injuries: -${healthLost} HP</div>`;
+                }
+            } else {
+                // Just hosting
+                resultHtml += '<h4 style="margin-top: 0;">🏟️ Tournament Hosted</h4>';
+                resultHtml += `<div>The tournament was a great success! The crowd cheered and the fighters put on a great show.</div>`;
+                resultHtml += `<div style="color: var(--gold); margin-top: 8px;">+${renownGain} renown for hosting.</div>`;
+
+                // Hosting chance for diplomacy
+                if (Math.random() < 0.25 && player.skills) {
+                    player.skills.diplomacy = Math.min((player.skills.diplomacy || 1) + 1, 10);
+                    resultHtml += `<div style="color: #88f; margin-top: 4px;">Diplomacy improved from managing the event!</div>`;
+                }
+            }
+
+            resultHtml += `<button onclick="game.ui.hideCustomPanel(); game.endDay();" style="width: 100%; margin-top: 10px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
+            resultHtml += '</div>';
+
+            game.ui.showCustomPanel('Tournament Results', resultHtml);
+            game.ui.updateStats(player, game.world);
+        };
+    },
+
+    /**
+     * Pickpocket — risky stealth-based gold gain
+     */
+    doPickpocket(game, tile) {
+        const player = game.player;
+        const settlement = tile.settlement;
+        if (!settlement) return;
+
+        const stealthSkill = player.skills?.stealth || 1;
+        const luckBonus = ((player.luck || 5) - 5) * 0.03;
+        const successChance = 0.3 + stealthSkill * 0.07 + luckBonus;
+
+        const tier = settlement.type === 'capital' ? 'capital' : (settlement.type === 'town' ? 'town' : 'village');
+        const maxGold = { village: 20, town: 40, capital: 80 }[tier];
+
+        const roll = Math.random();
+
+        if (roll < successChance) {
+            // Success
+            const stolen = Math.floor(Math.random() * maxGold) + 5;
+            player.gold += stolen;
+            if (player.financeToday) {
+                player.financeToday.income.theft = (player.financeToday.income.theft || 0) + stolen;
+            }
+            player.karma = (player.karma || 0) - 1;
+
+            // Stealth skill up chance
+            let skillUp = false;
+            if (Math.random() < 0.2 && player.skills) {
+                player.skills.stealth = Math.min((player.skills.stealth || 1) + 1, 10);
+                skillUp = true;
+            }
+
+            let msg = `You deftly lifted ${stolen} gold from an unsuspecting mark. -1 karma.`;
+            if (skillUp) msg += ' Stealth skill improved!';
+            game.ui.showNotification('🤫 Pickpocket Success', msg, 'success');
+        } else if (roll < successChance + 0.3) {
+            // Noticed but escaped
+            game.ui.showNotification('😬 Close Call', 'You were spotted reaching for a purse and had to flee! No gold gained.', 'warning');
+        } else {
+            // Caught!
+            const fine = Math.floor(Math.random() * 30) + 10;
+            const actualFine = Math.min(fine, player.gold);
+            player.gold -= actualFine;
+            player.karma = (player.karma || 0) - 3;
+
+            if (player.financeToday) {
+                player.financeToday.expenses = player.financeToday.expenses || {};
+                player.financeToday.expenses.fines = (player.financeToday.expenses.fines || 0) + actualFine;
+            }
+
+            // Reputation loss
+            const kingdomId = settlement.kingdom;
+            if (kingdomId && player.reputation) {
+                player.reputation[kingdomId] = (player.reputation[kingdomId] || 0) - 5;
+            }
+
+            game.ui.showNotification('🚔 Caught!',
+                `You were caught pickpocketing! Fined ${actualFine} gold. -3 karma, -5 reputation.`, 'error');
+        }
+
+        game.ui.updateStats(player, game.world);
+    },
+
+    /**
+     * Smuggle goods — sell inventory items at premium but risk getting caught
+     */
+    showSmuggleMenu(game, tile) {
+        const player = game.player;
+        const settlement = tile.settlement;
+        if (!settlement) return;
+
+        // Find sellable goods in inventory
+        const goods = [];
+        const excludeItems = ['bread']; // Basic items not smuggle-worthy
+        for (const [item, qty] of Object.entries(player.inventory || {})) {
+            if (qty > 0 && !excludeItems.includes(item)) {
+                goods.push({ item, qty });
+            }
+        }
+
+        if (goods.length === 0) {
+            game.ui.showNotification('No Goods', 'You have nothing worth smuggling!', 'default');
+            return;
+        }
+
+        let html = '<div>';
+        html += '<h4 style="margin-top: 0;">🏴‍☠️ Black Market Smuggling</h4>';
+        html += `<p style="font-size: 12px; color: var(--text-secondary);">Sell goods at a premium through shady channels in ${settlement.name}. Higher profit, but getting caught means trouble.</p>`;
+        html += `<p style="font-size: 11px; color: #aaa;">Stealth: ${player.skills?.stealth || 1} | Higher stealth = safer deals</p>`;
+
+        const basePrices = {
+            herbs: 8, pelts: 12, meat: 6, berries: 4, mushrooms: 5,
+            hide: 15, antler: 20, feather: 10, fish: 5, ore: 25,
+            gems: 80, stone: 8, horse: 120, wood: 3
+        };
+
+        for (const g of goods) {
+            const basePrice = basePrices[g.item] || 10;
+            const smugglePrice = Math.floor(basePrice * 2.5); // 2.5x premium
+            html += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">`;
+            html += `<span>${g.item} (x${g.qty})</span>`;
+            html += `<span style="color: var(--gold);">${smugglePrice}g each</span>`;
+            html += `<button onclick="window._doSmuggle('${g.item}', ${smugglePrice})" style="padding: 4px 10px; background: #8b0000; border: none; border-radius: 3px; cursor: pointer; color: #fff; font-size: 11px;">Sell 1</button>`;
+            html += `</div>`;
+        }
+
+        html += '</div>';
+        game.ui.showCustomPanel('Smuggling', html);
+
+        window._doSmuggle = (itemName, price) => {
+            if (!player.inventory[itemName] || player.inventory[itemName] <= 0) {
+                game.ui.showNotification('No Stock', 'You don\'t have any more of that!', 'error');
+                return;
+            }
+
+            const stealthSkill = player.skills?.stealth || 1;
+            const successChance = 0.5 + stealthSkill * 0.06;
+
+            if (Math.random() < successChance) {
+                // Successful smuggle
+                player.inventory[itemName]--;
+                if (player.inventory[itemName] <= 0) delete player.inventory[itemName];
+                player.gold += price;
+                if (player.financeToday) {
+                    player.financeToday.income.smuggling = (player.financeToday.income.smuggling || 0) + price;
+                }
+                player.karma = (player.karma || 0) - 1;
+
+                // Stealth skill up
+                if (Math.random() < 0.15 && player.skills) {
+                    player.skills.stealth = Math.min((player.skills.stealth || 1) + 1, 10);
+                }
+
+                game.ui.showNotification('🏴‍☠️ Deal Done', `Sold ${itemName} for ${price} gold on the black market.`, 'success');
+            } else {
+                // Caught
+                player.inventory[itemName]--;
+                if (player.inventory[itemName] <= 0) delete player.inventory[itemName];
+                const fine = Math.floor(price * 0.5);
+                const actualFine = Math.min(fine, player.gold);
+                player.gold -= actualFine;
+                player.karma = (player.karma || 0) - 3;
+
+                if (player.financeToday) {
+                    player.financeToday.expenses = player.financeToday.expenses || {};
+                    player.financeToday.expenses.fines = (player.financeToday.expenses.fines || 0) + actualFine;
+                }
+
+                const kingdomId = settlement.kingdom;
+                if (kingdomId && player.reputation) {
+                    player.reputation[kingdomId] = (player.reputation[kingdomId] || 0) - 8;
+                }
+
+                game.ui.showNotification('🚔 Busted!',
+                    `Caught smuggling ${itemName}! Goods confiscated, fined ${actualFine}g. -3 karma, -8 reputation.`, 'error');
+            }
+
+            game.ui.updateStats(player, game.world);
+            game.ui.hideCustomPanel();
+            // Refresh menu if player has remaining goods
+            const remaining = Object.entries(player.inventory || {}).filter(([k, v]) => v > 0 && k !== 'bread');
+            if (remaining.length > 0) {
+                ActionMenu.showSmuggleMenu(game, tile);
+            }
+        };
+    },
+
+    /**
+     * Train combat at a settlement — costs gold, improves combat skill
+     */
+    doTrainCombat(game, tile) {
+        const player = game.player;
+        const settlement = tile.settlement;
+        if (!settlement) return;
+
+        const cost = settlement.type === 'capital' ? 75 : 50;
+        if (player.gold < cost) {
+            game.ui.showNotification('Not Enough Gold', `Training costs ${cost} gold.`, 'error');
+            return;
+        }
+
+        player.gold -= cost;
+        if (player.financeToday) {
+            player.financeToday.expenses = player.financeToday.expenses || {};
+            player.financeToday.expenses.training = (player.financeToday.expenses.training || 0) + cost;
+        }
+
+        let resultMsg = `You spent the day training at ${settlement.name}. `;
+
+        // Combat skill — good chance with training
+        const combatChance = settlement.type === 'capital' ? 0.45 : 0.3;
+        if (Math.random() < combatChance && player.skills) {
+            player.skills.combat = Math.min((player.skills.combat || 1) + 1, 10);
+            resultMsg += 'Combat skill improved! ';
+        } else {
+            resultMsg += 'Good practice but no breakthrough. ';
+        }
+
+        // Strength improvement chance
+        if (Math.random() < 0.15) {
+            player.strength = (player.strength || 5) + 1;
+            resultMsg += 'Strength increased! ';
+        }
+
+        // Army XP if player has troops
+        if (player.army && player.army.length > 0) {
+            const xpGain = settlement.type === 'capital' ? 15 : 10;
+            for (const unit of player.army) {
+                unit.experience = (unit.experience || 0) + xpGain;
+            }
+            resultMsg += `Army gained ${xpGain} XP from drills.`;
+        }
+
+        game.ui.showNotification('⚔️ Combat Training', resultMsg, 'success');
+        game.ui.updateStats(player, game.world);
+        game.endDay();
+    },
+
+    /**
+     * Meditate — restore health, gain karma, faith bonus at holy sites
+     */
+    doMeditate(game, tile) {
+        const player = game.player;
+        const isHolySite = !!tile.holySite;
+
+        // Health restoration
+        const baseHeal = 10;
+        const faithBonus = ((player.faith || 5) - 3) * 2;
+        const heal = Math.max(5, baseHeal + faithBonus + (isHolySite ? 15 : 0));
+        player.health = Math.min(player.maxHealth || 100, player.health + heal);
+
+        // Karma gain
+        const karmaGain = isHolySite ? 5 : 2;
+        player.karma = (player.karma || 0) + karmaGain;
+
+        let resultMsg = `You meditated peacefully. +${heal} HP, +${karmaGain} karma.`;
+
+        // Faith attribute growth chance
+        if (Math.random() < (isHolySite ? 0.35 : 0.1)) {
+            player.faith = (player.faith || 5) + 1;
+            resultMsg += ' Your faith deepened.';
+        }
+
+        // Intelligence growth (small chance)
+        if (Math.random() < 0.1) {
+            player.intelligence = (player.intelligence || 5) + 1;
+            resultMsg += ' Your mind feels sharper.';
+        }
+
+        if (isHolySite) {
+            resultMsg += ' The holy site amplified your meditation!';
+        }
+
+        game.ui.showNotification('🧘 Meditation', resultMsg, 'success');
+        game.ui.updateStats(player, game.world);
+        game.endDay();
+    },
+
+    /**
+     * Fish at a water-adjacent tile — yields food items
+     */
+    doFish(game, tile) {
+        const player = game.player;
+        const luckStat = player.luck || 5;
+        const intStat = player.intelligence || 5;
+        const skillBonus = 1 + luckStat * 0.05 + intStat * 0.03;
+
+        const catches = [];
+        // 2-4 attempts per session
+        const attempts = 2 + Math.floor(Math.random() * 3);
+
+        for (let i = 0; i < attempts; i++) {
+            const roll = Math.random() * skillBonus;
+            if (roll > 0.4) {
+                // Caught something!
+                const rareRoll = Math.random();
+                if (rareRoll < 0.05 * (luckStat / 5)) {
+                    catches.push({ name: 'golden_fish', label: 'Golden Fish', icon: '✨🐟', value: 50, qty: 1 });
+                } else if (rareRoll < 0.2) {
+                    catches.push({ name: 'large_fish', label: 'Large Fish', icon: '🐟', value: 8, qty: 1 });
+                } else {
+                    catches.push({ name: 'fish', label: 'Fish', icon: '🐟', value: 5, qty: Math.floor(Math.random() * 2) + 1 });
+                }
+            }
+        }
+
+        // Consolidate catches
+        const totals = {};
+        for (const c of catches) {
+            if (!totals[c.name]) totals[c.name] = { ...c, qty: 0 };
+            totals[c.name].qty += c.qty;
+        }
+
+        let resultHtml = '<div>';
+        resultHtml += '<h4 style="margin-top: 0;">🎣 Fishing Results</h4>';
+
+        if (Object.keys(totals).length === 0) {
+            resultHtml += '<p style="color: #aaa;">Nothing was biting today. Better luck next time!</p>';
+        } else {
+            let totalValue = 0;
+            for (const [key, item] of Object.entries(totals)) {
+                player.inventory = player.inventory || {};
+                player.inventory[key] = (player.inventory[key] || 0) + item.qty;
+                totalValue += item.value * item.qty;
+                resultHtml += `<div style="padding: 4px 0;">${item.icon} ${item.label} x${item.qty} <span style="color: var(--gold);">(~${item.value}g each)</span></div>`;
+            }
+            resultHtml += `<div style="margin-top: 8px; color: var(--gold);">Total catch value: ~${totalValue} gold</div>`;
+        }
+
+        // Small luck increase chance
+        if (Math.random() < 0.08) {
+            player.luck = (player.luck || 5) + 1;
+            resultHtml += '<div style="color: #88f; margin-top: 4px;">Your patience improved your luck!</div>';
+        }
+
+        resultHtml += `<button onclick="game.ui.hideCustomPanel(); game.endDay();" style="width: 100%; margin-top: 10px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
+        resultHtml += '</div>';
+
+        game.ui.showCustomPanel('Fishing', resultHtml);
+        game.ui.updateStats(player, game.world);
+    },
+
+    /**
+     * Prospect for minerals on hills/highlands/mountain tiles
+     */
+    doProspect(game, tile) {
+        const player = game.player;
+        const terrainId = tile.terrain?.id || '';
+        const strengthStat = player.strength || 5;
+        const luckStat = player.luck || 5;
+
+        const difficultyMod = {
+            hills: 1.0, highlands: 1.2, mountain: 1.5, volcanic_mountain: 1.8
+        }[terrainId] || 1.0;
+
+        const skillBonus = 1 + strengthStat * 0.04 + luckStat * 0.06;
+        const finds = [];
+
+        // Prospecting tries
+        const tries = 2 + Math.floor(Math.random() * 2);
+
+        for (let i = 0; i < tries; i++) {
+            const roll = Math.random() * skillBonus;
+            if (roll > 0.5 / difficultyMod) {
+                const typeRoll = Math.random();
+                if (typeRoll < 0.05 * (luckStat / 5)) {
+                    finds.push({ name: 'gems', label: 'Gemstones', icon: '💎', value: 80, qty: 1 });
+                } else if (typeRoll < 0.3) {
+                    finds.push({ name: 'ore', label: 'Iron Ore', icon: '⛏️', value: 25, qty: Math.floor(Math.random() * 2) + 1 });
+                } else {
+                    finds.push({ name: 'stone', label: 'Stone', icon: '🪨', value: 8, qty: Math.floor(Math.random() * 3) + 1 });
+                }
+            }
+        }
+
+        // Consolidate
+        const totals = {};
+        for (const f of finds) {
+            if (!totals[f.name]) totals[f.name] = { ...f, qty: 0 };
+            totals[f.name].qty += f.qty;
+        }
+
+        let healthCost = Math.floor(Math.random() * 8) + 3;
+        player.health = Math.max(1, player.health - healthCost);
+
+        let resultHtml = '<div>';
+        resultHtml += '<h4 style="margin-top: 0;">⛏️ Prospecting Results</h4>';
+
+        if (Object.keys(totals).length === 0) {
+            resultHtml += '<p style="color: #aaa;">You dug around but found nothing valuable.</p>';
+        } else {
+            let totalValue = 0;
+            for (const [key, item] of Object.entries(totals)) {
+                player.inventory = player.inventory || {};
+                player.inventory[key] = (player.inventory[key] || 0) + item.qty;
+                totalValue += item.value * item.qty;
+                resultHtml += `<div style="padding: 4px 0;">${item.icon} ${item.label} x${item.qty} <span style="color: var(--gold);">(~${item.value}g each)</span></div>`;
+            }
+            resultHtml += `<div style="margin-top: 8px; color: var(--gold);">Total find value: ~${totalValue} gold</div>`;
+        }
+
+        resultHtml += `<div style="color: #f88; margin-top: 4px;">Hard work cost ${healthCost} HP.</div>`;
+
+        // Strength increase chance
+        if (Math.random() < 0.12) {
+            player.strength = (player.strength || 5) + 1;
+            resultHtml += '<div style="color: #88f; margin-top: 4px;">The hard labor strengthened you!</div>';
+        }
+
+        resultHtml += `<button onclick="game.ui.hideCustomPanel(); game.endDay();" style="width: 100%; margin-top: 10px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
+        resultHtml += '</div>';
+
+        game.ui.showCustomPanel('Prospecting', resultHtml);
+        game.ui.updateStats(player, game.world);
+    },
+
+    /**
+     * Tame a wild horse — requires horse resource on tile
+     */
+    doTameHorse(game, tile) {
+        const player = game.player;
+        const strengthStat = player.strength || 5;
+        const luckStat = player.luck || 5;
+
+        const baseChance = 0.25;
+        const bonus = strengthStat * 0.04 + luckStat * 0.03;
+        const successChance = Math.min(0.8, baseChance + bonus);
+
+        let resultHtml = '<div>';
+        resultHtml += '<h4 style="margin-top: 0;">🐴 Taming a Wild Horse</h4>';
+
+        const roll = Math.random();
+
+        if (roll < successChance) {
+            // Success!
+            player.inventory = player.inventory || {};
+            player.inventory.horse = (player.inventory.horse || 0) + 1;
+
+            // Stamina bonus
+            const staminaBonus = 2;
+            player.maxStamina = (player.maxStamina || 10) + staminaBonus;
+
+            resultHtml += '<div style="color: #8f8; font-size: 14px;">🐴 You successfully tamed the wild horse!</div>';
+            resultHtml += `<div style="margin-top: 8px;">+1 Horse added to inventory</div>`;
+            resultHtml += `<div style="color: var(--gold);">+${staminaBonus} max stamina from having a mount!</div>`;
+
+            // Strength growth
+            if (Math.random() < 0.2) {
+                player.strength = (player.strength || 5) + 1;
+                resultHtml += '<div style="color: #88f; margin-top: 4px;">The struggle strengthened you!</div>';
+            }
+        } else if (roll < successChance + 0.3) {
+            // Failed but unharmed
+            resultHtml += '<div style="color: #ccc;">The horse bolted before you could get a grip. Maybe next time.</div>';
+        } else {
+            // Failed and injured
+            const dmg = Math.floor(Math.random() * 12) + 5;
+            player.health = Math.max(1, player.health - dmg);
+            resultHtml += `<div style="color: #f88;">The horse kicked you in the struggle! -${dmg} HP</div>`;
+        }
+
+        resultHtml += `<button onclick="game.ui.hideCustomPanel(); game.endDay();" style="width: 100%; margin-top: 10px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
+        resultHtml += '</div>';
+
+        game.ui.showCustomPanel('Horse Taming', resultHtml);
+        game.ui.updateStats(player, game.world);
+    },
+
+    /**
+     * Craft a campfire — uses 2 wood, gives health bonus on rest, can cook fish
+     */
+    doCraftCampfire(game, tile) {
+        const player = game.player;
+
+        if (!player.inventory?.wood || player.inventory.wood < 2) {
+            game.ui.showNotification('No Wood', 'You need at least 2 wood to build a campfire.', 'error');
+            return;
+        }
+
+        player.inventory.wood -= 2;
+        if (player.inventory.wood <= 0) delete player.inventory.wood;
+
+        // Immediate health bonus
+        const healAmount = 15;
+        player.health = Math.min(player.maxHealth || 100, player.health + healAmount);
+
+        let resultMsg = `You built a warm campfire. +${healAmount} HP from the warmth.`;
+
+        // Cook fish if available
+        if (player.inventory.fish && player.inventory.fish > 0) {
+            const fishCount = Math.min(player.inventory.fish, 3); // Cook up to 3
+            player.inventory.fish -= fishCount;
+            if (player.inventory.fish <= 0) delete player.inventory.fish;
+            player.inventory.cooked_fish = (player.inventory.cooked_fish || 0) + fishCount;
+
+            const extraHeal = fishCount * 5;
+            player.health = Math.min(player.maxHealth || 100, player.health + extraHeal);
+            resultMsg += ` Cooked ${fishCount} fish (+${extraHeal} HP).`;
+        }
+
+        // Cook raw meat if available
+        if (player.inventory.meat && player.inventory.meat > 0) {
+            const meatCount = Math.min(player.inventory.meat, 3);
+            player.inventory.meat -= meatCount;
+            if (player.inventory.meat <= 0) delete player.inventory.meat;
+            player.inventory.cooked_meat = (player.inventory.cooked_meat || 0) + meatCount;
+
+            const extraHeal = meatCount * 7;
+            player.health = Math.min(player.maxHealth || 100, player.health + extraHeal);
+            resultMsg += ` Cooked ${meatCount} meat (+${extraHeal} HP).`;
+        }
+
+        // Small intelligence gain from the craft
+        if (Math.random() < 0.08) {
+            player.intelligence = (player.intelligence || 5) + 1;
+            resultMsg += ' Your practical skills sharpened your mind.';
+        }
+
+        game.ui.showNotification('🔥 Campfire', resultMsg, 'success');
+        game.ui.updateStats(player, game.world);
+    },
+
+    // ============================================
+    // RELATIONSHIPS — Meet People, Courting, Family, Dynasty
+    // ============================================
+
+    /**
+     * Show the Meet People menu — browse NPCs at this settlement
+     */
+    showMeetPeopleMenu(game, tile) {
+        if (!tile.settlement) return;
+        if (typeof Relationships === 'undefined') {
+            game.ui.showNotification('Unavailable', 'Relationship system not loaded.', 'error');
+            return;
+        }
+
+        const player = game.player;
+        const npcs = Relationships.getNPCsAtSettlement(tile, game.world);
+        const personalities = Relationships._getPersonalities();
+
+        let html = '<div>';
+        html += '<h4 style="margin-top: 0;">👥 Meet People</h4>';
+        html += `<p style="font-size: 12px; color: var(--text-secondary);">People of <strong>${tile.settlement.name}</strong>. Get to know them, befriend them, or perhaps find love.</p>`;
+
+        if (npcs.length === 0) {
+            html += '<p style="color: #aaa;">Nobody interesting around right now.</p>';
+        }
+
+        for (const npc of npcs) {
+            const rel = Relationships.getRelationship(player, npc.id);
+            const relLabel = Relationships.getRelationLabel(rel.score);
+            const personality = personalities[npc.personality] || { label: 'Unknown', icon: '❓' };
+            const stage = rel.romantic ? Relationships.getCourtingStage(rel.affection, npc.isMarried && player.spouse === npc.id) : null;
+
+            const genderIcon = npc.gender === 'male' ? '♂️' : '♀️';
+            const marriedTag = (player.spouse === npc.id) ? ' <span style="color: #ff69b4;">💍 Your Spouse</span>' : '';
+
+            html += `<div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid ${rel.score >= 30 ? '#4a4' : rel.score <= -30 ? '#a44' : '#666'};">`;
+            html += `<div style="display: flex; justify-content: space-between; align-items: center;">`;
+            html += `<div>`;
+            html += `<strong>${npc.firstName} ${npc.dynasty}</strong> ${genderIcon}${marriedTag}`;
+            html += `<div style="font-size: 11px; color: #aaa;">Age ${npc.age} · ${npc.occupation} · ${personality.icon} ${personality.label}</div>`;
+            html += `<div style="font-size: 11px; color: #888;">${npc.appearance.hair} hair, ${npc.appearance.eyes} eyes, ${npc.appearance.build}</div>`;
+            html += `</div>`;
+            html += `<div style="text-align: right; font-size: 11px;">`;
+            html += `<div>${relLabel.icon} ${relLabel.label} (${rel.score})</div>`;
+            if (stage) {
+                html += `<div style="color: #ff69b4;">${stage.icon} ${stage.label} (${rel.affection})</div>`;
+            }
+            html += `</div>`;
+            html += `</div>`;
+
+            // Action buttons
+            html += `<div style="display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap;">`;
+            html += `<button onclick="window._socialAction('${npc.id}', 'befriend')" style="padding: 4px 8px; background: #446; border: none; border-radius: 3px; cursor: pointer; color: #ccc; font-size: 11px;">😊 Chat</button>`;
+            html += `<button onclick="window._socialAction('${npc.id}', 'share_meal')" style="padding: 4px 8px; background: #446; border: none; border-radius: 3px; cursor: pointer; color: #ccc; font-size: 11px;">🍞 Share Meal (10g)</button>`;
+            html += `<button onclick="window._socialAction('${npc.id}', 'tell_stories')" style="padding: 4px 8px; background: #446; border: none; border-radius: 3px; cursor: pointer; color: #ccc; font-size: 11px;">📖 Stories</button>`;
+
+            // Romantic options (only for opposite gender or freely, depends on game design — keeping it open)
+            if (!player.spouse || player.spouse === npc.id) {
+                html += `<button onclick="window._courtAction('${npc.id}', 'compliment')" style="padding: 4px 8px; background: #644; border: none; border-radius: 3px; cursor: pointer; color: #fcc; font-size: 11px;">✨ Flirt</button>`;
+                if (rel.affection >= 15) {
+                    html += `<button onclick="window._courtAction('${npc.id}', 'gift')" style="padding: 4px 8px; background: #644; border: none; border-radius: 3px; cursor: pointer; color: #fcc; font-size: 11px;">🎁 Gift (25g)</button>`;
+                }
+                if (rel.affection >= 30) {
+                    html += `<button onclick="window._courtAction('${npc.id}', 'serenade')" style="padding: 4px 8px; background: #644; border: none; border-radius: 3px; cursor: pointer; color: #fcc; font-size: 11px;">🎵 Serenade</button>`;
+                }
+                if (rel.affection >= 50) {
+                    html += `<button onclick="window._courtAction('${npc.id}', 'romantic_dinner')" style="padding: 4px 8px; background: #844; border: none; border-radius: 3px; cursor: pointer; color: #fcc; font-size: 11px;">🍷 Dinner (50g)</button>`;
+                }
+                if (rel.affection >= 70 && !player.spouse) {
+                    html += `<button onclick="window._courtAction('${npc.id}', 'propose')" style="padding: 4px 8px; background: #a44; border: none; border-radius: 3px; cursor: pointer; color: #fff; font-size: 11px; font-weight: bold;">💍 Propose (100g)</button>`;
+                }
+            }
+
+            // Negative options
+            html += `<button onclick="window._socialAction('${npc.id}', 'insult')" style="padding: 4px 8px; background: #433; border: none; border-radius: 3px; cursor: pointer; color: #c88; font-size: 11px;">😤 Insult</button>`;
+            html += `<button onclick="window._socialAction('${npc.id}', 'challenge')" style="padding: 4px 8px; background: #433; border: none; border-radius: 3px; cursor: pointer; color: #c88; font-size: 11px;">🗡️ Duel</button>`;
+
+            html += `</div>`;
+            html += `</div>`;
+        }
+
+        html += '</div>';
+        game.ui.showCustomPanel('Meet People', html);
+
+        // Social action handler
+        window._socialAction = (npcId, actionId) => {
+            const result = Relationships.performSocialAction(player, npcId, actionId);
+            const npc = Relationships.getNPC(npcId);
+            if (npc) npc.lastInteraction = game.world?.day || 0;
+
+            if (result.success) {
+                const sign = result.gain >= 0 ? '+' : '';
+                let msg = `${result.npc.firstName}: ${sign}${result.gain} relationship.`;
+                if (result.skillUp) msg += ' Diplomacy improved!';
+                const type = result.gain >= 0 ? 'success' : 'warning';
+                game.ui.showNotification(result.gain >= 0 ? '😊 Social' : '😤 Conflict', msg, type);
+            } else if (result.failed) {
+                game.ui.showNotification('😬 Awkward', result.reason, 'warning');
+            } else {
+                game.ui.showNotification('Error', result.reason, 'error');
+            }
+
+            game.ui.updateStats(player, game.world);
+            game.ui.hideCustomPanel();
+            ActionMenu.showMeetPeopleMenu(game, tile);
+        };
+
+        // Court action handler
+        window._courtAction = (npcId, actionId) => {
+            const result = Relationships.performCourtAction(player, npcId, actionId);
+            const npc = Relationships.getNPC(npcId);
+            if (npc) npc.lastInteraction = game.world?.day || 0;
+
+            if (result.success) {
+                if (result.married) {
+                    // Marriage!
+                    const marryResult = Relationships.marry(player, npcId, game.world);
+                    if (marryResult.success) {
+                        game.ui.hideCustomPanel();
+                        ActionMenu._showMarriageCelebration(game, marryResult.npc);
+                        return;
+                    }
+                }
+                let msg = `${result.npc.firstName}: +${result.gain} affection (${result.stage.icon} ${result.stage.label}).`;
+                if (result.charismaUp) msg += ' Charisma improved!';
+                game.ui.showNotification('💕 Romance', msg, 'success');
+            } else if (result.failed) {
+                game.ui.showNotification('💔 Rejected', result.reason, 'warning');
+            } else {
+                game.ui.showNotification('Error', result.reason, 'error');
+            }
+
+            game.ui.updateStats(player, game.world);
+            game.ui.hideCustomPanel();
+            ActionMenu.showMeetPeopleMenu(game, tile);
+        };
+    },
+
+    /**
+     * Show marriage celebration panel
+     */
+    _showMarriageCelebration(game, spouse) {
+        let html = '<div style="text-align: center;">';
+        html += '<h3 style="color: var(--gold); margin-top: 0;">💍 Just Married! 💍</h3>';
+        html += `<p style="font-size: 16px;">You and <strong>${spouse.firstName} ${spouse.dynasty}</strong> are now wed!</p>`;
+        html += '<p style="font-size: 40px;">👫💒🎉</p>';
+        html += '<div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin: 10px 0; font-size: 12px; text-align: left;">';
+        html += '<div>+1 max stamina (companionship)</div>';
+        html += '<div>+3 renown</div>';
+        if (spouse.kingdomId) html += '<div>+5 reputation with spouse\'s kingdom</div>';
+        html += '<div style="margin-top: 6px; color: #ff69b4;">You may now have children as time passes!</div>';
+        html += '</div>';
+        html += `<button onclick="game.ui.hideCustomPanel();" style="width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;">Begin Your New Life Together</button>`;
+        html += '</div>';
+
+        game.ui.showCustomPanel('Wedding', html);
+        game.ui.updateStats(game.player, game.world);
+    },
+
+    /**
+     * Show all relationships the player has built
+     */
+    showRelationshipsMenu(game, tile) {
+        if (typeof Relationships === 'undefined') return;
+        const player = game.player;
+        const personalities = Relationships._getPersonalities();
+
+        let html = '<div>';
+        html += '<h4 style="margin-top: 0;">💕 Your Relationships</h4>';
+
+        // Spouse section
+        if (player.spouse) {
+            const spouse = Relationships.getNPC(player.spouse);
+            if (spouse) {
+                const rel = Relationships.getRelationship(player, player.spouse);
+                html += '<div style="background: rgba(255,105,180,0.15); padding: 10px; border-radius: 6px; margin-bottom: 8px; border: 1px solid rgba(255,105,180,0.3);">';
+                html += `<div style="font-weight: bold; color: #ff69b4;">💍 Spouse: ${spouse.firstName} ${spouse.dynasty}</div>`;
+                html += `<div style="font-size: 11px; color: #aaa;">Age ${spouse.age} · ${spouse.occupation} · Affection: ${rel.affection}/100</div>`;
+                html += '<div style="margin-top: 4px;">';
+                html += ActionMenu._renderAffectionBar(rel.affection);
+                html += '</div>';
+                html += `<button onclick="window._divorceConfirm()" style="padding: 3px 8px; background: #633; border: none; border-radius: 3px; cursor: pointer; color: #c88; font-size: 10px; margin-top: 4px;">💔 Divorce</button>`;
+                html += '</div>';
+            }
+        }
+
+        // Children section
+        if (player.children && player.children.length > 0) {
+            html += '<div style="margin-bottom: 8px;">';
+            html += '<h5 style="margin: 4px 0; color: var(--gold);">👶 Children</h5>';
+            for (const child of player.children) {
+                if (!child.isAlive) continue;
+                const genderIcon = child.gender === 'male' ? '♂️' : '♀️';
+                const isHeir = player.heir === child.id;
+                const traitStr = child.traits?.length > 0
+                    ? child.traits.map(t => `${t.icon}`).join(' ')
+                    : '';
+                html += `<div style="background: rgba(0,0,0,0.2); padding: 6px; border-radius: 4px; margin-bottom: 4px; font-size: 12px; ${isHeir ? 'border-left: 3px solid var(--gold);' : ''}">`;
+                html += `<strong>${child.firstName} ${child.dynasty}</strong> ${genderIcon} · Age ${child.age} ${traitStr}`;
+                if (isHeir) html += ` <span style="color: var(--gold);">👑 Heir</span>`;
+                html += `</div>`;
+            }
+            html += '</div>';
+        }
+
+        // Friends & Acquaintances
+        const allRels = Object.entries(player.relationships || {});
+        const friends = allRels.filter(([id, r]) => r.score >= 10).sort((a, b) => b[1].score - a[1].score);
+        const rivals = allRels.filter(([id, r]) => r.score <= -10).sort((a, b) => a[1].score - b[1].score);
+        const romanticInterests = allRels.filter(([id, r]) => r.romantic && id !== player.spouse).sort((a, b) => (b[1].affection || 0) - (a[1].affection || 0));
+
+        if (romanticInterests.length > 0) {
+            html += '<h5 style="margin: 8px 0 4px; color: #ff69b4;">💕 Romantic Interests</h5>';
+            for (const [npcId, rel] of romanticInterests) {
+                const npc = Relationships.getNPC(npcId);
+                if (!npc || !npc.isAlive) continue;
+                const stage = Relationships.getCourtingStage(rel.affection, false);
+                html += `<div style="background: rgba(255,105,180,0.1); padding: 5px 8px; border-radius: 4px; margin-bottom: 3px; font-size: 12px;">`;
+                html += `${stage.icon} <strong>${npc.firstName}</strong> · ${stage.label} · Affection: ${rel.affection}`;
+                html += `</div>`;
+            }
+        }
+
+        if (friends.length > 0) {
+            html += '<h5 style="margin: 8px 0 4px; color: #4a4;">😊 Friends</h5>';
+            for (const [npcId, rel] of friends) {
+                const npc = Relationships.getNPC(npcId);
+                if (!npc || !npc.isAlive || npcId === player.spouse) continue;
+                const label = Relationships.getRelationLabel(rel.score);
+                html += `<div style="padding: 3px 8px; font-size: 12px;">${label.icon} <strong>${npc.firstName}</strong> (${rel.score})</div>`;
+            }
+        }
+
+        if (rivals.length > 0) {
+            html += '<h5 style="margin: 8px 0 4px; color: #a44;">⚡ Rivals</h5>';
+            for (const [npcId, rel] of rivals) {
+                const npc = Relationships.getNPC(npcId);
+                if (!npc || !npc.isAlive) continue;
+                const label = Relationships.getRelationLabel(rel.score);
+                html += `<div style="padding: 3px 8px; font-size: 12px;">${label.icon} <strong>${npc.firstName}</strong> (${rel.score})</div>`;
+            }
+        }
+
+        if (friends.length === 0 && rivals.length === 0 && romanticInterests.length === 0 && !player.spouse) {
+            html += '<p style="color: #aaa; font-size: 12px;">You haven\'t formed any meaningful relationships yet. Visit settlements and meet people!</p>';
+        }
+
+        // Dynasty info
+        if (player.dynasty) {
+            html += '<div style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 10px; padding-top: 8px;">';
+            html += `<div style="font-size: 11px; color: #888;">Dynasty: <strong style="color: var(--gold);">${player.dynasty.name}</strong> · Prestige: ${player.dynasty.prestige || 0}</div>`;
+            html += `<div style="font-size: 11px; color: #888;">Age: ${player.age} · Max lifespan: ~${player.maxLifespan}</div>`;
+            html += '</div>';
+        }
+
+        html += '</div>';
+        game.ui.showCustomPanel('Relationships', html);
+
+        window._divorceConfirm = () => {
+            game.ui.hideCustomPanel();
+            let confirmHtml = '<div>';
+            confirmHtml += '<h4 style="margin-top: 0; color: #f66;">💔 Divorce</h4>';
+            confirmHtml += '<p style="font-size: 12px;">Are you sure you want to end your marriage? This will cost you karma and renown.</p>';
+            confirmHtml += `<button onclick="window._doDivorce()" style="width: 100%; padding: 10px; background: #a33; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: #fff; margin-bottom: 6px;">Yes, Divorce</button>`;
+            confirmHtml += `<button onclick="game.ui.hideCustomPanel(); ActionMenu.showRelationshipsMenu(game, game.world.getTile(game.player.q, game.player.r));" style="width: 100%; padding: 8px; background: #555; border: none; border-radius: 4px; cursor: pointer; color: #ccc;">Cancel</button>`;
+            confirmHtml += '</div>';
+            game.ui.showCustomPanel('Confirm Divorce', confirmHtml);
+        };
+
+        window._doDivorce = () => {
+            const result = Relationships.divorce(player, game.world);
+            if (result.success) {
+                const exName = result.exSpouse ? result.exSpouse.firstName : 'your spouse';
+                game.ui.showNotification('💔 Divorced', `You and ${exName} have parted ways. -5 karma, -2 renown.`, 'warning');
+            } else {
+                game.ui.showNotification('Error', result.reason, 'error');
+            }
+            game.ui.hideCustomPanel();
+            game.ui.updateStats(player, game.world);
+        };
+    },
+
+    _renderAffectionBar(affection) {
+        const pct = Math.max(0, Math.min(100, affection));
+        const color = pct >= 75 ? '#ff69b4' : pct >= 50 ? '#f0a' : pct >= 25 ? '#c80' : '#888';
+        return `<div style="background: rgba(0,0,0,0.5); border-radius: 3px; height: 8px; width: 100%;">
+            <div style="background: ${color}; height: 100%; width: ${pct}%; border-radius: 3px; transition: width 0.3s;"></div>
+        </div>`;
+    },
+
+    /**
+     * Show dynasty management — view children, designate heir
+     */
+    showDynastyMenu(game, tile) {
+        if (typeof Relationships === 'undefined') return;
+        const player = game.player;
+        const settings = Relationships._getHeirSettings();
+
+        let html = '<div>';
+        html += '<h4 style="margin-top: 0;">👑 Dynasty & Heirs</h4>';
+
+        // Dynasty info
+        html += '<div style="background: rgba(255,215,0,0.1); padding: 10px; border-radius: 6px; margin-bottom: 10px; border: 1px solid rgba(255,215,0,0.2);">';
+        html += `<div style="font-weight: bold; color: var(--gold);">House ${player.dynasty?.name || player.name}</div>`;
+        html += `<div style="font-size: 11px; color: #aaa;">Founded day ${player.dynasty?.founded || 1} · Prestige: ${player.dynasty?.prestige || 0}</div>`;
+        html += `<div style="font-size: 11px; color: #aaa;">You: ${player.name}, age ${player.age} (max ~${player.maxLifespan})</div>`;
+        if (player.spouse) {
+            const spouse = Relationships.getNPC(player.spouse);
+            if (spouse) {
+                html += `<div style="font-size: 11px; color: #ff69b4;">Spouse: ${spouse.firstName} ${spouse.dynasty}, age ${spouse.age}</div>`;
+            }
+        }
+        html += '</div>';
+
+        // Children
+        if (!player.children || player.children.length === 0) {
+            html += '<p style="color: #aaa; font-size: 12px;">You have no children yet. Get married and time will tell!</p>';
+        } else {
+            html += '<h5 style="margin: 4px 0;">Children</h5>';
+
+            for (const child of player.children) {
+                if (!child.isAlive) continue;
+                const isHeir = player.heir === child.id;
+                const eligible = child.age >= settings.minAgeToPlay;
+                const genderIcon = child.gender === 'male' ? '♂️' : '♀️';
+                const traitStr = child.traits?.length > 0
+                    ? child.traits.map(t => `<span title="${t.name}">${t.icon}</span>`).join(' ')
+                    : '<span style="color:#888;">No traits</span>';
+
+                html += `<div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin-bottom: 6px; ${isHeir ? 'border: 1px solid var(--gold);' : ''}">`;
+                html += `<div style="display: flex; justify-content: space-between; align-items: start;">`;
+                html += `<div>`;
+                html += `<strong>${child.firstName} ${child.dynasty}</strong> ${genderIcon}`;
+                if (isHeir) html += ` <span style="color: var(--gold);">👑 Designated Heir</span>`;
+                html += `<div style="font-size: 11px; color: #aaa;">Age ${child.age} · ${child.culture}</div>`;
+                html += `<div style="font-size: 11px; margin-top: 2px;">Traits: ${traitStr}</div>`;
+                html += `</div>`;
+                html += `</div>`;
+
+                // Stats
+                html += `<div style="display: flex; gap: 8px; font-size: 11px; margin-top: 6px; flex-wrap: wrap; color: #bbb;">`;
+                html += `<span>💪 ${child.strength || 5}</span>`;
+                html += `<span>✨ ${child.charisma || 5}</span>`;
+                html += `<span>🧠 ${child.intelligence || 5}</span>`;
+                html += `<span>🙏 ${child.faith || 5}</span>`;
+                html += `<span>🍀 ${child.luck || 5}</span>`;
+                html += `</div>`;
+
+                // Skills
+                const skillLabels = { combat: '⚔️', commerce: '💰', leadership: '👑', diplomacy: '🤝', stealth: '🥷', cartography: '🗺️' };
+                const childSkills = child.skills || {};
+                const hasSkills = Object.values(childSkills).some(v => v > 0);
+                if (hasSkills) {
+                    html += `<div style="display: flex; gap: 6px; font-size: 10px; margin-top: 3px; color: #999;">`;
+                    for (const [sk, val] of Object.entries(childSkills)) {
+                        if (val > 0) html += `<span>${skillLabels[sk] || sk} ${val}</span>`;
+                    }
+                    html += `</div>`;
+                }
+
+                // Actions
+                html += `<div style="margin-top: 6px; display: flex; gap: 4px;">`;
+                if (!isHeir) {
+                    html += `<button onclick="window._designateHeir('${child.id}')" style="padding: 4px 10px; background: #664; border: none; border-radius: 3px; cursor: pointer; color: var(--gold); font-size: 11px;">👑 Designate Heir</button>`;
+                }
+                html += `</div>`;
+
+                html += `</div>`;
+            }
+        }
+
+        // Heir summary
+        if (player.heir) {
+            const heirChild = (player.children || []).find(c => c.id === player.heir);
+            if (heirChild && heirChild.isAlive) {
+                const eligible = heirChild.age >= settings.minAgeToPlay;
+                html += `<div style="background: rgba(255,215,0,0.1); padding: 8px; border-radius: 4px; margin-top: 8px; font-size: 12px;">`;
+                html += `<div>Current heir: <strong style="color: var(--gold);">${heirChild.firstName}</strong> (age ${heirChild.age})</div>`;
+                if (eligible) {
+                    html += `<div style="color: #4a4;">✓ Eligible to succeed you</div>`;
+                } else {
+                    html += `<div style="color: #c80;">⏳ Must be ${settings.minAgeToPlay} to take over (currently ${heirChild.age})</div>`;
+                }
+                html += `<div style="color: #aaa; font-size: 11px; margin-top: 4px;">Inheritance: ${Math.round(settings.inheritanceGoldPercent * 100)}% gold, ${Math.round(settings.inheritanceRenownPercent * 100)}% renown</div>`;
+                html += `</div>`;
+            }
+        }
+
+        html += '</div>';
+        game.ui.showCustomPanel('Dynasty', html);
+
+        window._designateHeir = (childId) => {
+            const result = Relationships.designateHeir(player, childId);
+            if (result.success) {
+                game.ui.showNotification('👑 New Heir', `${result.heir.firstName} is now your designated heir.`, 'success');
+            } else {
+                game.ui.showNotification('Error', result.reason, 'error');
+            }
+            game.ui.hideCustomPanel();
+            ActionMenu.showDynastyMenu(game, tile);
+        };
+    },
+
+    /**
+     * Show death / succession screen when the player dies
+     */
+    showDeathScreen(game) {
+        if (typeof Relationships === 'undefined') return;
+        const player = game.player;
+        const eligibleHeirs = Relationships.getEligibleHeirs(player);
+
+        let html = '<div style="text-align: center;">';
+        html += '<h3 style="color: #a33; margin-top: 0;">💀 Death Comes for All</h3>';
+        html += `<p style="font-size: 14px;">${player.name} has died at the age of ${player.age}.</p>`;
+
+        if (player.dynasty) {
+            html += `<p style="font-size: 12px; color: var(--gold);">House ${player.dynasty.name} · Prestige: ${player.dynasty.prestige || 0}</p>`;
+        }
+
+        if (eligibleHeirs.length > 0) {
+            html += '<div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0; padding-top: 10px;">';
+            html += '<h4>Choose Your Heir</h4>';
+            html += '<p style="font-size: 12px; color: #aaa;">Continue your dynasty by taking control of one of your children.</p>';
+
+            for (const heir of eligibleHeirs) {
+                const genderIcon = heir.gender === 'male' ? '♂️' : '♀️';
+                const isDesignated = player.heir === heir.id;
+                const traitStr = heir.traits?.length > 0
+                    ? heir.traits.map(t => `${t.icon} ${t.name}`).join(', ')
+                    : 'None';
+
+                html += `<div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin-bottom: 6px; ${isDesignated ? 'border: 1px solid var(--gold);' : ''}">`;
+                html += `<strong>${heir.firstName} ${heir.dynasty}</strong> ${genderIcon} · Age ${heir.age}`;
+                if (isDesignated) html += ` <span style="color: var(--gold);">👑 Designated</span>`;
+                html += `<div style="font-size: 11px; color: #aaa;">STR ${heir.strength} · CHA ${heir.charisma} · INT ${heir.intelligence} · Traits: ${traitStr}</div>`;
+                html += `<button onclick="window._succeedAsHeir('${heir.id}')" style="width: 100%; padding: 8px; margin-top: 6px; background: ${isDesignated ? 'var(--gold)' : '#555'}; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: ${isDesignated ? '#000' : '#ccc'};">Play as ${heir.firstName}</button>`;
+                html += `</div>`;
+            }
+
+            html += '</div>';
+        } else {
+            // No heirs — game over
+            html += '<div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0; padding-top: 10px;">';
+            html += '<h4 style="color: #a33;">No Eligible Heirs</h4>';
+            html += '<p style="font-size: 12px; color: #aaa;">Without an heir of age, your dynasty ends here.</p>';
+            html += `<button onclick="location.reload();" style="width: 100%; padding: 12px; background: #a33; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: #fff; margin-top: 10px;">Start New Game</button>`;
+            html += '</div>';
+        }
+
+        html += '</div>';
+        game.ui.showCustomPanel('Death', html);
+
+        window._succeedAsHeir = (childId) => {
+            const result = Relationships.succeedAsHeir(player, childId, game.world);
+            if (result.success) {
+                game.ui.hideCustomPanel();
+
+                let successHtml = '<div style="text-align: center;">';
+                successHtml += '<h3 style="color: var(--gold); margin-top: 0;">👑 A New Chapter</h3>';
+                successHtml += `<p style="font-size: 14px;">You are now <strong>${result.newName}</strong>, heir of ${result.oldName}.</p>`;
+                successHtml += '<div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin: 10px 0; font-size: 12px; text-align: left;">';
+                successHtml += `<div>Age: ${result.heir.age}</div>`;
+                successHtml += `<div>Inherited ${player.gold} gold (${Math.round(Relationships._getHeirSettings().inheritanceGoldPercent * 100)}%)</div>`;
+                successHtml += `<div>Dynasty prestige: ${player.dynasty?.prestige || 0}</div>`;
+                successHtml += '</div>';
+                successHtml += `<button onclick="game.ui.hideCustomPanel(); game.ui.updateStats(game.player, game.world);" style="width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;">Begin Your Story</button>`;
+                successHtml += '</div>';
+
+                game.ui.showCustomPanel('New Heir', successHtml);
+                game.ui.updateStats(player, game.world);
+            } else {
+                game.ui.showNotification('Error', result.reason, 'error');
+            }
+        };
+    },
+
+    // ══════════════════════════════════════════════════════════
+    // HOUSING SYSTEM
+    // ══════════════════════════════════════════════════════════
+
+    showBuyHouseMenu(game, tile) {
+        const player = game.player;
+        const settlement = tile.settlement;
+        if (!settlement) return;
+
+        const available = Housing.getAvailableHouses(settlement.type);
+        const npcHouses = Housing.getNpcHouses(tile);
+
+        let html = '<div style="max-height:450px;overflow-y:auto;">';
+        html += '<h4 style="margin-top:0;">🏠 Buy a House</h4>';
+        html += `<p style="font-size:12px;color:var(--text-secondary);">Purchase a home in ${settlement.name}. Owning property grants renown and local influence.</p>`;
+
+        // NPC-owned houses (flavor)
+        if (npcHouses.length > 0) {
+            html += '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;padding:4px 6px;background:rgba(255,255,255,0.03);border-radius:4px;">';
+            html += `<em>Notable residents: `;
+            html += npcHouses.map(h => {
+                const ht = Housing.getHouseType(h.typeId);
+                return `${h.owner} (${ht ? ht.name : 'house'})`;
+            }).join(', ');
+            html += '</em></div>';
+        }
+
+        // Available house types
+        for (const ht of available) {
+            const cost = Housing._getSettlementPrice(ht.baseCost, settlement);
+            const canAfford = player.gold >= cost;
+            const meetsRenown = (player.renown || 0) >= ht.requiredRenown;
+            const canBuy = canAfford && meetsRenown;
+
+            html += `<div style="border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:8px;background:rgba(255,255,255,0.02);">`;
+            html += `<div style="font-weight:bold;margin-bottom:4px;">${ht.icon} ${ht.name}</div>`;
+            html += `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">${ht.description}</div>`;
+            html += '<div style="font-size:11px;display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">';
+            html += `<span>💰 ${cost}g</span>`;
+            html += `<span>🏆 +${ht.renownBonus} renown</span>`;
+            html += `<span>🤝 +${ht.reputationBonus} rep</span>`;
+            if (ht.staminaBonus) html += `<span>⚡ +${ht.staminaBonus} stamina</span>`;
+            html += `<span>❤️ +${ht.healthRegenBonus} health/day</span>`;
+            html += `<span>🔧 ${ht.maxUpgradeSlots} upgrade slots</span>`;
+            if (ht.requiredRenown > 0) html += `<span>📜 Requires ${ht.requiredRenown} renown</span>`;
+            html += `<span>🪙 ${ht.maintenanceCost}g/day upkeep</span>`;
+            html += '</div>';
+
+            if (!meetsRenown) {
+                html += `<div style="font-size:11px;color:#e74c3c;">Need ${ht.requiredRenown} renown (you have ${player.renown || 0})</div>`;
+            } else if (!canAfford) {
+                html += `<div style="font-size:11px;color:#e74c3c;">Not enough gold (need ${cost}g)</div>`;
+            } else {
+                html += `<button onclick="window._buyHouse('${ht.id}', ${cost})" style="width:100%;margin-top:4px;">Buy for ${cost}g</button>`;
+            }
+            html += '</div>';
+        }
+
+        html += '</div>';
+        game.ui.showCustomPanel('Real Estate', html);
+
+        window._buyHouse = (typeId, cost) => {
+            const result = Housing.buyHouse(player, tile.q, tile.r, typeId, game.world);
+            if (result.success) {
+                game.ui.hideCustomPanel();
+                game.ui.showNotification('🏠 New Home!', result.message, 'success');
+                game.ui.updateStats(player, game.world);
+                game.endDay();
+            } else {
+                game.ui.showNotification('Cannot Buy', result.message, 'error');
+            }
+        };
+    },
+
+    showManageHouseMenu(game, tile) {
+        const player = game.player;
+        const house = Housing.getHouseAt(player, tile.q, tile.r);
+        if (!house) return;
+
+        const ht = Housing.getHouseType(house.typeId);
+        if (!ht) return;
+
+        const value = Housing.getHouseValue(house);
+        const salePrice = Math.floor(value * Housing._getSellPenalty());
+        const influence = Housing.getInfluence(player);
+
+        let html = '<div style="max-height:450px;overflow-y:auto;">';
+        html += `<h4 style="margin-top:0;">${ht.icon} ${ht.name} — ${house.settlementName}</h4>`;
+
+        // Status bar
+        html += '<div style="display:flex;flex-wrap:wrap;gap:8px;font-size:11px;margin-bottom:10px;padding:6px;background:rgba(255,255,255,0.03);border-radius:4px;">';
+        html += `<span>🔧 Condition: ${house.condition}%</span>`;
+        html += `<span>💰 Value: ~${value}g</span>`;
+        html += `<span>🪙 Upkeep: ${ht.maintenanceCost}g/day</span>`;
+        html += `<span>👑 Influence: ${influence}</span>`;
+        html += `<span>📦 Upgrades: ${house.upgrades.length}/${ht.maxUpgradeSlots}</span>`;
+        html += '</div>';
+
+        // Installed upgrades
+        if (house.upgrades.length > 0) {
+            html += '<div style="margin-bottom:10px;">';
+            html += '<div style="font-size:12px;font-weight:bold;margin-bottom:4px;">Installed Upgrades</div>';
+            for (const uid of house.upgrades) {
+                const u = Housing.getUpgrade(uid);
+                if (!u) continue;
+                html += `<div style="font-size:11px;padding:2px 0;">${u.icon} ${u.name} — <span style="color:var(--text-secondary)">${u.description}</span></div>`;
+            }
+            html += '</div>';
+        }
+
+        // Available upgrades
+        const availUpgrades = Housing.getAvailableUpgrades(house.typeId, house.upgrades);
+        if (availUpgrades.length > 0 && house.upgrades.length < ht.maxUpgradeSlots) {
+            html += '<div style="margin-bottom:10px;">';
+            html += '<div style="font-size:12px;font-weight:bold;margin-bottom:4px;">Available Upgrades</div>';
+            for (const u of availUpgrades) {
+                const canAfford = player.gold >= u.cost;
+                html += `<div style="border:1px solid var(--border);border-radius:4px;padding:6px;margin-bottom:4px;background:rgba(255,255,255,0.02);">`;
+                html += `<div style="font-size:12px;font-weight:bold;">${u.icon} ${u.name} — ${u.cost}g</div>`;
+                html += `<div style="font-size:11px;color:var(--text-secondary);margin:2px 0 4px;">${u.description}</div>`;
+                // Show effects
+                const effects = u.effects || {};
+                const effectParts = [];
+                if (effects.healthRegenBonus) effectParts.push(`+${effects.healthRegenBonus} health/day`);
+                if (effects.renownBonus) effectParts.push(`+${effects.renownBonus} renown`);
+                if (effects.reputationBonus) effectParts.push(`+${effects.reputationBonus} reputation`);
+                if (effects.strengthBonus) effectParts.push(`+${effects.strengthBonus} strength`);
+                if (effects.charismaBonus) effectParts.push(`+${effects.charismaBonus} charisma`);
+                if (effects.intelligenceBonus) effectParts.push(`+${effects.intelligenceBonus} intelligence`);
+                if (effects.faithBonus) effectParts.push(`+${effects.faithBonus} faith`);
+                if (effects.commerceSkillBonus) effectParts.push(`+${effects.commerceSkillBonus} commerce`);
+                if (effects.combatSkillBonus) effectParts.push(`+${effects.combatSkillBonus} combat`);
+                if (effects.leadershipSkillBonus) effectParts.push(`+${effects.leadershipSkillBonus} leadership`);
+                if (effects.diplomacySkillBonus) effectParts.push(`+${effects.diplomacySkillBonus} diplomacy`);
+                if (effects.movementBonus) effectParts.push(`+${effects.movementBonus} movement`);
+                if (effects.visibilityBonus) effectParts.push(`+${effects.visibilityBonus} visibility`);
+                if (effects.defenseBonus) effectParts.push(`+${effects.defenseBonus} defense`);
+                if (effects.karmaPerDay) effectParts.push(`+${effects.karmaPerDay} karma/day`);
+                if (effects.maintenanceReduction) effectParts.push(`-${Math.round(effects.maintenanceReduction * 100)}% upkeep`);
+                if (effectParts.length > 0) {
+                    html += `<div style="font-size:10px;color:#27ae60;margin-bottom:4px;">${effectParts.join(' · ')}</div>`;
+                }
+                if (canAfford) {
+                    html += `<button onclick="window._installUpgrade('${u.id}')" style="width:100%;font-size:11px;">Install — ${u.cost}g</button>`;
+                } else {
+                    html += `<div style="font-size:11px;color:#e74c3c;">Need ${u.cost}g</div>`;
+                }
+                html += '</div>';
+            }
+            html += '</div>';
+        }
+
+        // Actions row
+        html += '<div style="display:flex;gap:6px;margin-top:8px;">';
+        if (house.condition < 100) {
+            const ht2 = Housing.getHouseType(house.typeId);
+            const damagePercent = (100 - house.condition) / 100;
+            const repairCost = Math.max(5, Math.floor((ht2 ? ht2.baseCost : 200) * 0.1 * damagePercent));
+            html += `<button onclick="window._repairHouse()" style="flex:1;">🔧 Repair (${repairCost}g)</button>`;
+        }
+        html += `<button onclick="window._sellHouseConfirm()" style="flex:1;background:#8b0000;">🏷️ Sell (~${salePrice}g)</button>`;
+        html += '</div>';
+        html += '</div>';
+
+        game.ui.showCustomPanel(`${ht.icon} Your ${ht.name}`, html);
+
+        window._installUpgrade = (upgradeId) => {
+            const result = Housing.installUpgrade(player, tile.q, tile.r, upgradeId);
+            if (result.success) {
+                game.ui.showNotification('🔧 Upgraded!', result.message, 'success');
+                game.ui.updateStats(player, game.world);
+                ActionMenu.showManageHouseMenu(game, tile); // refresh
+            } else {
+                game.ui.showNotification('Cannot Upgrade', result.message, 'error');
+            }
+        };
+
+        window._repairHouse = () => {
+            const result = Housing.repairHouse(player, tile.q, tile.r);
+            if (result.success) {
+                game.ui.showNotification('🔧 Repaired!', result.message, 'success');
+                game.ui.updateStats(player, game.world);
+                ActionMenu.showManageHouseMenu(game, tile);
+            } else {
+                game.ui.showNotification('Cannot Repair', result.message, 'error');
+            }
+        };
+
+        window._sellHouseConfirm = () => {
+            let confirmHtml = '<div>';
+            confirmHtml += `<p>Are you sure you want to sell your ${ht.name} in ${house.settlementName}?</p>`;
+            confirmHtml += `<p style="font-size:12px;color:var(--text-secondary);">You'll receive approximately <strong>${salePrice}g</strong> (${Math.round(Housing._getSellPenalty() * 100)}% of value).</p>`;
+            confirmHtml += '<div style="display:flex;gap:6px;margin-top:10px;">';
+            confirmHtml += `<button onclick="window._doSellHouse()" style="flex:1;background:#8b0000;">Confirm Sale</button>`;
+            confirmHtml += `<button onclick="ActionMenu.showManageHouseMenu(window._game, window._tile)" style="flex:1;">Cancel</button>`;
+            confirmHtml += '</div></div>';
+            game.ui.showCustomPanel('Sell Property', confirmHtml);
+        };
+        window._game = game;
+        window._tile = tile;
+
+        window._doSellHouse = () => {
+            const result = Housing.sellHouse(player, tile.q, tile.r);
+            if (result.success) {
+                game.ui.hideCustomPanel();
+                game.ui.showNotification('🏷️ Sold!', result.message, 'success');
+                game.ui.updateStats(player, game.world);
+            } else {
+                game.ui.showNotification('Error', result.message, 'error');
+            }
+        };
+    },
+
+    // ══════════════════════════════════════════════════════════
+    // SHIP SYSTEM
+    // ══════════════════════════════════════════════════════════
+
+    showShipyardMenu(game, tile) {
+        const player = game.player;
+        const settlement = tile.settlement;
+        if (!settlement) return;
+
+        const usedShips = Ships.getUsedShipsForSale(tile);
+        const buildable = Ships._getShipTypes();
+        const playerShipsHere = Ships.getShipsAt(player, tile.q, tile.r);
+
+        let html = '<div style="max-height:500px;overflow-y:auto;">';
+        html += '<h4 style="margin-top:0;">⚓ Shipyard</h4>';
+        html += `<p style="font-size:12px;color:var(--text-secondary);">Buy a used vessel, commission a new ship, or manage your fleet at ${settlement.name}.</p>`;
+
+        // Tab-like sections
+        html += '<div style="display:flex;gap:4px;margin-bottom:10px;">';
+        html += '<button onclick="window._shipTab(\'used\')" style="flex:1;font-size:11px;">🏷️ Used Ships</button>';
+        html += '<button onclick="window._shipTab(\'build\')" style="flex:1;font-size:11px;">🔨 Build New</button>';
+        if (playerShipsHere.length > 0) {
+            html += '<button onclick="window._shipTab(\'docked\')" style="flex:1;font-size:11px;">⚓ My Ships ('+playerShipsHere.length+')</button>';
+        }
+        html += '</div>';
+
+        // Used ships
+        html += '<div id="shipTabUsed">';
+        if (usedShips.length === 0) {
+            html += '<p style="font-size:12px;color:var(--text-secondary);text-align:center;">No used ships available here today.</p>';
+        }
+        for (let i = 0; i < usedShips.length; i++) {
+            const s = usedShips[i];
+            const st = Ships.getShipType(s.typeId);
+            if (!st) continue;
+            const canAfford = player.gold >= s.price;
+            html += `<div style="border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;background:rgba(255,255,255,0.02);">`;
+            html += `<div style="font-weight:bold;">${st.icon} ${s.name} <span style="font-size:11px;color:var(--text-secondary);">(${st.name})</span></div>`;
+            html += `<div style="font-size:11px;color:var(--text-secondary);margin:2px 0;">"${s.description}"</div>`;
+            html += '<div style="font-size:11px;display:flex;flex-wrap:wrap;gap:6px;margin:4px 0;">';
+            html += `<span>🔧 ${s.condition}% condition</span>`;
+            html += `<span>⚓ Speed ${st.speed}</span>`;
+            html += `<span>📦 Cargo ${st.cargoCapacity}</span>`;
+            html += `<span>⚔️ ${st.combatStrength} strength</span>`;
+            html += `<span>👥 Crew ${st.crewRequired}</span>`;
+            html += '</div>';
+            html += `<div style="font-size:12px;font-weight:bold;margin:4px 0;">💰 ${s.price}g</div>`;
+            if (canAfford) {
+                html += `<button onclick="window._buyUsedShip(${i})" style="width:100%;font-size:11px;">Buy Ship</button>`;
+            } else {
+                html += `<div style="font-size:11px;color:#e74c3c;">Not enough gold</div>`;
+            }
+            html += '</div>';
+        }
+        html += '</div>';
+
+        // Build new
+        html += '<div id="shipTabBuild" style="display:none;">';
+        for (const st of buildable) {
+            const buildCost = Ships._getSettlementBuildCost(st.baseCost, settlement);
+            const canAfford = player.gold >= buildCost;
+            html += `<div style="border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;background:rgba(255,255,255,0.02);">`;
+            html += `<div style="font-weight:bold;">${st.icon} ${st.name}</div>`;
+            html += `<div style="font-size:11px;color:var(--text-secondary);margin:2px 0;">${st.description}</div>`;
+            html += '<div style="font-size:11px;display:flex;flex-wrap:wrap;gap:6px;margin:4px 0;">';
+            html += `<span>⚓ Speed ${st.speed}</span>`;
+            html += `<span>📦 Cargo ${st.cargoCapacity}</span>`;
+            html += `<span>⚔️ ${st.combatStrength} strength</span>`;
+            html += `<span>👥 Crew ${st.crewRequired}</span>`;
+            html += `<span>🪙 ${st.dailyUpkeep}g/day upkeep</span>`;
+            html += `<span>🏗️ ${st.buildDays} days to build</span>`;
+            if (st.customizations && st.customizations.length > 0) {
+                html += `<span>🔧 ${st.customizations.length} customizations</span>`;
+            }
+            html += '</div>';
+            html += `<div style="font-size:12px;font-weight:bold;margin:4px 0;">💰 ${buildCost}g</div>`;
+            if (canAfford) {
+                html += `<button onclick="window._showBuildOptions('${st.id}', ${buildCost})" style="width:100%;font-size:11px;">Commission Build</button>`;
+            } else {
+                html += `<div style="font-size:11px;color:#e74c3c;">Need ${buildCost}g</div>`;
+            }
+            html += '</div>';
+        }
+        html += '</div>';
+
+        // Docked ships
+        html += '<div id="shipTabDocked" style="display:none;">';
+        if (playerShipsHere.length === 0) {
+            html += '<p style="font-size:12px;color:var(--text-secondary);text-align:center;">No ships docked here.</p>';
+        }
+        for (const ship of playerShipsHere) {
+            const st = Ships.getShipType(ship.typeId);
+            if (!st) continue;
+            html += `<div style="border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;background:rgba(255,255,255,0.02);">`;
+            html += `<div style="font-weight:bold;">${st.icon} ${ship.name}</div>`;
+            html += '<div style="font-size:11px;display:flex;flex-wrap:wrap;gap:6px;margin:4px 0;">';
+            html += `<span>🔧 ${ship.condition}%</span>`;
+            html += `<span>⚓ Speed ${st.speed}</span>`;
+            if (ship.customizations && ship.customizations.length > 0) {
+                html += `<span>🔧 ${ship.customizations.length} mods</span>`;
+            }
+            html += '</div>';
+            html += '<div style="display:flex;gap:4px;margin-top:4px;">';
+            html += `<button onclick="window._manageShip('${ship.id}')" style="flex:1;font-size:11px;">⚙️ Manage</button>`;
+            html += `<button onclick="window._moveShipMenu('${ship.id}')" style="flex:1;font-size:11px;">🧭 Move</button>`;
+            html += '</div>';
+            html += '</div>';
+        }
+        html += '</div>';
+
+        html += '</div>';
+        game.ui.showCustomPanel('⚓ Shipyard', html);
+
+        window._shipTab = (tab) => {
+            document.getElementById('shipTabUsed').style.display = tab === 'used' ? 'block' : 'none';
+            document.getElementById('shipTabBuild').style.display = tab === 'build' ? 'block' : 'none';
+            const dockedEl = document.getElementById('shipTabDocked');
+            if (dockedEl) dockedEl.style.display = tab === 'docked' ? 'block' : 'none';
+        };
+
+        window._buyUsedShip = (index) => {
+            const result = Ships.buyUsedShip(player, tile.q, tile.r, index);
+            if (result.success) {
+                game.ui.hideCustomPanel();
+                game.ui.showNotification('⛵ Ship Purchased!', result.message, 'success');
+                game.ui.updateStats(player, game.world);
+            } else {
+                game.ui.showNotification('Cannot Buy', result.message, 'error');
+            }
+        };
+
+        window._showBuildOptions = (typeId, cost) => {
+            ActionMenu._showShipBuildConfig(game, tile, typeId, cost);
+        };
+
+        window._manageShip = (shipId) => {
+            ActionMenu._showShipManagePanel(game, tile, shipId);
+        };
+
+        window._moveShipMenu = (shipId) => {
+            ActionMenu._showMoveShipMenu(game, tile, shipId);
+        };
+    },
+
+    _showShipBuildConfig(game, tile, typeId, baseCost) {
+        const player = game.player;
+        const st = Ships.getShipType(typeId);
+        if (!st) return;
+
+        const availCustom = Ships.getAvailableCustomizations(typeId);
+        let html = '<div style="max-height:450px;overflow-y:auto;">';
+        html += `<h4 style="margin-top:0;">🔨 Commission: ${st.icon} ${st.name}</h4>`;
+        html += `<p style="font-size:12px;color:var(--text-secondary);">Base cost: ${baseCost}g · Build time: ${st.buildDays} days</p>`;
+
+        // Ship name input
+        html += '<div style="margin-bottom:8px;">';
+        html += '<label style="font-size:11px;display:block;margin-bottom:2px;">Ship Name:</label>';
+        html += `<input id="shipNameInput" type="text" value="${Ships._generateShipName()}" style="width:100%;padding:4px 6px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);border-radius:4px;" />`;
+        html += '</div>';
+
+        // Customizations
+        if (availCustom.length > 0) {
+            html += '<div style="font-size:12px;font-weight:bold;margin-bottom:4px;">Customizations (optional):</div>';
+            for (const c of availCustom) {
+                html += `<div style="border:1px solid var(--border);border-radius:4px;padding:6px;margin-bottom:4px;background:rgba(255,255,255,0.02);">`;
+                html += `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;">`;
+                html += `<input type="checkbox" class="shipCustomCheck" value="${c.id}" data-cost="${c.cost}" />`;
+                html += `<span style="font-size:12px;">${c.icon} ${c.name} (+${c.cost}g)</span>`;
+                html += '</label>';
+                html += `<div style="font-size:10px;color:var(--text-secondary);margin-left:22px;">${c.description}</div>`;
+                // Effects
+                const efParts = [];
+                if (c.effects.speedBonus) efParts.push(`+${c.effects.speedBonus} speed`);
+                if (c.effects.cargoBonus) efParts.push(`+${c.effects.cargoBonus} cargo`);
+                if (c.effects.combatBonus) efParts.push(`+${c.effects.combatBonus} combat`);
+                if (c.effects.armorBonus) efParts.push(`+${c.effects.armorBonus} armor`);
+                if (c.effects.crewBonus) efParts.push(`+${c.effects.crewBonus} crew`);
+                if (c.effects.stealthBonus) efParts.push(`stealth +${c.effects.stealthBonus}`);
+                if (c.effects.explorationBonus) efParts.push(`exploration +${c.effects.explorationBonus}`);
+                if (efParts.length) html += `<div style="font-size:10px;color:#27ae60;margin-left:22px;">${efParts.join(' · ')}</div>`;
+                html += '</div>';
+            }
+        }
+
+        html += `<div id="buildTotalCost" style="font-size:13px;font-weight:bold;margin:8px 0;">Total: ${baseCost}g</div>`;
+        html += `<button onclick="window._commissionShip('${typeId}', ${baseCost})" style="width:100%;">🔨 Commission Ship</button>`;
+        html += `<button onclick="ActionMenu.showShipyardMenu(window._game, window._tile)" style="width:100%;margin-top:4px;background:var(--bg-secondary);">← Back</button>`;
+        html += '</div>';
+        game.ui.showCustomPanel('Commission Ship', html);
+        window._game = game;
+        window._tile = tile;
+
+        // Update total on checkbox change
+        setTimeout(() => {
+            document.querySelectorAll('.shipCustomCheck').forEach(cb => {
+                cb.addEventListener('change', () => {
+                    let total = baseCost;
+                    document.querySelectorAll('.shipCustomCheck:checked').forEach(checked => {
+                        total += parseInt(checked.dataset.cost) || 0;
+                    });
+                    document.getElementById('buildTotalCost').textContent = `Total: ${total}g`;
+                });
+            });
+        }, 50);
+
+        window._commissionShip = (stId, bCost) => {
+            const name = document.getElementById('shipNameInput').value.trim() || Ships._generateShipName();
+            const customs = [];
+            document.querySelectorAll('.shipCustomCheck:checked').forEach(cb => customs.push(cb.value));
+            const result = Ships.commissionShip(player, tile.q, tile.r, stId, name, customs, game.world);
+            if (result.success) {
+                game.ui.hideCustomPanel();
+                game.ui.showNotification('🔨 Ship Commissioned!', result.message, 'success');
+                game.ui.updateStats(player, game.world);
+                game.endDay();
+            } else {
+                game.ui.showNotification('Cannot Build', result.message, 'error');
+            }
+        };
+    },
+
+    _showShipManagePanel(game, tile, shipId) {
+        const player = game.player;
+        const ship = Ships.getShipById(player, shipId);
+        if (!ship) return;
+        const st = Ships.getShipType(ship.typeId);
+        if (!st) return;
+
+        const value = Ships.getShipValue(ship);
+        const salePrice = Math.floor(value * 0.5);
+
+        let html = '<div style="max-height:450px;overflow-y:auto;">';
+        html += `<h4 style="margin-top:0;">${st.icon} ${ship.name}</h4>`;
+        html += `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">${st.name}</div>`;
+
+        // Stats
+        html += '<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:11px;margin-bottom:8px;padding:6px;background:rgba(255,255,255,0.03);border-radius:4px;">';
+        html += `<span>🔧 Condition: ${ship.condition}%</span>`;
+        html += `<span>⚓ Speed: ${st.speed}</span>`;
+        html += `<span>📦 Cargo: ${st.cargoCapacity}</span>`;
+        html += `<span>⚔️ Strength: ${st.combatStrength}</span>`;
+        html += `<span>👥 Crew: ${st.crewRequired}</span>`;
+        html += `<span>🪙 Upkeep: ${st.dailyUpkeep}g/day</span>`;
+        if (ship.status === 'building') html += `<span>🏗️ Under construction (${ship.buildDaysLeft} days left)</span>`;
+        if (ship.status === 'moving') html += `<span>🧭 En route to ${ship.destinationName || 'destination'}</span>`;
+        html += '</div>';
+
+        // Customizations installed
+        if (ship.customizations && ship.customizations.length > 0) {
+            html += '<div style="margin-bottom:8px;">';
+            html += '<div style="font-size:12px;font-weight:bold;margin-bottom:4px;">Customizations</div>';
+            for (const cid of ship.customizations) {
+                const c = Ships.getCustomization(cid);
+                if (!c) continue;
+                html += `<div style="font-size:11px;padding:1px 0;">${c.icon} ${c.name}</div>`;
+            }
+            html += '</div>';
+        }
+
+        // Cargo manifest
+        if (ship.cargo && Object.keys(ship.cargo).length > 0) {
+            html += '<div style="margin-bottom:8px;">';
+            html += '<div style="font-size:12px;font-weight:bold;margin-bottom:4px;">Cargo</div>';
+            for (const [item, qty] of Object.entries(ship.cargo)) {
+                html += `<div style="font-size:11px;padding:1px 0;">${item}: ${qty}</div>`;
+            }
+            html += '</div>';
+        }
+
+        // Action buttons
+        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">';
+        if (ship.condition < 100 && ship.status === 'docked') {
+            const repCost = Ships.getRepairCost(ship);
+            html += `<button onclick="window._repairShip('${ship.id}')" style="flex:1;font-size:11px;">🔧 Repair (${repCost}g)</button>`;
+        }
+        if (ship.status === 'docked') {
+            html += `<button onclick="window._renameShip('${ship.id}')" style="flex:1;font-size:11px;">✏️ Rename</button>`;
+            html += `<button onclick="window._sellShipConfirm('${ship.id}', ${salePrice})" style="flex:1;font-size:11px;background:#8b0000;">🏷️ Sell (~${salePrice}g)</button>`;
+        }
+        html += '</div>';
+        html += `<button onclick="ActionMenu.showShipyardMenu(window._game, window._tile)" style="width:100%;margin-top:4px;background:var(--bg-secondary);font-size:11px;">← Back to Shipyard</button>`;
+        html += '</div>';
+
+        game.ui.showCustomPanel(`${st.icon} ${ship.name}`, html);
+        window._game = game;
+        window._tile = tile;
+
+        window._repairShip = (sid) => {
+            const result = Ships.repairShip(player, sid);
+            if (result.success) {
+                game.ui.showNotification('🔧 Repaired!', result.message, 'success');
+                game.ui.updateStats(player, game.world);
+                ActionMenu._showShipManagePanel(game, tile, sid);
+            } else {
+                game.ui.showNotification('Error', result.message, 'error');
+            }
+        };
+
+        window._renameShip = (sid) => {
+            let renameHtml = '<div>';
+            renameHtml += '<label style="font-size:12px;">New name:</label>';
+            renameHtml += `<input id="renameShipInput" type="text" value="${ship.name}" style="width:100%;padding:4px 6px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);border-radius:4px;margin:4px 0;" />`;
+            renameHtml += `<button onclick="window._doRenameShip('${sid}')" style="width:100%;">Confirm</button>`;
+            renameHtml += '</div>';
+            game.ui.showCustomPanel('Rename Ship', renameHtml);
+        };
+
+        window._doRenameShip = (sid) => {
+            const newName = document.getElementById('renameShipInput').value.trim();
+            if (newName) {
+                const s = Ships.getShipById(player, sid);
+                if (s) s.name = newName;
+            }
+            ActionMenu._showShipManagePanel(game, tile, sid);
+        };
+
+        window._sellShipConfirm = (sid, price) => {
+            let cHtml = '<div>';
+            cHtml += `<p>Sell ${ship.name} for approximately ${price}g?</p>`;
+            cHtml += '<div style="display:flex;gap:6px;">';
+            cHtml += `<button onclick="window._doSellShip('${sid}')" style="flex:1;background:#8b0000;">Confirm</button>`;
+            cHtml += `<button onclick="ActionMenu._showShipManagePanel(window._game, window._tile, '${sid}')" style="flex:1;">Cancel</button>`;
+            cHtml += '</div></div>';
+            game.ui.showCustomPanel('Sell Ship', cHtml);
+        };
+
+        window._doSellShip = (sid) => {
+            const result = Ships.sellShip(player, sid);
+            if (result.success) {
+                game.ui.hideCustomPanel();
+                game.ui.showNotification('🏷️ Ship Sold!', result.message, 'success');
+                game.ui.updateStats(player, game.world);
+            } else {
+                game.ui.showNotification('Error', result.message, 'error');
+            }
+        };
+    },
+
+    _showMoveShipMenu(game, tile, shipId) {
+        const player = game.player;
+        const ship = Ships.getShipById(player, shipId);
+        if (!ship) return;
+        const st = Ships.getShipType(ship.typeId);
+
+        // Find coastal settlements the ship can move to
+        const allSettlements = game.world.getAllSettlements();
+        const coastalDests = allSettlements.filter(s => {
+            if (s.q === tile.q && s.r === tile.r) return false;
+            return Hex.neighbors(s.q, s.r).some(n => {
+                const nt = game.world.getTile(n.q, n.r);
+                return nt && ['ocean', 'deep_ocean', 'coast', 'lake', 'sea'].includes(nt.terrain.id);
+            });
+        });
+
+        let html = '<div style="max-height:400px;overflow-y:auto;">';
+        html += `<h4 style="margin-top:0;">🧭 Move ${ship.name}</h4>`;
+        html += '<p style="font-size:12px;color:var(--text-secondary);">Choose a destination port. Your ship will travel there over time.</p>';
+
+        if (coastalDests.length === 0) {
+            html += '<p style="text-align:center;color:var(--text-secondary);">No reachable ports found.</p>';
+        }
+        for (const dest of coastalDests) {
+            const dist = Hex.distance(tile.q, tile.r, dest.q, dest.r);
+            const travelDays = Math.max(1, Math.ceil(dist / (st ? st.speed : 4)));
+            html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px;border-bottom:1px solid var(--border);">`;
+            html += `<div>`;
+            html += `<div style="font-size:12px;font-weight:bold;">${dest.name} (${dest.type})</div>`;
+            html += `<div style="font-size:10px;color:var(--text-secondary);">${dist} hexes · ~${travelDays} days</div>`;
+            html += '</div>';
+            html += `<button onclick="window._sendShipTo('${ship.id}', ${dest.q}, ${dest.r}, '${dest.name.replace(/'/g, "\\'")}')" style="font-size:11px;">Send</button>`;
+            html += '</div>';
+        }
+
+        html += `<button onclick="ActionMenu.showShipyardMenu(window._game, window._tile)" style="width:100%;margin-top:8px;background:var(--bg-secondary);font-size:11px;">← Back</button>`;
+        html += '</div>';
+        game.ui.showCustomPanel('Move Ship', html);
+        window._game = game;
+        window._tile = tile;
+
+        window._sendShipTo = (sid, dq, dr, dname) => {
+            const result = Ships.moveShip(player, sid, dq, dr, dname, game.world);
+            if (result.success) {
+                game.ui.hideCustomPanel();
+                game.ui.showNotification('🧭 Ship Dispatched!', result.message, 'info');
+                game.ui.updateStats(player, game.world);
+            } else {
+                game.ui.showNotification('Error', result.message, 'error');
+            }
+        };
+    },
+
+    showBoardShipMenu(game, tile) {
+        const player = game.player;
+        const dockedShips = Ships.getShipsAt(player, tile.q, tile.r);
+
+        let html = '<div style="max-height:450px;overflow-y:auto;">';
+        html += '<h4 style="margin-top:0;">🚢 Board a Ship</h4>';
+        html += '<p style="font-size:12px;color:var(--text-secondary);">Board one of your ships and set sail. You can travel, explore, trade, or seek combat on the seas.</p>';
+
+        for (const ship of dockedShips) {
+            if (ship.status !== 'docked') continue;
+            const st = Ships.getShipType(ship.typeId);
+            if (!st) continue;
+            html += `<div style="border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;background:rgba(255,255,255,0.02);">`;
+            html += `<div style="font-weight:bold;">${st.icon} ${ship.name}</div>`;
+            html += '<div style="font-size:11px;display:flex;flex-wrap:wrap;gap:6px;margin:4px 0;">';
+            html += `<span>🔧 ${ship.condition}%</span><span>⚓ Speed ${st.speed}</span><span>⚔️ ${st.combatStrength} str</span>`;
+            html += '</div>';
+            html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">';
+            html += `<button onclick="window._sailTo('${ship.id}')" style="flex:1;font-size:11px;">🧭 Sail to Port</button>`;
+            html += `<button onclick="window._explore('${ship.id}')" style="flex:1;font-size:11px;">🔭 Explore Seas</button>`;
+            html += `<button onclick="window._huntPirates('${ship.id}')" style="flex:1;font-size:11px;">⚔️ Hunt Pirates</button>`;
+            html += `<button onclick="window._piracy('${ship.id}')" style="flex:1;font-size:11px;">🏴‍☠️ Piracy</button>`;
+            html += `<button onclick="window._seaTrade('${ship.id}')" style="flex:1;font-size:11px;">💰 Sea Trade</button>`;
+            html += '</div>';
+            html += '</div>';
+        }
+
+        html += '</div>';
+        game.ui.showCustomPanel('🚢 Board Ship', html);
+
+        window._sailTo = (shipId) => {
+            ActionMenu._showSailToMenu(game, tile, shipId);
+        };
+
+        window._explore = (shipId) => {
+            const result = Ships.exploreOcean(player, shipId, game.world);
+            game.ui.hideCustomPanel();
+            if (result.success) {
+                game.ui.showNotification(result.icon || '🔭', result.title, result.type || 'info');
+                if (result.moved) {
+                    game.camera.centerOn(player.q, player.r);
+                }
+            } else {
+                game.ui.showNotification('Error', result.message, 'error');
+            }
+            game.ui.updateStats(player, game.world);
+            game.endDay();
+        };
+
+        window._huntPirates = (shipId) => {
+            const result = Ships.huntPirates(player, shipId, game.world);
+            game.ui.hideCustomPanel();
+            game.ui.showNotification(result.icon || '⚔️', result.title || 'Pirate Hunt', result.type || 'info');
+            game.ui.updateStats(player, game.world);
+            game.endDay();
+        };
+
+        window._piracy = (shipId) => {
+            const result = Ships.commitPiracy(player, shipId, game.world);
+            game.ui.hideCustomPanel();
+            game.ui.showNotification(result.icon || '🏴‍☠️', result.title || 'Piracy', result.type || 'info');
+            game.ui.updateStats(player, game.world);
+            game.endDay();
+        };
+
+        window._seaTrade = (shipId) => {
+            const result = Ships.doSeaTrade(player, shipId, game.world);
+            game.ui.hideCustomPanel();
+            game.ui.showNotification(result.icon || '💰', result.title || 'Sea Trade', result.type || 'info');
+            game.ui.updateStats(player, game.world);
+            game.endDay();
+        };
+    },
+
+    _showSailToMenu(game, tile, shipId) {
+        const player = game.player;
+        const ship = Ships.getShipById(player, shipId);
+        if (!ship) return;
+        const st = Ships.getShipType(ship.typeId);
+
+        const allSettlements = game.world.getAllSettlements();
+        const coastalDests = allSettlements.filter(s => {
+            if (s.q === tile.q && s.r === tile.r) return false;
+            return Hex.neighbors(s.q, s.r).some(n => {
+                const nt = game.world.getTile(n.q, n.r);
+                return nt && ['ocean', 'deep_ocean', 'coast', 'lake', 'sea'].includes(nt.terrain.id);
+            });
+        });
+
+        let html = '<div style="max-height:400px;overflow-y:auto;">';
+        html += `<h4 style="margin-top:0;">🧭 Sail ${ship.name} to...</h4>`;
+
+        for (const dest of coastalDests) {
+            const dist = Hex.distance(tile.q, tile.r, dest.q, dest.r);
+            const speed = st ? st.speed : 4;
+            const travelDays = Math.max(1, Math.ceil(dist / speed));
+            const fuelCost = travelDays * (st ? st.dailyUpkeep : 5);
+            html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px;border-bottom:1px solid var(--border);">`;
+            html += `<div><div style="font-size:12px;font-weight:bold;">${dest.name}</div>`;
+            html += `<div style="font-size:10px;color:var(--text-secondary);">~${travelDays} days · ${fuelCost}g travel costs</div></div>`;
+            html += `<button onclick="window._doSailTo('${ship.id}', ${dest.q}, ${dest.r}, '${dest.name.replace(/'/g, "\\'")}')" style="font-size:11px;">Sail</button>`;
+            html += '</div>';
+        }
+
+        html += `<button onclick="ActionMenu.showBoardShipMenu(window._game, window._tile)" style="width:100%;margin-top:8px;background:var(--bg-secondary);font-size:11px;">← Back</button>`;
+        html += '</div>';
+        game.ui.showCustomPanel('Set Sail', html);
+        window._game = game;
+        window._tile = tile;
+
+        window._doSailTo = (sid, dq, dr, dname) => {
+            const result = Ships.sailPlayerTo(player, sid, dq, dr, dname, game.world);
+            if (result.success) {
+                game.ui.hideCustomPanel();
+                game.ui.showNotification('⛵ Arrived!', result.message, 'success');
+                game.camera.centerOn(player.q, player.r);
+                game.ui.updateStats(player, game.world);
+                game.endDay();
+            } else {
+                game.ui.showNotification('Error', result.message, 'error');
+            }
+        };
+    },
+
+    showFleetMenu(game, tile) {
+        const player = game.player;
+        const allShips = player.ships || [];
+
+        let html = '<div style="max-height:450px;overflow-y:auto;">';
+        html += '<h4 style="margin-top:0;">⚓ Your Fleet</h4>';
+
+        if (allShips.length === 0) {
+            html += '<p style="font-size:12px;color:var(--text-secondary);text-align:center;">You do not own any ships.</p>';
+        }
+
+        for (const ship of allShips) {
+            const st = Ships.getShipType(ship.typeId);
+            if (!st) continue;
+            const statusIcon = ship.status === 'docked' ? '⚓' : ship.status === 'building' ? '🏗️' : ship.status === 'moving' ? '🧭' : '⚓';
+            html += `<div style="border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;background:rgba(255,255,255,0.02);">`;
+            html += `<div style="font-weight:bold;">${st.icon} ${ship.name} <span style="font-size:10px;color:var(--text-secondary);">${statusIcon} ${ship.status}</span></div>`;
+            html += '<div style="font-size:11px;display:flex;flex-wrap:wrap;gap:6px;margin:4px 0;">';
+            html += `<span>📍 ${ship.dockedAt || ship.destinationName || 'Unknown'}</span>`;
+            html += `<span>🔧 ${ship.condition}%</span>`;
+            if (ship.status === 'building') html += `<span>🏗️ ${ship.buildDaysLeft} days left</span>`;
+            if (ship.status === 'moving') html += `<span>🧭 ${ship.travelDaysLeft || '?'} days ETA</span>`;
+            html += '</div>';
+            html += '</div>';
+        }
+
+        html += '</div>';
+        game.ui.showCustomPanel('⚓ Fleet Overview', html);
     },
 
     /**

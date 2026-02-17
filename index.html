@@ -209,10 +209,30 @@
         <canvas id="titleBgCanvas"></canvas>
     </div>
 
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="hidden">
+        <div id="loadingContent">
+            <div class="loading-spinner"></div>
+            <p id="loadingText">Generating World...</p>
+            <p id="loadingSubtext">Forging continents and oceans</p>
+        </div>
+    </div>
+
     <!-- Settings Screen -->
     <div id="settingsScreen" class="hidden">
         <div id="settingsContent">
             <h2 class="settings-title">New Game Initialization</h2>
+
+            <!-- Map Size Presets -->
+            <div class="settings-presets">
+                <span class="preset-label">Map Size:</span>
+                <button class="preset-btn" data-preset="tiny">Tiny</button>
+                <button class="preset-btn" data-preset="small">Small</button>
+                <button class="preset-btn active" data-preset="medium">Medium</button>
+                <button class="preset-btn" data-preset="large">Large</button>
+                <button class="preset-btn" data-preset="huge">Huge</button>
+                <button class="preset-btn" data-preset="epic">Epic</button>
+            </div>
 
             <div class="settings-groups-container">
                 <!-- Character Settings -->
@@ -236,44 +256,268 @@
                     </div>
                 </div>
 
-                <!-- World Generation Settings -->
+                <!-- World Size Settings -->
                 <div class="settings-group">
-                    <h3>World Generation</h3>
+                    <h3>World Dimensions</h3>
                     <div class="input-row">
                         <label for="worldWidth">Width:</label>
-                        <input type="range" id="worldWidth" min="40" max="250" value="120">
+                        <input type="range" id="worldWidth" min="40" max="500" value="120">
                         <span class="range-value" id="valWorldWidth">120</span>
                     </div>
                     <div class="input-row">
                         <label for="worldHeight">Height:</label>
-                        <input type="range" id="worldHeight" min="30" max="150" value="80">
+                        <input type="range" id="worldHeight" min="30" max="350" value="80">
                         <span class="range-value" id="valWorldHeight">80</span>
                     </div>
                     <div class="input-row">
+                        <label for="mapSeed">Seed:</label>
+                        <input type="text" id="mapSeed" placeholder="Random" maxlength="20">
+                    </div>
+                </div>
+
+                <!-- Continent & Landmass Settings -->
+                <div class="settings-group">
+                    <h3>Continents & Land</h3>
+                    <div class="input-row">
                         <label for="continentCount">Continents:</label>
-                        <input type="range" id="continentCount" min="1" max="6" value="3">
+                        <input type="range" id="continentCount" min="1" max="15" value="3">
                         <span class="range-value" id="valContinentCount">3</span>
                     </div>
+                    <div class="input-row">
+                        <label for="continentSize">Continent Size:</label>
+                        <select id="continentSize">
+                            <option value="small">Small (many islands)</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="large">Large (sprawling)</option>
+                            <option value="pangaea">Pangaea (one mass)</option>
+                        </select>
+                    </div>
+                    <div class="input-row">
+                        <label for="islandFreq">Islands:</label>
+                        <input type="range" id="islandFreq" min="0" max="5" step="0.1" value="1.0">
+                        <span class="range-value" id="valIslandFreq">1.0</span>
+                    </div>
+                    <div class="input-row">
+                        <label for="landMass">Land Coverage:</label>
+                        <input type="range" id="landMass" min="15" max="85" value="45">
+                        <span class="range-value range-value-pct" id="valLandMass">45%</span>
+                    </div>
+                </div>
+
+                <!-- Water & Ocean Settings -->
+                <div class="settings-group">
+                    <h3>Water & Oceans</h3>
+                    <div class="input-row">
+                        <label for="waterLevel">Sea Level:</label>
+                        <input type="range" id="waterLevel" min="0.20" max="0.60" step="0.01" value="0.42">
+                        <span class="range-value" id="valWaterLevel">0.42</span>
+                    </div>
+                    <div class="input-row">
+                        <label for="riverCount">Rivers:</label>
+                        <input type="range" id="riverCount" min="0" max="200" value="40">
+                        <span class="range-value" id="valRiverCount">40</span>
+                    </div>
+                    <div class="input-row">
+                        <label for="lakeFreq">Lakes:</label>
+                        <select id="lakeFreq">
+                            <option value="none">None</option>
+                            <option value="few">Few</option>
+                            <option value="normal" selected>Normal</option>
+                            <option value="many">Many</option>
+                            <option value="abundant">Abundant</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Terrain & Elevation -->
+                <div class="settings-group">
+                    <h3>Terrain & Elevation</h3>
                     <div class="input-row">
                         <label for="terrainFreq">Land Density:</label>
                         <input type="range" id="terrainFreq" min="0.5" max="3.0" step="0.1" value="1.1">
                         <span class="range-value" id="valTerrainFreq">1.1</span>
                     </div>
                     <div class="input-row">
-                        <label for="riverCount">River Frequency:</label>
-                        <input type="range" id="riverCount" min="0" max="100" value="40">
-                        <span class="range-value" id="valRiverCount">40</span>
+                        <label for="mountainDensity">Mountains:</label>
+                        <input type="range" id="mountainDensity" min="0" max="200" value="100">
+                        <span class="range-value range-value-pct" id="valMountainDensity">100%</span>
                     </div>
                     <div class="input-row">
-                        <label for="waterLevel">Sea Level:</label>
-                        <input type="range" id="waterLevel" min="0.2" max="0.6" step="0.01" value="0.42">
-                        <span class="range-value" id="valWaterLevel">0.42</span>
+                        <label for="hillDensity">Hills:</label>
+                        <input type="range" id="hillDensity" min="0" max="200" value="100">
+                        <span class="range-value range-value-pct" id="valHillDensity">100%</span>
+                    </div>
+                    <div class="input-row">
+                        <label for="flatness">Flatness:</label>
+                        <select id="flatness">
+                            <option value="rugged">Rugged</option>
+                            <option value="normal" selected>Normal</option>
+                            <option value="flat">Flat</option>
+                            <option value="veryFlat">Very Flat</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Climate & Biome -->
+                <div class="settings-group">
+                    <h3>Climate & Biome</h3>
+                    <div class="input-row">
+                        <label for="temperature">Temperature:</label>
+                        <select id="temperature">
+                            <option value="frozen">Frozen World</option>
+                            <option value="cold">Cold</option>
+                            <option value="cool">Cool</option>
+                            <option value="normal" selected>Normal</option>
+                            <option value="warm">Warm</option>
+                            <option value="hot">Hot</option>
+                            <option value="scorching">Scorching</option>
+                        </select>
+                    </div>
+                    <div class="input-row">
+                        <label for="rainfall">Rainfall:</label>
+                        <select id="rainfall">
+                            <option value="arid">Arid</option>
+                            <option value="dry">Dry</option>
+                            <option value="normal" selected>Normal</option>
+                            <option value="wet">Wet</option>
+                            <option value="tropical">Tropical</option>
+                        </select>
+                    </div>
+                    <div class="input-row">
+                        <label for="polarIce">Polar Ice:</label>
+                        <select id="polarIce">
+                            <option value="none">None</option>
+                            <option value="minimal">Minimal</option>
+                            <option value="normal" selected>Normal</option>
+                            <option value="extensive">Extensive</option>
+                            <option value="iceAge">Ice Age</option>
+                        </select>
+                    </div>
+                    <div class="input-row">
+                        <label for="desertFreq">Deserts:</label>
+                        <select id="desertFreq">
+                            <option value="none">None</option>
+                            <option value="few">Few</option>
+                            <option value="normal" selected>Normal</option>
+                            <option value="many">Many</option>
+                            <option value="wasteland">Wasteland</option>
+                        </select>
+                    </div>
+                    <div class="input-row">
+                        <label for="forestDensity">Forests:</label>
+                        <input type="range" id="forestDensity" min="0" max="200" value="100">
+                        <span class="range-value range-value-pct" id="valForestDensity">100%</span>
+                    </div>
+                </div>
+
+                <!-- Resources -->
+                <div class="settings-group">
+                    <h3>Resources</h3>
+                    <div class="input-row">
+                        <label for="resourceDensity">Resource Amount:</label>
+                        <select id="resourceDensity">
+                            <option value="scarce">Scarce</option>
+                            <option value="low">Low</option>
+                            <option value="normal" selected>Normal</option>
+                            <option value="abundant">Abundant</option>
+                            <option value="rich">Rich</option>
+                        </select>
+                    </div>
+                    <div class="input-row">
+                        <label for="strategicRes">Strategic Res.:</label>
+                        <select id="strategicRes">
+                            <option value="scarce">Scarce</option>
+                            <option value="normal" selected>Normal</option>
+                            <option value="abundant">Abundant</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Kingdoms & Population -->
+                <div class="settings-group">
+                    <h3>Kingdoms & World</h3>
+                    <div class="input-row">
+                        <label for="kingdomCount">Kingdoms:</label>
+                        <input type="range" id="kingdomCount" min="2" max="20" value="6">
+                        <span class="range-value" id="valKingdomCount">6</span>
+                    </div>
+                    <div class="input-row">
+                        <label for="independentSettlements">Independent Towns:</label>
+                        <select id="independentSettlements">
+                            <option value="none">None</option>
+                            <option value="few">Few</option>
+                            <option value="normal" selected>Normal</option>
+                            <option value="many">Many</option>
+                        </select>
+                    </div>
+                    <div class="input-row">
+                        <label for="ruinsFreq">Ruins & POI:</label>
+                        <select id="ruinsFreq">
+                            <option value="none">None</option>
+                            <option value="few">Few</option>
+                            <option value="normal" selected>Normal</option>
+                            <option value="many">Many</option>
+                        </select>
                     </div>
                 </div>
             </div>
 
+            <!-- Advanced Settings Toggle -->
+            <details class="advanced-settings">
+                <summary>Advanced Generation Parameters</summary>
+                <div class="settings-groups-container">
+                    <div class="settings-group">
+                        <h3>Noise Parameters</h3>
+                        <div class="input-row">
+                            <label for="terrainOctaves">Terrain Detail:</label>
+                            <input type="range" id="terrainOctaves" min="2" max="10" value="6">
+                            <span class="range-value" id="valTerrainOctaves">6</span>
+                        </div>
+                        <div class="input-row">
+                            <label for="heatFreq">Heat Variation:</label>
+                            <input type="range" id="heatFreq" min="1.0" max="6.0" step="0.1" value="3.0">
+                            <span class="range-value" id="valHeatFreq">3.0</span>
+                        </div>
+                        <div class="input-row">
+                            <label for="moistFreq">Moisture Var.:</label>
+                            <input type="range" id="moistFreq" min="0.5" max="5.0" step="0.1" value="2.0">
+                            <span class="range-value" id="valMoistFreq">2.0</span>
+                        </div>
+                        <div class="input-row">
+                            <label for="coastalDetail">Coast Detail:</label>
+                            <input type="range" id="coastalDetail" min="1" max="10" value="5">
+                            <span class="range-value" id="valCoastalDetail">5</span>
+                        </div>
+                    </div>
+                    <div class="settings-group">
+                        <h3>Elevation Thresholds</h3>
+                        <div class="input-row">
+                            <label for="deepWaterLevel">Deep Water:</label>
+                            <input type="range" id="deepWaterLevel" min="0.05" max="0.35" step="0.01" value="0.20">
+                            <span class="range-value" id="valDeepWaterLevel">0.20</span>
+                        </div>
+                        <div class="input-row">
+                            <label for="hillsLevel">Hills Threshold:</label>
+                            <input type="range" id="hillsLevel" min="0.45" max="0.75" step="0.01" value="0.52">
+                            <span class="range-value" id="valHillsLevel">0.52</span>
+                        </div>
+                        <div class="input-row">
+                            <label for="mountainLevel">Mountain Threshold:</label>
+                            <input type="range" id="mountainLevel" min="0.55" max="0.90" step="0.01" value="0.70">
+                            <span class="range-value" id="valMountainLevel">0.70</span>
+                        </div>
+                        <div class="input-row">
+                            <label for="snowPeakLevel">Snow Peak Level:</label>
+                            <input type="range" id="snowPeakLevel" min="0.75" max="0.98" step="0.01" value="0.88">
+                            <span class="range-value" id="valSnowPeakLevel">0.88</span>
+                        </div>
+                    </div>
+                </div>
+            </details>
+
             <div class="settings-actions">
                 <button class="title-btn" id="btnBackToTitle">Back</button>
+                <button class="title-btn" id="btnRandomize">🎲 Randomize</button>
                 <button class="title-btn primary" id="btnStartGame">Forge My Destiny</button>
             </div>
         </div>
@@ -312,6 +556,9 @@
     <script src="js/systems/peoples.js"></script>
     <script src="js/systems/cartography.js"></script>
     <script src="js/systems/marketDynamics.js"></script>
+    <script src="js/systems/relationships.js"></script>
+    <script src="js/systems/housing.js"></script>
+    <script src="js/systems/ships.js"></script>
 
     <!-- Scripts — Player (remaining) -->
     <script src="js/player/tavern.js"></script>

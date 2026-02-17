@@ -1,0 +1,252 @@
+{
+  "oddJobs": {
+    "settlement_jobs": {
+      "village": [
+        { "id": "farm_hand", "name": "Farm Hand", "icon": "🌾", "description": "Help local farmers with planting and harvesting.", "pay": { "min": 10, "max": 25 }, "stat": "strength", "difficulty": 3 },
+        { "id": "stable_boy", "name": "Stable Hand", "icon": "🐴", "description": "Muck out stalls and groom the horses.", "pay": { "min": 8, "max": 18 }, "stat": "strength", "difficulty": 2 },
+        { "id": "well_digger", "name": "Well Digger", "icon": "💧", "description": "Help dig a new well for the village.", "pay": { "min": 15, "max": 30 }, "stat": "strength", "difficulty": 5 },
+        { "id": "woodcutter", "name": "Woodcutter", "icon": "🪓", "description": "Chop firewood for the village hearths.", "pay": { "min": 12, "max": 22 }, "stat": "strength", "difficulty": 3 },
+        { "id": "shepherd", "name": "Shepherd", "icon": "🐑", "description": "Watch over the village flock for the day.", "pay": { "min": 8, "max": 15 }, "stat": "intelligence", "difficulty": 2 },
+        { "id": "herb_picker", "name": "Herb Picker", "icon": "🌿", "description": "Gather medicinal herbs for the local healer.", "pay": { "min": 10, "max": 20 }, "stat": "intelligence", "difficulty": 3 }
+      ],
+      "town": [
+        { "id": "dock_worker", "name": "Dock Worker", "icon": "📦", "description": "Load and unload merchant wagons at the market.", "pay": { "min": 18, "max": 35 }, "stat": "strength", "difficulty": 4 },
+        { "id": "courier", "name": "Courier", "icon": "📨", "description": "Deliver messages and parcels around town.", "pay": { "min": 15, "max": 30 }, "stat": "stamina", "difficulty": 3 },
+        { "id": "mason_helper", "name": "Mason's Helper", "icon": "🧱", "description": "Carry bricks and mix mortar for the builders.", "pay": { "min": 20, "max": 40 }, "stat": "strength", "difficulty": 5 },
+        { "id": "tavern_bouncer", "name": "Tavern Bouncer", "icon": "💪", "description": "Keep the peace at a rowdy tavern tonight.", "pay": { "min": 20, "max": 45 }, "stat": "strength", "difficulty": 5 },
+        { "id": "market_crier", "name": "Market Crier", "icon": "📢", "description": "Announce merchants' wares to the crowd.", "pay": { "min": 12, "max": 28 }, "stat": "charisma", "difficulty": 3 },
+        { "id": "scribe_assistant", "name": "Scribe's Assistant", "icon": "📝", "description": "Help copy documents and ledgers.", "pay": { "min": 22, "max": 40 }, "stat": "intelligence", "difficulty": 5 },
+        { "id": "rat_catcher", "name": "Rat Catcher", "icon": "🐀", "description": "Clear vermin from cellars and granaries.", "pay": { "min": 15, "max": 30 }, "stat": "stealth", "difficulty": 3 },
+        { "id": "night_watch", "name": "Night Watch", "icon": "🔦", "description": "Patrol the town walls through the night.", "pay": { "min": 18, "max": 35 }, "stat": "combat", "difficulty": 4 }
+      ],
+      "capital": [
+        { "id": "warehouse_guard", "name": "Warehouse Guard", "icon": "🛡️", "description": "Guard a merchant's warehouse for the day.", "pay": { "min": 30, "max": 55 }, "stat": "combat", "difficulty": 4 },
+        { "id": "cargo_hauler", "name": "Cargo Hauler", "icon": "🏋️", "description": "Move heavy goods between market districts.", "pay": { "min": 25, "max": 50 }, "stat": "strength", "difficulty": 5 },
+        { "id": "herald", "name": "Herald", "icon": "📯", "description": "Read royal proclamations in the city square.", "pay": { "min": 25, "max": 50 }, "stat": "charisma", "difficulty": 5 },
+        { "id": "arena_fighter", "name": "Arena Fighter", "icon": "🗡️", "description": "Fight in exhibition matches for the crowd.", "pay": { "min": 40, "max": 80 }, "stat": "combat", "difficulty": 7 },
+        { "id": "tax_collector", "name": "Tax Collector's Aid", "icon": "💰", "description": "Help collect overdue taxes — not popular work.", "pay": { "min": 35, "max": 65 }, "stat": "charisma", "difficulty": 6 },
+        { "id": "tutor", "name": "Tutor", "icon": "📖", "description": "Teach a noble's children reading and arithmetic.", "pay": { "min": 30, "max": 55 }, "stat": "intelligence", "difficulty": 6 },
+        { "id": "pit_fighter", "name": "Pit Fighter", "icon": "⚔️", "description": "Bare-knuckle brawling in the underground pits.", "pay": { "min": 35, "max": 75 }, "stat": "combat", "difficulty": 7 },
+        { "id": "spy_errand", "name": "Discrete Errand", "icon": "🕵️", "description": "Deliver a sealed letter — no questions asked.", "pay": { "min": 40, "max": 70 }, "stat": "stealth", "difficulty": 6 }
+      ]
+    }
+  },
+
+  "foraging": {
+    "loot_table": {
+      "forest": [
+        { "item": "herbs", "name": "Wild Herbs", "icon": "🌿", "chance": 0.40, "qty": { "min": 1, "max": 3 }, "sellPrice": 5 },
+        { "item": "berries", "name": "Wild Berries", "icon": "🫐", "chance": 0.35, "qty": { "min": 2, "max": 5 }, "sellPrice": 3 },
+        { "item": "mushrooms", "name": "Mushrooms", "icon": "🍄", "chance": 0.25, "qty": { "min": 1, "max": 4 }, "sellPrice": 4 },
+        { "item": "honey", "name": "Wild Honey", "icon": "🍯", "chance": 0.10, "qty": { "min": 1, "max": 2 }, "sellPrice": 12 },
+        { "item": "truffles", "name": "Truffles", "icon": "🟤", "chance": 0.05, "qty": { "min": 1, "max": 1 }, "sellPrice": 25 }
+      ],
+      "plains": [
+        { "item": "herbs", "name": "Prairie Herbs", "icon": "🌿", "chance": 0.35, "qty": { "min": 1, "max": 3 }, "sellPrice": 5 },
+        { "item": "berries", "name": "Wild Berries", "icon": "🫐", "chance": 0.25, "qty": { "min": 1, "max": 3 }, "sellPrice": 3 },
+        { "item": "flax", "name": "Wild Flax", "icon": "🌾", "chance": 0.20, "qty": { "min": 1, "max": 3 }, "sellPrice": 6 },
+        { "item": "feathers", "name": "Feathers", "icon": "🪶", "chance": 0.15, "qty": { "min": 2, "max": 5 }, "sellPrice": 4 }
+      ],
+      "hills": [
+        { "item": "herbs", "name": "Mountain Herbs", "icon": "🌿", "chance": 0.30, "qty": { "min": 1, "max": 2 }, "sellPrice": 7 },
+        { "item": "stone", "name": "Loose Stone", "icon": "🪨", "chance": 0.25, "qty": { "min": 1, "max": 3 }, "sellPrice": 3 },
+        { "item": "ore_scraps", "name": "Ore Scraps", "icon": "⛰️", "chance": 0.10, "qty": { "min": 1, "max": 2 }, "sellPrice": 10 },
+        { "item": "fossils", "name": "Fossils", "icon": "🦴", "chance": 0.05, "qty": { "min": 1, "max": 1 }, "sellPrice": 20 }
+      ],
+      "coast": [
+        { "item": "shells", "name": "Shells", "icon": "🐚", "chance": 0.40, "qty": { "min": 2, "max": 6 }, "sellPrice": 2 },
+        { "item": "driftwood", "name": "Driftwood", "icon": "🪵", "chance": 0.30, "qty": { "min": 1, "max": 3 }, "sellPrice": 4 },
+        { "item": "seaweed", "name": "Edible Seaweed", "icon": "🌊", "chance": 0.25, "qty": { "min": 2, "max": 4 }, "sellPrice": 3 },
+        { "item": "pearls", "name": "Pearls", "icon": "🔮", "chance": 0.03, "qty": { "min": 1, "max": 1 }, "sellPrice": 35 },
+        { "item": "ambergris", "name": "Ambergris", "icon": "🟡", "chance": 0.02, "qty": { "min": 1, "max": 1 }, "sellPrice": 50 }
+      ],
+      "desert": [
+        { "item": "cactus_fruit", "name": "Cactus Fruit", "icon": "🌵", "chance": 0.30, "qty": { "min": 1, "max": 2 }, "sellPrice": 6 },
+        { "item": "scorpion_venom", "name": "Scorpion Venom", "icon": "🦂", "chance": 0.10, "qty": { "min": 1, "max": 1 }, "sellPrice": 15 },
+        { "item": "desert_rose", "name": "Desert Rose", "icon": "🌹", "chance": 0.05, "qty": { "min": 1, "max": 1 }, "sellPrice": 20 }
+      ],
+      "swamp": [
+        { "item": "leeches", "name": "Medicinal Leeches", "icon": "🪱", "chance": 0.30, "qty": { "min": 1, "max": 3 }, "sellPrice": 8 },
+        { "item": "mushrooms", "name": "Swamp Mushrooms", "icon": "🍄", "chance": 0.25, "qty": { "min": 1, "max": 3 }, "sellPrice": 5 },
+        { "item": "peat", "name": "Peat", "icon": "🟫", "chance": 0.20, "qty": { "min": 2, "max": 4 }, "sellPrice": 4 },
+        { "item": "rare_frog", "name": "Rare Frog", "icon": "🐸", "chance": 0.05, "qty": { "min": 1, "max": 1 }, "sellPrice": 30 }
+      ]
+    },
+    "terrain_mapping": {
+      "forest": "forest", "dense_forest": "forest", "woodland": "forest",
+      "boreal_forest": "forest", "seasonal_forest": "forest",
+      "temperate_rainforest": "forest", "tropical_rainforest": "forest",
+      "plains": "plains", "grassland": "plains", "steppe": "plains", "savanna": "plains",
+      "hills": "hills", "highlands": "hills", "mountain": "hills",
+      "coast": "coast", "beach": "coast",
+      "desert": "desert", "arid": "desert", "semi_arid": "desert",
+      "swamp": "swamp", "marsh": "swamp", "wetland": "swamp", "mangrove": "swamp",
+      "tropical_wetland": "swamp"
+    }
+  },
+
+  "hunting": {
+    "loot_table": {
+      "forest": [
+        { "item": "game_meat", "name": "Venison", "icon": "🥩", "chance": 0.35, "qty": { "min": 1, "max": 3 }, "sellPrice": 8 },
+        { "item": "pelts", "name": "Fur Pelts", "icon": "🦊", "chance": 0.30, "qty": { "min": 1, "max": 2 }, "sellPrice": 12 },
+        { "item": "antlers", "name": "Antlers", "icon": "🦌", "chance": 0.15, "qty": { "min": 1, "max": 1 }, "sellPrice": 15 },
+        { "item": "bear_pelt", "name": "Bear Pelt", "icon": "🐻", "chance": 0.05, "qty": { "min": 1, "max": 1 }, "sellPrice": 40 }
+      ],
+      "plains": [
+        { "item": "game_meat", "name": "Game Meat", "icon": "🥩", "chance": 0.40, "qty": { "min": 1, "max": 4 }, "sellPrice": 6 },
+        { "item": "hides", "name": "Hides", "icon": "🟤", "chance": 0.35, "qty": { "min": 1, "max": 2 }, "sellPrice": 8 },
+        { "item": "feathers", "name": "Feathers", "icon": "🪶", "chance": 0.25, "qty": { "min": 2, "max": 5 }, "sellPrice": 4 },
+        { "item": "ivory", "name": "Ivory", "icon": "🦣", "chance": 0.03, "qty": { "min": 1, "max": 1 }, "sellPrice": 45 }
+      ],
+      "hills": [
+        { "item": "game_meat", "name": "Mountain Goat", "icon": "🥩", "chance": 0.30, "qty": { "min": 1, "max": 2 }, "sellPrice": 7 },
+        { "item": "pelts", "name": "Wolf Pelts", "icon": "🐺", "chance": 0.20, "qty": { "min": 1, "max": 2 }, "sellPrice": 14 },
+        { "item": "eagle_feathers", "name": "Eagle Feathers", "icon": "🦅", "chance": 0.10, "qty": { "min": 1, "max": 2 }, "sellPrice": 18 }
+      ],
+      "coast": [
+        { "item": "fish", "name": "Fresh Fish", "icon": "🐟", "chance": 0.50, "qty": { "min": 2, "max": 5 }, "sellPrice": 4 },
+        { "item": "crabs", "name": "Crabs", "icon": "🦀", "chance": 0.30, "qty": { "min": 1, "max": 3 }, "sellPrice": 6 },
+        { "item": "lobster", "name": "Lobster", "icon": "🦞", "chance": 0.10, "qty": { "min": 1, "max": 1 }, "sellPrice": 18 }
+      ]
+    }
+  },
+
+  "bountyBoard": {
+    "templates": [
+      {
+        "id": "deliver_message",
+        "name": "Deliver a Message",
+        "icon": "📨",
+        "description": "Carry a sealed letter to {destination}.",
+        "type": "delivery",
+        "pay": { "min": 30, "max": 80 },
+        "daysLimit": 10,
+        "difficulty": "easy"
+      },
+      {
+        "id": "deliver_package",
+        "name": "Deliver a Package",
+        "icon": "📦",
+        "description": "Transport a fragile package safely to {destination}.",
+        "type": "delivery",
+        "pay": { "min": 50, "max": 120 },
+        "daysLimit": 12,
+        "difficulty": "easy"
+      },
+      {
+        "id": "scout_area",
+        "name": "Scout the Wilds",
+        "icon": "🔭",
+        "description": "Explore and map {count} tiles in the surrounding area.",
+        "type": "explore",
+        "pay": { "min": 40, "max": 90 },
+        "exploreCount": 15,
+        "daysLimit": 8,
+        "difficulty": "easy"
+      },
+      {
+        "id": "find_lost_person",
+        "name": "Find Lost Traveler",
+        "icon": "🔍",
+        "description": "A traveler went missing near here. Search {count} tiles to find them.",
+        "type": "explore",
+        "pay": { "min": 60, "max": 130 },
+        "exploreCount": 20,
+        "daysLimit": 10,
+        "difficulty": "medium"
+      },
+      {
+        "id": "gather_resources",
+        "name": "Gather Supplies",
+        "icon": "🎒",
+        "description": "Collect {qty} {resource} for the local stockpile.",
+        "type": "gather",
+        "pay": { "min": 40, "max": 100 },
+        "daysLimit": 8,
+        "difficulty": "easy"
+      },
+      {
+        "id": "escort_merchant",
+        "name": "Escort Merchant",
+        "icon": "🛡️",
+        "description": "Protect a merchant traveling to {destination}.",
+        "type": "delivery",
+        "pay": { "min": 80, "max": 180 },
+        "daysLimit": 14,
+        "difficulty": "medium"
+      },
+      {
+        "id": "clear_pests",
+        "name": "Clear Pests",
+        "icon": "🐀",
+        "description": "Drive out {pest} plaguing the {location}.",
+        "type": "instant",
+        "pay": { "min": 25, "max": 60 },
+        "stat": "combat",
+        "difficulty": "easy"
+      },
+      {
+        "id": "wanted_thief",
+        "name": "Catch a Thief",
+        "icon": "🏴‍☠️",
+        "description": "A petty thief is hiding in the area. Bring them to justice.",
+        "type": "instant",
+        "pay": { "min": 50, "max": 120 },
+        "stat": "stealth",
+        "difficulty": "medium"
+      }
+    ]
+  },
+
+  "gambling": {
+    "games": [
+      {
+        "id": "dice_roll",
+        "name": "Crown & Anchor",
+        "icon": "🎲",
+        "description": "Roll dice against the house. Match crowns to win.",
+        "minBet": 5,
+        "maxBet": 200,
+        "houseEdge": 0.45,
+        "payoutMultiplier": 2.0
+      },
+      {
+        "id": "coin_flip",
+        "name": "Dragon's Flip",
+        "icon": "🪙",
+        "description": "Call the coin — dragon or shield. Double or nothing.",
+        "minBet": 10,
+        "maxBet": 500,
+        "houseEdge": 0.48,
+        "payoutMultiplier": 2.0
+      },
+      {
+        "id": "high_low",
+        "name": "High-Low",
+        "icon": "📊",
+        "description": "Guess if the next card is higher or lower. Win streaks pay big.",
+        "minBet": 5,
+        "maxBet": 100,
+        "houseEdge": 0.42,
+        "payoutMultiplier": 1.8,
+        "streakBonus": 0.5
+      }
+    ]
+  },
+
+  "busking": {
+    "performances": [
+      { "id": "storytelling", "name": "Tell Tales", "icon": "📖", "description": "Share stories of your travels and adventures.", "stat": "charisma", "basePay": { "min": 8, "max": 25 } },
+      { "id": "singing", "name": "Sing Ballads", "icon": "🎵", "description": "Sing old songs and ballads in the market square.", "stat": "charisma", "basePay": { "min": 10, "max": 30 } },
+      { "id": "juggling", "name": "Juggle & Tricks", "icon": "🤹", "description": "Perform acrobatics and sleight of hand.", "stat": "dexterity", "basePay": { "min": 8, "max": 22 } },
+      { "id": "fortune_telling", "name": "Read Fortunes", "icon": "🔮", "description": "Tell fortunes and read palms. Mostly made up.", "stat": "intelligence", "basePay": { "min": 12, "max": 35 } },
+      { "id": "preaching", "name": "Street Preaching", "icon": "📿", "description": "Preach fire and brimstone for donations.", "stat": "faith", "basePay": { "min": 6, "max": 20 }, "bonusKarma": true }
+    ],
+    "crowdSizeMultiplier": {
+      "village": 0.5,
+      "town": 1.0,
+      "capital": 1.8
+    }
+  }
+}

@@ -65,6 +65,10 @@ class Player {
         // Military path
         this.army = [];             // Recruited units
 
+        // Housing
+        this.houses = [];           // Owned houses: [{ q, r, typeId, upgrades, condition, ... }]
+        this.ships = [];            // Owned ships: [{ id, typeId, name, ... }]
+
         // Religious path
         this.religion = null;       // Founded religion
         this.blessings = {};        // Active divine blessings
@@ -75,6 +79,20 @@ class Player {
         // Kingdom allegiance
         this.allegiance = null;      // Kingdom ID the player is pledged to
         this.kingdomTitle = null;    // Title within kingdom (e.g., 'king', 'treasurer', 'lord')
+
+        // Dynasty & Relationships
+        this.dynasty = {
+            name: (profile.name || 'Wanderer') + 'son',
+            founded: 1,
+            prestige: 0,
+        };
+        this.spouse = null;            // Relationship NPC id of spouse
+        this.children = [];            // Array of child objects
+        this.relationships = {};       // { npcId: { score, romantic, affection, history[] } }
+        this.heir = null;              // Child id designated as heir
+        this.maxLifespan = 55 + Math.floor(Math.random() * 31); // 55-85
+        this.birthDay = 0;
+        this.marriageDay = null;
 
         // Visuals
         this.color = '#ffffff';

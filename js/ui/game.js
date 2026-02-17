@@ -39,16 +39,62 @@ class Game {
         }
 
         // Range input value displays
-        const ranges = ['worldWidth', 'worldHeight', 'continentCount', 'terrainFreq', 'riverCount', 'waterLevel'];
+        const ranges = [
+            'worldWidth', 'worldHeight', 'continentCount', 'terrainFreq', 'riverCount', 'waterLevel',
+            'islandFreq', 'landMass', 'mountainDensity', 'hillDensity', 'forestDensity',
+            'terrainOctaves', 'heatFreq', 'moistFreq', 'coastalDetail',
+            'deepWaterLevel', 'hillsLevel', 'mountainLevel', 'snowPeakLevel',
+            'kingdomCount'
+        ];
         ranges.forEach(id => {
             const el = document.getElementById(id);
             const val = document.getElementById('val' + id.charAt(0).toUpperCase() + id.slice(1));
             if (el && val) {
                 el.addEventListener('input', () => {
-                    val.textContent = el.value;
+                    if (val.classList.contains('range-value-pct')) {
+                        val.textContent = el.value + '%';
+                    } else {
+                        val.textContent = el.value;
+                    }
                 });
             }
         });
+
+        // Map size presets
+        const presets = {
+            tiny:   { width: 60,  height: 40,  continents: 2,  rivers: 15 },
+            small:  { width: 90,  height: 60,  continents: 2,  rivers: 25 },
+            medium: { width: 120, height: 80,  continents: 3,  rivers: 40 },
+            large:  { width: 200, height: 130, continents: 5,  rivers: 70 },
+            huge:   { width: 300, height: 200, continents: 8,  rivers: 120 },
+            epic:   { width: 450, height: 300, continents: 12, rivers: 180 }
+        };
+
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const preset = presets[btn.dataset.preset];
+                if (!preset) return;
+
+                document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const setVal = (id, value) => {
+                    const el = document.getElementById(id);
+                    const valEl = document.getElementById('val' + id.charAt(0).toUpperCase() + id.slice(1));
+                    if (el) { el.value = value; if (valEl) valEl.textContent = value; }
+                };
+                setVal('worldWidth', preset.width);
+                setVal('worldHeight', preset.height);
+                setVal('continentCount', preset.continents);
+                setVal('riverCount', preset.rivers);
+            });
+        });
+
+        // Randomize button
+        const btnRandomize = document.getElementById('btnRandomize');
+        if (btnRandomize) {
+            btnRandomize.addEventListener('click', () => this.randomizeSettings());
+        }
     }
 
     /**
@@ -110,6 +156,16 @@ class Game {
         this.ui.hideTitleScreen();
         this.ui.showNotification('Game Loaded', 'Welcome back, ' + this.player.name, 'success');
 
+        // Initialize relationships from save
+        if (typeof Relationships !== 'undefined') {
+            Relationships.initialize(this.player);
+        }
+
+        // Restore ships state
+        if (typeof Ships !== 'undefined') {
+            Ships.restoreFromSave(this.player);
+        }
+
         this.isRunning = true;
         this.lastTime = performance.now();
         requestAnimationFrame((t) => this.gameLoop(t));
@@ -129,6 +185,80 @@ class Game {
     hideSettingsScreen() {
         document.getElementById('settingsScreen').classList.add('hidden');
         document.getElementById('titleScreen').classList.remove('hidden');
+    }
+
+    /**
+     * Randomize all world generation settings
+     */
+    randomizeSettings() {
+        const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+        const randFloat = (min, max) => +(min + Math.random() * (max - min)).toFixed(2);
+        const randPick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+        const setVal = (id, value) => {
+            const el = document.getElementById(id);
+            const valEl = document.getElementById('val' + id.charAt(0).toUpperCase() + id.slice(1));
+            if (el) {
+                el.value = value;
+                if (valEl) {
+                    if (valEl.classList.contains('range-value-pct')) {
+                        valEl.textContent = value + '%';
+                    } else {
+                        valEl.textContent = value;
+                    }
+                }
+            }
+        };
+
+        const setSelect = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.value = value;
+        };
+
+        // Random map dimensions
+        const sizePresets = ['tiny', 'small', 'medium', 'large', 'huge'];
+        const sizes = {
+            tiny:   [60, 40],
+            small:  [90, 60],
+            medium: [120, 80],
+            large:  [200, 130],
+            huge:   [300, 200]
+        };
+        const size = randPick(sizePresets);
+        setVal('worldWidth', sizes[size][0]);
+        setVal('worldHeight', sizes[size][1]);
+
+        // Highlight active preset
+        document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+        const activeBtn = document.querySelector(`.preset-btn[data-preset="${size}"]`);
+        if (activeBtn) activeBtn.classList.add('active');
+
+        setVal('continentCount', randInt(1, 10));
+        setSelect('continentSize', randPick(['small', 'medium', 'large', 'pangaea']));
+        setVal('islandFreq', randFloat(0, 4.0));
+        setVal('landMass', randInt(20, 75));
+        setVal('waterLevel', randFloat(0.28, 0.55));
+        setVal('riverCount', randInt(5, 150));
+        setSelect('lakeFreq', randPick(['none', 'few', 'normal', 'many', 'abundant']));
+        setVal('terrainFreq', randFloat(0.6, 2.5));
+        setVal('mountainDensity', randInt(20, 180));
+        setVal('hillDensity', randInt(30, 170));
+        setSelect('flatness', randPick(['rugged', 'normal', 'flat', 'veryFlat']));
+        setSelect('temperature', randPick(['frozen', 'cold', 'cool', 'normal', 'warm', 'hot', 'scorching']));
+        setSelect('rainfall', randPick(['arid', 'dry', 'normal', 'wet', 'tropical']));
+        setSelect('polarIce', randPick(['none', 'minimal', 'normal', 'extensive', 'iceAge']));
+        setSelect('desertFreq', randPick(['none', 'few', 'normal', 'many', 'wasteland']));
+        setVal('forestDensity', randInt(20, 180));
+        setSelect('resourceDensity', randPick(['scarce', 'low', 'normal', 'abundant', 'rich']));
+        setSelect('strategicRes', randPick(['scarce', 'normal', 'abundant']));
+        setVal('kingdomCount', randInt(2, 15));
+        setSelect('independentSettlements', randPick(['none', 'few', 'normal', 'many']));
+        setSelect('ruinsFreq', randPick(['none', 'few', 'normal', 'many']));
+
+        // Generate a random seed name
+        const seedWords = ['Dragon', 'Storm', 'Crown', 'Sword', 'Iron', 'Gold', 'Frost', 'Shadow', 'Dawn', 'Raven', 'Wolf', 'Oak', 'Fire', 'Stone', 'Moon'];
+        const seedEl = document.getElementById('mapSeed');
+        if (seedEl) seedEl.value = randPick(seedWords) + randInt(100, 9999);
     }
 
     /**
@@ -192,12 +322,31 @@ class Game {
     startNewGame() {
         console.log('Starting new game with custom settings...');
 
+        // Show loading overlay
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingSubtext = document.getElementById('loadingSubtext');
+        if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+        if (loadingSubtext) loadingSubtext.textContent = 'Forging continents and oceans...';
+
+        // Use setTimeout to let the loading overlay render before heavy generation
+        setTimeout(() => this._doStartNewGame(), 50);
+    }
+
+    /**
+     * Internal: perform the actual game start (after loading overlay is shown)
+     */
+    _doStartNewGame() {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingSubtext = document.getElementById('loadingSubtext');
+
+        try {
+
         // Read character settings
         const charName = document.getElementById('charName').value || 'Wanderer';
         const charGender = document.getElementById('charGender').value;
         const charAge = parseInt(document.getElementById('charAge').value) || 20;
 
-        // Read world settings
+        // Read world settings — dimensions
         const width = parseInt(document.getElementById('worldWidth').value) || 120;
         const height = parseInt(document.getElementById('worldHeight').value) || 80;
         const continentCount = parseInt(document.getElementById('continentCount').value) || 3;
@@ -205,13 +354,82 @@ class Game {
         const riverCount = parseInt(document.getElementById('riverCount').value) || 40;
         const waterThreshold = parseFloat(document.getElementById('waterLevel').value) || 0.42;
 
+        // Seed
+        const mapSeedEl = document.getElementById('mapSeed');
+        const mapSeed = mapSeedEl && mapSeedEl.value.trim() ? mapSeedEl.value.trim() : null;
+
+        // Continent & land
+        const continentSize = document.getElementById('continentSize')?.value || 'medium';
+        const islandFreq = parseFloat(document.getElementById('islandFreq')?.value) || 1.0;
+        const landMass = parseInt(document.getElementById('landMass')?.value) || 45;
+
+        // Terrain & elevation
+        const mountainDensity = parseInt(document.getElementById('mountainDensity')?.value) || 100;
+        const hillDensity = parseInt(document.getElementById('hillDensity')?.value) || 100;
+        const flatness = document.getElementById('flatness')?.value || 'normal';
+
+        // Climate
+        const temperature = document.getElementById('temperature')?.value || 'normal';
+        const rainfall = document.getElementById('rainfall')?.value || 'normal';
+        const polarIce = document.getElementById('polarIce')?.value || 'normal';
+        const desertFreq = document.getElementById('desertFreq')?.value || 'normal';
+        const forestDensity = parseInt(document.getElementById('forestDensity')?.value) || 100;
+
+        // Water
+        const lakeFreq = document.getElementById('lakeFreq')?.value || 'normal';
+
+        // Resources
+        const resourceDensity = document.getElementById('resourceDensity')?.value || 'normal';
+        const strategicRes = document.getElementById('strategicRes')?.value || 'normal';
+
+        // Advanced noise params
+        const terrainOctaves = parseInt(document.getElementById('terrainOctaves')?.value) || 6;
+        const heatFreq = parseFloat(document.getElementById('heatFreq')?.value) || 3.0;
+        const moistFreq = parseFloat(document.getElementById('moistFreq')?.value) || 2.0;
+        const coastalDetail = parseInt(document.getElementById('coastalDetail')?.value) || 5;
+        const deepWaterLevel = parseFloat(document.getElementById('deepWaterLevel')?.value) || 0.20;
+        const hillsLevel = parseFloat(document.getElementById('hillsLevel')?.value) || 0.52;
+        const mountainLevel = parseFloat(document.getElementById('mountainLevel')?.value) || 0.70;
+        const snowPeakLevel = parseFloat(document.getElementById('snowPeakLevel')?.value) || 0.88;
+
+        // World/kingdom settings
+        const kingdomCount = parseInt(document.getElementById('kingdomCount')?.value) || 6;
+        const independentSettlements = document.getElementById('independentSettlements')?.value || 'normal';
+        const ruinsFreq = document.getElementById('ruinsFreq')?.value || 'normal';
+
         // Generate world
         this.world = new World(width, height);
         this.world.generate({
+            seed: mapSeed,
             continentCount,
             terrainFreq,
             riverCount,
-            waterThreshold
+            waterThreshold,
+            continentSize,
+            islandFreq,
+            landMass,
+            mountainDensity,
+            hillDensity,
+            flatness,
+            temperature,
+            rainfall,
+            polarIce,
+            desertFreq,
+            forestDensity,
+            lakeFreq,
+            resourceDensity,
+            strategicRes,
+            terrainOctaves,
+            heatFreq,
+            moistFreq,
+            coastalDetail,
+            deepWaterLevel,
+            hillsLevel,
+            mountainLevel,
+            snowPeakLevel,
+            kingdomCount,
+            independentSettlements,
+            ruinsFreq
         });
 
         // Create player
@@ -254,23 +472,36 @@ class Game {
             Technology.initPlayer(this.player);
         }
 
+        // Initialize relationships system
+        if (typeof Relationships !== 'undefined') {
+            Relationships.initialize(this.player);
+        }
+
         // Initialize player's tax rate
         if (!this.player.taxRate) this.player.taxRate = 'moderate';
 
         console.log('Game started!');
         // Hide title and settings screen
         document.getElementById('settingsScreen').classList.add('hidden');
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
         this.ui.hideTitleScreen();
 
         // Show welcome notification
+        const totalTiles = this.world.width * this.world.height;
+        const mapDesc = totalTiles > 40000 ? 'vast' : totalTiles > 15000 ? 'large' : 'ready';
         setTimeout(() => {
-            this.ui.showNotification('Welcome, ' + this.player.name, 'You are a wanderer in a world of kingdoms. Click on the map to move, explore settlements, and forge your destiny.', 'info');
+            this.ui.showNotification('Welcome, ' + this.player.name, `You are a wanderer in a ${mapDesc} world of ${this.world.kingdoms.length} kingdoms. Click on the map to move, explore settlements, and forge your destiny.`, 'info');
         }, 1200);
 
         // Start game loop
         this.isRunning = true;
         this.lastTime = performance.now();
         requestAnimationFrame((t) => this.gameLoop(t));
+
+        } catch (err) {
+            console.error('Error starting game:', err);
+            if (loadingOverlay) loadingOverlay.classList.add('hidden');
+        }
     }
 
     /**
@@ -564,6 +795,62 @@ class Game {
                 this.player.endDay();
                 this.player.updateVisibility(this.world, 4);
 
+                // Process housing maintenance
+                if (typeof Housing !== 'undefined') {
+                    Housing.processDaily(this.player, this.world);
+                }
+
+                // Process ship daily events
+                if (typeof Ships !== 'undefined') {
+                    // Capture ship statuses before processing
+                    const shipsBefore = (this.player.ships || []).map(s => ({ id: s.id, status: s.status, name: s.name, buildDaysLeft: s.buildDaysLeft, travelDaysLeft: s.travelDaysLeft }));
+                    Ships.processDaily(this.player, this.world);
+                    // Check for completed builds or arrived ships
+                    for (const before of shipsBefore) {
+                        const after = Ships.getShipById(this.player, before.id);
+                        if (!after) continue;
+                        if (before.status === 'building' && after.status === 'docked') {
+                            this.ui.showNotification('🔨 Ship Complete!', `${after.name} has been built and is ready at ${after.dockedAt}!`, 'success');
+                        } else if (before.status === 'moving' && after.status === 'docked') {
+                            this.ui.showNotification('⚓ Ship Arrived', `${after.name} has arrived at ${after.dockedAt}.`, 'info');
+                        }
+                    }
+                }
+
+                // Process relationships, aging, and dynasty
+                if (typeof Relationships !== 'undefined') {
+                    // Daily relationship events (marriage events, NPC courtship, childbirth)
+                    const relEvents = Relationships.processDailyEvents(this.player, this.world);
+                    for (const evt of relEvents) {
+                        if (evt.type === 'childbirth') {
+                            this.ui.showNotification('🎉 New Child!', evt.text, 'success');
+                        } else if (evt.type === 'marriage') {
+                            const notifType = evt.impact === 'positive' ? 'info' : 'warning';
+                            this.ui.showNotification('💍 Marriage', evt.text, notifType);
+                        } else if (evt.type === 'court') {
+                            this.ui.showNotification('💕 Romance', evt.text, 'info');
+                        }
+                    }
+
+                    // Aging (yearly check — every 120 days)
+                    const agingResult = Relationships.processAging(this.player, this.world);
+                    if (agingResult) {
+                        if (agingResult.died) {
+                            // Player has died of old age — show death/succession screen
+                            Relationships.prepareForSave(this.player);
+                            this.isProcessingTurn = false;
+                            document.body.style.cursor = 'default';
+                            ActionMenu.showDeathScreen(this);
+                            return; // Stop processing — death screen handles continuation
+                        } else {
+                            this.ui.showNotification('🎂 Birthday', `You are now ${agingResult.age} years old.`, 'info');
+                        }
+                    }
+
+                    // Prepare relationship data for save
+                    Relationships.prepareForSave(this.player);
+                }
+
                 // Update market prices
                 MarketDynamics.updatePrices(this.world);
 
@@ -717,6 +1004,13 @@ class Game {
                         this.ui.showNotification('Freedom!', su.message, 'success');
                     } else {
                         this.ui.showNotification('Indentured Servitude', su.message, 'default');
+                    }
+                }
+
+                // Bounties expired
+                if (playerResults.bountiesExpired && playerResults.bountiesExpired.length > 0) {
+                    for (const bounty of playerResults.bountiesExpired) {
+                        this.ui.showNotification('Bounty Expired', `${bounty.icon} ${bounty.name} — time ran out!`, 'error');
                     }
                 }
 

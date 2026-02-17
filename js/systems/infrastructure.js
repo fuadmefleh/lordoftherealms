@@ -199,6 +199,9 @@ const Infrastructure = {
             if (tile.infrastructure.moveCostReduction) {
                 baseCost = Math.max(1, Math.ceil(baseCost * tile.infrastructure.moveCostReduction));
             }
+        } else if (tile.hasRoad) {
+            // World-generated roads (connecting settlements) act like dirt roads
+            baseCost = Math.max(1, Math.ceil(baseCost * 0.5));
         }
 
         return baseCost;
@@ -220,13 +223,13 @@ const Infrastructure = {
      * Check if two hexes are connected by a road network
      */
     hasRoadConnection(world, startQ, startR, endQ, endR) {
-        // BFS only through road/bridge tiles
+        // BFS only through road/bridge tiles (both world-generated and player-built)
         const visited = new Set();
         const queue = [{ q: startQ, r: startR }];
         visited.add(`${startQ},${startR}`);
 
         const startTile = world.getTile(startQ, startR);
-        if (!startTile || !startTile.infrastructure) return false;
+        if (!startTile || (!startTile.infrastructure && !startTile.hasRoad)) return false;
 
         while (queue.length > 0) {
             const current = queue.shift();
@@ -242,9 +245,17 @@ const Infrastructure = {
                 if (visited.has(key)) continue;
 
                 const nTile = world.getTile(wq, wr);
-                if (!nTile || !nTile.infrastructure) continue;
+                if (!nTile) continue;
 
-                // Must be a road or bridge type
+                // Accept world-generated roads
+                if (nTile.hasRoad) {
+                    visited.add(key);
+                    queue.push({ q: wq, r: wr });
+                    continue;
+                }
+
+                // Accept player-built road/bridge infrastructure
+                if (!nTile.infrastructure) continue;
                 const isRoad = ['dirt_road', 'stone_road', 'bridge'].includes(nTile.infrastructure.id);
                 if (!isRoad) continue;
 

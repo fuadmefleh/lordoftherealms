@@ -1,0 +1,218 @@
+{
+    "houseTypes": [
+        {
+            "id": "shack",
+            "name": "Humble Shack",
+            "icon": "🛖",
+            "description": "A ramshackle shelter on the edge of town. Better than sleeping outdoors.",
+            "baseCost": 150,
+            "maintenanceCost": 2,
+            "renownBonus": 1,
+            "reputationBonus": 1,
+            "staminaBonus": 0,
+            "healthRegenBonus": 1,
+            "maxUpgradeSlots": 1,
+            "availableIn": ["village", "town", "capital"],
+            "requiredRenown": 0
+        },
+        {
+            "id": "cottage",
+            "name": "Stone Cottage",
+            "icon": "🏠",
+            "description": "A cozy stone cottage with a hearth and garden. A respectable home for any settler.",
+            "baseCost": 500,
+            "maintenanceCost": 5,
+            "renownBonus": 3,
+            "reputationBonus": 2,
+            "staminaBonus": 1,
+            "healthRegenBonus": 2,
+            "maxUpgradeSlots": 2,
+            "availableIn": ["village", "town", "capital"],
+            "requiredRenown": 5
+        },
+        {
+            "id": "townhouse",
+            "name": "Townhouse",
+            "icon": "🏘️",
+            "description": "A well-built two-story dwelling in the heart of town. A mark of rising status.",
+            "baseCost": 1200,
+            "maintenanceCost": 12,
+            "renownBonus": 6,
+            "reputationBonus": 4,
+            "staminaBonus": 1,
+            "healthRegenBonus": 3,
+            "maxUpgradeSlots": 3,
+            "availableIn": ["town", "capital"],
+            "requiredRenown": 15
+        },
+        {
+            "id": "manor",
+            "name": "Manor House",
+            "icon": "🏛️",
+            "description": "A grand stone manor with multiple wings and servants' quarters. The home of a lord.",
+            "baseCost": 3500,
+            "maintenanceCost": 30,
+            "renownBonus": 12,
+            "reputationBonus": 8,
+            "staminaBonus": 2,
+            "healthRegenBonus": 5,
+            "maxUpgradeSlots": 4,
+            "availableIn": ["town", "capital"],
+            "requiredRenown": 35
+        },
+        {
+            "id": "estate",
+            "name": "Noble Estate",
+            "icon": "🏰",
+            "description": "A sprawling estate with gardens, stables, and a private chapel. Only for the most distinguished.",
+            "baseCost": 8000,
+            "maintenanceCost": 65,
+            "renownBonus": 25,
+            "reputationBonus": 15,
+            "staminaBonus": 3,
+            "healthRegenBonus": 8,
+            "maxUpgradeSlots": 5,
+            "availableIn": ["capital"],
+            "requiredRenown": 60
+        }
+    ],
+
+    "upgrades": [
+        {
+            "id": "garden",
+            "name": "Herb Garden",
+            "icon": "🌿",
+            "description": "A small garden of medicinal herbs. Provides daily health regeneration.",
+            "cost": 100,
+            "effects": { "healthRegenBonus": 3 },
+            "requiredHouse": ["shack", "cottage", "townhouse", "manor", "estate"]
+        },
+        {
+            "id": "cellar",
+            "name": "Wine Cellar",
+            "icon": "🍷",
+            "description": "A cool underground cellar for storing fine vintages. Improves social standing.",
+            "cost": 200,
+            "effects": { "renownBonus": 2, "charismaBonus": 1 },
+            "requiredHouse": ["cottage", "townhouse", "manor", "estate"]
+        },
+        {
+            "id": "study",
+            "name": "Private Study",
+            "icon": "📚",
+            "description": "A quiet room filled with books and maps. Enhances learning.",
+            "cost": 350,
+            "effects": { "intelligenceBonus": 1, "commerceSkillBonus": 1 },
+            "requiredHouse": ["cottage", "townhouse", "manor", "estate"]
+        },
+        {
+            "id": "armory",
+            "name": "Personal Armory",
+            "icon": "⚔️",
+            "description": "A secured room for weapons and armor. Improves combat readiness.",
+            "cost": 300,
+            "effects": { "strengthBonus": 1, "combatSkillBonus": 1 },
+            "requiredHouse": ["townhouse", "manor", "estate"]
+        },
+        {
+            "id": "stable",
+            "name": "Private Stable",
+            "icon": "🐴",
+            "description": "Housing for horses and pack animals. Increases movement range.",
+            "cost": 400,
+            "effects": { "movementBonus": 1 },
+            "requiredHouse": ["townhouse", "manor", "estate"]
+        },
+        {
+            "id": "guest_quarters",
+            "name": "Guest Quarters",
+            "icon": "🛏️",
+            "description": "Comfortable rooms for hosting visitors. Improves diplomatic relations.",
+            "cost": 500,
+            "effects": { "reputationBonus": 3, "diplomacySkillBonus": 1 },
+            "requiredHouse": ["manor", "estate"]
+        },
+        {
+            "id": "watchtower",
+            "name": "Watchtower",
+            "icon": "🗼",
+            "description": "A tall tower providing a commanding view of the surroundings. Extends visibility.",
+            "cost": 600,
+            "effects": { "visibilityBonus": 1, "leadershipSkillBonus": 1 },
+            "requiredHouse": ["manor", "estate"]
+        },
+        {
+            "id": "great_hall",
+            "name": "Great Hall",
+            "icon": "👑",
+            "description": "A magnificent feasting hall for hosting grand events. Dramatically increases influence.",
+            "cost": 1000,
+            "effects": { "renownBonus": 8, "reputationBonus": 5, "charismaBonus": 1 },
+            "requiredHouse": ["estate"]
+        },
+        {
+            "id": "trophy_room",
+            "name": "Trophy Room",
+            "icon": "🦌",
+            "description": "A room displaying hunting trophies and war spoils. Inspires awe in visitors.",
+            "cost": 250,
+            "effects": { "renownBonus": 3, "strengthBonus": 1 },
+            "requiredHouse": ["cottage", "townhouse", "manor", "estate"]
+        },
+        {
+            "id": "chapel",
+            "name": "Private Chapel",
+            "icon": "⛪",
+            "description": "A small consecrated space for prayer and contemplation.",
+            "cost": 450,
+            "effects": { "faithBonus": 2, "karmaPerDay": 1 },
+            "requiredHouse": ["manor", "estate"]
+        },
+        {
+            "id": "servants",
+            "name": "Servants' Quarters",
+            "icon": "🧹",
+            "description": "Comfortable housing for household staff. Reduces maintenance costs.",
+            "cost": 350,
+            "effects": { "maintenanceReduction": 0.25 },
+            "requiredHouse": ["manor", "estate"]
+        },
+        {
+            "id": "fortification",
+            "name": "Fortified Walls",
+            "icon": "🧱",
+            "description": "Thick stone walls around the property. Provides defence in times of trouble.",
+            "cost": 800,
+            "effects": { "defenseBonus": 10, "renownBonus": 4 },
+            "requiredHouse": ["estate"]
+        }
+    ],
+
+    "npcHouseChance": {
+        "village": 0.05,
+        "town": 0.10,
+        "capital": 0.20
+    },
+
+    "influenceSettings": {
+        "baseInfluencePerHouse": 5,
+        "influencePerUpgrade": 2,
+        "maxInfluenceFromHousing": 50,
+        "renownDecayIfHomeless": 0,
+        "homeRestBonus": 2,
+        "dailyMaintenanceCheck": true
+    },
+
+    "sellPenalty": 0.5,
+
+    "npcOwnerTitles": [
+        "a wealthy merchant",
+        "a retired soldier",
+        "a noble family",
+        "a local guild leader",
+        "a foreign diplomat",
+        "a prosperous farmer",
+        "a scholar of renown",
+        "a mysterious recluse"
+    ]
+}

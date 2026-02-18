@@ -41,13 +41,22 @@ jobs:
           
           # Wait for server to be ready
           echo "Waiting for server to start..."
+          SERVER_STARTED=false
           for i in {1..30}; do
             if curl -s http://localhost:8082 > /dev/null; then
               echo "✅ Server is ready"
+              SERVER_STARTED=true
               break
             fi
             sleep 1
           done
+          
+          # Verify server started
+          if [ "$SERVER_STARTED" = false ]; then
+            echo "❌ Server failed to start within 30 seconds"
+            kill $SERVER_PID 2>/dev/null || true
+            exit 1
+          fi
           
           # Verify the test page loads
           echo "Verifying test page..."

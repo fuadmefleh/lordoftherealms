@@ -34,13 +34,22 @@ jobs:
           
           # Wait for server to be ready
           echo "Waiting for server to start..."
+          SERVER_STARTED=false
           for i in {1..30}; do
             if curl -s http://localhost:8082 > /dev/null; then
               echo "Server is ready"
+              SERVER_STARTED=true
               break
             fi
             sleep 1
           done
+          
+          # Verify server started
+          if [ "$SERVER_STARTED" = false ]; then
+            echo "❌ Server failed to start within 30 seconds"
+            kill $SERVER_PID 2>/dev/null || true
+            exit 1
+          fi
           
           # Run tests using a headless browser approach
           # Since this is browser-based, we'll verify the test page loads
@@ -71,7 +80,18 @@ jobs:
       
       - name: Get version from tag
         id: version
-        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          
+          # Detect if this is a pre-release based on version string
+          if [[ $VERSION =~ -(alpha|beta|rc) ]]; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+            echo "📦 Detected pre-release version: $VERSION"
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+            echo "📦 Detected stable release version: $VERSION"
+          fi
       
       - name: Create release bundle
         run: |
@@ -135,7 +155,7 @@ jobs:
           files: |
             release/lord-of-the-realms-${{ steps.version.outputs.version }}.zip
           draft: false
-          prerelease: false
+          prerelease: ${{ steps.version.outputs.prerelease }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       

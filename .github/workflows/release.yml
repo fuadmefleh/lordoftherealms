@@ -115,14 +115,76 @@ jobs:
           
           echo "Release bundle created successfully"
       
+      - name: Upload zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-bundle
+          path: release/lord-of-the-realms-${{ steps.version.outputs.version }}.zip
+          retention-days: 1
+    
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+
+  build-windows-installer:
+    name: Build Windows Installer
+    needs: test
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Get version from tag
+        id: version
+        shell: bash
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Building Windows installer for version: $VERSION"
+      
+      - name: Build Windows installer
+        run: npm run build:win
+      
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/*.exe
+          retention-days: 1
+  
+  create-release:
+    name: Create GitHub Release
+    needs: [build-and-release, build-windows-installer]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
       - name: Generate release notes
         id: release_notes
         run: |
           cat << 'EOF' > release_notes.md
-          ## Lord of the Realms ${{ steps.version.outputs.version }}
+          ## Lord of the Realms ${{ needs.build-and-release.outputs.version }}
           
           ### 🎮 How to Play
           
+          #### Desktop Version (Windows)
+          1. Download the Windows installer (`Lord-of-the-Realms-Setup-*.exe`) below
+          2. Run the installer and follow the installation wizard
+          3. Launch the game from your Start Menu or Desktop shortcut
+          
+          #### Web Version (All Platforms)
           1. Download the release zip file below
           2. Extract the archive
           3. Open `index.html` in your web browser
@@ -130,7 +192,8 @@ jobs:
           
           ### 📦 What's Included
           
-          - Complete game files ready to play
+          - **Windows Installer**: Full desktop application with installer
+          - **Web Bundle**: Complete game files ready to play in any browser
           - All assets, data, and game logic
           - Documentation and README
           
@@ -147,19 +210,31 @@ jobs:
           *Rise from Nothing. Forge Your Legacy.*
           EOF
       
+      - name: Download web bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: web-bundle
+          path: ./artifacts
+      
+      - name: Download Windows installer
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: ./artifacts
+      
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          name: Lord of the Realms ${{ steps.version.outputs.version }}
+          name: Lord of the Realms ${{ needs.build-and-release.outputs.version }}
           body_path: release_notes.md
           files: |
-            release/lord-of-the-realms-${{ steps.version.outputs.version }}.zip
+            artifacts/*
           draft: false
-          prerelease: ${{ steps.version.outputs.prerelease }}
+          prerelease: ${{ needs.build-and-release.outputs.prerelease }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}}
       
       - name: Release completed
         run: |
-          echo "✅ Release ${{ steps.version.outputs.version }} has been published!"
-          echo "🎉 Download link: https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.version }}"
+          echo "✅ Release ${{ needs.build-and-release.outputs.version }} has been published!"
+          echo "🎉 Download link: https://github.com/${{ github.repository }}/releases/tag/${{ needs.build-and-release.outputs.version }}"

@@ -245,6 +245,16 @@ npm test
 
 This starts a local server and opens the test suite at `http://localhost:8082/tests/index.html`.
 
+### Releases
+
+This project uses an automated release pipeline. To create a new release:
+
+1. Update the version in `package.json`
+2. Create and push a git tag (e.g., `git tag v0.4.0 && git push origin v0.4.0`)
+3. GitHub Actions will automatically build and publish the release
+
+See [.github/RELEASE.md](.github/RELEASE.md) for detailed instructions.
+
 ### Current Version: v0.3.0
 
 **Recent additions:**

@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Verify test files exist
+        run: |
+          echo "Checking for test files..."
+          ls -la tests/
+          
+      - name: Start test server and validate
+        run: |
+          # Start the test server in the background
+          npx http-server . -p 8082 -c-1 --cors &
+          SERVER_PID=$!
+          
+          # Wait for server to be ready
+          echo "Waiting for server to start..."
+          SERVER_STARTED=false
+          for i in {1..30}; do
+            if curl -s http://localhost:8082 > /dev/null; then
+              echo "✅ Server is ready"
+              SERVER_STARTED=true
+              break
+            fi
+            sleep 1
+          done
+          
+          # Verify server started
+          if [ "$SERVER_STARTED" = false ]; then
+            echo "❌ Server failed to start within 30 seconds"
+            kill $SERVER_PID 2>/dev/null || true
+            exit 1
+          fi
+          
+          # Verify the test page loads
+          echo "Verifying test page..."
+          curl -f http://localhost:8082/tests/index.html > /dev/null
+          echo "✅ Test page loads successfully"
+          
+          # Verify main game page loads
+          echo "Verifying main game page..."
+          curl -f http://localhost:8082/index.html > /dev/null
+          echo "✅ Main game page loads successfully"
+          
+          # Kill the server
+          kill $SERVER_PID
+          
+          echo "✅ All checks passed!"

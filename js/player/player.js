@@ -337,7 +337,8 @@ class Player {
                     if (waterTiles.includes(tile.terrain.id)) {
                         return 2; // Standard water movement cost
                     }
-                    return 2; // For starting position on land
+                    // Coastal settlements and starting position also cost 2
+                    return 2;
                 }
                 return Infrastructure.getEffectiveMoveCost(tile);
             }
@@ -412,7 +413,23 @@ class Player {
             let isAccessible = false;
             if (this.boardedShip) {
                 const waterTiles = ['ocean', 'deep_ocean', 'coast', 'lake', 'sea', 'beach'];
-                isAccessible = waterTiles.includes(tile.terrain.id);
+                // Allow water tiles
+                if (waterTiles.includes(tile.terrain.id)) {
+                    isAccessible = true;
+                } 
+                // Allow coastal settlements (for docking)
+                else if (tile.settlement) {
+                    const neighbors = Hex.neighbors(nextHex.q, nextHex.r);
+                    for (const n of neighbors) {
+                        const nq = Hex.wrapQ(n.q, world.width);
+                        if (n.r < 0 || n.r >= world.height) continue;
+                        const nTile = world.getTile(nq, n.r);
+                        if (nTile && waterTiles.includes(nTile.terrain.id)) {
+                            isAccessible = true;
+                            break;
+                        }
+                    }
+                }
             } else {
                 isAccessible = tile.terrain.passable;
             }

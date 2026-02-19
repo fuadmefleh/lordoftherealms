@@ -693,10 +693,33 @@ class Game {
         // Right click = move
         if (button === 'right') {
             // Check if tile is accessible based on player's current state
-            const isAccessible = this.player.boardedShip 
-                ? (['ocean', 'deep_ocean', 'coast', 'lake', 'sea', 'beach'].includes(tile.terrain.id) || 
-                   (hex.q === this.player.q && hex.r === this.player.r))
-                : tile.terrain.passable;
+            let isAccessible = false;
+            if (this.player.boardedShip) {
+                const waterTiles = ['ocean', 'deep_ocean', 'coast', 'lake', 'sea', 'beach'];
+                // Allow water tiles
+                if (waterTiles.includes(tile.terrain.id)) {
+                    isAccessible = true;
+                }
+                // Allow current position
+                else if (hex.q === this.player.q && hex.r === this.player.r) {
+                    isAccessible = true;
+                }
+                // Allow coastal settlements (for docking)
+                else if (tile.settlement) {
+                    const neighbors = Hex.neighbors(hex.q, hex.r);
+                    for (const n of neighbors) {
+                        const nq = Hex.wrapQ(n.q, this.world.width);
+                        if (n.r < 0 || n.r >= this.world.height) continue;
+                        const nTile = this.world.getTile(nq, n.r);
+                        if (nTile && waterTiles.includes(nTile.terrain.id)) {
+                            isAccessible = true;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                isAccessible = tile.terrain.passable;
+            }
 
             // If clicking on an accessible, explored tile — try to move there
             if (isAccessible) {

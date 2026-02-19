@@ -784,7 +784,7 @@ const PlayerMilitary = {
     combat(player, enemyStrength, enemyName = 'Bandits', context = {}) {
         const playerStrength = PlayerMilitary.getArmyStrength(player);
 
-        if (playerStrength === 0) {
+        if (playerStrength === 0 && !context.skipCasualties) {
             return { victory: false, reason: 'No army to fight with!' };
         }
 
@@ -804,8 +804,11 @@ const PlayerMilitary = {
         const playerMorale = PlayerMilitary._moraleValue(playerStrength, enemyStrength, leadership);
         const enemyMorale = PlayerMilitary._moraleValue(enemyStrength, playerStrength, context.enemyMoraleBonus || 0);
 
+        // Tactical bonus from BattleUI (1.0 = no change)
+        const tacticalBonus = context.tacticalBonus || 1.0;
+
         // Combat calculation
-        let playerPower = playerStrength * Utils.randFloat(0.8, 1.2) * playerCounterMult * playerTerrainMult * playerMorale;
+        let playerPower = playerStrength * Utils.randFloat(0.8, 1.2) * playerCounterMult * playerTerrainMult * playerMorale * tacticalBonus;
         let enemyPower = enemyStrength * Utils.randFloat(0.8, 1.2) * enemyCounterMult * enemyTerrainMult * enemyMorale;
 
         let moraleBreak = null;
@@ -821,18 +824,21 @@ const PlayerMilitary = {
 
         const victory = playerPower > enemyPower;
 
-        // Calculate casualties
-        let casualtyRate = victory ?
-            Utils.randFloat(0.05, 0.15) :
-            Utils.randFloat(0.2, 0.4);
+        // Calculate casualties — skip if already applied by BattleUI
+        let casualties = 0;
+        if (!context.skipCasualties) {
+            let casualtyRate = victory ?
+                Utils.randFloat(0.05, 0.15) :
+                Utils.randFloat(0.2, 0.4);
 
-        if (moraleBreak === 'enemy' && victory) casualtyRate *= 0.65;
-        if (moraleBreak === 'player' && !victory) casualtyRate *= 1.25;
+            if (moraleBreak === 'enemy' && victory) casualtyRate *= 0.65;
+            if (moraleBreak === 'player' && !victory) casualtyRate *= 1.25;
 
-        const casualties = Math.ceil(player.army.length * casualtyRate);
+            casualties = Math.ceil(player.army.length * casualtyRate);
 
-        for (let i = 0; i < casualties && player.army.length > 0; i++) {
-            player.army.pop();
+            for (let i = 0; i < casualties && player.army.length > 0; i++) {
+                player.army.pop();
+            }
         }
 
         // Rewards for victory
@@ -1065,16 +1071,19 @@ const PlayerMilitary = {
     /**
      * Attack a settlement to conquer it.
      * Harder than raiding — the entire garrison must be defeated.
+     * Pass opts.skipCombat = true when battle was already resolved tactically.
      */
-    attackSettlement(player, settlement, tile, world) {
+    attackSettlement(player, settlement, tile, world, opts = {}) {
         const playerStrength = PlayerMilitary.getArmyStrength(player);
 
-        if (playerStrength === 0) {
-            return { success: false, reason: 'You have no army! Recruit soldiers first.' };
-        }
+        if (!opts.skipCombat) {
+            if (playerStrength === 0) {
+                return { success: false, reason: 'You have no army! Recruit soldiers first.' };
+            }
 
-        if (playerStrength < 50) {
-            return { success: false, reason: 'Army too weak to siege a settlement (need 50+ strength)' };
+            if (playerStrength < 50) {
+                return { success: false, reason: 'Army too weak to siege a settlement (need 50+ strength)' };
+            }
         }
 
         // Settlement defense — stronger than raiding since garrison fights to the last
@@ -1105,13 +1114,19 @@ const PlayerMilitary = {
             garrisonStrength = Math.floor(garrisonStrength * 1.3); // 30% wall bonus
         }
 
-        // Combat
-        const result = PlayerMilitary.combat(player, garrisonStrength, settlement.name, {
-            terrainId: tile?.terrain?.id,
-            enemyComposition: PlayerMilitary._getSettlementComposition(settlement, tile),
-            enemyMoraleBonus: settlement.type === 'capital' ? 0.1 : 0,
-        });
-        result.garrisonStrength = garrisonStrength;
+        let result;
+        if (opts.skipCombat) {
+            // Combat already resolved tactically — treat as victory
+            result = { victory: true, casualties: 0, loot: 0, garrisonStrength };
+        } else {
+            // Combat
+            result = PlayerMilitary.combat(player, garrisonStrength, settlement.name, {
+                terrainId: tile?.terrain?.id,
+                enemyComposition: PlayerMilitary._getSettlementComposition(settlement, tile),
+                enemyMoraleBonus: settlement.type === 'capital' ? 0.1 : 0,
+            });
+            result.garrisonStrength = garrisonStrength;
+        }
 
         const previousKingdom = settlement.kingdom;
 

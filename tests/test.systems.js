@@ -160,3 +160,114 @@ TestRunner.describe('WorldEvents', async function () {
         assert.hasProperty(WorldEvents.CATEGORIES, 'MILITARY');
     });
 });
+
+TestRunner.describe('BattleSystem', async function () {
+    // Helper: mock player with army
+    function makePlayer(units) {
+        return {
+            army: units,
+            skills: { combat: 2, leadership: 2 },
+            festivals: { moraleBoostDays: 0, moraleBoostValue: 0 },
+        };
+    }
+
+    await TestRunner.it('createPlayerSquads: splits army by role', () => {
+        const player = makePlayer([
+            { type: 'knight', strength: 30, level: 1 },
+            { type: 'archer', strength: 8, level: 1 },
+            { type: 'soldier', strength: 10, level: 1 },
+        ]);
+        const squads = BattleSystem.createPlayerSquads(player);
+        assert.ok(squads.length >= 2, `Expected >= 2 squads, got ${squads.length}`);
+        assert.ok(squads.every(s => s.isPlayer), 'All squads should be player-owned');
+        assert.ok(squads.every(s => s.strength > 0), 'All squads should have positive strength');
+    });
+
+    await TestRunner.it('createPlayerSquads: returns empty for no army', () => {
+        const player = makePlayer([]);
+        const squads = BattleSystem.createPlayerSquads(player);
+        assert.lengthOf(squads, 0, 'Expected 0 squads for empty army');
+    });
+
+    await TestRunner.it('createEnemySquads: creates squads from strength', () => {
+        const squads = BattleSystem.createEnemySquads(80, 'Raider Band', {});
+        assert.ok(squads.length >= 1, 'Expected at least 1 enemy squad');
+        assert.ok(squads.every(s => !s.isPlayer), 'All enemy squads should not be player-owned');
+    });
+
+    await TestRunner.it('_calcMoves: cavalry gets more moves', () => {
+        const cavMoves = BattleSystem._calcMoves('cavalry', 2);
+        const infMoves = BattleSystem._calcMoves('infantry', 2);
+        assert.ok(cavMoves >= infMoves,
+            `Cavalry should have >= infantry moves (cav=${cavMoves}, inf=${infMoves})`);
+        assert.ok(cavMoves >= BattleSystem.MIN_MOVES, 'Cavalry moves should be >= MIN_MOVES');
+        assert.ok(cavMoves <= BattleSystem.MAX_MOVES, 'Cavalry moves should be <= MAX_MOVES');
+    });
+
+    await TestRunner.it('_calcMoves: large squads move slower', () => {
+        const small = BattleSystem._calcMoves('infantry', 2);
+        const large = BattleSystem._calcMoves('infantry', 10);
+        assert.ok(small >= large, 'Small squads should move at least as fast as large ones');
+    });
+
+    await TestRunner.it('getMovableHexes: returns valid positions', () => {
+        const squad = BattleSystem._buildSquad('infantry', [{ type: 'soldier', strength: 10, level: 1 }], 2, 2, true);
+        const hexes = BattleSystem.getMovableHexes(squad, [squad]);
+        assert.ok(Array.isArray(hexes), 'Should return array');
+        assert.ok(hexes.length > 0, 'Should return at least one movable hex');
+        for (const h of hexes) {
+            assert.ok(h.col >= 0 && h.col < BattleSystem.MAP_COLS, `col ${h.col} out of range`);
+            assert.ok(h.row >= 0 && h.row < BattleSystem.MAP_ROWS, `row ${h.row} out of range`);
+        }
+    });
+
+    await TestRunner.it('getMovableHexes: no moves if hasMoved', () => {
+        const squad = BattleSystem._buildSquad('infantry', [{ type: 'soldier', strength: 10, level: 1 }], 2, 2, true);
+        squad.hasMoved = true;
+        const hexes = BattleSystem.getMovableHexes(squad, [squad]);
+        assert.lengthOf(hexes, 0, 'hasMoved=true should return empty');
+    });
+
+    await TestRunner.it('resolveCombat: reduces defender strength', () => {
+        const attacker = BattleSystem._buildSquad('cavalry', [{ type: 'knight', strength: 30, level: 1 }], 1, 3, true);
+        const defender = BattleSystem._buildSquad('infantry', [{ type: 'soldier', strength: 10, level: 1 }], 2, 3, false);
+        const allSquads = [attacker, defender];
+        const before = defender.strength;
+        BattleSystem.resolveCombat(attacker, defender, allSquads);
+        assert.ok(defender.strength < before, 'Defender strength should decrease after combat');
+    });
+
+    await TestRunner.it('checkBattleEnd: detects player win', () => {
+        const player = BattleSystem._buildSquad('cavalry', [{ type: 'knight', strength: 30, level: 1 }], 1, 3, true);
+        const enemy  = BattleSystem._buildSquad('infantry', [{ type: 'soldier', strength: 10, level: 1 }], 7, 3, false);
+        enemy.destroyed = true;
+        assert.equal(BattleSystem.checkBattleEnd([player, enemy]), 'player_wins');
+    });
+
+    await TestRunner.it('checkBattleEnd: detects enemy win', () => {
+        const player = BattleSystem._buildSquad('cavalry', [{ type: 'knight', strength: 30, level: 1 }], 1, 3, true);
+        const enemy  = BattleSystem._buildSquad('infantry', [{ type: 'soldier', strength: 10, level: 1 }], 7, 3, false);
+        player.destroyed = true;
+        assert.equal(BattleSystem.checkBattleEnd([player, enemy]), 'enemy_wins');
+    });
+
+    await TestRunner.it('checkBattleEnd: returns null when both alive', () => {
+        const player = BattleSystem._buildSquad('cavalry', [{ type: 'knight', strength: 30, level: 1 }], 1, 3, true);
+        const enemy  = BattleSystem._buildSquad('infantry', [{ type: 'soldier', strength: 10, level: 1 }], 7, 3, false);
+        assert.equal(BattleSystem.checkBattleEnd([player, enemy]), null);
+    });
+
+    await TestRunner.it('calcTacticalBonus: full strength = high bonus', () => {
+        const squad = BattleSystem._buildSquad('cavalry', [{ type: 'knight', strength: 30, level: 1 }], 1, 3, true);
+        const bonus = BattleSystem.calcTacticalBonus([squad]);
+        assert.ok(bonus >= 1.0 && bonus <= 1.3, `Expected bonus in [1.0, 1.3], got ${bonus}`);
+    });
+
+    await TestRunner.it('calcTacticalBonus: destroyed squad = low bonus', () => {
+        const squad = BattleSystem._buildSquad('cavalry', [{ type: 'knight', strength: 30, level: 1 }], 1, 3, true);
+        squad.strength = 0;
+        squad.destroyed = true;
+        const bonus = BattleSystem.calcTacticalBonus([squad]);
+        assert.ok(bonus >= 0.8 && bonus <= 1.0, `Expected bonus in [0.8, 1.0], got ${bonus}`);
+    });
+});

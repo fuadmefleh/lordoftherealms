@@ -222,6 +222,20 @@
     <!-- Tooltip -->
     <div id="tooltip" class="hidden"></div>
 
+    <!-- Local Map Overlay -->
+    <div id="localMapOverlay" class="hidden">
+        <div id="localMapModal">
+            <div id="localMapHeader">
+                <span id="localMapTitle">Explore Area</span>
+                <button id="localMapClose" class="panel-close" onclick="LocalMap.close()">✕</button>
+            </div>
+            <div id="localMapBody">
+                <canvas id="localMapCanvas"></canvas>
+                <div id="localMapInfo"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Title Screen Overlay -->
     <div id="titleScreen">
         <div id="titleContent">
@@ -609,6 +623,7 @@
     <script src="js/ui/ui.js"></script>
     <script src="js/ui/actionMenu.js"></script>
     <script src="js/ui/minimap.js"></script>
+    <script src="js/ui/localMap.js"></script>
     <script src="js/ui/game.js"></script>
 </body>
 

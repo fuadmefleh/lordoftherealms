@@ -35,7 +35,7 @@ const ActionMenu = {
         };
 
         const mapping = {
-            rest: 'general', explore_poi: 'general', clear_trees: 'general', dig_treasure: 'general',
+            rest: 'general', explore_poi: 'general', explore_tile: 'general', clear_trees: 'general', dig_treasure: 'general',
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general',
             prospect: 'general', tame_horse: 'general', craft_campfire: 'general',
             disembark: 'general',
@@ -350,7 +350,7 @@ const ActionMenu = {
 
         // Full-day work (4 AP)
         odd_jobs: 4, hunt: 4, train_combat: 4,
-        dig_treasure: 4, explore_poi: 4,
+        dig_treasure: 4, explore_poi: 4, explore_tile: 2,
 
         // Major activities (5 AP)
         host_feast: 5, hold_tournament: 5, host_festival: 6, contract: 5,
@@ -469,6 +469,9 @@ const ActionMenu = {
                 break;
             case 'explore_poi':
                 ActionMenu.explorePOI(game, tile);
+                break;
+            case 'explore_tile':
+                LocalMap.open(game, tile);
                 break;
             case 'tavern':
                 ActionMenu.showTavernMenu(game, tile);

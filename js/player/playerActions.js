@@ -69,6 +69,16 @@ const PlayerActions = {
             description: 'Recover stamina and wait for the next day'
         });
 
+        // Explore local tile (always available on passable, explored tiles)
+        if (tile.terrain && tile.terrain.passable) {
+            actions.push({
+                type: 'explore_tile',
+                label: 'Explore Area',
+                icon: '🔭',
+                description: 'Survey the immediate surroundings and look for points of interest.'
+            });
+        }
+
         // Disembark from ship (if on a ship and on land/coast)
         if (player.boardedShip && tile.terrain.passable) {
             actions.push({

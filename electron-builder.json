@@ -1,0 +1,44 @@
+{
+  "appId": "com.lordoftherealms.game",
+  "productName": "Lord of the Realms",
+  "directories": {
+    "output": "dist"
+  },
+  "files": [
+    "electron-main.js",
+    "index.html",
+    "standalone.html",
+    "styles.css",
+    "js/**/*",
+    "data/**/*",
+    "assets/**/*"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      }
+    ]
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Lord of the Realms"
+  },
+  "mac": {
+    "target": "dmg"
+  },
+  "linux": {
+    "target": [
+      "AppImage",
+      "deb"
+    ],
+    "category": "Game"
+  }
+}

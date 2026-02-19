@@ -2,10 +2,17 @@
   "name": "lord-of-the-realms",
   "version": "0.3.0",
   "description": "A deep hex-grid strategy game — rise from wanderer to ruler through trade, warfare, faith, and diplomacy.",
+  "main": "electron-main.js",
   "private": true,
   "scripts": {
     "start": "npx http-server . -p 8081 -c-1 --cors",
-    "test": "npx http-server . -p 8082 -c-1 --cors -o tests/index.html"
+    "test": "npx http-server . -p 8082 -c-1 --cors -o tests/index.html",
+    "electron": "electron .",
+    "electron:dev": "NODE_ENV=development electron .",
+    "build:win": "electron-builder --win --x64",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "build:all": "electron-builder --win --mac --linux"
   },
   "keywords": [
     "strategy",
@@ -16,6 +23,8 @@
   ],
   "license": "MIT",
   "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
     "http-server": "^14.1.1"
   }
 }

@@ -109,24 +109,46 @@ You enter a world divided among **five rival kingdoms** — each with distinct c
 
 ## 🚀 Getting Started
 
-### Prerequisites
+### Option 1: Desktop Application (Windows)
+
+Download the latest Windows installer from the [Releases page](https://github.com/fuadmefleh/lordoftherealms/releases):
+
+1. Download `Lord-of-the-Realms-Setup-*.exe`
+2. Run the installer and follow the installation wizard
+3. Launch the game from your Start Menu or Desktop shortcut
+
+The desktop version runs as a standalone application and doesn't require a web browser.
+
+### Option 2: Run from Source (All Platforms)
+
+#### Prerequisites
 
 You need [Node.js](https://nodejs.org/) installed to run the development server.
 
-### Running the Game
+#### Running the Game
 
-#### Windows
+**Windows:**
 ```bash
 run.bat
 ```
 
-#### macOS / Linux
+**macOS / Linux:**
 ```bash
 chmod +x run.sh
 ./run.sh
 ```
 
 Open your browser and navigate to `http://localhost:8081`.
+
+### Option 3: Web Bundle (All Platforms)
+
+Download the web bundle ZIP from the [Releases page](https://github.com/fuadmefleh/lordoftherealms/releases):
+
+1. Download and extract the ZIP file
+2. Open `index.html` in your web browser
+3. Or open `standalone.html` for a self-contained version
+
+No installation or server required!
 
 ---
 

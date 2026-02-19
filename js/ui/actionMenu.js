@@ -4542,11 +4542,20 @@ const ActionMenu = {
             return;
         }
 
+        if (!game.player.army || game.player.army.length === 0) {
+            game.ui.showNotification('No Army', 'You have no army to fight with! Recruit soldiers first.', 'error');
+            return;
+        }
+
         const playerStrength = PlayerMilitary.getArmyStrength(game.player);
+        if (playerStrength < 50) {
+            game.ui.showNotification('Army Too Weak', 'You need an army strength of 50+ to besiege a settlement.', 'error');
+            return;
+        }
+
         const garrisonStrength = PlayerMilitary.getSettlementDefense(settlement, game.world);
         const ratio = playerStrength / Math.max(1, garrisonStrength);
 
-        // Odds assessment
         let oddsLabel, oddsColor;
         if (ratio >= 2.0) { oddsLabel = 'Overwhelming Advantage'; oddsColor = '#2ecc71'; }
         else if (ratio >= 1.3) { oddsLabel = 'Favorable Odds'; oddsColor = '#27ae60'; }
@@ -4559,7 +4568,6 @@ const ActionMenu = {
 
         let html = '<div style="max-height: 500px; overflow-y: auto;">';
 
-        // Settlement info
         html += `
             <div style="text-align: center; margin-bottom: 16px;">
                 <div style="font-size: 48px; margin-bottom: 8px;">${typeIcon}</div>
@@ -4571,7 +4579,6 @@ const ActionMenu = {
             </div>
         `;
 
-        // Strength comparison
         html += `
             <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
@@ -4593,7 +4600,6 @@ const ActionMenu = {
             </div>
         `;
 
-        // Warnings
         html += `<div style="padding: 10px; background: rgba(231,76,60,0.1); border-left: 3px solid #e74c3c; border-radius: 0 4px 4px 0; margin-bottom: 12px; font-size: 12px;">`;
         html += `<div style="color: #e74c3c; font-weight: bold; margin-bottom: 4px;">⚠️ Consequences of Attack</div>`;
         html += `<div style="color: var(--text-secondary); line-height: 1.5;">`;
@@ -4608,7 +4614,6 @@ const ActionMenu = {
         }
         html += `</div></div>`;
 
-        // Buttons
         html += `
             <div style="display: flex; gap: 8px;">
                 <button onclick="game.ui.hideCustomPanel()" style="
@@ -4619,7 +4624,7 @@ const ActionMenu = {
                 <button onclick="ActionMenu.performSiege(window.game)" style="
                     flex: 1; padding: 10px; background: rgba(231,76,60,0.3); border: 1px solid rgba(231,76,60,0.6);
                     border-radius: 6px; cursor: pointer; color: #ff6666; font-weight: bold; font-family: var(--font-body); font-size: 13px;">
-                    ⚔️ ATTACK
+                    ⚔️ LAUNCH SIEGE
                 </button>
             </div>
         `;
@@ -4629,7 +4634,7 @@ const ActionMenu = {
     },
 
     /**
-     * Execute siege attack against a settlement
+     * Execute siege attack against a settlement — launches tactical battle
      */
     performSiege(game) {
         game.ui.hideCustomPanel();
@@ -4641,94 +4646,45 @@ const ActionMenu = {
         }
 
         const settlement = tile.settlement;
-        const result = PlayerMilitary.attackSettlement(game.player, settlement, tile, game.world);
+        const garrisonStrength = PlayerMilitary.getSettlementDefense(settlement, game.world);
 
-        if (!result.success && result.reason) {
-            game.ui.showNotification('Cannot Attack', result.reason, 'error');
-            return;
-        }
-
-        let html = '<div style="padding: 10px;">';
-
-        if (result.victory) {
-            // Victory panel
-            html += `<div style="text-align: center; margin-bottom: 12px;">
-                <span style="font-size: 48px;">🏆</span>
-                <h3 style="color: #66ff66; margin: 5px 0;">Settlement Conquered!</h3>
-                <p style="color: #aaa;">You have taken ${settlement.name}!</p>
-            </div>`;
-
-            html += `<div style="background: rgba(46,204,113,0.1); padding: 10px; border-radius: 6px; margin-bottom: 10px;">`;
-            html += `<div style="font-weight: bold; color: var(--gold); margin-bottom: 6px;">Battle Results</div>`;
-            html += `<div style="font-size: 13px; line-height: 1.6;">`;
-            html += `<div>💰 Gold plundered: <strong style="color: #ffd700;">${result.plunder}</strong></div>`;
-            html += `<div>👑 New owner: <strong style="color: #4fc3f7;">${result.newOwner}</strong></div>`;
-            if (result.renownChange > 0) {
-                html += `<div>⭐ Renown: <strong style="color: #e67e22;">+${result.renownChange}</strong></div>`;
-            }
-            if (result.casualties > 0) {
-                html += `<div style="color: #ff9800;">⚠️ Soldiers lost: ${result.casualties}</div>`;
-            }
-            html += `</div></div>`;
-
-            if (result.capitalCaptured) {
-                html += `<div style="padding: 8px; background: rgba(155,89,182,0.15); border: 1px solid rgba(155,89,182,0.3); border-radius: 4px; margin-bottom: 10px; font-size: 12px; color: #bb86fc;">
-                    👑 You have captured their <strong>capital city</strong>!
-                    ${result.kingdomDestroyed ? '<br>💀 <strong>The entire kingdom has fallen!</strong>' : '<br>The kingdom will relocate its capital.'}
-                </div>`;
-            }
-
-            html += `<div style="font-size: 11px; color: #ff6666; padding: 6px; background: rgba(231,76,60,0.1); border-radius: 4px;">
-                😈 Karma: ${result.karmaChange} | Reputation with all kingdoms damaged
-            </div>`;
-
-            if (result.tactics) {
-                const terrain = result.tactics.terrainId || 'mixed ground';
-                html += `<div style="margin-top:8px; font-size:11px; color:var(--text-secondary); padding:6px; background:rgba(79,195,247,0.08); border-radius:4px;">`;
-                html += `📐 Tactical: counters x${result.tactics.playerCounterMult} • terrain x${result.tactics.playerTerrainMult} (${terrain}) • morale ${result.tactics.playerMorale}`;
-                if (result.tactics.moraleBreak === 'enemy') html += `<br>😨 Defender morale broke and they fled.`;
-                html += `</div>`;
-            }
-        } else {
-            // Defeat panel
-            html += `<div style="text-align: center; margin-bottom: 12px;">
-                <span style="font-size: 48px;">💀</span>
-                <h3 style="color: #ff6666; margin: 5px 0;">Siege Failed!</h3>
-                <p style="color: #aaa;">The defenders of ${settlement.name} repelled your assault!</p>
-            </div>`;
-
-            html += `<div style="background: rgba(231,76,60,0.1); padding: 10px; border-radius: 6px; margin-bottom: 10px;">`;
-            html += `<div style="font-size: 13px; line-height: 1.6;">`;
-            html += `<div style="color: #ff9800;">⚠️ Soldiers lost: ${result.casualties}</div>`;
-            html += `<div style="color: #ff6666;">😈 Karma: ${result.karmaChange}</div>`;
-            if (result.captured) {
-                html += `<div style="color: #ff6666; margin-top: 4px;">⛓️ You have been captured into indentured servitude for ${result.servitudeDays} days!</div>`;
-                html += `<div style="color: #ffd700;">💰 ${result.goldConfiscated} gold confiscated.</div>`;
-            }
-            html += `</div></div>`;
-
-            if (result.tactics) {
-                const terrain = result.tactics.terrainId || 'mixed ground';
-                html += `<div style="margin-top:8px; font-size:11px; color:var(--text-secondary); padding:6px; background:rgba(79,195,247,0.08); border-radius:4px;">`;
-                html += `📐 Tactical: counters x${result.tactics.playerCounterMult} • terrain x${result.tactics.playerTerrainMult} (${terrain}) • morale ${result.tactics.playerMorale}`;
-                if (result.tactics.moraleBreak === 'player') html += `<br>😨 Your line broke and fled under pressure.`;
-                html += `</div>`;
-            }
-        }
-
-        html += `<button onclick="game.ui.hideCustomPanel(); game.ui.updateStats(game.player, game.world);" style="
-            width: 100%; padding: 10px; margin-top: 10px;
-            background: #444; border: 1px solid #666; border-radius: 6px;
-            color: #eee; cursor: pointer; font-size: 14px;
-        ">Continue</button></div>`;
-
-        game.ui.showCustomPanel(result.victory ? '⚔️ Victory!' : '⚔️ Defeat', html);
-        game.ui.updateStats(game.player, game.world);
-        game.endDay();
+        BattleUI.open(game, {
+            enemyStrength: garrisonStrength,
+            enemyName: `${settlement.name} Garrison`,
+            enemyIcon: settlement.type === 'capital' ? '🏰' : '🏙️',
+            terrainId: tile.terrain?.id || null,
+            context: {
+                enemyComposition: PlayerMilitary._getSettlementComposition(settlement, tile),
+                isSiege: true,
+            },
+            onComplete(result) {
+                if (result.victory) {
+                    // Apply full siege consequences via existing system
+                    const siegeResult = PlayerMilitary.attackSettlement(
+                        game.player, settlement, tile, game.world,
+                        { skipCombat: true }
+                    );
+                    if (siegeResult && siegeResult.capitalCaptured) {
+                        game.ui.showNotification(
+                            '👑 Capital Captured!',
+                            `You have taken ${settlement.name}! ${siegeResult.kingdomDestroyed ? 'The kingdom has fallen!' : ''}`,
+                            'success'
+                        );
+                    }
+                } else if (!result.fled) {
+                    // Defeat consequences
+                    game.player.karma -= 3;
+                    if (settlement.kingdom) {
+                        game.player.reputation[settlement.kingdom] =
+                            (game.player.reputation[settlement.kingdom] || 0) - 30;
+                    }
+                }
+            },
+        });
     },
 
     /**
-     * Show attack confirmation for a world unit
+     * Show attack confirmation for a world unit — launches tactical battle
      */
     showAttackConfirm(game, tile, actionType) {
         // Find units on this tile
@@ -4738,12 +4694,19 @@ const ActionMenu = {
             return;
         }
 
+        if (unitsOnTile.length === 1) {
+            // Jump straight to battle
+            ActionMenu._launchUnitBattle(game, tile, unitsOnTile[0]);
+            return;
+        }
+
+        // Multiple units — let player pick
         let html = '<div style="padding:10px;">';
-        html += '<p style="margin-bottom:10px;color:#ccc;">Choose a target to engage in combat:</p>';
+        html += '<p style="margin-bottom:10px;color:#ccc;">Choose a target to engage in battle:</p>';
 
         for (const unit of unitsOnTile) {
             const dangerColor = unit.strength > PlayerMilitary.getArmyStrength(game.player) ? '#ff6666' : '#66ff66';
-            html += `<button onclick="ActionMenu.performAttack(window.game, '${unit.id}')" style="
+            html += `<button onclick="ActionMenu._pickUnitTarget(window.game, '${unit.id}')" style="
                 display:flex; align-items:center; gap:10px; width:100%; padding:10px;
                 margin-bottom:8px; background:#2a2a2a; border:1px solid #555;
                 border-radius:6px; cursor:pointer; color:#eee; text-align:left;
@@ -4763,7 +4726,62 @@ const ActionMenu = {
         </div>`;
         html += '</div>';
 
-        game.ui.showCustomPanel('⚔️ Attack Unit', html);
+        game.ui.showCustomPanel('⚔️ Choose Target', html);
+    },
+
+    /** Internal: player picked a unit from the multi-unit picker */
+    _pickUnitTarget(game, unitId) {
+        game.ui.hideCustomPanel();
+        const unit = game.world.units.find(u => u.id === unitId && !u.destroyed);
+        if (!unit) { game.ui.showNotification('Target Gone', 'The unit has moved on.', 'default'); return; }
+        const tile = game.world.getTile(unit.q, unit.r);
+        ActionMenu._launchUnitBattle(game, tile, unit);
+    },
+
+    /** Internal: open the tactical battle for a world unit */
+    _launchUnitBattle(game, tile, unit) {
+        if (!game.player.army || game.player.army.length === 0) {
+            game.ui.showNotification('No Army', 'You have no army to fight with! Recruit soldiers first.', 'error');
+            return;
+        }
+
+        const isBandit = unit.type === 'raider' || unit.type === 'pirate';
+        const isNeutral = unit.type === 'caravan' || unit.type === 'ship' || unit.type === 'fishing_boat';
+
+        BattleUI.open(game, {
+            enemyStrength: unit.strength,
+            enemyName: unit.name,
+            enemyIcon: unit.icon,
+            terrainId: tile?.terrain?.id || null,
+            context: {
+                isBandit,
+                isNeutral,
+                enemyComposition: PlayerMilitary._getWorldUnitComposition(unit),
+            },
+            onComplete(result) {
+                if (result.victory) {
+                    // Transfer unit inventory as loot
+                    if (unit.inventory) {
+                        for (const [item, qty] of Object.entries(unit.inventory)) {
+                            if (qty > 0) {
+                                game.player.inventory = game.player.inventory || {};
+                                game.player.inventory[item] = (game.player.inventory[item] || 0) + qty;
+                            }
+                        }
+                    }
+                    // Karma for attacking neutrals
+                    if (isNeutral) {
+                        game.player.karma -= 3;
+                        const k = unit.type === 'patrol' ? unit.kingdomId : null;
+                        if (k) game.player.reputation[k] = (game.player.reputation[k] || 0) - 20;
+                    } else if (isBandit) {
+                        game.player.karma += 1;
+                    }
+                    unit.destroyed = true;
+                    game.world.events.push({ text: `${game.player.name} defeated ${unit.name}!`, type: 'military' });
+                }
+            },
+        });
     },
 
     /**

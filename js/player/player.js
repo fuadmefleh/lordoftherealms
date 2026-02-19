@@ -6,7 +6,9 @@ class Player {
     constructor(profile = {}) {
         this.q = 0;
         this.r = 0;
-        this.name = profile.name || 'Wanderer';
+        this.firstName = profile.firstName || 'Wanderer';
+        this.lastName = profile.lastName || '';
+        this.name = this.lastName ? `${this.firstName} ${this.lastName}` : this.firstName;
         this.gender = profile.gender || 'male';
         this.age = profile.age || 20;
         this.title = 'Nobody';
@@ -19,6 +21,10 @@ class Player {
         this.maxHealth = 100;
         this.stamina = 10; // Movement points per day
         this.maxStamina = 10;
+
+        // Action Points
+        this.actionPoints = 10;
+        this.maxActionPoints = 10;
 
         // Attributes
         this.strength = 5;
@@ -55,19 +61,58 @@ class Player {
 
         // Maps collection (cartography system)
         this.maps = [];
+        this.artifacts = {
+            fragments: {},
+            forged: [],
+            discovered: [],
+        };
+        this.activeBounties = [];
+        this.bountiesCompleted = 0;
+        this.bountyHunter = {
+            rank: 1,
+            capturesTurnedIn: 0,
+            capturesRecruited: 0,
+            failedCaptures: 0,
+            nextTargetId: 1,
+            boardRefreshDay: 0,
+            boardSettlementKey: '',
+            boardOffers: [],
+        };
+        this.festivals = {
+            hosted: 0,
+            successfulContests: 0,
+            diplomacyEvents: 0,
+            sabotageEvents: 0,
+            moraleBoostDays: 0,
+            moraleBoostValue: 0,
+            lastHostedDay: -999,
+            history: [],
+        };
 
         // Economic path
         this.properties = [];       // Farms, mines, workshops
         this.caravans = [];         // Active trade caravans
+        this.tradeRoutes = [];      // Persistent legal trade routes
+        this.smugglingRoutes = [];  // Persistent black-market routes
+        this.auctions = {           // Auction market state
+            active: [],
+            won: [],
+            nextRefreshDay: 1,
+            nextId: 1,
+            lastProcessedDay: 0,
+        };
+        this.landTaxBonus = 0;      // Passive bonus from auctioned land rights
         this.activeContract = null; // Mercenary contract
         this.loans = {};            // Loans per kingdom: { kingdomId: [loan1, loan2] }
 
         // Military path
         this.army = [];             // Recruited units
+        this.mercenaryCompanies = [];// Hired temporary mercenary bands
 
         // Housing
         this.houses = [];           // Owned houses: [{ q, r, typeId, upgrades, condition, ... }]
         this.ships = [];            // Owned ships: [{ id, typeId, name, ... }]
+        this.boardedShip = null;    // Currently boarded ship ID (null when on land)
 
         // Religious path
         this.religion = null;       // Founded religion
@@ -90,6 +135,7 @@ class Player {
         this.children = [];            // Array of child objects
         this.relationships = {};       // { npcId: { score, romantic, affection, history[] } }
         this.heir = null;              // Child id designated as heir
+        this.travelParty = [];         // Relationship NPC ids currently traveling with player
         this.maxLifespan = 55 + Math.floor(Math.random() * 31); // 55-85
         this.birthDay = 0;
         this.marriageDay = null;
@@ -97,6 +143,9 @@ class Player {
         // Visuals
         this.color = '#ffffff';
         this.icon = '👤';
+
+        // Starvation tracking
+        this.starvationDays = 0; // Consecutive days without food
 
         // Tracking
         this.visitedImprovements = new Set();
@@ -237,16 +286,59 @@ class Player {
      * Request to move to target hex
      */
     moveTo(targetQ, targetR, world) {
-        // Can't move during indentured servitude
+        // Can't move during jail or indentured servitude
+        if (this.jailState) return false;
         if (this.indenturedServitude) return false;
+
+        // Define passability based on whether player is on a ship
+        const isPassable = (q, r) => {
+            const tile = world.getTile(q, r);
+            if (!tile) return false;
+            
+            if (this.boardedShip) {
+                // On a ship: can move on water tiles and beaches/coasts
+                const waterTiles = ['ocean', 'deep_ocean', 'coast', 'lake', 'sea', 'beach'];
+                if (waterTiles.includes(tile.terrain.id)) return true;
+                
+                // Allow starting position
+                const isCurrentPos = (q === this.q && r === this.r);
+                if (isCurrentPos) return true;
+                
+                // Allow coastal settlements (settlements adjacent to water) for docking
+                if (tile.settlement) {
+                    const neighbors = Hex.neighbors(q, r);
+                    for (const n of neighbors) {
+                        const nq = Hex.wrapQ(n.q, world.width);
+                        if (n.r < 0 || n.r >= world.height) continue;
+                        const nTile = world.getTile(nq, n.r);
+                        if (nTile && waterTiles.includes(nTile.terrain.id)) {
+                            return true; // Settlement is adjacent to water
+                        }
+                    }
+                }
+                
+                return false;
+            } else {
+                // On land: use normal passability
+                return tile.terrain.passable;
+            }
+        };
 
         const path = Hex.findPath(
             this.q, this.r,
             targetQ, targetR,
             world.width, world.height,
-            (q, r) => world.isPassable(q, r),
+            isPassable,
             (q, r) => {
                 const tile = world.getTile(q, r);
+                if (this.boardedShip) {
+                    // On a ship: water tiles have uniform movement cost
+                    const waterTiles = ['ocean', 'deep_ocean', 'coast', 'lake', 'sea', 'beach'];
+                    if (waterTiles.includes(tile.terrain.id)) {
+                        return 2; // Standard water movement cost
+                    }
+                    return 2; // For starting position on land
+                }
                 return Infrastructure.getEffectiveMoveCost(tile);
             }
         );
@@ -316,15 +408,36 @@ class Player {
             const nextHex = this.path[this.pathIndex];
             const tile = world.getTile(nextHex.q, nextHex.r);
 
-            if (!tile || !tile.terrain.passable) {
+            // Check if tile is accessible based on current mode (ship vs land)
+            let isAccessible = false;
+            if (this.boardedShip) {
+                const waterTiles = ['ocean', 'deep_ocean', 'coast', 'lake', 'sea', 'beach'];
+                isAccessible = waterTiles.includes(tile.terrain.id);
+            } else {
+                isAccessible = tile.terrain.passable;
+            }
+
+            if (!tile || !isAccessible) {
                 this.isMoving = false;
                 this.path = null;
                 return false;
             }
 
             // Check stamina
-            const moveCost = (typeof Infrastructure !== 'undefined') ? Infrastructure.getEffectiveMoveCost(tile) : tile.terrain.moveCost;
+            let moveCost;
+            if (this.boardedShip) {
+                moveCost = 2; // Water movement cost
+            } else {
+                moveCost = (typeof Infrastructure !== 'undefined') ? Infrastructure.getEffectiveMoveCost(tile) : tile.terrain.moveCost;
+            }
             if (this.movementRemaining < moveCost) {
+                this.isMoving = false;
+                this.path = null;
+                return false;
+            }
+
+            // Check action points (each move step costs 1 AP)
+            if ((this.actionPoints || 0) < 1) {
                 this.isMoving = false;
                 this.path = null;
                 return false;
@@ -335,13 +448,14 @@ class Player {
             this.prevR = this.r;
             this.q = nextHex.q;
             this.r = nextHex.r;
-            this.movementRemaining -= moveCost;
-
-            // Consume food for travel
-            if (!this.consumeFood()) {
-                // No food — take health damage
-                this.health = Math.max(0, this.health - 3);
+            
+            // Ensure q coordinate is wrapped (for world wrapping)
+            if (typeof Hex !== 'undefined' && world.width) {
+                this.q = Hex.wrapQ(this.q, world.width);
             }
+            
+            this.movementRemaining -= moveCost;
+            this.actionPoints = Math.max(0, (this.actionPoints || 0) - 1);
 
             // Reveal area
             this.revealArea(world, 4);
@@ -349,6 +463,12 @@ class Player {
 
             // Discover holy sites on explored tiles
             this.discoverNearbyHolySites(world, 4);
+
+            // Title hooks: marshal patrol & cartographer exploration
+            if (typeof Titles !== 'undefined') {
+                Titles.recordPatrolStep(this, this.q, this.r);
+                Titles.recordExploration(this, 1);
+            }
 
             // Check for improvements (POIs) - just track visitation, don't auto-reward
             // (Use the Explore action for full rewards)
@@ -368,8 +488,8 @@ class Player {
                 this.isMoving = false;
                 this.path = null;
                 this.travelDestination = null;
-            } else if (this.movementRemaining <= 0) {
-                // Out of stamina — queue remaining path for next day
+            } else if (this.movementRemaining <= 0 || (this.actionPoints || 0) <= 0) {
+                // Out of stamina or action points — queue remaining path for next day
                 this.queuedPath = this.path;
                 this.queuedPathIndex = this.pathIndex;
                 this.isMoving = false;
@@ -403,18 +523,50 @@ class Player {
      * Rest (end day — restore stamina)
      */
     endDay() {
+        // Daily food consumption — eat 1 food per day
+        if (this.consumeFood()) {
+            // Fed — reset starvation counter
+            this.starvationDays = 0;
+        } else {
+            // No food — increment starvation
+            this.starvationDays = (this.starvationDays || 0) + 1;
+
+            // Escalating health loss: 5 + 3 per consecutive day starving
+            const starveDmg = 5 + (this.starvationDays * 3);
+            this.health = Math.max(0, this.health - starveDmg);
+        }
+
         // Apply technology movement bonus
         let staminaBonus = 0;
         if (typeof Technology !== 'undefined') {
             staminaBonus = Technology.getMovementBonus(this);
         }
         this.movementRemaining = this.stamina + staminaBonus;
-        this.health = Math.min(this.health + 5, this.maxHealth);
 
-        // Block movement if in servitude
+        // Only regenerate health if not starving
+        if (this.starvationDays === 0) {
+            this.health = Math.min(this.health + 5, this.maxHealth);
+        }
+
+        // Reduce max stamina while starving (weakened)
+        const effectiveStamina = this.starvationDays > 0
+            ? Math.max(2, this.stamina - this.starvationDays)
+            : this.stamina;
+        this.movementRemaining = Math.min(this.movementRemaining, effectiveStamina + staminaBonus);
+
+        // Reset action points
+        this.actionPoints = this.maxActionPoints;
+
+        // Block movement if in jail or servitude
+        if (this.jailState) {
+            this.movementRemaining = 0;
+            this.stamina = 0;
+            this.actionPoints = 0;
+        }
         if (this.indenturedServitude) {
             this.movementRemaining = 0;
             this.stamina = 0;
+            this.actionPoints = 0;
         }
     }
 

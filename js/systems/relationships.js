@@ -15,8 +15,9 @@ const Relationships = {
     initialize(player) {
         // Set up player dynasty fields if not present
         if (!player.dynasty) {
+            const dynastySurname = player.lastName || player.firstName || player.name || 'Wanderer';
             player.dynasty = {
-                name: player.name + 'son',
+                name: dynastySurname,
                 founded: 1,
                 prestige: 0,
             };
@@ -24,6 +25,7 @@ const Relationships = {
         if (!player.spouse) player.spouse = null;          // NPC id
         if (!player.children) player.children = [];        // Array of child objects
         if (!player.relationships) player.relationships = {}; // { npcId: { score, type, romantic, affection, history[] } }
+        if (!Array.isArray(player.travelParty)) player.travelParty = []; // NPC ids traveling with player
         if (!player.heir) player.heir = null;               // Child id designated as heir
         if (!player.maxLifespan) {
             const settings = Relationships._getHeirSettings();
@@ -86,9 +88,29 @@ const Relationships = {
         const data = Relationships._getData();
         if (data && data.socialActions) return data.socialActions;
         return {
-            befriend: { id: 'befriend', label: 'Be Friendly', icon: '😊', relationGain: { min: 2, max: 5 }, statBonus: 'charisma', failChance: 0.1 },
-            insult: { id: 'insult', label: 'Insult', icon: '😤', relationGain: { min: -8, max: -3 }, statBonus: null, failChance: 0 },
+            befriend: { id: 'befriend', label: 'Be Friendly', icon: '😊', relationGain: { min: 2, max: 5 }, statBonus: 'charisma', failChance: 0.1, minLevel: 'stranger', apCost: 1 },
+            share_meal: { id: 'share_meal', label: 'Share a Meal', icon: '🍞', relationGain: { min: 3, max: 6 }, statBonus: 'charisma', failChance: 0.05, cost: 10, minLevel: 'acquaintance', minScore: 10, apCost: 1 },
+            tell_stories: { id: 'tell_stories', label: 'Tell Stories', icon: '📖', relationGain: { min: 2, max: 6 }, statBonus: 'intelligence', failChance: 0.1, minLevel: 'acquaintance', minScore: 10, apCost: 1 },
+            train_together: { id: 'train_together', label: 'Train Together', icon: '⚔️', relationGain: { min: 3, max: 7 }, statBonus: 'strength', failChance: 0.15, minLevel: 'friend', minScore: 30, apCost: 2 },
+            confide_secret: { id: 'confide_secret', label: 'Confide a Secret', icon: '🤫', relationGain: { min: 5, max: 9 }, statBonus: 'diplomacy', failChance: 0.2, failPenalty: -4, minLevel: 'close_friend', minScore: 60, apCost: 2 },
+            blood_oath: { id: 'blood_oath', label: 'Swear Blood Oath', icon: '🩸', relationGain: { min: 8, max: 14 }, statBonus: 'leadership', failChance: 0.28, failPenalty: -6, cost: 40, minLevel: 'best_friend', minScore: 90, apCost: 3 },
+            insult: { id: 'insult', label: 'Insult', icon: '😤', relationGain: { min: -8, max: -3 }, statBonus: null, failChance: 0, apCost: 1 },
+            challenge: { id: 'challenge', label: 'Challenge to Duel', icon: '🗡️', relationGain: { min: -2, max: 5 }, statBonus: 'strength', failChance: 0.3, failResult: 'humiliation', apCost: 2 },
         };
+    },
+
+    _getRelationshipLevels() {
+        const data = Relationships._getData();
+        if (data && Array.isArray(data.relationshipLevels) && data.relationshipLevels.length > 0) {
+            return data.relationshipLevels;
+        }
+        return [
+            { id: 'stranger', label: 'Stranger', minScore: -100, icon: '👤' },
+            { id: 'acquaintance', label: 'Acquaintance', minScore: 10, icon: '🤝' },
+            { id: 'friend', label: 'Friend', minScore: 30, icon: '😊' },
+            { id: 'close_friend', label: 'Close Friend', minScore: 60, icon: '💛' },
+            { id: 'best_friend', label: 'Best Friend', minScore: 90, icon: '💜' },
+        ];
     },
 
     _getCourtingStages() {
@@ -215,6 +237,110 @@ const Relationships = {
         });
     },
 
+    ensureTravelParty(player) {
+        if (!Array.isArray(player.travelParty)) player.travelParty = [];
+        return player.travelParty;
+    },
+
+    isInTravelParty(player, npcId) {
+        const party = Relationships.ensureTravelParty(player);
+        return party.includes(npcId);
+    },
+
+    getTravelPartyMembers(player) {
+        const party = Relationships.ensureTravelParty(player);
+        const members = [];
+        for (const npcId of party) {
+            const npc = Relationships.getNPC(npcId);
+            if (npc && npc.isAlive) members.push(npc);
+        }
+        return members;
+    },
+
+    requestJoinTravelParty(player, npcId, world) {
+        Relationships.ensureTravelParty(player);
+        const npc = Relationships.getNPC(npcId);
+        if (!npc || !npc.isAlive) return { success: false, reason: 'NPC not available' };
+
+        if (Relationships.isInTravelParty(player, npcId)) {
+            return { success: false, reason: `${npc.firstName} is already in your travel party.` };
+        }
+
+        const rel = Relationships.getRelationship(player, npcId);
+
+        const known = !!player.relationships?.[npcId];
+        if (!known) {
+            return { success: false, reason: 'You need to meet this person first.' };
+        }
+
+        let chance = 0.20;
+        chance += (rel.score || 0) * 0.006;
+        chance += (rel.affection || 0) * 0.004;
+        chance += ((player.charisma || 5) - 5) * 0.03;
+        chance += ((player.skills?.diplomacy || 1) - 1) * 0.02;
+
+        if (player.spouse === npcId) chance += 0.45;
+
+        const traitList = npc.traits || [];
+        if (traitList.includes('adventurous')) chance += 0.18;
+        if (traitList.includes('loyal')) chance += 0.10;
+        if (traitList.includes('homebody')) chance -= 0.22;
+        if (traitList.includes('fickle')) chance -= 0.08;
+
+        chance = Math.max(0.05, Math.min(0.95, chance));
+        const roll = Math.random();
+
+        if (roll <= chance) {
+            player.travelParty.push(npcId);
+            npc.isTravelingWithPlayer = true;
+            npc.lastInteraction = world?.day || npc.lastInteraction || 0;
+
+            rel.score = Math.min(100, (rel.score || 0) + 2);
+            rel.history.push({ day: world?.day || 0, action: 'join_travel_party', result: 'accepted' });
+
+            return {
+                success: true,
+                accepted: true,
+                npc,
+                chance,
+                roll,
+                reason: `${npc.firstName} agrees to travel with you.`,
+            };
+        }
+
+        rel.score = Math.max(-100, (rel.score || 0) - 1);
+        rel.history.push({ day: world?.day || 0, action: 'join_travel_party', result: 'rejected' });
+
+        return {
+            success: true,
+            accepted: false,
+            npc,
+            chance,
+            roll,
+            reason: `${npc.firstName} declines the invitation for now.`,
+        };
+    },
+
+    removeFromTravelParty(player, npcId) {
+        Relationships.ensureTravelParty(player);
+        const idx = player.travelParty.indexOf(npcId);
+        if (idx === -1) return { success: false, reason: 'Not in travel party' };
+
+        player.travelParty.splice(idx, 1);
+        const npc = Relationships.getNPC(npcId);
+        if (npc) npc.isTravelingWithPlayer = false;
+
+        return { success: true, npc };
+    },
+
+    cleanupTravelParty(player) {
+        Relationships.ensureTravelParty(player);
+        player.travelParty = player.travelParty.filter(npcId => {
+            const npc = Relationships.getNPC(npcId);
+            return !!(npc && npc.isAlive);
+        });
+    },
+
     // ── NPC trait/appearance generation ─────────────────────────────────
 
     _rollNPCTraits() {
@@ -287,6 +413,103 @@ const Relationships = {
         return current;
     },
 
+    getRelationshipLevel(score) {
+        const levels = Relationships._getRelationshipLevels();
+        let current = levels[0] || { id: 'stranger', label: 'Stranger', minScore: -100, icon: '👤' };
+        for (const level of levels) {
+            if (score >= (level.minScore ?? -100)) current = level;
+        }
+        return current;
+    },
+
+    _getLevelIndex(levelId) {
+        const levels = Relationships._getRelationshipLevels();
+        return levels.findIndex(level => level.id === levelId);
+    },
+
+    getSocialActionAvailability(player, npcId) {
+        const rel = Relationships.getRelationship(player, npcId);
+        const actions = Relationships._getSocialActions();
+        const currentLevel = Relationships.getRelationshipLevel(rel.score || 0);
+        const currentLevelIndex = Relationships._getLevelIndex(currentLevel.id);
+
+        return Object.values(actions).map(action => {
+            const minScore = action.minScore ?? -100;
+            const minLevel = action.minLevel || 'stranger';
+            const minLevelIndex = Math.max(0, Relationships._getLevelIndex(minLevel));
+
+            if ((rel.score || 0) < minScore) {
+                return {
+                    ...action,
+                    unlocked: false,
+                    lockReason: `Requires relationship score ${minScore}`,
+                };
+            }
+
+            if (currentLevelIndex < minLevelIndex) {
+                const requiredLevel = Relationships._getRelationshipLevels()[minLevelIndex];
+                return {
+                    ...action,
+                    unlocked: false,
+                    lockReason: `Requires ${requiredLevel?.label || minLevel}`,
+                };
+            }
+
+            return { ...action, unlocked: true, lockReason: null };
+        });
+    },
+
+    getCourtActionAvailability(player, npcId) {
+        const npc = Relationships.getNPC(npcId);
+        if (!npc) return [];
+
+        const rel = Relationships.getRelationship(player, npcId);
+        const actions = Relationships._getCourtActions();
+        const stages = Relationships._getCourtingStages();
+        const stageOrder = stages.map(stage => stage.id);
+        const isSpouse = player.spouse === npcId;
+        const currentStage = Relationships.getCourtingStage(rel.affection || 0, isSpouse);
+        const currentStageIdx = Math.max(0, stageOrder.indexOf(currentStage.id));
+
+        return Object.values(actions).map(action => {
+            if (player.spouse && player.spouse !== npcId) {
+                return {
+                    ...action,
+                    unlocked: false,
+                    lockReason: 'You are already married to someone else',
+                };
+            }
+
+            if (action.requiresSpouse && !isSpouse) {
+                return {
+                    ...action,
+                    unlocked: false,
+                    lockReason: 'Only available with your spouse',
+                };
+            }
+
+            const minStageId = action.minStage || 'strangers';
+            const minStageIdx = Math.max(0, stageOrder.indexOf(minStageId));
+            if (currentStageIdx < minStageIdx) {
+                return {
+                    ...action,
+                    unlocked: false,
+                    lockReason: `Requires ${stages[minStageIdx]?.label || minStageId} stage`,
+                };
+            }
+
+            if (action.minAffection && (rel.affection || 0) < action.minAffection) {
+                return {
+                    ...action,
+                    unlocked: false,
+                    lockReason: `Requires ${action.minAffection} affection`,
+                };
+            }
+
+            return { ...action, unlocked: true, lockReason: null };
+        });
+    },
+
     // ────────────────────────────────────────────────────────────────────
     //  Social Interactions (Friendship / Rivalry)
     // ────────────────────────────────────────────────────────────────────
@@ -298,6 +521,12 @@ const Relationships = {
         const actions = Relationships._getSocialActions();
         const action = actions[actionId];
         if (!action) return { success: false, reason: 'Unknown action' };
+
+        const availability = Relationships.getSocialActionAvailability(player, npcId)
+            .find(item => item.id === actionId);
+        if (availability && !availability.unlocked) {
+            return { success: false, reason: availability.lockReason || 'This action is locked' };
+        }
 
         const cost = action.cost || 0;
         if (cost > 0 && player.gold < cost) {
@@ -319,7 +548,7 @@ const Relationships = {
 
         // Failure check
         if (action.failChance && Math.random() < action.failChance) {
-            const penalty = action.failResult === 'humiliation' ? -3 : -1;
+            const penalty = action.failPenalty ?? (action.failResult === 'humiliation' ? -3 : -1);
             rel.score = Math.max(-100, Math.min(100, rel.score + penalty));
             rel.history.push({ day: 0, action: actionId, result: 'failed' });
 
@@ -352,13 +581,19 @@ const Relationships = {
         const npc = Relationships.getNPC(npcId);
         if (!npc) return { success: false, reason: 'NPC not found' };
 
-        if (player.spouse && actionId !== 'chat') {
+        if (player.spouse && player.spouse !== npcId) {
             return { success: false, reason: 'You are already married!' };
         }
 
         const actions = Relationships._getCourtActions();
         const action = actions[actionId];
         if (!action) return { success: false, reason: 'Unknown action' };
+
+        const availability = Relationships.getCourtActionAvailability(player, npcId)
+            .find(item => item.id === actionId);
+        if (availability && !availability.unlocked) {
+            return { success: false, reason: availability.lockReason || 'This action is locked' };
+        }
 
         const cost = action.cost || 0;
         if (cost > 0 && player.gold < cost) {
@@ -371,7 +606,7 @@ const Relationships = {
         // Check minimum stage
         const stages = Relationships._getCourtingStages();
         const stageOrder = stages.map(s => s.id);
-        const currentStage = Relationships.getCourtingStage(rel.affection, false);
+        const currentStage = Relationships.getCourtingStage(rel.affection, player.spouse === npcId);
         const minStageIdx = stageOrder.indexOf(action.minStage || 'strangers');
         const curStageIdx = stageOrder.indexOf(currentStage.id);
 
@@ -446,7 +681,10 @@ const Relationships = {
             compliment: `Your compliment to ${npc.firstName} came across as awkward.`,
             gift: `${npc.firstName} politely declined your gift.`,
             serenade: `Your singing was... not well received. ${npc.firstName} looked embarrassed.`,
+            moonlight_walk: `The walk with ${npc.firstName} became awkward and silent.`,
             romantic_dinner: `The dinner with ${npc.firstName} was awkward and stilted.`,
+            private_vows: `${npc.firstName} was not ready to make private vows yet.`,
+            quality_time: `${npc.firstName} seemed distant despite your effort to reconnect.`,
             propose: `${npc.firstName} rejected your proposal! "I'm not ready for that..."`,
         };
         return texts[actionId] || `${npc.firstName} didn't respond well.`;
@@ -756,6 +994,8 @@ const Relationships = {
         const oldAge = player.age;
 
         // Transfer heir stats to player
+        player.firstName = child.firstName;
+        player.lastName = child.dynasty || '';
         player.name = `${child.firstName} ${child.dynasty}`;
         player.gender = child.gender;
         player.age = child.age;
@@ -839,6 +1079,8 @@ const Relationships = {
      */
     processDailyEvents(player, world) {
         const events = [];
+
+        Relationships.cleanupTravelParty(player);
 
         // Marriage events
         if (player.spouse) {

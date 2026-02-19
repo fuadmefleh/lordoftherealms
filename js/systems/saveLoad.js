@@ -16,6 +16,7 @@ const SaveLoad = {
                 timestamp: Date.now(),
                 world: SaveLoad.serializeWorld(game.world),
                 player: SaveLoad.serializePlayer(game.player),
+                notificationLog: game.ui ? game.ui.notificationLog.slice(-200) : [],
             };
 
             const json = JSON.stringify(saveData);
@@ -151,13 +152,19 @@ const SaveLoad = {
             maxHealth: player.maxHealth,
             stamina: player.stamina,
             maxStamina: player.maxStamina,
+            actionPoints: player.actionPoints != null ? player.actionPoints : 10,
+            maxActionPoints: player.maxActionPoints || 10,
             movementRemaining: player.movementRemaining,
             attributes: player.attributes,
             skills: player.skills,
             reputation: player.reputation,
             properties: player.properties,
             caravans: player.caravans,
+            tradeRoutes: player.tradeRoutes || [],
+            smugglingRoutes: player.smugglingRoutes || [],
+            auctions: player.auctions || { active: [], won: [], nextRefreshDay: 1, nextId: 1, lastProcessedDay: 0 },
             army: player.army,
+            mercenaryCompanies: player.mercenaryCompanies || [],
             contract: player.contract,
             religion: player.religion,
             blessings: player.blessings,
@@ -169,15 +176,39 @@ const SaveLoad = {
             soulSoldCount: player.soulSoldCount || 0,
             lastSoulSoldDay: player.lastSoulSoldDay || 0,
             indenturedServitude: player.indenturedServitude || null,
+            jailState: player.jailState || null,
+            criminalRecord: player.criminalRecord || { pickpocket: 0, smuggling: 0 },
             inventory: player.inventory || {},
+            landTaxBonus: player.landTaxBonus || 0,
+            starvationDays: player.starvationDays || 0,
             allegiance: player.allegiance || null,
             kingdomTitle: player.kingdomTitle || null,
+            currentTitle: player.currentTitle || null,
+            titleProgress: (typeof Titles !== 'undefined') ? Titles.serializeProgress(player.titleProgress) : (player.titleProgress || {}),
+            titleHistory: player.titleHistory || [],
+            activeFugitive: player.activeFugitive || null,
+            activeBounties: player.activeBounties || [],
+            bountiesCompleted: player.bountiesCompleted || 0,
+            bountyHunter: player.bountyHunter || {
+                rank: 1,
+                capturesTurnedIn: 0,
+                capturesRecruited: 0,
+                failedCaptures: 0,
+                nextTargetId: 1,
+                boardRefreshDay: 0,
+                boardSettlementKey: '',
+                boardOffers: [],
+            },
+            titleDutyDeadline: player.titleDutyDeadline || 0,
+            titleAppointedDay: player.titleAppointedDay || 0,
+            _dutyFailures: player._dutyFailures || 0,
             luck: player.luck,
             strength: player.strength,
             financeHistory: player.financeHistory || [],
             financeToday: player.financeToday || null,
             colonies: player.colonies || [],
             maps: player.maps || [],
+            artifacts: player.artifacts || { fragments: {}, forged: [], discovered: [] },
             discoveredLore: Array.from(player.discoveredLore || []),
             discoveredHolySites: Array.from(player.discoveredHolySites || []),
             discoveredExtinctFaiths: Array.from(player.discoveredExtinctFaiths || []),
@@ -191,6 +222,7 @@ const SaveLoad = {
             spouse: player.spouse || null,
             children: player.children || [],
             relationships: player.relationships || {},
+            travelParty: player.travelParty || [],
             heir: player.heir || null,
             maxLifespan: player.maxLifespan || 70,
             birthDay: player.birthDay || 0,
@@ -198,12 +230,24 @@ const SaveLoad = {
             age: player.age || 20,
             gender: player.gender || 'male',
             name: player.name || 'Wanderer',
+            firstName: player.firstName || 'Wanderer',
+            lastName: player.lastName || '',
             _relationshipNpcs: player._relationshipNpcs || [],
+
             _relationshipNextId: player._relationshipNextId || 1,
 
             // Housing & Ships
             houses: player.houses || [],
             ships: player.ships || [],
+
+            // Espionage
+            espionage: player.espionage || null,
+
+            // Festivals
+            festivals: player.festivals || null,
+
+            // Councils & parliament
+            council: player.council || null,
         };
     },
 
@@ -270,6 +314,23 @@ const SaveLoad = {
     restorePlayer(saveData, player) {
         Object.assign(player, saveData);
 
+        // Backfill firstName/lastName from name for older saves
+        if (!player.firstName && player.name) {
+            const parts = player.name.split(' ');
+            player.firstName = parts[0] || 'Wanderer';
+            player.lastName = parts.slice(1).join(' ') || '';
+        }
+
+        // Restore title progress (convert Arrays back to Sets)
+        if (typeof Titles !== 'undefined' && player.titleProgress) {
+            player.titleProgress = Titles.deserializeProgress(player.titleProgress);
+        }
+
+        // Initialize title fields if missing
+        if (typeof Titles !== 'undefined') {
+            Titles.initialize(player);
+        }
+
         // Restore quests (convert Array back to Set)
         if (player.quests && player.quests.settlementsVisited) {
             player.quests.settlementsVisited = new Set(player.quests.settlementsVisited);
@@ -294,6 +355,87 @@ const SaveLoad = {
             player.discoveredExtinctFaiths = new Set(player.discoveredExtinctFaiths);
         } else {
             player.discoveredExtinctFaiths = new Set();
+        }
+
+        // Restore espionage system state
+        if (typeof Espionage !== 'undefined') {
+            Espionage.loadState(player);
+        }
+
+        // Restore festivals state
+        if (typeof Festivals !== 'undefined') {
+            Festivals.loadState(player);
+        } else if (!player.festivals || typeof player.festivals !== 'object') {
+            player.festivals = {
+                hosted: 0,
+                successfulContests: 0,
+                diplomacyEvents: 0,
+                sabotageEvents: 0,
+                moraleBoostDays: 0,
+                moraleBoostValue: 0,
+                lastHostedDay: -999,
+                history: [],
+            };
+        }
+
+        // Restore councils/parliament system state
+        if (typeof Councils !== 'undefined') {
+            Councils.loadState(player);
+        }
+
+        // Travel party fallback for older saves
+        if (!Array.isArray(player.travelParty)) {
+            player.travelParty = [];
+        }
+
+        if (player.landTaxBonus == null) player.landTaxBonus = 0;
+
+        // Economy 2.0 fallbacks for older saves
+        if (!Array.isArray(player.tradeRoutes)) player.tradeRoutes = [];
+        if (!Array.isArray(player.smugglingRoutes)) player.smugglingRoutes = [];
+        if (!player.auctions) {
+            player.auctions = { active: [], won: [], nextRefreshDay: 1, nextId: 1, lastProcessedDay: 0 };
+        } else {
+            if (!Array.isArray(player.auctions.active)) player.auctions.active = [];
+            if (!Array.isArray(player.auctions.won)) player.auctions.won = [];
+            player.auctions.nextRefreshDay = player.auctions.nextRefreshDay || 1;
+            player.auctions.nextId = player.auctions.nextId || 1;
+            player.auctions.lastProcessedDay = player.auctions.lastProcessedDay || 0;
+        }
+
+        // Mercenary companies fallback
+        if (!Array.isArray(player.mercenaryCompanies)) player.mercenaryCompanies = [];
+
+        // Bounty hunter fallback
+        if (!Array.isArray(player.activeBounties)) player.activeBounties = [];
+        if (typeof player.bountiesCompleted !== 'number') player.bountiesCompleted = 0;
+        if (typeof BountyHunting !== 'undefined') {
+            BountyHunting.initialize(player);
+        } else if (!player.bountyHunter || typeof player.bountyHunter !== 'object') {
+            player.bountyHunter = {
+                rank: 1,
+                capturesTurnedIn: 0,
+                capturesRecruited: 0,
+                failedCaptures: 0,
+                nextTargetId: 1,
+                boardRefreshDay: 0,
+                boardSettlementKey: '',
+                boardOffers: [],
+            };
+        }
+
+        // Legendary artifacts fallback
+        if (!player.artifacts || typeof player.artifacts !== 'object') {
+            player.artifacts = { fragments: {}, forged: [], discovered: [] };
+        }
+        if (!player.artifacts.fragments || typeof player.artifacts.fragments !== 'object') {
+            player.artifacts.fragments = {};
+        }
+        if (!Array.isArray(player.artifacts.forged)) {
+            player.artifacts.forged = [];
+        }
+        if (!Array.isArray(player.artifacts.discovered)) {
+            player.artifacts.discovered = [];
         }
     },
 

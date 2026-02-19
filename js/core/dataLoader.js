@@ -99,6 +99,9 @@ const DataLoader = {
             'relationships.json',
             'housing.json',
             'ships.json',
+            'titles.json',
+            'espionage.json',
+            'artifacts.json',
         ];
 
         const data = await this.loadAll(files);
@@ -269,6 +272,34 @@ const DataLoader = {
         const shipsData = data['ships.json'];
         if (shipsData) {
             DataLoader.ships = shipsData;
+        }
+
+        // ── Titles ──
+        const titlesData = data['titles.json'];
+        if (titlesData) {
+            DataLoader.titles = titlesData;
+        }
+
+        // ── Espionage ──
+        const espionageData = data['espionage.json'];
+        if (espionageData) {
+            DataLoader.espionage = espionageData;
+            if (typeof Espionage !== 'undefined') {
+                if (espionageData.config) Object.assign(Espionage.CONFIG, espionageData.config);
+                if (espionageData.spyNames) Espionage.SPY_NAMES = espionageData.spyNames;
+                if (espionageData.spySkills) Espionage.SPY_SKILLS = espionageData.spySkills;
+                if (espionageData.spyTraits) Espionage.SPY_TRAITS = espionageData.spyTraits;
+                if (espionageData.missions) Espionage.MISSIONS = espionageData.missions;
+                if (espionageData.missionOutcomes) Espionage.MISSION_OUTCOMES = espionageData.missionOutcomes;
+                if (espionageData.levelTitles) Espionage.LEVEL_TITLES = espionageData.levelTitles;
+                if (espionageData.rebellionEffects) Espionage.REBELLION_EFFECTS = espionageData.rebellionEffects;
+            }
+        }
+
+        // ── Legendary Artifacts ──
+        const artifactsData = data['artifacts.json'];
+        if (artifactsData) {
+            DataLoader.artifacts = artifactsData;
         }
 
         const elapsed = (performance.now() - startTime).toFixed(1);

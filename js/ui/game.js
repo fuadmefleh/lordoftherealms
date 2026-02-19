@@ -150,8 +150,14 @@ class Game {
 
         // UI
         this.ui = new UI(this);
+        this.ui.applySettings();
         this.ui.updateStats(this.player, this.world);
         this.minimap = new Minimap(this);
+
+        // Restore notification log from save
+        if (data.notificationLog) {
+            this.ui.notificationLog = data.notificationLog;
+        }
 
         this.ui.hideTitleScreen();
         this.ui.showNotification('Game Loaded', 'Welcome back, ' + this.player.name, 'success');
@@ -164,6 +170,11 @@ class Game {
         // Restore ships state
         if (typeof Ships !== 'undefined') {
             Ships.restoreFromSave(this.player);
+        }
+
+        // Initialize title system from save
+        if (typeof Titles !== 'undefined') {
+            Titles.initialize(this.player);
         }
 
         this.isRunning = true;
@@ -342,7 +353,8 @@ class Game {
         try {
 
         // Read character settings
-        const charName = document.getElementById('charName').value || 'Wanderer';
+        const charFirstName = document.getElementById('charFirstName').value.trim() || 'Wanderer';
+        const charLastName = document.getElementById('charLastName').value.trim() || '';
         const charGender = document.getElementById('charGender').value;
         const charAge = parseInt(document.getElementById('charAge').value) || 20;
 
@@ -434,7 +446,8 @@ class Game {
 
         // Create player
         this.player = new Player({
-            name: charName,
+            firstName: charFirstName,
+            lastName: charLastName,
             gender: charGender,
             age: charAge
         });
@@ -455,6 +468,7 @@ class Game {
 
         // Initialize UI
         this.ui = new UI(this);
+        this.ui.applySettings();
         this.ui.updateStats(this.player, this.world);
 
         // Initialize minimap
@@ -479,6 +493,16 @@ class Game {
 
         // Initialize player's tax rate
         if (!this.player.taxRate) this.player.taxRate = 'moderate';
+
+        // Initialize title system
+        if (typeof Titles !== 'undefined') {
+            Titles.initialize(this.player);
+        }
+
+        // Initialize councils/parliament state
+        if (typeof Councils !== 'undefined') {
+            Councils.initializePlayer(this.player);
+        }
 
         console.log('Game started!');
         // Hide title and settings screen
@@ -668,8 +692,14 @@ class Game {
 
         // Right click = move
         if (button === 'right') {
-            // If clicking on a passable, explored tile — try to move there
-            if (tile.terrain.passable) {
+            // Check if tile is accessible based on player's current state
+            const isAccessible = this.player.boardedShip 
+                ? (['ocean', 'deep_ocean', 'coast', 'lake', 'sea', 'beach'].includes(tile.terrain.id) || 
+                   (hex.q === this.player.q && hex.r === this.player.r))
+                : tile.terrain.passable;
+
+            // If clicking on an accessible, explored tile — try to move there
+            if (isAccessible) {
                 // Don't move if clicking current position
                 if (hex.q === this.player.q && hex.r === this.player.r) {
                     return;
@@ -677,10 +707,17 @@ class Game {
 
                 const success = this.player.moveTo(hex.q, hex.r, this.world);
                 if (success) {
-                    // Warn if insufficient food for the journey
+                    // Check if low on food and at a settlement — offer auto-purchase
                     const pathLen = this.player.path ? this.player.path.length - 1 : 0;
                     const foodCount = this.player.getFoodCount();
-                    if (foodCount < pathLen) {
+                    const currentTile = this.world.getTile(this.player.q, this.player.r);
+                    const atSettlement = currentTile && currentTile.settlement;
+
+                    if (foodCount < pathLen && atSettlement) {
+                        // At a settlement with insufficient food — show buy modal
+                        this._showFoodPurchaseModal(pathLen, foodCount, currentTile, hex);
+                    } else if (foodCount < pathLen) {
+                        // Not at a settlement — just warn
                         const deficit = pathLen - foodCount;
                         if (foodCount === 0) {
                             this.ui.showNotification('⚠️ No Food!',
@@ -781,6 +818,13 @@ class Game {
         if (!this.world || !this.player) return;
         if (this.isProcessingTurn) return;
 
+        // Confirm end day if enabled
+        if (this.ui && this.ui._confirmEndDay && !this._endDayConfirmed) {
+            this._showEndDayConfirm();
+            return;
+        }
+        this._endDayConfirmed = false;
+
         this.isProcessingTurn = true;
         document.body.style.cursor = 'wait';
 
@@ -790,10 +834,72 @@ class Game {
                 // Process player's daily activities
                 const playerResults = PlayerActions.endDay(this.player, this.world);
 
+                // Show jail update notifications
+                if (playerResults.jailUpdate) {
+                    if (playerResults.jailUpdate.freed) {
+                        this.ui.showNotification('🔓 Released!', playerResults.jailUpdate.message, 'success');
+                    }
+                }
+
+                // Show title update notifications
+                if (playerResults.titleUpdate) {
+                    const tu = playerResults.titleUpdate;
+                    if (tu.salary > 0) {
+                        // Silent salary — don't spam every day
+                    }
+                    if (tu.fugitiveUpdate) {
+                        if (tu.fugitiveUpdate.escaped) {
+                            this.ui.showNotification('💨 Fugitive Escaped!', tu.fugitiveUpdate.message, 'error');
+                        } else if (tu.fugitiveUpdate.warning) {
+                            this.ui.showNotification('⚠️ Fugitive Alert', tu.fugitiveUpdate.message, 'warning');
+                        }
+                    }
+                    if (tu.evaluation) {
+                        if (tu.evaluation.passed) {
+                            this.ui.showNotification('✅ Duties Fulfilled!', `${tu.evaluation.progress} — Well done! Your service continues.`, 'success');
+                        } else {
+                            this.ui.showNotification('❌ Duties Failed!', `${tu.evaluation.progress} — Your performance was lacking.`, 'error');
+                        }
+                    }
+                    if (tu.stripped) {
+                        this.ui.showNotification('🏅 Title Stripped!', tu.strippedMessage, 'error');
+                    }
+                }
+
                 // Process world turn
                 const result = this.world.advanceDay();
                 this.player.endDay();
                 this.player.updateVisibility(this.world, 4);
+
+                // Apply spy-revealed vision tiles (after normal visibility reset)
+                if (typeof Espionage !== 'undefined') {
+                    Espionage.applySpyVision(this.player, this.world);
+                }
+
+                // ── Starvation check ─────────────────────────────
+                if (this.player.health <= 0 && this.player.starvationDays > 0) {
+                    // Player starved to death
+                    if (typeof Relationships !== 'undefined') Relationships.prepareForSave(this.player);
+                    this.isProcessingTurn = false;
+                    document.body.style.cursor = 'default';
+                    ActionMenu.showDeathScreen(this, 'starvation');
+                    return; // Stop processing — death screen handles continuation
+                }
+
+                // Show starvation warnings
+                if (this.player.starvationDays > 0) {
+                    const days = this.player.starvationDays;
+                    if (days >= 5) {
+                        this.ui.showNotification('💀 Starving!',
+                            `${days} days without food! Health: ${this.player.health}/${this.player.maxHealth}. Find food or you will die!`, 'error');
+                    } else if (days >= 3) {
+                        this.ui.showNotification('⚠️ Starving',
+                            `${days} days without food. Health: ${this.player.health}/${this.player.maxHealth}. Buy food at a settlement!`, 'error');
+                    } else {
+                        this.ui.showNotification('🍽️ Hungry',
+                            `No food! Day ${days} without eating. Health: ${this.player.health}/${this.player.maxHealth}`, 'warning');
+                    }
+                }
 
                 // Process housing maintenance
                 if (typeof Housing !== 'undefined') {
@@ -813,6 +919,58 @@ class Game {
                             this.ui.showNotification('🔨 Ship Complete!', `${after.name} has been built and is ready at ${after.dockedAt}!`, 'success');
                         } else if (before.status === 'moving' && after.status === 'docked') {
                             this.ui.showNotification('⚓ Ship Arrived', `${after.name} has arrived at ${after.dockedAt}.`, 'info');
+                        }
+                    }
+                }
+
+                // Process building construction progress
+                if (this.player.properties) {
+                    for (const propRef of this.player.properties) {
+                        const pTile = this.world.getTile(propRef.q, propRef.r);
+                        if (!pTile) continue;
+
+                        // Check playerProperties array
+                        if (pTile.playerProperties) {
+                            for (const prop of pTile.playerProperties) {
+                                if (prop.underConstruction && prop.constructionDaysLeft > 0) {
+                                    prop.constructionDaysLeft--;
+                                    if (prop.constructionDaysLeft <= 0) {
+                                        prop.underConstruction = false;
+                                        this.ui.showNotification('🏗️ Construction Complete!',
+                                            `Your ${prop.name} is now operational!`, 'success');
+                                    }
+                                }
+                            }
+                        }
+
+                        // Also sync playerProperty (backwards compat reference)
+                        if (pTile.playerProperty && pTile.playerProperty.underConstruction && pTile.playerProperty.constructionDaysLeft > 0) {
+                            // Already handled above if in playerProperties array
+                            if (!pTile.playerProperties || !pTile.playerProperties.includes(pTile.playerProperty)) {
+                                pTile.playerProperty.constructionDaysLeft--;
+                                if (pTile.playerProperty.constructionDaysLeft <= 0) {
+                                    pTile.playerProperty.underConstruction = false;
+                                    this.ui.showNotification('🏗️ Construction Complete!',
+                                        `Your ${pTile.playerProperty.name} is now operational!`, 'success');
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Process religious building construction
+                if (this.player.religion && this.player.religion.buildings) {
+                    for (const bRef of this.player.religion.buildings) {
+                        const bTile = this.world.getTile(bRef.q, bRef.r);
+                        if (!bTile || !bTile.religiousBuilding) continue;
+                        const rb = bTile.religiousBuilding;
+                        if (rb.underConstruction && rb.constructionDaysLeft > 0) {
+                            rb.constructionDaysLeft--;
+                            if (rb.constructionDaysLeft <= 0) {
+                                rb.underConstruction = false;
+                                this.ui.showNotification('🏗️ Construction Complete!',
+                                    `Your ${rb.name} is now complete and will spread your faith!`, 'success');
+                            }
                         }
                     }
                 }
@@ -868,6 +1026,38 @@ class Game {
                     if (intelResult.newRumors && intelResult.newRumors.length > 0) {
                         this.ui.showNotification('New Intel', `${intelResult.newRumors.length} new report(s) from informants`, 'info');
                     }
+                }
+
+                // Process espionage daily
+                if (typeof Espionage !== 'undefined') {
+                    const espResult = Espionage.processDaily(this.player, this.world);
+                    if (espResult.upkeepPaid > 0) {
+                        this.ui.showNotification('🕵️ Spy Network', `-${espResult.upkeepPaid}g upkeep`, 'default');
+                    }
+                    if (espResult.lostSpies > 0) {
+                        this.ui.showNotification('🕵️ Spy Deserted!', `${espResult.lostSpies} spy(s) left due to low loyalty or unpaid wages.`, 'error');
+                    }
+                    for (const mission of espResult.completedMissions) {
+                        const outcomeData = mission.outcomeData || {};
+                        const notifType = mission.outcome === 'captured' ? 'error' :
+                            mission.outcome === 'failure' ? 'warning' :
+                            mission.outcome === 'criticalSuccess' ? 'success' : 'info';
+                        this.ui.showNotification(
+                            `${outcomeData.icon || '📋'} ${outcomeData.label || 'Mission Complete'}`,
+                            mission.text,
+                            notifType
+                        );
+                        if (mission.levelUp) {
+                            this.ui.showNotification('⬆️ Spy Level Up!', `${mission.spyName} reached level ${mission.newLevel}!`, 'success');
+                        }
+                    }
+                    for (const reb of espResult.rebellionUpdates) {
+                        if (reb.ended) {
+                            const k = this.world.getKingdom(reb.kingdomId);
+                            this.ui.showNotification('🔥 Rebellion Ended', `The rebellion in ${k ? k.name : 'a kingdom'} has subsided.`, 'info');
+                        }
+                    }
+                    Espionage.prepareForSave(this.player);
                 }
 
                 // Process loans
@@ -938,13 +1128,40 @@ class Game {
                     this.ui.showNotification('Army Upkeep', `-${playerResults.upkeepCost} gold`, 'default');
                 }
 
+                if (playerResults.mercenaryWages > 0) {
+                    this.ui.showNotification('Mercenary Wages', `-${playerResults.mercenaryWages} gold`, 'default');
+                }
+
                 if (playerResults.unitsLost > 0) {
                     this.ui.showNotification('Desertion!', `Lost ${playerResults.unitsLost} units (couldn't pay upkeep)`, 'error');
                 }
 
+                if (playerResults.mercenaryEvents && playerResults.mercenaryEvents.length > 0) {
+                    for (const event of playerResults.mercenaryEvents) {
+                        if (event.type === 'outbid_switch') {
+                            this.ui.showNotification('💰 Mercenaries Defected!', event.text, 'error');
+                        } else if (event.type === 'contract_expired') {
+                            this.ui.showNotification('📜 Mercenary Contract Ended', event.text, 'default');
+                        } else if (event.type === 'loyalty_warning') {
+                            this.ui.showNotification('⚠️ Mercenary Loyalty', event.text, 'warning');
+                        }
+                    }
+                }
+
                 // Caravan completions
                 for (const caravan of playerResults.caravansCompleted) {
-                    this.ui.showNotification('Caravan Arrived!', `${caravan.from} → ${caravan.to}: +${caravan.finalProfit} gold`, 'success');
+                    if (caravan.eventType === 'auction') {
+                        this.ui.showNotification(caravan.title || 'Auction', caravan.message || '', caravan.severity || 'default');
+                        continue;
+                    }
+
+                    if (caravan.status === 'lost') {
+                        this.ui.showNotification('Caravan Lost', caravan.message || `${caravan.from} → ${caravan.to} was lost on the road.`, 'error');
+                    } else if (caravan.status === 'smuggling_caught') {
+                        this.ui.showNotification('Smuggling Intercepted', `${caravan.from} → ${caravan.to}: +${caravan.finalProfit} gold after confiscation`, 'default');
+                    } else {
+                        this.ui.showNotification('Caravan Arrived!', `${caravan.from} → ${caravan.to}: +${caravan.finalProfit} gold`, 'success');
+                    }
                 }
 
                 // Contract updates
@@ -997,6 +1214,15 @@ class Game {
                     this.ui.showNotification('Cultural Renown', `+${playerResults.cultureRenown} renown from monuments`, 'info');
                 }
 
+                if (playerResults.festivalUpdate) {
+                    const fu = playerResults.festivalUpdate;
+                    if (fu.moraleExpired) {
+                        this.ui.showNotification('Festival Spirit Fades', 'Your recent celebration morale bonus has ended.', 'default');
+                    } else if (fu.moraleDaysLeft > 0) {
+                        this.ui.showNotification('Festival Morale', `Army morale boosted by ${Math.round((fu.moraleValue || 0) * 100)}% for ${fu.moraleDaysLeft} more day(s).`, 'info');
+                    }
+                }
+
                 // Indentured servitude updates
                 if (playerResults.servitudeUpdate) {
                     const su = playerResults.servitudeUpdate;
@@ -1004,6 +1230,13 @@ class Game {
                         this.ui.showNotification('Freedom!', su.message, 'success');
                     } else {
                         this.ui.showNotification('Indentured Servitude', su.message, 'default');
+                    }
+                }
+
+                // Bounty hunting updates
+                if (playerResults.bountyTracking && playerResults.bountyTracking.escalated && playerResults.bountyTracking.escalated.length > 0) {
+                    for (const update of playerResults.bountyTracking.escalated) {
+                        this.ui.showNotification('Bounty Escalated', `${update.targetName} has grown more dangerous (difficulty ${update.difficulty}).`, 'warning');
                     }
                 }
 
@@ -1033,8 +1266,8 @@ class Game {
                     this.ui.showNotification('Achievement Unlocked!', `${achievement.icon} ${achievement.name}: ${achievement.description}`, 'success');
                 }
 
-                // Auto-save every 5 days
-                if (this.world.day % SaveLoad.AUTO_SAVE_INTERVAL === 0) {
+                // Auto-save every N days (0 = disabled)
+                if (SaveLoad.AUTO_SAVE_INTERVAL > 0 && this.world.day % SaveLoad.AUTO_SAVE_INTERVAL === 0) {
                     const result = SaveLoad.saveGame(this);
                     if (result.success) {
                         this.ui.showNotification('Auto-Saved', 'Game progress saved', 'default');
@@ -1058,6 +1291,7 @@ class Game {
                 // Caravan profits
                 let caravanProfit = 0;
                 for (const c of playerResults.caravansCompleted) {
+                    if (c.eventType) continue;
                     caravanProfit += c.finalProfit || 0;
                 }
                 if (caravanProfit > 0) dayFinance.income.caravans = caravanProfit;
@@ -1072,6 +1306,7 @@ class Game {
 
                 // Expense sources
                 if (playerResults.upkeepCost > 0) dayFinance.expenses.armyUpkeep = playerResults.upkeepCost;
+                if (playerResults.mercenaryWages > 0) dayFinance.expenses.mercenaryWages = playerResults.mercenaryWages;
                 if (loanResults && loanResults.paid > 0) dayFinance.expenses.loanPayments = loanResults.paid;
                 if (typeof Tavern !== 'undefined' && intelResult && intelResult.cost > 0) dayFinance.expenses.informants = intelResult.cost;
 
@@ -1147,6 +1382,279 @@ class Game {
         } catch (err) {
             console.warn('Some tile sprites failed to load:', err);
         }
+    }
+
+    /**
+     * Show modal offering to auto-purchase food when starting a journey with low/no food at a settlement
+     */
+    _showFoodPurchaseModal(pathLen, foodCount, tile, targetHex) {
+        // Don't stack modals
+        if (document.getElementById('foodPurchaseModal')) return;
+
+        // Pause movement while modal is open
+        this.player.isMoving = false;
+
+        const settlement = tile.settlement;
+        const deficit = pathLen - foodCount;
+
+        // Find cheapest available food at this settlement
+        const goods = (typeof Trading !== 'undefined') ? Trading.getAvailableGoods(settlement, tile) : [];
+        const foodGoods = goods.filter(g => Player.FOOD_TYPES.includes(g.id) && g.quantity > 0);
+        foodGoods.sort((a, b) => a.price - b.price); // cheapest first
+
+        // Calculate how much food we can buy and at what cost
+        let totalCost = 0;
+        let totalFood = 0;
+        const purchasePlan = [];
+
+        let remaining = deficit;
+        for (const fg of foodGoods) {
+            if (remaining <= 0) break;
+            const canBuy = Math.min(remaining, fg.quantity);
+            const canAfford = Math.floor(this.player.gold / fg.price);
+            const qty = Math.min(canBuy, canAfford);
+            if (qty > 0) {
+                purchasePlan.push({ good: fg, qty, cost: qty * fg.price });
+                totalCost += qty * fg.price;
+                totalFood += qty;
+                remaining -= qty;
+            }
+        }
+
+        const canFullyProvision = totalFood >= deficit;
+        const hasAnyFood = foodGoods.length > 0 && totalFood > 0;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'foodPurchaseModal';
+        overlay.style.cssText = `
+            position: fixed; inset: 0; z-index: 1200;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            animation: fadeIn 0.2s ease;
+        `;
+
+        const box = document.createElement('div');
+        box.style.cssText = `
+            background: rgba(20, 24, 32, 0.98);
+            border: 2px solid var(--gold);
+            border-radius: 8px;
+            padding: 28px 36px;
+            min-width: 340px;
+            max-width: 440px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8), 0 0 20px rgba(245,197,66,0.15);
+        `;
+
+        // Build purchase breakdown
+        let breakdownHtml = '';
+        if (hasAnyFood) {
+            for (const p of purchasePlan) {
+                breakdownHtml += `<div style="display:flex; justify-content:space-between; font-size:12px; padding:2px 0;">
+                    <span>${p.good.icon || '🍽️'} ${p.good.name} ×${p.qty}</span>
+                    <span style="color:var(--gold);">${p.cost} gold</span>
+                </div>`;
+            }
+        }
+
+        box.innerHTML = `
+            <div style="font-size: 32px; margin-bottom: 8px;">🍽️</div>
+            <h3 style="margin: 0 0 6px; font-family: var(--font-display); color: var(--gold); letter-spacing: 2px; text-transform: uppercase;">Low on Food</h3>
+            <p style="color: var(--text-secondary); font-size: 13px; margin: 0 0 14px; line-height: 1.5;">
+                Your journey is <span style="color:#4fc3f7;">${pathLen} tiles</span> but you only have
+                <span style="color:${foodCount === 0 ? '#f44336' : '#ff9800'};">${foodCount} food</span>.
+                You need <span style="color:#ff9800;">${deficit} more</span> to avoid starving.
+            </p>
+
+            ${hasAnyFood ? `
+                <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:10px; margin-bottom:14px; text-align:left;">
+                    <div style="font-size:11px; color:#888; text-transform:uppercase; margin-bottom:6px;">Auto-Purchase from ${settlement.name}</div>
+                    ${breakdownHtml}
+                    <div style="border-top:1px solid rgba(255,255,255,0.08); margin-top:6px; padding-top:6px; display:flex; justify-content:space-between; font-weight:bold;">
+                        <span style="color:#aaa;">Total: ${totalFood} food</span>
+                        <span style="color:var(--gold);">${totalCost} gold</span>
+                    </div>
+                    ${!canFullyProvision ? `<div style="color:#ff9800; font-size:11px; margin-top:4px;">⚠️ Can only buy ${totalFood} of ${deficit} needed (${remaining > 0 ? (this.player.gold < totalCost + remaining ? 'not enough gold' : 'not enough in stock') : ''})</div>` : ''}
+                </div>
+                <div style="color:#666; font-size:11px; margin-bottom:12px;">
+                    💰 Your gold: <span style="color:var(--gold);">${this.player.gold}</span>
+                    → After purchase: <span style="color:${this.player.gold - totalCost < 50 ? '#ff9800' : 'var(--gold)'};">${this.player.gold - totalCost}</span>
+                </div>
+            ` : `
+                <div style="background:rgba(244,67,54,0.1); border:1px solid rgba(244,67,54,0.2); border-radius:6px; padding:10px; margin-bottom:14px;">
+                    <div style="color:#f44336; font-size:12px;">No food available at this settlement, or you can't afford any.</div>
+                </div>
+            `}
+
+            <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                <button id="foodCancel" style="
+                    padding: 10px 18px; border-radius: 6px; cursor: pointer;
+                    background: rgba(255,255,255,0.05); border: 1px solid var(--border-color);
+                    color: var(--text-secondary); font-family: var(--font-body); font-size: 13px;
+                    transition: all 0.2s;
+                ">Cancel Journey</button>
+                <button id="foodSkip" style="
+                    padding: 10px 18px; border-radius: 6px; cursor: pointer;
+                    background: rgba(255,152,0,0.1); border: 1px solid rgba(255,152,0,0.3);
+                    color: #ff9800; font-family: var(--font-body); font-size: 13px;
+                    transition: all 0.2s;
+                ">Travel Hungry</button>
+                ${hasAnyFood ? `<button id="foodBuy" style="
+                    padding: 10px 18px; border-radius: 6px; cursor: pointer;
+                    background: rgba(76,175,80,0.15); border: 1px solid rgba(76,175,80,0.4);
+                    color: #4caf50; font-family: var(--font-body); font-size: 13px;
+                    font-weight: 600; transition: all 0.2s;
+                ">Buy & Go (${totalCost}g)</button>` : ''}
+            </div>
+        `;
+
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+
+        const cleanup = () => {
+            overlay.remove();
+            window.removeEventListener('keydown', keyHandler);
+        };
+
+        const cancelJourney = () => {
+            cleanup();
+            this.player.cancelTravel();
+        };
+
+        const skipAndGo = () => {
+            cleanup();
+            // Resume movement — it was paused
+            if (this.player.path) {
+                this.player.isMoving = true;
+            }
+        };
+
+        const buyAndGo = () => {
+            cleanup();
+            // Execute purchases
+            for (const p of purchasePlan) {
+                Trading.buyGoods(this.player, p.good, p.qty, settlement);
+            }
+            this.ui.showNotification('🍞 Food Purchased',
+                `Bought ${totalFood} food for ${totalCost} gold. Safe travels!`, 'success');
+            this.ui.updateStats(this.player, this.world);
+            // Resume movement
+            if (this.player.path) {
+                this.player.isMoving = true;
+            }
+        };
+
+        // Click outside to cancel journey
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) cancelJourney();
+        });
+
+        document.getElementById('foodCancel').addEventListener('click', cancelJourney);
+        document.getElementById('foodSkip').addEventListener('click', skipAndGo);
+        if (hasAnyFood) {
+            document.getElementById('foodBuy').addEventListener('click', buyAndGo);
+        }
+
+        // Keyboard: Enter to buy (if available), Escape to cancel
+        const keyHandler = (e) => {
+            if (e.key === 'Enter' && hasAnyFood) {
+                buyAndGo();
+            } else if (e.key === 'Escape') {
+                cancelJourney();
+            }
+        };
+        window.addEventListener('keydown', keyHandler);
+    }
+
+    /**
+     * Show a custom modal to confirm ending the day
+     */
+    _showEndDayConfirm() {
+        // Don't stack modals
+        if (document.getElementById('endDayConfirmModal')) return;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'endDayConfirmModal';
+        overlay.style.cssText = `
+            position: fixed; inset: 0; z-index: 1200;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            animation: fadeIn 0.2s ease;
+        `;
+
+        const box = document.createElement('div');
+        box.style.cssText = `
+            background: rgba(20, 24, 32, 0.98);
+            border: 2px solid var(--gold);
+            border-radius: 8px;
+            padding: 28px 36px;
+            min-width: 320px;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8), 0 0 20px rgba(245,197,66,0.15);
+        `;
+
+        const ap = this.player.actionPoints != null ? this.player.actionPoints : 0;
+        const maxAp = this.player.maxActionPoints || 10;
+        const stam = this.player.movementRemaining != null ? this.player.movementRemaining : 0;
+
+        box.innerHTML = `
+            <div style="font-size: 28px; margin-bottom: 8px;">🌙</div>
+            <h3 style="margin: 0 0 8px; font-family: var(--font-display); color: var(--gold); letter-spacing: 2px; text-transform: uppercase;">End Day ${this.world.day}?</h3>
+            <p style="color: var(--text-secondary); font-size: 13px; margin: 0 0 16px; line-height: 1.5;">
+                Resting will advance to the next day.<br>
+                <span style="color: ${ap > 0 ? '#ff9800' : '#666'};">⚡ ${ap}/${maxAp} AP remaining</span>
+                &nbsp;·&nbsp;
+                <span style="color: ${stam > 0 ? '#4fc3f7' : '#666'};">🏃 ${stam} stamina left</span>
+            </p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button id="endDayCancel" style="
+                    padding: 10px 24px; border-radius: 6px; cursor: pointer;
+                    background: rgba(255,255,255,0.05); border: 1px solid var(--border-color);
+                    color: var(--text-secondary); font-family: var(--font-body); font-size: 13px;
+                    transition: all 0.2s;
+                ">Cancel</button>
+                <button id="endDayConfirm" style="
+                    padding: 10px 24px; border-radius: 6px; cursor: pointer;
+                    background: rgba(245,197,66,0.15); border: 1px solid var(--gold);
+                    color: var(--gold); font-family: var(--font-body); font-size: 13px;
+                    font-weight: 600; transition: all 0.2s;
+                ">Rest & End Day</button>
+            </div>
+        `;
+
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+
+        // Click outside to cancel
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.remove();
+        });
+
+        document.getElementById('endDayCancel').addEventListener('click', () => {
+            overlay.remove();
+        });
+
+        document.getElementById('endDayConfirm').addEventListener('click', () => {
+            overlay.remove();
+            this._endDayConfirmed = true;
+            this.endDay();
+        });
+
+        // Keyboard: Enter to confirm, Escape to cancel
+        const keyHandler = (e) => {
+            if (e.key === 'Enter') {
+                overlay.remove();
+                window.removeEventListener('keydown', keyHandler);
+                this._endDayConfirmed = true;
+                this.endDay();
+            } else if (e.key === 'Escape') {
+                overlay.remove();
+                window.removeEventListener('keydown', keyHandler);
+            }
+        };
+        window.addEventListener('keydown', keyHandler);
     }
 }
 

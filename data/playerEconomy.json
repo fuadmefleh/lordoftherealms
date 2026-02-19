@@ -87,6 +87,17 @@
             "upkeep": 8,
             "requiredSettlement": true,
             "description": "Brews beer from grain or distills liquor. Sells well at taverns. Upkeep: 8g/day"
+        },
+        "TAVERN": {
+            "id": "tavern",
+            "name": "Tavern",
+            "icon": "🍻",
+            "cost": 900,
+            "produces": "gold",
+            "productionRate": 0,
+            "upkeep": 12,
+            "requiredSettlement": true,
+            "description": "A place for drink, gambling, and gossip. Earns gold daily from patrons. Upkeep: 12g/day"
         }
     },
 

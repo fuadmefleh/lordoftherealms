@@ -477,7 +477,8 @@ const Taxation = {
 
                 const settlement = tile.settlement;
                 const taxBase = Math.floor(settlement.population * 0.1); // 0.1 gold per person base
-                const taxCollected = Math.floor(taxBase * taxPolicy.rate);
+                const landBonus = 1 + (player.landTaxBonus || 0);
+                const taxCollected = Math.floor(taxBase * taxPolicy.rate * landBonus);
 
                 totalCollected += taxCollected;
                 settlements.push({
@@ -500,7 +501,7 @@ const Taxation = {
     /**
      * Change tax rate
      */
-    setTaxRate(player, newRate) {
+    setTaxRate(player, newRate, world = null) {
         // Check if player has authority to change tax rates
         if (!player.allegiance) {
             return { success: false, reason: 'You must be part of a kingdom to set tax rates' };
@@ -513,6 +514,14 @@ const Taxation = {
 
         const policy = this.TAX_RATES[newRate.toUpperCase()];
         if (!policy) return { success: false, reason: 'Invalid tax rate' };
+
+        const currentPolicy = this.TAX_RATES[(player.taxRate || 'moderate').toUpperCase()] || this.TAX_RATES.MODERATE;
+        if (policy.rate > currentPolicy.rate && typeof Councils !== 'undefined') {
+            const approval = Councils.canRaiseTaxes(player, newRate, world);
+            if (!approval.success) {
+                return { success: false, reason: approval.reason };
+            }
+        }
 
         player.taxRate = newRate;
         return { success: true, policy };

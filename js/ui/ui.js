@@ -6,6 +6,7 @@ class UI {
     constructor(game) {
         this.game = game;
         this.activePanel = null;
+        this.notificationLog = [];
 
         this.setupEventListeners();
     }
@@ -13,7 +14,7 @@ class UI {
     setupEventListeners() {
         // Top bar buttons
         document.getElementById('btnCharacter').addEventListener('click', () => this.toggleCharacterPanel());
-        document.getElementById('btnSettings').addEventListener('click', () => this.showNotification('Settings', 'Settings coming soon!', 'info'));
+        document.getElementById('btnSettings').addEventListener('click', () => this.showSettingsPanel());
         document.getElementById('btnInventory').addEventListener('click', () => this.showInventoryPanel());
         document.getElementById('btnQuests').addEventListener('click', () => this.showQuestsPanel());
         const btnHistory = document.getElementById('btnHistory');
@@ -34,6 +35,12 @@ class UI {
             btnIntel.addEventListener('click', () => ActionMenu.showIntelJournal(this.game));
         }
 
+        // Event Log button
+        const btnEventLog = document.getElementById('btnEventLog');
+        if (btnEventLog) {
+            btnEventLog.addEventListener('click', () => this.showEventLogPanel());
+        }
+
         // Technology button
         const btnTech = document.getElementById('btnTechnology');
         if (btnTech) {
@@ -50,6 +57,33 @@ class UI {
         const btnPeoples = document.getElementById('btnPeoples');
         if (btnPeoples) {
             btnPeoples.addEventListener('click', () => this.showPeoplesPanel());
+        }
+
+        // Relationships button (Empire menu)
+        const btnRelationships = document.getElementById('btnRelationships');
+        if (btnRelationships) {
+            btnRelationships.addEventListener('click', () => {
+                const tile = this.game.world.getTile(this.game.player.q, this.game.player.r);
+                ActionMenu.showRelationshipsMenu(this.game, tile);
+            });
+        }
+
+        // Travel Party button (Empire menu)
+        const btnTravelParty = document.getElementById('btnTravelParty');
+        if (btnTravelParty) {
+            btnTravelParty.addEventListener('click', () => {
+                const tile = this.game.world.getTile(this.game.player.q, this.game.player.r);
+                ActionMenu.showTravelPartyMenu(this.game, tile);
+            });
+        }
+
+        // Council button (Empire menu)
+        const btnCouncil = document.getElementById('btnCouncil');
+        if (btnCouncil) {
+            btnCouncil.addEventListener('click', () => {
+                const tile = this.game.world.getTile(this.game.player.q, this.game.player.r);
+                ActionMenu.showCouncilMenu(this.game, tile);
+            });
         }
 
         // Global Control buttons
@@ -185,12 +219,47 @@ class UI {
             movementDisplay.textContent = `${Math.floor(player.movementRemaining)}/${player.maxStamina}`;
         }
 
+        // Update action points display
+        const apDisplay = document.getElementById('apValue');
+        if (apDisplay) {
+            const ap = player.actionPoints != null ? player.actionPoints : 10;
+            const maxAp = player.maxActionPoints || 10;
+            apDisplay.textContent = `${ap}/${maxAp}`;
+            apDisplay.style.color = ap === 0 ? '#e74c3c' : ap <= 3 ? '#f39c12' : '';
+        }
+
         // Update food display
         const foodDisplay = document.getElementById('foodValue');
         if (foodDisplay) {
             const foodCount = player.getFoodCount ? player.getFoodCount() : 0;
             foodDisplay.textContent = foodCount;
             foodDisplay.style.color = foodCount === 0 ? '#e74c3c' : foodCount < 10 ? '#f39c12' : '';
+        }
+
+        // Update HP display
+        const hpDisplay = document.getElementById('hpValue');
+        if (hpDisplay) {
+            const hp = player.health != null ? player.health : 100;
+            const maxHp = player.maxHealth || 100;
+            hpDisplay.textContent = `${hp}/${maxHp}`;
+            const pct = hp / maxHp;
+            hpDisplay.style.color = pct <= 0.25 ? '#e74c3c' : pct <= 0.5 ? '#f39c12' : '';
+        }
+
+        // Show jail status if active
+        let jailEl = document.getElementById('jailDisplay');
+        if (player.jailState) {
+            if (!jailEl) {
+                jailEl = document.createElement('div');
+                jailEl.id = 'jailDisplay';
+                jailEl.style.cssText = 'color: #e74c3c; font-weight: bold; font-size: 12px; text-align: center; padding: 4px 8px; background: rgba(231,76,60,0.2); border-radius: 4px; margin-top: 4px;';
+                const topBar = document.getElementById('topBar');
+                if (topBar) topBar.appendChild(jailEl);
+            }
+            jailEl.textContent = `\ud83d\udd12 In Jail \u2014 ${player.jailState.daysRemaining} day(s) remain (${player.jailState.offense})`;
+            jailEl.style.display = 'block';
+        } else if (jailEl) {
+            jailEl.style.display = 'none';
         }
 
         // Show servitude status if active
@@ -983,6 +1052,10 @@ class UI {
                 <span class="info-value">${player.movementRemaining} / ${player.maxStamina}</span>
             </div>
             <div class="info-row">
+                <span class="info-label">🎯 Action Points</span>
+                <span class="info-value">${player.actionPoints != null ? player.actionPoints : 10} / ${player.maxActionPoints || 10}</span>
+            </div>
+            <div class="info-row">
                 <span class="info-label">💰 Gold</span>
                 <span class="info-value">${Utils.formatNumber(player.gold)}</span>
             </div>
@@ -1025,6 +1098,39 @@ class UI {
             <div class="info-row" style="color: #e67e22;">
                 <span class="info-label">⛓️ Servitude</span>
                 <span class="info-value">${player.indenturedServitude.daysRemaining} days under ${player.indenturedServitude.captor}</span>
+            </div>` : ''}
+            ${player.jailState ? `
+            <div class="info-row" style="color: #e74c3c;">
+                <span class="info-label">🔒 Jail</span>
+                <span class="info-value">${player.jailState.daysRemaining} days (${player.jailState.offense} #${player.jailState.offenseNumber})</span>
+            </div>` : ''}
+            ${player.currentTitle && typeof Titles !== 'undefined' ? (() => {
+                const titleDef = Titles.getActiveTitle(player);
+                const dutyInfo = Titles.getDutyProgress(player);
+                if (!titleDef) return '';
+                return `
+                <div class="info-section-title">Royal Office</div>
+                <div class="info-row">
+                    <span class="info-label">${titleDef.icon || '🏅'} Title</span>
+                    <span class="info-value" style="color:#ffd700;">${titleDef.name}</span>
+                </div>
+                ${dutyInfo ? `<div class="info-row">
+                    <span class="info-label">📋 Duties</span>
+                    <span class="info-value">${dutyInfo.progress}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">⏰ Deadline</span>
+                    <span class="info-value" style="color:${dutyInfo.daysLeft <= 5 ? '#f44336' : '#aaa'};">${dutyInfo.daysLeft} days</span>
+                </div>` : ''}
+                <div class="info-row">
+                    <span class="info-label">💰 Salary</span>
+                    <span class="info-value">${titleDef.salary} gold/day</span>
+                </div>`;
+            })() : ''}
+            ${player.criminalRecord && (player.criminalRecord.pickpocket > 0 || player.criminalRecord.smuggling > 0) ? `
+            <div class="info-row" style="color: #e67e22;">
+                <span class="info-label">📋 Record</span>
+                <span class="info-value">${player.criminalRecord.pickpocket > 0 ? 'Pickpocket ×' + player.criminalRecord.pickpocket : ''}${player.criminalRecord.pickpocket > 0 && player.criminalRecord.smuggling > 0 ? ', ' : ''}${player.criminalRecord.smuggling > 0 ? 'Smuggling ×' + player.criminalRecord.smuggling : ''}</span>
             </div>` : ''}
 
             <div class="info-section-title">Skills</div>
@@ -1406,16 +1512,17 @@ class UI {
         if (player.inventory && Object.keys(player.inventory).length > 0) {
             inventoryHtml = '<div style="display: grid; gap: 8px;">';
             for (const [itemId, quantity] of Object.entries(player.inventory)) {
+                if (quantity <= 0) continue;
                 // Try to find the item in PlayerEconomy.GOODS
                 const item = PlayerEconomy.GOODS ? PlayerEconomy.GOODS[itemId.toUpperCase()] : null;
-                if (item && quantity > 0) {
-                    inventoryHtml += `
-                        <div style="display: flex; justify-content: space-between; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
-                            <span>${item.icon} ${item.name}</span>
-                            <span style="color: var(--gold);">×${quantity}</span>
-                        </div>
-                    `;
-                }
+                const icon = item ? item.icon : '📦';
+                const name = item ? item.name : itemId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                inventoryHtml += `
+                    <div style="display: flex; justify-content: space-between; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                        <span>${icon} ${name}</span>
+                        <span style="color: var(--gold);">×${quantity}</span>
+                    </div>
+                `;
             }
             inventoryHtml += '</div>';
         }
@@ -1428,17 +1535,152 @@ class UI {
      */
     showQuestsPanel() {
         const player = this.game.player;
-
-        if (!player.quests) {
-            this.showCustomPanel('Quests', '<p style="color: var(--text-secondary);">No quests available.</p>');
-            return;
-        }
+        const world = this.game.world;
 
         let html = '';
 
-        // Active quests
-        html += '<h4 style="margin-top: 0; color:var(--text-primary); border-bottom: 2px solid var(--gold); padding-bottom: 8px;">Active Quests</h4>';
-        if (player.quests.active && player.quests.active.length > 0) {
+        // ── ACTIVE JOBS SECTION ──
+        const jobs = [];
+
+        // Jail
+        if (player.jailState) {
+            const j = player.jailState;
+            jobs.push({
+                icon: '🔒',
+                name: `Serving Jail Time`,
+                detail: `Sentenced for ${j.offense} (offense #${j.offenseNumber})`,
+                status: `${j.daysRemaining} day(s) remaining`,
+                statusColor: '#e74c3c',
+                location: j.settlement,
+            });
+        }
+
+        // Indentured servitude
+        if (player.indenturedServitude) {
+            const s = player.indenturedServitude;
+            jobs.push({
+                icon: '⛓️',
+                name: `Indentured Servitude`,
+                detail: `Bound to ${s.captor}`,
+                status: `${s.daysRemaining} day(s) remaining`,
+                statusColor: '#e67e22',
+                location: null,
+            });
+        }
+
+        // Mercenary contract
+        if (player.activeContract) {
+            const c = player.activeContract;
+            jobs.push({
+                icon: '⚔️',
+                name: c.name,
+                detail: `Payment: ${c.payment}g`,
+                status: `${c.daysRemaining} day(s) remaining`,
+                statusColor: '#3498db',
+                location: c.settlement,
+            });
+        }
+
+        // Active bounties
+        if (player.activeBounties && player.activeBounties.length > 0) {
+            for (const b of player.activeBounties) {
+                const daysLeft = b.daysLimit - (b.daysElapsed || 0);
+                const isCriminal = b.type === 'criminal_hunt';
+                const detail = isCriminal
+                    ? `Reward: ${b.actualPay}g — ${b.targetName}, wanted for ${b.crime}.`
+                    : `Reward: ${b.actualPay}g — ${b.description || ''}`;
+                const status = isCriminal
+                    ? (b.status === 'captured_pending_decision'
+                        ? 'Captured — awaiting judgment'
+                        : `${daysLeft} day(s) left · Last seen (${b.targetQ}, ${b.targetR})`)
+                    : `${daysLeft} day(s) left`;
+                jobs.push({
+                    icon: b.icon || '📜',
+                    name: b.name,
+                    detail,
+                    status,
+                    statusColor: daysLeft <= 2 ? '#e74c3c' : '#2ecc71',
+                    location: b.fromSettlement || null,
+                });
+            }
+        }
+
+        if (player.festivals && player.festivals.moraleBoostDays > 0) {
+            jobs.push({
+                icon: '🎉',
+                name: 'Festival Spirit',
+                detail: `Army morale bonus active (+${Math.round((player.festivals.moraleBoostValue || 0) * 100)}%)`,
+                status: `${player.festivals.moraleBoostDays} day(s) remaining`,
+                statusColor: '#f39c12',
+                location: null,
+            });
+        }
+
+        // Caravans in transit
+        if (player.caravans && player.caravans.length > 0) {
+            for (const c of player.caravans) {
+                const daysLeft = c.travelDays - (c.daysElapsed || 0);
+                jobs.push({
+                    icon: '🐫',
+                    name: `Caravan to ${c.destination || 'unknown'}`,
+                    detail: `Carrying ${c.goods || 'goods'} — Expected profit: ${c.expectedProfit || '?'}g`,
+                    status: `${daysLeft} day(s) in transit`,
+                    statusColor: '#f39c12',
+                    location: null,
+                });
+            }
+        }
+
+        // Ships being built or moving
+        if (player.ships && player.ships.length > 0) {
+            for (const s of player.ships) {
+                if (s.status === 'building') {
+                    jobs.push({
+                        icon: '🔨',
+                        name: `Building ${s.name}`,
+                        detail: `Ship under construction`,
+                        status: `${s.buildDaysLeft} day(s) left`,
+                        statusColor: '#f39c12',
+                        location: s.dockedAt || null,
+                    });
+                } else if (s.status === 'moving') {
+                    jobs.push({
+                        icon: '⛵',
+                        name: `${s.name} en route`,
+                        detail: `Sailing to ${s.destinationName || 'destination'}`,
+                        status: `${s.travelDaysLeft} day(s) remaining`,
+                        statusColor: '#3498db',
+                        location: null,
+                    });
+                }
+            }
+        }
+
+        // Render active jobs
+        html += '<h4 style="margin-top: 0; color:var(--text-primary); border-bottom: 2px solid #3498db; padding-bottom: 8px;">📋 Active Jobs & Commitments</h4>';
+        if (jobs.length > 0) {
+            for (const job of jobs) {
+                html += `
+                    <div style="margin-bottom: 8px; padding: 10px 12px; background: rgba(20, 20, 30, 0.5); border-left: 3px solid ${job.statusColor}; border-radius: 4px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span style="font-size: 15px;">${job.icon}</span>
+                                <strong style="color: var(--text-primary); margin-left: 4px;">${job.name}</strong>
+                                ${job.location ? `<span style="font-size: 11px; color: var(--text-secondary); margin-left: 6px;">@ ${job.location}</span>` : ''}
+                            </div>
+                            <span style="font-size: 12px; color: ${job.statusColor}; font-weight: 600;">${job.status}</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 3px;">${job.detail}</div>
+                    </div>
+                `;
+            }
+        } else {
+            html += '<p style="color: var(--text-secondary); font-style: italic;">No active jobs or commitments.</p>';
+        }
+
+        // ── ACTIVE QUESTS ──
+        html += '<h4 style="margin-top: 24px; color:var(--text-primary); border-bottom: 2px solid var(--gold); padding-bottom: 8px;">Active Quests</h4>';
+        if (player.quests && player.quests.active && player.quests.active.length > 0) {
             for (const quest of player.quests.active) {
                 const progress = Quests.getProgressSummary(quest);
                 html += `
@@ -1467,7 +1709,7 @@ class UI {
 
         // Available quests
         html += '<h4 style="margin-top: 24px; color:var(--text-primary); border-bottom: 2px solid var(--text-secondary); padding-bottom: 8px;">Available Quests</h4>';
-        if (player.quests.available && player.quests.available.length > 0) {
+        if (player.quests && player.quests.available && player.quests.available.length > 0) {
             for (const quest of player.quests.available) {
                 const rewards = JSON.stringify(quest.rewards).replace(/{|}|"/g, '').replace(/,/g, ', ');
                 html += `
@@ -1485,7 +1727,7 @@ class UI {
         }
 
         // Completed quests
-        if (player.quests.completed && player.quests.completed.length > 0) {
+        if (player.quests && player.quests.completed && player.quests.completed.length > 0) {
             html += `<h4 style="margin-top: 24px; color:var(--text-primary); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">Completed (${player.quests.completed.length})</h4>`;
             html += '<div style="font-size: 13px; color: var(--text-secondary);">Check your achievements panel for history of completed quests.</div>';
         }
@@ -1506,11 +1748,64 @@ class UI {
         `;
         area.appendChild(notif);
 
-        // Auto-remove after 4 seconds
+        // Log notification for history
+        const world = this.game && this.game.world;
+        const dayInSeason = world ? ((world.day - 1) % 30) + 1 : 1;
+        const season = world ? world.season : 'Spring';
+        const year = world ? world.year : 1;
+        this.notificationLog.push({
+            title, message, type,
+            day: dayInSeason, season, year,
+            timestamp: Date.now()
+        });
+        // Cap log at 200 entries
+        if (this.notificationLog.length > 200) {
+            this.notificationLog = this.notificationLog.slice(-200);
+        }
+
+        // Auto-remove based on settings duration
+        const duration = this._notifDuration || 4000;
         setTimeout(() => {
             notif.style.animation = 'notifOut 0.3s ease forwards';
             setTimeout(() => notif.remove(), 300);
-        }, 4000);
+        }, duration);
+    }
+
+    /**
+     * Show the event log panel with all past notifications
+     */
+    showEventLogPanel() {
+        const log = this.notificationLog;
+        let html = '<div style="max-width: 650px;">';
+
+        if (log.length === 0) {
+            html += '<p style="color: var(--text-secondary); text-align: center; padding: 24px;">No events recorded yet.</p>';
+        } else {
+            // Show newest first
+            const typeIcons = {
+                success: '✅', error: '❌', info: 'ℹ️', default: '📌'
+            };
+            const typeBorders = {
+                success: 'var(--accent-green)', error: 'var(--accent-red)',
+                info: 'var(--accent-blue)', default: 'var(--gold)'
+            };
+            for (let i = log.length - 1; i >= 0; i--) {
+                const entry = log[i];
+                const icon = typeIcons[entry.type] || typeIcons.default;
+                const borderColor = typeBorders[entry.type] || typeBorders.default;
+                html += `
+                    <div style="padding: 8px 12px; margin-bottom: 6px; background: rgba(255,255,255,0.03); border-left: 3px solid ${borderColor}; border-radius: 4px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                            <span style="font-family: var(--font-display); font-size: 12px; font-weight: 600; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px;">${icon} ${entry.title}</span>
+                            <span style="font-size: 11px; color: var(--text-muted);">Day ${entry.day}, ${entry.season}, Year ${entry.year}</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.4;">${entry.message}</div>
+                    </div>`;
+            }
+        }
+
+        html += '</div>';
+        this.showCustomPanel('📋 Event Log', html);
     }
 
     /**
@@ -2746,17 +3041,164 @@ class UI {
         }
         taxHtml += `</div></div></div>`;
 
+        // Prepare Routes data
+        const routeGoods = PlayerEconomy.getRouteGoodsOptions(player).slice(0, 12);
+        const settlements = world.getAllSettlements();
+        const currentTile = world.getTile(player.q, player.r);
+        const localSettlement = currentTile && currentTile.settlement ? { q: player.q, r: player.r, ...currentTile.settlement } : null;
+        const destinationOptions = settlements.filter(s => {
+            if (!localSettlement) return false;
+            if (s.q === localSettlement.q && s.r === localSettlement.r) return false;
+            const dist = Hex.wrappingDistance(localSettlement.q, localSettlement.r, s.q, s.r, world.width);
+            return dist >= 2 && dist <= 20;
+        });
+
+        let routeHtml = `
+            <div id="tabRoutes" class="tab-content" style="display:none;">
+                <div style="background:rgba(0,0,0,0.2); padding:15px; border-radius:4px; margin-bottom:15px;">
+                    <h3 style="margin-top:0; color:var(--gold);">Trade Caravans & Routes</h3>
+                    <div style="color:var(--text-secondary); font-style:italic; margin-bottom:12px;">Persistent routes dispatch caravans automatically. Protection and road quality improve long-term prosperity.</div>
+        `;
+
+        if (!localSettlement) {
+            routeHtml += `<div style="padding:10px; border-radius:4px; background:rgba(231,76,60,0.08); color:#e74c3c;">You must stand in a settlement to establish a route.</div>`;
+        } else if (destinationOptions.length === 0) {
+            routeHtml += `<div style="padding:10px; border-radius:4px; background:rgba(241,196,15,0.08); color:#f1c40f;">No valid destinations within 20 tiles from ${localSettlement.name}.</div>`;
+        } else {
+            routeHtml += `
+                <div class="info-section-title">Establish New Route (${localSettlement.name})</div>
+                <div style="display:grid; grid-template-columns: 2fr 2fr 1fr 1fr; gap:8px; margin-bottom:10px;">
+                    <select id="treasuryRouteDestination" style="padding:8px; border-radius:4px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.04); color:var(--text-primary);">
+                        ${destinationOptions.map(s => {
+                            const dist = Hex.wrappingDistance(localSettlement.q, localSettlement.r, s.q, s.r, world.width);
+                            return `<option value="${s.q},${s.r}">${s.name} (${dist} hex)</option>`;
+                        }).join('')}
+                    </select>
+                    <select id="treasuryRouteGood" style="padding:8px; border-radius:4px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.04); color:var(--text-primary);">
+                        ${routeGoods.length > 0 ? routeGoods.map(g => `<option value="${g.id}">${g.icon} ${g.name} (x${g.qty})</option>`).join('') : '<option value="">No goods in inventory</option>'}
+                    </select>
+                    <input id="treasuryRouteQty" type="number" min="1" max="999" value="5" style="padding:8px; border-radius:4px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.04); color:var(--text-primary);" />
+                    <select id="treasuryRouteFreq" style="padding:8px; border-radius:4px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.04); color:var(--text-primary);">
+                        <option value="2">Every 2 days</option>
+                        <option value="3" selected>Every 3 days</option>
+                        <option value="5">Every 5 days</option>
+                    </select>
+                </div>
+                <div style="display:flex; gap:8px; margin-bottom:12px;">
+                    <button onclick="window.game.ui.createTreasuryRoute(false)" style="flex:1; padding:8px; background:var(--gold); color:#111; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Establish Trade Route</button>
+                    <button onclick="window.game.ui.createTreasuryRoute(true)" style="flex:1; padding:8px; background:#8b0000; color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Establish Smuggling Route</button>
+                </div>
+            `;
+        }
+
+        const renderRouteCard = (route, isSmuggling) => {
+            const nextText = route.activeCaravanId ? 'Caravan in transit' : (route.nextDispatchIn > 0 ? `Dispatch in ${route.nextDispatchIn} day(s)` : 'Ready to dispatch');
+            const prosperityPct = Math.floor((route.prosperity || 0) * 16.67);
+            const badge = isSmuggling ? '<span style="color:#e74c3c; font-size:11px;">SMUGGLING</span>' : '<span style="color:#2ecc71; font-size:11px;">LEGAL TRADE</span>';
+            return `
+                <div style="background:rgba(255,255,255,0.03); padding:10px; border-radius:4px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.08);">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <strong>${route.fromName} → ${route.toName}</strong>
+                        ${badge}
+                    </div>
+                    <div style="font-size:12px; color:var(--text-secondary); margin-bottom:6px;">Cargo: ${route.goodId} x${route.quantity} • ${nextText}</div>
+                    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; margin-bottom:8px; font-size:11px;">
+                        <div style="background:rgba(0,0,0,0.2); padding:6px; border-radius:3px; text-align:center;">Prosperity<br><span style="color:var(--gold); font-weight:bold;">${prosperityPct}%</span></div>
+                        <div style="background:rgba(0,0,0,0.2); padding:6px; border-radius:3px; text-align:center;">Protection<br><span style="color:var(--gold); font-weight:bold;">${route.protection || 0}/5</span></div>
+                        <div style="background:rgba(0,0,0,0.2); padding:6px; border-radius:3px; text-align:center;">Roads<br><span style="color:var(--gold); font-weight:bold;">${route.roadQuality || 0}/5</span></div>
+                        <div style="background:rgba(0,0,0,0.2); padding:6px; border-radius:3px; text-align:center;">Runs<br><span style="color:var(--gold); font-weight:bold;">${route.successfulRuns || 0}/${route.totalRuns || 0}</span></div>
+                    </div>
+                    <div style="display:flex; gap:6px;">
+                        <button onclick="window.game.ui.upgradeTreasuryRouteProtection('${route.id}', ${isSmuggling ? 'true' : 'false'})" style="flex:1; padding:6px; background:rgba(52,152,219,0.2); border:1px solid rgba(52,152,219,0.5); color:#7fb3ff; border-radius:3px; cursor:pointer;">+ Guard</button>
+                        <button onclick="window.game.ui.upgradeTreasuryRouteRoads('${route.id}', ${isSmuggling ? 'true' : 'false'})" style="flex:1; padding:6px; background:rgba(46,204,113,0.2); border:1px solid rgba(46,204,113,0.5); color:#7dffb4; border-radius:3px; cursor:pointer;">+ Roads</button>
+                        <button onclick="window.game.ui.cancelTreasuryRoute('${route.id}', ${isSmuggling ? 'true' : 'false'})" style="flex:1; padding:6px; background:rgba(231,76,60,0.2); border:1px solid rgba(231,76,60,0.5); color:#ff9a9a; border-radius:3px; cursor:pointer;">Cancel</button>
+                    </div>
+                </div>
+            `;
+        };
+
+        routeHtml += `<div class="info-section-title">Legal Trade Routes</div>`;
+        if (player.tradeRoutes && player.tradeRoutes.length > 0) {
+            routeHtml += player.tradeRoutes.map(r => renderRouteCard(r, false)).join('');
+        } else {
+            routeHtml += `<div style="padding:8px; color:var(--text-secondary);">No legal routes established.</div>`;
+        }
+
+        routeHtml += `<div class="info-section-title" style="margin-top:10px;">Smuggling Routes</div>`;
+        if (player.smugglingRoutes && player.smugglingRoutes.length > 0) {
+            routeHtml += player.smugglingRoutes.map(r => renderRouteCard(r, true)).join('');
+        } else {
+            routeHtml += `<div style="padding:8px; color:var(--text-secondary);">No smuggling routes established.</div>`;
+        }
+
+        routeHtml += `</div></div>`;
+
+        // Prepare Auctions data
+        PlayerEconomy.ensureEconomyState(player);
+        PlayerEconomy.ensureAuctionListings(player, world);
+        const activeLots = player.auctions?.active || [];
+        const wonLots = (player.auctions?.won || []).slice(-5).reverse();
+
+        let auctionHtml = `
+            <div id="tabAuctions" class="tab-content" style="display:none;">
+                <div style="background:rgba(0,0,0,0.2); padding:15px; border-radius:4px; margin-bottom:15px;">
+                    <h3 style="margin-top:0; color:var(--gold);">Auction House</h3>
+                    <div style="color:var(--text-secondary); font-style:italic; margin-bottom:12px;">Bid on rare items, land rights, and artifacts. Auction listings rotate every few days.</div>
+        `;
+
+        if (activeLots.length > 0) {
+            auctionHtml += `<div class="info-section-title">Live Lots</div>`;
+            for (const lot of activeLots) {
+                const nextBid = lot.currentBid + lot.minIncrement;
+                const youLead = lot.topBidder === 'player';
+                auctionHtml += `
+                    <div style="background:rgba(255,255,255,0.03); padding:10px; border-radius:4px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.08);">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                            <strong>${lot.title}</strong>
+                            <span style="font-size:11px; color:${lot.rarity === 'legendary' ? '#f39c12' : lot.rarity === 'epic' ? '#9b59b6' : '#3498db'};">${lot.rarity.toUpperCase()}</span>
+                        </div>
+                        <div style="font-size:12px; color:var(--text-secondary); margin-bottom:6px;">${lot.description}</div>
+                        <div style="font-size:12px; margin-bottom:6px;">Reward: <span style="color:var(--gold);">${lot.reward.label}</span></div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:12px;">
+                            <span>Current Bid: <strong style="color:var(--gold);">${lot.currentBid}g</strong></span>
+                            <span style="color:var(--text-secondary);">Ends day ${lot.endsOnDay} ${youLead ? '• You lead' : ''}</span>
+                        </div>
+                        <button onclick="window.game.ui.placeTreasuryAuctionBid('${lot.id}')" style="width:100%; padding:8px; background:${youLead ? 'rgba(255,255,255,0.1)' : 'var(--gold)'}; color:${youLead ? 'var(--text-primary)' : '#111'}; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">
+                            ${youLead ? `Raise Bid (${nextBid}g)` : `Bid ${nextBid}g`}
+                        </button>
+                    </div>
+                `;
+            }
+        } else {
+            auctionHtml += `<div style="padding:10px; color:var(--text-secondary);">No live auction lots today. Advance time to refresh listings.</div>`;
+        }
+
+        auctionHtml += `<div class="info-section-title" style="margin-top:12px;">Recent Wins</div>`;
+        if (wonLots.length > 0) {
+            for (const won of wonLots) {
+                auctionHtml += `<div style="padding:8px; border-radius:4px; background:rgba(46,204,113,0.08); margin-bottom:6px; font-size:12px;">${won.title} — ${won.reward} (${won.price}g)</div>`;
+            }
+        } else {
+            auctionHtml += `<div style="padding:8px; color:var(--text-secondary);">No auction wins yet.</div>`;
+        }
+
+        auctionHtml += `</div></div>`;
+
         // Combine into simple tabs
         const html = `
             <div style="display:flex; border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:15px;">
-                <button onclick="window.game.ui.openTreasuryTab('tabMarket', this)" class="tab-btn active" style="flex:1; padding:10px; background:none; border:none; color:var(--text-primary); cursor:pointer; border-bottom:2px solid var(--gold); font-weight:bold;">Global Market</button>
-                <button onclick="window.game.ui.openTreasuryTab('tabBank', this)" class="tab-btn" style="flex:1; padding:10px; background:none; border:none; color:var(--text-secondary); cursor:pointer;">Royal Bank</button>
-                <button onclick="window.game.ui.openTreasuryTab('tabTax', this)" class="tab-btn" style="flex:1; padding:10px; background:none; border:none; color:var(--text-secondary); cursor:pointer;">Treasury</button>
+                <button onclick="window.game.ui.openTreasuryTab('tabMarket', this)" class="tab-btn active" style="flex:1; padding:10px; background:none; border:none; color:var(--text-primary); cursor:pointer; border-bottom:2px solid var(--gold); font-weight:bold;">Market</button>
+                <button onclick="window.game.ui.openTreasuryTab('tabBank', this)" class="tab-btn" style="flex:1; padding:10px; background:none; border:none; color:var(--text-secondary); cursor:pointer;">Bank</button>
+                <button onclick="window.game.ui.openTreasuryTab('tabTax', this)" class="tab-btn" style="flex:1; padding:10px; background:none; border:none; color:var(--text-secondary); cursor:pointer;">Taxes</button>
+                <button onclick="window.game.ui.openTreasuryTab('tabRoutes', this)" class="tab-btn" style="flex:1; padding:10px; background:none; border:none; color:var(--text-secondary); cursor:pointer;">Routes</button>
+                <button onclick="window.game.ui.openTreasuryTab('tabAuctions', this)" class="tab-btn" style="flex:1; padding:10px; background:none; border:none; color:var(--text-secondary); cursor:pointer;">Auctions</button>
             </div>
             
             ${marketHtml}
             ${bankHtml}
             ${taxHtml}
+            ${routeHtml}
+            ${auctionHtml}
         `;
 
         this.showCustomPanel('Royal Treasury', html);
@@ -2825,13 +3267,103 @@ class UI {
      * Set Tax Rate (UI Action)
      */
     setTaxRate(rateId) {
-        const result = Taxation.setTaxRate(this.game.player, rateId);
+        const result = Taxation.setTaxRate(this.game.player, rateId, this.game.world);
         if (result.success) {
             this.showNotification('Policy Updated', `Tax rate set to ${result.policy.name}`, 'info');
             // Refresh panel
             this.showTreasuryPanel(this.game.player, this.game.world);
         } else {
             this.showNotification('Update Failed', result.reason, 'error');
+        }
+    }
+
+    createTreasuryRoute(isSmuggling = false) {
+        const player = this.game.player;
+        const world = this.game.world;
+        const currentTile = world.getTile(player.q, player.r);
+
+        if (!currentTile || !currentTile.settlement) {
+            this.showNotification('Route Failed', 'You must be in a settlement to establish a route.', 'error');
+            return;
+        }
+
+        const destEl = document.getElementById('treasuryRouteDestination');
+        const goodEl = document.getElementById('treasuryRouteGood');
+        const qtyEl = document.getElementById('treasuryRouteQty');
+        const freqEl = document.getElementById('treasuryRouteFreq');
+
+        if (!destEl || !goodEl || !qtyEl || !freqEl) {
+            this.showNotification('Route Failed', 'Route form is unavailable.', 'error');
+            return;
+        }
+
+        const [toQ, toR] = (destEl.value || '').split(',').map(v => parseInt(v, 10));
+        const goodId = goodEl.value;
+        const quantity = Math.max(1, parseInt(qtyEl.value, 10) || 1);
+        const frequencyDays = Math.max(1, parseInt(freqEl.value, 10) || 3);
+
+        const result = PlayerEconomy.createPersistentRoute(player, world, {
+            isSmuggling,
+            fromPos: { q: player.q, r: player.r },
+            toPos: { q: toQ, r: toR },
+            goodId,
+            quantity,
+            frequencyDays,
+        });
+
+        if (result.success) {
+            this.showNotification(
+                isSmuggling ? 'Smuggling Route Established' : 'Trade Route Established',
+                `${result.route.fromName} → ${result.route.toName} (${result.creationCost}g chartered)`,
+                'success'
+            );
+            this.showTreasuryPanel(player, world);
+            this.updateStats(player, world);
+        } else {
+            this.showNotification('Route Failed', result.reason, 'error');
+        }
+    }
+
+    upgradeTreasuryRouteProtection(routeId, isSmuggling = false) {
+        const result = PlayerEconomy.upgradeRouteProtection(this.game.player, routeId, !!isSmuggling);
+        if (result.success) {
+            this.showNotification('Route Upgraded', `Protection increased for ${result.cost}g`, 'success');
+            this.showTreasuryPanel(this.game.player, this.game.world);
+            this.updateStats(this.game.player, this.game.world);
+        } else {
+            this.showNotification('Upgrade Failed', result.reason, 'error');
+        }
+    }
+
+    upgradeTreasuryRouteRoads(routeId, isSmuggling = false) {
+        const result = PlayerEconomy.upgradeRouteRoadQuality(this.game.player, routeId, !!isSmuggling);
+        if (result.success) {
+            this.showNotification('Route Upgraded', `Road quality improved for ${result.cost}g`, 'success');
+            this.showTreasuryPanel(this.game.player, this.game.world);
+            this.updateStats(this.game.player, this.game.world);
+        } else {
+            this.showNotification('Upgrade Failed', result.reason, 'error');
+        }
+    }
+
+    cancelTreasuryRoute(routeId, isSmuggling = false) {
+        const result = PlayerEconomy.cancelPersistentRoute(this.game.player, routeId, !!isSmuggling);
+        if (result.success) {
+            this.showNotification('Route Cancelled', `${result.route.fromName} → ${result.route.toName} removed`, 'default');
+            this.showTreasuryPanel(this.game.player, this.game.world);
+        } else {
+            this.showNotification('Cancel Failed', result.reason, 'error');
+        }
+    }
+
+    placeTreasuryAuctionBid(auctionId) {
+        const result = PlayerEconomy.placeAuctionBid(this.game.player, auctionId, this.game.world);
+        if (result.success) {
+            this.showNotification('Bid Placed', `${result.bid}g bid on ${result.lot.title}`, 'success');
+            this.showTreasuryPanel(this.game.player, this.game.world);
+            this.updateStats(this.game.player, this.game.world);
+        } else {
+            this.showNotification('Bid Failed', result.reason, 'error');
         }
     }
 
@@ -3441,5 +3973,392 @@ class UI {
         html += `</div>`;
 
         this.showCustomPanel('⚖️ Kingdom Comparison', html);
+    }
+
+    // ============================================
+    // SETTINGS PANEL
+    // ============================================
+
+    /**
+     * Get current settings with defaults
+     */
+    static getDefaultSettings() {
+        return {
+            autoSaveEnabled: true,
+            autoSaveInterval: 5,
+            notificationDuration: 4,
+            showResources: true,
+            showTerritories: false,
+            defaultMapMode: 'normal',
+            cameraSmoothSpeed: 6,
+            panSpeed: 400,
+            zoomSensitivity: 0.1,
+            minZoom: 0.55,
+            maxZoom: 1.5,
+            showDayCounter: true,
+            showMinimap: true,
+            confirmEndDay: false,
+        };
+    }
+
+    /**
+     * Load settings from localStorage
+     */
+    static loadSettings() {
+        try {
+            const json = localStorage.getItem('lord_of_realms_settings');
+            if (json) {
+                const saved = JSON.parse(json);
+                return { ...UI.getDefaultSettings(), ...saved };
+            }
+        } catch (e) {
+            console.warn('Failed to load settings:', e);
+        }
+        return UI.getDefaultSettings();
+    }
+
+    /**
+     * Save settings to localStorage
+     */
+    static saveSettings(settings) {
+        try {
+            localStorage.setItem('lord_of_realms_settings', JSON.stringify(settings));
+            return true;
+        } catch (e) {
+            console.warn('Failed to save settings:', e);
+            return false;
+        }
+    }
+
+    /**
+     * Apply loaded settings to game systems
+     */
+    applySettings(settings) {
+        if (!settings) settings = UI.loadSettings();
+
+        // Auto-save interval
+        SaveLoad.AUTO_SAVE_INTERVAL = settings.autoSaveEnabled ? settings.autoSaveInterval : 0;
+
+        // Renderer display
+        if (this.game.renderer) {
+            this.game.renderer.showResources = settings.showResources;
+            this.game.renderer.showTerritories = settings.showTerritories;
+            this.game.renderer.mapMode = settings.defaultMapMode;
+
+            // Update toggle button states in the UI
+            const resEl = document.getElementById('resourceToggleState');
+            if (resEl) {
+                resEl.textContent = settings.showResources ? 'ON' : 'OFF';
+                resEl.classList.toggle('on', settings.showResources);
+            }
+            const bordEl = document.getElementById('borderToggleState');
+            if (bordEl) {
+                bordEl.textContent = settings.showTerritories ? 'ON' : 'OFF';
+                bordEl.classList.toggle('on', settings.showTerritories);
+            }
+        }
+
+        // Camera
+        if (this.game.camera) {
+            this.game.camera.smoothSpeed = settings.cameraSmoothSpeed;
+            this.game.camera.minZoom = settings.minZoom;
+            this.game.camera.maxZoom = settings.maxZoom;
+            this.game.camera.panSpeedBase = settings.panSpeed;
+            this.game.camera.zoomStep = settings.zoomSensitivity;
+        }
+
+        // Minimap
+        const minimap = document.getElementById('minimapCanvas');
+        if (minimap) {
+            minimap.parentElement.style.display = settings.showMinimap ? '' : 'none';
+        }
+
+        // Day counter
+        const dayCounter = document.getElementById('dayCounter');
+        if (dayCounter) {
+            dayCounter.style.display = settings.showDayCounter ? '' : 'none';
+        }
+
+        // Store notification duration for use in showNotification
+        this._notifDuration = (settings.notificationDuration || 4) * 1000;
+        this._confirmEndDay = settings.confirmEndDay || false;
+    }
+
+    /**
+     * Show the in-game settings panel
+     */
+    showSettingsPanel() {
+        const s = UI.loadSettings();
+
+        const mapModeOptions = [
+            { value: 'normal', label: 'Normal' },
+            { value: 'political', label: 'Political' },
+            { value: 'religion', label: 'Religion' },
+            { value: 'wealth', label: 'Wealth' },
+            { value: 'military', label: 'Military' },
+            { value: 'trade', label: 'Trade' },
+            { value: 'culture', label: 'Culture' },
+        ];
+        const mapModeSelect = mapModeOptions.map(o =>
+            `<option value="${o.value}" ${s.defaultMapMode === o.value ? 'selected' : ''}>${o.label}</option>`
+        ).join('');
+
+        const html = `
+        <div class="game-settings-panel">
+            <!-- Gameplay -->
+            <div class="gs-section">
+                <div class="gs-section-title">Gameplay</div>
+                <div class="gs-row">
+                    <label>Auto-Save</label>
+                    <label class="gs-toggle">
+                        <input type="checkbox" id="gsAutoSave" ${s.autoSaveEnabled ? 'checked' : ''}>
+                        <span class="gs-toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="gs-row" id="gsAutoSaveIntervalRow" style="${s.autoSaveEnabled ? '' : 'opacity:0.4;pointer-events:none'}">
+                    <label>Auto-Save Interval</label>
+                    <div class="gs-range-group">
+                        <input type="range" id="gsAutoSaveInterval" min="1" max="30" value="${s.autoSaveInterval}">
+                        <span class="gs-range-val" id="gsAutoSaveIntervalVal">${s.autoSaveInterval} days</span>
+                    </div>
+                </div>
+                <div class="gs-row">
+                    <label>Confirm End Day</label>
+                    <label class="gs-toggle">
+                        <input type="checkbox" id="gsConfirmEndDay" ${s.confirmEndDay ? 'checked' : ''}>
+                        <span class="gs-toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="gs-row">
+                    <label>Notification Duration</label>
+                    <div class="gs-range-group">
+                        <input type="range" id="gsNotifDuration" min="1" max="10" value="${s.notificationDuration}">
+                        <span class="gs-range-val" id="gsNotifDurationVal">${s.notificationDuration}s</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Display -->
+            <div class="gs-section">
+                <div class="gs-section-title">Display</div>
+                <div class="gs-row">
+                    <label>Show Resources</label>
+                    <label class="gs-toggle">
+                        <input type="checkbox" id="gsShowResources" ${s.showResources ? 'checked' : ''}>
+                        <span class="gs-toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="gs-row">
+                    <label>Show Kingdom Borders</label>
+                    <label class="gs-toggle">
+                        <input type="checkbox" id="gsShowTerritories" ${s.showTerritories ? 'checked' : ''}>
+                        <span class="gs-toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="gs-row">
+                    <label>Default Map Mode</label>
+                    <select id="gsDefaultMapMode" class="gs-select">${mapModeSelect}</select>
+                </div>
+                <div class="gs-row">
+                    <label>Show Minimap</label>
+                    <label class="gs-toggle">
+                        <input type="checkbox" id="gsShowMinimap" ${s.showMinimap ? 'checked' : ''}>
+                        <span class="gs-toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="gs-row">
+                    <label>Show Day Counter</label>
+                    <label class="gs-toggle">
+                        <input type="checkbox" id="gsShowDayCounter" ${s.showDayCounter ? 'checked' : ''}>
+                        <span class="gs-toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Camera -->
+            <div class="gs-section">
+                <div class="gs-section-title">Camera</div>
+                <div class="gs-row">
+                    <label>Scroll Speed</label>
+                    <div class="gs-range-group">
+                        <input type="range" id="gsPanSpeed" min="100" max="800" step="50" value="${s.panSpeed}">
+                        <span class="gs-range-val" id="gsPanSpeedVal">${s.panSpeed}</span>
+                    </div>
+                </div>
+                <div class="gs-row">
+                    <label>Camera Smoothing</label>
+                    <div class="gs-range-group">
+                        <input type="range" id="gsSmoothSpeed" min="1" max="20" value="${s.cameraSmoothSpeed}">
+                        <span class="gs-range-val" id="gsSmoothSpeedVal">${s.cameraSmoothSpeed}</span>
+                    </div>
+                </div>
+                <div class="gs-row">
+                    <label>Zoom Sensitivity</label>
+                    <div class="gs-range-group">
+                        <input type="range" id="gsZoomSens" min="0.05" max="0.3" step="0.05" value="${s.zoomSensitivity}">
+                        <span class="gs-range-val" id="gsZoomSensVal">${s.zoomSensitivity}</span>
+                    </div>
+                </div>
+                <div class="gs-row">
+                    <label>Min Zoom</label>
+                    <div class="gs-range-group">
+                        <input type="range" id="gsMinZoom" min="0.2" max="0.8" step="0.05" value="${s.minZoom}">
+                        <span class="gs-range-val" id="gsMinZoomVal">${s.minZoom}</span>
+                    </div>
+                </div>
+                <div class="gs-row">
+                    <label>Max Zoom</label>
+                    <div class="gs-range-group">
+                        <input type="range" id="gsMaxZoom" min="1.0" max="3.0" step="0.1" value="${s.maxZoom}">
+                        <span class="gs-range-val" id="gsMaxZoomVal">${s.maxZoom}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Management -->
+            <div class="gs-section">
+                <div class="gs-section-title">Data</div>
+                <div class="gs-row gs-btn-row">
+                    <button class="gs-btn" id="gsSaveNow">💾 Save Now</button>
+                    <button class="gs-btn" id="gsExport">📤 Export Save</button>
+                    <button class="gs-btn" id="gsImport">📥 Import Save</button>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="gs-actions">
+                <button class="gs-btn gs-btn-secondary" id="gsResetDefaults">Reset Defaults</button>
+                <button class="gs-btn gs-btn-primary" id="gsApply">Apply & Close</button>
+            </div>
+        </div>`;
+
+        this.showCustomPanel('⚙️ Settings', html);
+
+        // Wait a tick for DOM to render, then bind events
+        requestAnimationFrame(() => this._bindSettingsEvents());
+    }
+
+    /**
+     * Bind all interactive events inside the settings panel
+     */
+    _bindSettingsEvents() {
+        // Range sliders — live value display
+        const rangeBindings = [
+            { id: 'gsAutoSaveInterval', valId: 'gsAutoSaveIntervalVal', suffix: ' days' },
+            { id: 'gsNotifDuration', valId: 'gsNotifDurationVal', suffix: 's' },
+            { id: 'gsPanSpeed', valId: 'gsPanSpeedVal', suffix: '' },
+            { id: 'gsSmoothSpeed', valId: 'gsSmoothSpeedVal', suffix: '' },
+            { id: 'gsZoomSens', valId: 'gsZoomSensVal', suffix: '' },
+            { id: 'gsMinZoom', valId: 'gsMinZoomVal', suffix: '' },
+            { id: 'gsMaxZoom', valId: 'gsMaxZoomVal', suffix: '' },
+        ];
+        for (const rb of rangeBindings) {
+            const el = document.getElementById(rb.id);
+            const valEl = document.getElementById(rb.valId);
+            if (el && valEl) {
+                el.addEventListener('input', () => {
+                    valEl.textContent = el.value + rb.suffix;
+                });
+            }
+        }
+
+        // Auto-save toggle enables/disables interval row
+        const autoSaveCheck = document.getElementById('gsAutoSave');
+        const intervalRow = document.getElementById('gsAutoSaveIntervalRow');
+        if (autoSaveCheck && intervalRow) {
+            autoSaveCheck.addEventListener('change', () => {
+                intervalRow.style.opacity = autoSaveCheck.checked ? '1' : '0.4';
+                intervalRow.style.pointerEvents = autoSaveCheck.checked ? '' : 'none';
+            });
+        }
+
+        // Save Now
+        const saveBtn = document.getElementById('gsSaveNow');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => {
+                const result = SaveLoad.saveGame(this.game);
+                this.showNotification(result.success ? 'Saved' : 'Error',
+                    result.success ? 'Game saved successfully' : 'Failed to save: ' + result.error,
+                    result.success ? 'success' : 'error');
+            });
+        }
+
+        // Export
+        const exportBtn = document.getElementById('gsExport');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => {
+                if (typeof SaveLoad.exportSave === 'function') {
+                    SaveLoad.exportSave();
+                    this.showNotification('Export', 'Save file downloaded', 'success');
+                }
+            });
+        }
+
+        // Import
+        const importBtn = document.getElementById('gsImport');
+        if (importBtn) {
+            importBtn.addEventListener('click', () => {
+                if (typeof SaveLoad.importSave === 'function') {
+                    SaveLoad.importSave(this.game);
+                }
+            });
+        }
+
+        // Reset Defaults
+        const resetBtn = document.getElementById('gsResetDefaults');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                const defaults = UI.getDefaultSettings();
+                UI.saveSettings(defaults);
+                this.applySettings(defaults);
+                this.hideCustomPanel();
+                this.showSettingsPanel(); // Reopen with defaults
+                this.showNotification('Settings', 'Reset to defaults', 'info');
+            });
+        }
+
+        // Apply & Close
+        const applyBtn = document.getElementById('gsApply');
+        if (applyBtn) {
+            applyBtn.addEventListener('click', () => {
+                this._applyAndSaveSettings();
+            });
+        }
+    }
+
+    /**
+     * Gather values from settings form, save and apply
+     */
+    _applyAndSaveSettings() {
+        const getVal = (id) => {
+            const el = document.getElementById(id);
+            return el ? el.value : null;
+        };
+        const getChecked = (id) => {
+            const el = document.getElementById(id);
+            return el ? el.checked : false;
+        };
+
+        const settings = {
+            autoSaveEnabled: getChecked('gsAutoSave'),
+            autoSaveInterval: parseInt(getVal('gsAutoSaveInterval')) || 5,
+            notificationDuration: parseInt(getVal('gsNotifDuration')) || 4,
+            showResources: getChecked('gsShowResources'),
+            showTerritories: getChecked('gsShowTerritories'),
+            defaultMapMode: getVal('gsDefaultMapMode') || 'normal',
+            cameraSmoothSpeed: parseInt(getVal('gsSmoothSpeed')) || 6,
+            panSpeed: parseInt(getVal('gsPanSpeed')) || 400,
+            zoomSensitivity: parseFloat(getVal('gsZoomSens')) || 0.1,
+            minZoom: parseFloat(getVal('gsMinZoom')) || 0.55,
+            maxZoom: parseFloat(getVal('gsMaxZoom')) || 1.5,
+            showDayCounter: getChecked('gsShowDayCounter'),
+            showMinimap: getChecked('gsShowMinimap'),
+            confirmEndDay: getChecked('gsConfirmEndDay'),
+        };
+
+        UI.saveSettings(settings);
+        this.applySettings(settings);
+        this.hideCustomPanel();
+        this.showNotification('Settings', 'Settings saved', 'success');
     }
 }

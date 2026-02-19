@@ -11,6 +11,14 @@
         "exSpouse":      { "id": "exSpouse",       "label": "Former Spouse", "icon": "💔", "romantic": false }
     },
 
+    "relationshipLevels": [
+        { "id": "stranger", "label": "Stranger", "icon": "👤", "minScore": -100 },
+        { "id": "acquaintance", "label": "Acquaintance", "icon": "🤝", "minScore": 10 },
+        { "id": "friend", "label": "Friend", "icon": "😊", "minScore": 30 },
+        { "id": "close_friend", "label": "Close Friend", "icon": "💛", "minScore": 60 },
+        { "id": "best_friend", "label": "Best Friend", "icon": "💜", "minScore": 90 }
+    ],
+
     "courtingStages": [
         { "id": "strangers",     "label": "Strangers",     "icon": "👤", "minAffection": 0,   "description": "You don't know each other yet." },
         { "id": "interested",    "label": "Interested",    "icon": "👀", "minAffection": 15,  "description": "There's a spark of interest." },
@@ -28,7 +36,8 @@
             "statBonus": "charisma",
             "failChance": 0.1,
             "cost": 0,
-            "minStage": "strangers"
+            "minStage": "strangers",
+            "apCost": 1
         },
         "compliment": {
             "id": "compliment", "label": "Give a Compliment", "icon": "✨",
@@ -37,7 +46,8 @@
             "statBonus": "charisma",
             "failChance": 0.2,
             "cost": 0,
-            "minStage": "strangers"
+            "minStage": "strangers",
+            "apCost": 1
         },
         "gift": {
             "id": "gift", "label": "Give a Gift", "icon": "🎁",
@@ -46,7 +56,8 @@
             "statBonus": "intelligence",
             "failChance": 0.05,
             "cost": 25,
-            "minStage": "interested"
+            "minStage": "interested",
+            "apCost": 1
         },
         "serenade": {
             "id": "serenade", "label": "Serenade", "icon": "🎵",
@@ -56,7 +67,19 @@
             "failChance": 0.3,
             "failPenalty": -5,
             "cost": 0,
-            "minStage": "flirting"
+            "minStage": "flirting",
+            "apCost": 1
+        },
+        "moonlight_walk": {
+            "id": "moonlight_walk", "label": "Moonlight Walk", "icon": "🌙",
+            "description": "Take a quiet walk together to deepen connection.",
+            "affectionGain": { "min": 6, "max": 11 },
+            "statBonus": "charisma",
+            "failChance": 0.18,
+            "failPenalty": -4,
+            "cost": 0,
+            "minStage": "courting",
+            "apCost": 2
         },
         "romantic_dinner": {
             "id": "romantic_dinner", "label": "Romantic Dinner", "icon": "🍷",
@@ -66,7 +89,19 @@
             "failChance": 0.1,
             "cost": 50,
             "minStage": "courting",
-            "requiresSettlement": true
+            "requiresSettlement": true,
+            "apCost": 2
+        },
+        "private_vows": {
+            "id": "private_vows", "label": "Exchange Private Vows", "icon": "🕯️",
+            "description": "Pledge devotion in private before the wedding.",
+            "affectionGain": { "min": 10, "max": 16 },
+            "statBonus": "faith",
+            "failChance": 0.14,
+            "failPenalty": -6,
+            "cost": 30,
+            "minStage": "betrothed",
+            "apCost": 2
         },
         "propose": {
             "id": "propose", "label": "Propose Marriage", "icon": "💍",
@@ -77,7 +112,19 @@
             "failPenalty": -10,
             "cost": 100,
             "minStage": "courting",
-            "minAffection": 70
+            "minAffection": 70,
+            "apCost": 3
+        },
+        "quality_time": {
+            "id": "quality_time", "label": "Spend Quality Time", "icon": "🏡",
+            "description": "Invest in your marriage and keep affection strong.",
+            "affectionGain": { "min": 4, "max": 9 },
+            "statBonus": "diplomacy",
+            "failChance": 0.08,
+            "cost": 15,
+            "minStage": "married",
+            "requiresSpouse": true,
+            "apCost": 1
         }
     },
 
@@ -87,14 +134,9 @@
             "description": "Make small talk and build rapport.",
             "relationGain": { "min": 2, "max": 5 },
             "statBonus": "charisma",
-            "failChance": 0.1
-        },
-        "train_together": {
-            "id": "train_together", "label": "Train Together", "icon": "⚔️",
-            "description": "Spar or drill with this person. Builds respect.",
-            "relationGain": { "min": 3, "max": 7 },
-            "statBonus": "strength",
-            "failChance": 0.15
+            "failChance": 0.1,
+            "minLevel": "stranger",
+            "apCost": 1
         },
         "share_meal": {
             "id": "share_meal", "label": "Share a Meal", "icon": "🍞",
@@ -102,21 +144,61 @@
             "relationGain": { "min": 3, "max": 6 },
             "statBonus": "charisma",
             "failChance": 0.05,
-            "cost": 10
+            "cost": 10,
+            "minLevel": "acquaintance",
+            "minScore": 10,
+            "apCost": 1
         },
         "tell_stories": {
             "id": "tell_stories", "label": "Tell Stories", "icon": "📖",
             "description": "Share tales and listen to theirs.",
             "relationGain": { "min": 2, "max": 6 },
             "statBonus": "intelligence",
-            "failChance": 0.1
+            "failChance": 0.1,
+            "minLevel": "acquaintance",
+            "minScore": 10,
+            "apCost": 1
+        },
+        "train_together": {
+            "id": "train_together", "label": "Train Together", "icon": "⚔️",
+            "description": "Spar or drill with this person. Builds respect.",
+            "relationGain": { "min": 3, "max": 7 },
+            "statBonus": "strength",
+            "failChance": 0.15,
+            "minLevel": "friend",
+            "minScore": 30,
+            "apCost": 2
+        },
+        "confide_secret": {
+            "id": "confide_secret", "label": "Confide a Secret", "icon": "🤫",
+            "description": "Trust them with a private truth. Great reward if it lands.",
+            "relationGain": { "min": 5, "max": 9 },
+            "statBonus": "diplomacy",
+            "failChance": 0.2,
+            "failPenalty": -4,
+            "minLevel": "close_friend",
+            "minScore": 60,
+            "apCost": 2
+        },
+        "blood_oath": {
+            "id": "blood_oath", "label": "Swear Blood Oath", "icon": "🩸",
+            "description": "Bind your loyalty in solemn ritual. Powerful, but risky.",
+            "relationGain": { "min": 8, "max": 14 },
+            "statBonus": "leadership",
+            "failChance": 0.28,
+            "failPenalty": -6,
+            "cost": 40,
+            "minLevel": "best_friend",
+            "minScore": 90,
+            "apCost": 3
         },
         "insult": {
             "id": "insult", "label": "Insult", "icon": "😤",
             "description": "Provoke or belittle this person.",
             "relationGain": { "min": -8, "max": -3 },
             "statBonus": null,
-            "failChance": 0
+            "failChance": 0,
+            "apCost": 1
         },
         "challenge": {
             "id": "challenge", "label": "Challenge to Duel", "icon": "🗡️",
@@ -124,7 +206,8 @@
             "relationGain": { "min": -2, "max": 5 },
             "statBonus": "strength",
             "failChance": 0.3,
-            "failResult": "humiliation"
+            "failResult": "humiliation",
+            "apCost": 2
         }
     },
 

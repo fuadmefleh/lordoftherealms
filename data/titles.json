@@ -1,0 +1,238 @@
+{
+  "titles": {
+    "tax_collector": {
+      "id": "tax_collector",
+      "name": "Tax Collector",
+      "icon": "💰",
+      "rank": 2,
+      "description": "You are charged with visiting settlements and collecting taxes on behalf of the crown. A thankless but lucrative office.",
+      "requirements": {
+        "reputation": 15,
+        "skills": { "commerce": 3 },
+        "attributes": {},
+        "renown": 5
+      },
+      "salary": 20,
+      "perks": {
+        "goldPerCollection": { "min": 15, "max": 40 },
+        "reputationGain": 1,
+        "renownGain": 1
+      },
+      "duties": {
+        "type": "visit_settlements",
+        "settlementsRequired": 3,
+        "deadlineDays": 30,
+        "failurePenalty": { "reputation": -10, "renown": -3 },
+        "description": "Visit at least 3 kingdom settlements and collect taxes each month."
+      }
+    },
+    "jailer": {
+      "id": "jailer",
+      "name": "Jailer",
+      "icon": "🔒",
+      "rank": 2,
+      "description": "You are the keeper of the kingdom's dungeons. Hunt fugitives, capture criminals, and deliver them to the nearest jail.",
+      "requirements": {
+        "reputation": 10,
+        "skills": { "combat": 3 },
+        "attributes": {},
+        "renown": 3
+      },
+      "salary": 15,
+      "perks": {
+        "goldPerCapture": { "min": 25, "max": 60 },
+        "karmaGain": 1,
+        "renownGain": 2
+      },
+      "duties": {
+        "type": "capture_fugitives",
+        "capturesRequired": 1,
+        "deadlineDays": 30,
+        "failurePenalty": { "reputation": -8, "renown": -2 },
+        "description": "Capture at least 1 fugitive and bring them to justice each month."
+      }
+    },
+    "marshal": {
+      "id": "marshal",
+      "name": "Marshal",
+      "icon": "⚔️",
+      "rank": 3,
+      "description": "Commander of the kingdom's military patrols. Defend the realm, clear bandits from the roads, and escort caravans.",
+      "requirements": {
+        "reputation": 25,
+        "skills": { "combat": 5, "leadership": 3 },
+        "attributes": { "strength": 6 },
+        "renown": 15
+      },
+      "salary": 35,
+      "perks": {
+        "goldPerPatrol": { "min": 20, "max": 50 },
+        "reputationGain": 2,
+        "renownGain": 3,
+        "militaryDiscount": 0.15
+      },
+      "duties": {
+        "type": "patrol_territory",
+        "patrolsRequired": 4,
+        "deadlineDays": 30,
+        "failurePenalty": { "reputation": -15, "renown": -5 },
+        "description": "Complete at least 4 patrols through kingdom territory each month."
+      }
+    },
+    "spymaster": {
+      "id": "spymaster",
+      "name": "Spymaster",
+      "icon": "🕵️",
+      "rank": 3,
+      "description": "Master of whispers and shadows. Gather intelligence on rival kingdoms, uncover plots, and manage the kingdom's informant network.",
+      "requirements": {
+        "reputation": 20,
+        "skills": { "stealth": 5, "diplomacy": 3 },
+        "attributes": { "intelligence": 6 },
+        "renown": 10
+      },
+      "salary": 30,
+      "perks": {
+        "goldPerIntel": { "min": 15, "max": 35 },
+        "freeInformants": 2,
+        "reputationGain": 1,
+        "renownGain": 2
+      },
+      "duties": {
+        "type": "gather_intel",
+        "intelRequired": 2,
+        "deadlineDays": 30,
+        "failurePenalty": { "reputation": -12, "renown": -4 },
+        "description": "Gather at least 2 pieces of foreign intelligence each month."
+      }
+    },
+    "court_chaplain": {
+      "id": "court_chaplain",
+      "name": "Court Chaplain",
+      "icon": "⛪",
+      "rank": 2,
+      "description": "Spiritual advisor to the court. Tend to the kingdom's faith, bless the people, and maintain holy sites.",
+      "requirements": {
+        "reputation": 15,
+        "skills": {},
+        "attributes": { "faith": 5 },
+        "renown": 8
+      },
+      "salary": 20,
+      "perks": {
+        "karmaPerBlessing": 2,
+        "faithSpreadBonus": 0.25,
+        "reputationGain": 1,
+        "renownGain": 1
+      },
+      "duties": {
+        "type": "bless_settlements",
+        "blessingsRequired": 2,
+        "deadlineDays": 30,
+        "failurePenalty": { "reputation": -8, "karma": -3 },
+        "description": "Visit and bless at least 2 kingdom settlements each month."
+      }
+    },
+    "trade_envoy": {
+      "id": "trade_envoy",
+      "name": "Trade Envoy",
+      "icon": "🤝",
+      "rank": 2,
+      "description": "Official representative of the kingdom's trade interests. Negotiate deals, establish trade routes, and bring prosperity.",
+      "requirements": {
+        "reputation": 15,
+        "skills": { "commerce": 4, "diplomacy": 3 },
+        "attributes": { "charisma": 5 },
+        "renown": 8
+      },
+      "salary": 25,
+      "perks": {
+        "tradeBonus": 0.10,
+        "goldPerDeal": { "min": 20, "max": 50 },
+        "reputationGain": 2,
+        "renownGain": 2
+      },
+      "duties": {
+        "type": "trade_missions",
+        "missionsRequired": 2,
+        "deadlineDays": 30,
+        "failurePenalty": { "reputation": -10, "renown": -3 },
+        "description": "Complete at least 2 trade missions to foreign kingdoms each month."
+      }
+    },
+    "royal_cartographer": {
+      "id": "royal_cartographer",
+      "name": "Royal Cartographer",
+      "icon": "🗺️",
+      "rank": 2,
+      "description": "Official mapmaker of the realm. Explore uncharted territory, survey borders, and expand the kingdom's knowledge of the world.",
+      "requirements": {
+        "reputation": 10,
+        "skills": { "cartography": 3 },
+        "attributes": { "intelligence": 5 },
+        "renown": 5
+      },
+      "salary": 20,
+      "perks": {
+        "explorationBonus": 2,
+        "goldPerSurvey": { "min": 10, "max": 30 },
+        "reputationGain": 1,
+        "renownGain": 2
+      },
+      "duties": {
+        "type": "survey_territory",
+        "tilesRequired": 20,
+        "deadlineDays": 30,
+        "failurePenalty": { "reputation": -5, "renown": -2 },
+        "description": "Explore and survey at least 20 new tiles each month."
+      }
+    },
+    "chancellor": {
+      "id": "chancellor",
+      "name": "Chancellor",
+      "icon": "📜",
+      "rank": 4,
+      "description": "Chief advisor to the ruler and overseer of the kingdom's affairs. The highest non-royal office, with authority over all other officials.",
+      "requirements": {
+        "reputation": 40,
+        "skills": { "diplomacy": 6, "leadership": 5, "commerce": 4 },
+        "attributes": { "intelligence": 7, "charisma": 7 },
+        "renown": 30
+      },
+      "salary": 60,
+      "perks": {
+        "allSalaryBonus": 0.25,
+        "reputationGain": 3,
+        "renownGain": 5,
+        "taxBonusPercent": 10
+      },
+      "duties": {
+        "type": "maintain_order",
+        "councilMeetings": 1,
+        "deadlineDays": 30,
+        "failurePenalty": { "reputation": -20, "renown": -10 },
+        "description": "Hold court at the capital and maintain kingdom stability each month."
+      }
+    }
+  },
+
+  "titleRanks": {
+    "1": { "label": "Peasant", "icon": "👤" },
+    "2": { "label": "Official", "icon": "📋" },
+    "3": { "label": "Lord", "icon": "🏰" },
+    "4": { "label": "Chancellor", "icon": "👑" }
+  },
+
+  "fugitives": [
+    { "name": "Scarface", "crime": "murder", "reward": 40, "difficulty": 6, "icon": "🗡️" },
+    { "name": "The Rat", "crime": "theft", "reward": 25, "difficulty": 4, "icon": "🐀" },
+    { "name": "Red Mara", "crime": "arson", "reward": 35, "difficulty": 5, "icon": "🔥" },
+    { "name": "Old Fingers", "crime": "pickpocketing", "reward": 20, "difficulty": 3, "icon": "🤏" },
+    { "name": "The Shadow", "crime": "espionage", "reward": 50, "difficulty": 7, "icon": "🕶️" },
+    { "name": "Bloodbeard", "crime": "piracy", "reward": 45, "difficulty": 7, "icon": "☠️" },
+    { "name": "Silk Tongue", "crime": "fraud", "reward": 30, "difficulty": 5, "icon": "🎭" },
+    { "name": "The Butcher", "crime": "murder", "reward": 55, "difficulty": 8, "icon": "🪓" },
+    { "name": "Whispering Jane", "crime": "treason", "reward": 60, "difficulty": 8, "icon": "🗣️" },
+    { "name": "Copperhand", "crime": "counterfeiting", "reward": 35, "difficulty": 5, "icon": "💰" }
+  ]
+}

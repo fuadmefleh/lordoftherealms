@@ -16,6 +16,8 @@ class Camera {
         this.targetX = 0;
         this.targetY = 0;
         this.smoothSpeed = 6;
+        this.panSpeedBase = 400;   // Configurable via settings
+        this.zoomStep = 0.1;       // Configurable via settings
 
         // Dragging state
         this.isDragging = false;
@@ -48,7 +50,7 @@ class Camera {
         // Mouse wheel zoom
         canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
-            const zoomDelta = e.deltaY > 0 ? -0.1 : 0.1;
+            const zoomDelta = e.deltaY > 0 ? -(this.zoomStep || 0.1) : (this.zoomStep || 0.1);
             this.targetZoom = Utils.clamp(this.targetZoom + zoomDelta, this.minZoom, this.maxZoom);
         }, { passive: false });
 
@@ -117,7 +119,7 @@ class Camera {
      */
     update(deltaTime) {
         // Keyboard panning
-        const panSpeed = 400 / this.zoom;
+        const panSpeed = (this.panSpeedBase || 400) / this.zoom;
         if (this.keys['ArrowLeft'] || this.keys['a']) this.targetX -= panSpeed * deltaTime;
         if (this.keys['ArrowRight'] || this.keys['d']) this.targetX += panSpeed * deltaTime;
         if (this.keys['ArrowUp'] || this.keys['w']) this.targetY -= panSpeed * deltaTime;

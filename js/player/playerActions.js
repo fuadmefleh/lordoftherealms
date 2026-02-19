@@ -9,6 +9,32 @@ const PlayerActions = {
     getAvailableActions(player, tile, world) {
         const actions = [];
 
+        // If player is in jail, only show jail actions
+        if (player.jailState) {
+            const jail = player.jailState;
+            actions.push({
+                type: 'jail_wait',
+                label: 'Serve Time',
+                icon: '🔒',
+                description: `${jail.daysRemaining} day(s) remain in jail. Offense #${jail.offenseNumber}.`
+            });
+            if (jail.bailCost && player.gold >= jail.bailCost) {
+                actions.push({
+                    type: 'jail_bail',
+                    label: 'Post Bail',
+                    icon: '💰',
+                    description: `Pay ${jail.bailCost} gold to get out of jail immediately.`
+                });
+            }
+            actions.push({
+                type: 'jail_escape',
+                label: 'Attempt Jailbreak',
+                icon: '🏃',
+                description: `Try to escape (${Math.floor((jail.escapeChance || 0.1) * 100)}% chance). Failure adds more time.`
+            });
+            return actions;
+        }
+
         // If player is in indentured servitude, only show servitude actions
         if (player.indenturedServitude) {
             const servitude = player.indenturedServitude;
@@ -43,12 +69,114 @@ const PlayerActions = {
             description: 'Recover stamina and wait for the next day'
         });
 
+        // Disembark from ship (if on a ship and on land/coast)
+        if (player.boardedShip && tile.terrain.passable) {
+            actions.push({
+                type: 'disembark',
+                label: 'Disembark',
+                icon: '🚶',
+                description: 'Leave your ship and return to land'
+            });
+        }
+
+        const pendingCapturedBounty = (player.activeBounties || []).find(b =>
+            b.type === 'criminal_hunt' && b.status === 'captured_pending_decision'
+        );
+        if (pendingCapturedBounty) {
+            actions.push({
+                type: 'capture_criminal',
+                label: 'Judge Captured Criminal',
+                icon: '⛓️',
+                description: `${pendingCapturedBounty.targetName} awaits your decision: turn in or recruit.`
+            });
+        } else if (typeof BountyHunting !== 'undefined') {
+            const criminalTarget = BountyHunting.getBountyTargetAtPlayer(player);
+            if (criminalTarget) {
+                actions.push({
+                    type: 'capture_criminal',
+                    label: 'Capture Wanted Criminal',
+                    icon: '🎯',
+                    description: `Attempt to capture ${criminalTarget.targetName} (${criminalTarget.notoriety || 'wanted'}, difficulty ${criminalTarget.difficulty}).`
+                });
+            }
+        }
+
         const isSettlement = !!tile.settlement;
         const isCity = isSettlement && (tile.settlement.type === 'town' || tile.settlement.type === 'capital');
         const isVillage = isSettlement && tile.settlement.type === 'village';
+        const isEmptyColony = isSettlement && tile.settlement.colony && tile.settlement.colony.isPlayerColony && tile.settlement.population < 10;
+        const isPlayerSettlement = isSettlement && (
+            (tile.settlement.colony && tile.settlement.colony.isPlayerColony) ||
+            ((player.colonies || []).some(c => c.q === tile.q && c.r === tile.r))
+        );
+        const playerSettlementCount = (player.colonies || []).reduce((count, c) => {
+            const colonyTile = world.getTile(c.q, c.r);
+            if (!colonyTile || !colonyTile.settlement) return count;
+            return count + 1;
+        }, 0);
+        const playerKingdom = player.allegiance ? world.getKingdom(player.allegiance) : null;
+        const hasPlayerFoundedKingdom = !!(playerKingdom && playerKingdom.createdByPlayer);
 
         // 2. Settlement Actions
         if (isSettlement) {
+
+            // ── If this is an empty player colony, show only colony management ──
+            if (isEmptyColony) {
+                actions.push({
+                    type: 'manage_colony',
+                    label: 'Manage Colony',
+                    icon: '📋',
+                    description: `Manage ${tile.settlement.name} — recruit settlers, set incentives`
+                });
+
+                // Signboard posting
+                if (!tile.settlement.colony.recruitment?.signboard) {
+                    actions.push({
+                        type: 'post_signboard',
+                        label: 'Post Signboard',
+                        icon: '🪧',
+                        description: 'Erect a signboard to attract passing travelers (20g)'
+                    });
+                }
+
+                // Build property still available (multiple property types allowed per tile)
+                if (!tile.structure && !tile.improvement && tile.terrain.passable) {
+                    actions.push({
+                        type: 'build_property',
+                        label: 'Build Property',
+                        icon: '🏗️',
+                        description: 'Construct a resource gathering building'
+                    });
+                }
+
+                const emptyPopInfo = tile.settlement.population === 0 ? ' (uninhabited)' : ` (${tile.settlement.population} settlers)`;
+                actions.push({
+                    type: 'wait_here',
+                    label: `Survey Settlement${emptyPopInfo}`,
+                    icon: '👁️',
+                    description: 'Your settlement needs people. Visit other towns to recruit settlers or set incentives at the colony panel.'
+                });
+
+                // Skip all normal settlement actions
+            } else {
+
+            // ── Recruit for your colony (at OTHER settlements) ──
+            if (typeof Colonization !== 'undefined' && player.colonies && player.colonies.length > 0) {
+                const hasEmptyColony = player.colonies.some(c => {
+                    const ct = world.getTile(c.q, c.r);
+                    return ct && ct.settlement && ct.settlement.colony && ct.settlement.population < 50;
+                });
+                // Only show if not standing in own colony
+                const isOwnColony = tile.settlement.colony && tile.settlement.colony.isPlayerColony;
+                if (hasEmptyColony && !isOwnColony) {
+                    actions.push({
+                        type: 'recruit_settlers',
+                        label: 'Recruit Settlers',
+                        icon: '📢',
+                        description: 'Spread word of your settlement and convince people to move there'
+                    });
+                }
+            }
             // Trade
             actions.push({
                 type: 'trade',
@@ -75,6 +203,15 @@ const PlayerActions = {
                     icon: '📜',
                     description: 'Take on military work'
                 });
+
+                if (typeof LegendaryArtifacts !== 'undefined' && LegendaryArtifacts.hasForgeableArtifacts(player)) {
+                    actions.push({
+                        type: 'reforge_artifact',
+                        label: 'Reforge Artifacts',
+                        icon: '🛠️',
+                        description: 'Reforge legendary relics from recovered fragments'
+                    });
+                }
             }
 
             // Preach
@@ -100,6 +237,29 @@ const PlayerActions = {
                     icon: '🗣️',
                     description: 'Chat with villagers to learn news'
                 });
+            }
+
+            // Espionage — requires espionage tech, available at cities
+            if (isCity && typeof Espionage !== 'undefined' && Espionage.hasEspionageTech(player)) {
+                actions.push({
+                    type: 'espionage_menu',
+                    label: 'Espionage Network',
+                    icon: '🕵️',
+                    description: 'Recruit spies, assign missions, and manage your shadow network'
+                });
+            }
+
+            // Manage Spies — available anywhere if player has spies
+            if (typeof Espionage !== 'undefined' && Espionage.hasEspionageTech(player)) {
+                Espionage.initPlayer(player);
+                if (player.espionage.spies.length > 0 || player.espionage.activeMissions.length > 0) {
+                    actions.push({
+                        type: 'manage_spies',
+                        label: 'Manage Spies',
+                        icon: '👁️',
+                        description: `View spy roster and active missions (${player.espionage.spies.length} spies)`
+                    });
+                }
             }
 
             // Ship Passage (Coastal Settlements)
@@ -211,7 +371,7 @@ const PlayerActions = {
                 actions.push({
                     type: 'donate',
                     label: 'Donate to the Poor',
-                    icon: '🪙',
+                    icon: '💝',
                     description: 'Give gold to the less fortunate for karma and reputation'
                 });
             }
@@ -236,6 +396,106 @@ const PlayerActions = {
                 });
             }
 
+            if (isPlayerSettlement && playerSettlementCount >= 3 && !hasPlayerFoundedKingdom) {
+                const isSecession = !!(player.allegiance && (!playerKingdom || !playerKingdom.createdByPlayer));
+                actions.push({
+                    type: 'form_kingdom',
+                    label: 'Form Kingdom',
+                    icon: '👑',
+                    description: isSecession
+                        ? `Proclaim independence with your ${playerSettlementCount} settlements and found your own realm`
+                        : `Unite your ${playerSettlementCount} settlements into a sovereign kingdom`
+                });
+            }
+
+            // ── Title Duty Actions ──
+            if (typeof Titles !== 'undefined' && player.currentTitle) {
+                const titleDef = Titles.getActiveTitle(player);
+                if (titleDef) {
+                    // Tax Collector — collect taxes at kingdom settlements
+                    if (player.currentTitle === 'tax_collector' && isSettlement && tile.settlement.kingdom === player.allegiance) {
+                        const sKey = `${tile.q},${tile.r}`;
+                        const alreadyCollected = player.titleProgress?.settlementsVisited?.includes(sKey);
+                        actions.push({
+                            type: 'collect_tax',
+                            label: '💰 Collect Taxes',
+                            icon: '📜',
+                            description: alreadyCollected ? 'Already collected here this month' : `Collect taxes for ${world.getKingdom(player.allegiance)?.name || 'the realm'}`,
+                            disabled: alreadyCollected,
+                        });
+                    }
+
+                    // Jailer — hunt/capture fugitives
+                    if (player.currentTitle === 'jailer') {
+                        if (!player.activeFugitive) {
+                            if (isSettlement && tile.settlement.kingdom === player.allegiance) {
+                                actions.push({
+                                    type: 'request_bounty',
+                                    label: '🔍 Request Bounty',
+                                    icon: '📋',
+                                    description: 'Get assigned a fugitive to hunt down',
+                                });
+                            }
+                        } else {
+                            const fug = player.activeFugitive;
+                            const isOnFugitive = (player.q === fug.q && player.r === fug.r);
+                            actions.push({
+                                type: 'capture_fugitive',
+                                label: isOnFugitive ? '⚔️ Capture Fugitive' : '🔍 Track Fugitive',
+                                icon: '🔒',
+                                description: isOnFugitive
+                                    ? `Attempt to capture ${fug.name} (difficulty ${fug.difficulty})`
+                                    : `${fug.name} was last seen near (${fug.q}, ${fug.r}). ${fug.daysRemaining} days left.`,
+                                disabled: !isOnFugitive,
+                            });
+                        }
+                    }
+
+                    // Court Chaplain — bless settlements
+                    if (player.currentTitle === 'court_chaplain' && isSettlement && tile.settlement.kingdom === player.allegiance) {
+                        const sKey = `${tile.q},${tile.r}`;
+                        const alreadyBlessed = player.titleProgress?.settlementsBlesssed?.includes(sKey);
+                        actions.push({
+                            type: 'bless_settlement',
+                            label: '🙏 Bless Settlement',
+                            icon: '✨',
+                            description: alreadyBlessed ? 'Already blessed this month' : `Give a blessing to ${tile.settlement.name}`,
+                            disabled: alreadyBlessed,
+                        });
+                    }
+
+                    // Chancellor — hold council at capital
+                    if (player.currentTitle === 'chancellor' && isSettlement && tile.settlement.type === 'capital' && tile.settlement.kingdom === player.allegiance) {
+                        actions.push({
+                            type: 'hold_council',
+                            label: '👑 Hold Council',
+                            icon: '🏛️',
+                            description: player.titleProgress?.councilHeld ? 'Already held council this month' : 'Convene the royal council',
+                            disabled: player.titleProgress?.councilHeld,
+                        });
+                    }
+
+                    // View Title Status (always available when holding a title)
+                    actions.push({
+                        type: 'view_title_status',
+                        label: `📋 ${titleDef.name} Duties`,
+                        icon: titleDef.icon || '🏅',
+                        description: 'View your title duties and progress',
+                    });
+                }
+            }
+
+            // Seek Title (at own-kingdom settlements, if allegiance exists)
+            if (typeof Titles !== 'undefined' && isSettlement && player.allegiance &&
+                tile.settlement.kingdom === player.allegiance && !player.currentTitle) {
+                actions.push({
+                    type: 'seek_title',
+                    label: 'Seek Royal Office',
+                    icon: '🏅',
+                    description: 'Request appointment to a political office'
+                });
+            }
+
             // Host Feast (at cities/towns, costs gold)
             if (isCity && player.gold >= 200) {
                 actions.push({
@@ -253,6 +513,25 @@ const PlayerActions = {
                     label: 'Hold Tournament',
                     icon: '🏟️',
                     description: 'Organize a grand tournament for renown, gold prizes, and combat experience'
+                });
+            }
+
+            if (isCity && player.gold >= 260) {
+                let festivalDesc = 'Host a seasonal celebration with contests, diplomacy, and morale boosts';
+                if (typeof Festivals !== 'undefined') {
+                    Festivals.initialize(player);
+                    const gate = Festivals.canHostFestival(player, world, tile);
+                    if (!gate.ok) {
+                        festivalDesc = gate.reason;
+                    }
+                }
+
+                actions.push({
+                    type: 'host_festival',
+                    label: 'Host Festival',
+                    icon: '🎉',
+                    description: festivalDesc,
+                    disabled: typeof Festivals !== 'undefined' ? !Festivals.canHostFestival(player, world, tile).ok : false,
                 });
             }
 
@@ -328,6 +607,8 @@ const PlayerActions = {
                     description: 'View the status of all your ships'
                 });
             }
+
+            } // end else (non-empty-colony branch)
         }
 
         // --- Wilderness & Anywhere Actions ---
@@ -458,16 +739,32 @@ const PlayerActions = {
             });
         }
 
-        // 3. Building / Property Actions
-        // Can build if tile is empty (no settlement, no existing property)
-        // And terrain is valid (not water, etc. - checked in PlayerEconomy really, but roughly here)
-        if ((!tile.settlement || tile.settlement.type) && !tile.playerProperty && !tile.structure && !tile.improvement && tile.terrain.passable) {
+        // 2d. Terraform (flatten hills to grassland)
+        if (!tile.settlement && tile.terrain.passable && tile.terrain.id === 'hills' && !tile.playerProperty) {
             actions.push({
-                type: 'build_property',
-                label: 'Build Property',
-                icon: '🏗️',
-                description: 'Construct a resource gathering building'
+                type: 'terraform',
+                label: 'Terraform Land',
+                icon: '⛏️',
+                description: 'Flatten the hills into grassland (costs gold and AP)'
             });
+        }
+
+        // 3. Building / Property Actions
+        // Can build on empty wilderness tiles, or at settlements (for taverns, workshops, etc.)
+        // Multiple different property types allowed per tile via playerProperties array
+        if (tile.terrain.passable && !tile.structure && !tile.improvement) {
+            const hasSettlement = tile.settlement && tile.settlement.type;
+            const noPropertyYet = !tile.playerProperty;
+            // At settlements: always show (tavern, trading post, brewery, workshop need settlements)
+            // In wilderness: only if no property yet
+            if (hasSettlement || noPropertyYet) {
+                actions.push({
+                    type: 'build_property',
+                    label: 'Build Property',
+                    icon: '🏗️',
+                    description: 'Construct a resource gathering building'
+                });
+            }
         }
 
         // 4. Religious Actions
@@ -701,6 +998,9 @@ const PlayerActions = {
             production: {},     // New production
             faithIncome: 0,
             upkeepCost: 0,
+            mercenaryWages: 0,
+            mercenaryEvents: [],
+            unitsLost: 0,
             caravansCompleted: [],
             contractUpdate: null,
             followersGained: 0,
@@ -710,7 +1010,26 @@ const PlayerActions = {
             cultureIncome: 0,
             cultureRenown: 0,
             servitudeUpdate: null,
+            jailUpdate: null,
+            bountyTracking: null,
+            festivalUpdate: null,
         };
+
+        // Process jail sentence if active
+        if (player.jailState) {
+            player.jailState.daysRemaining--;
+            player.stamina = 0;
+            player.movementRemaining = 0;
+            if (player.jailState.daysRemaining <= 0) {
+                const settlement = player.jailState.settlement;
+                player.jailState = null;
+                player.stamina = player.maxStamina;
+                player.movementRemaining = player.maxStamina;
+                results.jailUpdate = { freed: true, message: `You have served your sentence and are released from jail in ${settlement}.` };
+            } else {
+                results.jailUpdate = { freed: false, daysRemaining: player.jailState.daysRemaining, message: `${player.jailState.daysRemaining} day(s) of jail time remain.` };
+            }
+        }
 
         // Process indentured servitude if active
         if (player.indenturedServitude) {
@@ -724,8 +1043,10 @@ const PlayerActions = {
         results.faithIncome = PlayerReligion.collectFaithIncome(player);
 
         // Pay army upkeep
-        const upkeep = PlayerMilitary.payUpkeep(player);
+        const upkeep = PlayerMilitary.payUpkeep(player, world);
         results.upkeepCost = upkeep.cost || 0;
+        results.mercenaryWages = upkeep.mercenaryWages || 0;
+        results.mercenaryEvents = upkeep.mercenaryEvents || [];
         results.unitsLost = upkeep.unitsLost || 0;
 
         // Update caravans
@@ -753,11 +1074,21 @@ const PlayerActions = {
             results.cultureRenown = cultureResult.renown;
         }
 
+        if (typeof Festivals !== 'undefined') {
+            results.festivalUpdate = Festivals.processDaily(player, world);
+        }
+
         // Process active bounties — tick down timers and expire old ones
         if (player.activeBounties && player.activeBounties.length > 0) {
             const expired = [];
+
+            if (typeof BountyHunting !== 'undefined') {
+                results.bountyTracking = BountyHunting.processDaily(player, world);
+            }
+
             for (let i = player.activeBounties.length - 1; i >= 0; i--) {
                 const bounty = player.activeBounties[i];
+                if (bounty.status !== 'active') continue;
                 bounty.daysElapsed = (bounty.daysElapsed || 0) + 1;
                 if (bounty.daysElapsed >= bounty.daysLimit) {
                     expired.push(bounty);
@@ -765,6 +1096,12 @@ const PlayerActions = {
                 }
             }
             results.bountiesExpired = expired;
+        }
+
+        // Process title duties daily
+        if (typeof Titles !== 'undefined' && player.currentTitle) {
+            Titles.initialize(player);
+            results.titleUpdate = Titles.processDaily(player, world);
         }
 
         return results;

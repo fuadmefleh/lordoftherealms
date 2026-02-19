@@ -12,6 +12,7 @@ const PlayerReligion = {
             name: 'Shrine',
             icon: '⛩️',
             cost: 300,
+            constructionDays: 3,
             faithGain: 5,
             influenceRadius: 3,
             description: 'Small place of worship, spreads faith locally'
@@ -21,6 +22,7 @@ const PlayerReligion = {
             name: 'Temple',
             icon: '🛕',
             cost: 1000,
+            constructionDays: 12,
             faithGain: 15,
             influenceRadius: 5,
             description: 'Grand temple, attracts many followers'
@@ -30,6 +32,7 @@ const PlayerReligion = {
             name: 'Monastery',
             icon: '🏛️',
             cost: 800,
+            constructionDays: 9,
             faithGain: 10,
             influenceRadius: 4,
             karmaBonus: 2,
@@ -92,6 +95,7 @@ const PlayerReligion = {
         player.gold -= building.cost;
 
         // Create building
+        const constructionDays = building.constructionDays || 0;
         tile.religiousBuilding = {
             type: building.id,
             name: building.name,
@@ -102,6 +106,9 @@ const PlayerReligion = {
             karmaBonus: building.karmaBonus || 0,
             followers: 0,
             level: 1,
+            underConstruction: constructionDays > 0,
+            constructionDaysLeft: constructionDays,
+            constructionDaysTotal: constructionDays,
         };
 
         // Add to player's buildings list
@@ -114,7 +121,7 @@ const PlayerReligion = {
         // Increase faith
         player.faith = Math.min(10, player.faith + 0.5);
 
-        return { success: true, building: tile.religiousBuilding };
+        return { success: true, building: tile.religiousBuilding, underConstruction: constructionDays > 0, constructionDays };
     },
 
     /**
@@ -130,8 +137,7 @@ const PlayerReligion = {
             if (!tile || !tile.religiousBuilding) continue;
 
             const building = tile.religiousBuilding;
-
-            // Find settlements within influence radius
+            if (building.underConstruction) continue; // Still being built
             const hexes = Hex.hexesInRange(buildingRef.q, buildingRef.r, building.influenceRadius);
 
             for (const hex of hexes) {

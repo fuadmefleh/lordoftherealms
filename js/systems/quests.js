@@ -137,6 +137,44 @@ const Quests = {
             difficulty: 'medium',
         },
 
+        // Legendary Artifact Quests
+        ARTIFACT_SWORD_FIRST_KING: {
+            id: 'artifact_sword_first_king',
+            title: 'Shards of the First Crownblade',
+            description: 'Recover fragments of the Sword of the First King and reforge the relic.',
+            type: 'exploration',
+            objectives: [
+                { type: 'artifact_fragments', artifactId: 'sword_first_king', target: 3, current: 0, text: 'Collect 3 Sword fragments' },
+                { type: 'artifact_reforged', artifactId: 'sword_first_king', target: 1, current: 0, text: 'Reforge the Sword of the First King' }
+            ],
+            rewards: { gold: 1200, renown: 35 },
+            difficulty: 'hard',
+        },
+        ARTIFACT_CROWN_EMBERS: {
+            id: 'artifact_crown_embers',
+            title: 'Cinders of the Lost Crown',
+            description: 'Find the scattered embers of an ancient crown and restore it at the forge.',
+            type: 'exploration',
+            objectives: [
+                { type: 'artifact_fragments', artifactId: 'crown_embers', target: 4, current: 0, text: 'Collect 4 Crown fragments' },
+                { type: 'artifact_reforged', artifactId: 'crown_embers', target: 1, current: 0, text: 'Reforge the Crown of Embers' }
+            ],
+            rewards: { gold: 1500, renown: 40 },
+            difficulty: 'hard',
+        },
+        ARTIFACT_ASTROLABE_TIDES: {
+            id: 'artifact_astrolabe_tides',
+            title: 'Compass of Forgotten Seas',
+            description: 'Assemble the Astrolabe of Tides from long-lost fragments hidden in remote places.',
+            type: 'exploration',
+            objectives: [
+                { type: 'artifact_fragments', artifactId: 'astrolabe_tides', target: 3, current: 0, text: 'Collect 3 Astrolabe fragments' },
+                { type: 'artifact_reforged', artifactId: 'astrolabe_tides', target: 1, current: 0, text: 'Reforge the Astrolabe of Tides' }
+            ],
+            rewards: { gold: 1100, renown: 30 },
+            difficulty: 'hard',
+        },
+
         // Diplomatic Quests
         PEACEMAKER: {
             id: 'peacemaker',
@@ -224,6 +262,17 @@ const Quests = {
 
         if (player.religion && !Quests.hasQuest(player, 'prophet')) {
             available.push(Quests.createQuest('PROPHET', player));
+        }
+
+        const artifactFragments = player.artifacts && player.artifacts.fragments ? player.artifacts.fragments : {};
+        if ((artifactFragments.sword_first_king || 0) > 0 && !Quests.hasQuest(player, 'artifact_sword_first_king')) {
+            available.push(Quests.createQuest('ARTIFACT_SWORD_FIRST_KING', player));
+        }
+        if ((artifactFragments.crown_embers || 0) > 0 && !Quests.hasQuest(player, 'artifact_crown_embers')) {
+            available.push(Quests.createQuest('ARTIFACT_CROWN_EMBERS', player));
+        }
+        if ((artifactFragments.astrolabe_tides || 0) > 0 && !Quests.hasQuest(player, 'artifact_astrolabe_tides')) {
+            available.push(Quests.createQuest('ARTIFACT_ASTROLABE_TIDES', player));
         }
 
         player.quests.available = available;
@@ -346,6 +395,16 @@ const Quests = {
                         }
                         objective.current = positiveCount;
                         break;
+                    case 'artifact_fragments': {
+                        const fragments = player.artifacts && player.artifacts.fragments ? player.artifacts.fragments : {};
+                        objective.current = fragments[objective.artifactId] || 0;
+                        break;
+                    }
+                    case 'artifact_reforged': {
+                        const forged = player.artifacts && Array.isArray(player.artifacts.forged) ? player.artifacts.forged : [];
+                        objective.current = forged.includes(objective.artifactId) ? 1 : 0;
+                        break;
+                    }
                 }
 
                 objective.completed = objective.current >= objective.target;

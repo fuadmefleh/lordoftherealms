@@ -1815,7 +1815,9 @@ class Renderer {
         ctx.font = `${iconSize}px serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('👤', screen.x, screen.y);
+        // Show ship icon if player is boarded on a ship
+        const displayIcon = this.player.boardedShip ? '⛵' : '👤';
+        ctx.fillText(displayIcon, screen.x, screen.y);
 
         // Direction indicator / name
         if (this.camera.zoom > 0.7) {

@@ -998,8 +998,7 @@ body {
 }
 
 .input-row input[type="text"],
-.input-row input[type="number"],
-.input-row select {
+.input-row input[type="number"] {
     flex: 1;
     background: transparent;
     border: none;
@@ -1008,6 +1007,45 @@ body {
     font-size: 14px;
     font-weight: 600;
     outline: none;
+}
+
+.input-row select {
+    flex: 1;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background: rgba(245, 197, 66, 0.06);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--gold);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 32px 6px 10px;
+    outline: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f5c542' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 12px;
+}
+
+.input-row select:hover {
+    border-color: var(--border-bright);
+    background-color: rgba(245, 197, 66, 0.10);
+}
+
+.input-row select:focus {
+    border-color: var(--gold-dark);
+    box-shadow: 0 0 8px var(--gold-glow);
+}
+
+.input-row select option {
+    background: #0c1220;
+    color: var(--text-primary);
+    padding: 6px 10px;
+    font-size: 13px;
 }
 
 .input-row input[type="range"] {
@@ -1074,9 +1112,15 @@ body {
 }
 
 .advanced-settings summary::before {
-    content: '\u25b6';
-    font-size: 10px;
+    content: '';
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 7px solid currentColor;
     transition: transform var(--transition-fast);
+    flex-shrink: 0;
 }
 
 .advanced-settings[open] summary::before {
@@ -1284,4 +1328,218 @@ body {
 
 .event-log-entry:hover {
     background: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* ============================================
+   IN-GAME SETTINGS PANEL
+   ============================================ */
+
+.game-settings-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 480px;
+}
+
+.gs-section {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.gs-section-title {
+    font-family: var(--font-display);
+    font-size: 14px;
+    color: var(--gold);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.gs-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    gap: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.gs-row:last-child {
+    border-bottom: none;
+}
+
+.gs-row > label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    min-width: 140px;
+    flex-shrink: 0;
+}
+
+/* Toggle switch */
+.gs-toggle {
+    position: relative;
+    display: inline-block;
+    width: 42px;
+    height: 22px;
+    cursor: pointer;
+}
+
+.gs-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.gs-toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 22px;
+    border: 1px solid var(--border-color);
+    transition: all 0.25s ease;
+}
+
+.gs-toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 2px;
+    bottom: 2px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    transition: all 0.25s ease;
+}
+
+.gs-toggle input:checked + .gs-toggle-slider {
+    background: rgba(245, 197, 66, 0.2);
+    border-color: var(--gold);
+}
+
+.gs-toggle input:checked + .gs-toggle-slider::before {
+    transform: translateX(20px);
+    background: var(--gold);
+    box-shadow: 0 0 8px var(--gold-glow);
+}
+
+/* Range slider group */
+.gs-range-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    max-width: 220px;
+}
+
+.gs-range-group input[type="range"] {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--border-color);
+    border-radius: 2px;
+    outline: none;
+}
+
+.gs-range-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--gold);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 8px var(--gold-glow);
+}
+
+.gs-range-val {
+    font-family: var(--font-medieval);
+    font-size: 13px;
+    color: var(--gold);
+    min-width: 48px;
+    text-align: right;
+}
+
+/* Select dropdown */
+.gs-select {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--gold);
+    font-family: var(--font-body);
+    font-size: 13px;
+    padding: 6px 10px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.gs-select:focus,
+.gs-select:hover {
+    border-color: var(--gold);
+}
+
+.gs-select option {
+    background: #1a1e2e;
+    color: var(--text-primary);
+}
+
+/* Button row */
+.gs-btn-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.gs-btn {
+    padding: 8px 18px;
+    border-radius: var(--radius-md);
+    font-family: var(--font-body);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+}
+
+.gs-btn:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+    background: rgba(245, 197, 66, 0.08);
+}
+
+.gs-btn-primary {
+    background: rgba(245, 197, 66, 0.15);
+    border-color: var(--gold);
+    color: var(--gold);
+    font-weight: 600;
+}
+
+.gs-btn-primary:hover {
+    background: rgba(245, 197, 66, 0.25);
+    box-shadow: 0 0 12px var(--gold-glow);
+}
+
+.gs-btn-secondary {
+    color: var(--text-muted);
+}
+
+.gs-btn-secondary:hover {
+    color: var(--text-secondary);
+}
+
+/* Actions bar */
+.gs-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color);
 }

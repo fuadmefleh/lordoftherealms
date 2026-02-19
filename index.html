@@ -42,10 +42,20 @@
                 <span class="stat-label">Movement</span>
                 <span class="stat-value" id="movementValue">10/10</span>
             </div>
+            <div class="stat-item" id="apStat">
+                <span class="stat-icon">⚡</span>
+                <span class="stat-label">Actions</span>
+                <span class="stat-value" id="apValue">10/10</span>
+            </div>
             <div class="stat-item" id="foodStat">
                 <span class="stat-icon">🍞</span>
                 <span class="stat-label">Food</span>
                 <span class="stat-value" id="foodValue">20</span>
+            </div>
+            <div class="stat-item" id="hpStat">
+                <span class="stat-icon">❤️</span>
+                <span class="stat-label">HP</span>
+                <span class="stat-value" id="hpValue">100/100</span>
             </div>
         </div>
         <div id="topBarCenter">
@@ -109,6 +119,18 @@
                         <span class="civ-dd-icon">🏛️</span>
                         <span class="civ-dd-text">Peoples</span>
                     </button>
+                    <button class="civ-dropdown-item" id="btnRelationships">
+                        <span class="civ-dd-icon">💕</span>
+                        <span class="civ-dd-text">Relationships</span>
+                    </button>
+                    <button class="civ-dropdown-item" id="btnTravelParty">
+                        <span class="civ-dd-icon">🧭</span>
+                        <span class="civ-dd-text">Travel Party</span>
+                    </button>
+                    <button class="civ-dropdown-item" id="btnCouncil">
+                        <span class="civ-dd-icon">🏛️</span>
+                        <span class="civ-dd-text">Council</span>
+                    </button>
                 </div>
             </div>
 
@@ -133,6 +155,11 @@
                     <button class="civ-dropdown-item" id="btnIntel">
                         <span class="civ-dd-icon">📖</span>
                         <span class="civ-dd-text">Intel Journal</span>
+                    </button>
+                    <div class="civ-dd-separator"></div>
+                    <button class="civ-dropdown-item" id="btnEventLog">
+                        <span class="civ-dd-icon">📋</span>
+                        <span class="civ-dd-text">Event Log</span>
                     </button>
                 </div>
             </div>
@@ -239,8 +266,12 @@
                 <div class="settings-group">
                     <h3>Character Profile</h3>
                     <div class="input-row">
-                        <label for="charName">Name:</label>
-                        <input type="text" id="charName" placeholder="Wanderer" maxlength="20">
+                        <label for="charFirstName">First Name:</label>
+                        <input type="text" id="charFirstName" placeholder="Wanderer" maxlength="16">
+                    </div>
+                    <div class="input-row">
+                        <label for="charLastName">Last Name:</label>
+                        <input type="text" id="charLastName" placeholder="" maxlength="16">
                     </div>
                     <div class="input-row">
                         <label for="charGender">Gender:</label>
@@ -547,6 +578,9 @@
 
     <!-- Scripts — Systems -->
     <script src="js/systems/quests.js"></script>
+    <script src="js/systems/legendaryArtifacts.js"></script>
+    <script src="js/systems/bountyHunting.js"></script>
+    <script src="js/systems/festivals.js"></script>
     <script src="js/systems/achievements.js"></script>
     <script src="js/systems/saveLoad.js"></script>
     <script src="js/systems/technology.js"></script>
@@ -559,6 +593,9 @@
     <script src="js/systems/relationships.js"></script>
     <script src="js/systems/housing.js"></script>
     <script src="js/systems/ships.js"></script>
+    <script src="js/systems/titles.js"></script>
+    <script src="js/systems/councils.js"></script>
+    <script src="js/systems/espionage.js"></script>
 
     <!-- Scripts — Player (remaining) -->
     <script src="js/player/tavern.js"></script>

@@ -1,0 +1,313 @@
+{
+    "config": {
+        "maxSpies": 8,
+        "baseRecruitCost": 300,
+        "baseUpkeep": 15,
+        "maxActiveMissions": 5,
+        "missionCheckInterval": 1,
+        "spyCaptureBaseChance": 0.08,
+        "loyaltyDecayPerDay": 0.1,
+        "loyaltyMinBeforeBetrayal": 20,
+        "experiencePerMission": 50,
+        "levelUpThreshold": 150,
+        "maxSpyLevel": 5,
+        "requiredTech": "espionage",
+        "fogRevealRadius": 4,
+        "fogRevealDuration": 30
+    },
+    "spyNames": {
+        "male": [
+            "Shadow", "Vex", "Dagger", "Rook", "Cipher", "Shade", "Ghost", "Talon",
+            "Whisper", "Fang", "Wraith", "Phantom", "Corvus", "Ashen", "Viper",
+            "Storm", "Onyx", "Flint", "Obsidian", "Crow", "Hawk", "Raven",
+            "Sable", "Dusk", "Thorn", "Ember", "Slate", "Cinder", "Grim", "Jackal"
+        ],
+        "female": [
+            "Velvet", "Mist", "Nightshade", "Silk", "Ember", "Luna", "Raven",
+            "Whisper", "Ivy", "Jade", "Scarlet", "Frost", "Vesper", "Siren", "Orchid",
+            "Wren", "Dahlia", "Echo", "Nyx", "Selene", "Sage", "Briar",
+            "Ash", "Nova", "Seraph", "Iris", "Lark", "Onyx", "Willow", "Pearl"
+        ],
+        "surnames": [
+            "the Silent", "the Quick", "of Many Faces", "the Unseen", "Blackhand",
+            "Nightwalker", "Shadowstep", "the Faceless", "Duskmantle", "the Whisper",
+            "Ironveil", "the Cunning", "of the Coin", "the Spider", "the Fox",
+            "Greycloak", "the Lurker", "of Hollow Eyes", "The Veil", "Ashborne",
+            "the Phantom", "of the Mist", "Darkwater", "the Serpent", "of No Name"
+        ]
+    },
+    "spySkills": {
+        "infiltration": {
+            "name": "Infiltration",
+            "icon": "🎭",
+            "description": "Ability to blend in and access restricted areas"
+        },
+        "sabotage": {
+            "name": "Sabotage",
+            "icon": "💣",
+            "description": "Skill at disruption, destruction, and chaos"
+        },
+        "gathering": {
+            "name": "Intelligence",
+            "icon": "👁️",
+            "description": "Information gathering and analysis"
+        },
+        "combat": {
+            "name": "Combat",
+            "icon": "🗡️",
+            "description": "Fighting ability when discovered or on assassination missions"
+        }
+    },
+    "spyTraits": [
+        { "id": "master_of_disguise", "name": "Master of Disguise", "icon": "🎭", "effect": { "infiltration": 2, "captureResist": 0.10 }, "description": "Expert at assuming false identities" },
+        { "id": "silver_tongue", "name": "Silver Tongue", "icon": "🗣️", "effect": { "gathering": 2, "recruitCostReduction": 0.15 }, "description": "Smooth talker who can extract secrets with ease" },
+        { "id": "shadow_walker", "name": "Shadow Walker", "icon": "🌑", "effect": { "infiltration": 1, "sabotage": 1 }, "description": "Moves unseen through hostile territory" },
+        { "id": "ruthless", "name": "Ruthless", "icon": "💀", "effect": { "sabotage": 2, "combat": 1 }, "description": "Will stop at nothing to complete the mission" },
+        { "id": "loyal_servant", "name": "Loyal Servant", "icon": "🤝", "effect": { "loyaltyBonus": 15, "upkeepReduction": 0.20 }, "description": "Deeply loyal and content with modest pay" },
+        { "id": "double_agent", "name": "Double Agent", "icon": "🃏", "effect": { "gathering": 3, "loyaltyPenalty": -10, "betrayalRisk": 0.05 }, "description": "Exceptional intelligence but questionable loyalty" },
+        { "id": "alchemist", "name": "Alchemist", "icon": "⚗️", "effect": { "sabotage": 2, "assassinBonus": 0.15 }, "description": "Skilled with poisons and incendiary devices" },
+        { "id": "veteran_soldier", "name": "Veteran Soldier", "icon": "⚔️", "effect": { "combat": 3, "captureResist": 0.15 }, "description": "Former military with combat expertise" },
+        { "id": "court_insider", "name": "Court Insider", "icon": "👑", "effect": { "gathering": 2, "infiltration": 1, "techStealBonus": 0.10 }, "description": "Has connections within royal courts" },
+        { "id": "street_rat", "name": "Street Rat", "icon": "🐀", "effect": { "gathering": 1, "infiltration": 1, "upkeepReduction": 0.30 }, "description": "Scrappy and resourceful, works cheap" }
+    ],
+    "missions": {
+        "gather_intel": {
+            "id": "gather_intel",
+            "name": "Gather Intelligence",
+            "icon": "📋",
+            "description": "Spy embeds in target kingdom to gather detailed intelligence reports",
+            "primarySkill": "gathering",
+            "baseDuration": 5,
+            "baseDifficulty": 0.30,
+            "goldCost": 50,
+            "apCost": 3,
+            "rewards": {
+                "rumors": 3,
+                "kingdomKnowledge": ["military", "economy", "diplomacy"],
+                "renown": 5
+            },
+            "captureChance": 0.05,
+            "failChance": 0.15,
+            "requiredLevel": 1
+        },
+        "steal_technology": {
+            "id": "steal_technology",
+            "name": "Steal Technology",
+            "icon": "📜",
+            "description": "Infiltrate a kingdom's research facilities to steal their technological secrets",
+            "primarySkill": "infiltration",
+            "baseDuration": 12,
+            "baseDifficulty": 0.60,
+            "goldCost": 200,
+            "apCost": 5,
+            "rewards": {
+                "technology": true,
+                "renown": 10,
+                "experience": 80
+            },
+            "captureChance": 0.15,
+            "failChance": 0.30,
+            "requiredLevel": 2,
+            "consequences": {
+                "diplomaticPenalty": -30,
+                "warChanceIncrease": 0.10
+            }
+        },
+        "incite_rebellion": {
+            "id": "incite_rebellion",
+            "name": "Incite Rebellion",
+            "icon": "🔥",
+            "description": "Stir unrest among the population to destabilize the target kingdom",
+            "primarySkill": "sabotage",
+            "baseDuration": 15,
+            "baseDifficulty": 0.65,
+            "goldCost": 350,
+            "apCost": 5,
+            "rewards": {
+                "destabilize": true,
+                "renown": 15,
+                "experience": 100
+            },
+            "captureChance": 0.20,
+            "failChance": 0.35,
+            "requiredLevel": 3,
+            "effects": {
+                "treasuryDrain": 0.15,
+                "militaryLoss": 0.10,
+                "populationUnrest": 0.20,
+                "territoryLoss": 2
+            },
+            "consequences": {
+                "diplomaticPenalty": -50,
+                "warChanceIncrease": 0.25
+            }
+        },
+        "infiltrate_territory": {
+            "id": "infiltrate_territory",
+            "name": "Infiltrate Territory",
+            "icon": "🗺️",
+            "description": "Place a spy deep in enemy territory to reveal their lands and movements",
+            "primarySkill": "infiltration",
+            "baseDuration": 7,
+            "baseDifficulty": 0.35,
+            "goldCost": 100,
+            "apCost": 3,
+            "rewards": {
+                "fogReveal": true,
+                "renown": 5,
+                "experience": 60
+            },
+            "captureChance": 0.08,
+            "failChance": 0.20,
+            "requiredLevel": 1,
+            "effects": {
+                "revealRadius": 4,
+                "revealDuration": 30
+            }
+        },
+        "sabotage": {
+            "id": "sabotage",
+            "name": "Sabotage Operations",
+            "icon": "💥",
+            "description": "Destroy enemy infrastructure, poison supplies, or set fires to weaken their kingdom",
+            "primarySkill": "sabotage",
+            "baseDuration": 10,
+            "baseDifficulty": 0.55,
+            "goldCost": 250,
+            "apCost": 4,
+            "rewards": {
+                "damage": true,
+                "renown": 10,
+                "experience": 75
+            },
+            "captureChance": 0.18,
+            "failChance": 0.25,
+            "requiredLevel": 2,
+            "effects": {
+                "treasuryDrain": 0.10,
+                "productionPenalty": 0.15
+            },
+            "consequences": {
+                "diplomaticPenalty": -25,
+                "warChanceIncrease": 0.15
+            }
+        },
+        "counter_espionage": {
+            "id": "counter_espionage",
+            "name": "Counter-Espionage",
+            "icon": "🛡️",
+            "description": "Station a spy to protect your settlements from enemy agents",
+            "primarySkill": "gathering",
+            "baseDuration": 20,
+            "baseDifficulty": 0.25,
+            "goldCost": 75,
+            "apCost": 2,
+            "rewards": {
+                "protection": true,
+                "renown": 3,
+                "experience": 40
+            },
+            "captureChance": 0.02,
+            "failChance": 0.10,
+            "requiredLevel": 1,
+            "effects": {
+                "detectionBonus": 0.30,
+                "counterRadius": 3
+            }
+        },
+        "assassinate": {
+            "id": "assassinate",
+            "name": "Assassination",
+            "icon": "☠️",
+            "description": "Send a spy to eliminate a key figure in the target kingdom",
+            "primarySkill": "combat",
+            "baseDuration": 8,
+            "baseDifficulty": 0.75,
+            "goldCost": 500,
+            "apCost": 5,
+            "rewards": {
+                "assassination": true,
+                "renown": 20,
+                "experience": 120
+            },
+            "captureChance": 0.30,
+            "failChance": 0.40,
+            "requiredLevel": 4,
+            "consequences": {
+                "diplomaticPenalty": -75,
+                "warChanceIncrease": 0.40,
+                "karmaPenalty": -25
+            }
+        }
+    },
+    "missionOutcomes": {
+        "criticalSuccess": {
+            "label": "Critical Success",
+            "icon": "⭐",
+            "color": "#f1c40f",
+            "experienceMultiplier": 2.0,
+            "bonusRewards": true
+        },
+        "success": {
+            "label": "Success",
+            "icon": "✅",
+            "color": "#27ae60",
+            "experienceMultiplier": 1.0,
+            "bonusRewards": false
+        },
+        "partialSuccess": {
+            "label": "Partial Success",
+            "icon": "⚠️",
+            "color": "#f39c12",
+            "experienceMultiplier": 0.5,
+            "bonusRewards": false
+        },
+        "failure": {
+            "label": "Failed",
+            "icon": "❌",
+            "color": "#e74c3c",
+            "experienceMultiplier": 0.25,
+            "bonusRewards": false
+        },
+        "captured": {
+            "label": "Spy Captured!",
+            "icon": "🔒",
+            "color": "#c0392b",
+            "experienceMultiplier": 0,
+            "bonusRewards": false
+        }
+    },
+    "levelTitles": [
+        { "level": 1, "title": "Novice Agent", "icon": "🔰" },
+        { "level": 2, "title": "Field Operative", "icon": "🕵️" },
+        { "level": 3, "title": "Shadow Agent", "icon": "🌑" },
+        { "level": 4, "title": "Master Spy", "icon": "🎭" },
+        { "level": 5, "title": "Spymaster Elite", "icon": "👁️" }
+    ],
+    "rebellionEffects": {
+        "small": {
+            "label": "Minor Unrest",
+            "treasuryLoss": 0.05,
+            "militaryLoss": 0.03,
+            "territoryLoss": 0,
+            "duration": 5,
+            "description": "Scattered protests and pamphlets circulate"
+        },
+        "medium": {
+            "label": "Civil Disturbance",
+            "treasuryLoss": 0.12,
+            "militaryLoss": 0.08,
+            "territoryLoss": 1,
+            "duration": 10,
+            "description": "Riots break out in multiple settlements"
+        },
+        "large": {
+            "label": "Open Revolt",
+            "treasuryLoss": 0.20,
+            "militaryLoss": 0.15,
+            "territoryLoss": 3,
+            "duration": 20,
+            "description": "Armed rebellion threatens the kingdom's stability"
+        }
+    }
+}

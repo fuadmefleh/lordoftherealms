@@ -43,6 +43,171 @@ const PlayerMilitary = {
             strength: 8,
             description: 'Ranged attackers, good for defense'
         },
+        PIKEMAN: {
+            id: 'pikeman',
+            name: 'Pikeman',
+            icon: '🪓',
+            cost: 110,
+            upkeep: 5,
+            strength: 12,
+            description: 'Anti-cavalry infantry formation specialist'
+        },
+    },
+
+    FORMATION_ROLES: {
+        cavalry: ['knight'],
+        archer: ['archer'],
+        pikeman: ['pikeman', 'soldier', 'militia'],
+    },
+
+    _normalizeComposition(comp) {
+        const c = {
+            cavalry: Math.max(0, comp.cavalry || 0),
+            archer: Math.max(0, comp.archer || 0),
+            pikeman: Math.max(0, comp.pikeman || 0),
+        };
+        const total = c.cavalry + c.archer + c.pikeman;
+        if (total <= 0) return { cavalry: 0.34, archer: 0.33, pikeman: 0.33 };
+        c.cavalry /= total;
+        c.archer /= total;
+        c.pikeman /= total;
+        return c;
+    },
+
+    _roleForUnitType(unitType) {
+        for (const [role, types] of Object.entries(PlayerMilitary.FORMATION_ROLES)) {
+            if (types.includes(unitType)) return role;
+        }
+        return 'pikeman';
+    },
+
+    getArmyComposition(player) {
+        if (!player.army || player.army.length === 0) {
+            return PlayerMilitary._normalizeComposition({});
+        }
+
+        const comp = { cavalry: 0, archer: 0, pikeman: 0 };
+        for (const unit of player.army) {
+            const role = PlayerMilitary._roleForUnitType(unit.type);
+            const levelBonus = 1 + ((unit.level || 1) - 1) * 0.1;
+            comp[role] += (unit.strength || 1) * levelBonus;
+        }
+
+        return PlayerMilitary._normalizeComposition(comp);
+    },
+
+    inferEnemyComposition(enemyStrength, enemyName = '', context = {}) {
+        if (context.enemyComposition) {
+            return PlayerMilitary._normalizeComposition(context.enemyComposition);
+        }
+
+        const name = (enemyName || '').toLowerCase();
+        if (name.includes('raider') || name.includes('cavalry') || name.includes('knight')) {
+            return PlayerMilitary._normalizeComposition({ cavalry: 0.55, archer: 0.15, pikeman: 0.30 });
+        }
+        if (name.includes('patrol')) {
+            return PlayerMilitary._normalizeComposition({ cavalry: 0.35, archer: 0.30, pikeman: 0.35 });
+        }
+        if (name.includes('city') || name.includes('capital') || name.includes('garrison')) {
+            return PlayerMilitary._normalizeComposition({ cavalry: 0.20, archer: 0.35, pikeman: 0.45 });
+        }
+        if (name.includes('bandit') || name.includes('pirate')) {
+            return PlayerMilitary._normalizeComposition({ cavalry: 0.35, archer: 0.20, pikeman: 0.45 });
+        }
+        if (enemyStrength < 35) {
+            return PlayerMilitary._normalizeComposition({ cavalry: 0.20, archer: 0.20, pikeman: 0.60 });
+        }
+        return PlayerMilitary._normalizeComposition({ cavalry: 0.30, archer: 0.30, pikeman: 0.40 });
+    },
+
+    _counterScore(attackerComp, defenderComp) {
+        const advantage =
+            attackerComp.cavalry * defenderComp.archer +
+            attackerComp.archer * defenderComp.pikeman +
+            attackerComp.pikeman * defenderComp.cavalry;
+
+        const disadvantage =
+            defenderComp.cavalry * attackerComp.archer +
+            defenderComp.archer * attackerComp.pikeman +
+            defenderComp.pikeman * attackerComp.cavalry;
+
+        return advantage - disadvantage;
+    },
+
+    _counterMultiplier(attackerComp, defenderComp) {
+        const score = PlayerMilitary._counterScore(attackerComp, defenderComp);
+        return Math.max(0.8, Math.min(1.25, 1 + score * 0.75));
+    },
+
+    _terrainIsHills(terrainId = '') {
+        return ['hills', 'highlands', 'foothills'].includes(terrainId);
+    },
+
+    _terrainIsPlains(terrainId = '') {
+        return ['plains', 'grassland', 'steppe', 'savanna'].includes(terrainId);
+    },
+
+    _terrainMultiplier(terrainId, composition) {
+        if (PlayerMilitary._terrainIsHills(terrainId)) {
+            return 1 + composition.archer * 0.18;
+        }
+        if (PlayerMilitary._terrainIsPlains(terrainId)) {
+            return 1 + composition.cavalry * 0.18;
+        }
+        return 1;
+    },
+
+    _moraleValue(ownStrength, enemyStrength, leadershipBonus = 0) {
+        const ratio = enemyStrength / Math.max(1, ownStrength);
+        const pressurePenalty = Math.max(0, ratio - 1) * 0.34;
+        const morale = 1 - pressurePenalty + leadershipBonus;
+        return Math.max(0.45, Math.min(1.2, morale));
+    },
+
+    _checkMoraleBreak(ownStrength, enemyStrength, moraleValue) {
+        const outnumberedRatio = enemyStrength / Math.max(1, ownStrength);
+        if (outnumberedRatio < 1.8) return false;
+        const chance = Math.max(0.05, Math.min(0.75, (outnumberedRatio - 1.6) * 0.45 + (1 - moraleValue) * 0.6));
+        return Math.random() < chance;
+    },
+
+    _getSettlementComposition(settlement, tile) {
+        const composition = { cavalry: 0.18, archer: 0.32, pikeman: 0.50 };
+        if (settlement.type === 'capital') {
+            composition.archer += 0.08;
+            composition.pikeman += 0.04;
+        } else if (settlement.type === 'city') {
+            composition.archer += 0.05;
+        } else if (settlement.type === 'village') {
+            composition.pikeman += 0.08;
+        }
+
+        const terrainId = tile?.terrain?.id;
+        if (PlayerMilitary._terrainIsPlains(terrainId)) {
+            composition.cavalry += 0.08;
+        } else if (PlayerMilitary._terrainIsHills(terrainId)) {
+            composition.archer += 0.08;
+        }
+
+        return PlayerMilitary._normalizeComposition(composition);
+    },
+
+    _getWorldUnitComposition(worldUnit) {
+        switch (worldUnit.type) {
+            case 'raider':
+                return { cavalry: 0.65, archer: 0.10, pikeman: 0.25 };
+            case 'patrol':
+                return { cavalry: 0.35, archer: 0.35, pikeman: 0.30 };
+            case 'settler':
+            case 'caravan':
+            case 'ship':
+            case 'fishing_boat':
+                return { cavalry: 0.10, archer: 0.10, pikeman: 0.80 };
+            case 'pirate':
+                return { cavalry: 0.20, archer: 0.45, pikeman: 0.35 };
+            default:
+                return { cavalry: 0.30, archer: 0.25, pikeman: 0.45 };
+        }
     },
 
     /**
@@ -122,20 +287,46 @@ const PlayerMilitary = {
     /**
      * Pay army upkeep
      */
-    payUpkeep(player) {
+    payUpkeep(player, world = null) {
+        PlayerMilitary._ensureMercenaryState(player);
         const cost = PlayerMilitary.getUpkeepCost(player);
+        const result = {
+            paid: true,
+            cost: 0,
+            unitsLost: 0,
+            mercenaryWages: 0,
+            mercenaryEvents: [],
+        };
 
         if (player.gold < cost) {
             // Can't pay - lose some units
-            const unitsLost = Math.ceil(player.army.length * 0.1);
+            const nonMercCount = (player.army || []).filter(unit => !unit.mercenary).length;
+            const unitsLost = Math.max(1, Math.ceil(nonMercCount * 0.1));
             for (let i = 0; i < unitsLost; i++) {
-                player.army.pop();
+                let removed = false;
+                for (let index = player.army.length - 1; index >= 0; index--) {
+                    if (!player.army[index].mercenary) {
+                        player.army.splice(index, 1);
+                        removed = true;
+                        break;
+                    }
+                }
+                if (!removed && player.army.length > 0) {
+                    player.army.pop();
+                }
             }
-            return { paid: false, unitsLost };
+            result.paid = false;
+            result.unitsLost = unitsLost;
+        } else {
+            player.gold -= cost;
+            result.cost = cost;
         }
 
-        player.gold -= cost;
-        return { paid: true, cost };
+        const mercenaryUpdate = PlayerMilitary._processMercenaryCompanies(player, world);
+        result.mercenaryWages = mercenaryUpdate.wagesPaid;
+        result.mercenaryEvents = mercenaryUpdate.events;
+
+        return result;
     },
 
     /**
@@ -181,6 +372,331 @@ const PlayerMilitary = {
             risk: 0.5,
             description: 'Support a kingdom in a siege'
         },
+    },
+
+    MERCENARY_COMPANIES: [
+        {
+            id: 'red_lances',
+            name: 'The Red Lances',
+            icon: '🩸',
+            reputation: 'Famed heavy cavalry shock company',
+            hireCost: 620,
+            dailyWage: 95,
+            durationMin: 6,
+            durationMax: 10,
+            baseLoyalty: 66,
+            outbidRisk: 0.15,
+            roster: [
+                { type: 'knight', count: 3 },
+                { type: 'soldier', count: 4 },
+            ],
+        },
+        {
+            id: 'storm_arrows',
+            name: 'Storm Arrows Consortium',
+            icon: '🏹',
+            reputation: 'Disciplined long-range volleys and ambushes',
+            hireCost: 540,
+            dailyWage: 82,
+            durationMin: 7,
+            durationMax: 12,
+            baseLoyalty: 70,
+            outbidRisk: 0.12,
+            roster: [
+                { type: 'archer', count: 8 },
+                { type: 'soldier', count: 2 },
+            ],
+        },
+        {
+            id: 'black_pikes',
+            name: 'Black Pike Brotherhood',
+            icon: '⚫',
+            reputation: 'Veteran anti-cavalry line infantry',
+            hireCost: 560,
+            dailyWage: 88,
+            durationMin: 8,
+            durationMax: 12,
+            baseLoyalty: 72,
+            outbidRisk: 0.11,
+            roster: [
+                { type: 'pikeman', count: 6 },
+                { type: 'soldier', count: 4 },
+            ],
+        },
+        {
+            id: 'wolfguard',
+            name: 'Wolfguard Free Spears',
+            icon: '🐺',
+            reputation: 'Balanced veterans with high field endurance',
+            hireCost: 590,
+            dailyWage: 90,
+            durationMin: 7,
+            durationMax: 11,
+            baseLoyalty: 68,
+            outbidRisk: 0.14,
+            roster: [
+                { type: 'pikeman', count: 3 },
+                { type: 'archer', count: 3 },
+                { type: 'soldier', count: 4 },
+            ],
+        },
+        {
+            id: 'iron_oath',
+            name: 'Iron Oath Wardens',
+            icon: '⛓️',
+            reputation: 'Elite contract defenders who hold the line',
+            hireCost: 710,
+            dailyWage: 105,
+            durationMin: 6,
+            durationMax: 9,
+            baseLoyalty: 74,
+            outbidRisk: 0.1,
+            roster: [
+                { type: 'knight', count: 2 },
+                { type: 'pikeman', count: 4 },
+                { type: 'soldier', count: 4 },
+            ],
+        },
+    ],
+
+    _ensureMercenaryState(player) {
+        if (!Array.isArray(player.mercenaryCompanies)) player.mercenaryCompanies = [];
+        if (!player._mercenaryMarkets) player._mercenaryMarkets = {};
+    },
+
+    _getMercenaryMarketKey(tile) {
+        return `${tile.q},${tile.r}`;
+    },
+
+    _cloneRoster(roster = []) {
+        return roster.map(row => ({ type: row.type, count: row.count }));
+    },
+
+    _getMercenaryUnitDefinition(unitType) {
+        return PlayerMilitary.UNIT_TYPES[unitType.toUpperCase()] || PlayerMilitary.UNIT_TYPES.SOLDIER;
+    },
+
+    _removeMercenaryCompanyUnits(player, companyId) {
+        if (!Array.isArray(player.army)) return 0;
+        const before = player.army.length;
+        player.army = player.army.filter(unit => unit.mercenaryCompanyId !== companyId);
+        return before - player.army.length;
+    },
+
+    _estimateCompanyStrength(company) {
+        let strength = 0;
+        for (const row of company.roster || []) {
+            const definition = PlayerMilitary._getMercenaryUnitDefinition(row.type);
+            strength += (definition.strength || 0) * (row.count || 0);
+        }
+        return strength;
+    },
+
+    getMercenaryOffers(player, tile, world) {
+        PlayerMilitary._ensureMercenaryState(player);
+        if (!tile || !tile.settlement) return [];
+
+        const day = world?.day || 1;
+        const key = PlayerMilitary._getMercenaryMarketKey(tile);
+        const existingMarket = player._mercenaryMarkets[key];
+        if (existingMarket && day < existingMarket.refreshDay) {
+            return existingMarket.offers || [];
+        }
+
+        const activeTemplateIds = new Set((player.mercenaryCompanies || []).map(c => c.templateId));
+        const pool = PlayerMilitary.MERCENARY_COMPANIES.filter(company => !activeTemplateIds.has(company.id));
+        const shuffled = [...pool].sort(() => Math.random() - 0.5);
+        const offerCount = Math.min(shuffled.length, Math.max(1, 2 + (Math.random() < 0.35 ? 1 : 0)));
+
+        const offers = [];
+        for (let i = 0; i < offerCount; i++) {
+            const template = shuffled[i];
+            offers.push({
+                offerId: `${template.id}_${day}_${i}`,
+                templateId: template.id,
+                name: template.name,
+                icon: template.icon,
+                reputation: template.reputation,
+                hireCost: Math.floor(template.hireCost * Utils.randFloat(0.92, 1.08)),
+                dailyWage: Math.floor(template.dailyWage * Utils.randFloat(0.9, 1.1)),
+                duration: Utils.randInt(template.durationMin, template.durationMax),
+                loyalty: Math.max(45, Math.min(90, template.baseLoyalty + Utils.randInt(-6, 8))),
+                outbidRisk: template.outbidRisk,
+                roster: PlayerMilitary._cloneRoster(template.roster),
+            });
+        }
+
+        player._mercenaryMarkets[key] = {
+            refreshDay: day + 4,
+            settlementName: tile.settlement.name,
+            offers,
+        };
+
+        return offers;
+    },
+
+    hireMercenaryCompany(player, tile, offerId, world) {
+        PlayerMilitary._ensureMercenaryState(player);
+        if (!tile || !tile.settlement) return { success: false, reason: 'Mercenaries can only be hired at settlements.' };
+
+        const offers = PlayerMilitary.getMercenaryOffers(player, tile, world);
+        const offer = offers.find(entry => entry.offerId === offerId);
+        if (!offer) return { success: false, reason: 'This company has moved on.' };
+
+        if (player.gold < offer.hireCost) {
+            return { success: false, reason: `Need ${offer.hireCost} gold to hire ${offer.name}.` };
+        }
+
+        const companyId = `merc_${Date.now()}_${Math.floor(Math.random() * 999)}`;
+        const company = {
+            id: companyId,
+            templateId: offer.templateId,
+            name: offer.name,
+            icon: offer.icon,
+            reputation: offer.reputation,
+            settlementName: tile.settlement.name,
+            contractStartDay: world?.day || 1,
+            daysRemaining: offer.duration,
+            dailyWage: offer.dailyWage,
+            loyalty: offer.loyalty,
+            outbidRisk: offer.outbidRisk,
+            roster: PlayerMilitary._cloneRoster(offer.roster),
+            initialHireCost: offer.hireCost,
+            lastEvent: 'hired',
+        };
+
+        if (!Array.isArray(player.army)) player.army = [];
+        for (const row of company.roster) {
+            const definition = PlayerMilitary._getMercenaryUnitDefinition(row.type);
+            for (let count = 0; count < row.count; count++) {
+                player.army.push({
+                    type: definition.id,
+                    name: definition.name,
+                    icon: definition.icon,
+                    strength: definition.strength,
+                    upkeep: 0,
+                    experience: Utils.randInt(10, 35),
+                    level: 1,
+                    mercenary: true,
+                    mercenaryCompanyId: companyId,
+                    mercenaryCompanyName: company.name,
+                });
+            }
+        }
+
+        player.gold -= offer.hireCost;
+        player.mercenaryCompanies.push(company);
+
+        const key = PlayerMilitary._getMercenaryMarketKey(tile);
+        player._mercenaryMarkets[key].offers = player._mercenaryMarkets[key].offers.filter(entry => entry.offerId !== offerId);
+
+        player.skills.leadership = Math.min(10, (player.skills.leadership || 1) + 0.2);
+
+        return { success: true, company };
+    },
+
+    payMercenaryBonus(player, companyId, goldAmount = 120) {
+        PlayerMilitary._ensureMercenaryState(player);
+        const company = player.mercenaryCompanies.find(entry => entry.id === companyId);
+        if (!company) return { success: false, reason: 'Company not found.' };
+
+        const bonus = Math.max(50, Math.floor(goldAmount));
+        if (player.gold < bonus) return { success: false, reason: `Need ${bonus} gold.` };
+
+        player.gold -= bonus;
+        const loyaltyGain = Math.floor(bonus / 45);
+        company.loyalty = Math.min(100, company.loyalty + loyaltyGain);
+        company.lastEvent = 'bonus_paid';
+
+        return { success: true, company, bonus, loyaltyGain };
+    },
+
+    dismissMercenaryCompany(player, companyId) {
+        PlayerMilitary._ensureMercenaryState(player);
+        const index = player.mercenaryCompanies.findIndex(entry => entry.id === companyId);
+        if (index < 0) return { success: false, reason: 'Company not found.' };
+
+        const [company] = player.mercenaryCompanies.splice(index, 1);
+        const unitsRemoved = PlayerMilitary._removeMercenaryCompanyUnits(player, companyId);
+
+        return { success: true, company, unitsRemoved };
+    },
+
+    _processMercenaryCompanies(player, world) {
+        PlayerMilitary._ensureMercenaryState(player);
+        const events = [];
+        let wagesPaid = 0;
+
+        for (let i = player.mercenaryCompanies.length - 1; i >= 0; i--) {
+            const company = player.mercenaryCompanies[i];
+            company.daysRemaining = Math.max(0, (company.daysRemaining || 0) - 1);
+
+            const paidWage = player.gold >= company.dailyWage;
+            if (paidWage) {
+                player.gold -= company.dailyWage;
+                wagesPaid += company.dailyWage;
+                company.loyalty = Math.min(100, company.loyalty + 1);
+            } else {
+                company.loyalty = Math.max(0, company.loyalty - 12);
+            }
+
+            company.loyalty = Math.max(0, company.loyalty - Utils.randFloat(0.5, 2.5));
+
+            if (company.daysRemaining <= 0) {
+                const unitsRemoved = PlayerMilitary._removeMercenaryCompanyUnits(player, company.id);
+                player.mercenaryCompanies.splice(i, 1);
+                events.push({
+                    type: 'contract_expired',
+                    companyName: company.name,
+                    companyIcon: company.icon,
+                    unitsRemoved,
+                    text: `${company.icon} ${company.name} contract ended and the company marched on.`,
+                });
+                continue;
+            }
+
+            const outbidPressure = paidWage ? 0 : 0.22;
+            const loyaltyPressure = Math.max(0, (45 - company.loyalty) * 0.012);
+            const switchChance = Math.max(0.04, Math.min(0.82, company.outbidRisk + outbidPressure + loyaltyPressure));
+
+            if (Math.random() < switchChance) {
+                const unitsRemoved = PlayerMilitary._removeMercenaryCompanyUnits(player, company.id);
+                player.mercenaryCompanies.splice(i, 1);
+
+                let rivalName = 'a rival banner';
+                if (world && Array.isArray(world.kingdoms)) {
+                    const rivals = world.kingdoms.filter(kingdom => kingdom.isAlive && kingdom.id !== player.allegiance);
+                    const chosen = rivals.length > 0 ? Utils.randPick(rivals) : null;
+                    if (chosen) {
+                        rivalName = chosen.name;
+                        const reinforcement = Math.floor(PlayerMilitary._estimateCompanyStrength(company) * 0.45);
+                        chosen.military = (chosen.military || 0) + reinforcement;
+                    }
+                }
+
+                events.push({
+                    type: 'outbid_switch',
+                    companyName: company.name,
+                    companyIcon: company.icon,
+                    rivalName,
+                    unitsRemoved,
+                    text: `${company.icon} ${company.name} accepted a richer offer from ${rivalName} and switched sides!`,
+                });
+                continue;
+            }
+
+            if (company.loyalty < 45) {
+                events.push({
+                    type: 'loyalty_warning',
+                    companyName: company.name,
+                    companyIcon: company.icon,
+                    loyalty: Math.floor(company.loyalty),
+                    text: `${company.icon} ${company.name} loyalty is wavering (${Math.floor(company.loyalty)}).`,
+                });
+            }
+        }
+
+        return { wagesPaid, events };
     },
 
     /**
@@ -265,23 +781,53 @@ const PlayerMilitary = {
     /**
      * Combat encounter (for random events or player-initiated)
      */
-    combat(player, enemyStrength, enemyName = 'Bandits') {
+    combat(player, enemyStrength, enemyName = 'Bandits', context = {}) {
         const playerStrength = PlayerMilitary.getArmyStrength(player);
 
         if (playerStrength === 0) {
             return { victory: false, reason: 'No army to fight with!' };
         }
 
+        const terrainId = context.terrainId || null;
+        const playerComp = PlayerMilitary.getArmyComposition(player);
+        const enemyComp = PlayerMilitary.inferEnemyComposition(enemyStrength, enemyName, context);
+
+        const playerCounterMult = PlayerMilitary._counterMultiplier(playerComp, enemyComp);
+        const enemyCounterMult = PlayerMilitary._counterMultiplier(enemyComp, playerComp);
+        const playerTerrainMult = PlayerMilitary._terrainMultiplier(terrainId, playerComp);
+        const enemyTerrainMult = PlayerMilitary._terrainMultiplier(terrainId, enemyComp);
+
+        const festivalMoraleBonus = (player.festivals?.moraleBoostDays > 0)
+            ? (player.festivals?.moraleBoostValue || 0)
+            : 0;
+        const leadership = (player.skills?.leadership || 1) * 0.015 + festivalMoraleBonus;
+        const playerMorale = PlayerMilitary._moraleValue(playerStrength, enemyStrength, leadership);
+        const enemyMorale = PlayerMilitary._moraleValue(enemyStrength, playerStrength, context.enemyMoraleBonus || 0);
+
         // Combat calculation
-        const playerPower = playerStrength * Utils.randFloat(0.8, 1.2);
-        const enemyPower = enemyStrength * Utils.randFloat(0.8, 1.2);
+        let playerPower = playerStrength * Utils.randFloat(0.8, 1.2) * playerCounterMult * playerTerrainMult * playerMorale;
+        let enemyPower = enemyStrength * Utils.randFloat(0.8, 1.2) * enemyCounterMult * enemyTerrainMult * enemyMorale;
+
+        let moraleBreak = null;
+        if (PlayerMilitary._checkMoraleBreak(playerStrength, enemyStrength, playerMorale)) {
+            moraleBreak = 'player';
+            playerPower *= 0.55;
+            enemyPower *= 1.12;
+        } else if (PlayerMilitary._checkMoraleBreak(enemyStrength, playerStrength, enemyMorale)) {
+            moraleBreak = 'enemy';
+            enemyPower *= 0.55;
+            playerPower *= 1.12;
+        }
 
         const victory = playerPower > enemyPower;
 
         // Calculate casualties
-        const casualtyRate = victory ?
+        let casualtyRate = victory ?
             Utils.randFloat(0.05, 0.15) :
             Utils.randFloat(0.2, 0.4);
+
+        if (moraleBreak === 'enemy' && victory) casualtyRate *= 0.65;
+        if (moraleBreak === 'player' && !victory) casualtyRate *= 1.25;
 
         const casualties = Math.ceil(player.army.length * casualtyRate);
 
@@ -347,6 +893,16 @@ const PlayerMilitary = {
             enemyName,
             playerStrength,
             enemyStrength,
+            tactics: {
+                terrainId,
+                moraleBreak,
+                playerMorale: Number(playerMorale.toFixed(2)),
+                enemyMorale: Number(enemyMorale.toFixed(2)),
+                playerCounterMult: Number(playerCounterMult.toFixed(2)),
+                enemyCounterMult: Number(enemyCounterMult.toFixed(2)),
+                playerTerrainMult: Number(playerTerrainMult.toFixed(2)),
+                enemyTerrainMult: Number(enemyTerrainMult.toFixed(2)),
+            },
         };
     },
 
@@ -474,7 +1030,10 @@ const PlayerMilitary = {
         );
 
         // Combat
-        const result = PlayerMilitary.combat(player, defenseStrength, settlement.name);
+        const result = PlayerMilitary.combat(player, defenseStrength, settlement.name, {
+            terrainId: tile?.terrain?.id,
+            enemyComposition: PlayerMilitary._getSettlementComposition(settlement, tile),
+        });
 
         if (result.victory) {
             // Successful raid
@@ -547,7 +1106,11 @@ const PlayerMilitary = {
         }
 
         // Combat
-        const result = PlayerMilitary.combat(player, garrisonStrength, settlement.name);
+        const result = PlayerMilitary.combat(player, garrisonStrength, settlement.name, {
+            terrainId: tile?.terrain?.id,
+            enemyComposition: PlayerMilitary._getSettlementComposition(settlement, tile),
+            enemyMoraleBonus: settlement.type === 'capital' ? 0.1 : 0,
+        });
         result.garrisonStrength = garrisonStrength;
 
         const previousKingdom = settlement.kingdom;
@@ -698,7 +1261,11 @@ const PlayerMilitary = {
      * Attack a world unit on the player's tile
      */
     attackUnit(player, worldUnit, world) {
-        const combatResult = PlayerMilitary.combat(player, worldUnit.strength, worldUnit.name);
+        const unitTile = world.getTile(worldUnit.q, worldUnit.r);
+        const combatResult = PlayerMilitary.combat(player, worldUnit.strength, worldUnit.name, {
+            terrainId: unitTile?.terrain?.id,
+            enemyComposition: PlayerMilitary._getWorldUnitComposition(worldUnit),
+        });
 
         // Handle no-army edge case
         if (combatResult.reason) {

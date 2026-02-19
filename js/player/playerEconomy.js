@@ -12,6 +12,7 @@ const PlayerEconomy = {
             name: 'Farm',
             icon: '🌾',
             cost: 500,
+            constructionDays: 5,
             produces: 'grain', // Changed from 'food'
             productionRate: 10,
             upkeep: 5,
@@ -23,6 +24,7 @@ const PlayerEconomy = {
             name: 'Pasture',
             icon: '🐑',
             cost: 500,
+            constructionDays: 4,
             produces: 'wool',
             productionRate: 8,
             upkeep: 5,
@@ -34,6 +36,7 @@ const PlayerEconomy = {
             name: 'Logging Camp',
             icon: '🪓',
             cost: 400,
+            constructionDays: 3,
             produces: 'wood',
             productionRate: 6,
             upkeep: 5,
@@ -45,6 +48,7 @@ const PlayerEconomy = {
             name: 'Mine',
             icon: '⛏️',
             cost: 1000,
+            constructionDays: 10,
             produces: 'iron',
             productionRate: 5,
             upkeep: 15,
@@ -56,6 +60,7 @@ const PlayerEconomy = {
             name: 'Workshop',
             icon: '🔨',
             cost: 800,
+            constructionDays: 7,
             produces: null, // Variable based on recipe
             productionRate: 5, // Process rate
             upkeep: 10,
@@ -67,6 +72,7 @@ const PlayerEconomy = {
             name: 'Trading Post',
             icon: '🏪',
             cost: 600,
+            constructionDays: 6,
             produces: null,
             productionRate: 0,
             upkeep: 5,
@@ -78,6 +84,7 @@ const PlayerEconomy = {
             name: 'Fishing Wharf',
             icon: '⚓',
             cost: 800,
+            constructionDays: 8,
             produces: 'fish',
             productionRate: 0, // Depends on boats
             upkeep: 10,
@@ -89,11 +96,24 @@ const PlayerEconomy = {
             name: 'Brewery',
             icon: '🍺',
             cost: 700,
+            constructionDays: 6,
             produces: null, // Variable based on recipe (beer or liquor)
             productionRate: 6,
             upkeep: 8,
             requiredSettlement: true,
             description: 'Brews beer from grain or distills liquor. Sells well at taverns. Upkeep: 8g/day'
+        },
+        TAVERN: {
+            id: 'tavern',
+            name: 'Tavern',
+            icon: '🍻',
+            cost: 900,
+            constructionDays: 8,
+            produces: 'gold', // Earns gold directly from patrons
+            productionRate: 0, // Income calculated dynamically based on settlement size
+            upkeep: 12,
+            requiredSettlement: true,
+            description: 'A place for drink, gambling, and gossip. Earns gold daily from patrons. Upkeep: 12g/day'
         },
     },
 
@@ -122,6 +142,27 @@ const PlayerEconomy = {
         BEER: { id: 'beer', name: 'Beer', icon: '🍺', basePrice: 12 },
         LIQUOR: { id: 'liquor', name: 'Liquor', icon: '🥃', basePrice: 30 },
         LUXURIES: { id: 'luxuries', name: 'Luxuries', icon: '💍', basePrice: 100 },
+        // Fishing catches
+        SMALL_FISH: { id: 'small_fish', name: 'Small Fry', icon: '🐠', basePrice: 3 },
+        LARGE_FISH: { id: 'large_fish', name: 'Large Cod', icon: '🐟', basePrice: 12 },
+        CRAB: { id: 'crab', name: 'Crab', icon: '🦀', basePrice: 14 },
+        SWORDFISH: { id: 'swordfish', name: 'Swordfish', icon: '🗡️', basePrice: 28 },
+        LOBSTER: { id: 'lobster', name: 'Lobster', icon: '🦞', basePrice: 22 },
+        GOLDEN_FISH: { id: 'golden_fish', name: 'Golden Fish', icon: '✨', basePrice: 55 },
+        BOOT: { id: 'boot', name: 'Old Boot', icon: '👢', basePrice: 0 },
+        SEAWEED: { id: 'seaweed', name: 'Seaweed', icon: '🌿', basePrice: 2 },
+        // Prospecting finds
+        ORE: { id: 'ore', name: 'Iron Ore', icon: '⛏️', basePrice: 25 },
+        // Foraging / hunting misc
+        HERBS: { id: 'herbs', name: 'Herbs', icon: '🌿', basePrice: 5 },
+        PELTS: { id: 'pelts', name: 'Pelts', icon: '🦊', basePrice: 12 },
+        BERRIES: { id: 'berries', name: 'Berries', icon: '🫐', basePrice: 3 },
+        MUSHROOMS: { id: 'mushrooms', name: 'Mushrooms', icon: '🍄', basePrice: 4 },
+        MEAT: { id: 'meat', name: 'Meat', icon: '🥩', basePrice: 6 },
+        HIDE: { id: 'hide', name: 'Hide', icon: '🟤', basePrice: 8 },
+        ANTLER: { id: 'antler', name: 'Antler', icon: '🦌', basePrice: 15 },
+        FEATHER: { id: 'feather', name: 'Feather', icon: '🪶', basePrice: 4 },
+        HORSE: { id: 'horse', name: 'Horse', icon: '🐴', basePrice: 120 },
         // Technology Parts
         AGRI_PARTS: { id: 'agri_parts', name: 'Agricultural Implements', icon: '🌱', basePrice: 50 },
         INDUSTRY_PARTS: { id: 'industry_parts', name: 'Industrial Components', icon: '⚙️', basePrice: 75 },
@@ -145,6 +186,431 @@ const PlayerEconomy = {
         LUXURIES: { id: 'luxuries', name: 'Refine Luxuries', input: 'gold_ore', inputQty: 2, output: 'luxuries', outputQty: 1, description: 'Craft fine jewelry.' },
         BEER: { id: 'beer', name: 'Brew Beer', input: 'grain', inputQty: 3, output: 'beer', outputQty: 4, description: 'Brew ale from grain. Popular at taverns.' },
         LIQUOR: { id: 'liquor', name: 'Distill Liquor', input: 'grain', inputQty: 5, output: 'liquor', outputQty: 2, description: 'Distill strong spirits from grain. High value.' },
+    },
+
+    ROUTE_CREATION_COST: {
+        legal: 280,
+        smuggling: 220,
+    },
+
+    ROUTE_DISPATCH_COST: {
+        legal: 120,
+        smuggling: 95,
+    },
+
+    ensureEconomyState(player) {
+        if (!Array.isArray(player.tradeRoutes)) player.tradeRoutes = [];
+        if (!Array.isArray(player.smugglingRoutes)) player.smugglingRoutes = [];
+        if (!player.auctions) {
+            player.auctions = { active: [], won: [], nextRefreshDay: 1, nextId: 1 };
+        }
+        if (!Array.isArray(player.auctions.active)) player.auctions.active = [];
+        if (!Array.isArray(player.auctions.won)) player.auctions.won = [];
+        if (!player.auctions.nextRefreshDay) player.auctions.nextRefreshDay = 1;
+        if (!player.auctions.nextId) player.auctions.nextId = 1;
+        if (!player.auctions.lastProcessedDay) player.auctions.lastProcessedDay = 0;
+    },
+
+    getRouteGoodsOptions(player) {
+        if (!player.inventory) return [];
+        const options = [];
+        for (const [goodId, qty] of Object.entries(player.inventory)) {
+            if (qty <= 0) continue;
+            const entry = Object.values(PlayerEconomy.GOODS).find(g => g.id === goodId);
+            options.push({
+                id: goodId,
+                name: entry ? entry.name : goodId,
+                icon: entry ? entry.icon : '📦',
+                qty,
+            });
+        }
+        return options.sort((a, b) => b.qty - a.qty);
+    },
+
+    createPersistentRoute(player, world, config = {}) {
+        PlayerEconomy.ensureEconomyState(player);
+
+        const isSmuggling = !!config.isSmuggling;
+        const routePool = isSmuggling ? player.smugglingRoutes : player.tradeRoutes;
+        const fromPos = config.fromPos;
+        const toPos = config.toPos;
+        const goodId = config.goodId;
+        const quantity = Math.max(1, Math.floor(config.quantity || 1));
+        const frequencyDays = Math.max(1, Math.floor(config.frequencyDays || 3));
+
+        if (!fromPos || !toPos || !goodId) return { success: false, reason: 'Invalid route parameters' };
+
+        const fromTile = world.getTile(fromPos.q, fromPos.r);
+        const toTile = world.getTile(toPos.q, toPos.r);
+        if (!fromTile || !toTile || !fromTile.settlement || !toTile.settlement) {
+            return { success: false, reason: 'Routes require settlement endpoints' };
+        }
+
+        const distance = Hex.wrappingDistance(fromPos.q, fromPos.r, toPos.q, toPos.r, world.width);
+        if (distance < 2) return { success: false, reason: 'Destination is too close' };
+        if (distance > 20) return { success: false, reason: 'Destination is too far (max 20)' };
+
+        const creationCost = isSmuggling ? PlayerEconomy.ROUTE_CREATION_COST.smuggling : PlayerEconomy.ROUTE_CREATION_COST.legal;
+        if (player.gold < creationCost) return { success: false, reason: `Need ${creationCost} gold to establish route` };
+
+        const duplicate = routePool.find(r =>
+            r.fromPos.q === fromPos.q &&
+            r.fromPos.r === fromPos.r &&
+            r.toPos.q === toPos.q &&
+            r.toPos.r === toPos.r &&
+            r.goodId === goodId
+        );
+        if (duplicate) return { success: false, reason: 'A matching route already exists' };
+
+        const routeId = `${isSmuggling ? 'SR' : 'TR'}-${Date.now()}-${Math.floor(Math.random() * 999)}`;
+        const route = {
+            id: routeId,
+            isSmuggling,
+            fromPos: { q: fromPos.q, r: fromPos.r },
+            toPos: { q: toPos.q, r: toPos.r },
+            fromName: fromTile.settlement.name,
+            toName: toTile.settlement.name,
+            goodId,
+            quantity,
+            frequencyDays,
+            nextDispatchIn: 0,
+            prosperity: 0,
+            protection: 0,
+            roadQuality: 0,
+            totalRuns: 0,
+            successfulRuns: 0,
+            raidedRuns: 0,
+            lastResult: 'idle',
+            lastProfit: 0,
+            createdOnDay: world.day || 1,
+            activeCaravanId: null,
+        };
+
+        player.gold -= creationCost;
+        routePool.push(route);
+
+        return { success: true, route, creationCost };
+    },
+
+    cancelPersistentRoute(player, routeId, isSmuggling = false) {
+        PlayerEconomy.ensureEconomyState(player);
+        const routePool = isSmuggling ? player.smugglingRoutes : player.tradeRoutes;
+        const idx = routePool.findIndex(r => r.id === routeId);
+        if (idx < 0) return { success: false, reason: 'Route not found' };
+        const [removed] = routePool.splice(idx, 1);
+        return { success: true, route: removed };
+    },
+
+    upgradeRouteProtection(player, routeId, isSmuggling = false) {
+        PlayerEconomy.ensureEconomyState(player);
+        const routePool = isSmuggling ? player.smugglingRoutes : player.tradeRoutes;
+        const route = routePool.find(r => r.id === routeId);
+        if (!route) return { success: false, reason: 'Route not found' };
+        if (route.protection >= 5) return { success: false, reason: 'Protection already maxed' };
+
+        const cost = 180 + route.protection * 90;
+        if (player.gold < cost) return { success: false, reason: `Need ${cost} gold` };
+
+        player.gold -= cost;
+        route.protection += 1;
+        return { success: true, route, cost };
+    },
+
+    upgradeRouteRoadQuality(player, routeId, isSmuggling = false) {
+        PlayerEconomy.ensureEconomyState(player);
+        const routePool = isSmuggling ? player.smugglingRoutes : player.tradeRoutes;
+        const route = routePool.find(r => r.id === routeId);
+        if (!route) return { success: false, reason: 'Route not found' };
+        if (route.roadQuality >= 5) return { success: false, reason: 'Road quality already maxed' };
+
+        const cost = 200 + route.roadQuality * 100;
+        if (player.gold < cost) return { success: false, reason: `Need ${cost} gold` };
+
+        player.gold -= cost;
+        route.roadQuality += 1;
+        return { success: true, route, cost };
+    },
+
+    _getRouteById(player, routeId, isSmuggling = false) {
+        const pool = isSmuggling ? (player.smugglingRoutes || []) : (player.tradeRoutes || []);
+        return pool.find(r => r.id === routeId) || null;
+    },
+
+    _dispatchRouteCaravan(player, route, world) {
+        if (!route || route.activeCaravanId) return { success: false, reason: 'Route already has an active caravan' };
+
+        const dispatchCost = route.isSmuggling ? PlayerEconomy.ROUTE_DISPATCH_COST.smuggling : PlayerEconomy.ROUTE_DISPATCH_COST.legal;
+        if (player.gold < dispatchCost) {
+            route.lastResult = 'stalled_funds';
+            return { success: false, reason: 'Not enough gold for dispatch' };
+        }
+
+        if (!player.inventory) player.inventory = {};
+        if ((player.inventory[route.goodId] || 0) < route.quantity) {
+            route.lastResult = 'stalled_goods';
+            return { success: false, reason: 'Not enough goods in inventory' };
+        }
+
+        const fromTile = world.getTile(route.fromPos.q, route.fromPos.r);
+        const toTile = world.getTile(route.toPos.q, route.toPos.r);
+        if (!fromTile || !toTile || !toTile.settlement) {
+            route.lastResult = 'stalled_invalid';
+            return { success: false, reason: 'Route endpoint is invalid' };
+        }
+
+        const goods = { [route.goodId]: route.quantity };
+        const dist = Hex.wrappingDistance(route.fromPos.q, route.fromPos.r, route.toPos.q, route.toPos.r, world.width);
+
+        let expectedProfit = 0;
+        const good = Object.values(PlayerEconomy.GOODS).find(g => g.id === route.goodId);
+        if (good) {
+            let unitPrice = good.basePrice * (1 + dist * 0.05);
+            const sizeMultiplier = { village: 0.8, town: 1.0, city: 1.2, capital: 1.5 };
+            unitPrice *= sizeMultiplier[toTile.settlement.type] || 1.0;
+            expectedProfit = Math.floor(unitPrice * route.quantity);
+        }
+
+        player.gold -= dispatchCost;
+        player.inventory[route.goodId] -= route.quantity;
+        if (player.inventory[route.goodId] <= 0) delete player.inventory[route.goodId];
+
+        const caravan = {
+            from: route.fromName,
+            to: route.toName,
+            fromPos: { q: route.fromPos.q, r: route.fromPos.r },
+            toPos: { q: route.toPos.q, r: route.toPos.r },
+            currentPos: { q: route.fromPos.q, r: route.fromPos.r },
+            distance: dist,
+            goods,
+            expectedProfit,
+            daysRemaining: Math.max(1, Math.ceil(dist / 2)),
+            status: 'traveling',
+            routeId: route.id,
+            isSmugglingRoute: !!route.isSmuggling,
+        };
+
+        const caravanUnit = new WorldUnit('caravan', route.fromPos.q, route.fromPos.r, route.toPos.q, route.toPos.r);
+        caravanUnit.playerOwned = true;
+        caravanUnit.goods = { ...goods };
+        caravanUnit.isSmugglingRoute = !!route.isSmuggling;
+        world.units.push(caravanUnit);
+
+        caravan.unitId = caravanUnit.id;
+
+        if (!player.caravans) player.caravans = [];
+        player.caravans.push(caravan);
+
+        route.activeCaravanId = caravanUnit.id;
+        route.nextDispatchIn = Math.max(1, route.frequencyDays);
+        route.totalRuns = (route.totalRuns || 0) + 1;
+        route.lastResult = 'dispatched';
+
+        return { success: true, caravan };
+    },
+
+    _tickPersistentRoutes(player, world) {
+        const allRoutes = [...(player.tradeRoutes || []), ...(player.smugglingRoutes || [])];
+        for (const route of allRoutes) {
+            if (route.activeCaravanId) {
+                const unitAlive = world.units.some(u => u.id === route.activeCaravanId && !u.destroyed);
+                if (!unitAlive) route.activeCaravanId = null;
+            }
+
+            if (route.nextDispatchIn > 0) route.nextDispatchIn--;
+            if (route.activeCaravanId) continue;
+            if (route.nextDispatchIn > 0) continue;
+
+            PlayerEconomy._dispatchRouteCaravan(player, route, world);
+        }
+    },
+
+    _recordRouteLoss(route) {
+        route.activeCaravanId = null;
+        route.raidedRuns = (route.raidedRuns || 0) + 1;
+        route.lastResult = 'raided';
+        route.lastProfit = 0;
+        route.prosperity = Math.max(0, (route.prosperity || 0) - 0.35);
+    },
+
+    _recordRouteSuccess(route, finalProfit) {
+        route.activeCaravanId = null;
+        route.successfulRuns = (route.successfulRuns || 0) + 1;
+        route.lastResult = 'profit';
+        route.lastProfit = finalProfit;
+
+        const protectionGrowth = (route.protection || 0) * 0.05;
+        const roadGrowth = (route.roadQuality || 0) * 0.06;
+        route.prosperity = Math.min(6, (route.prosperity || 0) + 0.18 + protectionGrowth + roadGrowth);
+    },
+
+    _generateAuctionLot(player, world) {
+        const types = ['rare_item', 'artifact', 'land'];
+        const type = Utils.randPick(types);
+        const rarityRoll = Math.random();
+        const rarity = rarityRoll > 0.92 ? 'legendary' : rarityRoll > 0.68 ? 'epic' : 'rare';
+        const rarityMult = rarity === 'legendary' ? 2.2 : rarity === 'epic' ? 1.55 : 1.0;
+
+        let title = '';
+        let description = '';
+        let reward = {};
+        let basePrice = Math.floor((160 + (world.day || 1) * 3 + Math.random() * 120) * rarityMult);
+
+        if (type === 'rare_item') {
+            const goodsPool = ['gems', 'luxuries', 'weapons', 'tools', 'spices', 'liquor'];
+            const goodId = Utils.randPick(goodsPool);
+            const good = Object.values(PlayerEconomy.GOODS).find(g => g.id === goodId);
+            const amount = rarity === 'legendary' ? 6 : rarity === 'epic' ? 4 : 3;
+            title = `${good ? good.icon : '📦'} Crate of ${good ? good.name : goodId}`;
+            description = `Contraband and import stock sold by anonymous brokers.`;
+            reward = { kind: 'item', goodId, amount, label: `${amount} ${good ? good.name : goodId}` };
+        } else if (type === 'artifact') {
+            const artifacts = ['Sun Idol', 'Royal Signet', 'Sage Astrolabe', 'Banner of Conquest', 'Sainted Reliquary'];
+            const skillPool = ['commerce', 'diplomacy', 'leadership', 'stealth'];
+            const skill = Utils.randPick(skillPool);
+            const renown = rarity === 'legendary' ? 30 : rarity === 'epic' ? 20 : 12;
+            const skillBonus = rarity === 'legendary' ? 2 : 1;
+            title = `🗿 ${Utils.randPick(artifacts)}`;
+            description = `A priceless relic sought by nobles, guilds, and collectors.`;
+            reward = { kind: 'artifact', skill, skillBonus, renown, label: `+${renown} renown, +${skillBonus} ${skill}` };
+            basePrice = Math.floor(basePrice * 1.3);
+        } else {
+            const estates = ['Riverside Estate', 'Border Ranch', 'Oakfield Holdings', 'Old Port Warehouse', 'Vineyard Rights'];
+            title = `🏞️ ${Utils.randPick(estates)}`;
+            description = `Land rights with tax and rent privileges.`;
+            const taxBonus = rarity === 'legendary' ? 0.15 : rarity === 'epic' ? 0.1 : 0.06;
+            reward = { kind: 'land', taxBonus, renown: 8, label: `+${Math.round(taxBonus * 100)}% tax output` };
+            basePrice = Math.floor(basePrice * 1.15);
+        }
+
+        return {
+            id: `AUC-${player.auctions.nextId++}`,
+            type,
+            rarity,
+            title,
+            description,
+            reward,
+            basePrice,
+            currentBid: Math.floor(basePrice * 0.9),
+            minIncrement: Math.max(20, Math.floor(basePrice * 0.07)),
+            topBidder: 'ai',
+            endsOnDay: (world.day || 1) + Utils.randInt(4, 7),
+        };
+    },
+
+    _applyAuctionReward(player, lot) {
+        if (!lot || !lot.reward) return;
+        const reward = lot.reward;
+
+        if (reward.kind === 'item') {
+            if (!player.inventory) player.inventory = {};
+            player.inventory[reward.goodId] = (player.inventory[reward.goodId] || 0) + reward.amount;
+        } else if (reward.kind === 'artifact') {
+            player.renown = (player.renown || 0) + (reward.renown || 0);
+            if (!player.skills) player.skills = {};
+            const current = player.skills[reward.skill] || 1;
+            player.skills[reward.skill] = Math.min(10, current + (reward.skillBonus || 1));
+        } else if (reward.kind === 'land') {
+            player.renown = (player.renown || 0) + (reward.renown || 0);
+            player.landTaxBonus = (player.landTaxBonus || 0) + (reward.taxBonus || 0);
+        }
+
+        player.auctions.won.push({
+            day: (typeof window !== 'undefined' && window.game && window.game.world) ? window.game.world.day : null,
+            title: lot.title,
+            rarity: lot.rarity,
+            reward: reward.label,
+            price: lot.currentBid,
+        });
+    },
+
+    ensureAuctionListings(player, world) {
+        PlayerEconomy.ensureEconomyState(player);
+        if ((player.auctions.active || []).length > 0) return;
+        if ((world.day || 1) < (player.auctions.nextRefreshDay || 1)) return;
+
+        player.auctions.active = [];
+        for (let i = 0; i < 3; i++) {
+            player.auctions.active.push(PlayerEconomy._generateAuctionLot(player, world));
+        }
+        player.auctions.nextRefreshDay = (world.day || 1) + 8;
+    },
+
+    placeAuctionBid(player, auctionId, world) {
+        PlayerEconomy.ensureEconomyState(player);
+        const lot = (player.auctions.active || []).find(a => a.id === auctionId);
+        if (!lot) return { success: false, reason: 'Auction lot not found' };
+
+        const nextBid = lot.currentBid + lot.minIncrement;
+        if (player.gold < nextBid) return { success: false, reason: `Need ${nextBid} gold` };
+
+        player.gold -= nextBid;
+
+        if (lot.topBidder === 'player' && lot.playerStake) {
+            player.gold += lot.playerStake;
+        }
+
+        lot.playerStake = nextBid;
+        lot.currentBid = nextBid;
+        lot.topBidder = 'player';
+        lot.lastBidDay = world.day || 1;
+
+        return { success: true, lot, bid: nextBid };
+    },
+
+    _processAuctions(player, world) {
+        PlayerEconomy.ensureEconomyState(player);
+        const events = [];
+
+        if ((player.auctions.lastProcessedDay || 0) === (world.day || 1)) {
+            return events;
+        }
+
+        PlayerEconomy.ensureAuctionListings(player, world);
+
+        for (const lot of player.auctions.active) {
+            if (lot.topBidder === 'player') {
+                const pressureChance = 0.28 + (lot.rarity === 'legendary' ? 0.18 : lot.rarity === 'epic' ? 0.1 : 0.04);
+                if (Math.random() < pressureChance) {
+                    const increment = lot.minIncrement + Utils.randInt(0, Math.floor(lot.minIncrement * 0.5));
+                    lot.currentBid += increment;
+                    lot.topBidder = 'ai';
+                    if (lot.playerStake) {
+                        player.gold += lot.playerStake;
+                        lot.playerStake = 0;
+                    }
+                }
+            } else if (Math.random() < 0.2) {
+                lot.currentBid += Utils.randInt(Math.floor(lot.minIncrement * 0.4), lot.minIncrement);
+            }
+        }
+
+        for (let i = player.auctions.active.length - 1; i >= 0; i--) {
+            const lot = player.auctions.active[i];
+            if ((world.day || 1) < lot.endsOnDay) continue;
+
+            if (lot.topBidder === 'player') {
+                PlayerEconomy._applyAuctionReward(player, lot);
+                events.push({
+                    eventType: 'auction',
+                    title: 'Auction Won!',
+                    message: `${lot.title} secured for ${lot.currentBid}g. Reward: ${lot.reward.label}`,
+                    severity: 'success',
+                });
+            } else {
+                events.push({
+                    eventType: 'auction',
+                    title: 'Auction Lost',
+                    message: `${lot.title} sold to another bidder.`,
+                    severity: 'default',
+                });
+            }
+
+            player.auctions.active.splice(i, 1);
+        }
+
+        player.auctions.lastProcessedDay = world.day || 1;
+
+        return events;
     },
 
     /**
@@ -240,6 +706,7 @@ const PlayerEconomy = {
         }
 
         // Create property object
+        const constructionDays = prop.constructionDays || 0;
         const newProperty = {
             type: prop.id,
             name: prop.name,
@@ -254,6 +721,9 @@ const PlayerEconomy = {
             activeRecipe: null, // For workshops
             autoSell: false,
             hasLab: false,   // Lab upgrade for technology research
+            underConstruction: constructionDays > 0,
+            constructionDaysLeft: constructionDays,
+            constructionDaysTotal: constructionDays,
         };
 
         // Initialize playerProperties array if it doesn't exist
@@ -283,7 +753,7 @@ const PlayerEconomy = {
         // Increase commerce skill
         player.skills.commerce = Math.min(10, player.skills.commerce + 0.5);
 
-        return { success: true, property: tile.playerProperty };
+        return { success: true, property: tile.playerProperty, underConstruction: constructionDays > 0, constructionDays };
     },
 
     /**
@@ -299,6 +769,49 @@ const PlayerEconomy = {
             if (!tile || !tile.playerProperty) continue;
 
             const property = tile.playerProperty;
+            if (property.underConstruction) continue; // Still building
+
+            // Tavern earns gold directly — handled separately
+            if (property.type === 'tavern') {
+                const upkeepCost = (property.upkeep || 0) * property.level;
+                if (player.gold >= upkeepCost) {
+                    player.gold -= upkeepCost;
+                    // Calculate tavern income based on settlement size
+                    let baseIncome = 15;
+                    if (tile.settlement) {
+                        const pop = tile.settlement.population || 50;
+                        if (tile.settlement.type === 'capital') baseIncome = 35;
+                        else if (tile.settlement.type === 'town') baseIncome = 25;
+                        baseIncome += Math.floor(pop / 100) * 2; // +2g per 100 pop
+                    }
+                    // Level bonus
+                    baseIncome = Math.floor(baseIncome * (1 + (property.level - 1) * 0.15));
+                    // Commerce skill bonus
+                    baseIncome = Math.floor(baseIncome * (1 + player.skills.commerce * 0.05));
+                    // Beer/liquor stock bonus (if player has stocked the tavern)
+                    const beerStock = property.beerStock || 0;
+                    const liquorStock = property.liquorStock || 0;
+                    if (beerStock > 0) {
+                        baseIncome = Math.floor(baseIncome * 1.3);
+                        property.beerStock = Math.max(0, beerStock - 2); // Consume 2 beer/day
+                    }
+                    if (liquorStock > 0) {
+                        baseIncome = Math.floor(baseIncome * 1.2);
+                        property.liquorStock = Math.max(0, liquorStock - 1); // Consume 1 liquor/day
+                    }
+                    // Gambling tables bonus
+                    if (property.gamblingTables) {
+                        baseIncome = Math.floor(baseIncome * (1 + property.gamblingTables * 0.15));
+                    }
+                    player.gold += baseIncome;
+                    property.storage = (property.storage || 0) + baseIncome; // Track total earnings in storage
+                    property.todayIncome = baseIncome;
+                    production['tavern_income'] = (production['tavern_income'] || 0) + baseIncome;
+                }
+                property.daysOwned = (property.daysOwned || 0) + 1;
+                continue;
+            }
+
             if (!property.produces) continue; // Trading posts don't produce
 
             // Calculate production
@@ -623,9 +1136,15 @@ const PlayerEconomy = {
      * Update all player caravans
      */
     updateCaravans(player, world) {
-        if (!player.caravans || player.caravans.length === 0) return [];
-
         const completed = [];
+        PlayerEconomy.ensureEconomyState(player);
+
+        // Tick route and auction systems first (daily)
+        PlayerEconomy._tickPersistentRoutes(player, world);
+        const auctionEvents = PlayerEconomy._processAuctions(player, world);
+        if (auctionEvents.length > 0) completed.push(...auctionEvents);
+
+        if (!player.caravans || player.caravans.length === 0) return completed;
 
         for (let i = player.caravans.length - 1; i >= 0; i--) {
             const caravan = player.caravans[i];
@@ -639,6 +1158,16 @@ const PlayerEconomy = {
                         // Unit is gone! Likely destroyed by raiders or bug
                         // Check if it was robbed? World events would have logged it.
                         caravan.status = 'lost';
+                        if (caravan.routeId) {
+                            const routeRef = PlayerEconomy._getRouteById(player, caravan.routeId, caravan.isSmugglingRoute);
+                            if (routeRef) PlayerEconomy._recordRouteLoss(routeRef);
+                            completed.push({
+                                ...caravan,
+                                finalProfit: 0,
+                                status: 'lost',
+                                message: `${caravan.from} → ${caravan.to} caravan was raided and lost.`,
+                            });
+                        }
                         // Maybe notify player here via return object?
                         // For now just remove
                         player.caravans.splice(i, 1);
@@ -658,6 +1187,16 @@ const PlayerEconomy = {
                         unit.destroyed = true; // Remove the physical unit now
                     } else if (unit.destroyed) {
                         caravan.status = 'lost';
+                        if (caravan.routeId) {
+                            const routeRef = PlayerEconomy._getRouteById(player, caravan.routeId, caravan.isSmugglingRoute);
+                            if (routeRef) PlayerEconomy._recordRouteLoss(routeRef);
+                            completed.push({
+                                ...caravan,
+                                finalProfit: 0,
+                                status: 'lost',
+                                message: `${caravan.from} → ${caravan.to} caravan was destroyed en route.`,
+                            });
+                        }
                         player.caravans.splice(i, 1);
                         continue;
                     } else {
@@ -701,13 +1240,63 @@ const PlayerEconomy = {
                         else if (targetTile.settlement.type === 'city') settlementMultiplier = 1.2;
                     }
 
-                    const grossRevenue = Math.floor(marketValue * distanceMultiplier * settlementMultiplier);
+                    let grossRevenue = Math.floor(marketValue * distanceMultiplier * settlementMultiplier);
+
+                    let routeRef = null;
+                    if (caravan.routeId) {
+                        routeRef = PlayerEconomy._getRouteById(player, caravan.routeId, caravan.isSmugglingRoute);
+                        if (routeRef) {
+                            const prosperityBonus = 1 + (routeRef.prosperity || 0) * 0.04;
+                            const roadBonus = 1 + (routeRef.roadQuality || 0) * 0.06;
+                            grossRevenue = Math.floor(grossRevenue * prosperityBonus * roadBonus);
+
+                            if (caravan.isSmugglingRoute) {
+                                const smuggleMultiplier = 1.35 + (routeRef.prosperity || 0) * 0.05;
+                                grossRevenue = Math.floor(grossRevenue * smuggleMultiplier);
+                            }
+                        }
+                    }
 
                     const bonus = 1 + player.skills.commerce * 0.05;
-                    const finalProfit = Math.floor(grossRevenue * bonus);
+                    let finalProfit = Math.floor(grossRevenue * bonus);
+
+                    let smuggleCaught = false;
+                    if (caravan.isSmugglingRoute && routeRef) {
+                        const stealth = player.skills?.stealth || 1;
+                        const caughtChance = Math.max(0.06, Math.min(0.62,
+                            0.28 + dist * 0.01 - stealth * 0.02 - (routeRef.protection || 0) * 0.03
+                        ));
+
+                        if (Math.random() < caughtChance) {
+                            smuggleCaught = true;
+                            const confiscated = Math.floor(finalProfit * (0.35 + Math.random() * 0.2));
+                            finalProfit = Math.max(0, finalProfit - confiscated);
+
+                            const fine = Math.min(player.gold, Math.floor(confiscated * 0.4));
+                            player.gold -= fine;
+                            player.karma = (player.karma || 0) - 2;
+                            if (!player.criminalRecord) player.criminalRecord = { pickpocket: 0, smuggling: 0 };
+                            player.criminalRecord.smuggling = (player.criminalRecord.smuggling || 0) + 1;
+
+                            if (targetTile && targetTile.settlement && targetTile.settlement.kingdom && player.reputation) {
+                                player.reputation[targetTile.settlement.kingdom] = (player.reputation[targetTile.settlement.kingdom] || 0) - 4;
+                            }
+                        }
+                    }
 
                     player.gold += finalProfit;
-                    completed.push({ ...caravan, finalProfit });
+                    completed.push({
+                        ...caravan,
+                        finalProfit,
+                        status: smuggleCaught ? 'smuggling_caught' : 'completed',
+                        message: smuggleCaught
+                            ? `${caravan.from} → ${caravan.to}: guards intercepted part of the shipment.`
+                            : `${caravan.from} → ${caravan.to}: route delivered successfully.`,
+                    });
+
+                    if (routeRef) {
+                        PlayerEconomy._recordRouteSuccess(routeRef, finalProfit);
+                    }
 
                     // Track for quests
                     Quests.trackCaravanCompleted(player);

@@ -428,7 +428,7 @@
         "CURRENCY_MINTING": {
             "id": "currency_minting",
             "name": "Currency Minting",
-            "icon": "🪙",
+            "icon": "💰",
             "category": "commerce",
             "cost": 250,
             "days": 10,

@@ -1,0 +1,46 @@
+{
+    "artifacts": [
+        {
+            "id": "sword_first_king",
+            "name": "Sword of the First King",
+            "icon": "🗡️",
+            "description": "A mythic blade said to have united the first realm.",
+            "fragmentsRequired": 3,
+            "poiBias": ["ruins", "monument", "cave"],
+            "questId": "artifact_sword_first_king",
+            "reforgeRewards": {
+                "gold": 800,
+                "renown": 35,
+                "combatSkill": 1
+            }
+        },
+        {
+            "id": "crown_embers",
+            "name": "Crown of Embers",
+            "icon": "👑",
+            "description": "A scorched circlet once worn by a ruler who survived a kingdom-ending fire.",
+            "fragmentsRequired": 4,
+            "poiBias": ["monument", "ruins", "shrine"],
+            "questId": "artifact_crown_embers",
+            "reforgeRewards": {
+                "gold": 1000,
+                "renown": 40,
+                "diplomacySkill": 1
+            }
+        },
+        {
+            "id": "astrolabe_tides",
+            "name": "Astrolabe of Tides",
+            "icon": "🧭",
+            "description": "An ancient navigation instrument used by vanished ocean explorers.",
+            "fragmentsRequired": 3,
+            "poiBias": ["cave", "oasis", "ruins"],
+            "questId": "artifact_astrolabe_tides",
+            "reforgeRewards": {
+                "gold": 700,
+                "renown": 30,
+                "cartographySkill": 1
+            }
+        }
+    ]
+}

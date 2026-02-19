@@ -214,7 +214,7 @@
       {
         "id": "coin_flip",
         "name": "Dragon's Flip",
-        "icon": "🪙",
+        "icon": "🐉",
         "description": "Call the coin — dragon or shield. Double or nothing.",
         "minBet": 10,
         "maxBet": 500,

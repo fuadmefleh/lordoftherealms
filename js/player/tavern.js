@@ -805,7 +805,7 @@ const Tavern = {
 
         return {
             category: Tavern.CATEGORIES.MARKET_PRICES,
-            icon: '🪙',
+            icon: '💰',
             title: `Price Info: ${good.name}`,
             text: `Someone mentions ${good.icon} ${good.name} is ${comparison} in ${dest.name} — about ${reported}g.`,
             reliability, accurate,

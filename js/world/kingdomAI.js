@@ -287,18 +287,113 @@ const KingdomAI = {
         }
     },
 
+    _normalizeComposition(comp) {
+        const c = {
+            cavalry: Math.max(0, comp.cavalry || 0),
+            archer: Math.max(0, comp.archer || 0),
+            pikeman: Math.max(0, comp.pikeman || 0),
+        };
+        const total = c.cavalry + c.archer + c.pikeman;
+        if (total <= 0) return { cavalry: 0.33, archer: 0.33, pikeman: 0.34 };
+        c.cavalry /= total;
+        c.archer /= total;
+        c.pikeman /= total;
+        return c;
+    },
+
+    _getKingdomComposition(kingdom) {
+        const comp = { cavalry: 0.30, archer: 0.28, pikeman: 0.42 };
+        const traits = kingdom.traits || [];
+
+        if (traits.includes('nomadic') || traits.includes('aggressive')) comp.cavalry += 0.12;
+        if (traits.includes('woodland') || traits.includes('maritime')) comp.archer += 0.10;
+        if (traits.includes('imperial') || traits.includes('religious')) comp.pikeman += 0.10;
+
+        return KingdomAI._normalizeComposition(comp);
+    },
+
+    _counterMultiplier(attackerComp, defenderComp) {
+        const advantage =
+            attackerComp.cavalry * defenderComp.archer +
+            attackerComp.archer * defenderComp.pikeman +
+            attackerComp.pikeman * defenderComp.cavalry;
+        const disadvantage =
+            defenderComp.cavalry * attackerComp.archer +
+            defenderComp.archer * attackerComp.pikeman +
+            defenderComp.pikeman * attackerComp.cavalry;
+
+        const score = advantage - disadvantage;
+        return Math.max(0.82, Math.min(1.22, 1 + score * 0.7));
+    },
+
+    _terrainMultiplier(terrainId, composition) {
+        const hill = ['hills', 'highlands', 'foothills'].includes(terrainId);
+        const plains = ['plains', 'grassland', 'steppe', 'savanna'].includes(terrainId);
+
+        if (hill) return 1 + composition.archer * 0.16;
+        if (plains) return 1 + composition.cavalry * 0.16;
+        return 1;
+    },
+
+    _moraleValue(ownStrength, enemyStrength, bonus = 0) {
+        const pressure = enemyStrength / Math.max(1, ownStrength);
+        const morale = 1 - Math.max(0, pressure - 1) * 0.3 + bonus;
+        return Math.max(0.48, Math.min(1.18, morale));
+    },
+
+    _checkMoraleBreak(ownStrength, enemyStrength, moraleValue) {
+        const ratio = enemyStrength / Math.max(1, ownStrength);
+        if (ratio < 1.8) return false;
+        const chance = Math.max(0.06, Math.min(0.72, (ratio - 1.6) * 0.42 + (1 - moraleValue) * 0.55));
+        return Math.random() < chance;
+    },
+
     /**
      * Simulate a battle between two kingdoms
      */
     simulateBattle(attacker, defender, world) {
-        const attackPower = attacker.military * Utils.randFloat(0.8, 1.2);
-        const defensePower = defender.military * Utils.randFloat(0.8, 1.2);
+        const frontline = defender.territory.length > 0 ? Utils.randPick(defender.territory) : null;
+        const battleTile = frontline ? world.getTile(frontline.q, frontline.r) : null;
+        const terrainId = battleTile?.terrain?.id;
+
+        const attackerComp = KingdomAI._getKingdomComposition(attacker);
+        const defenderComp = KingdomAI._getKingdomComposition(defender);
+
+        const attackerCounterMult = KingdomAI._counterMultiplier(attackerComp, defenderComp);
+        const defenderCounterMult = KingdomAI._counterMultiplier(defenderComp, attackerComp);
+        const attackerTerrainMult = KingdomAI._terrainMultiplier(terrainId, attackerComp);
+        const defenderTerrainMult = KingdomAI._terrainMultiplier(terrainId, defenderComp);
+
+        const attackerMorale = KingdomAI._moraleValue(attacker.military, defender.military, attacker.characterBonuses?.military || 0);
+        const defenderMorale = KingdomAI._moraleValue(defender.military, attacker.military, defender.characterBonuses?.military || 0);
+
+        let attackPower = attacker.military * Utils.randFloat(0.8, 1.2) * attackerCounterMult * attackerTerrainMult * attackerMorale;
+        let defensePower = defender.military * Utils.randFloat(0.8, 1.2) * defenderCounterMult * defenderTerrainMult * defenderMorale;
+
+        let moraleBreak = null;
+        if (KingdomAI._checkMoraleBreak(attacker.military, defender.military, attackerMorale)) {
+            moraleBreak = attacker.id;
+            attackPower *= 0.55;
+            defensePower *= 1.12;
+        } else if (KingdomAI._checkMoraleBreak(defender.military, attacker.military, defenderMorale)) {
+            moraleBreak = defender.id;
+            defensePower *= 0.55;
+            attackPower *= 1.12;
+        }
+
+        if (moraleBreak) {
+            const fleeingName = moraleBreak === attacker.id ? attacker.name : defender.name;
+            world.events.push({
+                text: `😨 ${fleeingName}'s lines broke under pressure and began to flee!`,
+                type: 'military'
+            });
+        }
 
         // Determine winner
         if (attackPower > defensePower) {
             // Attacker wins - steal territory
             if (defender.territory.length > 0) {
-                const stolenTile = Utils.randPick(defender.territory);
+                const stolenTile = frontline || Utils.randPick(defender.territory);
                 const tile = world.getTile(stolenTile.q, stolenTile.r);
 
                 if (tile) {
@@ -315,8 +410,10 @@ const KingdomAI = {
                 }
 
                 // Reduce defender military
-                defender.military = Math.floor(defender.military * 0.9);
-                attacker.military = Math.floor(attacker.military * 0.95);
+                const defenderLossMult = moraleBreak === defender.id ? 0.82 : 0.9;
+                const attackerLossMult = moraleBreak === defender.id ? 0.97 : 0.95;
+                defender.military = Math.floor(defender.military * defenderLossMult);
+                attacker.military = Math.floor(attacker.military * attackerLossMult);
 
                 // Check if defender is defeated
                 if (defender.territory.length === 0) {
@@ -332,8 +429,10 @@ const KingdomAI = {
             }
         } else {
             // Defender wins - attacker loses military
-            attacker.military = Math.floor(attacker.military * 0.85);
-            defender.military = Math.floor(defender.military * 0.95);
+            const attackerLossMult = moraleBreak === attacker.id ? 0.78 : 0.85;
+            const defenderLossMult = moraleBreak === attacker.id ? 0.98 : 0.95;
+            attacker.military = Math.floor(attacker.military * attackerLossMult);
+            defender.military = Math.floor(defender.military * defenderLossMult);
 
             // Small chance war ends
             if (Math.random() < 0.2) {

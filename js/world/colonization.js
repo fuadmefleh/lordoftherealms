@@ -32,6 +32,15 @@ const Colonization = {
     /** Chance per day a colony revolts when loyalty is below threshold */
     REVOLT_CHANCE_PER_DAY: 0.03,
 
+    /** Incentive definitions for attracting settlers */
+    INCENTIVES: {
+        none:          { name: 'None',          icon: '—',  desc: 'No incentives offered.',                         dailyCost: 0,  attractionBonus: 0,   setupCost: 0 },
+        land_grant:    { name: 'Free Land',     icon: '🏕️', desc: 'Offer free plots of land to settlers.',           dailyCost: 3,  attractionBonus: 0.15, setupCost: 50 },
+        tax_break:     { name: 'Tax Holiday',   icon: '📜', desc: 'No taxes for the first year.',                   dailyCost: 5,  attractionBonus: 0.10, setupCost: 30 },
+        free_housing:  { name: 'Free Housing',  icon: '🏠', desc: 'Build shelters for incoming settlers.',          dailyCost: 8,  attractionBonus: 0.25, setupCost: 100 },
+        gold_bonus:    { name: 'Settling Bonus', icon: '💰', desc: 'Pay 10g per settler who arrives.',              dailyCost: 0,  attractionBonus: 0.20, setupCost: 0, perSettlerCost: 10 },
+    },
+
     /** Indigenous population templates */
     INDIGENOUS_TRIBES: [
         { id: 'forest_folk',    name: 'Forest Folk',    icon: '🌲', terrains: ['forest', 'dense_forest', 'woodland', 'boreal_forest', 'seasonal_forest', 'temperate_rainforest', 'tropical_rainforest'], hostility: 0.3, tradeability: 0.6 },
@@ -235,9 +244,16 @@ const Colonization = {
 
             // ── Colony growth ──
             if (colonyData.loyalty > 40) {
-                const growthRate = 1 + (policy.expansionBonus - 1) * 0.5;
-                const growth = Utils.randInt(1, Math.ceil(5 * growthRate));
-                tile.settlement.population += growth;
+                // Player colonies with 0 population don't grow organically
+                // — they need settlers recruited by the player first
+                if (colonyData.isPlayerColony && tile.settlement.population < 10) {
+                    // Process settler arrivals from recruitment
+                    Colonization._processSettlerArrivals(tile, world);
+                } else {
+                    const growthRate = 1 + (policy.expansionBonus - 1) * 0.5;
+                    const growth = Utils.randInt(1, Math.ceil(5 * growthRate));
+                    tile.settlement.population += growth;
+                }
 
                 // Level up
                 if (tile.settlement.population > 500 && tile.settlement.level < 1) {
@@ -490,7 +506,7 @@ const Colonization = {
         tile.settlement = {
             type: 'village',
             name: colonyName,
-            population: Utils.randInt(30, 80),
+            population: 0,
             level: 0,
             kingdom: player.allegiance || null,
             founded: world.day,
@@ -508,6 +524,16 @@ const Colonization = {
             indigenousRelation: 0,
             isPlayerColony: true,
             policy: policyId,
+            // Recruitment tracking
+            recruitment: {
+                recruited: 0,        // settlers recruited via word-of-mouth
+                enRoute: 0,          // settlers currently traveling
+                incentive: 'none',   // none, land_grant, tax_break, free_housing, gold_bonus
+                incentiveCost: 0,    // daily cost of active incentive
+                signboard: false,    // whether a signboard has been posted
+                reputation: 0,       // word-of-mouth reputation (0-100)
+                lastRecruitDay: 0,   // last day player recruited at another settlement
+            },
         };
 
         // Claim territory for the player's kingdom if aligned
@@ -546,6 +572,174 @@ const Colonization = {
         }
 
         return { success: true, name: colonyName, nearbyTribes: nearbyIndigenous.length };
+    },
+
+    /**
+     * Process daily settler arrivals for a player colony
+     */
+    _processSettlerArrivals(tile, world) {
+        const colony = tile.settlement.colony;
+        if (!colony || !colony.recruitment) return;
+
+        const rec = colony.recruitment;
+
+        // 1. Settlers en-route arrive (1-3 day travel time simulated)
+        if (rec.enRoute > 0) {
+            const arriving = Math.min(rec.enRoute, Utils.randInt(1, 3));
+            tile.settlement.population += arriving;
+            rec.enRoute -= arriving;
+
+            // Per-settler cost for gold_bonus incentive
+            if (rec.incentive === 'gold_bonus') {
+                const incentiveDef = Colonization.INCENTIVES.gold_bonus;
+                // Deduct from colony economy if available
+                if (tile.settlement.economy) {
+                    tile.settlement.economy.gold = Math.max(0, (tile.settlement.economy.gold || 0) - arriving * (incentiveDef.perSettlerCost || 10));
+                }
+            }
+        }
+
+        // 2. Passive attraction from signboard + reputation + incentives
+        let arrivalChance = 0;
+
+        // Signboard: very small trickle
+        if (rec.signboard) arrivalChance += 0.05;
+
+        // Reputation from word-of-mouth (0-100 → 0-0.3)
+        arrivalChance += (rec.reputation || 0) * 0.003;
+
+        // Incentive bonus
+        const incentiveDef = Colonization.INCENTIVES[rec.incentive] || Colonization.INCENTIVES.none;
+        arrivalChance += incentiveDef.attractionBonus;
+
+        // Reputation decays slowly
+        if (rec.reputation > 0) {
+            rec.reputation = Math.max(0, rec.reputation - 0.3);
+        }
+
+        // Daily incentive cost (deducted from colony treasury)
+        if (incentiveDef.dailyCost > 0 && tile.settlement.economy) {
+            tile.settlement.economy.gold = Math.max(0, (tile.settlement.economy.gold || 0) - incentiveDef.dailyCost);
+        }
+
+        // Roll for passive settlers
+        if (arrivalChance > 0 && Math.random() < arrivalChance) {
+            const settlers = Utils.randInt(1, 3);
+            rec.enRoute += settlers;
+        }
+
+        // Milestone: first 10 settlers
+        if (tile.settlement.population >= 10 && !colony._firstSettlersMilestone) {
+            colony._firstSettlersMilestone = true;
+            world.events.push({
+                text: `🏘️ ${tile.settlement.name} now has enough settlers to function as a small hamlet!`,
+                type: 'colonization',
+                category: 'ECONOMIC',
+            });
+        }
+    },
+
+    /**
+     * Recruit settlers from another settlement to a player colony
+     */
+    recruitSettlers(player, sourceTile, targetColony, world, amount, method) {
+        if (!player || !sourceTile.settlement || !targetColony.settlement?.colony) {
+            return { success: false, reason: 'Invalid source or target.' };
+        }
+
+        const colony = targetColony.settlement.colony;
+        if (!colony.recruitment) {
+            colony.recruitment = { recruited: 0, enRoute: 0, incentive: 'none', incentiveCost: 0, signboard: false, reputation: 0, lastRecruitDay: 0 };
+        }
+
+        const rec = colony.recruitment;
+        const sourcePop = sourceTile.settlement.population;
+
+        // Can only recruit a small fraction of the source settlement
+        const maxRecruit = Math.max(1, Math.floor(sourcePop * 0.02)); // 2% max
+        const actual = Math.min(amount, maxRecruit);
+
+        if (actual <= 0) {
+            return { success: false, reason: 'This settlement is too small to spare any people.' };
+        }
+
+        let goldCost = 0;
+        let karmaChange = 0;
+        let renownChange = 0;
+
+        if (method === 'persuade') {
+            // Free but limited, charisma-dependent
+            goldCost = 0;
+            karmaChange = 1;
+            renownChange = 2;
+        } else if (method === 'hire') {
+            // Pay settlers to move — 15g per person
+            goldCost = actual * 15;
+            if (player.gold < goldCost) {
+                return { success: false, reason: `Not enough gold. Need ${goldCost}g to hire ${actual} settlers.` };
+            }
+        } else if (method === 'promise') {
+            // Promise prosperity — builds reputation but can backfire
+            goldCost = 0;
+            karmaChange = -1; // slightly dubious
+            renownChange = 3;
+        }
+
+        // Deduct and apply
+        if (goldCost > 0) player.gold -= goldCost;
+        player.karma = (player.karma || 0) + karmaChange;
+        player.renown = (player.renown || 0) + renownChange;
+        sourceTile.settlement.population -= actual;
+        rec.enRoute += actual;
+        rec.recruited += actual;
+        rec.reputation = Math.min(100, (rec.reputation || 0) + actual * 5 + 5);
+        rec.lastRecruitDay = world.day;
+
+        // 2 AP cost
+        player.actionPoints = Math.max(0, (player.actionPoints || 0) - 2);
+
+        return {
+            success: true,
+            recruited: actual,
+            goldSpent: goldCost,
+            colonyName: targetColony.settlement.name,
+            enRoute: rec.enRoute,
+        };
+    },
+
+    /**
+     * Set an incentive for a player colony
+     */
+    setColonyIncentive(player, tile, incentiveId) {
+        if (!tile.settlement?.colony?.recruitment) return { success: false, reason: 'Not a valid colony.' };
+        const inc = Colonization.INCENTIVES[incentiveId];
+        if (!inc) return { success: false, reason: 'Unknown incentive type.' };
+
+        if (inc.setupCost > 0 && player.gold < inc.setupCost) {
+            return { success: false, reason: `Need ${inc.setupCost}g to set up ${inc.name}.` };
+        }
+
+        if (inc.setupCost > 0) player.gold -= inc.setupCost;
+
+        tile.settlement.colony.recruitment.incentive = incentiveId;
+        tile.settlement.colony.recruitment.incentiveCost = inc.dailyCost;
+
+        return { success: true, incentive: inc };
+    },
+
+    /**
+     * Post a signboard at the colony to attract passing travelers
+     */
+    postSignboard(player, tile) {
+        if (!tile.settlement?.colony?.recruitment) return { success: false, reason: 'Not a valid colony.' };
+        if (tile.settlement.colony.recruitment.signboard) return { success: false, reason: 'Signboard already posted.' };
+
+        const cost = 20;
+        if (player.gold < cost) return { success: false, reason: `Need ${cost}g to post a signboard.` };
+
+        player.gold -= cost;
+        tile.settlement.colony.recruitment.signboard = true;
+        return { success: true };
     },
 
     /**

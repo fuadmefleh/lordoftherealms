@@ -95,7 +95,7 @@ const LocalMap = {
         woodland:             ['herb_patch', 'game_trail', 'berry_bushes', 'old_shrine', 'mushroom_ring'],
         hills:                ['ore_vein', 'cave_mouth', 'ancient_stone', 'ruined_wall', 'hidden_spring'],
         mountain:             ['ore_vein', 'cave_mouth', 'hidden_spring', 'ancient_stone', 'ruined_wall'],
-        desert:               ['ancient_stone', 'buried_cache', 'ruined_wall', 'hidden_spring', 'old_shrine'],
+        desert:               ['ancient_stone', 'burial_mound', 'ruined_wall', 'hidden_spring', 'old_shrine'],
         savanna:              ['game_trail', 'old_shrine', 'burial_mound', 'herb_patch', 'berry_bushes'],
         tundra:               ['ancient_stone', 'cave_mouth', 'ruined_wall', 'game_trail', 'hidden_spring'],
         swamp:                ['mushroom_ring', 'herb_patch', 'ancient_stone', 'burial_mound', 'bandit_camp'],
@@ -336,7 +336,7 @@ const LocalMap = {
 
         if (!overlay) return;
 
-        // Set title
+        // Set title — coordinates are offset (col, row) matching the world map grid
         const terrainName = worldTile.terrain ? worldTile.terrain.name : 'Unknown';
         const icon = worldTile.terrain ? worldTile.terrain.icon : '🗺️';
         titleEl.textContent = `${icon} Exploring: ${terrainName} (${worldTile.q}, ${worldTile.r})`;

@@ -23,6 +23,10 @@ class Game {
         this.mouseDownPos = { x: 0, y: 0 };
         this.isProcessingTurn = false;
 
+        // Inner map state
+        this.innerMapCamera = new Camera(this.canvas);
+        this.innerMapMode = false;
+
         this.setupInputHandlers();
         this.initTitleScreen();
 
@@ -537,6 +541,21 @@ class Game {
         const deltaTime = Math.min((timestamp - this.lastTime) / 1000, 0.1);
         this.lastTime = timestamp;
 
+        // ── Inner Map Mode ──
+        if (this.innerMapMode && InnerMap.active) {
+            this.innerMapCamera.update(deltaTime);
+
+            // Update inner map hover
+            InnerMapRenderer._hoveredInnerHex = InnerMapRenderer.getInnerHexAtScreen(
+                this.mouseX, this.mouseY, this.innerMapCamera);
+
+            // Render inner map
+            InnerMapRenderer.render(this.renderer.ctx, this.canvas, this.innerMapCamera, deltaTime);
+
+            requestAnimationFrame((t) => this.gameLoop(t));
+            return;
+        }
+
         // Update camera
         this.camera.update(deltaTime);
 
@@ -648,6 +667,11 @@ class Game {
                 this.ui.setMapMode(next);
             }
             if (e.key === 'Escape') {
+                // Exit inner map mode
+                if (this.innerMapMode && InnerMap.active) {
+                    this.exitInnerMap();
+                    return;
+                }
                 if (this.player && (this.player.queuedPath || this.player.isMoving)) {
                     this.player.cancelTravel();
                     this.renderer.reachableHexes = this.player.getReachableHexes(this.world);
@@ -671,6 +695,42 @@ class Game {
      */
     handleClick(screenX, screenY, button = 'left') {
         if (!this.world || !this.player) return;
+
+        // ── Inner Map Mode clicks ──
+        if (this.innerMapMode && InnerMap.active) {
+            const innerHex = InnerMapRenderer.getInnerHexAtScreen(screenX, screenY, this.innerMapCamera);
+            if (!innerHex) return;
+
+            if (button === 'left') {
+                InnerMapRenderer._selectedInnerHex = innerHex;
+                const innerTile = InnerMap.getTile(innerHex.q, innerHex.r);
+                if (innerTile) {
+                    // Show inner tile info panel (same style as world map)
+                    this.ui.showInnerHexInfo(innerTile, innerHex.q, innerHex.r);
+                }
+            } else if (button === 'right') {
+                // Move player within inner map
+                const result = InnerMap.movePlayerTo(innerHex.q, innerHex.r);
+                if (result.moved) {
+                    // Center camera on player
+                    const pos = InnerMapRenderer.getInnerHexPixelPos(InnerMap.playerInnerQ, InnerMap.playerInnerR);
+                    this.innerMapCamera.centerOn(pos.x, pos.y);
+
+                    // Update info panel for new player position
+                    const arrivedTile = InnerMap.getTile(InnerMap.playerInnerQ, InnerMap.playerInnerR);
+                    if (arrivedTile) {
+                        this.ui.showInnerHexInfo(arrivedTile, InnerMap.playerInnerQ, InnerMap.playerInnerR);
+                    }
+
+                    if (result.encounter) {
+                        this._showEncounterNotification(result.encounter);
+                    }
+                } else if (!result.outOfBounds) {
+                    this.ui.showNotification('Blocked', 'Cannot move there — impassable terrain!', 'error');
+                }
+            }
+            return;
+        }
 
         const hex = this.renderer.getHexAtScreen(screenX, screenY);
         if (!hex) return;
@@ -763,10 +823,22 @@ class Game {
     }
 
     /**
-     * Handle double-click — show detailed info
+     * Handle double-click — show detailed info or enter inner map
      */
     handleDoubleClick(screenX, screenY) {
         if (!this.world) return;
+
+        // Double-click in inner map shows detailed tile info
+        if (this.innerMapMode && InnerMap.active) {
+            const innerHex = InnerMapRenderer.getInnerHexAtScreen(screenX, screenY, this.innerMapCamera);
+            if (!innerHex) return;
+            InnerMapRenderer._selectedInnerHex = innerHex;
+            const innerTile = InnerMap.getTile(innerHex.q, innerHex.r);
+            if (innerTile) {
+                this.ui.showInnerHexInfo(innerTile, innerHex.q, innerHex.r);
+            }
+            return;
+        }
 
         const hex = this.renderer.getHexAtScreen(screenX, screenY);
         if (!hex) return;
@@ -784,6 +856,223 @@ class Game {
                 this.ui.showKingdomInfo(kingdom);
             }
         }
+    }
+
+    // ═══════════════════════════════════════
+    // INNER MAP — Explore the interior of a world tile
+    // ═══════════════════════════════════════
+
+    /**
+     * Enter the inner map for a given world tile
+     */
+    enterInnerMap(worldQ, worldR) {
+        if (!this.world || !this.player) return;
+        if (typeof InnerMap === 'undefined') return;
+
+        const tile = this.world.getTile(worldQ, worldR);
+        if (!tile || !tile.explored) {
+            this.ui.showNotification('Unexplored', 'You must explore this tile first!', 'error');
+            return;
+        }
+
+        // Only allow on passable land tiles
+        if (!tile.terrain.passable) {
+            this.ui.showNotification('Impassable', 'You cannot explore the interior of this terrain.', 'error');
+            return;
+        }
+
+        const success = InnerMap.enter(this, worldQ, worldR);
+        if (!success) {
+            this.ui.showNotification('Error', 'Cannot enter this tile.', 'error');
+            return;
+        }
+
+        this.innerMapMode = true;
+
+        // Give inner-map renderer access to the world renderer's sprite assets
+        InnerMapRenderer.setRenderer(this.renderer);
+
+        // Set up inner map camera bounds
+        const innerHexSize = InnerMapRenderer.hexSize;
+        const innerPixelWidth = Math.sqrt(3) * innerHexSize * InnerMap.width + innerHexSize * 2;
+        const innerPixelHeight = innerHexSize * 1.5 * InnerMap.height + innerHexSize * 2;
+        this.innerMapCamera.setWorldBounds(innerPixelWidth, innerPixelHeight);
+        this.innerMapCamera.zoom = 1.2;
+        this.innerMapCamera.targetZoom = 1.2;
+
+        // Center on player position
+        const playerPos = InnerMapRenderer.getInnerHexPixelPos(InnerMap.playerInnerQ, InnerMap.playerInnerR);
+        this.innerMapCamera.centerOn(playerPos.x, playerPos.y);
+
+        // Hide world map UI elements
+        this._hideWorldMapUI();
+
+        // Show inner map exit button
+        this._showInnerMapExitButton();
+
+        // Notification
+        const terrainName = tile.terrain.name || tile.terrain.id;
+        this.ui.showNotification('🗺️ Entering Inner Map',
+            `Exploring the interior of ${terrainName}. Right-click to move, ESC to return.`, 'info');
+    }
+
+    /**
+     * Exit the inner map and return to the world map
+     */
+    exitInnerMap() {
+        if (!InnerMap.active) return;
+
+        InnerMap.exit(this);
+        this.innerMapMode = false;
+
+        // Remove exit button
+        this._hideInnerMapExitButton();
+
+        // Restore world map UI
+        this._showWorldMapUI();
+
+        // Re-center world map camera on player
+        if (this.player) {
+            const playerPos = Hex.axialToPixel(this.player.q, this.player.r, this.renderer.hexSize);
+            this.camera.centerOn(playerPos.x, playerPos.y);
+        }
+
+        this.ui.showNotification('🗺️ Returned to World Map', 'You returned to the world map.', 'info');
+    }
+
+    /**
+     * Show encounter notification
+     */
+    _showEncounterNotification(encounter) {
+        if (!encounter) return;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'encounterOverlay';
+        overlay.style.cssText = `
+            position: fixed; inset: 0; z-index: 1200;
+            background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+            display: flex; justify-content: center; align-items: center;
+        `;
+
+        const box = document.createElement('div');
+        box.style.cssText = `
+            background: rgba(16, 20, 28, 0.97);
+            border: 1px solid rgba(245, 197, 66, 0.4);
+            border-radius: 12px; padding: 24px 32px;
+            max-width: 400px; text-align: center;
+            box-shadow: 0 12px 48px rgba(0,0,0,0.85);
+            font-family: var(--font-body);
+        `;
+
+        box.innerHTML = `
+            <div style="font-size: 48px; margin-bottom: 12px;">${encounter.icon}</div>
+            <div style="font-family: var(--font-display); font-size: 18px; color: var(--gold); margin-bottom: 8px;">
+                ${encounter.name}
+            </div>
+            <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5;">
+                ${encounter.description}
+            </div>
+            <button id="encounterDismiss" style="
+                background: linear-gradient(135deg, #f5c542, #d4a843);
+                color: #1a1a2e; border: none; padding: 8px 24px;
+                border-radius: 6px; font-weight: 600; cursor: pointer;
+                font-size: 13px; font-family: var(--font-body);
+            ">Continue</button>
+        `;
+
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+
+        const dismiss = () => {
+            overlay.remove();
+        };
+
+        box.querySelector('#encounterDismiss').addEventListener('click', dismiss);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) dismiss(); });
+        window.addEventListener('keydown', function handler(e) {
+            if (e.key === 'Enter' || e.key === 'Escape') {
+                dismiss();
+                window.removeEventListener('keydown', handler);
+            }
+        });
+    }
+
+    /**
+     * Show info about an inner map tile (delegates to ui.showInnerHexInfo)
+     */
+    _showInnerTileInfo(tile, q, r) {
+        if (!tile || !this.ui) return;
+        this.ui.showInnerHexInfo(tile, q, r);
+    }
+
+    /**
+     * Show the inner map exit button
+     */
+    _showInnerMapExitButton() {
+        // Remove existing button if any
+        this._hideInnerMapExitButton();
+
+        const btn = document.createElement('button');
+        btn.id = 'innerMapExitBtn';
+        btn.innerHTML = '🔙 Return to World Map';
+        btn.style.cssText = `
+            position: fixed; top: 52px; right: 16px; z-index: 1100;
+            background: linear-gradient(135deg, rgba(16, 20, 28, 0.95), rgba(30, 35, 50, 0.95));
+            border: 1px solid rgba(245, 197, 66, 0.4);
+            color: #f5c542; padding: 10px 20px;
+            border-radius: 8px; font-weight: 600; cursor: pointer;
+            font-size: 13px; font-family: var(--font-body);
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+            transition: all 0.2s ease;
+        `;
+        btn.addEventListener('mouseenter', () => {
+            btn.style.borderColor = 'rgba(245, 197, 66, 0.8)';
+            btn.style.transform = 'scale(1.03)';
+        });
+        btn.addEventListener('mouseleave', () => {
+            btn.style.borderColor = 'rgba(245, 197, 66, 0.4)';
+            btn.style.transform = 'scale(1)';
+        });
+        btn.addEventListener('click', () => this.exitInnerMap());
+        document.body.appendChild(btn);
+    }
+
+    /**
+     * Hide the inner map exit button
+     */
+    _hideInnerMapExitButton() {
+        const btn = document.getElementById('innerMapExitBtn');
+        if (btn) btn.remove();
+    }
+
+    /**
+     * Hide world map UI elements when entering inner map
+     */
+    _hideWorldMapUI() {
+        // Hide hex info panel
+        const hexPanel = document.getElementById('hexInfoPanel');
+        if (hexPanel) hexPanel.classList.add('hidden');
+
+        // Hide kingdom panel
+        const kingdomPanel = document.getElementById('kingdomPanel');
+        if (kingdomPanel) kingdomPanel.classList.add('hidden');
+
+        // Hide minimap temporarily
+        const minimapCanvas = document.getElementById('minimapCanvas');
+        if (minimapCanvas) minimapCanvas.style.display = 'none';
+
+        // Close action menu if open
+        if (typeof ActionMenu !== 'undefined') ActionMenu.close();
+    }
+
+    /**
+     * Show world map UI elements when exiting inner map
+     */
+    _showWorldMapUI() {
+        // Restore minimap
+        const minimapCanvas = document.getElementById('minimapCanvas');
+        if (minimapCanvas) minimapCanvas.style.display = '';
     }
 
     /**

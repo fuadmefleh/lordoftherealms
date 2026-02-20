@@ -69,6 +69,16 @@ const PlayerActions = {
             description: 'Recover stamina and wait for the next day'
         });
 
+        // Explore Inner Map (available on any explored passable tile)
+        if (tile.terrain.passable && typeof InnerMap !== 'undefined') {
+            actions.push({
+                type: 'explore_inner_map',
+                label: 'Explore Area',
+                icon: '🔍',
+                description: 'Explore the interior of this tile in detail — discover hidden encounters and features'
+            });
+        }
+
         // Disembark from ship (if on a ship and on land/coast)
         if (player.boardedShip && tile.terrain.passable) {
             actions.push({

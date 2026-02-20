@@ -38,7 +38,7 @@ const ActionMenu = {
             rest: 'general', explore_poi: 'general', clear_trees: 'general', dig_treasure: 'general',
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general',
             prospect: 'general', tame_horse: 'general', craft_campfire: 'general',
-            disembark: 'general',
+            disembark: 'general', explore_inner_map: 'general',
             trade: 'commerce', contract: 'commerce', ship_passage: 'commerce',
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
             odd_jobs: 'commerce', bounty_board: 'commerce', busking: 'commerce', gambling: 'commerce',
@@ -442,6 +442,10 @@ const ActionMenu = {
                 break;
             case 'rest':
                 game.endDay();
+                break;
+            case 'explore_inner_map':
+                ActionMenu.close();
+                game.enterInnerMap(game.player.q, game.player.r);
                 break;
             case 'disembark':
                 ActionMenu.disembarkShip(game);

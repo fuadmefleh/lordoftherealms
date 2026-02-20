@@ -631,6 +631,136 @@ class UI {
     }
 
     /**
+     * Show hex info panel for an inner-map tile.
+     * Mirrors the world-map showHexInfo() but with inner-tile details.
+     */
+    showInnerHexInfo(tile, q, r) {
+        const panel = document.getElementById('hexInfoPanel');
+        const title = document.getElementById('hexInfoTitle');
+        const body  = document.getElementById('hexInfoBody');
+
+        if (!tile) return;
+
+        // Unexplored inner tile
+        if (!tile.explored) {
+            title.textContent = 'Unexplored';
+            title.style.color = '#888888';
+            body.innerHTML = `
+                <div class="info-row">
+                    <span class="info-label">Coordinates</span>
+                    <span class="info-value">${q}, ${r}</span>
+                </div>
+                <div style="color:#666; font-style:italic; margin-top:8px; font-size:12px;">
+                    This area has not been explored yet. Move closer to reveal it.
+                </div>
+            `;
+            panel.classList.add('visible');
+            this.showPanel('hexInfoPanel');
+            return;
+        }
+
+        const terrain = tile.subTerrain;
+        title.textContent = terrain.name;
+        title.style.color = '#ffffff';
+
+        // Parent terrain of the world tile
+        const parentLabel = tile.parentTerrain
+            ? tile.parentTerrain.charAt(0).toUpperCase() + tile.parentTerrain.slice(1).replace(/_/g, ' ')
+            : 'Unknown';
+
+        let html = `
+            <div class="info-row">
+                <span class="info-label">Terrain</span>
+                <span class="info-value" style="color:#ffffff !important;">${terrain.icon} ${terrain.name}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Coordinates</span>
+                <span class="info-value">${q}, ${r}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Parent Terrain</span>
+                <span class="info-value">${parentLabel}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Passable</span>
+                <span class="info-value" style="color:${terrain.passable !== false ? '#4FC3F7' : '#e74c3c'};">
+                    ${terrain.passable !== false ? '✔ Yes' : '✘ No'}
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Visibility</span>
+                <span class="info-value">${tile.visible ? '👁️ Visible' : '🌫️ Fog of War'}</span>
+            </div>
+        `;
+
+        // World tile info (coordinates of the parent tile)
+        if (typeof InnerMap !== 'undefined' && InnerMap.currentWorldTile) {
+            const wt = InnerMap.currentWorldTile;
+            html += `
+                <div class="info-row">
+                    <span class="info-label">World Tile</span>
+                    <span class="info-value">(${wt.q}, ${wt.r})</span>
+                </div>
+            `;
+        }
+
+        // Encounter info
+        if (tile.encounter) {
+            html += `<div class="info-section-title">Encounter</div>`;
+            if (tile.encounter.discovered) {
+                html += `
+                    <div class="info-row">
+                        <span class="info-label">Name</span>
+                        <span class="info-value" style="color:var(--gold);">${tile.encounter.icon} ${tile.encounter.name}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Description</span>
+                        <span class="info-value" style="font-size:11px;">${tile.encounter.description || ''}</span>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="info-row">
+                        <span class="info-label">Status</span>
+                        <span class="info-value" style="color:#f39c12;">✨ Something is here…</span>
+                    </div>
+                `;
+            }
+        }
+
+        // Player standing here
+        if (typeof InnerMap !== 'undefined' && InnerMap.playerInnerQ === q && InnerMap.playerInnerR === r) {
+            html += `
+                <div class="info-section-title">Player</div>
+                <div class="info-row">
+                    <span class="info-label">🧭 You are here</span>
+                </div>
+            `;
+        }
+
+        // Exploration summary
+        if (typeof InnerMap !== 'undefined') {
+            const summary = InnerMap.getSummary();
+            if (summary) {
+                html += `
+                    <div class="info-section-title">Exploration</div>
+                    <div class="info-row">
+                        <span class="info-label">Progress</span>
+                        <span class="info-value">${summary.exploredPercent}%</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Discoveries</span>
+                        <span class="info-value">${summary.discoveredEncounters} / ${summary.encounters}</span>
+                    </div>
+                `;
+            }
+        }
+
+        body.innerHTML = html;
+        this.showPanel('hexInfoPanel');
+    }
+
+    /**
      * Show detailed economic breakdown for a settlement
      */
     showEconomicBreakdown(coordStr) {

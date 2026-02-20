@@ -102,6 +102,7 @@ const DataLoader = {
             'titles.json',
             'espionage.json',
             'artifacts.json',
+            'innerMap.json',
         ];
 
         const data = await this.loadAll(files);
@@ -300,6 +301,12 @@ const DataLoader = {
         const artifactsData = data['artifacts.json'];
         if (artifactsData) {
             DataLoader.artifacts = artifactsData;
+        }
+
+        // ── Inner Map ──
+        const innerMapData = data['innerMap.json'];
+        if (innerMapData && typeof InnerMap !== 'undefined') {
+            InnerMap.initialize(innerMapData);
         }
 
         const elapsed = (performance.now() - startTime).toFixed(1);

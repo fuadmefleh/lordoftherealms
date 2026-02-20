@@ -223,6 +223,7 @@ class Renderer {
 
         // Building / Population Center Sprites
         const POP_PATH = 'assets/tiles/pop_center_images/';
+        const BUILDING_PATH = 'assets/tiles/';
         const POP_IMAGES = {
             'settlement_capital': ['walledCity.png'],
             'settlement_town': ['village00.png', 'village01.png', 'village02.png', 'village03.png'],
@@ -247,6 +248,34 @@ class Renderer {
                 if (!this.tileSprites.has(imgName)) {
                     promises.push(this.loadTileSprite(imgName, POP_PATH + imgName));
                 }
+            }
+        }
+
+        // Inner-map building sprites (from assets/tiles/buildings/)
+        const BUILDING_SPRITES = [
+            'buildings/villageSmall00.png', 'buildings/villageSmall01.png',
+            'buildings/villageSmall02.png', 'buildings/villageSmall03.png',
+            'buildings/villageThatched00.png', 'buildings/villageThatched01.png',
+            'buildings/villageThatched02.png', 'buildings/villageThatched03.png',
+            'buildings/villageWood00.png', 'buildings/villageWood01.png',
+            'buildings/villageWood02.png', 'buildings/villageWood03.png',
+            'buildings/village00.png', 'buildings/village01.png',
+            'buildings/village02.png', 'buildings/village03.png',
+            'buildings/walledCity.png',
+            'buildings/marketplace00.png', 'buildings/inn.png',
+            'buildings/church00.png', 'buildings/temple.png',
+            'buildings/barracks00.png',
+            'buildings/granary00.png', 'buildings/granary01.png',
+            'buildings/granaryStone00.png', 'buildings/granaryStone01.png',
+            'buildings/warehouse00.png', 'buildings/smithy.png',
+            'buildings/well00.png', 'buildings/well01.png',
+            'buildings/barn00.png', 'buildings/barnWood00.png',
+            'buildings/tent00.png',
+            'buildings/sign00.png', 'buildings/sign01.png'
+        ];
+        for (const imgName of BUILDING_SPRITES) {
+            if (!this.tileSprites.has(imgName)) {
+                promises.push(this.loadTileSprite(imgName, BUILDING_PATH + imgName));
             }
         }
 

@@ -1,0 +1,328 @@
+{
+    "innerMapSize": { "width": 8, "height": 8 },
+    "subTerrains": {
+        "grassland": {
+            "primary": [
+                { "id": "grass", "name": "Grass", "icon": "🌿", "color": "#88aa55", "weight": 50 },
+                { "id": "tall_grass", "name": "Tall Grass", "icon": "🌾", "color": "#7a9a48", "weight": 20 },
+                { "id": "flowers", "name": "Wildflowers", "icon": "🌸", "color": "#a4c639", "weight": 10 },
+                { "id": "rocks", "name": "Scattered Rocks", "icon": "🪨", "color": "#999", "weight": 5 },
+                { "id": "pond", "name": "Small Pond", "icon": "💧", "color": "#5dade2", "weight": 3, "passable": false },
+                { "id": "bush", "name": "Berry Bushes", "icon": "🫐", "color": "#6b8e23", "weight": 8 },
+                { "id": "clearing", "name": "Open Clearing", "icon": "☀️", "color": "#c5d86d", "weight": 4 }
+            ],
+            "encounters": ["rabbit", "deer", "herb_patch", "traveler", "hidden_cache"]
+        },
+        "plains": {
+            "primary": [
+                { "id": "dry_grass", "name": "Dry Grass", "icon": "🌾", "color": "#bfa751", "weight": 45 },
+                { "id": "scrub", "name": "Scrubland", "icon": "🌿", "color": "#9a8a3a", "weight": 20 },
+                { "id": "dirt_path", "name": "Dirt Path", "icon": "🛤️", "color": "#8b7355", "weight": 10 },
+                { "id": "rocks", "name": "Boulders", "icon": "🪨", "color": "#888", "weight": 8 },
+                { "id": "wheat_field", "name": "Wild Wheat", "icon": "🌾", "color": "#daa520", "weight": 10 },
+                { "id": "watering_hole", "name": "Watering Hole", "icon": "💧", "color": "#5dade2", "weight": 3, "passable": false },
+                { "id": "campsite", "name": "Old Campsite", "icon": "🏕️", "color": "#c5a86d", "weight": 4 }
+            ],
+            "encounters": ["snake", "horse_herd", "abandoned_cart", "bandit_camp", "herb_patch"]
+        },
+        "woodland": {
+            "primary": [
+                { "id": "light_trees", "name": "Light Forest", "icon": "🌳", "color": "#668844", "weight": 40 },
+                { "id": "dense_brush", "name": "Dense Brush", "icon": "🌿", "color": "#4a6a2a", "weight": 15 },
+                { "id": "clearing", "name": "Forest Clearing", "icon": "☀️", "color": "#88aa55", "weight": 10 },
+                { "id": "fallen_log", "name": "Fallen Logs", "icon": "🪵", "color": "#8b4513", "weight": 10 },
+                { "id": "mushrooms", "name": "Mushroom Patch", "icon": "🍄", "color": "#6b4226", "weight": 8 },
+                { "id": "stream", "name": "Brook", "icon": "💧", "color": "#4a90d9", "weight": 5, "passable": false },
+                { "id": "thicket", "name": "Dense Thicket", "icon": "🌲", "color": "#3a5a2a", "weight": 8 },
+                { "id": "hollow_tree", "name": "Hollow Tree", "icon": "🕳️", "color": "#5a4a2a", "weight": 4 }
+            ],
+            "encounters": ["wolf", "deer", "forager", "mushroom_circle", "hidden_shrine", "woodcutter"]
+        },
+        "boreal_forest": {
+            "primary": [
+                { "id": "pine_trees", "name": "Pine Forest", "icon": "🌲", "color": "#446633", "weight": 45 },
+                { "id": "snow_patch", "name": "Snow Patch", "icon": "❄️", "color": "#e8e8e8", "weight": 10 },
+                { "id": "frozen_stream", "name": "Frozen Stream", "icon": "🧊", "color": "#a8d8ea", "weight": 5, "passable": false },
+                { "id": "moss", "name": "Moss-Covered Ground", "icon": "🌿", "color": "#4a7a3a", "weight": 15 },
+                { "id": "fallen_pine", "name": "Fallen Pines", "icon": "🪵", "color": "#6b4226", "weight": 10 },
+                { "id": "bear_den", "name": "Bear Den", "icon": "🐻", "color": "#5a4a3a", "weight": 3 },
+                { "id": "clearing", "name": "Snowy Clearing", "icon": "☀️", "color": "#c8d8c8", "weight": 8 },
+                { "id": "berries", "name": "Winter Berries", "icon": "🫐", "color": "#8b0000", "weight": 4 }
+            ],
+            "encounters": ["bear", "elk", "hermit", "frozen_corpse", "ancient_carving"]
+        },
+        "seasonal_forest": {
+            "primary": [
+                { "id": "deciduous_trees", "name": "Deciduous Trees", "icon": "🍂", "color": "#557733", "weight": 40 },
+                { "id": "underbrush", "name": "Underbrush", "icon": "🌿", "color": "#5a7a3a", "weight": 15 },
+                { "id": "clearing", "name": "Sunny Glade", "icon": "☀️", "color": "#88aa55", "weight": 10 },
+                { "id": "fruit_trees", "name": "Fruit Trees", "icon": "🍎", "color": "#6b8e23", "weight": 8 },
+                { "id": "stream", "name": "Gentle Stream", "icon": "💧", "color": "#4a90d9", "weight": 5, "passable": false },
+                { "id": "ancient_tree", "name": "Ancient Oak", "icon": "🌳", "color": "#3a5a1a", "weight": 5 },
+                { "id": "fallen_leaves", "name": "Leaf Carpet", "icon": "🍁", "color": "#c77a30", "weight": 12 },
+                { "id": "bird_nest", "name": "Nesting Area", "icon": "🐦", "color": "#8a7a5a", "weight": 5 }
+            ],
+            "encounters": ["fox", "songbird", "herbalist", "fairy_ring", "old_well"]
+        },
+        "temperate_rainforest": {
+            "primary": [
+                { "id": "giant_ferns", "name": "Giant Ferns", "icon": "🌿", "color": "#335522", "weight": 30 },
+                { "id": "moss_trees", "name": "Mossy Trees", "icon": "🌲", "color": "#2a4a1a", "weight": 25 },
+                { "id": "waterfall", "name": "Small Waterfall", "icon": "💦", "color": "#4a90d9", "weight": 4, "passable": false },
+                { "id": "muddy_ground", "name": "Muddy Ground", "icon": "🟤", "color": "#6b5a3a", "weight": 12 },
+                { "id": "vine_canopy", "name": "Vine Canopy", "icon": "🌿", "color": "#1a3a0a", "weight": 10 },
+                { "id": "fungus", "name": "Strange Fungus", "icon": "🍄", "color": "#8a2a6a", "weight": 8 },
+                { "id": "pool", "name": "Clear Pool", "icon": "💧", "color": "#3a8ab9", "weight": 4, "passable": false },
+                { "id": "hollow", "name": "Tree Hollow", "icon": "🕳️", "color": "#4a3a1a", "weight": 7 }
+            ],
+            "encounters": ["rare_herb", "spider_nest", "druid", "glowing_moss", "ancient_statue"]
+        },
+        "tropical_rainforest": {
+            "primary": [
+                { "id": "jungle_thick", "name": "Dense Jungle", "icon": "🌴", "color": "#224411", "weight": 35 },
+                { "id": "jungle_floor", "name": "Jungle Floor", "icon": "🌿", "color": "#2a5a1a", "weight": 20 },
+                { "id": "river", "name": "Jungle River", "icon": "💧", "color": "#2a6a4a", "weight": 5, "passable": false },
+                { "id": "fruit_grove", "name": "Exotic Fruit", "icon": "🥭", "color": "#4a8a2a", "weight": 8 },
+                { "id": "bamboo", "name": "Bamboo Thicket", "icon": "🎋", "color": "#5a8a3a", "weight": 10 },
+                { "id": "ruins_overgrown", "name": "Overgrown Ruins", "icon": "🏛️", "color": "#5a6a3a", "weight": 3 },
+                { "id": "canopy_gap", "name": "Canopy Gap", "icon": "☀️", "color": "#6aaa44", "weight": 8 },
+                { "id": "quicksand", "name": "Quicksand", "icon": "⚠️", "color": "#9a8a4a", "weight": 3, "passable": false },
+                { "id": "vines", "name": "Hanging Vines", "icon": "🌿", "color": "#1a4a0a", "weight": 8 }
+            ],
+            "encounters": ["parrot", "snake", "lost_explorer", "hidden_temple", "rare_orchid", "panther"]
+        },
+        "desert": {
+            "primary": [
+                { "id": "sand_dunes", "name": "Sand Dunes", "icon": "🏜️", "color": "#d4a843", "weight": 40 },
+                { "id": "rocky_ground", "name": "Rocky Ground", "icon": "🪨", "color": "#b08a5a", "weight": 20 },
+                { "id": "cactus", "name": "Cactus Patch", "icon": "🌵", "color": "#6b8e23", "weight": 10 },
+                { "id": "oasis_small", "name": "Small Oasis", "icon": "🌴", "color": "#5dade2", "weight": 3 },
+                { "id": "bleached_bones", "name": "Bleached Bones", "icon": "🦴", "color": "#e8d8c8", "weight": 5 },
+                { "id": "sand_flat", "name": "Flat Sand", "icon": "☀️", "color": "#e8c873", "weight": 15 },
+                { "id": "sandstone", "name": "Sandstone Formation", "icon": "🗿", "color": "#c89a5a", "weight": 5 },
+                { "id": "quicksand", "name": "Shifting Sands", "icon": "⚠️", "color": "#c4a050", "weight": 2, "passable": false }
+            ],
+            "encounters": ["scorpion", "mirage", "buried_treasure", "nomad_camp", "sand_wurm"]
+        },
+        "savanna": {
+            "primary": [
+                { "id": "dry_grass", "name": "Savanna Grass", "icon": "🌾", "color": "#ddbb66", "weight": 40 },
+                { "id": "acacia_tree", "name": "Acacia Tree", "icon": "🌳", "color": "#8a7a3a", "weight": 10 },
+                { "id": "termite_mound", "name": "Termite Mound", "icon": "🏔️", "color": "#a08a5a", "weight": 5 },
+                { "id": "watering_hole", "name": "Watering Hole", "icon": "💧", "color": "#5dade2", "weight": 4 },
+                { "id": "tall_grass", "name": "Tall Grass", "icon": "🌾", "color": "#c4a44a", "weight": 20 },
+                { "id": "rocky_outcrop", "name": "Rocky Outcrop", "icon": "🪨", "color": "#8a7a5a", "weight": 8 },
+                { "id": "dried_riverbed", "name": "Dried Riverbed", "icon": "🛤️", "color": "#b0a070", "weight": 5 },
+                { "id": "animal_trail", "name": "Animal Trail", "icon": "🐾", "color": "#a89a60", "weight": 8 }
+            ],
+            "encounters": ["lion", "elephant", "tribal_camp", "baobab_tree", "vultures"]
+        },
+        "mountain": {
+            "primary": [
+                { "id": "bare_rock", "name": "Bare Rock", "icon": "🪨", "color": "#808080", "weight": 35 },
+                { "id": "scree", "name": "Scree Slope", "icon": "⛰️", "color": "#6a6a6a", "weight": 20 },
+                { "id": "cliff_face", "name": "Cliff Face", "icon": "🧗", "color": "#5a5a5a", "weight": 10, "passable": false },
+                { "id": "mountain_stream", "name": "Mountain Stream", "icon": "💧", "color": "#4a90d9", "weight": 5 },
+                { "id": "cave_entrance", "name": "Cave Entrance", "icon": "🕳️", "color": "#3a3a3a", "weight": 4 },
+                { "id": "alpine_meadow", "name": "Alpine Meadow", "icon": "🌿", "color": "#7a9a5a", "weight": 8 },
+                { "id": "ledge", "name": "Narrow Ledge", "icon": "⛰️", "color": "#7a7a7a", "weight": 10 },
+                { "id": "mineral_vein", "name": "Mineral Vein", "icon": "💎", "color": "#4ae0e0", "weight": 3 },
+                { "id": "snow_cap", "name": "Snow Cap", "icon": "❄️", "color": "#e8e8e8", "weight": 5 }
+            ],
+            "encounters": ["mountain_goat", "eagle", "cave_bats", "ore_deposit", "hermit_sage", "rockslide"]
+        },
+        "hills": {
+            "primary": [
+                { "id": "grassy_hill", "name": "Grassy Hill", "icon": "⛰️", "color": "#8a7a5a", "weight": 35 },
+                { "id": "rocky_hill", "name": "Rocky Hilltop", "icon": "🪨", "color": "#7a6a4a", "weight": 15 },
+                { "id": "valley", "name": "Small Valley", "icon": "🌿", "color": "#6a8a4a", "weight": 12 },
+                { "id": "brook", "name": "Hillside Brook", "icon": "💧", "color": "#4a90d9", "weight": 5 },
+                { "id": "quarry", "name": "Natural Quarry", "icon": "⛏️", "color": "#6a6a5a", "weight": 5 },
+                { "id": "shepherds_rest", "name": "Shepherd's Rest", "icon": "🐑", "color": "#a8a878", "weight": 5 },
+                { "id": "wildflowers", "name": "Hillside Flowers", "icon": "🌸", "color": "#c89ac8", "weight": 10 },
+                { "id": "lookout_point", "name": "Lookout Point", "icon": "👁️", "color": "#8a8a7a", "weight": 8 },
+                { "id": "stone_circle", "name": "Old Stone Circle", "icon": "🗿", "color": "#7a7a6a", "weight": 5 }
+            ],
+            "encounters": ["sheep", "hawk", "prospector", "old_mine_shaft", "bandit_lookout"]
+        },
+        "swamp": {
+            "primary": [
+                { "id": "murky_water", "name": "Murky Water", "icon": "🐸", "color": "#3a5a2a", "weight": 25, "passable": false },
+                { "id": "bog", "name": "Soggy Bog", "icon": "🌿", "color": "#4a6a3a", "weight": 25 },
+                { "id": "dead_trees", "name": "Dead Trees", "icon": "🌲", "color": "#5a5a3a", "weight": 15 },
+                { "id": "moss_bank", "name": "Moss Bank", "icon": "🌿", "color": "#5a8a3a", "weight": 10 },
+                { "id": "lily_pads", "name": "Lily Pads", "icon": "🪷", "color": "#4a7a3a", "weight": 8 },
+                { "id": "mist_patch", "name": "Misty Area", "icon": "🌫️", "color": "#8a9a7a", "weight": 8 },
+                { "id": "dry_mound", "name": "Dry Mound", "icon": "🏝️", "color": "#6a7a4a", "weight": 5 },
+                { "id": "will_o_wisp", "name": "Strange Lights", "icon": "✨", "color": "#aaffaa", "weight": 4 }
+            ],
+            "encounters": ["giant_frog", "leech_swarm", "witch_hut", "sunken_chest", "will_o_wisp"]
+        },
+        "tundra": {
+            "primary": [
+                { "id": "frozen_ground", "name": "Frozen Ground", "icon": "🥶", "color": "#bce4ce", "weight": 35 },
+                { "id": "permafrost", "name": "Permafrost", "icon": "🧊", "color": "#a8c8b8", "weight": 20 },
+                { "id": "lichen", "name": "Lichen Patch", "icon": "🌿", "color": "#8aaa7a", "weight": 15 },
+                { "id": "frozen_pool", "name": "Frozen Pool", "icon": "🧊", "color": "#b8d8e8", "weight": 5, "passable": false },
+                { "id": "wind_swept", "name": "Wind-Swept Flat", "icon": "💨", "color": "#c8d8c0", "weight": 10 },
+                { "id": "snow_drift", "name": "Snow Drift", "icon": "❄️", "color": "#e8e8e8", "weight": 8 },
+                { "id": "stone_cairn", "name": "Stone Cairn", "icon": "🗿", "color": "#8a8a7a", "weight": 3 },
+                { "id": "reindeer_tracks", "name": "Reindeer Tracks", "icon": "🦌", "color": "#a8b898", "weight": 4 }
+            ],
+            "encounters": ["reindeer", "arctic_fox", "frozen_traveler", "ice_crystals", "aurora_spot"]
+        },
+        "snow": {
+            "primary": [
+                { "id": "snow_field", "name": "Snow Field", "icon": "❄️", "color": "#ffffff", "weight": 40 },
+                { "id": "ice_sheet", "name": "Ice Sheet", "icon": "🧊", "color": "#e5f9ff", "weight": 15, "passable": false },
+                { "id": "snow_bank", "name": "Snow Bank", "icon": "❄️", "color": "#f0f0f0", "weight": 15 },
+                { "id": "frozen_stream", "name": "Frozen Stream", "icon": "🧊", "color": "#c8e8f8", "weight": 5, "passable": false },
+                { "id": "pine_grove", "name": "Snow-Covered Pines", "icon": "🌲", "color": "#99aa88", "weight": 8 },
+                { "id": "ice_cave", "name": "Ice Cave", "icon": "🕳️", "color": "#a8c8d8", "weight": 3 },
+                { "id": "tracks", "name": "Animal Tracks", "icon": "🐾", "color": "#e0e0e0", "weight": 8 },
+                { "id": "wind_shelter", "name": "Wind Shelter", "icon": "🏕️", "color": "#d8d8d0", "weight": 6 }
+            ],
+            "encounters": ["polar_bear", "snow_rabbit", "frozen_ruins", "ice_spirit", "lost_expedition"]
+        },
+        "ice": {
+            "primary": [
+                { "id": "thick_ice", "name": "Thick Ice", "icon": "🧊", "color": "#e5f9ff", "weight": 45 },
+                { "id": "crevasse", "name": "Ice Crevasse", "icon": "⚠️", "color": "#88bacc", "weight": 8, "passable": false },
+                { "id": "snow_cover", "name": "Snow Cover", "icon": "❄️", "color": "#ffffff", "weight": 20 },
+                { "id": "ice_spire", "name": "Ice Spire", "icon": "💎", "color": "#c8e8ff", "weight": 5 },
+                { "id": "glacier", "name": "Glacial Ice", "icon": "🏔️", "color": "#d0eaff", "weight": 15 },
+                { "id": "frozen_lake", "name": "Frozen Lake", "icon": "🧊", "color": "#b0d0e8", "weight": 5, "passable": false },
+                { "id": "wind_carved", "name": "Wind-Carved Ice", "icon": "💨", "color": "#d8eaf0", "weight": 2 }
+            ],
+            "encounters": ["ice_elemental", "frozen_artifact", "blizzard_zone", "ice_bridge"]
+        },
+        "highlands": {
+            "primary": [
+                { "id": "heather", "name": "Heather Moor", "icon": "🌸", "color": "#8a6a8a", "weight": 25 },
+                { "id": "rocky_terrain", "name": "Rocky Terrain", "icon": "🪨", "color": "#6d7a5b", "weight": 25 },
+                { "id": "hill_grass", "name": "Highland Grass", "icon": "🌿", "color": "#7a8a5a", "weight": 20 },
+                { "id": "bog_patch", "name": "Highland Bog", "icon": "🌫️", "color": "#5a6a4a", "weight": 8, "passable": false },
+                { "id": "stone_wall", "name": "Old Stone Wall", "icon": "🧱", "color": "#7a7a6a", "weight": 5 },
+                { "id": "spring", "name": "Highland Spring", "icon": "💧", "color": "#4a90d9", "weight": 5 },
+                { "id": "cairn", "name": "Ancient Cairn", "icon": "🗿", "color": "#6a6a5a", "weight": 4 },
+                { "id": "sheep_meadow", "name": "Sheep Meadow", "icon": "🐑", "color": "#8aaa6a", "weight": 8 }
+            ],
+            "encounters": ["highland_cow", "eagle", "pict_stones", "hidden_spring", "shepherd"]
+        },
+        "beach": {
+            "primary": [
+                { "id": "sand", "name": "Sandy Beach", "icon": "🏖️", "color": "#e8d5a3", "weight": 40 },
+                { "id": "tide_pools", "name": "Tide Pools", "icon": "🐚", "color": "#6497b1", "weight": 10 },
+                { "id": "driftwood", "name": "Driftwood", "icon": "🪵", "color": "#8b7355", "weight": 12 },
+                { "id": "seaweed", "name": "Seaweed Patch", "icon": "🌿", "color": "#2a8a4a", "weight": 8 },
+                { "id": "rocky_shore", "name": "Rocky Shore", "icon": "🪨", "color": "#8a8a7a", "weight": 10 },
+                { "id": "shallow_water", "name": "Shallow Water", "icon": "💧", "color": "#6497b1", "weight": 8, "passable": false },
+                { "id": "palm_tree", "name": "Palm Tree", "icon": "🌴", "color": "#4a8a2a", "weight": 5 },
+                { "id": "shell_deposit", "name": "Shell Deposit", "icon": "🐚", "color": "#e8d0b0", "weight": 7 }
+            ],
+            "encounters": ["sea_turtle", "hermit_crab", "washed_up_chest", "fisherman", "message_bottle"]
+        },
+        "island": {
+            "primary": [
+                { "id": "sand", "name": "Island Sand", "icon": "🏝️", "color": "#e8d5a3", "weight": 25 },
+                { "id": "palm_grove", "name": "Palm Grove", "icon": "🌴", "color": "#4a8a2a", "weight": 20 },
+                { "id": "lagoon", "name": "Lagoon", "icon": "💧", "color": "#4abbd9", "weight": 8, "passable": false },
+                { "id": "rocky_coast", "name": "Rocky Coast", "icon": "🪨", "color": "#7a7a6a", "weight": 10 },
+                { "id": "tropical_bush", "name": "Tropical Bush", "icon": "🌿", "color": "#3a7a1a", "weight": 15 },
+                { "id": "coconut_tree", "name": "Coconut Tree", "icon": "🥥", "color": "#5a9a3a", "weight": 8 },
+                { "id": "campfire_ring", "name": "Old Campfire", "icon": "🏕️", "color": "#7a6a4a", "weight": 4 },
+                { "id": "shipwreck", "name": "Shipwreck", "icon": "🚢", "color": "#5a4a3a", "weight": 3 }
+            ],
+            "encounters": ["parrot", "coconut_crab", "pirate_cache", "castaway", "tropical_fruit"]
+        }
+    },
+    "encounterChance": 0.15,
+    "encounters": {
+        "rabbit": { "name": "Wild Rabbit", "icon": "🐇", "description": "A small rabbit darts through the grass." },
+        "deer": { "name": "Gentle Deer", "icon": "🦌", "description": "A deer watches you cautiously." },
+        "herb_patch": { "name": "Herb Patch", "icon": "🌿", "description": "Useful medicinal herbs grow here." },
+        "traveler": { "name": "Fellow Traveler", "icon": "🧑", "description": "A weary traveler rests by the path." },
+        "hidden_cache": { "name": "Hidden Cache", "icon": "📦", "description": "Someone stashed supplies here." },
+        "wolf": { "name": "Wolf Pack", "icon": "🐺", "description": "Wolves lurk in the shadows." },
+        "fox": { "name": "Cunning Fox", "icon": "🦊", "description": "A fox watches from the underbrush." },
+        "snake": { "name": "Venomous Snake", "icon": "🐍", "description": "A dangerous snake coils nearby." },
+        "bear": { "name": "Brown Bear", "icon": "🐻", "description": "A massive bear forages for berries." },
+        "elk": { "name": "Bull Elk", "icon": "🦌", "description": "A majestic elk with impressive antlers." },
+        "lion": { "name": "Savanna Lion", "icon": "🦁", "description": "A lion rests in the tall grass." },
+        "elephant": { "name": "Elephant Herd", "icon": "🐘", "description": "Elephants lumber through the savanna." },
+        "parrot": { "name": "Colorful Parrot", "icon": "🦜", "description": "A bright parrot squawks overhead." },
+        "panther": { "name": "Black Panther", "icon": "🐆", "description": "A panther stalks through the jungle." },
+        "scorpion": { "name": "Giant Scorpion", "icon": "🦂", "description": "A large scorpion scuttles across the sand." },
+        "mountain_goat": { "name": "Mountain Goat", "icon": "🐐", "description": "Sure-footed goats traverse the cliffs." },
+        "eagle": { "name": "Golden Eagle", "icon": "🦅", "description": "An eagle circles overhead." },
+        "giant_frog": { "name": "Giant Frog", "icon": "🐸", "description": "An enormous frog croaks from the murk." },
+        "polar_bear": { "name": "Polar Bear", "icon": "🐻‍❄️", "description": "A polar bear surveys its icy domain." },
+        "reindeer": { "name": "Reindeer Herd", "icon": "🦌", "description": "Reindeer migrate across the tundra." },
+        "arctic_fox": { "name": "Arctic Fox", "icon": "🦊", "description": "A white fox blends with the snow." },
+        "sea_turtle": { "name": "Sea Turtle", "icon": "🐢", "description": "A sea turtle rests on the beach." },
+        "horse_herd": { "name": "Wild Horses", "icon": "🐴", "description": "A herd of wild horses grazes freely." },
+        "sheep": { "name": "Mountain Sheep", "icon": "🐑", "description": "Hardy sheep graze on the hillside." },
+        "songbird": { "name": "Forest Songbird", "icon": "🐦", "description": "Beautiful birdsong fills the air." },
+        "spider_nest": { "name": "Spider Nest", "icon": "🕷️", "description": "Webs stretch between the trees." },
+        "hermit": { "name": "Forest Hermit", "icon": "🧙", "description": "An old hermit lives among the pines." },
+        "herbalist": { "name": "Wandering Herbalist", "icon": "🧑‍🌾", "description": "An herbalist gathers rare plants." },
+        "druid": { "name": "Forest Druid", "icon": "🧙‍♂️", "description": "A druid tends to the forest." },
+        "prospector": { "name": "Prospector", "icon": "⛏️", "description": "A prospector pans for gold." },
+        "shepherd": { "name": "Highland Shepherd", "icon": "🧑‍🌾", "description": "A shepherd tends their flock." },
+        "fisherman": { "name": "Old Fisherman", "icon": "🎣", "description": "A fisherman casts their line." },
+        "woodcutter": { "name": "Woodcutter", "icon": "🪓", "description": "A woodcutter chops nearby trees." },
+        "forager": { "name": "Mushroom Forager", "icon": "🍄", "description": "A forager searches for mushrooms." },
+        "nomad_camp": { "name": "Nomad Camp", "icon": "⛺", "description": "Desert nomads have set up camp." },
+        "tribal_camp": { "name": "Tribal Camp", "icon": "🏕️", "description": "A small tribal settlement." },
+        "bandit_camp": { "name": "Bandit Hideout", "icon": "🗡️", "description": "Bandits have made camp here." },
+        "bandit_lookout": { "name": "Bandit Lookout", "icon": "👁️", "description": "A bandit watchpost on the hill." },
+        "witch_hut": { "name": "Witch's Hut", "icon": "🏚️", "description": "A crumbling hut with strange symbols." },
+        "hidden_shrine": { "name": "Hidden Shrine", "icon": "⛩️", "description": "An ancient shrine in the woods." },
+        "fairy_ring": { "name": "Fairy Ring", "icon": "🍄", "description": "A circle of mushrooms radiates magic." },
+        "mushroom_circle": { "name": "Mushroom Circle", "icon": "🍄", "description": "A perfect circle of mushrooms." },
+        "ancient_carving": { "name": "Ancient Carving", "icon": "🗿", "description": "Strange carvings on the rocks." },
+        "old_well": { "name": "Old Well", "icon": "🪣", "description": "An ancient well, still with water." },
+        "frozen_corpse": { "name": "Frozen Corpse", "icon": "💀", "description": "A body frozen in the ice, with possessions." },
+        "frozen_ruins": { "name": "Frozen Ruins", "icon": "🏛️", "description": "Ruins emerge from the melting ice." },
+        "buried_treasure": { "name": "Buried Treasure", "icon": "💰", "description": "Something glints beneath the sand." },
+        "sunken_chest": { "name": "Sunken Chest", "icon": "📦", "description": "A chest half-buried in the muck." },
+        "washed_up_chest": { "name": "Washed-Up Chest", "icon": "📦", "description": "The sea brought this chest ashore." },
+        "pirate_cache": { "name": "Pirate Stash", "icon": "🏴‍☠️", "description": "A pirate's hidden treasure stash." },
+        "message_bottle": { "name": "Message in a Bottle", "icon": "🍾", "description": "A sealed bottle with a message." },
+        "abandoned_cart": { "name": "Abandoned Cart", "icon": "🛒", "description": "A merchant's cart left on the road." },
+        "lost_explorer": { "name": "Lost Explorer", "icon": "🧭", "description": "A lost explorer needs help." },
+        "castaway": { "name": "Castaway", "icon": "🧑", "description": "A castaway waves for help." },
+        "rare_herb": { "name": "Rare Herb", "icon": "🌿", "description": "An extremely rare medicinal plant." },
+        "rare_orchid": { "name": "Rare Orchid", "icon": "🌺", "description": "A beautiful rare orchid." },
+        "ore_deposit": { "name": "Rich Ore Deposit", "icon": "⛏️", "description": "A vein of precious ore." },
+        "glowing_moss": { "name": "Glowing Moss", "icon": "✨", "description": "Moss that glows with an eerie light." },
+        "old_mine_shaft": { "name": "Abandoned Mine","icon": "⛏️", "description": "A dark mine shaft leads underground." },
+        "hidden_spring": { "name": "Hidden Spring", "icon": "💧", "description": "A pure natural spring." },
+        "ancient_statue": { "name": "Ancient Statue", "icon": "🗿", "description": "A weathered statue of unknown origin." },
+        "hidden_temple": { "name": "Hidden Temple", "icon": "🏛️", "description": "A temple hidden by the jungle." },
+        "pict_stones": { "name": "Pictish Stones", "icon": "🗿", "description": "Stones carved with mystical symbols." },
+        "frozen_artifact": { "name": "Frozen Artifact", "icon": "💎", "description": "An artifact encased in ice." },
+        "ice_crystals": { "name": "Ice Crystals", "icon": "💎", "description": "Beautiful natural ice formations." },
+        "aurora_spot": { "name": "Aurora Viewpoint", "icon": "🌌", "description": "The best view of the northern lights." },
+        "ice_spirit": { "name": "Ice Spirit", "icon": "👻", "description": "A spectral presence in the ice." },
+        "ice_elemental": { "name": "Ice Elemental", "icon": "🧊", "description": "A being made of living ice." },
+        "blizzard_zone": { "name": "Blizzard Zone", "icon": "🌨️", "description": "Constant blizzard conditions." },
+        "ice_bridge": { "name": "Natural Ice Bridge", "icon": "🌉", "description": "A natural bridge of ice." },
+        "will_o_wisp": { "name": "Will-o'-the-Wisp", "icon": "✨", "description": "Mysterious lights dance in the mist." },
+        "leech_swarm": { "name": "Leech Swarm", "icon": "🐛", "description": "The water is infested with leeches." },
+        "mirage": { "name": "Desert Mirage", "icon": "🌅", "description": "A shimmering mirage on the horizon." },
+        "sand_wurm": { "name": "Sand Wurm Sign", "icon": "🐛", "description": "Something large moves beneath the sand." },
+        "cave_bats": { "name": "Colony of Bats", "icon": "🦇", "description": "Bats swarm from a cave entrance." },
+        "rockslide": { "name": "Recent Rockslide", "icon": "⛰️", "description": "A rockslide blocks part of the path." },
+        "hermit_sage": { "name": "Mountain Sage", "icon": "🧙", "description": "A wise hermit lives near the summit." },
+        "lost_expedition": { "name": "Lost Expedition", "icon": "🎒", "description": "Remnants of an expedition." },
+        "baobab_tree": { "name": "Ancient Baobab", "icon": "🌳", "description": "A massive ancient baobab tree." },
+        "vultures": { "name": "Circling Vultures", "icon": "🦅", "description": "Vultures circle something below." },
+        "highland_cow": { "name": "Highland Cattle", "icon": "🐄", "description": "Shaggy highland cattle graze." },
+        "coconut_crab": { "name": "Coconut Crab", "icon": "🦀", "description": "Large crabs climb the palm trees." },
+        "hermit_crab": { "name": "Hermit Crab", "icon": "🦀", "description": "Colorful hermit crabs scuttle about." },
+        "tropical_fruit": { "name": "Tropical Fruit", "icon": "🍌", "description": "Ripe tropical fruit hangs low." },
+        "snow_rabbit": { "name": "Snow Rabbit", "icon": "🐇", "description": "A white rabbit hops through the snow." },
+        "shipwreck": { "name": "Old Shipwreck", "icon": "🚢", "description": "The hull of an old ship rests here." }
+    }
+}

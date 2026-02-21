@@ -787,6 +787,17 @@ const PlayerEconomy = {
             const property = tile.playerProperty;
             if (property.underConstruction) continue; // Still building
 
+            // Handle retooling countdown (workshop/brewery recipe change)
+            if (property.retooling) {
+                property.retoolingDaysLeft = (property.retoolingDaysLeft || 0) - 1;
+                if (property.retoolingDaysLeft <= 0) {
+                    property.retooling = false;
+                    property.retoolingDaysLeft = 0;
+                }
+                property.daysOwned = (property.daysOwned || 0) + 1;
+                continue; // No production during retooling
+            }
+
             // Tavern earns gold directly — handled separately
             if (property.type === 'tavern') {
                 const upkeepCost = (property.upkeep || 0) * property.level;
@@ -1368,14 +1379,45 @@ const PlayerEconomy = {
     /**
      * Set active recipe for a workshop
      */
-    setWorkshopRecipe(tile, recipeId) {
-        if (!tile.playerProperty || (tile.playerProperty.type !== 'workshop' && tile.playerProperty.type !== 'brewery')) return { success: false };
-        tile.playerProperty.activeRecipe = recipeId;
+    setWorkshopRecipe(tile, recipeId, player) {
+        if (!tile.playerProperty || (tile.playerProperty.type !== 'workshop' && tile.playerProperty.type !== 'brewery')) return { success: false, reason: 'Not a workshop or brewery' };
+
+        const prop = tile.playerProperty;
+        const isChange = prop.activeRecipe && prop.activeRecipe !== recipeId;
+
+        // If changing recipe (not first selection), charge retooling cost
+        if (isChange && player) {
+            const propType = PlayerEconomy.PROPERTY_TYPES[prop.type.toUpperCase()] || {};
+            const baseCost = propType.recipeChangeCost || 150;
+            const retoolingCost = Math.floor(baseCost * prop.level);
+
+            if (player.gold < retoolingCost) {
+                return { success: false, reason: `Need ${retoolingCost} gold to retool workshop` };
+            }
+
+            player.gold -= retoolingCost;
+
+            // Return old input storage to player inventory
+            if (prop.inputStorage > 0 && prop.activeRecipe) {
+                const oldRecipe = PlayerEconomy.RECIPES[prop.activeRecipe];
+                if (oldRecipe && player.inventory) {
+                    player.inventory[oldRecipe.input] = (player.inventory[oldRecipe.input] || 0) + prop.inputStorage;
+                }
+                prop.inputStorage = 0;
+            }
+
+            // Set retooling downtime
+            const retoolingDays = propType.retoolingDays || 2;
+            prop.retooling = true;
+            prop.retoolingDaysLeft = retoolingDays;
+        }
+
+        prop.activeRecipe = recipeId;
         const recipe = PlayerEconomy.RECIPES[recipeId];
         if (recipe) {
-            tile.playerProperty.produces = recipe.output;
+            prop.produces = recipe.output;
         }
-        return { success: true };
+        return { success: true, wasChange: isChange };
     },
 
     /**

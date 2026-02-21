@@ -6,6 +6,8 @@
 ![Platform](https://img.shields.io/badge/platform-Web-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
+> 📖 **[Read the full Gameplay Manual](GAMEPLAY_MANUAL.md)** for detailed guides on every system — economy, combat, religion, technology, espionage, ships, diplomacy, and more.
+
 ---
 
 ## 🏰 Game Overview

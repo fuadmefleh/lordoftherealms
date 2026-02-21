@@ -936,28 +936,28 @@ const ActionMenu = {
 
         // ── Operational property management below ──
         html += `
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:24px;">
-                <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">
-                    <div style="font-size:11px; color:var(--text-secondary); margin-bottom:4px; letter-spacing:1px;">PRODUCTION</div>
-                    <div style="font-size:18px; font-weight:bold; color:#2ecc71;">${productionText}</div>
-                    <div style="font-size:12px; color:var(--text-secondary);">Rate: ${prodRateText}/day</div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:20px;">
+                <div style="background:rgba(46,204,113,0.06); padding:12px; border-radius:6px; border:1px solid rgba(46,204,113,0.15);">
+                    <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px; letter-spacing:1px; text-transform:uppercase;">Production</div>
+                    <div style="font-size:16px; font-weight:bold; color:#2ecc71;">${productionText}</div>
+                    <div style="font-size:11px; color:var(--text-secondary); margin-top:2px;">Rate: ${prodRateText}/day</div>
                 </div>
-                <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">
-                    <div style="font-size:11px; color:var(--text-secondary); margin-bottom:4px; letter-spacing:1px;">UPKEEP</div>
-                    <div style="font-size:24px; font-weight:bold; color:#e74c3c;">-${upkeep}g<span style="font-size:14px; color:var(--text-secondary);">/day</span></div>
+                <div style="background:rgba(231,76,60,0.06); padding:12px; border-radius:6px; border:1px solid rgba(231,76,60,0.15);">
+                    <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px; letter-spacing:1px; text-transform:uppercase;">Upkeep</div>
+                    <div style="font-size:20px; font-weight:bold; color:#e74c3c;">-${upkeep}g<span style="font-size:12px; color:var(--text-secondary);">/day</span></div>
                 </div>
-                <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">
-                    <div style="font-size:11px; color:var(--text-secondary); margin-bottom:4px; letter-spacing:1px;">${prop.type === 'tavern' ? 'TOTAL EARNINGS' : 'STORAGE (OUTPUT)'}</div>
+                <div style="background:rgba(255,255,255,0.04); padding:12px; border-radius:6px; border:1px solid rgba(255,255,255,0.08);">
+                    <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px; letter-spacing:1px; text-transform:uppercase;">${prop.type === 'tavern' ? 'Total Earnings' : 'Storage (Output)'}</div>
                      <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div style="font-size:24px; font-weight:bold;">${prop.type === 'tavern' ? (prop.storage || 0) + 'g' : prop.storage}</div>
-                        ${prop.type !== 'tavern' ? `<button onclick="window.collectPropertyGoods()" ${prop.storage <= 0 ? 'disabled' : ''} style="padding:6px 12px; background:var(--gold); border:none; border-radius:4px; cursor:pointer; font-weight:bold; opacity:${prop.storage <= 0 ? 0.5 : 1}">Collect</button>` : ''}
+                        <div style="font-size:20px; font-weight:bold; color:var(--text-primary);">${prop.type === 'tavern' ? (prop.storage || 0) + 'g' : prop.storage}</div>
+                        ${prop.type !== 'tavern' ? `<button onclick="window.collectPropertyGoods()" ${prop.storage <= 0 ? 'disabled' : ''} style="padding:5px 14px; background:${prop.storage > 0 ? 'var(--accent-green)' : 'rgba(255,255,255,0.08)'}; border:none; border-radius:4px; cursor:pointer; font-weight:600; font-size:12px; color:${prop.storage > 0 ? 'white' : 'var(--text-muted)'}; transition:all 0.15s;">Collect</button>` : ''}
                     </div>
                 </div>
-                 <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">
-                    <div style="font-size:11px; color:var(--text-secondary); margin-bottom:4px; letter-spacing:1px;">AUTO-SELL (50% Value)</div>
+                 <div style="background:rgba(255,255,255,0.04); padding:12px; border-radius:6px; border:1px solid rgba(255,255,255,0.08);">
+                    <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px; letter-spacing:1px; text-transform:uppercase;">Auto-Sell (50% Value)</div>
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div style="font-size:14px; font-weight:bold; color:${prop.autoSell ? '#2ecc71' : '#95a5a6'};">${prop.autoSell ? 'ENABLED' : 'DISABLED'}</div>
-                        <button onclick="window.toggleAutoSell()" style="padding:6px 12px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; border-radius:4px; cursor:pointer;">${prop.autoSell ? 'Disable' : 'Enable'}</button>
+                        <div style="font-size:13px; font-weight:bold; color:${prop.autoSell ? '#2ecc71' : '#95a5a6'};">${prop.autoSell ? 'ENABLED' : 'DISABLED'}</div>
+                        <button onclick="window.toggleAutoSell()" style="padding:5px 14px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:var(--text-primary); border-radius:4px; cursor:pointer; font-size:12px; font-weight:600; transition:all 0.15s;">${prop.autoSell ? 'Disable' : 'Enable'}</button>
                     </div>
                 </div>
             </div>
@@ -965,18 +965,41 @@ const ActionMenu = {
 
         // Workshop Specific Section: Recipe Selector & Input
         if (isWorkshop) {
+            const propType = PlayerEconomy.PROPERTY_TYPES[prop.type.toUpperCase()] || {};
+            const retoolingBaseCost = propType.recipeChangeCost || 150;
+            const retoolingCost = Math.floor(retoolingBaseCost * prop.level);
+            const isRetooling = prop.retooling && prop.retoolingDaysLeft > 0;
+
             html += `
-            <div style="margin-bottom:24px; background:rgba(255,255,255,0.03); padding:16px; border-radius:8px; border:1px dashed rgba(255,255,255,0.1);">
-                <h4 style="margin:0 0 12px 0; color:var(--gold); border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">Workshop Configuration</h4>
-                
+            <div style="margin-bottom:20px; background:rgba(255,255,255,0.03); padding:16px; border-radius:8px; border:1px solid ${isRetooling ? 'rgba(245,166,35,0.3)' : 'rgba(255,255,255,0.08)'};">
+                <h4 style="margin:0 0 12px 0; color:var(--gold); font-size:14px; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:8px; font-family:var(--font-display);">Workshop Configuration</h4>
+            `;
+
+            // Show retooling status banner
+            if (isRetooling) {
+                html += `
+                <div style="background:rgba(245,166,35,0.12); border:1px solid rgba(245,166,35,0.3); border-radius:6px; padding:10px 14px; margin-bottom:14px; display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:20px;">🔧</span>
+                    <div>
+                        <div style="color:#f5a623; font-weight:600; font-size:13px;">Retooling in Progress</div>
+                        <div style="color:var(--text-muted); font-size:11px; margin-top:2px;">${prop.retoolingDaysLeft} day${prop.retoolingDaysLeft !== 1 ? 's' : ''} remaining — no production during retooling</div>
+                    </div>
+                </div>
+                `;
+            }
+
+            html += `
                 <div style="margin-bottom:16px;">
-                    <div style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">Active Recipe</div>
-                    <select id="workshopRecipeSelector" onchange="window.selectRecipe(this.value)" style="width:100%; padding:8px; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.2); color:white; border-radius:4px;">
-                        <option value="">-- Select Recipe --</option>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Active Recipe</div>
+                        ${prop.activeRecipe ? `<div style="font-size:10px; color:var(--text-muted);">Change cost: <span style="color:var(--gold); font-weight:600;">${retoolingCost}g</span></div>` : ''}
+                    </div>
+                    <select id="workshopRecipeSelector" onchange="window.selectRecipe(this.value)" ${isRetooling ? 'disabled' : ''} style="width:100%; padding:8px 32px 8px 10px; background:rgba(245,197,66,0.06); border:1px solid var(--border-color); color:var(--gold); border-radius:var(--radius-sm); font-family:var(--font-body); font-size:13px; font-weight:600; outline:none; cursor:pointer; -webkit-appearance:none; -moz-appearance:none; appearance:none; background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f5c542' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E\"); background-repeat:no-repeat; background-position:right 8px center; background-size:12px; transition:all var(--transition-fast);">
+                        <option value="" style="background:#0c1220; color:var(--text-primary);">-- Select Recipe --</option>
                         ${(() => {
                             const allRecipes = (typeof Technology !== 'undefined') ? Technology.getUnlockedRecipes(game.player) : PlayerEconomy.RECIPES;
                             return Object.values(allRecipes).map(r => `
-                            <option value="${r.id.toUpperCase()}" ${prop.activeRecipe === r.id.toUpperCase() ? 'selected' : ''}>
+                            <option value="${r.id.toUpperCase()}" ${prop.activeRecipe === r.id.toUpperCase() ? 'selected' : ''} style="background:#0c1220; color:var(--text-primary); padding:6px 10px;">
                                 ${r.name} (${r.inputQty} ${PlayerEconomy.GOODS[r.input.toUpperCase()]?.name} ➔ ${r.outputQty} ${PlayerEconomy.GOODS[r.output.toUpperCase()]?.name})
                             </option>
                         `).join('');
@@ -985,24 +1008,27 @@ const ActionMenu = {
                 </div>
             `;
 
-            if (prop.activeRecipe) {
+            if (isRetooling) {
+                // During retooling, show muted input section
+                html += `<div style="color:var(--text-muted); font-style:italic; font-size:12px;">Workshop is being retooled. Deposits disabled until retooling completes.</div>`;
+            } else if (prop.activeRecipe) {
                 const recipe = PlayerEconomy.RECIPES[prop.activeRecipe];
                 const inputGood = PlayerEconomy.GOODS[recipe.input.toUpperCase()];
                 const playerHas = (game.player.inventory && game.player.inventory[recipe.input]) || 0;
 
                 html += `
-                <div style="display:flex; justify-content:space-between; items-center;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:16px;">
                     <div>
-                        <div style="font-size:12px; color:var(--text-secondary);">Input Storage (${inputGood.name})</div>
-                        <div style="font-size:20px; font-weight:bold;">${prop.inputStorage || 0} <span style="font-size:12px; font-weight:normal; opacity:0.6;">stored</span></div>
+                        <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Input Storage (${inputGood.name})</div>
+                        <div style="font-size:18px; font-weight:bold; color:var(--text-primary); margin-top:2px;">${prop.inputStorage || 0} <span style="font-size:11px; font-weight:normal; color:var(--text-muted);">stored</span></div>
                     </div>
                     <div>
-                        <div style="font-size:12px; color:var(--text-secondary); text-align:right;">In Inventory: ${playerHas}</div>
-                        <div style="display:flex; gap:8px; margin-top:4px;">
-                             <button onclick="window.depositToWorkshop('${recipe.input}', 1)" ${playerHas < 1 ? 'disabled' : ''} style="padding:4px 8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; cursor:pointer;">+1</button>
-                             <button onclick="window.depositToWorkshop('${recipe.input}', 10)" ${playerHas < 10 ? 'disabled' : ''} style="padding:4px 8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; cursor:pointer;">+10</button>
-                             <button onclick="window.depositToWorkshop('${recipe.input}', 100)" ${playerHas < 100 ? 'disabled' : ''} style="padding:4px 8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; cursor:pointer;">+100</button>
-                             <button onclick="window.depositToWorkshop('${recipe.input}', ${playerHas})" ${playerHas < 1 ? 'disabled' : ''} style="padding:4px 8px; background:var(--gold); border:1px solid var(--gold); color:black; font-weight:bold; cursor:pointer;">+All</button>
+                        <div style="font-size:11px; color:var(--text-muted); text-align:right; margin-bottom:6px;">In Inventory: <span style="color:var(--text-primary); font-weight:600;">${playerHas}</span></div>
+                        <div style="display:flex; gap:6px;">
+                             <button onclick="window.depositToWorkshop('${recipe.input}', 1)" ${playerHas < 1 ? 'disabled' : ''} style="padding:5px 10px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); color:var(--text-primary); border-radius:var(--radius-sm); cursor:pointer; font-size:12px; font-weight:600; transition:all 0.15s;">+1</button>
+                             <button onclick="window.depositToWorkshop('${recipe.input}', 10)" ${playerHas < 10 ? 'disabled' : ''} style="padding:5px 10px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); color:var(--text-primary); border-radius:var(--radius-sm); cursor:pointer; font-size:12px; font-weight:600; transition:all 0.15s;">+10</button>
+                             <button onclick="window.depositToWorkshop('${recipe.input}', 100)" ${playerHas < 100 ? 'disabled' : ''} style="padding:5px 10px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); color:var(--text-primary); border-radius:var(--radius-sm); cursor:pointer; font-size:12px; font-weight:600; transition:all 0.15s;">+100</button>
+                             <button onclick="window.depositToWorkshop('${recipe.input}', ${playerHas})" ${playerHas < 1 ? 'disabled' : ''} style="padding:5px 10px; background:var(--accent-green); border:none; color:white; font-weight:bold; border-radius:var(--radius-sm); cursor:pointer; font-size:12px; transition:all 0.15s;">+All</button>
                         </div>
                     </div>
                 </div>
@@ -1028,53 +1054,53 @@ const ActionMenu = {
             const todayIncome = prop.todayIncome || 0;
 
             html += `
-            <div style="margin-bottom:24px; background:linear-gradient(135deg, rgba(139,69,19,0.15) 0%, rgba(80,40,10,0.2) 100%); padding:20px; border-radius:8px; border:1px solid rgba(255,215,0,0.3); box-shadow:0 4px 12px rgba(0,0,0,0.2);">
-                <h4 style="margin:0 0 12px 0; color:#f4a460; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">🍻 Tavern Operations</h4>
+            <div style="margin-bottom:20px; background:linear-gradient(135deg, rgba(139,69,19,0.12) 0%, rgba(80,40,10,0.15) 100%); padding:16px; border-radius:8px; border:1px solid rgba(255,215,0,0.15);">
+                <h4 style="margin:0 0 12px 0; color:#f4a460; font-size:14px; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:8px; font-family:var(--font-display);">🍻 Tavern Operations</h4>
                 
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:14px;">
-                    <div style="background:rgba(0,0,0,0.3); padding:10px; border-radius:6px;">
-                        <div style="font-size:11px; color:var(--text-secondary); margin-bottom:3px;">TODAY'S INCOME</div>
-                        <div style="font-size:22px; font-weight:bold; color:#2ecc71;">${todayIncome}g</div>
+                    <div style="background:rgba(0,0,0,0.25); padding:10px; border-radius:6px;">
+                        <div style="font-size:10px; color:var(--text-muted); margin-bottom:3px; text-transform:uppercase; letter-spacing:0.5px;">Today's Income</div>
+                        <div style="font-size:20px; font-weight:bold; color:#2ecc71;">${todayIncome}g</div>
                     </div>
-                    <div style="background:rgba(0,0,0,0.3); padding:10px; border-radius:6px;">
-                        <div style="font-size:11px; color:var(--text-secondary); margin-bottom:3px;">GAMBLING TABLES</div>
-                        <div style="font-size:22px; font-weight:bold; color:var(--gold);">${tables} / ${maxTables}</div>
+                    <div style="background:rgba(0,0,0,0.25); padding:10px; border-radius:6px;">
+                        <div style="font-size:10px; color:var(--text-muted); margin-bottom:3px; text-transform:uppercase; letter-spacing:0.5px;">Gambling Tables</div>
+                        <div style="font-size:20px; font-weight:bold; color:var(--gold);">${tables} / ${maxTables}</div>
                     </div>
                 </div>
 
-                <div style="font-size:12px; color:var(--text-secondary); margin-bottom:10px;">Stock your tavern with beer and liquor to boost daily income. Each table adds +15% income.</div>
+                <div style="font-size:11px; color:var(--text-secondary); margin-bottom:10px;">Stock your tavern with beer and liquor to boost daily income. Each table adds +15% income.</div>
 
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:14px;">
-                    <div style="background:rgba(0,0,0,0.25); padding:10px; border-radius:6px;">
+                    <div style="background:rgba(0,0,0,0.2); padding:10px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                            <div style="font-size:12px;">🍺 Beer Stock: <strong>${beerStock}</strong></div>
+                            <div style="font-size:12px; color:var(--text-primary);">🍺 Beer: <strong>${beerStock}</strong></div>
                             <span style="font-size:10px; color:var(--text-muted);">-2/day</span>
                         </div>
-                        <div style="font-size:11px; color:var(--text-secondary); margin-bottom:6px;">+30% income when stocked</div>
+                        <div style="font-size:10px; color:var(--text-secondary); margin-bottom:6px;">+30% income when stocked</div>
                         <div style="display:flex; gap:4px;">
-                            <button onclick="window.stockTavern('beer', 5)" ${playerBeer < 5 ? 'disabled' : ''} style="flex:1; padding:4px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; border-radius:3px; cursor:pointer; font-size:11px;">+5</button>
-                            <button onclick="window.stockTavern('beer', 20)" ${playerBeer < 20 ? 'disabled' : ''} style="flex:1; padding:4px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; border-radius:3px; cursor:pointer; font-size:11px;">+20</button>
-                            <button onclick="window.stockTavern('beer', ${playerBeer})" ${playerBeer < 1 ? 'disabled' : ''} style="flex:1; padding:4px; background:var(--gold); border:none; color:black; border-radius:3px; cursor:pointer; font-size:11px; font-weight:bold;">All</button>
+                            <button onclick="window.stockTavern('beer', 5)" ${playerBeer < 5 ? 'disabled' : ''} style="flex:1; padding:4px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:var(--text-primary); border-radius:3px; cursor:pointer; font-size:11px; font-weight:600;">+5</button>
+                            <button onclick="window.stockTavern('beer', 20)" ${playerBeer < 20 ? 'disabled' : ''} style="flex:1; padding:4px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:var(--text-primary); border-radius:3px; cursor:pointer; font-size:11px; font-weight:600;">+20</button>
+                            <button onclick="window.stockTavern('beer', ${playerBeer})" ${playerBeer < 1 ? 'disabled' : ''} style="flex:1; padding:4px; background:var(--accent-green); border:none; color:white; border-radius:3px; cursor:pointer; font-size:11px; font-weight:bold;">All</button>
                         </div>
                         <div style="font-size:10px; color:var(--text-muted); margin-top:3px;">You have: ${playerBeer} beer</div>
                     </div>
-                    <div style="background:rgba(0,0,0,0.25); padding:10px; border-radius:6px;">
+                    <div style="background:rgba(0,0,0,0.2); padding:10px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                            <div style="font-size:12px;">🥃 Liquor Stock: <strong>${liquorStock}</strong></div>
+                            <div style="font-size:12px; color:var(--text-primary);">🥃 Liquor: <strong>${liquorStock}</strong></div>
                             <span style="font-size:10px; color:var(--text-muted);">-1/day</span>
                         </div>
-                        <div style="font-size:11px; color:var(--text-secondary); margin-bottom:6px;">+20% income when stocked</div>
+                        <div style="font-size:10px; color:var(--text-secondary); margin-bottom:6px;">+20% income when stocked</div>
                         <div style="display:flex; gap:4px;">
-                            <button onclick="window.stockTavern('liquor', 5)" ${playerLiquor < 5 ? 'disabled' : ''} style="flex:1; padding:4px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; border-radius:3px; cursor:pointer; font-size:11px;">+5</button>
-                            <button onclick="window.stockTavern('liquor', 10)" ${playerLiquor < 10 ? 'disabled' : ''} style="flex:1; padding:4px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; border-radius:3px; cursor:pointer; font-size:11px;">+10</button>
-                            <button onclick="window.stockTavern('liquor', ${playerLiquor})" ${playerLiquor < 1 ? 'disabled' : ''} style="flex:1; padding:4px; background:var(--gold); border:none; color:black; border-radius:3px; cursor:pointer; font-size:11px; font-weight:bold;">All</button>
+                            <button onclick="window.stockTavern('liquor', 5)" ${playerLiquor < 5 ? 'disabled' : ''} style="flex:1; padding:4px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:var(--text-primary); border-radius:3px; cursor:pointer; font-size:11px; font-weight:600;">+5</button>
+                            <button onclick="window.stockTavern('liquor', 10)" ${playerLiquor < 10 ? 'disabled' : ''} style="flex:1; padding:4px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:var(--text-primary); border-radius:3px; cursor:pointer; font-size:11px; font-weight:600;">+10</button>
+                            <button onclick="window.stockTavern('liquor', ${playerLiquor})" ${playerLiquor < 1 ? 'disabled' : ''} style="flex:1; padding:4px; background:var(--accent-green); border:none; color:white; border-radius:3px; cursor:pointer; font-size:11px; font-weight:bold;">All</button>
                         </div>
                         <div style="font-size:10px; color:var(--text-muted); margin-top:3px;">You have: ${playerLiquor} liquor</div>
                     </div>
                 </div>
 
                 <button onclick="window.buyGamblingTable()" ${!canBuyTable ? 'disabled' : ''} 
-                    style="width:100%; padding:10px; background:${canBuyTable ? 'var(--gold)' : '#555'}; border:none; border-radius:4px; cursor:pointer; font-weight:bold; color:${canBuyTable ? 'black' : '#888'}; font-size:13px;">
+                    style="width:100%; padding:9px; background:${canBuyTable ? 'linear-gradient(135deg, var(--gold-dark), var(--gold))' : 'rgba(255,255,255,0.06)'}; border:${canBuyTable ? 'none' : '1px solid rgba(255,255,255,0.1)'}; border-radius:var(--radius-sm); cursor:${canBuyTable ? 'pointer' : 'not-allowed'}; font-weight:bold; color:${canBuyTable ? '#1a1207' : 'var(--text-muted)'}; font-size:13px; box-shadow:${canBuyTable ? '0 2px 8px rgba(245,197,66,0.3)' : 'none'}; transition:all 0.15s;">
                     ${tables >= maxTables ? '🎲 Max Tables (upgrade to add more)' : `🎲 Add Gambling Table — ${tableCost}g`}
                 </button>
             </div>
@@ -1084,16 +1110,16 @@ const ActionMenu = {
         // Upgrade Section
         const upgradeBtnLocked = isMaxLevel || !canAffordUpgrade;
         html += `
-            <div style="margin-bottom:24px; background:linear-gradient(135deg, rgba(20,20,30,0.8) 0%, rgba(40,40,50,0.8) 100%); padding:20px; border-radius:8px; border:1px solid rgba(255,215,0,0.3); box-shadow:0 4px 12px rgba(0,0,0,0.2);">
-                <h4 style="margin:0 0 12px 0; color:white; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">Expansion & Upgrades</h4>
+            <div style="margin-bottom:20px; background:rgba(255,255,255,0.03); padding:16px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
+                <h4 style="margin:0 0 12px 0; color:var(--text-primary); font-size:14px; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:8px; font-family:var(--font-display);">Expansion & Upgrades</h4>
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <div>
-                        <div style="font-weight:bold; color:var(--text-primary); font-size:16px;">Upgrade to Level ${prop.level + 1}</div>
-                        <div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">Increases production by 10% base value. Increases upkeep.</div>
+                        <div style="font-weight:600; color:var(--text-primary); font-size:14px;">Upgrade to Level ${prop.level + 1}</div>
+                        <div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">Increases production by 10% base value. Increases upkeep.</div>
                     </div>
                     <button onclick="window.upgradePropertyAction()" 
                         ${upgradeBtnLocked ? 'disabled' : ''}
-                        style="padding:10px 20px; background:${isMaxLevel ? '#555' : 'var(--gold)'}; border:none; border-radius:4px; cursor:pointer; font-weight:bold; color:${isMaxLevel ? '#888' : 'var(--text-primary)'}; box-shadow:0 2px 4px rgba(0,0,0,0.2); min-width:120px; text-align:center;">
+                        style="padding:8px 18px; background:${isMaxLevel ? 'rgba(255,255,255,0.06)' : canAffordUpgrade ? 'linear-gradient(135deg, var(--gold-dark), var(--gold))' : 'rgba(255,255,255,0.06)'}; border:${isMaxLevel || !canAffordUpgrade ? '1px solid rgba(255,255,255,0.1)' : 'none'}; border-radius:var(--radius-sm); cursor:${upgradeBtnLocked ? 'not-allowed' : 'pointer'}; font-weight:bold; color:${isMaxLevel || !canAffordUpgrade ? 'var(--text-muted)' : '#1a1207'}; box-shadow:${upgradeBtnLocked ? 'none' : '0 2px 8px rgba(245,197,66,0.3)'}; min-width:110px; text-align:center; font-size:13px; transition:all 0.15s;">
                         ${isMaxLevel ? 'MAX LEVEL' : `${upgradeCost} gold`}
                     </button>
                 </div>
@@ -1102,12 +1128,12 @@ const ActionMenu = {
 
         // Caravan Logistics Section
         html += `
-            <div style="margin-bottom:16px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                    <h4 style="margin:0;">Logistics Network</h4>
-                    <span style="font-size:11px; background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px;">Cost: 200g/caravan</span>
+            <div style="margin-bottom:16px; background:rgba(255,255,255,0.03); padding:16px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h4 style="margin:0; font-size:14px; font-weight:600; font-family:var(--font-display); color:var(--text-primary);">Logistics Network</h4>
+                    <span style="font-size:10px; background:rgba(245,197,66,0.1); color:var(--gold); padding:3px 8px; border-radius:var(--radius-sm); border:1px solid rgba(245,197,66,0.15); font-weight:600;">Cost: 200g/caravan</span>
                 </div>
-                <p style="font-size:12px; color:var(--text-secondary); margin-bottom:12px;">Hire a caravan to transport your stored goods directly to a market for max profit.</p>
+                <p style="font-size:11px; color:var(--text-secondary); margin:0 0 12px 0;">Hire a caravan to transport your stored goods directly to a market for max profit.</p>
                 <div id="caravanDestinations" style="display:grid; gap:8px; max-height:200px; overflow-y:auto; padding-right:4px;">
                     ${ActionMenu.getLogisticsDestinationsHtml(game, tile)}
                 </div>
@@ -1210,7 +1236,7 @@ const ActionMenu = {
                                 <div style="font-size:13px; color:white;">${partsRecipe ? partsRecipe.icon : '🔧'} ${partsRecipe ? partsRecipe.name : 'Parts'} in inventory: <strong>${partsInInv}</strong></div>
                                 <div style="font-size:11px; color:var(--text-secondary);">Cost: ${partsRecipe ? partsRecipe.gold + 'g + ' + Technology.formatMaterials(partsRecipe.materials) : '?'} → ${partsRecipe ? partsRecipe.quantity : '?'} parts (${partsRecipe ? partsRecipe.days : '?'} days)</div>
                             </div>
-                            <button onclick="window.startCraftingParts()" ${!craftCheck.can ? 'disabled' : ''} style="padding:8px 14px; background:${craftCheck.can ? '#ff9800' : '#555'}; border:none; border-radius:4px; cursor:pointer; font-weight:bold; color:${craftCheck.can ? 'black' : '#888'};">
+                            <button onclick="window.startCraftingParts()" ${!craftCheck.can ? 'disabled' : ''} style="padding:8px 14px; background:${craftCheck.can ? 'linear-gradient(135deg, #e68a00, #ff9800)' : 'rgba(255,255,255,0.06)'}; border:${craftCheck.can ? 'none' : '1px solid rgba(255,255,255,0.1)'}; border-radius:var(--radius-sm); cursor:${craftCheck.can ? 'pointer' : 'not-allowed'}; font-weight:bold; color:${craftCheck.can ? '#1a1207' : 'var(--text-muted)'}; font-size:13px; transition:all 0.15s;">
                                 Craft Parts
                             </button>
                         </div>
@@ -1229,7 +1255,7 @@ const ActionMenu = {
                             Cost: <strong style="color:var(--gold);">${labConfig.labCost}g</strong> + ${Technology.formatMaterials(labConfig.labMaterials)}<br>
                             Adds ${labConfig.labUpkeep}g/day upkeep
                         </div>
-                        <button onclick="window.buildLabAction()" ${!labCheck.can ? 'disabled' : ''} style="padding:10px 20px; width:100%; background:${labCheck.can ? 'var(--gold)' : '#555'}; border:none; border-radius:4px; cursor:pointer; font-weight:bold; color:${labCheck.can ? 'black' : '#888'};">
+                        <button onclick="window.buildLabAction()" ${!labCheck.can ? 'disabled' : ''} style="padding:10px 20px; width:100%; background:${labCheck.can ? 'linear-gradient(135deg, var(--gold-dark), var(--gold))' : 'rgba(255,255,255,0.06)'}; border:${labCheck.can ? 'none' : '1px solid rgba(255,255,255,0.1)'}; border-radius:var(--radius-sm); cursor:${labCheck.can ? 'pointer' : 'not-allowed'}; font-weight:bold; color:${labCheck.can ? '#1a1207' : 'var(--text-muted)'}; font-size:13px; transition:all 0.15s;">
                             ${labCheck.can ? 'Build Lab' : labCheck.reason}
                         </button>
                     </div>`;
@@ -1297,9 +1323,42 @@ const ActionMenu = {
 
         window.selectRecipe = (recipeId) => {
             if (!recipeId) return;
-            const result = PlayerEconomy.setWorkshopRecipe(tile, recipeId);
+            const prop = tile.playerProperty;
+            const isChange = prop && prop.activeRecipe && prop.activeRecipe !== recipeId;
+
+            if (isChange) {
+                const propType = PlayerEconomy.PROPERTY_TYPES[prop.type.toUpperCase()] || {};
+                const baseCost = propType.recipeChangeCost || 150;
+                const retoolingCost = Math.floor(baseCost * prop.level);
+                const retoolingDays = propType.retoolingDays || 2;
+                const oldRecipe = PlayerEconomy.RECIPES[prop.activeRecipe];
+                const newRecipe = PlayerEconomy.RECIPES[recipeId];
+
+                // Show confirmation dialog
+                const inputReturn = (prop.inputStorage > 0 && oldRecipe)
+                    ? `\n• ${prop.inputStorage} ${oldRecipe.input} returned to inventory`
+                    : '';
+                const msg = `Retool workshop to produce ${newRecipe ? newRecipe.name : recipeId}?\n\n• Cost: ${retoolingCost} gold\n• Downtime: ${retoolingDays} days (no production)${inputReturn}`;
+                if (!confirm(msg)) {
+                    // Reset dropdown to current value
+                    const sel = document.getElementById('workshopRecipeSelector');
+                    if (sel) sel.value = prop.activeRecipe;
+                    return;
+                }
+            }
+
+            const result = PlayerEconomy.setWorkshopRecipe(tile, recipeId, game.player);
             if (result.success) {
+                if (result.wasChange) {
+                    game.ui.showNotification('Workshop Retooled', 'Retooling in progress...', 'info');
+                    game.ui.updateStats(game.player, game.world);
+                }
                 ActionMenu.showManagePropertyMenu(game, tile);
+            } else {
+                game.ui.showNotification('Cannot Change Recipe', result.reason, 'error');
+                // Reset dropdown
+                const sel = document.getElementById('workshopRecipeSelector');
+                if (sel && prop) sel.value = prop.activeRecipe || '';
             }
         };
 
@@ -1432,7 +1491,7 @@ const ActionMenu = {
                                 <div style="font-size:10px; color:${trendColor};" title="Market Trend">${trendIcon} ${basePrice}g/unit</div>
                             </div>
                         </div>
-                        <button onclick="window.sendStorageCaravan(${s.q}, ${s.r})" style="padding:6px 12px; font-size:11px; background:var(--gold); border:none; border-radius:3px; cursor:pointer; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                        <button onclick="window.sendStorageCaravan(${s.q}, ${s.r})" style="padding:6px 12px; font-size:11px; background:linear-gradient(135deg, var(--gold-dark), var(--gold)); border:none; border-radius:3px; cursor:pointer; font-weight:bold; color:#1a1207; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                             Send
                         </button>
                     </div>
@@ -2073,7 +2132,7 @@ const ActionMenu = {
                         <div style="font-size: 11px; color: var(--gold);">🏗️ ${prop.constructionDays || 0} days</div>
                         ${!check.canBuild ? `<div style="font-size: 10px; color: #e74c3c; margin-top: 2px;">${check.reason}</div>` : ''}
                     </div>
-                    <button onclick="window.buildProperty('${key}')" ${!check.canBuild ? 'disabled' : ''} style="margin-top: 5px; width: 100%; padding: 4px 0; background: var(--gold); border: none; border-radius: 3px; cursor: pointer; font-size: 12px; font-weight: bold;">Build · ${prop.cost}g</button>
+                    <button onclick="window.buildProperty('${key}')" ${!check.canBuild ? 'disabled' : ''} style="margin-top: 5px; width: 100%; padding: 4px 0; background: ${check.canBuild ? 'linear-gradient(135deg, var(--gold-dark), var(--gold))' : 'rgba(255,255,255,0.06)'}; border: ${check.canBuild ? 'none' : '1px solid rgba(255,255,255,0.1)'}; border-radius: 3px; cursor: ${check.canBuild ? 'pointer' : 'not-allowed'}; font-size: 12px; font-weight: bold; color: ${check.canBuild ? '#1a1207' : 'var(--text-muted)'};">Build · ${prop.cost}g</button>
                 </div>
             `;
         }
@@ -2127,7 +2186,7 @@ const ActionMenu = {
                             <div style="font-size: 11px; color: var(--gold);">🏗️ ${prop.constructionDays || 0} days</div>
                             ${!canBuild && reason ? `<div style="font-size: 10px; color: #e74c3c; margin-top: 2px;">${reason}</div>` : ''}
                         </div>
-                        <button onclick="window.buildTechBuilding('${key}')" ${!canBuild ? 'disabled' : ''} style="margin-top: 5px; width: 100%; padding: 4px 0; background: var(--gold); border: none; border-radius: 3px; cursor: pointer; font-size: 12px; font-weight: bold;">Build · ${prop.cost}g</button>
+                        <button onclick="window.buildTechBuilding('${key}')" ${!canBuild ? 'disabled' : ''} style="margin-top: 5px; width: 100%; padding: 4px 0; background: ${canBuild ? 'linear-gradient(135deg, var(--gold-dark), var(--gold))' : 'rgba(255,255,255,0.06)'}; border: ${canBuild ? 'none' : '1px solid rgba(255,255,255,0.1)'}; border-radius: 3px; cursor: ${canBuild ? 'pointer' : 'not-allowed'}; font-size: 12px; font-weight: bold; color: ${canBuild ? '#1a1207' : 'var(--text-muted)'};">Build · ${prop.cost}g</button>
                     </div>
                 `;
             }

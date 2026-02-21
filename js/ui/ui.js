@@ -1935,6 +1935,13 @@ class UI {
         `;
         area.appendChild(notif);
 
+        // Play notification SFX based on type
+        if (typeof audioManager !== 'undefined') {
+            if (type === 'success') audioManager.playSFX('success');
+            else if (type === 'error') audioManager.playSFX('error');
+            else audioManager.playSFX('notify');
+        }
+
         // Log notification for history
         const world = this.game && this.game.world;
         const dayInSeason = world ? ((world.day - 1) % 30) + 1 : 1;
@@ -4413,6 +4420,46 @@ class UI {
 
             <!-- Data Management -->
             <div class="gs-section">
+                <div class="gs-section-title">Audio</div>
+                <div class="gs-row">
+                    <label>Master Volume</label>
+                    <div class="gs-range-group">
+                        <input type="range" id="gsAudioMaster" min="0" max="100" value="${Math.round((typeof audioManager !== 'undefined' ? audioManager.masterVolume : 0.5) * 100)}">
+                        <span class="gs-range-val" id="gsAudioMasterVal">${Math.round((typeof audioManager !== 'undefined' ? audioManager.masterVolume : 0.5) * 100)}%</span>
+                    </div>
+                </div>
+                <div class="gs-row">
+                    <label>Music Volume</label>
+                    <div class="gs-range-group">
+                        <input type="range" id="gsAudioMusic" min="0" max="100" value="${Math.round((typeof audioManager !== 'undefined' ? audioManager.musicVolume : 0.6) * 100)}">
+                        <span class="gs-range-val" id="gsAudioMusicVal">${Math.round((typeof audioManager !== 'undefined' ? audioManager.musicVolume : 0.6) * 100)}%</span>
+                    </div>
+                </div>
+                <div class="gs-row">
+                    <label>Ambience Volume</label>
+                    <div class="gs-range-group">
+                        <input type="range" id="gsAudioAmbience" min="0" max="100" value="${Math.round((typeof audioManager !== 'undefined' ? audioManager.ambienceVolume : 0.4) * 100)}">
+                        <span class="gs-range-val" id="gsAudioAmbienceVal">${Math.round((typeof audioManager !== 'undefined' ? audioManager.ambienceVolume : 0.4) * 100)}%</span>
+                    </div>
+                </div>
+                <div class="gs-row">
+                    <label>SFX Volume</label>
+                    <div class="gs-range-group">
+                        <input type="range" id="gsAudioSfx" min="0" max="100" value="${Math.round((typeof audioManager !== 'undefined' ? audioManager.sfxVolume : 0.7) * 100)}">
+                        <span class="gs-range-val" id="gsAudioSfxVal">${Math.round((typeof audioManager !== 'undefined' ? audioManager.sfxVolume : 0.7) * 100)}%</span>
+                    </div>
+                </div>
+                <div class="gs-row">
+                    <label>Mute All</label>
+                    <label class="gs-toggle">
+                        <input type="checkbox" id="gsAudioMute" ${(typeof audioManager !== 'undefined' && audioManager.muted) ? 'checked' : ''}>
+                        <span class="gs-toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Data Management -->
+            <div class="gs-section">
                 <div class="gs-section-title">Data</div>
                 <div class="gs-row gs-btn-row">
                     <button class="gs-btn" id="gsSaveNow">💾 Save Now</button>
@@ -4447,6 +4494,10 @@ class UI {
             { id: 'gsZoomSens', valId: 'gsZoomSensVal', suffix: '' },
             { id: 'gsMinZoom', valId: 'gsMinZoomVal', suffix: '' },
             { id: 'gsMaxZoom', valId: 'gsMaxZoomVal', suffix: '' },
+            { id: 'gsAudioMaster', valId: 'gsAudioMasterVal', suffix: '%' },
+            { id: 'gsAudioMusic', valId: 'gsAudioMusicVal', suffix: '%' },
+            { id: 'gsAudioAmbience', valId: 'gsAudioAmbienceVal', suffix: '%' },
+            { id: 'gsAudioSfx', valId: 'gsAudioSfxVal', suffix: '%' },
         ];
         for (const rb of rangeBindings) {
             const el = document.getElementById(rb.id);
@@ -4551,6 +4602,25 @@ class UI {
             showMinimap: getChecked('gsShowMinimap'),
             confirmEndDay: getChecked('gsConfirmEndDay'),
         };
+
+        // Apply audio settings directly to audioManager
+        if (typeof audioManager !== 'undefined') {
+            audioManager.setMasterVolume((parseInt(getVal('gsAudioMaster')) || 50) / 100);
+            audioManager.setMusicVolume((parseInt(getVal('gsAudioMusic')) || 60) / 100);
+            audioManager.setAmbienceVolume((parseInt(getVal('gsAudioAmbience')) || 40) / 100);
+            audioManager.setSfxVolume((parseInt(getVal('gsAudioSfx')) || 70) / 100);
+            const shouldMute = getChecked('gsAudioMute');
+            if (shouldMute !== audioManager.muted) {
+                audioManager.toggleMute();
+            }
+            // Update mute button appearance
+            const btn = document.getElementById('btnAudioToggle');
+            if (btn) {
+                btn.classList.toggle('muted', audioManager.muted);
+                const iconSpan = btn.querySelector('.audio-icon');
+                if (iconSpan) iconSpan.textContent = audioManager.muted ? '🔇' : '🔊';
+            }
+        }
 
         UI.saveSettings(settings);
         this.applySettings(settings);

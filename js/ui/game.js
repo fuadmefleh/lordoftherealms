@@ -29,6 +29,7 @@ class Game {
 
         this.setupInputHandlers();
         this.initTitleScreen();
+        this._setupAudioControls();
 
         // Title screen buttons — must be bound here since UI isn't created yet
         document.getElementById('btnNewGame').addEventListener('click', () => this.showSettingsScreen());
@@ -184,6 +185,9 @@ class Game {
         this.isRunning = true;
         this.lastTime = performance.now();
         requestAnimationFrame((t) => this.gameLoop(t));
+
+        // Start context-aware music
+        audioManager.updateSceneFromGameState(this);
     }
 
     /**
@@ -200,6 +204,121 @@ class Game {
     hideSettingsScreen() {
         document.getElementById('settingsScreen').classList.add('hidden');
         document.getElementById('titleScreen').classList.remove('hidden');
+    }
+
+    /**
+     * Setup audio mute/volume button and popup controls
+     */
+    _setupAudioControls() {
+        const btn = document.getElementById('btnAudioToggle');
+        if (!btn) return;
+
+        // Build volume popup
+        const popup = document.createElement('div');
+        popup.className = 'audio-volume-popup';
+        popup.innerHTML = `
+            <h4>🎵 Audio</h4>
+            <div class="audio-slider-row">
+                <label>Master</label>
+                <input type="range" min="0" max="100" value="${Math.round(audioManager.masterVolume * 100)}" id="audioMaster">
+                <span class="audio-val" id="audioMasterVal">${Math.round(audioManager.masterVolume * 100)}%</span>
+            </div>
+            <div class="audio-slider-row">
+                <label>Music</label>
+                <input type="range" min="0" max="100" value="${Math.round(audioManager.musicVolume * 100)}" id="audioMusic">
+                <span class="audio-val" id="audioMusicVal">${Math.round(audioManager.musicVolume * 100)}%</span>
+            </div>
+            <div class="audio-slider-row">
+                <label>Ambience</label>
+                <input type="range" min="0" max="100" value="${Math.round(audioManager.ambienceVolume * 100)}" id="audioAmbience">
+                <span class="audio-val" id="audioAmbienceVal">${Math.round(audioManager.ambienceVolume * 100)}%</span>
+            </div>
+            <div class="audio-slider-row">
+                <label>SFX</label>
+                <input type="range" min="0" max="100" value="${Math.round(audioManager.sfxVolume * 100)}" id="audioSfx">
+                <span class="audio-val" id="audioSfxVal">${Math.round(audioManager.sfxVolume * 100)}%</span>
+            </div>
+            <div class="audio-scene-label" id="audioSceneLabel">Scene: Title</div>
+        `;
+        btn.appendChild(popup);
+
+        // Grab the icon span (keeps popup safe when updating icon)
+        const iconSpan = btn.querySelector('.audio-icon');
+
+        // Update mute state display
+        if (audioManager.muted) {
+            btn.classList.add('muted');
+            if (iconSpan) iconSpan.textContent = '🔇';
+        }
+
+        // Toggle popup on click
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Init audio on first user interaction
+            audioManager.init();
+            audioManager._resume();
+
+            // Only toggle popup when clicking the button or icon, not popup internals
+            if (e.target === btn || e.target === iconSpan) {
+                popup.classList.toggle('visible');
+            }
+        });
+
+        // Right-click to quick-mute
+        btn.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            audioManager.init();
+            const muted = audioManager.toggleMute();
+            btn.classList.toggle('muted', muted);
+            if (iconSpan) iconSpan.textContent = muted ? '🔇' : '🔊';
+        });
+
+        // Wire sliders
+        const bindSlider = (id, valId, setter) => {
+            const slider = popup.querySelector('#' + id);
+            const valEl = popup.querySelector('#' + valId);
+            if (slider && valEl) {
+                slider.addEventListener('input', () => {
+                    const v = parseInt(slider.value);
+                    valEl.textContent = v + '%';
+                    setter(v / 100);
+                });
+            }
+        };
+
+        bindSlider('audioMaster', 'audioMasterVal', v => audioManager.setMasterVolume(v));
+        bindSlider('audioMusic', 'audioMusicVal', v => audioManager.setMusicVolume(v));
+        bindSlider('audioAmbience', 'audioAmbienceVal', v => audioManager.setAmbienceVolume(v));
+        bindSlider('audioSfx', 'audioSfxVal', v => audioManager.setSfxVolume(v));
+
+        // Close popup when clicking elsewhere
+        document.addEventListener('click', (e) => {
+            if (!btn.contains(e.target)) {
+                popup.classList.remove('visible');
+            }
+        });
+
+        // Start title screen music on first interaction anywhere
+        const startTitleMusic = () => {
+            audioManager.init();
+            audioManager.setScene('title');
+            // Update scene label
+            const label = document.getElementById('audioSceneLabel');
+            if (label) label.textContent = 'Scene: Title';
+            document.removeEventListener('click', startTitleMusic);
+            document.removeEventListener('keydown', startTitleMusic);
+        };
+        document.addEventListener('click', startTitleMusic);
+        document.addEventListener('keydown', startTitleMusic);
+
+        // Periodically update scene label
+        setInterval(() => {
+            const label = document.getElementById('audioSceneLabel');
+            if (label && audioManager.currentScene !== 'none') {
+                const sceneName = audioManager.currentScene.charAt(0).toUpperCase() + audioManager.currentScene.slice(1);
+                label.textContent = 'Scene: ' + sceneName;
+            }
+        }, 2000);
     }
 
     /**
@@ -525,6 +644,9 @@ class Game {
         this.isRunning = true;
         this.lastTime = performance.now();
         requestAnimationFrame((t) => this.gameLoop(t));
+
+        // Start context-aware music
+        audioManager.updateSceneFromGameState(this);
 
         } catch (err) {
             console.error('Error starting game:', err);
@@ -1231,6 +1353,9 @@ class Game {
         const tile = this.world.getTile(this.player.q, this.player.r);
         if (!tile) return;
 
+        // Update music scene based on new terrain
+        audioManager.updateSceneFromGameState(this);
+
         // Show reachable hexes
         this.renderer.reachableHexes = this.player.getReachableHexes(this.world);
 
@@ -1278,6 +1403,9 @@ class Game {
     endDay() {
         if (!this.world || !this.player) return;
         if (this.isProcessingTurn) return;
+
+        // Play end-turn SFX
+        audioManager.playSFX('turn');
 
         // Confirm end day if enabled
         if (this.ui && this.ui._confirmEndDay && !this._endDayConfirmed) {

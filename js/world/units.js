@@ -251,44 +251,99 @@ class WorldUnit {
     }
 
     /**
-     * Raider logic: Look for caravans to rob
+     * Raider logic: Look for caravans to rob or the player to attack
      */
     updateRaider(world) {
         const currentTile = world.getTile(this.q, this.r);
         const regionId = currentTile ? currentTile.regionId : null;
         const isShip = this.type === 'pirate';
 
-        const target = world.units.find(u => {
-            if (u.type !== 'caravan' && u.type !== 'ship') return false;
-            if (Hex.wrappingDistance(this.q, this.r, u.q, u.r, world.width) >= 8) return false;
+        // --- Check for player in range (priority target) ---
+        const player = (typeof game !== 'undefined' && game.player) ? game.player : null;
+        if (player && !player.indenturedServitude) {
+            const playerDist = Hex.wrappingDistance(this.q, this.r, player.q, player.r, world.width);
+            const detectionRange = isShip ? 6 : 5;
 
-            const targetTile = world.getTile(u.q, u.r);
-            if (!targetTile) return false;
+            // Only pursue if player is within detection range
+            if (playerDist <= detectionRange && playerDist > 0) {
+                // Check same region accessibility
+                const playerTile = world.getTile(player.q, player.r);
+                let canReach = false;
 
-            if (isShip) {
-                // Pirate can only target if caravan is near water in the same region
-                const neighbors = Hex.neighbors(u.q, u.r);
-                return neighbors.some(n => {
-                    const nt = world.getTile(n.q, n.r);
-                    return nt && nt.regionId === regionId;
-                });
-            } else {
-                return targetTile.regionId === regionId;
+                if (isShip) {
+                    // Pirates can reach player if player is on/adjacent to water in same region
+                    if (player.boardedShip) {
+                        canReach = true; // Player on water, pirates can reach
+                    } else {
+                        const pNeighbors = Hex.neighbors(player.q, player.r);
+                        canReach = pNeighbors.some(n => {
+                            const nt = world.getTile(Hex.wrapQ(n.q, world.width), n.r);
+                            return nt && nt.regionId === regionId;
+                        });
+                    }
+                } else {
+                    canReach = playerTile && playerTile.regionId === regionId;
+                }
+
+                if (canReach) {
+                    // Chance to decide to pursue (based on strength vs visible player army)
+                    const playerArmySize = player.army ? player.army.length : 0;
+                    let pursuitChance = 0.35; // Base 35% chance per day
+
+                    // More likely to attack weak/undefended players
+                    if (playerArmySize === 0) pursuitChance = 0.7;
+                    else if (this.strength > playerArmySize * 3) pursuitChance = 0.55;
+                    else if (this.strength < playerArmySize * 2) pursuitChance = 0.15;
+
+                    // Already adjacent? Always engage
+                    if (playerDist <= 1) pursuitChance = 1.0;
+
+                    if (Math.random() < pursuitChance) {
+                        this.targetQ = player.q;
+                        this.targetR = player.r;
+                        this.path = [];
+                        this._pursuingPlayer = true;
+                    }
+                }
             }
-        });
-
-        if (target) {
-            this.targetQ = target.q;
-            this.targetR = target.r;
-            this.path = [];
-        } else if (!this.targetQ || (this.q === this.targetQ && this.r === this.targetR)) {
-            // Wander
-            const neighbors = Hex.neighbors(this.q, this.r);
-            const move = Utils.randPick(neighbors);
-            this.targetQ = move.q;
-            this.targetR = move.r;
-            this.path = [];
         }
+
+        // --- Original target logic: hunt caravans/ships ---
+        if (!this._pursuingPlayer) {
+            const target = world.units.find(u => {
+                if (u.type !== 'caravan' && u.type !== 'ship') return false;
+                if (Hex.wrappingDistance(this.q, this.r, u.q, u.r, world.width) >= 8) return false;
+
+                const targetTile = world.getTile(u.q, u.r);
+                if (!targetTile) return false;
+
+                if (isShip) {
+                    const neighbors = Hex.neighbors(u.q, u.r);
+                    return neighbors.some(n => {
+                        const nt = world.getTile(n.q, n.r);
+                        return nt && nt.regionId === regionId;
+                    });
+                } else {
+                    return targetTile.regionId === regionId;
+                }
+            });
+
+            if (target) {
+                this.targetQ = target.q;
+                this.targetR = target.r;
+                this.path = [];
+            } else if (!this.targetQ || (this.q === this.targetQ && this.r === this.targetR)) {
+                // Wander
+                const neighbors = Hex.neighbors(this.q, this.r);
+                const move = Utils.randPick(neighbors);
+                this.targetQ = move.q;
+                this.targetR = move.r;
+                this.path = [];
+            }
+        }
+
+        // Clear pursuit flag for next turn
+        this._pursuingPlayer = false;
 
         // Move multiple times based on speed
         for (let i = 0; i < this.speed; i++) {

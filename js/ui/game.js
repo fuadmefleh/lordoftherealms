@@ -1460,6 +1460,9 @@ class Game {
                 this.player.endDay();
                 this.player.updateVisibility(this.world, 4);
 
+                // ── Check for hostile unit encounters (raiders/pirates) ──
+                this._checkHostileEncounters();
+
                 // Apply spy-revealed vision tiles (after normal visibility reset)
                 if (typeof Espionage !== 'undefined') {
                     Espionage.applySpyVision(this.player, this.world);
@@ -2199,6 +2202,110 @@ class Game {
             }
         };
         window.addEventListener('keydown', keyHandler);
+    }
+
+    /**
+     * Check if any hostile units (raiders/pirates) have reached the player
+     * and trigger a combat encounter if so.
+     */
+    _checkHostileEncounters() {
+        if (!this.world || !this.player) return;
+        if (this.player.indenturedServitude) return; // Already captive
+
+        const hostiles = this.world.units.filter(u =>
+            !u.destroyed &&
+            (u.type === 'raider' || u.type === 'pirate') &&
+            Hex.wrappingDistance(u.q, u.r, this.player.q, this.player.r, this.world.width) <= 1
+        );
+
+        if (hostiles.length === 0) return;
+
+        // Pick the strongest adjacent hostile
+        const attacker = hostiles.reduce((a, b) => b.strength > a.strength ? b : a, hostiles[0]);
+
+        // Play combat SFX and switch to combat music
+        audioManager.playSFX('combat_hit');
+        audioManager.setScene('combat');
+
+        const playerArmySize = this.player.army ? this.player.army.length : 0;
+
+        if (playerArmySize === 0) {
+            // --- No army: player is robbed / roughed up ---
+            const goldStolen = Math.min(this.player.gold, Math.floor(this.player.gold * Utils.randFloat(0.15, 0.4)));
+            const healthLost = Utils.randInt(5, 15);
+
+            this.player.gold -= goldStolen;
+            this.player.health = Math.max(1, this.player.health - healthLost);
+
+            // Steal random inventory items
+            const stolenItems = {};
+            if (this.player.inventory) {
+                const itemKeys = Object.keys(this.player.inventory).filter(k => k !== 'quest' && this.player.inventory[k] > 0);
+                const itemsToSteal = Math.min(itemKeys.length, Utils.randInt(1, 3));
+                for (let i = 0; i < itemsToSteal; i++) {
+                    const key = Utils.randPick(itemKeys);
+                    const qty = Math.min(this.player.inventory[key], Utils.randInt(1, Math.ceil(this.player.inventory[key] * 0.5)));
+                    if (qty > 0) {
+                        this.player.inventory[key] -= qty;
+                        stolenItems[key] = qty;
+                        if (this.player.inventory[key] <= 0) delete this.player.inventory[key];
+                    }
+                }
+            }
+
+            // Transfer stolen goods to attacker
+            attacker.inventory['gold'] = (attacker.inventory['gold'] || 0) + goldStolen;
+            for (const [item, qty] of Object.entries(stolenItems)) {
+                attacker.inventory[item] = (attacker.inventory[item] || 0) + qty;
+            }
+
+            // Build notification message
+            let msg = `A ${attacker.name} ambushed you! Without an army you were defenseless.`;
+            if (goldStolen > 0) msg += ` They stole ${goldStolen} gold.`;
+            const stolenList = Object.entries(stolenItems).map(([k, v]) => `${v} ${k}`).join(', ');
+            if (stolenList) msg += ` They also took: ${stolenList}.`;
+            msg += ` You lost ${healthLost} health.`;
+
+            this.ui.showNotification(`⚔️ ${attacker.name} Attack!`, msg, 'error');
+
+            if (this.world.events) {
+                this.world.events.push({
+                    text: `${this.player.name || 'A traveller'} was robbed by a ${attacker.name}!`,
+                    type: 'military'
+                });
+            }
+
+            // The raider moves on after robbing (pick new target)
+            attacker.targetQ = null;
+            attacker.targetR = null;
+        } else {
+            // --- Player has army: full combat ---
+            const result = PlayerMilitary.attackUnit(this.player, attacker, this.world);
+
+            if (result.victory) {
+                let lootMsg = `Victory! You defeated the ${attacker.name}!`;
+                if (result.casualties > 0) lootMsg += ` Lost ${result.casualties} soldiers.`;
+                if (result.loot > 0) lootMsg += ` Gained ${result.loot} gold.`;
+                const itemLoot = Object.entries(result.inventoryLoot || {}).map(([k, v]) => `${v} ${k}`).join(', ');
+                if (itemLoot) lootMsg += ` Seized: ${itemLoot}.`;
+                if (result.renownChange > 0) lootMsg += ` +${result.renownChange} renown!`;
+
+                this.ui.showNotification(`⚔️ Victory!`, lootMsg, 'success');
+            } else {
+                let defeatMsg = `Defeated by the ${attacker.name}!`;
+                if (result.casualties > 0) defeatMsg += ` Lost ${result.casualties} soldiers.`;
+                if (result.captured) {
+                    defeatMsg += ` You have been captured and forced into servitude for ${result.servitudeDays} days!`;
+                    if (result.goldConfiscated > 0) defeatMsg += ` ${result.goldConfiscated} gold confiscated.`;
+                }
+                this.ui.showNotification(`💀 Defeat!`, defeatMsg, 'error');
+            }
+        }
+
+        // Restore music scene after combat
+        setTimeout(() => {
+            audioManager.updateSceneFromGameState(this);
+        }, 3000);
     }
 
     /**

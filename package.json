@@ -3,9 +3,13 @@
   "version": "0.3.0",
   "description": "A deep hex-grid strategy game — rise from wanderer to ruler through trade, warfare, faith, and diplomacy.",
   "private": true,
+  "main": "electron-main.js",
   "scripts": {
     "start": "npx http-server . -p 8081 -c-1 --cors",
-    "test": "npx http-server . -p 8082 -c-1 --cors -o tests/index.html"
+    "test": "npx http-server . -p 8082 -c-1 --cors -o tests/index.html",
+    "electron": "electron .",
+    "dist": "electron-builder --win",
+    "dist:all": "electron-builder --win --linux --mac"
   },
   "keywords": [
     "strategy",
@@ -16,6 +20,50 @@
   ],
   "license": "MIT",
   "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
+    "electron-squirrel-startup": "^1.0.1",
     "http-server": "^14.1.1"
+  },
+  "build": {
+    "appId": "com.lordoftherealms.game",
+    "productName": "Lord of the Realms",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron-main.js",
+      "index.html",
+      "standalone.html",
+      "styles.css",
+      "assets/**/*",
+      "data/**/*",
+      "js/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerSidebar": null,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Lord of the Realms"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "category": "Game"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.games"
+    }
   }
 }

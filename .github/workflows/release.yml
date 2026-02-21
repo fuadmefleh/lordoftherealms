@@ -60,9 +60,52 @@ jobs:
           
           echo "Tests completed successfully"
 
+  build-windows-exe:
+    name: Build Windows Installer
+    needs: test
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Get version from tag
+        id: version
+        shell: bash
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          if [[ $VERSION =~ -(alpha|beta|rc) ]]; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Build Electron app
+        run: npm run dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload Windows installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: |
+            dist/*.exe
+          retention-days: 5
+
   build-and-release:
     name: Build and Create Release
-    needs: test
+    needs: [test, build-windows-exe]
     runs-on: ubuntu-latest
     
     steps:
@@ -93,6 +136,12 @@ jobs:
             echo "📦 Detected stable release version: $VERSION"
           fi
       
+      - name: Download Windows installer
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: dist-win
+
       - name: Create release bundle
         run: |
           # Create a directory for the release
@@ -123,20 +172,22 @@ jobs:
           
           ### 🎮 How to Play
           
-          1. Download the release zip file below
+          #### Windows Installer (Recommended)
+          1. Download **Lord.of.the.Realms.Setup.*.exe** below
+          2. Run the installer
+          3. Launch "Lord of the Realms" from your Start Menu or Desktop shortcut
+          
+          #### Browser Version
+          1. Download the **lord-of-the-realms-*.zip** file below
           2. Extract the archive
           3. Open `index.html` in your web browser
-          4. Or open `standalone.html` for a self-contained version
           
           ### 📦 What's Included
           
-          - Complete game files ready to play
+          - **Windows Installer** — standalone desktop app, no browser needed
+          - **Browser Bundle** — play in any modern web browser
           - All assets, data, and game logic
           - Documentation and README
-          
-          ### 🌐 Play Online
-          
-          You can also play the game by hosting the files on any web server or opening the HTML files directly in your browser.
           
           ### 🐛 Issues & Feedback
           
@@ -154,6 +205,7 @@ jobs:
           body_path: release_notes.md
           files: |
             release/lord-of-the-realms-${{ steps.version.outputs.version }}.zip
+            dist-win/*.exe
           draft: false
           prerelease: ${{ steps.version.outputs.prerelease }}
         env:

@@ -1,6 +1,6 @@
 # Release Process
 
-This repository includes an automated GitHub Actions workflow for creating releases.
+This repository includes an automated GitHub Actions workflow for creating releases, including a **Windows installer (.exe)** built with Electron.
 
 ## How to Create a Release
 
@@ -39,9 +39,10 @@ git push origin v0.4.0
 Once you push a tag that matches the pattern `v*.*.*`, the GitHub Actions workflow will automatically:
 
 1. ✅ **Run Tests** - Verify the game still works correctly
-2. 📦 **Create Release Bundle** - Package all game files into a downloadable zip
-3. 📝 **Generate Release Notes** - Create formatted release notes
-4. 🚀 **Publish Release** - Create a GitHub release with the bundle attached
+2. 🖥️ **Build Windows Installer** - Package the game as a Windows .exe using Electron
+3. 📦 **Create Browser Bundle** - Package all game files into a downloadable zip
+4. 📝 **Generate Release Notes** - Create formatted release notes
+5. 🚀 **Publish Release** - Create a GitHub release with both the installer and zip attached
 
 ### 5. Monitor the Release
 
@@ -53,7 +54,15 @@ You can monitor the progress of the release:
 
 ### Release Contents
 
-The release bundle includes:
+Each release will include two download options:
+
+#### Windows Installer (.exe)
+- One-click installer for Windows
+- Creates Start Menu and Desktop shortcuts
+- Runs the game as a standalone desktop app (no browser needed)
+- Built with Electron + electron-builder
+
+#### Browser Bundle (.zip)
 - `assets/` - All game sprites and tiles
 - `data/` - Game configuration and data files
 - `js/` - All game logic and modules
@@ -61,6 +70,21 @@ The release bundle includes:
 - `standalone.html` - Self-contained version
 - `styles.css` - Game styling
 - `README.md` - Documentation
+
+### Local Development with Electron
+
+To test the desktop app locally:
+
+```bash
+# Install dependencies (includes Electron)
+npm install
+
+# Run the game in Electron
+npm run electron
+
+# Build the Windows installer locally
+npm run dist
+```
 
 ### Version Numbering
 

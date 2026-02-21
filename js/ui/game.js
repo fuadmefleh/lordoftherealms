@@ -549,6 +549,27 @@ class Game {
             InnerMapRenderer._hoveredInnerHex = InnerMapRenderer.getInnerHexAtScreen(
                 this.mouseX, this.mouseY, this.innerMapCamera);
 
+            // Update time system (1 hour per real minute)
+            const timeResult = InnerMap.updateTime(deltaTime);
+            if (timeResult === 'day_ended' && !this._innerMapDayEndShown) {
+                this._innerMapDayEndShown = true;
+                this._showInnerMapEndDayModal();
+            }
+
+            // Update top bar with inner map time
+            const turnEl = document.getElementById('turnDisplay');
+            if (turnEl) {
+                const timeStr = InnerMap.getTimeString();
+                const period = InnerMap.getTimePeriod();
+                const periodIcons = { morning: '🌅', midday: '☀️', afternoon: '🌤️', evening: '🌆', night: '🌙' };
+                const periodIcon = periodIcons[period] || '🕐';
+                const dayInSeason = ((this.world.day - 1) % 30) + 1;
+                turnEl.textContent = `${periodIcon} ${timeStr} — Day ${dayInSeason}, ${this.world.season}, Year ${this.world.year}`;
+            }
+
+            // Update NPCs
+            InnerMap.updateNPCs(deltaTime);
+
             // Render inner map
             InnerMapRenderer.render(this.renderer.ctx, this.canvas, this.innerMapCamera, deltaTime);
 
@@ -703,13 +724,19 @@ class Game {
 
             if (button === 'left') {
                 InnerMapRenderer._selectedInnerHex = innerHex;
+                InnerMapRenderer.closeContextMenu();
                 const innerTile = InnerMap.getTile(innerHex.q, innerHex.r);
-                if (innerTile) {
-                    // Show inner tile info panel (same style as world map)
+                const isPlayerTile = (innerHex.q === InnerMap.playerInnerQ && innerHex.r === InnerMap.playerInnerR);
+
+                if (isPlayerTile) {
+                    // Always show context menu on player's tile (buildings, NPCs, or blank tile actions)
+                    InnerMapRenderer.showContextMenu(this, innerHex.q, innerHex.r, screenX, screenY);
+                } else if (innerTile) {
                     this.ui.showInnerHexInfo(innerTile, innerHex.q, innerHex.r);
                 }
             } else if (button === 'right') {
-                // Move player within inner map
+                // Right click = move player within inner map
+                InnerMapRenderer.closeContextMenu();
                 const result = InnerMap.movePlayerTo(innerHex.q, innerHex.r);
                 if (result.moved) {
                     // Center camera on player
@@ -888,17 +915,21 @@ class Game {
         }
 
         this.innerMapMode = true;
+        this._innerMapDayEndShown = false;
 
         // Give inner-map renderer access to the world renderer's sprite assets
         InnerMapRenderer.setRenderer(this.renderer);
 
-        // Set up inner map camera bounds
+        // Set up inner map camera bounds (dynamic based on map size)
         const innerHexSize = InnerMapRenderer.hexSize;
         const innerPixelWidth = Math.sqrt(3) * innerHexSize * InnerMap.width + innerHexSize * 2;
         const innerPixelHeight = innerHexSize * 1.5 * InnerMap.height + innerHexSize * 2;
         this.innerMapCamera.setWorldBounds(innerPixelWidth, innerPixelHeight);
-        this.innerMapCamera.zoom = 1.2;
-        this.innerMapCamera.targetZoom = 1.2;
+
+        // Zoom level based on map size
+        const zoomLevel = InnerMap.width <= 8 ? 1.2 : InnerMap.width <= 10 ? 1.0 : 0.85;
+        this.innerMapCamera.zoom = zoomLevel;
+        this.innerMapCamera.targetZoom = zoomLevel;
 
         // Center on player position
         const playerPos = InnerMapRenderer.getInnerHexPixelPos(InnerMap.playerInnerQ, InnerMap.playerInnerR);
@@ -912,8 +943,13 @@ class Game {
 
         // Notification
         const terrainName = tile.terrain.name || tile.terrain.id;
-        this.ui.showNotification('🗺️ Entering Inner Map',
-            `Exploring the interior of ${terrainName}. Right-click to move, ESC to return.`, 'info');
+        if (tile.settlement) {
+            this.ui.showNotification('🏘️ Entering Settlement',
+                `Welcome to ${tile.settlement.name}! Time: ${InnerMap.getTimeString()}. Right-click buildings to interact.`, 'info');
+        } else {
+            this.ui.showNotification('🗺️ Entering Inner Map',
+                `Exploring the interior of ${terrainName}. Right-click to move, ESC to return.`, 'info');
+        }
     }
 
     /**
@@ -922,8 +958,10 @@ class Game {
     exitInnerMap() {
         if (!InnerMap.active) return;
 
+        InnerMapRenderer.closeContextMenu();
         InnerMap.exit(this);
         this.innerMapMode = false;
+        this._innerMapDayEndShown = false;
 
         // Remove exit button
         this._hideInnerMapExitButton();
@@ -936,6 +974,9 @@ class Game {
             const playerPos = Hex.axialToPixel(this.player.q, this.player.r, this.renderer.hexSize);
             this.camera.centerOn(playerPos.x, playerPos.y);
         }
+
+        // Restore normal turn display
+        this.ui.updateStats(this.player, this.world);
 
         this.ui.showNotification('🗺️ Returned to World Map', 'You returned to the world map.', 'info');
     }
@@ -995,6 +1036,114 @@ class Game {
                 window.removeEventListener('keydown', handler);
             }
         });
+    }
+
+    /**
+     * Show the end-of-day modal when inner map time runs out
+     */
+    _showInnerMapEndDayModal() {
+        const overlay = document.createElement('div');
+        overlay.id = 'innerMapEndDayOverlay';
+        overlay.style.cssText = `
+            position: fixed; inset: 0; z-index: 1300;
+            background: rgba(0,0,0,0.75); backdrop-filter: blur(6px);
+            display: flex; justify-content: center; align-items: center;
+        `;
+
+        const worldTile = this.world ? this.world.getTile(this.player.q, this.player.r) : null;
+        const settlementName = worldTile && worldTile.settlement ? worldTile.settlement.name : 'this area';
+        const day = this.world ? this.world.day : 0;
+        const season = this.world ? this.world.season : 'Spring';
+        const year = this.world ? this.world.year : 853;
+
+        const box = document.createElement('div');
+        box.style.cssText = `
+            background: rgba(16, 20, 28, 0.98);
+            border: 1px solid rgba(245, 197, 66, 0.4);
+            border-radius: 14px; padding: 28px 36px;
+            max-width: 420px; text-align: center;
+            box-shadow: 0 16px 64px rgba(0,0,0,0.9);
+            font-family: var(--font-body);
+        `;
+
+        box.innerHTML = `
+            <div style="font-size: 48px; margin-bottom: 12px;">🌙</div>
+            <div style="font-family: var(--font-display); font-size: 22px; color: var(--gold); margin-bottom: 6px;">
+                Day's End
+            </div>
+            <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6;">
+                Night has fallen over ${settlementName}. The day draws to a close.
+            </div>
+            <div style="
+                background: rgba(255,255,255,0.05);
+                border-radius: 8px; padding: 12px 16px; margin-bottom: 20px;
+                text-align: left; font-size: 12px; color: rgba(255,255,255,0.7);
+            ">
+                <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+                    <span>📅 Day</span><span style="color:#f5c542;">${day}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+                    <span>🌿 Season</span><span style="color:#f5c542;">${season}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+                    <span>📜 Year</span><span style="color:#f5c542;">${year}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+                    <span>💰 Gold</span><span style="color:#f5c542;">${this.player.gold}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+                    <span>❤️ Health</span><span style="color:#f5c542;">${this.player.health}/${this.player.maxHealth}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span>🍞 Food</span><span style="color:#f5c542;">${this.player.getFoodCount ? this.player.getFoodCount() : '?'}</span>
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button id="innerEndDayRest" style="
+                    background: linear-gradient(135deg, #f5c542, #d4a843);
+                    color: #1a1a2e; border: none; padding: 10px 24px;
+                    border-radius: 6px; font-weight: 700; cursor: pointer;
+                    font-size: 13px; font-family: var(--font-body);
+                ">🛏️ Rest & End Day</button>
+                <button id="innerEndDayLeave" style="
+                    background: rgba(255,255,255,0.08);
+                    color: #e0e0e0; border: 1px solid rgba(255,255,255,0.15);
+                    padding: 10px 20px; border-radius: 6px;
+                    font-weight: 600; cursor: pointer;
+                    font-size: 13px; font-family: var(--font-body);
+                ">🚶 Leave & End Day</button>
+            </div>
+        `;
+
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+
+        const restBtn = box.querySelector('#innerEndDayRest');
+        const leaveBtn = box.querySelector('#innerEndDayLeave');
+
+        restBtn.addEventListener('click', () => {
+            overlay.remove();
+            // Stay on inner map, advance game day, reset inner map time
+            this.endDay();
+            InnerMap.timeOfDay = 8;
+            InnerMap._timeAccumulator = 0;
+            InnerMap.dayEnded = false;
+            this._innerMapDayEndShown = false;
+            this.ui.showNotification('🌅 New Day', `A new day dawns. Time: ${InnerMap.getTimeString()}`, 'info');
+        });
+
+        leaveBtn.addEventListener('click', () => {
+            overlay.remove();
+            // End the day and exit to world map
+            this.exitInnerMap();
+            this.endDay();
+        });
+
+        // Hover effects
+        restBtn.addEventListener('mouseenter', () => restBtn.style.transform = 'scale(1.04)');
+        restBtn.addEventListener('mouseleave', () => restBtn.style.transform = 'scale(1)');
+        leaveBtn.addEventListener('mouseenter', () => leaveBtn.style.background = 'rgba(255,255,255,0.12)');
+        leaveBtn.addEventListener('mouseleave', () => leaveBtn.style.background = 'rgba(255,255,255,0.08)');
     }
 
     /**
@@ -1282,6 +1431,44 @@ class Game {
                                 rb.underConstruction = false;
                                 this.ui.showNotification('🏗️ Construction Complete!',
                                     `Your ${rb.name} is now complete and will spread your faith!`, 'success');
+                            }
+                        }
+                    }
+                }
+
+                // Process infrastructure construction
+                if (this.player.infrastructureUnderConstruction) {
+                    for (let i = this.player.infrastructureUnderConstruction.length - 1; i >= 0; i--) {
+                        const ref = this.player.infrastructureUnderConstruction[i];
+                        const iTile = this.world.getTile(ref.q, ref.r);
+                        if (!iTile || !iTile.infrastructure || !iTile.infrastructure.underConstruction) {
+                            this.player.infrastructureUnderConstruction.splice(i, 1);
+                            continue;
+                        }
+                        iTile.infrastructure.constructionDaysLeft--;
+                        if (iTile.infrastructure.constructionDaysLeft <= 0) {
+                            iTile.infrastructure.underConstruction = false;
+                            this.ui.showNotification('🏗️ Construction Complete!',
+                                `Your ${iTile.infrastructure.name} is now operational!`, 'success');
+                            this.player.infrastructureUnderConstruction.splice(i, 1);
+                            // Recalculate reachable hexes now that infra is active
+                            this.renderer.reachableHexes = this.player.getReachableHexes(this.world);
+                        }
+                    }
+                }
+
+                // Process cultural building construction
+                if (this.player.culturalBuildings) {
+                    for (const bRef of this.player.culturalBuildings) {
+                        const cTile = this.world.getTile(bRef.q, bRef.r);
+                        if (!cTile || !cTile.culturalBuilding) continue;
+                        const cb = cTile.culturalBuilding;
+                        if (cb.underConstruction && cb.constructionDaysLeft > 0) {
+                            cb.constructionDaysLeft--;
+                            if (cb.constructionDaysLeft <= 0) {
+                                cb.underConstruction = false;
+                                this.ui.showNotification('🏗️ Construction Complete!',
+                                    `Your ${cb.name} is now operational!`, 'success');
                             }
                         }
                     }
@@ -1644,6 +1831,14 @@ class Game {
                 this.player.financeHistory.push(dayFinance);
                 if (this.player.financeHistory.length > 90) {
                     this.player.financeHistory = this.player.financeHistory.slice(-90);
+                }
+
+                // Reset inner map time if the day was ended while on the inner map
+                if (this.innerMapMode && typeof InnerMap !== 'undefined') {
+                    InnerMap.timeOfDay = 8;
+                    InnerMap._timeAccumulator = 0;
+                    InnerMap.dayEnded = false;
+                    this._innerMapDayEndShown = false;
                 }
 
                 this.ui.showNotification('New Day', `Day ${((this.world.day - 1) % 30) + 1} of ${this.world.season}, Year ${this.world.year}`, 'default');

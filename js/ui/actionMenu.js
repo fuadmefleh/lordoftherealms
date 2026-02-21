@@ -402,14 +402,62 @@ const ActionMenu = {
     },
 
     /**
+     * Actions that open a sub-menu — AP is validated upfront but deducted only on confirm.
+     */
+    _pendingAP: null,
+
+    DEFERRED_AP_ACTIONS: new Set([
+        'trade', 'recruit', 'contract', 'reforge_artifact',
+        'build_property', 'build_temple', 'build_infrastructure', 'build_cultural',
+        'start_caravan', 'tavern', 'miracle', 'ship_passage', 'terraform',
+        'talk_locals', 'bounty_board', 'odd_jobs', 'busking',
+        'donate', 'form_kingdom', 'host_feast', 'hold_tournament', 'host_festival',
+        'found_colony', 'send_pioneers', 'negotiate_indigenous', 'recruit_settlers',
+        'cartography', 'map_trade',
+        'attack_unit', 'attack_settlement',
+        'request_meeting', 'buy_house', 'seek_title', 'visit_shipyard',
+    ]),
+
+    /**
+     * Spend (commit) the deferred AP that was stored by handleAction.
+     * Call this at the top of every sub-menu confirm handler.
+     * Returns true if AP was successfully spent (or there was nothing pending), false if insufficient.
+     */
+    commitPendingAP(game) {
+        if (ActionMenu._pendingAP === null) return true; // nothing pending, already paid or free
+        const cost = ActionMenu._pendingAP;
+        ActionMenu._pendingAP = null;
+        if (cost === 0) return true;
+        if ((game.player.actionPoints || 0) < cost) {
+            game.ui.showNotification('⚡ Not Enough Action Points',
+                `This action requires ${cost} AP but you only have ${game.player.actionPoints || 0}. Rest to start a new day.`, 'error');
+            return false;
+        }
+        game.player.actionPoints -= cost;
+        game.ui.updateStats(game.player, game.world);
+        return true;
+    },
+
+    /**
      * Handle action selection
      */
     handleAction(game, tile, actionType, unitId) {
         ActionMenu.close();
 
-        // Check and spend AP before executing action
-        if (!ActionMenu.spendAP(game.player, actionType, game)) {
-            return;
+        // For sub-menu actions: validate AP now but defer deduction until confirm
+        if (ActionMenu.DEFERRED_AP_ACTIONS.has(actionType)) {
+            const cost = ActionMenu.getAPCost(actionType);
+            if (cost > 0 && (game.player.actionPoints || 0) < cost) {
+                game.ui.showNotification('⚡ Not Enough Action Points',
+                    `This action requires ${cost} AP but you only have ${game.player.actionPoints || 0}. Rest to start a new day.`, 'error');
+                return;
+            }
+            ActionMenu._pendingAP = cost;
+        } else {
+            // Immediate actions: spend AP right now
+            if (!ActionMenu.spendAP(game.player, actionType, game)) {
+                return;
+            }
         }
 
         switch (actionType) {
@@ -719,6 +767,7 @@ const ActionMenu = {
         game.ui.showCustomPanel('Coastal Travel', html);
 
         window.payForPassage = (q, r, cost, name, travelDays) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             if (game.player.gold >= cost) {
                 game.player.gold -= cost;
                 game.player.q = q;
@@ -833,7 +882,21 @@ const ActionMenu = {
         // Render menu
         let html = `<div style="padding: 8px;">`;
 
-        // Construction banner
+        // Header info
+        html += `
+            <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:16px;">
+                <div style="font-size:48px; border:2px solid var(--gold); border-radius:8px; padding:8px; background:rgba(0,0,0,0.3);">${prop.icon}</div>
+                <div style="flex-grow:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                        <h3 style="margin:0; color:var(--gold); font-family:var(--font-display); font-size:24px;">${prop.name} <span style="font-size:16px; color:white; opacity:0.7;">Lvl ${prop.level}</span></h3>
+                        <div style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">Owned: ${prop.daysOwned} days</div>
+                    </div>
+                    <div style="color:var(--text-secondary); font-size:13px; margin-top:4px;">${propType.description}</div>
+                </div>
+            </div>
+        `;
+
+        // If under construction, show only the construction banner and sell button — no management
         if (prop.underConstruction) {
             const pct = prop.constructionDaysTotal > 0 ? ((prop.constructionDaysTotal - prop.constructionDaysLeft) / prop.constructionDaysTotal * 100) : 100;
             const barColor = pct > 66 ? '#2ecc71' : pct > 33 ? '#f39c12' : '#e74c3c';
@@ -850,22 +913,29 @@ const ActionMenu = {
                         <div style="width: ${pct}%; height: 100%; background: ${barColor}; border-radius: 5px; transition: width 0.3s;"></div>
                     </div>
                     <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; text-align: center;">${pct.toFixed(0)}% complete — no production or upkeep until finished</div>
-                </div>`;
+                </div>
+                <button onclick="window.sellPropertyAction()" style="width:100%; padding:10px; background:#c0392b; border:none; border-radius:4px; cursor:pointer; color:white; font-weight:bold; margin-top:8px;">
+                    Sell Property (Refund: ${Math.floor(propType.cost * 0.25)}g)
+                </button>
+            `;
+            html += `</div>`;
+            game.ui.showCustomPanel('Manage Property', html);
+
+            window.sellPropertyAction = () => {
+                const result = PlayerEconomy.sellProperty(game.player, tile, game.world);
+                if (result.success) {
+                    game.ui.showNotification('Property Sold', `${result.name} sold for ${result.refund} gold`, 'success');
+                    game.ui.updateStats(game.player, game.world);
+                    game.ui.hideCustomPanel();
+                } else {
+                    game.ui.showNotification('Cannot Sell', result.reason || 'Error', 'error');
+                }
+            };
+            return;
         }
 
-        // Header info
+        // ── Operational property management below ──
         html += `
-            <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:16px;">
-                <div style="font-size:48px; border:2px solid var(--gold); border-radius:8px; padding:8px; background:rgba(0,0,0,0.3);">${prop.icon}</div>
-                <div style="flex-grow:1;">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                        <h3 style="margin:0; color:var(--gold); font-family:var(--font-display); font-size:24px;">${prop.name} <span style="font-size:16px; color:white; opacity:0.7;">Lvl ${prop.level}</span></h3>
-                        <div style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">Owned: ${prop.daysOwned} days</div>
-                    </div>
-                    <div style="color:var(--text-secondary); font-size:13px; margin-top:4px;">${propType.description}</div>
-                </div>
-            </div>
-            
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:24px;">
                 <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">
                     <div style="font-size:11px; color:var(--text-secondary); margin-bottom:4px; letter-spacing:1px;">PRODUCTION</div>
@@ -1489,6 +1559,7 @@ const ActionMenu = {
             ActionMenu.showQuantityInput(`Buy ${PlayerEconomy.GOODS[goodId.toUpperCase()]?.name || goodId}`, maxQty, (qty) => {
                 const good = goods.find(g => g.id === goodId);
                 if (good) {
+                    if (!ActionMenu.commitPendingAP(game)) return;
                     const result = Trading.buyGoods(game.player, good, qty, tile.settlement);
                     if (result.success) {
                         game.ui.showNotification('Purchase Complete', `Bought ${qty}x ${good.name} for ${result.spent} gold`, 'success');
@@ -1515,6 +1586,7 @@ const ActionMenu = {
 
         window.sellGood = (goodId, price, maxQty) => {
             ActionMenu.showQuantityInput(`Sell ${PlayerEconomy.GOODS[goodId.toUpperCase()]?.name || goodId}`, maxQty, (qty) => {
+                if (!ActionMenu.commitPendingAP(game)) return;
                 const result = Trading.sellGoods(game.player, goodId, qty);
                 if (result.success) {
                     const good = PlayerEconomy.GOODS[goodId.toUpperCase()];
@@ -1608,23 +1680,49 @@ const ActionMenu = {
      * Show recruit menu
      */
     showRecruitMenu(game, tile) {
+        const settlement = tile.settlement;
+        const capacity = PlayerMilitary.getRecruitmentCapacity(settlement);
+        const recruited = game.player._recruitedThisTurn || 0;
+        const remaining = Math.max(0, capacity - recruited);
+
         let html = '<div>';
         html += '<h4 style="margin-top: 0;">Recruit Units</h4>';
         html += `<p style="color: var(--text-secondary); font-size: 12px;">Your army strength: ${PlayerMilitary.getArmyStrength(game.player)}</p>`;
+        html += `<div style="padding: 6px 10px; margin-bottom: 12px; background: rgba(255,255,255,0.06); border-radius: 4px; font-size: 12px;">
+            <span style="color: var(--text-secondary);">${settlement.name}</span> — 
+            <strong>${settlement.type}</strong> (pop: ${settlement.population.toLocaleString()}) — 
+            Recruits available: <strong style="color: ${remaining > 0 ? '#4CAF50' : '#e74c3c'};">${remaining}/${capacity}</strong>
+        </div>`;
 
         for (const [key, unit] of Object.entries(PlayerMilitary.UNIT_TYPES)) {
-            html += `
-                <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div><span style="font-size: 20px;">${unit.icon}</span> <strong>${unit.name}</strong></div>
-                            <div style="font-size: 12px; color: var(--text-secondary);">${unit.description}</div>
-                            <div style="font-size: 12px;">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>
+            const avail = PlayerMilitary.isUnitAvailable(unit, settlement);
+            if (avail.available) {
+                html += `
+                    <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div><span style="font-size: 20px;">${unit.icon}</span> <strong>${unit.name}</strong></div>
+                                <div style="font-size: 12px; color: var(--text-secondary);">${unit.description}</div>
+                                <div style="font-size: 12px;">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>
+                            </div>
+                            <button onclick="window.recruitUnit('${key}')" ${remaining <= 0 ? 'disabled' : ''} style="padding: 8px 16px; background: ${remaining > 0 ? 'var(--gold)' : '#555'}; border: none; border-radius: 4px; cursor: ${remaining > 0 ? 'pointer' : 'not-allowed'};">${unit.cost} gold</button>
                         </div>
-                        <button onclick="window.recruitUnit('${key}')" style="padding: 8px 16px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer;">${unit.cost} gold</button>
                     </div>
-                </div>
-            `;
+                `;
+            } else {
+                html += `
+                    <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.02); border-radius: 4px; opacity: 0.4;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div><span style="font-size: 20px;">${unit.icon}</span> <strong>${unit.name}</strong> \ud83d\udd12</div>
+                                <div style="font-size: 11px; color: #e74c3c;">${avail.reason}</div>
+                                <div style="font-size: 12px; color: var(--text-secondary);">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>
+                            </div>
+                            <span style="color: var(--text-secondary); font-size: 12px;">${unit.cost} gold</span>
+                        </div>
+                    </div>
+                `;
+            }
         }
 
         // Tech-unlocked units
@@ -1632,18 +1730,34 @@ const ActionMenu = {
             for (const [key, unit] of Object.entries(Technology.TECH_UNITS)) {
                 if (!unit.requiredTech || !Technology.isImplemented(game.player, unit.requiredTech)) continue;
 
-                html += `
-                    <div style="padding: 12px; margin-bottom: 8px; background: rgba(156, 39, 176, 0.06); border: 1px solid rgba(156, 39, 176, 0.2); border-radius: 4px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <div><span style="font-size: 20px;">${unit.icon}</span> <strong>${unit.name}</strong> <span style="font-size: 10px; color: #ce93d8;">TECH</span></div>
-                                <div style="font-size: 12px; color: var(--text-secondary);">${unit.description}</div>
-                                <div style="font-size: 12px;">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>
+                const techAvail = PlayerMilitary.isTechUnitAvailable(unit, settlement);
+                if (techAvail.available) {
+                    html += `
+                        <div style="padding: 12px; margin-bottom: 8px; background: rgba(156, 39, 176, 0.06); border: 1px solid rgba(156, 39, 176, 0.2); border-radius: 4px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div><span style="font-size: 20px;">${unit.icon}</span> <strong>${unit.name}</strong> <span style="font-size: 10px; color: #ce93d8;">TECH</span></div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">${unit.description}</div>
+                                    <div style="font-size: 12px;">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>
+                                </div>
+                                <button onclick="window.recruitTechUnit('${key}')" ${remaining <= 0 ? 'disabled' : ''} style="padding: 8px 16px; background: ${remaining > 0 ? 'var(--gold)' : '#555'}; border: none; border-radius: 4px; cursor: ${remaining > 0 ? 'pointer' : 'not-allowed'};">${unit.cost} gold</button>
                             </div>
-                            <button onclick="window.recruitTechUnit('${key}')" style="padding: 8px 16px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer;">${unit.cost} gold</button>
                         </div>
-                    </div>
-                `;
+                    `;
+                } else {
+                    html += `
+                        <div style="padding: 12px; margin-bottom: 8px; background: rgba(156, 39, 176, 0.02); border-radius: 4px; opacity: 0.4;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div><span style="font-size: 20px;">${unit.icon}</span> <strong>${unit.name}</strong> <span style="font-size: 10px; color: #ce93d8;">TECH</span> \ud83d\udd12</div>
+                                    <div style="font-size: 11px; color: #e74c3c;">${techAvail.reason}</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>
+                                </div>
+                                <span style="color: var(--text-secondary); font-size: 12px;">${unit.cost} gold</span>
+                            </div>
+                        </div>
+                    `;
+                }
             }
         }
 
@@ -1651,6 +1765,7 @@ const ActionMenu = {
         game.ui.showCustomPanel('Recruit', html);
 
         window.recruitUnit = (unitType) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const result = PlayerMilitary.recruitUnit(game.player, unitType, tile.settlement);
             if (result.success) {
                 game.ui.showNotification('Unit Recruited!', `${result.unit.name} joined your army`, 'success');
@@ -1662,14 +1777,32 @@ const ActionMenu = {
         };
 
         window.recruitTechUnit = (unitKey) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const unit = Technology.TECH_UNITS[unitKey];
             if (!unit) return;
+
+            // Check settlement availability
+            const techAvail = PlayerMilitary.isTechUnitAvailable(unit, tile.settlement);
+            if (!techAvail.available) {
+                game.ui.showNotification('Cannot Recruit', techAvail.reason, 'error');
+                return;
+            }
+
+            // Check recruitment capacity
+            const cap = PlayerMilitary.getRecruitmentCapacity(tile.settlement);
+            const rec = game.player._recruitedThisTurn || 0;
+            if (rec >= cap) {
+                game.ui.showNotification('Cannot Recruit', `This settlement can only supply ${cap} recruit${cap > 1 ? 's' : ''} right now`, 'error');
+                return;
+            }
+
             if (game.player.gold < unit.cost) {
                 game.ui.showNotification('Cannot Recruit', `Need ${unit.cost} gold`, 'error');
                 return;
             }
 
             game.player.gold -= unit.cost;
+            game.player._recruitedThisTurn = (game.player._recruitedThisTurn || 0) + 1;
             if (!game.player.army) game.player.army = [];
             game.player.army.push({
                 type: unit.id,
@@ -1736,6 +1869,7 @@ const ActionMenu = {
         game.ui.showCustomPanel('Artifact Forge', html);
 
         window.reforgeArtifact = (artifactId) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const result = LegendaryArtifacts.reforgeArtifact(game.player, artifactId);
             if (result.success) {
                 const artifact = result.artifact;
@@ -1845,6 +1979,7 @@ const ActionMenu = {
         game.ui.showCustomPanel('Contracts', html);
 
         window.hireMercCompany = (offerId) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const result = PlayerMilitary.hireMercenaryCompany(game.player, tile, offerId, game.world);
             if (result.success) {
                 const company = result.company;
@@ -1879,6 +2014,7 @@ const ActionMenu = {
         };
 
         window.acceptContract = (contractType) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const result = PlayerMilitary.acceptContract(game.player, contractType, tile.settlement);
             if (result.success) {
                 game.ui.showNotification('Contract Accepted!', `${result.contract.name} - ${result.contract.daysRemaining} days remaining`, 'success');
@@ -2009,6 +2145,7 @@ const ActionMenu = {
 
         window.currentBuildTile = tile;
         window.buildProperty = (propType) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const result = PlayerEconomy.buildProperty(game.player, propType, tile, game.world);
             if (result.success) {
                 if (result.underConstruction) {
@@ -2026,6 +2163,7 @@ const ActionMenu = {
         window.buildTechBuilding = (buildingKey) => {
             const building = Technology.TECH_BUILDINGS[buildingKey];
             if (!building) return;
+            if (!ActionMenu.commitPendingAP(game)) return;
             if (game.player.gold < building.cost) {
                 game.ui.showNotification('Cannot Build', `Need ${building.cost} gold`, 'error');
                 return;
@@ -2062,6 +2200,11 @@ const ActionMenu = {
                 produces: building.produces,
             });
 
+            // Place property on inner map
+            if (typeof InnerMap !== 'undefined') {
+                InnerMap.placePropertyOnInnerMap(tile, newProperty, tile.q, tile.r);
+            }
+
             game.ui.showNotification('🏗️ Construction Started!', `${building.name} is under construction — ${building.constructionDays || 0} days to completion.`, 'info');
             game.ui.updateStats(game.player, game.world);
             game.ui.hideCustomPanel();
@@ -2084,8 +2227,11 @@ const ActionMenu = {
         html += '<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Improve the land with roads, bridges, and irrigation.</p>';
 
         if (tile.infrastructure) {
+            const constructionNote = tile.infrastructure.underConstruction
+                ? ` <span style="color: #e0a040; font-size: 11px;">🔨 Under construction (${tile.infrastructure.constructionDaysLeft} day${tile.infrastructure.constructionDaysLeft > 1 ? 's' : ''} left)</span>`
+                : '';
             html += `<div style="padding: 8px; margin-bottom: 12px; background: rgba(255,255,255,0.08); border-radius: 4px; border-left: 3px solid var(--gold);">
-                <span style="font-size: 16px;">${tile.infrastructure.icon}</span> Current: <strong>${tile.infrastructure.name}</strong>
+                <span style="font-size: 16px;">${tile.infrastructure.icon}</span> Current: <strong>${tile.infrastructure.name}</strong>${constructionNote}
             </div>`;
         }
 
@@ -2095,11 +2241,13 @@ const ActionMenu = {
 
         for (const infra of available) {
             const isUpgrade = infra.upgradesFrom && tile.infrastructure && tile.infrastructure.id === infra.upgradesFrom;
+            const buildDays = infra.buildTime || 0;
+            const buildTimeLabel = buildDays > 0 ? `<span style="font-size: 11px; color: #e0a040;">⏱ ${buildDays} day${buildDays > 1 ? 's' : ''}</span>` : '<span style="font-size: 11px; color: #4CAF50;">⚡ Instant</span>';
             html += `
                 <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <div><span style="font-size: 20px;">${infra.icon}</span> <strong>${infra.name}</strong>${isUpgrade ? ' <span style="color: var(--gold); font-size: 11px;">⬆ UPGRADE</span>' : ''}</div>
+                            <div><span style="font-size: 20px;">${infra.icon}</span> <strong>${infra.name}</strong>${isUpgrade ? ' <span style="color: var(--gold); font-size: 11px;">⬆ UPGRADE</span>' : ''} ${buildTimeLabel}</div>
                             <div style="font-size: 12px; color: var(--text-secondary);">${infra.description}</div>
                         </div>
                         <button onclick="window.buildInfra('${infra.id.toUpperCase()}')" style="padding: 8px 16px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">${infra.actualCost} gold</button>
@@ -2131,9 +2279,17 @@ const ActionMenu = {
         game.ui.showCustomPanel('Build Infrastructure', html);
 
         window.buildInfra = (infraKey) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const result = Infrastructure.build(game.player, infraKey, tile, game.world);
             if (result.success) {
-                game.ui.showNotification('Infrastructure Built!', `${result.infrastructure.name} constructed for ${result.cost} gold`, 'success');
+                if (result.buildDays > 0) {
+                    // Track for construction tick
+                    if (!game.player.infrastructureUnderConstruction) game.player.infrastructureUnderConstruction = [];
+                    game.player.infrastructureUnderConstruction.push({ q: tile.q, r: tile.r });
+                    game.ui.showNotification('🏗️ Construction Started!', `${result.infrastructure.name} will be ready in ${result.buildDays} day${result.buildDays > 1 ? 's' : ''}. Cost: ${result.cost} gold`, 'info');
+                } else {
+                    game.ui.showNotification('Infrastructure Built!', `${result.infrastructure.name} constructed for ${result.cost} gold`, 'success');
+                }
                 game.ui.updateStats(game.player, game.world);
                 game.ui.hideCustomPanel();
                 // Recalculate reachable hexes
@@ -2305,6 +2461,7 @@ const ActionMenu = {
         window._frConfirm = () => {
             const name = religionName.trim();
             if (!name || selectedTenets.length !== 3) return;
+            if (!ActionMenu.commitPendingAP(game)) return;
 
             const result = PlayerReligion.foundReligion(game.player, name, selectedTenets);
             if (result.success) {
@@ -2351,6 +2508,7 @@ const ActionMenu = {
         game.ui.showCustomPanel('Build Temple', html);
 
         window.buildTemple = (buildingType) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const result = PlayerReligion.buildReligiousBuilding(game.player, buildingType, tile, game.world);
             if (result.success) {
                 if (result.underConstruction) {
@@ -2394,6 +2552,7 @@ const ActionMenu = {
         game.ui.showCustomPanel('Miracles', html);
 
         window.performMiracle = (miracleType) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const result = PlayerReligion.performMiracle(game.player, miracleType);
             if (result.success) {
                 game.ui.showNotification('Miracle!', result.effect, 'success');
@@ -2852,6 +3011,8 @@ const ActionMenu = {
         game.ui.showCustomPanel('⛏️ Terraform Land', html);
 
         window.doTerraform = (stoneAmount) => {
+            // Terraform manages its own AP internally — just clear the deferred pending
+            ActionMenu._pendingAP = null;
             if (game.player.gold < cost) {
                 game.ui.showNotification('Cannot Terraform', `Need ${cost} gold`, 'error');
                 return;
@@ -2934,6 +3095,7 @@ const ActionMenu = {
         game.ui.showCustomPanel(`🍺 Tavern — ${tile.settlement.name}`, html);
 
         window.tavernAction = (actionId) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const rumors = Tavern.handleAction(actionId, game.player, tile, game.world);
             // Check if any rumor signals to open the map trade panel
             const mapTradeRumor = rumors.find(r => r.openMapTrade);
@@ -2987,6 +3149,7 @@ const ActionMenu = {
      */
     showTalkLocalsMenu(game, tile) {
         // Talking to locals is free but gives less reliable info
+        if (!ActionMenu.commitPendingAP(game)) return;
         const rumors = [];
         const numRumors = Utils.randInt(1, 2);
 
@@ -3242,6 +3405,7 @@ const ActionMenu = {
                                 ${building.moraleBonus ? ` | Morale: +${building.moraleBonus}` : ''}
                                 ${building.renownPerDay ? ` | Renown: +${building.renownPerDay}/day` : ''}
                             </div>
+                            <div style="font-size: 11px; color: var(--gold);">🏗️ ${building.constructionDays || 0} days</div>
                             ${canBuild ? `<div style="font-size: 11px; color: #e74c3c; margin-top: 4px;">${canBuild}</div>` : ''}
                         </div>
                         <button onclick="window._buildCultural('${key}')" 
@@ -3256,9 +3420,14 @@ const ActionMenu = {
         game.ui.showCustomPanel('📚 Cultural Buildings', html);
 
         window._buildCultural = (buildingType) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const result = Culture.buildCulturalBuilding(game.player, buildingType, tile, game.world);
             if (result.success) {
-                game.ui.showNotification('Building Constructed!', `${result.building.icon} ${result.building.name} will spread knowledge and influence`, 'success');
+                if (result.underConstruction) {
+                    game.ui.showNotification('🏗️ Construction Started!', `${result.building.icon} ${result.building.name} is under construction — ${result.constructionDays} days to completion.`, 'info');
+                } else {
+                    game.ui.showNotification('Building Constructed!', `${result.building.icon} ${result.building.name} will spread knowledge and influence`, 'success');
+                }
                 game.ui.updateStats(game.player, game.world);
                 game.ui.hideCustomPanel();
             } else {
@@ -3497,6 +3666,7 @@ const ActionMenu = {
         };
 
         window._recruitSettlers = (method) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const target = colonies[selectedColonyIdx];
             if (!target) return;
 
@@ -3667,6 +3837,7 @@ const ActionMenu = {
     executeSendPioneers(game, targetQ, targetR) {
         const player = game.player;
         const world = game.world;
+        if (!ActionMenu.commitPendingAP(game)) return;
 
         if (player.gold < 200) {
             game.ui.showNotification('Not Enough Gold', 'You need 200 gold to send pioneers.', 'error');
@@ -3990,6 +4161,7 @@ const ActionMenu = {
         const tile = game.world.getTile(q, r);
         const player = game.player;
         if (!tile || !tile.indigenous) return;
+        if (!ActionMenu.commitPendingAP(game)) return;
 
         if (player.gold < 50) {
             game.ui.showNotification('Not Enough Gold', 'Need 50 gold to trade.', 'error');
@@ -4016,6 +4188,7 @@ const ActionMenu = {
         const tile = game.world.getTile(q, r);
         const player = game.player;
         if (!tile || !tile.indigenous) return;
+        if (!ActionMenu.commitPendingAP(game)) return;
 
         if (player.gold < 100) {
             game.ui.showNotification('Not Enough Gold', 'Need 100 gold for tribute.', 'error');
@@ -4039,6 +4212,7 @@ const ActionMenu = {
         const tile = game.world.getTile(q, r);
         const player = game.player;
         if (!tile || !tile.indigenous) return;
+        if (!ActionMenu.commitPendingAP(game)) return;
 
         if (tile.indigenous.hostility >= 40) {
             game.ui.showNotification('Too Hostile', 'The natives don\'t trust you enough to share their knowledge. Improve relations first.', 'error');
@@ -4162,6 +4336,7 @@ const ActionMenu = {
             game.ui.showNotification('Not Enough Gold', `You need ${cost} gold to create this map.`, 'error');
             return;
         }
+        if (!ActionMenu.commitPendingAP(game)) return;
 
         player.gold -= cost;
         if (!player.maps) player.maps = [];
@@ -4447,6 +4622,7 @@ const ActionMenu = {
             game.ui.showNotification('Error', 'Map no longer available.', 'error');
             return;
         }
+        if (!ActionMenu.commitPendingAP(game)) return;
 
         const result = Cartography.buyMap(game.player, item.map, item.price);
         if (result.success) {
@@ -4466,6 +4642,7 @@ const ActionMenu = {
      * Sell a map from trade menu
      */
     sellMapFromTrade(game, mapIndex, tileQ, tileR) {
+        if (!ActionMenu.commitPendingAP(game)) return;
         const result = Cartography.sellMap(game.player, mapIndex);
         if (result.success) {
             game.ui.showNotification('Map Sold', `Sold ${result.mapName} for ${result.gold} gold.`, 'success');
@@ -4637,6 +4814,7 @@ const ActionMenu = {
      */
     performSiege(game) {
         game.ui.hideCustomPanel();
+        if (!ActionMenu.commitPendingAP(game)) return;
 
         const tile = game.world.getTile(game.player.q, game.player.r);
         if (!tile || !tile.settlement) {
@@ -4775,6 +4953,7 @@ const ActionMenu = {
      */
     performAttack(game, unitId) {
         game.ui.hideCustomPanel();
+        if (!ActionMenu.commitPendingAP(game)) return;
 
         const unit = game.world.units.find(u => u.id === unitId && !u.destroyed);
         if (!unit) {
@@ -5035,6 +5214,7 @@ const ActionMenu = {
         if (!lordUnit) return;
         const kingdom = world.getKingdom(lordUnit.kingdomId);
         if (!kingdom || !kingdom.lord) return;
+        if (!ActionMenu.commitPendingAP(game)) return;
 
         // Gift tiers
         const giftAmount = Math.min(player.gold, Math.max(50, Math.floor(player.gold * 0.1)));
@@ -5087,6 +5267,7 @@ const ActionMenu = {
         if (!lordUnit) return;
         const kingdom = world.getKingdom(lordUnit.kingdomId);
         if (!kingdom || !kingdom.lord) return;
+        if (!ActionMenu.commitPendingAP(game)) return;
 
         const lord = kingdom.lord;
         const opinion = NPCLords.getLordOpinion(lord, player);
@@ -5146,6 +5327,7 @@ const ActionMenu = {
         if (!lordUnit) return;
         const kingdom = world.getKingdom(lordUnit.kingdomId);
         if (!kingdom || !kingdom.lord) return;
+        if (!ActionMenu.commitPendingAP(game)) return;
 
         const lord = kingdom.lord;
 
@@ -5212,6 +5394,7 @@ const ActionMenu = {
         if (!lordUnit) return;
         const kingdom = world.getKingdom(lordUnit.kingdomId);
         if (!kingdom || !kingdom.lord) return;
+        if (!ActionMenu.commitPendingAP(game)) return;
 
         const lord = kingdom.lord;
 
@@ -5262,6 +5445,7 @@ const ActionMenu = {
         if (!lordUnit) return;
         const kingdom = world.getKingdom(lordUnit.kingdomId);
         if (!kingdom || !kingdom.lord) return;
+        if (!ActionMenu.commitPendingAP(game)) return;
 
         if (typeof Titles === 'undefined') return;
         Titles.initialize(player);
@@ -5328,6 +5512,7 @@ const ActionMenu = {
         if (!lordUnit) return;
         const kingdom = world.getKingdom(lordUnit.kingdomId);
         if (!kingdom || !kingdom.lord) return;
+        if (!ActionMenu.commitPendingAP(game)) return;
 
         const lord = kingdom.lord;
         const reputation = player.reputation ? (player.reputation[kingdom.id] || 0) : 0;
@@ -5717,6 +5902,7 @@ const ActionMenu = {
         game.ui.showCustomPanel('Day Labor', html);
 
         window._startLabor = (idx) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const job = todayJobs[idx];
             ActionMenu._showMinigamePrompt(game, {
                 title: `🔨 ${job.name}`,
@@ -6583,13 +6769,13 @@ const ActionMenu = {
         // Terrain icons for flavor
         const terrainIcons = {
             'forest': ['🌲', '🌳', '🌿', '🍄'],
-            'plains': ['🌾', '🌱', '🪨', '🌻'],
+            'plains': ['🌾', '🌱', '⛰️', '🌻'],
             'swamp': ['🌊', '🌿', '🍂', '🐸'],
-            'desert': ['🏜️', '🌵', '🪨', '☀️'],
-            'mountains': ['⛰️', '🪨', '🌿', '❄️'],
-            'coast': ['🐚', '🌊', '🪨', '🌿'],
+            'desert': ['🏜️', '🌵', '⛰️', '☀️'],
+            'mountains': ['⛰️', '⛰️', '🌿', '❄️'],
+            'coast': ['🐚', '🌊', '⛰️', '🌿'],
         };
-        const icons = terrainIcons[category] || ['🌿', '🍂', '🪨', '🌱'];
+        const icons = terrainIcons[category] || ['🌿', '🍂', '⛰️', '🌱'];
 
         const render = () => {
             let html = '<div style="max-width: 440px; text-align: center;">';
@@ -6812,7 +6998,7 @@ const ActionMenu = {
             { icon: '❌', label: 'Old tracks (cold)', correct: false },
             { icon: '🌫️', label: 'Wind-blown trail', correct: false },
             { icon: '💧', label: 'Rain-washed prints', correct: false },
-            { icon: '🪨', label: 'Rocky ground (no tracks)', correct: false },
+            { icon: '⛰️', label: 'Rocky ground (no tracks)', correct: false },
         ];
 
         const generateClueChoices = () => {
@@ -7304,6 +7490,7 @@ const ActionMenu = {
         game.ui.showCustomPanel('Notice Board', html);
 
         window._acceptBounty = (idx) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const bounty = bounties[idx];
             if (!bounty) return;
             if (game.player.activeBounties.length >= 3) {
@@ -8238,6 +8425,7 @@ const ActionMenu = {
         game.ui.showCustomPanel('Street Performance', html);
 
         window._startBuskPerf = (perfId) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const perf = performances.find(p => p.id === perfId);
             ActionMenu._showMinigamePrompt(game, {
                 title: `🎭 ${perf ? perf.name : perfId}`,
@@ -9154,7 +9342,7 @@ const ActionMenu = {
                 ],
                 hills: [
                     { item: 'herbs', name: 'Mountain Herbs', icon: '🌿', chance: 0.30, qty: { min: 1, max: 2 }, sellPrice: 7 },
-                    { item: 'stone', name: 'Loose Stone', icon: '🪨', chance: 0.25, qty: { min: 1, max: 3 }, sellPrice: 3 },
+                    { item: 'stone', name: 'Loose Stone', icon: '⛰️', chance: 0.25, qty: { min: 1, max: 3 }, sellPrice: 3 },
                     { item: 'ore_scraps', name: 'Ore Scraps', icon: '⛰️', chance: 0.10, qty: { min: 1, max: 2 }, sellPrice: 10 },
                     { item: 'fossils', name: 'Fossils', icon: '🦴', chance: 0.05, qty: { min: 1, max: 1 }, sellPrice: 20 },
                 ],
@@ -9353,6 +9541,7 @@ const ActionMenu = {
         game.ui.showCustomPanel('Donation', html);
 
         window._doDonate = () => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const amount = parseInt(document.getElementById('donateAmount')?.value || 10);
             if (amount > player.gold) {
                 game.ui.showNotification('Not Enough', 'You can\'t afford that donation!', 'error');
@@ -9521,6 +9710,7 @@ const ActionMenu = {
 
         window._confirmFormKingdom = () => {
             const chosenName = document.getElementById('newKingdomNameInput')?.value || '';
+            if (!ActionMenu.commitPendingAP(game)) return;
             game.ui.hideCustomPanel();
             ActionMenu.doFormKingdom(game, tile, chosenName);
         };
@@ -9700,6 +9890,7 @@ const ActionMenu = {
         game.ui.showCustomPanel('Host Feast', html);
 
         window._doFeast = (feastCost, feastTier) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             if (player.gold < feastCost) {
                 game.ui.showNotification('Not Enough Gold', 'You can\'t afford this feast!', 'error');
                 return;
@@ -9785,6 +9976,7 @@ const ActionMenu = {
         game.ui.showCustomPanel('Tournament', html);
 
         window._doTournament = (compete) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const cost = compete ? entryFee : Math.floor(entryFee * 0.6);
             if (player.gold < cost) {
                 game.ui.showNotification('Not Enough Gold', 'You can\'t afford to host this!', 'error');
@@ -10012,6 +10204,7 @@ const ActionMenu = {
         };
 
         window._beginFestival = () => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const tier = Festivals.BUDGET_TIERS[selectedTier] || Festivals.BUDGET_TIERS.modest;
             if (player.gold < tier.cost) {
                 game.ui.showNotification('Not Enough Gold', `You need ${tier.cost} gold to host this festival.`, 'error');
@@ -12179,7 +12372,7 @@ const ActionMenu = {
                 // Base reward: 1 basic mineral
                 const roll = Math.random();
                 let type, label, icon, value;
-                if (roll < 0.55) { type = 'stone'; label = 'Stone'; icon = '🪨'; value = 8; }
+                if (roll < 0.55) { type = 'stone'; label = 'Stone'; icon = '⛰️'; value = 8; }
                 else if (roll < 0.85) { type = 'ore'; label = 'Iron Ore'; icon = '⛏️'; value = 25; }
                 else if (roll < 0.95) { type = 'fossil'; label = 'Fossil'; icon = '🦴'; value = 35; }
                 else { type = 'crystal'; label = 'Crystal'; icon = '🔮'; value = 50; }
@@ -12213,7 +12406,7 @@ const ActionMenu = {
         const itemData = {
             gems:    { label: 'Gemstones', icon: '💎', value: 80 },
             ore:     { label: 'Iron Ore',  icon: '⛏️', value: 25 },
-            stone:   { label: 'Stone',     icon: '🪨', value: 8 },
+            stone:   { label: 'Stone',     icon: '⛰️', value: 8 },
             fossil:  { label: 'Fossil',    icon: '🦴', value: 35 },
             crystal: { label: 'Crystal',   icon: '🔮', value: 50 },
         };
@@ -12325,7 +12518,7 @@ const ActionMenu = {
                         html += `<div style="height: 42px; border-radius: 4px; display: flex; align-items: center; justify-content: center;
                             background: rgba(${col === '#9b59b6' ? '155,89,182' : col === '#3498db' ? '52,152,219' : col === '#f39c12' ? '243,156,18' : col === '#95a5a6' ? '149,165,166' : '142,68,173'},0.15);
                             border: 1px solid ${col}40; font-size: 9px; color: ${col};">
-                            ${layer.hasHazard ? '⚠️' : ''} ${itemData[layer.type]?.icon || '🪨'}
+                            ${layer.hasHazard ? '⚠️' : ''} ${itemData[layer.type]?.icon || '⛰️'}
                         </div>`;
                     } else {
                         html += `<div style="height: 42px; border-radius: 4px; display: flex; align-items: center; justify-content: center;
@@ -12463,7 +12656,7 @@ const ActionMenu = {
                 layers[d].scanned = true;
                 const data = itemData[layers[d].type];
                 if (data) scannedInfo.push(`${data.icon} ${data.label} at ${d + 1}m`);
-                else scannedInfo.push(`🪨 Rock at ${d + 1}m`);
+                else scannedInfo.push(`⛰️ Rock at ${d + 1}m`);
                 if (layers[d].hasHazard) scannedInfo[scannedInfo.length - 1] += ' ⚠️';
             }
             scanResult = `🔍 Scan: ${scannedInfo.join(', ')}`;
@@ -13841,6 +14034,7 @@ const ActionMenu = {
         game.ui.showCustomPanel('Real Estate', html);
 
         window._buyHouse = (typeId, cost) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const result = Housing.buyHouse(player, tile.q, tile.r, typeId, game.world);
             if (result.success) {
                 game.ui.hideCustomPanel();
@@ -14160,6 +14354,7 @@ const ActionMenu = {
         setShipTab('used');
 
         window._buyUsedShip = (index) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const result = Ships.buyUsedShip(player, tile.q, tile.r, index);
             if (result.success) {
                 game.ui.hideCustomPanel();
@@ -14259,6 +14454,7 @@ const ActionMenu = {
         }, 50);
 
         window._commissionShip = (stId, bCost) => {
+            if (!ActionMenu.commitPendingAP(game)) return;
             const name = document.getElementById('shipNameInput').value.trim() || Ships._generateShipName();
             const customs = [];
             document.querySelectorAll('.shipCustomCheck:checked').forEach(cb => customs.push(cb.value));
@@ -14747,6 +14943,7 @@ const ActionMenu = {
     _appointTitle(game, titleId) {
         const player = game.player;
         const world = game.world;
+        if (!ActionMenu.commitPendingAP(game)) return;
 
         if (typeof Titles === 'undefined') return;
         Titles.initialize(player);

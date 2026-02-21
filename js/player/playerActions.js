@@ -196,12 +196,12 @@ const PlayerActions = {
             });
 
             // Recruit
-            if (isCity) {
+            if (isCity || isVillage) {
                 actions.push({
                     type: 'recruit',
                     label: 'Recruit Units',
                     icon: '⚔️',
-                    description: 'Hire soldiers for your army'
+                    description: isVillage ? 'Recruit local militia' : 'Hire soldiers for your army'
                 });
             }
 

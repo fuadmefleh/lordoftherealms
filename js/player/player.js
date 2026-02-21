@@ -574,6 +574,9 @@ class Player {
         // Reset action points
         this.actionPoints = this.maxActionPoints;
 
+        // Reset daily recruitment counter
+        this._recruitedThisTurn = 0;
+
         // Block movement if in jail or servitude
         if (this.jailState) {
             this.movementRemaining = 0;

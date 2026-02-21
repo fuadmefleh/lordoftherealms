@@ -271,7 +271,30 @@ class Renderer {
             'buildings/well00.png', 'buildings/well01.png',
             'buildings/barn00.png', 'buildings/barnWood00.png',
             'buildings/tent00.png',
-            'buildings/sign00.png', 'buildings/sign01.png'
+            'buildings/sign00.png', 'buildings/sign01.png',
+            // Decoration sprites — small / medium props
+            'buildings/corral00.png', 'buildings/corral01.png', 'buildings/corral02.png',
+            'buildings/corral00_cows.png', 'buildings/corral01_cows.png', 'buildings/corral02_cows.png',
+            'buildings/pasture00.png', 'buildings/pasture00_sheep.png',
+            'buildings/pen00.png', 'buildings/pen00_pigs.png',
+            'buildings/foresterHut00.png', 'buildings/foresterHut01.png', 'buildings/foresterHut02.png',
+            'buildings/foresterShed00.png',
+            'buildings/well03.png', 'buildings/well04.png', 'buildings/well05.png',
+            'buildings/windmill00.png',
+            'buildings/cookhouse00.png',
+            'buildings/loggingCamp00.png', 'buildings/loggingCamp01.png',
+            'buildings/clayPit00.png', 'buildings/clayPit01.png',
+            'buildings/archeryRange00.png',
+            'buildings/scriptorium00.png',
+            'buildings/alchemistsLab00.png',
+            'buildings/mines00.png', 'buildings/mines01.png',
+            'buildings/mines02.png', 'buildings/mines03.png',
+            'buildings/windmillFields00.png',
+            'buildings/walledCityMossy.png',
+            'buildings/strongholdWood00.png', 'buildings/strongholdThatched00.png',
+            'buildings/villageHalflingDecor00.png',
+            'buildings/villageRuin00.png', 'buildings/villageRuin01.png',
+            'buildings/villageRuin02.png', 'buildings/villageRuin03.png'
         ];
         for (const imgName of BUILDING_SPRITES) {
             if (!this.tileSprites.has(imgName)) {
@@ -1495,6 +1518,12 @@ class Renderer {
                 if (screen.y < -100 || screen.y > this.canvas.height + 100) continue;
 
                 const infra = tile.infrastructure;
+                const isUnderConstruction = infra.underConstruction;
+
+                // Dim infrastructure that is still under construction
+                if (isUnderConstruction) {
+                    ctx.globalAlpha = 0.4;
+                }
 
                 if (infra.id === 'dirt_road' || infra.id === 'stone_road') {
                     // Draw road segments to neighbors that also have roads
@@ -1565,14 +1594,27 @@ class Renderer {
                     }
                 }
 
+                // Reset alpha after construction dimming
+                if (isUnderConstruction) {
+                    ctx.globalAlpha = 1.0;
+                    // Draw construction indicator
+                    ctx.font = `${Math.max(12, renderSize * 0.5)}px serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('🔨', screen.x, screen.y - renderSize * 0.3);
+                }
+
                 // Draw infrastructure name label at higher zoom
                 if (this.camera.zoom > 1.0) {
                     const fsize = Math.max(8, 9 * this.camera.zoom);
                     const font = `${fsize}px 'Cinzel', serif`;
                     
                     // Add to label queue with low priority
+                    const labelText = isUnderConstruction
+                        ? `${infra.name} (${infra.constructionDaysLeft}d)`
+                        : infra.name;
                     this.addLabel(
-                        infra.name,
+                        labelText,
                         screen.x,
                         screen.y + renderSize * 0.55,
                         2, // Infrastructure has priority 2

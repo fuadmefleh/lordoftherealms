@@ -159,6 +159,7 @@ const SaveLoad = {
             skills: player.skills,
             reputation: player.reputation,
             properties: player.properties,
+            infrastructureUnderConstruction: player.infrastructureUnderConstruction || [],
             caravans: player.caravans,
             tradeRoutes: player.tradeRoutes || [],
             smugglingRoutes: player.smugglingRoutes || [],

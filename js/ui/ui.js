@@ -367,13 +367,16 @@ class UI {
 
         // Show infrastructure info
         if (tile.infrastructure) {
+            const infraStatus = tile.infrastructure.underConstruction
+                ? ` <span style="color: #e0a040;">🔨 ${tile.infrastructure.constructionDaysLeft}d left</span>`
+                : '';
             html += `
                 <div class="info-section-title">Infrastructure</div>
                 <div class="info-row">
-                    <span class="info-label">${tile.infrastructure.icon} ${tile.infrastructure.name}</span>
+                    <span class="info-label">${tile.infrastructure.icon} ${tile.infrastructure.name}${infraStatus}</span>
                 </div>
             `;
-            if (tile.infrastructure.productivityBonus > 0) {
+            if (tile.infrastructure.productivityBonus > 0 && !tile.infrastructure.underConstruction) {
                 html += `
                     <div class="info-row">
                         <span class="info-label">Farm Bonus</span>
@@ -472,13 +475,17 @@ class UI {
             html += `<div class="info-section-title">Properties (${tile.playerProperties.length})</div>`;
 
             for (const prop of tile.playerProperties) {
+                const constructionStatus = prop.underConstruction
+                    ? `<div class="info-row"><span class="info-label">Status</span><span class="info-value" style="color:#e0a040;">🔨 Building (${prop.constructionDaysLeft}d left)</span></div>`
+                    : '';
                 html += `
-                    <div style="background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                    <div style="background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; margin-bottom: 8px;${prop.underConstruction ? ' opacity: 0.7; border-left: 3px solid #e0a040;' : ''}">
                         <div class="info-row">
                             <span class="info-label">Building</span>
                             <span class="info-value" style="color:#ffffff !important;">${prop.icon} ${prop.name}</span>
                         </div>
-                        <div class="info-row">
+                        ${constructionStatus}
+                        ${!prop.underConstruction ? `<div class="info-row">
                             <span class="info-label">Level</span>
                             <span class="info-value">${prop.level}</span>
                         </div>
@@ -489,7 +496,7 @@ class UI {
                         <div class="info-row">
                             <span class="info-label">Storage</span>
                             <span class="info-value">${prop.storage}</span>
-                        </div>
+                        </div>` : ''}
                     </div>
                 `;
             }
@@ -725,6 +732,56 @@ class UI {
                         <span class="info-value" style="color:#f39c12;">✨ Something is here…</span>
                     </div>
                 `;
+            }
+        }
+
+        // Building info
+        if (tile.buildingInfo) {
+            const bldg = tile.buildingInfo;
+            html += `<div class="info-section-title">${bldg.icon} Building</div>`;
+            html += `
+                <div class="info-row">
+                    <span class="info-label">Name</span>
+                    <span class="info-value" style="color:var(--gold);">${bldg.name}</span>
+                </div>
+            `;
+            if (typeof InnerMap !== 'undefined') {
+                const actions = InnerMap.getBuildingActions(bldg);
+                if (actions.length > 0 && actions[0] !== 'closed') {
+                    html += `
+                        <div class="info-row">
+                            <span class="info-label">Actions</span>
+                            <span class="info-value" style="font-size:11px; color:#4FC3F7;">Right-click to interact</span>
+                        </div>
+                    `;
+                } else if (actions[0] === 'closed') {
+                    html += `
+                        <div class="info-row">
+                            <span class="info-label">Status</span>
+                            <span class="info-value" style="color:#e74c3c;">🚫 Closed</span>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        // NPCs here
+        if (typeof InnerMap !== 'undefined') {
+            const npcsHere = InnerMap.getNPCsAt(q, r);
+            if (npcsHere.length > 0) {
+                html += `<div class="info-section-title">👥 People Here</div>`;
+                for (const npc of npcsHere.slice(0, 4)) {
+                    const typeDef = InnerMap.NPC_TYPES[npc.type] || {};
+                    html += `
+                        <div class="info-row">
+                            <span class="info-label">${npc.icon}</span>
+                            <span class="info-value">${npc.name} <span style="color:rgba(255,255,255,0.4); font-size:10px;">${typeDef.name || ''}</span></span>
+                        </div>
+                    `;
+                }
+                if (npcsHere.length > 4) {
+                    html += `<div class="info-row"><span class="info-value" style="font-size:10px; color:rgba(255,255,255,0.4);">...and ${npcsHere.length - 4} more</span></div>`;
+                }
             }
         }
 
@@ -4195,6 +4252,15 @@ class UI {
             this.game.camera.maxZoom = settings.maxZoom;
             this.game.camera.panSpeedBase = settings.panSpeed;
             this.game.camera.zoomStep = settings.zoomSensitivity;
+        }
+
+        // Inner map camera (apply same settings)
+        if (this.game.innerMapCamera) {
+            this.game.innerMapCamera.smoothSpeed = settings.cameraSmoothSpeed;
+            this.game.innerMapCamera.minZoom = settings.minZoom;
+            this.game.innerMapCamera.maxZoom = settings.maxZoom;
+            this.game.innerMapCamera.panSpeedBase = settings.panSpeed;
+            this.game.innerMapCamera.zoomStep = settings.zoomSensitivity;
         }
 
         // Minimap

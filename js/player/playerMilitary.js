@@ -14,7 +14,9 @@ const PlayerMilitary = {
             cost: 50,
             upkeep: 2,
             strength: 5,
-            description: 'Basic fighters, cheap but weak'
+            description: 'Basic fighters, cheap but weak',
+            minSettlement: 'village',  // available everywhere
+            minPopulation: 0,
         },
         SOLDIER: {
             id: 'soldier',
@@ -23,7 +25,9 @@ const PlayerMilitary = {
             cost: 100,
             upkeep: 5,
             strength: 10,
-            description: 'Trained warriors, reliable in battle'
+            description: 'Trained warriors, reliable in battle',
+            minSettlement: 'town',
+            minPopulation: 0,
         },
         KNIGHT: {
             id: 'knight',
@@ -32,7 +36,9 @@ const PlayerMilitary = {
             cost: 300,
             upkeep: 15,
             strength: 30,
-            description: 'Elite cavalry, devastating in combat'
+            description: 'Elite cavalry, devastating in combat',
+            minSettlement: 'capital',
+            minPopulation: 3000,
         },
         ARCHER: {
             id: 'archer',
@@ -41,7 +47,9 @@ const PlayerMilitary = {
             cost: 80,
             upkeep: 4,
             strength: 8,
-            description: 'Ranged attackers, good for defense'
+            description: 'Ranged attackers, good for defense',
+            minSettlement: 'town',
+            minPopulation: 0,
         },
         PIKEMAN: {
             id: 'pikeman',
@@ -50,7 +58,9 @@ const PlayerMilitary = {
             cost: 110,
             upkeep: 5,
             strength: 12,
-            description: 'Anti-cavalry infantry formation specialist'
+            description: 'Anti-cavalry infantry formation specialist',
+            minSettlement: 'town',
+            minPopulation: 1000,
         },
     },
 
@@ -211,6 +221,48 @@ const PlayerMilitary = {
     },
 
     /**
+     * Settlement tier hierarchy for recruitment checks
+     */
+    SETTLEMENT_TIER: { village: 1, town: 2, city: 3, capital: 4 },
+
+    /**
+     * Max units that can be recruited from a settlement based on population
+     * (per visit / per day — resets each day)
+     */
+    getRecruitmentCapacity(settlement) {
+        const pop = settlement.population || 0;
+        // Can recruit roughly 1 per 50 people, minimum 1
+        return Math.max(1, Math.floor(pop / 50));
+    },
+
+    /**
+     * Check if a unit type is available at a given settlement
+     */
+    isUnitAvailable(unit, settlement) {
+        const tierMap = PlayerMilitary.SETTLEMENT_TIER;
+        const settTier = tierMap[settlement.type] || 0;
+        const reqTier = tierMap[unit.minSettlement || 'village'] || 1;
+        if (settTier < reqTier) return { available: false, reason: `Requires ${unit.minSettlement || 'town'} or larger` };
+        if (unit.minPopulation && (settlement.population || 0) < unit.minPopulation) {
+            return { available: false, reason: `Requires population ≥ ${unit.minPopulation}` };
+        }
+        return { available: true };
+    },
+
+    /**
+     * Check if a tech unit type is available at a given settlement
+     */
+    isTechUnitAvailable(unit, settlement) {
+        const tierMap = PlayerMilitary.SETTLEMENT_TIER;
+        const settTier = tierMap[settlement.type] || 0;
+        // Longbowman: town+  |  Cavalry & Siege Engine: capital only
+        if (unit.id === 'longbowman' && settTier < 2) return { available: false, reason: 'Requires town or larger' };
+        if (unit.id === 'cavalry' && settTier < 3) return { available: false, reason: 'Requires city or capital' };
+        if (unit.id === 'siege_engine' && settTier < 4) return { available: false, reason: 'Requires a capital' };
+        return { available: true };
+    },
+
+    /**
      * Recruit a unit at a settlement
      */
     recruitUnit(player, unitType, settlement) {
@@ -219,15 +271,26 @@ const PlayerMilitary = {
 
         // Check gold
         if (player.gold < unit.cost) {
-            return { success: false, reason: `Need ${unit.cost} gold (have ${player.gold})` };
+            return { success: false, reason: `Need ${unit.cost} gold (have ${Math.floor(player.gold)})` };
         }
 
-        // Check settlement size
-        if (settlement.type === 'village' && unit.id === 'knight') {
-            return { success: false, reason: 'Villages cannot recruit knights' };
+        // Check settlement requirements
+        const avail = PlayerMilitary.isUnitAvailable(unit, settlement);
+        if (!avail.available) {
+            return { success: false, reason: avail.reason };
+        }
+
+        // Check recruitment capacity
+        const capacity = PlayerMilitary.getRecruitmentCapacity(settlement);
+        const recruited = player._recruitedThisTurn || 0;
+        if (recruited >= capacity) {
+            return { success: false, reason: `This settlement can only supply ${capacity} recruit${capacity > 1 ? 's' : ''} right now (pop: ${settlement.population})` };
         }
 
         player.gold -= unit.cost;
+
+        // Track recruitment count
+        player._recruitedThisTurn = (player._recruitedThisTurn || 0) + 1;
 
         // Add to player's army
         if (!player.army) player.army = [];

@@ -217,7 +217,7 @@ const Technology = {
         STONECUTTING: {
             id: 'stonecutting',
             name: 'Stonecutting',
-            icon: '🪨',
+            icon: '⛰️',
             category: 'industry',
             cost: 200,
             days: 7,
@@ -506,7 +506,7 @@ const Technology = {
         QUARRY: {
             id: 'quarry',
             name: 'Quarry',
-            icon: '🪨',
+            icon: '⛰️',
             cost: 800,
             constructionDays: 8,
             produces: 'stone',

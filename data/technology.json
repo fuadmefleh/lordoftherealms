@@ -246,7 +246,7 @@
         "STONECUTTING": {
             "id": "stonecutting",
             "name": "Stonecutting",
-            "icon": "🪨",
+            "icon": "⛰️",
             "category": "industry",
             "cost": 200,
             "days": 7,
@@ -796,7 +796,7 @@
         "QUARRY": {
             "id": "quarry",
             "name": "Quarry",
-            "icon": "🪨",
+            "icon": "⛰️",
             "cost": 800,
             "produces": "stone",
             "productionRate": 8,

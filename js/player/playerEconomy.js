@@ -637,22 +637,33 @@ const PlayerEconomy = {
         if (prop.requiredTerrain && !prop.requiredTerrain.includes(tile.terrain.id)) {
             // Special case for Fishing Wharf: can be built on coastal land adjacent to water
             if (propertyType.toUpperCase() === 'FISHING_WHARF') {
-                const nearbyWater = Hex.neighbors(tile.q, tile.r).some(n => {
+                // Only ocean/sea counts — lakes and rivers do not
+                const nearbyOcean = Hex.neighbors(tile.q, tile.r).some(n => {
                     const nt = world.getTile(n.q, n.r);
-                    return nt && ['ocean', 'deep_ocean', 'coast', 'lake', 'sea'].includes(nt.terrain.id);
+                    return nt && ['ocean', 'deep_ocean', 'coast', 'sea'].includes(nt.terrain.id);
                 });
 
-                if (!nearbyWater && !prop.requiredTerrain.includes(tile.terrain.id)) {
-                    return { canBuild: false, reason: `Requires coastal location` };
+                if (!nearbyOcean && !prop.requiredTerrain.includes(tile.terrain.id)) {
+                    return { canBuild: false, reason: 'Requires a coastal location (adjacent to ocean or sea)' };
                 }
 
                 if (!tile.terrain.passable) {
-                    return { canBuild: false, reason: `Must be built on land` };
+                    return { canBuild: false, reason: 'Must be built on land' };
+                }
+
+                // Must have a settlement to serve as a port
+                if (!tile.settlement) {
+                    return { canBuild: false, reason: 'Requires a coastal settlement' };
                 }
 
             } else {
                 return { canBuild: false, reason: `Requires ${prop.requiredTerrain.join(' or ')} terrain` };
             }
+        }
+
+        // Fishing wharf always requires a settlement (even when terrain is coast/beach)
+        if (propertyType.toUpperCase() === 'FISHING_WHARF' && !tile.settlement) {
+            return { canBuild: false, reason: 'Requires a coastal settlement' };
         }
 
         // Check resource requirements
@@ -752,6 +763,11 @@ const PlayerEconomy = {
 
         // Increase commerce skill
         player.skills.commerce = Math.min(10, player.skills.commerce + 0.5);
+
+        // Place property on inner map (assigns inner tile position and updates cache)
+        if (typeof InnerMap !== 'undefined') {
+            InnerMap.placePropertyOnInnerMap(tile, newProperty, tile.q, tile.r);
+        }
 
         return { success: true, property: tile.playerProperty, underConstruction: constructionDays > 0, constructionDays };
     },

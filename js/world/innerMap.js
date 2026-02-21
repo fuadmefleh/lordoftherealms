@@ -2,6 +2,7 @@
 // INNER MAP — Sub-tile exploration system
 // Each world hex has an inner map (smaller hex grid)
 // Players can enter and explore the interior of any tile
+// Now features: named buildings, roads, NPCs, market, time system
 // ============================================
 
 const InnerMap = {
@@ -23,6 +24,29 @@ const InnerMap = {
     // Discovered encounters on the inner map (keyed by "q,r")
     _discoveredEncounters: {},
 
+    // ── Time system ──────────────────────────────────────
+    // 1 real-time minute = 1 in-game hour, 24 hours = 1 day
+    timeOfDay: 8,              // Current hour (0-23), start at 8 AM
+    _timeAccumulator: 0,       // Accumulates real-time seconds
+    TIME_SCALE: 60,            // Seconds of real time per in-game hour
+    dayEnded: false,           // Flag to show end-of-day modal once
+
+    // ── Weather snapshot (set when entering) ────────────
+    weather: null,             // { type, intensity } from world weather
+    temperature: null,         // { value, celsius, fahrenheit } from world weather
+    season: null,              // Current season string
+
+    // ── NPC system ───────────────────────────────────────
+    npcs: [],                  // Array of NPC objects on the inner map
+    _npcMoveTimer: 0,          // Timer for NPC movement ticks
+
+    // ── Building data for current inner map ──────────────
+    buildings: [],             // Array of { q, r, type, name, icon, sprite, actions[] }
+    roads: [],                 // Array of { q, r } tiles that are roads
+
+    // ── Pending position for property built from inner map ──
+    _pendingPropertyPosition: null,   // { q, r } inner map coords
+
     /**
      * Initialize with data from JSON
      */
@@ -34,6 +58,108 @@ const InnerMap = {
         }
     },
 
+    // ══════════════════════════════════════════════
+    // NAMED BUILDING TYPES — buildings the player can visit
+    // ══════════════════════════════════════════════
+    BUILDING_TYPES: {
+        town_hall:    { name: 'Town Hall',     icon: '🏛️', sprite: 'buildings/walledCity.png',       actions: ['talk_official', 'view_notices', 'pay_taxes'] },
+        marketplace:  { name: 'Marketplace',   icon: '🏪', sprite: 'buildings/marketplace00.png',    actions: ['trade', 'browse_goods', 'talk_merchant'] },
+        tavern:       { name: 'Tavern',        icon: '🍺', sprite: 'buildings/inn.png',              actions: ['tavern', 'rest', 'buy_drink', 'talk_locals', 'recruit'] },
+        blacksmith:   { name: 'Blacksmith',    icon: '⚒️', sprite: 'buildings/smithy.png',           actions: ['buy_weapons', 'buy_tools', 'repair'] },
+        church:       { name: 'Church',        icon: '⛪', sprite: 'buildings/church00.png',          actions: ['pray', 'donate', 'meditate', 'talk_priest'] },
+        temple:       { name: 'Temple',        icon: '🕌', sprite: 'buildings/temple.png',            actions: ['pray', 'donate', 'meditate', 'seek_blessing'] },
+        barracks:     { name: 'Barracks',      icon: '🏰', sprite: 'buildings/barracks00.png',        actions: ['recruit', 'train_combat', 'talk_captain'] },
+        granary:      { name: 'Granary',       icon: '🌾', sprite: 'buildings/granary00.png',         actions: ['buy_food', 'store_goods'] },
+        warehouse:    { name: 'Warehouse',     icon: '📦', sprite: 'buildings/warehouse00.png',       actions: ['store_goods', 'collect_goods'] },
+        well:         { name: 'Well',          icon: '💧', sprite: 'buildings/well00.png',            actions: ['rest', 'talk_locals'] },
+        barn:         { name: 'Barn',          icon: '🏚️', sprite: 'buildings/barn00.png',            actions: ['rest', 'forage'] },
+        house:        { name: 'House',         icon: '🏠', sprite: 'buildings/villageSmall00.png',    actions: ['talk_locals', 'ask_directions'] },
+        manor:        { name: 'Manor',         icon: '🏘️', sprite: 'buildings/village00.png',         actions: ['talk_official', 'seek_audience'] },
+        stable:       { name: 'Stable',        icon: '🐴', sprite: 'buildings/barnWood00.png',        actions: ['buy_horse', 'stable_horse'] },
+        guard_tower:  { name: 'Guard Tower',   icon: '🗼', sprite: 'buildings/barracks00.png',        actions: ['talk_guard', 'report_crime'] },
+        farm:         { name: 'Farm',           icon: '🌾', sprite: 'farm00.png',                         actions: ['buy_food', 'forage', 'talk_locals'] },
+    },
+
+    // ══════════════════════════════════════════════
+    // PROPERTY SPRITES — sprites for player-built properties
+    // ══════════════════════════════════════════════
+    PROPERTY_SPRITES: {
+        farm:          ['farm00.png', 'farm01.png', 'farm02.png', 'farm03.png'],
+        pasture:       ['buildings/pasture00_sheep.png', 'buildings/corral00.png', 'buildings/corral01.png'],
+        logging_camp:  ['buildings/loggingCamp00.png', 'buildings/loggingCamp01.png'],
+        mine:          ['buildings/mines00.png', 'buildings/mines01.png', 'buildings/mines02.png', 'buildings/mines03.png'],
+        workshop:      ['buildings/smithy.png'],
+        trading_post:  ['buildings/marketplace00.png'],
+        fishing_wharf: ['buildings/warehouse00.png'],
+        brewery:       ['buildings/cookhouse00.png'],
+        tavern:        ['buildings/inn.png'],
+    },
+
+    // ══════════════════════════════════════════════
+    // PROPERTY BUILDING DEFS — label/action definitions for player properties
+    // ══════════════════════════════════════════════
+    PROPERTY_BUILDING_DEFS: {
+        farm:          { name: 'Farm',          icon: '🌾', actions: ['manage_property', 'collect_goods'] },
+        pasture:       { name: 'Pasture',       icon: '🐑', actions: ['manage_property', 'collect_goods'] },
+        logging_camp:  { name: 'Logging Camp',  icon: '🪓', actions: ['manage_property', 'collect_goods'] },
+        mine:          { name: 'Mine',          icon: '⛏️', actions: ['manage_property', 'collect_goods'] },
+        workshop:      { name: 'Workshop',      icon: '🔨', actions: ['manage_property', 'collect_goods'] },
+        trading_post:  { name: 'Trading Post',  icon: '🏪', actions: ['manage_property'] },
+        fishing_wharf: { name: 'Fishing Wharf', icon: '⚓', actions: ['manage_property', 'collect_goods'] },
+        brewery:       { name: 'Brewery',       icon: '🍺', actions: ['manage_property', 'collect_goods'] },
+        tavern:        { name: 'Tavern',        icon: '🍻', actions: ['manage_property'] },
+    },
+
+    // ══════════════════════════════════════════════
+    // SETTLEMENT BUILDING LAYOUTS — which buildings each settlement type gets
+    // ══════════════════════════════════════════════
+    SETTLEMENT_BUILDINGS: {
+        village: {
+            required: ['tavern', 'well'],
+            optional: ['house', 'house', 'house', 'barn', 'granary', 'stable', 'farm', 'farm'],
+            maxBuildings: 7
+        },
+        town: {
+            required: ['marketplace', 'tavern', 'blacksmith', 'church', 'granary'],
+            optional: ['house', 'house', 'house', 'house', 'barn', 'stable', 'warehouse', 'guard_tower', 'manor', 'farm', 'farm', 'farm'],
+            maxBuildings: 14
+        },
+        city: {
+            required: ['marketplace', 'tavern', 'blacksmith', 'church', 'barracks', 'granary', 'warehouse'],
+            optional: ['house', 'house', 'house', 'house', 'house', 'temple', 'stable', 'guard_tower', 'manor', 'barn', 'farm', 'farm', 'farm'],
+            maxBuildings: 18
+        },
+        capital: {
+            required: ['town_hall', 'marketplace', 'tavern', 'blacksmith', 'church', 'temple', 'barracks', 'granary', 'warehouse'],
+            optional: ['house', 'house', 'house', 'house', 'house', 'house', 'stable', 'guard_tower', 'guard_tower', 'manor', 'manor', 'barn', 'farm', 'farm', 'farm', 'farm'],
+            maxBuildings: 22
+        }
+    },
+
+    // ══════════════════════════════════════════════
+    // NPC TYPES — townspeople that walk around the inner map
+    // ══════════════════════════════════════════════
+    NPC_TYPES: {
+        merchant:    { name: 'Merchant',     icon: '🧑‍💼', speed: 0.4, destinations: ['marketplace', 'warehouse', 'tavern'] },
+        guard:       { name: 'Guard',        icon: '💂', speed: 0.3, destinations: ['guard_tower', 'barracks', 'town_hall', 'gate'] },
+        farmer:      { name: 'Farmer',       icon: '🧑‍🌾', speed: 0.5, destinations: ['farm', 'granary', 'marketplace', 'barn', 'well'] },
+        priest:      { name: 'Priest',       icon: '🧑‍⚖️', speed: 0.3, destinations: ['church', 'temple', 'well'] },
+        blacksmith_npc: { name: 'Blacksmith', icon: '⚒️', speed: 0.3, destinations: ['blacksmith', 'marketplace', 'tavern'] },
+        villager:    { name: 'Villager',     icon: '🧑', speed: 0.5, destinations: ['house', 'marketplace', 'tavern', 'well', 'church'] },
+        child:       { name: 'Child',        icon: '👦', speed: 0.7, destinations: ['house', 'well', 'tavern'] },
+        noble:       { name: 'Noble',        icon: '🤴', speed: 0.3, destinations: ['town_hall', 'church', 'manor', 'marketplace'] },
+        traveler:    { name: 'Traveler',     icon: '🧳', speed: 0.5, destinations: ['tavern', 'marketplace', 'stable'] },
+        beggar:      { name: 'Beggar',       icon: '🧎', speed: 0.2, destinations: ['marketplace', 'church', 'tavern', 'well'] },
+    },
+
+    // NPC pool per settlement type
+    NPC_POOLS: {
+        village:  { villager: 4, farmer: 2, child: 2, merchant: 1, traveler: 1 },
+        town:     { villager: 6, merchant: 3, guard: 2, farmer: 2, priest: 1, blacksmith_npc: 1, child: 3, traveler: 2 },
+        city:     { villager: 8, merchant: 4, guard: 4, farmer: 2, priest: 2, blacksmith_npc: 1, noble: 2, child: 4, traveler: 3, beggar: 1 },
+        capital:  { villager: 10, merchant: 6, guard: 6, farmer: 3, priest: 3, blacksmith_npc: 2, noble: 4, child: 5, traveler: 4, beggar: 2 },
+    },
+
     /**
      * Generate or retrieve an inner map for a world tile
      * @param {Object} worldTile - The world tile object
@@ -41,15 +167,39 @@ const InnerMap = {
      * @param {number} worldR - World tile r coordinate
      * @returns {Array} 2D array of inner map tiles
      */
-    getOrGenerate(worldTile, worldQ, worldR) {
-        const key = `${worldQ},${worldR}`;
+    getOrGenerate(worldTile, worldQ, worldR, game) {
+        const key = `${worldQ},${worldR}_${this.width}x${this.height}`;
         if (this._cache[key]) {
+            // Update dynamic weather data on cached tiles
+            this._refreshWeatherData(this._cache[key], worldQ, worldR, game);
             return this._cache[key];
         }
 
-        const tiles = this.generate(worldTile, worldQ, worldR);
+        const tiles = this.generate(worldTile, worldQ, worldR, game);
         this._cache[key] = tiles;
         return tiles;
+    },
+
+    /**
+     * Refresh weather-related per-tile data on a cached inner map.
+     * Keeps terrain layout stable but updates temperature/weather tints.
+     */
+    _refreshWeatherData(tiles, worldQ, worldR, game) {
+        const world = game && game.world;
+        let wType = 'clear';
+        let eTemp = 0.5;
+        if (world && world.weather) {
+            const w = world.weather.getWeather(worldQ, worldR);
+            if (w) wType = w.type;
+            const t = world.weather.getTemperature(worldQ, worldR);
+            if (t) eTemp = t.value;
+        }
+        for (let r = 0; r < tiles.length; r++) {
+            for (let q = 0; q < tiles[r].length; q++) {
+                tiles[r][q].weatherType = wType;
+                tiles[r][q].effectiveTemp = eTemp;
+            }
+        }
     },
 
     /**
@@ -58,7 +208,7 @@ const InnerMap = {
      * combined with per-cell fbm noise so the inner map is coherent with
      * its parent tile.
      */
-    generate(worldTile, worldQ, worldR) {
+    generate(worldTile, worldQ, worldR, game) {
         const terrainId = worldTile.terrain ? worldTile.terrain.id : 'grassland';
         const config = this.CONFIG;
         const subTerrains = config && config.subTerrains ? config.subTerrains[terrainId] : null;
@@ -67,6 +217,22 @@ const InnerMap = {
         const parentElev = worldTile.elevation  !== undefined ? worldTile.elevation  : 0.5;
         const parentTemp = worldTile.temperature !== undefined ? worldTile.temperature : 0.5;
         const parentMoist = worldTile.moisture   !== undefined ? worldTile.moisture   : 0.5;
+
+        // Dynamic season / weather temperature adjustment
+        // If the world has a weather system, use actual dynamic temperature;
+        // otherwise fall back to the static tile temperature.
+        let effectiveTemp = parentTemp;
+        const world = game && game.world;
+        if (world && world.weather) {
+            const dynTemp = world.weather.getTemperature(worldQ, worldR);
+            if (dynTemp) effectiveTemp = dynTemp.value;
+        }
+
+        // Get current weather for the tile position
+        let currentWeather = { type: 'clear', intensity: 0 };
+        if (world && world.weather) {
+            currentWeather = world.weather.getWeather(worldQ, worldR);
+        }
 
         // Seeded RNG based on world tile position so maps are deterministic
         const seed = (worldQ * 73856093 ^ worldR * 19349663) >>> 0;
@@ -101,10 +267,19 @@ const InnerMap = {
                 const blendElev  = parentElev  * 0.7 + localElev  * 0.3;
                 const blendMoist = parentMoist * 0.7 + localMoist * 0.3;
 
+                // Adjust moisture for active weather (rain/storm boosts moisture)
+                let weatherMoistBoost = 0;
+                if (currentWeather.type === 'rain')  weatherMoistBoost = 0.08 * currentWeather.intensity;
+                if (currentWeather.type === 'storm') weatherMoistBoost = 0.15;
+                if (currentWeather.type === 'snow')  weatherMoistBoost = 0.05 * currentWeather.intensity;
+                const adjustedMoist = Math.min(1, blendMoist + weatherMoistBoost);
+
                 // Use blended noise to bias the weighted random selection.
+                // Incorporate effective temperature so cold/hot regions shift selection.
                 // Map blendElev into an index range across the sorted primary list
                 // so wetter / higher cells naturally pick different sub-terrains.
-                const noiseBias = (blendElev * 0.5 + blendMoist * 0.5); // 0-1
+                const tempBias = (1 - effectiveTemp) * 0.15; // colder → slightly higher bias
+                const noiseBias = (blendElev * 0.45 + adjustedMoist * 0.40 + tempBias) % 1.0; // 0-1
 
                 // Weighted selection modulated by noise
                 let roll = rng() * totalWeight;
@@ -154,7 +329,11 @@ const InnerMap = {
                     explored: false,
                     visible: false,
                     parentTerrain: terrainId,
-                    building: null  // may be set below for settlements
+                    building: null,  // may be set below for settlements
+                    // Weather / climate data baked at generation time
+                    effectiveTemp: effectiveTemp,
+                    moisture: adjustedMoist,
+                    weatherType: currentWeather.type
                 });
             }
             tiles.push(row);
@@ -164,6 +343,9 @@ const InnerMap = {
         if (worldTile.settlement) {
             this._placeBuildings(tiles, worldTile.settlement, rng);
         }
+
+        // --- Player property placement ---
+        this._placePlayerProperties(tiles, worldTile, rng);
 
         // Ensure the center tile (player start) is always passable
         const centerQ = Math.floor(this.width / 2);
@@ -213,12 +395,76 @@ const InnerMap = {
             'buildings/smithy.png',
             'buildings/well00.png'
         ],
+        city: [
+            'buildings/village00.png', 'buildings/village01.png',
+            'buildings/village02.png', 'buildings/village03.png',
+            'buildings/villageWood00.png', 'buildings/villageWood01.png',
+            'buildings/marketplace00.png',
+            'buildings/church00.png',
+            'buildings/barracks00.png',
+            'buildings/granary00.png', 'buildings/granary01.png',
+            'buildings/warehouse00.png',
+            'buildings/smithy.png',
+            'buildings/inn.png',
+            'buildings/well00.png', 'buildings/well01.png'
+        ],
+        // Farm sprites (from pop_center_images, loaded as bare filename)
+        farm: [
+            'farm00.png', 'farm01.png', 'farm02.png', 'farm03.png'
+        ],
         // Extra structures that can appear in any settlement
         common: [
             'buildings/well00.png', 'buildings/well01.png',
             'buildings/barn00.png', 'buildings/barnWood00.png',
             'buildings/tent00.png',
             'buildings/sign00.png', 'buildings/sign01.png'
+        ]
+    },
+
+    // ── Decoration sprite pools — small/medium props placed on empty tiles ──
+    DECORATION_SPRITES: {
+        village: [
+            'buildings/corral00.png', 'buildings/corral01.png', 'buildings/corral02.png',
+            'buildings/corral00_cows.png', 'buildings/corral01_cows.png',
+            'buildings/pasture00.png', 'buildings/pasture00_sheep.png',
+            'buildings/pen00.png', 'buildings/pen00_pigs.png',
+            'buildings/foresterHut00.png', 'buildings/foresterHut01.png',
+            'buildings/foresterShed00.png',
+            'buildings/well03.png', 'buildings/well04.png', 'buildings/well05.png',
+            'buildings/tent00.png',
+            'buildings/sign00.png', 'buildings/sign01.png'
+        ],
+        town: [
+            'buildings/corral00.png', 'buildings/corral00_cows.png',
+            'buildings/pasture00.png', 'buildings/pasture00_sheep.png',
+            'buildings/pen00.png', 'buildings/pen00_pigs.png',
+            'buildings/cookhouse00.png', 'buildings/windmill00.png',
+            'buildings/well03.png', 'buildings/well04.png', 'buildings/well05.png',
+            'buildings/loggingCamp00.png', 'buildings/loggingCamp01.png',
+            'buildings/foresterHut00.png', 'buildings/foresterShed00.png',
+            'buildings/sign00.png', 'buildings/sign01.png'
+        ],
+        city: [
+            'buildings/cookhouse00.png', 'buildings/windmill00.png',
+            'buildings/well03.png', 'buildings/well04.png', 'buildings/well05.png',
+            'buildings/archeryRange00.png',
+            'buildings/corral00_cows.png', 'buildings/corral01_cows.png',
+            'buildings/loggingCamp00.png', 'buildings/loggingCamp01.png',
+            'buildings/clayPit00.png', 'buildings/clayPit01.png',
+            'buildings/scriptorium00.png',
+            'buildings/mines00.png', 'buildings/mines01.png',
+            'buildings/sign00.png', 'buildings/sign01.png'
+        ],
+        capital: [
+            'buildings/cookhouse00.png', 'buildings/windmill00.png',
+            'buildings/well03.png', 'buildings/well04.png', 'buildings/well05.png',
+            'buildings/archeryRange00.png',
+            'buildings/scriptorium00.png', 'buildings/alchemistsLab00.png',
+            'buildings/corral00_cows.png', 'buildings/corral01_cows.png',
+            'buildings/clayPit00.png', 'buildings/clayPit01.png',
+            'buildings/loggingCamp00.png',
+            'buildings/mines02.png', 'buildings/mines03.png',
+            'buildings/sign00.png'
         ]
     },
 
@@ -233,9 +479,10 @@ const InnerMap = {
         // Determine how many building tiles to place
         let buildingCount;
         switch (type) {
-            case 'capital': buildingCount = Math.min(20, 8 + Math.floor(pop / 200)); break;
-            case 'town':    buildingCount = Math.min(14, 5 + Math.floor(pop / 150)); break;
-            default:        buildingCount = Math.min(9,  3 + Math.floor(pop / 100)); break;
+            case 'capital': buildingCount = Math.min(20, 9 + Math.floor(pop / 200)); break;
+            case 'city':    buildingCount = Math.min(16, 7 + Math.floor(pop / 180)); break;
+            case 'town':    buildingCount = Math.min(12, 5 + Math.floor(pop / 150)); break;
+            default:        buildingCount = Math.min(8,  3 + Math.floor(pop / 100)); break;
         }
 
         const sprites = this.BUILDING_SPRITES[type] || this.BUILDING_SPRITES.village;
@@ -272,18 +519,343 @@ const InnerMap = {
         }
         centerTile.subTerrain.name = settlement.name || centerTile.subTerrain.name;
 
+        // Determine farm count based on settlement type
+        const farmCount = type === 'capital' ? 4 : type === 'city' ? 3 : type === 'town' ? 2 : 1;
+        const farmSprites = this.BUILDING_SPRITES.farm;
+
+        // Collect outer-ring candidates (far from center) for farms
+        const outerCandidates = candidates
+            .filter(c => {
+                const dist = Math.abs(c.q - centerQ) + Math.abs(c.r - centerR);
+                return dist >= 3;
+            })
+            .sort((a, b) => {
+                // Prefer tiles near the edge but still passable
+                const dA = Math.abs(a.q - centerQ) + Math.abs(a.r - centerR);
+                const dB = Math.abs(b.q - centerQ) + Math.abs(b.r - centerR);
+                return dB - dA + (rng() - 0.5) * 1.5;
+            });
+
+        // Place farm tiles at outer ring first, reserving those slots
+        const farmTilePositions = new Set();
+        let farmsPlaced = 0;
+        for (const c of outerCandidates) {
+            if (farmsPlaced >= farmCount) break;
+            if (c.q === centerQ && c.r === centerR) continue;
+            const tile = tiles[c.r][c.q];
+            if (tile.building) continue; // already placed
+            tile.building = farmSprites[Math.floor(rng() * farmSprites.length)];
+            tile._buildingTypeHint = 'farm';
+            farmTilePositions.add(`${c.q},${c.r}`);
+            farmsPlaced++;
+        }
+
         let placed = 1;
         for (const c of candidates) {
             if (placed >= buildingCount) break;
             if (c.q === centerQ && c.r === centerR) continue;
+            if (farmTilePositions.has(`${c.q},${c.r}`)) continue; // skip farm tiles
             const tile = tiles[c.r][c.q];
+            if (tile.building) continue;
             // Mix main sprites with common ones
             const pool = rng() < 0.25 ? commonSprites : sprites;
             tile.building = pool[Math.floor(rng() * pool.length)];
             placed++;
         }
+
+        // ── Scatter decorative props on remaining empty passable tiles ──
+        const decoPool = this.DECORATION_SPRITES[type] || this.DECORATION_SPRITES.village;
+        if (decoPool.length === 0) return;
+
+        // Predefined layouts for 1, 2, or 3 decorations on a single hex
+        const DECO_LAYOUTS = {
+            1: [{ ox: 0, oy: 0 }],
+            2: [{ ox: -0.22, oy: 0.05 }, { ox: 0.22, oy: -0.05 }],
+            3: [{ ox: -0.22, oy: 0.12 }, { ox: 0.22, oy: 0.12 }, { ox: 0, oy: -0.14 }]
+        };
+
+        // Determine decoration count — more for bigger settlements
+        let maxDecorations;
+        switch (type) {
+            case 'capital': maxDecorations = 12; break;
+            case 'city':    maxDecorations = 9;  break;
+            case 'town':    maxDecorations = 6;  break;
+            default:        maxDecorations = 4;  break;
+        }
+
+        // Collect remaining empty passable inner tiles
+        const decoCandidates = candidates.filter(c => {
+            const t = tiles[c.r][c.q];
+            return !t.building && !t.encounter && t.subTerrain.passable;
+        });
+
+        // Shuffle with RNG
+        for (let i = decoCandidates.length - 1; i > 0; i--) {
+            const j = Math.floor(rng() * (i + 1));
+            const tmp = decoCandidates[i];
+            decoCandidates[i] = decoCandidates[j];
+            decoCandidates[j] = tmp;
+        }
+
+        let decoPlaced = 0;
+        for (const c of decoCandidates) {
+            if (decoPlaced >= maxDecorations) break;
+            const tile = tiles[c.r][c.q];
+
+            // Pick how many items on this tile (weighted: 65% one, 25% two, 10% three)
+            const roll = rng();
+            const count = roll < 0.65 ? 1 : roll < 0.90 ? 2 : 3;
+            const layout = DECO_LAYOUTS[count];
+
+            const decorations = [];
+            const usedSprites = new Set();
+            for (let d = 0; d < count; d++) {
+                // Pick a unique sprite per tile
+                let sprite;
+                let attempts = 0;
+                do {
+                    sprite = decoPool[Math.floor(rng() * decoPool.length)];
+                    attempts++;
+                } while (usedSprites.has(sprite) && attempts < 10);
+                usedSprites.add(sprite);
+
+                decorations.push({
+                    sprite: sprite,
+                    ox: layout[d].ox,
+                    oy: layout[d].oy
+                });
+            }
+
+            tile.decorations = decorations;
+            decoPlaced++;
+        }
     },
 
+
+    /**
+     * Place player-built properties on the inner map tiles.
+     * Each property gets a building sprite on a suitable tile.
+     */
+    _placePlayerProperties(tiles, worldTile, rng) {
+        const properties = worldTile.playerProperties || [];
+        const allProps = [...properties];
+        // Include single playerProperty if not already in array
+        if (worldTile.playerProperty && !allProps.includes(worldTile.playerProperty)) {
+            allProps.push(worldTile.playerProperty);
+        }
+        if (allProps.length === 0) return;
+
+        const height = tiles.length;
+        const width = tiles[0] ? tiles[0].length : 0;
+
+        for (const prop of allProps) {
+            // If property already has stored inner map coordinates, try to use them
+            if (prop.innerQ !== undefined && prop.innerR !== undefined) {
+                const tile = tiles[prop.innerR] && tiles[prop.innerR][prop.innerQ];
+                if (tile && !tile.building) {
+                    const sprites = this.PROPERTY_SPRITES[prop.type] || ['buildings/villageSmall00.png'];
+                    tile.building = sprites[Math.floor(rng() * sprites.length)];
+                    tile._buildingTypeHint = 'player_property';
+                    tile._propertyRef = prop;
+                    continue;
+                }
+            }
+
+            // Pick a suitable tile for this property
+            const pos = this._findSuitablePropertyTile(tiles, prop, rng);
+            if (pos) {
+                prop.innerQ = pos.q;
+                prop.innerR = pos.r;
+                const sprites = this.PROPERTY_SPRITES[prop.type] || ['buildings/villageSmall00.png'];
+                tiles[pos.r][pos.q].building = sprites[Math.floor(rng() * sprites.length)];
+                tiles[pos.r][pos.q]._buildingTypeHint = 'player_property';
+                tiles[pos.r][pos.q]._propertyRef = prop;
+            }
+        }
+    },
+
+    /**
+     * Find a suitable inner map tile for a property.
+     * Farms/pastures prefer outer tiles; other properties prefer mid-range.
+     */
+    _findSuitablePropertyTile(tiles, prop, rng) {
+        const height = tiles.length;
+        const width = tiles[0] ? tiles[0].length : 0;
+        const centerQ = Math.floor(width / 2);
+        const centerR = Math.floor(height / 2);
+        const candidates = [];
+
+        for (let r = 0; r < height; r++) {
+            for (let q = 0; q < width; q++) {
+                const tile = tiles[r][q];
+                const isEdge = q === 0 || q === width - 1 || r === 0 || r === height - 1;
+                if (isEdge) continue;
+                if (!tile.subTerrain.passable) continue;
+                if (tile.building) continue;
+                if (tile.encounter) continue;
+
+                const dist = Math.abs(q - centerQ) + Math.abs(r - centerR);
+                candidates.push({ q, r, dist });
+            }
+        }
+
+        if (candidates.length === 0) return null;
+
+        // Farms/pastures prefer outer tiles; others prefer medium distance
+        if (prop.type === 'farm' || prop.type === 'pasture' || prop.type === 'logging_camp') {
+            candidates.sort((a, b) => b.dist - a.dist + (rng() - 0.5) * 2);
+        } else {
+            const idealDist = 2;
+            candidates.sort((a, b) => {
+                const dA = Math.abs(a.dist - idealDist);
+                const dB = Math.abs(b.dist - idealDist);
+                return dA - dB + (rng() - 0.5) * 2;
+            });
+        }
+
+        return candidates[0];
+    },
+
+    /**
+     * Get expected inner map dimensions for a world tile.
+     */
+    _getInnerMapDimensions(worldTile) {
+        if (worldTile.settlement) {
+            const type = worldTile.settlement.type || 'village';
+            if (type === 'capital') return { width: 14, height: 14 };
+            if (type === 'city') return { width: 12, height: 12 };
+            if (type === 'town') return { width: 10, height: 10 };
+            return { width: 8, height: 8 };
+        }
+        return {
+            width: this.CONFIG && this.CONFIG.innerMapSize ? this.CONFIG.innerMapSize.width : 8,
+            height: this.CONFIG && this.CONFIG.innerMapSize ? this.CONFIG.innerMapSize.height : 8
+        };
+    },
+
+    /**
+     * Place a newly-built property on the inner map.
+     * Called when building from the world map level.
+     * Picks a random suitable inner map tile and updates the cache.
+     */
+    placePropertyOnInnerMap(worldTile, property, worldQ, worldR) {
+        // Create a seeded RNG for property placement
+        const propCount = (worldTile.playerProperties ? worldTile.playerProperties.length : 0);
+        const seed = ((worldQ * 73856093 ^ worldR * 19349663) + 7919 + propCount) >>> 0;
+        let rngState = seed || 1;
+        const rng = () => {
+            rngState = (rngState * 1664525 + 1013904223) & 0x7fffffff;
+            return rngState / 0x7fffffff;
+        };
+
+        // Check if there's a pending inner map position (built from inner map)
+        let forcedPos = null;
+        if (this._pendingPropertyPosition) {
+            forcedPos = { q: this._pendingPropertyPosition.q, r: this._pendingPropertyPosition.r };
+            this._pendingPropertyPosition = null; // consume it
+        }
+
+        // Get the appropriate cache key
+        const dims = this._getInnerMapDimensions(worldTile);
+        const key = `${worldQ},${worldR}_${dims.width}x${dims.height}`;
+
+        // If inner map is cached, update it directly
+        const cached = this._cache[key];
+        if (cached) {
+            // Use forced position (from inner map build) or find a suitable tile
+            let pos = null;
+            if (forcedPos && cached[forcedPos.r] && cached[forcedPos.r][forcedPos.q] &&
+                !cached[forcedPos.r][forcedPos.q].building &&
+                cached[forcedPos.r][forcedPos.q].subTerrain.passable) {
+                pos = forcedPos;
+            } else {
+                pos = this._findSuitablePropertyTile(cached, property, rng);
+            }
+            if (pos) {
+                property.innerQ = pos.q;
+                property.innerR = pos.r;
+                const sprites = this.PROPERTY_SPRITES[property.type] || ['buildings/villageSmall00.png'];
+                cached[pos.r][pos.q].building = sprites[Math.floor(rng() * sprites.length)];
+                cached[pos.r][pos.q]._buildingTypeHint = 'player_property';
+                cached[pos.r][pos.q]._propertyRef = property;
+
+                // If inner map is currently active, add this building to the buildings list
+                if (this.active && this.currentWorldTile &&
+                    this.currentWorldTile.q === worldQ && this.currentWorldTile.r === worldR) {
+                    const def = this.PROPERTY_BUILDING_DEFS[property.type];
+                    if (def) {
+                        const exists = this.buildings.find(b => b.q === pos.q && b.r === pos.r);
+                        if (!exists) {
+                            const statusLabel = property.underConstruction ? ' (Building)' : '';
+                            const bldg = {
+                                q: pos.q,
+                                r: pos.r,
+                                type: 'player_' + property.type,
+                                name: `${property.name || def.name}${statusLabel}`,
+                                icon: property.icon || def.icon,
+                                sprite: cached[pos.r][pos.q].building,
+                                actions: [...def.actions],
+                                isPlayerProperty: true,
+                                propertyRef: property,
+                            };
+                            cached[pos.r][pos.q].buildingInfo = bldg;
+                            this.buildings.push(bldg);
+                        }
+                    }
+                }
+            }
+        } else if (forcedPos) {
+            // Not cached yet, but we have a forced position — store it on the property
+            property.innerQ = forcedPos.q;
+            property.innerR = forcedPos.r;
+        }
+        // If not cached and no forced position, coordinates will be assigned when inner map is generated
+    },
+
+    /**
+     * Add player property buildings to the buildings list.
+     * Called during enter() to ensure labels and interactions work.
+     */
+    _addPropertyBuildings() {
+        if (!this._currentWorldTileRef) return;
+
+        const properties = this._currentWorldTileRef.playerProperties || [];
+        const allProps = [...properties];
+        if (this._currentWorldTileRef.playerProperty &&
+            !allProps.includes(this._currentWorldTileRef.playerProperty)) {
+            allProps.push(this._currentWorldTileRef.playerProperty);
+        }
+
+        for (const prop of allProps) {
+            if (prop.innerQ === undefined || prop.innerR === undefined) continue;
+
+            const tile = this.tiles[prop.innerR] && this.tiles[prop.innerR][prop.innerQ];
+            if (!tile) continue;
+
+            const def = this.PROPERTY_BUILDING_DEFS[prop.type];
+            if (!def) continue;
+
+            // Skip if already in buildings list
+            const exists = this.buildings.find(b => b.q === prop.innerQ && b.r === prop.innerR);
+            if (exists) continue;
+
+            const statusLabel = prop.underConstruction ? ' (Building)' : '';
+            const bldg = {
+                q: prop.innerQ,
+                r: prop.innerR,
+                type: 'player_' + prop.type,
+                name: `${prop.name || def.name}${statusLabel}`,
+                icon: prop.icon || def.icon,
+                sprite: tile.building,
+                actions: [...def.actions],
+                isPlayerProperty: true,
+                propertyRef: prop,
+            };
+
+            tile.buildingInfo = bldg;
+            this.buildings.push(bldg);
+        }
+    },
 
     /**
      * Default sub-terrains for terrain types with no JSON config
@@ -306,9 +878,23 @@ const InnerMap = {
         const worldTile = game.world.getTile(worldQ, worldR);
         if (!worldTile) return false;
 
+        // Use larger grid for settlements
+        const hasSettlement = !!worldTile.settlement;
+        if (hasSettlement) {
+            const type = worldTile.settlement.type || 'village';
+            if (type === 'capital') { this.width = 14; this.height = 14; }
+            else if (type === 'city') { this.width = 12; this.height = 12; }
+            else if (type === 'town') { this.width = 10; this.height = 10; }
+            else { this.width = 8; this.height = 8; }
+        } else {
+            this.width = this.CONFIG && this.CONFIG.innerMapSize ? this.CONFIG.innerMapSize.width : 8;
+            this.height = this.CONFIG && this.CONFIG.innerMapSize ? this.CONFIG.innerMapSize.height : 8;
+        }
+
         // Generate/retrieve inner map
-        this.tiles = this.getOrGenerate(worldTile, worldQ, worldR);
+        this.tiles = this.getOrGenerate(worldTile, worldQ, worldR, game);
         this.currentWorldTile = { q: worldQ, r: worldR };
+        this._currentWorldTileRef = worldTile;
         this.active = true;
 
         // Place player in center
@@ -318,16 +904,63 @@ const InnerMap = {
         // Make sure center and surroundings are explored
         this._revealAround(this.tiles, this.playerInnerQ, this.playerInnerR, 2);
 
+        // ── Initialize time system ──
+        this.timeOfDay = 8;  // Start at 8 AM
+        this._timeAccumulator = 0;
+        this.dayEnded = false;
+
+        // ── Snapshot weather / temperature from world ──
+        if (game.world && game.world.weather) {
+            this.weather = game.world.weather.getWeather(worldQ, worldR);
+            this.temperature = game.world.weather.getTemperature(worldQ, worldR);
+        } else {
+            this.weather = { type: 'clear', intensity: 0 };
+            this.temperature = { value: 0.5, celsius: 10, fahrenheit: 50 };
+        }
+        this.season = game.world ? game.world.season : 'Spring';
+
+        // ── Generate buildings list for settlement tiles ──
+        this.buildings = [];
+        this.roads = [];
+        if (hasSettlement) {
+            this._buildBuildingList();
+            this._generateRoads();
+        }
+
+        // ── Add player property buildings (works for settlement and wilderness tiles) ──
+        this._addPropertyBuildings();
+
+        // ── Spawn NPCs ──
+        this.npcs = [];
+        this._npcMoveTimer = 0;
+        if (hasSettlement) {
+            this._spawnNPCs(worldTile.settlement);
+        }
+
+        // For settlements, reveal all tiles (you're visiting a known location)
+        if (hasSettlement) {
+            for (let r = 0; r < this.height; r++) {
+                for (let q = 0; q < this.width; q++) {
+                    this.tiles[r][q].explored = true;
+                    this.tiles[r][q].visible = true;
+                }
+            }
+        }
+
         return true;
     },
 
     /**
      * Exit the inner map back to the world map
-     * @param {Object} game - The game instance
      */
     exit(game) {
         this.active = false;
         this.currentWorldTile = null;
+        this._currentWorldTileRef = null;
+        this.npcs = [];
+        this.buildings = [];
+        this.roads = [];
+        this.dayEnded = false;
         // Tiles remain cached for re-entry
     },
 
@@ -555,5 +1188,547 @@ const InnerMap = {
     clearCache() {
         this._cache = {};
         this._discoveredEncounters = {};
-    }
+    },
+
+    // ══════════════════════════════════════════════
+    // TIME SYSTEM — 1 real minute = 1 in-game hour
+    // ══════════════════════════════════════════════
+
+    /**
+     * Update inner map time. Called every frame with deltaTime (seconds).
+     * @returns {string|null} 'day_ended' if the day is over
+     */
+    updateTime(deltaTime) {
+        if (!this.active || this.dayEnded) return null;
+
+        this._timeAccumulator += deltaTime;
+        if (this._timeAccumulator >= this.TIME_SCALE) {
+            this._timeAccumulator -= this.TIME_SCALE;
+            this.timeOfDay++;
+
+            if (this.timeOfDay >= 24) {
+                this.timeOfDay = 24;
+                this.dayEnded = true;
+                return 'day_ended';
+            }
+        }
+        return null;
+    },
+
+    /**
+     * Get formatted time string (e.g. "3:00 PM")
+     */
+    getTimeString() {
+        const hour = this.timeOfDay % 24;
+        const minuteProgress = this._timeAccumulator / this.TIME_SCALE;
+        const minutes = Math.floor(minuteProgress * 60);
+        const mm = minutes < 10 ? `0${minutes}` : `${minutes}`;
+        if (hour === 0) return `12:${mm} AM`;
+        if (hour < 12) return `${hour}:${mm} AM`;
+        if (hour === 12) return `12:${mm} PM`;
+        return `${hour - 12}:${mm} PM`;
+    },
+
+    /**
+     * Get time period for ambient effects
+     */
+    getTimePeriod() {
+        const h = this.timeOfDay;
+        if (h >= 6 && h < 10) return 'morning';
+        if (h >= 10 && h < 14) return 'midday';
+        if (h >= 14 && h < 18) return 'afternoon';
+        if (h >= 18 && h < 21) return 'evening';
+        return 'night';
+    },
+
+    /**
+     * Get ambient overlay color based on time of day
+     */
+    getAmbientOverlay() {
+        const h = this.timeOfDay;
+        let base;
+        if (h >= 6 && h < 8) base = 'rgba(255, 200, 100, 0.08)';       // Dawn
+        else if (h >= 8 && h < 17) base = null;                        // Day — no overlay
+        else if (h >= 17 && h < 19) base = 'rgba(255, 140, 50, 0.12)'; // Sunset
+        else if (h >= 19 && h < 21) base = 'rgba(30, 20, 60, 0.25)';   // Dusk
+        else base = 'rgba(10, 10, 40, 0.45)';                          // Night
+        return base;
+    },
+
+    /**
+     * Return an additional weather/temperature tint overlay colour,
+     * layered on top of the time-of-day ambient overlay.
+     */
+    getWeatherOverlay() {
+        const w = this.weather;
+        if (!w) return null;
+        switch (w.type) {
+            case 'rain':    return 'rgba(40, 60, 90, ' + (0.08 + w.intensity * 0.10).toFixed(2) + ')';
+            case 'storm':   return 'rgba(20, 20, 40, 0.22)';
+            case 'snow':    return 'rgba(180, 200, 230, ' + (0.06 + w.intensity * 0.08).toFixed(2) + ')';
+            case 'cloudy':  return 'rgba(60, 65, 75, ' + (0.04 + w.intensity * 0.06).toFixed(2) + ')';
+            default:        return null;
+        }
+    },
+
+    /**
+     * Return a temperature-based tint (very subtle).
+     */
+    getTemperatureOverlay() {
+        const t = this.temperature;
+        if (!t) return null;
+        if (t.value < 0.25) return 'rgba(100, 140, 200, 0.06)';   // Cold
+        if (t.value > 0.78) return 'rgba(200, 130, 60, 0.05)';    // Hot
+        return null;
+    },
+
+    // ══════════════════════════════════════════════
+    // BUILDING SYSTEM — Named interactable buildings
+    // ══════════════════════════════════════════════
+
+    /**
+     * Build the list of named buildings from the tiles that had buildings placed
+     */
+    _buildBuildingList() {
+        this.buildings = [];
+        if (!this._currentWorldTileRef || !this._currentWorldTileRef.settlement) return;
+
+        const settlement = this._currentWorldTileRef.settlement;
+        const type = settlement.type || 'village';
+        const layout = this.SETTLEMENT_BUILDINGS[type] || this.SETTLEMENT_BUILDINGS.village;
+
+        // Collect tiles that have building sprites
+        const buildingTiles = [];
+        for (let r = 0; r < this.height; r++) {
+            for (let q = 0; q < this.width; q++) {
+                if (this.tiles[r][q].building) {
+                    buildingTiles.push({ q, r, sprite: this.tiles[r][q].building });
+                }
+            }
+        }
+
+        if (buildingTiles.length === 0) return;
+
+        // Assign building types: required first, then optional
+        const assigned = [];
+        const required = [...layout.required];
+        const optional = [...layout.optional];
+
+        // Center tile gets the first required building (town_hall / marketplace / tavern)
+        const centerQ = Math.floor(this.width / 2);
+        const centerR = Math.floor(this.height / 2);
+
+        // Sort building tiles: center first, then by distance to center
+        buildingTiles.sort((a, b) => {
+            const distA = Math.abs(a.q - centerQ) + Math.abs(a.r - centerR);
+            const distB = Math.abs(b.q - centerQ) + Math.abs(b.r - centerR);
+            return distA - distB;
+        });
+
+        for (let i = 0; i < buildingTiles.length; i++) {
+            const bt = buildingTiles[i];
+            let buildingType;
+
+            // Honour placement-time type hint (e.g. farm tiles placed at outer ring)
+            const tile = this.tiles[bt.r][bt.q];
+            // Skip player property tiles — they are handled by _addPropertyBuildings()
+            if (tile._buildingTypeHint === 'player_property') continue;
+            if (tile._buildingTypeHint) {
+                buildingType = tile._buildingTypeHint;
+                // Remove from required/optional lists to avoid double-assignment
+                const reqIdx = required.indexOf(buildingType);
+                if (reqIdx !== -1) required.splice(reqIdx, 1);
+                const optIdx = optional.indexOf(buildingType);
+                if (optIdx !== -1) optional.splice(optIdx, 1);
+            } else if (required.length > 0) {
+                buildingType = required.shift();
+            } else if (optional.length > 0) {
+                buildingType = optional.shift();
+            } else {
+                buildingType = 'house'; // fallback
+            }
+
+            const def = this.BUILDING_TYPES[buildingType] || this.BUILDING_TYPES.house;
+
+            const bldg = {
+                q: bt.q,
+                r: bt.r,
+                type: buildingType,
+                name: def.name,
+                icon: def.icon,
+                sprite: bt.sprite,  // keep original sprite for visuals
+                actions: [...def.actions],
+            };
+
+            // Update the tile's building info
+            this.tiles[bt.r][bt.q].buildingInfo = bldg;
+            this.tiles[bt.r][bt.q].building = bt.sprite; // keep sprite
+            assigned.push(bldg);
+        }
+
+        this.buildings = assigned;
+    },
+
+    /**
+     * Generate roads connecting buildings in settlements
+     */
+    _generateRoads() {
+        this.roads = [];
+        if (this.buildings.length < 2) return;
+
+        const roadSet = new Set();
+        const centerQ = Math.floor(this.width / 2);
+        const centerR = Math.floor(this.height / 2);
+
+        // Connect each building to the center with a simple road
+        for (const bldg of this.buildings) {
+            const path = this._findPath(bldg.q, bldg.r, centerQ, centerR);
+            if (path) {
+                for (const step of path) {
+                    const key = `${step.q},${step.r}`;
+                    if (!roadSet.has(key)) {
+                        const tile = this.getTile(step.q, step.r);
+                        if (!tile || !tile.subTerrain.passable) continue;
+                        roadSet.add(key);
+                        this.roads.push({ q: step.q, r: step.r });
+                        // Mark road on tile
+                        if (!tile.building) {
+                            tile.isRoad = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Connect buildings to each other via nearest neighbor (simple spanning)
+        for (let i = 0; i < this.buildings.length - 1; i++) {
+            const a = this.buildings[i];
+            const b = this.buildings[i + 1];
+            const path = this._findPath(a.q, a.r, b.q, b.r);
+            if (path) {
+                for (const step of path) {
+                    const key = `${step.q},${step.r}`;
+                    if (!roadSet.has(key)) {
+                        const tile = this.getTile(step.q, step.r);
+                        if (!tile || !tile.subTerrain.passable) continue;
+                        roadSet.add(key);
+                        this.roads.push({ q: step.q, r: step.r });
+                        if (!tile.building) {
+                            tile.isRoad = true;
+                        }
+                    }
+                }
+            }
+        }
+    },
+
+    /**
+     * Get the building at a specific tile, if any
+     */
+    getBuildingAt(q, r) {
+        return this.buildings.find(b => b.q === q && b.r === r) || null;
+    },
+
+    /**
+     * Get available actions for a building
+     */
+    getBuildingActions(building) {
+        if (!building) return [];
+        const def = this.BUILDING_TYPES[building.type];
+        if (!def) return [];
+
+        // Filter actions based on time of day
+        const period = this.getTimePeriod();
+        let actions = [...def.actions];
+
+        // Tavern has more options at night / evening
+        if (building.type === 'tavern' && (period === 'evening' || period === 'night')) {
+            if (!actions.includes('buy_drink')) actions.push('buy_drink');
+        }
+
+        // Church closed at night
+        if ((building.type === 'church' || building.type === 'temple') && period === 'night') {
+            actions = actions.filter(a => a !== 'pray' && a !== 'donate');
+            actions.push('closed');
+        }
+
+        // Market closed at night
+        if (building.type === 'marketplace' && period === 'night') {
+            actions = ['closed'];
+        }
+
+        return actions;
+    },
+
+    // ══════════════════════════════════════════════
+    // NPC SYSTEM — Townspeople that walk around
+    // ══════════════════════════════════════════════
+
+    /**
+     * Spawn NPCs for the current settlement
+     */
+    _spawnNPCs(settlement) {
+        this.npcs = [];
+        const type = settlement.type || 'village';
+        const pool = this.NPC_POOLS[type] || this.NPC_POOLS.village;
+
+        // Seeded RNG for deterministic NPC placement
+        const wt = this.currentWorldTile;
+        let seed = ((wt.q * 73856093 ^ wt.r * 19349663) + 42) >>> 0;
+        const rng = () => {
+            seed = (seed * 1664525 + 1013904223) & 0x7fffffff;
+            return seed / 0x7fffffff;
+        };
+
+        // Generate first/last names
+        const firstNames = ['Ada', 'Brom', 'Clara', 'Dorn', 'Eva', 'Finn', 'Greta', 'Holt',
+            'Iris', 'Jace', 'Kira', 'Lars', 'Maeve', 'Nils', 'Ora', 'Per', 'Quinn', 'Rolf',
+            'Siv', 'Tor', 'Una', 'Voss', 'Wren', 'Xara', 'Yves', 'Zara', 'Arne', 'Bjorn',
+            'Cora', 'Dag', 'Elsa', 'Frey', 'Gerd', 'Hakon', 'Inga', 'Jarl', 'Knut', 'Lena',
+            'Marta', 'Njord', 'Olga', 'Peder', 'Ragna', 'Sven', 'Thora', 'Ulf', 'Viggo', 'Ylva'];
+
+        let npcId = 0;
+        for (const [npcType, count] of Object.entries(pool)) {
+            const typeDef = this.NPC_TYPES[npcType];
+            if (!typeDef) continue;
+
+            for (let i = 0; i < count; i++) {
+                // Pick random passable tile for initial position
+                let q, r, attempts = 0;
+                do {
+                    q = Math.floor(rng() * this.width);
+                    r = Math.floor(rng() * this.height);
+                    attempts++;
+                } while (attempts < 50 && (!this.tiles[r] || !this.tiles[r][q] ||
+                    !this.tiles[r][q].subTerrain.passable));
+
+                if (attempts >= 50) continue;
+
+                const name = firstNames[Math.floor(rng() * firstNames.length)];
+
+                this.npcs.push({
+                    id: npcId++,
+                    type: npcType,
+                    name: name,
+                    icon: typeDef.icon,
+                    speed: typeDef.speed,
+                    q: q,
+                    r: r,
+                    // Movement
+                    targetQ: q,
+                    targetR: r,
+                    path: null,
+                    pathIndex: 0,
+                    moveProgress: 0,   // 0-1 animation between tiles
+                    prevQ: q,
+                    prevR: r,
+                    // Behavior
+                    idleTimer: rng() * 5 + 2,  // seconds until next move
+                    state: 'idle',  // idle, walking, at_building
+                    currentBuilding: null,
+                    destinations: typeDef.destinations || [],
+                    // Traveler tracking
+                    visitsLeft: npcType === 'traveler' ? (1 + Math.floor(rng() * 3)) : -1,
+                    departing: false,
+                });
+            }
+        }
+    },
+
+    /**
+     * Update all NPCs — called every frame with deltaTime (seconds)
+     */
+    updateNPCs(deltaTime) {
+        if (!this.active || this.npcs.length === 0) return;
+
+        for (const npc of this.npcs) {
+            // Safety: if NPC is somehow on an impassable tile, relocate to nearest passable
+            const curTile = this.tiles[npc.r] && this.tiles[npc.r][npc.q];
+            if (!curTile || !curTile.subTerrain.passable) {
+                let relocated = false;
+                const neighbors = Hex.neighbors(npc.q, npc.r);
+                for (const nb of neighbors) {
+                    if (nb.q >= 0 && nb.q < this.width && nb.r >= 0 && nb.r < this.height) {
+                        const t = this.tiles[nb.r][nb.q];
+                        if (t && t.subTerrain.passable) {
+                            npc.q = nb.q; npc.r = nb.r;
+                            npc.prevQ = nb.q; npc.prevR = nb.r;
+                            npc.path = null;
+                            npc.state = 'idle';
+                            npc.idleTimer = 1;
+                            relocated = true;
+                            break;
+                        }
+                    }
+                }
+                if (!relocated) { npc.state = 'gone'; continue; }
+            }
+
+            switch (npc.state) {
+                case 'idle':
+                    npc.idleTimer -= deltaTime;
+                    if (npc.idleTimer <= 0) {
+                        // Pick a new destination
+                        this._npcPickDestination(npc);
+                    }
+                    break;
+
+                case 'walking':
+                    if (npc.path && npc.pathIndex < npc.path.length) {
+                        npc.moveProgress += deltaTime * npc.speed * 2;
+                        if (npc.moveProgress >= 1.0) {
+                            npc.moveProgress = 0;
+                            npc.prevQ = npc.q;
+                            npc.prevR = npc.r;
+                            const step = npc.path[npc.pathIndex];
+
+                            // Defensive: never step onto impassable tile
+                            const stepTile = this.tiles[step.r] && this.tiles[step.r][step.q];
+                            if (!stepTile || !stepTile.subTerrain.passable) {
+                                npc.path = null;
+                                npc.state = 'idle';
+                                npc.idleTimer = 1 + Math.random() * 3;
+                                break;
+                            }
+
+                            npc.q = step.q;
+                            npc.r = step.r;
+                            npc.pathIndex++;
+
+                            if (npc.pathIndex >= npc.path.length) {
+                                // Arrived at destination
+                                npc.path = null;
+
+                                // If departing traveler reached map edge, remove them
+                                if (npc.departing) {
+                                    npc.state = 'gone';
+                                    continue;
+                                }
+
+                                const bldg = this.getBuildingAt(npc.q, npc.r);
+                                if (bldg) {
+                                    npc.state = 'at_building';
+                                    npc.currentBuilding = bldg.type;
+                                    npc.idleTimer = 3 + Math.random() * 8;
+                                    // Traveler visited a place
+                                    if (npc.visitsLeft > 0) npc.visitsLeft--;
+                                } else {
+                                    npc.state = 'idle';
+                                    npc.idleTimer = 1 + Math.random() * 4;
+                                }
+                            }
+                        }
+                    } else {
+                        npc.state = 'idle';
+                        npc.idleTimer = 1 + Math.random() * 3;
+                    }
+                    break;
+
+                case 'at_building':
+                    npc.idleTimer -= deltaTime;
+                    if (npc.idleTimer <= 0) {
+                        npc.currentBuilding = null;
+                        npc.state = 'idle';
+                        npc.idleTimer = 0.5;
+                    }
+                    break;
+            }
+        }
+
+        // Remove departed travelers
+        this.npcs = this.npcs.filter(n => n.state !== 'gone');
+    },
+
+    /**
+     * Find the nearest passable edge tile from a given position
+     */
+    _findNearestEdgeTile(fromQ, fromR) {
+        let best = null;
+        let bestDist = Infinity;
+        for (let r = 0; r < this.height; r++) {
+            for (let q = 0; q < this.width; q++) {
+                // Must be on the map edge
+                if (q !== 0 && q !== this.width - 1 && r !== 0 && r !== this.height - 1) continue;
+                if (!this.tiles[r] || !this.tiles[r][q] || !this.tiles[r][q].subTerrain.passable) continue;
+                const dist = Math.abs(q - fromQ) + Math.abs(r - fromR);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = { q, r };
+                }
+            }
+        }
+        return best;
+    },
+
+    /**
+     * Pick a new destination for an NPC to walk to
+     */
+    _npcPickDestination(npc) {
+        // Traveler departing: head to edge of map
+        if (npc.type === 'traveler' && npc.visitsLeft <= 0 && !npc.departing) {
+            const edge = this._findNearestEdgeTile(npc.q, npc.r);
+            if (edge) {
+                const path = this._findPath(npc.q, npc.r, edge.q, edge.r);
+                if (path && path.length > 1) {
+                    npc.departing = true;
+                    npc.path = path.slice(1);
+                    npc.pathIndex = 0;
+                    npc.moveProgress = 0;
+                    npc.prevQ = npc.q;
+                    npc.prevR = npc.r;
+                    npc.state = 'walking';
+                    return;
+                }
+            }
+            // Can't path to edge, just vanish
+            npc.state = 'gone';
+            return;
+        }
+
+        // Find buildings matching NPC's preferred destinations
+        const candidates = this.buildings.filter(b =>
+            npc.destinations.includes(b.type) && (b.q !== npc.q || b.r !== npc.r)
+        );
+
+        let target = null;
+        if (candidates.length > 0) {
+            target = candidates[Math.floor(Math.random() * candidates.length)];
+        } else {
+            // Random passable tile
+            let attempts = 0;
+            do {
+                const rq = Math.floor(Math.random() * this.width);
+                const rr = Math.floor(Math.random() * this.height);
+                if (this.tiles[rr] && this.tiles[rr][rq] && this.tiles[rr][rq].subTerrain.passable) {
+                    target = { q: rq, r: rr };
+                    break;
+                }
+                attempts++;
+            } while (attempts < 20);
+        }
+
+        if (target) {
+            const path = this._findPath(npc.q, npc.r, target.q, target.r);
+            if (path && path.length > 1) {
+                npc.path = path.slice(1); // Remove start position
+                npc.pathIndex = 0;
+                npc.moveProgress = 0;
+                npc.prevQ = npc.q;
+                npc.prevR = npc.r;
+                npc.state = 'walking';
+                return;
+            }
+        }
+
+        // Couldn't find a path, just idle again
+        npc.state = 'idle';
+        npc.idleTimer = 2 + Math.random() * 5;
+    },
+
+    /**
+     * Get NPC at a specific tile position
+     */
+    getNPCsAt(q, r) {
+        return this.npcs.filter(n => n.q === q && n.r === r);
+    },
 };

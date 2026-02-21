@@ -14,6 +14,7 @@ const Culture = {
             name: 'Library',
             icon: '📚',
             cost: 600,
+            constructionDays: 6,
             description: 'Repository of knowledge. Increases research speed and spreads cultural influence.',
             influenceRadius: 3,
             influencePerDay: 2,
@@ -27,6 +28,7 @@ const Culture = {
             name: 'Theater',
             icon: '🎭',
             cost: 800,
+            constructionDays: 8,
             description: 'Stage for drama, music, and storytelling. Boosts morale and attracts visitors.',
             influenceRadius: 4,
             influencePerDay: 3,
@@ -40,6 +42,7 @@ const Culture = {
             name: 'University',
             icon: '🏫',
             cost: 1500,
+            constructionDays: 14,
             description: 'Centre of higher learning. Major boost to research, technology, and cultural prestige.',
             influenceRadius: 6,
             influencePerDay: 5,
@@ -54,6 +57,7 @@ const Culture = {
             name: 'Grand Monument',
             icon: '🏛️',
             cost: 1000,
+            constructionDays: 10,
             description: 'An imposing monument celebrating your achievements. Generates renown.',
             influenceRadius: 5,
             influencePerDay: 4,
@@ -67,6 +71,7 @@ const Culture = {
             name: 'Scriptorium',
             icon: '📜',
             cost: 400,
+            constructionDays: 4,
             description: 'A workshop for copying manuscripts and recording history.',
             influenceRadius: 2,
             influencePerDay: 1,
@@ -201,6 +206,7 @@ const Culture = {
             for (const bRef of kingdom.cultureData.culturalBuildings) {
                 const tile = world.getTile(bRef.q, bRef.r);
                 if (!tile || !tile.culturalBuilding) continue;
+                if (tile.culturalBuilding.underConstruction) continue;
                 scholarshipGrowth += tile.culturalBuilding.scholarshipBonus * 0.05;
             }
             kingdom.cultureData.scholarship = Math.min(100,
@@ -212,6 +218,7 @@ const Culture = {
             for (const bRef of kingdom.cultureData.culturalBuildings) {
                 const tile = world.getTile(bRef.q, bRef.r);
                 if (!tile || !tile.culturalBuilding) continue;
+                if (tile.culturalBuilding.underConstruction) continue;
                 influenceGrowth += tile.culturalBuilding.influencePerDay * 0.1;
             }
             kingdom.cultureData.influence = Math.min(100,
@@ -276,6 +283,8 @@ const Culture = {
 
         player.gold -= type.cost;
 
+        const constructionDays = type.constructionDays || 0;
+
         tile.culturalBuilding = {
             type: type.id,
             name: type.name,
@@ -289,6 +298,9 @@ const Culture = {
             renownPerDay: type.renownPerDay || 0,
             incomeBonus: type.incomeBonus || 0,
             level: 1,
+            underConstruction: constructionDays > 0,
+            constructionDaysLeft: constructionDays,
+            constructionDaysTotal: constructionDays,
         };
 
         // Track for player
@@ -298,7 +310,7 @@ const Culture = {
         // Boost intelligence
         player.intelligence = Math.min(10, player.intelligence + 0.3);
 
-        return { success: true, building: tile.culturalBuilding };
+        return { success: true, building: tile.culturalBuilding, underConstruction: constructionDays > 0, constructionDays };
     },
 
     /**
@@ -316,6 +328,7 @@ const Culture = {
         for (const bRef of player.culturalBuildings) {
             const tile = world.getTile(bRef.q, bRef.r);
             if (!tile || !tile.culturalBuilding) continue;
+            if (tile.culturalBuilding.underConstruction) continue; // Still being built
 
             const b = tile.culturalBuilding;
             totalIncome += b.incomeBonus * b.level * 0.1;
@@ -345,6 +358,7 @@ const Culture = {
         for (const bRef of player.culturalBuildings) {
             const tile = world.getTile(bRef.q, bRef.r);
             if (!tile || !tile.culturalBuilding) continue;
+            if (tile.culturalBuilding.underConstruction) continue;
             bonus += tile.culturalBuilding.researchBonus || 0;
         }
         return bonus;
@@ -359,6 +373,7 @@ const Culture = {
         for (const bRef of player.culturalBuildings) {
             const tile = world.getTile(bRef.q, bRef.r);
             if (!tile || !tile.culturalBuilding) continue;
+            if (tile.culturalBuilding.underConstruction) continue;
             total += tile.culturalBuilding.influencePerDay * tile.culturalBuilding.level;
         }
         return total;

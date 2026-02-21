@@ -10,7 +10,7 @@ const Infrastructure = {
             name: 'Dirt Road',
             icon: '🛤️',
             cost: 30,
-            buildTime: 0, // instant
+            buildTime: 2, // days
             moveCostOverride: 1, // always costs 1 to traverse
             moveCostReduction: null,
             requiredTech: 'road_building',
@@ -24,7 +24,7 @@ const Infrastructure = {
             name: 'Stone Road',
             icon: '🛣️',
             cost: 80,
-            buildTime: 0,
+            buildTime: 4,
             moveCostOverride: 1, // always costs 1 to traverse
             moveCostReduction: null,
             requiredTech: 'paved_roads',
@@ -39,7 +39,7 @@ const Infrastructure = {
             name: 'Bridge',
             icon: '🌉',
             cost: 150,
-            buildTime: 0,
+            buildTime: 6,
             moveCostOverride: 1,
             moveCostReduction: null,
             requiredTech: 'bridge_construction',
@@ -54,7 +54,7 @@ const Infrastructure = {
             name: 'Irrigation Channel',
             icon: '💧',
             cost: 60,
-            buildTime: 0,
+            buildTime: 3,
             moveCostOverride: null,
             moveCostReduction: null,
             requiredTech: 'irrigation',
@@ -145,6 +145,8 @@ const Infrastructure = {
 
         player.gold -= cost;
 
+        const buildDays = infra.buildTime || 0;
+
         // Place infrastructure on tile
         tile.infrastructure = {
             id: infra.id,
@@ -156,9 +158,16 @@ const Infrastructure = {
             renderColor: infra.renderColor,
             renderWidth: infra.renderWidth,
             builtDay: world ? world.day : 0,
+            underConstruction: buildDays > 0,
+            constructionDaysLeft: buildDays,
+            constructionDaysTotal: buildDays,
         };
 
-        return { success: true, infrastructure: tile.infrastructure, cost };
+        // Track tile coordinates for construction tick
+        tile.infrastructure._tileQ = tile.q;
+        tile.infrastructure._tileR = tile.r;
+
+        return { success: true, infrastructure: tile.infrastructure, cost, buildDays };
     },
 
     /**
@@ -190,7 +199,7 @@ const Infrastructure = {
 
         let baseCost = tile.terrain.moveCost;
 
-        if (tile.infrastructure) {
+        if (tile.infrastructure && !tile.infrastructure.underConstruction) {
             // Stone road / bridge: override to fixed cost
             if (tile.infrastructure.moveCostOverride !== null && tile.infrastructure.moveCostOverride !== undefined) {
                 return tile.infrastructure.moveCostOverride;
@@ -211,7 +220,7 @@ const Infrastructure = {
      * Get farm productivity bonus from irrigation on this tile
      */
     getIrrigationBonus(tile) {
-        if (!tile.infrastructure) return 0;
+        if (!tile.infrastructure || tile.infrastructure.underConstruction) return 0;
         return tile.infrastructure.productivityBonus || 0;
     },
 
@@ -230,6 +239,10 @@ const Infrastructure = {
 
         const startTile = world.getTile(startQ, startR);
         if (!startTile || (!startTile.infrastructure && !startTile.hasRoad)) return false;
+        // Don't count under-construction infrastructure as usable roads
+        if (startTile.infrastructure && startTile.infrastructure.underConstruction) {
+            if (!startTile.hasRoad) return false;
+        }
 
         while (queue.length > 0) {
             const current = queue.shift();
@@ -254,8 +267,8 @@ const Infrastructure = {
                     continue;
                 }
 
-                // Accept player-built road/bridge infrastructure
-                if (!nTile.infrastructure) continue;
+                // Accept player-built road/bridge infrastructure (skip under construction)
+                if (!nTile.infrastructure || nTile.infrastructure.underConstruction) continue;
                 const isRoad = ['dirt_road', 'stone_road', 'bridge'].includes(nTile.infrastructure.id);
                 if (!isRoad) continue;
 

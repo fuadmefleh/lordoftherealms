@@ -1,0 +1,6 @@
+{
+    "_note": "List exported building JSON filenames here (relative to data/custom_buildings/). Each file is produced by the sprite_editor.html Building mode export.",
+    "files": [
+        "custom_buildings.json"
+    ]
+}

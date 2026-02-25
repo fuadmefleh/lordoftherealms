@@ -36,6 +36,20 @@ const InnerMap = {
     temperature: null,         // { value, celsius, fahrenheit } from world weather
     season: null,              // Current season string
 
+    // ── Player walking state ──────────────────────────────
+    _playerPath: null,         // Array of { q, r } steps to walk
+    _playerPathIndex: 0,       // Current index in _playerPath
+    _playerMoveProgress: 0,    // 0-1 interpolation between current and next tile
+    _playerPrevQ: 4,           // Previous tile position (for interpolation)
+    _playerPrevR: 3,
+    _playerWalking: false,     // Is the player currently walking?
+    _playerSpeed: 4.0,         // Tiles per second walk speed
+    _playerArrivalResult: null, // Deferred arrival result for game.js to pick up
+
+    // ── Object interaction state ─────────────────────────
+    _pendingInteraction: null,  // { anchorQ, anchorR, defId } — set when walking toward an object
+    _activeInteraction: null,   // { anchorQ, anchorR, defId, elapsed, duration, fading }
+
     // ── NPC system ───────────────────────────────────────
     npcs: [],                  // Array of NPC objects on the inner map
     _npcMoveTimer: 0,          // Timer for NPC movement ticks
@@ -160,6 +174,70 @@ const InnerMap = {
         capital:  { villager: 10, merchant: 6, guard: 6, farmer: 3, priest: 3, blacksmith_npc: 2, noble: 4, child: 5, traveler: 4, beggar: 2 },
     },
 
+    // Map dimensions per settlement type  { min, max } (square maps)
+    SETTLEMENT_MAP_SIZES: {
+        village:  { min: 40, max: 50 },
+        town:     { min: 50, max: 60 },
+        city:     { min: 70, max: 80 },
+        capital:  { min: 95, max: 120 },
+    },
+
+    // ══════════════════════════════════════════════
+    // BASE TERRAIN MAPPING — like C# Generate() biome switch
+    // Maps parent terrain ID → base fill category used by the renderer.
+    // Sub-terrains can optionally override via a "baseTerrain" field
+    // in their JSON definition (e.g. pond → 'water', dirt_path → 'dirt').
+    // ══════════════════════════════════════════════
+    PARENT_TO_BASE_TERRAIN: {
+        grassland:            'grass',
+        plains:               'grass',
+        woodland:             'grass',   // no dark_green fills in spritesheet; trees are overlays
+        forest:               'grass',
+        dense_forest:         'grass',
+        seasonal_forest:      'grass',
+        boreal_forest:        'grass',
+        temperate_rainforest: 'grass',
+        tropical_rainforest:  'grass',
+        desert:               'sand',
+        savanna:              'dry_dirt',
+        mountain:             'stone',
+        snow_peak:            'stone',
+        hills:                'stone',
+        highlands:            'stone',
+        swamp:                'dark_stone',
+        tundra:               'dirt',
+        snow:                 'grass',   // seasonal sheet swap handles visuals
+        ice:                  'water',
+        beach:                'sand',
+        island:               'sand',
+    },
+
+    // Sub-terrain IDs that override the parent's base terrain.
+    // Only listed for sub-terrains whose ground fill differs from their parent.
+    SUB_TO_BASE_TERRAIN: {
+        dirt:      'dirt',
+        mud:       'dirt',
+        rocks:     'stone',
+        cliff:     'stone',
+        ice:       'stone',
+        sand:      'sand',
+        dry_grass: 'dry_dirt',
+        bog:       'dark_stone',
+    },
+
+    /**
+     * Get the base terrain fill category for a tile.
+     * Sub-terrain can override the parent's default.
+     */
+    _getBaseTerrain(terrainId, subTerrainId) {
+        // Check sub-terrain override first
+        if (subTerrainId && this.SUB_TO_BASE_TERRAIN[subTerrainId]) {
+            return this.SUB_TO_BASE_TERRAIN[subTerrainId];
+        }
+        // Fall back to parent terrain mapping
+        return this.PARENT_TO_BASE_TERRAIN[terrainId] || 'grass';
+    },
+
     /**
      * Generate or retrieve an inner map for a world tile
      * @param {Object} worldTile - The world tile object
@@ -209,6 +287,19 @@ const InnerMap = {
      * its parent tile.
      */
     generate(worldTile, worldQ, worldR, game) {
+        // Set map dimensions based on settlement type
+        if (worldTile.settlement) {
+            const sType = worldTile.settlement.type || 'village';
+            const sz = this.SETTLEMENT_MAP_SIZES[sType] || this.SETTLEMENT_MAP_SIZES.village;
+            // Deterministic size from world coords within [min, max]
+            const hash = ((worldQ * 73856093 ^ worldR * 19349663) >>> 0) % (sz.max - sz.min + 1);
+            this.width = sz.min + hash;
+            this.height = sz.min + hash;
+        } else {
+            this.width = this.CONFIG && this.CONFIG.innerMapSize ? this.CONFIG.innerMapSize.width : 20;
+            this.height = this.CONFIG && this.CONFIG.innerMapSize ? this.CONFIG.innerMapSize.height : 20;
+        }
+
         const terrainId = worldTile.terrain ? worldTile.terrain.id : 'grassland';
         const config = this.CONFIG;
         const subTerrains = config && config.subTerrains ? config.subTerrains[terrainId] : null;
@@ -300,24 +391,17 @@ const InnerMap = {
                     selectedTerrain = primaryTerrains[0]; // Default to primary
                 }
 
-                // Generate encounter
-                let encounter = null;
-                const encounterChance = config ? (config.encounterChance || 0.15) : 0.15;
-                if (!isEdge && rng() < encounterChance && subTerrains && subTerrains.encounters) {
-                    const encounterKey = subTerrains.encounters[Math.floor(rng() * subTerrains.encounters.length)];
-                    if (config.encounters && config.encounters[encounterKey]) {
-                        encounter = {
-                            ...config.encounters[encounterKey],
-                            key: encounterKey,
-                            discovered: false
-                        };
-                    }
-                }
+                // No per-tile encounters (removed)
+                const encounter = null;
 
                 const passable = selectedTerrain.passable !== false;
 
+                // Determine base terrain fill — like C#'s tileType
+                const baseTerrain = this._getBaseTerrain(terrainId, selectedTerrain.id);
+
                 row.push({
                     q, r,
+                    baseTerrain: baseTerrain,  // ground fill category (grass/dirt/sand/water/stone/etc.)
                     subTerrain: {
                         id: selectedTerrain.id,
                         name: selectedTerrain.name,
@@ -341,11 +425,25 @@ const InnerMap = {
 
         // --- Settlement building placement ---
         if (worldTile.settlement) {
-            this._placeBuildings(tiles, worldTile.settlement, rng);
+            const customOnly = window.gameOptions?.customBuildingsOnly &&
+                               typeof CustomBuildings !== 'undefined' &&
+                               CustomBuildings.isLoaded() && CustomBuildings.hasAny();
+            if (!customOnly) {
+                this._placeBuildings(tiles, worldTile.settlement, rng);
+            }
+            // Place custom editor-authored buildings (always, or exclusively when customOnly)
+            if (typeof CustomBuildings !== 'undefined' && CustomBuildings.isLoaded() && CustomBuildings.hasAny()) {
+                this._placeCustomBuildings(tiles, worldTile.settlement, rng);
+            }
         }
 
         // --- Player property placement ---
         this._placePlayerProperties(tiles, worldTile, rng);
+
+        // --- Scatter custom editor-authored objects on terrain ---
+        if (typeof CustomObjects !== 'undefined' && CustomObjects.isLoaded() && CustomObjects.hasAnyBindings()) {
+            this._scatterCustomObjects(tiles, rng, game ? (game.world ? (game.world.day || 0) : 0) : 0);
+        }
 
         // Ensure the center tile (player start) is always passable
         const centerQ = Math.floor(this.width / 2);
@@ -358,6 +456,106 @@ const InnerMap = {
         this._revealAround(tiles, centerQ, centerR, 2);
 
         return tiles;
+    },
+
+    // ══════════════════════════════════════════════════════════════
+    // CUSTOM OBJECT SCATTER
+    // Called from generate() after terrain + buildings are placed.
+    // Places editor-authored objects from CustomObjects by matching
+    // each tile's subTerrain.id against the object's terrainBindings.
+    // Spawn density: ~8% of eligible tiles per run (tunable later).
+    // ══════════════════════════════════════════════════════════════
+
+    _scatterCustomObjects(tiles, rng, currentDay = 0) {
+        const W = this.width;
+        const H = this.height;
+        const unboundPool = CustomObjects.getUnboundObjects();
+
+        // Build set of object IDs that are only spawned via spawnAfter
+        // (e.g. stumps) — these should never be auto-scattered.
+        const spawnAfterIds = new Set();
+        for (const d of CustomObjects.getAllDefs()) {
+            if (d.spawnAfter) spawnAfterIds.add(d.spawnAfter);
+        }
+
+        // Helper: is this def eligible for auto-scatter?
+        function canScatter(def) {
+            if (!def) return false;
+            // 'other' type objects are not auto-scattered (placed via game events)
+            if (def.objectType === 'other') return false;
+            // Objects that only exist as spawnAfter replacements shouldn't scatter
+            if (spawnAfterIds.has(def.id)) return false;
+            return true;
+        }
+
+        for (let r = 1; r < H - 1; r++) {
+            for (let q = 1; q < W - 1; q++) {
+                const tile = tiles[r][q];
+                // Only consider passable, unoccupied terrain tiles
+                if (!tile.subTerrain.passable) continue;
+                if (tile.building) continue;
+                if (tile.customObject || tile.customObjectPart) continue;
+
+                // Build combined pool: terrain-bound + universal (unbound)
+                // Filter out objects not eligible for auto-scatter
+                const terrainPool = CustomObjects.getObjectsForTerrain(tile.subTerrain.id);
+                const rawPool = terrainPool.length && unboundPool.length
+                    ? terrainPool.concat(unboundPool)
+                    : terrainPool.length ? terrainPool : unboundPool;
+                const pool = rawPool.filter(canScatter);
+                if (!pool.length) continue;
+
+                // Per-tile spawn roll (~8% base)
+                if (rng() > 0.08) continue;
+
+                // Weighted-random pick from the combined pool
+                const total = pool.reduce((s, d) => s + (d.spawnWeight || 1), 0);
+                let roll = rng() * total;
+                let def = pool[pool.length - 1];
+                for (const d of pool) {
+                    roll -= (d.spawnWeight || 1);
+                    if (roll <= 0) { def = d; break; }
+                }
+                if (!def || !def.tiles || def.tiles.length === 0) continue;
+
+                // Verify every footprint tile is in-bounds and free
+                let clear = true;
+                for (const tDef of def.tiles) {
+                    const fr = r + tDef.localRow;
+                    const fq = q + tDef.localCol;
+                    if (fr <= 0 || fr >= H - 1 || fq <= 0 || fq >= W - 1)
+                        { clear = false; break; }
+                    const ft = tiles[fr][fq];
+                    if (ft.building || ft.customObject || ft.customObjectPart)
+                        { clear = false; break; }
+                }
+                if (!clear) continue;
+
+                // ── Place anchor ──
+                const customObj = { defId: def.id, sheetPath: def.sheetPath, currentHealthPct: 100 };
+                if (def.resource) customObj.resource = def.resource;
+                // Record planting day so growth stages can be computed at render time
+                if (def.growthStates && def.growthStates.length > 0) {
+                    customObj.growthDayPlanted = currentDay;
+                }
+                tile.customObject = customObj;
+
+                // ── Mark footprint ──
+                for (const tDef of def.tiles) {
+                    const fr = r + tDef.localRow;
+                    const fq = q + tDef.localCol;
+                    const ft = tiles[fr][fq];
+                    // Non-anchor footprint tiles get a back-reference to the anchor
+                    if (tDef.localRow !== 0 || tDef.localCol !== 0) {
+                        ft.customObjectPart = { anchorQ: q, anchorR: r };
+                    }
+                    // Honour the per-tile impassable flag from the editor
+                    if (tDef.impassable) {
+                        ft.subTerrain.passable = false;
+                    }
+                }
+            }
+        }
     },
 
     // ── Building sprite lists (from assets/tiles/buildings/) ──────
@@ -479,16 +677,16 @@ const InnerMap = {
         // Determine how many building tiles to place
         let buildingCount;
         switch (type) {
-            case 'capital': buildingCount = Math.min(20, 9 + Math.floor(pop / 200)); break;
-            case 'city':    buildingCount = Math.min(16, 7 + Math.floor(pop / 180)); break;
-            case 'town':    buildingCount = Math.min(12, 5 + Math.floor(pop / 150)); break;
-            default:        buildingCount = Math.min(8,  3 + Math.floor(pop / 100)); break;
+            case 'capital': buildingCount = Math.min(50, 18 + Math.floor(pop / 150)); break;
+            case 'city':    buildingCount = Math.min(40, 14 + Math.floor(pop / 150)); break;
+            case 'town':    buildingCount = Math.min(30, 10 + Math.floor(pop / 120)); break;
+            default:        buildingCount = Math.min(20, 6  + Math.floor(pop / 80));  break;
         }
 
         const sprites = this.BUILDING_SPRITES[type] || this.BUILDING_SPRITES.village;
         const commonSprites = this.BUILDING_SPRITES.common;
 
-        // Collect candidate tiles: passable, non-edge, no encounter
+        // Collect candidate tiles: passable, non-edge
         const centerQ = Math.floor(this.width / 2);
         const centerR = Math.floor(this.height / 2);
         const candidates = [];
@@ -498,7 +696,6 @@ const InnerMap = {
                 const isEdge = q === 0 || q === this.width - 1 || r === 0 || r === this.height - 1;
                 if (isEdge) continue;
                 if (!t.subTerrain.passable) continue;
-                if (t.encounter) continue;
                 // Prefer tiles near center (village nucleus)
                 const dist = Math.abs(q - centerQ) + Math.abs(r - centerR);
                 candidates.push({ q, r, dist });
@@ -507,6 +704,29 @@ const InnerMap = {
 
         // Sort by distance to center, with slight random jitter
         candidates.sort((a, b) => (a.dist + rng() * 1.5) - (b.dist + rng() * 1.5));
+
+        // Exclusion zone: prevents overlapping 3-tile-wide buildings (±3 tile buffer around each)
+        const blockedByBuilding = new Set();
+        const _markBuildingZone = (bq, br) => {
+            for (let dq = -3; dq <= 3; dq++) {
+                for (let dr = -3; dr <= 3; dr++) {
+                    blockedByBuilding.add(`${bq + dq},${br + dr}`);
+                }
+            }
+        };
+
+        // Mark the actual visual footprint of a building as impassable.
+        // Buildings render 3 tiles wide (q-1..q+1) and 3 tiles tall (r-2..r).
+        const _markBuildingImpassable = (bq, br) => {
+            for (let dq = -1; dq <= 1; dq++) {
+                for (let dr = -2; dr <= 0; dr++) {
+                    const fq = bq + dq, fr = br + dr;
+                    if (fr >= 0 && fr < this.height && fq >= 0 && fq < this.width) {
+                        tiles[fr][fq].subTerrain.passable = false;
+                    }
+                }
+            }
+        };
 
         // Place the center tile building first (village square / town hall)
         const centerTile = tiles[centerR][centerQ];
@@ -518,16 +738,18 @@ const InnerMap = {
             centerTile.building = sprites[Math.floor(rng() * sprites.length)];
         }
         centerTile.subTerrain.name = settlement.name || centerTile.subTerrain.name;
+        _markBuildingImpassable(centerQ, centerR);
+        _markBuildingZone(centerQ, centerR);
 
         // Determine farm count based on settlement type
-        const farmCount = type === 'capital' ? 4 : type === 'city' ? 3 : type === 'town' ? 2 : 1;
+        const farmCount = type === 'capital' ? 8 : type === 'city' ? 6 : type === 'town' ? 4 : 2;
         const farmSprites = this.BUILDING_SPRITES.farm;
 
         // Collect outer-ring candidates (far from center) for farms
         const outerCandidates = candidates
             .filter(c => {
                 const dist = Math.abs(c.q - centerQ) + Math.abs(c.r - centerR);
-                return dist >= 3;
+                return dist >= Math.floor(Math.min(this.width, this.height) / 4);
             })
             .sort((a, b) => {
                 // Prefer tiles near the edge but still passable
@@ -542,11 +764,14 @@ const InnerMap = {
         for (const c of outerCandidates) {
             if (farmsPlaced >= farmCount) break;
             if (c.q === centerQ && c.r === centerR) continue;
+            if (blockedByBuilding.has(`${c.q},${c.r}`)) continue;
             const tile = tiles[c.r][c.q];
             if (tile.building) continue; // already placed
             tile.building = farmSprites[Math.floor(rng() * farmSprites.length)];
+            _markBuildingImpassable(c.q, c.r);
             tile._buildingTypeHint = 'farm';
             farmTilePositions.add(`${c.q},${c.r}`);
+            _markBuildingZone(c.q, c.r);
             farmsPlaced++;
         }
 
@@ -555,11 +780,14 @@ const InnerMap = {
             if (placed >= buildingCount) break;
             if (c.q === centerQ && c.r === centerR) continue;
             if (farmTilePositions.has(`${c.q},${c.r}`)) continue; // skip farm tiles
+            if (blockedByBuilding.has(`${c.q},${c.r}`)) continue;
             const tile = tiles[c.r][c.q];
             if (tile.building) continue;
             // Mix main sprites with common ones
             const pool = rng() < 0.25 ? commonSprites : sprites;
             tile.building = pool[Math.floor(rng() * pool.length)];
+            _markBuildingImpassable(c.q, c.r);
+            _markBuildingZone(c.q, c.r);
             placed++;
         }
 
@@ -577,16 +805,16 @@ const InnerMap = {
         // Determine decoration count — more for bigger settlements
         let maxDecorations;
         switch (type) {
-            case 'capital': maxDecorations = 12; break;
-            case 'city':    maxDecorations = 9;  break;
-            case 'town':    maxDecorations = 6;  break;
-            default:        maxDecorations = 4;  break;
+            case 'capital': maxDecorations = 30; break;
+            case 'city':    maxDecorations = 22; break;
+            case 'town':    maxDecorations = 15; break;
+            default:        maxDecorations = 10; break;
         }
 
         // Collect remaining empty passable inner tiles
         const decoCandidates = candidates.filter(c => {
             const t = tiles[c.r][c.q];
-            return !t.building && !t.encounter && t.subTerrain.passable;
+            return !t.building && t.subTerrain.passable;
         });
 
         // Shuffle with RNG
@@ -631,6 +859,101 @@ const InnerMap = {
         }
     },
 
+    // ══════════════════════════════════════════════════════════════
+    // CUSTOM BUILDING SCATTER
+    // Called from generate() after _placeBuildings().
+    // Scatters editor-authored buildings from CustomBuildings onto
+    // remaining free passable tiles in settlement inner maps.
+    // ══════════════════════════════════════════════════════════════
+
+    _placeCustomBuildings(tiles, settlement, rng) {
+        const W    = this.width;
+        const H    = this.height;
+        const type = settlement.type || 'village';
+
+        // How many custom buildings to attempt per settlement type.
+        // When running in custom-buildings-only mode, place more to fill the space.
+        const customOnly = window.gameOptions?.customBuildingsOnly &&
+                           CustomBuildings.isLoaded() && CustomBuildings.hasAny();
+        const maxToPlace = customOnly
+            ? (type === 'capital' ? 14 : type === 'city' ? 10 : type === 'town' ? 7 : 5)
+            : (type === 'capital' ? 6  : type === 'city' ? 4 : type === 'town' ? 3 : 2);
+
+        const defs = CustomBuildings.getAllForSettlement(type, rng);
+        if (!defs.length) {
+            console.info('[CustomBuildings] _placeCustomBuildings: no defs for type:', type);
+            return;
+        }
+
+        let placed = 0;
+        let defIdx = 0;
+        // Loop cycling through available defs (so a library with 1 def can still fill maxToPlace slots)
+        while (placed < maxToPlace && defIdx < maxToPlace * 4) {
+            const def = defs[defIdx % defs.length];
+            defIdx++;
+
+            // Use bounds if available (origin-relative), otherwise fall back to width/height
+            const bounds = def.bounds || { minCol: 0, minRow: 0, maxCol: (def.width || 1) - 1, maxRow: (def.height || 1) - 1 };
+            const footW = bounds.maxCol - bounds.minCol + 1;
+            const footH = bounds.maxRow - bounds.minRow + 1;
+
+            // Each iteration: try to place this def; continue to next iteration on failure
+            {
+
+            // Skip buildings that are too large for this inner map
+            if (footW > W - 2 || footH > H - 2) { continue; }
+
+            // Collect anchor positions where the entire footprint is free.
+            // Anchor corresponds to the origin (0,0). Footprint extends from
+            // anchor+minCol to anchor+maxCol and anchor+minRow to anchor+maxRow.
+            const candidates = [];
+            for (let r = 1 - bounds.minRow; r <= H - 2 - bounds.maxRow; r++) {
+                outer: for (let q = 1 - bounds.minCol; q <= W - 2 - bounds.maxCol; q++) {
+                    for (let dr = bounds.minRow; dr <= bounds.maxRow; dr++) {
+                        for (let dq = bounds.minCol; dq <= bounds.maxCol; dq++) {
+                            const t = tiles[r + dr][q + dq];
+                            if (!t.subTerrain.passable || t.building ||
+                                t.customBuilding || t.customBuildingPart)
+                                continue outer;
+                        }
+                    }
+                    candidates.push({ q, r });
+                }
+            }
+            if (!candidates.length) { continue; }
+
+            // Pick a random candidate position
+            const { q: aq, r: ar } = candidates[Math.floor(rng() * candidates.length)];
+
+            // Mark anchor tile
+            tiles[ar][aq].customBuilding = { defId: def.id };
+
+            // Mark the remaining footprint tiles as "part of building"
+            for (let dr = bounds.minRow; dr <= bounds.maxRow; dr++) {
+                for (let dq = bounds.minCol; dq <= bounds.maxCol; dq++) {
+                    if (dr === 0 && dq === 0) continue;
+                    tiles[ar + dr][aq + dq].customBuildingPart = { anchorQ: aq, anchorR: ar };
+                }
+            }
+
+            // Apply impassable / door meta from the building editor
+            for (const m of (def.meta || [])) {
+                const fr = ar + m.r, fq = aq + m.q;
+                if (fr >= 0 && fr < H && fq >= 0 && fq < W) {
+                    if (m.impassable) tiles[fr][fq].subTerrain.passable = false;
+                }
+            }
+
+            placed++;
+            } // end placement block
+        } // end while
+
+        if (placed > 0)
+            console.log(`[CustomBuildings] placed ${placed} custom building(s) in ${type} (customOnly=${customOnly})`);
+        else
+            console.warn(`[CustomBuildings] failed to place any custom buildings in ${type} — no free space found`);
+    },
+
 
     /**
      * Place player-built properties on the inner map tiles.
@@ -648,6 +971,18 @@ const InnerMap = {
         const height = tiles.length;
         const width = tiles[0] ? tiles[0].length : 0;
 
+        // Mark visual footprint of a placed building impassable (3 wide × 3 tall: q-1..q+1, r-2..r)
+        const _markFootprint = (bq, br) => {
+            for (let dq = -1; dq <= 1; dq++) {
+                for (let dr = -2; dr <= 0; dr++) {
+                    const fq = bq + dq, fr = br + dr;
+                    if (fr >= 0 && fr < height && fq >= 0 && fq < width) {
+                        tiles[fr][fq].subTerrain.passable = false;
+                    }
+                }
+            }
+        };
+
         for (const prop of allProps) {
             // If property already has stored inner map coordinates, try to use them
             if (prop.innerQ !== undefined && prop.innerR !== undefined) {
@@ -655,6 +990,7 @@ const InnerMap = {
                 if (tile && !tile.building) {
                     const sprites = this.PROPERTY_SPRITES[prop.type] || ['buildings/villageSmall00.png'];
                     tile.building = sprites[Math.floor(rng() * sprites.length)];
+                    _markFootprint(prop.innerQ, prop.innerR);
                     tile._buildingTypeHint = 'player_property';
                     tile._propertyRef = prop;
                     continue;
@@ -668,6 +1004,7 @@ const InnerMap = {
                 prop.innerR = pos.r;
                 const sprites = this.PROPERTY_SPRITES[prop.type] || ['buildings/villageSmall00.png'];
                 tiles[pos.r][pos.q].building = sprites[Math.floor(rng() * sprites.length)];
+                _markFootprint(pos.q, pos.r);
                 tiles[pos.r][pos.q]._buildingTypeHint = 'player_property';
                 tiles[pos.r][pos.q]._propertyRef = prop;
             }
@@ -692,7 +1029,6 @@ const InnerMap = {
                 if (isEdge) continue;
                 if (!tile.subTerrain.passable) continue;
                 if (tile.building) continue;
-                if (tile.encounter) continue;
 
                 const dist = Math.abs(q - centerQ) + Math.abs(r - centerR);
                 candidates.push({ q, r, dist });
@@ -881,14 +1217,14 @@ const InnerMap = {
         // Use larger grid for settlements
         const hasSettlement = !!worldTile.settlement;
         if (hasSettlement) {
-            const type = worldTile.settlement.type || 'village';
-            if (type === 'capital') { this.width = 14; this.height = 14; }
-            else if (type === 'city') { this.width = 12; this.height = 12; }
-            else if (type === 'town') { this.width = 10; this.height = 10; }
-            else { this.width = 8; this.height = 8; }
+            const sType = worldTile.settlement.type || 'village';
+            const sz = this.SETTLEMENT_MAP_SIZES[sType] || this.SETTLEMENT_MAP_SIZES.village;
+            const hash = ((worldQ * 73856093 ^ worldR * 19349663) >>> 0) % (sz.max - sz.min + 1);
+            this.width = sz.min + hash;
+            this.height = sz.min + hash;
         } else {
-            this.width = this.CONFIG && this.CONFIG.innerMapSize ? this.CONFIG.innerMapSize.width : 8;
-            this.height = this.CONFIG && this.CONFIG.innerMapSize ? this.CONFIG.innerMapSize.height : 8;
+            this.width = this.CONFIG && this.CONFIG.innerMapSize ? this.CONFIG.innerMapSize.width : 20;
+            this.height = this.CONFIG && this.CONFIG.innerMapSize ? this.CONFIG.innerMapSize.height : 20;
         }
 
         // Generate/retrieve inner map
@@ -918,6 +1254,7 @@ const InnerMap = {
             this.temperature = { value: 0.5, celsius: 10, fahrenheit: 50 };
         }
         this.season = game.world ? game.world.season : 'Spring';
+        this.worldDay = game.world ? (game.world.day || 0) : 0;
 
         // ── Generate buildings list for settlement tiles ──
         this.buildings = [];
@@ -961,6 +1298,8 @@ const InnerMap = {
         this.buildings = [];
         this.roads = [];
         this.dayEnded = false;
+        this._pendingInteraction = null;
+        this._activeInteraction = null;
         // Tiles remain cached for re-entry
     },
 
@@ -969,6 +1308,9 @@ const InnerMap = {
      * @returns {{ moved: boolean, encounter: Object|null }}
      */
     movePlayer(dq, dr) {
+        // Cancel any animated walk in progress
+        this.cancelPlayerWalk();
+
         const newQ = this.playerInnerQ + dq;
         const newR = this.playerInnerR + dr;
 
@@ -1002,42 +1344,351 @@ const InnerMap = {
     },
 
     /**
-     * Move player to a specific inner map tile (click-to-move)
-     * Uses simple pathfinding
-     * @returns {{ moved: boolean, encounter: Object|null }}
+     * Move player to a specific inner map tile (click-to-move).
+     * Sets up an animated walk along the A* path.
+     * Returns { started, moved, outOfBounds } — the 'moved' flag is only
+     * true once the player actually arrives (checked via updatePlayer).
      */
     movePlayerTo(targetQ, targetR) {
         if (targetQ < 0 || targetQ >= this.width || targetR < 0 || targetR >= this.height) {
-            return { moved: false, encounter: null, outOfBounds: true };
+            return { started: false, moved: false, encounter: null, outOfBounds: true };
         }
 
         const tile = this.tiles[targetR][targetQ];
         if (!tile.subTerrain.passable) {
-            return { moved: false, encounter: null, outOfBounds: false };
+            return { started: false, moved: false, encounter: null, outOfBounds: false };
         }
 
-        // Simple A* pathfinding within the inner map
+        // A* pathfinding
         const path = this._findPath(this.playerInnerQ, this.playerInnerR, targetQ, targetR);
         if (!path || path.length <= 1) {
-            return { moved: false, encounter: null, outOfBounds: false };
+            return { started: false, moved: false, encounter: null, outOfBounds: false };
         }
 
-        // Move along path (step-by-step, collecting encounters)
-        let lastEncounter = null;
-        for (let i = 1; i < path.length; i++) {
-            const step = path[i];
-            this.playerInnerQ = step.q;
-            this.playerInnerR = step.r;
-            this._revealAround(this.tiles, step.q, step.r, 2);
+        // Start animated walk (skip index 0 which is the current position)
+        this._playerPath = path;
+        this._playerPathIndex = 1;
+        this._playerMoveProgress = 0;
+        this._playerPrevQ = this.playerInnerQ;
+        this._playerPrevR = this.playerInnerR;
+        this._playerWalking = true;
+        this._playerArrivalResult = null;
 
-            const stepTile = this.tiles[step.r][step.q];
-            if (stepTile.encounter && !stepTile.encounter.discovered) {
-                stepTile.encounter.discovered = true;
-                lastEncounter = stepTile.encounter;
+        return { started: true, moved: false, encounter: null, outOfBounds: false };
+    },
+
+    /**
+     * Cancel the current player walk (e.g. on new right-click).
+     */
+    cancelPlayerWalk() {
+        this._playerPath = null;
+        this._playerPathIndex = 0;
+        this._playerMoveProgress = 0;
+        this._playerWalking = false;
+        this._playerPrevQ = this.playerInnerQ;
+        this._playerPrevR = this.playerInnerR;
+    },
+
+    // ══════════════════════════════════════════════
+    // OBJECT INTERACTION
+    // ══════════════════════════════════════════════
+
+    /**
+     * Start an interaction with a custom object.
+     * Called when the player arrives at a tile adjacent to the target object.
+     * @param {number} baseDamage  % of the object's health removed per swing
+     */
+    startInteraction(anchorQ, anchorR, defId, baseDamage) {
+        // Ensure health is initialised (objects placed before this feature always start at 100).
+        const anchorTile = this.getTile(anchorQ, anchorR);
+        if (anchorTile && anchorTile.customObject && anchorTile.customObject.currentHealthPct == null) {
+            anchorTile.customObject.currentHealthPct = 100;
+        }
+        this._activeInteraction = {
+            anchorQ, anchorR, defId,
+            baseDamage: baseDamage || 20,  // % HP removed per swing
+            swingTimer: 0,
+            swingInterval: 0.5,  // seconds between swings
+            fadeDuration: 0.4,   // seconds to fade out once health hits 0
+            fading: false,
+            done: false
+        };
+        this._pendingInteraction = null;
+    },
+
+    /**
+     * Compute how much % health one swing deals to a custom object.
+     * Scales with player strength and luck; reduced by def.resistance (0–95).
+     *   str=1, luck=5  → ~8.5%  (~12 swings)
+     *   str=5, luck=5  → ~20.5% (~5  swings)
+     *   str=10, luck=5 → ~35.5% (~3  swings)
+     */
+    _computeObjectDamage(player, def) {
+        const str    = (player && player.strength) || 5;
+        const luck   = (player && player.luck)     || 5;
+        const base   = str * 3 + luck * 0.5 + 3;         // base %
+        const resist = def && def.resistance != null ? Math.min(def.resistance, 95) : 0;
+        return base * (1 - resist / 100);
+    },
+
+    /**
+     * Update active object interaction each frame.
+     * Each swing deals baseDamage% (±12.5% variance) to the object's currentHealthPct.
+     * Returns:
+     *   null                           — still animating between swings
+     *   { hit, damage, healthPct }     — a swing just landed (object still alive)
+     *   { completed, anchorQ, anchorR, defId, resource } — object destroyed
+     */
+    updateInteraction(deltaTime) {
+        const ia = this._activeInteraction;
+        if (!ia || ia.done) return null;
+
+        ia.swingTimer += deltaTime;
+
+        // Phase 2: fading — health hit 0, wait fadeDuration then remove
+        if (ia.fading) {
+            if (ia.swingTimer >= ia.fadeDuration) {
+                ia.done = true;
+                const anchorTile = this.getTile(ia.anchorQ, ia.anchorR);
+                let resource = null;
+                if (anchorTile && anchorTile.customObject && anchorTile.customObject.resource) {
+                    resource = { ...anchorTile.customObject.resource };
+                }
+                this._removeCustomObject(ia.anchorQ, ia.anchorR);
+                const result = { completed: true, anchorQ: ia.anchorQ, anchorR: ia.anchorR, defId: ia.defId, resource };
+                this._activeInteraction = null;
+                return result;
+            }
+            return null;
+        }
+
+        // Phase 1: swing — deal a hit every swingInterval seconds
+        if (ia.swingTimer >= ia.swingInterval) {
+            ia.swingTimer -= ia.swingInterval;
+            const anchorTile = this.getTile(ia.anchorQ, ia.anchorR);
+            if (!anchorTile || !anchorTile.customObject) {
+                this._activeInteraction = null;
+                return { completed: true, anchorQ: ia.anchorQ, anchorR: ia.anchorR, defId: ia.defId, resource: null };
+            }
+            // Apply swing with ±12.5% variance
+            const dmg = ia.baseDamage * (0.875 + Math.random() * 0.25);
+            anchorTile.customObject.currentHealthPct =
+                Math.max(0, anchorTile.customObject.currentHealthPct - dmg);
+            const hp = anchorTile.customObject.currentHealthPct;
+            if (hp <= 0) {
+                ia.fading = true;
+                ia.swingTimer = 0;
+            }
+            return { hit: true, damage: Math.round(dmg), healthPct: hp };
+        }
+
+        return null; // still animating between swings
+    },
+
+    /**
+     * Remove a custom object (anchor + all footprint tiles).
+     * If the definition specifies a `spawnAfter` object ID, that object
+     * is automatically placed at the origin tile after removal (e.g. a
+     * stump spawning after a tree is harvested).
+     */
+    _removeCustomObject(anchorQ, anchorR) {
+        const anchorTile = this.getTile(anchorQ, anchorR);
+        if (!anchorTile || !anchorTile.customObject) return;
+
+        const defId = anchorTile.customObject.defId;
+        const def = (typeof CustomObjects !== 'undefined') ? CustomObjects.getDef(defId) : null;
+
+        // Clear footprint tiles and restore passability for all tiles (including anchor)
+        if (def && def.tiles) {
+            for (const td of def.tiles) {
+                const fq = anchorQ + td.localCol;
+                const fr = anchorR + td.localRow;
+                const ft = this.getTile(fq, fr);
+                if (!ft) continue;
+                const isAnchor = td.localCol === 0 && td.localRow === 0;
+                if (isAnchor) {
+                    // Anchor tile: restore passability if object made it impassable
+                    if (td.impassable) ft.subTerrain.passable = true;
+                } else if (ft.customObjectPart &&
+                           ft.customObjectPart.anchorQ === anchorQ &&
+                           ft.customObjectPart.anchorR === anchorR) {
+                    delete ft.customObjectPart;
+                    if (td.impassable) ft.subTerrain.passable = true;
+                }
             }
         }
 
-        return { moved: true, encounter: lastEncounter, outOfBounds: false };
+        // Clear anchor
+        delete anchorTile.customObject;
+
+        // ── spawnAfter: place a replacement object at the origin tile ──
+        if (def && def.spawnAfter) {
+            const spawnDef = CustomObjects.getDef(def.spawnAfter);
+            if (spawnDef && spawnDef.tiles && spawnDef.tiles.length > 0) {
+                // Verify the full footprint of the replacement is free
+                let clear = true;
+                for (const tDef of spawnDef.tiles) {
+                    const fq = anchorQ + tDef.localCol;
+                    const fr = anchorR + tDef.localRow;
+                    if (fq < 0 || fq >= this.width || fr < 0 || fr >= this.height)
+                        { clear = false; break; }
+                    const ft = this.getTile(fq, fr);
+                    if (!ft || ft.building || ft.customObject || ft.customObjectPart)
+                        { clear = false; break; }
+                }
+                if (clear) {
+                    // Place the spawn-after object
+                    const newObj = { defId: spawnDef.id, sheetPath: spawnDef.sheetPath, currentHealthPct: 100 };
+                    if (spawnDef.resource) newObj.resource = spawnDef.resource;
+                    anchorTile.customObject = newObj;
+                    // Mark footprint tiles
+                    for (const tDef of spawnDef.tiles) {
+                        const fq = anchorQ + tDef.localCol;
+                        const fr = anchorR + tDef.localRow;
+                        const ft = this.getTile(fq, fr);
+                        if (!ft) continue;
+                        if (tDef.localCol !== 0 || tDef.localRow !== 0) {
+                            ft.customObjectPart = { anchorQ, anchorR };
+                        }
+                        if (tDef.impassable) ft.subTerrain.passable = false;
+                    }
+                }
+            }
+        }
+    },
+
+    /**
+     * Find the best walkable tile adjacent to an object's footprint.
+     * Returns { q, r } or null if none found.
+     */
+    findAdjacentToObject(anchorQ, anchorR, def) {
+        // Collect all footprint tile coords
+        const footprint = new Set();
+        if (def && def.tiles) {
+            for (const td of def.tiles) {
+                footprint.add(`${anchorQ + td.localCol},${anchorR + td.localRow}`);
+            }
+        } else {
+            footprint.add(`${anchorQ},${anchorR}`);
+        }
+
+        // Gather all passable neighbors of the footprint
+        const candidates = [];
+        const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+        for (const key of footprint) {
+            const [fq, fr] = key.split(',').map(Number);
+            for (const [dq, dr] of dirs) {
+                const nq = fq + dq, nr = fr + dr;
+                const nk = `${nq},${nr}`;
+                if (footprint.has(nk)) continue;
+                const nt = this.getTile(nq, nr);
+                if (!nt || !nt.subTerrain.passable) continue;
+                // Prefer tiles closer to the player
+                const dist = Math.abs(nq - this.playerInnerQ) + Math.abs(nr - this.playerInnerR);
+                candidates.push({ q: nq, r: nr, dist });
+            }
+        }
+        if (candidates.length === 0) return null;
+
+        // Pick closest to player
+        candidates.sort((a, b) => a.dist - b.dist);
+        return { q: candidates[0].q, r: candidates[0].r };
+    },
+
+    /**
+     * Get the direction the player should face toward an object anchor.
+     */
+    getDirectionToward(targetQ, targetR) {
+        const dq = targetQ - this.playerInnerQ;
+        const dr = targetR - this.playerInnerR;
+        // Return direction constant compatible with InnerMapCharacters
+        if (Math.abs(dq) >= Math.abs(dr)) {
+            return dq >= 0 ? 3 : 1; // RIGHT : LEFT
+        }
+        return dr >= 0 ? 2 : 0; // DOWN : UP
+    },
+
+    /**
+     * Tick the player walking animation. Called each frame.
+     * Returns null while walking, or { moved, encounter } on arrival / each step.
+     */
+    updatePlayer(deltaTime) {
+        if (!this._playerWalking || !this._playerPath) return null;
+
+        this._playerMoveProgress += deltaTime * this._playerSpeed;
+
+        if (this._playerMoveProgress >= 1.0) {
+            this._playerMoveProgress = 0;
+
+            // Advance to the next step
+            const step = this._playerPath[this._playerPathIndex];
+
+            // Defensive: never step onto impassable tile
+            const stepTile = this.tiles[step.r] && this.tiles[step.r][step.q];
+            if (!stepTile || !stepTile.subTerrain.passable) {
+                this.cancelPlayerWalk();
+                return { moved: false, encounter: null, blocked: true };
+            }
+
+            this._playerPrevQ = this.playerInnerQ;
+            this._playerPrevR = this.playerInnerR;
+            this.playerInnerQ = step.q;
+            this.playerInnerR = step.r;
+            this._playerPathIndex++;
+
+            // Reveal fog
+            this._revealAround(this.tiles, step.q, step.r, 2);
+
+            // Check encounter
+            let encounter = null;
+            if (stepTile.encounter && !stepTile.encounter.discovered) {
+                stepTile.encounter.discovered = true;
+                encounter = stepTile.encounter;
+            }
+
+            // Check if arrived at final destination
+            if (this._playerPathIndex >= this._playerPath.length) {
+                this._playerWalking = false;
+                this._playerPath = null;
+                return { moved: true, encounter, arrived: true };
+            }
+
+            // Intermediate step with encounter — stop walking
+            if (encounter) {
+                this.cancelPlayerWalk();
+                return { moved: true, encounter, arrived: false };
+            }
+        }
+
+        return null; // still walking
+    },
+
+    /**
+     * Get the player's current interpolated world position (for rendering).
+     */
+    getPlayerWorldPos() {
+        const T = 32; // TILE_SIZE
+        if (this._playerWalking && this._playerPath && this._playerPathIndex < this._playerPath.length) {
+            const target = this._playerPath[this._playerPathIndex];
+            const progress = this._playerMoveProgress;
+            const fx = this.playerInnerQ * T + T / 2;
+            const fy = this.playerInnerR * T + T / 2;
+            const tx = target.q * T + T / 2;
+            const ty = target.r * T + T / 2;
+            return {
+                x: fx + (tx - fx) * progress,
+                y: fy + (ty - fy) * progress,
+                walking: true,
+                dq: target.q - this.playerInnerQ,
+                dr: target.r - this.playerInnerR
+            };
+        }
+        return {
+            x: this.playerInnerQ * T + T / 2,
+            y: this.playerInnerR * T + T / 2,
+            walking: false,
+            dq: 0, dr: 0
+        };
     },
 
     /**
@@ -1071,8 +1722,13 @@ const InnerMap = {
 
             closed.add(currentKey);
 
-            // Get neighbors using offset hex coords (same as world map)
-            const neighbors = Hex.neighbors(current.q, current.r);
+            // Get neighbors using square grid (4-directional)
+            const neighbors = [
+                { q: current.q + 1, r: current.r },
+                { q: current.q - 1, r: current.r },
+                { q: current.q, r: current.r + 1 },
+                { q: current.q, r: current.r - 1 },
+            ];
             for (const n of neighbors) {
                 if (n.q < 0 || n.q >= this.width || n.r < 0 || n.r >= this.height) continue;
                 const nKey = key(n.q, n.r);
@@ -1179,6 +1835,30 @@ const InnerMap = {
         if (data) {
             this._cache = data.cache || {};
             this._discoveredEncounters = data.discoveredEncounters || {};
+
+            // ── Migration: Fix stale baseTerrain on water/ice feature tiles ──
+            // Old saves set baseTerrain='water' for brooks/streams/ponds etc.
+            // Now those features inherit parent terrain + use overlays.
+            const WATER_OVERLAY_IDS = new Set([
+                'pond','shallow_water','murky_water','stream','river','pool',
+                'waterfall','brook','mountain_stream','lagoon','lily_pads',
+                'tide_pools','moss_bank','oasis_small','watering_hole','spring',
+                'frozen_stream','frozen_pool','frozen_lake','ice_sheet',
+                'glacier','thick_ice','ice_spire','ice_cave'
+            ]);
+            for (const key of Object.keys(this._cache)) {
+                const tiles = this._cache[key];
+                if (!tiles) continue;
+                for (let r = 0; r < tiles.length; r++) {
+                    for (let q = 0; q < (tiles[r] || []).length; q++) {
+                        const tile = tiles[r][q];
+                        if (tile && tile.subTerrain && WATER_OVERLAY_IDS.has(tile.subTerrain.id)) {
+                            // Recalculate correct baseTerrain from parent
+                            tile.baseTerrain = this._getBaseTerrain(tile.parentTerrain, null);
+                        }
+                    }
+                }
+            }
         }
     },
 
@@ -1506,12 +2186,20 @@ const InnerMap = {
 
                 const name = firstNames[Math.floor(rng() * firstNames.length)];
 
+                // Assign LPC character preset (deterministic by NPC id + type)
+                const npcSeed = npcId;
+                const preset = (typeof InnerMapCharacters !== 'undefined')
+                    ? InnerMapCharacters.getPresetForNPC(npcType, npcSeed)
+                    : null;
+
                 this.npcs.push({
                     id: npcId++,
                     type: npcType,
                     name: name,
                     icon: typeDef.icon,
                     speed: typeDef.speed,
+                    preset: preset,         // LPC character preset ID
+                    facing: 2,              // Default facing: down
                     q: q,
                     r: r,
                     // Movement
@@ -1546,7 +2234,12 @@ const InnerMap = {
             const curTile = this.tiles[npc.r] && this.tiles[npc.r][npc.q];
             if (!curTile || !curTile.subTerrain.passable) {
                 let relocated = false;
-                const neighbors = Hex.neighbors(npc.q, npc.r);
+                const neighbors = [
+                    { q: npc.q + 1, r: npc.r },
+                    { q: npc.q - 1, r: npc.r },
+                    { q: npc.q, r: npc.r + 1 },
+                    { q: npc.q, r: npc.r - 1 },
+                ];
                 for (const nb of neighbors) {
                     if (nb.q >= 0 && nb.q < this.width && nb.r >= 0 && nb.r < this.height) {
                         const t = this.tiles[nb.r][nb.q];

@@ -9,7 +9,8 @@
     "test": "npx http-server . -p 8082 -c-1 --cors -o tests/index.html",
     "electron": "electron .",
     "dist": "electron-builder --win",
-    "dist:all": "electron-builder --win --linux --mac"
+    "dist:all": "electron-builder --win --linux --mac",
+    "build:data": "node scripts/build-gamedata.js"
   },
   "keywords": [
     "strategy",

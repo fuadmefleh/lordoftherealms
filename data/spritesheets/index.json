@@ -1,0 +1,106 @@
+{
+    "meta": {
+        "description": "Master sprite sheet index for Lord of the Realms — LPC (Liberated Pixel Cup) assets",
+        "version": "1.0.0",
+        "tileSize": 32,
+        "characterFrameSize": 64,
+        "basePath": "assets/lpc/"
+    },
+    "categories": {
+        "terrain": {
+            "file": "data/spritesheets/terrain.json",
+            "description": "Ground tiles — seasonal terrain with autotile transitions (512×832 sheets, 32×32 tiles)"
+        },
+        "trees": {
+            "file": "data/spritesheets/trees.json",
+            "description": "Tree sprites — seasonal variants in 512×576 sheets (4×4 grid of 128×144 blocks)"
+        },
+        "vegetation": {
+            "file": "data/spritesheets/vegetation.json",
+            "description": "Plants, flowers, mushrooms, rocks — ground-layer decoration sprites"
+        },
+        "cliffs": {
+            "file": "data/spritesheets/cliffs.json",
+            "description": "Cliffs and waterfalls — elevation transition tiles (512×448 / 512×608)"
+        },
+        "structures": {
+            "file": "data/spritesheets/structures.json",
+            "description": "Buildings, walls, roofs, doors, windows, fences, bridges, misc architectural elements"
+        },
+        "objects": {
+            "file": "data/spritesheets/objects.json",
+            "description": "Furniture, barrels, chests, tools, food, smithing equipment"
+        },
+        "characters": {
+            "file": "data/spritesheets/characters.json",
+            "description": "Character body/head/clothing/hair/accessories — 64×64 frame grid with directional animations"
+        },
+        "fx": {
+            "file": "data/spritesheets/fx.json",
+            "description": "Water effects — splashes, ripples, reflections"
+        }
+    },
+    "sheetSummary": {
+        "terrain": {
+            "count": 5,
+            "seasonal": true,
+            "sheets": ["terrain_summer", "terrain_spring", "terrain_autumn", "terrain_winter", "terrain_winter_ice"]
+        },
+        "trees": {
+            "count": 4,
+            "seasonal": true,
+            "sheets": ["trees_summer", "trees_spring", "trees_autumn", "trees_winter"],
+            "spritesPerSheet": 12,
+            "note": "3 trees × 4 rows (deciduous round, blossom, bushy, conifer)"
+        },
+        "vegetation": {
+            "plants": { "count": 4, "seasonal": true },
+            "wildflowers": { "count": 3, "seasonal": true, "note": "No winter variant" },
+            "flowers": { "count": 1 },
+            "mushrooms": { "count": 1 },
+            "rocks": { "count": 2, "sheets": ["rocks_grass", "rocks_cliffs"] }
+        },
+        "cliffs": {
+            "count": 5,
+            "seasonal": true,
+            "waterfall": 1
+        },
+        "structures": {
+            "buildings": 3,
+            "roofing": 7,
+            "walls": 19,
+            "doors": 13,
+            "windows": 7,
+            "fences": 3,
+            "bridges": 5,
+            "misc": 5,
+            "signs": 2,
+            "pillars": 2,
+            "stairs": 6,
+            "floor": 16
+        },
+        "objects": {
+            "furniture": 46,
+            "beds": 14,
+            "seating": 26,
+            "smithing": 8,
+            "small_items": 27,
+            "food": 25,
+            "wall_items": 12,
+            "moveable": 6
+        },
+        "characters": {
+            "totalFiles": 63973,
+            "bodyTypes": 2,
+            "headTypes": 3,
+            "hairStyles": 27,
+            "clothingItems": "~40 per body type",
+            "colorVariants": 76,
+            "skinTones": 9,
+            "animations": 13
+        },
+        "fx": {
+            "count": 5
+        }
+    }
+}

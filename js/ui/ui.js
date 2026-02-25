@@ -667,131 +667,189 @@ class UI {
         }
 
         const terrain = tile.subTerrain;
-        title.textContent = terrain.name;
-        title.style.color = '#ffffff';
 
-        // Parent terrain of the world tile
+        // ── Determine what the primary "object" on this tile is for the panel title ──
+        let panelTitle = terrain.name;
+        if (tile.building || tile.buildingInfo) panelTitle = tile.buildingInfo ? tile.buildingInfo.name : _innerBuildingReadableName(tile.building);
+        title.textContent = panelTitle;
+        title.style.color = (tile.building || tile.buildingInfo) ? 'var(--gold)' : '#ffffff';
+
+        // Helper: turn a building sprite path into a readable name
+        function _innerBuildingReadableName(spritePath) {
+            if (!spritePath) return 'Building';
+            const base = spritePath.split('/').pop().replace(/\.\w+$/, '');
+            // Insert spaces before capitals, replace underscores, strip trailing digits
+            return base
+                .replace(/([a-z])([A-Z])/g, '$1 $2')
+                .replace(/_/g, ' ')
+                .replace(/\s*\d+$/, '')
+                .replace(/\b\w/g, c => c.toUpperCase())
+                .trim() || 'Building';
+        }
+
+        // Helper: object overlay info table
+        const _OBJECT_INFO = {
+            tree:     { icon: '🌲', label: 'Tree',          yields: 'Wood, Bark',          desc: 'A harvestable tree. Yields lumber and bark.' },
+            rock:     { icon: '🪨', label: 'Rock Formation', yields: 'Stone, Flint',        desc: 'Loose rocks or a stone outcrop. Yields stone and flint.' },
+            plant:    { icon: '🌿', label: 'Wild Plant',     yields: 'Herbs, Fiber',         desc: 'Wild vegetation useful for medicine or rope.' },
+            flower:   { icon: '🌸', label: 'Wildflowers',    yields: 'Dye, Reagents',        desc: 'Colourful flora with alchemical and dye uses.' },
+            mushroom: { icon: '🍄', label: 'Mushrooms',      yields: 'Food, Alchemical Base', desc: 'Edible or toxic fungi used in potions.' },
+        };
+
         const parentLabel = tile.parentTerrain
             ? tile.parentTerrain.charAt(0).toUpperCase() + tile.parentTerrain.slice(1).replace(/_/g, ' ')
             : 'Unknown';
 
-        let html = `
-            <div class="info-row">
-                <span class="info-label">Terrain</span>
-                <span class="info-value" style="color:#ffffff !important;">${terrain.icon} ${terrain.name}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Coordinates</span>
-                <span class="info-value">${q}, ${r}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Parent Terrain</span>
-                <span class="info-value">${parentLabel}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Passable</span>
-                <span class="info-value" style="color:${terrain.passable !== false ? '#4FC3F7' : '#e74c3c'};">
-                    ${terrain.passable !== false ? '✔ Yes' : '✘ No'}
-                </span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Visibility</span>
-                <span class="info-value">${tile.visible ? '👁️ Visible' : '🌫️ Fog of War'}</span>
-            </div>
-        `;
+        let html = '';
 
-        // World tile info (coordinates of the parent tile)
-        if (typeof InnerMap !== 'undefined' && InnerMap.currentWorldTile) {
-            const wt = InnerMap.currentWorldTile;
-            html += `
-                <div class="info-row">
-                    <span class="info-label">World Tile</span>
-                    <span class="info-value">(${wt.q}, ${wt.r})</span>
-                </div>
-            `;
-        }
-
-        // Encounter info
-        if (tile.encounter) {
-            html += `<div class="info-section-title">Encounter</div>`;
-            if (tile.encounter.discovered) {
-                html += `
-                    <div class="info-row">
-                        <span class="info-label">Name</span>
-                        <span class="info-value" style="color:var(--gold);">${tile.encounter.icon} ${tile.encounter.name}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Description</span>
-                        <span class="info-value" style="font-size:11px;">${tile.encounter.description || ''}</span>
-                    </div>
-                `;
-            } else {
-                html += `
-                    <div class="info-row">
-                        <span class="info-label">Status</span>
-                        <span class="info-value" style="color:#f39c12;">✨ Something is here…</span>
-                    </div>
-                `;
+        // ── Custom object section ──
+        if (typeof CustomObjects !== 'undefined' && CustomObjects.isLoaded()) {
+            // Resolve anchor if this is a footprint part
+            let objDefId = null;
+            let anchorTile = tile;
+            if (tile.customObject) {
+                objDefId = tile.customObject.defId;
+            } else if (tile.customObjectPart) {
+                const anchor = InnerMap.getTile(tile.customObjectPart.anchorQ, tile.customObjectPart.anchorR);
+                if (anchor && anchor.customObject) { objDefId = anchor.customObject.defId; anchorTile = anchor; }
             }
-        }
+            if (objDefId) {
+                const def = CustomObjects.getDef(objDefId);
+                if (def) {
+                    // Override panel title
+                    panelTitle = def.name || objDefId;
+                    title.textContent = panelTitle;
+                    title.style.color = 'var(--gold)';
 
-        // Building info
-        if (tile.buildingInfo) {
-            const bldg = tile.buildingInfo;
-            html += `<div class="info-section-title">${bldg.icon} Building</div>`;
-            html += `
-                <div class="info-row">
-                    <span class="info-label">Name</span>
-                    <span class="info-value" style="color:var(--gold);">${bldg.name}</span>
-                </div>
-            `;
-            if (typeof InnerMap !== 'undefined') {
-                const actions = InnerMap.getBuildingActions(bldg);
-                if (actions.length > 0 && actions[0] !== 'closed') {
-                    html += `
-                        <div class="info-row">
-                            <span class="info-label">Actions</span>
-                            <span class="info-value" style="font-size:11px; color:#4FC3F7;">Right-click to interact</span>
-                        </div>
-                    `;
-                } else if (actions[0] === 'closed') {
-                    html += `
-                        <div class="info-row">
-                            <span class="info-label">Status</span>
-                            <span class="info-value" style="color:#e74c3c;">🚫 Closed</span>
-                        </div>
-                    `;
+                    const _TYPE_ICONS = { rock: '🪨', tree: '🌲', plant: '🌿', decoration: '✨', furniture: '🪑', building: '🏠', other: '📌' };
+                    const typeIcon = _TYPE_ICONS[def.objectType] || '📦';
+                    const bw = def.bounds ? (def.bounds.maxCol - def.bounds.minCol + 1) : 1;
+                    const bh = def.bounds ? (def.bounds.maxRow - def.bounds.minRow + 1) : 1;
+
+                    html += `<div class="info-section-title">${typeIcon} ${def.name || objDefId}</div>`;
+                    html += `<div class="info-row"><span class="info-label">Type</span><span class="info-value">${(def.objectType || 'other').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</span></div>`;
+                    html += `<div class="info-row"><span class="info-label">Size</span><span class="info-value">${bw}×${bh} tiles</span></div>`;
+
+                    if (def.animation && def.animation !== 'none') {
+                        const _ANIM_LABELS = { combat_1h_slash: '⚔️ Chop / Slash', combat_1h_halfslash: '🪓 Half Swing', legacy_swing: '⛏️ Swing (Mine/Dig)', sitting: '🪑 Sit', idle: '🧍 Idle / Inspect', emotes: '🙏 Emote / Pray', climb: '🧗 Climb' };
+                        html += `<div class="info-row"><span class="info-label">Interact</span><span class="info-value" style="color:#4FC3F7;">${_ANIM_LABELS[def.animation] || def.animation}</span></div>`;
+                    }
+                    if (def.resource) {
+                        html += `<div class="info-row"><span class="info-label">Resource</span><span class="info-value" style="color:#81c784;">${(def.resource.type || '?').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())} ×${def.resource.amount || 1}</span></div>`;
+                    }
+                    if (def.terrainBindings && def.terrainBindings.length) {
+                        html += `<div class="info-row"><span class="info-label">Terrain</span><span class="info-value" style="font-size:11px; color:rgba(255,255,255,0.5);">${def.terrainBindings.map(t=>t.replace(/_/g,' ')).join(', ')}</span></div>`;
+                    }
                 }
             }
         }
 
-        // NPCs here
+        // ── Object overlay section (built-in tree, rock, plant, etc.) ──
+        if (typeof InnerMapRenderer !== 'undefined' && typeof InnerMapRenderer._getObjectOverlay === 'function') {
+            const overlay = InnerMapRenderer._getObjectOverlay(tile);
+            if (overlay && overlay.type) {
+                const oi = _OBJECT_INFO[overlay.type] || { icon: '🌱', label: overlay.type, yields: '—', desc: '' };
+                html += `
+                    <div class="info-section-title">${oi.icon} ${oi.label}</div>
+                    <div class="info-row">
+                        <span class="info-label">Yields</span>
+                        <span class="info-value" style="color:#81c784;">${oi.yields}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-value" style="font-size:11px; color:rgba(255,255,255,0.45); font-style:italic;">${oi.desc}</span>
+                    </div>
+                `;
+            }
+        }
+
+        // ── Building section ──
+        if (tile.buildingInfo) {
+            // Rich building data (player property or named structure)
+            const bldg = tile.buildingInfo;
+            html += `<div class="info-section-title">🏛️ ${bldg.name}</div>`;
+            if (bldg.description) {
+                html += `<div class="info-row"><span class="info-value" style="font-size:11px; color:rgba(255,255,255,0.45); font-style:italic;">${bldg.description}</span></div>`;
+            }
+            if (bldg.produces) {
+                html += `<div class="info-row"><span class="info-label">Produces</span><span class="info-value" style="color:#81c784;">${bldg.produces}</span></div>`;
+            }
+            if (typeof InnerMap !== 'undefined') {
+                const actions = InnerMap.getBuildingActions(bldg);
+                if (actions.length > 0 && actions[0] !== 'closed') {
+                    html += `<div class="info-row"><span class="info-label">Actions</span><span class="info-value" style="font-size:11px; color:#4FC3F7;">Right-click to interact</span></div>`;
+                } else if (actions[0] === 'closed') {
+                    html += `<div class="info-row"><span class="info-label">Status</span><span class="info-value" style="color:#e74c3c;">🚫 Closed</span></div>`;
+                }
+            }
+        } else if (tile.building) {
+            // Settlement building — derive name from sprite path
+            const bName = _innerBuildingReadableName(tile.building);
+            const hint = tile._buildingTypeHint;
+            const typeDesc = hint === 'farm' ? 'Farm' : 'Settlement Building';
+            html += `
+                <div class="info-section-title">🏛️ ${bName}</div>
+                <div class="info-row">
+                    <span class="info-label">Type</span>
+                    <span class="info-value">${typeDesc}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Access</span>
+                    <span class="info-value" style="color:#e74c3c;">🚫 Impassable</span>
+                </div>
+            `;
+        }
+
+        // ── Terrain section ──
+        html += `
+            <div class="info-section-title">🗺️ Terrain</div>
+            <div class="info-row">
+                <span class="info-label">Ground</span>
+                <span class="info-value">${terrain.icon || ''} ${terrain.name}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Region</span>
+                <span class="info-value">${parentLabel}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Position</span>
+                <span class="info-value" style="color:rgba(255,255,255,0.5); font-size:11px;">${q}, ${r}</span>
+            </div>
+        `;
+        if (terrain.passable === false) {
+            html += `<div class="info-row"><span class="info-label">Passable</span><span class="info-value" style="color:#e74c3c;">✘ No</span></div>`;
+        }
+
+        // ── NPCs on this tile ──
         if (typeof InnerMap !== 'undefined') {
             const npcsHere = InnerMap.getNPCsAt(q, r);
             if (npcsHere.length > 0) {
                 html += `<div class="info-section-title">👥 People Here</div>`;
-                for (const npc of npcsHere.slice(0, 4)) {
+                for (const npc of npcsHere.slice(0, 5)) {
                     const typeDef = InnerMap.NPC_TYPES[npc.type] || {};
+                    const stateLabel = npc.state === 'walking' ? '🚶 Walking'
+                        : npc.state === 'at_building' ? `🏛️ ${npc.currentBuilding || 'At building'}`
+                        : '💭 Idle';
                     html += `
+                        <div class="info-row" style="padding-top:5px;">
+                            <span class="info-label">${npc.icon} ${npc.name}</span>
+                            <span class="info-value" style="color:rgba(255,255,255,0.45); font-size:10px;">${typeDef.name || npc.type}</span>
+                        </div>
                         <div class="info-row">
-                            <span class="info-label">${npc.icon}</span>
-                            <span class="info-value">${npc.name} <span style="color:rgba(255,255,255,0.4); font-size:10px;">${typeDef.name || ''}</span></span>
+                            <span class="info-label" style="font-size:10px; padding-left:18px; color:rgba(255,255,255,0.35);">Activity</span>
+                            <span class="info-value" style="font-size:10px;">${stateLabel}</span>
                         </div>
                     `;
                 }
-                if (npcsHere.length > 4) {
-                    html += `<div class="info-row"><span class="info-value" style="font-size:10px; color:rgba(255,255,255,0.4);">...and ${npcsHere.length - 4} more</span></div>`;
+                if (npcsHere.length > 5) {
+                    html += `<div class="info-row"><span class="info-value" style="font-size:10px; color:rgba(255,255,255,0.35);">…and ${npcsHere.length - 5} more</span></div>`;
                 }
             }
         }
 
-        // Player standing here
+        // ── Player standing here ──
         if (typeof InnerMap !== 'undefined' && InnerMap.playerInnerQ === q && InnerMap.playerInnerR === r) {
             html += `
-                <div class="info-section-title">Player</div>
-                <div class="info-row">
-                    <span class="info-label">🧭 You are here</span>
-                </div>
+                <div class="info-section-title">🧭 You Are Here</div>
             `;
         }
 

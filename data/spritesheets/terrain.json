@@ -1,0 +1,307 @@
+{
+    "meta": {
+        "description": "LPC terrain spritesheet — tile classification and mapping",
+        "tileSize": 32,
+        "note": "The terrain sheets are 512x832 = 16cols x 26rows of 32x32 tiles. Tiles are organized into autotile transition groups. This file separates FILL tiles (uniform solid ground) from EDGE tiles (transition/corner tiles that blend two terrains). Only tiles in 'fills' should be used for ground rendering."
+    },
+
+    "sheets": {
+        "terrain_summer": {
+            "path": "assets/lpc/Terrain/terrain_summer.png",
+            "width": 512, "height": 832,
+            "tileSize": 32, "cols": 16, "rows": 26
+        },
+        "terrain_spring": {
+            "path": "assets/lpc/Terrain/terrain_spring.png",
+            "width": 512, "height": 832,
+            "tileSize": 32, "cols": 16, "rows": 26
+        },
+        "terrain_autumn": {
+            "path": "assets/lpc/Terrain/terrain_autumn.png",
+            "width": 512, "height": 832,
+            "tileSize": 32, "cols": 16, "rows": 26
+        },
+        "terrain_winter": {
+            "path": "assets/lpc/Terrain/terrain_winter.png",
+            "width": 512, "height": 832,
+            "tileSize": 32, "cols": 16, "rows": 26
+        },
+        "terrain_winter_ice": {
+            "path": "assets/lpc/Terrain/terrain_winter_ice.png",
+            "width": 512, "height": 832,
+            "tileSize": 32, "cols": 16, "rows": 26
+        }
+    },
+
+    "_autotileLayout": {
+        "_note": [
+            "Documents the spritesheet's autotile transition groups.",
+            "Each terrain type occupies a 6-col x 3-row block:",
+            "  Cols 0-2: Outer edge 3x3 (TL,T,TR / L,Center,R / BL,B,BR)",
+            "  Cols 3-5: Inner corners (row 0) + fill variants (rows 1-2)",
+            "Additional 3x3 blocks at cols 6-8, 9-11 are TRANSITION BLENDS",
+            "between two terrain types — these contain mixed-color edge tiles.",
+            "The center tile of a transition blend IS the target terrain fill.",
+            "",
+            "TILE CLASSIFICATIONS (from pixel analysis):",
+            "  FILL  = fully opaque, uniform color (stddev < 8) — safe for ground",
+            "  TXTR  = fully opaque, textured (stddev >= 8) — may be fill or edge",
+            "  TRANS = partially transparent — definitely an edge/overlay tile",
+            "  EMPTY = fully transparent — unused slot"
+        ],
+        "groups": [
+            {
+                "name": "grass",
+                "rows": [0, 2], "cols": [0, 5],
+                "description": "Grass autotile. Outer edges at cols 0-2 (all TRANS). Inner corners at [0,3-5] (TRANS). Fill variants at [1,3-5] (TXTR grass-colored) and [2,3-5] (FILL). Center fill at [1,1]."
+            },
+            {
+                "name": "grass_dirt_transition",
+                "rows": [0, 2], "cols": [6, 8],
+                "description": "Grass-to-dirt transition edges. ALL tiles are TXTR with blended green+brown colors. No fills — edge-only."
+            },
+            {
+                "name": "grass_sand_transition",
+                "rows": [0, 2], "cols": [9, 11],
+                "description": "Grass-to-sand transition edges. Center [1,10] is FILL sand. Corner tiles [0,9],[0,11],[2,9],[2,11] are TXTR with blended sand+green — NOT dirt fills despite brownish color."
+            },
+            {
+                "name": "dirt",
+                "rows": [3, 4], "cols": [0, 5],
+                "description": "Dirt autotile. Outer edges at cols 0-2 (TRANS). [4,1] is EMPTY (inverse center). Fills at [3,3-5] and [4,3-5] (all FILL dirt)."
+            },
+            {
+                "name": "sand",
+                "rows": [5, 5], "cols": [0, 5],
+                "description": "Sand autotile row. Edges at cols 0-2 (TRANS). Fills at [5,3-5] (FILL sand)."
+            },
+            {
+                "name": "dirt_sand_transitions",
+                "rows": [3, 5], "cols": [6, 11],
+                "description": "Dirt/sand transition edges. ALL tiles TXTR with blended colors. No usable fills."
+            },
+            {
+                "name": "dry_dirt",
+                "rows": [6, 9], "cols": [0, 5],
+                "description": "Dry dirt/clay autotile. Edges at cols 0-2 (TRANS). Fills at [6,3],[6,4] (FILL). Rows 7-9 cols 3-5 are EMPTY."
+            },
+            {
+                "name": "dry_dirt_transitions",
+                "rows": [6, 9], "cols": [6, 11],
+                "description": "Dry dirt transition blocks. Center fills at [6,10] (FILL) and [9,9],[9,10] (FILL). Tiles at [8,9],[8,10] are TXTR edges — NOT fills despite similar color."
+            },
+            {
+                "name": "water_group_1",
+                "rows": [10, 12], "cols": [0, 11],
+                "description": "Water autotile transition blocks (4 x 3x3 blocks). Center fills at [11,1] (FILL water). [11,4] is EMPTY (inverse). All other tiles are TXTR transitions blending water with grass/other."
+            },
+            {
+                "name": "water_group_2",
+                "rows": [13, 19], "cols": [0, 11],
+                "description": "Additional water transition blocks. Multiple 3x3 groups. No additional verified fills in this area."
+            },
+            {
+                "name": "stone_fills",
+                "rows": [0, 2], "cols": [0, 5],
+                "description": "Stone and dark stone fill block. 4x4 grid of textured but uniform fills. Rows 12,15 = lighter stone (~101,113,100). Rows 13,14 = darker stone (~97,107,97). All TXTR but same-terrain throughout — safe to use as fills."
+            },
+            {
+                "name": "water_fill_block",
+                "rows": [16, 17], "cols": [12, 15],
+                "description": "Water fill block. All 8 tiles are verified FILL (~42,132,151). Uniform shallow water."
+            },
+            {
+                "name": "water_group_3",
+                "rows": [20, 22], "cols": [0, 14],
+                "description": "More water transition variants. Center fill at [21,1] (FILL water). All others are TXTR transitions."
+            },
+            {
+                "name": "deep_water",
+                "rows": [23, 25], "cols": [0, 14],
+                "description": "Deep water autotile transitions. Only [24,1] is FILL (~23,58,85). Multiple 3x3 transition blocks span cols 0-2, 5-7, 10-12. Tiles at cols 3-4, 8-9, 13-14 are TXTR edges with shifted colors (25-28,63-82,90-113) — NOT fills."
+            }
+        ]
+    },
+
+    "fills": {
+        "_note": "Each entry lists ONLY tiles verified as solid uniform fills (FILL) or same-color textured fills. NO edge, corner, or transition tiles. Pixel coords = col*32, row*32.",
+
+        "grass": {
+            "description": "Solid green grass",
+            "avgColor": [71, 131, 50],
+            "hex": "#478332",
+            "tiles": [
+                { "col": 1, "row": 1, "type": "FILL",  "note": "center fill (purest)" },
+                { "col": 3, "row": 1, "type": "TXTR",  "note": "textured variant" },
+                { "col": 4, "row": 1, "type": "TXTR",  "note": "textured variant" },
+                { "col": 5, "row": 1, "type": "TXTR",  "note": "textured variant" },
+                { "col": 3, "row": 2, "type": "FILL",  "note": "pure fill" },
+                { "col": 4, "row": 2, "type": "FILL",  "note": "pure fill" },
+                { "col": 5, "row": 2, "type": "FILL",  "note": "pure fill" }
+            ]
+        },
+        "dirt": {
+            "description": "Brown dirt/earth",
+            "avgColor": [168, 127, 77],
+            "hex": "#A87F4D",
+            "tiles": [
+                { "col": 3, "row": 3, "type": "FILL", "note": "pure fill" },
+                { "col": 4, "row": 3, "type": "FILL", "note": "pure fill" },
+                { "col": 5, "row": 3, "type": "FILL", "note": "pure fill" },
+                { "col": 3, "row": 4, "type": "FILL", "note": "pure fill" },
+                { "col": 4, "row": 4, "type": "FILL", "note": "pure fill" },
+                { "col": 5, "row": 4, "type": "FILL", "note": "pure fill" }
+            ]
+        },
+        "sand": {
+            "description": "Light sandy beige",
+            "avgColor": [244, 215, 160],
+            "hex": "#F4D7A0",
+            "tiles": [
+                { "col": 10, "row": 1, "type": "FILL", "note": "center fill (purest)" },
+                { "col": 3,  "row": 5, "type": "FILL", "note": "pure fill" },
+                { "col": 4,  "row": 5, "type": "FILL", "note": "pure fill" },
+                { "col": 5,  "row": 5, "type": "FILL", "note": "pure fill" }
+            ]
+        },
+        "dry_dirt": {
+            "description": "Orange-brown clay / dry earth",
+            "avgColor": [248, 189, 119],
+            "hex": "#F8BD77",
+            "tiles": [
+                { "col": 3,  "row": 6, "type": "FILL", "note": "pure fill" },
+                { "col": 4,  "row": 6, "type": "FILL", "note": "pure fill" },
+                { "col": 10, "row": 6, "type": "FILL", "note": "transition center fill" },
+                { "col": 9,  "row": 9, "type": "FILL", "note": "pure fill" },
+                { "col": 10, "row": 9, "type": "FILL", "note": "pure fill" }
+            ]
+        },
+        "water": {
+            "description": "Shallow water / teal",
+            "avgColor": [42, 133, 152],
+            "hex": "#2A8598",
+            "tiles": [
+                { "col": 1,  "row": 11, "type": "FILL", "note": "center fill (purest)" },
+                { "col": 1,  "row": 21, "type": "FILL", "note": "center fill" },
+                { "col": 12, "row": 16, "type": "FILL", "note": "fill block" },
+                { "col": 13, "row": 16, "type": "FILL", "note": "fill block" },
+                { "col": 14, "row": 16, "type": "FILL", "note": "fill block" },
+                { "col": 15, "row": 16, "type": "FILL", "note": "fill block" },
+                { "col": 12, "row": 17, "type": "FILL", "note": "fill block" },
+                { "col": 13, "row": 17, "type": "FILL", "note": "fill block" },
+                { "col": 14, "row": 17, "type": "FILL", "note": "fill block" },
+                { "col": 15, "row": 17, "type": "FILL", "note": "fill block" }
+            ]
+        },
+        "deep_water": {
+            "description": "Deep ocean / dark blue",
+            "avgColor": [23, 58, 85],
+            "hex": "#173A55",
+            "tiles": [
+                { "col": 1, "row": 24, "type": "FILL", "note": "center fill (only verified fill)" }
+            ]
+        },
+        "stone": {
+            "description": "Gray stone / rock (naturally textured)",
+            "avgColor": [101, 113, 100],
+            "hex": "#657164",
+            "tiles": [
+                { "col": 1, "row": 1, "type": "FILL",  "note": "center fill (purest)" },
+                { "col": 3, "row": 1, "type": "TXTR",  "note": "textured variant" },
+                { "col": 4, "row": 1, "type": "TXTR",  "note": "textured variant" },
+                { "col": 5, "row": 1, "type": "TXTR",  "note": "textured variant" },
+                { "col": 3, "row": 2, "type": "FILL",  "note": "pure fill" },
+                { "col": 4, "row": 2, "type": "FILL",  "note": "pure fill" },
+                { "col": 5, "row": 2, "type": "FILL",  "note": "pure fill" }
+            ]
+        },
+        "dark_stone": {
+            "description": "Dark gray stone (naturally textured)",
+            "avgColor": [97, 107, 97],
+            "hex": "#616B61",
+            "tiles": [
+                { "col": 1, "row": 1, "type": "FILL",  "note": "center fill (purest)" },
+                { "col": 3, "row": 1, "type": "TXTR",  "note": "textured variant" },
+                { "col": 4, "row": 1, "type": "TXTR",  "note": "textured variant" },
+                { "col": 5, "row": 1, "type": "TXTR",  "note": "textured variant" },
+                { "col": 3, "row": 2, "type": "FILL",  "note": "pure fill" },
+                { "col": 4, "row": 2, "type": "FILL",  "note": "pure fill" },
+                { "col": 5, "row": 2, "type": "FILL",  "note": "pure fill" }
+            ]
+        }
+    },
+
+    "rejectedTiles": {
+        "_note": "Tiles previously listed as fills that are actually edge/transition tiles. Documented here to prevent re-adding them.",
+        "entries": [
+            { "col": 9,  "row": 0,  "was": "dirt",       "actualType": "TXTR", "why": "Sand transition corner — avg(176,136,85) is blended sand+green, not dirt" },
+            { "col": 11, "row": 0,  "was": "dirt",       "actualType": "TXTR", "why": "Sand transition corner — avg(176,137,86) is blended sand+green" },
+            { "col": 9,  "row": 2,  "was": "dirt",       "actualType": "TXTR", "why": "Sand transition corner — avg(176,136,85) is blended sand+green" },
+            { "col": 12, "row": 10, "was": "dark_green", "actualType": "TXTR", "why": "Transition corner — EMPTY at [10,13] confirms edge structure" },
+            { "col": 14, "row": 10, "was": "dark_green", "actualType": "TXTR", "why": "Transition corner — EMPTY at [10,15] confirms edge structure" },
+            { "col": 9,  "row": 8,  "was": "dry_dirt",   "actualType": "TXTR", "why": "Transition edge tile in autotile block row" },
+            { "col": 10, "row": 8,  "was": "dry_dirt",   "actualType": "TXTR", "why": "Transition edge tile in autotile block row" },
+            { "col": 8,  "row": 24, "was": "deep_water", "actualType": "TXTR", "why": "Edge tile avg(24,63,90) — color shifted from fill(23,58,85)" },
+            { "col": 9,  "row": 24, "was": "deep_water", "actualType": "TXTR", "why": "Edge tile avg(24,63,90) — color shifted from fill" },
+            { "col": 3,  "row": 24, "was": "deep_water", "actualType": "TXTR", "why": "Edge tile avg(25,69,96) — color shifted from fill" },
+            { "col": 4,  "row": 24, "was": "deep_water", "actualType": "TXTR", "why": "Edge tile avg(25,69,96) — color shifted from fill" },
+            { "col": 13, "row": 24, "was": "deep_water", "actualType": "TXTR", "why": "Edge tile avg(24,65,93) — color shifted from fill" },
+            { "col": 14, "row": 24, "was": "deep_water", "actualType": "TXTR", "why": "Edge tile avg(24,65,93) — color shifted from fill" }
+        ]
+    },
+
+    "overlays": {
+        "tilled_soil": {
+            "path": "assets/lpc/Terrain/tilled_soil.png",
+            "width": 256, "height": 256,
+            "tileSize": 32, "cols": 8, "rows": 8
+        },
+        "ice_shallows": {
+            "path": "assets/lpc/Terrain/ice-shallows.png",
+            "width": 192, "height": 192,
+            "tileSize": 32, "cols": 6, "rows": 6
+        }
+    },
+
+    "subTerrainToFill": {
+        "_note": "Maps innerMap sub-terrain IDs to fill category.",
+        "grass":      "grass",
+        "tall_grass":  "grass",
+        "trees":       "grass",
+        "brush":       "grass",
+        "dry_grass":   "dry_dirt",
+        "dirt":        "dirt",
+        "mud":         "dirt",
+        "rocks":       "stone",
+        "cliff":       "stone",
+        "sand":        "sand",
+        "snow":        "grass",
+        "ice":         "stone",
+        "bog":         "dark_stone"
+    },
+
+    "parentTerrainToFill": {
+        "_note": "Fallback mapping from parent terrain type to fill category",
+        "grassland":            "grass",
+        "plains":               "grass",
+        "woodland":             "grass",
+        "forest":               "grass",
+        "dense_forest":         "grass",
+        "seasonal_forest":      "grass",
+        "boreal_forest":        "grass",
+        "temperate_rainforest": "grass",
+        "tropical_rainforest":  "grass",
+        "desert":               "sand",
+        "savanna":              "dry_dirt",
+        "mountain":             "stone",
+        "snow_peak":            "stone",
+        "hills":                "stone",
+        "highlands":            "stone",
+        "swamp":                "dark_stone",
+        "tundra":               "dirt",
+        "snow":                 "grass",
+        "ice":                  "water",
+        "beach":                "sand",
+        "island":               "sand"
+    }
+}

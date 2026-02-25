@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Lord of the Realms — Editors</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--panel:#161b22;--panel2:#1c2129;
+  --border:#21262d;--border2:#30363d;
+  --text:#c9d1d9;--text-dim:#8b949e;
+  --blue:#58a6ff;--green:#3fb950;--red:#f85149;--gold:#e6a817;--purple:#a371f7;
+  --hover:#1c2129;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px}
+
+/* ─── Top Nav ─── */
+#nav{display:flex;align-items:center;background:var(--panel);border-bottom:2px solid var(--border);height:42px;flex-shrink:0;padding:0 12px;gap:4px;position:relative;z-index:100}
+#nav .brand{font-size:13px;font-weight:700;color:var(--gold);margin-right:12px;white-space:nowrap;letter-spacing:.02em}
+#nav .brand span{color:var(--text-dim);font-weight:400}
+.nav-tab{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:6px 6px 0 0;font-size:12px;font-weight:600;cursor:pointer;border:1px solid transparent;border-bottom:none;transition:background .12s,color .12s,border-color .12s;color:var(--text-dim);background:transparent;margin-bottom:-2px;position:relative;top:2px;user-select:none}
+.nav-tab:hover{color:var(--text);background:var(--hover)}
+.nav-tab.active{color:var(--gold);background:var(--bg);border-color:var(--border);border-bottom:2px solid var(--bg)}
+.nav-tab .tab-icon{font-size:14px}
+.nav-spacer{flex:1}
+
+/* ─── Content area ─── */
+#content{height:calc(100vh - 42px);position:relative}
+.editor-pane{position:absolute;inset:0;display:none}
+.editor-pane.active{display:block}
+.editor-pane iframe{width:100%;height:100%;border:none;display:block}
+
+/* ════════════════════════════════════════════════════
+   RESOURCE TYPES EDITOR
+   ════════════════════════════════════════════════════ */
+#res-editor{display:flex;flex-direction:column;height:100%;overflow:hidden;background:var(--bg)}
+
+/* toolbar */
+#res-toolbar{display:flex;align-items:center;gap:8px;padding:7px 14px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+#res-toolbar h2{font-size:12px;font-weight:700;color:var(--text-dim);letter-spacing:.06em;text-transform:uppercase;margin-right:4px}
+button{background:#21262d;border:1px solid var(--border2);color:var(--text);padding:4px 10px;border-radius:5px;cursor:pointer;font-size:12px;transition:background .12s,border-color .12s}
+button:hover{background:#2d333b;border-color:#484f58}
+button.active{background:#0b2a4a;border-color:var(--blue);color:var(--blue)}
+button.green{background:#0e2a17;border-color:var(--green);color:var(--green)}
+button.gold{background:#2a1f00;border-color:var(--gold);color:var(--gold)}
+button.danger{background:#2a0d0d;border-color:var(--red);color:var(--red)}
+button.purple{background:#1e0f3a;border-color:var(--purple);color:var(--purple)}
+button:disabled{opacity:.4;cursor:not-allowed;pointer-events:none}
+input[type="text"],input[type="number"],input[type="color"],select,textarea{background:#0d1117;border:1px solid var(--border2);color:var(--text);padding:3px 7px;border-radius:4px;font-size:12px}
+input[type="text"]:focus,input[type="number"]:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue)}
+input[type="color"]{padding:2px;width:36px;height:26px;cursor:pointer}
+textarea{resize:vertical;font-family:inherit}
+.tb-sep{width:1px;height:22px;background:var(--border2);margin:0 2px}
+.status-badge{font-size:11px;color:var(--text-dim);padding:2px 8px;background:var(--bg);border:1px solid var(--border);border-radius:10px}
+.status-badge.ok{color:var(--green);border-color:var(--green)}
+.status-badge.dirty{color:var(--gold);border-color:var(--gold)}
+
+/* main split */
+#res-main{display:flex;flex:1;overflow:hidden}
+
+/* ── Left: resource list ── */
+#res-list-panel{width:280px;min-width:180px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#res-list-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+#res-list-header h3{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim)}
+#res-search{width:100%;background:#0d1117;border:none;border-bottom:1px solid var(--border);padding:6px 12px;color:var(--text);font-size:12px;flex-shrink:0}
+#res-search:focus{outline:none;border-bottom-color:var(--blue)}
+#res-list-scroll{flex:1;overflow-y:auto;padding:6px}
+.res-card{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:5px;cursor:pointer;border:1px solid transparent;transition:background .1s,border-color .1s;margin-bottom:2px}
+.res-card:hover{background:var(--hover)}
+.res-card.selected{background:#0b2a4a;border-color:var(--blue)}
+.res-card .rc-icon{font-size:18px;width:24px;text-align:center;flex-shrink:0}
+.res-card .rc-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;border:1px solid rgba(255,255,255,.15)}
+.res-card .rc-info{flex:1;min-width:0}
+.res-card .rc-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.res-card .rc-id{font-size:10px;color:var(--text-dim);font-family:monospace}
+.res-card .rc-cat{font-size:10px;color:var(--text-dim)}
+.res-card .rc-count{font-size:10px;color:var(--text-dim);flex-shrink:0;text-align:right}
+.cat-badge{font-size:9px;padding:1px 5px;border-radius:8px;text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.cat-ore   {background:#1a1208;color:#c8941c;border:1px solid #6b4f0e}
+.cat-plant {background:#0c1f0e;color:#3fb950;border:1px solid #1f5e27}
+.cat-animal{background:#1a0d0a;color:#e07050;border:1px solid #7a3020}
+.cat-liquid{background:#0a1828;color:#58a6ff;border:1px solid #1a4a80}
+.cat-mineral{background:#141420;color:#a371f7;border:1px solid #5a3a9a}
+.cat-seafood{background:#081a1a;color:#4ae0e0;border:1px solid #1a6060}
+.cat-other {background:#14141c;color:#8b949e;border:1px solid #30363d}
+.list-empty{color:var(--text-dim);font-size:12px;font-style:italic;padding:12px;text-align:center}
+
+/* ── Centre/right split ── */
+#res-right{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── Edit form ── */
+#res-form-panel{padding:16px 18px;border-bottom:1px solid var(--border);flex-shrink:0;overflow-y:auto;max-height:52%}
+#res-form-panel h3{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin-bottom:12px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
+.form-field{display:flex;flex-direction:column;gap:4px}
+.form-field.full{grid-column:1/-1}
+.form-field label{font-size:11px;color:var(--text-dim)}
+.form-field input[type="text"],.form-field input[type="number"],.form-field select,.form-field textarea{width:100%}
+.icon-row{display:flex;align-items:center;gap:8px}
+.icon-row input{flex:1}
+.icon-preview{font-size:24px;width:36px;text-align:center}
+.color-row{display:flex;align-items:center;gap:8px}
+.color-row input[type="text"]{flex:1;font-family:monospace}
+.form-actions{display:flex;gap:8px;margin-top:14px;align-items:center}
+#no-selection{color:var(--text-dim);font-size:12px;font-style:italic;padding:20px 18px}
+
+/* ── Terrain Chances ── */
+#res-chances-panel{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#res-chances-header{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+#res-chances-header h3{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim)}
+#res-chances-scroll{flex:1;overflow:auto;padding:8px 16px}
+.terrain-block{background:var(--panel);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;overflow:hidden}
+.terrain-block-header{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--panel2);border-bottom:1px solid var(--border)}
+.terrain-block-header .t-icon{font-size:14px}
+.terrain-block-header .t-name{font-size:12px;font-weight:600}
+.terrain-block-header .t-id{font-size:10px;color:var(--text-dim);font-family:monospace;margin-left:2px}
+.terrain-block-header .t-add{margin-left:auto;font-size:10px;padding:2px 7px}
+.chance-rows{padding:4px 6px}
+.chance-row{display:flex;align-items:center;gap:8px;padding:4px 4px;border-bottom:1px solid rgba(255,255,255,.04)}
+.chance-row:last-child{border-bottom:none}
+.chance-row .cr-icon{font-size:14px;width:20px;text-align:center;flex-shrink:0}
+.chance-row .cr-name{flex:1;font-size:11px}
+.chance-row .cr-id{font-size:10px;color:var(--text-dim);font-family:monospace;min-width:80px}
+.chance-row .cr-pct{width:56px;text-align:right;font-size:11px;font-family:monospace}
+.chance-row input[type="number"]{width:68px;text-align:right}
+.chance-bar{height:4px;border-radius:2px;background:var(--border2);margin:0 4px;position:relative;flex-shrink:0;width:60px}
+.chance-bar-fill{height:100%;border-radius:2px;background:var(--green);transition:width .2s}
+.terrain-block .no-chances{color:var(--text-dim);font-size:11px;font-style:italic;padding:6px 10px}
+
+/* ── Modals & Toasts ── */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1c2129;border:1px solid var(--border2);border-radius:8px;padding:9px 18px;font-size:12px;pointer-events:none;opacity:0;transition:opacity .25s;z-index:9999;white-space:nowrap}
+#toast.show{opacity:1}
+#toast.ok{border-color:var(--green);color:var(--green)}
+#toast.err{border-color:var(--red);color:var(--red)}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#484f58}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ TOP NAV ═══════════════════ -->
+<div id="nav">
+  <div class="brand">⚔️ Lord of the Realms <span>Editors</span></div>
+  <div class="nav-tab active" data-tab="sprite"    onclick="switchTab('sprite')">
+    <span class="tab-icon">🎨</span> Sprite Editor
+  </div>
+  <div class="nav-tab" data-tab="spritesheet" onclick="switchTab('spritesheet')">
+    <span class="tab-icon">🗂️</span> Spritesheet Editor
+  </div>
+  <div class="nav-tab" data-tab="resources"   onclick="switchTab('resources')">
+    <span class="tab-icon">💎</span> Resource Types
+  </div>
+  <div class="nav-spacer"></div>
+  <button class="green" style="font-size:11px;padding:3px 9px" onclick="newGamedata()">📄 New</button>
+  <button class="purple" style="font-size:11px;padding:3px 9px" onclick="triggerImport()">⬆ Import</button>
+  <input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)">
+  <button class="gold" style="font-size:11px;padding:3px 9px" onclick="exportGamedata()">⬇ Export gamedata.json</button>
+  <span id="dirty-badge" class="status-badge" style="font-size:10px;margin-left:4px">unchanged</span>
+</div>
+
+<!-- ═══════════════════ CONTENT ═══════════════════ -->
+<div id="content">
+
+  <!-- Sprite Editor iframe -->
+  <div class="editor-pane active" id="pane-sprite">
+    <iframe src="sprite_editor.html" id="iframe-sprite"></iframe>
+  </div>
+
+  <!-- Spritesheet Editor iframe -->
+  <div class="editor-pane" id="pane-spritesheet">
+    <!-- loaded lazily on first activation -->
+  </div>
+
+  <!-- Resource Types inline editor -->
+  <div class="editor-pane" id="pane-resources">
+    <div id="res-editor">
+
+      <!-- Toolbar -->
+      <div id="res-toolbar">
+        <h2>Resource Types</h2>
+        <div class="tb-sep"></div>
+        <button class="green" onclick="addNewResource()">＋ New Resource</button>
+      </div>
+
+      <div id="res-main">
+
+        <!-- ── Left: Resource List ── -->
+        <div id="res-list-panel">
+          <div id="res-list-header">
+            <h3>Resources (<span id="res-count">0</span>)</h3>
+          </div>
+          <input id="res-search" type="text" placeholder="🔍  Search resources…" oninput="renderResourceList()">
+          <div id="res-list-scroll"></div>
+        </div>
+
+        <!-- ── Right ── -->
+        <div id="res-right">
+
+          <!-- Edit form (top right) -->
+          <div id="res-form-panel">
+            <div id="no-selection">← Select a resource to edit, or click <strong>＋ New Resource</strong>.</div>
+            <div id="res-form" style="display:none">
+              <h3>Edit Resource</h3>
+              <div class="form-grid">
+                <div class="form-field">
+                  <label>ID <span style="color:var(--text-dim)">(snake_case)</span></label>
+                  <input type="text" id="f-id" placeholder="e.g. gold_ore" oninput="markDirty()">
+                </div>
+                <div class="form-field">
+                  <label>Display Name</label>
+                  <input type="text" id="f-name" placeholder="e.g. Gold Veins" oninput="markDirty()">
+                </div>
+                <div class="form-field">
+                  <label>Icon (emoji)</label>
+                  <div class="icon-row">
+                    <span class="icon-preview" id="f-icon-preview">❓</span>
+                    <input type="text" id="f-icon" placeholder="✨" maxlength="4" oninput="updateIconPreview();markDirty()">
+                  </div>
+                </div>
+                <div class="form-field">
+                  <label>Color</label>
+                  <div class="color-row">
+                    <input type="color" id="f-color-picker" oninput="syncColorText();markDirty()">
+                    <input type="text" id="f-color" placeholder="#ffd700" maxlength="9" oninput="syncColorPicker();markDirty()">
+                  </div>
+                </div>
+                <div class="form-field">
+                  <label>Category</label>
+                  <select id="f-category" onchange="markDirty()">
+                    <option value="ore">⛏️ Ore / Metal</option>
+                    <option value="mineral">💎 Gem / Mineral</option>
+                    <option value="plant">🌿 Plant / Crop</option>
+                    <option value="animal">🐄 Animal / Livestock</option>
+                    <option value="seafood">🐟 Seafood / Aquatic</option>
+                    <option value="liquid">🛢️ Liquid / Fuel</option>
+                    <option value="other">📦 Other</option>
+                  </select>
+                </div>
+                <div class="form-field">
+                  <label>Base Value <span style="color:var(--text-dim)">(gold)</span></label>
+                  <input type="number" id="f-value" min="0" step="1" placeholder="10" style="width:100%" oninput="markDirty()">
+                </div>
+                <div class="form-field full">
+                  <label>Description <span style="color:var(--text-dim)">(optional)</span></label>
+                  <textarea id="f-desc" rows="2" placeholder="Flavour text shown in the UI…" oninput="markDirty()"></textarea>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button class="green" onclick="saveCurrentResource()">💾 Save Resource</button>
+                <button class="danger" onclick="deleteCurrentResource()">🗑 Delete</button>
+                <span id="form-msg" style="font-size:11px;color:var(--text-dim);margin-left:4px"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Terrain Spawn Chances (bottom right) -->
+          <div id="res-chances-panel">
+            <div id="res-chances-header">
+              <h3>Terrain Spawn Chances</h3>
+              <button class="green" style="font-size:11px;padding:3px 9px" onclick="addTerrainBlock()">＋ Add Terrain</button>
+            </div>
+            <div id="res-chances-scroll"></div>
+          </div>
+
+        </div><!-- /#res-right -->
+      </div><!-- /#res-main -->
+    </div><!-- /#res-editor -->
+  </div><!-- /#pane-resources -->
+
+</div><!-- /#content -->
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════
+//  TAB SWITCHING
+// ═══════════════════════════════════════════════════════
+
+const iframeLoaded = { sprite: true, spritesheet: false };
+
+function switchTab(name) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.editor-pane').forEach(p => p.classList.toggle('active', p.id === `pane-${name}`));
+
+  // Lazy-load iframes
+  if (name === 'spritesheet' && !iframeLoaded.spritesheet) {
+    iframeLoaded.spritesheet = true;
+    const pane = document.getElementById('pane-spritesheet');
+    const iframe = document.createElement('iframe');
+    iframe.src = 'spritesheet_editor.html';
+    pane.appendChild(iframe);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  RESOURCE TYPES EDITOR — STATE
+// ═══════════════════════════════════════════════════════
+
+// The entire gamedata.json — single source of truth
+let _gamedata = null;
+// Alias for the terrain section (convenience for the resource editor)
+let terrainData = null;
+
+// Working copies of the two sections we edit
+let resources    = {};   // KEY → { id, name, icon, color, category, baseValue, description }
+let resChanc     = {};   // terrainId → [ { resource, chance } ]
+
+let selectedId  = null;  // currently selected resource KEY
+let dirty       = false;
+
+const CATEGORY_LABELS = {
+  ore:     { label: '⛏️ Ore',      cls: 'cat-ore'    },
+  mineral: { label: '💎 Mineral',  cls: 'cat-mineral' },
+  plant:   { label: '🌿 Plant',    cls: 'cat-plant'   },
+  animal:  { label: '🐄 Animal',   cls: 'cat-animal'  },
+  seafood: { label: '🐟 Seafood',  cls: 'cat-seafood' },
+  liquid:  { label: '🛢️ Liquid',  cls: 'cat-liquid'  },
+  other:   { label: '📦 Other',    cls: 'cat-other'   },
+};
+
+// ═══════════════════════════════════════════════════════
+//  INIT — load gamedata.json
+// ═══════════════════════════════════════════════════════
+
+(async function init() {
+  try {
+    const res = await fetch('data/gamedata.json');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    _gamedata = await res.json();
+    applyGamedata();
+    toast('gamedata.json loaded', 'ok');
+  } catch (e) {
+    newGamedata(true /* silent */);
+    toast('No gamedata.json found — started fresh. Import or create new.', 'err');
+  }
+})();
+
+function loadFromTerrainData(data) {
+  resources = {};
+  for (const [KEY, r] of Object.entries(data.resources || {})) {
+    resources[KEY] = {
+      id:          r.id          || KEY.toLowerCase(),
+      name:        r.name        || KEY,
+      icon:        r.icon        || '📦',
+      color:       r.color       || '#888888',
+      category:    r.category    || guessCategory(r.id || KEY.toLowerCase()),
+      baseValue:   r.baseValue   ?? 10,
+      description: r.description || '',
+    };
+  }
+  resChanc = {};
+  for (const [terrain, arr] of Object.entries(data.resourceChances || {})) {
+    resChanc[terrain] = arr.map(o => ({ resource: o.resource, chance: o.chance }));
+  }
+  renderResourceList();
+  renderChances();
+}
+
+function guessCategory(id) {
+  if (/iron|gold|coal|copper|tin|silver|mithril/.test(id)) return 'ore';
+  if (/gem|diamond|ruby|emerald|sapphire|crystal|salt|stone/.test(id)) return 'mineral';
+  if (/wheat|spice|timber|wood|cotton|silk|herb|flax|tea|coffee/.test(id)) return 'plant';
+  if (/cattle|horse|sheep|pig|chicken|ivory|fur/.test(id)) return 'animal';
+  if (/fish|seafood|whale|pearl|crab|shrimp/.test(id)) return 'seafood';
+  if (/oil|water|wine|beer|alcohol/.test(id)) return 'liquid';
+  return 'other';
+}
+
+// ═══════════════════════════════════════════════════════
+//  RESOURCE LIST
+// ═══════════════════════════════════════════════════════
+
+function renderResourceList() {
+  const q   = (document.getElementById('res-search').value || '').toLowerCase();
+  const scr = document.getElementById('res-list-scroll');
+  const keys = Object.keys(resources).filter(k => {
+    const r = resources[k];
+    return !q || r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q);
+  });
+  document.getElementById('res-count').textContent = Object.keys(resources).length;
+
+  if (!keys.length) {
+    scr.innerHTML = `<div class="list-empty">${q ? 'No matches.' : 'No resources yet.'}</div>`;
+    return;
+  }
+
+  scr.innerHTML = '';
+  for (const KEY of keys) {
+    const r   = resources[KEY];
+    const cat = CATEGORY_LABELS[r.category] || CATEGORY_LABELS.other;
+    // Count how many terrain/chance entries reference this resource
+    const refCount = Object.values(resChanc).flat().filter(e => e.resource === r.id).length;
+    const card = document.createElement('div');
+    card.className = `res-card${KEY === selectedId ? ' selected' : ''}`;
+    card.dataset.key = KEY;
+    card.innerHTML =
+      `<div class="rc-icon">${r.icon}</div>` +
+      `<div class="rc-dot" style="background:${r.color}"></div>` +
+      `<div class="rc-info">` +
+        `<div class="rc-name">${escHtml(r.name)}</div>` +
+        `<div class="rc-id">${escHtml(r.id)}</div>` +
+      `</div>` +
+      `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">` +
+        `<span class="cat-badge ${cat.cls}">${cat.label}</span>` +
+        `<span class="rc-count" title="${refCount} terrain chance entr${refCount===1?'y':'ies'}">${refCount > 0 ? refCount+'🗺' : ''}</span>` +
+      `</div>`;
+    card.addEventListener('click', () => selectResource(KEY));
+    scr.appendChild(card);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  SELECTION / FORM
+// ═══════════════════════════════════════════════════════
+
+function selectResource(KEY) {
+  selectedId = KEY;
+  renderResourceList();
+  populateForm(resources[KEY]);
+}
+
+function populateForm(r) {
+  document.getElementById('no-selection').style.display = 'none';
+  document.getElementById('res-form').style.display    = 'block';
+  document.getElementById('f-id').value       = r.id;
+  document.getElementById('f-name').value     = r.name;
+  document.getElementById('f-icon').value     = r.icon;
+  document.getElementById('f-icon-preview').textContent = r.icon;
+  document.getElementById('f-color').value    = r.color;
+  document.getElementById('f-color-picker').value = r.color.length === 7 ? r.color : '#888888';
+  document.getElementById('f-category').value = r.category || 'other';
+  document.getElementById('f-value').value    = r.baseValue ?? 10;
+  document.getElementById('f-desc').value     = r.description || '';
+  document.getElementById('form-msg').textContent = '';
+}
+
+function updateIconPreview() {
+  document.getElementById('f-icon-preview').textContent =
+    document.getElementById('f-icon').value || '❓';
+}
+
+function syncColorText() {
+  document.getElementById('f-color').value = document.getElementById('f-color-picker').value;
+}
+function syncColorPicker() {
+  const v = document.getElementById('f-color').value;
+  if (/^#[0-9a-f]{6}$/i.test(v)) document.getElementById('f-color-picker').value = v;
+}
+
+function saveCurrentResource() {
+  if (!selectedId) return;
+  const newId = document.getElementById('f-id').value.trim().replace(/\s+/g, '_').toLowerCase();
+  if (!newId) { setFormMsg('ID is required.', true); return; }
+
+  // If id changed we need to rename the KEY and update chance refs
+  const oldId = resources[selectedId].id;
+  resources[selectedId] = {
+    id:          newId,
+    name:        document.getElementById('f-name').value.trim() || newId,
+    icon:        document.getElementById('f-icon').value.trim() || '📦',
+    color:       document.getElementById('f-color').value.trim() || '#888888',
+    category:    document.getElementById('f-category').value,
+    baseValue:   parseFloat(document.getElementById('f-value').value) || 0,
+    description: document.getElementById('f-desc').value.trim(),
+  };
+
+  // Rename id in resChanc
+  if (oldId !== newId) {
+    for (const arr of Object.values(resChanc)) {
+      for (const e of arr) { if (e.resource === oldId) e.resource = newId; }
+    }
+  }
+
+  // If KEY doesn't match new id, rename key
+  const newKEY = newId.toUpperCase().replace(/-/g, '_');
+  if (newKEY !== selectedId) {
+    resources[newKEY] = resources[selectedId];
+    delete resources[selectedId];
+    selectedId = newKEY;
+  }
+
+  renderResourceList();
+  renderChances();
+  markDirty();
+  setFormMsg('Saved.', false);
+}
+
+function deleteCurrentResource() {
+  if (!selectedId) return;
+  if (!confirm(`Delete "${resources[selectedId].name}"? All terrain chance entries for this resource will also be removed.`)) return;
+  const delId = resources[selectedId].id;
+  // Remove from chances
+  for (const terrain of Object.keys(resChanc)) {
+    resChanc[terrain] = resChanc[terrain].filter(e => e.resource !== delId);
+    if (!resChanc[terrain].length) delete resChanc[terrain];
+  }
+  delete resources[selectedId];
+  selectedId = null;
+  document.getElementById('no-selection').style.display = '';
+  document.getElementById('res-form').style.display     = 'none';
+  renderResourceList();
+  renderChances();
+  markDirty();
+}
+
+function addNewResource() {
+  let n = 1;
+  while (resources[`NEW_RESOURCE_${n}`]) n++;
+  const KEY = `NEW_RESOURCE_${n}`;
+  resources[KEY] = {
+    id: `new_resource_${n}`, name: `New Resource ${n}`,
+    icon: '📦', color: '#888888', category: 'other', baseValue: 10, description: '',
+  };
+  renderResourceList();
+  selectResource(KEY);
+  document.getElementById('f-id').focus();
+  markDirty();
+}
+
+function setFormMsg(msg, isErr) {
+  const el = document.getElementById('form-msg');
+  el.textContent = msg;
+  el.style.color = isErr ? 'var(--red)' : 'var(--green)';
+  if (!isErr) setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 2000);
+}
+
+// ═══════════════════════════════════════════════════════
+//  TERRAIN CHANCES
+// ═══════════════════════════════════════════════════════
+
+function renderChances() {
+  const scr = document.getElementById('res-chances-scroll');
+  scr.innerHTML = '';
+
+  // Get terrain type info for icons and display names
+  const types = terrainData && terrainData.types ? terrainData.types : {};
+
+  const terrains = Object.keys(resChanc).sort();
+  if (!terrains.length) {
+    scr.innerHTML = '<div class="list-empty">No terrain spawn entries yet. Click <strong>＋ Add Terrain</strong>.</div>';
+    return;
+  }
+
+  for (const terrain of terrains) {
+    const tInfo = Object.values(types).find(t => t.id === terrain) || {};
+    const icon  = tInfo.icon  || '🗺️';
+    const tname = tInfo.name  || terrain;
+
+    const block = document.createElement('div');
+    block.className = 'terrain-block';
+    block.dataset.terrain = terrain;
+
+    const rows = resChanc[terrain];
+    let rowsHtml = '';
+    if (!rows || !rows.length) {
+      rowsHtml = '<div class="no-chances">No resources — <a href="#" onclick="addChanceRow(event,\''+terrain+'\')">add one</a></div>';
+    } else {
+      rowsHtml = '<div class="chance-rows">';
+      for (let i = 0; i < rows.length; i++) {
+        const e   = rows[i];
+        const rObj = Object.values(resources).find(r => r.id === e.resource) || {};
+        const rIcon  = rObj.icon  || '❓';
+        const rName  = rObj.name  || e.resource;
+        const rColor = rObj.color || '#888888';
+        const pct    = Math.round(e.chance * 100);
+        const barPct = Math.min(100, pct * 5); // scale: 20% chance = full bar
+        rowsHtml +=
+          `<div class="chance-row" data-terrain="${terrain}" data-idx="${i}">` +
+            `<span class="cr-icon">${rIcon}</span>` +
+            `<span class="cr-name">${escHtml(rName)}</span>` +
+            `<span class="cr-id">${escHtml(e.resource)}</span>` +
+            `<select class="cr-res-sel" data-terrain="${terrain}" data-idx="${i}" onchange="updateChance(this)">` +
+              resourceOptions(e.resource) +
+            `</select>` +
+            `<div class="chance-bar"><div class="chance-bar-fill" style="width:${barPct}%;background:${rColor}"></div></div>` +
+            `<input type="number" min="0" max="1" step="0.01" value="${e.chance}" style="width:68px;text-align:right"` +
+              ` data-terrain="${terrain}" data-idx="${i}" oninput="updateChance(this)">` +
+            `<button class="danger" style="font-size:10px;padding:1px 6px;flex-shrink:0"` +
+              ` onclick="removeChanceRow('${terrain}',${i})">✕</button>` +
+          `</div>`;
+      }
+      rowsHtml += '</div>';
+    }
+
+    block.innerHTML =
+      `<div class="terrain-block-header">` +
+        `<span class="t-icon">${icon}</span>` +
+        `<span class="t-name">${escHtml(tname)}</span>` +
+        `<span class="t-id">${escHtml(terrain)}</span>` +
+        `<button class="t-add green" onclick="addChanceRow(event,'${terrain}')">＋ Add</button>` +
+        `<button class="danger t-add" style="margin-left:4px" onclick="removeTerrain('${terrain}')">🗑</button>` +
+      `</div>` + rowsHtml;
+
+    scr.appendChild(block);
+  }
+}
+
+function resourceOptions(selected) {
+  let html = '';
+  for (const r of Object.values(resources).sort((a,b) => a.name.localeCompare(b.name))) {
+    html += `<option value="${r.id}"${r.id === selected ? ' selected' : ''}>${r.icon} ${escHtml(r.name)}</option>`;
+  }
+  return html;
+}
+
+function updateChance(el) {
+  const terrain = el.dataset.terrain;
+  const idx     = parseInt(el.dataset.idx);
+  const entry   = resChanc[terrain]?.[idx];
+  if (!entry) return;
+  if (el.tagName === 'SELECT') {
+    entry.resource = el.value;
+  } else {
+    entry.chance = Math.min(1, Math.max(0, parseFloat(el.value) || 0));
+  }
+  markDirty();
+  // Re-render to refresh bar + icon
+  renderChances();
+}
+
+function addChanceRow(evtOrStr, terrainFromArg) {
+  if (evtOrStr && typeof evtOrStr === 'object' && evtOrStr.preventDefault) evtOrStr.preventDefault();
+  const terrain = terrainFromArg || evtOrStr;
+  if (!resChanc[terrain]) resChanc[terrain] = [];
+  // Pick a resource not already in this terrain
+  const usedIds = resChanc[terrain].map(e => e.resource);
+  const unused  = Object.values(resources).find(r => !usedIds.includes(r.id));
+  resChanc[terrain].push({ resource: unused ? unused.id : 'iron', chance: 0.10 });
+  markDirty();
+  renderChances();
+}
+
+function removeChanceRow(terrain, idx) {
+  resChanc[terrain].splice(idx, 1);
+  if (!resChanc[terrain].length) delete resChanc[terrain];
+  markDirty();
+  renderChances();
+}
+
+function removeTerrain(terrain) {
+  if (!confirm(`Remove all spawn chances for terrain "${terrain}"?`)) return;
+  delete resChanc[terrain];
+  markDirty();
+  renderChances();
+}
+
+function addTerrainBlock() {
+  // Show a quick prompt with available terrain types
+  const types = terrainData && terrainData.types ? terrainData.types : {};
+  const existing = new Set(Object.keys(resChanc));
+  const available = Object.values(types)
+    .filter(t => !existing.has(t.id))
+    .map(t => `${t.icon} ${t.id}`)
+    .join('\n');
+  const input = prompt(
+    'Enter terrain ID to add spawn chances for.\n\nAvailable terrains not yet in list:\n' +
+    (available || '(all already added)'),
+    ''
+  );
+  if (!input) return;
+  const tid = input.trim().toLowerCase();
+  if (!tid) return;
+  if (resChanc[tid]) { toast('That terrain already has spawn chances.', 'err'); return; }
+  resChanc[tid] = [];
+  markDirty();
+  renderChances();
+}
+
+// ═══════════════════════════════════════════════════════
+//  IMPORT / EXPORT
+// ═══════════════════════════════════════════════════════
+
+function buildTerrainJson() {
+  // Compose output resources section
+  const outResources = {};
+  for (const [KEY, r] of Object.entries(resources)) {
+    outResources[KEY] = {
+      id:   r.id,
+      name: r.name,
+      icon: r.icon,
+      color: r.color,
+    };
+    // Only include extended fields if non-default
+    if (r.category && r.category !== 'other') outResources[KEY].category = r.category;
+    if (r.baseValue && r.baseValue !== 10)     outResources[KEY].baseValue = r.baseValue;
+    if (r.description)                          outResources[KEY].description = r.description;
+  }
+  // Compose output resourceChances
+  const outChances = {};
+  for (const [terrain, arr] of Object.entries(resChanc)) {
+    if (arr.length) outChances[terrain] = arr.map(e => ({ resource: e.resource, chance: e.chance }));
+  }
+  return {
+    ...(terrainData || {}),
+    resources:       outResources,
+    resourceChances: outChances,
+  };
+}
+
+// ═══════════════════════════════════════════════════════
+//  GAMEDATA — unified import / export / new
+// ═══════════════════════════════════════════════════════
+
+function makeEmptyGamedata() {
+  return {
+    terrain:   { types: {}, resources: {}, resourceChances: {}, biomeTable: [] },
+    custom_buildings: { manifest: { files: ['custom_buildings.json'] }, files: { 'custom_buildings.json': { buildings: [] } } },
+    custom_objects:   { manifest: { files: ['my_objects.json'] },       files: { 'my_objects.json': { composed: true, tileW: 32, tileH: 32, objects: [] } } },
+  };
+}
+
+function newGamedata(silent) {
+  _gamedata = makeEmptyGamedata();
+  applyGamedata();
+  if (!silent) { dirty = false; updateDirtyBadge(); toast('Created blank gamedata', 'ok'); }
+}
+
+/**
+ * Distribute _gamedata to every sub-editor.
+ */
+function applyGamedata() {
+  // Resource editor
+  terrainData = _gamedata.terrain || { types: {}, resources: {}, resourceChances: {}, biomeTable: [] };
+  _gamedata.terrain = terrainData;
+  loadFromTerrainData(terrainData);
+
+  // Sprite editor (iframe) — send buildings + objects
+  pushToSpriteEditor();
+}
+
+function pushToSpriteEditor() {
+  const iframe = document.getElementById('iframe-sprite');
+  if (iframe && iframe.contentWindow) {
+    try {
+      iframe.contentWindow.postMessage({
+        type: 'loadGamedata',
+        custom_buildings: _gamedata.custom_buildings || {},
+        custom_objects:   _gamedata.custom_objects   || {},
+      }, '*');
+    } catch (e) { /* iframe may not be ready yet */ }
+  }
+}
+
+// When the sprite iframe loads, push data to it
+window.addEventListener('message', ev => {
+  if (!ev.data || !ev.data.type) return;
+  // Sprite editor is ready and asking for data
+  if (ev.data.type === 'spriteEditorReady') {
+    pushToSpriteEditor();
+  }
+  // Sprite editor is sending back updated data (on every save)
+  if (ev.data.type === 'spriteDataChanged') {
+    if (ev.data.custom_buildings) _gamedata.custom_buildings = ev.data.custom_buildings;
+    if (ev.data.custom_objects)   _gamedata.custom_objects   = ev.data.custom_objects;
+    markDirty();
+  }
+});
+
+function triggerImport() { document.getElementById('import-file').click(); }
+
+function handleImport(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!parsed.terrain && !parsed.custom_buildings && !parsed.custom_objects) {
+        throw new Error('Not a valid gamedata.json — missing expected keys.');
+      }
+      // Merge into a full gamedata shell (so partial files still work)
+      _gamedata = { ...makeEmptyGamedata(), ...parsed };
+      applyGamedata();
+      dirty = false;
+      updateDirtyBadge();
+      toast('gamedata.json imported', 'ok');
+    } catch (err) {
+      toast('Import failed: ' + err.message, 'err');
+    }
+    ev.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function exportGamedata() {
+  // Collect latest terrain edits from the resource editor
+  _gamedata.terrain = buildTerrainJson();
+
+  // Ask sprite iframe for latest buildings/objects via synchronous pull
+  const iframe = document.getElementById('iframe-sprite');
+  if (iframe && iframe.contentWindow && typeof iframe.contentWindow.getExportData === 'function') {
+    const spriteData = iframe.contentWindow.getExportData();
+    if (spriteData.custom_buildings) _gamedata.custom_buildings = spriteData.custom_buildings;
+    if (spriteData.custom_objects)   _gamedata.custom_objects   = spriteData.custom_objects;
+  }
+
+  const blob = new Blob([JSON.stringify(_gamedata)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'gamedata.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  dirty = false;
+  updateDirtyBadge();
+  toast('gamedata.json downloaded', 'ok');
+}
+
+// ═══════════════════════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════════════════════
+
+function markDirty() {
+  dirty = true;
+  updateDirtyBadge();
+}
+
+function updateDirtyBadge() {
+  const el = document.getElementById('dirty-badge');
+  if (dirty) {
+    el.textContent = '● unsaved changes';
+    el.className   = 'status-badge dirty';
+  } else {
+    el.textContent = 'unchanged';
+    el.className   = 'status-badge ok';
+  }
+}
+
+let toastTimer = null;
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className   = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = type; }, 2600);
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

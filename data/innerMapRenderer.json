@@ -1,0 +1,428 @@
+{
+    "meta": {
+        "description": "Inner map renderer configuration — sprite sheet paths, overlay mappings, building mappings, fallback data",
+        "version": "1.0.0",
+        "tileSize": 32
+    },
+
+    "sheetPaths": {
+        "terrain_summer":      "assets/lpc/Terrain/terrain_summer.png",
+        "terrain_spring":      "assets/lpc/Terrain/terrain_spring.png",
+        "terrain_autumn":      "assets/lpc/Terrain/terrain_autumn.png",
+        "terrain_winter":      "assets/lpc/Terrain/terrain_winter.png",
+
+        "trees_summer":        "assets/lpc/Terrain/trees_summer.png",
+        "trees_spring":        "assets/lpc/Terrain/trees_spring.png",
+        "trees_autumn":        "assets/lpc/Terrain/trees_autumn.png",
+        "trees_winter":        "assets/lpc/Terrain/trees_winter.png",
+
+        "plants_summer":       "assets/lpc/Terrain/plants_summer.png",
+        "plants_spring":       "assets/lpc/Terrain/plants_spring.png",
+        "plants_autumn":       "assets/lpc/Terrain/plants_autumn.png",
+        "plants_winter":       "assets/lpc/Terrain/plants_winter.png",
+
+        "wildflowers_summer":  "assets/lpc/Terrain/wildflowers_summer.png",
+        "wildflowers_spring":  "assets/lpc/Terrain/wildflowers_spring.png",
+        "wildflowers_autumn":  "assets/lpc/Terrain/wildflowers_autumn.png",
+
+        "flowers":             "assets/lpc/Terrain/flowers.png",
+        "mushrooms":           "assets/lpc/Terrain/mushrooms.png",
+        "tilled_soil":         "assets/lpc/Terrain/tilled_soil.png",
+        "rocks_grass":         "assets/lpc/Terrain/Rocks, Grasslands.png",
+        "rocks_cliffs":        "assets/lpc/Terrain/Rocks, Cliffs.png",
+
+        "cliff_summer":        "assets/lpc/Terrain/cliff_summer.png",
+        "cliff_spring":        "assets/lpc/Terrain/cliff_spring.png",
+        "cliff_autumn":        "assets/lpc/Terrain/cliff_autumn.png",
+        "cliff_winter":        "assets/lpc/Terrain/cliff_winter.png",
+
+        "waterfall":           "assets/lpc/Terrain/Waterfall.png",
+
+        "struct_brick_a":      "assets/lpc/Structure/Structures/Brick House A.png",
+        "struct_brick_b":      "assets/lpc/Structure/Structures/Brick House B.png",
+        "struct_panel_a":      "assets/lpc/Structure/Structures/Paneled House A.png",
+        "fountain":            "assets/lpc/Structure/Misc/Fountain A.png",
+        "fence_plain":         "assets/lpc/Structure/Fences/Plain Fence A.png",
+        "signs":               "assets/lpc/Structure/Signs/Sign Backgrounds A.png",
+        "prison":              "assets/lpc/Structure/Misc/Prison A.png",
+        "pool":                "assets/lpc/Structure/Misc/Pool A.png",
+
+        "roof_shingle":        "assets/lpc/Structure/Roofing/Flat Shingle Roof A.png",
+        "roof_gable":          "assets/lpc/Structure/Roofing/Gable Shingle Roof A.png",
+
+        "anvils":              "assets/lpc/Objects/Furniture/Smithing/Anvils.png",
+        "barrel":              "assets/lpc/Objects/Furniture/Barrel.png",
+        "chest":               "assets/lpc/Objects/Furniture/Chest.png",
+        "crate":               "assets/lpc/Objects/Furniture/Crate.png",
+        "campfire":            "assets/lpc/Objects/Small Items/Fire, Camp.png",
+        "hay":                 "assets/lpc/Objects/Small Items/Hay & Straw.png",
+        "lumber":              "assets/lpc/Objects/Small Items/Lumber.png",
+        "cauldron":            "assets/lpc/Objects/Furniture/Cauldron.png",
+        "fireplace":           "assets/lpc/Objects/Furniture/Fireplace.png",
+        "planter":             "assets/lpc/Objects/Furniture/Planter.png",
+        "trough":              "assets/lpc/Objects/Furniture/Trough.png",
+        "thrones":             "assets/lpc/Objects/Furniture/Seating/Thrones.png",
+
+        "water_ripple":        "assets/lpc/FX/WaterRipple.png",
+        "water_ripple_back":   "assets/lpc/FX/WaterRipple_Back.png",
+        "water_reflections":   "assets/lpc/FX/Water Reflections.png"
+    },
+
+    "fallbackColors": {
+        "grass":      "#4B8434",
+        "dark_green": "#508B32",
+        "dirt":       "#A8804E",
+        "dry_dirt":   "#F8BC76",
+        "sand":       "#F4D7A0",
+        "water":      "#2A8598",
+        "deep_water": "#173C57",
+        "stone":      "#646458",
+        "dark_stone": "#565A56"
+    },
+
+    "overlayMap": {
+        "_note": "Maps sub-terrain IDs to overlay categories for the object layer",
+        "trees":      "trees",
+        "brush":      "plants",
+        "tall_grass": "plants",
+        "rocks":      "rocks"
+    },
+
+    "fallbackSprites": {
+        "trees": [
+            { "sx": 128, "sy": 0,   "sw": 96, "sh": 128 },
+            { "sx": 256, "sy": 0,   "sw": 96, "sh": 128 },
+            { "sx": 384, "sy": 0,   "sw": 96, "sh": 128 },
+            { "sx": 128, "sy": 144, "sw": 96, "sh": 128 },
+            { "sx": 256, "sy": 144, "sw": 96, "sh": 128 },
+            { "sx": 384, "sy": 144, "sw": 96, "sh": 128 },
+            { "sx": 128, "sy": 288, "sw": 96, "sh": 128 },
+            { "sx": 256, "sy": 288, "sw": 96, "sh": 128 },
+            { "sx": 384, "sy": 288, "sw": 96, "sh": 128 },
+            { "sx": 128, "sy": 432, "sw": 96, "sh": 128 },
+            { "sx": 256, "sy": 432, "sw": 96, "sh": 128 },
+            { "sx": 384, "sy": 432, "sw": 96, "sh": 128 }
+        ],
+        "plants": [
+            { "sx": 0,   "sy": 0, "sw": 32, "sh": 32 },
+            { "sx": 32,  "sy": 0, "sw": 32, "sh": 32 },
+            { "sx": 64,  "sy": 0, "sw": 32, "sh": 32 },
+            { "sx": 96,  "sy": 0, "sw": 32, "sh": 32 },
+            { "sx": 128, "sy": 0, "sw": 32, "sh": 32 }
+        ],
+        "rocks": [
+            { "sheet": "rocks_grass",  "sx": 0,   "sy": 0,   "sw": 64, "sh": 64 },
+            { "sheet": "rocks_grass",  "sx": 64,  "sy": 0,   "sw": 64, "sh": 64 },
+            { "sheet": "rocks_grass",  "sx": 128, "sy": 0,   "sw": 64, "sh": 64 },
+            { "sheet": "rocks_grass",  "sx": 0,   "sy": 64,  "sw": 64, "sh": 64 },
+            { "sheet": "rocks_grass",  "sx": 64,  "sy": 64,  "sw": 64, "sh": 64 },
+            { "sheet": "rocks_grass",  "sx": 128, "sy": 64,  "sw": 64, "sh": 64 },
+
+            { "sheet": "rocks_grass",  "sx": 0,   "sy": 128, "sw": 64, "sh": 64 },
+            { "sheet": "rocks_grass",  "sx": 64,  "sy": 128, "sw": 64, "sh": 64 },
+            { "sheet": "rocks_grass",  "sx": 128, "sy": 128, "sw": 64, "sh": 64 },
+            { "sheet": "rocks_grass",  "sx": 0,   "sy": 192, "sw": 64, "sh": 64 },
+            { "sheet": "rocks_grass",  "sx": 64,  "sy": 192, "sw": 64, "sh": 64 },
+            { "sheet": "rocks_grass",  "sx": 128, "sy": 192, "sw": 64, "sh": 64 },
+
+            { "sheet": "rocks_grass",  "sx": 0,   "sy": 256, "sw": 64, "sh": 64 },
+            { "sheet": "rocks_grass",  "sx": 64,  "sy": 256, "sw": 64, "sh": 64 },
+            { "sheet": "rocks_grass",  "sx": 128, "sy": 256, "sw": 64, "sh": 64 },
+            { "sheet": "rocks_grass",  "sx": 0,   "sy": 320, "sw": 64, "sh": 64 },
+            { "sheet": "rocks_grass",  "sx": 64,  "sy": 320, "sw": 64, "sh": 64 },
+            { "sheet": "rocks_grass",  "sx": 128, "sy": 320, "sw": 64, "sh": 64 },
+
+            { "sheet": "rocks_cliffs", "sx": 0,   "sy": 0,   "sw": 64, "sh": 64 },
+            { "sheet": "rocks_cliffs", "sx": 64,  "sy": 0,   "sw": 64, "sh": 64 },
+            { "sheet": "rocks_cliffs", "sx": 128, "sy": 0,   "sw": 64, "sh": 64 },
+            { "sheet": "rocks_cliffs", "sx": 0,   "sy": 64,  "sw": 64, "sh": 64 },
+            { "sheet": "rocks_cliffs", "sx": 64,  "sy": 64,  "sw": 64, "sh": 64 },
+            { "sheet": "rocks_cliffs", "sx": 128, "sy": 64,  "sw": 64, "sh": 64 }
+        ]
+    },
+
+    "fallbackTerrainFills": {
+        "grass": [
+            { "col": 1, "row": 1 }, { "col": 3, "row": 1 }, { "col": 4, "row": 1 },
+            { "col": 5, "row": 1 }, { "col": 3, "row": 2 }, { "col": 4, "row": 2 },
+            { "col": 5, "row": 2 }
+        ],
+        "dirt": [
+            { "col": 3, "row": 3 }, { "col": 4, "row": 3 }, { "col": 5, "row": 3 },
+            { "col": 3, "row": 4 }, { "col": 4, "row": 4 }, { "col": 5, "row": 4 }
+        ],
+        "sand": [
+            { "col": 10, "row": 1 }, { "col": 3, "row": 5 },
+            { "col": 4, "row": 5 }, { "col": 5, "row": 5 }
+        ],
+        "dry_dirt": [
+            { "col": 3, "row": 6 }, { "col": 4, "row": 6 }, { "col": 10, "row": 6 },
+            { "col": 9, "row": 9 }, { "col": 10, "row": 9 }
+        ],
+        "water": [
+            { "col": 1, "row": 11 }, { "col": 1, "row": 21 },
+            { "col": 12, "row": 16 }, { "col": 13, "row": 16 },
+            { "col": 14, "row": 16 }, { "col": 15, "row": 16 },
+            { "col": 12, "row": 17 }, { "col": 13, "row": 17 },
+            { "col": 14, "row": 17 }, { "col": 15, "row": 17 }
+        ],
+        "deep_water": [
+            { "col": 1, "row": 24 }
+        ],
+        "stone": [
+            { "col": 3, "row": 3 }, { "col": 4, "row": 3 }, { "col": 5, "row": 3 },
+            { "col": 3, "row": 4 }, { "col": 4, "row": 4 }, { "col": 5, "row": 4 }
+        ],
+        "dark_stone": [
+            { "col": 3, "row": 3 }, { "col": 4, "row": 3 }, { "col": 5, "row": 3 },
+            { "col": 3, "row": 4 }, { "col": 4, "row": 4 }, { "col": 5, "row": 4 }
+        ]
+    },
+
+    "buildingToLPC": {
+        "_note": "Maps building type keys to LPC structure sheet keys",
+        "town_hall":   "struct_brick_a",
+        "marketplace": "struct_brick_a",
+        "market":      "struct_brick_a",
+        "tavern":      "struct_brick_b",
+        "inn":         "struct_brick_b",
+        "blacksmith":  "struct_brick_a",
+        "church":      "struct_brick_a",
+        "temple":      "struct_brick_a",
+        "barracks":    "struct_brick_b",
+        "warehouse":   "struct_panel_a",
+        "stable":      "struct_panel_a",
+        "guardhouse":  "struct_brick_b",
+        "guard_tower": "struct_brick_b",
+        "castle":      "struct_brick_a",
+        "house":       "struct_panel_a",
+        "manor":       "struct_brick_a",
+        "farm":        "struct_panel_a",
+        "barn":        "struct_panel_a",
+        "granary":     "struct_panel_a",
+        "well":        "fountain",
+        "fountain":    "fountain",
+        "workshop":    "struct_panel_a",
+        "library":     "struct_brick_a"
+    },
+
+    "spritePathToLPC": {
+        "_note": "Maps hex sprite path substrings to LPC sheet keys (for buildings placed as sprite paths by innerMap.js)",
+        "walledCity":    "struct_brick_a",
+        "marketplace":   "struct_brick_a",
+        "inn":           "struct_brick_b",
+        "church":        "struct_brick_a",
+        "temple":        "struct_brick_a",
+        "barracks":      "struct_brick_b",
+        "granary":       "struct_panel_a",
+        "warehouse":     "struct_panel_a",
+        "smithy":        "struct_brick_a",
+        "well":          "fountain",
+        "barn":          "struct_panel_a",
+        "village":       "struct_panel_a",
+        "tent":          "struct_panel_a",
+        "sign":          "signs",
+        "loggingCamp":   "struct_panel_a",
+        "cookhouse":     "struct_panel_a",
+        "windmill":      "struct_panel_a",
+        "archeryRange":  "struct_panel_a",
+        "mines":         "struct_panel_a",
+        "scriptorium":   "struct_brick_a",
+        "alchemistsLab": "struct_brick_a",
+        "clayPit":       "struct_panel_a",
+        "corral":        "fence_plain",
+        "pasture":       "fence_plain",
+        "pen":           "fence_plain",
+        "forester":      "struct_panel_a",
+        "farm":          "struct_panel_a"
+    },
+
+    "actionDefs": {
+        "_note": "Context menu action definitions — label, icon, description",
+        "trade":                { "label": "Trade Goods",         "icon": "🛒", "desc": "Buy and sell goods" },
+        "browse_goods":         { "label": "Browse Goods",        "icon": "👀", "desc": "See what's for sale" },
+        "buy_weapons":          { "label": "Buy Weapons",         "icon": "⚔️", "desc": "Purchase weapons" },
+        "buy_tools":            { "label": "Buy Tools",           "icon": "🔧", "desc": "Purchase tools" },
+        "buy_food":             { "label": "Buy Food",            "icon": "🍞", "desc": "Purchase food supplies" },
+        "buy_drink":            { "label": "Buy a Drink",         "icon": "🍺", "desc": "Enjoy a refreshment" },
+        "tavern":               { "label": "Enter Tavern",        "icon": "🍺", "desc": "Visit the tavern" },
+        "rest":                 { "label": "Rest Here",           "icon": "💤", "desc": "Take a break" },
+        "pray":                 { "label": "Pray",                "icon": "🙏", "desc": "Pray at the altar" },
+        "meditate":             { "label": "Meditate",            "icon": "🧘", "desc": "Quiet contemplation" },
+        "donate":               { "label": "Donate (10g)",        "icon": "💰", "desc": "Give a donation" },
+        "recruit":              { "label": "Recruit",             "icon": "⚔️", "desc": "Recruit soldiers" },
+        "train_combat":         { "label": "Train Combat",        "icon": "🗡️", "desc": "Train your combat skills" },
+        "repair":               { "label": "Repair Equipment",    "icon": "🔧", "desc": "Fix your gear" },
+        "talk_merchant":        { "label": "Talk to Merchant",    "icon": "💬", "desc": "Chat with the merchant" },
+        "talk_locals":          { "label": "Talk to Locals",      "icon": "💬", "desc": "Hear the latest gossip" },
+        "talk_priest":          { "label": "Talk to Priest",      "icon": "💬", "desc": "Seek counsel" },
+        "talk_captain":         { "label": "Talk to Captain",     "icon": "💬", "desc": "Speak with the guard captain" },
+        "talk_guard":           { "label": "Talk to Guard",       "icon": "💬", "desc": "Speak with a guard" },
+        "talk_official":        { "label": "Talk to Official",    "icon": "💬", "desc": "Speak with an official" },
+        "ask_directions":       { "label": "Ask Directions",      "icon": "🧭", "desc": "Get directions" },
+        "view_notices":         { "label": "View Notices",        "icon": "📜", "desc": "Check the notice board" },
+        "pay_taxes":            { "label": "Pay Taxes",           "icon": "💰", "desc": "Pay your dues" },
+        "seek_blessing":        { "label": "Seek Blessing",       "icon": "✨", "desc": "Request a holy blessing" },
+        "seek_audience":        { "label": "Seek Audience",       "icon": "🏛️", "desc": "Request an audience with the lord" },
+        "store_goods":          { "label": "Store Goods",         "icon": "📦", "desc": "Store items here" },
+        "collect_goods":        { "label": "Collect Goods",       "icon": "📦", "desc": "Pick up stored items" },
+        "buy_horse":            { "label": "Buy Horse",           "icon": "🐴", "desc": "Purchase a horse" },
+        "stable_horse":         { "label": "Stable Horse",        "icon": "🐴", "desc": "Stable your horse" },
+        "report_crime":         { "label": "Report Crime",        "icon": "🗼", "desc": "Report wrongdoing" },
+        "move_here":            { "label": "Move Here",           "icon": "🚶", "desc": "Walk to this spot" },
+        "examine":              { "label": "Examine",             "icon": "🔍", "desc": "Take a closer look" },
+        "build_property":       { "label": "Build Property",      "icon": "🏗️", "desc": "Construct a resource building" },
+        "build_temple":         { "label": "Build Temple",        "icon": "⛩️", "desc": "Construct a place of worship" },
+        "build_cultural":       { "label": "Build Cultural",      "icon": "📚", "desc": "Library, theater, etc." },
+        "build_infrastructure": { "label": "Build Infrastructure","icon": "🛤️", "desc": "Roads, bridges, irrigation" },
+        "buy_house":            { "label": "Buy a House",         "icon": "🏠", "desc": "Purchase a house" },
+        "wait_here":            { "label": "Wait",                "icon": "⏳", "desc": "Wait and let time pass" },
+        "manage_property":      { "label": "Manage Property",     "icon": "📋", "desc": "Manage this property" },
+        "forage":               { "label": "Forage",              "icon": "🌿", "desc": "Search for food and materials" }
+    },
+
+    "_note_characters": "LPC character presets — each defines compositing layers drawn bottom-to-top. Paths are relative to assets/lpc/Characters/. Walk.png and Idle.png are appended automatically.",
+
+    "characterPresets": {
+        "male_light_1": {
+            "layers": [
+                "Body/Body 02 - Masculine, Thin/Ivory",
+                "Head/Head 02 - Masculine/Ivory",
+                "Clothing/Masculine, Thin/Legs/Pants 03 - Pants/Brown",
+                "Clothing/Masculine, Thin/Torso/Shirt 04 - T-shirt/Beige",
+                "Hair/Short 02 - Parted/Brown"
+            ]
+        },
+        "male_tan_1": {
+            "layers": [
+                "Body/Body 02 - Masculine, Thin/Tan",
+                "Head/Head 02 - Masculine/Tan",
+                "Clothing/Masculine, Thin/Legs/Pants 03 - Pants/Charcoal",
+                "Clothing/Masculine, Thin/Torso/Shirt 04 - T-shirt/Forest",
+                "Hair/Short 03 - Curly/Black"
+            ]
+        },
+        "male_dark_1": {
+            "layers": [
+                "Body/Body 02 - Masculine, Thin/Brown",
+                "Head/Head 02 - Masculine/Brown",
+                "Clothing/Masculine, Thin/Legs/Pants 03 - Pants/Navy",
+                "Clothing/Masculine, Thin/Torso/Shirt 01 - Longsleeve Shirt/Blue",
+                "Hair/Short 05 - Natural/Black"
+            ]
+        },
+        "female_light_1": {
+            "layers": [
+                "Body/Body 01 - Feminine, Thin/Peach",
+                "Head/Head 01 - Feminine/Peach",
+                "Clothing/Feminine, Thin/Legs/Pants 03 - Pants/Brown",
+                "Clothing/Feminine, Thin/Torso/Shirt 04 - T-shirt/Blue",
+                "Hair/Medium 01 - Page/Brown"
+            ]
+        },
+        "female_bronze_1": {
+            "layers": [
+                "Body/Body 01 - Feminine, Thin/Bronze",
+                "Head/Head 01 - Feminine/Bronze",
+                "Clothing/Feminine, Thin/Legs/Pants 02 - Leggings/Brown",
+                "Clothing/Feminine, Thin/Torso/Shirt 06 - Scoop T-shirt/Red",
+                "Hair/Medium 02 - Curly/Black"
+            ]
+        },
+        "male_farmer": {
+            "layers": [
+                "Body/Body 02 - Masculine, Thin/Tan",
+                "Head/Head 02 - Masculine/Tan",
+                "Clothing/Masculine, Thin/Legs/Pants 05 - Overalls/Brown",
+                "Clothing/Masculine, Thin/Torso/Shirt 04 - T-shirt/Green",
+                "Hair/Short 04 - Cowlick/Brown"
+            ]
+        },
+        "female_farmer": {
+            "layers": [
+                "Body/Body 01 - Feminine, Thin/Peach",
+                "Head/Head 01 - Feminine/Peach",
+                "Clothing/Feminine, Thin/Legs/Pants 03 - Pants/Brown",
+                "Clothing/Feminine, Thin/Torso/Shirt 04 - T-shirt/Green",
+                "Hair/Medium 08 - Bob, Bangs/Chestnut"
+            ]
+        },
+        "male_guard": {
+            "layers": [
+                "Body/Body 02 - Masculine, Thin/Peach",
+                "Head/Head 02 - Masculine/Peach",
+                "Clothing/Masculine, Thin/Legs/Pants 03 - Pants/Charcoal",
+                "Clothing/Masculine, Thin/Torso/Shirt 07 - Buttoned Longsleeve Shirt/Charcoal",
+                "Hair/Short 01 - Buzzcut/Brown"
+            ]
+        },
+        "male_merchant": {
+            "layers": [
+                "Body/Body 02 - Masculine, Thin/Ivory",
+                "Head/Head 02 - Masculine/Ivory",
+                "Clothing/Masculine, Thin/Legs/Pants 03 - Pants/Charcoal",
+                "Clothing/Masculine, Thin/Torso/Shirt 07 - Buttoned Longsleeve Shirt/Navy",
+                "Hair/Short 02 - Parted/Black"
+            ]
+        },
+        "female_merchant": {
+            "layers": [
+                "Body/Body 01 - Feminine, Thin/Honey",
+                "Head/Head 01 - Feminine/Honey",
+                "Clothing/Feminine, Thin/Legs/Pants 03 - Pants/Brown",
+                "Clothing/Feminine, Thin/Torso/Shirt 01 - Longsleeve Shirt/Red",
+                "Hair/Medium 07 - Bob, Side Part/Brown"
+            ]
+        },
+        "male_priest": {
+            "layers": [
+                "Body/Body 02 - Masculine, Thin/Ivory",
+                "Head/Head 03 - Elderly/Ivory",
+                "Clothing/Masculine, Thin/Legs/Pants 03 - Pants/Brown",
+                "Clothing/Masculine, Thin/Torso/Shirt 01 - Longsleeve Shirt/White",
+                "Hair/Short 06 - Balding/Silver"
+            ]
+        },
+        "male_noble": {
+            "layers": [
+                "Body/Body 02 - Masculine, Thin/Ivory",
+                "Head/Head 02 - Masculine/Ivory",
+                "Clothing/Masculine, Thin/Legs/Pants 03 - Pants/Midnight",
+                "Clothing/Masculine, Thin/Torso/Shirt 02 - V-neck Longsleeve Shirt/Purple",
+                "Hair/Short 02 - Parted/Black"
+            ]
+        },
+        "female_noble": {
+            "layers": [
+                "Body/Body 01 - Feminine, Thin/Peach",
+                "Head/Head 01 - Feminine/Peach",
+                "Clothing/Feminine, Thin/Legs/Pants 02 - Leggings/Midnight",
+                "Clothing/Feminine, Thin/Torso/Shirt 03 - Scoop Longsleeve Shirt/Garnet",
+                "Hair/Medium 03 - Idol/Blonde"
+            ]
+        },
+        "male_beggar": {
+            "layers": [
+                "Body/Body 02 - Masculine, Thin/Tawny",
+                "Head/Head 03 - Elderly/Tawny",
+                "Clothing/Masculine, Thin/Legs/Pants 01 - Hose/Brown",
+                "Clothing/Masculine, Thin/Torso/Shirt 04 - T-shirt/Brown",
+                "Hair/Short 05 - Natural/Gray"
+            ]
+        }
+    },
+
+    "npcAppearanceMap": {
+        "_note": "Maps NPC type keys to arrays of valid character preset IDs. NPC picks one by seeded index.",
+        "villager":       ["male_light_1", "male_tan_1", "male_dark_1", "female_light_1", "female_bronze_1"],
+        "farmer":         ["male_farmer", "female_farmer"],
+        "guard":          ["male_guard"],
+        "merchant":       ["male_merchant", "female_merchant"],
+        "priest":         ["male_priest"],
+        "blacksmith_npc": ["male_tan_1", "male_dark_1"],
+        "noble":          ["male_noble", "female_noble"],
+        "child":          ["male_light_1", "female_light_1", "male_tan_1", "female_bronze_1"],
+        "traveler":       ["male_dark_1", "male_tan_1", "female_bronze_1"],
+        "beggar":         ["male_beggar"]
+    }
+}

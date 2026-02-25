@@ -1,0 +1,203 @@
+{
+    "meta": {
+        "description": "LPC object sprite sheets — furniture, small items, smithing, food",
+        "basePath": "assets/lpc/Objects/"
+    },
+    "sheets": {
+        "furniture": {
+            "barrel": {
+                "path": "assets/lpc/Objects/Furniture/Barrel.png",
+                "width": 160,
+                "height": 64,
+                "sprites": [
+                    { "id": "barrel_closed", "sx": 0,  "sy": 0, "sw": 32, "sh": 32 },
+                    { "id": "barrel_open",   "sx": 32, "sy": 0, "sw": 32, "sh": 32 }
+                ]
+            },
+            "chest": {
+                "path": "assets/lpc/Objects/Furniture/Chest.png",
+                "width": 128,
+                "height": 96,
+                "sprites": [
+                    { "id": "chest_closed", "sx": 0,  "sy": 0, "sw": 32, "sh": 32 },
+                    { "id": "chest_open",   "sx": 32, "sy": 0, "sw": 32, "sh": 32 }
+                ]
+            },
+            "crate": {
+                "path": "assets/lpc/Objects/Furniture/Crate.png",
+                "width": 96,
+                "height": 128,
+                "sprites": [
+                    { "id": "crate_a", "sx": 0,  "sy": 0, "sw": 32, "sh": 32 },
+                    { "id": "crate_b", "sx": 32, "sy": 0, "sw": 32, "sh": 32 }
+                ]
+            },
+            "cauldron": {
+                "path": "assets/lpc/Objects/Furniture/Cauldron.png",
+                "width": 32,
+                "height": 160,
+                "sprites": [
+                    { "id": "cauldron_empty", "sx": 0, "sy": 0,  "sw": 32, "sh": 32 },
+                    { "id": "cauldron_full",  "sx": 0, "sy": 32, "sw": 32, "sh": 32 }
+                ]
+            },
+            "fireplace": {
+                "path": "assets/lpc/Objects/Furniture/Fireplace.png",
+                "width": 192,
+                "height": 192,
+                "sprites": [
+                    { "id": "fireplace_stone", "sx": 0,  "sy": 0, "sw": 64, "sh": 64 },
+                    { "id": "fireplace_brick", "sx": 64, "sy": 0, "sw": 64, "sh": 64 }
+                ]
+            },
+            "planter": {
+                "path": "assets/lpc/Objects/Furniture/Planter.png",
+                "width": 160,
+                "height": 96,
+                "sprites": [
+                    { "id": "planter_empty", "sx": 0,  "sy": 0, "sw": 32, "sh": 32 },
+                    { "id": "planter_full",  "sx": 32, "sy": 0, "sw": 32, "sh": 32 }
+                ]
+            },
+            "trough": {
+                "path": "assets/lpc/Objects/Furniture/Trough.png",
+                "width": 320,
+                "height": 320,
+                "sprites": [
+                    { "id": "trough_empty",  "sx": 0,  "sy": 0, "sw": 64, "sh": 32 },
+                    { "id": "trough_water",  "sx": 64, "sy": 0, "sw": 64, "sh": 32 }
+                ]
+            },
+            "cabinet": {
+                "path": "assets/lpc/Objects/Furniture/Cabinet.png",
+                "width": 224,
+                "height": 288
+            },
+            "dresser": {
+                "path": "assets/lpc/Objects/Furniture/Dresser.png",
+                "width": 384,
+                "height": 384
+            },
+            "shelf": {
+                "path": "assets/lpc/Objects/Furniture/Shelf.png",
+                "width": 224,
+                "height": 96
+            },
+            "table_rough_wood": {
+                "path": "assets/lpc/Objects/Furniture/Table, Rough Wood.png",
+                "width": 192,
+                "height": 192
+            },
+            "table_ornate_wood": {
+                "path": "assets/lpc/Objects/Furniture/Table, Ornate Wood.png",
+                "width": 192,
+                "height": 128
+            },
+            "table_card": {
+                "path": "assets/lpc/Objects/Furniture/Table, Card.png",
+                "width": 128,
+                "height": 192
+            },
+            "table_workshop": {
+                "path": "assets/lpc/Objects/Furniture/Table, Workshop.png",
+                "width": 128,
+                "height": 128
+            },
+            "ladder": {
+                "path": "assets/lpc/Objects/Furniture/Ladder.png",
+                "width": 96,
+                "height": 96
+            },
+            "lighting_floor": {
+                "path": "assets/lpc/Objects/Furniture/Lighting, Floor.png",
+                "width": 192,
+                "height": 192
+            },
+            "lighting_outdoors": {
+                "path": "assets/lpc/Objects/Furniture/Lighting, Outdoors.png",
+                "width": 64,
+                "height": 96
+            },
+            "christmas_tree": {
+                "path": "assets/lpc/Objects/Furniture/Christmas Tree.png",
+                "width": 192,
+                "height": 128
+            },
+            "standing_screen": {
+                "path": "assets/lpc/Objects/Furniture/Standing Screen.png",
+                "width": 256,
+                "height": 160
+            },
+            "stone_slab": {
+                "path": "assets/lpc/Objects/Furniture/Stone Slab.png",
+                "width": 128,
+                "height": 128
+            },
+            "wolf_stone": {
+                "path": "assets/lpc/Objects/Furniture/Wolf Stone.png",
+                "width": 128,
+                "height": 128
+            },
+            "workbench_carpentry": {
+                "path": "assets/lpc/Objects/Furniture/Workbench, Carpentry.png",
+                "width": 128,
+                "height": 160
+            }
+        },
+        "seating": {
+            "thrones": {
+                "path": "assets/lpc/Objects/Furniture/Seating/Thrones.png",
+                "width": 480,
+                "height": 256,
+                "description": "Multiple throne variants"
+            }
+        },
+        "smithing": {
+            "anvils": {
+                "path": "assets/lpc/Objects/Furniture/Smithing/Anvils.png",
+                "width": 128,
+                "height": 64,
+                "sprites": [
+                    { "id": "anvil_a", "sx": 0,  "sy": 0, "sw": 32, "sh": 32 },
+                    { "id": "anvil_b", "sx": 32, "sy": 0, "sw": 32, "sh": 32 }
+                ]
+            }
+        },
+        "small_items": {
+            "campfire": {
+                "path": "assets/lpc/Objects/Small Items/Fire, Camp.png",
+                "description": "Campfire with animation frames"
+            },
+            "hay": {
+                "path": "assets/lpc/Objects/Small Items/Hay & Straw.png",
+                "description": "Hay bales and straw piles"
+            },
+            "lumber": {
+                "path": "assets/lpc/Objects/Small Items/Lumber.png",
+                "description": "Lumber piles and logs"
+            }
+        },
+        "wall_items": {
+            "curtains": {
+                "path": "assets/lpc/Objects/Wall Items/Curtains.png",
+                "width": 768,
+                "height": 416
+            },
+            "lighting_wall": {
+                "path": "assets/lpc/Objects/Wall Items/Lighting, Wall.png",
+                "width": 192,
+                "height": 64
+            },
+            "paintings_landscape": {
+                "path": "assets/lpc/Objects/Wall Items/Paintings, Landscape.png",
+                "width": 128,
+                "height": 128
+            },
+            "paintings_portraits": {
+                "path": "assets/lpc/Objects/Wall Items/Paintings, Portraits.png",
+                "width": 160,
+                "height": 128
+            }
+        }
+    }
+}

@@ -1,0 +1,324 @@
+{
+    "meta": {
+        "description": "LPC structure sprite sheets — buildings, walls, roofs, doors, windows, fences, misc",
+        "basePath": "assets/lpc/Structure/"
+    },
+    "sheets": {
+        "structures": {
+            "brick_house_a": {
+                "path": "assets/lpc/Structure/Structures/Brick House A.png",
+                "width": 256,
+                "height": 224,
+                "description": "Large brick building facade"
+            },
+            "brick_house_b": {
+                "path": "assets/lpc/Structure/Structures/Brick House B.png",
+                "width": 192,
+                "height": 192,
+                "description": "Medium brick building facade"
+            },
+            "paneled_house_a": {
+                "path": "assets/lpc/Structure/Structures/Paneled House A.png",
+                "width": 160,
+                "height": 160,
+                "description": "Wood-paneled house"
+            }
+        },
+        "roofing": {
+            "flat_shingle": {
+                "path": "assets/lpc/Structure/Roofing/Flat Shingle Roof A.png",
+                "width": 768,
+                "height": 384,
+                "description": "Flat shingle roof tiles in multiple colors"
+            },
+            "gable_shingle": {
+                "path": "assets/lpc/Structure/Roofing/Gable Shingle Roof A.png",
+                "width": 768,
+                "height": 480,
+                "description": "Peaked gable roof tiles"
+            },
+            "hipped_shingle": {
+                "path": "assets/lpc/Structure/Roofing/Hipped Shingle Roof A.png",
+                "width": 960,
+                "height": 480,
+                "description": "Hipped (4-slope) roof tiles"
+            },
+            "adobe_brick": {
+                "path": "assets/lpc/Structure/Roofing/Adobe Brick Roof.png",
+                "width": 384,
+                "height": 256,
+                "description": "Adobe/clay roof tiles"
+            },
+            "adobe_stucco": {
+                "path": "assets/lpc/Structure/Roofing/Adobe Stucco Roof.png",
+                "width": 416,
+                "height": 128,
+                "description": "Stucco flat roof"
+            },
+            "chimney": {
+                "path": "assets/lpc/Structure/Roofing/Brick Chimney A.png",
+                "width": 192,
+                "height": 192,
+                "description": "Brick chimney in multiple orientations"
+            },
+            "roof_trim": {
+                "path": "assets/lpc/Structure/Roofing/Roof Trim.png",
+                "width": 1536,
+                "height": 288,
+                "description": "Roof edge trim/decorative pieces"
+            }
+        },
+        "walls": {
+            "brick_wall_a": {
+                "path": "assets/lpc/Structure/Walls/Brick Wall A.png",
+                "width": 192,
+                "height": 288
+            },
+            "brick_wall_b": {
+                "path": "assets/lpc/Structure/Walls/Brick Wall B.png",
+                "width": 384,
+                "height": 288
+            },
+            "adobe_brick": {
+                "path": "assets/lpc/Structure/Walls/Adobe Brick Wall.png",
+                "width": 128,
+                "height": 192
+            },
+            "adobe_stucco": {
+                "path": "assets/lpc/Structure/Walls/Adobe Stucco Wall.png",
+                "width": 256,
+                "height": 160
+            },
+            "jagged_stone": {
+                "path": "assets/lpc/Structure/Walls/Jagged Stone Walls.png",
+                "width": 192,
+                "height": 288
+            },
+            "siding_plain": {
+                "path": "assets/lpc/Structure/Walls/Siding, Plain.png",
+                "width": 1600,
+                "height": 384
+            },
+            "painted": {
+                "path": "assets/lpc/Structure/Walls/Painted Walls.png",
+                "width": 1536,
+                "height": 512
+            }
+        },
+        "doors": {
+            "panel_door_a_32x48": {
+                "path": "assets/lpc/Structure/Doors/32x48px Doors/12 Panel Door A.png",
+                "width": 896,
+                "height": 768,
+                "spriteSize": { "w": 32, "h": 48 },
+                "description": "Standard 32×48 panel doors with color variants"
+            },
+            "panel_door_b_32x48": {
+                "path": "assets/lpc/Structure/Doors/32x48px Doors/12 Panel Door B.png",
+                "width": 896,
+                "height": 768,
+                "spriteSize": { "w": 32, "h": 48 }
+            },
+            "barred_prison_32x48": {
+                "path": "assets/lpc/Structure/Doors/32x48px Doors/Barred Prison Door A.png",
+                "width": 448,
+                "height": 96,
+                "spriteSize": { "w": 32, "h": 48 }
+            },
+            "doorframe_a_32x48": {
+                "path": "assets/lpc/Structure/Doors/32x48px Doors/Doorframe A.png",
+                "width": 384,
+                "height": 192
+            },
+            "panel_door_a_32x64": {
+                "path": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png",
+                "width": 896,
+                "height": 1024,
+                "spriteSize": { "w": 32, "h": 64 },
+                "description": "Tall 32×64 panel doors with color variants"
+            },
+            "arched_doorway": {
+                "path": "assets/lpc/Structure/Doors/64x64px Arched Doors/Arched Doorway A.png",
+                "width": 160,
+                "height": 288,
+                "spriteSize": { "w": 64, "h": 64 }
+            },
+            "arched_double": {
+                "path": "assets/lpc/Structure/Doors/64x64px Arched Doors/Arched Double Doors A.png",
+                "width": 256,
+                "height": 384,
+                "spriteSize": { "w": 64, "h": 64 }
+            }
+        },
+        "windows": {
+            "ornamental_a": {
+                "path": "assets/lpc/Structure/Windows/Ornamental Windows A.png",
+                "width": 96,
+                "height": 160,
+                "emission": "assets/lpc/Structure/Windows/Ornamental Windows A - Emission.png"
+            },
+            "ornamental_b": {
+                "path": "assets/lpc/Structure/Windows/Ornamental Windows B.png",
+                "width": 96,
+                "height": 128,
+                "emission": "assets/lpc/Structure/Windows/Ornamental Windows B - Emission.png"
+            },
+            "stone_a": {
+                "path": "assets/lpc/Structure/Windows/Stone Windows A.png",
+                "width": 96,
+                "height": 128,
+                "emission": "assets/lpc/Structure/Windows/Stone Windows A - Emission.png"
+            },
+            "awnings": {
+                "path": "assets/lpc/Structure/Windows/Window Awnings A.png",
+                "width": 288,
+                "height": 192
+            }
+        },
+        "fences": {
+            "ornamental_a": {
+                "path": "assets/lpc/Structure/Fences/Ornamental Fence A.png",
+                "width": 128,
+                "height": 256
+            },
+            "ornamental_b": {
+                "path": "assets/lpc/Structure/Fences/Ornamental Fence B.png",
+                "width": 128,
+                "height": 128
+            },
+            "plain_a": {
+                "path": "assets/lpc/Structure/Fences/Plain Fence A.png",
+                "width": 160,
+                "height": 128
+            }
+        },
+        "bridges": {
+            "drawbridge": {
+                "path": "assets/lpc/Structure/Bridges/Drawbridge A.png",
+                "width": 128,
+                "height": 192
+            },
+            "rope_no_rails": {
+                "path": "assets/lpc/Structure/Bridges/Rope Bridge A - No Rails.png",
+                "width": 128,
+                "height": 192
+            },
+            "rope_rails": {
+                "path": "assets/lpc/Structure/Bridges/Rope Bridge A - Rails.png",
+                "width": 160,
+                "height": 288
+            },
+            "wood_no_rails": {
+                "path": "assets/lpc/Structure/Bridges/Wood Bridge A - No Rails.png",
+                "width": 320,
+                "height": 384
+            },
+            "wood_rails": {
+                "path": "assets/lpc/Structure/Bridges/Wood Bridge A - Rails.png",
+                "width": 320,
+                "height": 384
+            }
+        },
+        "misc": {
+            "fountain": {
+                "path": "assets/lpc/Structure/Misc/Fountain A.png",
+                "width": 64,
+                "height": 96,
+                "description": "Animated fountain (2×3 frames at 32×32)"
+            },
+            "pool": {
+                "path": "assets/lpc/Structure/Misc/Pool A.png",
+                "width": 96,
+                "height": 96
+            },
+            "prison": {
+                "path": "assets/lpc/Structure/Misc/Prison A.png",
+                "width": 192,
+                "height": 128
+            },
+            "drain": {
+                "path": "assets/lpc/Structure/Misc/Drain A.png",
+                "width": 32,
+                "height": 128
+            },
+            "trellis": {
+                "path": "assets/lpc/Structure/Misc/Trellis A.png",
+                "width": 384,
+                "height": 256
+            }
+        },
+        "signs": {
+            "backgrounds": {
+                "path": "assets/lpc/Structure/Signs/Sign Backgrounds A.png",
+                "width": 64,
+                "height": 64
+            },
+            "icons": {
+                "path": "assets/lpc/Structure/Signs/Sign Icons A.png",
+                "width": 160,
+                "height": 96
+            }
+        },
+        "pillars": {
+            "floral": {
+                "path": "assets/lpc/Structure/Pillars/Floral Pillar A.png",
+                "width": 320,
+                "height": 512
+            },
+            "stone": {
+                "path": "assets/lpc/Structure/Pillars/Stone Pillar A.png",
+                "width": 288,
+                "height": 384
+            }
+        },
+        "stairs": {
+            "cement": {
+                "path": "assets/lpc/Structure/Stairs/Cement Stairs A.png",
+                "width": 160,
+                "height": 128
+            },
+            "formal_interior": {
+                "path": "assets/lpc/Structure/Stairs/Formal Interior Stairs A.png",
+                "width": 256,
+                "height": 352
+            },
+            "wood_interior_a": {
+                "path": "assets/lpc/Structure/Stairs/Wood Interior Stairs A.png",
+                "width": 256,
+                "height": 352
+            },
+            "wood_interior_b": {
+                "path": "assets/lpc/Structure/Stairs/Wood Interior Stairs B.png",
+                "width": 256,
+                "height": 352
+            },
+            "short_steps": {
+                "path": "assets/lpc/Structure/Stairs/Short Steps A.png",
+                "width": 224,
+                "height": 160
+            }
+        },
+        "floor": {
+            "wood_a": {
+                "path": "assets/lpc/Structure/Floor/Wood Floor A.png",
+                "width": 160,
+                "height": 192
+            },
+            "tile_a": {
+                "path": "assets/lpc/Structure/Floor/Tile A.png",
+                "width": 96,
+                "height": 128
+            },
+            "gritty_dirt": {
+                "path": "assets/lpc/Structure/Floor/Gritty Dirt.png",
+                "width": 64,
+                "height": 64
+            },
+            "herringbone": {
+                "path": "assets/lpc/Structure/Floor/Herringbone A.png",
+                "width": 96,
+                "height": 96
+            }
+        }
+    }
+}

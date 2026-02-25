@@ -490,8 +490,13 @@
                             <option value="normal" selected>Normal</option>
                             <option value="many">Many</option>
                         </select>
-                    </div>
-                </div>
+                    </div>                    <div class="input-row">
+                        <label for="customBuildingsOnly" title="Skip the built-in legacy buildings and use only your custom buildings from sprite_editor.html">Custom Buildings Only:</label>
+                        <input type="checkbox" id="customBuildingsOnly" style="width:auto;margin-top:4px;" title="Use only editor-authored buildings from sprite_editor.html — skips the built-in building set">
+                    </div>                    <div class="input-row">
+                        <label for="customObjectsOnly" title="Skip the built-in terrain objects (trees, rocks, plants) and use only your custom objects from sprite_editor.html">Custom Objects Only:</label>
+                        <input type="checkbox" id="customObjectsOnly" style="width:auto;margin-top:4px;" title="Use only editor-authored objects from sprite_editor.html — skips the built-in terrain overlays">
+                    </div>                </div>
             </div>
 
             <!-- Advanced Settings Toggle -->
@@ -572,6 +577,8 @@
     <script src="js/world/units.js"></script>
     <script src="js/world/world.js"></script>
     <script src="js/world/colonization.js"></script>
+    <script src="js/world/customObjects.js"></script>
+    <script src="js/world/customBuildings.js"></script>
     <script src="js/world/innerMap.js"></script>
 
     <!-- Scripts — Player (loaded before Systems that depend on it) -->
@@ -585,6 +592,7 @@
     <script src="js/systems/festivals.js"></script>
     <script src="js/systems/achievements.js"></script>
     <script src="js/systems/saveLoad.js"></script>
+    <script src="js/systems/tiledExport.js"></script>
     <script src="js/systems/technology.js"></script>
     <script src="js/systems/infrastructure.js"></script>
     <script src="js/systems/religion.js"></script>
@@ -610,6 +618,9 @@
     <script src="js/ui/camera.js"></script>
     <script src="js/ui/renderer.js"></script>
     <script src="js/ui/innerMapRenderer.js"></script>
+    <script src="js/ui/innerMapCharacters.js"></script>
+    <script src="js/ui/innerMapLayers.js"></script>
+    <script src="js/ui/innerMapUI.js"></script>
     <script src="js/ui/ui.js"></script>
     <script src="js/ui/actionMenu.js"></script>
     <script src="js/ui/minimap.js"></script>

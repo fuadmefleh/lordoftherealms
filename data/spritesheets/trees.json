@@ -1,0 +1,108 @@
+{
+    "meta": {
+        "description": "LPC tree sprite sheets — seasonal tree variants extracted from 512×576 sheets",
+        "note": "Each sheet is laid out as a grid. Column 0 contains shadow blobs. Actual tree sprites start at column 1. The grid is 4 cols × 4 rows of 128×144 blocks. Within each block, the tree sprite is approximately 96×120, offset from the block origin."
+    },
+    "sheets": {
+        "trees_summer": {
+            "path": "assets/lpc/Terrain/trees_summer.png",
+            "width": 512,
+            "height": 576
+        },
+        "trees_spring": {
+            "path": "assets/lpc/Terrain/trees_spring.png",
+            "width": 512,
+            "height": 576
+        },
+        "trees_autumn": {
+            "path": "assets/lpc/Terrain/trees_autumn.png",
+            "width": 512,
+            "height": 576
+        },
+        "trees_winter": {
+            "path": "assets/lpc/Terrain/trees_winter.png",
+            "width": 512,
+            "height": 576
+        }
+    },
+    "layout": {
+        "gridCols": 4,
+        "gridRows": 4,
+        "blockWidth": 128,
+        "blockHeight": 144,
+        "description": "Column 0 = shadow sprites (skip). Columns 1-3 × Rows 0-3 = tree sprites."
+    },
+    "sprites": {
+        "shadows": {
+            "description": "Column 0 contains dark/gray shadow ovals per row — not trees",
+            "items": [
+                { "id": "shadow_dark_large",  "sx": 0, "sy": 0,   "sw": 128, "sh": 144, "description": "Dark shadow oval (row 0)" },
+                { "id": "shadow_gray_large",  "sx": 0, "sy": 144, "sw": 128, "sh": 144, "description": "Gray shadow oval (row 1)" },
+                { "id": "shadow_dark_small",  "sx": 0, "sy": 288, "sw": 128, "sh": 144, "description": "Dark shadow blob (row 2)" },
+                { "id": "shadow_gray_small",  "sx": 0, "sy": 432, "sw": 128, "sh": 144, "description": "Gray shadow blob (row 3)" }
+            ]
+        },
+        "deciduous_round": {
+            "description": "Row 0 — Round-canopy deciduous trees (green in summer, pink/orange in autumn)",
+            "items": [
+                { "id": "deciduous_round_small",  "sx": 128, "sy": 0, "sw": 128, "sh": 144, "category": "deciduous", "size": "small" },
+                { "id": "deciduous_round_medium", "sx": 256, "sy": 0, "sw": 128, "sh": 144, "category": "deciduous", "size": "medium" },
+                { "id": "deciduous_round_large",  "sx": 384, "sy": 0, "sw": 128, "sh": 144, "category": "deciduous", "size": "large" }
+            ]
+        },
+        "deciduous_blossom": {
+            "description": "Row 1 — Blossom/flowering trees (pink canopies in spring/autumn)",
+            "items": [
+                { "id": "blossom_small",  "sx": 128, "sy": 144, "sw": 128, "sh": 144, "category": "blossom", "size": "small" },
+                { "id": "blossom_medium", "sx": 256, "sy": 144, "sw": 128, "sh": 144, "category": "blossom", "size": "medium" },
+                { "id": "blossom_large",  "sx": 384, "sy": 144, "sw": 128, "sh": 144, "category": "blossom", "size": "large" }
+            ]
+        },
+        "deciduous_bushy": {
+            "description": "Row 2 — Bushy/dense deciduous trees, includes bare winter tree at col 0",
+            "items": [
+                { "id": "bushy_small",  "sx": 128, "sy": 288, "sw": 128, "sh": 144, "category": "deciduous", "size": "small" },
+                { "id": "bushy_medium", "sx": 256, "sy": 288, "sw": 128, "sh": 144, "category": "deciduous", "size": "medium" },
+                { "id": "bushy_large",  "sx": 384, "sy": 288, "sw": 128, "sh": 144, "category": "deciduous", "size": "large" }
+            ]
+        },
+        "conifer": {
+            "description": "Row 3 — Coniferous/evergreen trees (pine/spruce), col 0 has stump",
+            "items": [
+                { "id": "conifer_small",  "sx": 128, "sy": 432, "sw": 128, "sh": 144, "category": "conifer", "size": "small" },
+                { "id": "conifer_medium", "sx": 256, "sy": 432, "sw": 128, "sh": 144, "category": "conifer", "size": "medium" },
+                { "id": "conifer_large",  "sx": 384, "sy": 432, "sw": 128, "sh": 144, "category": "conifer", "size": "large" }
+            ]
+        }
+    },
+    "allTreeSprites": [
+        { "id": "deciduous_round_small",  "sx": 128, "sy": 0,   "sw": 128, "sh": 144, "row": 0, "col": 1 },
+        { "id": "deciduous_round_medium", "sx": 256, "sy": 0,   "sw": 128, "sh": 144, "row": 0, "col": 2 },
+        { "id": "deciduous_round_large",  "sx": 384, "sy": 0,   "sw": 128, "sh": 144, "row": 0, "col": 3 },
+        { "id": "blossom_small",          "sx": 128, "sy": 144, "sw": 128, "sh": 144, "row": 1, "col": 1 },
+        { "id": "blossom_medium",         "sx": 256, "sy": 144, "sw": 128, "sh": 144, "row": 1, "col": 2 },
+        { "id": "blossom_large",          "sx": 384, "sy": 144, "sw": 128, "sh": 144, "row": 1, "col": 3 },
+        { "id": "bushy_small",            "sx": 128, "sy": 288, "sw": 128, "sh": 144, "row": 2, "col": 1 },
+        { "id": "bushy_medium",           "sx": 256, "sy": 288, "sw": 128, "sh": 144, "row": 2, "col": 2 },
+        { "id": "bushy_large",            "sx": 384, "sy": 288, "sw": 128, "sh": 144, "row": 2, "col": 3 },
+        { "id": "conifer_small",          "sx": 128, "sy": 432, "sw": 128, "sh": 144, "row": 3, "col": 1 },
+        { "id": "conifer_medium",         "sx": 256, "sy": 432, "sw": 128, "sh": 144, "row": 3, "col": 2 },
+        { "id": "conifer_large",          "sx": 384, "sy": 432, "sw": 128, "sh": 144, "row": 3, "col": 3 }
+    ],
+    "winterSpecial": {
+        "bare_tree":  { "sx": 0, "sy": 288, "sw": 128, "sh": 144, "description": "Leafless bare tree (winter sheet col 0, row 2)" },
+        "stump":      { "sx": 0, "sy": 432, "sw": 128, "sh": 144, "description": "Tree stump (winter sheet col 0, row 3)" }
+    },
+    "terrainMapping": {
+        "forest":          ["deciduous_round_small", "deciduous_round_medium", "deciduous_round_large", "bushy_small", "bushy_medium", "bushy_large"],
+        "seasonal_forest": ["deciduous_round_small", "deciduous_round_medium", "blossom_small", "blossom_medium", "blossom_large", "bushy_small"],
+        "woodland":        ["deciduous_round_small", "bushy_small", "deciduous_round_medium"],
+        "boreal_forest":   ["conifer_small", "conifer_medium", "conifer_large"],
+        "taiga":           ["conifer_small", "conifer_medium", "conifer_large"],
+        "grassland":       ["deciduous_round_small", "bushy_small"],
+        "savanna":         ["deciduous_round_small", "bushy_small"],
+        "hills":           ["bushy_small", "conifer_small"],
+        "highlands":       ["conifer_small", "bushy_small"],
+        "swamp":           ["bushy_small", "deciduous_round_small"]
+    }
+}

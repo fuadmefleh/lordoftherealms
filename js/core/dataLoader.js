@@ -1,46 +1,77 @@
 // ============================================
-// DATA LOADER — Loads JSON data files and populates game systems
+// DATA LOADER — Single-file loader for data/gamedata.json
 // ============================================
 
 const DataLoader = {
     _cache: {},
-    _basePath: 'data/',
+    _gamedata: null,  // The full merged data object once loaded
 
     /**
-     * Load a JSON file and cache the result
-     * @param {string} filename - JSON filename (without path)
-     * @returns {Promise<Object>} Parsed JSON data
+     * Resolve a data key from _gamedata.
+     * Supports paths like 'terrain.json', 'spritesheets/terrain.json',
+     * 'innerMapRenderer.json', 'custom_buildings/manifest.json', etc.
      */
-    async load(filename) {
-        if (this._cache[filename]) {
-            return this._cache[filename];
+    _resolve(filename) {
+        // Strip leading 'data/' if someone passes a full path
+        const rel = filename.replace(/^data\//, '');
+        // Strip .json extension
+        const key = rel.replace(/\.json$/, '');
+        const parts = key.split('/');
+        let node = this._gamedata;
+        for (const part of parts) {
+            if (node == null || typeof node !== 'object') return undefined;
+            node = node[part];
         }
-
-        try {
-            const response = await fetch(`${this._basePath}${filename}`);
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            const data = await response.json();
-            this._cache[filename] = data;
-            return data;
-        } catch (error) {
-            console.error(`[DataLoader] Failed to load ${filename}:`, error);
-            throw error;
-        }
+        return node;
     },
 
     /**
-     * Load multiple JSON files in parallel
-     * @param {string[]} filenames - Array of JSON filenames
-     * @returns {Promise<Object>} Map of filename -> parsed data
+     * Get a section of gamedata synchronously (after initializeAll).
+     * Returns undefined if not found.
+     */
+    get(filename) {
+        if (!this._gamedata) return undefined;
+        return this._resolve(filename);
+    },
+
+    /**
+     * Load a data section — returns immediately from the merged cache.
+     * Falls back to a real fetch only if gamedata hasn't been loaded yet
+     * (e.g. during standalone tool use).
+     */
+    async load(filename) {
+        if (this._cache[filename] !== undefined) {
+            return this._cache[filename];
+        }
+        if (this._gamedata) {
+            const data = this._resolve(filename);
+            this._cache[filename] = data;
+            return data;
+        }
+        // Fallback: load gamedata first, then resolve
+        await this._loadGamedata();
+        const data = this._resolve(filename);
+        this._cache[filename] = data;
+        return data;
+    },
+
+    async _loadGamedata() {
+        if (this._gamedata) return;
+        const response = await fetch('data/gamedata.json');
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        this._gamedata = await response.json();
+    },
+
+    /**
+     * Load multiple sections — all resolved from the single gamedata file.
      */
     async loadAll(filenames) {
+        await this._loadGamedata();
         const results = {};
-        const promises = filenames.map(async (filename) => {
-            results[filename] = await this.load(filename);
-        });
-        await Promise.all(promises);
+        for (const filename of filenames) {
+            results[filename] = this._resolve(filename);
+            this._cache[filename] = results[filename];
+        }
         return results;
     },
 
@@ -64,48 +95,25 @@ const DataLoader = {
     },
 
     /**
-     * Initialize all game data from JSON files
-     * Call this before game starts
+     * Initialize all game data — loads data/gamedata.json (single merged file).
+     * Call this before game starts.
      * @returns {Promise<void>}
      */
     async initializeAll() {
-        console.log('[DataLoader] Loading game data...');
+        console.log('[DataLoader] Loading game data (gamedata.json)...');
         const startTime = performance.now();
 
-        const files = [
-            'terrain.json',
-            'kingdoms.json',
-            'characters.json',
-            'economy.json',
-            'quests.json',
-            'achievements.json',
-            'military.json',
-            'religion.json',
-            'culture.json',
-            'peoples.json',
-            'colonization.json',
-            'cartography.json',
-            'infrastructure.json',
-            'market.json',
-            'tavern.json',
-            'npcLords.json',
-            'kingdomAI.json',
-            'worldEvents.json',
-            'technology.json',
-            'playerEconomy.json',
-            'units.json',
-            'assets.json',
-            'earlyJobs.json',
-            'relationships.json',
-            'housing.json',
-            'ships.json',
-            'titles.json',
-            'espionage.json',
-            'artifacts.json',
-            'innerMap.json',
-        ];
+        await this._loadGamedata();
 
-        const data = await this.loadAll(files);
+        // Build a thin alias map so the rest of this function can keep
+        // its existing  data['terrain.json']  access pattern unchanged.
+        const gd = this._gamedata;
+        const data = new Proxy({}, {
+            get(_, filename) {
+                const key = filename.replace(/\.json$/, '');
+                return gd[key];
+            }
+        });
 
         // ── Terrain ──
         const terrainData = data['terrain.json'];

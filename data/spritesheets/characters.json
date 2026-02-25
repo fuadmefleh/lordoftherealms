@@ -1,0 +1,207 @@
+{
+    "meta": {
+        "description": "LPC character sprite sheets — body, head, clothing, hair, accessories, props",
+        "basePath": "assets/lpc/Characters/",
+        "frameSize": { "w": 64, "h": 64 },
+        "note": "All character sprite sheets use a 64×64 frame grid. Animations are arranged in rows (one per direction: Up/Left/Down/Right) and columns (one per frame)."
+    },
+    "animations": {
+        "idle":              { "frames": 3,  "cols": 3,  "rows": 4, "width": 192,  "height": 256  },
+        "walk":              { "frames": 8,  "cols": 8,  "rows": 4, "width": 512,  "height": 256  },
+        "run":               { "frames": 8,  "cols": 8,  "rows": 4, "width": 512,  "height": 256  },
+        "jump":              { "frames": 6,  "cols": 6,  "rows": 4, "width": 384,  "height": 256  },
+        "climb":             { "frames": 6,  "cols": 6,  "rows": 1, "width": 384,  "height": 64   },
+        "sitting":           { "frames": 3,  "cols": 3,  "rows": 4, "width": 192,  "height": 256  },
+        "emotes":            { "frames": 3,  "cols": 3,  "rows": 4, "width": 192,  "height": 256  },
+        "combat_1h_idle":    { "frames": 2,  "cols": 2,  "rows": 4, "width": 128,  "height": 256  },
+        "combat_1h_slash":   { "frames": 7,  "cols": 7,  "rows": 4, "width": 448,  "height": 256  },
+        "combat_1h_backslash": { "frames": 12, "cols": 12, "rows": 4, "width": 768, "height": 256 },
+        "combat_1h_halfslash": { "frames": 6,  "cols": 6,  "rows": 4, "width": 384, "height": 256 },
+        "legacy_swing":      { "frames": 6,  "cols": 6,  "rows": 4, "width": 384,  "height": 256  },
+        "expressions":       { "frames": 12, "cols": 12, "rows": 4, "width": 768,  "height": 256, "headOnly": true }
+    },
+    "directionRows": {
+        "up": 0,
+        "left": 1,
+        "down": 2,
+        "right": 3
+    },
+    "bodyTypes": {
+        "body_01": {
+            "label": "Feminine, Thin",
+            "path": "Body/Body 01 - Feminine (Thin)/",
+            "colorVariants": "76 colors + 9 skin tones"
+        },
+        "body_02": {
+            "label": "Masculine, Thin",
+            "path": "Body/Body 02 - Masculine (Thin)/",
+            "colorVariants": "76 colors + 9 skin tones"
+        }
+    },
+    "headTypes": {
+        "head_01": {
+            "label": "Feminine",
+            "path": "Head/Head 01 - Feminine/"
+        },
+        "head_02": {
+            "label": "Masculine",
+            "path": "Head/Head 02 - Masculine/"
+        },
+        "head_03": {
+            "label": "Elderly",
+            "path": "Head/Head 03 - Elderly/"
+        }
+    },
+    "skinTones": [
+        "Bronze", "Brown", "Coffee", "Honey", "Ivory",
+        "Peach", "Porcelain", "Tan", "Tawny"
+    ],
+    "colorPalette": [
+        "Aegean", "Amber", "Amethyst", "Apple", "Apricot", "Azure",
+        "Beige", "Black", "Blue", "Blue Violet", "Bronze", "Brown",
+        "Cerise", "Cerulean", "Charcoal", "Chocolate", "Coffee", "Coral",
+        "Cornflower", "Cyan", "Denim", "Dove", "Emerald", "Fern",
+        "Forest", "Garnet", "Gray", "Green", "Heather", "Honey",
+        "Ice", "Indigo", "Ivory", "Lavender", "Leather", "Lemon",
+        "Linen", "Mauve", "Midnight", "Mint", "Mustard", "Navy",
+        "Neptune", "Oak", "Ochre", "Olivine", "Orange", "Peach",
+        "Pearl", "Periwinkle", "Pink", "Plum", "Porcelain", "Powder",
+        "Purple", "Red", "Red Orange", "Royal", "Salmon", "Sepia",
+        "Shadow", "Silver", "Sky", "Smoke", "Soot", "Spring",
+        "Swamp", "Tan", "Tawny", "Teal", "Tumeric", "Umber",
+        "White", "Wine", "Yellow"
+    ],
+    "clothingCategories": {
+        "torso": {
+            "basePath": "Clothing/{bodyType}/Torso/",
+            "items": [
+                "Buttoned Shirt 01",
+                "Longsleeve 01",
+                "Longsleeve V-Neck 01",
+                "Polo Shirt 01",
+                "Scoop Shirt 01",
+                "T-Shirt 01",
+                "V-Neck Shirt 01"
+            ]
+        },
+        "torso_2": {
+            "basePath": "Clothing/{bodyType}/Torso 2/",
+            "items": [
+                "Cardigan 01",
+                "Suspenders 01"
+            ]
+        },
+        "legs": {
+            "basePath": "Clothing/{bodyType}/Legs/",
+            "items": [
+                "Cuffed Pants 01",
+                "High Socks 01",
+                "Hose 01",
+                "Leggings 01",
+                "Overalls 01",
+                "Pants 01",
+                "Short Shorts 01",
+                "Shorts 01"
+            ]
+        },
+        "feet": {
+            "basePath": "Clothing/{bodyType}/Feet/",
+            "items": [
+                "Ankle Socks 01",
+                "Boots 01",
+                "High Socks (Feet) 01",
+                "Shoes 01"
+            ]
+        },
+        "accessories": {
+            "basePath": "Clothing/{bodyType}/Accessories/",
+            "items": [
+                "Bowtie 01"
+            ]
+        }
+    },
+    "hairStyles": {
+        "basePath": "Hair/",
+        "categories": [
+            "Eyebrows 01", "Eyebrows 02",
+            "Facial Hair - Beard (Long) 01",
+            "Facial Hair - Beard (Short) 01",
+            "Facial Hair - Goatee 01",
+            "Facial Hair - Mustache 01",
+            "Medium - Bangs 01",
+            "Medium - Bob 01",
+            "Medium - Natural 01",
+            "Medium - Pixie 01",
+            "Medium - Ponytail 01",
+            "Medium - Princess 01",
+            "Short - Bedhead 01",
+            "Short - Buzzcut 01",
+            "Short - Curtains 01",
+            "Short - Flat Top 01",
+            "Short - Gentleman 01",
+            "Short - Mohawk 01",
+            "Short - Part 01",
+            "Short - Plain 01",
+            "Short - Quiff 01",
+            "Short - Receding 01",
+            "Short - Spiky 01",
+            "Short - Swept 01",
+            "Short - Taper 01",
+            "Short - Unkempt 01"
+        ]
+    },
+    "headAccessories": {
+        "eyewear": {
+            "basePath": "Head Accessories/Eyewear/",
+            "items": ["Eyewear 01", "Eyewear 02", "Eyewear 03"]
+        },
+        "helms": {
+            "basePath": "Head Accessories/Helms/",
+            "items": [
+                "Helm 01 - Chain",
+                "Helm 02 - Chain",
+                "Helm 03 - Plate",
+                "Helm 04 - Plate",
+                "Helm 05 - Leather",
+                "Helm 06 - Leather"
+            ]
+        },
+        "helm_accessories": {
+            "basePath": "Head Accessories/Helm Accessories/",
+            "items": [
+                "Crest 01",
+                "Plume 01"
+            ]
+        }
+    },
+    "props": {
+        "sword": {
+            "basePath": "Props/Sword 01/",
+            "note": "Weapon prop sprites — 2× frame size (128×128) for combat animations"
+        },
+        "shield": {
+            "basePath": "Props/Shield 01 - Heater Shield/",
+            "subCategories": ["Contrast Patterns", "Paint", "Trim", "Wood"],
+            "note": "Heater shield with many heraldic patterns"
+        }
+    },
+    "wings": {
+        "feathered": {
+            "basePath": "Body/Wings 01 - Feathered/",
+            "note": "Larger frame size: 128×128 for wing sprites. Sheets are 384×512 or 1024×512."
+        },
+        "bat": {
+            "basePath": "Body/Wings 02 - Bat/",
+            "note": "Bat wings — same sizing as feathered"
+        }
+    },
+    "children": {
+        "body": {
+            "basePath": "Children/Body/",
+            "note": "Smaller child body sprites — idle is 64×256 (1 col × 4 rows)"
+        },
+        "head": {
+            "basePath": "Children/Head/"
+        }
+    }
+}

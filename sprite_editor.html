@@ -1,0 +1,2715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sprite Editor — Lord of the Realms</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0d1117;--panel:#161b22;--border:#21262d;--border2:#30363d;--text:#c9d1d9;--text-dim:#8b949e;--blue:#58a6ff;--green:#3fb950;--red:#f85149;--gold:#e6a817;--hover:#1c2129}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── Toolbar ── */
+#toolbar{display:flex;align-items:center;gap:10px;padding:6px 12px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+#toolbar h1{font-size:14px;font-weight:700;color:var(--gold);margin-right:4px;white-space:nowrap}
+.tb-sep{width:1px;height:20px;background:var(--border2);margin:0 2px}
+.tb-group{display:flex;align-items:center;gap:6px}
+.tb-lbl{font-size:11px;color:var(--text-dim);white-space:nowrap}
+button{background:#21262d;border:1px solid var(--border2);color:var(--text);padding:4px 10px;border-radius:5px;cursor:pointer;font-size:12px;transition:background .12s,border-color .12s}
+button:hover{background:#2d333b;border-color:#484f58}
+button.active{background:#0b2a4a;border-color:var(--blue);color:var(--blue)}
+button.green{background:#0e2a17;border-color:var(--green);color:var(--green)}
+button.gold{background:#2a1f00;border-color:var(--gold);color:var(--gold)}
+button.danger{background:#2a0d0d;border-color:var(--red);color:var(--red)}
+input[type="number"],input[type="text"],select{background:#0d1117;border:1px solid var(--border2);color:var(--text);padding:3px 7px;border-radius:4px;font-size:12px}
+input[type="number"]{width:52px}
+input[type="text"]{width:140px}
+input:focus,select:focus{outline:none;border-color:var(--blue)}
+
+.mode-tab{padding:4px 14px;font-weight:600;border-radius:4px;font-size:12px}
+.mode-tab.active{background:#2a1f00;border-color:var(--gold);color:var(--gold)}
+
+/* ── Main layout ── */
+#main{display:flex;flex:1;overflow:hidden}
+
+/* ── Left: Palette ── */
+#palette-panel{width:320px;min-width:180px;max-width:700px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;position:relative}
+#pal-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px 6px;border-bottom:1px solid var(--border);flex-shrink:0}
+#pal-header h2{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim)}
+#pal-header button{font-size:10px;padding:2px 8px}
+#palette-cats{display:flex;flex-wrap:wrap;gap:3px;padding:7px 8px;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:hidden}
+.cat-btn{padding:3px 8px;font-size:11px;border-radius:3px}
+.cat-btn.active{background:#0b2a4a;border-color:var(--blue);color:var(--blue)}
+#palette-sheets{flex:1;overflow-y:auto;overflow-x:auto;padding:8px}
+.sheet-block{margin-bottom:12px;display:inline-block;min-width:100%;vertical-align:top}
+.sheet-name{font-size:10px;color:var(--text-dim);margin-bottom:4px;padding:2px 4px;background:var(--bg);border-radius:3px;display:flex;align-items:center;justify-content:space-between}
+.sheet-name span{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sheet-canvas-wrap{position:relative;cursor:crosshair;display:block;border:1px solid var(--border)}
+.sheet-canvas-wrap:hover{border-color:var(--border2)}
+canvas.palette-canvas{display:block;image-rendering:pixelated}
+.stamp-highlight{position:absolute;border:2px solid var(--gold);pointer-events:none;background:rgba(230,168,23,0.15)}
+#pal-resizer{position:absolute;right:0;top:0;width:5px;height:100%;cursor:col-resize;z-index:10;background:transparent}
+#pal-resizer:hover,#pal-resizer.dragging{background:var(--blue);opacity:.4}
+
+/* ── Center: Canvas ── */
+#canvas-area{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#060a0f}
+#canvas-toolbar{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.tool-btn{min-width:32px;padding:4px 8px;font-size:12px}
+#layer-btns .tool-btn.active{background:#0e2a17;border-color:var(--green);color:var(--green)}
+#canvas-wrap{flex:1;position:relative;overflow:hidden}
+#build-canvas{position:absolute;image-rendering:pixelated;cursor:crosshair}
+.zoom-badge{font-size:11px;color:var(--text-dim);font-family:monospace;min-width:42px;text-align:center}
+
+/* ── Right: Properties ── */
+#props-panel{width:270px;flex-shrink:0;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.rp-section{padding:10px 12px;border-bottom:1px solid var(--border)}
+.rp-section h3{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin-bottom:8px}
+.field-row{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.field-row label{font-size:11px;color:var(--text-dim);min-width:58px}
+.field-row input,.field-row select{flex:1}
+.item-list{flex:1;overflow-y:auto;padding:8px 12px}
+.item-list h3{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin-bottom:8px;position:sticky;top:0;background:var(--panel);padding-bottom:4px}
+.item-card{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:7px 9px;margin-bottom:5px}
+.item-card .item-title{font-size:12px;font-weight:600;color:var(--gold);margin-bottom:3px}
+.item-card .item-meta{font-size:10px;color:var(--text-dim);margin-bottom:5px}
+.item-card .item-acts{display:flex;gap:4px}
+.item-card .item-acts button{flex:1;padding:2px 0;font-size:10px}
+#stamp-preview{display:flex;align-items:center;gap:8px;min-height:40px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg)}
+#stamp-preview canvas{border:1px solid var(--border2);image-rendering:pixelated;max-width:96px;max-height:96px}
+#stamp-preview .stamp-info{font-size:11px;color:var(--text-dim);line-height:1.5}
+
+/* ── Terrain multiselect ── */
+.terrain-ms{position:relative;flex:1}
+.terrain-ms-toggle{width:100%;padding:3px 6px;font-size:11px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:3px;cursor:pointer;text-align:left;min-height:24px;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.terrain-ms-toggle .placeholder{color:var(--text-dim)}
+.terrain-ms-tag{background:rgba(245,197,66,0.15);color:var(--gold);border:1px solid rgba(245,197,66,0.3);border-radius:3px;padding:1px 5px;font-size:10px;display:inline-flex;align-items:center;gap:2px;white-space:nowrap}
+.terrain-ms-tag .tag-x{cursor:pointer;opacity:.6;font-size:9px}
+.terrain-ms-tag .tag-x:hover{opacity:1}
+.terrain-ms-drop{display:none;position:absolute;top:100%;left:0;right:0;max-height:260px;overflow-y:auto;background:var(--panel);border:1px solid var(--border);border-radius:0 0 4px 4px;z-index:999;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.terrain-ms-drop.open{display:block}
+.terrain-ms-drop input[type=text]{width:100%;padding:5px 8px;font-size:11px;border:none;border-bottom:1px solid var(--border);background:var(--bg);color:var(--text);box-sizing:border-box}
+.tms-group{padding:2px 0}
+.tms-group-label{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);padding:4px 8px 2px;font-weight:600}
+.tms-opt{display:flex;align-items:center;gap:6px;padding:3px 8px;cursor:pointer;font-size:11px;color:var(--text)}
+.tms-opt:hover{background:rgba(245,197,66,0.08)}
+.tms-opt input[type=checkbox]{margin:0;accent-color:var(--gold)}
+.tms-opt.hidden{display:none}
+
+/* ── Resource row ── */
+.res-row{display:flex;align-items:center;gap:4px;flex:1}
+.res-row select{flex:1;min-width:0}
+.res-row input{width:50px}
+
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- ── Toolbar ── -->
+<div id="toolbar">
+  <h1>🎨 Sprite Editor</h1>
+  <div class="tb-sep"></div>
+
+  <div class="tb-group" id="mode-btns">
+    <button class="mode-tab active" id="mode-building" onclick="setEditorMode('building')">🏛️ Building</button>
+    <button class="mode-tab"        id="mode-object"   onclick="setEditorMode('object')">🌳 Object</button>
+  </div>
+
+  <div class="tb-sep"></div>
+
+  <div class="tb-group">
+    <label class="tb-lbl">Grid</label>
+    <input type="number" id="grid-w" value="12" min="1" max="64" title="Width in tiles">
+    <label class="tb-lbl">×</label>
+    <input type="number" id="grid-h" value="12" min="1" max="64" title="Height in tiles">
+    <button onclick="resizeGrid()">Resize</button>
+    <button onclick="autofitGrid()" title="Shrink grid to fit painted tiles (Shift+F)">✂ Autofit</button>
+  </div>
+
+  <div class="tb-sep"></div>
+
+  <div class="tb-group" id="tool-btns">
+    <label class="tb-lbl">Tool</label>
+    <button class="tool-btn active" id="tool-paint"   onclick="setTool('paint')"   title="Paint tile (P)">🖌 Paint</button>
+    <button class="tool-btn"        id="tool-select"  onclick="setTool('select')"  title="Select &amp; move tiles (S)">⬜ Select</button>
+    <button class="tool-btn"        id="tool-erase"   onclick="setTool('erase')"   title="Erase (E)">🗑 Erase</button>
+    <button class="tool-btn"        id="tool-fill"    onclick="setTool('fill')"    title="Flood-fill with stamp (F)">🪣 Fill</button>
+    <button class="tool-btn"        id="tool-eyedrop" onclick="setTool('eyedrop')" title="Pick tile from canvas (I)">💉 Pick</button>
+    <button class="tool-btn"        id="tool-impass"  onclick="setTool('impass')"  title="Toggle impassable (X)">⛔ Block</button>
+    <button class="tool-btn"        id="tool-marker"  onclick="setTool('marker')"  title="Toggle marker (D/N)">🚪 Door</button>
+    <button class="tool-btn"        id="tool-origin"  onclick="setTool('origin')"  title="Set spawn origin — the tile that becomes (0,0) when placed in-game (O)">📌 Origin</button>
+  </div>
+
+  <div class="tb-sep"></div>
+
+  <div class="tb-group">
+    <button onclick="newItem()">＋ New</button>
+    <button onclick="saveItem()" class="green">💾 Save</button>
+  </div>
+</div>
+
+<!-- ── Main ── -->
+<div id="main">
+
+  <!-- Palette -->
+  <div id="palette-panel">
+    <div id="pal-resizer"></div>
+    <div id="pal-header">
+      <h2>Palette</h2>
+      <button onclick="loadCustomSheet()" title="Load a custom PNG spritesheet">📂 Add Sheet</button>
+    </div>
+    <div id="palette-cats"></div>
+    <div id="palette-sheets"><div style="color:var(--text-dim);font-size:12px;padding:10px">Select a category above</div></div>
+  </div>
+
+  <!-- Canvas -->
+  <div id="canvas-area">
+    <div id="canvas-toolbar">
+      <div class="tb-group" id="layer-section">
+        <div class="tb-group" id="layer-btns">
+          <label class="tb-lbl">Layer</label>
+          <button class="tool-btn active" id="layer-floor"   onclick="setLayer('floor')">Floor</button>
+          <button class="tool-btn"        id="layer-walls"   onclick="setLayer('walls')">Walls</button>
+          <button class="tool-btn"        id="layer-roof"    onclick="setLayer('roof')">Roof</button>
+          <button class="tool-btn"        id="layer-overlay" onclick="setLayer('overlay')">Overlay</button>
+        </div>
+        <div class="tb-sep"></div>
+        <div class="tb-group">
+          <label class="tb-lbl">Visibility</label>
+          <button class="tool-btn active" id="vis-floor"   onclick="toggleVis('floor')">Floor</button>
+          <button class="tool-btn active" id="vis-walls"   onclick="toggleVis('walls')">Walls</button>
+          <button class="tool-btn active" id="vis-roof"    onclick="toggleVis('roof')">Roof</button>
+          <button class="tool-btn active" id="vis-overlay" onclick="toggleVis('overlay')">Overlay</button>
+        </div>
+        <div class="tb-sep"></div>
+        <button onclick="clearLayer()" title="Clear current layer">Clear Layer</button>
+        <div class="tb-sep"></div>
+      </div>
+      <div class="tb-group">
+        <label class="tb-lbl">Zoom</label>
+        <button onclick="zoomCanvas(-1)">−</button>
+        <span class="zoom-badge" id="zoom-badge">100%</span>
+        <button onclick="zoomCanvas(1)">+</button>
+        <button onclick="fitCanvas()">Fit</button>
+      </div>
+      <div class="tb-sep"></div>
+      <div class="tb-group">
+        <label class="tb-lbl">Rotate</label>
+        <button class="tool-btn" onclick="rotateStampOrSelection(-1)" title="Rotate 90° counter-clockwise (Shift+R)">↺ CCW</button>
+        <button class="tool-btn" onclick="rotateStampOrSelection(1)"  title="Rotate 90° clockwise (R)">↻ CW</button>
+      </div>
+      <div class="tb-sep"></div>
+      <div class="tb-group">
+        <button onclick="clearAll()" class="danger" title="Wipe everything on canvas">Clear All</button>
+      </div>
+    </div>
+    <div id="canvas-wrap">
+      <canvas id="build-canvas"></canvas>
+    </div>
+  </div>
+
+  <!-- Properties -->
+  <div id="props-panel">
+    <div id="stamp-preview">
+      <canvas id="stamp-canvas" width="96" height="96"></canvas>
+      <div class="stamp-info" id="stamp-info">No stamp selected<br>Click a tile in the palette</div>
+    </div>
+
+    <!-- Building Properties -->
+    <div id="bld-props" class="rp-section">
+      <h3>Building Properties</h3>
+      <div class="field-row"><label>Name</label>
+        <input type="text" id="bld-name" placeholder="e.g. stone_inn"></div>
+      <div class="field-row"><label>Type</label>
+        <select id="bld-type">
+          <option value="house">🏠 House</option>
+          <option value="tavern">🍺 Tavern</option>
+          <option value="blacksmith">⚒️ Blacksmith</option>
+          <option value="church">⛪ Church</option>
+          <option value="market">🛒 Market</option>
+          <option value="barracks">⚔️ Barracks</option>
+          <option value="warehouse">📦 Warehouse</option>
+          <option value="farm">🌾 Farm</option>
+          <option value="castle">🏰 Castle</option>
+          <option value="tower">🗼 Tower</option>
+          <option value="decoration">✨ Decoration</option>
+          <option value="other">📌 Other</option>
+        </select></div>
+      <div class="field-row"><label>Tags</label>
+        <input type="text" id="bld-tags" placeholder="indoor, nocturnal…"></div>
+    </div>
+
+    <!-- Object Properties -->
+    <div id="obj-props" class="rp-section" style="display:none">
+      <h3>Object Properties</h3>
+      <div class="field-row"><label>Name</label>
+        <input type="text" id="obj-name" placeholder="e.g. oak_tree"></div>
+      <div class="field-row"><label>Type</label>
+        <select id="obj-type">
+          <option value="tree">🌳 Tree</option>
+          <option value="rock">🪨 Rock</option>
+          <option value="plant">🌿 Plant</option>
+          <option value="decoration">✨ Decoration</option>
+          <option value="furniture">🪑 Furniture</option>
+          <option value="building">🏠 Building</option>
+          <option value="other">📌 Other</option>
+        </select></div>
+      <div class="field-row"><label>Interact Anim</label>
+        <select id="obj-animation">
+          <option value="none">— None</option>
+          <option value="combat_1h_slash">⚔️ Chop / Slash</option>
+          <option value="combat_1h_halfslash">🪓 Half Swing</option>
+          <option value="legacy_swing">⛏️ Swing (Mine/Dig)</option>
+          <option value="sitting">🪑 Sit</option>
+          <option value="idle">🧍 Idle / Inspect</option>
+          <option value="emotes">🙏 Emote / Pray</option>
+          <option value="climb">🧗 Climb</option>
+        </select></div>
+      <div class="field-row"><label>Terrain</label>
+        <div class="terrain-ms" id="terrain-ms">
+          <div class="terrain-ms-toggle" id="tms-toggle" onclick="toggleTerrainDropdown()">
+            <span class="placeholder">Click to select terrains…</span>
+          </div>
+          <div class="terrain-ms-drop" id="tms-drop">
+            <input type="text" id="tms-search" placeholder="Filter terrains…" oninput="filterTerrainOptions()">
+            <div id="tms-options"></div>
+          </div>
+        </div>
+      </div>
+      <div class="field-row"><label>Resource</label>
+        <div class="res-row">
+          <select id="obj-resource">
+            <option value="">— None</option>
+            <option value="wood">🪵 Wood</option>
+            <option value="stone">🪨 Stone</option>
+            <option value="iron">⛏️ Iron</option>
+            <option value="gold_ore">🥇 Gold Ore</option>
+            <option value="gems">💎 Gems</option>
+            <option value="grain">🌾 Grain</option>
+            <option value="herbs">🌿 Herbs</option>
+            <option value="fruit">🍎 Fruit</option>
+            <option value="mushrooms">🍄 Mushrooms</option>
+            <option value="fish">🐟 Fish</option>
+            <option value="wool">🧶 Wool</option>
+            <option value="clay">🏺 Clay</option>
+            <option value="leather">🟫 Leather</option>
+            <option value="berries">🫐 Berries</option>
+            <option value="flowers">🌸 Flowers</option>
+            <option value="resin">🟠 Resin</option>
+            <option value="honey">🍯 Honey</option>
+            <option value="feathers">🪶 Feathers</option>
+          </select>
+          <input type="number" id="obj-resource-amount" value="1" min="1" max="99" step="1" title="Amount per harvest">
+        </div>
+      </div>
+      <div class="field-row"><label>Weight</label>
+        <input type="number" id="obj-weight" value="1" min="0" step="0.1" style="width:60px" title="Relative spawn probability"></div>
+      <div class="field-row"><label>Resistance</label>
+        <input type="number" id="obj-resistance" value="0" min="0" max="95" step="5" style="width:55px" title="Damage resistance 0–95. 0=normal, 50=twice as tough, 90=very hard rock"></div>
+      <div class="field-row"><label>Spawn After</label>
+        <input type="text" id="obj-spawn-after" placeholder="e.g. stump_1" style="width:130px" title="Object ID to spawn at the origin tile after this object is collected / destroyed"></div>
+      <div class="field-row" style="flex-direction:column;align-items:flex-start;gap:4px">
+        <label>Health States <span style="font-size:10px;color:var(--text-dim)">(visual damage stages — optional)</span></label>
+        <div id="health-states-list" style="width:100%"></div>
+        <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:2px">
+          <input type="text" id="hs-label" placeholder="Damaged" style="width:70px" title="Label for this health state">
+          <input type="number" id="hs-min-hp" value="50" min="0" max="99" step="1" style="width:44px" title="Min health % at which this visual appears">
+          <span style="font-size:10px;color:var(--text-dim)">% min</span>
+          <button onclick="addHealthStateFromCanvas()" style="font-size:11px;padding:2px 8px" title="Capture the current canvas tiles as tiles for this health state">+ Capture</button>
+        </div>
+        <div style="font-size:10px;color:var(--text-dim);line-height:1.4">Paint a damage stage on the canvas, then capture it as a health state.</div>
+      </div>
+      <div class="field-row" style="flex-direction:column;align-items:flex-start;gap:4px">
+        <label>Season Variants <span style="font-size:10px;color:var(--text-dim)">(different look per season — optional)</span></label>
+        <div id="season-variants-list" style="width:100%"></div>
+        <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:2px">
+          <select id="sv-season" style="font-size:11px">
+            <option value="spring">🌸 Spring</option>
+            <option value="summer">☀️ Summer</option>
+            <option value="autumn">🍂 Autumn</option>
+            <option value="winter">❄️ Winter</option>
+          </select>
+          <button onclick="captureSeasonVariant()" style="font-size:11px;padding:2px 8px" title="Capture current canvas as this season's appearance">+ Capture</button>
+        </div>
+        <div style="font-size:10px;color:var(--text-dim);line-height:1.4">Paint that season's look on the canvas, then capture it. Seasons not captured fall back to the default tiles.</div>
+      </div>
+      <div class="field-row" style="flex-direction:column;align-items:flex-start;gap:4px">
+        <label>Growth Stages <span style="font-size:10px;color:var(--text-dim)">(morph over time — optional)</span></label>
+        <div id="growth-states-list" style="width:100%"></div>
+        <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:2px">
+          <input type="text" id="gs-label" placeholder="Mature" style="width:70px" title="Label for this growth stage">
+          <input type="number" id="gs-days" value="7" min="0" max="9999" step="1" style="width:52px" title="Days from planting to reach this stage">
+          <span style="font-size:10px;color:var(--text-dim)">days</span>
+          <button onclick="addGrowthStateFromCanvas()" style="font-size:11px;padding:2px 8px" title="Capture current canvas as this growth stage">+ Capture</button>
+        </div>
+        <div style="font-size:10px;color:var(--text-dim);line-height:1.4">Paint a growth stage, capture it. Stage at day 0 = initial look. Stages are sorted by day automatically.</div>
+      </div>
+    </div>
+
+    <!-- Building Library -->
+    <div id="building-list" class="item-list">
+      <h3 id="bld-list-header">Saved Buildings (0)</h3>
+      <div id="bld-cards" style="color:var(--text-dim);font-size:12px;font-style:italic;padding:4px">No buildings saved yet</div>
+    </div>
+
+    <!-- Object Library -->
+    <div id="object-list" class="item-list" style="display:none">
+      <h3 id="obj-list-header">Saved Objects (0)</h3>
+      <div id="obj-cards" style="color:var(--text-dim);font-size:12px;font-style:italic;padding:4px">No objects saved yet</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  PALETTE DATA — all LPC sheets organised by category
+// ═══════════════════════════════════════════════════════════════
+const PALETTE_DATA = {
+  'Structures': [
+    'assets/lpc/Structure/Structures/Brick House A.png',
+    'assets/lpc/Structure/Structures/Brick House B.png',
+    'assets/lpc/Structure/Structures/Paneled House A.png',
+  ],
+  'Walls': [
+    'assets/lpc/Structure/Walls/Brick Wall A.png',
+    'assets/lpc/Structure/Walls/Brick Wall B.png',
+    'assets/lpc/Structure/Walls/Adobe Brick Wall.png',
+    'assets/lpc/Structure/Walls/Adobe Stucco Wall.png',
+    'assets/lpc/Structure/Walls/Grainy Plain Wall.png',
+    'assets/lpc/Structure/Walls/Jagged Stone Walls.png',
+    'assets/lpc/Structure/Walls/Drywall.png',
+    'assets/lpc/Structure/Walls/Painted Walls.png',
+    'assets/lpc/Structure/Walls/Siding, Plain.png',
+    'assets/lpc/Structure/Walls/Panels A.png',
+    'assets/lpc/Structure/Walls/Molding.png',
+    'assets/lpc/Structure/Walls/Half-Wall Paneling A.png',
+    'assets/lpc/Structure/Walls/Diamond Wallpaper.png',
+    'assets/lpc/Structure/Walls/Floral Wallpaper A.png',
+    'assets/lpc/Structure/Walls/Floral Wallpaper B.png',
+    'assets/lpc/Structure/Walls/Striped Wallpaper A.png',
+    'assets/lpc/Structure/Walls/Striped Wallpaper B.png',
+    'assets/lpc/Structure/Walls/Striped Wallpaper C.png',
+    'assets/lpc/Structure/Walls/Brick Wall Block Edging.png',
+    'assets/lpc/Structure/Walls/CutawayOverlay.png',
+  ],
+  'Floors': [
+    'assets/lpc/Structure/Floor/Wood Floor A.png',
+    'assets/lpc/Structure/Floor/Wood Floor B.png',
+    'assets/lpc/Structure/Floor/Tile A.png',
+    'assets/lpc/Structure/Floor/Tile B.png',
+    'assets/lpc/Structure/Floor/Tile C.png',
+    'assets/lpc/Structure/Floor/Diamond Tile A.png',
+    'assets/lpc/Structure/Floor/Diamond Tile B.png',
+    'assets/lpc/Structure/Floor/Diamond Tile C.png',
+    'assets/lpc/Structure/Floor/Herringbone A.png',
+    'assets/lpc/Structure/Floor/Floral Carpet A.png',
+    'assets/lpc/Structure/Floor/Floral Carpet B.png',
+    'assets/lpc/Structure/Floor/Geometric Carpet A.png',
+    'assets/lpc/Structure/Floor/Geometric Carpet B.png',
+    'assets/lpc/Structure/Floor/Geometric Carpet C.png',
+    'assets/lpc/Structure/Floor/Gritty Dirt.png',
+    'assets/lpc/Structure/Floor/Subfloor.png',
+  ],
+  'Roofing': [
+    'assets/lpc/Structure/Roofing/Gable Shingle Roof A.png',
+    'assets/lpc/Structure/Roofing/Hipped Shingle Roof A.png',
+    'assets/lpc/Structure/Roofing/Flat Shingle Roof A.png',
+    'assets/lpc/Structure/Roofing/Adobe Brick Roof.png',
+    'assets/lpc/Structure/Roofing/Adobe Stucco Roof.png',
+    'assets/lpc/Structure/Roofing/Brick Chimney A.png',
+    'assets/lpc/Structure/Roofing/Roof Trim.png',
+  ],
+  'Doors': [
+    'assets/lpc/Structure/Doors/32x48px Doors/Doorframe A.png',
+    'assets/lpc/Structure/Doors/32x48px Doors/Doorframe A Shadows.png',
+    'assets/lpc/Structure/Doors/32x48px Doors/Doorframe B.png',
+    'assets/lpc/Structure/Doors/32x48px Doors/DoorFrame B Shadows.png',
+    'assets/lpc/Structure/Doors/32x48px Doors/12 Panel Door A.png',
+    'assets/lpc/Structure/Doors/32x48px Doors/12 Panel Door B.png',
+    'assets/lpc/Structure/Doors/32x48px Doors/Barred Prison Door A.png',
+    'assets/lpc/Structure/Doors/32x64px Doors/Doorframe A.png',
+    'assets/lpc/Structure/Doors/32x64px Doors/Doorframe A Shadows.png',
+    'assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png',
+    'assets/lpc/Structure/Doors/64x64px Arched Doors/Arched Doorway A.png',
+    'assets/lpc/Structure/Doors/64x64px Arched Doors/Arched Doorway A Shadows.png',
+    'assets/lpc/Structure/Doors/64x64px Arched Doors/Arched Double Doors A.png',
+  ],
+  'Windows': [
+    'assets/lpc/Structure/Windows/Stone Windows A.png',
+    'assets/lpc/Structure/Windows/Stone Windows A - Emission.png',
+    'assets/lpc/Structure/Windows/Ornamental Windows A.png',
+    'assets/lpc/Structure/Windows/Ornamental Windows A - Emission.png',
+    'assets/lpc/Structure/Windows/Ornamental Windows B.png',
+    'assets/lpc/Structure/Windows/Ornamental Windows B - Emission.png',
+    'assets/lpc/Structure/Windows/Window Awning A.png',
+  ],
+  'Wall Borders': [
+    'assets/lpc/Structure/Wall Borders/Plain Edged Border.png',
+    'assets/lpc/Structure/Wall Borders/Plain Edged Border - A.png',
+    'assets/lpc/Structure/Wall Borders/Plain Smooth Border.png',
+    'assets/lpc/Structure/Wall Borders/Decorative Border A.png',
+    'assets/lpc/Structure/Wall Borders/Formal Crown Molding.png',
+    'assets/lpc/Structure/Wall Borders/Pillar Crown Molding.png',
+    'assets/lpc/Structure/Wall Borders/Textured Wood Border.png',
+  ],
+  'Fences & Signs': [
+    'assets/lpc/Structure/Fences/Plain Fence A.png',
+    'assets/lpc/Structure/Fences/Ornamental Fence A.png',
+    'assets/lpc/Structure/Fences/Ornamental Fence B.png',
+    'assets/lpc/Structure/Signs/Sign Backgrounds A.png',
+    'assets/lpc/Structure/Signs/Sign Icons A.png',
+  ],
+  'Pillars & Stairs': [
+    'assets/lpc/Structure/Pillars/Stone Pillar A.png',
+    'assets/lpc/Structure/Pillars/Floral Pillar A.png',
+    'assets/lpc/Structure/Stairs/Cement Stairs A.png',
+    'assets/lpc/Structure/Stairs/Short Steps A.png',
+    'assets/lpc/Structure/Stairs/Formal Interior Stairs A.png',
+    'assets/lpc/Structure/Stairs/Wood Interior Stairs A.png',
+    'assets/lpc/Structure/Stairs/Wood Interior Stairs B.png',
+    'assets/lpc/Structure/Stairs/Wood Interior Stairs Wall.png',
+    'assets/lpc/Structure/Platforms/Cement Platform A.png',
+    'assets/lpc/Structure/Platforms/Dias with Steps A.png',
+  ],
+  'Bridges & Misc': [
+    'assets/lpc/Structure/Bridges/Wood Bridge A - No Rails.png',
+    'assets/lpc/Structure/Bridges/Wood Bridge A - Rails.png',
+    'assets/lpc/Structure/Bridges/Rope Bridge A - No Rails.png',
+    'assets/lpc/Structure/Bridges/Rope Bridge A - Rails.png',
+    'assets/lpc/Structure/Bridges/Drawbridge A.png',
+    'assets/lpc/Structure/Misc/Fountain A.png',
+    'assets/lpc/Structure/Misc/Pool A.png',
+    'assets/lpc/Structure/Misc/Trellis A.png',
+    'assets/lpc/Structure/Misc/Drain A.png',
+    'assets/lpc/Structure/Misc/Prison A.png',
+  ],
+  'Trees': [
+    'assets/lpc/Terrain/trees_spring.png',
+    'assets/lpc/Terrain/trees_summer.png',
+    'assets/lpc/Terrain/trees_autumn.png',
+    'assets/lpc/Terrain/trees_winter.png',
+  ],
+  'Plants': [
+    'assets/lpc/Terrain/plants_spring.png',
+    'assets/lpc/Terrain/plants_summer.png',
+    'assets/lpc/Terrain/plants_autumn.png',
+    'assets/lpc/Terrain/plants_winter.png',
+    'assets/lpc/Terrain/flowers.png',
+    'assets/lpc/Terrain/mushrooms.png',
+    'assets/lpc/Terrain/wildflowers_spring.png',
+    'assets/lpc/Terrain/wildflowers_summer.png',
+    'assets/lpc/Terrain/wildflowers_autumn.png',
+    'assets/lpc/Terrain/wildflowers_winter.png',
+  ],
+  'Rocks & Cliffs': [
+    'assets/lpc/Terrain/Rocks, Grasslands.png',
+    'assets/lpc/Terrain/Rocks, Cliffs.png',
+    'assets/lpc/Terrain/cliff_spring.png',
+    'assets/lpc/Terrain/cliff_summer.png',
+    'assets/lpc/Terrain/cliff_autumn.png',
+    'assets/lpc/Terrain/cliff_winter.png',
+    'assets/lpc/Terrain/cliff_winter_ice.png',
+  ],
+  'Terrain': [
+    'assets/lpc/Terrain/terrain_spring.png',
+    'assets/lpc/Terrain/terrain_summer.png',
+    'assets/lpc/Terrain/terrain_autumn.png',
+    'assets/lpc/Terrain/terrain_winter.png',
+    'assets/lpc/Terrain/terrain_winter_ice.png',
+    'assets/lpc/Terrain/tilled_soil.png',
+    'assets/lpc/Terrain/ice-shallows.png',
+    'assets/lpc/Terrain/Waterfall.png',
+  ],
+  'Furniture': [
+    'assets/lpc/Objects/Furniture/Barrel.png',
+    'assets/lpc/Objects/Furniture/Bin.png',
+    'assets/lpc/Objects/Furniture/Cabinet.png',
+    'assets/lpc/Objects/Furniture/Cauldron.png',
+    'assets/lpc/Objects/Furniture/Chest.png',
+    'assets/lpc/Objects/Furniture/Countertop.png',
+    'assets/lpc/Objects/Furniture/Crate.png',
+    'assets/lpc/Objects/Furniture/Dresser.png',
+    'assets/lpc/Objects/Furniture/End Table.png',
+    'assets/lpc/Objects/Furniture/Fireplace.png',
+    'assets/lpc/Objects/Furniture/Fireplace, Cast Iron.png',
+    'assets/lpc/Objects/Furniture/Ladder.png',
+    'assets/lpc/Objects/Furniture/Planter.png',
+    'assets/lpc/Objects/Furniture/Shelf.png',
+    'assets/lpc/Objects/Furniture/Stone Slab.png',
+    'assets/lpc/Objects/Furniture/Table, Rough Wood.png',
+    'assets/lpc/Objects/Furniture/Table, Ornate Wood.png',
+    'assets/lpc/Objects/Furniture/Table, Card.png',
+    'assets/lpc/Objects/Furniture/Table, Workshop.png',
+    'assets/lpc/Objects/Furniture/Trough.png',
+    'assets/lpc/Objects/Furniture/Wolf Stone.png',
+    'assets/lpc/Objects/Furniture/Standing Screen.png',
+  ],
+  'Seating': [
+    'assets/lpc/Objects/Furniture/Seating/Bar Stools.png',
+    'assets/lpc/Objects/Furniture/Seating/Chair, Dining A.png',
+    'assets/lpc/Objects/Furniture/Seating/Chair, Dining B.png',
+    'assets/lpc/Objects/Furniture/Seating/Chair, Dining C.png',
+    'assets/lpc/Objects/Furniture/Seating/Chair, Sofa A.png',
+    'assets/lpc/Objects/Furniture/Seating/Chair, Sofa B.png',
+    'assets/lpc/Objects/Furniture/Seating/Chair, Sofa C.png',
+    'assets/lpc/Objects/Furniture/Seating/Thrones.png',
+  ],
+  'Crafting': [
+    'assets/lpc/Objects/Furniture/Smithing/Anvils.png',
+    'assets/lpc/Objects/Furniture/Smithing/Bellows.png',
+    'assets/lpc/Objects/Furniture/Smithing/Coal Piles.png',
+    'assets/lpc/Objects/Furniture/Smithing/Forge A.png',
+    'assets/lpc/Objects/Furniture/Smithing/Furnace A.png',
+    'assets/lpc/Objects/Furniture/Smithing/Grindstone.png',
+    'assets/lpc/Objects/Furniture/Smithing/Smelter.png',
+    'assets/lpc/Objects/Furniture/Smithing/Workbench, Smith.png',
+    'assets/lpc/Objects/Furniture/Sewing & Weaving/Dress Form.png',
+    'assets/lpc/Objects/Furniture/Sewing & Weaving/Loom.png',
+    'assets/lpc/Objects/Furniture/Sewing & Weaving/Spinning Wheel.png',
+    'assets/lpc/Objects/Furniture/Sewing & Weaving/Workbench, Sewing.png',
+    'assets/lpc/Objects/Furniture/Workbench, Carpentry.png',
+    'assets/lpc/Objects/Furniture/Sawhorse.png',
+  ],
+  'Small Items': [
+    'assets/lpc/Objects/Small Items/Baskets A.png',
+    'assets/lpc/Objects/Small Items/Boxes.png',
+    'assets/lpc/Objects/Small Items/Buckets.png',
+    'assets/lpc/Objects/Small Items/Dungeon Elements.png',
+    'assets/lpc/Objects/Small Items/Fire, Camp.png',
+    'assets/lpc/Objects/Small Items/Fire, Fireplace.png',
+    'assets/lpc/Objects/Small Items/Flowers.png',
+    'assets/lpc/Objects/Small Items/Games.png',
+    'assets/lpc/Objects/Small Items/Hay & Straw.png',
+    'assets/lpc/Objects/Small Items/Lumber.png',
+    'assets/lpc/Objects/Small Items/Pillows.png',
+    'assets/lpc/Objects/Small Items/Skeletons A.png',
+    'assets/lpc/Objects/Small Items/Tools, Carpentry.png',
+    'assets/lpc/Objects/Small Items/Tools, Smithing.png',
+    'assets/lpc/Objects/Small Items/Sawdust.png',
+    'assets/lpc/Objects/Small Items/Ores & Ingots/Ore, Iron.png',
+    'assets/lpc/Objects/Small Items/Ores & Ingots/Ore, Gold.png',
+    'assets/lpc/Objects/Small Items/Ores & Ingots/Ore, Coal.png',
+    'assets/lpc/Objects/Small Items/Ores & Ingots/Ore, Copper.png',
+    'assets/lpc/Objects/Small Items/Ores & Ingots/Alloys.png',
+  ],
+  'Lighting': [
+    'assets/lpc/Objects/Furniture/Lighting, Floor.png',
+    'assets/lpc/Objects/Furniture/Lighting, Outdoors.png',
+    'assets/lpc/Objects/Small Items/Lighting, Table.png',
+    'assets/lpc/Objects/Wall Items/Lighting, Wall.png',
+  ],
+  'Wall Decor': [
+    'assets/lpc/Objects/Wall Items/Curtains.png',
+    'assets/lpc/Objects/Wall Items/Mirrors.png',
+    'assets/lpc/Objects/Wall Items/Paintings, Abstract.png',
+    'assets/lpc/Objects/Wall Items/Paintings, Landscape.png',
+    'assets/lpc/Objects/Wall Items/Paintings, Portraits.png',
+    'assets/lpc/Objects/Wall Items/Paintings, Still Life.png',
+    'assets/lpc/Objects/Wall Items/Posters.png',
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════
+const TILE = 32;
+const PAL_ZOOM = 1;
+
+let editorMode    = 'building';  // 'building' | 'object'
+let currentCategory = null;
+let activeStamp   = null;
+let activeTool    = 'paint';
+
+// ── Canvas & grid (per-mode, saved/restored on switch) ──
+let gridW = 12, gridH = 12;
+let canvasZoom = 2, panX = 20, panY = 20;
+let meta = {};
+let undoStack = [], redoStack = [];
+
+// ── Building-mode data (always alive) ──
+let layers = { floor:{}, walls:{}, roof:{}, overlay:{} };
+let activeLayer   = 'floor';
+let visibleLayers = new Set(['floor','walls','roof','overlay']);
+let buildings     = [];
+let buildingEditIdx = -1;
+
+// ── Object-mode data (always alive) ──
+let objTiles          = {};
+let objDefs           = [];
+let objEditIdx        = -1;
+let _objHealthStates  = [];  // Array of {label, minHealthPct, tiles: {key:cell,...}}
+let _objSeasonVariants = {}; // { spring|summer|autumn|winter: {key:cell,...} }
+let _objGrowthStates  = [];  // Array of {label, daysToReach, tiles: {key:cell,...}}
+let _objOriginQ       = null; // Grid col of the origin/anchor tile (null = use top-left painted tile)
+let _objOriginR       = null; // Grid row of the origin/anchor tile
+let _bldOriginQ       = null; // Building origin col (null = use top-left painted tile)
+let _bldOriginR       = null; // Building origin row
+
+// ── Saved mode states (for restoring on switch) ──
+let _savedBuildingState = null;
+let _savedObjectState   = null;
+
+// Camera
+let isPanning = false, panStart = null;
+let isDragging = false;
+
+// Selection
+let selDrawing = false, selRect = null;
+let selFloat   = null, selOffset = { dq:0, dr:0 };
+let selMoving  = false, selMoveAnchor = null;
+
+// Image cache
+const imgCache = new Map();
+
+// Palette drag
+const palHighlightDivs = new Map();
+let palDragging = false, palDragMeta = null;
+let palDragStart = null, palDragLive = null;
+
+// ═══════════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════════
+/** Returns the tile map that paint/erase/fill operate on */
+function getTileStore() {
+    return editorMode === 'building' ? layers[activeLayer] : objTiles;
+}
+
+function slugify(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,''); }
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ═══════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════
+function init() {
+    buildPaletteCats();
+    resizeObserver();
+    initBuildCanvas();
+    initPaletteResizer();
+    refreshHealthStatesList();
+    refreshSeasonVariantsList();
+    refreshGrowthStatesList();
+    // import-input removed — import is handled by parent editor
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mouseup', () => {
+        if (!palDragging) return;
+        palDragging = false;
+        if (palDragStart && palDragMeta) {
+            const c1 = Math.min(palDragStart.col, palDragLive.col);
+            const r1 = Math.min(palDragStart.row, palDragLive.row);
+            const c2 = Math.max(palDragStart.col, palDragLive.col);
+            const r2 = Math.max(palDragStart.row, palDragLive.row);
+            const baseName = palDragMeta.path.split('/').pop().replace(/\.[^.]+$/, '');
+            setStamp(palDragMeta.path, c1, r1, c2, r2, baseName);
+        }
+    });
+    renderBuildCanvas();
+}
+
+function initPaletteResizer() {
+    const handle = document.getElementById('pal-resizer');
+    const panel  = document.getElementById('palette-panel');
+    let startX, startW;
+    handle.addEventListener('mousedown', e => {
+        e.preventDefault();
+        startX = e.clientX; startW = panel.offsetWidth;
+        handle.classList.add('dragging');
+        const onMove = ev => { panel.style.width = Math.max(180, Math.min(700, startW + ev.clientX - startX)) + 'px'; };
+        const onUp   = () => { handle.classList.remove('dragging'); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
+}
+
+function resizeObserver() {
+    new ResizeObserver(() => renderBuildCanvas()).observe(document.getElementById('canvas-wrap'));
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MODE SWITCHING
+// ═══════════════════════════════════════════════════════════════
+function setEditorMode(mode) {
+    if (mode === editorMode) return;
+    if (selFloat) commitSelection();
+
+    // Save current canvas state
+    const saved = {
+        gridW, gridH, meta: JSON.parse(JSON.stringify(meta)),
+        undoStack: undoStack.slice(), redoStack: redoStack.slice(),
+        zoom: canvasZoom, panX, panY,
+    };
+    if (editorMode === 'building') {
+        saved.layers = JSON.parse(JSON.stringify(layers));
+        saved.activeLayer = activeLayer;
+        saved.visLayers = [...visibleLayers];
+        saved.editIdx = buildingEditIdx;
+        saved.originQ = _bldOriginQ;
+        saved.originR = _bldOriginR;
+        _savedBuildingState = saved;
+    } else {
+        saved.tiles = JSON.parse(JSON.stringify(objTiles));
+        saved.editIdx = objEditIdx;
+        saved.healthStates = JSON.parse(JSON.stringify(_objHealthStates));
+        saved.originQ = _objOriginQ;
+        saved.originR = _objOriginR;
+        saved.seasonVariants = JSON.parse(JSON.stringify(_objSeasonVariants));
+        saved.growthStates = JSON.parse(JSON.stringify(_objGrowthStates));
+        _savedObjectState = saved;
+    }
+
+    editorMode = mode;
+
+    // Update toolbar button labels / visibility for the new mode
+    {
+        const markerBtn = document.getElementById('tool-marker');
+        if (markerBtn) markerBtn.textContent = mode === 'object' ? '🎯 Interact' : '🚪 Door';
+        const originBtn = document.getElementById('tool-origin');
+        if (originBtn) originBtn.style.display = '';
+    }
+    const restore = mode === 'building' ? _savedBuildingState : _savedObjectState;
+    if (restore) {
+        gridW = restore.gridW; gridH = restore.gridH;
+        meta  = restore.meta;
+        undoStack = restore.undoStack; redoStack = restore.redoStack;
+        canvasZoom = restore.zoom; panX = restore.panX; panY = restore.panY;
+        if (mode === 'building') {
+            layers = restore.layers; activeLayer = restore.activeLayer;
+            visibleLayers = new Set(restore.visLayers);
+            buildingEditIdx = restore.editIdx;
+            _bldOriginQ = restore.originQ != null ? restore.originQ : null;
+            _bldOriginR = restore.originR != null ? restore.originR : null;
+        } else {
+            objTiles = restore.tiles;
+            objEditIdx = restore.editIdx;
+            _objHealthStates = restore.healthStates || [];
+            refreshHealthStatesList();
+            _objOriginQ = restore.originQ != null ? restore.originQ : null;
+            _objOriginR = restore.originR != null ? restore.originR : null;
+            _objSeasonVariants = restore.seasonVariants ? JSON.parse(JSON.stringify(restore.seasonVariants)) : {};
+            refreshSeasonVariantsList();
+            _objGrowthStates = restore.growthStates ? JSON.parse(JSON.stringify(restore.growthStates)) : [];
+            refreshGrowthStatesList();
+        }
+    } else {
+        // Defaults
+        if (mode === 'building') {
+            gridW = 12; gridH = 12;
+            layers = { floor:{}, walls:{}, roof:{}, overlay:{} };
+            activeLayer = 'floor'; visibleLayers = new Set(['floor','walls','roof','overlay']);
+            meta = {}; buildingEditIdx = -1;
+            _bldOriginQ = null; _bldOriginR = null;
+        } else {
+            gridW = 8; gridH = 8;
+            objTiles = {}; meta = {}; objEditIdx = -1;
+        }
+        undoStack = []; redoStack = [];
+        canvasZoom = 2; panX = 20; panY = 20;
+    }
+
+    document.getElementById('grid-w').value = gridW;
+    document.getElementById('grid-h').value = gridH;
+    updateModeUI();
+    refreshLibrary();
+    fitCanvas();
+}
+
+function updateModeUI() {
+    const isB = editorMode === 'building';
+    document.getElementById('mode-building').classList.toggle('active', isB);
+    document.getElementById('mode-object').classList.toggle('active', !isB);
+    document.getElementById('layer-section').style.display  = isB ? '' : 'none';
+    document.getElementById('bld-props').style.display      = isB ? '' : 'none';
+    document.getElementById('obj-props').style.display      = isB ? 'none' : '';
+    document.getElementById('building-list').style.display   = isB ? '' : 'none';
+    document.getElementById('object-list').style.display     = isB ? 'none' : '';
+    // Update layer buttons
+    if (isB) {
+        document.querySelectorAll('#layer-btns .tool-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('layer-' + activeLayer)?.classList.add('active');
+        visibleLayers.forEach(l => document.getElementById('vis-' + l)?.classList.add('active'));
+    }
+    // Update marker tool label
+    const markerBtn = document.getElementById('tool-marker');
+    markerBtn.innerHTML = isB ? '🚪 Door' : '🎯 Interact';
+    markerBtn.title = isB ? 'Place door marker (D)' : 'Toggle interaction point (N)';
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PALETTE
+// ═══════════════════════════════════════════════════════════════
+function buildPaletteCats() {
+    const cats = document.getElementById('palette-cats');
+    cats.innerHTML = '';
+    for (const cat of Object.keys(PALETTE_DATA)) {
+        const btn = document.createElement('button');
+        btn.className = 'cat-btn';
+        btn.textContent = cat;
+        btn.onclick = () => showCategory(cat, btn);
+        cats.appendChild(btn);
+    }
+}
+
+function showCategory(cat, btn) {
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentCategory = cat;
+    const container = document.getElementById('palette-sheets');
+    container.innerHTML = '';
+    const paths = PALETTE_DATA[cat];
+    for (const path of paths) {
+        const block = document.createElement('div');
+        block.className = 'sheet-block';
+        const label = document.createElement('div');
+        label.className = 'sheet-name';
+        const baseName = path.split('/').pop().replace(/\.[^.]+$/, '');
+        label.innerHTML = `<span title="${path}">${baseName}</span>`;
+        block.appendChild(label);
+        const wrap = document.createElement('div');
+        wrap.className = 'sheet-canvas-wrap';
+        block.appendChild(wrap);
+        const cvs = document.createElement('canvas');
+        cvs.className = 'palette-canvas';
+        wrap.appendChild(cvs);
+        const highlight = document.createElement('div');
+        highlight.className = 'stamp-highlight';
+        highlight.style.display = 'none';
+        wrap.appendChild(highlight);
+        container.appendChild(block);
+        loadImage(path).then(img => {
+            if (!img) { label.innerHTML += ` <span style="color:var(--red);font-size:10px">⚠ missing</span>`; return; }
+            const cols = Math.floor(img.width / TILE);
+            const rows = Math.floor(img.height / TILE);
+            const dispW = img.width * PAL_ZOOM, dispH = img.height * PAL_ZOOM;
+            cvs.width = dispW; cvs.height = dispH;
+            wrap.style.width = dispW + 'px'; wrap.style.height = dispH + 'px';
+            const ctx = cvs.getContext('2d');
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, dispW, dispH);
+            ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 0.5;
+            for (let c = 0; c <= cols; c++) { ctx.beginPath(); ctx.moveTo(c*TILE*PAL_ZOOM,0); ctx.lineTo(c*TILE*PAL_ZOOM,dispH); ctx.stroke(); }
+            for (let r = 0; r <= rows; r++) { ctx.beginPath(); ctx.moveTo(0,r*TILE*PAL_ZOOM); ctx.lineTo(dispW,r*TILE*PAL_ZOOM); ctx.stroke(); }
+            label.innerHTML = `<span title="${path}">${baseName}</span><span style="font-size:10px;color:var(--text-dim)">${cols}×${rows}</span>`;
+            palHighlightDivs.set(path, highlight);
+            updatePaletteHighlight(path, highlight);
+            cvs.addEventListener('mousedown', e => {
+                if (e.button !== 0) return;
+                e.preventDefault();
+                const rect = cvs.getBoundingClientRect();
+                const col = Math.max(0, Math.min(cols-1, Math.floor((e.clientX - rect.left) / PAL_ZOOM / TILE)));
+                const row = Math.max(0, Math.min(rows-1, Math.floor((e.clientY - rect.top)  / PAL_ZOOM / TILE)));
+                palDragging = true; palDragMeta = { path, cols, rows };
+                palDragStart = { col, row }; palDragLive = { col, row };
+                updatePalDragHighlight();
+            });
+            cvs.addEventListener('mousemove', e => {
+                if (!palDragging || palDragMeta.path !== path) return;
+                const rect = cvs.getBoundingClientRect();
+                palDragLive = {
+                    col: Math.max(0, Math.min(cols-1, Math.floor((e.clientX - rect.left) / PAL_ZOOM / TILE))),
+                    row: Math.max(0, Math.min(rows-1, Math.floor((e.clientY - rect.top)  / PAL_ZOOM / TILE)))
+                };
+                updatePalDragHighlight();
+            });
+        });
+    }
+}
+
+function updatePalDragHighlight() {
+    if (!palDragging || !palDragStart || !palDragLive || !palDragMeta) return;
+    const hl = palHighlightDivs.get(palDragMeta.path);
+    if (!hl) return;
+    const c1 = Math.min(palDragStart.col, palDragLive.col), r1 = Math.min(palDragStart.row, palDragLive.row);
+    const c2 = Math.max(palDragStart.col, palDragLive.col), r2 = Math.max(palDragStart.row, palDragLive.row);
+    hl.style.display='block'; hl.style.left=(c1*TILE*PAL_ZOOM)+'px'; hl.style.top=(r1*TILE*PAL_ZOOM)+'px';
+    hl.style.width=((c2-c1+1)*TILE*PAL_ZOOM)+'px'; hl.style.height=((r2-r1+1)*TILE*PAL_ZOOM)+'px';
+}
+
+function updatePaletteHighlight(path, highlight) {
+    if (!activeStamp || activeStamp.sheetPath !== path) { highlight.style.display = 'none'; return; }
+    const s = activeStamp;
+    if (s._palC1 == null) return;
+    highlight.style.display='block'; highlight.style.left=(s._palC1*TILE*PAL_ZOOM)+'px'; highlight.style.top=(s._palR1*TILE*PAL_ZOOM)+'px';
+    highlight.style.width=((s._palC2-s._palC1+1)*TILE*PAL_ZOOM)+'px'; highlight.style.height=((s._palR2-s._palR1+1)*TILE*PAL_ZOOM)+'px';
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CUSTOM SHEET LOADING
+// ═══════════════════════════════════════════════════════════════
+function loadCustomSheet() {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const assetPath = prompt('Asset path for this sheet (relative to project root):', `assets/${file.name}`);
+        if (!assetPath) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+            const img = new Image();
+            img.onload = () => {
+                imgCache.set(assetPath, img);
+                const baseName = file.name.replace(/\.[^.]+$/, '');
+                const catName = `📂 ${baseName}`;
+                PALETTE_DATA[catName] = [assetPath];
+                buildPaletteCats();
+                // Auto-show the new category
+                const btns = document.querySelectorAll('#palette-cats .cat-btn');
+                const lastBtn = btns[btns.length - 1];
+                if (lastBtn) showCategory(catName, lastBtn);
+            };
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+    input.click();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  STAMP
+// ═══════════════════════════════════════════════════════════════
+function setStamp(sheetPath, palC1, palR1, palC2, palR2, baseName) {
+    const sW = palC2 - palC1 + 1, sH = palR2 - palR1 + 1;
+    const stampTiles = [];
+    for (let dr = 0; dr < sH; dr++)
+        for (let dc = 0; dc < sW; dc++)
+            stampTiles.push({ localCol: dc, localRow: dr, sx: (palC1+dc)*TILE, sy: (palR1+dr)*TILE });
+    const label = (sW===1 && sH===1) ? `${baseName} [${palC1},${palR1}]` : `${baseName} [${palC1},${palR1} → ${palC2},${palR2}]`;
+    for (const [p, hl] of palHighlightDivs) { if (p !== sheetPath) hl.style.display = 'none'; }
+    activeStamp = { sheetPath, stampCols: sW, stampRows: sH, tiles: stampTiles, label, _palC1: palC1, _palR1: palR1, _palC2: palC2, _palR2: palR2 };
+    document.getElementById('stamp-info').innerHTML = `<strong>${escHtml(baseName)}</strong><br>${sW}×${sH} tile${sW*sH!==1?'s':''}`;
+    refreshStampPreview();
+    if (activeTool === 'eyedrop') setTool('paint');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  STAMP PREVIEW
+// ═══════════════════════════════════════════════════════════════
+function refreshStampPreview() {
+    if (!activeStamp) return;
+    const PREVIEW = 96;
+    const sCvs = document.getElementById('stamp-canvas');
+    sCvs.width = sCvs.height = PREVIEW;
+    const sCtx = sCvs.getContext('2d');
+    sCtx.imageSmoothingEnabled = false;
+    sCtx.clearRect(0, 0, PREVIEW, PREVIEW);
+    const W = activeStamp.stampCols, H = activeStamp.stampRows;
+    const tileDisp = Math.min(PREVIEW / W, PREVIEW / H);
+    const ox = Math.round((PREVIEW - W * tileDisp) / 2);
+    const oy = Math.round((PREVIEW - H * tileDisp) / 2);
+    loadImage(activeStamp.sheetPath).then(img => {
+        if (!img) return;
+        sCtx.clearRect(0, 0, PREVIEW, PREVIEW);
+        sCtx.imageSmoothingEnabled = false;
+        for (const t of activeStamp.tiles) {
+            const px = ox + t.localCol * tileDisp;
+            const py = oy + t.localRow * tileDisp;
+            if (t.rotation) {
+                sCtx.save();
+                sCtx.translate(px + tileDisp/2, py + tileDisp/2);
+                sCtx.rotate(t.rotation * Math.PI / 180);
+                sCtx.drawImage(img, t.sx, t.sy, TILE, TILE, -tileDisp/2, -tileDisp/2, tileDisp, tileDisp);
+                sCtx.restore();
+            } else {
+                sCtx.drawImage(img, t.sx, t.sy, TILE, TILE, px, py, tileDisp, tileDisp);
+            }
+        }
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ROTATION
+// ═══════════════════════════════════════════════════════════════
+/** Rotate the active stamp 90° CW (dir=1) or CCW (dir=-1).
+ *  Rearranges tile positions AND stores per-tile visual rotation.
+ */
+function rotateStamp(dir) {
+    if (!activeStamp) return;
+    const W = activeStamp.stampCols, H = activeStamp.stampRows;
+    activeStamp.tiles = activeStamp.tiles.map(t => {
+        let newLC, newLR;
+        if (dir > 0) { newLC = H - 1 - t.localRow; newLR = t.localCol; }
+        else         { newLC = t.localRow;           newLR = W - 1 - t.localCol; }
+        const newRot = (((t.rotation || 0) + dir * 90) % 360 + 360) % 360;
+        return { ...t, localCol: newLC, localRow: newLR, rotation: newRot || undefined };
+    });
+    activeStamp.stampCols = H;
+    activeStamp.stampRows = W;
+    const baseName = activeStamp.sheetPath.split('/').pop().replace(/\.[^.]+$/, '');
+    const rotSymbol = dir > 0 ? ' ↻' : ' ↺';
+    document.getElementById('stamp-info').innerHTML =
+        `<strong>${escHtml(baseName)}</strong><br>${H}\u00d7${W} tile${H*W!==1?'s':''}${rotSymbol}`;
+    refreshStampPreview();
+    renderBuildCanvas();
+}
+
+/** Rotate the current floating selection 90° CW (dir=1) or CCW (dir=-1). */
+function rotateSelection(dir) {
+    if (!selFloat) return;
+    pushUndo();
+    const W = selFloat.q2 - selFloat.q1 + 1;
+    const H = selFloat.r2 - selFloat.r1 + 1;
+    const rotateStore = (store, applyVisualRot) => {
+        const out = {};
+        for (const [key, cell] of Object.entries(store)) {
+            const [q, r] = key.split(',').map(Number);
+            const lq = q - selFloat.q1, lr = r - selFloat.r1;
+            let newLQ, newLR;
+            if (dir > 0) { newLQ = H - 1 - lr; newLR = lq; }
+            else         { newLQ = lr;          newLR = W - 1 - lq; }
+            const nq = selFloat.q1 + newLQ, nr = selFloat.r1 + newLR;
+            if (applyVisualRot) {
+                const newRot = (((cell.rotation || 0) + dir * 90) % 360 + 360) % 360;
+                const newCell = { ...cell };
+                if (newRot) newCell.rotation = newRot; else delete newCell.rotation;
+                out[`${nq},${nr}`] = newCell;
+            } else {
+                out[`${nq},${nr}`] = { ...cell };
+            }
+        }
+        return out;
+    };
+    if (editorMode === 'building') {
+        selFloat.floor   = rotateStore(selFloat.floor   || {}, true);
+        selFloat.walls   = rotateStore(selFloat.walls   || {}, true);
+        selFloat.roof    = rotateStore(selFloat.roof    || {}, true);
+        selFloat.overlay = rotateStore(selFloat.overlay || {}, true);
+    } else {
+        selFloat.tiles   = rotateStore(selFloat.tiles   || {}, true);
+    }
+    selFloat.meta = rotateStore(selFloat.meta || {}, false);
+    // Swap bounding-box dimensions (width ↔ height, anchor stays at q1,r1)
+    selFloat.q2 = selFloat.q1 + H - 1;
+    selFloat.r2 = selFloat.r1 + W - 1;
+    renderBuildCanvas();
+}
+
+/** Rotate the stamp (paint mode) or the active floating selection. */
+function rotateStampOrSelection(dir) {
+    if (activeTool === 'select' && selFloat) rotateSelection(dir);
+    else rotateStamp(dir);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TOOL / LAYER
+// ═══════════════════════════════════════════════════════════════
+function setTool(t) {
+    if (activeTool === 'select' && t !== 'select') commitSelection();
+    activeTool = t;
+    document.querySelectorAll('#tool-btns .tool-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tool-' + t)?.classList.add('active');
+    const cvs = document.getElementById('build-canvas');
+    cvs.style.cursor = t === 'erase' ? 'not-allowed' : t === 'eyedrop' ? 'copy' : 'crosshair';
+}
+
+function setLayer(l) {
+    activeLayer = l;
+    document.querySelectorAll('#layer-btns .tool-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('layer-' + l)?.classList.add('active');
+}
+
+function toggleVis(l) {
+    if (visibleLayers.has(l)) visibleLayers.delete(l); else visibleLayers.add(l);
+    document.getElementById('vis-' + l).classList.toggle('active', visibleLayers.has(l));
+    renderBuildCanvas();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  GRID RESIZE
+// ═══════════════════════════════════════════════════════════════
+function resizeGrid() {
+    const nw = Math.max(1, Math.min(64, parseInt(document.getElementById('grid-w').value) || gridW));
+    const nh = Math.max(1, Math.min(64, parseInt(document.getElementById('grid-h').value) || gridH));
+    if (!confirm(`Resize to ${nw}×${nh}? Tiles outside the new bounds will be removed.`)) return;
+    pushUndo();
+    gridW = nw; gridH = nh;
+    const clipStore = store => { for (const key of Object.keys(store)) { const [q, r] = key.split(',').map(Number); if (q >= gridW || r >= gridH) delete store[key]; } };
+    if (editorMode === 'building') { for (const lyr of Object.values(layers)) clipStore(lyr); }
+    else clipStore(objTiles);
+    clipStore(meta);
+    fitCanvas();
+}
+
+function autofitGrid() {
+    // Collect every occupied cell key across all relevant stores
+    const keys = new Set();
+    if (editorMode === 'building') {
+        for (const lyr of Object.values(layers))
+            for (const k of Object.keys(lyr)) keys.add(k);
+    } else {
+        for (const k of Object.keys(objTiles)) keys.add(k);
+    }
+    for (const k of Object.keys(meta)) keys.add(k);
+
+    if (!keys.size) { alert('Nothing on the canvas to fit.'); return; }
+
+    let minQ = Infinity, minR = Infinity, maxQ = -Infinity, maxR = -Infinity;
+    for (const k of keys) {
+        const [q, r] = k.split(',').map(Number);
+        if (q < minQ) minQ = q;
+        if (q > maxQ) maxQ = q;
+        if (r < minR) minR = r;
+        if (r > maxR) maxR = r;
+    }
+
+    // Tight fit — no padding
+    const newMinQ = minQ;
+    const newMinR = minR;
+    const newW = maxQ - minQ + 1;
+    const newH = maxR - minR + 1;
+
+    if (newW === gridW && newH === gridH && newMinQ === 0 && newMinR === 0) {
+        alert('Grid already fits the content.'); return;
+    }
+
+    pushUndo();
+
+    // Shift all tiles so that newMinQ,newMinR becomes 0,0
+    const shiftStore = store => {
+        const entries = Object.entries(store);
+        for (const [k] of entries) delete store[k];
+        for (const [k, v] of entries) {
+            const [q, r] = k.split(',').map(Number);
+            store[`${q - newMinQ},${r - newMinR}`] = v;
+        }
+    };
+    if (editorMode === 'building') {
+        for (const lyr of Object.values(layers)) shiftStore(lyr);
+    } else {
+        shiftStore(objTiles);
+        // Also shift the explicit origin point if set
+        if (_objOriginQ != null) {
+            _objOriginQ -= newMinQ;
+            _objOriginR -= newMinR;
+        }
+    }
+    shiftStore(meta);
+
+    gridW = newW; gridH = newH;
+    document.getElementById('grid-w').value = gridW;
+    document.getElementById('grid-h').value = gridH;
+    fitCanvas();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BUILD CANVAS — setup
+// ═══════════════════════════════════════════════════════════════
+function initBuildCanvas() {
+    const cvs = document.getElementById('build-canvas');
+    cvs.addEventListener('mousedown', onCanvasDown);
+    cvs.addEventListener('mousemove', onCanvasMove);
+    cvs.addEventListener('mouseup',   onCanvasUp);
+    cvs.addEventListener('mouseleave',onCanvasUp);
+    cvs.addEventListener('wheel',     onCanvasWheel, { passive:false });
+    cvs.addEventListener('contextmenu', e => e.preventDefault());
+    fitCanvas();
+}
+
+function fitCanvas() {
+    const wrap = document.getElementById('canvas-wrap');
+    const r = wrap.getBoundingClientRect();
+    const fitZoom = Math.min((r.width-40)/(gridW*TILE), (r.height-40)/(gridH*TILE));
+    canvasZoom = Math.max(0.5, Math.min(8, fitZoom));
+    document.getElementById('zoom-badge').textContent = Math.round(canvasZoom*100)+'%';
+    panX = Math.round((r.width - gridW*TILE*canvasZoom)/2);
+    panY = Math.round((r.height - gridH*TILE*canvasZoom)/2);
+    renderBuildCanvas();
+}
+
+function zoomCanvas(dir) {
+    const steps = [0.25,0.5,0.75,1,1.5,2,3,4,6,8];
+    let idx = steps.findIndex(s => s >= canvasZoom - 0.01);
+    if (idx < 0) idx = steps.length-1;
+    idx = Math.max(0, Math.min(steps.length-1, idx + dir));
+    const wrap = document.getElementById('canvas-wrap'), r = wrap.getBoundingClientRect();
+    const cx = r.width/2, cy = r.height/2, prev = canvasZoom;
+    canvasZoom = steps[idx];
+    panX = cx - (cx-panX)*(canvasZoom/prev);
+    panY = cy - (cy-panY)*(canvasZoom/prev);
+    document.getElementById('zoom-badge').textContent = Math.round(canvasZoom*100)+'%';
+    renderBuildCanvas();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BUILD CANVAS — render
+// ═══════════════════════════════════════════════════════════════
+function drawTiles(ctx, store, ds) {
+    for (const [key, cell] of Object.entries(store)) {
+        const [q, r2] = key.split(',').map(Number);
+        const x = Math.floor(panX + q*ds), y = Math.floor(panY + r2*ds);
+        const img = imgCache.get(cell.sheetPath);
+        if (!img || !img.complete) continue;
+        const cds = Math.ceil(ds);
+        if (cell.rotation) {
+            ctx.save();
+            ctx.translate(x + cds/2, y + cds/2);
+            ctx.rotate(cell.rotation * Math.PI / 180);
+            ctx.drawImage(img, cell.sx, cell.sy, cell.sw, cell.sh, -cds/2, -cds/2, cds, cds);
+            ctx.restore();
+        } else {
+            ctx.drawImage(img, cell.sx, cell.sy, cell.sw, cell.sh, x, y, cds, cds);
+        }
+    }
+}
+
+function drawTilesWithOffset(ctx, store, offset, ds) {
+    for (const [key, cell] of Object.entries(store)) {
+        const [oq, or_] = key.split(',').map(Number);
+        const nq = oq+offset.dq, nr = or_+offset.dr;
+        const x = Math.floor(panX + nq*ds), y = Math.floor(panY + nr*ds);
+        const img = imgCache.get(cell.sheetPath);
+        if (!img || !img.complete) continue;
+        const cds = Math.ceil(ds);
+        if (cell.rotation) {
+            ctx.save();
+            ctx.translate(x + cds/2, y + cds/2);
+            ctx.rotate(cell.rotation * Math.PI / 180);
+            ctx.drawImage(img, cell.sx, cell.sy, cell.sw, cell.sh, -cds/2, -cds/2, cds, cds);
+            ctx.restore();
+        } else {
+            ctx.drawImage(img, cell.sx, cell.sy, cell.sw, cell.sh, x, y, cds, cds);
+        }
+    }
+}
+
+function renderBuildCanvas() {
+    const wrap = document.getElementById('canvas-wrap');
+    const cvs  = document.getElementById('build-canvas');
+    const r = wrap.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    cvs.width = r.width; cvs.height = r.height;
+    cvs.style.width = r.width+'px'; cvs.style.height = r.height+'px';
+    const ctx = cvs.getContext('2d');
+    ctx.clearRect(0,0,cvs.width,cvs.height);
+    ctx.imageSmoothingEnabled = false;
+    const ds = TILE * canvasZoom;
+
+    // Grid background + checkerboard
+    ctx.fillStyle = '#0a1018';
+    ctx.fillRect(panX, panY, gridW*ds, gridH*ds);
+    for (let r2=0; r2<gridH; r2++) for (let q=0; q<gridW; q++) {
+        ctx.fillStyle = (q+r2)%2===0 ? '#101820' : '#0c141c';
+        ctx.fillRect(Math.floor(panX+q*ds), Math.floor(panY+r2*ds), Math.ceil(ds), Math.ceil(ds));
+    }
+
+    // ── Draw tiles ──
+    if (editorMode === 'building') {
+        for (const lyrName of ['floor','walls','roof','overlay']) {
+            if (!visibleLayers.has(lyrName)) continue;
+            drawTiles(ctx, layers[lyrName], ds);
+        }
+    } else {
+        drawTiles(ctx, objTiles, ds);
+    }
+
+    // ── Meta overlays ──
+    for (const [key, m] of Object.entries(meta)) {
+        const [q, r2] = key.split(',').map(Number);
+        const x = Math.floor(panX+q*ds), y = Math.floor(panY+r2*ds);
+        if (m.impassable) {
+            ctx.fillStyle = 'rgba(248,81,73,0.3)'; ctx.fillRect(x,y,Math.ceil(ds),Math.ceil(ds));
+            if (ds >= 14) { ctx.font = `${Math.min(ds*0.5,18)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.globalAlpha=0.7; ctx.fillText('⛔',x+ds/2,y+ds/2); ctx.globalAlpha=1; }
+        }
+        if (editorMode === 'building' && m.door) {
+            ctx.fillStyle = 'rgba(63,185,80,0.3)'; ctx.fillRect(x,y,Math.ceil(ds),Math.ceil(ds));
+            if (ds >= 14) { ctx.font = `${Math.min(ds*0.5,18)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.globalAlpha=0.8; ctx.fillText('🚪',x+ds/2,y+ds/2); ctx.globalAlpha=1; }
+        }
+        if (editorMode === 'object' && m.interactionPoint) {
+            ctx.fillStyle = 'rgba(88,166,255,0.3)'; ctx.fillRect(x,y,Math.ceil(ds),Math.ceil(ds));
+            if (ds >= 14) { ctx.font = `${Math.min(ds*0.5,18)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.globalAlpha=0.8; ctx.fillText('🎯',x+ds/2,y+ds/2); ctx.globalAlpha=1; }
+        }
+    }
+
+    // ── Grid lines ──
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 0.5;
+    for (let q=0; q<=gridW; q++) { const x=Math.floor(panX+q*ds)+0.5; ctx.beginPath(); ctx.moveTo(x,panY); ctx.lineTo(x,panY+gridH*ds); ctx.stroke(); }
+    for (let r2=0; r2<=gridH; r2++) { const y=Math.floor(panY+r2*ds)+0.5; ctx.beginPath(); ctx.moveTo(panX,y); ctx.lineTo(panX+gridW*ds,y); ctx.stroke(); }
+
+    // Outer border
+    ctx.strokeStyle='#30363d'; ctx.lineWidth=1;
+    ctx.strokeRect(Math.floor(panX),Math.floor(panY),Math.ceil(gridW*ds),Math.ceil(gridH*ds));
+
+    // Tile coords
+    if (ds >= 40) {
+        ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.font=`${Math.min(9,ds*0.22)}px monospace`; ctx.textAlign='left'; ctx.textBaseline='top';
+        for (let r2=0; r2<gridH; r2++) for (let q=0; q<gridW; q++)
+            ctx.fillText(`${q},${r2}`, Math.floor(panX+q*ds)+1, Math.floor(panY+r2*ds)+1);
+    }
+
+    // ── Origin marker ──
+    {
+        // Resolve the effective origin (explicit or implicit top-left of painted tiles)
+        let oq, or_;
+        if (editorMode === 'object') {
+            oq = _objOriginQ; or_ = _objOriginR;
+            if (oq == null) {
+                let minOQ = Infinity, minOR = Infinity;
+                for (const k of Object.keys(objTiles)) {
+                    const [cq, cr] = k.split(',').map(Number);
+                    if (cq < minOQ) minOQ = cq;
+                    if (cr < minOR) minOR = cr;
+                }
+                if (minOQ !== Infinity) { oq = minOQ; or_ = minOR; }
+            }
+        } else {
+            oq = _bldOriginQ; or_ = _bldOriginR;
+            if (oq == null) {
+                let minOQ = Infinity, minOR = Infinity;
+                for (const lyr of Object.values(layers)) {
+                    for (const k of Object.keys(lyr)) {
+                        const [cq, cr] = k.split(',').map(Number);
+                        if (cq < minOQ) minOQ = cq;
+                        if (cr < minOR) minOR = cr;
+                    }
+                }
+                if (minOQ !== Infinity) { oq = minOQ; or_ = minOR; }
+            }
+        }
+        if (oq != null) {
+            const ox = Math.floor(panX + oq * ds), oy2 = Math.floor(panY + or_ * ds), sz = Math.ceil(ds);
+            ctx.fillStyle = 'rgba(255,100,200,0.22)';
+            ctx.fillRect(ox, oy2, sz, sz);
+            ctx.strokeStyle = '#ff64c8'; ctx.lineWidth = Math.max(1.5, ds * 0.06);
+            ctx.strokeRect(ox + ctx.lineWidth/2, oy2 + ctx.lineWidth/2,
+                           sz - ctx.lineWidth, sz - ctx.lineWidth);
+            if (ds >= 16) {
+                ctx.fillStyle = '#ff64c8';
+                ctx.font = `bold ${Math.min(10, ds * 0.28)}px sans-serif`;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                const isExplicit = editorMode === 'object' ? _objOriginQ != null : _bldOriginQ != null;
+                const label = isExplicit ? '📌 origin' : '📌 auto';
+                ctx.fillText(label, ox + sz / 2, oy2 + sz / 2);
+            }
+        }
+    }
+
+    // ── Selection overlay ──
+    if (activeTool === 'select') {
+        if (selFloat) {
+            ctx.globalAlpha = 0.82;
+            if (editorMode === 'building') {
+                for (const ln of ['floor','walls','roof','overlay']) {
+                    if (!visibleLayers.has(ln)) continue;
+                    drawTilesWithOffset(ctx, selFloat[ln] || {}, selOffset, ds);
+                }
+            } else {
+                drawTilesWithOffset(ctx, selFloat.tiles || {}, selOffset, ds);
+            }
+            ctx.globalAlpha = 1;
+            const fq1 = selFloat.q1+selOffset.dq, fr1 = selFloat.r1+selOffset.dr;
+            const fq2 = selFloat.q2+selOffset.dq, fr2 = selFloat.r2+selOffset.dr;
+            const fx = Math.floor(panX+fq1*ds), fy = Math.floor(panY+fr1*ds);
+            const fw = Math.ceil((fq2-fq1+1)*ds), fh = Math.ceil((fr2-fr1+1)*ds);
+            ctx.strokeStyle='#58a6ff'; ctx.lineWidth=1.5;
+            ctx.setLineDash([5,3]); ctx.strokeRect(fx+0.5,fy+0.5,fw-1,fh-1); ctx.setLineDash([]);
+            ctx.fillStyle='#58a6ff';
+            for (const [hx,hy] of [[fx,fy],[fx+fw,fy],[fx,fy+fh],[fx+fw,fy+fh]]) ctx.fillRect(hx-3,hy-3,6,6);
+        }
+        if (selDrawing && selRect) {
+            const norm = getNormalizedSelRect();
+            const rx=Math.floor(panX+norm.q1*ds), ry=Math.floor(panY+norm.r1*ds);
+            const rw=Math.ceil((norm.q2-norm.q1+1)*ds), rh=Math.ceil((norm.r2-norm.r1+1)*ds);
+            ctx.fillStyle='rgba(88,166,255,0.1)'; ctx.fillRect(rx,ry,rw,rh);
+            ctx.strokeStyle='#58a6ff'; ctx.lineWidth=1; ctx.setLineDash([4,3]); ctx.strokeRect(rx+0.5,ry+0.5,rw-1,rh-1); ctx.setLineDash([]);
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BUILD CANVAS — events
+// ═══════════════════════════════════════════════════════════════
+function screenToTile(sx, sy) {
+    const ds = TILE*canvasZoom;
+    const q = Math.floor((sx-panX)/ds), r = Math.floor((sy-panY)/ds);
+    return { q, r, valid: q>=0 && q<gridW && r>=0 && r<gridH };
+}
+function screenToTileRaw(sx, sy) {
+    const ds = TILE*canvasZoom;
+    return { q: Math.floor((sx-panX)/ds), r: Math.floor((sy-panY)/ds) };
+}
+function canvasRect() { return document.getElementById('build-canvas').getBoundingClientRect(); }
+
+// ═══════════════════════════════════════════════════════════════
+//  UNDO / REDO
+// ═══════════════════════════════════════════════════════════════
+function snapshotState() {
+    if (editorMode === 'building') return JSON.stringify({ m:'b', layers, meta, gridW, gridH });
+    return JSON.stringify({ m:'o', tiles: objTiles, meta, gridW, gridH });
+}
+function pushUndo() { undoStack.push(snapshotState()); if (undoStack.length>50) undoStack.shift(); redoStack = []; }
+function applySnapshot(snap) {
+    selFloat=null; selRect=null; selOffset={dq:0,dr:0}; selDrawing=selMoving=false; selMoveAnchor=null;
+    const s = JSON.parse(snap);
+    gridW = s.gridW; gridH = s.gridH; meta = s.meta;
+    if (s.m === 'b') layers = s.layers; else objTiles = s.tiles;
+    document.getElementById('grid-w').value = gridW;
+    document.getElementById('grid-h').value = gridH;
+    renderBuildCanvas();
+}
+function undo() { if (!undoStack.length) return; redoStack.push(snapshotState()); applySnapshot(undoStack.pop()); }
+function redo() { if (!redoStack.length) return; undoStack.push(snapshotState()); applySnapshot(redoStack.pop()); }
+
+function getNormalizedSelRect() {
+    if (!selRect) return null;
+    return { q1: Math.min(selRect.q1,selRect.q2), r1: Math.min(selRect.r1,selRect.r2),
+             q2: Math.max(selRect.q1,selRect.q2), r2: Math.max(selRect.r1,selRect.r2) };
+}
+
+function commitSelection() {
+    if (!selFloat) { selRect=null; selDrawing=false; renderBuildCanvas(); return; }
+    const placeTile = (store, floatStore) => {
+        for (const [key, cell] of Object.entries(floatStore || {})) {
+            const [q, r] = key.split(',').map(Number);
+            const nq = q+selOffset.dq, nr = r+selOffset.dr;
+            if (nq>=0 && nq<gridW && nr>=0 && nr<gridH) store[`${nq},${nr}`] = cell;
+        }
+    };
+    if (editorMode === 'building') {
+        for (const ln of ['floor','walls','roof','overlay']) placeTile(layers[ln], selFloat[ln]);
+    } else {
+        placeTile(objTiles, selFloat.tiles);
+    }
+    for (const [key, m] of Object.entries(selFloat.meta || {})) {
+        const [q, r] = key.split(',').map(Number);
+        const nq = q+selOffset.dq, nr = r+selOffset.dr;
+        if (nq>=0 && nq<gridW && nr>=0 && nr<gridH) meta[`${nq},${nr}`] = m;
+    }
+    selFloat=null; selRect=null; selOffset={dq:0,dr:0}; selDrawing=selMoving=false; selMoveAnchor=null;
+    renderBuildCanvas();
+}
+
+function cancelSelection() {
+    if (selFloat) {
+        if (editorMode === 'building') {
+            for (const ln of ['floor','walls','roof','overlay'])
+                for (const [key, cell] of Object.entries(selFloat[ln] || {})) layers[ln][key] = cell;
+        } else {
+            for (const [key, cell] of Object.entries(selFloat.tiles || {})) objTiles[key] = cell;
+        }
+        for (const [key, m] of Object.entries(selFloat.meta || {})) meta[key] = m;
+    }
+    selFloat=null; selRect=null; selOffset={dq:0,dr:0}; selDrawing=selMoving=false; selMoveAnchor=null;
+    renderBuildCanvas();
+}
+
+function onCanvasDown(e) {
+    e.preventDefault();
+    const rect = canvasRect();
+    const sx = e.clientX-rect.left, sy = e.clientY-rect.top;
+    if (e.button===1 || e.button===2 || (e.button===0 && e.altKey)) {
+        isPanning = true; panStart = { x:sx-panX, y:sy-panY };
+        document.getElementById('build-canvas').style.cursor = 'grabbing'; return;
+    }
+    if (activeTool === 'select') {
+        const { q, r } = screenToTileRaw(sx,sy);
+        const cq = Math.max(0,Math.min(gridW-1,q)), cr = Math.max(0,Math.min(gridH-1,r));
+        if (selFloat) {
+            const fq1=selFloat.q1+selOffset.dq, fr1=selFloat.r1+selOffset.dr;
+            const fq2=selFloat.q2+selOffset.dq, fr2=selFloat.r2+selOffset.dr;
+            if (cq>=fq1 && cq<=fq2 && cr>=fr1 && cr<=fr2) {
+                selMoving=true; selMoveAnchor={q:cq,r:cr};
+                document.getElementById('build-canvas').style.cursor='move'; return;
+            } else { commitSelection(); }
+        }
+        pushUndo(); selDrawing=true; selRect={q1:cq,r1:cr,q2:cq,r2:cr}; isDragging=true; return;
+    }
+    if (selFloat) commitSelection();
+    isDragging = true; pushUndo(); applyTool(sx,sy);
+}
+
+function onCanvasMove(e) {
+    const rect = canvasRect();
+    const sx = e.clientX-rect.left, sy = e.clientY-rect.top;
+    if (isPanning) { panX=sx-panStart.x; panY=sy-panStart.y; renderBuildCanvas(); return; }
+    if (activeTool === 'select') {
+        const { q, r } = screenToTileRaw(sx,sy);
+        const cq = Math.max(0,Math.min(gridW-1,q)), cr = Math.max(0,Math.min(gridH-1,r));
+        if (selDrawing) { selRect.q2=cq; selRect.r2=cr; renderBuildCanvas(); }
+        else if (selMoving && selMoveAnchor) { selOffset.dq=cq-selMoveAnchor.q; selOffset.dr=cr-selMoveAnchor.r; renderBuildCanvas(); }
+        else if (selFloat) {
+            const fq1=selFloat.q1+selOffset.dq, fr1=selFloat.r1+selOffset.dr, fq2=selFloat.q2+selOffset.dq, fr2=selFloat.r2+selOffset.dr;
+            document.getElementById('build-canvas').style.cursor = (cq>=fq1&&cq<=fq2&&cr>=fr1&&cr<=fr2)?'move':'crosshair';
+        }
+        return;
+    }
+    if (isDragging) applyTool(sx,sy);
+}
+
+function onCanvasUp(e) {
+    if (activeTool === 'select' && selDrawing) {
+        selDrawing=false; isDragging=false;
+        const norm = getNormalizedSelRect();
+        if (norm) {
+            const floatMeta = {};
+            const liftTiles = (store) => {
+                const lifted = {};
+                for (let r2=norm.r1; r2<=norm.r2; r2++) for (let q=norm.q1; q<=norm.q2; q++) {
+                    const key = `${q},${r2}`;
+                    if (store[key]) { lifted[key] = store[key]; delete store[key]; }
+                }
+                return lifted;
+            };
+            for (let r2=norm.r1; r2<=norm.r2; r2++) for (let q=norm.q1; q<=norm.q2; q++) {
+                const key = `${q},${r2}`;
+                if (meta[key]) { floatMeta[key] = meta[key]; delete meta[key]; }
+            }
+            if (editorMode === 'building') {
+                selFloat = { floor: liftTiles(layers.floor), walls: liftTiles(layers.walls),
+                             roof: liftTiles(layers.roof), overlay: liftTiles(layers.overlay),
+                             meta: floatMeta, q1:norm.q1, r1:norm.r1, q2:norm.q2, r2:norm.r2 };
+            } else {
+                selFloat = { tiles: liftTiles(objTiles), meta: floatMeta,
+                             q1:norm.q1, r1:norm.r1, q2:norm.q2, r2:norm.r2 };
+            }
+            selOffset = { dq:0, dr:0 };
+        } else { selRect=null; }
+        renderBuildCanvas(); return;
+    }
+    if (selMoving) { selMoving=false; selMoveAnchor=null; document.getElementById('build-canvas').style.cursor='move'; return; }
+    isDragging=false; isPanning=false; panStart=null;
+    document.getElementById('build-canvas').style.cursor = activeTool==='erase'?'not-allowed':activeTool==='eyedrop'?'copy':'crosshair';
+}
+
+function onCanvasWheel(e) {
+    e.preventDefault();
+    const rect = canvasRect(), sx=e.clientX-rect.left, sy=e.clientY-rect.top;
+    const factor = e.deltaY>0 ? 0.85 : 1.18, prev = canvasZoom;
+    canvasZoom = Math.max(0.5,Math.min(8,canvasZoom*factor));
+    panX = sx-(sx-panX)*(canvasZoom/prev); panY = sy-(sy-panY)*(canvasZoom/prev);
+    document.getElementById('zoom-badge').textContent = Math.round(canvasZoom*100)+'%';
+    renderBuildCanvas();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  APPLY TOOL
+// ═══════════════════════════════════════════════════════════════
+function applyTool(sx, sy) {
+    const { q, r, valid } = screenToTile(sx,sy);
+    if (!valid) return;
+    const key = `${q},${r}`;
+    const store = getTileStore();
+
+    if (activeTool === 'paint') {
+        if (!activeStamp) return;
+        let needLoad = !imgCache.has(activeStamp.sheetPath);
+        for (const t of activeStamp.tiles) {
+            const tq = q+t.localCol, tr = r+t.localRow;
+            if (tq<0 || tq>=gridW || tr<0 || tr>=gridH) continue;
+            const cell = { sheetPath: activeStamp.sheetPath, sx: t.sx, sy: t.sy, sw: TILE, sh: TILE };
+            if (t.rotation) cell.rotation = t.rotation;
+            store[`${tq},${tr}`] = cell;
+        }
+        if (needLoad) loadImage(activeStamp.sheetPath).then(() => renderBuildCanvas());
+        else renderBuildCanvas();
+    } else if (activeTool === 'erase') {
+        delete store[key];
+        renderBuildCanvas();
+    } else if (activeTool === 'fill') {
+        if (!activeStamp) return;
+        floodFill(q, r);
+    } else if (activeTool === 'eyedrop') {
+        if (editorMode === 'building') {
+            for (const lyr of ['overlay','roof','walls','floor']) {
+                if (visibleLayers.has(lyr) && layers[lyr][key]) {
+                    const c = layers[lyr][key];
+                    setStamp(c.sheetPath, Math.round(c.sx/TILE), Math.round(c.sy/TILE), Math.round(c.sx/TILE), Math.round(c.sy/TILE), c.sheetPath.split('/').pop().replace(/\.[^.]+$/,''));
+                    break;
+                }
+            }
+        } else {
+            if (objTiles[key]) {
+                const c = objTiles[key];
+                setStamp(c.sheetPath, Math.round(c.sx/TILE), Math.round(c.sy/TILE), Math.round(c.sx/TILE), Math.round(c.sy/TILE), c.sheetPath.split('/').pop().replace(/\.[^.]+$/,''));
+            }
+        }
+        setTool('paint');
+    } else if (activeTool === 'impass') {
+        if (!meta[key]) meta[key] = {};
+        meta[key].impassable = !meta[key].impassable;
+        const hasAny = meta[key].impassable || meta[key].door || meta[key].interactionPoint;
+        if (!hasAny) delete meta[key];
+        renderBuildCanvas();
+    } else if (activeTool === 'marker') {
+        if (editorMode === 'building') {
+            // Door: clear all others, set this one
+            for (const k of Object.keys(meta)) { if (meta[k]) meta[k].door = false; }
+            if (!meta[key]) meta[key] = {};
+            meta[key].door = true;
+        } else {
+            // Interaction point: toggle
+            if (!meta[key]) meta[key] = {};
+            meta[key].interactionPoint = !meta[key].interactionPoint;
+            if (!meta[key].impassable && !meta[key].interactionPoint) delete meta[key];
+        }
+        renderBuildCanvas();
+    } else if (activeTool === 'origin') {
+        if (editorMode === 'object') {
+            // Toggle: clicking the same cell again clears the explicit origin
+            if (_objOriginQ === q && _objOriginR === r) {
+                _objOriginQ = null; _objOriginR = null;
+            } else {
+                _objOriginQ = q; _objOriginR = r;
+            }
+            renderBuildCanvas();
+        } else if (editorMode === 'building') {
+            if (_bldOriginQ === q && _bldOriginR === r) {
+                _bldOriginQ = null; _bldOriginR = null;
+            } else {
+                _bldOriginQ = q; _bldOriginR = r;
+            }
+            renderBuildCanvas();
+        }
+    }
+}
+
+function floodFill(startQ, startR) {
+    if (!activeStamp) return;
+    const sW = activeStamp.stampCols, sH = activeStamp.stampRows;
+    const store = getTileStore();
+    const target = store[`${startQ},${startR}`];
+    const sameCell = c => { if (!c && !target) return true; if (!c || !target) return false; return c.sheetPath===target.sheetPath && c.sx===target.sx && c.sy===target.sy; };
+    const anchorTile = activeStamp.tiles[0];
+    if (target && target.sheetPath===activeStamp.sheetPath && target.sx===anchorTile.sx && target.sy===anchorTile.sy) return;
+    const visited = new Set(), queue = [[startQ,startR]];
+    while (queue.length) {
+        const [q, r] = queue.shift();
+        if (q<0||q>=gridW||r<0||r>=gridH) continue;
+        const k = `${q},${r}`;
+        if (visited.has(k)) continue;
+        visited.add(k);
+        if (!sameCell(store[k])) continue;
+        const dc = ((q-startQ)%sW+sW)%sW, dr = ((r-startR)%sH+sH)%sH;
+        const t = activeStamp.tiles[dr*sW+dc];
+        store[k] = { sheetPath: activeStamp.sheetPath, sx: t.sx, sy: t.sy, sw: TILE, sh: TILE };
+        for (const [dq, drr] of [[1,0],[-1,0],[0,1],[0,-1]]) queue.push([q+dq, r+drr]);
+    }
+    if (!imgCache.has(activeStamp.sheetPath)) loadImage(activeStamp.sheetPath).then(() => renderBuildCanvas());
+    else renderBuildCanvas();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  IMAGE CACHE
+// ═══════════════════════════════════════════════════════════════
+function loadImage(path) {
+    if (imgCache.has(path)) return Promise.resolve(imgCache.get(path));
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload  = () => { imgCache.set(path, img); resolve(img); };
+        img.onerror = () => { imgCache.set(path, null); resolve(null); };
+        img.src = path;
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BUILDING MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+function newBuilding() {
+    clearAll(true);
+    buildingEditIdx = -1;
+    _bldOriginQ = null; _bldOriginR = null;
+    document.getElementById('bld-name').value = '';
+    document.getElementById('bld-type').value = 'house';
+    document.getElementById('bld-tags').value = '';
+}
+
+function saveBuilding() {
+    const name = document.getElementById('bld-name').value.trim();
+    if (!name) { alert('Enter a building name.'); document.getElementById('bld-name').focus(); return; }
+    const b = {
+        id: slugify(name), name,
+        buildingType: document.getElementById('bld-type').value,
+        tags: document.getElementById('bld-tags').value.trim().split(',').map(s=>s.trim()).filter(Boolean),
+        tileW: TILE, tileH: TILE, width: gridW, height: gridH,
+        layers: { floor:{...layers.floor}, walls:{...layers.walls}, roof:{...layers.roof}, overlay:{...layers.overlay} },
+        meta: { ...meta },
+        originQ: _bldOriginQ != null ? _bldOriginQ : undefined,
+        originR: _bldOriginR != null ? _bldOriginR : undefined,
+    };
+    if (buildingEditIdx >= 0) buildings[buildingEditIdx] = b;
+    else { buildings.push(b); buildingEditIdx = buildings.length-1; }
+    refreshBuildingList();
+}
+
+function loadBuilding(index) {
+    const b = buildings[index];
+    buildingEditIdx = index;
+    gridW = b.width; gridH = b.height;
+    document.getElementById('grid-w').value = gridW;
+    document.getElementById('grid-h').value = gridH;
+    document.getElementById('bld-name').value = b.name;
+    document.getElementById('bld-type').value = b.buildingType || 'house';
+    document.getElementById('bld-tags').value = (b.tags||[]).join(', ');
+    _bldOriginQ = b.originQ != null ? b.originQ : null;
+    _bldOriginR = b.originR != null ? b.originR : null;
+    layers.floor = {...b.layers.floor}; layers.walls = {...b.layers.walls};
+    layers.roof = {...b.layers.roof}; layers.overlay = {...b.layers.overlay};
+    meta = { ...b.meta };
+    const paths = new Set();
+    for (const lyr of Object.values(layers)) for (const c of Object.values(lyr)) paths.add(c.sheetPath);
+    Promise.all([...paths].map(loadImage)).then(() => { fitCanvas(); });
+}
+
+function deleteBuilding(index) {
+    if (!confirm(`Delete "${buildings[index].name}"?`)) return;
+    buildings.splice(index, 1);
+    if (buildingEditIdx === index) { buildingEditIdx = -1; clearAll(true); }
+    else if (buildingEditIdx > index) buildingEditIdx--;
+    refreshBuildingList();
+}
+
+function refreshBuildingList() {
+    const h3 = document.getElementById('bld-list-header');
+    const list = document.getElementById('bld-cards');
+    h3.textContent = `Saved Buildings (${buildings.length})`;
+    if (!buildings.length) { list.innerHTML = '<div style="color:var(--text-dim);font-size:12px;font-style:italic;padding:4px">No buildings saved yet</div>'; return; }
+    list.innerHTML = '';
+    buildings.forEach((b, i) => {
+        const div = document.createElement('div');
+        div.className = 'item-card'; div.style.borderColor = i===buildingEditIdx ? 'var(--gold)' : '';
+        div.innerHTML = `<div class="item-title">${escHtml(b.name)}</div>
+            <div class="item-meta">${b.buildingType} · ${b.width}×${b.height} tiles</div>
+            <div class="item-acts"><button onclick="loadBuilding(${i})">✏️ Edit</button><button class="danger" onclick="deleteBuilding(${i})">🗑</button></div>`;
+        list.appendChild(div);
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TERRAIN MULTISELECT WIDGET
+// ═══════════════════════════════════════════════════════════════
+const TERRAIN_GROUPS = {
+    'Grassland': ['grass','tall_grass','rocks','dirt'],
+    'Plains':    ['dry_grass','dirt','rocks','grass'],
+    'Woodland':  ['trees','brush','grass','dirt'],
+    'Boreal':    ['trees','snow','brush','dirt'],
+    'Seasonal Forest':['trees','brush','grass','dirt'],
+    'Temp. Rainforest':['trees','brush','mud'],
+    'Tropical':  ['trees','brush','grass','mud'],
+    'Desert':    ['sand','rocks','dirt'],
+    'Savanna':   ['dry_grass','tall_grass','rocks','dirt'],
+    'Mountain':  ['rocks','cliff','grass','snow'],
+    'Hills':     ['grass','rocks','dirt'],
+    'Swamp':     ['bog','mud','trees','grass'],
+    'Tundra':    ['snow','dirt','rocks','grass'],
+    'Snow':      ['snow','ice','trees','rocks'],
+    'Ice':       ['ice','snow','rocks'],
+    'Highlands': ['grass','rocks','brush','dirt'],
+    'Beach':     ['sand','rocks','grass','dirt'],
+    'Island':    ['sand','trees','brush','rocks'],
+};
+
+let _selectedTerrains = new Set();
+
+function buildTerrainOptions() {
+    const container = document.getElementById('tms-options');
+    container.innerHTML = '';
+    for (const [group, ids] of Object.entries(TERRAIN_GROUPS)) {
+        const g = document.createElement('div'); g.className = 'tms-group';
+        const lbl = document.createElement('div'); lbl.className = 'tms-group-label'; lbl.textContent = group;
+        g.appendChild(lbl);
+        const seen = new Set();
+        for (const id of ids) {
+            if (seen.has(id)) continue; seen.add(id);
+            const opt = document.createElement('label'); opt.className = 'tms-opt'; opt.dataset.id = id;
+            const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = id;
+            cb.checked = _selectedTerrains.has(id);
+            cb.addEventListener('change', () => { if (cb.checked) _selectedTerrains.add(id); else _selectedTerrains.delete(id); renderTerrainTags(); });
+            const span = document.createElement('span'); span.textContent = id.replace(/_/g, ' ');
+            opt.appendChild(cb); opt.appendChild(span); g.appendChild(opt);
+        }
+        container.appendChild(g);
+    }
+}
+
+function renderTerrainTags() {
+    const toggle = document.getElementById('tms-toggle');
+    if (!_selectedTerrains.size) {
+        toggle.innerHTML = '<span class="placeholder">Click to select terrains…</span>';
+    } else {
+        toggle.innerHTML = [..._selectedTerrains].map(id =>
+            `<span class="terrain-ms-tag">${id.replace(/_/g,' ')}<span class="tag-x" onclick="event.stopPropagation();removeTerrainTag('${id}')">&times;</span></span>`
+        ).join('');
+    }
+    // sync checkboxes
+    document.querySelectorAll('#tms-options input[type=checkbox]').forEach(cb => { cb.checked = _selectedTerrains.has(cb.value); });
+}
+
+function removeTerrainTag(id) { _selectedTerrains.delete(id); renderTerrainTags(); }
+
+function toggleTerrainDropdown() {
+    const drop = document.getElementById('tms-drop');
+    const isOpen = drop.classList.contains('open');
+    if (isOpen) { drop.classList.remove('open'); return; }
+    buildTerrainOptions();
+    drop.classList.add('open');
+    setTimeout(() => document.getElementById('tms-search').focus(), 50);
+}
+
+function filterTerrainOptions() {
+    const q = document.getElementById('tms-search').value.toLowerCase().replace(/\s+/g,'_');
+    document.querySelectorAll('#tms-options .tms-opt').forEach(opt => {
+        opt.classList.toggle('hidden', q && !opt.dataset.id.includes(q));
+    });
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', e => {
+    const ms = document.getElementById('terrain-ms');
+    if (ms && !ms.contains(e.target)) document.getElementById('tms-drop').classList.remove('open');
+});
+
+function getSelectedTerrains() { return [..._selectedTerrains]; }
+function setSelectedTerrains(arr) { _selectedTerrains = new Set(arr || []); renderTerrainTags(); }
+
+// ═══════════════════════════════════════════════════════════════
+//  HEALTH STATES
+// ═══════════════════════════════════════════════════════════════
+
+function addHealthStateFromCanvas() {
+    if (Object.keys(objTiles).length === 0) {
+        alert('Paint tiles on the canvas for this health state first, then capture.');
+        return;
+    }
+    const label  = document.getElementById('hs-label').value.trim() || ('State ' + (_objHealthStates.length + 1));
+    const minPct = Math.max(0, Math.min(99, parseInt(document.getElementById('hs-min-hp').value) || 0));
+    _objHealthStates.push({ label, minHealthPct: minPct, tiles: JSON.parse(JSON.stringify(objTiles)) });
+    refreshHealthStatesList();
+}
+
+function removeHealthState(index) {
+    _objHealthStates.splice(index, 1);
+    refreshHealthStatesList();
+}
+
+function refreshHealthStatesList() {
+    const list = document.getElementById('health-states-list');
+    if (!list) return;
+    if (!_objHealthStates.length) {
+        list.innerHTML = '<div style="color:var(--text-dim);font-size:11px;font-style:italic;margin-bottom:2px">No health states defined – object always looks the same.</div>';
+        return;
+    }
+    const sorted = [..._objHealthStates].sort((a, b) => b.minHealthPct - a.minHealthPct);
+    list.innerHTML = '';
+    for (let i = 0; i < _objHealthStates.length; i++) {
+        const hs   = _objHealthStates[i];
+        const cnt  = Object.keys(hs.tiles).length;
+        const div  = document.createElement('div');
+        div.style.cssText = 'display:flex;align-items:center;gap:6px;margin:2px 0;font-size:11px;background:rgba(255,255,255,0.04);border-radius:4px;padding:2px 4px';
+        div.innerHTML =
+            `<span style="color:var(--gold);min-width:32px">\u2265${hs.minHealthPct}%</span>` +
+            `<span style="flex:1">${escHtml(hs.label)}</span>` +
+            `<span style="color:var(--text-dim)">${cnt}\u00a0tiles</span>` +
+            `<button onclick="removeHealthState(${i})" class="danger" style="padding:1px 6px;font-size:10px">\u2715</button>`;
+        list.appendChild(div);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SEASON VARIANTS
+// ═══════════════════════════════════════════════════════════════
+
+function captureSeasonVariant() {
+    if (Object.keys(objTiles).length === 0) {
+        alert('Paint tiles on the canvas for this season first, then capture.');
+        return;
+    }
+    const season = document.getElementById('sv-season').value;
+    _objSeasonVariants[season] = JSON.parse(JSON.stringify(objTiles));
+    refreshSeasonVariantsList();
+}
+
+function removeSeasonVariant(season) {
+    delete _objSeasonVariants[season];
+    refreshSeasonVariantsList();
+}
+
+function refreshSeasonVariantsList() {
+    const list = document.getElementById('season-variants-list');
+    if (!list) return;
+    const SEASONS = [
+        { key: 'spring', label: '🌸 Spring' },
+        { key: 'summer', label: '☀️ Summer' },
+        { key: 'autumn', label: '🍂 Autumn' },
+        { key: 'winter', label: '❄️ Winter' },
+    ];
+    const defined = SEASONS.filter(s => _objSeasonVariants[s.key]);
+    if (!defined.length) {
+        list.innerHTML = '<div style="color:var(--text-dim);font-size:11px;font-style:italic;margin-bottom:2px">No season variants — same look all year.</div>';
+        return;
+    }
+    list.innerHTML = '';
+    for (const s of defined) {
+        const cnt = Object.keys(_objSeasonVariants[s.key]).length;
+        const div = document.createElement('div');
+        div.style.cssText = 'display:flex;align-items:center;gap:6px;margin:2px 0;font-size:11px;background:rgba(255,255,255,0.04);border-radius:4px;padding:2px 4px';
+        div.innerHTML =
+            `<span style="min-width:62px">${s.label}</span>` +
+            `<span style="flex:1;color:var(--text-dim)">${cnt} tile${cnt!==1?'s':''}</span>` +
+            `<button onclick="loadSeasonVariantToCanvas('${s.key}')" style="font-size:10px;padding:1px 5px" title="Load this season's tiles back onto the canvas">👁</button>` +
+            `<button onclick="removeSeasonVariant('${s.key}')" class="danger" style="padding:1px 6px;font-size:10px">✕</button>`;
+        list.appendChild(div);
+    }
+}
+
+/** Load a saved season variant back onto the canvas (for editing). */
+function loadSeasonVariantToCanvas(season) {
+    const stiles = _objSeasonVariants[season];
+    if (!stiles) return;
+    pushUndo();
+    objTiles = JSON.parse(JSON.stringify(stiles));
+    const paths = new Set(Object.values(objTiles).map(c => c.sheetPath));
+    Promise.all([...paths].map(loadImage)).then(() => renderBuildCanvas());
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  GROWTH STATES
+// ═══════════════════════════════════════════════════════════════
+
+function addGrowthStateFromCanvas() {
+    if (Object.keys(objTiles).length === 0) {
+        alert('Paint tiles on the canvas for this growth stage first, then capture.');
+        return;
+    }
+    const label = document.getElementById('gs-label').value.trim() || ('Stage ' + (_objGrowthStates.length + 1));
+    const daysToReach = Math.max(0, parseInt(document.getElementById('gs-days').value) || 0);
+    // Replace any existing stage at the same day threshold
+    const existing = _objGrowthStates.findIndex(gs => gs.daysToReach === daysToReach);
+    const entry = { label, daysToReach, tiles: JSON.parse(JSON.stringify(objTiles)) };
+    if (existing >= 0) _objGrowthStates[existing] = entry;
+    else _objGrowthStates.push(entry);
+    _objGrowthStates.sort((a, b) => a.daysToReach - b.daysToReach);
+    refreshGrowthStatesList();
+}
+
+function removeGrowthState(index) {
+    _objGrowthStates.splice(index, 1);
+    refreshGrowthStatesList();
+}
+
+function refreshGrowthStatesList() {
+    const list = document.getElementById('growth-states-list');
+    if (!list) return;
+    if (!_objGrowthStates.length) {
+        list.innerHTML = '<div style="color:var(--text-dim);font-size:11px;font-style:italic;margin-bottom:2px">No growth stages — object stays the same forever.</div>';
+        return;
+    }
+    list.innerHTML = '';
+    for (let i = 0; i < _objGrowthStates.length; i++) {
+        const gs = _objGrowthStates[i];
+        const cnt = Object.keys(gs.tiles).length;
+        const div = document.createElement('div');
+        div.style.cssText = 'display:flex;align-items:center;gap:6px;margin:2px 0;font-size:11px;background:rgba(255,255,255,0.04);border-radius:4px;padding:2px 4px';
+        div.innerHTML =
+            `<span style="color:var(--green);min-width:48px">Day\u00a0${gs.daysToReach}</span>` +
+            `<span style="flex:1">${escHtml(gs.label)}</span>` +
+            `<span style="color:var(--text-dim)">${cnt}\u00a0tile${cnt!==1?'s':''}</span>` +
+            `<button onclick="loadGrowthStateToCanvas(${i})" style="font-size:10px;padding:1px 5px" title="Load onto canvas">\uD83D\uDC41</button>` +
+            `<button onclick="removeGrowthState(${i})" class="danger" style="padding:1px 6px;font-size:10px">\u2715</button>`;
+        list.appendChild(div);
+    }
+}
+
+/** Load a saved growth stage back onto the canvas (for editing). */
+function loadGrowthStateToCanvas(index) {
+    const gs = _objGrowthStates[index];
+    if (!gs) return;
+    pushUndo();
+    objTiles = JSON.parse(JSON.stringify(gs.tiles));
+    const paths = new Set(Object.values(objTiles).map(c => c.sheetPath));
+    Promise.all([...paths].map(loadImage)).then(() => renderBuildCanvas());
+}
+
+function newObject() {
+    clearAll(true);
+    objEditIdx = -1;
+    document.getElementById('obj-name').value = '';
+    document.getElementById('obj-type').value = 'tree';
+    document.getElementById('obj-animation').value = 'none';
+    document.getElementById('obj-resource').value = '';
+    document.getElementById('obj-resource-amount').value = '1';
+    document.getElementById('obj-weight').value = '1';
+    document.getElementById('obj-resistance').value = '0';
+    document.getElementById('obj-spawn-after').value = '';
+    _objHealthStates = [];
+    refreshHealthStatesList();
+    _objOriginQ = null;
+    _objOriginR = null;
+    _objSeasonVariants = {};
+    refreshSeasonVariantsList();
+    _objGrowthStates = [];
+    refreshGrowthStatesList();
+    setSelectedTerrains([]);
+}
+
+function saveObject() {
+    const name = document.getElementById('obj-name').value.trim();
+    if (!name) { alert('Enter an object name.'); document.getElementById('obj-name').focus(); return; }
+    const tileKeys = Object.keys(objTiles);
+    if (!tileKeys.length) { alert('Paint at least one tile.'); return; }
+    let minQ=Infinity, minR=Infinity, maxQ=-Infinity, maxR=-Infinity;
+    for (const key of tileKeys) { const [q, r] = key.split(',').map(Number); if (q<minQ) minQ=q; if (q>maxQ) maxQ=q; if (r<minR) minR=r; if (r>maxR) maxR=r; }
+    const animation = document.getElementById('obj-animation').value;
+    const resourceType = document.getElementById('obj-resource').value;
+    const resourceAmount = parseInt(document.getElementById('obj-resource-amount').value) || 1;
+    const obj = {
+        id: slugify(name), name,
+        objectType: document.getElementById('obj-type').value,
+        animation: animation !== 'none' ? animation : undefined,
+        resource: resourceType ? { type: resourceType, amount: resourceAmount } : undefined,
+        terrainBindings: getSelectedTerrains(),
+        spawnWeight: parseFloat(document.getElementById('obj-weight').value) || 1,
+        resistance: parseInt(document.getElementById('obj-resistance').value) || undefined,
+        tileW: TILE, tileH: TILE, width: gridW, height: gridH,
+        bounds: { minCol: minQ, minRow: minR, maxCol: maxQ, maxRow: maxR },
+        spawnAfter: document.getElementById('obj-spawn-after').value.trim() || undefined,
+        healthStates: _objHealthStates.length > 0
+            ? _objHealthStates.map(hs => ({ ...hs, tiles: { ...hs.tiles } }))
+            : undefined,
+        seasonVariants: Object.keys(_objSeasonVariants).length > 0
+            ? Object.fromEntries(Object.entries(_objSeasonVariants).map(([s, t]) => [s, { ...t }]))
+            : undefined,
+        growthStates: _objGrowthStates.length > 0
+            ? _objGrowthStates.map(gs => ({ ...gs, tiles: { ...gs.tiles } }))
+            : undefined,
+        originQ: _objOriginQ != null ? _objOriginQ : undefined,
+        originR: _objOriginR != null ? _objOriginR : undefined,
+        tiles: { ...objTiles }, meta: { ...meta },
+    };
+    if (objEditIdx >= 0) objDefs[objEditIdx] = obj;
+    else { objDefs.push(obj); objEditIdx = objDefs.length-1; }
+    refreshObjectList();
+}
+
+function loadObject(index) {
+    const obj = objDefs[index];
+    objEditIdx = index;
+    gridW = obj.width; gridH = obj.height;
+    document.getElementById('grid-w').value = gridW;
+    document.getElementById('grid-h').value = gridH;
+    document.getElementById('obj-name').value = obj.name;
+    document.getElementById('obj-type').value = obj.objectType || 'tree';
+    document.getElementById('obj-animation').value = obj.animation || 'none';
+    document.getElementById('obj-resource').value = obj.resource ? obj.resource.type : '';
+    document.getElementById('obj-resource-amount').value = obj.resource ? obj.resource.amount : 1;
+    setSelectedTerrains(obj.terrainBindings || []);
+    document.getElementById('obj-weight').value = obj.spawnWeight || 1;
+    document.getElementById('obj-resistance').value = obj.resistance || 0;
+    document.getElementById('obj-spawn-after').value = obj.spawnAfter || '';
+    _objOriginQ = obj.originQ != null ? obj.originQ : null;
+    _objOriginR = obj.originR != null ? obj.originR : null;
+    _objHealthStates = obj.healthStates ? obj.healthStates.map(hs => ({ ...hs, tiles: { ...hs.tiles } })) : [];
+    refreshHealthStatesList();
+    _objSeasonVariants = obj.seasonVariants
+        ? Object.fromEntries(Object.entries(obj.seasonVariants).map(([s, t]) => [s, { ...t }]))
+        : {};
+    refreshSeasonVariantsList();
+    _objGrowthStates = obj.growthStates ? obj.growthStates.map(gs => ({ ...gs, tiles: { ...gs.tiles } })) : [];
+    refreshGrowthStatesList();
+    objTiles = { ...obj.tiles };
+    meta = { ...obj.meta };
+    const paths = new Set();
+    for (const c of Object.values(objTiles)) paths.add(c.sheetPath);
+    for (const hs of _objHealthStates) for (const c of Object.values(hs.tiles)) paths.add(c.sheetPath);
+    for (const stiles of Object.values(_objSeasonVariants)) for (const c of Object.values(stiles)) paths.add(c.sheetPath);
+    for (const gs of _objGrowthStates) for (const c of Object.values(gs.tiles)) paths.add(c.sheetPath);
+    Promise.all([...paths].map(loadImage)).then(() => { fitCanvas(); });
+}
+
+function deleteObject(index) {
+    if (!confirm(`Delete "${objDefs[index].name}"?`)) return;
+    objDefs.splice(index, 1);
+    if (objEditIdx === index) { objEditIdx = -1; clearAll(true); }
+    else if (objEditIdx > index) objEditIdx--;
+    refreshObjectList();
+}
+
+function refreshObjectList() {
+    const h3 = document.getElementById('obj-list-header');
+    const list = document.getElementById('obj-cards');
+    h3.textContent = `Saved Objects (${objDefs.length})`;
+    if (!objDefs.length) { list.innerHTML = '<div style="color:var(--text-dim);font-size:12px;font-style:italic;padding:4px">No objects saved yet</div>'; return; }
+    list.innerHTML = '';
+    objDefs.forEach((o, i) => {
+        const bw = o.bounds.maxCol - o.bounds.minCol + 1, bh = o.bounds.maxRow - o.bounds.minRow + 1;
+        let extras = [];
+        if (o.terrainBindings && o.terrainBindings.length) extras.push(o.terrainBindings.join(', '));
+        if (o.animation) extras.push('� interact: ' + o.animation);
+        if (o.resource) extras.push('📦 ' + o.resource.type + ' ×' + o.resource.amount);
+        if (o.spawnAfter) extras.push('🌱 → ' + o.spawnAfter);
+        if (o.healthStates && o.healthStates.length) extras.push('❤️ ' + o.healthStates.length + ' dmg stages');
+        const svSeasons = o.seasonVariants ? Object.keys(o.seasonVariants) : [];
+        if (svSeasons.length) extras.push('🗓 ' + svSeasons.join('/'));
+        if (o.growthStates && o.growthStates.length) extras.push('🌱 ' + o.growthStates.length + ' growth stage' + (o.growthStates.length > 1 ? 's' : ''));
+        const div = document.createElement('div');
+        div.className = 'item-card'; div.style.borderColor = i===objEditIdx ? 'var(--gold)' : '';
+        div.innerHTML = `<div class="item-title">${escHtml(o.name)}</div>
+            <div class="item-meta">${o.objectType} · ${bw}×${bh} tiles${extras.length ? ' · '+extras.join(' · ') : ''}</div>
+            <div class="item-acts"><button onclick="loadObject(${i})">✏️ Edit</button><button class="danger" onclick="deleteObject(${i})">🗑</button></div>`;
+        list.appendChild(div);
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  UNIFIED NEW / SAVE / LIBRARY
+// ═══════════════════════════════════════════════════════════════
+function newItem() {
+    if (!confirm('Start new? Unsaved changes will be lost.')) return;
+    if (editorMode === 'building') newBuilding(); else newObject();
+}
+
+function saveItem() {
+    if (editorMode === 'building') saveBuilding(); else saveObject();
+    notifyParent();
+}
+
+function notifyParent() {
+  try {
+    const d = getExportData();
+    window.parent.postMessage({ type: 'spriteDataChanged', ...d }, '*');
+  } catch(e) { /* standalone mode */ }
+}
+
+function refreshLibrary() {
+    refreshBuildingList();
+    refreshObjectList();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CLEAR
+// ═══════════════════════════════════════════════════════════════
+function clearLayer(ask = true) {
+    if (editorMode !== 'building') return;
+    if (ask && !confirm(`Clear the ${activeLayer} layer?`)) return;
+    pushUndo();
+    layers[activeLayer] = {};
+    renderBuildCanvas();
+}
+
+function clearAll(skip = false) {
+    if (!skip && !confirm('Clear all tiles and meta?')) return;
+    pushUndo();
+    if (editorMode === 'building') layers = { floor:{}, walls:{}, roof:{}, overlay:{} };
+    else objTiles = {};
+    meta = {};
+    renderBuildCanvas();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  EXPORT
+// ═══════════════════════════════════════════════════════════════
+function exportAllJSON() {
+    if (editorMode === 'building') exportBuildings();
+    else exportObjects();
+}
+
+function exportBuildings() {
+    if (!buildings.length) { alert('Save at least one building first.'); return; }
+    let fname = prompt('Export filename (will go in data/custom_buildings/):', 'my_buildings.json');
+    if (!fname) return;
+    fname = fname.trim().replace(/[/\\]/g,'_');
+    if (!fname.endsWith('.json')) fname += '.json';
+    const exported = buildings.map(b => _exportBuilding(b));
+    downloadJSON({ buildings: exported }, fname);
+    setTimeout(() => alert(
+        `✅  Exported "${fname}"\n\nTo load in-game:\n  1. Move "${fname}" into data/custom_buildings/\n  2. Add "${fname}" to data/custom_buildings/manifest.json\n  3. Reload the game.`
+    ), 200);
+}
+
+function exportObjects() {
+    if (!objDefs.length) { alert('Save at least one object first.'); return; }
+    let fname = prompt('Export filename (will go in data/custom_objects/):', 'my_objects.json');
+    if (!fname) return;
+    fname = fname.trim().replace(/[/\\]/g,'_');
+    if (!fname.endsWith('.json')) fname += '.json';
+    const exported = objDefs.map(obj => {
+        const tileKeys = Object.keys(obj.tiles);
+        let minQ=Infinity, minR=Infinity, maxQ=-Infinity, maxR=-Infinity;
+        for (const key of tileKeys) { const [q, r] = key.split(',').map(Number); if (q<minQ) minQ=q; if (q>maxQ) maxQ=q; if (r<minR) minR=r; if (r>maxR) maxR=r; }
+        // Use explicit origin if set, otherwise top-left of painted tiles
+        const originQ = obj.originQ != null ? obj.originQ : minQ;
+        const originR = obj.originR != null ? obj.originR : minR;
+        const outTiles = tileKeys.map(key => {
+            const [q, r] = key.split(',').map(Number);
+            const c = obj.tiles[key];
+            return { localCol: q-originQ, localRow: r-originR, sheetPath: c.sheetPath, sx: c.sx, sy: c.sy, sw: c.sw, sh: c.sh };
+        });
+        const outMeta = Object.entries(obj.meta).map(([key, m]) => {
+            const [q, r] = key.split(',').map(Number);
+            return { localCol: q-originQ, localRow: r-originR, ...m };
+        }).filter(m => m.impassable || m.interactionPoint);
+        // Export healthStates: normalise tile coords the same way as main tiles
+        const outHealthStates = (obj.healthStates || []).map(hs => ({
+            label: hs.label,
+            minHealthPct: hs.minHealthPct,
+            tiles: Object.entries(hs.tiles).map(([key, c]) => {
+                const [q, r] = key.split(',').map(Number);
+                return { localCol: q-originQ, localRow: r-originR, sheetPath: c.sheetPath, sx: c.sx, sy: c.sy, sw: c.sw, sh: c.sh };
+            })
+        }));
+        // Export seasonVariants: normalise coords the same way
+        const outSeasonVariants = {};
+        for (const [season, stiles] of Object.entries(obj.seasonVariants || {})) {
+            outSeasonVariants[season] = Object.entries(stiles).map(([key, c]) => {
+                const [q, r] = key.split(',').map(Number);
+                return { localCol: q-originQ, localRow: r-originR, sheetPath: c.sheetPath, sx: c.sx, sy: c.sy, sw: c.sw, sh: c.sh };
+            });
+        }
+        // Export growthStates: normalise coords the same way
+        const outGrowthStates = (obj.growthStates || []).map(gs => ({
+            label: gs.label,
+            daysToReach: gs.daysToReach,
+            tiles: Object.entries(gs.tiles).map(([key, c]) => {
+                const [q, r] = key.split(',').map(Number);
+                return { localCol: q-originQ, localRow: r-originR, sheetPath: c.sheetPath, sx: c.sx, sy: c.sy, sw: c.sw, sh: c.sh };
+            })
+        }));
+        return {
+            id: obj.id, name: obj.name, objectType: obj.objectType,
+            animation: obj.animation || undefined,
+            resource: obj.resource || undefined,
+            spawnAfter: obj.spawnAfter || undefined,
+            healthStates: outHealthStates.length > 0 ? outHealthStates : undefined,
+            seasonVariants: Object.keys(outSeasonVariants).length > 0 ? outSeasonVariants : undefined,
+            growthStates: outGrowthStates.length > 0 ? outGrowthStates : undefined,
+            terrainBindings: obj.terrainBindings, spawnWeight: obj.spawnWeight,
+            resistance: obj.resistance || undefined,
+            bounds: { minCol: minQ-originQ, minRow: minR-originR, maxCol: maxQ-originQ, maxRow: maxR-originR },
+            hasBlockedTiles: outMeta.some(m => m.impassable),
+            hasInteraction: outMeta.some(m => m.interactionPoint),
+            tiles: outTiles, meta: outMeta,
+        };
+    });
+    downloadJSON({ composed: true, tileW: TILE, tileH: TILE, objects: exported }, fname);
+    setTimeout(() => alert(
+        `✅  Exported "${fname}"\n\nTo load in-game:\n  1. Move "${fname}" into data/custom_objects/\n  2. Add "${fname}" to data/custom_objects/manifest.json\n  3. Reload the game.`
+    ), 200);
+}
+
+function downloadJSON(data, fname) {
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fname; a.click();
+    URL.revokeObjectURL(url);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  IMPORT
+// ═══════════════════════════════════════════════════════════════
+function onImport(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        try {
+            let data = JSON.parse(ev.target.result);
+
+            // ── gamedata.json — unwrap the relevant section based on current mode ──
+            if (data.custom_buildings || data.custom_objects) {
+                const wantBuildings = editorMode === 'building' || !data.custom_objects;
+                if (wantBuildings && data.custom_buildings) {
+                    const allBuildings = [];
+                    for (const fileData of Object.values(data.custom_buildings.files || {})) {
+                        if (Array.isArray(fileData.buildings)) allBuildings.push(...fileData.buildings);
+                    }
+                    data = { buildings: allBuildings };
+                } else if (data.custom_objects) {
+                    const allObjects = [];
+                    for (const fileData of Object.values(data.custom_objects.files || {})) {
+                        if (fileData.composed && Array.isArray(fileData.objects)) allObjects.push(...fileData.objects);
+                    }
+                    data = { composed: true, tileW: 32, tileH: 32, objects: allObjects };
+                } else {
+                    alert('gamedata.json: no data for the current editor mode.');
+                    e.target.value = ''; return;
+                }
+            }
+
+            // Building format
+            if (data.buildings) {
+                const src = data.buildings;
+                const imported = src.map(b => {
+                    const newLayers = {};
+                    for (const [ln, arr] of Object.entries(b.layers || {})) {
+                        newLayers[ln] = {};
+                        for (const c of (Array.isArray(arr) ? arr : Object.entries(arr).map(([k,v])=>({q:+k.split(',')[0],r:+k.split(',')[1],...v})))) {
+                            newLayers[ln][`${c.q},${c.r}`] = { sheetPath:c.sheetPath, sx:c.sx, sy:c.sy, sw:c.sw, sh:c.sh };
+                        }
+                    }
+                    const newMeta = {};
+                    for (const m of (Array.isArray(b.meta) ? b.meta : Object.entries(b.meta||{}).map(([k,v])=>({q:+k.split(',')[0],r:+k.split(',')[1],...v})))) {
+                        newMeta[`${m.q},${m.r}`] = { impassable:!!m.impassable, door:!!m.door };
+                    }
+                    return { ...b, layers: newLayers, meta: newMeta };
+                });
+                if (editorMode !== 'building') setEditorMode('building');
+                buildings = imported; buildingEditIdx = -1;
+                refreshBuildingList();
+                if (buildings.length) loadBuilding(0);
+                alert(`Imported ${buildings.length} building(s).`);
+                e.target.value = ''; return;
+            }
+
+            // Composed object format
+            if (data.composed && data.objects) {
+                const imported = data.objects.map(obj => {
+                    // ── Step 1: find the full bounding box across ALL tile sources
+                    //    (localCol/localRow can be negative when origin is not top-left)
+                    let minLQ = Infinity, minLR = Infinity, maxLQ = -Infinity, maxLR = -Infinity;
+                    const _scanTile = t => {
+                        if (t.localCol < minLQ) minLQ = t.localCol;
+                        if (t.localCol > maxLQ) maxLQ = t.localCol;
+                        if (t.localRow < minLR) minLR = t.localRow;
+                        if (t.localRow > maxLR) maxLR = t.localRow;
+                    };
+                    for (const t of (obj.tiles || [])) _scanTile(t);
+                    for (const hs of (obj.healthStates || [])) for (const t of (hs.tiles || [])) _scanTile(t);
+                    for (const sarr of Object.values(obj.seasonVariants || {})) for (const t of (sarr || [])) _scanTile(t);
+                    for (const gs of (obj.growthStates || [])) for (const t of (gs.tiles || [])) _scanTile(t);
+                    if (!isFinite(minLQ)) { minLQ=0; minLR=0; maxLQ=0; maxLR=0; }
+
+                    // ── Step 2: compute offset so minimum local coord lands at canvas cell 1
+                    //    local(0,0) — the origin marker — will land at canvas (offQ, offR)
+                    const MARGIN = 1;
+                    const offQ = MARGIN - minLQ;
+                    const offR = MARGIN - minLR;
+                    const _shiftKey = (lc, lr) => `${lc + offQ},${lr + offR}`;
+
+                    // ── Step 3: rebuild tile dicts at shifted canvas coords
+                    const newTiles = {};
+                    for (const t of (obj.tiles || [])) {
+                        newTiles[_shiftKey(t.localCol, t.localRow)] = { sheetPath:t.sheetPath, sx:t.sx, sy:t.sy, sw:t.sw, sh:t.sh };
+                    }
+                    const newMeta = {};
+                    for (const m of (obj.meta||[])) {
+                        const mm = {};
+                        if (m.impassable) mm.impassable = true;
+                        if (m.interactionPoint) mm.interactionPoint = true;
+                        if (Object.keys(mm).length) newMeta[_shiftKey(m.localCol, m.localRow)] = mm;
+                    }
+                    // Restore healthStates to internal dict format
+                    const newHealthStates = (obj.healthStates || []).map(hs => ({
+                        label: hs.label,
+                        minHealthPct: hs.minHealthPct,
+                        tiles: Object.fromEntries((hs.tiles || []).map(t =>
+                            [_shiftKey(t.localCol, t.localRow), { sheetPath:t.sheetPath, sx:t.sx, sy:t.sy, sw:t.sw, sh:t.sh }]
+                        ))
+                    }));
+                    // Restore seasonVariants to internal dict format
+                    const newSeasonVariants = {};
+                    for (const [season, sarr] of Object.entries(obj.seasonVariants || {})) {
+                        newSeasonVariants[season] = Object.fromEntries((sarr || []).map(t =>
+                            [_shiftKey(t.localCol, t.localRow), { sheetPath:t.sheetPath, sx:t.sx, sy:t.sy, sw:t.sw, sh:t.sh }]
+                        ));
+                    }
+                    // Restore growthStates to internal dict format
+                    const newGrowthStates = (obj.growthStates || []).map(gs => ({
+                        label: gs.label,
+                        daysToReach: gs.daysToReach,
+                        tiles: Object.fromEntries((gs.tiles || []).map(t =>
+                            [_shiftKey(t.localCol, t.localRow), { sheetPath:t.sheetPath, sx:t.sx, sy:t.sy, sw:t.sw, sh:t.sh }]
+                        ))
+                    }));
+                    // Grid must hold the full shifted extent + 1 tile of right/bottom margin
+                    const newWidth  = (maxLQ - minLQ) + MARGIN * 2 + 1;
+                    const newHeight = (maxLR - minLR) + MARGIN * 2 + 1;
+                    return { ...obj,
+                             width: newWidth, height: newHeight,
+                             // Origin lives at canvas (offQ, offR) — local(0,0) shifted into view
+                             originQ: offQ, originR: offR,
+                             tiles: newTiles, meta: newMeta,
+                             healthStates: newHealthStates.length > 0 ? newHealthStates : undefined,
+                             seasonVariants: Object.keys(newSeasonVariants).length > 0 ? newSeasonVariants : undefined,
+                             growthStates: newGrowthStates.length > 0 ? newGrowthStates : undefined };
+                });
+                if (editorMode !== 'object') setEditorMode('object');
+                objDefs = imported; objEditIdx = -1;
+                refreshObjectList();
+                if (objDefs.length) loadObject(0);
+                alert(`Imported ${objDefs.length} object(s).`);
+                e.target.value = ''; return;
+            }
+
+            // Legacy sheet format (from spritesheet_editor)
+            if (data.sheets) {
+                const imported = [];
+                for (const [, sheetData] of Object.entries(data.sheets)) {
+                    for (const obj of (sheetData.objects || [])) {
+                        const newTiles = {}; let maxQ=0, maxR=0;
+                        for (const t of obj.tiles) {
+                            newTiles[`${t.localCol},${t.localRow}`] = {
+                                sheetPath: sheetData.path, sx:t.sx, sy:t.sy, sw:t.sw||TILE, sh:t.sh||TILE };
+                            if (t.localCol>maxQ) maxQ=t.localCol; if (t.localRow>maxR) maxR=t.localRow;
+                        }
+                        const newMeta = {};
+                        for (const t of obj.tiles) {
+                            const mm = {};
+                            if (t.impassable) mm.impassable = true;
+                            if (t.interactionPoint) mm.interactionPoint = true;
+                            if (Object.keys(mm).length) newMeta[`${t.localCol},${t.localRow}`] = mm;
+                        }
+                        imported.push({ ...obj, width: maxQ+2, height: maxR+2, tiles: newTiles, meta: newMeta });
+                    }
+                }
+                if (editorMode !== 'object') setEditorMode('object');
+                objDefs = imported; objEditIdx = -1;
+                refreshObjectList();
+                if (objDefs.length) loadObject(0);
+                alert(`Imported ${objDefs.length} object(s) from sheet format.`);
+                e.target.value = ''; return;
+            }
+
+            alert('Unrecognized format.');
+        } catch(err) { alert('Import failed: ' + err.message); }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  KEYBOARD
+// ═══════════════════════════════════════════════════════════════
+function onKey(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if ((e.ctrlKey||e.metaKey) && e.key === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+    if ((e.ctrlKey||e.metaKey) && e.key === 'y') { e.preventDefault(); redo(); return; }
+    if (e.key === 's' && (e.ctrlKey||e.metaKey)) { e.preventDefault(); saveItem(); return; }
+    if (e.key === 'F' && e.shiftKey) { e.preventDefault(); autofitGrid(); return; }
+    const toolMap = { p:'paint', e:'erase', f:'fill', i:'eyedrop', x:'impass', s:'select' };
+    // Marker shortcut: D for building (door), N for object (interact)
+    if (e.key === 'd' && editorMode === 'building') { setTool('marker'); return; }
+    if (e.key === 'n' && editorMode === 'object')   { setTool('marker'); return; }
+    if (e.key === 'o' && (editorMode === 'object' || editorMode === 'building'))   { setTool('origin'); return; }
+    if (toolMap[e.key]) { setTool(toolMap[e.key]); return; }
+    if (e.key === 'Escape') { if (selFloat) commitSelection(); else setTool('paint'); return; }
+    if ((e.key==='Delete'||e.key==='Backspace') && activeTool==='select') { e.preventDefault(); cancelSelection(); return; }
+    if (e.key === 'r' || e.key === 'R') { e.preventDefault(); rotateStampOrSelection(e.shiftKey ? -1 : 1); return; }
+    // Layer shortcuts 1–4 (building mode only)
+    if (editorMode === 'building') {
+        const layerKeys = ['floor','walls','roof','overlay'];
+        const n = parseInt(e.key) - 1;
+        if (n >= 0 && n < 4) setLayer(layerKeys[n]);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PARENT EDITOR COMMUNICATION (postMessage bridge)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Convert an internal building object to the export format.
+ * Applies origin offset so that all q,r coordinates are origin-relative,
+ * and adds a `bounds` field for the runtime footprint.
+ */
+function _exportBuilding(b) {
+    // Determine origin: explicit or default to top-left (0,0)
+    let oq = 0, or_ = 0;
+    if (b.originQ != null) { oq = b.originQ; or_ = b.originR; }
+    else {
+        // Implicit: top-left painted tile across all layers
+        let minQ = Infinity, minR = Infinity;
+        for (const lyr of Object.values(b.layers)) {
+            for (const k of Object.keys(lyr)) {
+                const [cq, cr] = k.split(',').map(Number);
+                if (cq < minQ) minQ = cq;
+                if (cr < minR) minR = cr;
+            }
+        }
+        if (minQ !== Infinity) { oq = minQ; or_ = minR; }
+    }
+
+    const out = { ...b };
+    delete out.originQ; delete out.originR; // baked into coords
+    out.layers = {};
+    let bMinQ = Infinity, bMinR = Infinity, bMaxQ = -Infinity, bMaxR = -Infinity;
+    for (const [ln, lyr] of Object.entries(b.layers)) {
+        out.layers[ln] = Object.entries(lyr).map(([key, c]) => {
+            const [q, r] = key.split(',').map(Number);
+            const rq = q - oq, rr = r - or_;
+            if (rq < bMinQ) bMinQ = rq; if (rq > bMaxQ) bMaxQ = rq;
+            if (rr < bMinR) bMinR = rr; if (rr > bMaxR) bMaxR = rr;
+            return { q: rq, r: rr, sheetPath: c.sheetPath, sx: c.sx, sy: c.sy, sw: c.sw, sh: c.sh };
+        });
+    }
+    out.meta = Object.entries(b.meta).map(([key, m]) => {
+        const [q, r] = key.split(',').map(Number);
+        const rq = q - oq, rr = r - or_;
+        if (rq < bMinQ) bMinQ = rq; if (rq > bMaxQ) bMaxQ = rq;
+        if (rr < bMinR) bMinR = rr; if (rr > bMaxR) bMaxR = rr;
+        return { q: rq, r: rr, ...m };
+    }).filter(m => m.impassable || m.door);
+    if (bMinQ !== Infinity) {
+        out.bounds = { minCol: bMinQ, minRow: bMinR, maxCol: bMaxQ, maxRow: bMaxR };
+    }
+    return out;
+}
+
+/**
+ * Called by the parent editor to pull the current buildings/objects
+ * data in gamedata.json structure.  Synchronous — returns an object.
+ */
+function getExportData() {
+  const result = {};
+  // Buildings
+  if (buildings.length) {
+    const exported = buildings.map(b => _exportBuilding(b));
+    result.custom_buildings = {
+      manifest: { files: ['custom_buildings.json'] },
+      files: { 'custom_buildings.json': { buildings: exported } }
+    };
+  }
+  // Objects
+  if (objDefs.length) {
+    const exported = objDefs.map(obj => {
+      const tileKeys = Object.keys(obj.tiles);
+      let minQ=Infinity, minR=Infinity, maxQ=-Infinity, maxR=-Infinity;
+      for (const key of tileKeys) { const [q,r]=key.split(',').map(Number); if(q<minQ)minQ=q; if(q>maxQ)maxQ=q; if(r<minR)minR=r; if(r>maxR)maxR=r; }
+      const originQ = obj.originQ != null ? obj.originQ : minQ;
+      const originR = obj.originR != null ? obj.originR : minR;
+      const outTiles = tileKeys.map(key => {
+        const [q,r]=key.split(',').map(Number);
+        const c = obj.tiles[key];
+        return { localCol:q-originQ, localRow:r-originR, sheetPath:c.sheetPath, sx:c.sx, sy:c.sy, sw:c.sw, sh:c.sh };
+      });
+      const outMeta = Object.entries(obj.meta).map(([key,m]) => {
+        const [q,r]=key.split(',').map(Number);
+        return { localCol:q-originQ, localRow:r-originR, ...m };
+      }).filter(m => m.impassable || m.interactionPoint);
+      const outHealthStates = (obj.healthStates||[]).map(hs=>({
+        label:hs.label, minHealthPct:hs.minHealthPct,
+        tiles:Object.entries(hs.tiles).map(([key,c])=>{ const [q,r]=key.split(',').map(Number); return { localCol:q-originQ,localRow:r-originR,sheetPath:c.sheetPath,sx:c.sx,sy:c.sy,sw:c.sw,sh:c.sh }; })
+      }));
+      const outSeasonVariants = {};
+      for (const [season, stiles] of Object.entries(obj.seasonVariants||{})) {
+        outSeasonVariants[season] = Object.entries(stiles).map(([key,c])=>{ const [q,r]=key.split(',').map(Number); return { localCol:q-originQ,localRow:r-originR,sheetPath:c.sheetPath,sx:c.sx,sy:c.sy,sw:c.sw,sh:c.sh }; });
+      }
+      const outGrowthStates = (obj.growthStates||[]).map(gs=>({
+        label:gs.label, daysToReach:gs.daysToReach,
+        tiles:Object.entries(gs.tiles).map(([key,c])=>{ const [q,r]=key.split(',').map(Number); return { localCol:q-originQ,localRow:r-originR,sheetPath:c.sheetPath,sx:c.sx,sy:c.sy,sw:c.sw,sh:c.sh }; })
+      }));
+      return {
+        id:obj.id, name:obj.name, objectType:obj.objectType,
+        animation:obj.animation||undefined, resource:obj.resource||undefined,
+        spawnAfter:obj.spawnAfter||undefined,
+        healthStates:outHealthStates.length>0?outHealthStates:undefined,
+        seasonVariants:Object.keys(outSeasonVariants).length>0?outSeasonVariants:undefined,
+        growthStates:outGrowthStates.length>0?outGrowthStates:undefined,
+        terrainBindings:obj.terrainBindings, spawnWeight:obj.spawnWeight,
+        resistance:obj.resistance||undefined,
+        bounds:{minCol:minQ-originQ,minRow:minR-originR,maxCol:maxQ-originQ,maxRow:maxR-originR},
+        hasBlockedTiles:outMeta.some(m=>m.impassable), hasInteraction:outMeta.some(m=>m.interactionPoint),
+        tiles:outTiles, meta:outMeta,
+      };
+    });
+    result.custom_objects = {
+      manifest: { files: ['my_objects.json'] },
+      files: { 'my_objects.json': { composed:true, tileW:TILE, tileH:TILE, objects:exported } }
+    };
+  }
+  return result;
+}
+
+/**
+ * Listen for the parent editor sending gamedata sections.
+ */
+window.addEventListener('message', ev => {
+  if (!ev.data || ev.data.type !== 'loadGamedata') return;
+  const d = ev.data;
+  // Load buildings
+  if (d.custom_buildings && d.custom_buildings.files) {
+    const allBuildings = [];
+    for (const fileData of Object.values(d.custom_buildings.files)) {
+      if (Array.isArray(fileData.buildings)) allBuildings.push(...fileData.buildings);
+    }
+    if (allBuildings.length) {
+      // Re-use the import parsing logic
+      const imported = allBuildings.map(b => {
+        const hasBounds = !!b.bounds;
+        const newLayers = {};
+        if (hasBounds) {
+          // New format: origin-relative coords — shift onto grid with margin
+          let minQ = Infinity, minR = Infinity, maxQ = -Infinity, maxR = -Infinity;
+          const scan = c => { if(c.q<minQ) minQ=c.q; if(c.q>maxQ) maxQ=c.q; if(c.r<minR) minR=c.r; if(c.r>maxR) maxR=c.r; };
+          for (const arr of Object.values(b.layers||{})) for (const c of (Array.isArray(arr)?arr:[])) scan(c);
+          for (const m of (Array.isArray(b.meta)?b.meta:[])) scan(m);
+          if (!isFinite(minQ)) { minQ=0; minR=0; maxQ=0; maxR=0; }
+          const MARGIN = 1, offQ = MARGIN - minQ, offR = MARGIN - minR;
+          const sk = (q,r) => `${q+offQ},${r+offR}`;
+          for (const [ln, arr] of Object.entries(b.layers||{})) {
+            newLayers[ln] = {};
+            for (const c of (Array.isArray(arr)?arr:[])) {
+              newLayers[ln][sk(c.q,c.r)] = { sheetPath:c.sheetPath, sx:c.sx, sy:c.sy, sw:c.sw, sh:c.sh };
+            }
+          }
+          const newMeta = {};
+          for (const m of (Array.isArray(b.meta)?b.meta:[])) {
+            newMeta[sk(m.q,m.r)] = { impassable:!!m.impassable, door:!!m.door };
+          }
+          const w = (maxQ-minQ)+MARGIN*2+1, h = (maxR-minR)+MARGIN*2+1;
+          return { ...b, width:w, height:h, originQ:offQ, originR:offR, layers:newLayers, meta:newMeta };
+        } else {
+          // Old format: absolute coords — import as-is, no origin
+          for (const [ln, arr] of Object.entries(b.layers || {})) {
+            newLayers[ln] = {};
+            for (const c of (Array.isArray(arr) ? arr : Object.entries(arr).map(([k,v])=>({q:+k.split(',')[0],r:+k.split(',')[1],...v})))) {
+              newLayers[ln][`${c.q},${c.r}`] = { sheetPath:c.sheetPath, sx:c.sx, sy:c.sy, sw:c.sw, sh:c.sh };
+            }
+          }
+          const newMeta = {};
+          for (const m of (Array.isArray(b.meta) ? b.meta : Object.entries(b.meta||{}).map(([k,v])=>({q:+k.split(',')[0],r:+k.split(',')[1],...v})))) {
+            newMeta[`${m.q},${m.r}`] = { impassable:!!m.impassable, door:!!m.door };
+          }
+          return { ...b, layers: newLayers, meta: newMeta };
+        }
+      });
+      buildings = imported;
+      buildingEditIdx = -1;
+      refreshBuildingList();
+      if (buildings.length) loadBuilding(0);
+    }
+  }
+  // Load objects
+  if (d.custom_objects && d.custom_objects.files) {
+    const allObjects = [];
+    for (const fileData of Object.values(d.custom_objects.files)) {
+      if (fileData.composed && Array.isArray(fileData.objects)) allObjects.push(...fileData.objects);
+    }
+    if (allObjects.length) {
+      const imported = allObjects.map(obj => {
+        let minLQ=Infinity, minLR=Infinity, maxLQ=-Infinity, maxLR=-Infinity;
+        const _scanTile = t => { if(t.localCol<minLQ)minLQ=t.localCol; if(t.localCol>maxLQ)maxLQ=t.localCol; if(t.localRow<minLR)minLR=t.localRow; if(t.localRow>maxLR)maxLR=t.localRow; };
+        for (const t of (obj.tiles||[])) _scanTile(t);
+        for (const hs of (obj.healthStates||[])) for (const t of (hs.tiles||[])) _scanTile(t);
+        for (const sarr of Object.values(obj.seasonVariants||{})) for (const t of (sarr||[])) _scanTile(t);
+        for (const gs of (obj.growthStates||[])) for (const t of (gs.tiles||[])) _scanTile(t);
+        if (!isFinite(minLQ)){minLQ=0;minLR=0;maxLQ=0;maxLR=0;}
+        const MARGIN=1, offQ=MARGIN-minLQ, offR=MARGIN-minLR;
+        const _shiftKey=(lc,lr)=>`${lc+offQ},${lr+offR}`;
+        const newTiles={};
+        for (const t of (obj.tiles||[])) newTiles[_shiftKey(t.localCol,t.localRow)]={sheetPath:t.sheetPath,sx:t.sx,sy:t.sy,sw:t.sw,sh:t.sh};
+        const newMeta={};
+        for (const m of (obj.meta||[])) { const mm={}; if(m.impassable)mm.impassable=true; if(m.interactionPoint)mm.interactionPoint=true; if(Object.keys(mm).length)newMeta[_shiftKey(m.localCol,m.localRow)]=mm; }
+        const newHealthStates=(obj.healthStates||[]).map(hs=>({label:hs.label,minHealthPct:hs.minHealthPct,tiles:Object.fromEntries((hs.tiles||[]).map(t=>[_shiftKey(t.localCol,t.localRow),{sheetPath:t.sheetPath,sx:t.sx,sy:t.sy,sw:t.sw,sh:t.sh}]))}));
+        const newSeasonVariants={};
+        for (const [season,sarr] of Object.entries(obj.seasonVariants||{})) newSeasonVariants[season]=Object.fromEntries((sarr||[]).map(t=>[_shiftKey(t.localCol,t.localRow),{sheetPath:t.sheetPath,sx:t.sx,sy:t.sy,sw:t.sw,sh:t.sh}]));
+        const newGrowthStates=(obj.growthStates||[]).map(gs=>({label:gs.label,daysToReach:gs.daysToReach,tiles:Object.fromEntries((gs.tiles||[]).map(t=>[_shiftKey(t.localCol,t.localRow),{sheetPath:t.sheetPath,sx:t.sx,sy:t.sy,sw:t.sw,sh:t.sh}]))}));
+        return { ...obj, width:(maxLQ-minLQ)+MARGIN*2+1, height:(maxLR-minLR)+MARGIN*2+1, originQ:offQ, originR:offR, tiles:newTiles, meta:newMeta,
+          healthStates:newHealthStates.length>0?newHealthStates:undefined, seasonVariants:Object.keys(newSeasonVariants).length>0?newSeasonVariants:undefined, growthStates:newGrowthStates.length>0?newGrowthStates:undefined };
+      });
+      objDefs = imported;
+      objEditIdx = -1;
+      refreshObjectList();
+      if (objDefs.length) loadObject(0);
+    }
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════════
+init();
+// Tell the parent editor we're ready to receive data
+try { window.parent.postMessage({ type: 'spriteEditorReady' }, '*'); } catch(e) {}
+</script>
+</body>
+</html>

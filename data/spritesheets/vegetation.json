@@ -1,0 +1,182 @@
+{
+    "meta": {
+        "description": "LPC vegetation sprite sheets — plants, flowers, mushrooms, and rocks",
+        "tileSize": 32
+    },
+    "sheets": {
+        "plants_summer": {
+            "path": "assets/lpc/Terrain/plants_summer.png",
+            "width": 512,
+            "height": 160,
+            "tileSize": 32,
+            "cols": 16,
+            "rows": 5
+        },
+        "plants_spring": {
+            "path": "assets/lpc/Terrain/plants_spring.png",
+            "width": 512,
+            "height": 160,
+            "tileSize": 32,
+            "cols": 16,
+            "rows": 5
+        },
+        "plants_autumn": {
+            "path": "assets/lpc/Terrain/plants_autumn.png",
+            "width": 512,
+            "height": 160,
+            "tileSize": 32,
+            "cols": 16,
+            "rows": 5
+        },
+        "plants_winter": {
+            "path": "assets/lpc/Terrain/plants_winter.png",
+            "width": 512,
+            "height": 160,
+            "tileSize": 32,
+            "cols": 16,
+            "rows": 5
+        },
+        "wildflowers_summer": {
+            "path": "assets/lpc/Terrain/wildflowers_summer.png",
+            "width": 144,
+            "height": 160,
+            "tileSize": 32,
+            "cols": 4,
+            "rows": 5,
+            "note": "Width is 144 not 128 — extra partial column"
+        },
+        "wildflowers_spring": {
+            "path": "assets/lpc/Terrain/wildflowers_spring.png",
+            "width": 144,
+            "height": 160,
+            "tileSize": 32,
+            "cols": 4,
+            "rows": 5
+        },
+        "wildflowers_autumn": {
+            "path": "assets/lpc/Terrain/wildflowers_autumn.png",
+            "width": 144,
+            "height": 160,
+            "tileSize": 32,
+            "cols": 4,
+            "rows": 5
+        },
+        "flowers": {
+            "path": "assets/lpc/Terrain/flowers.png",
+            "width": 352,
+            "height": 160,
+            "tileSize": 32,
+            "cols": 11,
+            "rows": 5
+        },
+        "mushrooms": {
+            "path": "assets/lpc/Terrain/mushrooms.png",
+            "width": 192,
+            "height": 160,
+            "tileSize": 32,
+            "cols": 6,
+            "rows": 5
+        },
+        "rocks_grass": {
+            "path": "assets/lpc/Terrain/Rocks, Grasslands.png",
+            "width": 192,
+            "height": 384,
+            "tileSize": 32,
+            "cols": 6,
+            "rows": 12,
+            "note": "Rocks are 2×2 tiles (64×64 px). 3 color variants: dark brown (rows 0-3), tan (rows 4-7), blue-grey (rows 8-11). Each variant has 6 rocks in a 3×2 grid."
+        },
+        "rocks_cliffs": {
+            "path": "assets/lpc/Terrain/Rocks, Cliffs.png",
+            "width": 192,
+            "height": 128,
+            "tileSize": 32,
+            "cols": 6,
+            "rows": 4,
+            "note": "Rocks are 2×2 tiles (64×64 px). 6 cliff rocks in a 3×2 grid."
+        }
+    },
+    "sprites": {
+        "plants": {
+            "description": "Standalone plant sprites from seasonal plant sheets. Non-autotile cells that have transparent edges.",
+            "note": "Plant sheets mix autotile transition tiles with standalone sprites. Standalone sprites have transparent borders and are suitable for object-layer placement. The runtime analyzer identifies these automatically.",
+            "examples": [
+                { "id": "bush_small",    "sx": 0,   "sy": 0,  "sw": 32, "sh": 32 },
+                { "id": "bush_medium",   "sx": 32,  "sy": 0,  "sw": 32, "sh": 32 },
+                { "id": "fern",          "sx": 64,  "sy": 0,  "sw": 32, "sh": 32 },
+                { "id": "grass_tuft",    "sx": 96,  "sy": 0,  "sw": 32, "sh": 32 },
+                { "id": "tall_plant",    "sx": 128, "sy": 0,  "sw": 32, "sh": 32 }
+            ]
+        },
+        "wildflowers": {
+            "description": "Individual wildflower sprites from seasonal wildflower sheets",
+            "items": [
+                { "id": "wildflower_a",  "sx": 0,   "sy": 0,  "sw": 32, "sh": 32 },
+                { "id": "wildflower_b",  "sx": 32,  "sy": 0,  "sw": 32, "sh": 32 },
+                { "id": "wildflower_c",  "sx": 64,  "sy": 0,  "sw": 32, "sh": 32 },
+                { "id": "wildflower_d",  "sx": 96,  "sy": 0,  "sw": 32, "sh": 32 },
+                { "id": "wildflower_e",  "sx": 0,   "sy": 32, "sw": 32, "sh": 32 },
+                { "id": "wildflower_f",  "sx": 32,  "sy": 32, "sw": 32, "sh": 32 },
+                { "id": "wildflower_g",  "sx": 64,  "sy": 32, "sw": 32, "sh": 32 },
+                { "id": "wildflower_h",  "sx": 96,  "sy": 32, "sw": 32, "sh": 32 }
+            ]
+        },
+        "flowers": {
+            "description": "Flower sprites from the flowers.png sheet (352×160)",
+            "items": [
+                { "id": "flower_red",    "sx": 0,   "sy": 0,  "sw": 32, "sh": 32 },
+                { "id": "flower_yellow", "sx": 32,  "sy": 0,  "sw": 32, "sh": 32 },
+                { "id": "flower_blue",   "sx": 64,  "sy": 0,  "sw": 32, "sh": 32 },
+                { "id": "flower_white",  "sx": 96,  "sy": 0,  "sw": 32, "sh": 32 },
+                { "id": "flower_pink",   "sx": 128, "sy": 0,  "sw": 32, "sh": 32 }
+            ]
+        },
+        "mushrooms": {
+            "description": "Mushroom sprites from mushrooms.png (192×160)",
+            "items": [
+                { "id": "mushroom_brown",  "sx": 0,  "sy": 0,  "sw": 32, "sh": 32 },
+                { "id": "mushroom_red",    "sx": 32, "sy": 0,  "sw": 32, "sh": 32 },
+                { "id": "mushroom_white",  "sx": 64, "sy": 0,  "sw": 32, "sh": 32 },
+                { "id": "mushroom_cluster", "sx": 0,  "sy": 32, "sw": 32, "sh": 32 }
+            ]
+        },
+        "rocks": {
+            "description": "Rock sprites from 'Rocks, Grasslands.png' (192×384). Each rock is 2×2 tiles (64×64 px). Sheet has 3 color variants (dark brown rows 0-3, tan rows 4-7, blue-grey rows 8-11), each with 6 rocks arranged in a 3×2 grid of 64×64 blocks.",
+            "sheetKey": "rocks_grass",
+            "tileSpan": { "w": 2, "h": 2 },
+            "items": [
+                { "id": "rock_brown_a",    "sx": 0,   "sy": 0,   "sw": 64, "sh": 96, "variant": "brown" },
+                { "id": "rock_brown_b",    "sx": 64,  "sy": 0,   "sw": 64, "sh": 64, "variant": "brown" },
+                { "id": "rock_brown_c",    "sx": 128, "sy": 0,   "sw": 64, "sh": 64, "variant": "brown" },
+                { "id": "rock_brown_d",    "sx": 0,   "sy": 96,  "sw": 64, "sh": 32, "variant": "brown" },
+                { "id": "rock_brown_e",    "sx": 96,  "sy": 96,  "sw": 64, "sh": 32, "variant": "brown" },
+                { "id": "rock_brown_f",    "sx": 96,  "sy": 128, "sw": 64, "sh": 32, "variant": "brown" },
+                { "id": "rock_tan_a",      "sx": 0,   "sy": 128, "sw": 64, "sh": 96, "variant": "tan" },
+                { "id": "rock_tan_b",      "sx": 64,  "sy": 128, "sw": 64, "sh": 64, "variant": "tan" },
+                { "id": "rock_tan_c",      "sx": 128, "sy": 128, "sw": 64, "sh": 64, "variant": "tan" },
+                { "id": "rock_tan_d",      "sx": 0,   "sy": 192, "sw": 64, "sh": 32, "variant": "tan" },
+                { "id": "rock_tan_e",      "sx": 64,  "sy": 192, "sw": 64, "sh": 32, "variant": "tan" },
+                { "id": "rock_tan_f",      "sx": 128, "sy": 192, "sw": 64, "sh": 32, "variant": "tan" },
+                { "id": "rock_grey_a",     "sx": 0,   "sy": 256, "sw": 64, "sh": 96, "variant": "grey" },
+                { "id": "rock_grey_b",     "sx": 64,  "sy": 256, "sw": 64, "sh": 64, "variant": "grey" },
+                { "id": "rock_grey_c",     "sx": 128, "sy": 256, "sw": 64, "sh": 64, "variant": "grey" },
+                { "id": "rock_grey_d",     "sx": 0,   "sy": 320, "sw": 64, "sh": 32, "variant": "grey" },
+                { "id": "rock_grey_e",     "sx": 64,  "sy": 320, "sw": 64, "sh": 32, "variant": "grey" },
+                { "id": "rock_grey_f",     "sx": 128, "sy": 320, "sw": 64, "sh": 32, "variant": "grey" }
+            ]
+        },
+        "rocks_cliff": {
+            "description": "Cliff rock sprites from 'Rocks, Cliffs.png' (192×128). Each rock is 2×2 tiles (64×64 px). 6 rocks arranged in a 3×2 grid of 64×64 blocks.",
+            "sheetKey": "rocks_cliffs",
+            "tileSpan": { "w": 2, "h": 2 },
+            "items": [
+                { "id": "cliff_rock_a",    "sx": 0,   "sy": 0,  "sw": 64, "sh": 64 },
+                { "id": "cliff_rock_b",    "sx": 64,  "sy": 0,  "sw": 64, "sh": 64 },
+                { "id": "cliff_rock_c",    "sx": 128, "sy": 0,  "sw": 64, "sh": 64 },
+                { "id": "cliff_rock_d",    "sx": 0,   "sy": 64, "sw": 64, "sh": 64 },
+                { "id": "cliff_rock_e",    "sx": 64,  "sy": 64, "sw": 64, "sh": 64 },
+                { "id": "cliff_rock_f",    "sx": 128, "sy": 64, "sw": 64, "sh": 64 }
+            ]
+        }
+    }
+}

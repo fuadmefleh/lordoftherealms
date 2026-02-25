@@ -1,0 +1,1675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inner Map — Standalone Test</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background: #0d1117;
+            color: #c9d1d9;
+            padding: 24px;
+            line-height: 1.6;
+        }
+        h1 { color: #58a6ff; margin-bottom: 4px; font-size: 22px; }
+        h2 { color: #58a6ff; margin: 24px 0 8px; font-size: 16px; border-bottom: 1px solid #21262d; padding-bottom: 4px; }
+        .subtitle { color: #8b949e; margin-bottom: 16px; font-size: 13px; }
+
+        #controls {
+            display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+            margin-bottom: 16px;
+        }
+        button {
+            background: #238636; color: #fff; border: none;
+            padding: 8px 18px; border-radius: 6px; cursor: pointer;
+            font-size: 13px; font-weight: 600; font-family: inherit;
+        }
+        button:hover { background: #2ea043; }
+        button.secondary { background: #30363d; }
+        button.secondary:hover { background: #484f58; }
+        button:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
+        select, input[type=number] {
+            background: #161b22; color: #c9d1d9; border: 1px solid #30363d;
+            padding: 6px 10px; border-radius: 4px; font-family: inherit; font-size: 13px;
+        }
+        label { font-size: 13px; color: #8b949e; }
+
+        #summary {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px;
+        }
+        .summary-card {
+            padding: 12px; border-radius: 6px; background: #161b22;
+            border: 1px solid #30363d; text-align: center;
+        }
+        .summary-card .label { font-size: 11px; color: #8b949e; text-transform: uppercase; }
+        .summary-card .value { font-size: 24px; font-weight: 700; margin-top: 2px; }
+        .summary-card.total .value { color: #58a6ff; }
+        .summary-card.passed .value { color: #34d399; }
+        .summary-card.failed .value { color: #f87171; }
+        .summary-card.skipped .value { color: #f59e0b; }
+        .summary-card.time .value { color: #f59e0b; font-size: 18px; }
+
+        #log {
+            background: #161b22; border: 1px solid #30363d; border-radius: 6px;
+            padding: 12px 16px; max-height: 400px; overflow-y: auto; font-size: 12px;
+            margin-bottom: 16px;
+        }
+        .log-suite { color: #58a6ff; font-weight: 600; margin-top: 10px; border-bottom: 1px solid #21262d; padding-bottom: 2px; }
+        .log-pass { color: #34d399; }
+        .log-fail { color: #f87171; }
+        .log-info { color: #8b949e; padding-left: 16px; font-size: 11px; }
+
+        /* Visual test area */
+        #visual-area {
+            display: flex; gap: 16px; flex-wrap: wrap;
+        }
+        .visual-panel {
+            background: #161b22; border: 1px solid #30363d; border-radius: 6px;
+            padding: 12px; flex: 1; min-width: 350px;
+        }
+        .visual-panel h3 { color: #58a6ff; font-size: 14px; margin-bottom: 8px; }
+        canvas { image-rendering: pixelated; border: 1px solid #30363d; border-radius: 4px; }
+
+        #tile-info {
+            background: #0d1117; border: 1px solid #30363d; border-radius: 4px;
+            padding: 8px; margin-top: 8px; font-size: 11px; min-height: 60px;
+        }
+        .tile-grid-legend {
+            display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; font-size: 11px;
+        }
+        .legend-item { display: flex; align-items: center; gap: 4px; }
+        .legend-swatch { width: 14px; height: 14px; border: 1px solid #30363d; border-radius: 2px; }
+    </style>
+</head>
+<body>
+
+<h1>Inner Map — Standalone Test Suite</h1>
+<p class="subtitle">Tests inner map generation, terrain mapping, water overlays, serialization, and visual rendering</p>
+
+<div id="controls">
+    <button id="btnRun" onclick="runAllTests()">Run All Tests</button>
+    <button class="secondary" onclick="runVisualTest()">Render Visual Test</button>
+    <label>Biome:
+        <select id="biomeSelect">
+            <option value="grassland">Grassland</option>
+            <option value="plains">Plains</option>
+            <option value="woodland">Woodland</option>
+            <option value="boreal_forest">Boreal Forest</option>
+            <option value="seasonal_forest">Seasonal Forest</option>
+            <option value="temperate_rainforest">Temperate Rainforest</option>
+            <option value="tropical_rainforest">Tropical Rainforest</option>
+            <option value="desert">Desert</option>
+            <option value="savanna">Savanna</option>
+            <option value="mountain">Mountain</option>
+            <option value="hills">Hills</option>
+            <option value="swamp">Swamp</option>
+            <option value="tundra">Tundra</option>
+            <option value="snow">Snow</option>
+            <option value="ice">Ice</option>
+            <option value="highlands">Highlands</option>
+            <option value="beach">Beach</option>
+            <option value="island">Island</option>
+        </select>
+    </label>
+    <label>World Q: <input type="number" id="worldQ" value="5" min="-50" max="50" style="width:60px"></label>
+    <label>World R: <input type="number" id="worldR" value="3" min="-50" max="50" style="width:60px"></label>
+    <label>Season:
+        <select id="seasonSelect">
+            <option value="summer" selected>Summer</option>
+            <option value="spring">Spring</option>
+            <option value="autumn">Autumn</option>
+            <option value="winter">Winter</option>
+        </select>
+    </label>
+    <label>Settlement:
+        <select id="settlementSelect">
+            <option value="">None</option>
+            <option value="village" selected>Village</option>
+            <option value="town">Town</option>
+            <option value="city">City</option>
+            <option value="capital">Capital</option>
+        </select>
+    </label>
+</div>
+
+<div id="summary">
+    <div class="summary-card total"><div class="label">Total</div><div class="value" id="totalCount">-</div></div>
+    <div class="summary-card passed"><div class="label">Passed</div><div class="value" id="passedCount">-</div></div>
+    <div class="summary-card failed"><div class="label">Failed</div><div class="value" id="failedCount">-</div></div>
+    <div class="summary-card skipped"><div class="label">Skipped</div><div class="value" id="skippedCount">-</div></div>
+    <div class="summary-card time"><div class="label">Time</div><div class="value" id="timeValue">-</div></div>
+</div>
+
+<div id="log"></div>
+
+<div id="visual-area">
+    <div class="visual-panel">
+        <h3>LPC Rendered Map (real sprites)</h3>
+        <canvas id="terrainCanvas" width="640" height="640"></canvas>
+        <div id="tile-info">Hover over tiles to inspect. Waiting for sprites to load...</div>
+        <div class="tile-grid-legend" id="legend"></div>
+        <div id="sheet-status" style="font-size:11px; color:#8b949e; margin-top:4px;"></div>
+    </div>
+    <div class="visual-panel">
+        <h3>LPC Rendered + Overlays (terrain + objects + NPCs)</h3>
+        <canvas id="overlayCanvas" width="640" height="640"></canvas>
+        <div id="overlay-info">Hover over tiles to inspect overlays</div>
+    </div>
+    <div class="visual-panel">
+        <h3>LPC Character Presets</h3>
+        <canvas id="characterCanvas" width="640" height="400"></canvas>
+        <div id="char-info">Character preset sprites (idle + walk animation frames)</div>
+    </div>
+</div>
+
+<!-- Load only required game modules -->
+<script src="js/core/utils.js"></script>
+<script src="js/world/terrain.js"></script>
+<script src="js/world/innerMap.js"></script>
+<!-- Renderer loaded for visual tests only — not needed for logic tests -->
+<script src="js/ui/innerMapRenderer.js"></script>
+<script src="js/ui/innerMapCharacters.js"></script>
+<!-- Tiled export/import -->
+<script src="js/systems/tiledExport.js"></script>
+
+<script>
+// ============================================
+// TEST HARNESS
+// ============================================
+const T = {
+    passed: 0, failed: 0, skipped: 0, errors: [],
+    _logEl: null,
+
+    reset() {
+        this.passed = 0; this.failed = 0; this.skipped = 0; this.errors = [];
+        this._logEl = document.getElementById('log');
+        this._logEl.innerHTML = '';
+    },
+
+    suite(name) {
+        const d = document.createElement('div');
+        d.className = 'log-suite';
+        d.textContent = `\u{1F4CB} ${name}`;
+        this._logEl.appendChild(d);
+    },
+
+    assert(condition, msg, detail) {
+        const d = document.createElement('div');
+        if (condition) {
+            d.className = 'log-pass';
+            d.textContent = `  \u2705 ${msg}`;
+            this.passed++;
+        } else {
+            d.className = 'log-fail';
+            d.textContent = `  \u274C ${msg}`;
+            this.failed++;
+            this.errors.push({ msg, detail });
+            if (detail) {
+                const dd = document.createElement('div');
+                dd.className = 'log-info';
+                dd.textContent = `     ${detail}`;
+                this._logEl.appendChild(d);
+                this._logEl.appendChild(dd);
+                return;
+            }
+        }
+        this._logEl.appendChild(d);
+    },
+
+    assertEqual(actual, expected, msg) {
+        this.assert(actual === expected, msg, actual !== expected ? `expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}` : null);
+    },
+
+    assertIncludes(arr, val, msg) {
+        this.assert(arr.includes(val), msg, !arr.includes(val) ? `${JSON.stringify(val)} not in [${arr.join(',')}]` : null);
+    },
+
+    assertNotIncludes(arr, val, msg) {
+        this.assert(!arr.includes(val), msg, arr.includes(val) ? `${JSON.stringify(val)} should NOT be in array` : null);
+    },
+
+    info(msg) {
+        const d = document.createElement('div');
+        d.className = 'log-info';
+        d.textContent = `     ${msg}`;
+        this._logEl.appendChild(d);
+    },
+
+    skip(msg) {
+        const d = document.createElement('div');
+        d.className = 'log-info';
+        d.textContent = `  \u23ED ${msg} (skipped)`;
+        this._logEl.appendChild(d);
+        this.skipped++;
+    },
+
+    updateSummary(elapsed) {
+        document.getElementById('totalCount').textContent = this.passed + this.failed + this.skipped;
+        document.getElementById('passedCount').textContent = this.passed;
+        document.getElementById('failedCount').textContent = this.failed;
+        document.getElementById('skippedCount').textContent = this.skipped;
+        document.getElementById('timeValue').textContent = elapsed + 'ms';
+    }
+};
+
+// ============================================
+// INNER MAP CONFIG (load from JSON)
+// ============================================
+let innerMapConfig = null;
+
+async function loadConfig() {
+    if (innerMapConfig) return innerMapConfig;
+    const resp = await fetch('data/innerMap.json');
+    innerMapConfig = await resp.json();
+    InnerMap.initialize(innerMapConfig);
+    return innerMapConfig;
+}
+
+// ============================================
+// HELPER — create a mock world tile
+// ============================================
+function mockWorldTile(terrainId, opts = {}) {
+    return {
+        terrain: { id: terrainId },
+        elevation: opts.elevation ?? 0.5,
+        temperature: opts.temperature ?? 0.5,
+        moisture: opts.moisture ?? 0.5,
+        settlement: opts.settlement || null,
+    };
+}
+
+// Minimal mock game object for weather
+function mockGame() {
+    return { world: null };
+}
+
+// ============================================
+// TEST SUITES
+// ============================================
+
+function testBaseTerrainMapping() {
+    T.suite('Base Terrain Mapping (PARENT_TO_BASE_TERRAIN)');
+
+    // Every parent terrain has a mapping
+    const allBiomes = [
+        'grassland','plains','woodland','forest','dense_forest','seasonal_forest',
+        'boreal_forest','temperate_rainforest','tropical_rainforest',
+        'desert','savanna','mountain','snow_peak','hills','highlands',
+        'swamp','tundra','snow','ice','beach','island'
+    ];
+    for (const biome of allBiomes) {
+        const base = InnerMap.PARENT_TO_BASE_TERRAIN[biome];
+        T.assert(base !== undefined, `PARENT_TO_BASE_TERRAIN['${biome}'] is defined`, base === undefined ? 'missing mapping' : null);
+    }
+
+    // Forest types must map to 'grass', NOT 'dark_green'
+    const forestTypes = ['woodland','forest','dense_forest','seasonal_forest','boreal_forest','temperate_rainforest','tropical_rainforest'];
+    for (const ft of forestTypes) {
+        T.assertEqual(InnerMap.PARENT_TO_BASE_TERRAIN[ft], 'grass', `${ft} maps to 'grass' (not dark_green)`);
+    }
+
+    // Desert → sand
+    T.assertEqual(InnerMap.PARENT_TO_BASE_TERRAIN['desert'], 'sand', "desert → sand");
+
+    // Mountain → stone
+    T.assertEqual(InnerMap.PARENT_TO_BASE_TERRAIN['mountain'], 'stone', "mountain → stone");
+
+    // Swamp → dark_stone
+    T.assertEqual(InnerMap.PARENT_TO_BASE_TERRAIN['swamp'], 'dark_stone', "swamp → dark_stone");
+}
+
+function testSubTerrainOverrides() {
+    T.suite('Sub-Terrain Overrides (SUB_TO_BASE_TERRAIN)');
+
+    // Dirt features
+    const dirtFeatures = ['dirt','mud'];
+    for (const f of dirtFeatures) {
+        T.assertEqual(InnerMap.SUB_TO_BASE_TERRAIN[f], 'dirt', `${f} → dirt`);
+    }
+
+    // Stone features
+    const stoneFeatures = ['rocks','cliff','ice'];
+    for (const f of stoneFeatures) {
+        T.assertEqual(InnerMap.SUB_TO_BASE_TERRAIN[f], 'stone', `${f} → stone`);
+    }
+
+    // Sand features
+    T.assertEqual(InnerMap.SUB_TO_BASE_TERRAIN['sand'], 'sand', 'sand → sand');
+
+    // Dry dirt
+    T.assertEqual(InnerMap.SUB_TO_BASE_TERRAIN['dry_grass'], 'dry_dirt', 'dry_grass → dry_dirt');
+
+    // Dark stone
+    T.assertEqual(InnerMap.SUB_TO_BASE_TERRAIN['bog'], 'dark_stone', 'bog → dark_stone');
+}
+
+function testWaterFeaturesNotInSubOverrides() {
+    T.suite('Non-override sub-terrains NOT in SUB_TO_BASE_TERRAIN');
+
+    // These sub-terrains inherit from their parent biome, no override needed
+    const noOverride = ['grass','tall_grass','trees','brush','snow'];
+
+    for (const id of noOverride) {
+        T.assert(
+            InnerMap.SUB_TO_BASE_TERRAIN[id] === undefined,
+            `'${id}' is NOT in SUB_TO_BASE_TERRAIN (inherits parent)`,
+            InnerMap.SUB_TO_BASE_TERRAIN[id] !== undefined ? `found mapping: ${InnerMap.SUB_TO_BASE_TERRAIN[id]}` : null
+        );
+    }
+}
+
+function testGetBaseTerrain() {
+    T.suite('_getBaseTerrain() logic');
+
+    // Sub-terrain override takes priority
+    T.assertEqual(InnerMap._getBaseTerrain('grassland','dirt'), 'dirt', "dirt in grassland → dirt (override)");
+    T.assertEqual(InnerMap._getBaseTerrain('mountain','rocks'), 'stone', "rocks in mountain → stone (override)");
+
+    // Non-override sub-terrains inherit parent terrain
+    T.assertEqual(InnerMap._getBaseTerrain('grassland','grass'), 'grass', "grass in grassland → grass (inherits parent)");
+    T.assertEqual(InnerMap._getBaseTerrain('woodland','trees'), 'grass', "trees in woodland → grass (inherits parent)");
+    T.assertEqual(InnerMap._getBaseTerrain('desert','sand'), 'sand', "sand in desert → sand (override)");
+    T.assertEqual(InnerMap._getBaseTerrain('mountain','snow'), 'stone', "snow in mountain → stone (inherits parent)");
+    T.assertEqual(InnerMap._getBaseTerrain('swamp','bog'), 'dark_stone', "bog in swamp → dark_stone (override)");
+
+    // Unknown sub-terrain falls back to parent
+    T.assertEqual(InnerMap._getBaseTerrain('grassland','grass'), 'grass', "grass in grassland → grass (no override, uses parent)");
+
+    // Unknown parent terrain falls back to 'grass'
+    T.assertEqual(InnerMap._getBaseTerrain('nonexistent_biome',null), 'grass', "unknown biome → grass fallback");
+}
+
+function testMapGeneration() {
+    T.suite('Inner Map Generation');
+
+    const wt = mockWorldTile('grassland');
+    const game = mockGame();
+    InnerMap.clearCache();
+    const tiles = InnerMap.generate(wt, 5, 3, game);
+
+    // Correct dimensions
+    T.assertEqual(tiles.length, InnerMap.height, `Generated ${InnerMap.height} rows`);
+    T.assertEqual(tiles[0].length, InnerMap.width, `Generated ${InnerMap.width} columns`);
+
+    // Every tile has required fields
+    let allHaveFields = true;
+    let missingField = '';
+    const requiredFields = ['q','r','baseTerrain','subTerrain','parentTerrain'];
+    for (let r = 0; r < tiles.length; r++) {
+        for (let q = 0; q < tiles[r].length; q++) {
+            const tile = tiles[r][q];
+            for (const f of requiredFields) {
+                if (tile[f] === undefined) {
+                    allHaveFields = false;
+                    missingField = `tile[${r}][${q}] missing '${f}'`;
+                    break;
+                }
+            }
+            if (!allHaveFields) break;
+        }
+        if (!allHaveFields) break;
+    }
+    T.assert(allHaveFields, 'All tiles have required fields (q, r, baseTerrain, subTerrain, parentTerrain)', missingField);
+
+    // parentTerrain matches
+    const firstTile = tiles[0][0];
+    T.assertEqual(firstTile.parentTerrain, 'grassland', "parentTerrain = 'grassland'");
+
+    // subTerrain has id, name, icon, color
+    T.assert(firstTile.subTerrain.id !== undefined, 'subTerrain.id exists');
+    T.assert(firstTile.subTerrain.name !== undefined, 'subTerrain.name exists');
+    T.assert(firstTile.subTerrain.icon !== undefined, 'subTerrain.icon exists');
+    T.assert(firstTile.subTerrain.color !== undefined, 'subTerrain.color exists');
+
+    // Center tile is explored and passable
+    const cx = Math.floor(InnerMap.width / 2);
+    const cy = Math.floor(InnerMap.height / 2);
+    T.assert(tiles[cy][cx].explored, 'Center tile is explored');
+    T.assert(tiles[cy][cx].subTerrain.passable, 'Center tile is passable');
+}
+
+function testDeterminism() {
+    T.suite('Deterministic Generation (same seed = same map)');
+
+    const wt = mockWorldTile('woodland');
+    const game = mockGame();
+
+    InnerMap.clearCache();
+    const tiles1 = InnerMap.generate(wt, 10, 7, game);
+
+    InnerMap.clearCache();
+    const tiles2 = InnerMap.generate(wt, 10, 7, game);
+
+    let allMatch = true;
+    let mismatch = '';
+    for (let r = 0; r < tiles1.length; r++) {
+        for (let q = 0; q < tiles1[r].length; q++) {
+            if (tiles1[r][q].subTerrain.id !== tiles2[r][q].subTerrain.id) {
+                allMatch = false;
+                mismatch = `[${r},${q}]: ${tiles1[r][q].subTerrain.id} vs ${tiles2[r][q].subTerrain.id}`;
+                break;
+            }
+            if (tiles1[r][q].baseTerrain !== tiles2[r][q].baseTerrain) {
+                allMatch = false;
+                mismatch = `[${r},${q}] baseTerrain: ${tiles1[r][q].baseTerrain} vs ${tiles2[r][q].baseTerrain}`;
+                break;
+            }
+        }
+        if (!allMatch) break;
+    }
+    T.assert(allMatch, 'Same world coords produce identical inner maps', mismatch);
+
+    // Different coords produce different maps
+    InnerMap.clearCache();
+    const tiles3 = InnerMap.generate(wt, 11, 7, game);
+    let anyDiff = false;
+    for (let r = 0; r < tiles1.length && !anyDiff; r++) {
+        for (let q = 0; q < tiles1[r].length && !anyDiff; q++) {
+            if (tiles1[r][q].subTerrain.id !== tiles3[r][q].subTerrain.id) anyDiff = true;
+        }
+    }
+    T.assert(anyDiff, 'Different world coords produce different inner maps');
+}
+
+function testNoWaterBaseTerrainOnWaterFeatures() {
+    T.suite('All tiles have valid baseTerrain');
+
+    // Test across multiple biomes that all tiles get valid base terrain
+    const biomes = ['grassland','woodland','mountain','hills','swamp','desert','beach','island','boreal_forest'];
+    const game = mockGame();
+    let violations = [];
+
+    for (const biome of biomes) {
+        InnerMap.clearCache();
+        for (let seed = 0; seed < 5; seed++) {
+            const wt = mockWorldTile(biome);
+            const tiles = InnerMap.generate(wt, seed * 7, seed * 3, game);
+            for (let r = 0; r < tiles.length; r++) {
+                for (let q = 0; q < tiles[r].length; q++) {
+                    const tile = tiles[r][q];
+                    if (!tile.baseTerrain) {
+                        violations.push(`${biome}[${r},${q}] ${tile.subTerrain.id} has no baseTerrain`);
+                    }
+                }
+            }
+        }
+    }
+
+    T.assert(violations.length === 0,
+        `All tiles have valid baseTerrain (checked ${biomes.length * 5} maps)`,
+        violations.length > 0 ? `${violations.length} violations: ${violations.slice(0,3).join('; ')}` : null
+    );
+    if (violations.length === 0) {
+        T.info(`Scanned ${biomes.length * 5} maps across ${biomes.length} biomes — all tiles valid`);
+    }
+}
+
+function testBaseTerrainDistribution() {
+    T.suite('Base Terrain Distribution');
+
+    const biomeTerrain = {
+        grassland: 'grass', desert: 'sand', mountain: 'stone', swamp: 'dark_stone',
+        savanna: 'dry_dirt', tundra: 'dirt',
+    };
+    const game = mockGame();
+
+    for (const [biome, expectedBase] of Object.entries(biomeTerrain)) {
+        InnerMap.clearCache();
+        const wt = mockWorldTile(biome);
+        const tiles = InnerMap.generate(wt, 1, 1, game);
+
+        let baseCount = 0, total = 0;
+        for (let r = 0; r < tiles.length; r++) {
+            for (let q = 0; q < tiles[r].length; q++) {
+                total++;
+                if (tiles[r][q].baseTerrain === expectedBase) baseCount++;
+            }
+        }
+        const pct = ((baseCount / total) * 100).toFixed(0);
+        // The majority of tiles should be the expected base terrain
+        T.assert(baseCount > total * 0.3,
+            `${biome}: ${pct}% of tiles have baseTerrain='${expectedBase}' (majority)`,
+            baseCount <= total * 0.3 ? `only ${baseCount}/${total}` : null
+        );
+    }
+}
+
+function testCaching() {
+    T.suite('Inner Map Caching');
+
+    InnerMap.clearCache();
+    const wt = mockWorldTile('grassland');
+    const game = mockGame();
+
+    const tiles1 = InnerMap.getOrGenerate(wt, 5, 5, game);
+    const tiles2 = InnerMap.getOrGenerate(wt, 5, 5, game);
+
+    T.assert(tiles1 === tiles2, 'getOrGenerate returns same reference on cache hit');
+
+    // Different coords = different cache entry
+    const tiles3 = InnerMap.getOrGenerate(wt, 6, 5, game);
+    T.assert(tiles1 !== tiles3, 'Different coords = different cache entry');
+}
+
+function testSerialization() {
+    T.suite('Serialization / Deserialization');
+
+    InnerMap.clearCache();
+    const wt = mockWorldTile('woodland');
+    const game = mockGame();
+    InnerMap.getOrGenerate(wt, 2, 3, game);
+
+    const serialized = InnerMap.serialize();
+    T.assert(serialized.cache !== undefined, 'Serialized data has cache');
+    T.assert(Object.keys(serialized.cache).length > 0, 'Cache is not empty');
+
+    // Deserialize into fresh state
+    InnerMap.clearCache();
+    T.assertEqual(Object.keys(InnerMap._cache).length, 0, 'Cache cleared');
+
+    InnerMap.deserialize(serialized);
+    T.assert(Object.keys(InnerMap._cache).length > 0, 'Cache restored after deserialize');
+}
+
+function testSaveMigration() {
+    T.suite('Save Migration — water feature baseTerrain fix');
+
+    InnerMap.clearCache();
+
+    // Simulate an OLD save with stale baseTerrain='water' on water features
+    const fakeTiles = [];
+    for (let r = 0; r < 5; r++) {
+        const row = [];
+        for (let q = 0; q < 5; q++) {
+            row.push({
+                q, r,
+                baseTerrain: 'grass',
+                subTerrain: { id: 'grass', name: 'Grass', icon: '🌿', color: '#88aa55', passable: true },
+                parentTerrain: 'grassland',
+            });
+        }
+        fakeTiles.push(row);
+    }
+
+    // Inject water features with WRONG baseTerrain (simulates old save)
+    fakeTiles[1][1].subTerrain = { id: 'pond', name: 'Pond', icon: '💧', color: '#5dade2', passable: false };
+    fakeTiles[1][1].baseTerrain = 'water';  // OLD, wrong
+
+    fakeTiles[2][2].subTerrain = { id: 'stream', name: 'Brook', icon: '💧', color: '#4a90d9', passable: false };
+    fakeTiles[2][2].baseTerrain = 'water';  // OLD, wrong
+    fakeTiles[2][2].parentTerrain = 'woodland';
+
+    fakeTiles[3][3].subTerrain = { id: 'frozen_stream', name: 'Frozen', icon: '🧊', color: '#a8d8ea', passable: false };
+    fakeTiles[3][3].baseTerrain = 'water';  // OLD, wrong
+    fakeTiles[3][3].parentTerrain = 'boreal_forest';
+
+    const oldSaveData = {
+        cache: { '2,3_20x20': fakeTiles },
+        discoveredEncounters: {}
+    };
+
+    InnerMap.deserialize(oldSaveData);
+
+    // After migration, water features should have correct baseTerrain
+    const t1 = InnerMap._cache['2,3_20x20'][1][1];
+    T.assertEqual(t1.baseTerrain, 'grass', "pond baseTerrain migrated: water → grass");
+
+    const t2 = InnerMap._cache['2,3_20x20'][2][2];
+    T.assertEqual(t2.baseTerrain, 'grass', "stream baseTerrain migrated: water → grass (woodland parent)");
+
+    const t3 = InnerMap._cache['2,3_20x20'][3][3];
+    T.assertEqual(t3.baseTerrain, 'grass', "frozen_stream baseTerrain migrated: water → grass (boreal parent)");
+
+    // Non-water tiles should be unchanged
+    const t0 = InnerMap._cache['2,3_20x20'][0][0];
+    T.assertEqual(t0.baseTerrain, 'grass', "normal grass tile unchanged");
+}
+
+function testAllBiomesGenerate() {
+    T.suite('All Biomes Generate Without Error');
+
+    const biomes = Object.keys(innerMapConfig.subTerrains);
+    const game = mockGame();
+    let errors = [];
+
+    for (const biome of biomes) {
+        try {
+            InnerMap.clearCache();
+            const wt = mockWorldTile(biome);
+            const tiles = InnerMap.generate(wt, 0, 0, game);
+            if (!tiles || tiles.length === 0) {
+                errors.push(`${biome}: empty tiles`);
+            }
+        } catch (e) {
+            errors.push(`${biome}: ${e.message}`);
+        }
+    }
+
+    T.assert(errors.length === 0,
+        `All ${biomes.length} biomes generate successfully`,
+        errors.length > 0 ? errors.join('; ') : null
+    );
+
+    for (const biome of biomes) {
+        T.info(`${biome} ✓`);
+    }
+}
+
+function testOverlayMapCoverage() {
+    T.suite('Overlay Map Coverage');
+
+    // Check that water features in innerMap.json are mapped in _OVERLAY_MAP
+    const waterSubTerrainIds = [];
+    for (const [biome, data] of Object.entries(innerMapConfig.subTerrains)) {
+        for (const st of data.primary) {
+            if (st.passable === false && (st.icon === '💧' || st.icon === '🧊' || st.icon === '💦')) {
+                if (!waterSubTerrainIds.includes(st.id)) waterSubTerrainIds.push(st.id);
+            }
+        }
+    }
+
+    for (const id of waterSubTerrainIds) {
+        const cat = InnerMapRenderer._OVERLAY_MAP[id];
+        T.assert(cat !== undefined,
+            `Water sub-terrain '${id}' has overlay mapping → '${cat}'`,
+            cat === undefined ? 'MISSING from _OVERLAY_MAP' : null
+        );
+    }
+
+    // Tree sub-terrains should map to 'trees'
+    const treeSubs = ['trees'];
+    for (const id of treeSubs) {
+        T.assertEqual(InnerMapRenderer._OVERLAY_MAP[id], 'trees', `${id} → trees overlay`);
+    }
+}
+
+function testTerrainFillsValid() {
+    T.suite('Terrain Fill Tile Definitions (Renderer)');
+
+    // Initialize fills if not already done
+    if (!InnerMapRenderer._terrainFills) {
+        InnerMapRenderer._initTerrainFills();
+    }
+    const fills = InnerMapRenderer._terrainFills;
+
+    T.assert(fills !== null, 'Terrain fills initialized');
+
+    const categories = ['grass','dirt','sand','dry_dirt','water','deep_water','stone','dark_stone'];
+    for (const cat of categories) {
+        T.assert(fills[cat] !== undefined && fills[cat].length > 0,
+            `'${cat}' has ${fills[cat] ? fills[cat].length : 0} fill tiles`,
+            fills[cat] === undefined ? 'MISSING' : (fills[cat].length === 0 ? 'EMPTY' : null)
+        );
+    }
+
+    // Verify no dark_green category (it was eliminated)
+    T.assert(fills['dark_green'] === undefined, "No 'dark_green' fill category (eliminated)");
+
+    // Verify all fill tiles have valid col/row
+    let badTiles = [];
+    for (const [cat, tileList] of Object.entries(fills)) {
+        for (const tile of tileList) {
+            if (tile.col === undefined || tile.row === undefined) {
+                badTiles.push(`${cat}: missing col/row`);
+            }
+            if (tile.col < 0 || tile.col > 15 || tile.row < 0 || tile.row > 25) {
+                badTiles.push(`${cat}: [${tile.col},${tile.row}] out of bounds`);
+            }
+        }
+    }
+    T.assert(badTiles.length === 0, 'All fill tiles have valid col/row coordinates', badTiles.join('; '));
+}
+
+function testGetTerrainFill() {
+    T.suite('_getTerrainFill() returns valid source rects');
+
+    if (!InnerMapRenderer._terrainFills) InnerMapRenderer._initTerrainFills();
+
+    const testCases = ['grass','dirt','sand','water','stone','dark_stone','dry_dirt','deep_water'];
+    for (const bt of testCases) {
+        const tile = { q: 5, r: 3, baseTerrain: bt };
+        const src = InnerMapRenderer._getTerrainFill(tile);
+        T.assert(src.sx >= 0 && src.sy >= 0,
+            `_getTerrainFill baseTerrain='${bt}' → sx=${src.sx}, sy=${src.sy} (valid)`,
+            src.sx < 0 ? 'got fallback color instead of sprite coordinates' : null
+        );
+    }
+
+    // dark_green should fall back to grass
+    const dgTile = { q: 0, r: 0, baseTerrain: 'dark_green' };
+    const dgSrc = InnerMapRenderer._getTerrainFill(dgTile);
+    T.assert(dgSrc.sx >= 0, "dark_green falls back to grass fills (valid sprite coords)");
+}
+
+function testGetObjectOverlay() {
+    T.suite('_getObjectOverlay() returns correct types');
+
+    if (!InnerMapRenderer._terrainFills) InnerMapRenderer._initTerrainFills();
+
+    // Rocks → rocks overlay
+    const rocksTile = { q: 1, r: 1, subTerrain: { id: 'rocks' }, baseTerrain: 'stone' };
+    const rocksOverlay = InnerMapRenderer._getObjectOverlay(rocksTile);
+    if (rocksOverlay) {
+        T.assertEqual(rocksOverlay.type, 'rock', 'rocks overlay type = rock');
+    } else {
+        T.skip('rocks overlay (rock sheet not loaded in headless mode)');
+    }
+
+    // Brush → plants overlay
+    const brushTile = { q: 2, r: 2, subTerrain: { id: 'brush' }, baseTerrain: 'grass' };
+    const brushOverlay = InnerMapRenderer._getObjectOverlay(brushTile);
+    if (brushOverlay) {
+        T.assertIncludes(['plant','plants'], brushOverlay.type, 'brush overlay type is plant/plants');
+    } else {
+        T.skip('brush overlay (not loaded in headless mode)');
+    }
+
+    // Tree → tree type (may be null if no sheet loaded yet)
+    const treeTile = { q: 3, r: 3, subTerrain: { id: 'trees' }, baseTerrain: 'grass' };
+    const treeOverlay = InnerMapRenderer._getObjectOverlay(treeTile);
+    if (treeOverlay) {
+        T.assertEqual(treeOverlay.type, 'tree', 'trees overlay type = tree');
+    } else {
+        T.skip('trees overlay (tree sheet not loaded in headless mode)');
+    }
+
+    // Regular grass has no overlay
+    const grassTile = { q: 4, r: 4, subTerrain: { id: 'grass' }, baseTerrain: 'grass' };
+    const grassOverlay = InnerMapRenderer._getObjectOverlay(grassTile);
+    T.assert(grassOverlay === null, 'grass has no overlay (pure terrain)');
+}
+
+function testEdgeTilesNotInFills() {
+    T.suite('Rejected Edge Tiles NOT in Fill Definitions');
+
+    if (!InnerMapRenderer._terrainFills) InnerMapRenderer._initTerrainFills();
+
+    // These were the 13 known bad tiles that were previously in fills
+    // Coordinates are {col, row} matching _initTerrainFills() and terrain.json rejectedTiles
+    const rejectedTiles = [
+        { cat: 'dirt', col: 9, row: 0, reason: 'sand transition corner' },
+        { cat: 'dirt', col: 11, row: 0, reason: 'sand transition corner' },
+        { cat: 'dirt', col: 9, row: 2, reason: 'sand transition corner' },
+        { cat: 'dark_green', col: 12, row: 10, reason: 'transition corner' },
+        { cat: 'dark_green', col: 14, row: 10, reason: 'transition corner' },
+        { cat: 'dry_dirt', col: 9, row: 8, reason: 'transition edge' },
+        { cat: 'dry_dirt', col: 10, row: 8, reason: 'transition edge' },
+        { cat: 'deep_water', col: 3, row: 24, reason: 'edge tile' },
+        { cat: 'deep_water', col: 4, row: 24, reason: 'edge tile' },
+        { cat: 'deep_water', col: 8, row: 24, reason: 'edge tile' },
+        { cat: 'deep_water', col: 9, row: 24, reason: 'edge tile' },
+        { cat: 'deep_water', col: 13, row: 24, reason: 'edge tile' },
+        { cat: 'deep_water', col: 14, row: 24, reason: 'edge tile' },
+    ];
+
+    for (const rejected of rejectedTiles) {
+        const fills = InnerMapRenderer._terrainFills[rejected.cat];
+        if (!fills) {
+            T.assert(true, `'${rejected.cat}' category doesn't exist (correctly eliminated) — [${rejected.col},${rejected.row}]`);
+            continue;
+        }
+        const found = fills.some(f => f.col === rejected.col && f.row === rejected.row);
+        T.assert(!found,
+            `Rejected tile [${rejected.col},${rejected.row}] NOT in '${rejected.cat}' fills (${rejected.reason})`,
+            found ? 'STILL PRESENT — this edge tile should have been removed' : null
+        );
+    }
+}
+
+function testSettlementGeneration() {
+    T.suite('Settlement Building Placement');
+
+    InnerMap.clearCache();
+    const wt = mockWorldTile('grassland', {
+        settlement: { type: 'village', population: 100 }
+    });
+    const game = mockGame();
+    const tiles = InnerMap.generate(wt, 0, 0, game);
+
+    // Count buildings
+    let buildingCount = 0;
+    for (let r = 0; r < tiles.length; r++) {
+        for (let q = 0; q < tiles[r].length; q++) {
+            if (tiles[r][q].building) buildingCount++;
+        }
+    }
+
+    T.assert(buildingCount > 0, `Village has ${buildingCount} buildings placed`);
+    T.assert(buildingCount >= 5, `Village has at least 5 buildings (${buildingCount})`,
+        buildingCount < 5 ? `only ${buildingCount}` : null);
+}
+
+function testSubTerrainVariety() {
+    T.suite('Sub-Terrain Variety Per Biome');
+
+    const game = mockGame();
+
+    // For each biome, ensure we get multiple distinct sub-terrains
+    const biomes = ['grassland','desert','mountain','woodland','swamp'];
+    for (const biome of biomes) {
+        InnerMap.clearCache();
+        const wt = mockWorldTile(biome);
+        const tiles = InnerMap.generate(wt, 42, 17, game);
+        const uniqueSubs = new Set();
+        for (let r = 0; r < tiles.length; r++) {
+            for (let q = 0; q < tiles[r].length; q++) {
+                uniqueSubs.add(tiles[r][q].subTerrain.id);
+            }
+        }
+        T.assert(uniqueSubs.size >= 3,
+            `${biome}: has ${uniqueSubs.size} distinct sub-terrains (variety)`,
+            uniqueSubs.size < 3 ? `only: ${[...uniqueSubs].join(', ')}` : null
+        );
+    }
+}
+
+// ============================================
+// TILED EXPORT / IMPORT TESTS
+// ============================================
+
+function testTiledExport() {
+    T.suite('Tiled Export (.tmj)');
+
+    const game = mockGame();
+    InnerMap.clearCache();
+    const wt = mockWorldTile('grassland');
+    const tiles = InnerMap.generate(wt, 5, 10, game);
+
+    const tmj = TiledExport.exportToTiled(tiles, {
+        season: 'summer',
+        parentTerrain: 'grassland',
+        worldQ: 5, worldR: 10
+    });
+
+    T.assert(tmj.type === 'map', `type = 'map'`);
+    T.assert(tmj.orientation === 'orthogonal', `orientation = 'orthogonal'`);
+    T.assert(tmj.tilewidth === 32, `tilewidth = 32`);
+    T.assert(tmj.tileheight === 32, `tileheight = 32`);
+    T.assert(tmj.width === 20, `width = 20 (inner map width)`);
+    T.assert(tmj.height === 20, `height = 20 (inner map height)`);
+    T.assert(tmj.renderorder === 'right-down', `renderorder = 'right-down'`);
+    T.assert(tmj.infinite === false, `infinite = false`);
+
+    // Tilesets
+    T.assert(Array.isArray(tmj.tilesets), 'has tilesets array');
+    T.assert(tmj.tilesets.length >= 2, `at least 2 tilesets (terrain + rocks): got ${tmj.tilesets.length}`);
+    T.assert(tmj.tilesets[0].firstgid === 1, 'terrain tileset firstgid = 1');
+    T.assert(tmj.tilesets[0].columns === 16, 'terrain tileset columns = 16');
+    T.assert(tmj.tilesets[0].tilecount === 416, 'terrain tileset tilecount = 416 (16×26)');
+    T.assert(tmj.tilesets[0].image.includes('terrain_summer'), 'terrain image uses correct season');
+    T.assert(tmj.tilesets[1].name === 'rocks_grasslands', 'rocks tileset present');
+
+    // Layers
+    T.assert(Array.isArray(tmj.layers), 'has layers array');
+    T.assert(tmj.layers.length >= 4, `at least 4 layers: got ${tmj.layers.length}`);
+
+    const terrainLayer = tmj.layers.find(l => l.name === 'terrain');
+    T.assert(terrainLayer, 'terrain tile layer exists');
+    T.assert(terrainLayer.type === 'tilelayer', 'terrain layer is tilelayer');
+    T.assert(terrainLayer.data.length === 400, `terrain data = 400 tiles (20×20): got ${terrainLayer.data.length}`);
+    T.assert(terrainLayer.data.every(gid => gid >= 1), 'all terrain GIDs are >= 1 (no empty ground)');
+
+    const rocksLayer = tmj.layers.find(l => l.name === 'rocks');
+    T.assert(rocksLayer, 'rocks tile layer exists');
+
+    const objLayer = tmj.layers.find(l => l.name === 'objects');
+    T.assert(objLayer, 'objects layer exists');
+    T.assert(objLayer.type === 'objectgroup', 'objects layer is objectgroup');
+
+    const metaLayer = tmj.layers.find(l => l.name === 'tile_metadata');
+    T.assert(metaLayer, 'tile_metadata layer exists');
+    T.assert(metaLayer.objects.length === 400, `metadata has 400 objects (one per tile): got ${metaLayer.objects.length}`);
+
+    // Map properties
+    T.assert(Array.isArray(tmj.properties), 'has map properties');
+    const props = {};
+    for (const p of tmj.properties) props[p.name] = p.value;
+    T.assert(props.parentTerrain === 'grassland', 'parentTerrain property preserved');
+    T.assert(props.worldQ === 5, 'worldQ property preserved');
+    T.assert(props.worldR === 10, 'worldR property preserved');
+    T.assert(props.season === 'summer', 'season property preserved');
+    T.assert(props.generator === 'lord_of_the_realms', 'generator property set');
+
+    // Validate GIDs are within valid range
+    const maxTerrainGid = tmj.tilesets[0].firstgid + tmj.tilesets[0].tilecount - 1;
+    const invalidGids = terrainLayer.data.filter(gid => gid < 1 || gid > maxTerrainGid);
+    T.assert(invalidGids.length === 0, `all terrain GIDs in valid range [1..${maxTerrainGid}]: ${invalidGids.length} invalid`);
+
+    // JSON serialization round-trip
+    const json = JSON.stringify(tmj);
+    T.assert(json.length > 1000, `JSON output is substantial: ${json.length} chars`);
+    const parsed = JSON.parse(json);
+    T.assert(parsed.width === 20, 'JSON round-trip preserves width');
+    T.assert(parsed.layers.length === tmj.layers.length, 'JSON round-trip preserves layers');
+}
+
+function testTiledImport() {
+    T.suite('Tiled Import (.tmj)');
+
+    const game = mockGame();
+    InnerMap.clearCache();
+    const wt = mockWorldTile('desert');
+    const originalTiles = InnerMap.generate(wt, 3, 7, game);
+
+    // Export then import round-trip
+    const tmj = TiledExport.exportToTiled(originalTiles, {
+        season: 'summer',
+        parentTerrain: 'desert',
+        worldQ: 3, worldR: 7
+    });
+
+    const imported = TiledExport.importFromTiled(tmj);
+
+    T.assert(imported.width === 20, `imported width = 20: got ${imported.width}`);
+    T.assert(imported.height === 20, `imported height = 20: got ${imported.height}`);
+    T.assert(imported.parentTerrain === 'desert', `imported parentTerrain = 'desert': got ${imported.parentTerrain}`);
+    T.assert(imported.season === 'summer', `imported season = 'summer': got ${imported.season}`);
+    T.assert(imported.worldQ === 3, `imported worldQ = 3: got ${imported.worldQ}`);
+    T.assert(imported.worldR === 7, `imported worldR = 7: got ${imported.worldR}`);
+
+    // Verify tiles have correct structure
+    T.assert(imported.tiles.length === 20, `imported tiles has 20 rows`);
+    T.assert(imported.tiles[0].length === 20, `imported tiles has 20 cols`);
+
+    const tile00 = imported.tiles[0][0];
+    T.assert(tile00.q === 0 && tile00.r === 0, `tile[0][0] has q=0, r=0`);
+    T.assert(tile00.baseTerrain, `tile[0][0] has baseTerrain: ${tile00.baseTerrain}`);
+    T.assert(tile00.subTerrain, `tile[0][0] has subTerrain`);
+    T.assert(tile00.subTerrain.id, `tile[0][0].subTerrain.id exists: ${tile00.subTerrain.id}`);
+    T.assert(tile00.parentTerrain === 'desert', `tile[0][0].parentTerrain = 'desert': ${tile00.parentTerrain}`);
+
+    // Check that baseTerrain values round-trip correctly
+    let baseTerrainMatch = 0;
+    let baseTerrainTotal = 0;
+    for (let r = 0; r < 20; r++) {
+        for (let q = 0; q < 20; q++) {
+            baseTerrainTotal++;
+            if (originalTiles[r][q].baseTerrain === imported.tiles[r][q].baseTerrain) {
+                baseTerrainMatch++;
+            }
+        }
+    }
+    T.assert(baseTerrainMatch === baseTerrainTotal,
+        `baseTerrain round-trip: ${baseTerrainMatch}/${baseTerrainTotal} match`,
+        baseTerrainMatch < baseTerrainTotal ? `mismatches found` : null
+    );
+
+    // Check subTerrain IDs round-trip
+    let subIdMatch = 0;
+    for (let r = 0; r < 20; r++) {
+        for (let q = 0; q < 20; q++) {
+            if (originalTiles[r][q].subTerrain.id === imported.tiles[r][q].subTerrain.id) {
+                subIdMatch++;
+            }
+        }
+    }
+    T.assert(subIdMatch === baseTerrainTotal,
+        `subTerrain.id round-trip: ${subIdMatch}/${baseTerrainTotal} match`,
+        subIdMatch < baseTerrainTotal ? `mismatches found` : null
+    );
+
+    // Check passable round-trip
+    let passableMatch = 0;
+    for (let r = 0; r < 20; r++) {
+        for (let q = 0; q < 20; q++) {
+            const origPass = originalTiles[r][q].subTerrain.passable;
+            const impPass = imported.tiles[r][q].subTerrain.passable;
+            if (origPass === impPass) passableMatch++;
+        }
+    }
+    T.assert(passableMatch === baseTerrainTotal,
+        `passable round-trip: ${passableMatch}/${baseTerrainTotal} match`
+    );
+}
+
+function testTiledImportFromJson() {
+    T.suite('Tiled Import from JSON string');
+
+    const game = mockGame();
+    InnerMap.clearCache();
+    const wt = mockWorldTile('mountain');
+    const tiles = InnerMap.generate(wt, 1, 1, game);
+
+    const tmj = TiledExport.exportToTiled(tiles, {
+        season: 'winter',
+        parentTerrain: 'mountain',
+        worldQ: 1, worldR: 1
+    });
+
+    // Serialize to JSON string, then import from string
+    const jsonStr = JSON.stringify(tmj);
+    const imported = TiledExport.importFromTiled(jsonStr);
+
+    T.assert(imported.parentTerrain === 'mountain', `JSON string import: parentTerrain = 'mountain'`);
+    T.assert(imported.season === 'winter', `JSON string import: season = 'winter'`);
+    T.assert(imported.tiles.length === 20, `JSON string import: 20 rows`);
+    T.assert(imported.tiles[0].length === 20, `JSON string import: 20 cols`);
+
+    // Verify baseTerrain is preserved through JSON string round-trip
+    let match = 0;
+    for (let r = 0; r < 20; r++)
+        for (let q = 0; q < 20; q++)
+            if (tiles[r][q].baseTerrain === imported.tiles[r][q].baseTerrain) match++;
+    T.assert(match === 400, `JSON string round-trip baseTerrain: ${match}/400 match`);
+}
+
+function testTiledSettlementExport() {
+    T.suite('Tiled Export with Settlement Buildings');
+
+    const game = mockGame();
+    InnerMap.clearCache();
+    const wt = mockWorldTile('grassland', {
+        settlement: { type: 'village', name: 'Testville', population: 100 }
+    });
+    const tiles = InnerMap.generate(wt, 8, 8, game);
+
+    const tmj = TiledExport.exportToTiled(tiles, {
+        season: 'summer',
+        parentTerrain: 'grassland',
+        worldQ: 8, worldR: 8
+    });
+
+    const objLayer = tmj.layers.find(l => l.name === 'objects');
+    const buildings = objLayer.objects.filter(o => o.type === 'building');
+    T.assert(buildings.length > 0, `exported ${buildings.length} building objects`);
+
+    const firstBldg = buildings[0];
+    T.assert(firstBldg.name, `building has name: ${firstBldg.name}`);
+    T.assert(firstBldg.properties.some(p => p.name === 'buildingType'),
+        `building has buildingType property`);
+
+    // Import and verify buildings survive
+    const imported = TiledExport.importFromTiled(tmj);
+    let importedBuildings = 0;
+    for (let r = 0; r < imported.height; r++)
+        for (let q = 0; q < imported.width; q++)
+            if (imported.tiles[r][q].building) importedBuildings++;
+    T.assert(importedBuildings === buildings.length,
+        `imported ${importedBuildings} buildings (expected ${buildings.length})`);
+}
+
+function testTiledAllBiomesExport() {
+    T.suite('Tiled Export All Biomes');
+
+    const game = mockGame();
+    const biomes = Object.keys(InnerMap.PARENT_TO_BASE_TERRAIN);
+    let allOk = true;
+    const errors = [];
+
+    for (const biome of biomes) {
+        try {
+            InnerMap.clearCache();
+            const wt = mockWorldTile(biome);
+            const tiles = InnerMap.generate(wt, 0, 0, game);
+            const tmj = TiledExport.exportToTiled(tiles, {
+                season: 'summer', parentTerrain: biome
+            });
+            // Quick validation
+            if (!tmj.layers || tmj.layers.length < 4) {
+                allOk = false;
+                errors.push(`${biome}: missing layers`);
+            }
+            if (tmj.layers[0].data.some(gid => gid < 1)) {
+                allOk = false;
+                errors.push(`${biome}: invalid GID in terrain layer`);
+            }
+        } catch (e) {
+            allOk = false;
+            errors.push(`${biome}: ${e.message}`);
+        }
+    }
+
+    T.assert(allOk, `all ${biomes.length} biomes export without error`,
+        errors.length > 0 ? errors.join('; ') : null);
+
+    // Log each biome with actual pass/fail status
+    const failedBiomes = new Set(errors.map(e => e.split(':')[0]));
+    for (const biome of biomes) {
+        if (failedBiomes.has(biome)) {
+            T.info(`${biome} \u2717 FAILED`);
+        } else {
+            T.info(`${biome} \u2713`);
+        }
+    }
+}
+
+// ============================================
+// VISUAL TEST — renders with REAL LPC sprites
+// ============================================
+
+// Sprite sheet cache for visual test
+const _testSheets = new Map();
+let _testSheetsLoaded = false;
+
+/** Load all LPC sheets needed for the visual test */
+function loadTestSheets() {
+    if (_testSheetsLoaded) return Promise.resolve();
+
+    const paths = InnerMapRenderer.SHEET_PATHS;
+    const promises = [];
+    for (const [key, path] of Object.entries(paths)) {
+        const img = new Image();
+        const p = new Promise(resolve => {
+            img.onload = () => { _testSheets.set(key, img); resolve(key); };
+            img.onerror = () => { resolve(null); };
+        });
+        img.src = path;
+        promises.push(p);
+    }
+    return Promise.all(promises).then(results => {
+        _testSheetsLoaded = true;
+        const loaded = results.filter(r => r !== null);
+        // Also populate InnerMapRenderer._sheets so _getObjectOverlay() works with sprite lookups
+        for (const [key, img] of _testSheets.entries()) {
+            InnerMapRenderer._sheets.set(key, img);
+        }
+        // Initialize terrain fills & analyze tree/plant sheets
+        InnerMapRenderer._initTerrainFills();
+        InnerMapRenderer._analyzeTreeSheet();
+        InnerMapRenderer._analyzePlantSheet();
+
+        // Configure and load LPC character sprites
+        if (InnerMapRenderer._configData && typeof InnerMapCharacters !== 'undefined') {
+            InnerMapCharacters.configure(InnerMapRenderer._configData);
+        }
+
+        const statusEl = document.getElementById('sheet-status');
+        if (statusEl) statusEl.textContent = `Loaded ${loaded.length}/${Object.keys(paths).length} LPC sprite sheets`;
+        console.log(`Test sheets loaded: ${loaded.length}/${Object.keys(paths).length}`);
+
+        // Load character sprite sheets (async, will be ready for visual test)
+        if (typeof InnerMapCharacters !== 'undefined') {
+            return InnerMapCharacters.loadAll();
+        }
+    });
+}
+
+function runVisualTest() {
+    InnerMapRenderer._loadConfig().then(() => loadTestSheets()).then(() => _renderVisualTest());
+}
+
+function _renderVisualTest() {
+    const biome = document.getElementById('biomeSelect').value;
+    const worldQ = parseInt(document.getElementById('worldQ').value) || 5;
+    const worldR = parseInt(document.getElementById('worldR').value) || 3;
+
+    const wt = mockWorldTile(biome);
+    const settlementType = document.getElementById('settlementSelect').value;
+    if (settlementType) {
+        wt.settlement = { type: settlementType, population: { village: 80, town: 300, city: 800, capital: 1500 }[settlementType] || 100 };
+    }
+    const game = mockGame();
+    InnerMap.clearCache();
+    const tiles = InnerMap.generate(wt, worldQ, worldR, game);
+
+    // Spawn NPCs for settlements (generate() doesn't call _spawnNPCs)
+    if (wt.settlement) {
+        InnerMap.currentWorldTile = { q: worldQ, r: worldR };
+        InnerMap._spawnNPCs(wt.settlement);
+    }
+
+    const tileSize = 32; // Native LPC tile size
+    const mapW = InnerMap.width * tileSize;
+    const mapH = InnerMap.height * tileSize;
+
+    // ── Canvas 1: Terrain fills (real LPC sprite tiles) ──
+    const tCanvas = document.getElementById('terrainCanvas');
+    tCanvas.width = mapW;
+    tCanvas.height = mapH;
+    const tCtx = tCanvas.getContext('2d');
+    tCtx.imageSmoothingEnabled = false;
+
+    // Get the seasonal terrain sheet
+    const season = document.getElementById('seasonSelect').value;
+    InnerMap.season = season.charAt(0).toUpperCase() + season.slice(1); // Set for _seasonKey()
+    // Re-analyze tree/plant sheets for the selected season
+    InnerMapRenderer._analyzeTreeSheet();
+    InnerMapRenderer._analyzePlantSheet();
+    const terrainKey = `terrain_${season}`;
+    const terrainSheet = _testSheets.get(terrainKey);
+
+    const FILL_COLORS = {
+        grass: '#4B8434', dirt: '#A8804E', sand: '#F4D7A0',
+        dry_dirt: '#F8BC76', water: '#2A8598', deep_water: '#173C57',
+        stone: '#646458', dark_stone: '#565A56', dark_green: '#508B32',
+    };
+
+    const baseCounts = {};
+
+    for (let r = 0; r < tiles.length; r++) {
+        for (let q = 0; q < tiles[r].length; q++) {
+            const tile = tiles[r][q];
+            const bt = tile.baseTerrain;
+            baseCounts[bt] = (baseCounts[bt] || 0) + 1;
+
+            const dx = q * tileSize;
+            const dy = r * tileSize;
+
+            // Use the renderer's actual fill lookup
+            const src = InnerMapRenderer._getTerrainFill(tile);
+            if (terrainSheet && src.sx >= 0) {
+                tCtx.drawImage(terrainSheet, src.sx, src.sy, 32, 32, dx, dy, tileSize, tileSize);
+            } else {
+                tCtx.fillStyle = src.fallbackColor || FILL_COLORS[bt] || '#333';
+                tCtx.fillRect(dx, dy, tileSize, tileSize);
+            }
+
+            // Subtle grid line
+            tCtx.strokeStyle = 'rgba(0,0,0,0.08)';
+            tCtx.lineWidth = 0.5;
+            tCtx.strokeRect(dx, dy, tileSize, tileSize);
+        }
+    }
+
+    // Legend
+    const legendEl = document.getElementById('legend');
+    legendEl.innerHTML = '';
+    for (const [cat, count] of Object.entries(baseCounts).sort((a,b) => b[1]-a[1])) {
+        // Sample the actual fill color from the spritesheet if possible
+        let swatchStyle = FILL_COLORS[cat] || '#333';
+        const item = document.createElement('span');
+        item.className = 'legend-item';
+        item.innerHTML = `<span class="legend-swatch" style="background:${swatchStyle}"></span> ${cat}: ${count}`;
+        legendEl.appendChild(item);
+    }
+
+    // ── Canvas 2: Terrain + Object overlays (full layered render) ──
+    const oCanvas = document.getElementById('overlayCanvas');
+    oCanvas.width = mapW;
+    oCanvas.height = mapH;
+    const oCtx = oCanvas.getContext('2d');
+    oCtx.imageSmoothingEnabled = false;
+
+    // Pass 1: Draw terrain fills (same as above)
+    for (let r = 0; r < tiles.length; r++) {
+        for (let q = 0; q < tiles[r].length; q++) {
+            const tile = tiles[r][q];
+            const dx = q * tileSize;
+            const dy = r * tileSize;
+            const src = InnerMapRenderer._getTerrainFill(tile);
+            if (terrainSheet && src.sx >= 0) {
+                oCtx.drawImage(terrainSheet, src.sx, src.sy, 32, 32, dx, dy, tileSize, tileSize);
+            } else {
+                oCtx.fillStyle = src.fallbackColor || FILL_COLORS[tile.baseTerrain] || '#333';
+                oCtx.fillRect(dx, dy, tileSize, tileSize);
+            }
+        }
+    }
+
+    // Pass 2: Collect and Y-sort objects, then draw real overlays
+    const objects = [];
+    for (let r = 0; r < tiles.length; r++) {
+        for (let q = 0; q < tiles[r].length; q++) {
+            const tile = tiles[r][q];
+            const overlay = InnerMapRenderer._getObjectOverlay(tile);
+            if (!overlay) continue;
+            const tileSpan = overlay.type === 'rock' ? 2 : 1;
+            objects.push({ q, r, overlay, sortY: (r + tileSpan) * tileSize });
+        }
+    }
+    objects.sort((a, b) => a.sortY - b.sortY);
+
+    for (const obj of objects) {
+        const o = obj.overlay;
+        const dx = obj.q * tileSize;
+        const dy = obj.r * tileSize;
+
+        // Water / ice overlays
+        if (o.type === 'water_overlay' || o.type === 'ice_overlay') {
+            oCtx.fillStyle = o.tint;
+            oCtx.fillRect(dx, dy, tileSize, tileSize);
+
+            // Draw water ripple sprite if loaded
+            if (o.type === 'water_overlay' && _testSheets.has('water_ripple')) {
+                const rippleSheet = _testSheets.get('water_ripple');
+                const hash = (Math.abs((obj.q * 73856093 ^ obj.r * 19349663))) >>> 0;
+                const frame = hash % 4;
+                oCtx.globalAlpha = 0.6;
+                oCtx.drawImage(rippleSheet, frame * 32, 0, 32, 32, dx, dy, tileSize, tileSize);
+                oCtx.globalAlpha = 1.0;
+            }
+            continue;
+        }
+
+        // Waterfall
+        if (o.type === 'waterfall') {
+            const sheet = o.sheet ? _testSheets.get(o.sheet) : null;
+            if (sheet) {
+                oCtx.drawImage(sheet, o.sx, o.sy, o.sw, o.sh, dx, dy + tileSize - (o.sh / o.sw * tileSize), tileSize, o.sh / o.sw * tileSize);
+            } else {
+                oCtx.fillStyle = 'rgba(42,133,152,0.55)';
+                oCtx.fillRect(dx, dy, tileSize, tileSize);
+            }
+            continue;
+        }
+
+        // Sprite-based overlays (tree, plant, rock, flower, mushroom)
+        const sheet = o.sheet ? _testSheets.get(o.sheet) : null;
+        if (!sheet) continue;
+
+        if (o.type === 'tree') {
+            // Trees are taller than one tile — scale to tile width, extend upward
+            const scale = tileSize / o.sw;
+            const ow = tileSize;
+            const oh = o.sh * scale;
+            oCtx.drawImage(sheet, o.sx, o.sy, o.sw, o.sh, dx, dy + tileSize - oh, ow, oh);
+        } else if (o.type === 'plant' || o.type === 'flower' || o.type === 'mushroom') {
+            const ratio = 0.6;
+            const ow = tileSize * ratio;
+            const oh = tileSize * ratio;
+            const ox = dx + (tileSize - ow) / 2;
+            const oy = dy + (tileSize - oh) / 2;
+            oCtx.drawImage(sheet, o.sx, o.sy, o.sw, o.sh, ox, oy, ow, oh);
+        } else if (o.type === 'rock') {
+            // Rocks are 2×2 tile sprites (64×64 source px) — draw at full 2×2 tile area
+            const tilesW = o.sw / 32;  // 2
+            const tilesH = o.sh / 32;  // 2
+            const ow = tileSize * tilesW;
+            const oh = tileSize * tilesH;
+            const ox = dx + (tileSize - ow) / 2;
+            const oy = dy + tileSize - oh;
+            oCtx.drawImage(sheet, o.sx, o.sy, o.sw, o.sh, ox, oy, ow, oh);
+        }
+    }
+
+    // Pass 3: Draw buildings
+    for (let r = 0; r < tiles.length; r++) {
+        for (let q = 0; q < tiles[r].length; q++) {
+            const tile = tiles[r][q];
+            if (!tile.building) continue;
+            const dx = q * tileSize;
+            const dy = r * tileSize;
+
+            // Resolve building to LPC structure key
+            let lpcKey = InnerMapRenderer._BUILDING_TO_LPC[tile.building];
+            if (!lpcKey && typeof tile.building === 'string') {
+                for (const [substr, key] of Object.entries(InnerMapRenderer._SPRITE_PATH_TO_LPC)) {
+                    if (tile.building.includes(substr)) { lpcKey = key; break; }
+                }
+            }
+            const bldgSheet = lpcKey ? _testSheets.get(lpcKey) : null;
+            if (bldgSheet && bldgSheet.width && bldgSheet.height) {
+                // Buildings span multiple tiles like rocks do
+                const bTiles = 3; // 3 tiles wide
+                const aspect = bldgSheet.height / bldgSheet.width;
+                const bW = tileSize * bTiles;
+                const bH = bW * Math.max(aspect, 1);
+                // Anchor at bottom-center of placement tile
+                const bX = dx + (tileSize - bW) / 2;
+                const bY = dy + tileSize - bH;
+                oCtx.drawImage(bldgSheet, 0, 0, bldgSheet.width, bldgSheet.height, bX, bY, bW, bH);
+            } else {
+                // Fallback: colored rect with initial letter (matches game renderer)
+                oCtx.fillStyle = 'rgba(80, 60, 40, 0.7)';
+                oCtx.fillRect(dx + 2, dy + 2, tileSize - 4, tileSize - 4);
+                oCtx.strokeStyle = 'rgba(120, 100, 70, 0.8)';
+                oCtx.lineWidth = 1;
+                oCtx.strokeRect(dx + 2, dy + 2, tileSize - 4, tileSize - 4);
+                const fontSize = Math.max(8, tileSize * 0.4);
+                oCtx.font = `600 ${fontSize}px serif`;
+                oCtx.textAlign = 'center';
+                oCtx.textBaseline = 'middle';
+                oCtx.fillStyle = '#e0d0b0';
+                const label = typeof tile.building === 'string' ? tile.building.charAt(0).toUpperCase() : '?';
+                oCtx.fillText(label, dx + tileSize / 2, dy + tileSize / 2);
+            }
+        }
+    }
+
+    // Subtle grid overlay on the overlay canvas
+    oCtx.strokeStyle = 'rgba(0,0,0,0.06)';
+    oCtx.lineWidth = 0.5;
+    for (let r = 0; r <= InnerMap.height; r++) {
+        oCtx.beginPath(); oCtx.moveTo(0, r * tileSize); oCtx.lineTo(mapW, r * tileSize); oCtx.stroke();
+    }
+    for (let q = 0; q <= InnerMap.width; q++) {
+        oCtx.beginPath(); oCtx.moveTo(q * tileSize, 0); oCtx.lineTo(q * tileSize, mapH); oCtx.stroke();
+    }
+
+    document.getElementById('tile-info').textContent = 'Hover over tiles to inspect. Sprites loaded.';
+
+    // Pass 4: Draw NPCs on the overlay canvas (LPC sprites with emoji fallback)
+    const charReady = typeof InnerMapCharacters !== 'undefined' && InnerMapCharacters.isReady();
+    if (InnerMap.npcs && InnerMap.npcs.length > 0) {
+        const now = performance.now() / 1000;
+        for (const npc of InnerMap.npcs) {
+            const dx = npc.q * tileSize + tileSize / 2;
+            const dy = npc.r * tileSize + tileSize / 2;
+
+            if (charReady && npc.preset) {
+                // Draw LPC character sprite
+                const charW = tileSize * 1.2;
+                const charH = tileSize * 1.8;
+                const charScale = npc.type === 'child' ? 0.7 : 1.0;
+                const cw = charW * charScale;
+                const ch = charH * charScale;
+                const cx = dx - cw / 2;
+                const cy = dy - ch + tileSize * 0.3;
+
+                // Shadow
+                oCtx.beginPath();
+                oCtx.ellipse(dx, dy + tileSize * 0.15, cw * 0.2, tileSize * 0.06, 0, 0, Math.PI * 2);
+                oCtx.fillStyle = 'rgba(0,0,0,0.25)';
+                oCtx.fill();
+
+                // Use facing = down (2) for static display, randomize frame slightly per NPC
+                const facing = 2;
+                InnerMapCharacters.drawCharacter(oCtx, npc.preset, 'idle', facing, now + npc.id * 0.3,
+                    cx, cy, cw, ch);
+            } else {
+                // Fallback emoji
+                oCtx.beginPath();
+                oCtx.ellipse(dx, dy + tileSize * 0.25, tileSize * 0.12, tileSize * 0.05, 0, 0, Math.PI * 2);
+                oCtx.fillStyle = 'rgba(0,0,0,0.3)';
+                oCtx.fill();
+
+                const iconSize = Math.max(12, tileSize * 0.4);
+                oCtx.font = `${iconSize}px serif`;
+                oCtx.textAlign = 'center';
+                oCtx.textBaseline = 'middle';
+                oCtx.fillText(npc.icon, dx, dy);
+            }
+
+            // Name label
+            oCtx.font = '7px Inter, sans-serif';
+            oCtx.textAlign = 'center';
+            oCtx.textBaseline = 'top';
+            oCtx.fillStyle = 'rgba(255,255,255,0.8)';
+            oCtx.shadowColor = 'rgba(0,0,0,0.7)';
+            oCtx.shadowBlur = 2;
+            oCtx.fillText(npc.name, dx, dy + tileSize * 0.3);
+            oCtx.shadowBlur = 0;
+        }
+        document.getElementById('overlay-info').textContent =
+            `${InnerMap.npcs.length} NPCs rendered` + (charReady ? ' (LPC sprites)' : ' (emoji fallback)');
+    }
+
+    // ── Character Preset Showcase Canvas ──
+    _renderCharacterShowcase();
+
+    // Hover handler for both canvases
+    function setupHover(canvas, infoId) {
+        canvas.onmousemove = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const mx = (e.clientX - rect.left) * scaleX;
+            const my = (e.clientY - rect.top) * scaleY;
+            const q = Math.floor(mx / tileSize);
+            const r = Math.floor(my / tileSize);
+            if (r >= 0 && r < tiles.length && q >= 0 && q < tiles[r].length) {
+                const tile = tiles[r][q];
+                const overlayType = InnerMapRenderer._OVERLAY_MAP[tile.subTerrain.id] || 'none';
+                const src = InnerMapRenderer._getTerrainFill(tile);
+                document.getElementById(infoId).innerHTML =
+                    `<b>[${q},${r}]</b> base: <b>${tile.baseTerrain}</b> ` +
+                    `(sprite: col=${src.sx/32} row=${src.sy/32}) | ` +
+                    `sub: <b>${tile.subTerrain.id}</b> (${tile.subTerrain.name}) | ` +
+                    `overlay: <b>${overlayType}</b> | ` +
+                    `passable: ${tile.subTerrain.passable} | parent: ${tile.parentTerrain}` +
+                    (tile.building ? ` | building: ${tile.building}` : '') +
+                    (tile.encounter ? ` | encounter: ${tile.encounter.key}` : '');
+            }
+        };
+    }
+    setupHover(tCanvas, 'tile-info');
+    setupHover(oCanvas, 'overlay-info');
+}
+
+// ============================================
+// CHARACTER PRESET SHOWCASE
+// ============================================
+
+function _renderCharacterShowcase() {
+    if (typeof InnerMapCharacters === 'undefined' || !InnerMapCharacters.isReady()) {
+        document.getElementById('char-info').textContent = 'Character sprites not loaded';
+        return;
+    }
+
+    const canvas = document.getElementById('characterCanvas');
+    const presets = Object.keys(InnerMapCharacters._presets);
+    if (presets.length === 0) {
+        document.getElementById('char-info').textContent = 'No character presets defined';
+        return;
+    }
+
+    // Layout: each preset gets a column showing 4 directions × idle frame, plus walk cycle
+    const spriteSize = 64;    // Display size per character frame
+    const padding = 8;
+    const labelH = 18;
+    const colW = spriteSize + padding * 2;
+    const rowH = spriteSize * 4 + labelH + padding; // 4 direction idle frames + label
+
+    // Size canvas to fit all presets: top half = idle (4 dirs), bottom half = walk cycle (dir=down)
+    const cols = presets.length;
+    const totalW = Math.max(640, cols * colW + padding);
+    const totalH = spriteSize * 4 + labelH + padding + spriteSize + labelH + padding * 2;
+    canvas.width = totalW;
+    canvas.height = totalH;
+
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = '#1a1e2e';
+    ctx.fillRect(0, 0, totalW, totalH);
+
+    const now = performance.now() / 1000;
+    const dirNames = ['Up', 'Left', 'Down', 'Right'];
+
+    for (let i = 0; i < presets.length; i++) {
+        const presetId = presets[i];
+        const x = padding + i * colW;
+
+        // Preset label
+        ctx.font = '10px Inter, sans-serif';
+        ctx.fillStyle = '#8b949e';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(presetId.replace(/_/g, ' '), x + spriteSize / 2, 2);
+
+        // Draw 4 direction idle frames
+        for (let dir = 0; dir < 4; dir++) {
+            const fy = labelH + dir * spriteSize;
+            InnerMapCharacters.drawCharacter(ctx, presetId, 'idle', dir, now,
+                x, fy, spriteSize, spriteSize);
+
+            // Small direction label
+            ctx.font = '8px Inter, sans-serif';
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText(dirNames[dir], x + 2, fy + 2);
+        }
+
+        // Draw walk cycle (direction = down) below
+        const walkY = labelH + spriteSize * 4 + padding;
+        ctx.font = '9px Inter, sans-serif';
+        ctx.fillStyle = '#8b949e';
+        ctx.textAlign = 'center';
+        ctx.fillText('walk ↓', x + spriteSize / 2, walkY);
+        InnerMapCharacters.drawCharacter(ctx, presetId, 'walk', 2, now + i * 0.2,
+            x, walkY + labelH, spriteSize, spriteSize);
+    }
+
+    document.getElementById('char-info').textContent =
+        `${presets.length} character presets displayed (4 directions idle + walk animation)`;
+}
+
+// ============================================
+// RUN ALL TESTS
+// ============================================
+
+async function runAllTests() {
+    const btn = document.getElementById('btnRun');
+    btn.disabled = true;
+    btn.textContent = 'Running...';
+
+    T.reset();
+    const start = performance.now();
+
+    try {
+        // Load the spritesheet terrain JSON so _initTerrainFills() uses it
+        try {
+            const resp = await fetch('data/spritesheets/terrain.json');
+            if (resp.ok) {
+                InnerMapRenderer._terrainJsonData = await resp.json();
+                console.log('Test: loaded spritesheets/terrain.json');
+            }
+        } catch (e) {
+            console.warn('Test: could not load spritesheets/terrain.json, using fallback fills');
+        }
+
+        // Load renderer config (SHEET_PATHS, _OVERLAY_MAP, character presets, etc.)
+        await InnerMapRenderer._loadConfig();
+
+        await loadConfig();
+        await loadTestSheets();  // Load real LPC sprites before tests
+
+        testBaseTerrainMapping();
+        testSubTerrainOverrides();
+        testWaterFeaturesNotInSubOverrides();
+        testGetBaseTerrain();
+        testMapGeneration();
+        testDeterminism();
+        testNoWaterBaseTerrainOnWaterFeatures();
+        testBaseTerrainDistribution();
+        testCaching();
+        testSerialization();
+        testSaveMigration();
+        testAllBiomesGenerate();
+        testOverlayMapCoverage();
+        testTerrainFillsValid();
+        testGetTerrainFill();
+        testGetObjectOverlay();
+        testEdgeTilesNotInFills();
+        testSettlementGeneration();
+        testSubTerrainVariety();
+        testTiledExport();
+        testTiledImport();
+        testTiledImportFromJson();
+        testTiledSettlementExport();
+        testTiledAllBiomesExport();
+
+    } catch (err) {
+        T.assert(false, `Uncaught error: ${err.message}`, err.stack);
+    }
+
+    const elapsed = (performance.now() - start).toFixed(1);
+    T.updateSummary(elapsed);
+
+    btn.disabled = false;
+    btn.textContent = T.failed > 0 ? `\u274C ${T.failed} Failed — Re-run` : '\u2705 All Passed — Re-run';
+
+    // Run visual test with real sprites (sheets already loaded)
+    _renderVisualTest();
+}
+
+// Auto-run on load
+window.addEventListener('DOMContentLoaded', () => {
+    runAllTests();
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Spritesheet Editor — Lord of the Realms</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0d1117; --panel: #161b22; --border: #21262d; --border2: #30363d;
+  --text: #c9d1d9; --text-dim: #8b949e; --blue: #58a6ff; --green: #3fb950;
+  --red: #f85149; --gold: #e6a817; --hover: #1c2129; --tile: 32;
+}
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── Toolbar ── */
+#toolbar { display: flex; align-items: center; gap: 10px; padding: 6px 12px; background: var(--panel); border-bottom: 1px solid var(--border); flex-shrink: 0; flex-wrap: wrap; }
+#toolbar h1 { font-size: 14px; font-weight: 700; color: var(--gold); margin-right: 4px; white-space: nowrap; }
+.tb-sep { width: 1px; height: 20px; background: var(--border2); margin: 0 2px; }
+.tb-group { display: flex; align-items: center; gap: 6px; }
+.tb-lbl { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+button { background: #21262d; border: 1px solid var(--border2); color: var(--text); padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; transition: background .12s, border-color .12s; }
+button:hover { background: #2d333b; border-color: #484f58; }
+button.active { background: #0b2a4a; border-color: var(--blue); color: var(--blue); }
+button.green { background: #0e2a17; border-color: var(--green); color: var(--green); }
+button.gold { background: #2a1f00; border-color: var(--gold); color: var(--gold); }
+button.danger { background: #2a0d0d; border-color: var(--red); color: var(--red); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+input[type="number"], select { background: #0d1117; border: 1px solid var(--border2); color: var(--text); padding: 3px 7px; border-radius: 4px; font-size: 12px; }
+input[type="number"] { width: 52px; }
+input:focus, select:focus { outline: none; border-color: var(--blue); }
+
+/* ── Mode tabs ── */
+.mode-tab { padding: 4px 14px; font-weight: 600; border-radius: 4px; font-size: 12px; }
+.mode-tab.active { background: #2a1f00; border-color: var(--gold); color: var(--gold); }
+
+/* ── Main layout ── */
+#main { display: flex; flex: 1; overflow: hidden; }
+
+/* ── Left panel: Source Image ── */
+#source-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+#source-header { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: var(--panel); border-bottom: 1px solid var(--border); flex-shrink: 0; gap: 8px; flex-wrap: wrap; }
+#source-header h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); white-space: nowrap; }
+#source-viewport { flex: 1; overflow: auto; position: relative; background: #060a0f; }
+#source-container { position: relative; display: inline-block; transform-origin: 0 0; }
+#source-canvas { display: block; image-rendering: pixelated; }
+#grid-overlay { position: absolute; top: 0; left: 0; pointer-events: none; image-rendering: pixelated; }
+#selection-box { position: absolute; border: 2px dashed var(--gold); background: rgba(230,168,23,0.12); display: none; pointer-events: none; z-index: 5; }
+#crop-box { position: absolute; border: 2px solid var(--green); background: rgba(63,185,80,0.08); display: none; pointer-events: none; z-index: 4; }
+
+/* Drop zone */
+#drop-zone { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; z-index: 10; }
+#drop-zone.has-image { display: none; }
+.drop-area { border: 2px dashed var(--border2); border-radius: 12px; padding: 48px 64px; text-align: center; transition: border-color .2s, background .2s; cursor: pointer; }
+.drop-area:hover, .drop-area.dragover { border-color: var(--gold); background: rgba(230,168,23,0.05); }
+.drop-icon { font-size: 48px; margin-bottom: 12px; }
+.drop-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.drop-sub { font-size: 12px; color: var(--text-dim); }
+
+/* ── Divider ── */
+#divider { width: 5px; background: var(--border); cursor: col-resize; flex-shrink: 0; transition: background .15s; }
+#divider:hover, #divider.dragging { background: var(--blue); }
+
+/* ── Right panel: Extractions ── */
+#extract-panel { width: 420px; min-width: 220px; max-width: 800px; flex-shrink: 0; background: var(--panel); display: flex; flex-direction: column; overflow: hidden; }
+#extract-header { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: var(--panel); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+#extract-header h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); }
+#extractions { flex: 1; overflow-y: auto; padding: 8px; }
+.extraction-card { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px; overflow: hidden; }
+.extraction-card .card-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.extraction-card .card-title { font-size: 12px; font-weight: 600; color: var(--gold); }
+.extraction-card .card-meta { font-size: 10px; color: var(--text-dim); }
+.extraction-card .card-body { padding: 8px 10px; display: flex; gap: 10px; align-items: flex-start; }
+.extraction-card canvas { border: 1px solid var(--border2); image-rendering: pixelated; max-width: 192px; max-height: 192px; background: repeating-conic-gradient(#1a1e24 0% 25%, #12161c 0% 50%) 0 0 / 16px 16px; }
+.extraction-card .card-controls { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+.extraction-card .card-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.extraction-card .card-actions button { font-size: 11px; padding: 3px 8px; }
+
+/* Retarget section */
+.retarget-section { padding: 8px 10px; border-top: 1px solid var(--border); }
+.retarget-section h4 { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); margin-bottom: 6px; }
+.retarget-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+.retarget-row label { font-size: 11px; color: var(--text-dim); min-width: 80px; }
+.retarget-row input { width: 48px; }
+.retarget-preview { margin-top: 8px; }
+.retarget-preview canvas { border: 1px solid var(--border2); image-rendering: pixelated; max-width: 256px; max-height: 256px; background: repeating-conic-gradient(#1a1e24 0% 25%, #12161c 0% 50%) 0 0 / 16px 16px; }
+
+/* ── Status bar ── */
+#statusbar { display: flex; align-items: center; gap: 12px; padding: 4px 12px; background: var(--panel); border-top: 1px solid var(--border); flex-shrink: 0; font-size: 11px; color: var(--text-dim); }
+#statusbar .status-item { display: flex; align-items: center; gap: 4px; }
+
+/* ── Background removal overlay ── */
+#bg-remove-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 2000; flex-direction: column; gap: 16px; }
+#bg-remove-overlay.show { display: flex; }
+#bg-remove-overlay .progress-box { background: var(--panel); border: 1px solid var(--border2); border-radius: 10px; padding: 28px 40px; text-align: center; min-width: 320px; }
+#bg-remove-overlay .progress-title { font-size: 15px; font-weight: 600; color: var(--gold); margin-bottom: 12px; }
+#bg-remove-overlay .progress-sub { font-size: 12px; color: var(--text-dim); margin-bottom: 14px; }
+#bg-remove-overlay .progress-bar-wrap { background: var(--bg); border-radius: 6px; height: 10px; overflow: hidden; }
+#bg-remove-overlay .progress-bar { background: var(--gold); height: 100%; width: 0%; transition: width .2s; border-radius: 6px; }
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 7px; height: 7px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+
+/* ── Pack modal ── */
+#pack-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.72); display: none; align-items: center; justify-content: center; z-index: 3000; }
+#pack-modal.show { display: flex; }
+#pack-box { background: var(--panel); border: 1px solid var(--border2); border-radius: 10px; width: 680px; max-width: 96vw; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
+#pack-box-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+#pack-box-header h2 { font-size: 13px; font-weight: 700; color: var(--gold); }
+#pack-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+#pack-preview-wrap { flex: 1; overflow: auto; padding: 12px; background: #060a0f; min-height: 120px; display: flex; align-items: flex-start; justify-content: center; }
+#pack-preview-canvas { image-rendering: pixelated; border: 1px solid var(--border2); background: repeating-conic-gradient(#1a1e24 0% 25%, #12161c 0% 50%) 0 0 / 16px 16px; }
+#pack-footer { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
+#pack-footer .pack-info { font-size: 11px; color: var(--text-dim); }
+
+/* Toast */
+#toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); padding: 8px 20px; background: var(--green); color: #000; font-weight: 600; border-radius: 6px; font-size: 12px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 1000; }
+#toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ── Toolbar ── -->
+<div id="toolbar">
+  <h1>✂️ Spritesheet Editor</h1>
+  <div class="tb-sep"></div>
+
+  <div class="tb-group">
+    <button onclick="document.getElementById('file-input').click()">📂 Open Image</button>
+    <input type="file" id="file-input" accept="image/*" style="display:none">
+    <button onclick="pasteFromClipboard()" title="Paste image from clipboard (Ctrl+V)">📋 Paste</button>
+  </div>
+
+  <div class="tb-sep"></div>
+
+  <div class="tb-group" id="mode-group">
+    <label class="tb-lbl">Mode</label>
+    <button class="mode-tab active" id="mode-select" onclick="setMode('select')">⬜ Select</button>
+    <button class="mode-tab" id="mode-crop" onclick="setMode('crop')">✂️ Crop</button>
+  </div>
+
+  <div class="tb-sep"></div>
+
+  <div class="tb-group">
+    <label class="tb-lbl">Tile</label>
+    <input type="number" id="tile-size" value="32" min="1" max="256" title="Tile size in pixels">
+    <label class="tb-lbl">px</label>
+    <button onclick="applyTileSize()">Apply</button>
+  </div>
+
+  <div class="tb-sep"></div>
+
+  <div class="tb-group">
+    <label class="tb-lbl">Zoom</label>
+    <button onclick="zoomSource(-1)">−</button>
+    <span id="zoom-badge" style="font-size:11px;color:var(--text-dim);font-family:monospace;min-width:42px;text-align:center">100%</span>
+    <button onclick="zoomSource(1)">+</button>
+    <button onclick="zoomFit()">Fit</button>
+  </div>
+
+  <div class="tb-sep"></div>
+
+  <div class="tb-group">
+    <label class="tb-lbl">Grid</label>
+    <input type="checkbox" id="show-grid" checked onchange="renderGrid()">
+    <label class="tb-lbl">Snap</label>
+    <input type="checkbox" id="snap-grid" checked>
+  </div>
+
+  <div class="tb-sep"></div>
+
+  <div class="tb-group">
+    <button onclick="extractSelection()" class="gold" id="btn-extract" disabled>📦 Extract Selection</button>
+    <button onclick="applyCrop()" class="green" id="btn-crop" disabled style="display:none">✂️ Apply Crop</button>
+  </div>
+
+  <div class="tb-sep"></div>
+
+  <div class="tb-group">
+    <label class="tb-lbl">Auto-trim</label>
+    <input type="checkbox" id="auto-trim" checked title="Automatically trim empty tiles from extractions">
+  </div>
+
+  <div class="tb-sep"></div>
+
+  <div class="tb-group">
+    <label class="tb-lbl">BG model</label>
+    <select id="bg-model" title="Model quality for background removal — small is faster, medium is better">
+      <option value="small">Small (~40MB)</option>
+      <option value="medium" selected>Medium (~80MB)</option>
+    </select>
+  </div>
+</div>
+
+<!-- ── Main ── -->
+<div id="main">
+
+  <!-- Source panel -->
+  <div id="source-panel">
+    <div id="source-header">
+      <h2 id="source-title">Source Image</h2>
+      <div class="tb-group">
+        <span class="tb-lbl" id="img-info">No image loaded</span>
+      </div>
+    </div>
+    <div id="source-viewport">
+      <!-- Drop zone -->
+      <div id="drop-zone">
+        <div class="drop-area" id="drop-area">
+          <div class="drop-icon">📁</div>
+          <div class="drop-title">Drop a spritesheet here</div>
+          <div class="drop-sub">or click to browse  ·  supports PNG, JPG, BMP, WebP</div>
+        </div>
+      </div>
+      <!-- Canvas container -->
+      <div id="source-container">
+        <canvas id="source-canvas"></canvas>
+        <canvas id="grid-overlay"></canvas>
+        <div id="selection-box"></div>
+        <div id="crop-box"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div id="divider"></div>
+
+  <!-- Extractions panel -->
+  <div id="extract-panel">
+    <div id="extract-header">
+      <h2>Extractions</h2>
+      <div class="tb-group">
+        <button onclick="openPackModal()" class="gold" id="btn-pack" disabled title="Pack all extractions into a single optimised spritesheet">📦 Pack Sheet</button>
+        <button onclick="downloadAllExtractions()" class="gold" title="Download each extraction individually" id="btn-dl-all" disabled>⬇ All</button>
+        <button onclick="clearExtractions()" class="danger" title="Remove all extractions" id="btn-clr-all" disabled>🗑 Clear</button>
+      </div>
+    </div>
+    <div id="extractions">
+      <div style="color:var(--text-dim);font-size:12px;padding:16px;text-align:center;">
+        Select a region on the source image<br>and click <b>Extract Selection</b><br><br>
+        <span style="font-size:11px;color:var(--text-dim)">Tip: Hold Shift to select multiple tiles</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Status bar ── -->
+<div id="statusbar">
+  <span class="status-item" id="st-pos">Pos: —</span>
+  <span class="status-item" id="st-tile">Tile: —</span>
+  <span class="status-item" id="st-sel">Selection: —</span>
+  <span class="status-item" id="st-mode">Mode: Select</span>
+</div>
+
+<div id="toast"></div>
+
+<!-- Background removal progress overlay -->
+<div id="bg-remove-overlay">
+  <div class="progress-box">
+    <div class="progress-title" id="bgr-title">🪄 Removing Background…</div>
+    <div class="progress-sub" id="bgr-sub">Loading AI model (first run downloads ~80MB, cached afterwards)</div>
+    <div class="progress-bar-wrap"><div class="progress-bar" id="bgr-bar"></div></div>
+  </div>
+</div>
+
+<!-- Pack sheet modal -->
+<div id="pack-modal">
+  <div id="pack-box">
+    <div id="pack-box-header">
+      <h2>📦 Pack Spritesheet</h2>
+      <button onclick="closePackModal()">✕ Close</button>
+    </div>
+    <div id="pack-controls">
+      <span class="tb-lbl">Atlas width</span>
+      <select id="pack-width" onchange="renderPack()">
+        <option value="auto">Auto</option>
+        <option value="256">256</option>
+        <option value="512">512</option>
+        <option value="1024" selected>1024</option>
+        <option value="2048">2048</option>
+        <option value="4096">4096</option>
+      </select>
+      <span class="tb-lbl">Padding</span>
+      <input type="number" id="pack-pad" value="2" min="0" max="64" style="width:48px" onchange="renderPack()">
+      <span class="tb-lbl">px</span>
+      <span class="tb-sep" style="width:1px;height:20px;background:var(--border2)"></span>
+      <span class="tb-lbl">Sort by</span>
+      <select id="pack-sort" onchange="renderPack()">
+        <option value="height">Height ↓</option>
+        <option value="area">Area ↓</option>
+        <option value="width">Width ↓</option>
+        <option value="none">As added</option>
+      </select>
+      <span class="tb-sep" style="width:1px;height:20px;background:var(--border2)"></span>
+      <span class="tb-lbl">Preview zoom</span>
+      <select id="pack-zoom" onchange="renderPack()">
+        <option value="0.25">25%</option>
+        <option value="0.5" selected>50%</option>
+        <option value="1">100%</option>
+        <option value="2">200%</option>
+      </select>
+    </div>
+    <div id="pack-preview-wrap">
+      <canvas id="pack-preview-canvas"></canvas>
+    </div>
+    <div id="pack-footer">
+      <span class="pack-info" id="pack-info"></span>
+      <div class="tb-group">
+        <input type="text" id="pack-filename" value="spritesheet" style="width:160px" placeholder="filename">
+        <button onclick="downloadPackedSheet()" class="green">⬇ Download PNG</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================================================================
+//  SPRITESHEET EDITOR — Core State
+// ===================================================================
+const state = {
+  img: null,            // loaded Image element
+  tileSize: 32,         // current tile size in px
+  zoom: 1,
+  mode: 'select',       // 'select' | 'crop'
+  // selection in pixel coords (snapped to tile grid)
+  sel: null,            // { x, y, w, h } or null
+  cropSel: null,        // same for crop mode
+  dragging: false,
+  dragStart: null,      // { x, y } in image-space px
+  extractions: [],      // array of { id, canvas, origTilesW, origTilesH, name }
+  nextId: 1
+};
+
+// DOM refs
+const fileInput     = document.getElementById('file-input');
+const dropZone      = document.getElementById('drop-zone');
+const dropArea      = document.getElementById('drop-area');
+const srcCanvas     = document.getElementById('source-canvas');
+const srcCtx        = srcCanvas.getContext('2d');
+const gridCanvas    = document.getElementById('grid-overlay');
+const gridCtx       = gridCanvas.getContext('2d');
+const srcContainer  = document.getElementById('source-container');
+const srcViewport   = document.getElementById('source-viewport');
+const selBox        = document.getElementById('selection-box');
+const cropBoxEl     = document.getElementById('crop-box');
+const zoomBadge     = document.getElementById('zoom-badge');
+const extractionsEl = document.getElementById('extractions');
+
+// ===================================================================
+//  IMAGE LOADING
+// ===================================================================
+fileInput.addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+
+dropArea.addEventListener('click', () => fileInput.click());
+dropArea.addEventListener('dragover', e => { e.preventDefault(); dropArea.classList.add('dragover'); });
+dropArea.addEventListener('dragleave', () => dropArea.classList.remove('dragover'));
+dropArea.addEventListener('drop', e => {
+  e.preventDefault();
+  dropArea.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadFile(f);
+});
+
+// Also accept drops on the entire viewport
+srcViewport.addEventListener('dragover', e => e.preventDefault());
+srcViewport.addEventListener('drop', e => {
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadFile(f);
+});
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      state.img = img;
+      state.sel = null;
+      state.cropSel = null;
+      drawSource();
+      renderGrid();
+      updateSelectionUI();
+      dropZone.classList.add('has-image');
+      const tw = Math.floor(img.width / state.tileSize);
+      const th = Math.floor(img.height / state.tileSize);
+      document.getElementById('img-info').textContent =
+        `${img.width}×${img.height} px  ·  ${tw}×${th} tiles @ ${state.tileSize}px`;
+      document.getElementById('source-title').textContent =
+        `Source: ${file.name}`;
+      toast(`Loaded ${file.name}`);
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function pasteFromClipboard() {
+  navigator.clipboard.read().then(items => {
+    for (const item of items) {
+      const imgType = item.types.find(t => t.startsWith('image/'));
+      if (imgType) {
+        item.getType(imgType).then(blob => {
+          const file = new File([blob], 'clipboard.png', { type: imgType });
+          loadFile(file);
+        });
+        return;
+      }
+    }
+    toast('No image found in clipboard');
+  }).catch(() => toast('Clipboard access denied'));
+}
+
+document.addEventListener('paste', e => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const blob = item.getAsFile();
+      if (blob) loadFile(blob);
+      return;
+    }
+  }
+});
+
+// ===================================================================
+//  DRAWING
+// ===================================================================
+function drawSource() {
+  if (!state.img) return;
+  srcCanvas.width = state.img.width;
+  srcCanvas.height = state.img.height;
+  srcCtx.clearRect(0, 0, srcCanvas.width, srcCanvas.height);
+  srcCtx.drawImage(state.img, 0, 0);
+  applyZoom();
+}
+
+function applyZoom() {
+  srcContainer.style.transform = `scale(${state.zoom})`;
+  zoomBadge.textContent = Math.round(state.zoom * 100) + '%';
+}
+
+function renderGrid() {
+  if (!state.img) return;
+  const w = state.img.width, h = state.img.height, t = state.tileSize;
+  gridCanvas.width = w;
+  gridCanvas.height = h;
+  gridCanvas.style.width = w + 'px';
+  gridCanvas.style.height = h + 'px';
+  gridCtx.clearRect(0, 0, w, h);
+  if (!document.getElementById('show-grid').checked) return;
+  gridCtx.strokeStyle = 'rgba(255,255,255,0.15)';
+  gridCtx.lineWidth = 1;
+  gridCtx.beginPath();
+  for (let x = 0; x <= w; x += t) { gridCtx.moveTo(x + 0.5, 0); gridCtx.lineTo(x + 0.5, h); }
+  for (let y = 0; y <= h; y += t) { gridCtx.moveTo(0, y + 0.5); gridCtx.lineTo(w, y + 0.5); }
+  gridCtx.stroke();
+}
+
+// ===================================================================
+//  ZOOM
+// ===================================================================
+const ZOOM_STEPS = [0.125, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8];
+
+function zoomSource(dir) {
+  const idx = ZOOM_STEPS.findIndex(z => z >= state.zoom - 0.001);
+  const next = Math.max(0, Math.min(ZOOM_STEPS.length - 1, (idx === -1 ? 4 : idx) + dir));
+  state.zoom = ZOOM_STEPS[next];
+  applyZoom();
+}
+
+function zoomFit() {
+  if (!state.img) return;
+  const vw = srcViewport.clientWidth - 20, vh = srcViewport.clientHeight - 20;
+  state.zoom = Math.min(vw / state.img.width, vh / state.img.height, 4);
+  applyZoom();
+}
+
+srcViewport.addEventListener('wheel', e => {
+  if (!state.img) return;
+  e.preventDefault();
+  zoomSource(e.deltaY < 0 ? 1 : -1);
+}, { passive: false });
+
+// ===================================================================
+//  TILE SIZE
+// ===================================================================
+function applyTileSize() {
+  const v = parseInt(document.getElementById('tile-size').value);
+  if (v > 0 && v <= 512) {
+    state.tileSize = v;
+    renderGrid();
+    if (state.img) {
+      const tw = Math.floor(state.img.width / state.tileSize);
+      const th = Math.floor(state.img.height / state.tileSize);
+      document.getElementById('img-info').textContent =
+        `${state.img.width}×${state.img.height} px  ·  ${tw}×${th} tiles @ ${state.tileSize}px`;
+    }
+  }
+}
+
+// ===================================================================
+//  MODE
+// ===================================================================
+function setMode(mode) {
+  state.mode = mode;
+  document.getElementById('mode-select').classList.toggle('active', mode === 'select');
+  document.getElementById('mode-crop').classList.toggle('active', mode === 'crop');
+  document.getElementById('btn-extract').style.display = mode === 'select' ? '' : 'none';
+  document.getElementById('btn-crop').style.display = mode === 'crop' ? '' : 'none';
+  document.getElementById('st-mode').textContent = 'Mode: ' + (mode === 'select' ? 'Select' : 'Crop');
+  // Clear opposite selection visual
+  if (mode === 'select') { cropBoxEl.style.display = 'none'; state.cropSel = null; }
+  else { selBox.style.display = 'none'; state.sel = null; }
+  updateSelectionUI();
+}
+
+// ===================================================================
+//  SELECTION / CROP DRAWING
+// ===================================================================
+function getImageCoords(e) {
+  const rect = srcCanvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / state.zoom;
+  const y = (e.clientY - rect.top) / state.zoom;
+  return { x, y };
+}
+
+function snapToGrid(val) {
+  if (!document.getElementById('snap-grid').checked) return val;
+  return Math.round(val / state.tileSize) * state.tileSize;
+}
+
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+srcCanvas.addEventListener('mousedown', e => {
+  if (!state.img || e.button !== 0) return;
+  const pos = getImageCoords(e);
+  state.dragging = true;
+  state.dragStart = {
+    x: clamp(snapToGrid(pos.x), 0, state.img.width),
+    y: clamp(snapToGrid(pos.y), 0, state.img.height)
+  };
+  e.preventDefault();
+});
+
+// Also allow starting drag from the grid overlay
+gridCanvas.style.pointerEvents = 'auto';
+gridCanvas.style.cursor = 'crosshair';
+gridCanvas.addEventListener('mousedown', e => {
+  if (!state.img || e.button !== 0) return;
+  const pos = getImageCoords(e);
+  state.dragging = true;
+  state.dragStart = {
+    x: clamp(snapToGrid(pos.x), 0, state.img.width),
+    y: clamp(snapToGrid(pos.y), 0, state.img.height)
+  };
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', e => {
+  if (!state.img) return;
+
+  // Update status bar with position regardless of drag
+  const rect = srcCanvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) / state.zoom;
+  const my = (e.clientY - rect.top) / state.zoom;
+  if (mx >= 0 && my >= 0 && mx < state.img.width && my < state.img.height) {
+    const tx = Math.floor(mx / state.tileSize), ty = Math.floor(my / state.tileSize);
+    document.getElementById('st-pos').textContent = `Pos: ${Math.floor(mx)}, ${Math.floor(my)}`;
+    document.getElementById('st-tile').textContent = `Tile: ${tx}, ${ty}`;
+  }
+
+  if (!state.dragging || !state.dragStart) return;
+
+  const pos = getImageCoords(e);
+  const ex = clamp(snapToGrid(pos.x), 0, state.img.width);
+  const ey = clamp(snapToGrid(pos.y), 0, state.img.height);
+
+  const x = Math.min(state.dragStart.x, ex);
+  const y = Math.min(state.dragStart.y, ey);
+  const w = Math.abs(ex - state.dragStart.x);
+  const h = Math.abs(ey - state.dragStart.y);
+
+  if (state.mode === 'select') {
+    state.sel = { x, y, w, h };
+    showBox(selBox, x, y, w, h);
+    cropBoxEl.style.display = 'none';
+  } else {
+    state.cropSel = { x, y, w, h };
+    showBox(cropBoxEl, x, y, w, h);
+    selBox.style.display = 'none';
+  }
+  updateSelectionUI();
+});
+
+document.addEventListener('mouseup', () => {
+  state.dragging = false;
+});
+
+function showBox(el, x, y, w, h) {
+  if (w < 1 || h < 1) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  el.style.width = w + 'px';
+  el.style.height = h + 'px';
+}
+
+function updateSelectionUI() {
+  const s = state.mode === 'select' ? state.sel : state.cropSel;
+  const btnEx = document.getElementById('btn-extract');
+  const btnCr = document.getElementById('btn-crop');
+  if (s && s.w > 0 && s.h > 0) {
+    const tw = Math.round(s.w / state.tileSize), th = Math.round(s.h / state.tileSize);
+    document.getElementById('st-sel').textContent =
+      `Selection: ${s.w}×${s.h} px  (${tw}×${th} tiles)`;
+    btnEx.disabled = state.mode !== 'select';
+    btnCr.disabled = state.mode !== 'crop';
+  } else {
+    document.getElementById('st-sel').textContent = 'Selection: —';
+    btnEx.disabled = true;
+    btnCr.disabled = true;
+  }
+}
+
+// ===================================================================
+//  TRIM TILES — remove empty space that saves whole tiles
+// ===================================================================
+/**
+ * Analyzes a canvas and trims empty (transparent) space from all four
+ * edges.  Only removes pixels if the combined empty space on an axis
+ * is >= one full tile.  Content is shifted toward top-left and tiles
+ * are removed from the right / bottom.
+ *
+ * Returns { canvas, trimmedLeft, trimmedRight, trimmedTop, trimmedBottom,
+ *           tilesW, tilesH } or null if nothing to trim.
+ */
+function trimTiles(srcCanvas, tileSize) {
+  const w = srcCanvas.width, h = srcCanvas.height;
+  const ctx = srcCanvas.getContext('2d');
+  const data = ctx.getImageData(0, 0, w, h).data; // RGBA
+
+  // Helper: is pixel column x fully transparent?
+  function colEmpty(x) {
+    for (let y = 0; y < h; y++) {
+      if (data[(y * w + x) * 4 + 3] > 10) return false;
+    }
+    return true;
+  }
+  // Helper: is pixel row y fully transparent?
+  function rowEmpty(y) {
+    for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3] > 10) return false;
+    }
+    return true;
+  }
+
+  // Count empty pixel columns from left
+  let emptyLeft = 0;
+  while (emptyLeft < w && colEmpty(emptyLeft)) emptyLeft++;
+  // Count empty pixel columns from right
+  let emptyRight = 0;
+  while (emptyRight < w - emptyLeft && colEmpty(w - 1 - emptyRight)) emptyRight++;
+  // Count empty pixel rows from top
+  let emptyTop = 0;
+  while (emptyTop < h && rowEmpty(emptyTop)) emptyTop++;
+  // Count empty pixel rows from bottom
+  let emptyBottom = 0;
+  while (emptyBottom < h - emptyTop && rowEmpty(h - 1 - emptyBottom)) emptyBottom++;
+
+  // How many whole tiles can we save on each axis?
+  const totalEmptyX = emptyLeft + emptyRight;
+  const totalEmptyY = emptyTop + emptyBottom;
+  const tilesToTrimX = Math.floor(totalEmptyX / tileSize);
+  const tilesToTrimY = Math.floor(totalEmptyY / tileSize);
+
+  if (tilesToTrimX === 0 && tilesToTrimY === 0) {
+    return { noTrim: true, emptyLeft, emptyRight, emptyTop, emptyBottom, totalEmptyX, totalEmptyY, tileSize };
+  }
+
+  const pxTrimX = tilesToTrimX * tileSize;  // total px to remove from width
+  const pxTrimY = tilesToTrimY * tileSize;  // total px to remove from height
+
+  const newW = w - pxTrimX;
+  const newH = h - pxTrimY;
+
+  // Actual content bounding box within the source
+  const contentW = w - emptyLeft - emptyRight;
+  const contentH = h - emptyTop  - emptyBottom;
+
+  // Only center on axes where tiles were actually trimmed;
+  // on untrimmed axes keep the original content position.
+  const destX = tilesToTrimX > 0 ? Math.round((newW - contentW) / 2) : emptyLeft;
+  const destY = tilesToTrimY > 0 ? Math.round((newH - contentH) / 2) : emptyTop;
+
+  const out = document.createElement('canvas');
+  out.width = newW;
+  out.height = newH;
+  const octx = out.getContext('2d');
+  octx.drawImage(srcCanvas, emptyLeft, emptyTop, contentW, contentH, destX, destY, contentW, contentH);
+
+  return {
+    canvas: out,
+    trimmedLeft: destX,
+    trimmedRight: newW - destX - contentW,
+    trimmedTop: destY,
+    trimmedBottom: newH - destY - contentH,
+    tilesW: Math.round(newW / tileSize),
+    tilesH: Math.round(newH / tileSize),
+    savedTilesX: tilesToTrimX,
+    savedTilesY: tilesToTrimY
+  };
+}
+
+/**
+ * Apply trim to an existing extraction by id.
+ */
+function trimExtraction(id) {
+  const ext = state.extractions.find(e => e.id === id);
+  if (!ext) return;
+
+  // Trim modifies the base canvas — clear any stale retarget
+  ext.retargetCanvas = null;
+  ext.retargetTilesW = null;
+  ext.retargetTilesH = null;
+  ext.retargetMode = null;
+
+  const result = trimTiles(ext.canvas, state.tileSize);
+  if (!result) {
+    toast('No empty pixels found');
+    return;
+  }
+  if (result.noTrim) {
+    const t = state.tileSize;
+    const parts = [];
+    if (result.emptyLeft)   parts.push(`L:${result.emptyLeft}px`);
+    if (result.emptyRight)  parts.push(`R:${result.emptyRight}px`);
+    if (result.emptyTop)    parts.push(`T:${result.emptyTop}px`);
+    if (result.emptyBottom) parts.push(`B:${result.emptyBottom}px`);
+    const xNote = result.totalEmptyX > 0 ? `H: ${result.totalEmptyX}/${t}px` : '';
+    const yNote = result.totalEmptyY > 0 ? `V: ${result.totalEmptyY}/${t}px` : '';
+    const detail = [xNote, yNote].filter(Boolean).join(', ');
+    toast(`Not enough to save a tile. Empty: ${parts.join(', ')} (need ${t}px; ${detail})`);
+    return;
+  }
+
+  // Build a description of what was trimmed
+  const parts = [];
+  if (result.trimmedLeft)   parts.push(`L:${result.trimmedLeft}px`);
+  if (result.trimmedRight)  parts.push(`R:${result.trimmedRight}px`);
+  if (result.trimmedTop)    parts.push(`T:${result.trimmedTop}px`);
+  if (result.trimmedBottom) parts.push(`B:${result.trimmedBottom}px`);
+
+  // Update the extraction in-place
+  ext.canvas = result.canvas;
+  ext.origTilesW = result.tilesW;
+  ext.origTilesH = result.tilesH;
+  ext.srcW = result.canvas.width;
+  ext.srcH = result.canvas.height;
+  ext.name = `extract_${ext.id}_${result.tilesW}x${result.tilesH}`;
+
+  renderExtractions();
+  toast(`Trimmed ${parts.join(', ')} → saved ${result.savedTilesX + result.savedTilesY} tile(s). Now ${result.tilesW}×${result.tilesH}`);
+}
+
+// ===================================================================
+//  EXTRACT
+// ===================================================================
+function extractSelection() {
+  if (!state.sel || !state.img) return;
+  const { x, y, w, h } = state.sel;
+  if (w < 1 || h < 1) return;
+
+  let c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(state.img, x, y, w, h, 0, 0, w, h);
+
+  let tilesW = Math.round(w / state.tileSize);
+  let tilesH = Math.round(h / state.tileSize);
+  let trimInfo = '';
+
+  // Auto-trim if enabled
+  if (document.getElementById('auto-trim').checked) {
+    const result = trimTiles(c, state.tileSize);
+    if (result && !result.noTrim) {
+      c = result.canvas;
+      tilesW = result.tilesW;
+      tilesH = result.tilesH;
+      const parts = [];
+      if (result.trimmedLeft)   parts.push(`L:${result.trimmedLeft}px`);
+      if (result.trimmedRight)  parts.push(`R:${result.trimmedRight}px`);
+      if (result.trimmedTop)    parts.push(`T:${result.trimmedTop}px`);
+      if (result.trimmedBottom) parts.push(`B:${result.trimmedBottom}px`);
+      trimInfo = ` (trimmed ${parts.join(', ')}, saved ${result.savedTilesX + result.savedTilesY} tile(s))`;
+    }
+  }
+
+  const id = state.nextId++;
+
+  state.extractions.push({
+    id, canvas: c,
+    origTilesW: tilesW, origTilesH: tilesH,
+    srcX: x, srcY: y, srcW: c.width, srcH: c.height,
+    name: `extract_${id}_${tilesW}x${tilesH}`
+  });
+
+  renderExtractions();
+  updateExtractionButtons();
+  toast(`Extracted ${tilesW}×${tilesH} tiles (${c.width}×${c.height}px)${trimInfo}`);
+}
+
+// ===================================================================
+//  CROP
+// ===================================================================
+function applyCrop() {
+  if (!state.cropSel || !state.img) return;
+  const { x, y, w, h } = state.cropSel;
+  if (w < 1 || h < 1) return;
+
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  c.getContext('2d').drawImage(state.img, x, y, w, h, 0, 0, w, h);
+
+  // Replace source image with cropped version
+  const img = new Image();
+  img.onload = () => {
+    state.img = img;
+    state.sel = null;
+    state.cropSel = null;
+    cropBoxEl.style.display = 'none';
+    drawSource();
+    renderGrid();
+    updateSelectionUI();
+    const tw = Math.floor(img.width / state.tileSize);
+    const th = Math.floor(img.height / state.tileSize);
+    document.getElementById('img-info').textContent =
+      `${img.width}×${img.height} px  ·  ${tw}×${th} tiles @ ${state.tileSize}px`;
+    toast(`Cropped to ${w}×${h}px`);
+  };
+  img.src = c.toDataURL();
+}
+
+// ===================================================================
+//  RETARGET
+// ===================================================================
+function retargetExtraction(id) {
+  const ext = state.extractions.find(e => e.id === id);
+  if (!ext) return;
+
+  const card = document.getElementById(`card-${id}`);
+  const twInput = card.querySelector('.rt-w');
+  const thInput = card.querySelector('.rt-h');
+  const newTW = parseInt(twInput.value) || ext.origTilesW;
+  const newTH = parseInt(thInput.value) || ext.origTilesH;
+  const newW = newTW * state.tileSize;
+  const newH = newTH * state.tileSize;
+
+  const c = document.createElement('canvas');
+  c.width = newW; c.height = newH;
+  const ctx = c.getContext('2d');
+  // Use high-quality downscaling
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(ext.canvas, 0, 0, ext.canvas.width, ext.canvas.height, 0, 0, newW, newH);
+
+  // Store as the retarget canvas used for packing
+  ext.retargetCanvas = c;
+  ext.retargetTilesW = newTW;
+  ext.retargetTilesH = newTH;
+  ext.retargetMode = 'smooth';
+
+  // Show retarget preview
+  const previewWrap = card.querySelector('.retarget-preview');
+  previewWrap.innerHTML = '';
+  const label = document.createElement('div');
+  label.style.cssText = 'font-size:10px;color:var(--text-dim);margin-bottom:4px';
+  label.textContent = `Retargeted: ${newW}×${newH}px (${newTW}×${newTH} tiles) — will be used for Pack Sheet`;
+  previewWrap.appendChild(label);
+
+  const previewCanvas = document.createElement('canvas');
+  const displayScale = Math.min(240 / newW, 240 / newH, 4);
+  previewCanvas.width = newW;
+  previewCanvas.height = newH;
+  previewCanvas.style.width = Math.round(newW * displayScale) + 'px';
+  previewCanvas.style.height = Math.round(newH * displayScale) + 'px';
+  previewCanvas.getContext('2d').drawImage(c, 0, 0);
+  previewWrap.appendChild(previewCanvas);
+
+  // Draw grid on preview
+  const gridOverlay = document.createElement('canvas');
+  gridOverlay.width = newW;
+  gridOverlay.height = newH;
+  gridOverlay.style.width = previewCanvas.style.width;
+  gridOverlay.style.height = previewCanvas.style.height;
+  gridOverlay.style.cssText += ';position:absolute;left:0;top:0;pointer-events:none;image-rendering:pixelated';
+  const gctx = gridOverlay.getContext('2d');
+  gctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  gctx.lineWidth = 1;
+  gctx.beginPath();
+  for (let x = 0; x <= newW; x += state.tileSize) { gctx.moveTo(x+0.5, 0); gctx.lineTo(x+0.5, newH); }
+  for (let y = 0; y <= newH; y += state.tileSize) { gctx.moveTo(0, y+0.5); gctx.lineTo(newW, y+0.5); }
+  gctx.stroke();
+
+  const wrap = document.createElement('div');
+  wrap.style.position = 'relative';
+  wrap.style.display = 'inline-block';
+  wrap.appendChild(previewCanvas);
+  wrap.appendChild(gridOverlay);
+  previewWrap.innerHTML = '';
+  previewWrap.appendChild(label);
+  previewWrap.appendChild(wrap);
+
+  // Add download button for retargeted
+  const dlBtn = document.createElement('button');
+  dlBtn.className = 'green';
+  dlBtn.style.cssText = 'font-size:11px;padding:3px 8px;margin-top:6px';
+  dlBtn.textContent = '⬇ Download Retargeted';
+  dlBtn.onclick = () => downloadCanvas(c, `retarget_${id}_${newTW}x${newTH}.png`);
+  previewWrap.appendChild(dlBtn);
+
+  // Update card header badge
+  const cardHeader = card.querySelector('.card-title');
+  if (cardHeader) {
+    cardHeader.innerHTML = `#${ext.id} — ${ext.origTilesW}×${ext.origTilesH} tiles <span style="color:var(--green);font-size:10px;margin-left:4px">✓ retarget ${newTW}×${newTH}</span>`;
+  }
+
+  toast(`Retargeted to ${newTW}×${newTH} tiles`);
+}
+
+function retargetPixelPerfect(id) {
+  const ext = state.extractions.find(e => e.id === id);
+  if (!ext) return;
+
+  const card = document.getElementById(`card-${id}`);
+  const twInput = card.querySelector('.rt-w');
+  const thInput = card.querySelector('.rt-h');
+  const newTW = parseInt(twInput.value) || ext.origTilesW;
+  const newTH = parseInt(thInput.value) || ext.origTilesH;
+  const newW = newTW * state.tileSize;
+  const newH = newTH * state.tileSize;
+
+  const c = document.createElement('canvas');
+  c.width = newW; c.height = newH;
+  const ctx = c.getContext('2d');
+  // Nearest-neighbor for pixel art
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(ext.canvas, 0, 0, ext.canvas.width, ext.canvas.height, 0, 0, newW, newH);
+
+  // Store as the retarget canvas used for packing
+  ext.retargetCanvas = c;
+  ext.retargetTilesW = newTW;
+  ext.retargetTilesH = newTH;
+  ext.retargetMode = 'pixel';
+
+  // Show retarget preview
+  const previewWrap = card.querySelector('.retarget-preview');
+  previewWrap.innerHTML = '';
+  const label = document.createElement('div');
+  label.style.cssText = 'font-size:10px;color:var(--text-dim);margin-bottom:4px';
+  label.textContent = `Retargeted (pixel-perfect): ${newW}×${newH}px (${newTW}×${newTH} tiles) — will be used for Pack Sheet`;
+  previewWrap.appendChild(label);
+
+  const previewCanvas = document.createElement('canvas');
+  const displayScale = Math.min(240 / newW, 240 / newH, 4);
+  previewCanvas.width = newW;
+  previewCanvas.height = newH;
+  previewCanvas.style.width = Math.round(newW * displayScale) + 'px';
+  previewCanvas.style.height = Math.round(newH * displayScale) + 'px';
+  previewCanvas.style.imageRendering = 'pixelated';
+  previewCanvas.getContext('2d').drawImage(c, 0, 0);
+  previewWrap.appendChild(previewCanvas);
+
+  // Grid overlay
+  const gridOverlay = document.createElement('canvas');
+  gridOverlay.width = newW;
+  gridOverlay.height = newH;
+  gridOverlay.style.width = previewCanvas.style.width;
+  gridOverlay.style.height = previewCanvas.style.height;
+  gridOverlay.style.cssText += ';position:absolute;left:0;top:0;pointer-events:none;image-rendering:pixelated';
+  const gctx = gridOverlay.getContext('2d');
+  gctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  gctx.lineWidth = 1;
+  gctx.beginPath();
+  for (let x = 0; x <= newW; x += state.tileSize) { gctx.moveTo(x+0.5, 0); gctx.lineTo(x+0.5, newH); }
+  for (let y = 0; y <= newH; y += state.tileSize) { gctx.moveTo(0, y+0.5); gctx.lineTo(newW, y+0.5); }
+  gctx.stroke();
+
+  const wrap = document.createElement('div');
+  wrap.style.position = 'relative';
+  wrap.style.display = 'inline-block';
+  wrap.appendChild(previewCanvas);
+  wrap.appendChild(gridOverlay);
+  previewWrap.innerHTML = '';
+  previewWrap.appendChild(label);
+  previewWrap.appendChild(wrap);
+
+  const dlBtn = document.createElement('button');
+  dlBtn.className = 'green';
+  dlBtn.style.cssText = 'font-size:11px;padding:3px 8px;margin-top:6px';
+  dlBtn.textContent = '⬇ Download Retargeted';
+  dlBtn.onclick = () => downloadCanvas(c, `retarget_${id}_${newTW}x${newTH}_px.png`);
+  previewWrap.appendChild(dlBtn);
+
+  // Update card header badge
+  const cardHeader = card.querySelector('.card-title');
+  if (cardHeader) {
+    cardHeader.innerHTML = `#${ext.id} — ${ext.origTilesW}×${ext.origTilesH} tiles <span style="color:var(--green);font-size:10px;margin-left:4px">✓ retarget ${newTW}×${newTH} (px)</span>`;
+  }
+
+  toast(`Retargeted (pixel-perfect) to ${newTW}×${newTH} tiles`);
+}
+
+// ===================================================================
+//  RENDER EXTRACTIONS
+// ===================================================================
+function renderExtractions() {
+  if (state.extractions.length === 0) {
+    extractionsEl.innerHTML = `<div style="color:var(--text-dim);font-size:12px;padding:16px;text-align:center;">
+      Select a region on the source image<br>and click <b>Extract Selection</b><br><br>
+      <span style="font-size:11px;color:var(--text-dim)">Tip: Hold Shift to select multiple tiles</span></div>`;
+    return;
+  }
+
+  extractionsEl.innerHTML = '';
+  for (const ext of state.extractions) {
+    const card = document.createElement('div');
+    card.className = 'extraction-card';
+    card.id = `card-${ext.id}`;
+
+    // Display scale for preview
+    const displayScale = Math.min(180 / ext.canvas.width, 180 / ext.canvas.height, 3);
+
+    card.innerHTML = `
+      <div class="card-header">
+        <span class="card-title">#${ext.id} — ${ext.origTilesW}×${ext.origTilesH} tiles${ext.retargetCanvas ? ` <span style="color:var(--green);font-size:10px;margin-left:4px">✓ retarget ${ext.retargetTilesW}×${ext.retargetTilesH}${ext.retargetMode==='pixel'?' (px)':''}</span>` : ''}</span>
+        <span class="card-meta">${ext.canvas.width}×${ext.canvas.height}px · from (${ext.srcX}, ${ext.srcY})</span>
+      </div>
+      <div class="card-body">
+        <canvas width="${ext.canvas.width}" height="${ext.canvas.height}"
+          style="width:${Math.round(ext.canvas.width * displayScale)}px;height:${Math.round(ext.canvas.height * displayScale)}px"></canvas>
+        <div class="card-controls">
+          <div class="card-actions">
+            <button onclick="downloadExtraction(${ext.id})" class="green">⬇ Download</button>
+            <button onclick="copyExtraction(${ext.id})">📋 Copy</button>
+            <button onclick="trimExtraction(${ext.id})" class="gold" title="Remove empty space that saves whole tiles">✂ Trim</button>
+            <button onclick="removeExtractionBackground(${ext.id})" title="Remove background using AI">🪄 Remove BG</button>
+            <button onclick="removeCheckerBackground(${ext.id})" title="Remove opaque checkerboard background (white/grey squares) — no AI needed">♟ Checker BG</button>
+            ${ext.retargetCanvas ? `<button onclick="clearRetarget(${ext.id})" title="Remove retarget canvas, pack will use base canvas">✖ Retarget</button>` : ''}
+            <button onclick="removeExtraction(${ext.id})" class="danger">🗑</button>
+          </div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:4px">
+            Source region: (${ext.srcX}, ${ext.srcY}) → (${ext.srcX + ext.srcW}, ${ext.srcY + ext.srcH})
+          </div>
+        </div>
+      </div>
+      <div class="retarget-section">
+        <h4>⟳ Retarget to new tile size</h4>
+        <div class="retarget-row">
+          <label>New size (tiles):</label>
+          <input type="number" class="rt-w" value="${Math.max(1, Math.round(ext.origTilesW / 3))}" min="1" max="999" title="Width in tiles">
+          <span class="tb-lbl">×</span>
+          <input type="number" class="rt-h" value="${Math.max(1, Math.round(ext.origTilesH / 3))}" min="1" max="999" title="Height in tiles">
+          <span class="tb-lbl">tiles</span>
+        </div>
+        <div class="retarget-row">
+          <button onclick="retargetExtraction(${ext.id})" class="gold">Smooth Resize</button>
+          <button onclick="retargetPixelPerfect(${ext.id})">Pixel-Perfect</button>
+        </div>
+        <div class="retarget-preview"></div>
+      </div>
+    `;
+
+    extractionsEl.appendChild(card);
+
+    // Draw the extraction preview
+    const previewCanvas = card.querySelector('.card-body canvas');
+    previewCanvas.getContext('2d').drawImage(ext.canvas, 0, 0);
+
+    // Restore retarget preview if one was previously applied
+    if (ext.retargetCanvas) {
+      const previewWrap = card.querySelector('.retarget-preview');
+      const newW = ext.retargetCanvas.width, newH = ext.retargetCanvas.height;
+      const displayScale = Math.min(240 / newW, 240 / newH, 4);
+      const lbl = document.createElement('div');
+      lbl.style.cssText = 'font-size:10px;color:var(--text-dim);margin-bottom:4px';
+      lbl.textContent = `Retargeted${ext.retargetMode==='pixel'?' (pixel-perfect)':''}: ${newW}×${newH}px (${ext.retargetTilesW}×${ext.retargetTilesH} tiles) — used for Pack Sheet`;
+      const pc = document.createElement('canvas');
+      pc.width = newW; pc.height = newH;
+      pc.style.width = Math.round(newW * displayScale) + 'px';
+      pc.style.height = Math.round(newH * displayScale) + 'px';
+      pc.style.imageRendering = 'pixelated';
+      pc.getContext('2d').drawImage(ext.retargetCanvas, 0, 0);
+      const dlBtn = document.createElement('button');
+      dlBtn.className = 'green';
+      dlBtn.style.cssText = 'font-size:11px;padding:3px 8px;margin-top:6px;display:block';
+      dlBtn.textContent = '⬇ Download Retargeted';
+      dlBtn.onclick = () => downloadCanvas(ext.retargetCanvas, `retarget_${ext.id}_${ext.retargetTilesW}x${ext.retargetTilesH}.png`);
+      previewWrap.appendChild(lbl);
+      previewWrap.appendChild(pc);
+      previewWrap.appendChild(dlBtn);
+    }
+  }
+}
+
+function clearRetarget(id) {
+  const ext = state.extractions.find(e => e.id === id);
+  if (!ext) return;
+  ext.retargetCanvas = null;
+  ext.retargetTilesW = null;
+  ext.retargetTilesH = null;
+  ext.retargetMode = null;
+  renderExtractions();
+  toast(`Retarget cleared for #${id}`);
+}
+
+// ===================================================================
+//  DOWNLOAD / COPY / CLEAR
+// ===================================================================
+function downloadCanvas(canvas, filename) {
+  const a = document.createElement('a');
+  a.download = filename;
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+}
+
+function downloadExtraction(id) {
+  const ext = state.extractions.find(e => e.id === id);
+  if (ext) downloadCanvas(ext.canvas, ext.name + '.png');
+}
+
+function copyExtraction(id) {
+  const ext = state.extractions.find(e => e.id === id);
+  if (!ext) return;
+  ext.canvas.toBlob(blob => {
+    navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(
+      () => toast('Copied to clipboard'),
+      () => toast('Copy failed')
+    );
+  });
+}
+
+function removeExtraction(id) {
+  state.extractions = state.extractions.filter(e => e.id !== id);
+  renderExtractions();
+  updateExtractionButtons();
+}
+
+function clearExtractions() {
+  if (!confirm('Remove all extractions?')) return;
+  state.extractions = [];
+  renderExtractions();
+  updateExtractionButtons();
+}
+
+function updateExtractionButtons() {
+  const hasAny = state.extractions.length > 0;
+  document.getElementById('btn-dl-all').disabled = !hasAny;
+  document.getElementById('btn-clr-all').disabled = !hasAny;
+  document.getElementById('btn-pack').disabled = !hasAny;
+}
+
+function downloadAllExtractions() {
+  // Download each extraction individually (no zip library needed)
+  state.extractions.forEach((ext, i) => {
+    setTimeout(() => downloadCanvas(ext.canvas, ext.name + '.png'), i * 200);
+  });
+}
+
+// ===================================================================
+//  DIVIDER RESIZE
+// ===================================================================
+{
+  const divider = document.getElementById('divider');
+  const panel = document.getElementById('extract-panel');
+  let startX, startW;
+  divider.addEventListener('mousedown', e => {
+    startX = e.clientX; startW = panel.offsetWidth;
+    divider.classList.add('dragging');
+    const move = e2 => { panel.style.width = Math.max(220, startW - (e2.clientX - startX)) + 'px'; };
+    const up = () => { divider.classList.remove('dragging'); document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); };
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+    e.preventDefault();
+  });
+}
+
+// ===================================================================
+//  KEYBOARD SHORTCUTS
+// ===================================================================
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 's' || e.key === 'S') { e.preventDefault(); setMode('select'); }
+  if (e.key === 'c' || e.key === 'C') { e.preventDefault(); setMode('crop'); }
+  if (e.key === 'g' || e.key === 'G') {
+    const cb = document.getElementById('show-grid');
+    cb.checked = !cb.checked;
+    renderGrid();
+  }
+  if (e.key === 'Enter' && state.mode === 'select' && state.sel) extractSelection();
+  if (e.key === 'Enter' && state.mode === 'crop' && state.cropSel) applyCrop();
+  if (e.key === 'Escape') {
+    state.sel = null; state.cropSel = null;
+    selBox.style.display = 'none';
+    cropBoxEl.style.display = 'none';
+    updateSelectionUI();
+  }
+  if (e.key === '+' || e.key === '=') zoomSource(1);
+  if (e.key === '-') zoomSource(-1);
+  if (e.key === '0') zoomFit();
+});
+
+// ===================================================================
+//  TOAST
+// ===================================================================
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+// ===================================================================
+//  SAVE / RESTORE CROPPED IMAGE
+// ===================================================================
+function downloadCroppedSource() {
+  if (!state.img) return;
+  downloadCanvas(srcCanvas, 'cropped_spritesheet.png');
+}
+
+// ===================================================================
+//  PACK SHEET — shelf bin-packing
+// ===================================================================
+let _packedCanvas = null;
+
+/**
+ * Shelf-first-fit bin packing.
+ * Sprites sorted descending (by chosen key) are placed left-to-right;
+ * a new shelf begins when a sprite would overflow the atlas width.
+ * Returns { placements:[{canvas,x,y}], totalW, totalH }
+ */
+function shelfPack(canvases, atlasWidth, padding) {
+  const pads = Math.max(0, padding);
+  let shelfX = pads, shelfY = pads, shelfH = 0;
+  const placements = [];
+
+  for (const c of canvases) {
+    // If this single sprite is wider than atlas, force-fit it
+    if (pads + c.width + pads > atlasWidth) {
+      atlasWidth = pads + c.width + pads;
+    }
+    if (shelfX + c.width + pads > atlasWidth) {
+      // Start new shelf
+      shelfY += shelfH + pads;
+      shelfX = pads;
+      shelfH = 0;
+    }
+    placements.push({ canvas: c, x: shelfX, y: shelfY });
+    shelfX += c.width + pads;
+    if (c.height > shelfH) shelfH = c.height;
+  }
+
+  const totalW = atlasWidth;
+  const totalH = shelfY + shelfH + pads;
+  return { placements, totalW, totalH };
+}
+
+function buildPackedCanvas() {
+  if (!state.extractions.length) return null;
+
+  const pad      = Math.max(0, parseInt(document.getElementById('pack-pad').value) || 0);
+  const sortKey  = document.getElementById('pack-sort').value;
+  const widthVal = document.getElementById('pack-width').value;
+
+  // Collect canvases — prefer retargetCanvas when set
+  let items = state.extractions.map(e => ({
+    canvas: e.retargetCanvas || e.canvas,
+    label: e.name
+  }));
+  let canvases = items.map(i => i.canvas);
+
+  // Sort
+  if (sortKey === 'height') canvases.sort((a, b) => b.height - a.height);
+  else if (sortKey === 'area')   canvases.sort((a, b) => (b.width * b.height) - (a.width * a.height));
+  else if (sortKey === 'width')  canvases.sort((a, b) => b.width - a.width);
+  // 'none' = insertion order
+
+  // Determine atlas width
+  let atlasW;
+  if (widthVal === 'auto') {
+    const totalArea = canvases.reduce((s, c) => s + (c.width + pad) * (c.height + pad), 0);
+    const est = Math.ceil(Math.sqrt(totalArea * 1.15));
+    // Round up to nearest multiple of state.tileSize
+    atlasW = Math.ceil(est / state.tileSize) * state.tileSize;
+    // Also at least as wide as the widest sprite + 2*pad
+    const maxSpriteW = Math.max(...canvases.map(c => c.width));
+    atlasW = Math.max(atlasW, maxSpriteW + pad * 2);
+  } else {
+    atlasW = parseInt(widthVal);
+  }
+
+  const { placements, totalW, totalH } = shelfPack(canvases, atlasW, pad);
+
+  const out = document.createElement('canvas');
+  out.width  = totalW;
+  out.height = totalH;
+  const ctx = out.getContext('2d');
+
+  for (const { canvas, x, y } of placements) {
+    ctx.drawImage(canvas, x, y);
+  }
+
+  _packedCanvas = out;
+  return { canvas: out, placements, totalW, totalH, count: canvases.length };
+}
+
+function renderPack() {
+  const result = buildPackedCanvas();
+  if (!result) return;
+  const { canvas, totalW, totalH, count } = result;
+  const zoom = parseFloat(document.getElementById('pack-zoom').value);
+  const previewCanvas = document.getElementById('pack-preview-canvas');
+  previewCanvas.width  = canvas.width;
+  previewCanvas.height = canvas.height;
+  previewCanvas.style.width  = Math.round(totalW * zoom) + 'px';
+  previewCanvas.style.height = Math.round(totalH * zoom) + 'px';
+  previewCanvas.getContext('2d').drawImage(canvas, 0, 0);
+  // Efficiency
+  const spriteArea = state.extractions.reduce((s, e) => s + e.canvas.width * e.canvas.height, 0);
+  const atlasArea  = totalW * totalH;
+  const eff = atlasArea > 0 ? Math.round((spriteArea / atlasArea) * 100) : 0;
+  document.getElementById('pack-info').textContent =
+    `${count} sprites · ${totalW}×${totalH}px · ${eff}% fill`;
+}
+
+function openPackModal() {
+  if (!state.extractions.length) return;
+  document.getElementById('pack-modal').classList.add('show');
+  renderPack();
+}
+
+function closePackModal() {
+  document.getElementById('pack-modal').classList.remove('show');
+}
+
+function downloadPackedSheet() {
+  if (!_packedCanvas) return;
+  const name = (document.getElementById('pack-filename').value.trim() || 'spritesheet') + '.png';
+  downloadCanvas(_packedCanvas, name);
+}
+
+// Close pack modal on backdrop click
+document.getElementById('pack-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('pack-modal')) closePackModal();
+});
+
+// ===================================================================
+//  BACKGROUND REMOVAL (via @imgly/background-removal)
+// ===================================================================
+let _bgRemovalModule = null;
+
+async function loadBgRemovalLib() {
+  if (_bgRemovalModule) return _bgRemovalModule;
+  // esm.sh handles CJS→ESM conversion and peer-dep bundling for browser imports
+  _bgRemovalModule = await import('https://esm.sh/@imgly/background-removal@1.7.0');
+  return _bgRemovalModule;
+}
+
+async function removeExtractionBackground(id) {
+  const ext = state.extractions.find(e => e.id === id);
+  if (!ext) return;
+
+  const overlay = document.getElementById('bg-remove-overlay');
+  const bar     = document.getElementById('bgr-bar');
+  const sub     = document.getElementById('bgr-sub');
+  const title   = document.getElementById('bgr-title');
+
+  // Disable the card's Remove BG button while running
+  const card = document.getElementById(`card-${id}`);
+  const cardBtn = card ? [...card.querySelectorAll('button')].find(b => b.textContent.includes('Remove BG')) : null;
+  if (cardBtn) cardBtn.disabled = true;
+
+  overlay.classList.add('show');
+  bar.style.width = '0%';
+  title.textContent = '🪄 Removing Background…';
+  sub.textContent = 'Loading AI model (first run downloads model, cached afterwards)';
+
+  try {
+    const lib = await loadBgRemovalLib();
+    const removeBackground = lib.default || lib.removeBackground;
+
+    // Convert extraction canvas to blob
+    const blob = await new Promise(r => ext.canvas.toBlob(r, 'image/png'));
+
+    const modelChoice = document.getElementById('bg-model').value;
+    const modelMap = { 'small': 'isnet_quint8', 'medium': 'isnet_fp16' };
+
+    sub.textContent = `Downloading & running model (${modelChoice})…`;
+
+    const resultBlob = await removeBackground(blob, {
+      model: modelMap[modelChoice] || 'isnet_fp16',
+      publicPath: `https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/`,
+      output: { format: 'image/png', quality: 1, type: 'foreground' },
+      progress: (key, current, total) => {
+        if (total > 0) {
+          const pct = Math.round((current / total) * 100);
+          bar.style.width = pct + '%';
+          sub.textContent = `${key}: ${pct}%`;
+        }
+      }
+    });
+
+    // Draw result back onto the extraction canvas
+    const url = URL.createObjectURL(resultBlob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      // Replace extraction canvas content with bg-removed result
+      const newCanvas = document.createElement('canvas');
+      newCanvas.width = img.width;
+      newCanvas.height = img.height;
+      newCanvas.getContext('2d').drawImage(img, 0, 0);
+      ext.canvas = newCanvas;
+      // Also clear retarget on BG-remove since the base canvas changed
+      ext.retargetCanvas = null;
+      ext.retargetTilesW = null;
+      ext.retargetTilesH = null;
+      ext.retargetMode = null;
+      renderExtractions();
+      overlay.classList.remove('show');
+      toast(`BG removed from extraction #${id}`);
+    };
+    img.onerror = () => {
+      overlay.classList.remove('show');
+      if (cardBtn) cardBtn.disabled = false;
+      toast('Failed to apply result');
+    };
+    img.src = url;
+  } catch (err) {
+    console.error('Background removal failed:', err);
+    overlay.classList.remove('show');
+    if (cardBtn) cardBtn.disabled = false;
+    toast('BG removal failed: ' + (err.message || err));
+  }
+}
+// ===================================================================
+//  REMOVE CHECKERBOARD BACKGROUND
+// ===================================================================
+// Detects the two alternating opaque colours that make up a standard
+// PNG checkerboard (e.g. white #FFF + light-grey #C0C0C0) by sampling
+// the corners of the image, then flood-fills inward from every corner
+// erasing pixels that match either of those two colours.
+function removeCheckerBackground(id) {
+  const ext = state.extractions.find(e => e.id === id);
+  if (!ext) return;
+
+  const src = ext.canvas;
+  const w = src.width, h = src.height;
+  const ctx = src.getContext('2d');
+  const imgData = ctx.getImageData(0, 0, w, h);
+  const d = imgData.data;
+
+  function getIdx(x, y) { return (y * w + x) * 4; }
+
+  // Colour-distance: sum of absolute channel differences
+  function colorDist(r1, g1, b1, r2, g2, b2) {
+    return Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
+  }
+
+  // Sample candidate checker colours from the image corners
+  // (top-left, top-right, bottom-left, bottom-right and a few nearby offsets)
+  const candidates = [];
+  const sampleOffsets = [0, 8, 16, 24];
+  for (const ox of sampleOffsets) {
+    for (const oy of sampleOffsets) {
+      const pts = [
+        [ox, oy], [w - 1 - ox, oy],
+        [ox, h - 1 - oy], [w - 1 - ox, h - 1 - oy]
+      ];
+      for (const [x, y] of pts) {
+        if (x < 0 || x >= w || y < 0 || y >= h) continue;
+        const i = getIdx(x, y);
+        if (d[i + 3] < 200) continue; // already transparent — skip
+        const r = d[i], g = d[i + 1], b = d[i + 2];
+        // Only consider colours that are plausibly checkerboard (bright-ish)
+        const lum = r * 0.299 + g * 0.587 + b * 0.114;
+        if (lum < 80) continue;
+        // Merge into existing candidate if close enough
+        let merged = false;
+        for (const c of candidates) {
+          if (colorDist(c.r, c.g, c.b, r, g, b) < 20) {
+            // Running average
+            c.r = Math.round((c.r * c.n + r) / (c.n + 1));
+            c.g = Math.round((c.g * c.n + g) / (c.n + 1));
+            c.b = Math.round((c.b * c.n + b) / (c.n + 1));
+            c.n++;
+            merged = true;
+            break;
+          }
+        }
+        if (!merged) candidates.push({ r, g, b, n: 1 });
+      }
+    }
+  }
+
+  if (candidates.length === 0) {
+    toast('No bright background colours detected in the corners');
+    return;
+  }
+
+  // Tolerance when matching pixels during flood fill
+  const TOLERANCE = 24;
+
+  function isCheckerColor(r, g, b, a) {
+    if (a < 200) return false; // already transparent
+    for (const c of candidates) {
+      if (colorDist(c.r, c.g, c.b, r, g, b) <= TOLERANCE) return true;
+    }
+    return false;
+  }
+
+  // Flood-fill BFS from all four corners
+  const visited = new Uint8Array(w * h);
+  const qx = new Int32Array(w * h);
+  const qy = new Int32Array(w * h);
+  let qHead = 0, qTail = 0;
+
+  const cornerPts = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]];
+  for (const [cx, cy] of cornerPts) {
+    const i = getIdx(cx, cy);
+    if (!visited[cy * w + cx] && isCheckerColor(d[i], d[i + 1], d[i + 2], d[i + 3])) {
+      visited[cy * w + cx] = 1;
+      qx[qTail] = cx;
+      qy[qTail] = cy;
+      qTail++;
+    }
+  }
+
+  const dx4 = [-1, 1, 0, 0];
+  const dy4 = [0, 0, -1, 1];
+
+  while (qHead < qTail) {
+    const x = qx[qHead], y = qy[qHead];
+    qHead++;
+    // Make this pixel transparent
+    d[getIdx(x, y) + 3] = 0;
+    for (let k = 0; k < 4; k++) {
+      const nx = x + dx4[k], ny = y + dy4[k];
+      if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+      const vi = ny * w + nx;
+      if (visited[vi]) continue;
+      const ni = getIdx(nx, ny);
+      if (isCheckerColor(d[ni], d[ni + 1], d[ni + 2], d[ni + 3])) {
+        visited[vi] = 1;
+        qx[qTail] = nx;
+        qy[qTail] = ny;
+        qTail++;
+      }
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+
+  // Clear any retarget since the base canvas changed
+  ext.retargetCanvas = null;
+  ext.retargetTilesW = null;
+  ext.retargetTilesH = null;
+  ext.retargetMode = null;
+
+  renderExtractions();
+  toast(`Checker background removed from #${id} (${qHead} pixels erased)`);
+}
+</script>
+</body>
+</html>

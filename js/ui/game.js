@@ -531,6 +531,16 @@ class Game {
         const kingdomCount = parseInt(document.getElementById('kingdomCount')?.value) || 6;
         const independentSettlements = document.getElementById('independentSettlements')?.value || 'normal';
         const ruinsFreq = document.getElementById('ruinsFreq')?.value || 'normal';
+        const customBuildingsOnly = document.getElementById('customBuildingsOnly')?.checked || false;
+        const customObjectsOnly = document.getElementById('customObjectsOnly')?.checked || false;
+
+        // Store game-wide options readable by subsystems (e.g. InnerMap)
+        window.gameOptions = window.gameOptions || {};
+        window.gameOptions.customBuildingsOnly = customBuildingsOnly;
+        window.gameOptions.customObjectsOnly = customObjectsOnly;
+
+        // Clear any cached inner maps from a previous game session
+        if (typeof InnerMap !== 'undefined' && InnerMap.clearCache) InnerMap.clearCache();
 
         // Generate world
         this.world = new World(width, height);
@@ -687,6 +697,68 @@ class Game {
                 const periodIcon = periodIcons[period] || '🕐';
                 const dayInSeason = ((this.world.day - 1) % 30) + 1;
                 turnEl.textContent = `${periodIcon} ${timeStr} — Day ${dayInSeason}, ${this.world.season}, Year ${this.world.year}`;
+            }
+
+            // Update player walking animation
+            const playerStepResult = InnerMap.updatePlayer(deltaTime);
+            if (playerStepResult) {
+                if (playerStepResult.moved) {
+                    const arrivedTile = InnerMap.getTile(InnerMap.playerInnerQ, InnerMap.playerInnerR);
+                    if (arrivedTile) {
+                        this.ui.showInnerHexInfo(arrivedTile, InnerMap.playerInnerQ, InnerMap.playerInnerR);
+                    }
+
+                    if (playerStepResult.encounter) {
+                        this._showEncounterNotification(playerStepResult.encounter);
+                    }
+
+                    // ── Trigger pending object interaction on arrival ──
+                    if (playerStepResult.arrived && InnerMap._pendingInteraction) {
+                        const pi = InnerMap._pendingInteraction;
+                        const piDef = typeof CustomObjects !== 'undefined' ? CustomObjects.getDef(pi.defId) : null;
+                        InnerMap.startInteraction(pi.anchorQ, pi.anchorR, pi.defId,
+                            InnerMap._computeObjectDamage(this.player, piDef));
+                        // Face the object
+                        const dir = InnerMap.getDirectionToward(pi.anchorQ, pi.anchorR);
+                        InnerMapRenderer._playerFacing = dir;
+                    }
+                } else if (playerStepResult.blocked) {
+                    InnerMap._pendingInteraction = null;
+                    this.ui.showNotification('Blocked', 'Path blocked — impassable terrain!', 'error');
+                }
+            }
+
+            // ── Update active object interaction ──
+            const interactionResult = InnerMap.updateInteraction(deltaTime);
+            if (interactionResult && interactionResult.completed) {
+                // Grant resource to player
+                if (interactionResult.resource) {
+                    const resType = interactionResult.resource.type;
+                    const resAmt = interactionResult.resource.amount || 1;
+                    if (resType === 'gold') {
+                        this.player.gold += resAmt;
+                    } else {
+                        if (!this.player.inventory) this.player.inventory = {};
+                        this.player.inventory[resType] = (this.player.inventory[resType] || 0) + resAmt;
+                    }
+                    // Format resource name for display
+                    const displayName = resType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                    this.ui.showNotification('Gathered', `+${resAmt} ${displayName}`, 'success');
+                } else {
+                    this.ui.showNotification('Cleared', 'Object removed.', 'info');
+                }
+                // Clear selection if it was this object
+                if (InnerMapRenderer._selectedObject &&
+                    InnerMapRenderer._selectedObject.anchorQ === interactionResult.anchorQ &&
+                    InnerMapRenderer._selectedObject.anchorR === interactionResult.anchorR) {
+                    InnerMapRenderer._selectedObject = null;
+                }
+            }
+
+            // Smoothly follow player with camera while walking
+            if (InnerMap._playerWalking) {
+                const pWorld = InnerMap.getPlayerWorldPos();
+                this.innerMapCamera.centerOn(pWorld.x, pWorld.y);
             }
 
             // Update NPCs
@@ -850,6 +922,21 @@ class Game {
                 const innerTile = InnerMap.getTile(innerHex.q, innerHex.r);
                 const isPlayerTile = (innerHex.q === InnerMap.playerInnerQ && innerHex.r === InnerMap.playerInnerR);
 
+                // ── Resolve custom object selection (anchor or footprint part) ──
+                let objAnchor = null;
+                if (innerTile) {
+                    if (innerTile.customObject) {
+                        objAnchor = { anchorQ: innerHex.q, anchorR: innerHex.r, defId: innerTile.customObject.defId };
+                    } else if (innerTile.customObjectPart) {
+                        const p = innerTile.customObjectPart;
+                        const anchorTile = InnerMap.getTile(p.anchorQ, p.anchorR);
+                        if (anchorTile && anchorTile.customObject) {
+                            objAnchor = { anchorQ: p.anchorQ, anchorR: p.anchorR, defId: anchorTile.customObject.defId };
+                        }
+                    }
+                }
+                InnerMapRenderer._selectedObject = objAnchor;
+
                 if (isPlayerTile) {
                     // Always show context menu on player's tile (buildings, NPCs, or blank tile actions)
                     InnerMapRenderer.showContextMenu(this, innerHex.q, innerHex.r, screenX, screenY);
@@ -857,25 +944,81 @@ class Game {
                     this.ui.showInnerHexInfo(innerTile, innerHex.q, innerHex.r);
                 }
             } else if (button === 'right') {
-                // Right click = move player within inner map
+                // Right click = walk player to target tile (or interact with object)
                 InnerMapRenderer.closeContextMenu();
-                const result = InnerMap.movePlayerTo(innerHex.q, innerHex.r);
-                if (result.moved) {
-                    // Center camera on player
-                    const pos = InnerMapRenderer.getInnerHexPixelPos(InnerMap.playerInnerQ, InnerMap.playerInnerR);
-                    this.innerMapCamera.centerOn(pos.x, pos.y);
+                InnerMapRenderer._selectedObject = null;
 
-                    // Update info panel for new player position
-                    const arrivedTile = InnerMap.getTile(InnerMap.playerInnerQ, InnerMap.playerInnerR);
-                    if (arrivedTile) {
-                        this.ui.showInnerHexInfo(arrivedTile, InnerMap.playerInnerQ, InnerMap.playerInnerR);
-                    }
+                // Cancel any current walk / interaction
+                InnerMap.cancelPlayerWalk();
+                InnerMap._pendingInteraction = null;
+                InnerMap._activeInteraction = null;
 
-                    if (result.encounter) {
-                        this._showEncounterNotification(result.encounter);
+                // Check if the clicked tile has a custom object with a resource
+                // AND the clicked tile is an interaction point on that object
+                let objAnchorQ = null, objAnchorR = null, objDef = null;
+                let clickedLocalCol = 0, clickedLocalRow = 0;
+                const innerTile = InnerMap.getTile(innerHex.q, innerHex.r);
+                if (innerTile) {
+                    if (innerTile.customObject) {
+                        objAnchorQ = innerHex.q;
+                        objAnchorR = innerHex.r;
+                        clickedLocalCol = 0;
+                        clickedLocalRow = 0;
+                    } else if (innerTile.customObjectPart) {
+                        objAnchorQ = innerTile.customObjectPart.anchorQ;
+                        objAnchorR = innerTile.customObjectPart.anchorR;
+                        clickedLocalCol = innerHex.q - objAnchorQ;
+                        clickedLocalRow = innerHex.r - objAnchorR;
                     }
-                } else if (!result.outOfBounds) {
-                    this.ui.showNotification('Blocked', 'Cannot move there — impassable terrain!', 'error');
+                    if (objAnchorQ != null) {
+                        const at = InnerMap.getTile(objAnchorQ, objAnchorR);
+                        if (at && at.customObject && typeof CustomObjects !== 'undefined') {
+                            objDef = CustomObjects.getDef(at.customObject.defId);
+                        }
+                    }
+                }
+
+                // Only allow interaction if the clicked tile is an interactionPoint
+                let clickedInteractTile = false;
+                if (objDef && objDef.meta) {
+                    for (const m of objDef.meta) {
+                        if (m.interactionPoint &&
+                            m.localCol === clickedLocalCol &&
+                            m.localRow === clickedLocalRow) {
+                            clickedInteractTile = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (objDef && objDef.resource && clickedInteractTile) {
+                    // ── Object interaction: walk to adjacent tile, then interact ──
+                    const adj = InnerMap.findAdjacentToObject(objAnchorQ, objAnchorR, objDef);
+                    if (adj) {
+                        // If player is already at the adjacent tile, start immediately
+                        if (InnerMap.playerInnerQ === adj.q && InnerMap.playerInnerR === adj.r) {
+                            InnerMap.startInteraction(objAnchorQ, objAnchorR, objDef.id,
+                                InnerMap._computeObjectDamage(this.player, objDef));
+                            // Face the object
+                            const dir = InnerMap.getDirectionToward(objAnchorQ, objAnchorR);
+                            InnerMapRenderer._playerFacing = dir;
+                        } else {
+                            InnerMap._pendingInteraction = { anchorQ: objAnchorQ, anchorR: objAnchorR, defId: objDef.id };
+                            const walkResult = InnerMap.movePlayerTo(adj.q, adj.r);
+                            if (!walkResult.started) {
+                                InnerMap._pendingInteraction = null;
+                                this.ui.showNotification('Blocked', 'Cannot reach that object!', 'error');
+                            }
+                        }
+                    } else {
+                        this.ui.showNotification('Blocked', 'Cannot reach that object!', 'error');
+                    }
+                } else {
+                    // Normal walk
+                    const result = InnerMap.movePlayerTo(innerHex.q, innerHex.r);
+                    if (!result.started && !result.outOfBounds) {
+                        this.ui.showNotification('Blocked', 'Cannot move there — impassable terrain!', 'error');
+                    }
                 }
             }
             return;
@@ -1014,7 +1157,7 @@ class Game {
     /**
      * Enter the inner map for a given world tile
      */
-    enterInnerMap(worldQ, worldR) {
+    async enterInnerMap(worldQ, worldR) {
         if (!this.world || !this.player) return;
         if (typeof InnerMap === 'undefined') return;
 
@@ -1030,6 +1173,11 @@ class Game {
             return;
         }
 
+        // Give inner-map renderer access to sprites FIRST so CustomBuildings etc. are loaded
+        // before InnerMap.enter() generates tile data (buildings are placed during generation).
+        InnerMapRenderer.setRenderer(this.renderer);
+        await InnerMapRenderer.whenLoaded();
+
         const success = InnerMap.enter(this, worldQ, worldR);
         if (!success) {
             this.ui.showNotification('Error', 'Cannot enter this tile.', 'error');
@@ -1039,23 +1187,22 @@ class Game {
         this.innerMapMode = true;
         this._innerMapDayEndShown = false;
 
-        // Give inner-map renderer access to the world renderer's sprite assets
-        InnerMapRenderer.setRenderer(this.renderer);
+        // Set up inner map camera bounds — no horizontal wrapping (unlike world map)
+        const tileSize = InnerMapRenderer.tileSize;
+        const innerPixelWidth = tileSize * InnerMap.width;
+        const innerPixelHeight = tileSize * InnerMap.height;
+        this.innerMapCamera.setWorldBounds(0, innerPixelHeight);  // width=0 disables X-wrap
 
-        // Set up inner map camera bounds (dynamic based on map size)
-        const innerHexSize = InnerMapRenderer.hexSize;
-        const innerPixelWidth = Math.sqrt(3) * innerHexSize * InnerMap.width + innerHexSize * 2;
-        const innerPixelHeight = innerHexSize * 1.5 * InnerMap.height + innerHexSize * 2;
-        this.innerMapCamera.setWorldBounds(innerPixelWidth, innerPixelHeight);
-
-        // Zoom level based on map size
-        const zoomLevel = InnerMap.width <= 8 ? 1.2 : InnerMap.width <= 10 ? 1.0 : 0.85;
+        // Zoom to fit the entire inner map in the viewport
+        const canvasW = this.canvas.width;
+        const canvasH = this.canvas.height;
+        const zoomLevel = Math.min(canvasW / innerPixelWidth, canvasH / innerPixelHeight) * 0.95;
+        this.innerMapCamera.minZoom = Math.min(0.1, zoomLevel);  // allow zooming out far enough
         this.innerMapCamera.zoom = zoomLevel;
         this.innerMapCamera.targetZoom = zoomLevel;
 
-        // Center on player position
-        const playerPos = InnerMapRenderer.getInnerHexPixelPos(InnerMap.playerInnerQ, InnerMap.playerInnerR);
-        this.innerMapCamera.centerOn(playerPos.x, playerPos.y);
+        // Center on the middle of the map so the whole map is visible
+        this.innerMapCamera.centerOn(innerPixelWidth / 2, innerPixelHeight / 2);
 
         // Hide world map UI elements
         this._hideWorldMapUI();
@@ -1283,11 +1430,7 @@ class Game {
         // Remove existing button if any
         this._hideInnerMapExitButton();
 
-        const btn = document.createElement('button');
-        btn.id = 'innerMapExitBtn';
-        btn.innerHTML = '🔙 Return to World Map';
-        btn.style.cssText = `
-            position: fixed; top: 52px; right: 16px; z-index: 1100;
+        const btnStyle = `
             background: linear-gradient(135deg, rgba(16, 20, 28, 0.95), rgba(30, 35, 50, 0.95));
             border: 1px solid rgba(245, 197, 66, 0.4);
             color: #f5c542; padding: 10px 20px;
@@ -1297,24 +1440,126 @@ class Game {
             box-shadow: 0 4px 16px rgba(0,0,0,0.5);
             transition: all 0.2s ease;
         `;
-        btn.addEventListener('mouseenter', () => {
-            btn.style.borderColor = 'rgba(245, 197, 66, 0.8)';
-            btn.style.transform = 'scale(1.03)';
-        });
-        btn.addEventListener('mouseleave', () => {
-            btn.style.borderColor = 'rgba(245, 197, 66, 0.4)';
-            btn.style.transform = 'scale(1)';
-        });
+        const hoverIn = (el) => { el.style.borderColor = 'rgba(245, 197, 66, 0.8)'; el.style.transform = 'scale(1.03)'; };
+        const hoverOut = (el) => { el.style.borderColor = 'rgba(245, 197, 66, 0.4)'; el.style.transform = 'scale(1)'; };
+
+        // Container for inner map toolbar
+        const toolbar = document.createElement('div');
+        toolbar.id = 'innerMapToolbar';
+        toolbar.style.cssText = `position: fixed; top: 52px; right: 16px; z-index: 1100; display: flex; gap: 8px; align-items: center;`;
+
+        // ── Export to Tiled button ──
+        const exportBtn = document.createElement('button');
+        exportBtn.id = 'innerMapExportBtn';
+        exportBtn.innerHTML = '📥 Export .tmj';
+        exportBtn.title = 'Download map as Tiled Editor JSON (.tmj)';
+        exportBtn.style.cssText = btnStyle + 'padding: 8px 14px; font-size: 12px;';
+        exportBtn.addEventListener('mouseenter', () => hoverIn(exportBtn));
+        exportBtn.addEventListener('mouseleave', () => hoverOut(exportBtn));
+        exportBtn.addEventListener('click', () => this._exportInnerMapTiled());
+        toolbar.appendChild(exportBtn);
+
+        // ── Import from Tiled button ──
+        const importBtn = document.createElement('button');
+        importBtn.id = 'innerMapImportBtn';
+        importBtn.innerHTML = '📤 Import .tmj';
+        importBtn.title = 'Import a Tiled Editor JSON map (.tmj/.json)';
+        importBtn.style.cssText = btnStyle + 'padding: 8px 14px; font-size: 12px;';
+        importBtn.addEventListener('mouseenter', () => hoverIn(importBtn));
+        importBtn.addEventListener('mouseleave', () => hoverOut(importBtn));
+        importBtn.addEventListener('click', () => this._importInnerMapTiled());
+        toolbar.appendChild(importBtn);
+
+        // ── Exit button ──
+        const btn = document.createElement('button');
+        btn.id = 'innerMapExitBtn';
+        btn.innerHTML = '🔙 Return to World Map';
+        btn.style.cssText = btnStyle;
+        btn.addEventListener('mouseenter', () => hoverIn(btn));
+        btn.addEventListener('mouseleave', () => hoverOut(btn));
         btn.addEventListener('click', () => this.exitInnerMap());
-        document.body.appendChild(btn);
+        toolbar.appendChild(btn);
+
+        document.body.appendChild(toolbar);
     }
 
     /**
      * Hide the inner map exit button
      */
     _hideInnerMapExitButton() {
+        const toolbar = document.getElementById('innerMapToolbar');
+        if (toolbar) toolbar.remove();
         const btn = document.getElementById('innerMapExitBtn');
         if (btn) btn.remove();
+    }
+
+    /**
+     * Export current inner map as Tiled JSON (.tmj) file
+     */
+    _exportInnerMapTiled() {
+        if (!InnerMap.active || !InnerMap.tiles) {
+            this.ui.showNotification('Export Error', 'No inner map is active.', 'error');
+            return;
+        }
+
+        try {
+            const worldTile = InnerMap.currentWorldTile || { q: 0, r: 0 };
+            const terrainId = InnerMap.tiles[0] && InnerMap.tiles[0][0]
+                ? InnerMap.tiles[0][0].parentTerrain : 'grassland';
+
+            TiledExport.downloadTiled(InnerMap.tiles, {
+                season: InnerMap.season || 'Summer',
+                parentTerrain: terrainId,
+                worldQ: worldTile.q,
+                worldR: worldTile.r
+            });
+
+            this.ui.showNotification('📥 Exported', 'Inner map downloaded as Tiled .tmj file.', 'success');
+        } catch (e) {
+            console.error('Tiled export error:', e);
+            this.ui.showNotification('Export Error', e.message, 'error');
+        }
+    }
+
+    /**
+     * Import a Tiled JSON (.tmj) file and apply it to the current inner map
+     */
+    _importInnerMapTiled() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.tmj,.json';
+        input.style.display = 'none';
+
+        input.addEventListener('change', async () => {
+            if (!input.files || input.files.length === 0) return;
+
+            try {
+                const imported = await TiledExport.importFromFile(input.files[0]);
+
+                // Apply to current world tile position
+                const worldTile = InnerMap.currentWorldTile || { q: 0, r: 0 };
+                TiledExport.applyImport(imported, {
+                    worldQ: worldTile.q,
+                    worldR: worldTile.r
+                });
+
+                // Reload the inner map view
+                InnerMap.tiles = imported.tiles;
+                InnerMap.width = imported.width;
+                InnerMap.height = imported.height;
+
+                this.ui.showNotification('📤 Imported',
+                    `Tiled map loaded: ${imported.width}×${imported.height}, terrain: ${imported.parentTerrain}`, 'success');
+            } catch (e) {
+                console.error('Tiled import error:', e);
+                this.ui.showNotification('Import Error', e.message, 'error');
+            }
+
+            input.remove();
+        });
+
+        document.body.appendChild(input);
+        input.click();
     }
 
     /**

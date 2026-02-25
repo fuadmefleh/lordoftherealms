@@ -1,0 +1,50 @@
+{
+    "meta": {
+        "description": "LPC FX sprite sheets — water effects",
+        "basePath": "assets/lpc/FX/"
+    },
+    "sheets": {
+        "splash": {
+            "path": "assets/lpc/FX/Splash.png",
+            "width": 384,
+            "height": 32,
+            "frameWidth": 32,
+            "frameHeight": 32,
+            "frames": 12,
+            "description": "Water splash animation (foreground layer)"
+        },
+        "splash_back": {
+            "path": "assets/lpc/FX/Splash_Back.png",
+            "width": 384,
+            "height": 32,
+            "frameWidth": 32,
+            "frameHeight": 32,
+            "frames": 12,
+            "description": "Water splash animation (background layer)"
+        },
+        "water_reflections": {
+            "path": "assets/lpc/FX/Water Reflections.png",
+            "width": 128,
+            "height": 96,
+            "description": "Water surface reflection overlay"
+        },
+        "water_ripple": {
+            "path": "assets/lpc/FX/WaterRipple.png",
+            "width": 128,
+            "height": 32,
+            "frameWidth": 32,
+            "frameHeight": 32,
+            "frames": 4,
+            "description": "Water ripple animation (foreground layer)"
+        },
+        "water_ripple_back": {
+            "path": "assets/lpc/FX/WaterRipple_Back.png",
+            "width": 128,
+            "height": 32,
+            "frameWidth": 32,
+            "frameHeight": 32,
+            "frames": 4,
+            "description": "Water ripple animation (background layer)"
+        }
+    }
+}

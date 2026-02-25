@@ -1,0 +1,56 @@
+{
+    "meta": {
+        "description": "LPC cliff and waterfall sprite sheets — seasonal variants",
+        "note": "Cliffs are 512×448, waterfall is 512×608. These are used for elevation transitions and water features."
+    },
+    "sheets": {
+        "cliff_summer": {
+            "path": "assets/lpc/Terrain/cliff_summer.png",
+            "width": 512,
+            "height": 448,
+            "tileSize": 32,
+            "cols": 16,
+            "rows": 14
+        },
+        "cliff_spring": {
+            "path": "assets/lpc/Terrain/cliff_spring.png",
+            "width": 512,
+            "height": 448,
+            "tileSize": 32,
+            "cols": 16,
+            "rows": 14
+        },
+        "cliff_autumn": {
+            "path": "assets/lpc/Terrain/cliff_autumn.png",
+            "width": 512,
+            "height": 448,
+            "tileSize": 32,
+            "cols": 16,
+            "rows": 14
+        },
+        "cliff_winter": {
+            "path": "assets/lpc/Terrain/cliff_winter.png",
+            "width": 512,
+            "height": 448,
+            "tileSize": 32,
+            "cols": 16,
+            "rows": 14
+        },
+        "cliff_winter_ice": {
+            "path": "assets/lpc/Terrain/cliff_winter_ice.png",
+            "width": 512,
+            "height": 448,
+            "tileSize": 32,
+            "cols": 16,
+            "rows": 14
+        },
+        "waterfall": {
+            "path": "assets/lpc/Terrain/Waterfall.png",
+            "width": 512,
+            "height": 608,
+            "tileSize": 32,
+            "cols": 16,
+            "rows": 19
+        }
+    }
+}

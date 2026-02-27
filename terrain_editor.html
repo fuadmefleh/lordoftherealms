@@ -1,0 +1,4088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LPC Terrain Editor — Lord of the Realms</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0d1117;--panel:#161b22;--panel2:#1c2129;--border:#21262d;--border2:#30363d;--text:#c9d1d9;--text-dim:#8b949e;--blue:#58a6ff;--green:#3fb950;--red:#f85149;--gold:#e6a817;--purple:#a371f7;--hover:#1c2129}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px}
+button{background:#21262d;border:1px solid var(--border2);color:var(--text);padding:4px 10px;border-radius:5px;cursor:pointer;font-size:12px;transition:background .12s,border-color .12s}
+button:hover{background:#2d333b;border-color:#484f58}
+button.active{background:#0b2a4a;border-color:var(--blue);color:var(--blue)}
+button.green{background:#0e2a17;border-color:var(--green);color:var(--green)}
+button.gold{background:#2a1f00;border-color:var(--gold);color:var(--gold)}
+button.danger{background:#2a0d0d;border-color:var(--red);color:var(--red)}
+button.purple{background:#1e0f3a;border-color:var(--purple);color:var(--purple)}
+button:disabled{opacity:.4;cursor:not-allowed}
+input[type="text"],input[type="number"],select{background:#0d1117;border:1px solid var(--border2);color:var(--text);padding:3px 7px;border-radius:4px;font-size:12px}
+input:focus,select:focus{outline:none;border-color:var(--blue)}
+input[type="color"]{padding:2px;width:28px;height:24px;cursor:pointer;background:none;border:1px solid var(--border2);border-radius:4px}
+
+/* Layout */
+#app{display:flex;flex-direction:column;height:100%}
+#toolbar{display:flex;align-items:center;gap:4px;padding:5px 10px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+#main{display:flex;flex:1;overflow:hidden}
+.tb-sep{width:1px;height:22px;background:var(--border2);margin:0 4px}
+.tb-group{display:flex;align-items:center;gap:4px}
+.tb-lbl{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.tool-btn{min-width:32px;padding:4px 8px;font-size:12px}
+.layer-btn{padding:3px 8px;font-size:11px;border:1px solid var(--border2);background:var(--panel);color:var(--text-dim);border-radius:3px;cursor:pointer;transition:all .15s}
+.layer-btn:hover{border-color:var(--gold);color:var(--text)}
+.layer-btn.active{background:var(--gold);color:#000;border-color:var(--gold);font-weight:600}
+.layer-vis{width:22px;height:22px;padding:0;font-size:12px;border:1px solid var(--border2);background:var(--panel);border-radius:3px;cursor:pointer;line-height:20px;text-align:center}
+.layer-vis.hidden-layer{opacity:.35;filter:grayscale(1)}
+.layer-add{padding:3px 7px;font-size:13px;border:1px dashed var(--border2);background:transparent;color:var(--text-dim);border-radius:3px;cursor:pointer;line-height:1}
+.layer-add:hover{border-color:var(--gold);color:var(--gold)}
+.layer-ctx{position:fixed;background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:4px 0;z-index:9999;min-width:120px;box-shadow:0 4px 12px rgba(0,0,0,.5)}
+.layer-ctx div{padding:5px 14px;font-size:12px;cursor:pointer;color:var(--text)}
+.layer-ctx div:hover{background:var(--border)}
+.layer-ctx div.destructive{color:#f85149}
+.layer-ctx div.destructive:hover{background:#f8514920}
+
+/* Modal */
+.te-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;display:flex;align-items:center;justify-content:center;animation:te-fadein .12s}
+@keyframes te-fadein{from{opacity:0}to{opacity:1}}
+.te-modal{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:20px 24px;min-width:300px;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,.6);animation:te-scalein .12s}
+@keyframes te-scalein{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+.te-modal h3{margin:0 0 12px;font-size:14px;font-weight:600;color:var(--text)}
+.te-modal p{margin:0 0 16px;font-size:12px;color:var(--text-dim);line-height:1.5}
+.te-modal input{width:100%;box-sizing:border-box;padding:7px 10px;font-size:13px;background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);outline:none;margin-bottom:16px}
+.te-modal input:focus{border-color:var(--blue)}
+.te-modal-row{display:flex;gap:6px;margin-bottom:8px}
+.te-modal-row label{font-size:11px;color:var(--text-dim);min-width:50px;line-height:28px}
+.te-modal-row input{margin-bottom:0;flex:1}
+.te-modal-btns{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+.te-modal-btns button{padding:6px 16px;font-size:12px;border-radius:4px;cursor:pointer;border:1px solid var(--border2);background:var(--panel);color:var(--text)}
+.te-modal-btns button:hover{border-color:var(--text-dim)}
+.te-modal-btns button.primary{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
+.te-modal-btns button.primary:hover{filter:brightness(1.15)}
+.te-modal-btns button.danger{background:#f85149;border-color:#f85149;color:#fff;font-weight:600}
+.te-modal-btns button.danger:hover{filter:brightness(1.15)}
+
+/* Left panel */
+#left-panel{width:300px;min-width:220px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.panel-section{border-bottom:1px solid var(--border)}
+.panel-header{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;cursor:pointer;user-select:none}
+.panel-header h3{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim)}
+.panel-body{padding:6px 8px;overflow-y:auto}
+
+/* Canvas */
+#canvas-wrap{flex:1;position:relative;overflow:hidden;background:#060a0f}
+#map-canvas{position:absolute;image-rendering:pixelated;cursor:crosshair}
+
+/* Right panel */
+#right-panel{width:270px;flex-shrink:0;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.rp-section{padding:8px 10px;border-bottom:1px solid var(--border)}
+.rp-section h3{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);margin-bottom:6px}
+.prop-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:11px}
+.prop-row label{width:72px;color:var(--text-dim);flex-shrink:0}
+.prop-row input,.prop-row select,.prop-row span{flex:1;min-width:0}
+
+/* Map usage checkboxes */
+.usage-group{margin-bottom:8px}
+.usage-group-label{font-size:9px;color:var(--text-dim);text-transform:uppercase;font-weight:600;letter-spacing:.05em;margin-bottom:4px}
+.usage-checks{display:flex;flex-wrap:wrap;gap:2px}
+.usage-chip{display:flex;align-items:center;gap:4px;padding:2px 7px;font-size:10px;border:1px solid var(--border2);border-radius:3px;cursor:pointer;user-select:none;background:var(--bg);color:var(--text-dim);transition:all .12s}
+.usage-chip:hover{border-color:var(--text-dim)}
+.usage-chip.on{background:#0b2a4a;border-color:var(--blue);color:var(--blue);font-weight:600}
+.usage-chip .chip-icon{font-size:11px}
+
+/* Tileset palette */
+.sheet-wrap{position:relative;cursor:crosshair;display:inline-block;border:1px solid var(--border)}
+.sheet-wrap canvas{display:block;image-rendering:pixelated}
+.stamp-hl{position:absolute;border:2px solid var(--gold);pointer-events:none;background:rgba(230,168,23,0.15)}
+
+/* Terrain set list */
+.tset-card{background:var(--bg);border:1px solid var(--border);border-radius:5px;margin-bottom:4px;overflow:hidden}
+.tset-card.selected{border-color:var(--blue)}
+.tset-header{display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer}
+.tset-header .tset-badge{font-size:9px;padding:1px 5px;border-radius:8px;font-weight:600;text-transform:uppercase}
+.tset-header .tset-badge.corner{background:#0e2a17;color:var(--green);border:1px solid var(--green)}
+.tset-header .tset-badge.edge{background:#2a1f00;color:var(--gold);border:1px solid var(--gold)}
+.tset-header .tset-badge.mixed{background:#1e0f3a;color:var(--purple);border:1px solid var(--purple)}
+.tset-header .tset-name{flex:1;font-size:12px;font-weight:500}
+.terrain-row{display:flex;align-items:center;gap:5px;padding:3px 8px 3px 16px;cursor:pointer;font-size:11px;border-radius:3px;margin:1px 3px}
+.terrain-row:hover{background:var(--hover)}
+.terrain-row.selected{background:#14263d;outline:1px solid var(--blue)}
+.terrain-row .tr-swatch{width:14px;height:14px;border-radius:3px;flex-shrink:0;border:1px solid rgba(255,255,255,.12)}
+.terrain-row .tr-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.terrain-row .tr-prob{font-size:10px;color:var(--text-dim);font-family:monospace}
+
+/* Tileset tab selector */
+.cat-btns{display:flex;flex-wrap:wrap;gap:3px;padding:6px 8px;border-bottom:1px solid var(--border)}
+.cat-btn{padding:2px 8px;font-size:10px;border-radius:3px}
+.cat-btn.active{background:#0b2a4a;border-color:var(--blue);color:var(--blue)}
+
+/* Pattern grid */
+.pattern-grid{display:grid;gap:2px}
+.pat-cell{position:relative;border:1px solid var(--border2);border-radius:2px;cursor:pointer;overflow:hidden;aspect-ratio:1}
+.pat-cell canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+.pat-cell.assigned{opacity:.5}
+.pat-cell.missing{background:rgba(248,81,73,.08)}
+
+/* Toast */
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#1c2129;border:1px solid var(--border2);border-radius:8px;padding:8px 16px;font-size:12px;pointer-events:none;opacity:0;transition:opacity .25s;z-index:9999}
+#toast.show{opacity:1}
+#toast.ok{border-color:var(--green);color:var(--green)}
+#toast.err{border-color:var(--red);color:var(--red)}
+
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}
+
+/* Brush Creator Modal */
+#brushCreatorModal{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.88);backdrop-filter:blur(5px);display:flex;flex-direction:column}
+.bc-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0}
+.bc-body{display:flex;flex:1;overflow:hidden}
+.bc-left{flex:1;padding:12px;overflow-y:auto;border-right:1px solid var(--border)}
+.bc-right{width:380px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden;background:var(--panel2)}
+.bc-pat-cell{border:1px solid var(--border2);border-radius:4px;cursor:pointer;padding:4px 3px;display:flex;flex-direction:column;align-items:center;transition:border-color .12s,background .12s;background:var(--bg)}
+.bc-pat-cell:hover{background:var(--hover);border-color:var(--blue)}
+.bc-pat-cell.bc-selected{background:#0b2a4a !important;border-color:var(--blue);outline:2px solid var(--blue)}
+.bc-pat-cell.bc-missing{border-color:rgba(248,81,73,0.35)}
+.bc-pat-cell canvas{image-rendering:pixelated;width:48px;height:48px;display:block}
+.bc-pat-lbl{font-size:8px;text-align:center;margin-top:2px;color:var(--text-dim);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+
+/* Nine-Tile Brush Editor */
+#ntbModal{position:fixed;inset:0;z-index:1001;background:rgba(0,0,0,0.88);backdrop-filter:blur(5px);display:flex;flex-direction:column}
+.ntb-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0}
+.ntb-body{display:flex;flex:1;overflow:hidden}
+.ntb-left{width:400px;flex-shrink:0;padding:12px;overflow-y:auto;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:12px}
+.ntb-right{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--panel2)}
+.ntb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-width:300px}
+.ntb-cell{border:2px solid var(--border2);border-radius:6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px;background:var(--bg);transition:border-color .12s,background .12s;aspect-ratio:1;min-height:80px}
+.ntb-cell:hover{background:var(--hover);border-color:var(--blue)}
+.ntb-cell.ntb-selected{background:#0b2a4a !important;border-color:var(--blue);outline:2px solid var(--blue)}
+.ntb-cell.ntb-filled{border-color:var(--green)}
+.ntb-cell canvas{image-rendering:pixelated;width:56px;height:56px;display:block}
+.ntb-cell-lbl{font-size:9px;color:var(--text-dim);margin-top:3px;font-weight:600;text-transform:uppercase}
+.ntb-brush-card{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:6px 8px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:border-color .12s}
+.ntb-brush-card:hover{border-color:var(--blue)}
+.ntb-brush-card.selected{border-color:var(--gold);background:#1a1500}
+.ntb-brush-card canvas{image-rendering:pixelated;flex-shrink:0}
+.ntb-brush-card .ntb-bname{flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Season tabs */
+.ntb-season-tabs{display:flex;gap:3px;margin-bottom:8px}
+.ntb-season-btn{font-size:11px;padding:4px 10px;border:1px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text-dim);cursor:pointer;transition:all .12s;position:relative}
+.ntb-season-btn:hover{background:var(--hover);border-color:var(--blue);color:var(--text)}
+.ntb-season-btn.active{background:#0b2a4a;border-color:var(--blue);color:var(--blue);font-weight:600}
+.ntb-season-btn .season-dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-left:4px;vertical-align:middle}
+.ntb-season-btn .season-dot.complete{background:var(--green)}
+.ntb-season-btn .season-dot.partial{background:var(--gold)}
+.ntb-season-btn .season-dot.empty{background:var(--border2)}
+.ntb-copy-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:10px;color:var(--text-dim)}
+.ntb-ic-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;max-width:300px;margin-top:4px}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ════ TOOLBAR ════ -->
+<div id="toolbar">
+  <span style="font-size:14px;font-weight:700;color:var(--gold);margin-right:6px">🏔️ LPC Terrain Editor</span>
+  <div class="tb-sep"></div>
+  <div class="tb-group">
+    <button class="green" onclick="newMap()">📄 New</button>
+    <button onclick="loadMap()">📂 Load</button>
+    <button class="gold" onclick="saveMap()">💾 Save</button>
+    <input type="file" id="load-input" accept=".json" style="display:none" onchange="handleLoad(event)">
+  </div>
+  <div class="tb-sep"></div>
+  <div class="tb-group">
+    <span class="tb-lbl">Tools</span>
+    <button class="tool-btn active" id="tool-paint"   onclick="setTool('paint')"   title="Stamp Brush (B)">🖌 Paint</button>
+    <button class="tool-btn"        id="tool-terrain" onclick="setTool('terrain')" title="Terrain Brush — auto-tile (T)">🏔 Terrain</button>
+    <button class="tool-btn"        id="tool-erase"   onclick="setTool('erase')"   title="Eraser (E)">🗑 Erase</button>
+    <button class="tool-btn"        id="tool-fill"    onclick="setTool('fill')"    title="Bucket Fill (G)">🪣 Fill</button>
+    <button class="tool-btn"        id="tool-pick"    onclick="setTool('pick')"    title="Eyedropper (I)">💉 Pick</button>
+    <button class="tool-btn"        id="tool-rect"    onclick="setTool('rect')"    title="Shape Fill (R)">▭ Shape</button>
+  </div>
+  <div class="tb-sep"></div>
+  <div class="tb-group">
+    <span class="tb-lbl">Size</span>
+    <input type="range" id="brush-size" min="1" max="8" value="1" style="width:70px;accent-color:var(--blue)" oninput="brushSize=+this.value;document.getElementById('bsv').textContent=this.value">
+    <span id="bsv" style="font-size:11px;min-width:12px">1</span>
+  </div>
+  <div class="tb-sep"></div>
+  <div class="tb-group">
+    <button id="btn-tsetmode" onclick="toggleTSetMode()" title="Toggle terrain set definition mode (mark tile corners/edges)">⚙ Edit Sets</button>
+    <button id="btn-fillmode" onclick="toggleFillMode()" title="Random terrain fill mode">🎲 Fill Mode</button>
+    <button class="purple" onclick="openBrushCreator()" title="Open Brush Creator — visually assign tiles to terrain patterns">🎨 Brushes</button>
+    <button class="purple" onclick="openNtbEditor(-1)" title="Create or edit 9-tile auto-edge brushes">🖼 9-Tile</button>
+  </div>
+  <div class="tb-sep"></div>
+  <div class="tb-group">
+    <button onclick="undo()" title="Undo (Ctrl+Z)">↩</button>
+    <button onclick="redo()" title="Redo (Ctrl+Y)">↪</button>
+  </div>
+  <div class="tb-sep"></div>
+  <div class="tb-group">
+    <span class="tb-lbl">Season</span>
+    <select id="preview-season" onchange="setPreviewSeason(this.value)" style="font-size:11px;padding:2px 4px" title="Preview map with seasonal tile variants">
+      <option value="spring">🌱 Spring</option>
+      <option value="summer">☀️ Summer</option>
+      <option value="autumn">🍂 Autumn</option>
+      <option value="winter">❄️ Winter</option>
+    </select>
+  </div>
+  <div class="tb-sep"></div>
+  <div class="tb-group" id="layer-bar">
+    <span class="tb-lbl">Layer</span>
+    <!-- populated by buildLayerUI() -->
+  </div>
+  <div style="flex:1"></div>
+  <span id="status" style="font-size:10px;color:var(--text-dim)"></span>
+</div>
+
+<!-- ════ MAIN ════ -->
+<div id="main">
+
+  <!-- LEFT PANEL -->
+  <div id="left-panel">
+
+    <!-- Terrain Sets -->
+    <div class="panel-section" id="sec-tsets">
+      <div class="panel-header" onclick="toggleSec('tsets')">
+        <h3>🏔 Terrain Sets</h3><span class="toggle" style="font-size:10px;color:var(--text-dim)">▼</span>
+      </div>
+      <div class="panel-body" id="body-tsets" style="max-height:320px">
+        <div style="display:flex;gap:4px;margin-bottom:6px">
+          <button class="green" onclick="addTSet()" style="font-size:10px;padding:2px 7px;flex:1">＋ Add Set</button>
+          <button class="danger" onclick="removeTSet()" style="font-size:10px;padding:2px 7px" id="btn-rm-tset" disabled>✕</button>
+        </div>
+        <div id="tsets-list"></div>
+      </div>
+    </div>
+
+    <!-- Nine-Tile Brushes -->
+    <div class="panel-section" id="sec-ntbrushes">
+      <div class="panel-header" onclick="toggleSec('ntbrushes')">
+        <h3>🖼 9-Tile Brushes</h3><span class="toggle" style="font-size:10px;color:var(--text-dim)">▼</span>
+      </div>
+      <div class="panel-body" id="body-ntbrushes" style="max-height:200px">
+        <div style="display:flex;gap:4px;margin-bottom:6px">
+          <button class="purple" onclick="openNtbEditor(-1)" style="font-size:10px;padding:2px 7px;flex:1">＋ New Brush</button>
+        </div>
+        <div id="ntb-list-panel"></div>
+      </div>
+    </div>
+
+    <!-- Tileset Palette -->
+    <div class="panel-section" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+      <div class="panel-header">
+        <h3>🎨 Tileset</h3>
+        <button onclick="loadCustomSheet()" style="font-size:10px;padding:2px 8px">📂 Add</button>
+      </div>
+      <div class="cat-btns" id="cat-btns"></div>
+      <div class="panel-body" id="tileset-area" style="flex:1;overflow:auto"></div>
+    </div>
+
+  </div>
+
+  <!-- CANVAS -->
+  <div id="canvas-wrap">
+    <canvas id="map-canvas"></canvas>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="right-panel">
+
+    <div class="rp-section">
+      <h3>Map Info</h3>
+      <div class="prop-row"><label>Size:</label><span id="p-size">—</span></div>
+      <div class="prop-row"><label>Zoom:</label><span id="p-zoom">100%</span></div>
+    </div>
+
+    <div class="rp-section">
+      <h3>Cursor</h3>
+      <div class="prop-row"><label>Position:</label><span id="p-pos">—</span></div>
+      <div class="prop-row"><label>Tile:</label><span id="p-tile">—</span></div>
+    </div>
+
+    <!-- Terrain Set Props (when in edit mode) -->
+    <div class="rp-section" id="tset-props" style="display:none">
+      <h3>Set Properties</h3>
+      <div class="prop-row"><label>Name:</label><input type="text" id="ts-name" onchange="onTSPropChange()"></div>
+      <div class="prop-row"><label>Type:</label><select id="ts-type" onchange="onTSPropChange()"><option value="corner">Corner</option><option value="edge">Edge</option><option value="mixed">Mixed</option></select></div>
+      <div style="margin:6px 0 4px;font-size:10px;color:var(--text-dim);text-transform:uppercase;font-weight:600">Selected Terrain</div>
+      <div class="prop-row"><label>Name:</label><input type="text" id="tst-name" onchange="onTSTChange()"></div>
+      <div class="prop-row"><label>Color:</label><input type="color" id="tst-color" onchange="onTSTChange()"></div>
+      <div class="prop-row"><label>Probability:</label><input type="number" id="tst-prob" min="0" step="0.01" value="1" onchange="onTSTChange()"></div>
+    </div>
+
+    <!-- Patterns View -->
+    <div class="rp-section" id="patterns-section" style="display:none;flex:1;overflow:hidden;flex-direction:column">
+      <h3>Patterns <span id="pat-count" style="font-weight:400;color:var(--text-dim)"></span></h3>
+      <div id="patterns-view" style="flex:1;overflow:auto"></div>
+    </div>
+
+    <!-- Stamp preview (when painting) -->
+    <div class="rp-section" id="stamp-section">
+      <h3>Active Stamp</h3>
+      <div id="stamp-preview" style="display:flex;align-items:center;gap:8px">
+        <canvas id="stamp-canvas" width="64" height="64" style="border:1px solid var(--border2);image-rendering:pixelated;max-width:96px;max-height:96px"></canvas>
+        <span id="stamp-info" style="font-size:11px;color:var(--text-dim)">No stamp</span>
+      </div>
+    </div>
+
+    <!-- Map Usage Assignment -->
+    <div class="rp-section" id="usage-section" style="overflow-y:auto">
+      <h3>Map Usage</h3>
+      <p style="font-size:10px;color:var(--text-dim);margin:0 0 8px;line-height:1.4">Select which world tile types and biomes this terrain map is designed for.</p>
+      <div class="usage-group">
+        <div class="usage-group-label">Settlement Types</div>
+        <div class="usage-checks" id="usage-settlements"></div>
+      </div>
+      <div class="usage-group">
+        <div class="usage-group-label">Landmarks</div>
+        <div class="usage-checks" id="usage-landmarks"></div>
+      </div>
+      <div class="usage-group">
+        <div class="usage-group-label">Biomes / Terrain</div>
+        <div class="usage-checks" id="usage-biomes"></div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</div>
+
+<!-- Brush Creator Modal -->
+<div id="brushCreatorModal" style="display:none">
+  <div class="bc-header">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:15px;font-weight:700;color:var(--gold)">🎨 Brush Creator</span>
+      <select id="bc-tset-sel" onchange="bcOnSetChange()" style="font-size:12px"></select>
+      <span style="font-size:10px;color:var(--text-dim)">Type:</span>
+      <select id="bc-type-sel" onchange="bcOnTypeChange()" style="font-size:12px">
+        <option value="corner">Corner</option>
+        <option value="edge">Edge</option>
+        <option value="mixed">Mixed</option>
+      </select>
+      <span id="bc-assign-hint" style="font-size:11px;color:var(--blue);font-style:italic;min-width:220px">← Click a pattern slot, then click a tile on the right →</span>
+    </div>
+    <button onclick="closeBrushCreator()" style="font-size:18px;padding:2px 10px;flex-shrink:0">✕</button>
+  </div>
+  <div class="bc-body">
+    <div class="bc-left" id="bc-pattern-container"></div>
+    <div class="bc-right">
+      <div style="padding:7px 8px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-bottom:4px">Category</div>
+        <div id="bc-cat-btns" style="display:flex;flex-wrap:wrap;gap:3px"></div>
+      </div>
+      <div style="padding:5px 8px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-bottom:4px">Sheet</div>
+        <div id="bc-sheet-list" style="display:flex;flex-wrap:wrap;gap:3px"></div>
+      </div>
+      <div style="flex:1;overflow:auto;padding:6px">
+        <canvas id="bc-tileset-canvas" style="image-rendering:pixelated;cursor:crosshair;display:block"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Nine-Tile Brush Editor Modal -->
+<div id="ntbModal" style="display:none">
+  <div class="ntb-header">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:15px;font-weight:700;color:var(--purple)">🖼 Nine-Tile Brush Editor</span>
+      <input type="text" id="ntb-name" value="New Brush" placeholder="Brush name..." style="width:160px">
+      <button class="green" onclick="ntbSave()">💾 Save Brush</button>
+      <button class="danger" onclick="ntbDelete()" id="ntb-del-btn" disabled>🗑 Delete</button>
+      <span id="ntb-hint" style="font-size:11px;color:var(--blue);font-style:italic">Drag 3×3 for outer tiles, 2×2 for inside corners — or click a slot then click a tile</span>
+    </div>
+    <button onclick="closeNtbEditor()" style="font-size:18px;padding:2px 10px;flex-shrink:0">✕</button>
+  </div>
+  <div class="ntb-body">
+    <div class="ntb-left">
+      <div>
+        <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-bottom:6px">Tile Layout</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-bottom:8px;line-height:1.4;padding:6px 8px;background:var(--panel2);border-radius:4px;border:1px solid var(--border)">
+          <b style="color:var(--text)">How it works:</b> Pick 9 outer tiles + 4 inside corners.<br>
+          <b>Center</b> fills interior areas. <b>Edge</b> tiles appear when a neighbor is not the same brush group.<br>
+          <b>Corner</b> tiles appear at outermost diagonal boundaries.<br>
+          <b>Inside corners</b> handle concave (inward) diagonal boundaries.<br>
+          <b style="color:var(--green)">Quick:</b> Drag a 3×3 on the tileset for outer tiles, or 2×2 for inside corners.<br>
+          Or click a slot below, then click a tile from the tileset. Right-click a slot to clear it.<br>
+          <b>Seasons:</b> Use the season tabs to assign different tiles per season.
+        </div>
+        <div class="ntb-season-tabs" id="ntb-season-tabs"></div>
+        <div class="ntb-copy-row" id="ntb-copy-row"></div>
+        <div class="ntb-grid" id="ntb-grid"></div>
+        <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-top:8px;margin-bottom:2px">Inside Corners <span style="font-weight:400;text-transform:none">(optional)</span></div>
+        <div class="ntb-ic-grid" id="ntb-ic-grid"></div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-bottom:6px">Saved Brushes</div>
+        <div id="ntb-brush-list" style="display:flex;flex-direction:column;gap:4px"></div>
+      </div>
+    </div>
+    <div class="ntb-right">
+      <div style="padding:7px 8px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-bottom:4px">Category</div>
+        <div id="ntb-cat-btns" style="display:flex;flex-wrap:wrap;gap:3px"></div>
+      </div>
+      <div style="padding:5px 8px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-bottom:4px">Sheet</div>
+        <div id="ntb-sheet-list" style="display:flex;flex-wrap:wrap;gap:3px"></div>
+      </div>
+      <div style="flex:1;overflow:auto;padding:6px">
+        <canvas id="ntb-tileset-canvas" style="image-rendering:pixelated;cursor:crosshair;display:block"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ╔═══════════════════════════════════════════════════════════════════╗
+// ║  LPC TERRAIN EDITOR — Tiled-compatible Terrain Brush System     ║
+// ║  Supports Corner, Edge, Mixed terrain sets on square grids      ║
+// ╚═══════════════════════════════════════════════════════════════════╝
+
+const TILE = 32;
+const imgCache = new Map();
+
+// ═══════════════════════════════════════════════
+//  TILESET PALETTE DATA
+// ═══════════════════════════════════════════════
+const PALETTE_DATA = {
+    'Terrain': [
+        'assets/lpc/Terrain/terrain_spring.png',
+        'assets/lpc/Terrain/terrain_summer.png',
+        'assets/lpc/Terrain/terrain_autumn.png',
+        'assets/lpc/Terrain/terrain_winter.png',
+    ],
+    'Cliffs': [
+        'assets/lpc/Terrain/cliff_spring.png',
+        'assets/lpc/Terrain/cliff_summer.png',
+        'assets/lpc/Terrain/cliff_autumn.png',
+        'assets/lpc/Terrain/cliff_winter.png',
+        'assets/lpc/Terrain/cliff_winter_ice.png',
+    ],
+    'Rocks': [
+        'assets/lpc/Terrain/Rocks, Cliffs.png',
+        'assets/lpc/Terrain/Rocks, Grasslands.png',
+        'assets/lpc/Terrain/ice-shallows.png',
+    ],
+    'Vegetation': [
+        'assets/lpc/Terrain/trees_spring.png',
+        'assets/lpc/Terrain/trees_summer.png',
+        'assets/lpc/Terrain/trees_autumn.png',
+        'assets/lpc/Terrain/trees_winter.png',
+        'assets/lpc/Terrain/plants_spring.png',
+        'assets/lpc/Terrain/plants_summer.png',
+        'assets/lpc/Terrain/plants_autumn.png',
+        'assets/lpc/Terrain/plants_winter.png',
+    ],
+    'Flowers': [
+        'assets/lpc/Terrain/flowers.png',
+        'assets/lpc/Terrain/wildflowers_spring.png',
+        'assets/lpc/Terrain/wildflowers_summer.png',
+        'assets/lpc/Terrain/wildflowers_autumn.png',
+        'assets/lpc/Terrain/wildflowers_winter.png',
+        'assets/lpc/Terrain/mushrooms.png',
+    ],
+    'Soil': [
+        'assets/lpc/Terrain/tilled_soil.png',
+    ],
+    'Floors': [
+        'assets/lpc/Structure/Floor/Wood Floor A.png',
+        'assets/lpc/Structure/Floor/Wood Floor B.png',
+        'assets/lpc/Structure/Floor/Wood Floor C.png',
+        'assets/lpc/Structure/Floor/Wood Floor D.png',
+        'assets/lpc/Structure/Floor/Stone Floor A.png',
+        'assets/lpc/Structure/Floor/Stone Floor B.png',
+        'assets/lpc/Structure/Floor/Stone Floor C.png',
+        'assets/lpc/Structure/Floor/Stone Floor D.png',
+        'assets/lpc/Structure/Floor/Tile Floor.png',
+        'assets/lpc/Structure/Floor/Cobblestone.png',
+        'assets/lpc/Structure/Floor/Paths A.png',
+        'assets/lpc/Structure/Floor/Paths B.png',
+        'assets/lpc/Structure/Floor/Rugs.png',
+    ],
+    'Walls': [
+        'assets/lpc/Structure/Walls/Brick Wall A.png',
+        'assets/lpc/Structure/Walls/Brick Wall B.png',
+        'assets/lpc/Structure/Walls/Brick Wall C.png',
+        'assets/lpc/Structure/Walls/Brick Wall D.png',
+        'assets/lpc/Structure/Walls/Stone Wall A.png',
+        'assets/lpc/Structure/Walls/Stone Wall B.png',
+    ],
+};
+
+// ═══════════════════════════════════════════════
+//  MAP STATE
+// ═══════════════════════════════════════════════
+let mapW = 0, mapH = 0;
+// tiles[r][q] = [ layer0, layer1, layer2 ]  where each is { sheetPath, sx, sy } or null
+let numLayers = 3;
+let layerNames = ['Base', 'Detail', 'Overlay'];
+let activeLayer = 0;
+let layerVisible = [true, true, true];
+let tiles = [];
+
+// Map usage metadata — which world tile types / biomes this map is designed for
+const SETTLEMENT_TYPES = [
+    { id: 'village',  icon: '🏨', name: 'Village' },
+    { id: 'town',     icon: '🏙️', name: 'Town' },
+    { id: 'city',     icon: '🏛',  name: 'City' },
+    { id: 'capital',  icon: '👑', name: 'Capital' },
+    { id: 'outpost',  icon: '🏯', name: 'Outpost' },
+    { id: 'port',     icon: '⚓', name: 'Port' },
+];
+const LANDMARK_TYPES = [
+    { id: 'dungeon',  icon: '⚔️', name: 'Dungeon' },
+    { id: 'ruins',    icon: '🗿', name: 'Ruins' },
+    { id: 'shrine',   icon: '⛩️', name: 'Shrine' },
+    { id: 'temple',   icon: '🕌', name: 'Temple' },
+    { id: 'tower',    icon: '🗼', name: 'Tower' },
+    { id: 'fortress', icon: '🏰', name: 'Fortress' },
+    { id: 'cave',     icon: '🕳️', name: 'Cave' },
+    { id: 'mine',     icon: '⛏️', name: 'Mine' },
+    { id: 'oasis',    icon: '🌴', name: 'Oasis' },
+];
+const BIOME_TYPES = [
+    { id: 'beach',                color: '#e8d5a3', name: 'Beach' },
+    { id: 'snow',                 color: '#ffffff', name: 'Snow' },
+    { id: 'tundra',               color: '#bce4ce', name: 'Tundra' },
+    { id: 'grassland',            color: '#88aa55', name: 'Grassland' },
+    { id: 'plains',               color: '#7daa4e', name: 'Plains' },
+    { id: 'woodland',             color: '#668844', name: 'Woodland' },
+    { id: 'boreal_forest',        color: '#446633', name: 'Boreal Forest' },
+    { id: 'seasonal_forest',      color: '#557733', name: 'Seasonal Forest' },
+    { id: 'temperate_rainforest', color: '#335522', name: 'Temperate Rainforest' },
+    { id: 'tropical_rainforest',  color: '#224411', name: 'Tropical Rainforest' },
+    { id: 'savanna',              color: '#ddbb66', name: 'Savanna' },
+    { id: 'desert',               color: '#d4a843', name: 'Desert' },
+    { id: 'hills',                color: '#8a7a5a', name: 'Hills' },
+    { id: 'mountain',             color: '#808080', name: 'Mountain' },
+    { id: 'swamp',                color: '#4a6a3a', name: 'Swamp' },
+    { id: 'highlands',            color: '#6d7a5b', name: 'Highlands' },
+    { id: 'island',               color: '#e8d5a3', name: 'Island' },
+];
+let mapUsage = { settlements: [], landmarks: [], biomes: [] };
+
+let activeTool = 'paint';
+let brushSize = 1;
+let terrainFillMode = false;
+let tsetEditMode = false;
+
+// Stamp (selected from palette)
+let activeStamp = null; // { sheetPath, tiles:[{lc,lr,sx,sy}], cols, rows }
+let _customObjects = [];  // Custom objects from sprite editor via parent
+let placedObjects = {};   // "q,r" → { defId, name, tiles, bounds } — objects placed on map
+
+// Nine-Tile Brush System
+let nineTileBrushes = [];       // array of brush definitions
+let activeNineBrush = null;     // index into nineTileBrushes, or null
+let previewSeason = 'spring';   // current season for tile preview
+let brushGroupMap = [];         // parallel to tiles: brushGroupMap[r][q] = brushId or null
+
+// Camera
+let zoom = 2, panX = 20, panY = 20;
+let isPanning = false, panStart = null;
+let isDragging = false;
+let rectStart = null; // for shape fill
+
+// Hovered tile
+let hoverQ = -1, hoverR = -1;
+
+// Render scheduling
+let _renderPending = false;
+function scheduleRender() {
+    if (_renderPending) return;
+    _renderPending = true;
+    requestAnimationFrame(() => { _renderPending = false; render(); });
+}
+
+// Undo
+let undoStack = [], redoStack = [];
+const MAX_UNDO = 50;
+
+// ═══════════════════════════════════════════════
+//  TERRAIN SETS
+// ═══════════════════════════════════════════════
+/*
+ * Terrain Set — Tiled-style terrain auto-tiling.
+ *
+ * For a SQUARE grid with Corner sets:
+ *   Each tile has 4 corners (TL, TR, BR, BL).
+ *   A complete 2-terrain set needs 2^4 = 16 tiles.
+ *   Pattern key = "TL,TR,BR,BL" where each is a terrain index.
+ *
+ * For Edge sets:
+ *   Each tile has 4 edges (Top, Right, Bottom, Left).
+ *   A complete 2-terrain set needs 2^4 = 16 tiles.
+ *   Pattern key = "T,R,B,L" where each is a terrain index.
+ *
+ * For Mixed sets:
+ *   8 slots: 4 corners + 4 edges = 2^8 = 256 patterns for 2 terrains.
+ *   But typically a "blob" set of 47 + 1 (inner) tiles is used.
+ *
+ * tileAssignments: { patternKey: { sheetPath, sx, sy, variants:[...] } }
+ */
+
+let terrainSets = [];
+let selTSetIdx = -1;
+let selTerrainIdx = -1;
+
+function createDefaultSets() {
+    terrainSets = [
+        {
+            name: 'LPC Ground',
+            type: 'corner',
+            terrains: [
+                { name: 'Grass',  color: '#5c9a2e', probability: 1.0 },
+                { name: 'Dirt',   color: '#8b6914', probability: 1.0 },
+                { name: 'Sand',   color: '#d4b96e', probability: 0.8 },
+                { name: 'Water',  color: '#2175aa', probability: 1.0 },
+            ],
+            tileAssignments: {} // patternKey → { sheetPath, sx, sy }
+        },
+        {
+            name: 'Paths',
+            type: 'edge',
+            terrains: [
+                { name: 'Ground', color: '#5c9a2e', probability: 1.0 },
+                { name: 'Path',   color: '#a08050', probability: 1.0 },
+            ],
+            tileAssignments: {}
+        },
+    ];
+}
+createDefaultSets();
+
+// ═══════════════════════════════════════════════
+//  MAP CREATION
+// ═══════════════════════════════════════════════
+function createMap(w, h) {
+    mapW = w; mapH = h;
+    tiles = [];
+    brushGroupMap = [];
+    placedObjects = {};
+    for (let r = 0; r < h; r++) {
+        const row = [];
+        for (let q = 0; q < w; q++) row.push(new Array(numLayers).fill(null));
+        tiles.push(row);
+        brushGroupMap.push(new Array(w).fill(null));
+    }
+    document.getElementById('p-size').textContent = `${w}×${h}`;
+    updateStatus();
+}
+
+function getTileAt(q, r) {
+    if (q < 0 || q >= mapW || r < 0 || r >= mapH) return null;
+    return tiles[r][q][activeLayer];
+}
+
+function setTileAt(q, r, cell) {
+    if (q < 0 || q >= mapW || r < 0 || r >= mapH) return;
+    tiles[r][q][activeLayer] = cell;
+}
+
+/** Get the full layer stack at (q,r) for rendering */
+function getStack(q, r) {
+    if (q < 0 || q >= mapW || r < 0 || r >= mapH) return null;
+    return tiles[r][q];
+}
+
+/** Get tile at a specific layer (used by terrain brush pattern matching) */
+function getTileAtLayer(q, r, layer) {
+    if (q < 0 || q >= mapW || r < 0 || r >= mapH) return null;
+    return tiles[r][q][layer];
+}
+
+// ═══════════════════════════════════════════════
+//  PATTERN MATCHING (Tiled terrain algorithm)
+// ═══════════════════════════════════════════════
+
+/**
+ * For a corner set on a square grid, a tile at (q,r) has 4 corners:
+ *   TL, TR, BR, BL
+ * Each corner is shared by 4 tiles. The corner TL of (q,r) is:
+ *   - BR of (q-1,r-1), TR of (q,r-1), BL of (q-1,r)... etc.
+ *
+ * We look up which terrain the existing tiles "want" at each corner
+ * and then find the best matching tile from the terrain set's tileAssignments.
+ */
+
+// Direction offsets for 4-connected neighbors (square grid)
+const DIR4 = [
+    { dq: 0, dr: -1 }, // Top
+    { dq: 1, dr:  0 }, // Right
+    { dq: 0, dr:  1 }, // Bottom
+    { dq:-1, dr:  0 }, // Left
+];
+
+// Corner indices: 0=TL, 1=TR, 2=BR, 3=BL
+// Each corner is shared by 4 tiles:
+//   TL corner of (q,r) = BR of (q-1,r-1), BL of (q,r-1), TR of (q-1,r)
+//   TR corner of (q,r) = BL of (q+1,r-1), BR of (q,r-1), TL of (q+1,r)
+//   BR corner of (q,r) = TL of (q+1,r+1), TR of (q,r+1), BL of (q+1,r)
+//   BL corner of (q,r) = TR of (q-1,r+1), TL of (q,r+1), BR of (q-1,r)
+const CORNER_NEIGHBORS = [
+    // For corner 0 (TL): which other tiles share this corner, and at what corner index?
+    [{ dq:-1, dr:-1, ci:2 }, { dq: 0, dr:-1, ci:3 }, { dq:-1, dr: 0, ci:1 }],
+    // Corner 1 (TR):
+    [{ dq: 1, dr:-1, ci:3 }, { dq: 0, dr:-1, ci:2 }, { dq: 1, dr: 0, ci:0 }],
+    // Corner 2 (BR):
+    [{ dq: 1, dr: 1, ci:0 }, { dq: 0, dr: 1, ci:1 }, { dq: 1, dr: 0, ci:3 }],
+    // Corner 3 (BL):
+    [{ dq:-1, dr: 1, ci:1 }, { dq: 0, dr: 1, ci:0 }, { dq:-1, dr: 0, ci:2 }],
+];
+
+// Edge indices: 0=Top, 1=Right, 2=Bottom, 3=Left
+// The opposite edge on the neighbor:
+const EDGE_OPPOSITES = [2, 3, 0, 1]; // top↔bottom, right↔left
+
+/**
+ * Get the corner pattern key for a tile at (q,r) given a terrain set.
+ * Returns something like "0,1,1,0" (terrain indices at TL,TR,BR,BL).
+ * Returns null if we can't determine (no assignments nearby).
+ */
+function getCornerPattern(q, r, tset) {
+    const pattern = [null, null, null, null];
+
+    for (let ci = 0; ci < 4; ci++) {
+        // Check what terrain the neighboring tiles expect at this corner
+        for (const nb of CORNER_NEIGHBORS[ci]) {
+            const nq = q + nb.dq, nr = r + nb.dr;
+            const nt = getTileAt(nq, nr);
+            if (!nt) continue;
+            // Look up which pattern this neighbor tile was assigned to
+            const nbPattern = lookupTilePattern(nq, nr, tset);
+            if (nbPattern) {
+                pattern[ci] = nbPattern[nb.ci];
+            }
+        }
+    }
+    return pattern;
+}
+
+/**
+ * Get the edge pattern key for a tile at (q,r).
+ * Returns [T,R,B,L] terrain indices.
+ */
+function getEdgePattern(q, r, tset) {
+    const pattern = [null, null, null, null];
+
+    for (let ei = 0; ei < 4; ei++) {
+        const d = DIR4[ei];
+        const nq = q + d.dq, nr = r + d.dr;
+        const nt = getTileAt(nq, nr);
+        if (!nt) continue;
+        const nbPattern = lookupEdgePattern(nq, nr, tset);
+        if (nbPattern) {
+            pattern[ei] = nbPattern[EDGE_OPPOSITES[ei]];
+        }
+    }
+    return pattern;
+}
+
+/**
+ * Look up what corner pattern a tile at (q,r) has in the given terrain set.
+ * Searches tileAssignments for a match.
+ */
+function lookupTilePattern(q, r, tset) {
+    const tile = getTileAt(q, r);
+    if (!tile) return null;
+
+    for (const [key, assignment] of Object.entries(tset.tileAssignments)) {
+        if (assignment.sheetPath === tile.sheetPath &&
+            assignment.sx === tile.sx && assignment.sy === tile.sy) {
+            return key.split(',').map(Number);
+        }
+    }
+    return null;
+}
+
+function lookupEdgePattern(q, r, tset) {
+    return lookupTilePattern(q, r, tset);
+}
+
+/**
+ * TERRAIN BRUSH — The core auto-tiling algorithm.
+ *
+ * When the user paints terrain index `ti` from set `tset` at tile (q,r):
+ * 1. Set all corners/edges of the target tile to `ti`.
+ * 2. For each neighbor sharing a corner/edge, update the shared corner/edge to `ti`.
+ * 3. Look up the best tile from tileAssignments for each affected tile.
+ * 4. Place the tiles on the map.
+ */
+function terrainBrushPaint(q, r, terrainIdx, tset) {
+    const affected = new Set();
+
+    const addAffected = (aq, ar) => {
+        if (aq >= 0 && aq < mapW && ar >= 0 && ar < mapH) {
+            affected.add(`${aq},${ar}`);
+        }
+    };
+
+    if (tset.type === 'corner' || tset.type === 'mixed') {
+        // Set all 4 corners of this tile to the selected terrain
+        addAffected(q, r);
+        // Also affect neighbors that share corners
+        for (let ci = 0; ci < 4; ci++) {
+            for (const nb of CORNER_NEIGHBORS[ci]) {
+                addAffected(q + nb.dq, r + nb.dr);
+            }
+        }
+    }
+
+    if (tset.type === 'edge' || tset.type === 'mixed') {
+        addAffected(q, r);
+        for (const d of DIR4) {
+            addAffected(q + d.dq, r + d.dr);
+        }
+    }
+
+    // For each affected tile, compute desired pattern and find best match
+    for (const key of affected) {
+        const [aq, ar] = key.split(',').map(Number);
+
+        let desiredPattern;
+        if (tset.type === 'corner') {
+            desiredPattern = computeDesiredCornerPattern(aq, ar, q, r, terrainIdx, tset);
+        } else if (tset.type === 'edge') {
+            desiredPattern = computeDesiredEdgePattern(aq, ar, q, r, terrainIdx, tset);
+        } else {
+            // Mixed: compute both, combine as corners+edges = 8 slots
+            const cp = computeDesiredCornerPattern(aq, ar, q, r, terrainIdx, tset);
+            const ep = computeDesiredEdgePattern(aq, ar, q, r, terrainIdx, tset);
+            desiredPattern = [...cp, ...ep];
+        }
+
+        const patKey = desiredPattern.join(',');
+        const assignment = tset.tileAssignments[patKey];
+        if (assignment) {
+            // Pick variant based on probability
+            const variants = assignment.variants || [assignment];
+            const pick = pickWeightedVariant(variants);
+            setTileAt(aq, ar, { sheetPath: pick.sheetPath, sx: pick.sx, sy: pick.sy });
+        }
+        // If no assignment found, we leave the tile as-is (incomplete set)
+    }
+}
+
+/**
+ * Compute what corner pattern a tile at (aq,ar) should have,
+ * given that the user is painting terrain `ti` at (pq,pr).
+ */
+function computeDesiredCornerPattern(aq, ar, pq, pr, ti, tset) {
+    const pattern = [null, null, null, null];
+
+    // Start with whatever corners are currently implied
+    const existing = getCornerPattern(aq, ar, tset);
+    for (let i = 0; i < 4; i++) {
+        if (existing[i] !== null) pattern[i] = existing[i];
+    }
+
+    // If this IS the painted tile, set all corners to the painted terrain
+    if (aq === pq && ar === pr) {
+        for (let i = 0; i < 4; i++) pattern[i] = ti;
+    } else {
+        // This tile shares ≥1 corner with the painted tile.
+        // Figure out which corners are shared and set those to ti.
+        for (let ci = 0; ci < 4; ci++) {
+            for (const nb of CORNER_NEIGHBORS[ci]) {
+                if (aq + nb.dq === pq && ar + nb.dr === pr) {
+                    pattern[ci] = ti;
+                }
+            }
+        }
+    }
+
+    // Fill any remaining nulls with default (terrain 0)
+    for (let i = 0; i < 4; i++) {
+        if (pattern[i] === null) pattern[i] = 0;
+    }
+    return pattern;
+}
+
+function computeDesiredEdgePattern(aq, ar, pq, pr, ti, tset) {
+    const pattern = [null, null, null, null];
+
+    const existing = getEdgePattern(aq, ar, tset);
+    for (let i = 0; i < 4; i++) {
+        if (existing[i] !== null) pattern[i] = existing[i];
+    }
+
+    if (aq === pq && ar === pr) {
+        for (let i = 0; i < 4; i++) pattern[i] = ti;
+    } else {
+        // Find which edge is shared
+        for (let ei = 0; ei < 4; ei++) {
+            const d = DIR4[ei];
+            if (aq + d.dq === pq && ar + d.dr === pr) {
+                pattern[ei] = ti;
+            }
+        }
+    }
+
+    for (let i = 0; i < 4; i++) {
+        if (pattern[i] === null) pattern[i] = 0;
+    }
+    return pattern;
+}
+
+function pickWeightedVariant(variants) {
+    if (variants.length === 1) return variants[0];
+    let total = 0;
+    for (const v of variants) total += (v.probability || 1);
+    let r = Math.random() * total;
+    for (const v of variants) {
+        r -= (v.probability || 1);
+        if (r <= 0) return v;
+    }
+    return variants[0];
+}
+
+
+// ═══════════════════════════════════════════════
+//  STAMP BRUSH (direct tile placement)
+// ═══════════════════════════════════════════════
+function stampPaint(q, r) {
+    if (!activeStamp) return;
+    if (activeStamp._isMultiSheet && activeStamp._srcTiles) {
+        // Custom object: place on object layer, don't overwrite tiles
+        const key = `${q},${r}`;
+        // Remove any existing object at this anchor
+        delete placedObjects[key];
+        placedObjects[key] = {
+            defId: activeStamp._objDefId || null,
+            name: activeStamp._objName || 'Object',
+            tiles: activeStamp._srcTiles.map(t => ({ ...t })),
+            bounds: activeStamp._objBounds || null,
+        };
+    } else {
+        for (const t of activeStamp.tiles) {
+            const tq = q + t.lc, tr = r + t.lr;
+            setTileAt(tq, tr, { sheetPath: activeStamp.sheetPath, sx: t.sx, sy: t.sy });
+        }
+    }
+}
+
+/** Erase any placed object whose footprint covers tile (q,r) */
+function _eraseObjectTouching(q, r) {
+    for (const [key, obj] of Object.entries(placedObjects)) {
+        const [aq, ar] = key.split(',').map(Number);
+        for (const t of (obj.tiles || [])) {
+            if (aq + t.localCol === q && ar + t.localRow === r) {
+                delete placedObjects[key];
+                return;
+            }
+        }
+    }
+}
+
+function erasePaint(q, r) {
+    const hexes = getBrushTiles(q, r);
+    const toUpdate = new Set();
+    for (const h of hexes) {
+        if (h.q < 0 || h.q >= mapW || h.r < 0 || h.r >= mapH) continue;
+        // Erase any placed object whose footprint covers this tile
+        _eraseObjectTouching(h.q, h.r);
+        // Collect neighbors that need recompute
+        if (brushGroupMap[h.r] && brushGroupMap[h.r][h.q]) {
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dq = -1; dq <= 1; dq++) {
+                    const nq = h.q + dq, nr = h.r + dr;
+                    if (nq >= 0 && nq < mapW && nr >= 0 && nr < mapH && brushGroupMap[nr] && brushGroupMap[nr][nq]) {
+                        toUpdate.add(`${nq},${nr}`);
+                    }
+                }
+            }
+        }
+        setTileAt(h.q, h.r, null);
+        if (brushGroupMap[h.r]) brushGroupMap[h.r][h.q] = null;
+    }
+    // Remove erased cells
+    for (const h of hexes) toUpdate.delete(`${h.q},${h.r}`);
+    // Recompute neighbors
+    for (const key of toUpdate) {
+        const [uq, ur] = key.split(',').map(Number);
+        recomputeNineTile(uq, ur, previewSeason);
+    }
+}
+
+function bucketFill(startQ, startR) {
+    if (!activeStamp && !terrainFillMode && activeNineBrush === null) return;
+    const startTile = getTileAt(startQ, startR);
+    const same = (a, b) => {
+        if (!a && !b) return true;
+        if (!a || !b) return false;
+        return a.sheetPath === b.sheetPath && a.sx === b.sx && a.sy === b.sy;
+    };
+
+    const visited = new Set();
+    const queue = [{q: startQ, r: startR}];
+    const ntbFilled = [];
+
+    while (queue.length) {
+        const {q, r} = queue.shift();
+        if (q < 0 || q >= mapW || r < 0 || r >= mapH) continue;
+        const k = `${q},${r}`;
+        if (visited.has(k)) continue;
+        visited.add(k);
+        if (!same(getTileAt(q, r), startTile)) continue;
+
+        if (activeNineBrush !== null && nineTileBrushes[activeNineBrush]) {
+            brushGroupMap[r][q] = nineTileBrushes[activeNineBrush].id;
+            ntbFilled.push({q, r});
+        } else if (terrainFillMode && selTSetIdx >= 0) {
+            const tset = terrainSets[selTSetIdx];
+            const ti = Math.floor(Math.random() * tset.terrains.length);
+            terrainBrushPaint(q, r, ti, tset);
+        } else if (activeStamp) {
+            const sW = activeStamp.cols, sH = activeStamp.rows;
+            const dc = ((q - startQ) % sW + sW) % sW;
+            const dr = ((r - startR) % sH + sH) % sH;
+            const t = activeStamp.tiles[dr * sW + dc];
+            if (t) setTileAt(q, r, { sheetPath: activeStamp.sheetPath, sx: t.sx, sy: t.sy });
+        }
+
+        queue.push({q:q+1,r},{q:q-1,r},{q,r:r+1},{q,r:r-1});
+    }
+    // Recompute nine-tile brush cells after flood fill
+    for (const h of ntbFilled) recomputeNineTile(h.q, h.r, previewSeason);
+}
+
+function shapeFill(q1, r1, q2, r2) {
+    const rMin = Math.max(0, Math.min(r1, r2)), rMax = Math.min(mapH - 1, Math.max(r1, r2));
+    const qMin = Math.max(0, Math.min(q1, q2)), qMax = Math.min(mapW - 1, Math.max(q1, q2));
+    const ntbFilled = [];
+    for (let r = rMin; r <= rMax; r++) {
+        for (let q = qMin; q <= qMax; q++) {
+            if (activeNineBrush !== null && nineTileBrushes[activeNineBrush]) {
+                brushGroupMap[r][q] = nineTileBrushes[activeNineBrush].id;
+                ntbFilled.push({q, r});
+            } else if (terrainFillMode && selTSetIdx >= 0) {
+                const tset = terrainSets[selTSetIdx];
+                const ti = Math.floor(Math.random() * tset.terrains.length);
+                terrainBrushPaint(q, r, ti, tset);
+            } else if (activeStamp) {
+                const sW = activeStamp.cols, sH = activeStamp.rows;
+                const dc = ((q - qMin) % sW + sW) % sW;
+                const dr = ((r - rMin) % sH + sH) % sH;
+                const t = activeStamp.tiles[dr * sW + dc];
+                if (t) setTileAt(q, r, { sheetPath: activeStamp.sheetPath, sx: t.sx, sy: t.sy });
+            }
+        }
+    }
+    for (const h of ntbFilled) recomputeNineTile(h.q, h.r, previewSeason);
+}
+
+function getBrushTiles(cq, cr) {
+    const result = [];
+    const rad = brushSize - 1;
+    for (let dr = -rad; dr <= rad; dr++) {
+        for (let dq = -rad; dq <= rad; dq++) {
+            result.push({q: cq + dq, r: cr + dr});
+        }
+    }
+    return result;
+}
+
+
+// ═══════════════════════════════════════════════
+//  TERRAIN SET EDITING (marking tiles)
+// ═══════════════════════════════════════════════
+/**
+ * In set-edit mode, clicking on a palette tile assigns it to a pattern
+ * in the selected terrain set.
+ *
+ * For "corner" sets with 2 terrains, the LPC terrain sheets follow
+ * a very specific auto-tile layout. We provide an auto-detect feature
+ * that maps the standard LPC terrain spritesheet positions to the
+ * 16-tile corner patterns.
+ */
+
+/**
+ * LPC terrain_*.png layout (512×832, 16×26 tiles at 32px):
+ * The standard LPC terrain tileset uses a specific autotile layout.
+ * Rows 0-2: Grass→Dirt transition (inner corners, edges, outer corners)
+ * etc.
+ *
+ * For manual assignment: the user selects a terrain from the set,
+ * then clicks tiles on the palette to assign them patterns.
+ * Or uses auto-detect for known LPC layouts.
+ */
+
+function autoDetectLPCCornerSet(sheetPath) {
+    // LPC terrain sheets encode a standard 3×3 autotile pattern.
+    // The first terrain transition (rows 0-2, cols 0-6) follows:
+    //
+    // Standard 16-tile corner arrangement for terrain A (0) → terrain B (1):
+    // The tiles are arranged in a specific grid in the LPC spritesheet.
+    //
+    // We define the mapping from (col, row) in the sheet to corner pattern:
+    // Pattern: [TL, TR, BR, BL] where 0=terrain A, 1=terrain B
+    //
+    // LPC Standard Layout (first transition block, cols 0-6, rows 0-7):
+    const mappings = [];
+
+    // Row 0-2: Grass to Dirt transition
+    // Outer corners (grass surrounded by dirt at one corner)
+    // Inner tile (all 4 corners same terrain)
+    mappings.push({ col: 3, row: 3, pattern: [0,0,0,0] }); // All terrain 0 (e.g. full grass)
+    mappings.push({ col: 3, row: 6, pattern: [1,1,1,1] }); // All terrain 1 (e.g. full dirt)
+
+    // Edges (2 corners one terrain, 2 the other, on one side)
+    mappings.push({ col: 3, row: 0, pattern: [1,1,0,0] }); // Top edge is terrain 1
+    mappings.push({ col: 5, row: 1, pattern: [0,1,1,0] }); // Right edge is terrain 1
+    mappings.push({ col: 3, row: 2, pattern: [0,0,1,1] }); // Bottom edge is terrain 1
+    mappings.push({ col: 0, row: 1, pattern: [1,0,0,1] }); // Left edge is terrain 1
+
+    // Outer corners (1 corner is terrain 1)
+    mappings.push({ col: 0, row: 0, pattern: [1,0,0,0] }); // TL corner terrain 1
+    mappings.push({ col: 5, row: 0, pattern: [0,1,0,0] }); // TR corner terrain 1
+    mappings.push({ col: 5, row: 2, pattern: [0,0,1,0] }); // BR corner terrain 1
+    mappings.push({ col: 0, row: 2, pattern: [0,0,0,1] }); // BL corner terrain 1
+
+    // Inner corners (3 corners are terrain 1)
+    mappings.push({ col: 0, row: 3, pattern: [0,1,1,1] }); // TL corner terrain 0 (rest 1)
+    mappings.push({ col: 1, row: 3, pattern: [1,0,1,1] }); // TR corner terrain 0
+    mappings.push({ col: 1, row: 4, pattern: [1,1,0,1] }); // BR corner terrain 0
+    mappings.push({ col: 0, row: 4, pattern: [1,1,1,0] }); // BL corner terrain 0
+
+    // Diagonals (2 opposite corners same terrain)
+    mappings.push({ col: 3, row: 1, pattern: [1,0,1,0] }); // TL+BR terrain 1
+    mappings.push({ col: 4, row: 1, pattern: [0,1,0,1] }); // TR+BL terrain 1
+
+    return mappings.map(m => ({
+        ...m,
+        sheetPath,
+        sx: m.col * TILE,
+        sy: m.row * TILE,
+        patternKey: m.pattern.join(',')
+    }));
+}
+
+function autoAssignLPCSet() {
+    if (selTSetIdx < 0) return;
+    const tset = terrainSets[selTSetIdx];
+    if (tset.type !== 'corner') {
+        toast('Auto-detect only works for Corner sets', 'err');
+        return;
+    }
+
+    // Use the first terrain sheet in the palette
+    const terrainSheets = PALETTE_DATA['Terrain'];
+    if (!terrainSheets || terrainSheets.length === 0) {
+        toast('No terrain sheets found', 'err');
+        return;
+    }
+
+    const sheetPath = terrainSheets[0]; // terrain_spring.png
+    const mappings = autoDetectLPCCornerSet(sheetPath);
+
+    for (const m of mappings) {
+        tset.tileAssignments[m.patternKey] = {
+            sheetPath: m.sheetPath,
+            sx: m.sx,
+            sy: m.sy
+        };
+    }
+
+    toast(`Auto-assigned ${mappings.length} patterns`, 'ok');
+    buildPatternsView();
+}
+
+
+// ═══════════════════════════════════════════════
+//  UNDO / REDO
+// ═══════════════════════════════════════════════
+function snapshot() {
+    return JSON.stringify({ t: tiles, b: brushGroupMap, nl: numLayers, ln: layerNames.slice(), lv: layerVisible.slice(), al: activeLayer, po: placedObjects });
+}
+
+function pushUndo() {
+    undoStack.push(snapshot());
+    if (undoStack.length > MAX_UNDO) undoStack.shift();
+    redoStack = [];
+}
+
+function restoreSnapshot(data) {
+    if (data.t) { tiles = data.t; brushGroupMap = data.b || []; }
+    else { tiles = data; }
+    placedObjects = data.po || {};
+    if (data.nl != null) {
+        numLayers = data.nl;
+        layerNames = data.ln || Array.from({length: numLayers}, (_, i) => 'Layer ' + (i+1));
+        layerVisible = data.lv || new Array(numLayers).fill(true);
+        activeLayer = Math.min(data.al || 0, numLayers - 1);
+    }
+    buildLayerUI();
+    updateStatus();
+    render();
+}
+
+function undo() {
+    if (!undoStack.length) return;
+    redoStack.push(snapshot());
+    restoreSnapshot(JSON.parse(undoStack.pop()));
+    toast('Undo', 'ok');
+}
+
+function redo() {
+    if (!redoStack.length) return;
+    undoStack.push(snapshot());
+    restoreSnapshot(JSON.parse(redoStack.pop()));
+    toast('Redo', 'ok');
+}
+
+
+// ═══════════════════════════════════════════════
+//  LAYERS
+// ═══════════════════════════════════════════════
+function setLayer(n) {
+    if (n < 0 || n >= numLayers) return;
+    activeLayer = n;
+    buildLayerUI();
+    updateStatus();
+    render();
+}
+
+function toggleLayerVis(n) {
+    layerVisible[n] = !layerVisible[n];
+    buildLayerUI();
+    render();
+}
+
+function updateStatus() {
+    const st = document.getElementById('status');
+    if (st) st.textContent = 'Layer: ' + layerNames[activeLayer] + '  |  ' + mapW + '×' + mapH;
+}
+
+// ═══════════════════════════════════════════════
+//  MAP USAGE ASSIGNMENT
+// ═══════════════════════════════════════════════
+function buildUsageUI() {
+    buildUsageGroup('usage-settlements', SETTLEMENT_TYPES, mapUsage.settlements, 'settlements', 'icon');
+    buildUsageGroup('usage-landmarks',   LANDMARK_TYPES,   mapUsage.landmarks,   'landmarks',   'icon');
+    buildUsageGroup('usage-biomes',      BIOME_TYPES,      mapUsage.biomes,      'biomes',      'color');
+}
+
+function buildUsageGroup(containerId, types, selected, key, mode) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+    for (const t of types) {
+        const chip = document.createElement('div');
+        chip.className = 'usage-chip' + (selected.includes(t.id) ? ' on' : '');
+        if (mode === 'color') {
+            const swatch = document.createElement('span');
+            swatch.style.cssText = 'width:8px;height:8px;border-radius:2px;display:inline-block;border:1px solid rgba(255,255,255,.15);background:' + t.color;
+            chip.appendChild(swatch);
+        } else {
+            const icon = document.createElement('span');
+            icon.className = 'chip-icon';
+            icon.textContent = t.icon;
+            chip.appendChild(icon);
+        }
+        const label = document.createElement('span');
+        label.textContent = t.name;
+        chip.appendChild(label);
+        chip.onclick = () => toggleUsage(key, t.id, chip);
+        container.appendChild(chip);
+    }
+}
+
+function toggleUsage(key, id, chip) {
+    const arr = mapUsage[key];
+    const idx = arr.indexOf(id);
+    if (idx >= 0) { arr.splice(idx, 1); chip.classList.remove('on'); }
+    else { arr.push(id); chip.classList.add('on'); }
+}
+
+/** Rebuild the layer toolbar buttons dynamically */
+function buildLayerUI() {
+    const bar = document.getElementById('layer-bar');
+    if (!bar) return;
+    bar.innerHTML = '<span class="tb-lbl">Layer</span>';
+
+    // Layer select buttons
+    for (let i = 0; i < numLayers; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'layer-btn' + (i === activeLayer ? ' active' : '');
+        btn.textContent = layerNames[i] || ('Layer ' + (i + 1));
+        btn.title = (layerNames[i] || 'Layer ' + (i + 1)) + ' — right-click for options';
+        btn.onclick = () => setLayer(i);
+        btn.oncontextmenu = e => { e.preventDefault(); showLayerCtx(e, i); };
+        bar.appendChild(btn);
+    }
+
+    // Visibility toggles
+    const sep = document.createElement('span');
+    sep.style.marginLeft = '4px';
+    bar.appendChild(sep);
+    for (let i = 0; i < numLayers; i++) {
+        const vis = document.createElement('button');
+        vis.className = 'layer-vis' + (layerVisible[i] ? '' : ' hidden-layer');
+        vis.textContent = '👁';
+        vis.title = 'Toggle ' + (layerNames[i] || 'Layer ' + (i + 1)) + ' visibility';
+        vis.onclick = () => toggleLayerVis(i);
+        bar.appendChild(vis);
+    }
+
+    // Add layer button
+    const add = document.createElement('button');
+    add.className = 'layer-add';
+    add.textContent = '+';
+    add.title = 'Add new layer';
+    add.onclick = addLayer;
+    bar.appendChild(add);
+}
+
+let _layerCtx = null;
+function showLayerCtx(e, idx) {
+    closeLayerCtx();
+    const menu = document.createElement('div');
+    menu.className = 'layer-ctx';
+    menu.style.left = e.clientX + 'px';
+    menu.style.top = e.clientY + 'px';
+
+    const rename = document.createElement('div');
+    rename.textContent = '✏️ Rename';
+    rename.onclick = () => { closeLayerCtx(); renameLayer(idx); };
+    menu.appendChild(rename);
+
+    const moveUp = document.createElement('div');
+    moveUp.textContent = '⬆ Move Up';
+    if (idx === 0) { moveUp.style.opacity = '.35'; moveUp.style.pointerEvents = 'none'; }
+    moveUp.onclick = () => { closeLayerCtx(); swapLayers(idx, idx - 1); };
+    menu.appendChild(moveUp);
+
+    const moveDown = document.createElement('div');
+    moveDown.textContent = '⬇ Move Down';
+    if (idx === numLayers - 1) { moveDown.style.opacity = '.35'; moveDown.style.pointerEvents = 'none'; }
+    moveDown.onclick = () => { closeLayerCtx(); swapLayers(idx, idx + 1); };
+    menu.appendChild(moveDown);
+
+    if (numLayers > 1) {
+        const del = document.createElement('div');
+        del.className = 'destructive';
+        del.textContent = '🗑 Delete';
+        del.onclick = () => { closeLayerCtx(); removeLayer(idx); };
+        menu.appendChild(del);
+    }
+
+    document.body.appendChild(menu);
+    _layerCtx = menu;
+    setTimeout(() => document.addEventListener('mousedown', closeLayerCtx, { once: true }), 0);
+}
+
+function closeLayerCtx() {
+    if (_layerCtx) { _layerCtx.remove(); _layerCtx = null; }
+}
+
+async function addLayer() {
+    const name = await modalPrompt('Add Layer', 'Layer name', 'Layer ' + (numLayers + 1));
+    if (name === null) return;
+    numLayers++;
+    layerNames.push(name || 'Layer ' + numLayers);
+    layerVisible.push(true);
+    // Extend every tile stack
+    for (let r = 0; r < mapH; r++) {
+        for (let q = 0; q < mapW; q++) {
+            tiles[r][q].push(null);
+        }
+    }
+    activeLayer = numLayers - 1;
+    buildLayerUI();
+    updateStatus();
+    render();
+    toast('Added layer: ' + layerNames[activeLayer], 'ok');
+}
+
+async function removeLayer(idx) {
+    if (numLayers <= 1) return;
+    const ok = await modalConfirm('Delete Layer', 'Delete layer "' + (layerNames[idx] || 'Layer ' + (idx+1)) + '"?<br>This cannot be undone.', { danger: true });
+    if (!ok) return;
+    pushUndo();
+    // Remove from every tile stack
+    for (let r = 0; r < mapH; r++) {
+        for (let q = 0; q < mapW; q++) {
+            tiles[r][q].splice(idx, 1);
+        }
+    }
+    layerNames.splice(idx, 1);
+    layerVisible.splice(idx, 1);
+    numLayers--;
+    if (activeLayer >= numLayers) activeLayer = numLayers - 1;
+    buildLayerUI();
+    updateStatus();
+    render();
+    toast('Removed layer', 'ok');
+}
+
+async function renameLayer(idx) {
+    const name = await modalPrompt('Rename Layer', 'Layer name', layerNames[idx] || 'Layer ' + (idx+1));
+    if (name === null) return;
+    layerNames[idx] = name;
+    buildLayerUI();
+    updateStatus();
+}
+
+function swapLayers(a, b) {
+    if (a < 0 || b < 0 || a >= numLayers || b >= numLayers) return;
+    pushUndo();
+    // Swap in every tile stack
+    for (let r = 0; r < mapH; r++) {
+        for (let q = 0; q < mapW; q++) {
+            const tmp = tiles[r][q][a];
+            tiles[r][q][a] = tiles[r][q][b];
+            tiles[r][q][b] = tmp;
+        }
+    }
+    [layerNames[a], layerNames[b]] = [layerNames[b], layerNames[a]];
+    [layerVisible[a], layerVisible[b]] = [layerVisible[b], layerVisible[a]];
+    if (activeLayer === a) activeLayer = b;
+    else if (activeLayer === b) activeLayer = a;
+    buildLayerUI();
+    updateStatus();
+    render();
+    toast('Layers swapped', 'ok');
+}
+
+// ═══════════════════════════════════════════════
+//  TOOLS
+// ═══════════════════════════════════════════════
+function setTool(t) {
+    activeTool = t;
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.getElementById('tool-' + t);
+    if (btn) btn.classList.add('active');
+    rectStart = null;
+    const cvs = document.getElementById('map-canvas');
+    cvs.style.cursor = t === 'erase' ? 'not-allowed' : t === 'pick' ? 'copy' : 'crosshair';
+}
+
+function toggleTSetMode() {
+    tsetEditMode = !tsetEditMode;
+    document.getElementById('btn-tsetmode').classList.toggle('active', tsetEditMode);
+    document.getElementById('tset-props').style.display = tsetEditMode && selTSetIdx >= 0 ? '' : 'none';
+    document.getElementById('patterns-section').style.display = tsetEditMode && selTSetIdx >= 0 ? 'flex' : 'none';
+    render();
+}
+
+function toggleFillMode() {
+    terrainFillMode = !terrainFillMode;
+    document.getElementById('btn-fillmode').classList.toggle('active', terrainFillMode);
+}
+
+function applyTool(q, r) {
+    if (q < 0 || q >= mapW || r < 0 || r >= mapH) return;
+
+    // Terrain set marking mode — clicking tile assigns it to set
+    if (tsetEditMode && selTSetIdx >= 0 && selTerrainIdx >= 0) {
+        // Handled in palette click handler, not on map canvas
+        return;
+    }
+
+    switch (activeTool) {
+        case 'paint':
+            if (activeNineBrush !== null) {
+                nineTilePaint(q, r);
+            } else if (terrainFillMode && selTSetIdx >= 0) {
+                const hexes = getBrushTiles(q, r);
+                const tset = terrainSets[selTSetIdx];
+                for (const h of hexes) {
+                    const ti = Math.floor(Math.random() * tset.terrains.length);
+                    terrainBrushPaint(h.q, h.r, ti, tset);
+                }
+            } else {
+                const hexes = getBrushTiles(q, r);
+                for (const h of hexes) stampPaint(h.q, h.r);
+            }
+            break;
+        case 'terrain':
+            if (selTSetIdx >= 0 && selTerrainIdx >= 0) {
+                const hexes = getBrushTiles(q, r);
+                const tset = terrainSets[selTSetIdx];
+                for (const h of hexes) {
+                    terrainBrushPaint(h.q, h.r, selTerrainIdx, tset);
+                }
+            }
+            break;
+        case 'erase':
+            erasePaint(q, r);
+            break;
+        case 'pick': {
+            const tile = getTileAt(q, r);
+            if (tile) {
+                activeStamp = {
+                    sheetPath: tile.sheetPath,
+                    tiles: [{ lc: 0, lr: 0, sx: tile.sx, sy: tile.sy }],
+                    cols: 1, rows: 1
+                };
+                refreshStampPreview();
+                setTool('paint');
+                toast('Picked tile', 'ok');
+            }
+            break;
+        }
+    }
+}
+
+
+// ═══════════════════════════════════════════════
+//  CANVAS RENDERING
+// ═══════════════════════════════════════════════
+const cvs = document.getElementById('map-canvas');
+const ctx = cvs.getContext('2d');
+
+function resizeCanvas() {
+    const wrap = document.getElementById('canvas-wrap');
+    cvs.width = wrap.clientWidth;
+    cvs.height = wrap.clientHeight;
+    render();
+}
+
+function render() {
+    if (!ctx) return;
+    const w = cvs.width, h = cvs.height;
+    ctx.clearRect(0, 0, w, h);
+
+    if (mapW === 0) {
+        ctx.fillStyle = '#8b949e';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('No map loaded. Click "New" to create one.', w / 2, h / 2);
+        return;
+    }
+
+    const ds = TILE * zoom;
+
+    // ── Viewport culling: compute visible tile range ──
+    const qMin = Math.max(0, Math.floor(-panX / ds));
+    const qMax = Math.min(mapW - 1, Math.ceil((w - panX) / ds));
+    const rMin = Math.max(0, Math.floor(-panY / ds));
+    const rMax = Math.min(mapH - 1, Math.ceil((h - panY) / ds));
+
+    // Draw checkerboard for cells with no visible content on any layer
+    for (let r = rMin; r <= rMax; r++) {
+        for (let q = qMin; q <= qMax; q++) {
+            const stack = tiles[r][q];
+            const hasAny = stack && stack.some((c, i) => c && layerVisible[i]);
+            if (hasAny) continue;
+            const x = Math.floor(panX + q * ds);
+            const y = Math.floor(panY + r * ds);
+            ctx.fillStyle = ((q + r) % 2 === 0) ? '#15191f' : '#12161c';
+            ctx.fillRect(x, y, Math.ceil(ds), Math.ceil(ds));
+        }
+    }
+
+    // Draw all visible layers bottom-to-top
+    for (let li = 0; li < numLayers; li++) {
+        if (!layerVisible[li]) continue;
+        for (let r = rMin; r <= rMax; r++) {
+            for (let q = qMin; q <= qMax; q++) {
+                const cell = tiles[r][q][li];
+                if (!cell) continue;
+                const x = Math.floor(panX + q * ds);
+                const y = Math.floor(panY + r * ds);
+
+                const img = imgCache.get(cell.sheetPath);
+                if (img && img.complete) {
+                    ctx.drawImage(img, cell.sx, cell.sy, TILE, TILE, x, y, Math.ceil(ds), Math.ceil(ds));
+                } else {
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(x, y, Math.ceil(ds), Math.ceil(ds));
+                }
+            }
+        }
+    }
+
+    // ── Draw placed objects on top of tile layers, depth-sorted ──
+    {
+        const objItems = [];
+        for (const [key, obj] of Object.entries(placedObjects)) {
+            const [aq, ar] = key.split(',').map(Number);
+            const bnd = obj.bounds || { minCol: 0, minRow: 0, maxCol: 0, maxRow: 0 };
+            const sortH = (bnd.maxRow - bnd.minRow + 1);
+            for (const t of (obj.tiles || [])) {
+                const tq = aq + t.localCol;
+                const tr = ar + t.localRow;
+                if (tq < qMin - 4 || tq > qMax + 4 || tr < rMin - 4 || tr > rMax + 4) continue;
+                objItems.push({
+                    img: imgCache.get(t.sheetPath),
+                    sx: t.sx, sy: t.sy,
+                    sw: t.sw || TILE, sh: t.sh || TILE,
+                    dx: Math.floor(panX + tq * ds),
+                    dy: Math.floor(panY + tr * ds),
+                    dw: Math.ceil(ds), dh: Math.ceil(ds),
+                    sortY: ar, sortH: sortH, sortX: aq
+                });
+            }
+        }
+        objItems.sort((a, b) =>
+            (a.sortY - b.sortY) || ((b.sortH || 0) - (a.sortH || 0)) || ((a.sortX || 0) - (b.sortX || 0))
+        );
+        for (const it of objItems) {
+            if (it.img && it.img.complete) {
+                ctx.drawImage(it.img, it.sx, it.sy, it.sw, it.sh, it.dx, it.dy, it.dw, it.dh);
+            }
+        }
+    }
+
+    // Terrain set overlay (corner/edge markers when editing sets)
+    if (tsetEditMode && selTSetIdx >= 0) {
+        renderSetOverlay(qMin, qMax, rMin, rMax);
+    }
+
+    // Grid (only visible lines) — batched into single path
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.lineWidth = 0.5;
+    const gridXStart = Math.max(0, panX);
+    const gridXEnd   = Math.min(w, panX + mapW * ds);
+    const gridYStart = Math.max(0, panY);
+    const gridYEnd   = Math.min(h, panY + mapH * ds);
+    ctx.beginPath();
+    for (let r = rMin; r <= rMax + 1; r++) {
+        const y = Math.floor(panY + r * ds) + 0.5;
+        ctx.moveTo(gridXStart, y); ctx.lineTo(gridXEnd, y);
+    }
+    for (let q = qMin; q <= qMax + 1; q++) {
+        const x = Math.floor(panX + q * ds) + 0.5;
+        ctx.moveTo(x, gridYStart); ctx.lineTo(x, gridYEnd);
+    }
+    ctx.stroke();
+
+    // Border
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(panX, panY, mapW * ds, mapH * ds);
+
+    // Brush preview
+    if (hoverQ >= 0 && hoverQ < mapW && hoverR >= 0 && hoverR < mapH && activeTool !== 'pick') {
+        const hexes = getBrushTiles(hoverQ, hoverR);
+        ctx.fillStyle = 'rgba(88,166,255,0.12)';
+        ctx.strokeStyle = 'rgba(88,166,255,0.5)';
+        ctx.lineWidth = 1.5;
+        for (const h of hexes) {
+            if (h.q < 0 || h.q >= mapW || h.r < 0 || h.r >= mapH) continue;
+            const x = panX + h.q * ds, y = panY + h.r * ds;
+            ctx.fillRect(x, y, ds, ds);
+            ctx.strokeRect(x + 0.5, y + 0.5, ds - 1, ds - 1);
+        }
+    }
+
+    // Coords at high zoom (only visible tiles)
+    if (ds >= 40) {
+        ctx.font = '9px monospace';
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.textAlign = 'left';
+        for (let r = rMin; r <= rMax; r++) {
+            for (let q = qMin; q <= qMax; q++) {
+                ctx.fillText(`${q},${r}`, panX + q * ds + 2, panY + r * ds + 10);
+            }
+        }
+    }
+}
+
+function renderSetOverlay(qMin, qMax, rMin, rMax) {
+    const tset = terrainSets[selTSetIdx];
+    if (!tset) return;
+    const ds = TILE * zoom;
+
+    for (let r = rMin; r <= rMax; r++) {
+        for (let q = qMin; q <= qMax; q++) {
+            const cell = getTileAt(q, r);
+            if (!cell) continue;
+
+            const baseX = panX + q * ds;
+            const baseY = panY + r * ds;
+
+            // Look up pattern for this tile
+            const pat = lookupTilePattern(q, r, tset);
+            if (!pat) continue;
+
+            if (tset.type === 'corner' || tset.type === 'mixed') {
+                // Draw corner dots
+                const corners = [
+                    [baseX, baseY],                         // TL
+                    [baseX + ds, baseY],                    // TR
+                    [baseX + ds, baseY + ds],               // BR
+                    [baseX, baseY + ds],                    // BL
+                ];
+                for (let ci = 0; ci < 4; ci++) {
+                    if (pat[ci] !== undefined && tset.terrains[pat[ci]]) {
+                        const [cx, cy] = corners[ci];
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, 4 * zoom, 0, Math.PI * 2);
+                        ctx.fillStyle = tset.terrains[pat[ci]].color;
+                        ctx.fill();
+                        ctx.strokeStyle = '#fff';
+                        ctx.lineWidth = 0.5;
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            if (tset.type === 'edge' || tset.type === 'mixed') {
+                // Draw edge lines at midpoints
+                const edgeMids = [
+                    [baseX + ds / 2, baseY],            // Top
+                    [baseX + ds, baseY + ds / 2],       // Right
+                    [baseX + ds / 2, baseY + ds],       // Bottom
+                    [baseX, baseY + ds / 2],            // Left
+                ];
+                const idx_offset = tset.type === 'mixed' ? 4 : 0;
+                for (let ei = 0; ei < 4; ei++) {
+                    const ti = pat[ei + idx_offset];
+                    if (ti !== undefined && tset.terrains[ti]) {
+                        const [mx, my] = edgeMids[ei];
+                        ctx.beginPath();
+                        ctx.arc(mx, my, 3 * zoom, 0, Math.PI * 2);
+                        ctx.fillStyle = tset.terrains[ti].color;
+                        ctx.fill();
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+// ═══════════════════════════════════════════════
+//  INPUT HANDLING
+// ═══════════════════════════════════════════════
+function screenToTile(sx, sy) {
+    const ds = TILE * zoom;
+    const q = Math.floor((sx - panX) / ds);
+    const r = Math.floor((sy - panY) / ds);
+    return { q, r, valid: q >= 0 && q < mapW && r >= 0 && r < mapH };
+}
+
+cvs.addEventListener('mousedown', e => {
+    e.preventDefault();
+    // Pan
+    if (e.button === 1 || e.button === 2 || (e.button === 0 && e.altKey)) {
+        isPanning = true;
+        panStart = { x: e.offsetX, y: e.offsetY, px: panX, py: panY };
+        cvs.style.cursor = 'grabbing';
+        return;
+    }
+    if (e.button !== 0 || mapW === 0) return;
+
+    const { q, r, valid } = screenToTile(e.offsetX, e.offsetY);
+    if (!valid) return;
+
+    if (activeTool === 'rect') {
+        if (!rectStart) {
+            rectStart = { q, r };
+            toast('Click second corner', '');
+            return;
+        } else {
+            pushUndo();
+            shapeFill(rectStart.q, rectStart.r, q, r);
+            rectStart = null;
+            render();
+            return;
+        }
+    }
+
+    if (activeTool === 'fill') {
+        pushUndo();
+        bucketFill(q, r);
+        render();
+        return;
+    }
+
+    if (activeTool === 'pick') {
+        applyTool(q, r);
+        return;
+    }
+
+    isDragging = true;
+    pushUndo();
+    applyTool(q, r);
+    render();
+});
+
+cvs.addEventListener('mousemove', e => {
+    if (isPanning) {
+        panX = panStart.px + (e.offsetX - panStart.x);
+        panY = panStart.py + (e.offsetY - panStart.y);
+        scheduleRender();
+        return;
+    }
+
+    const { q, r } = screenToTile(e.offsetX, e.offsetY);
+    hoverQ = q; hoverR = r;
+
+    document.getElementById('p-pos').textContent = (q >= 0 && q < mapW && r >= 0 && r < mapH) ? `${q}, ${r}` : '—';
+    const t = getTileAt(q, r);
+    document.getElementById('p-tile').textContent = t ? t.sheetPath.split('/').pop() : '(empty)';
+
+    if (isDragging && q >= 0 && q < mapW && r >= 0 && r < mapH) {
+        applyTool(q, r);
+    }
+    scheduleRender();
+});
+
+cvs.addEventListener('mouseup', () => {
+    if (isPanning) { isPanning = false; cvs.style.cursor = activeTool === 'erase' ? 'not-allowed' : 'crosshair'; }
+    isDragging = false;
+});
+
+cvs.addEventListener('mouseleave', () => {
+    isPanning = false; isDragging = false;
+    hoverQ = -1; hoverR = -1;
+    scheduleRender();
+});
+
+cvs.addEventListener('wheel', e => {
+    e.preventDefault();
+    const oldZoom = zoom;
+    const factor = e.deltaY < 0 ? 1.15 : 0.87;
+    zoom = Math.max(0.25, Math.min(8, zoom * factor));
+    // Zoom toward cursor
+    const ratio = zoom / oldZoom;
+    panX = e.offsetX - (e.offsetX - panX) * ratio;
+    panY = e.offsetY - (e.offsetY - panY) * ratio;
+    document.getElementById('p-zoom').textContent = Math.round(zoom * 100) + '%';
+    scheduleRender();
+}, { passive: false });
+
+cvs.addEventListener('contextmenu', e => e.preventDefault());
+
+document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.ctrlKey && e.shiftKey && e.key === 'Z') { e.preventDefault(); redo(); return; }
+    if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); return; }
+    if (e.ctrlKey && e.key === 'y') { e.preventDefault(); redo(); return; }
+    if (e.ctrlKey && e.key === 's') { e.preventDefault(); saveMap(); return; }
+
+    switch (e.key.toLowerCase()) {
+        case 'b': setTool('paint'); break;
+        case 't': setTool('terrain'); break;
+        case 'e': setTool('erase'); break;
+        case 'g': setTool('fill'); break;
+        case 'i': setTool('pick'); break;
+        case 'r': setTool('rect'); break;
+        case '[': brushSize = Math.max(1, brushSize - 1); document.getElementById('brush-size').value = brushSize; document.getElementById('bsv').textContent = brushSize; break;
+        case ']': brushSize = Math.min(8, brushSize + 1); document.getElementById('brush-size').value = brushSize; document.getElementById('bsv').textContent = brushSize; break;
+    }
+});
+
+
+// ═══════════════════════════════════════════════
+//  PALETTE UI
+// ═══════════════════════════════════════════════
+let currentCat = null;
+let palDragging = false, palDragMeta = null, palDragStart = null, palDragLive = null;
+
+function buildCatButtons() {
+    const wrap = document.getElementById('cat-btns');
+    wrap.innerHTML = '';
+    const allCats = Object.keys(PALETTE_DATA);
+    if (_customObjects.length) allCats.push('📦 Custom Objects');
+    for (const cat of allCats) {
+        const btn = document.createElement('button');
+        btn.className = 'cat-btn' + (cat === currentCat ? ' active' : '');
+        btn.textContent = cat;
+        btn.onclick = () => showCategory(cat);
+        wrap.appendChild(btn);
+    }
+}
+
+function showCategory(cat) {
+    currentCat = cat;
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.textContent === cat));
+    const area = document.getElementById('tileset-area');
+    area.innerHTML = '';
+
+    // Custom Objects category — special rendering
+    if (cat === '📦 Custom Objects') {
+        _showCustomObjectsPalette(area);
+        return;
+    }
+
+    const sheets = PALETTE_DATA[cat] || [];
+    for (const sheetPath of sheets) {
+        const block = document.createElement('div');
+        block.style.cssText = 'margin-bottom:12px';
+
+        const label = document.createElement('div');
+        label.style.cssText = 'font-size:10px;color:var(--text-dim);margin-bottom:3px;padding:2px 4px;background:var(--bg);border-radius:3px';
+        label.textContent = sheetPath.split('/').pop();
+        block.appendChild(label);
+
+        const wrap = document.createElement('div');
+        wrap.className = 'sheet-wrap';
+
+        const palCvs = document.createElement('canvas');
+        palCvs.className = 'palette-canvas';
+        palCvs.style.imageRendering = 'pixelated';
+
+        const hl = document.createElement('div');
+        hl.className = 'stamp-hl';
+        hl.style.display = 'none';
+        wrap.appendChild(hl);
+
+        loadImage(sheetPath).then(img => {
+            if (!img) return;
+            palCvs.width = img.width;
+            palCvs.height = img.height;
+            const pctx = palCvs.getContext('2d');
+            pctx.drawImage(img, 0, 0);
+
+            // Grid overlay
+            pctx.strokeStyle = 'rgba(255,255,255,0.08)';
+            pctx.lineWidth = 0.5;
+            for (let c = 0; c <= img.width / TILE; c++) {
+                pctx.beginPath(); pctx.moveTo(c * TILE, 0); pctx.lineTo(c * TILE, img.height); pctx.stroke();
+            }
+            for (let r = 0; r <= img.height / TILE; r++) {
+                pctx.beginPath(); pctx.moveTo(0, r * TILE); pctx.lineTo(img.width, r * TILE); pctx.stroke();
+            }
+        });
+
+        // Palette mouse events — drag to select stamp area
+        const meta = { sheetPath };
+        wrap.addEventListener('mousedown', e => {
+            e.preventDefault();
+            const rect = palCvs.getBoundingClientRect();
+            const scale = palCvs.width / rect.width;
+            const col = Math.floor((e.clientX - rect.left) * scale / TILE);
+            const row = Math.floor((e.clientY - rect.top) * scale / TILE);
+            palDragging = true;
+            palDragMeta = meta;
+            palDragStart = { col, row };
+            palDragLive = { col, row };
+        });
+
+        wrap.addEventListener('mousemove', e => {
+            if (!palDragging || palDragMeta !== meta) return;
+            const rect = palCvs.getBoundingClientRect();
+            const scale = palCvs.width / rect.width;
+            const col = Math.floor((e.clientX - rect.left) * scale / TILE);
+            const row = Math.floor((e.clientY - rect.top) * scale / TILE);
+            palDragLive = { col, row };
+            // Update highlight
+            const c1 = Math.min(palDragStart.col, col), c2 = Math.max(palDragStart.col, col);
+            const r1 = Math.min(palDragStart.row, row), r2 = Math.max(palDragStart.row, row);
+            const cellW = rect.width / (palCvs.width / TILE);
+            const cellH = rect.height / (palCvs.height / TILE);
+            hl.style.display = 'block';
+            hl.style.left = (c1 * cellW) + 'px';
+            hl.style.top = (r1 * cellH) + 'px';
+            hl.style.width = ((c2 - c1 + 1) * cellW) + 'px';
+            hl.style.height = ((r2 - r1 + 1) * cellH) + 'px';
+        });
+
+        wrap.appendChild(palCvs);
+        block.appendChild(wrap);
+        area.appendChild(block);
+    }
+}
+
+// ─── Custom Objects Palette ───
+
+function _showCustomObjectsPalette(area) {
+    if (!_customObjects.length) {
+        area.innerHTML = '<div style="color:var(--text-dim);padding:8px;font-size:12px">No custom objects available. Create objects in the Sprite Editor.</div>';
+        return;
+    }
+    for (const obj of _customObjects) {
+        const card = document.createElement('div');
+        card.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px;margin-bottom:4px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--input-bg);transition:border-color .15s';
+        card.onmouseenter = () => card.style.borderColor = 'var(--gold)';
+        card.onmouseleave = () => card.style.borderColor = 'var(--border)';
+
+        // Render a thumbnail
+        const thumb = document.createElement('canvas');
+        const objTiles = obj.tiles || [];
+        const bounds = obj.bounds || { minCol: 0, minRow: 0, maxCol: 0, maxRow: 0 };
+        const tw = bounds.maxCol - bounds.minCol + 1;
+        const th = bounds.maxRow - bounds.minRow + 1;
+        const thumbScale = Math.min(48 / (tw * TILE), 48 / (th * TILE), 2);
+        thumb.width = Math.ceil(tw * TILE * thumbScale);
+        thumb.height = Math.ceil(th * TILE * thumbScale);
+        thumb.style.cssText = 'image-rendering:pixelated;background:#111;border-radius:3px;flex-shrink:0';
+        const tctx = thumb.getContext('2d');
+        tctx.imageSmoothingEnabled = false;
+        // Draw tiles once images load
+        const paths = [...new Set(objTiles.map(t => t.sheetPath).filter(Boolean))];
+        Promise.all(paths.map(loadImage)).then(() => {
+            for (const t of objTiles) {
+                const img = imgCache.get(t.sheetPath);
+                if (!img) continue;
+                const dx = (t.localCol - bounds.minCol) * TILE * thumbScale;
+                const dy = (t.localRow - bounds.minRow) * TILE * thumbScale;
+                tctx.drawImage(img, t.sx, t.sy, t.sw || TILE, t.sh || TILE,
+                    dx, dy, TILE * thumbScale, TILE * thumbScale);
+            }
+        });
+
+        const label = document.createElement('div');
+        label.style.cssText = 'font-size:11px;color:var(--text);line-height:1.3';
+        label.innerHTML = `<b>${obj.name}</b><br><span style="color:var(--text-dim)">${tw}\u00d7${th} tiles \u00b7 ${obj.objectType || 'object'}</span>`;
+
+        card.appendChild(thumb);
+        card.appendChild(label);
+        card.addEventListener('click', () => _selectCustomObject(obj));
+        area.appendChild(card);
+    }
+}
+
+function _selectCustomObject(obj) {
+    const objTiles = obj.tiles || [];
+    if (!objTiles.length) return;
+    const bounds = obj.bounds || { minCol: 0, minRow: 0, maxCol: 0, maxRow: 0 };
+    // Keep raw localCol/localRow so origin (0,0) lands on the clicked tile
+    const stampTiles = objTiles.map(t => ({
+        lc: t.localCol,
+        lr: t.localRow,
+        sx: t.sx, sy: t.sy,
+    }));
+    activeStamp = {
+        sheetPath: objTiles[0].sheetPath,
+        tiles: stampTiles,
+        cols: bounds.maxCol - bounds.minCol + 1,
+        rows: bounds.maxRow - bounds.minRow + 1,
+        _isMultiSheet: true,
+        _srcTiles: objTiles,
+        _originOffCol: -bounds.minCol,
+        _originOffRow: -bounds.minRow,
+        _objDefId: obj.id,
+        _objName: obj.name,
+        _objBounds: bounds,
+    };
+    activeNineBrush = null;
+    refreshStampPreview();
+    if (activeTool !== 'paint' && activeTool !== 'fill' && activeTool !== 'rect') setTool('paint');
+    toast(`Selected: ${obj.name}`, 'ok');
+}
+
+document.addEventListener('mouseup', () => {
+    if (!palDragging || !palDragStart || !palDragMeta) { palDragging = false; return; }
+    palDragging = false;
+    const c1 = Math.min(palDragStart.col, palDragLive.col);
+    const c2 = Math.max(palDragStart.col, palDragLive.col);
+    const r1 = Math.min(palDragStart.row, palDragLive.row);
+    const r2 = Math.max(palDragStart.row, palDragLive.row);
+    const path = palDragMeta.sheetPath;
+
+    // In terrain set edit mode → assign tiles to pattern
+    if (tsetEditMode && selTSetIdx >= 0 && selTerrainIdx >= 0) {
+        assignTilesToSet(path, c1, r1, c2, r2);
+        return;
+    }
+
+    // Normal mode → set stamp
+    setStamp(path, c1, r1, c2, r2);
+});
+
+function setStamp(sheetPath, c1, r1, c2, r2) {
+    activeNineBrush = null; // Clear 9-tile brush selection
+    buildNtbListPanel();
+    const sW = c2 - c1 + 1, sH = r2 - r1 + 1;
+    const stiles = [];
+    for (let dr = 0; dr < sH; dr++) {
+        for (let dc = 0; dc < sW; dc++) {
+            stiles.push({ lc: dc, lr: dr, sx: (c1 + dc) * TILE, sy: (r1 + dr) * TILE });
+        }
+    }
+    activeStamp = { sheetPath, tiles: stiles, cols: sW, rows: sH };
+    refreshStampPreview();
+    if (activeTool !== 'paint' && activeTool !== 'fill' && activeTool !== 'rect') setTool('paint');
+}
+
+function refreshStampPreview() {
+    const canvas = document.getElementById('stamp-canvas');
+    const sctx = canvas.getContext('2d');
+    canvas.width = 64; canvas.height = 64;
+    sctx.clearRect(0, 0, 64, 64);
+    document.getElementById('stamp-info').textContent = 'No stamp';
+
+    // Show 9-tile brush preview when active
+    if (activeNineBrush !== null && nineTileBrushes[activeNineBrush]) {
+        const brush = nineTileBrushes[activeNineBrush];
+        sctx.imageSmoothingEnabled = false;
+        const cs = Math.floor(64 / 3);
+        for (let r = 0; r < 3; r++) {
+            for (let c = 0; c < 3; c++) {
+                const tileRef = brush.tiles[r] && brush.tiles[r][c];
+                if (tileRef) {
+                    const img = imgCache.get(tileRef.sheetPath);
+                    if (img) sctx.drawImage(img, tileRef.sx, tileRef.sy, TILE, TILE, c*cs, r*cs, cs, cs);
+                }
+            }
+        }
+        document.getElementById('stamp-info').textContent = `9-Tile: ${brush.name}`;
+        return;
+    }
+
+    if (!activeStamp) return;
+
+    sctx.imageSmoothingEnabled = false;
+    const scale = Math.min(64 / (activeStamp.cols * TILE), 64 / (activeStamp.rows * TILE));
+
+    if (activeStamp._isMultiSheet && activeStamp._srcTiles) {
+        // Multi-sheet custom object preview — offset for origin-based coords
+        const offC = activeStamp._originOffCol || 0;
+        const offR = activeStamp._originOffRow || 0;
+        for (let i = 0; i < activeStamp.tiles.length; i++) {
+            const t = activeStamp.tiles[i];
+            const src = activeStamp._srcTiles[i];
+            const img = imgCache.get(src.sheetPath);
+            if (!img) continue;
+            sctx.drawImage(img, src.sx, src.sy, src.sw || TILE, src.sh || TILE,
+                (t.lc + offC) * TILE * scale, (t.lr + offR) * TILE * scale, TILE * scale, TILE * scale);
+        }
+        document.getElementById('stamp-info').textContent = `Custom Object ${activeStamp.cols}×${activeStamp.rows}`;
+    } else {
+        const img = imgCache.get(activeStamp.sheetPath);
+        if (!img) return;
+        for (const tile of activeStamp.tiles) {
+            sctx.drawImage(img, tile.sx, tile.sy, TILE, TILE,
+                tile.lc * TILE * scale, tile.lr * TILE * scale, TILE * scale, TILE * scale);
+        }
+        document.getElementById('stamp-info').textContent = `${activeStamp.cols}×${activeStamp.rows} from ${activeStamp.sheetPath.split('/').pop()}`;
+    }
+}
+
+/**
+ * In terrain set edit mode, when user selects tiles from palette,
+ * assign them as tile variants for patterns based on the selected terrain.
+ * The user is manually marking: "this tile is all-terrain-X" or
+ * partial corner/edge patterns.
+ */
+function assignTilesToSet(sheetPath, c1, r1, c2, r2) {
+    const tset = terrainSets[selTSetIdx];
+    const ti = selTerrainIdx;
+
+    // For single tile: assign as a full-fill pattern for this terrain
+    if (c1 === c2 && r1 === r2) {
+        const nTerrains = tset.type === 'corner' ? 4 : tset.type === 'edge' ? 4 : 8;
+        const pattern = new Array(nTerrains).fill(ti);
+        const key = pattern.join(',');
+        tset.tileAssignments[key] = { sheetPath, sx: c1 * TILE, sy: r1 * TILE };
+        toast(`Assigned tile to pattern [${key}]`, 'ok');
+    } else {
+        // Multiple tiles selected — assign them sequentially to patterns
+        // Enumerate by counting through pattern space
+        let idx = 0;
+        for (let dr = r1; dr <= r2; dr++) {
+            for (let dc = c1; dc <= c2; dc++) {
+                const nSlots = tset.type === 'corner' ? 4 : tset.type === 'edge' ? 4 : 8;
+                // Create pattern from index: binary representation
+                const nTerrains = tset.terrains.length;
+                if (nTerrains !== 2) {
+                    // For >2 terrains, assign as full fill
+                    const p = new Array(nSlots).fill(ti);
+                    tset.tileAssignments[p.join(',')] = { sheetPath, sx: dc * TILE, sy: dr * TILE };
+                } else {
+                    // For 2 terrains, map index to binary pattern
+                    if (idx < Math.pow(2, nSlots)) {
+                        const bits = idx.toString(2).padStart(nSlots, '0').split('').map(Number);
+                        tset.tileAssignments[bits.join(',')] = { sheetPath, sx: dc * TILE, sy: dr * TILE };
+                    }
+                }
+                idx++;
+            }
+        }
+        toast(`Assigned ${idx} tiles to patterns`, 'ok');
+    }
+    buildPatternsView();
+    notifyParent();
+}
+
+function loadCustomSheet() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.png,.jpg,.jpeg,.webp';
+    input.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+            const dataUrl = ev.target.result;
+            const catName = 'Custom';
+            if (!PALETTE_DATA[catName]) PALETTE_DATA[catName] = [];
+            PALETTE_DATA[catName].push(dataUrl);
+            buildCatButtons();
+            showCategory(catName);
+            toast('Custom sheet loaded', 'ok');
+        };
+        reader.readAsDataURL(file);
+    };
+    input.click();
+}
+
+function loadImage(path) {
+    if (imgCache.has(path)) return Promise.resolve(imgCache.get(path));
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => { imgCache.set(path, img); resolve(img); };
+        img.onerror = () => { imgCache.set(path, null); resolve(null); };
+        img.src = path;
+    });
+}
+
+
+// ═══════════════════════════════════════════════
+//  TERRAIN SETS UI
+// ═══════════════════════════════════════════════
+function buildTSetsList() {
+    const list = document.getElementById('tsets-list');
+    list.innerHTML = '';
+
+    terrainSets.forEach((tset, i) => {
+        const card = document.createElement('div');
+        card.className = 'tset-card' + (i === selTSetIdx ? ' selected' : '');
+
+        const header = document.createElement('div');
+        header.className = 'tset-header';
+        header.onclick = () => selectTSet(i);
+        header.innerHTML = `<span class="tset-badge ${tset.type}">${tset.type}</span><span class="tset-name">${tset.name}</span><span style="font-size:10px;color:var(--text-dim)">${tset.terrains.length}t</span>`;
+        card.appendChild(header);
+
+        // Show terrains when selected
+        if (i === selTSetIdx) {
+            const actions = document.createElement('div');
+            actions.style.cssText = 'display:flex;gap:3px;padding:3px 8px';
+            actions.innerHTML = `<button class="green" onclick="addTerrainToSet()" style="font-size:10px;padding:1px 6px;flex:1">＋ Terrain</button><button class="danger" onclick="removeTerrainFromSet()" style="font-size:10px;padding:1px 6px">✕</button><button class="purple" onclick="autoAssignLPCSet()" style="font-size:10px;padding:1px 6px" title="Auto-assign LPC terrain patterns">⚡ Auto</button>`;
+            card.appendChild(actions);
+
+            tset.terrains.forEach((t, ti) => {
+                const row = document.createElement('div');
+                row.className = 'terrain-row' + (ti === selTerrainIdx ? ' selected' : '');
+                row.onclick = (ev) => { ev.stopPropagation(); selectTerrain(ti); };
+                row.innerHTML = `<span class="tr-swatch" style="background:${t.color}"></span><span class="tr-name">${t.name}</span><span class="tr-prob">P:${t.probability}</span>`;
+                card.appendChild(row);
+            });
+        }
+
+        list.appendChild(card);
+    });
+    document.getElementById('btn-rm-tset').disabled = selTSetIdx < 0;
+}
+
+function selectTSet(idx) {
+    selTSetIdx = idx;
+    selTerrainIdx = terrainSets[idx]?.terrains.length > 0 ? 0 : -1;
+    buildTSetsList();
+    updateTSetProps();
+    buildPatternsView();
+    if (tsetEditMode) {
+        document.getElementById('tset-props').style.display = idx >= 0 ? '' : 'none';
+        document.getElementById('patterns-section').style.display = idx >= 0 ? 'flex' : 'none';
+    }
+}
+
+function selectTerrain(idx) {
+    selTerrainIdx = idx;
+    buildTSetsList();
+    updateTSetProps();
+}
+
+function addTSet() {
+    terrainSets.push({
+        name: `Set ${terrainSets.length + 1}`,
+        type: 'corner',
+        terrains: [
+            { name: 'Terrain A', color: '#5c9a2e', probability: 1.0 },
+            { name: 'Terrain B', color: '#8b6914', probability: 1.0 },
+        ],
+        tileAssignments: {}
+    });
+    selectTSet(terrainSets.length - 1);
+    notifyParent();
+}
+
+function removeTSet() {
+    if (selTSetIdx < 0) return;
+    terrainSets.splice(selTSetIdx, 1);
+    selTSetIdx = Math.min(selTSetIdx, terrainSets.length - 1);
+    selTerrainIdx = -1;
+    buildTSetsList();
+    notifyParent();
+}
+
+function addTerrainToSet() {
+    if (selTSetIdx < 0) return;
+    const tset = terrainSets[selTSetIdx];
+    const n = tset.terrains.length;
+    const hue = (n * 60 + 120) % 360;
+    tset.terrains.push({ name: `Terrain ${n + 1}`, color: `hsl(${hue},60%,40%)`, probability: 1.0 });
+    selectTerrain(n);
+    notifyParent();
+}
+
+function removeTerrainFromSet() {
+    if (selTSetIdx < 0 || selTerrainIdx < 0) return;
+    const tset = terrainSets[selTSetIdx];
+    if (tset.terrains.length <= 1) { toast('Need at least 1 terrain', 'err'); return; }
+    tset.terrains.splice(selTerrainIdx, 1);
+    selTerrainIdx = Math.min(selTerrainIdx, tset.terrains.length - 1);
+    buildTSetsList();
+    notifyParent();
+}
+
+function updateTSetProps() {
+    if (selTSetIdx < 0) return;
+    const tset = terrainSets[selTSetIdx];
+    document.getElementById('ts-name').value = tset.name;
+    document.getElementById('ts-type').value = tset.type;
+    if (selTerrainIdx >= 0 && tset.terrains[selTerrainIdx]) {
+        const t = tset.terrains[selTerrainIdx];
+        document.getElementById('tst-name').value = t.name;
+        document.getElementById('tst-color').value = t.color;
+        document.getElementById('tst-prob').value = t.probability;
+    }
+}
+
+function onTSPropChange() {
+    if (selTSetIdx < 0) return;
+    terrainSets[selTSetIdx].name = document.getElementById('ts-name').value;
+    terrainSets[selTSetIdx].type = document.getElementById('ts-type').value;
+    buildTSetsList();
+    buildPatternsView();
+    notifyParent();
+}
+
+function onTSTChange() {
+    if (selTSetIdx < 0 || selTerrainIdx < 0) return;
+    const t = terrainSets[selTSetIdx].terrains[selTerrainIdx];
+    t.name = document.getElementById('tst-name').value;
+    t.color = document.getElementById('tst-color').value;
+    t.probability = parseFloat(document.getElementById('tst-prob').value) || 1;
+    buildTSetsList();
+    notifyParent();
+}
+
+
+// ═══════════════════════════════════════════════
+//  PATTERNS VIEW
+// ═══════════════════════════════════════════════
+function buildPatternsView() {
+    const view = document.getElementById('patterns-view');
+    view.innerHTML = '';
+    if (selTSetIdx < 0) return;
+    const tset = terrainSets[selTSetIdx];
+    const n = tset.terrains.length;
+    if (n < 2) { view.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--text-dim)">Need ≥2 terrains</div>'; return; }
+
+    const nSlots = (tset.type === 'corner' || tset.type === 'edge') ? 4 : 8;
+    const totalPatterns = Math.pow(n, nSlots);
+    const maxShow = Math.min(totalPatterns, 256);
+
+    const info = document.createElement('div');
+    info.style.cssText = 'font-size:10px;color:var(--text-dim);margin-bottom:6px';
+    info.textContent = `${Object.keys(tset.tileAssignments).length} / ${totalPatterns} patterns assigned`;
+    document.getElementById('pat-count').textContent = `(${Object.keys(tset.tileAssignments).length}/${totalPatterns})`;
+    view.appendChild(info);
+
+    // Show pattern grid (only for manageable sizes)
+    if (n === 2 && nSlots === 4) {
+        // 16 patterns — show all
+        const grid = document.createElement('div');
+        grid.className = 'pattern-grid';
+        grid.style.gridTemplateColumns = 'repeat(4, 1fr)';
+
+        for (let p = 0; p < 16; p++) {
+            const bits = p.toString(2).padStart(4, '0');
+            const key = bits.split('').join(',');
+            const assignment = tset.tileAssignments[key];
+
+            const cell = document.createElement('div');
+            cell.className = 'pat-cell' + (assignment ? ' assigned' : ' missing');
+            cell.title = `Pattern: ${key}` + (assignment ? ` → ${assignment.sheetPath.split('/').pop()} (${assignment.sx},${assignment.sy})` : ' (unassigned)');
+
+            // Draw mini visual
+            const mc = document.createElement('canvas');
+            mc.width = 32; mc.height = 32;
+            const mctx = mc.getContext('2d');
+
+            if (assignment) {
+                const img = imgCache.get(assignment.sheetPath);
+                if (img) {
+                    mctx.drawImage(img, assignment.sx, assignment.sy, TILE, TILE, 0, 0, 32, 32);
+                }
+            }
+
+            // Draw corner/edge dots
+            const positions = tset.type === 'corner' ?
+                [[0,0],[32,0],[32,32],[0,32]] :
+                [[16,0],[32,16],[16,32],[0,16]];
+
+            for (let i = 0; i < 4; i++) {
+                const bi = parseInt(bits[i]);
+                const [px, py] = positions[i];
+                mctx.beginPath();
+                mctx.arc(px, py, 4, 0, Math.PI * 2);
+                mctx.fillStyle = tset.terrains[bi]?.color || '#555';
+                mctx.fill();
+                mctx.strokeStyle = '#fff';
+                mctx.lineWidth = 0.5;
+                mctx.stroke();
+            }
+
+            cell.appendChild(mc);
+            grid.appendChild(cell);
+        }
+        view.appendChild(grid);
+    } else {
+        // Too many to show individually, show summary
+        const summary = document.createElement('div');
+        summary.style.cssText = 'font-size:11px;color:var(--text-dim);padding:8px';
+        summary.textContent = `${totalPatterns} possible patterns. ${Object.keys(tset.tileAssignments).length} assigned.`;
+        if (totalPatterns > 256) summary.textContent += ' (Too many to display individually)';
+        view.appendChild(summary);
+    }
+}
+
+
+// ═══════════════════════════════════════════════
+//  BRUSH CREATOR MODAL
+// ═══════════════════════════════════════════════
+let bcSelSlot = null;   // pattern key currently selected for assignment
+let bcSheet = null;     // active tileset path in brush creator
+let bcHoverCol = -1, bcHoverRow = -1;
+let bcImgCols = 0, bcImgRows = 0;
+const BC_SCALE = 2;     // 2× display zoom in brush creator
+
+function openBrushCreator() {
+    const modal = document.getElementById('brushCreatorModal');
+    modal.style.display = 'flex';
+    bcBuildAll();
+    bcSetupCanvasEvents();
+}
+
+function closeBrushCreator() {
+    document.getElementById('brushCreatorModal').style.display = 'none';
+    buildPatternsView();
+    buildTSetsList();
+}
+
+function bcOnSetChange() {
+    const idx = parseInt(document.getElementById('bc-tset-sel').value);
+    if (!isNaN(idx)) selTSetIdx = idx;
+    bcSelSlot = null;
+    bcBuildAll();
+}
+
+function bcOnTypeChange() {
+    if (selTSetIdx < 0) return;
+    terrainSets[selTSetIdx].type = document.getElementById('bc-type-sel').value;
+    bcSelSlot = null;
+    buildBcPatternGrid();
+}
+
+function bcBuildAll() {
+    // Auto-select first set if none is selected
+    if (selTSetIdx < 0 && terrainSets.length > 0) selTSetIdx = 0;
+
+    // Populate set selector
+    const sel = document.getElementById('bc-tset-sel');
+    sel.innerHTML = terrainSets.map((ts, i) =>
+        `<option value="${i}" ${i === selTSetIdx ? 'selected' : ''}>${ts.name}</option>`
+    ).join('');
+    if (selTSetIdx >= 0) {
+        document.getElementById('bc-type-sel').value = terrainSets[selTSetIdx].type;
+    }
+    buildBcPatternGrid();
+    buildBcCatButtons();
+    if (!bcSheet) {
+        const cats = Object.keys(PALETTE_DATA);
+        if (cats.length > 0) bcShowCategory(cats[0]);
+    } else {
+        bcRenderSheetCanvas(bcSheet);
+    }
+}
+
+// ─── Pattern grid ───────────────────────────────
+function buildBcPatternGrid() {
+    const container = document.getElementById('bc-pattern-container');
+    container.innerHTML = '';
+    if (selTSetIdx < 0) {
+        container.innerHTML = '<div style="color:var(--text-dim);padding:24px;text-align:center">No terrain set selected. Create one in the left panel first.</div>';
+        return;
+    }
+    const tset = terrainSets[selTSetIdx];
+    if (tset.terrains.length < 2) {
+        container.innerHTML = '<div style="color:var(--text-dim);padding:24px;text-align:center">Add at least 2 terrains to this set first (use the left panel).</div>';
+        return;
+    }
+
+    const nSlots = (tset.type === 'corner' || tset.type === 'edge') ? 4 : 8;
+    const n = tset.terrains.length;
+    const totalP = n === 2 ? Math.pow(2, nSlots) : null; // only count for binary sets
+    const assigned = Object.keys(tset.tileAssignments).length;
+
+    // ── Header ──
+    const header = document.createElement('div');
+    header.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap';
+    const pct = totalP ? Math.round(assigned / totalP * 100) : 0;
+    const pctColor = pct === 100 ? 'var(--green)' : pct > 50 ? 'var(--gold)' : 'var(--text-dim)';
+    header.innerHTML = `
+        <span style="font-size:12px;color:var(--text-dim)">Set: <b style="color:var(--text)">${tset.name}</b></span>
+        <span style="font-size:12px;color:var(--text-dim)">${totalP ? `Assigned: <b style="color:${pctColor}">${assigned}/${totalP} (${pct}%)</b>` : `Assigned: <b>${assigned}</b>`}</span>
+        <button class="danger" onclick="bcClearAll()" style="font-size:10px;padding:2px 8px;margin-left:auto">🗑 Clear All</button>
+    `;
+    container.appendChild(header);
+
+    // ── Progress bar ──
+    if (totalP) {
+        const bar = document.createElement('div');
+        bar.style.cssText = 'height:4px;background:var(--border2);border-radius:2px;margin-bottom:10px;overflow:hidden';
+        bar.innerHTML = `<div style="height:100%;width:${pct}%;background:${pctColor};transition:width .3s"></div>`;
+        container.appendChild(bar);
+    }
+
+    // ── Terrain legend ──
+    const legend = document.createElement('div');
+    legend.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px';
+    tset.terrains.forEach((t, ti) => {
+        const lbl = document.createElement('span');
+        lbl.style.cssText = `display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 7px;border-radius:3px;border:1px solid ${t.color}50;background:${t.color}18`;
+        lbl.innerHTML = `<span style="width:10px;height:10px;border-radius:2px;background:${t.color};display:inline-block;flex-shrink:0"></span>${ti} = ${t.name}`;
+        legend.appendChild(lbl);
+    });
+    container.appendChild(legend);
+
+    // ── Type description ──
+    const typeDesc = {corner:'Each slot = a corner: TL, TR, BR, BL',edge:'Each slot = an edge: Top, Right, Bottom, Left',mixed:'Slots 0-3 = corners (TL,TR,BR,BL), slots 4-7 = edges (T,R,B,L)'};
+    const hint = document.createElement('div');
+    hint.style.cssText = 'font-size:10px;color:var(--text-dim);margin-bottom:10px;line-height:1.5;padding:6px 8px;background:var(--panel2);border-radius:4px;border:1px solid var(--border)';
+    hint.innerHTML = `<b style="color:var(--text)">${tset.type.toUpperCase()} mode:</b> ${typeDesc[tset.type] || ''}<br>` +
+        `<b>How to use:</b> Click a pattern slot below to select it, then click a tile from the tileset on the right to assign it. Right-click a slot to clear it.`;
+    container.appendChild(hint);
+
+    // ── Pattern grid ──
+    let patternKeys = [];
+    if (n === 2) {
+        for (let p = 0; p < Math.pow(2, nSlots); p++) {
+            patternKeys.push(p.toString(2).padStart(nSlots, '0').split('').join(','));
+        }
+    } else {
+        // For multi-terrain: show full-fills + assigned
+        const seen = new Set();
+        for (let ti = 0; ti < n; ti++) seen.add(new Array(nSlots).fill(ti).join(','));
+        Object.keys(tset.tileAssignments).forEach(k => seen.add(k));
+        patternKeys = [...seen];
+    }
+
+    const gridCols = nSlots === 4 ? 4 : 8;
+    const grid = document.createElement('div');
+    grid.style.cssText = `display:grid;grid-template-columns:repeat(${gridCols},1fr);gap:4px`;
+
+    for (const key of patternKeys) {
+        const assignment = tset.tileAssignments[key];
+        const cell = document.createElement('div');
+        cell.className = 'bc-pat-cell' + (bcSelSlot === key ? ' bc-selected' : '') + (assignment ? '' : ' bc-missing');
+        cell.dataset.key = key;
+        cell.title = `[${key}]\n${bcPatDesc(key, tset)}\n${assignment ? 'Click to reassign | Right-click to clear' : 'Click to assign a tile'}`;
+        cell.onclick = () => bcSelectSlot(key, cell);
+        cell.oncontextmenu = e => { e.preventDefault(); bcClearSlot(key); };
+
+        const canvas2 = document.createElement('canvas');
+        canvas2.width = 64; canvas2.height = 64;
+        const ctx2 = canvas2.getContext('2d');
+
+        // Background: assigned tile (dimmed)
+        if (assignment) {
+            const img = imgCache.get(assignment.sheetPath);
+            if (img) {
+                ctx2.globalAlpha = 0.5;
+                ctx2.imageSmoothingEnabled = false;
+                ctx2.drawImage(img, assignment.sx, assignment.sy, TILE, TILE, 0, 0, 64, 64);
+                ctx2.globalAlpha = 1;
+            }
+        }
+        // Overlay: pattern diagram
+        bcDrawPatternDiagram(ctx2, key, tset, 64, 64);
+
+        cell.appendChild(canvas2);
+        const lbl = document.createElement('div');
+        lbl.className = 'bc-pat-lbl';
+        lbl.textContent = key;
+        cell.appendChild(lbl);
+        grid.appendChild(cell);
+    }
+    container.appendChild(grid);
+}
+
+function bcPatDesc(key, tset) {
+    const bits = key.split(',').map(Number);
+    const labels = tset.type === 'corner' ? ['TL','TR','BR','BL']
+                 : tset.type === 'edge'   ? ['Top','Right','Bottom','Left']
+                 : ['TL','TR','BR','BL','Top','Right','Bottom','Left'];
+    return bits.map((b,i) => `${labels[i] || i}=${tset.terrains[b]?.name || b}`).join(', ');
+}
+
+function bcDrawPatternDiagram(ctx2, key, tset, w, h) {
+    const bits = key.split(',').map(Number);
+    const R = Math.min(w, h) * 0.14;
+    const mid = { x: w / 2, y: h / 2 };
+
+    if (tset.type === 'corner') {
+        const pos = [[0,0],[w,0],[w,h],[0,h]];
+        bits.slice(0, 4).forEach((b, i) => {
+            const [cx, cy] = pos[i];
+            ctx2.beginPath();
+            ctx2.arc(cx, cy, R * 1.6, 0, Math.PI * 2);
+            ctx2.fillStyle = tset.terrains[b]?.color || '#555';
+            ctx2.fill();
+            ctx2.strokeStyle = 'rgba(255,255,255,0.5)';
+            ctx2.lineWidth = 1;
+            ctx2.stroke();
+        });
+    } else if (tset.type === 'edge') {
+        const pos = [[mid.x, 0],[w, mid.y],[mid.x, h],[0, mid.y]];
+        bits.slice(0, 4).forEach((b, i) => {
+            const [cx, cy] = pos[i];
+            ctx2.beginPath();
+            ctx2.arc(cx, cy, R * 1.4, 0, Math.PI * 2);
+            ctx2.fillStyle = tset.terrains[b]?.color || '#555';
+            ctx2.fill();
+            ctx2.strokeStyle = 'rgba(255,255,255,0.5)';
+            ctx2.lineWidth = 1;
+            ctx2.stroke();
+        });
+    } else {
+        // mixed: corners
+        [[0,0],[w,0],[w,h],[0,h]].forEach(([cx,cy], i) => {
+            if (i >= bits.length) return;
+            ctx2.beginPath(); ctx2.arc(cx, cy, R * 1.3, 0, Math.PI * 2);
+            ctx2.fillStyle = tset.terrains[bits[i]]?.color || '#555'; ctx2.fill();
+        });
+        // edges
+        [[mid.x,0],[w,mid.y],[mid.x,h],[0,mid.y]].forEach(([cx,cy], i) => {
+            if ((i+4) >= bits.length) return;
+            ctx2.beginPath(); ctx2.arc(cx, cy, R, 0, Math.PI * 2);
+            ctx2.fillStyle = tset.terrains[bits[i+4]]?.color || '#555'; ctx2.fill();
+        });
+    }
+}
+
+function bcSelectSlot(key, cellEl) {
+    bcSelSlot = key;
+    document.querySelectorAll('.bc-pat-cell').forEach(c => c.classList.remove('bc-selected'));
+    if (cellEl) cellEl.classList.add('bc-selected');
+    const hint = document.getElementById('bc-assign-hint');
+    if (hint) hint.textContent = `Selected: [${key}] — now click a tile on the right`;
+}
+
+function bcClearSlot(key) {
+    if (selTSetIdx < 0) return;
+    delete terrainSets[selTSetIdx].tileAssignments[key];
+    if (bcSelSlot === key) bcSelSlot = null;
+    buildBcPatternGrid();
+    buildPatternsView();
+    toast('Pattern cleared', 'ok');
+    const img = imgCache.get(bcSheet);
+    if (img) bcRedrawSheetOverlay(img);
+}
+
+async function bcClearAll() {
+    if (selTSetIdx < 0) return;
+    const ok = await modalConfirm('Clear Assignments', 'Clear all tile assignments for this terrain set?', { danger: true });
+    if (!ok) return;
+    terrainSets[selTSetIdx].tileAssignments = {};
+    bcSelSlot = null;
+    buildBcPatternGrid();
+    buildPatternsView();
+    toast('All patterns cleared', 'ok');
+}
+
+// ─── Tileset picker side ────────────────────────
+function buildBcCatButtons() {
+    const container = document.getElementById('bc-cat-btns');
+    container.innerHTML = '';
+    Object.keys(PALETTE_DATA).forEach(cat => {
+        const btn = document.createElement('button');
+        const isActive = PALETTE_DATA[cat].includes(bcSheet);
+        btn.className = 'cat-btn' + (isActive ? ' active' : '');
+        btn.textContent = cat;
+        btn.onclick = () => bcShowCategory(cat);
+        container.appendChild(btn);
+    });
+}
+
+let bcActiveCat = '';
+
+function bcShowCategory(cat) {
+    bcActiveCat = cat;
+    document.querySelectorAll('#bc-cat-btns .cat-btn').forEach(b => b.classList.toggle('active', b.textContent === cat));
+    buildBcSheetList(cat);
+}
+
+function buildBcSheetList(cat) {
+    const paths = PALETTE_DATA[cat] || [];
+    if (!paths.length) return;
+    const container = document.getElementById('bc-sheet-list');
+    container.innerHTML = '';
+    paths.forEach(path => {
+        const btn = document.createElement('button');
+        btn.style.cssText = 'font-size:10px;padding:2px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px';
+        btn.className = 'cat-btn' + (bcSheet === path ? ' active' : '');
+        btn.textContent = path.split('/').pop().replace(/\.[^.]+$/, '');
+        btn.title = path;
+        btn.onclick = () => bcRenderSheetCanvas(path);
+        container.appendChild(btn);
+    });
+    if (!bcSheet || !paths.includes(bcSheet)) bcRenderSheetCanvas(paths[0]);
+}
+
+function bcRenderSheetCanvas(sheetPath) {
+    bcSheet = sheetPath;
+    document.querySelectorAll('#bc-sheet-list .cat-btn').forEach(b => b.classList.toggle('active', b.title === sheetPath));
+    loadImage(sheetPath).then(img => {
+        const canvas2 = document.getElementById('bc-tileset-canvas');
+        if (!img) {
+            canvas2.width = 200; canvas2.height = 60;
+            const ctx2 = canvas2.getContext('2d');
+            ctx2.fillStyle = '#f85149'; ctx2.font = '12px sans-serif';
+            ctx2.fillText('Image not found', 8, 30);
+            return;
+        }
+        bcImgCols = Math.floor(img.width / TILE);
+        bcImgRows = Math.floor(img.height / TILE);
+        canvas2.width = bcImgCols * TILE * BC_SCALE;
+        canvas2.height = bcImgRows * TILE * BC_SCALE;
+        bcHoverCol = -1; bcHoverRow = -1;
+        bcRedrawSheetOverlay(img);
+    });
+}
+
+function bcRedrawSheetOverlay(img) {
+    const canvas2 = document.getElementById('bc-tileset-canvas');
+    if (!canvas2 || !img) return;
+    const ctx2 = canvas2.getContext('2d');
+    const ts = TILE * BC_SCALE;
+    ctx2.imageSmoothingEnabled = false;
+    ctx2.drawImage(img, 0, 0, img.width, img.height, 0, 0, canvas2.width, canvas2.height);
+
+    // Grid lines
+    ctx2.strokeStyle = 'rgba(255,255,255,0.07)'; ctx2.lineWidth = 0.5;
+    for (let c = 0; c <= bcImgCols; c++) { ctx2.beginPath(); ctx2.moveTo(c*ts,0); ctx2.lineTo(c*ts,canvas2.height); ctx2.stroke(); }
+    for (let r = 0; r <= bcImgRows; r++) { ctx2.beginPath(); ctx2.moveTo(0,r*ts); ctx2.lineTo(canvas2.width,r*ts); ctx2.stroke(); }
+
+    // Mark assigned tiles (blue border)
+    if (selTSetIdx >= 0) {
+        const tset = terrainSets[selTSetIdx];
+        for (const [, ass] of Object.entries(tset.tileAssignments)) {
+            if (ass.sheetPath !== bcSheet) continue;
+            const ac = ass.sx / TILE, ar = ass.sy / TILE;
+            ctx2.strokeStyle = 'rgba(58,166,255,0.8)'; ctx2.lineWidth = 2;
+            ctx2.strokeRect(ac*ts+1, ar*ts+1, ts-2, ts-2);
+        }
+    }
+
+    // Hover highlight
+    if (bcHoverCol >= 0 && bcHoverRow >= 0) {
+        ctx2.fillStyle = 'rgba(230,168,23,0.22)';
+        ctx2.fillRect(bcHoverCol*ts, bcHoverRow*ts, ts, ts);
+        ctx2.strokeStyle = 'rgba(230,168,23,0.9)'; ctx2.lineWidth = 2;
+        ctx2.strokeRect(bcHoverCol*ts+1, bcHoverRow*ts+1, ts-2, ts-2);
+    }
+}
+
+function bcSetupCanvasEvents() {
+    const canvas2 = document.getElementById('bc-tileset-canvas');
+    canvas2.onmousemove = e => {
+        const rect = canvas2.getBoundingClientRect();
+        const scaleX = canvas2.width / rect.width;
+        const scaleY = canvas2.height / rect.height;
+        const col = Math.floor((e.clientX - rect.left) * scaleX / (TILE * BC_SCALE));
+        const row = Math.floor((e.clientY - rect.top) * scaleY / (TILE * BC_SCALE));
+        if (col !== bcHoverCol || row !== bcHoverRow) {
+            bcHoverCol = col; bcHoverRow = row;
+            const img = imgCache.get(bcSheet);
+            if (img) bcRedrawSheetOverlay(img);
+        }
+    };
+    canvas2.onmouseleave = () => {
+        bcHoverCol = -1; bcHoverRow = -1;
+        const img = imgCache.get(bcSheet);
+        if (img) bcRedrawSheetOverlay(img);
+    };
+    canvas2.onclick = e => {
+        if (!bcSelSlot) { toast('Select a pattern slot on the left first!', 'err'); return; }
+        if (selTSetIdx < 0) return;
+        // Recalculate tile coords directly from the click event (don't rely on hover state)
+        const rect = canvas2.getBoundingClientRect();
+        const scaleX = canvas2.width / rect.width;
+        const scaleY = canvas2.height / rect.height;
+        const col = Math.floor((e.clientX - rect.left) * scaleX / (TILE * BC_SCALE));
+        const row = Math.floor((e.clientY - rect.top) * scaleY / (TILE * BC_SCALE));
+        if (col < 0 || col >= bcImgCols || row < 0 || row >= bcImgRows) return;
+        bcHoverCol = col; bcHoverRow = row;
+
+        const tset = terrainSets[selTSetIdx];
+
+        // Snapshot current slot and find next BEFORE rebuilding DOM
+        const curSlot = bcSelSlot;
+        const allCells = [...document.querySelectorAll('#bc-pattern-container .bc-pat-cell')];
+        const curIdx = allCells.findIndex(c => c.dataset.key === curSlot);
+        let nextKey = null;
+        for (let i = curIdx + 1; i < allCells.length; i++) {
+            if (!tset.tileAssignments[allCells[i].dataset.key]) { nextKey = allCells[i].dataset.key; break; }
+        }
+
+        // Do the assignment
+        tset.tileAssignments[curSlot] = {
+            sheetPath: bcSheet, sx: col * TILE, sy: row * TILE
+        };
+        toast(`Assigned [${curSlot}] ✓`, 'ok');
+
+        // Update selection BEFORE rebuilding so the grid builds with the correct bc-selected state
+        bcSelSlot = nextKey || null;
+
+        // Rebuild pattern grid
+        buildBcPatternGrid();
+
+        // Scroll selected cell into view and update hint
+        if (nextKey) {
+            const nextCell = document.querySelector(`#bc-pattern-container .bc-pat-cell[data-key="${nextKey}"]`);
+            if (nextCell) {
+                nextCell.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+            const hint = document.getElementById('bc-assign-hint');
+            if (hint) hint.textContent = `Selected: [${nextKey}] — now click a tile on the right`;
+        } else {
+            const hint = document.getElementById('bc-assign-hint');
+            if (hint) hint.textContent = '✓ All patterns assigned!';
+        }
+        const img = imgCache.get(bcSheet);
+        if (img) bcRedrawSheetOverlay(img);
+    };
+}
+
+// autoAssignLPCSet — stub (was referenced in buttons but missing)
+function autoAssignLPCSet() {
+    toast('Use the 🎨 Brush Creator to assign tiles to patterns', 'ok');
+    openBrushCreator();
+}
+
+// ═══════════════════════════════════════════════
+//  FILE I/O
+// ═══════════════════════════════════════════════
+async function newMap() {
+    const result = await modalMultiPrompt('New Map', [
+        { key: 'w', label: 'Width', placeholder: 'tiles', defaultVal: '128', type: 'number' },
+        { key: 'h', label: 'Height', placeholder: 'tiles', defaultVal: '128', type: 'number' }
+    ]);
+    if (!result) return;
+    const w = parseInt(result.w), h = parseInt(result.h);
+    if (!w || !h || w < 1 || h < 1) { toast('Invalid dimensions', 'err'); return; }
+    createMap(w, h);
+    buildLayerUI();
+    mapUsage = { settlements: [], landmarks: [], biomes: [] };
+    buildUsageUI();
+    panX = 20; panY = 20;
+    zoom = Math.min((cvs.width - 40) / (w * TILE), (cvs.height - 40) / (h * TILE));
+    undoStack = []; redoStack = [];
+    render();
+    toast(`Created ${w}×${h} map`, 'ok');
+}
+
+function saveMap() {
+    if (mapW === 0) { toast('No map', 'err'); return; }
+    const data = {
+        version: 2, width: mapW, height: mapH, numLayers: numLayers,
+        layerNames: layerNames.slice(),
+        mapUsage: JSON.parse(JSON.stringify(mapUsage)),
+        tiles: tiles.map(row => row.map(stack => stack.map(t => t ? { s: t.sheetPath, x: t.sx, y: t.sy } : null))),
+        terrainSets,
+        nineTileBrushes,
+        brushGroupMap: brushGroupMap.map(row => row.map(v => v || null)),
+        placedObjects: JSON.parse(JSON.stringify(placedObjects))
+    };
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'lpc_terrain_map.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('Saved', 'ok');
+}
+
+function loadMap() { document.getElementById('load-input').click(); }
+
+function handleLoad(ev) {
+    const file = ev.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        try {
+            const d = JSON.parse(e.target.result);
+            mapW = d.width; mapH = d.height;
+            // Support both v1 (flat) and v2 (layered) tile format
+            if (d.numLayers || (d.tiles[0] && d.tiles[0][0] && Array.isArray(d.tiles[0][0]))) {
+                // v2: layered
+                numLayers = d.numLayers || d.tiles[0][0].length || 3;
+                layerNames = d.layerNames || Array.from({length: numLayers}, (_, i) => 'Layer ' + (i+1));
+                while (layerNames.length < numLayers) layerNames.push('Layer ' + (layerNames.length+1));
+                layerVisible = new Array(numLayers).fill(true);
+                activeLayer = 0;
+                tiles = d.tiles.map(row => row.map(stack => {
+                    const s = stack.map(t => t ? { sheetPath: t.s, sx: t.x, sy: t.y } : null);
+                    while (s.length < numLayers) s.push(null);
+                    return s;
+                }));
+            } else {
+                // v1: single layer — put on layer 0
+                numLayers = 3;
+                layerNames = ['Base', 'Detail', 'Overlay'];
+                layerVisible = [true, true, true];
+                activeLayer = 0;
+                tiles = d.tiles.map(row => row.map(t => {
+                    const stack = new Array(numLayers).fill(null);
+                    if (t) stack[0] = { sheetPath: t.s, sx: t.x, sy: t.y };
+                    return stack;
+                }));
+            }
+            buildLayerUI();
+            if (d.mapUsage) {
+                mapUsage = { settlements: d.mapUsage.settlements || [], landmarks: d.mapUsage.landmarks || [], biomes: d.mapUsage.biomes || [] };
+            } else {
+                mapUsage = { settlements: [], landmarks: [], biomes: [] };
+            }
+            buildUsageUI();
+            if (d.terrainSets) { terrainSets = d.terrainSets; buildTSetsList(); }
+            if (d.nineTileBrushes) { nineTileBrushes = d.nineTileBrushes; buildNtbListPanel(); }
+            if (d.brushGroupMap) { brushGroupMap = d.brushGroupMap; } else {
+                brushGroupMap = [];
+                for (let r = 0; r < mapH; r++) brushGroupMap.push(new Array(mapW).fill(null));
+            }
+            document.getElementById('p-size').textContent = `${mapW}×${mapH}`;
+            placedObjects = d.placedObjects ? JSON.parse(JSON.stringify(d.placedObjects)) : {};
+            panX = 20; panY = 20;
+            undoStack = []; redoStack = [];
+
+            // Preload all images
+            const paths = new Set();
+            for (const row of tiles) for (const stack of row) for (const t of stack) if (t) paths.add(t.sheetPath);
+            for (const obj of Object.values(placedObjects)) for (const t of (obj.tiles || [])) if (t.sheetPath) paths.add(t.sheetPath);
+            Promise.all([...paths].map(p => loadImage(p))).then(() => render());
+
+            toast(`Loaded ${mapW}×${mapH} map`, 'ok');
+        } catch (err) { toast('Load failed: ' + err.message, 'err'); }
+    };
+    reader.readAsText(file);
+    ev.target.value = '';
+}
+
+
+// ═══════════════════════════════════════════════
+//  SECTION TOGGLE
+// ═══════════════════════════════════════════════
+function toggleSec(name) {
+    const body = document.getElementById('body-' + name);
+    body.style.display = body.style.display === 'none' ? '' : 'none';
+}
+
+
+// ═══════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════
+let toastTimer = null;
+// ═══════════════════════════════════════════════
+//  MODAL DIALOGS (replaces prompt/confirm/alert)
+// ═══════════════════════════════════════════════
+
+/**
+ * Show a prompt-style modal.  Returns a Promise<string|null>.
+ * @param {string} title
+ * @param {string} placeholder
+ * @param {string} [defaultVal]
+ */
+function modalPrompt(title, placeholder, defaultVal = '') {
+    return new Promise(resolve => {
+        const ov = document.createElement('div');
+        ov.className = 'te-modal-overlay';
+        const box = document.createElement('div');
+        box.className = 'te-modal';
+        box.innerHTML = `<h3>${title}</h3>`;
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.placeholder = placeholder;
+        inp.value = defaultVal;
+        box.appendChild(inp);
+        const btns = document.createElement('div');
+        btns.className = 'te-modal-btns';
+        const cancel = document.createElement('button');
+        cancel.textContent = 'Cancel';
+        const ok = document.createElement('button');
+        ok.className = 'primary';
+        ok.textContent = 'OK';
+        btns.appendChild(cancel);
+        btns.appendChild(ok);
+        box.appendChild(btns);
+        ov.appendChild(box);
+        document.body.appendChild(ov);
+        inp.focus();
+        inp.select();
+        const close = val => { ov.remove(); resolve(val); };
+        ok.onclick = () => close(inp.value);
+        cancel.onclick = () => close(null);
+        ov.addEventListener('mousedown', e => { if (e.target === ov) close(null); });
+        inp.addEventListener('keydown', e => {
+            if (e.key === 'Enter') close(inp.value);
+            if (e.key === 'Escape') close(null);
+        });
+    });
+}
+
+/**
+ * Show a prompt modal with multiple fields.  Returns Promise<{field:value}|null>.
+ * @param {string} title
+ * @param {{key:string,label:string,placeholder?:string,defaultVal?:string}[]} fields
+ */
+function modalMultiPrompt(title, fields) {
+    return new Promise(resolve => {
+        const ov = document.createElement('div');
+        ov.className = 'te-modal-overlay';
+        const box = document.createElement('div');
+        box.className = 'te-modal';
+        box.innerHTML = `<h3>${title}</h3>`;
+        const inputs = {};
+        for (const f of fields) {
+            const row = document.createElement('div');
+            row.className = 'te-modal-row';
+            const lbl = document.createElement('label');
+            lbl.textContent = f.label;
+            const inp = document.createElement('input');
+            inp.type = f.type || 'text';
+            inp.placeholder = f.placeholder || '';
+            inp.value = f.defaultVal || '';
+            inputs[f.key] = inp;
+            row.appendChild(lbl);
+            row.appendChild(inp);
+            box.appendChild(row);
+        }
+        const spacer = document.createElement('div');
+        spacer.style.height = '8px';
+        box.appendChild(spacer);
+        const btns = document.createElement('div');
+        btns.className = 'te-modal-btns';
+        const cancel = document.createElement('button');
+        cancel.textContent = 'Cancel';
+        const ok = document.createElement('button');
+        ok.className = 'primary';
+        ok.textContent = 'OK';
+        btns.appendChild(cancel);
+        btns.appendChild(ok);
+        box.appendChild(btns);
+        ov.appendChild(box);
+        document.body.appendChild(ov);
+        const firstInp = inputs[fields[0].key];
+        if (firstInp) { firstInp.focus(); firstInp.select(); }
+        const close = val => { ov.remove(); resolve(val); };
+        ok.onclick = () => {
+            const result = {};
+            for (const f of fields) result[f.key] = inputs[f.key].value;
+            close(result);
+        };
+        cancel.onclick = () => close(null);
+        ov.addEventListener('mousedown', e => { if (e.target === ov) close(null); });
+        // Enter on last field submits
+        const lastInp = inputs[fields[fields.length - 1].key];
+        if (lastInp) lastInp.addEventListener('keydown', e => {
+            if (e.key === 'Enter') ok.click();
+            if (e.key === 'Escape') close(null);
+        });
+    });
+}
+
+/**
+ * Show a confirm-style modal.  Returns Promise<boolean>.
+ * @param {string} title
+ * @param {string} message
+ * @param {object} [opts]
+ * @param {boolean} [opts.danger]  — red confirm button
+ */
+function modalConfirm(title, message, opts = {}) {
+    return new Promise(resolve => {
+        const ov = document.createElement('div');
+        ov.className = 'te-modal-overlay';
+        const box = document.createElement('div');
+        box.className = 'te-modal';
+        box.innerHTML = `<h3>${title}</h3><p>${message}</p>`;
+        const btns = document.createElement('div');
+        btns.className = 'te-modal-btns';
+        const cancel = document.createElement('button');
+        cancel.textContent = 'Cancel';
+        const ok = document.createElement('button');
+        ok.className = opts.danger ? 'danger' : 'primary';
+        ok.textContent = opts.danger ? 'Delete' : 'Confirm';
+        btns.appendChild(cancel);
+        btns.appendChild(ok);
+        box.appendChild(btns);
+        ov.appendChild(box);
+        document.body.appendChild(ov);
+        ok.focus();
+        const close = val => { ov.remove(); resolve(val); };
+        ok.onclick = () => close(true);
+        cancel.onclick = () => close(false);
+        ov.addEventListener('mousedown', e => { if (e.target === ov) close(false); });
+        box.addEventListener('keydown', e => {
+            if (e.key === 'Escape') close(false);
+            if (e.key === 'Enter') close(true);
+        });
+    });
+}
+
+function toast(msg, type = '') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `show ${type}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = type; }, 2400);
+}
+
+
+// ═══════════════════════════════════════════════
+//  NINE-TILE BRUSH SYSTEM
+// ═══════════════════════════════════════════════
+const NTB_LABELS = [
+    ['TL', 'Top', 'TR'],
+    ['Left', 'Center', 'Right'],
+    ['BL', 'Bottom', 'BR']
+];
+const NTB_IC_LABELS = ['IC-TL', 'IC-TR', 'IC-BL', 'IC-BR'];
+
+const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
+const SEASON_ICONS = { spring: '🌱', summer: '☀️', autumn: '🍂', winter: '❄️' };
+const SEASON_COLORS = { spring: '#3fb950', summer: '#e6a817', autumn: '#f0883e', winter: '#58a6ff' };
+
+// ── Nine-tile brush editing state ──
+let ntbEditIdx = -1;
+let ntbSelSlot = null;  // {row, col}
+let ntbSheet = null;
+let ntbImgCols = 0, ntbImgRows = 0;
+let ntbHoverCol = -1, ntbHoverRow = -1;
+let ntbDragStart = null;   // {col,row} on mousedown
+let ntbDragCur   = null;   // {col,row} current drag tile
+const NTB_SCALE = 2;
+let ntbActiveCat = '';
+let ntbActiveSeason = 'spring';
+let ntbSeasonTiles = null; // { spring: 3x3, summer: 3x3, autumn: 3x3, winter: 3x3 }
+let ntbSeasonCorners = null; // { spring: [4], summer: [4], autumn: [4], winter: [4] }
+// ntbTiles/ntbCorners point to the active season
+let ntbTiles = [[null,null,null],[null,null,null],[null,null,null]];
+let ntbCorners = [null, null, null, null];
+
+function ntbEmptyGrid() { return [[null,null,null],[null,null,null],[null,null,null]]; }
+function ntbEmptyCorners() { return [null, null, null, null]; }
+
+function ntbInitSeasonTiles() {
+    ntbSeasonTiles = {};
+    ntbSeasonCorners = {};
+    for (const s of SEASONS) {
+        ntbSeasonTiles[s] = ntbEmptyGrid();
+        ntbSeasonCorners[s] = ntbEmptyCorners();
+    }
+}
+
+function ntbSyncTilesToSeason() {
+    // Point ntbTiles/ntbCorners at the active season's data
+    if (ntbSeasonTiles && ntbSeasonTiles[ntbActiveSeason]) {
+        ntbTiles = ntbSeasonTiles[ntbActiveSeason];
+    }
+    if (ntbSeasonCorners && ntbSeasonCorners[ntbActiveSeason]) {
+        ntbCorners = ntbSeasonCorners[ntbActiveSeason];
+    }
+}
+
+function ntbSeasonTileCount(season) {
+    let count = 0;
+    const grid = ntbSeasonTiles ? ntbSeasonTiles[season] : null;
+    if (grid) {
+        for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) if (grid[r] && grid[r][c]) count++;
+    }
+    const corners = ntbSeasonCorners ? ntbSeasonCorners[season] : null;
+    if (corners) {
+        for (let i = 0; i < 4; i++) if (corners[i]) count++;
+    }
+    return count;
+}
+
+function ntbSetSeason(season) {
+    ntbActiveSeason = season;
+    ntbSyncTilesToSeason();
+    ntbBuildSeasonTabs();
+    ntbBuildCopyRow();
+    ntbBuildGrid();
+    const img = imgCache.get(ntbSheet);
+    if (img) ntbRedrawSheet(img);
+}
+
+function ntbCopyFromSeason(srcSeason) {
+    if (!ntbSeasonTiles[srcSeason]) return;
+    const src = ntbSeasonTiles[srcSeason];
+    const dst = ntbSeasonTiles[ntbActiveSeason];
+    for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 3; c++) {
+            dst[r][c] = src[r][c] ?  {...src[r][c]} : null;
+        }
+    }
+    // Copy inside corners
+    const srcIC = ntbSeasonCorners[srcSeason];
+    const dstIC = ntbSeasonCorners[ntbActiveSeason];
+    if (srcIC && dstIC) {
+        for (let i = 0; i < 4; i++) dstIC[i] = srcIC[i] ? {...srcIC[i]} : null;
+    }
+    ntbSyncTilesToSeason();
+    ntbBuildSeasonTabs();
+    ntbBuildGrid();
+    toast(`Copied ${srcSeason} tiles to ${ntbActiveSeason}`, 'ok');
+    const img = imgCache.get(ntbSheet);
+    if (img) ntbRedrawSheet(img);
+}
+
+function ntbBuildSeasonTabs() {
+    const container = document.getElementById('ntb-season-tabs');
+    if (!container) return;
+    container.innerHTML = '';
+    for (const s of SEASONS) {
+        const btn = document.createElement('button');
+        btn.className = 'ntb-season-btn' + (s === ntbActiveSeason ? ' active' : '');
+        const count = ntbSeasonTileCount(s);
+        const dotClass = count >= 9 ? 'complete' : count > 0 ? 'partial' : 'empty';
+        btn.innerHTML = `${SEASON_ICONS[s]} ${s.charAt(0).toUpperCase() + s.slice(1)}<span class="season-dot ${dotClass}"></span>`;
+        btn.style.borderColor = (s === ntbActiveSeason) ? SEASON_COLORS[s] : '';
+        if (s === ntbActiveSeason) btn.style.color = SEASON_COLORS[s];
+        btn.onclick = () => ntbSetSeason(s);
+        container.appendChild(btn);
+    }
+}
+
+function ntbBuildCopyRow() {
+    const container = document.getElementById('ntb-copy-row');
+    if (!container) return;
+    const others = SEASONS.filter(s => s !== ntbActiveSeason && ntbSeasonTileCount(s) > 0);
+    if (others.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+    container.innerHTML = '<span>Copy from:</span>';
+    for (const s of others) {
+        const btn = document.createElement('button');
+        btn.style.cssText = 'font-size:10px;padding:2px 6px;cursor:pointer;border:1px solid var(--border2);border-radius:3px;background:var(--bg);color:var(--text-dim)';
+        btn.textContent = `${SEASON_ICONS[s]} ${s.charAt(0).toUpperCase() + s.slice(1)}`;
+        btn.onclick = () => ntbCopyFromSeason(s);
+        container.appendChild(btn);
+    }
+}
+
+// ── Painting ──
+function nineTilePaint(q, r) {
+    if (activeNineBrush === null) return;
+    const brush = nineTileBrushes[activeNineBrush];
+    if (!brush) return;
+    const hexes = getBrushTiles(q, r);
+    for (const h of hexes) {
+        if (h.q < 0 || h.q >= mapW || h.r < 0 || h.r >= mapH) continue;
+        brushGroupMap[h.r][h.q] = brush.id;
+    }
+    // Collect cells needing recompute (painted + their neighbors)
+    const toUpdate = new Set();
+    for (const h of hexes) {
+        for (let dr = -1; dr <= 1; dr++) {
+            for (let dq = -1; dq <= 1; dq++) {
+                const nq = h.q + dq, nr = h.r + dr;
+                if (nq >= 0 && nq < mapW && nr >= 0 && nr < mapH && brushGroupMap[nr] && brushGroupMap[nr][nq]) {
+                    toUpdate.add(`${nq},${nr}`);
+                }
+            }
+        }
+    }
+    for (const key of toUpdate) {
+        const [uq, ur] = key.split(',').map(Number);
+        recomputeNineTile(uq, ur, previewSeason);
+    }
+}
+
+function recomputeNineTile(q, r, season) {
+    if (!brushGroupMap[r]) return;
+    const groupId = brushGroupMap[r][q];
+    if (!groupId) return;
+    const brush = nineTileBrushes.find(b => b.id === groupId);
+    if (!brush) return;
+
+    const hasTop    = r > 0       && brushGroupMap[r-1] && brushGroupMap[r-1][q] === groupId;
+    const hasBottom = r < mapH-1  && brushGroupMap[r+1] && brushGroupMap[r+1][q] === groupId;
+    const hasLeft   = q > 0       && brushGroupMap[r][q-1] === groupId;
+    const hasRight  = q < mapW-1  && brushGroupMap[r][q+1] === groupId;
+
+    // Pick tiles from season-specific grid, falling back to default tiles
+    const tilesGrid = (season && brush.seasonTiles && brush.seasonTiles[season])
+        ? brush.seasonTiles[season]
+        : brush.tiles;
+    const cornersArr = (season && brush.seasonInsideCorners && brush.seasonInsideCorners[season])
+        ? brush.seasonInsideCorners[season]
+        : (brush.insideCorners || null);
+
+    // Check for inside corners: all 4 cardinals present but a diagonal is missing
+    if (hasTop && hasBottom && hasLeft && hasRight && cornersArr) {
+        const hasTL = r > 0 && q > 0            && brushGroupMap[r-1] && brushGroupMap[r-1][q-1] === groupId;
+        const hasTR = r > 0 && q < mapW-1       && brushGroupMap[r-1] && brushGroupMap[r-1][q+1] === groupId;
+        const hasBL = r < mapH-1 && q > 0        && brushGroupMap[r+1] && brushGroupMap[r+1][q-1] === groupId;
+        const hasBR = r < mapH-1 && q < mapW-1   && brushGroupMap[r+1] && brushGroupMap[r+1][q+1] === groupId;
+
+        // IC indices: 0=TL, 1=TR, 2=BL, 3=BR
+        const icIdx = !hasTL ? 0 : !hasTR ? 1 : !hasBL ? 2 : !hasBR ? 3 : -1;
+        if (icIdx >= 0 && cornersArr[icIdx]) {
+            const ic = cornersArr[icIdx];
+            tiles[r][q][activeLayer] = { sheetPath: ic.sheetPath, sx: ic.sx, sy: ic.sy };
+            return;
+        }
+    }
+
+    // Map to 3×3 grid: row 0=top edge, 1=middle, 2=bottom edge
+    let row = 1;
+    if (!hasTop && hasBottom) row = 0;
+    else if (hasTop && !hasBottom) row = 2;
+    // col 0=left edge, 1=middle, 2=right edge
+    let col = 1;
+    if (!hasLeft && hasRight) col = 0;
+    else if (hasLeft && !hasRight) col = 2;
+
+    const tileRef = tilesGrid[row] && tilesGrid[row][col];
+    if (tileRef) {
+        tiles[r][q][activeLayer] = { sheetPath: tileRef.sheetPath, sx: tileRef.sx, sy: tileRef.sy };
+    }
+}
+
+function recomputeAllBrushTiles(brushId, season) {
+    for (let r = 0; r < mapH; r++) {
+        for (let q = 0; q < mapW; q++) {
+            if (brushGroupMap[r] && brushGroupMap[r][q] === brushId) {
+                recomputeNineTile(q, r, season || previewSeason);
+            }
+        }
+    }
+    render();
+}
+
+function setPreviewSeason(season) {
+    previewSeason = season;
+    // Recompute all nine-tile brush cells with the new season
+    for (let r = 0; r < mapH; r++) {
+        for (let q = 0; q < mapW; q++) {
+            if (brushGroupMap[r] && brushGroupMap[r][q]) {
+                recomputeNineTile(q, r, season);
+            }
+        }
+    }
+    // Preload any new images needed
+    const paths = new Set();
+    for (const brush of nineTileBrushes) {
+        if (brush.seasonTiles && brush.seasonTiles[season]) {
+            for (const row of brush.seasonTiles[season]) {
+                for (const t of row) {
+                    if (t) paths.add(t.sheetPath);
+                }
+            }
+        }
+        if (brush.seasonInsideCorners && brush.seasonInsideCorners[season]) {
+            for (const t of brush.seasonInsideCorners[season]) {
+                if (t) paths.add(t.sheetPath);
+            }
+        }
+    }
+    Promise.all([...paths].map(p => loadImage(p))).then(() => render());
+    toast(`Season: ${season}`, 'ok');
+}
+
+// ── Left panel brush list ──
+function buildNtbListPanel() {
+    const list = document.getElementById('ntb-list-panel');
+    if (!list) return;
+    list.innerHTML = '';
+    if (nineTileBrushes.length === 0) {
+        list.innerHTML = '<div style="font-size:11px;color:var(--text-dim);padding:4px 0">No brushes yet</div>';
+        return;
+    }
+    nineTileBrushes.forEach((brush, i) => {
+        const card = document.createElement('div');
+        card.className = 'ntb-brush-card' + (activeNineBrush === i ? ' selected' : '');
+        card.onclick = () => selectNineBrush(i);
+        card.ondblclick = () => openNtbEditor(i);
+        card.title = 'Click to select for painting, double-click to edit';
+        const cvs2 = document.createElement('canvas');
+        cvs2.width = 24; cvs2.height = 24;
+        const ctx2 = cvs2.getContext('2d');
+        ctx2.imageSmoothingEnabled = false;
+        const ctr = brush.tiles[1] && brush.tiles[1][1];
+        if (ctr) {
+            const img = imgCache.get(ctr.sheetPath);
+            if (img) ctx2.drawImage(img, ctr.sx, ctr.sy, TILE, TILE, 0, 0, 24, 24);
+        } else { ctx2.fillStyle = '#333'; ctx2.fillRect(0, 0, 24, 24); }
+        card.appendChild(cvs2);
+        const name = document.createElement('span');
+        name.className = 'ntb-bname';
+        name.textContent = brush.name;
+        card.appendChild(name);
+        // Season indicators
+        if (brush.seasonTiles) {
+            const badge = document.createElement('span');
+            badge.style.cssText = 'font-size:9px;margin-left:auto;flex-shrink:0;display:flex;gap:1px';
+            for (const s of SEASONS) {
+                const dot = document.createElement('span');
+                const count = ntbSeasonTileCount(brush.seasonTiles[s]);
+                dot.style.cssText = `width:5px;height:5px;border-radius:50%;background:${count === 9 ? SEASON_COLORS[s] : count > 0 ? SEASON_COLORS[s] + '60' : 'var(--border2)'}`;
+                dot.title = `${s}: ${count}/9 tiles`;
+                badge.appendChild(dot);
+            }
+            card.appendChild(badge);
+        }
+        list.appendChild(card);
+    });
+}
+
+function selectNineBrush(idx) {
+    activeNineBrush = (activeNineBrush === idx) ? null : idx;
+    if (activeNineBrush !== null) activeStamp = null;
+    buildNtbListPanel();
+    refreshStampPreview();
+    if (activeNineBrush !== null && activeTool !== 'paint') setTool('paint');
+}
+
+// ── Nine-Tile Brush Editor Modal ──
+function openNtbEditor(editIdx) {
+    ntbEditIdx = (editIdx !== undefined) ? editIdx : -1;
+    const modal = document.getElementById('ntbModal');
+    modal.style.display = 'flex';
+    if (ntbEditIdx >= 0 && nineTileBrushes[ntbEditIdx]) {
+        const brush = nineTileBrushes[ntbEditIdx];
+        document.getElementById('ntb-name').value = brush.name;
+        // Load season tiles
+        if (brush.seasonTiles) {
+            ntbSeasonTiles = {};
+            for (const s of SEASONS) {
+                ntbSeasonTiles[s] = brush.seasonTiles[s]
+                    ? brush.seasonTiles[s].map(row => row.map(t => t ? {...t} : null))
+                    : ntbEmptyGrid();
+            }
+        } else {
+            // Legacy brush without seasonTiles — put tiles into spring
+            ntbInitSeasonTiles();
+            ntbSeasonTiles.spring = brush.tiles.map(row => row.map(t => t ? {...t} : null));
+        }
+        // Load inside corners
+        if (brush.seasonInsideCorners) {
+            ntbSeasonCorners = {};
+            for (const s of SEASONS) {
+                ntbSeasonCorners[s] = brush.seasonInsideCorners[s]
+                    ? brush.seasonInsideCorners[s].map(t => t ? {...t} : null)
+                    : ntbEmptyCorners();
+            }
+        } else if (brush.insideCorners) {
+            // Legacy: only default corners, put into spring
+            ntbSeasonCorners = {};
+            for (const s of SEASONS) ntbSeasonCorners[s] = ntbEmptyCorners();
+            ntbSeasonCorners.spring = brush.insideCorners.map(t => t ? {...t} : null);
+        } else {
+            ntbSeasonCorners = {};
+            for (const s of SEASONS) ntbSeasonCorners[s] = ntbEmptyCorners();
+        }
+        document.getElementById('ntb-del-btn').disabled = false;
+    } else {
+        ntbEditIdx = -1;
+        document.getElementById('ntb-name').value = 'New Brush';
+        ntbInitSeasonTiles();
+        document.getElementById('ntb-del-btn').disabled = true;
+    }
+    ntbActiveSeason = 'spring';
+    ntbSyncTilesToSeason();
+    ntbSelSlot = null;
+    ntbDragStart = null; ntbDragCur = null;
+    ntbBuildSeasonTabs();
+    ntbBuildCopyRow();
+    ntbBuildGrid();
+    ntbBuildBrushList();
+    ntbBuildCatButtons();
+    if (!ntbSheet) {
+        const cats = Object.keys(PALETTE_DATA);
+        if (cats.length > 0) ntbShowCategory(cats[0]);
+    } else {
+        ntbRenderSheetCanvas(ntbSheet);
+    }
+    ntbSetupCanvasEvents();
+}
+
+function closeNtbEditor() {
+    document.getElementById('ntbModal').style.display = 'none';
+    buildNtbListPanel();
+}
+
+function ntbBuildGrid() {
+    const grid = document.getElementById('ntb-grid');
+    grid.innerHTML = '';
+    const fallbackGrid = (ntbActiveSeason !== 'spring' && ntbSeasonTiles && ntbSeasonTiles.spring) ? ntbSeasonTiles.spring : null;
+    const fallbackCorners = (ntbActiveSeason !== 'spring' && ntbSeasonCorners && ntbSeasonCorners.spring) ? ntbSeasonCorners.spring : null;
+    for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 3; c++) {
+            const cell = document.createElement('div');
+            const isSel = ntbSelSlot && ntbSelSlot.row === r && ntbSelSlot.col === c;
+            const tileRef = ntbTiles[r][c];
+            const fallbackRef = (!tileRef && fallbackGrid) ? fallbackGrid[r][c] : null;
+            cell.className = 'ntb-cell' + (isSel ? ' ntb-selected' : '') + (tileRef ? ' ntb-filled' : '');
+            cell.onclick = () => { ntbSelSlot = {row: r, col: c}; ntbBuildGrid(); };
+            cell.oncontextmenu = ev => { ev.preventDefault(); ntbTiles[r][c] = null; ntbBuildSeasonTabs(); ntbBuildGrid(); };
+            if (tileRef || fallbackRef) {
+                const tc = document.createElement('canvas');
+                tc.width = 32; tc.height = 32;
+                const tctx = tc.getContext('2d');
+                tctx.imageSmoothingEnabled = false;
+                const ref = tileRef || fallbackRef;
+                const img = imgCache.get(ref.sheetPath);
+                if (img) {
+                    if (!tileRef && fallbackRef) tctx.globalAlpha = 0.3; // dim fallback
+                    tctx.drawImage(img, ref.sx, ref.sy, TILE, TILE, 0, 0, 32, 32);
+                    tctx.globalAlpha = 1;
+                }
+                cell.appendChild(tc);
+            }
+            const lbl = document.createElement('div');
+            lbl.className = 'ntb-cell-lbl';
+            lbl.textContent = NTB_LABELS[r][c] + (fallbackRef && !tileRef ? ' ◌' : '');
+            cell.appendChild(lbl);
+            grid.appendChild(cell);
+        }
+    }
+    // Inside corners grid
+    const icGrid = document.getElementById('ntb-ic-grid');
+    icGrid.innerHTML = '';
+    for (let i = 0; i < 4; i++) {
+        const cell = document.createElement('div');
+        const isSel = ntbSelSlot && ntbSelSlot.row === 3 && ntbSelSlot.col === i;
+        const tileRef = ntbCorners[i];
+        const fallbackRef = (!tileRef && fallbackCorners) ? fallbackCorners[i] : null;
+        cell.className = 'ntb-cell' + (isSel ? ' ntb-selected' : '') + (tileRef ? ' ntb-filled' : '');
+        cell.onclick = () => { ntbSelSlot = {row: 3, col: i}; ntbBuildGrid(); };
+        cell.oncontextmenu = ev => { ev.preventDefault(); ntbCorners[i] = null; ntbBuildSeasonTabs(); ntbBuildGrid(); };
+        if (tileRef || fallbackRef) {
+            const tc = document.createElement('canvas');
+            tc.width = 32; tc.height = 32;
+            const tctx = tc.getContext('2d');
+            tctx.imageSmoothingEnabled = false;
+            const ref = tileRef || fallbackRef;
+            const img = imgCache.get(ref.sheetPath);
+            if (img) {
+                if (!tileRef && fallbackRef) tctx.globalAlpha = 0.3;
+                tctx.drawImage(img, ref.sx, ref.sy, TILE, TILE, 0, 0, 32, 32);
+                tctx.globalAlpha = 1;
+            }
+            cell.appendChild(tc);
+        }
+        const lbl = document.createElement('div');
+        lbl.className = 'ntb-cell-lbl';
+        lbl.textContent = NTB_IC_LABELS[i] + (fallbackRef && !tileRef ? ' ◌' : '');
+        cell.appendChild(lbl);
+        icGrid.appendChild(cell);
+    }
+}
+
+function ntbBuildBrushList() {
+    const list = document.getElementById('ntb-brush-list');
+    list.innerHTML = '';
+    if (nineTileBrushes.length === 0) {
+        list.innerHTML = '<div style="font-size:11px;color:var(--text-dim)">No saved brushes</div>';
+        return;
+    }
+    nineTileBrushes.forEach((brush, i) => {
+        const card = document.createElement('div');
+        card.className = 'ntb-brush-card' + (ntbEditIdx === i ? ' selected' : '');
+        card.onclick = () => openNtbEditor(i);
+        const cvs2 = document.createElement('canvas');
+        cvs2.width = 24; cvs2.height = 24;
+        const ctx2 = cvs2.getContext('2d');
+        ctx2.imageSmoothingEnabled = false;
+        const ctr = brush.tiles[1] && brush.tiles[1][1];
+        if (ctr) {
+            const img = imgCache.get(ctr.sheetPath);
+            if (img) ctx2.drawImage(img, ctr.sx, ctr.sy, TILE, TILE, 0, 0, 24, 24);
+        }
+        card.appendChild(cvs2);
+        const name = document.createElement('span');
+        name.className = 'ntb-bname';
+        name.textContent = brush.name;
+        card.appendChild(name);
+        // Season dots
+        if (brush.seasonTiles) {
+            const badge = document.createElement('span');
+            badge.style.cssText = 'font-size:9px;margin-left:auto;flex-shrink:0;display:flex;gap:1px';
+            for (const s of SEASONS) {
+                const dot = document.createElement('span');
+                const count = ntbSeasonTileCount(brush.seasonTiles[s]);
+                dot.style.cssText = `width:5px;height:5px;border-radius:50%;background:${count === 9 ? SEASON_COLORS[s] : count > 0 ? SEASON_COLORS[s] + '60' : 'var(--border2)'}`;
+                dot.title = `${s}: ${count}/9`;
+                badge.appendChild(dot);
+            }
+            card.appendChild(badge);
+        }
+        list.appendChild(card);
+    });
+}
+
+function ntbSave() {
+    const name = document.getElementById('ntb-name').value.trim() || 'Unnamed Brush';
+    // Check that at least one season has a center tile
+    let hasCenter = false;
+    for (const s of SEASONS) {
+        if (ntbSeasonTiles[s] && ntbSeasonTiles[s][1] && ntbSeasonTiles[s][1][1]) { hasCenter = true; break; }
+    }
+    if (!hasCenter) {
+        toast('At least one season must have a Center tile assigned', 'err');
+        return;
+    }
+    // Use spring (or first non-empty season) as the default 'tiles' for backward compat
+    let defaultTiles = ntbSeasonTiles.spring;
+    let defaultCorners = ntbSeasonCorners.spring;
+    if (!defaultTiles[1][1]) {
+        for (const s of SEASONS) {
+            if (ntbSeasonTiles[s] && ntbSeasonTiles[s][1] && ntbSeasonTiles[s][1][1]) {
+                defaultTiles = ntbSeasonTiles[s];
+                defaultCorners = ntbSeasonCorners[s];
+                break;
+            }
+        }
+    }
+    const brushData = {
+        id: (ntbEditIdx >= 0 && nineTileBrushes[ntbEditIdx]) ? nineTileBrushes[ntbEditIdx].id : 'ntb_' + Date.now(),
+        name: name,
+        tiles: defaultTiles.map(row => row.map(t => t ? {...t} : null)),
+        insideCorners: defaultCorners.map(t => t ? {...t} : null),
+        seasonTiles: {},
+        seasonInsideCorners: {}
+    };
+    for (const s of SEASONS) {
+        brushData.seasonTiles[s] = ntbSeasonTiles[s].map(row => row.map(t => t ? {...t} : null));
+        brushData.seasonInsideCorners[s] = ntbSeasonCorners[s].map(t => t ? {...t} : null);
+    }
+    if (ntbEditIdx >= 0 && nineTileBrushes[ntbEditIdx]) {
+        nineTileBrushes[ntbEditIdx] = brushData;
+        toast('Brush updated', 'ok');
+    } else {
+        nineTileBrushes.push(brushData);
+        ntbEditIdx = nineTileBrushes.length - 1;
+        toast('Brush saved', 'ok');
+    }
+    document.getElementById('ntb-del-btn').disabled = false;
+    ntbBuildBrushList();
+    buildNtbListPanel();
+    recomputeAllBrushTiles(brushData.id);
+    notifyParent();
+}
+
+async function ntbDelete() {
+    if (ntbEditIdx < 0 || !nineTileBrushes[ntbEditIdx]) return;
+    const ok = await modalConfirm('Delete Brush', `Delete brush "${nineTileBrushes[ntbEditIdx].name}"?`, { danger: true });
+    if (!ok) return;
+    const deletedId = nineTileBrushes[ntbEditIdx].id;
+    nineTileBrushes.splice(ntbEditIdx, 1);
+    for (let r = 0; r < mapH; r++) {
+        for (let q = 0; q < mapW; q++) {
+            if (brushGroupMap[r] && brushGroupMap[r][q] === deletedId) {
+                brushGroupMap[r][q] = null;
+            }
+        }
+    }
+    if (activeNineBrush === ntbEditIdx) activeNineBrush = null;
+    else if (activeNineBrush !== null && activeNineBrush > ntbEditIdx) activeNineBrush--;
+    ntbEditIdx = -1;
+    ntbInitSeasonTiles();
+    ntbActiveSeason = 'spring';
+    ntbSyncTilesToSeason();
+    document.getElementById('ntb-name').value = 'New Brush';
+    document.getElementById('ntb-del-btn').disabled = true;
+    ntbBuildSeasonTabs();
+    ntbBuildCopyRow();
+    ntbBuildGrid();
+    ntbBuildBrushList();
+    buildNtbListPanel();
+    toast('Brush deleted', 'ok');
+    notifyParent();
+}
+
+// ── Tileset picker for NTB editor ──
+function ntbBuildCatButtons() {
+    const container = document.getElementById('ntb-cat-btns');
+    container.innerHTML = '';
+    Object.keys(PALETTE_DATA).forEach(cat => {
+        const btn = document.createElement('button');
+        btn.className = 'cat-btn' + (ntbActiveCat === cat ? ' active' : '');
+        btn.textContent = cat;
+        btn.onclick = () => ntbShowCategory(cat);
+        container.appendChild(btn);
+    });
+}
+
+function ntbShowCategory(cat) {
+    ntbActiveCat = cat;
+    document.querySelectorAll('#ntb-cat-btns .cat-btn').forEach(b => b.classList.toggle('active', b.textContent === cat));
+    ntbBuildSheetList(cat);
+}
+
+function ntbBuildSheetList(cat) {
+    const paths = PALETTE_DATA[cat] || [];
+    if (!paths.length) return;
+    const container = document.getElementById('ntb-sheet-list');
+    container.innerHTML = '';
+    paths.forEach(path => {
+        const btn = document.createElement('button');
+        btn.style.cssText = 'font-size:10px;padding:2px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px';
+        btn.className = 'cat-btn' + (ntbSheet === path ? ' active' : '');
+        btn.textContent = path.split('/').pop().replace(/\.[^.]+$/, '');
+        btn.title = path;
+        btn.onclick = () => ntbRenderSheetCanvas(path);
+        container.appendChild(btn);
+    });
+    if (!ntbSheet || !paths.includes(ntbSheet)) ntbRenderSheetCanvas(paths[0]);
+}
+
+function ntbRenderSheetCanvas(sheetPath) {
+    ntbSheet = sheetPath;
+    document.querySelectorAll('#ntb-sheet-list .cat-btn').forEach(b => b.classList.toggle('active', b.title === sheetPath));
+    loadImage(sheetPath).then(img => {
+        const canvas2 = document.getElementById('ntb-tileset-canvas');
+        if (!img) {
+            canvas2.width = 200; canvas2.height = 60;
+            const ctx2 = canvas2.getContext('2d');
+            ctx2.fillStyle = '#f85149'; ctx2.font = '12px sans-serif';
+            ctx2.fillText('Image not found', 8, 30);
+            return;
+        }
+        ntbImgCols = Math.floor(img.width / TILE);
+        ntbImgRows = Math.floor(img.height / TILE);
+        canvas2.width = ntbImgCols * TILE * NTB_SCALE;
+        canvas2.height = ntbImgRows * TILE * NTB_SCALE;
+        ntbHoverCol = -1; ntbHoverRow = -1;
+        ntbRedrawSheet(img);
+    });
+}
+
+function ntbRedrawSheet(img) {
+    const canvas2 = document.getElementById('ntb-tileset-canvas');
+    if (!canvas2 || !img) return;
+    const ctx2 = canvas2.getContext('2d');
+    const ts = TILE * NTB_SCALE;
+    ctx2.imageSmoothingEnabled = false;
+    ctx2.drawImage(img, 0, 0, img.width, img.height, 0, 0, canvas2.width, canvas2.height);
+    // Grid
+    ctx2.strokeStyle = 'rgba(255,255,255,0.07)'; ctx2.lineWidth = 0.5;
+    for (let c = 0; c <= ntbImgCols; c++) { ctx2.beginPath(); ctx2.moveTo(c*ts,0); ctx2.lineTo(c*ts,canvas2.height); ctx2.stroke(); }
+    for (let rr = 0; rr <= ntbImgRows; rr++) { ctx2.beginPath(); ctx2.moveTo(0,rr*ts); ctx2.lineTo(canvas2.width,rr*ts); ctx2.stroke(); }
+    // Highlight assigned tiles (green border)
+    for (let gr = 0; gr < 3; gr++) {
+        for (let gc = 0; gc < 3; gc++) {
+            const t = ntbTiles[gr][gc];
+            if (t && t.sheetPath === ntbSheet) {
+                const ac = t.sx / TILE, ar = t.sy / TILE;
+                ctx2.strokeStyle = 'rgba(63,185,80,0.8)'; ctx2.lineWidth = 2;
+                ctx2.strokeRect(ac*ts+1, ar*ts+1, ts-2, ts-2);
+                // Label
+                ctx2.fillStyle = 'rgba(0,0,0,0.65)';
+                ctx2.fillRect(ac*ts+2, ar*ts+2, ts-4, 14);
+                ctx2.fillStyle = '#3fb950'; ctx2.font = 'bold 9px sans-serif';
+                ctx2.fillText(NTB_LABELS[gr][gc], ac*ts+4, ar*ts+12);
+            }
+        }
+    }
+    // Highlight assigned inside corner tiles (purple border)
+    for (let i = 0; i < 4; i++) {
+        const t = ntbCorners[i];
+        if (t && t.sheetPath === ntbSheet) {
+            const ac = t.sx / TILE, ar = t.sy / TILE;
+            ctx2.strokeStyle = 'rgba(163,113,247,0.8)'; ctx2.lineWidth = 2;
+            ctx2.strokeRect(ac*ts+1, ar*ts+1, ts-2, ts-2);
+            ctx2.fillStyle = 'rgba(0,0,0,0.65)';
+            ctx2.fillRect(ac*ts+2, ar*ts+2, ts-4, 14);
+            ctx2.fillStyle = '#a371f7'; ctx2.font = 'bold 9px sans-serif';
+            ctx2.fillText(NTB_IC_LABELS[i], ac*ts+4, ar*ts+12);
+        }
+    }
+    // Hover
+    if (ntbHoverCol >= 0 && ntbHoverRow >= 0) {
+        ctx2.fillStyle = 'rgba(230,168,23,0.22)';
+        ctx2.fillRect(ntbHoverCol*ts, ntbHoverRow*ts, ts, ts);
+        ctx2.strokeStyle = 'rgba(230,168,23,0.9)'; ctx2.lineWidth = 2;
+        ctx2.strokeRect(ntbHoverCol*ts+1, ntbHoverRow*ts+1, ts-2, ts-2);
+    }
+    // Drag selection
+    if (ntbDragStart && ntbDragCur) {
+        const c0 = Math.min(ntbDragStart.col, ntbDragCur.col);
+        const r0 = Math.min(ntbDragStart.row, ntbDragCur.row);
+        const c1 = Math.max(ntbDragStart.col, ntbDragCur.col);
+        const r1 = Math.max(ntbDragStart.row, ntbDragCur.row);
+        const sw = c1 - c0 + 1, sh = r1 - r0 + 1;
+        const is3x3 = (sw === 3 && sh === 3);
+        const is2x2 = (sw === 2 && sh === 2);
+        const match = is3x3 || is2x2;
+        ctx2.fillStyle = match ? 'rgba(63,185,80,0.15)' : 'rgba(88,166,255,0.15)';
+        ctx2.fillRect(c0*ts, r0*ts, sw*ts, sh*ts);
+        ctx2.strokeStyle = match ? 'rgba(63,185,80,0.9)' : 'rgba(88,166,255,0.7)';
+        ctx2.lineWidth = 2;
+        ctx2.strokeRect(c0*ts+1, r0*ts+1, sw*ts-2, sh*ts-2);
+        if (is3x3) {
+            ctx2.fillStyle = 'rgba(63,185,80,0.9)';
+            ctx2.font = 'bold 10px sans-serif';
+            ctx2.fillText('3×3 ✓ outer tiles', c0*ts+4, r0*ts-4);
+        } else if (is2x2) {
+            ctx2.fillStyle = 'rgba(163,113,247,0.9)';
+            ctx2.font = 'bold 10px sans-serif';
+            ctx2.fillText('2×2 ✓ inside corners', c0*ts+4, r0*ts-4);
+        } else {
+            ctx2.fillStyle = 'rgba(88,166,255,0.9)';
+            ctx2.font = 'bold 9px sans-serif';
+            ctx2.fillText(`${sw}×${sh}`, c0*ts+4, r0*ts-3);
+        }
+    }
+}
+
+function ntbSetupCanvasEvents() {
+    const canvas2 = document.getElementById('ntb-tileset-canvas');
+    canvas2.onmouseleave = () => {
+        ntbHoverCol = -1; ntbHoverRow = -1;
+        const img = imgCache.get(ntbSheet);
+        if (img) ntbRedrawSheet(img);
+    };
+
+    // ── Helper: get tile col/row from pointer event ──
+    function ntbEvTile(e) {
+        const rect = canvas2.getBoundingClientRect();
+        const scaleX = canvas2.width / rect.width;
+        const scaleY = canvas2.height / rect.height;
+        return {
+            col: Math.floor((e.clientX - rect.left) * scaleX / (TILE * NTB_SCALE)),
+            row: Math.floor((e.clientY - rect.top)  * scaleY / (TILE * NTB_SCALE))
+        };
+    }
+
+    canvas2.onmousedown = e => {
+        if (e.button !== 0) return;
+        const t = ntbEvTile(e);
+        if (t.col < 0 || t.col >= ntbImgCols || t.row < 0 || t.row >= ntbImgRows) return;
+        ntbDragStart = t;
+        ntbDragCur   = t;
+        e.preventDefault();
+        const img = imgCache.get(ntbSheet);
+        if (img) ntbRedrawSheet(img);
+    };
+
+    canvas2.onmousemove = e => {
+        const rect = canvas2.getBoundingClientRect();
+        const scaleX = canvas2.width / rect.width;
+        const scaleY = canvas2.height / rect.height;
+        const col = Math.floor((e.clientX - rect.left) * scaleX / (TILE * NTB_SCALE));
+        const row = Math.floor((e.clientY - rect.top)  * scaleY / (TILE * NTB_SCALE));
+        let needRedraw = false;
+        if (col !== ntbHoverCol || row !== ntbHoverRow) {
+            ntbHoverCol = col; ntbHoverRow = row;
+            needRedraw = true;
+        }
+        if (ntbDragStart && (col !== (ntbDragCur && ntbDragCur.col) || row !== (ntbDragCur && ntbDragCur.row))) {
+            ntbDragCur = { col: Math.max(0, Math.min(ntbImgCols-1, col)), row: Math.max(0, Math.min(ntbImgRows-1, row)) };
+            needRedraw = true;
+        }
+        if (needRedraw) {
+            const img = imgCache.get(ntbSheet);
+            if (img) ntbRedrawSheet(img);
+        }
+    };
+
+    canvas2.onmouseup = e => {
+        if (e.button !== 0 || !ntbDragStart) return;
+        const t = ntbEvTile(e);
+        const c0 = Math.min(ntbDragStart.col, t.col);
+        const r0 = Math.min(ntbDragStart.row, t.row);
+        const c1 = Math.max(ntbDragStart.col, t.col);
+        const r1 = Math.max(ntbDragStart.row, t.row);
+        const sw = c1 - c0 + 1;
+        const sh = r1 - r0 + 1;
+
+        ntbDragStart = null;
+        ntbDragCur   = null;
+
+        if (sw === 3 && sh === 3) {
+            // ── Auto-assign all 9 outer slots from 3×3 selection ──
+            for (let gr = 0; gr < 3; gr++) {
+                for (let gc = 0; gc < 3; gc++) {
+                    ntbTiles[gr][gc] = { sheetPath: ntbSheet, sx: (c0 + gc) * TILE, sy: (r0 + gr) * TILE };
+                }
+            }
+            ntbSelSlot = null;
+            ntbBuildSeasonTabs();
+            ntbBuildCopyRow();
+            ntbBuildGrid();
+            const hint = document.getElementById('ntb-hint');
+            hint.textContent = `✓ All 9 outer ${ntbActiveSeason} tiles auto-assigned!`;
+            toast(`All 9 outer tiles auto-assigned (${ntbActiveSeason}) ✓`, 'ok');
+        } else if (sw === 2 && sh === 2) {
+            // ── Auto-assign 4 inside corner slots from 2×2 selection ──
+            // Layout: TL, TR / BL, BR
+            ntbCorners[0] = { sheetPath: ntbSheet, sx: c0 * TILE, sy: r0 * TILE };       // IC-TL
+            ntbCorners[1] = { sheetPath: ntbSheet, sx: (c0+1) * TILE, sy: r0 * TILE };   // IC-TR
+            ntbCorners[2] = { sheetPath: ntbSheet, sx: c0 * TILE, sy: (r0+1) * TILE };   // IC-BL
+            ntbCorners[3] = { sheetPath: ntbSheet, sx: (c0+1) * TILE, sy: (r0+1) * TILE }; // IC-BR
+            ntbSelSlot = null;
+            ntbBuildSeasonTabs();
+            ntbBuildCopyRow();
+            ntbBuildGrid();
+            const hint = document.getElementById('ntb-hint');
+            hint.textContent = `✓ All 4 inside corners (${ntbActiveSeason}) auto-assigned!`;
+            toast(`4 inside corners auto-assigned (${ntbActiveSeason}) ✓`, 'ok');
+        } else if (sw === 1 && sh === 1) {
+            // ── Single click: assign to selected slot ──
+            const col = c0, row = r0;
+            if (col < 0 || col >= ntbImgCols || row < 0 || row >= ntbImgRows) return;
+            if (!ntbSelSlot) { toast('Select a slot first', 'err'); return; }
+            const tileData = { sheetPath: ntbSheet, sx: col * TILE, sy: row * TILE };
+            let assignedLabel;
+            if (ntbSelSlot.row < 3) {
+                assignedLabel = NTB_LABELS[ntbSelSlot.row][ntbSelSlot.col];
+                ntbTiles[ntbSelSlot.row][ntbSelSlot.col] = tileData;
+            } else {
+                assignedLabel = NTB_IC_LABELS[ntbSelSlot.col];
+                ntbCorners[ntbSelSlot.col] = tileData;
+            }
+            // Auto-advance: search next empty slot (3×3 grid then IC slots)
+            let nextSlot = null;
+            const curFlat = ntbSelSlot.row * 3 + (ntbSelSlot.row < 3 ? ntbSelSlot.col : 0);
+            const startRow = ntbSelSlot.row;
+            const startCol = ntbSelSlot.col;
+            // Search remaining 3×3 grid slots after current position
+            if (startRow < 3) {
+                for (let sr = startRow; sr < 3 && !nextSlot; sr++) {
+                    for (let sc = (sr === startRow ? startCol + 1 : 0); sc < 3 && !nextSlot; sc++) {
+                        if (!ntbTiles[sr][sc]) nextSlot = {row: sr, col: sc};
+                    }
+                }
+            }
+            // Then search IC slots
+            if (!nextSlot) {
+                const icStart = startRow === 3 ? startCol + 1 : 0;
+                for (let i = icStart; i < 4 && !nextSlot; i++) {
+                    if (!ntbCorners[i]) nextSlot = {row: 3, col: i};
+                }
+            }
+            // Wrap around: search from beginning of 3×3 grid
+            if (!nextSlot) {
+                for (let sr = 0; sr < 3 && !nextSlot; sr++) {
+                    for (let sc = 0; sc < 3 && !nextSlot; sc++) {
+                        if (!ntbTiles[sr][sc]) nextSlot = {row: sr, col: sc};
+                    }
+                }
+            }
+            // Wrap around: check IC slots from start
+            if (!nextSlot) {
+                for (let i = 0; i < 4 && !nextSlot; i++) {
+                    if (!ntbCorners[i]) nextSlot = {row: 3, col: i};
+                }
+            }
+            ntbSelSlot = nextSlot;
+            ntbBuildSeasonTabs();
+            ntbBuildCopyRow();
+            ntbBuildGrid();
+            toast(`Assigned ${assignedLabel} tile (${ntbActiveSeason}) ✓`, 'ok');
+            const hint = document.getElementById('ntb-hint');
+            if (nextSlot) {
+                const nextLabel = nextSlot.row < 3 ? NTB_LABELS[nextSlot.row][nextSlot.col] : NTB_IC_LABELS[nextSlot.col];
+                hint.textContent = `Next: ${nextLabel} (${ntbActiveSeason}) — click a tile`;
+            } else {
+                hint.textContent = `✓ All tiles (${ntbActiveSeason}) assigned!`;
+            }
+        } else {
+            toast(`Drag 3×3 for outer tiles or 2×2 for inside corners (got ${sw}×${sh})`, 'err');
+        }
+        const img = imgCache.get(ntbSheet);
+        if (img) ntbRedrawSheet(img);
+    };
+}
+
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+window.addEventListener('resize', resizeCanvas);
+
+(async function boot() {
+    resizeCanvas();
+    buildCatButtons();
+    buildTSetsList();
+    buildNtbListPanel();
+    setTool('paint');
+
+    // Create default map
+    createMap(128, 128);
+    buildLayerUI();
+    buildUsageUI();
+    panX = 20; panY = 20;
+    zoom = Math.min((cvs.width - 40) / (128 * TILE), (cvs.height - 40) / (128 * TILE));
+
+    // Preload terrain sheets
+    const preload = PALETTE_DATA['Terrain'] || [];
+    await Promise.all(preload.map(p => loadImage(p)));
+
+    render();
+    toast('LPC Terrain Editor ready', 'ok');
+})();
+
+
+// ═══════════════════════════════════════════════
+//  PARENT COMMUNICATION (for editor.html)
+// ═══════════════════════════════════════════════
+function notifyParent() {
+    if (window.parent === window) return;
+    try {
+        window.parent.postMessage({
+            type: 'terrainDataChanged',
+            terrainSets:     terrainSets,
+            nineTileBrushes: nineTileBrushes,
+        }, '*');
+    } catch(e) { /* standalone mode */ }
+}
+
+window.addEventListener('message', ev => {
+    const msg = ev.data;
+    if (!msg || !msg.type) return;
+    if (msg.type === 'loadGamedata' && msg.data) {
+        if (msg.data.terrainSets) {
+            terrainSets = msg.data.terrainSets;
+            buildTSetsList();
+        }
+        if (msg.data.nineTileBrushes) {
+            nineTileBrushes = msg.data.nineTileBrushes;
+            buildNtbListPanel();
+        }
+        if (Array.isArray(msg.data.objects)) {
+            _customObjects = msg.data.objects;
+            buildCatButtons();
+        }
+    }
+});
+
+if (window.parent !== window) {
+    window.parent.postMessage({ type: 'terrainEditorReady' }, '*');
+}
+
+window.getExportData = function() {
+    return {
+        terrainSets,
+        nineTileBrushes,
+        terrainMap: mapW > 0 ? {
+            width: mapW, height: mapH, numLayers: numLayers,
+            layerNames: layerNames.slice(),
+            mapUsage: JSON.parse(JSON.stringify(mapUsage)),
+            tiles: tiles.map(row => row.map(stack => stack.map(t => t ? { s: t.sheetPath, x: t.sx, y: t.sy } : null))),
+            placedObjects: JSON.parse(JSON.stringify(placedObjects))
+        } : null
+    };
+};
+
+</script>
+</body>
+</html>

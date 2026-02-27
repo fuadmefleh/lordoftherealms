@@ -1,5 +1,5 @@
 {
-    "innerMapSize": { "width": 20, "height": 20 },
+    "innerMapSize": { "width": 128, "height": 128 },
     "subTerrains": {
         "grassland": {
             "primary": [

@@ -61,6 +61,11 @@ const InnerMap = {
     // ── Pending position for property built from inner map ──
     _pendingPropertyPosition: null,   // { q, r } inner map coords
 
+    // ── Building interior system ─────────────────────────
+    _insideBuilding: null,         // The building object currently inside (null = outdoor)
+    _outerMapState: null,          // Saved state of the outer inner map when entering a building
+    _interiorCache: {},            // Cache of generated interiors keyed by building id/position
+
     /**
      * Initialize with data from JSON
      */
@@ -174,13 +179,8 @@ const InnerMap = {
         capital:  { villager: 10, merchant: 6, guard: 6, farmer: 3, priest: 3, blacksmith_npc: 2, noble: 4, child: 5, traveler: 4, beggar: 2 },
     },
 
-    // Map dimensions per settlement type  { min, max } (square maps)
-    SETTLEMENT_MAP_SIZES: {
-        village:  { min: 40, max: 50 },
-        town:     { min: 50, max: 60 },
-        city:     { min: 70, max: 80 },
-        capital:  { min: 95, max: 120 },
-    },
+    // All inner maps are a fixed 128×128 tile grid
+    INNER_MAP_SIZE: 128,
 
     // ══════════════════════════════════════════════
     // BASE TERRAIN MAPPING — like C# Generate() biome switch
@@ -287,18 +287,9 @@ const InnerMap = {
      * its parent tile.
      */
     generate(worldTile, worldQ, worldR, game) {
-        // Set map dimensions based on settlement type
-        if (worldTile.settlement) {
-            const sType = worldTile.settlement.type || 'village';
-            const sz = this.SETTLEMENT_MAP_SIZES[sType] || this.SETTLEMENT_MAP_SIZES.village;
-            // Deterministic size from world coords within [min, max]
-            const hash = ((worldQ * 73856093 ^ worldR * 19349663) >>> 0) % (sz.max - sz.min + 1);
-            this.width = sz.min + hash;
-            this.height = sz.min + hash;
-        } else {
-            this.width = this.CONFIG && this.CONFIG.innerMapSize ? this.CONFIG.innerMapSize.width : 20;
-            this.height = this.CONFIG && this.CONFIG.innerMapSize ? this.CONFIG.innerMapSize.height : 20;
-        }
+        // All inner maps are a fixed size
+        this.width = this.INNER_MAP_SIZE;
+        this.height = this.INNER_MAP_SIZE;
 
         const terrainId = worldTile.terrain ? worldTile.terrain.id : 'grassland';
         const config = this.CONFIG;
@@ -425,14 +416,15 @@ const InnerMap = {
 
         // --- Settlement building placement ---
         if (worldTile.settlement) {
-            const customOnly = window.gameOptions?.customBuildingsOnly &&
-                               typeof CustomBuildings !== 'undefined' &&
-                               CustomBuildings.isLoaded() && CustomBuildings.hasAny();
-            if (!customOnly) {
-                this._placeBuildings(tiles, worldTile.settlement, rng);
-            }
-            // Place custom editor-authored buildings (always, or exclusively when customOnly)
-            if (typeof CustomBuildings !== 'undefined' && CustomBuildings.isLoaded() && CustomBuildings.hasAny()) {
+            // Use the procedural settlement generator (road network + parcels + lots)
+            if (typeof SettlementGenerator !== 'undefined') {
+                const genResult = SettlementGenerator.generate(
+                    tiles, worldTile.settlement, rng, this.width, this.height
+                );
+                // Store layout data for road generation at enter() time
+                tiles._settlementLayout = genResult;
+            } else if (typeof CustomBuildings !== 'undefined' && CustomBuildings.isLoaded() && CustomBuildings.hasAny()) {
+                // Fallback: scatter custom buildings (legacy)
                 this._placeCustomBuildings(tiles, worldTile.settlement, rng);
             }
         }
@@ -537,6 +529,10 @@ const InnerMap = {
                 // Record planting day so growth stages can be computed at render time
                 if (def.growthStates && def.growthStates.length > 0) {
                     customObj.growthDayPlanted = currentDay;
+                }
+                // Random initial rotation variant (0 = default, 1..N = variants)
+                if (def.rotationVariants && def.rotationVariants.length > 0) {
+                    customObj.rotationIdx = Math.floor(rng() * (def.rotationVariants.length + 1));
                 }
                 tile.customObject = customObj;
 
@@ -871,13 +867,8 @@ const InnerMap = {
         const H    = this.height;
         const type = settlement.type || 'village';
 
-        // How many custom buildings to attempt per settlement type.
-        // When running in custom-buildings-only mode, place more to fill the space.
-        const customOnly = window.gameOptions?.customBuildingsOnly &&
-                           CustomBuildings.isLoaded() && CustomBuildings.hasAny();
-        const maxToPlace = customOnly
-            ? (type === 'capital' ? 14 : type === 'city' ? 10 : type === 'town' ? 7 : 5)
-            : (type === 'capital' ? 6  : type === 'city' ? 4 : type === 'town' ? 3 : 2);
+        // How many editor buildings to attempt per settlement type.
+        const maxToPlace = (type === 'capital' ? 14 : type === 'city' ? 10 : type === 'town' ? 7 : 5);
 
         const defs = CustomBuildings.getAllForSettlement(type, rng);
         if (!defs.length) {
@@ -949,7 +940,7 @@ const InnerMap = {
         } // end while
 
         if (placed > 0)
-            console.log(`[CustomBuildings] placed ${placed} custom building(s) in ${type} (customOnly=${customOnly})`);
+            console.log(`[CustomBuildings] placed ${placed} custom building(s) in ${type}`);
         else
             console.warn(`[CustomBuildings] failed to place any custom buildings in ${type} — no free space found`);
     },
@@ -1056,17 +1047,7 @@ const InnerMap = {
      * Get expected inner map dimensions for a world tile.
      */
     _getInnerMapDimensions(worldTile) {
-        if (worldTile.settlement) {
-            const type = worldTile.settlement.type || 'village';
-            if (type === 'capital') return { width: 14, height: 14 };
-            if (type === 'city') return { width: 12, height: 12 };
-            if (type === 'town') return { width: 10, height: 10 };
-            return { width: 8, height: 8 };
-        }
-        return {
-            width: this.CONFIG && this.CONFIG.innerMapSize ? this.CONFIG.innerMapSize.width : 8,
-            height: this.CONFIG && this.CONFIG.innerMapSize ? this.CONFIG.innerMapSize.height : 8
-        };
+        return { width: this.INNER_MAP_SIZE, height: this.INNER_MAP_SIZE };
     },
 
     /**
@@ -1214,18 +1195,11 @@ const InnerMap = {
         const worldTile = game.world.getTile(worldQ, worldR);
         if (!worldTile) return false;
 
-        // Use larger grid for settlements
         const hasSettlement = !!worldTile.settlement;
-        if (hasSettlement) {
-            const sType = worldTile.settlement.type || 'village';
-            const sz = this.SETTLEMENT_MAP_SIZES[sType] || this.SETTLEMENT_MAP_SIZES.village;
-            const hash = ((worldQ * 73856093 ^ worldR * 19349663) >>> 0) % (sz.max - sz.min + 1);
-            this.width = sz.min + hash;
-            this.height = sz.min + hash;
-        } else {
-            this.width = this.CONFIG && this.CONFIG.innerMapSize ? this.CONFIG.innerMapSize.width : 20;
-            this.height = this.CONFIG && this.CONFIG.innerMapSize ? this.CONFIG.innerMapSize.height : 20;
-        }
+
+        // All inner maps are a fixed size
+        this.width = this.INNER_MAP_SIZE;
+        this.height = this.INNER_MAP_SIZE;
 
         // Generate/retrieve inner map
         this.tiles = this.getOrGenerate(worldTile, worldQ, worldR, game);
@@ -1261,7 +1235,21 @@ const InnerMap = {
         this.roads = [];
         if (hasSettlement) {
             this._buildBuildingList();
-            this._generateRoads();
+            // Use pre-generated road data from SettlementGenerator if available
+            if (this.tiles._settlementLayout && this.tiles._settlementLayout.roadTiles) {
+                const roadSet = new Set();
+                for (const rt of this.tiles._settlementLayout.roadTiles) {
+                    const key = `${rt.q},${rt.r}`;
+                    if (!roadSet.has(key)) {
+                        roadSet.add(key);
+                        this.roads.push({ q: rt.q, r: rt.r });
+                        const tile = this.getTile(rt.q, rt.r);
+                        if (tile) tile.isRoad = true;
+                    }
+                }
+            } else {
+                this._generateRoads();
+            }
         }
 
         // ── Add player property buildings (works for settlement and wilderness tiles) ──
@@ -1291,6 +1279,10 @@ const InnerMap = {
      * Exit the inner map back to the world map
      */
     exit(game) {
+        // If inside a building, exit to the outer map first
+        if (this._insideBuilding) {
+            this.exitBuilding(game);
+        }
         this.active = false;
         this.currentWorldTile = null;
         this._currentWorldTileRef = null;
@@ -1300,7 +1292,524 @@ const InnerMap = {
         this.dayEnded = false;
         this._pendingInteraction = null;
         this._activeInteraction = null;
+        this._insideBuilding = null;
+        this._outerMapState = null;
         // Tiles remain cached for re-entry
+    },
+
+    // ══════════════════════════════════════════════
+    // BUILDING INTERIOR SYSTEM
+    // Enter and explore the inside of buildings
+    // ══════════════════════════════════════════════
+
+    /**
+     * Interior layout definitions for each building type.
+     * Defines the size, floor tile, wall placement, and furniture/objects.
+     */
+    INTERIOR_LAYOUTS: {
+        town_hall: {
+            width: 12, height: 10, floor: 'wood_floor', wallColor: '#5a4a3a',
+            furniture: [
+                { type: 'table', icon: '🪑', name: 'Council Table', q: 5, r: 4, passable: false },
+                { type: 'throne', icon: '👑', name: 'Lord\'s Chair', q: 6, r: 2, passable: false },
+                { type: 'bookshelf', icon: '📚', name: 'Bookshelf', q: 1, r: 1, passable: false },
+                { type: 'bookshelf', icon: '📚', name: 'Bookshelf', q: 2, r: 1, passable: false },
+                { type: 'chest', icon: '📦', name: 'Storage Chest', q: 10, r: 1, passable: false },
+                { type: 'candle', icon: '🕯️', name: 'Candelabra', q: 5, r: 2, passable: true },
+                { type: 'banner', icon: '🚩', name: 'Royal Banner', q: 8, r: 1, passable: true },
+            ]
+        },
+        marketplace: {
+            width: 14, height: 10, floor: 'stone_floor', wallColor: '#6a5a4a',
+            furniture: [
+                { type: 'stall', icon: '🏪', name: 'Merchant Stall', q: 3, r: 3, passable: false },
+                { type: 'stall', icon: '🏪', name: 'Food Stall', q: 7, r: 3, passable: false },
+                { type: 'stall', icon: '🏪', name: 'Cloth Stall', q: 11, r: 3, passable: false },
+                { type: 'barrel', icon: '🛢️', name: 'Barrel', q: 1, r: 1, passable: false },
+                { type: 'barrel', icon: '🛢️', name: 'Barrel', q: 2, r: 1, passable: false },
+                { type: 'crate', icon: '📦', name: 'Crate', q: 12, r: 1, passable: false },
+                { type: 'scales', icon: '⚖️', name: 'Scales', q: 5, r: 5, passable: true },
+            ]
+        },
+        tavern: {
+            width: 12, height: 10, floor: 'wood_floor', wallColor: '#4a3a2a',
+            furniture: [
+                { type: 'bar', icon: '🍺', name: 'Bar Counter', q: 2, r: 2, passable: false },
+                { type: 'bar', icon: '🍺', name: 'Bar Counter', q: 3, r: 2, passable: false },
+                { type: 'bar', icon: '🍺', name: 'Bar Counter', q: 4, r: 2, passable: false },
+                { type: 'table', icon: '🪑', name: 'Table', q: 2, r: 5, passable: false },
+                { type: 'table', icon: '🪑', name: 'Table', q: 6, r: 5, passable: false },
+                { type: 'table', icon: '🪑', name: 'Table', q: 9, r: 5, passable: false },
+                { type: 'table', icon: '🪑', name: 'Table', q: 6, r: 7, passable: false },
+                { type: 'barrel', icon: '🛢️', name: 'Ale Barrel', q: 1, r: 1, passable: false },
+                { type: 'barrel', icon: '🛢️', name: 'Wine Barrel', q: 1, r: 2, passable: false },
+                { type: 'fireplace', icon: '🔥', name: 'Fireplace', q: 10, r: 1, passable: false },
+                { type: 'stairs', icon: '🪜', name: 'Stairs Up', q: 10, r: 8, passable: true },
+            ]
+        },
+        blacksmith: {
+            width: 10, height: 8, floor: 'stone_floor', wallColor: '#3a3a3a',
+            furniture: [
+                { type: 'anvil', icon: '🔨', name: 'Anvil', q: 4, r: 3, passable: false },
+                { type: 'forge', icon: '🔥', name: 'Forge', q: 2, r: 1, passable: false },
+                { type: 'forge', icon: '🔥', name: 'Forge', q: 3, r: 1, passable: false },
+                { type: 'rack', icon: '⚔️', name: 'Weapon Rack', q: 7, r: 1, passable: false },
+                { type: 'rack', icon: '🛡️', name: 'Armor Rack', q: 8, r: 1, passable: false },
+                { type: 'barrel', icon: '🛢️', name: 'Water Barrel', q: 1, r: 5, passable: false },
+                { type: 'chest', icon: '📦', name: 'Supply Chest', q: 8, r: 6, passable: false },
+            ]
+        },
+        church: {
+            width: 10, height: 12, floor: 'stone_floor', wallColor: '#7a7a8a',
+            furniture: [
+                { type: 'altar', icon: '⛪', name: 'Altar', q: 4, r: 2, passable: false },
+                { type: 'altar', icon: '⛪', name: 'Altar', q: 5, r: 2, passable: false },
+                { type: 'pew', icon: '🪑', name: 'Pew', q: 3, r: 5, passable: false },
+                { type: 'pew', icon: '🪑', name: 'Pew', q: 6, r: 5, passable: false },
+                { type: 'pew', icon: '🪑', name: 'Pew', q: 3, r: 7, passable: false },
+                { type: 'pew', icon: '🪑', name: 'Pew', q: 6, r: 7, passable: false },
+                { type: 'candle', icon: '🕯️', name: 'Candle Stand', q: 2, r: 2, passable: true },
+                { type: 'candle', icon: '🕯️', name: 'Candle Stand', q: 7, r: 2, passable: true },
+                { type: 'bookshelf', icon: '📖', name: 'Holy Texts', q: 1, r: 1, passable: false },
+            ]
+        },
+        temple: {
+            width: 12, height: 12, floor: 'stone_floor', wallColor: '#8a7a6a',
+            furniture: [
+                { type: 'altar', icon: '🕌', name: 'Sacred Altar', q: 5, r: 2, passable: false },
+                { type: 'altar', icon: '🕌', name: 'Sacred Altar', q: 6, r: 2, passable: false },
+                { type: 'statue', icon: '🗿', name: 'Statue', q: 2, r: 3, passable: false },
+                { type: 'statue', icon: '🗿', name: 'Statue', q: 9, r: 3, passable: false },
+                { type: 'pew', icon: '🪑', name: 'Prayer Mat', q: 4, r: 6, passable: false },
+                { type: 'pew', icon: '🪑', name: 'Prayer Mat', q: 7, r: 6, passable: false },
+                { type: 'pew', icon: '🪑', name: 'Prayer Mat', q: 4, r: 8, passable: false },
+                { type: 'pew', icon: '🪑', name: 'Prayer Mat', q: 7, r: 8, passable: false },
+                { type: 'candle', icon: '🕯️', name: 'Incense Burner', q: 5, r: 4, passable: true },
+                { type: 'chest', icon: '📦', name: 'Offering Box', q: 10, r: 1, passable: false },
+            ]
+        },
+        barracks: {
+            width: 12, height: 10, floor: 'stone_floor', wallColor: '#4a4a4a',
+            furniture: [
+                { type: 'bed', icon: '🛏️', name: 'Bunk', q: 1, r: 1, passable: false },
+                { type: 'bed', icon: '🛏️', name: 'Bunk', q: 3, r: 1, passable: false },
+                { type: 'bed', icon: '🛏️', name: 'Bunk', q: 5, r: 1, passable: false },
+                { type: 'bed', icon: '🛏️', name: 'Bunk', q: 1, r: 3, passable: false },
+                { type: 'bed', icon: '🛏️', name: 'Bunk', q: 3, r: 3, passable: false },
+                { type: 'bed', icon: '🛏️', name: 'Bunk', q: 5, r: 3, passable: false },
+                { type: 'rack', icon: '⚔️', name: 'Weapon Rack', q: 9, r: 1, passable: false },
+                { type: 'rack', icon: '🛡️', name: 'Shield Rack', q: 10, r: 1, passable: false },
+                { type: 'table', icon: '🪑', name: 'Mess Table', q: 8, r: 5, passable: false },
+                { type: 'chest', icon: '📦', name: 'Equipment Chest', q: 10, r: 8, passable: false },
+            ]
+        },
+        house: {
+            width: 8, height: 7, floor: 'wood_floor', wallColor: '#6a5a4a',
+            furniture: [
+                { type: 'bed', icon: '🛏️', name: 'Bed', q: 1, r: 1, passable: false },
+                { type: 'table', icon: '🪑', name: 'Table', q: 4, r: 2, passable: false },
+                { type: 'fireplace', icon: '🔥', name: 'Hearth', q: 6, r: 1, passable: false },
+                { type: 'chest', icon: '📦', name: 'Storage Chest', q: 1, r: 5, passable: false },
+                { type: 'barrel', icon: '🛢️', name: 'Water Barrel', q: 6, r: 5, passable: false },
+            ]
+        },
+        manor: {
+            width: 14, height: 12, floor: 'wood_floor', wallColor: '#5a4a3a',
+            furniture: [
+                { type: 'throne', icon: '👑', name: 'Lord\'s Chair', q: 6, r: 2, passable: false },
+                { type: 'table', icon: '🪑', name: 'Dining Table', q: 5, r: 5, passable: false },
+                { type: 'table', icon: '🪑', name: 'Dining Table', q: 6, r: 5, passable: false },
+                { type: 'table', icon: '🪑', name: 'Dining Table', q: 7, r: 5, passable: false },
+                { type: 'bed', icon: '🛏️', name: 'Master Bed', q: 11, r: 2, passable: false },
+                { type: 'bookshelf', icon: '📚', name: 'Library', q: 1, r: 1, passable: false },
+                { type: 'bookshelf', icon: '📚', name: 'Library', q: 2, r: 1, passable: false },
+                { type: 'fireplace', icon: '🔥', name: 'Grand Fireplace', q: 12, r: 1, passable: false },
+                { type: 'chest', icon: '📦', name: 'Treasury Chest', q: 12, r: 10, passable: false },
+                { type: 'banner', icon: '🚩', name: 'Family Banner', q: 6, r: 1, passable: true },
+                { type: 'stairs', icon: '🪜', name: 'Staircase', q: 1, r: 10, passable: true },
+            ]
+        },
+        granary: {
+            width: 8, height: 8, floor: 'wood_floor', wallColor: '#6a5a4a',
+            furniture: [
+                { type: 'barrel', icon: '🛢️', name: 'Grain Barrel', q: 1, r: 1, passable: false },
+                { type: 'barrel', icon: '🛢️', name: 'Grain Barrel', q: 2, r: 1, passable: false },
+                { type: 'barrel', icon: '🛢️', name: 'Grain Barrel', q: 3, r: 1, passable: false },
+                { type: 'crate', icon: '📦', name: 'Grain Sack', q: 5, r: 1, passable: false },
+                { type: 'crate', icon: '📦', name: 'Grain Sack', q: 6, r: 1, passable: false },
+                { type: 'scales', icon: '⚖️', name: 'Scales', q: 3, r: 4, passable: true },
+            ]
+        },
+        warehouse: {
+            width: 12, height: 10, floor: 'stone_floor', wallColor: '#5a5a5a',
+            furniture: [
+                { type: 'crate', icon: '📦', name: 'Crate', q: 1, r: 1, passable: false },
+                { type: 'crate', icon: '📦', name: 'Crate', q: 2, r: 1, passable: false },
+                { type: 'crate', icon: '📦', name: 'Crate', q: 3, r: 1, passable: false },
+                { type: 'crate', icon: '📦', name: 'Crate', q: 1, r: 2, passable: false },
+                { type: 'barrel', icon: '🛢️', name: 'Barrel', q: 8, r: 1, passable: false },
+                { type: 'barrel', icon: '🛢️', name: 'Barrel', q: 9, r: 1, passable: false },
+                { type: 'barrel', icon: '🛢️', name: 'Barrel', q: 10, r: 1, passable: false },
+                { type: 'chest', icon: '📦', name: 'Locked Chest', q: 10, r: 8, passable: false },
+                { type: 'scales', icon: '⚖️', name: 'Scales', q: 5, r: 5, passable: true },
+            ]
+        },
+        stable: {
+            width: 10, height: 8, floor: 'dirt_floor', wallColor: '#5a4a3a',
+            furniture: [
+                { type: 'stall', icon: '🐴', name: 'Horse Stall', q: 1, r: 1, passable: false },
+                { type: 'stall', icon: '🐴', name: 'Horse Stall', q: 3, r: 1, passable: false },
+                { type: 'stall', icon: '🐴', name: 'Horse Stall', q: 5, r: 1, passable: false },
+                { type: 'barrel', icon: '🛢️', name: 'Water Trough', q: 7, r: 1, passable: false },
+                { type: 'crate', icon: '🌾', name: 'Hay Bale', q: 8, r: 1, passable: false },
+                { type: 'crate', icon: '🌾', name: 'Hay Bale', q: 8, r: 2, passable: false },
+            ]
+        },
+        well: {
+            width: 6, height: 6, floor: 'stone_floor', wallColor: '#7a7a7a',
+            furniture: [
+                { type: 'well', icon: '💧', name: 'Well', q: 2, r: 2, passable: false },
+                { type: 'bucket', icon: '🪣', name: 'Bucket', q: 3, r: 3, passable: true },
+            ]
+        },
+        barn: {
+            width: 10, height: 8, floor: 'dirt_floor', wallColor: '#6a4a3a',
+            furniture: [
+                { type: 'crate', icon: '🌾', name: 'Hay Bale', q: 1, r: 1, passable: false },
+                { type: 'crate', icon: '🌾', name: 'Hay Bale', q: 2, r: 1, passable: false },
+                { type: 'crate', icon: '🌾', name: 'Hay Bale', q: 1, r: 2, passable: false },
+                { type: 'barrel', icon: '🛢️', name: 'Feed Barrel', q: 7, r: 1, passable: false },
+                { type: 'chest', icon: '📦', name: 'Tool Chest', q: 8, r: 6, passable: false },
+            ]
+        },
+        guard_tower: {
+            width: 6, height: 8, floor: 'stone_floor', wallColor: '#5a5a5a',
+            furniture: [
+                { type: 'rack', icon: '⚔️', name: 'Weapon Rack', q: 1, r: 1, passable: false },
+                { type: 'rack', icon: '🛡️', name: 'Shield Rack', q: 4, r: 1, passable: false },
+                { type: 'table', icon: '🪑', name: 'Watch Table', q: 2, r: 3, passable: false },
+                { type: 'stairs', icon: '🪜', name: 'Stairs Up', q: 4, r: 6, passable: true },
+            ]
+        },
+        farm: {
+            width: 8, height: 6, floor: 'dirt_floor', wallColor: '#6a5a4a',
+            furniture: [
+                { type: 'table', icon: '🪑', name: 'Work Table', q: 3, r: 2, passable: false },
+                { type: 'bed', icon: '🛏️', name: 'Straw Bed', q: 1, r: 1, passable: false },
+                { type: 'barrel', icon: '🛢️', name: 'Water Barrel', q: 6, r: 1, passable: false },
+                { type: 'crate', icon: '🌾', name: 'Seed Crate', q: 6, r: 4, passable: false },
+            ]
+        },
+    },
+
+    /**
+     * Floor tile definitions for building interiors
+     */
+    INTERIOR_FLOORS: {
+        wood_floor:  { color: '#8B7355', altColor: '#7A6548', name: 'Wooden Floor' },
+        stone_floor: { color: '#8a8a8a', altColor: '#7a7a7a', name: 'Stone Floor' },
+        dirt_floor:  { color: '#9a8a6a', altColor: '#8a7a5a', name: 'Dirt Floor' },
+    },
+
+    /**
+     * Furniture type rendering info
+     */
+    FURNITURE_COLORS: {
+        table: '#6a4a2a', throne: '#8a6a3a', bookshelf: '#5a3a1a', chest: '#7a5a2a',
+        candle: '#f5c542', banner: '#c0392b', bar: '#5a3a1a', barrel: '#6a4a2a',
+        fireplace: '#e74c3c', bed: '#7a6a5a', rack: '#5a5a5a', anvil: '#4a4a4a',
+        forge: '#e74c3c', stall: '#6a5a3a', altar: '#aaaacc', pew: '#6a4a2a',
+        statue: '#999999', crate: '#7a5a2a', scales: '#aaaaaa', well: '#6a8aaa',
+        bucket: '#6a5a4a', stairs: '#8a7a6a',
+    },
+
+    /**
+     * Enter a building interior. Saves outer map state and generates interior tiles.
+     * @param {Object} building - The building object from InnerMap.buildings[]
+     * @param {Object} game - The game instance
+     * @returns {boolean} Success
+     */
+    enterBuilding(building, game) {
+        if (!building || !this.active) return false;
+        if (this._insideBuilding) return false; // Already inside
+
+        // Save current outer map state
+        this._outerMapState = {
+            tiles: this.tiles,
+            width: this.width,
+            height: this.height,
+            playerInnerQ: this.playerInnerQ,
+            playerInnerR: this.playerInnerR,
+            buildings: this.buildings,
+            roads: this.roads,
+            npcs: this.npcs,
+            _npcMoveTimer: this._npcMoveTimer,
+        };
+
+        // Get or generate interior
+        const interiorKey = `${this.currentWorldTile.q},${this.currentWorldTile.r}_${building.type}_${building.q}_${building.r}`;
+        let interior = this._interiorCache[interiorKey];
+        if (!interior) {
+            interior = this._generateInterior(building, interiorKey);
+            this._interiorCache[interiorKey] = interior;
+        }
+
+        // Apply interior state
+        this._insideBuilding = building;
+        this.tiles = interior.tiles;
+        this.width = interior.width;
+        this.height = interior.height;
+        this.buildings = []; // No sub-buildings inside
+        this.roads = [];
+        this.npcs = [];
+
+        // Place player at the door (bottom center)
+        this.playerInnerQ = Math.floor(this.width / 2);
+        this.playerInnerR = this.height - 2;
+
+        // Cancel any walk/interaction state
+        this.cancelPlayerWalk();
+        this._pendingInteraction = null;
+        this._activeInteraction = null;
+
+        return true;
+    },
+
+    /**
+     * Exit the building interior and restore the outer inner map.
+     * @param {Object} game - The game instance
+     */
+    exitBuilding(game) {
+        if (!this._insideBuilding || !this._outerMapState) return;
+
+        const building = this._insideBuilding;
+
+        // Restore outer map state
+        this.tiles = this._outerMapState.tiles;
+        this.width = this._outerMapState.width;
+        this.height = this._outerMapState.height;
+        this.playerInnerQ = this._outerMapState.playerInnerQ;
+        this.playerInnerR = this._outerMapState.playerInnerR;
+        this.buildings = this._outerMapState.buildings;
+        this.roads = this._outerMapState.roads;
+        this.npcs = this._outerMapState.npcs;
+        this._npcMoveTimer = this._outerMapState._npcMoveTimer;
+
+        // Place player next to the building they exited
+        // Try to place at the building's position (or adjacent)
+        const adj = this._findPassableAdjacentTile(building.q, building.r);
+        if (adj) {
+            this.playerInnerQ = adj.q;
+            this.playerInnerR = adj.r;
+        }
+
+        this._insideBuilding = null;
+        this._outerMapState = null;
+
+        // Cancel any walk/interaction state
+        this.cancelPlayerWalk();
+        this._pendingInteraction = null;
+        this._activeInteraction = null;
+    },
+
+    /**
+     * Find a passable tile adjacent to the given position
+     */
+    _findPassableAdjacentTile(q, r) {
+        const dirs = [
+            { dq: 0, dr: 1 }, { dq: 1, dr: 0 }, { dq: 0, dr: -1 }, { dq: -1, dr: 0 },
+            { dq: 1, dr: 1 }, { dq: -1, dr: 1 }, { dq: 1, dr: -1 }, { dq: -1, dr: -1 },
+        ];
+        for (const d of dirs) {
+            const nq = q + d.dq, nr = r + d.dr;
+            if (nq >= 0 && nq < this.width && nr >= 0 && nr < this.height) {
+                const tile = this.tiles[nr] && this.tiles[nr][nq];
+                if (tile && tile.subTerrain && tile.subTerrain.passable) return { q: nq, r: nr };
+            }
+        }
+        return { q, r };
+    },
+
+    /**
+     * Generate the interior tile grid for a building.
+     * If CustomInteriors has a matching authored interior, use it; otherwise
+     * fall back to the hardcoded INTERIOR_LAYOUTS procedural generation.
+     * @param {Object} building - Building definition with type/name
+     * @param {string} [interiorKey] - Cache key used as deterministic seed
+     * @returns {{ tiles: Array, width: number, height: number }}
+     */
+    _generateInterior(building, interiorKey) {
+        // ── Try linked custom interior first (by building def ID) ──
+        if (building._customDefId && typeof CustomInteriors !== 'undefined' && CustomInteriors.hasAny()) {
+            const linked = CustomInteriors.pickForBuildingId(building._customDefId);
+            if (linked) {
+                return this._generateCustomInterior(linked, building);
+            }
+        }
+
+        // ── Try custom-authored interior by building type ──
+        if (typeof CustomInteriors !== 'undefined' && CustomInteriors.hasAny()) {
+            const seed = interiorKey || `${building.type}_${building.q}_${building.r}`;
+            const def  = CustomInteriors.pickForBuilding(building.type, seed);
+            if (def) {
+                return this._generateCustomInterior(def, building);
+            }
+        }
+
+        // ── Fallback: procedural interior from INTERIOR_LAYOUTS ──
+        const layout = this.INTERIOR_LAYOUTS[building.type] || this.INTERIOR_LAYOUTS.house;
+        const w = layout.width;
+        const h = layout.height;
+        const floorDef = this.INTERIOR_FLOORS[layout.floor] || this.INTERIOR_FLOORS.wood_floor;
+
+        const tiles = [];
+        for (let r = 0; r < h; r++) {
+            tiles[r] = [];
+            for (let q = 0; q < w; q++) {
+                const isWall = (r === 0 || q === 0 || q === w - 1);
+                const isDoor = (r === h - 1 && q === Math.floor(w / 2));
+
+                // Checkerboard floor pattern
+                const isAlt = (q + r) % 2 === 0;
+
+                tiles[r][q] = {
+                    q, r,
+                    baseTerrain: isWall ? 'wall' : layout.floor,
+                    subTerrain: isWall ? {
+                        id: 'wall', name: 'Wall', icon: '🧱', color: layout.wallColor, passable: false
+                    } : {
+                        id: layout.floor, name: floorDef.name, icon: '🏠',
+                        color: isAlt ? floorDef.color : floorDef.altColor, passable: true
+                    },
+                    explored: true,
+                    visible: true,
+                    parentTerrain: 'interior',
+                    encounter: null,
+                    building: null,
+                    _isInterior: true,
+                    _interiorBuildingType: building.type,
+                    _furniture: null,
+                    effectiveTemp: 20,
+                    moisture: 0.3,
+                    weatherType: 'clear',
+                };
+
+                // Door tile
+                if (isDoor) {
+                    tiles[r][q].baseTerrain = layout.floor;
+                    tiles[r][q].subTerrain = {
+                        id: 'door', name: 'Door', icon: '🚪',
+                        color: '#6a4a2a', passable: true
+                    };
+                    tiles[r][q]._isDoor = true;
+                }
+            }
+        }
+
+        // Place furniture
+        for (const furn of (layout.furniture || [])) {
+            if (furn.q >= 0 && furn.q < w && furn.r >= 0 && furn.r < h) {
+                const tile = tiles[furn.r][furn.q];
+                tile._furniture = {
+                    type: furn.type,
+                    icon: furn.icon,
+                    name: furn.name,
+                    passable: furn.passable,
+                };
+                if (!furn.passable) {
+                    tile.subTerrain = {
+                        id: `furniture_${furn.type}`,
+                        name: furn.name,
+                        icon: furn.icon,
+                        color: this.FURNITURE_COLORS[furn.type] || '#6a5a4a',
+                        passable: false,
+                    };
+                }
+            }
+        }
+
+        return { tiles, width: w, height: h };
+    },
+
+    /**
+     * Generate interior tiles from a custom-authored interior definition.
+     * Tiles carry _customTile data so the renderer can draw spritesheets.
+     * @param {Object} def - The CustomInteriors definition
+     * @param {Object} building - The building being entered
+     * @returns {{ tiles: Array, width: number, height: number }}
+     */
+    _generateCustomInterior(def, building) {
+        const w = def.width;
+        const h = def.height;
+        const oq = def.bounds.minCol;  // origin offset
+        const or_ = def.bounds.minRow;
+
+        const tiles = [];
+        for (let r = 0; r < h; r++) {
+            tiles[r] = [];
+            for (let q = 0; q < w; q++) {
+                // Absolute coords in the editor grid
+                const aq = q + oq;
+                const ar = r + or_;
+                const key = `${aq},${ar}`;
+
+                // Gather per-layer sprite data
+                const floorCell   = def._layerMaps.floor     && def._layerMaps.floor[key];
+                const furnCell    = def._layerMaps.furniture  && def._layerMaps.furniture[key];
+                const wallsCell   = def._layerMaps.walls      && def._layerMaps.walls[key];
+                const overlayCell = def._layerMaps.overlay    && def._layerMaps.overlay[key];
+                const meta        = def._metaMap[key] || {};
+
+                const hasFloor = !!floorCell;
+                const hasWall  = !!wallsCell;
+                const isDoor   = !!meta.door;
+                const isImpass = !!meta.impassable || (hasWall && !isDoor);
+                const hasFurn  = !!meta.furniture;
+
+                // Determine passability and display info
+                let passable = !isImpass;
+                if (isDoor) passable = true;
+                if (hasFurn && meta.furniture && meta.furniture.passable === false) passable = false;
+
+                const terrainId = isDoor ? 'door'
+                    : hasWall ? 'wall'
+                    : hasFloor ? 'custom_floor'
+                    : 'void';
+
+                tiles[r][q] = {
+                    q, r,
+                    baseTerrain: terrainId,
+                    subTerrain: {
+                        id: terrainId,
+                        name: isDoor ? 'Door' : hasWall ? 'Wall' : 'Floor',
+                        icon: isDoor ? '🚪' : hasWall ? '🧱' : '🏠',
+                        color: isDoor ? '#6a4a2a' : hasWall ? '#5a4a3a' : '#8B7355',
+                        passable: passable,
+                    },
+                    explored: true,
+                    visible: true,
+                    parentTerrain: 'interior',
+                    encounter: null,
+                    building: null,
+                    _isInterior: true,
+                    _interiorBuildingType: building.type,
+                    _furniture: hasFurn ? meta.furniture : null,
+                    _isDoor: isDoor,
+                    effectiveTemp: 20,
+                    moisture: 0.3,
+                    weatherType: 'clear',
+                    // Spritesheet rendering data for the renderer
+                    _customTile: {
+                        floor:     floorCell     || null,
+                        furniture: furnCell      || null,
+                        walls:     wallsCell     || null,
+                        overlay:   overlayCell   || null,
+                    },
+                };
+            }
+        }
+
+        return { tiles, width: w, height: h };
     },
 
     /**
@@ -1692,64 +2201,113 @@ const InnerMap = {
     },
 
     /**
-     * Simple A* pathfinding for the inner map
+     * Simple A* pathfinding for the inner map (binary-heap based)
      */
     _findPath(startQ, startR, endQ, endR) {
-        const key = (q, r) => `${q},${r}`;
-        const open = [{ q: startQ, r: startR, g: 0, h: 0, f: 0, parent: null }];
-        const closed = new Set();
+        const W = this.width, H = this.height;
+        const tiles = this.tiles;
+        // Flat index helpers
+        const idx = (q, r) => r * W + q;
+        const endIdx = idx(endQ, endR);
+        const startIdx = idx(startQ, startR);
 
-        const heuristic = (q1, r1, q2, r2) => Math.abs(q1 - q2) + Math.abs(r1 - r2);
-        open[0].h = heuristic(startQ, startR, endQ, endR);
-        open[0].f = open[0].h;
+        // gScore and parent arrays — flat, indexed by r*W+q
+        const size = W * H;
+        const gScore = new Float32Array(size);
+        gScore.fill(Infinity);
+        gScore[startIdx] = 0;
 
-        while (open.length > 0) {
-            // Sort by f-cost
-            open.sort((a, b) => a.f - b.f);
-            const current = open.shift();
-            const currentKey = key(current.q, current.r);
+        const parentQ = new Int16Array(size);
+        const parentR = new Int16Array(size);
+        parentQ.fill(-1);
+        parentR.fill(-1);
 
-            if (current.q === endQ && current.r === endR) {
+        const inClosed = new Uint8Array(size); // 0 = not visited, 1 = closed
+
+        // Heuristic: Manhattan distance
+        const heuristic = (q, r) => Math.abs(q - endQ) + Math.abs(r - endR);
+
+        // --- Binary min-heap on f-score ---
+        const heapNode = []; // { f, idx, q, r }
+        const push = (f, i, q, r) => {
+            let pos = heapNode.length;
+            heapNode.push({ f, idx: i, q, r });
+            // Bubble up
+            while (pos > 0) {
+                const parent = (pos - 1) >> 1;
+                if (heapNode[parent].f <= heapNode[pos].f) break;
+                const tmp = heapNode[parent];
+                heapNode[parent] = heapNode[pos];
+                heapNode[pos] = tmp;
+                pos = parent;
+            }
+        };
+        const pop = () => {
+            const top = heapNode[0];
+            const last = heapNode.pop();
+            if (heapNode.length > 0) {
+                heapNode[0] = last;
+                let pos = 0;
+                const len = heapNode.length;
+                while (true) {
+                    let smallest = pos;
+                    const l = 2 * pos + 1, r = 2 * pos + 2;
+                    if (l < len && heapNode[l].f < heapNode[smallest].f) smallest = l;
+                    if (r < len && heapNode[r].f < heapNode[smallest].f) smallest = r;
+                    if (smallest === pos) break;
+                    const tmp = heapNode[smallest];
+                    heapNode[smallest] = heapNode[pos];
+                    heapNode[pos] = tmp;
+                    pos = smallest;
+                }
+            }
+            return top;
+        };
+
+        push(heuristic(startQ, startR), startIdx, startQ, startR);
+
+        // Neighbor offsets (4-directional)
+        const dq = [1, -1, 0, 0];
+        const dr = [0, 0, 1, -1];
+
+        while (heapNode.length > 0) {
+            const cur = pop();
+            const ci = cur.idx;
+
+            if (ci === endIdx) {
                 // Reconstruct path
                 const path = [];
-                let node = current;
-                while (node) {
-                    path.unshift({ q: node.q, r: node.r });
-                    node = node.parent;
+                let pq = cur.q, pr = cur.r;
+                while (pq !== -1) {
+                    path.push({ q: pq, r: pr });
+                    const pi = idx(pq, pr);
+                    const nq = parentQ[pi], nr = parentR[pi];
+                    pq = nq; pr = nr;
                 }
+                path.reverse();
                 return path;
             }
 
-            closed.add(currentKey);
+            if (inClosed[ci]) continue;
+            inClosed[ci] = 1;
 
-            // Get neighbors using square grid (4-directional)
-            const neighbors = [
-                { q: current.q + 1, r: current.r },
-                { q: current.q - 1, r: current.r },
-                { q: current.q, r: current.r + 1 },
-                { q: current.q, r: current.r - 1 },
-            ];
-            for (const n of neighbors) {
-                if (n.q < 0 || n.q >= this.width || n.r < 0 || n.r >= this.height) continue;
-                const nKey = key(n.q, n.r);
-                if (closed.has(nKey)) continue;
+            const cq = cur.q, cr = cur.r;
+            const ng = gScore[ci] + 1;
 
-                const tile = this.tiles[n.r][n.q];
+            for (let d = 0; d < 4; d++) {
+                const nq = cq + dq[d];
+                const nr = cr + dr[d];
+                if (nq < 0 || nq >= W || nr < 0 || nr >= H) continue;
+                const ni = idx(nq, nr);
+                if (inClosed[ni]) continue;
+                const tile = tiles[nr][nq];
                 if (!tile.subTerrain.passable) continue;
 
-                const g = current.g + 1;
-                const h = heuristic(n.q, n.r, endQ, endR);
-                const f = g + h;
-
-                const existing = open.find(o => o.q === n.q && o.r === n.r);
-                if (existing) {
-                    if (g < existing.g) {
-                        existing.g = g;
-                        existing.f = f;
-                        existing.parent = current;
-                    }
-                } else {
-                    open.push({ q: n.q, r: n.r, g, h, f, parent: current });
+                if (ng < gScore[ni]) {
+                    gScore[ni] = ng;
+                    parentQ[ni] = cq;
+                    parentR[ni] = cr;
+                    push(ng + heuristic(nq, nr), ni, nq, nr);
                 }
             }
         }
@@ -1791,6 +2349,12 @@ const InnerMap = {
     getSummary() {
         if (!this.active || !this.tiles) return null;
 
+        // Cache summary — only recount every 30 frames (~0.5s at 60fps)
+        const now = performance.now();
+        if (this._cachedSummary && (now - this._cachedSummaryTime) < 500) {
+            return this._cachedSummary;
+        }
+
         let totalTiles = 0;
         let exploredTiles = 0;
         let encounters = 0;
@@ -1807,7 +2371,7 @@ const InnerMap = {
             }
         }
 
-        return {
+        this._cachedSummary = {
             exploredTiles,
             totalTiles,
             exploredPercent: Math.floor((exploredTiles / totalTiles) * 100),
@@ -1816,6 +2380,8 @@ const InnerMap = {
             parentTerrain: this.tiles[0][0].parentTerrain,
             worldTile: this.currentWorldTile
         };
+        this._cachedSummaryTime = now;
+        return this._cachedSummary;
     },
 
     /**
@@ -2103,10 +2669,60 @@ const InnerMap = {
     },
 
     /**
-     * Get the building at a specific tile, if any
+     * Get the building at a specific tile, if any.
+     * Checks legacy buildings (this.buildings array + footprint) AND
+     * custom editor-authored buildings (tile.customBuilding / customBuildingPart).
      */
     getBuildingAt(q, r) {
-        return this.buildings.find(b => b.q === q && b.r === r) || null;
+        // 1) Check exact anchor tile in legacy buildings list
+        const exact = this.buildings.find(b => b.q === q && b.r === r);
+        if (exact) return exact;
+
+        // 2) Check if (q,r) falls within any legacy building's visual footprint
+        //    Buildings render 3 tiles wide (anchor q-1..q+1) and 3 tiles tall (anchor r-2..r).
+        const footprint = this.buildings.find(b =>
+            q >= b.q - 1 && q <= b.q + 1 &&
+            r >= b.r - 2 && r <= b.r
+        );
+        if (footprint) return footprint;
+
+        // 3) Check for custom editor-authored buildings (CustomBuildings system)
+        const tile = this.getTile(q, r);
+        if (!tile) return null;
+
+        let anchorQ = q, anchorR = r;
+        let customBuildingTile = tile;
+
+        // If this tile is part of a custom building, follow the reference to the anchor
+        if (tile.customBuildingPart) {
+            anchorQ = tile.customBuildingPart.anchorQ;
+            anchorR = tile.customBuildingPart.anchorR;
+            customBuildingTile = this.getTile(anchorQ, anchorR);
+        }
+
+        if (customBuildingTile && customBuildingTile.customBuilding) {
+            const defId = customBuildingTile.customBuilding.defId;
+            // Get the definition from CustomBuildings if available
+            let def = null;
+            if (typeof CustomBuildings !== 'undefined' && CustomBuildings.isLoaded()) {
+                def = CustomBuildings.getBuilding(defId);
+            }
+            const bType = (def && def.buildingType) || 'house';
+            const bDef = this.BUILDING_TYPES[bType] || this.BUILDING_TYPES.house;
+            return {
+                q: anchorQ,
+                r: anchorR,
+                type: bType,
+                name: (def && def.name) || bDef.name,
+                icon: bDef.icon,
+                sprite: null,
+                actions: [...bDef.actions],
+                _isCustomBuilding: true,
+                _customDefId: defId,
+            };
+        }
+
+        return null;
     },
 
     /**
@@ -2338,16 +2954,30 @@ const InnerMap = {
     _findNearestEdgeTile(fromQ, fromR) {
         let best = null;
         let bestDist = Infinity;
-        for (let r = 0; r < this.height; r++) {
-            for (let q = 0; q < this.width; q++) {
-                // Must be on the map edge
-                if (q !== 0 && q !== this.width - 1 && r !== 0 && r !== this.height - 1) continue;
-                if (!this.tiles[r] || !this.tiles[r][q] || !this.tiles[r][q].subTerrain.passable) continue;
-                const dist = Math.abs(q - fromQ) + Math.abs(r - fromR);
-                if (dist < bestDist) {
-                    bestDist = dist;
-                    best = { q, r };
-                }
+        const W = this.width, H = this.height;
+        // Only scan actual edge tiles (borders of the map) instead of the entire grid
+        for (let q = 0; q < W; q++) {
+            // Top edge (r=0)
+            if (this.tiles[0] && this.tiles[0][q] && this.tiles[0][q].subTerrain.passable) {
+                const dist = Math.abs(q - fromQ) + fromR;
+                if (dist < bestDist) { bestDist = dist; best = { q, r: 0 }; }
+            }
+            // Bottom edge (r=H-1)
+            if (this.tiles[H - 1] && this.tiles[H - 1][q] && this.tiles[H - 1][q].subTerrain.passable) {
+                const dist = Math.abs(q - fromQ) + Math.abs(H - 1 - fromR);
+                if (dist < bestDist) { bestDist = dist; best = { q, r: H - 1 }; }
+            }
+        }
+        for (let r = 1; r < H - 1; r++) {
+            // Left edge (q=0)
+            if (this.tiles[r] && this.tiles[r][0] && this.tiles[r][0].subTerrain.passable) {
+                const dist = fromQ + Math.abs(r - fromR);
+                if (dist < bestDist) { bestDist = dist; best = { q: 0, r }; }
+            }
+            // Right edge (q=W-1)
+            if (this.tiles[r] && this.tiles[r][W - 1] && this.tiles[r][W - 1].subTerrain.passable) {
+                const dist = Math.abs(W - 1 - fromQ) + Math.abs(r - fromR);
+                if (dist < bestDist) { bestDist = dist; best = { q: W - 1, r }; }
             }
         }
         return best;

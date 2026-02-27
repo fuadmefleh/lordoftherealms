@@ -232,9 +232,31 @@
                 <button class="title-btn primary" id="btnNewGame">New Game</button>
                 <button class="title-btn" id="btnContinue" disabled>Continue</button>
             </div>
+            <div id="titleButtonsSecondary">
+                <button class="title-btn secondary" id="btnModTools">🛠 Modding Tools</button>
+                <button class="title-btn secondary" id="btnWorldEditor">🗺 World Editor</button>
+                <button class="title-btn secondary" id="btnPlayCustom">🎮 Play Custom World</button>
+            </div>
             <div id="titleVersion">v0.1.0 — Early Foundation</div>
         </div>
         <canvas id="titleBgCanvas"></canvas>
+    </div>
+
+    <!-- Custom World Picker Modal -->
+    <div id="customWorldModal" class="hidden">
+        <div class="cw-modal-backdrop"></div>
+        <div class="cw-modal-panel">
+            <div class="cw-modal-header">
+                <span>Choose a Custom World</span>
+                <button class="cw-modal-close" id="cwModalClose">&times;</button>
+            </div>
+            <div class="cw-modal-body" id="cwModalBody">
+                <p class="cw-modal-empty">Loading worlds…</p>
+            </div>
+            <div class="cw-modal-footer">
+                <button class="title-btn" id="cwModalCancel">Cancel</button>
+            </div>
+        </div>
     </div>
 
     <!-- Loading Overlay -->
@@ -490,13 +512,8 @@
                             <option value="normal" selected>Normal</option>
                             <option value="many">Many</option>
                         </select>
-                    </div>                    <div class="input-row">
-                        <label for="customBuildingsOnly" title="Skip the built-in legacy buildings and use only your custom buildings from sprite_editor.html">Custom Buildings Only:</label>
-                        <input type="checkbox" id="customBuildingsOnly" style="width:auto;margin-top:4px;" title="Use only editor-authored buildings from sprite_editor.html — skips the built-in building set">
-                    </div>                    <div class="input-row">
-                        <label for="customObjectsOnly" title="Skip the built-in terrain objects (trees, rocks, plants) and use only your custom objects from sprite_editor.html">Custom Objects Only:</label>
-                        <input type="checkbox" id="customObjectsOnly" style="width:auto;margin-top:4px;" title="Use only editor-authored objects from sprite_editor.html — skips the built-in terrain overlays">
-                    </div>                </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Advanced Settings Toggle -->
@@ -561,6 +578,7 @@
     </div>
 
     <!-- Scripts — Core -->
+    <script src="js/systems/modStore.js"></script>
     <script src="js/core/utils.js"></script>
     <script src="js/core/hex.js"></script>
     <script src="js/core/dataLoader.js"></script>
@@ -579,6 +597,8 @@
     <script src="js/world/colonization.js"></script>
     <script src="js/world/customObjects.js"></script>
     <script src="js/world/customBuildings.js"></script>
+    <script src="js/world/customInteriors.js"></script>
+    <script src="js/world/settlementGenerator.js"></script>
     <script src="js/world/innerMap.js"></script>
 
     <!-- Scripts — Player (loaded before Systems that depend on it) -->
@@ -620,10 +640,35 @@
     <script src="js/ui/innerMapRenderer.js"></script>
     <script src="js/ui/innerMapCharacters.js"></script>
     <script src="js/ui/innerMapLayers.js"></script>
+    <script src="js/ui/lightSystem.js"></script>
     <script src="js/ui/innerMapUI.js"></script>
+    <script src="js/ui/innerMapCombat.js"></script>
     <script src="js/ui/ui.js"></script>
     <script src="js/ui/actionMenu.js"></script>
     <script src="js/ui/minimap.js"></script>
+    <!-- Editor Overlay (full-screen, over everything) -->
+    <div id="editorOverlay" class="hidden">
+        <div id="editorTopBar">
+            <span class="editor-bar-title">🛠 Modding Tools</span>
+            <span class="editor-bar-spacer"></span>
+            <button class="editor-bar-btn" id="btnEditorSave" title="Save mod data to browser">💾 Save</button>
+            <button class="editor-bar-btn danger" id="btnEditorClose">✕ Back to Menu</button>
+        </div>
+        <iframe id="editorFrame" src="about:blank"></iframe>
+    </div>
+
+    <!-- World Editor Overlay -->
+    <div id="worldEditorOverlay" class="hidden">
+        <div id="worldEditorTopBar">
+            <span class="editor-bar-title">🗺 World Editor</span>
+            <span class="editor-bar-spacer"></span>
+            <button class="editor-bar-btn" id="btnWorldSave" title="Save world to browser">💾 Save World</button>
+            <button class="editor-bar-btn" id="btnWorldLoad" title="Load a saved world">📂 Load</button>
+            <button class="editor-bar-btn danger" id="btnWorldClose">✕ Back to Menu</button>
+        </div>
+        <iframe id="worldEditorFrame" src="about:blank"></iframe>
+    </div>
+
     <script src="js/ui/game.js"></script>
 </body>
 

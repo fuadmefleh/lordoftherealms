@@ -1,0 +1,236 @@
+[
+  {
+    "id": "large_tree_1",
+    "name": "large_tree_1",
+    "objectType": "tree",
+    "animation": "combat_1h_halfslash",
+    "resource": {
+      "type": "wood",
+      "amount": 50
+    },
+    "spawnAfter": "stump_1",
+    "terrainBindings": [
+      "grass",
+      "tall_grass",
+      "dirt",
+      "dry_grass",
+      "trees",
+      "brush"
+    ],
+    "spawnWeight": 1,
+    "bounds": {
+      "minCol": -1,
+      "minRow": -3,
+      "maxCol": 1,
+      "maxRow": 0
+    },
+    "hasBlockedTiles": false,
+    "hasInteraction": true,
+    "tiles": [
+      {
+        "localCol": -1,
+        "localRow": -3,
+        "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+        "sx": 224,
+        "sy": 128,
+        "sw": 32,
+        "sh": 32
+      },
+      {
+        "localCol": 0,
+        "localRow": -3,
+        "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+        "sx": 256,
+        "sy": 128,
+        "sw": 32,
+        "sh": 32
+      },
+      {
+        "localCol": 1,
+        "localRow": -3,
+        "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+        "sx": 288,
+        "sy": 128,
+        "sw": 32,
+        "sh": 32
+      },
+      {
+        "localCol": -1,
+        "localRow": -2,
+        "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+        "sx": 224,
+        "sy": 160,
+        "sw": 32,
+        "sh": 32
+      },
+      {
+        "localCol": 0,
+        "localRow": -2,
+        "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+        "sx": 256,
+        "sy": 160,
+        "sw": 32,
+        "sh": 32
+      },
+      {
+        "localCol": 1,
+        "localRow": -2,
+        "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+        "sx": 288,
+        "sy": 160,
+        "sw": 32,
+        "sh": 32
+      },
+      {
+        "localCol": -1,
+        "localRow": -1,
+        "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+        "sx": 224,
+        "sy": 192,
+        "sw": 32,
+        "sh": 32
+      },
+      {
+        "localCol": 0,
+        "localRow": -1,
+        "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+        "sx": 256,
+        "sy": 192,
+        "sw": 32,
+        "sh": 32
+      },
+      {
+        "localCol": 1,
+        "localRow": -1,
+        "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+        "sx": 288,
+        "sy": 192,
+        "sw": 32,
+        "sh": 32
+      },
+      {
+        "localCol": -1,
+        "localRow": 0,
+        "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+        "sx": 224,
+        "sy": 224,
+        "sw": 32,
+        "sh": 32
+      },
+      {
+        "localCol": 0,
+        "localRow": 0,
+        "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+        "sx": 256,
+        "sy": 224,
+        "sw": 32,
+        "sh": 32
+      },
+      {
+        "localCol": 1,
+        "localRow": 0,
+        "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+        "sx": 288,
+        "sy": 224,
+        "sw": 32,
+        "sh": 32
+      }
+    ],
+    "meta": [
+      {
+        "localCol": 0,
+        "localRow": 0,
+        "interactionPoint": true
+      }
+    ]
+  },
+  {
+    "id": "stump_1",
+    "name": "stump_1",
+    "objectType": "other",
+    "animation": "combat_1h_halfslash",
+    "resource": {
+      "type": "wood",
+      "amount": 10
+    },
+    "terrainBindings": [],
+    "spawnWeight": 1,
+    "bounds": {
+      "minCol": -1,
+      "minRow": -1,
+      "maxCol": 1,
+      "maxRow": 0
+    },
+    "hasBlockedTiles": true,
+    "hasInteraction": true,
+    "tiles": [
+      {
+        "localCol": -1,
+        "localRow": -1,
+        "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+        "sx": 0,
+        "sy": 416,
+        "sw": 32,
+        "sh": 32
+      },
+      {
+        "localCol": 0,
+        "localRow": -1,
+        "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+        "sx": 32,
+        "sy": 416,
+        "sw": 32,
+        "sh": 32
+      },
+      {
+        "localCol": 1,
+        "localRow": -1,
+        "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+        "sx": 64,
+        "sy": 416,
+        "sw": 32,
+        "sh": 32
+      },
+      {
+        "localCol": -1,
+        "localRow": 0,
+        "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+        "sx": 0,
+        "sy": 448,
+        "sw": 32,
+        "sh": 32
+      },
+      {
+        "localCol": 0,
+        "localRow": 0,
+        "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+        "sx": 32,
+        "sy": 448,
+        "sw": 32,
+        "sh": 32
+      },
+      {
+        "localCol": 1,
+        "localRow": 0,
+        "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+        "sx": 64,
+        "sy": 448,
+        "sw": 32,
+        "sh": 32
+      }
+    ],
+    "meta": [
+      {
+        "localCol": 0,
+        "localRow": 0,
+        "interactionPoint": true,
+        "impassable": false
+      },
+      {
+        "localCol": 0,
+        "localRow": -1,
+        "impassable": true
+      }
+    ]
+  }
+]

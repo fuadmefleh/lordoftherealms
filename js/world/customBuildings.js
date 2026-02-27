@@ -1,35 +1,22 @@
 /**
- * CustomBuildings — runtime registry for editor-authored buildings.
+ * CustomBuildings — runtime registry for building definitions.
  *
- * WORKFLOW
- * ────────
- * 1. Design buildings in sprite_editor.html (Building mode).
- * 2. Click "Export JSON" → enter a filename (e.g. "village_houses") → download.
- * 3. Move the file to  data/custom_buildings/<filename>.json
- * 4. Add the filename to  data/custom_buildings/manifest.json → "files" array.
- * 5. Repeat for as many packs as you like.  All are loaded at runtime automatically.
+ * DATA FORMAT  (gamedata.json → "buildings" key)
+ * ──────────────────────────────────────────────
+ * "buildings": [
+ *   {
+ *     id, name, buildingType, width, height, tags,
+ *     layers: { floor/walls/roof/overlay: [{q,r,sheetPath,sx,sy,sw,sh},...] },
+ *     meta:   [{q,r,impassable,door},...]
+ *   }, ...
+ * ]
  *
- * MANIFEST FORMAT  (data/custom_buildings/manifest.json)
- * ───────────────────────────────────────────────────────
- * {
- *   "files": ["village_houses.json", "city_buildings.json", ...]
- * }
- *
- * BUILDING FILE FORMAT  (as exported by sprite_editor.html)
- * ─────────────────────────────────────────────────────────────
- * {
- *   "buildings": [
- *     {
- *       id, name, buildingType, width, height, tags,
- *       layers: { floor/walls/roof/overlay: [{q,r,sheetPath,sx,sy,sw,sh},...] },
- *       meta:   [{q,r,impassable,door},...]
- *     }, ...
- *   ]
- * }
+ * Buildings are authored in sprite_editor.html (Building mode) and
+ * stored directly in gamedata.json as the game's baseline data.
  *
  * This module is referenced by:
- *   js/world/innerMap.js     → _placeCustomBuildings()
- *   js/ui/innerMapLayers.js  → _renderBuildingLayer() / _drawCustomBuilding()
+ *   js/world/innerMap.js      → _placeCustomBuildings()
+ *   js/ui/innerMapLayers.js   → _renderBuildingLayer() / _drawCustomBuilding()
  *   js/ui/innerMapRenderer.js → loadSheets()  (calls CustomBuildings.loadAll())
  */
 const CustomBuildings = (() => {
@@ -134,26 +121,33 @@ const CustomBuildings = (() => {
         },
 
         /**
-         * Load custom buildings from gamedata.json (via DataLoader) when available,
-         * otherwise fall back to direct fetches.
+         * Load buildings from gamedata.json (via DataLoader).
+         * Reads from the flat `buildings` array in gamedata.
          * Returns a Promise that resolves when all buildings and images are ready.
          */
         loadAll() {
             if (_loaded) return Promise.resolve();
 
-            // ── Load from gamedata.json (single source of truth) ─────────
-            if (typeof DataLoader !== 'undefined' && DataLoader._gamedata && DataLoader._gamedata.custom_buildings) {
-                const cb = DataLoader._gamedata.custom_buildings;
-                const manifest = cb.manifest || {};
-                const files = cb.files || {};
-                if (Array.isArray(manifest.files) && manifest.files.length > 0) {
-                    for (const filename of manifest.files) {
+            if (typeof DataLoader !== 'undefined' && DataLoader._gamedata) {
+                // ── New flat format: gamedata.buildings = [...]  ─────────
+                const arr = DataLoader._gamedata.buildings;
+                if (Array.isArray(arr)) {
+                    for (const b of arr) registerBuilding(b);
+                }
+
+                // ── Legacy nested format (custom_buildings.manifest/files) ──
+                if (!arr && DataLoader._gamedata.custom_buildings) {
+                    const cb = DataLoader._gamedata.custom_buildings;
+                    const manifest = cb.manifest || {};
+                    const files = cb.files || {};
+                    for (const filename of (manifest.files || Object.keys(files))) {
                         const data = files[filename];
-                        if (!data) { console.warn(`[CustomBuildings] missing file in gamedata: ${filename}`); continue; }
+                        if (!data) continue;
                         const buildings = data.buildings || (Array.isArray(data) ? data : []);
                         for (const b of buildings) registerBuilding(b);
                     }
                 }
+
                 const pending = [];
                 for (const [path, cached] of _imgCache) {
                     if (!(cached instanceof HTMLImageElement)) pending.push(loadImg(path));
@@ -161,14 +155,13 @@ const CustomBuildings = (() => {
                 return Promise.all(pending).finally(() => {
                     _loaded = true;
                     if (_defs.size > 0)
-                        console.log(`[CustomBuildings] loaded ${_defs.size} building(s) across ${_byType.size} type(s)`);
+                        console.log(`[Buildings] loaded ${_defs.size} building(s) across ${_byType.size} type(s)`);
                     else
-                        console.info('[CustomBuildings] no buildings loaded — add entries via the editor and rebuild gamedata.json');
+                        console.info('[Buildings] no buildings found in gamedata.json');
                 });
             }
 
-            // No DataLoader / no custom_buildings in gamedata — nothing to load
-            console.info('[CustomBuildings] no custom_buildings found in gamedata.json');
+            console.info('[Buildings] no gamedata available');
             _loaded = true;
             return Promise.resolve();
         }

@@ -81,6 +81,30 @@
         }
         .legend-item { display: flex; align-items: center; gap: 4px; }
         .legend-swatch { width: 14px; height: 14px; border: 1px solid #30363d; border-radius: 2px; }
+
+        /* Building Palette Bar */
+        #palette-bar {
+            background: #161b22; border: 1px solid #30363d; border-radius: 6px;
+            padding: 10px 14px; margin-bottom: 12px;
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+        }
+        #palette-bar h4 { font-size: 11px; font-weight: 600; color: #8b949e; text-transform: uppercase;
+            letter-spacing: .06em; margin-right: 2px; white-space: nowrap; }
+        #palette-select { background: #0d1117; color: #c9d1d9; border: 1px solid #30363d;
+            padding: 4px 8px; border-radius: 4px; font-size: 12px; min-width: 160px; }
+        #palette-select:focus { outline: none; border-color: #58a6ff; }
+        .pal-slot-preview { display: flex; align-items: center; gap: 3px; }
+        .pal-slot-preview span { font-size: 10px; color: #8b949e; }
+        .pal-slot-preview canvas { width: 20px; height: 20px; image-rendering: pixelated;
+            border: 1px solid #30363d; border-radius: 2px; }
+        .pal-slot-preview canvas.filled { border-color: #3fb950; }
+        #palette-bar .pal-none { font-size: 11px; font-style: italic; color: #8b949e; }
+        #palette-reload { background: #21262d; border: 1px solid #30363d; color: #8b949e;
+            padding: 3px 9px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        #palette-reload:hover { background: #2d333b; color: #c9d1d9; }
+        #open-palette-maker { background: #2a1f00; border: 1px solid #e6a817; color: #e6a817;
+            padding: 3px 9px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        #open-palette-maker:hover { background: #3a2d00; }
     </style>
 </head>
 <body>
@@ -132,6 +156,18 @@
             <option value="capital">Capital</option>
         </select>
     </label>
+</div>
+
+<!-- Building Palette Bar -->
+<div id="palette-bar">
+    <h4>🎨 Building Palette</h4>
+    <select id="palette-select" onchange="onPaletteSelect()">
+        <option value="">(Default — no palette)</option>
+    </select>
+    <button id="palette-reload" onclick="loadPaletteBar()" title="Reload palettes from localStorage">↺ Reload</button>
+    <button id="open-palette-maker" onclick="window.open('palette_maker.html','_blank')" title="Open Palette Maker">Open Palette Maker ↗</button>
+    <div class="pal-slot-preview" id="pal-preview-tiles"></div>
+    <span id="pal-count-note" style="font-size:11px;color:#8b949e;font-style:italic;margin-left:4px"></span>
 </div>
 
 <div id="summary">
@@ -1665,8 +1701,118 @@ async function runAllTests() {
     _renderVisualTest();
 }
 
+// ============================================================
+//  BUILDING PALETTE SELECTOR
+// ============================================================
+const PAL_STORAGE_KEY = 'lrt_building_palettes';
+const PALETTE_SLOT_DISPLAY = ['floor', 'wall_n', 'wall_s', 'wall_v', 'roof', 'door'];
+const PALETTE_SHEET_PATHS = {
+    struct_brick_a: 'assets/lpc/Structure/Structures/Brick House A.png',
+    struct_brick_b: 'assets/lpc/Structure/Structures/Brick House B.png',
+    struct_panel_a: 'assets/lpc/Structure/Structures/Paneled House A.png',
+    roof_shingle:   'assets/lpc/Structure/Roofing/Flat Shingle Roof A.png',
+    roof_gable:     'assets/lpc/Structure/Roofing/Gable Shingle Roof A.png',
+    terrain_summer: 'assets/lpc/Terrain/terrain_summer.png',
+    tilled_soil:    'assets/lpc/Terrain/tilled_soil.png',
+};
+let _palSheetCache = {};
+let _loadedPalettes = [];
+
+function loadPaletteBar() {
+    try {
+        const raw = localStorage.getItem(PAL_STORAGE_KEY);
+        _loadedPalettes = raw ? JSON.parse(raw) : [];
+    } catch(e) { _loadedPalettes = []; }
+
+    const sel = document.getElementById('palette-select');
+    const prev = sel.value; // preserve current selection
+    sel.innerHTML = '<option value="">(Default \u2014 no palette)</option>';
+    for (const pal of _loadedPalettes) {
+        const opt = document.createElement('option');
+        opt.value = pal.id;
+        opt.textContent = pal.name + ' (' + Object.values(pal.tiles || {}).filter(Boolean).length + ' slots)';
+        sel.appendChild(opt);
+    }
+    if (prev && _loadedPalettes.find(p => p.id === prev)) sel.value = prev;
+
+    const countNote = _loadedPalettes.length
+        ? `${_loadedPalettes.length} palette${_loadedPalettes.length > 1 ? 's' : ''} loaded`
+        : 'No palettes in localStorage \u2014 open Palette Maker to create some';
+    document.getElementById('pal-count-note').textContent = countNote;
+    onPaletteSelect();
+}
+
+function onPaletteSelect() {
+    const selId = document.getElementById('palette-select').value;
+    const pal = selId ? _loadedPalettes.find(p => p.id === selId) : null;
+    // Expose to renderer for building tile overrides
+    if (typeof InnerMapRenderer !== 'undefined') {
+        InnerMapRenderer._activePalette = pal || null;
+    }
+    renderPalettePreview(pal);
+}
+
+function renderPalettePreview(pal) {
+    const container = document.getElementById('pal-preview-tiles');
+    container.innerHTML = '';
+    if (!pal) return;
+    const slotIcons = {
+        floor: '\u25a1', floor_alt: '\u25a1', wall_n: '\u25a3', wall_s: '\u25a3',
+        wall_v: '\u25a3', wall_corner: '\u25a3', roof: '\u25c6', roof_edge_n: '\u25c7',
+        door: '\u25ac', outer: '\u25a4'
+    };
+    for (const slotId of PALETTE_SLOT_DISPLAY) {
+        const tile = pal.tiles && pal.tiles[slotId];
+        const wrap = document.createElement('span');
+        wrap.title = slotId;
+        wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px';
+        const lbl = document.createElement('span');
+        lbl.style.cssText = 'font-size:9px;color:#8b949e;white-space:nowrap';
+        lbl.textContent = slotId.replace(/_/g,' ');
+        const cvs = document.createElement('canvas');
+        cvs.width = 32; cvs.height = 32;
+        cvs.className = 'pal-slot-preview' + (tile ? ' filled' : '');
+        cvs.style.cssText = 'width:22px;height:22px;image-rendering:pixelated;border:1px solid ' + (tile ? '#3fb950' : '#30363d') + ';border-radius:2px';
+        const ctx = cvs.getContext('2d');
+        ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, 32, 32);
+        if (!tile) {
+            ctx.fillStyle = '#30363d'; ctx.font = '12px monospace';
+            ctx.fillText(slotIcons[slotId] || '?', 9, 21);
+        } else {
+            drawPalSlotCanvas(cvs, tile);
+        }
+        wrap.appendChild(cvs);
+        wrap.appendChild(lbl);
+        container.appendChild(wrap);
+    }
+}
+
+function drawPalSlotCanvas(canvas, tileDef) {
+    if (!tileDef) return;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    const img = _palSheetCache[tileDef.sheet];
+    if (img) {
+        ctx.drawImage(img, tileDef.sx, tileDef.sy, tileDef.sw || 32, tileDef.sh || 32,
+                      0, 0, canvas.width, canvas.height);
+        return;
+    }
+    const path = PALETTE_SHEET_PATHS[tileDef.sheet];
+    if (!path || _palSheetCache['_p_' + tileDef.sheet]) return;
+    _palSheetCache['_p_' + tileDef.sheet] = true;
+    const i = new Image();
+    i.onload = () => {
+        _palSheetCache[tileDef.sheet] = i;
+        const selId = document.getElementById('palette-select').value;
+        const pal = selId ? _loadedPalettes.find(p => p.id === selId) : null;
+        if (pal) renderPalettePreview(pal);
+    };
+    i.src = path;
+}
+
 // Auto-run on load
 window.addEventListener('DOMContentLoaded', () => {
+    loadPaletteBar(); // populate palette dropdown first
     runAllTests();
 });
 </script>

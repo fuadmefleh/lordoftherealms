@@ -1,6 +1,0 @@
-{
-    "_note": "List exported object JSON filenames here (relative to data/custom_objects/). Each file is produced by the sprite_editor.html Object mode export.",
-    "files": [
-        "my_objects.json"
-    ]
-}

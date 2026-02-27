@@ -153,6 +153,161 @@ class World {
     }
 
     /**
+     * Load a world from editor data (custom world).
+     * Converts the flat terrain-id array into full game tile objects
+     * and runs kingdom placement + all post-generation init.
+     */
+    loadFromEditorData(editorData, kingdomCount = 6) {
+        console.log('Loading custom world from editor data...');
+        this.width = editorData.width;
+        this.height = editorData.height;
+
+        // Build a lookup: terrain id string → Terrain.TYPES reference
+        const typeById = {};
+        for (const [key, val] of Object.entries(Terrain.TYPES)) {
+            typeById[val.id] = val;
+        }
+
+        // Construct tiles[r][q] with full tile objects
+        this.tiles = [];
+        for (let r = 0; r < this.height; r++) {
+            const row = [];
+            for (let q = 0; q < this.width; q++) {
+                const terrainId = editorData.tiles[r * this.width + q] || 'ocean';
+                const terrainType = typeById[terrainId] || Terrain.TYPES.OCEAN;
+
+                // Estimate elevation/heat/moisture from terrain type
+                const elev = this._estimateElevation(terrainType);
+                const heat = this._estimateHeat(terrainType, r / this.height);
+                const moist = this._estimateMoisture(terrainType);
+
+                row.push({
+                    q, r,
+                    elevation: elev,
+                    temperature: heat,
+                    moisture: moist,
+                    terrain: terrainType,
+                    resource: null,
+                    kingdom: null,
+                    settlement: null,
+                    improvement: null,
+                    explored: false,
+                    visible: false,
+                    hasRiver: false,
+                    hasRoad: false,
+                    riverSource: false,
+                });
+            }
+            this.tiles.push(row);
+        }
+
+        // Assign resources based on terrain type
+        this._assignResources();
+
+        // Create and place kingdoms
+        const kCount = Math.min(kingdomCount, 15);
+        let kingdomDefs = Kingdom.DEFAULTS.slice(0, Math.min(kCount, Kingdom.DEFAULTS.length));
+        if (kCount > Kingdom.DEFAULTS.length) {
+            // Generate extras — simplified
+            for (let i = Kingdom.DEFAULTS.length; i < kCount; i++) {
+                kingdomDefs.push({
+                    id: 'gen_kingdom_' + (i + 1),
+                    name: 'Kingdom ' + (i + 1),
+                    ruler: 'Ruler ' + (i + 1),
+                    color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6,'0'),
+                    colorLight: 'rgba(128,128,128,0.2)',
+                    culture: 'Imperial',
+                    description: 'A realm born of custom creation.',
+                    preferredTerrain: ['plains', 'grassland'],
+                    traits: ['orderly'],
+                });
+            }
+        }
+        this.kingdoms = kingdomDefs.map(def => Kingdom.create(def));
+        Kingdom.placeKingdoms(this.kingdoms, this.tiles, this.width, this.height);
+        Kingdom.initRelations(this.kingdoms);
+
+        // Run the same post-generation init as generate()
+        NPCLords.initializeLords(this);
+        if (typeof Characters !== 'undefined') Characters.initialize(this);
+        this.placeIndependentSettlements('normal');
+        this.placePointsOfInterest('normal');
+        this.generateRoads();
+        this.history = WorldEvents.generateHistory(this);
+        if (typeof Religion !== 'undefined') Religion.initialize(this);
+        if (typeof Culture !== 'undefined') Culture.initialize(this);
+        if (typeof Peoples !== 'undefined') Peoples.initialize(this);
+        if (typeof Colonization !== 'undefined') Colonization.initialize(this);
+        if (typeof Cartography !== 'undefined') Cartography.initialize(this);
+        this.spawnInitialUnits();
+
+        console.log(`Custom world loaded: ${this.width}x${this.height}, ${this.kingdoms.length} kingdoms`);
+    }
+
+    /** Estimate elevation from terrain type (for custom worlds) */
+    _estimateElevation(t) {
+        const map = {
+            deep_ocean: 0.15, ocean: 0.25, coast: 0.38, sea: 0.30,
+            beach: 0.43, lake: 0.48, ice: 0.45, snow: 0.50,
+            tundra: 0.52, grassland: 0.55, plains: 0.55, woodland: 0.55,
+            boreal_forest: 0.58, seasonal_forest: 0.55, temperate_rainforest: 0.56,
+            tropical_rainforest: 0.54, savanna: 0.52, desert: 0.50,
+            hills: 0.68, mountain: 0.82, snow_peak: 0.95,
+            swamp: 0.46, island: 0.48, highlands: 0.72,
+        };
+        return map[t.id] ?? 0.5;
+    }
+
+    /** Estimate heat from terrain type and latitude */
+    _estimateHeat(t, latRatio) {
+        const base = {
+            ice: 0.05, snow: 0.1, snow_peak: 0.1, tundra: 0.2,
+            boreal_forest: 0.3, seasonal_forest: 0.45,
+            grassland: 0.5, plains: 0.5, woodland: 0.45,
+            temperate_rainforest: 0.5, hills: 0.45, mountain: 0.3, highlands: 0.35,
+            beach: 0.6, savanna: 0.7, desert: 0.8,
+            tropical_rainforest: 0.85, swamp: 0.6, island: 0.65,
+            deep_ocean: 0.4, ocean: 0.4, coast: 0.45, sea: 0.4, lake: 0.45,
+        };
+        const b = base[t.id] ?? 0.5;
+        // Blend with latitude (equator=0.5 ratio, poles=0/1 ratio → hotter at equator)
+        const latHeat = 1 - Math.abs(latRatio - 0.5) * 2;
+        return b * 0.7 + latHeat * 0.3;
+    }
+
+    /** Estimate moisture from terrain type */
+    _estimateMoisture(t) {
+        const map = {
+            deep_ocean: 0.9, ocean: 0.85, coast: 0.7, sea: 0.8, lake: 0.8,
+            beach: 0.4, ice: 0.2, snow: 0.3, tundra: 0.3,
+            grassland: 0.5, plains: 0.4, woodland: 0.55,
+            boreal_forest: 0.6, seasonal_forest: 0.55, temperate_rainforest: 0.8,
+            tropical_rainforest: 0.9, savanna: 0.35, desert: 0.1,
+            hills: 0.4, mountain: 0.35, snow_peak: 0.3,
+            swamp: 0.85, island: 0.5, highlands: 0.45,
+        };
+        return map[t.id] ?? 0.5;
+    }
+
+    /** Assign resources to tiles based on terrain type + random chance */
+    _assignResources() {
+        for (let r = 0; r < this.height; r++) {
+            for (let q = 0; q < this.width; q++) {
+                const tile = this.tiles[r][q];
+                const terrainId = tile.terrain.id;
+                const chances = Terrain.RESOURCE_CHANCES[terrainId];
+                if (!chances) continue;
+                for (const { resource, chance } of chances) {
+                    if (Math.random() < chance) {
+                        tile.resource = resource;
+                        break; // one resource per tile
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Place independent (unaligned) settlements
      */
     placeIndependentSettlements(freq = 'normal') {

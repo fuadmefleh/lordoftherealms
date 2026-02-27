@@ -23,9 +23,11 @@ const InnerMapCharacters = {
     FRAME_H: 64,
     WALK_FRAMES: 8,      // 8 frames per direction row
     IDLE_FRAMES: 3,      // 3 frames per direction row (1 is static pose)
+    SLASH_FRAMES: 6,     // 6 frames per direction row (LPC 'Combat 1h - Slash')
     DIR_ROWS: 4,         // up=0, left=1, down=2, right=3
     WALK_FPS: 10,        // frames per second for walk cycle
     IDLE_FPS: 2,         // frames per second for idle cycle
+    SLASH_FPS: 12,       // frames per second for slash/attack cycle
 
     // Direction constants
     DIR_UP: 0,
@@ -77,6 +79,7 @@ const InnerMapCharacters = {
             for (const layerPath of preset.layers) {
                 pathSet.add(this._basePath + layerPath + '/Walk.png');
                 pathSet.add(this._basePath + layerPath + '/Idle.png');
+                pathSet.add(this._basePath + layerPath + '/Combat 1h - Slash.png');
             }
         }
 
@@ -120,11 +123,14 @@ const InnerMapCharacters = {
             this.WALK_FRAMES * this.FRAME_W, this.DIR_ROWS * this.FRAME_H);
         const idleCanvas = this._compositeAnimation(preset.layers, 'Idle',
             this.IDLE_FRAMES * this.FRAME_W, this.DIR_ROWS * this.FRAME_H);
+        const slashCanvas = this._compositeAnimation(preset.layers, 'Combat 1h - Slash',
+            this.SLASH_FRAMES * this.FRAME_W, this.DIR_ROWS * this.FRAME_H);
 
         if (walkCanvas || idleCanvas) {
             this._composited.set(presetId, {
                 walk: walkCanvas,
-                idle: idleCanvas || walkCanvas  // fallback: use walk frame 0 as idle
+                idle: idleCanvas || walkCanvas,  // fallback: use walk frame 0 as idle
+                slash: slashCanvas || null,       // null if sheet missing — falls back in drawCharacter
             });
         }
     },
@@ -216,12 +222,32 @@ const InnerMapCharacters = {
         const comp = this._composited.get(presetId);
         if (!comp) return false;
 
-        const sheet = comp[anim] || comp.idle || comp.walk;
+        // Resolve sheet — slash falls back to walk if the asset is missing
+        const isSlash = (anim === 'slash');
+        const isWalk  = (anim === 'walk');
+        const sheet = isSlash
+            ? (comp.slash || comp.walk || comp.idle)
+            : (comp[anim] || comp.idle || comp.walk);
         if (!sheet) return false;
 
-        const isWalk = (anim === 'walk');
-        const totalFrames = isWalk ? this.WALK_FRAMES : this.IDLE_FRAMES;
-        const fps = isWalk ? this.WALK_FPS : this.IDLE_FPS;
+        let totalFrames, fps;
+        if (isSlash) {
+            // If no dedicated slash sheet loaded, simulate attack with a fast walk
+            if (comp.slash) {
+                totalFrames = this.SLASH_FRAMES;
+                fps         = this.SLASH_FPS;
+            } else {
+                // Fallback — play walk cycle at double speed so it looks active
+                totalFrames = this.WALK_FRAMES;
+                fps         = this.WALK_FPS * 2;
+            }
+        } else if (isWalk) {
+            totalFrames = this.WALK_FRAMES;
+            fps         = this.WALK_FPS;
+        } else {
+            totalFrames = this.IDLE_FRAMES;
+            fps         = this.IDLE_FPS;
+        }
 
         // Compute current frame
         const frameIndex = Math.floor(time * fps) % totalFrames;

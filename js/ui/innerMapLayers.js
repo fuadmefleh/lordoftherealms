@@ -7,6 +7,18 @@
 
 Object.assign(InnerMapRenderer, {
 
+    // ── Viewport culling helper: compute visible tile range from camera ──
+    _getVisibleTileRange(camera) {
+        const T = this.TILE_SIZE;
+        const bounds = camera.getVisibleBounds();
+        return {
+            qMin: Math.max(0, Math.floor(bounds.left / T) - 1),
+            qMax: Math.min(InnerMap.width - 1, Math.ceil(bounds.right / T) + 1),
+            rMin: Math.max(0, Math.floor(bounds.top / T) - 1),
+            rMax: Math.min(InnerMap.height - 1, Math.ceil(bounds.bottom / T) + 1),
+        };
+    },
+
     // ══════════════════════════════════════════════
     // LAYER 0 — TERRAIN
     // Draws ground fill tiles only. No objects, no buildings.
@@ -17,23 +29,53 @@ Object.assign(InnerMapRenderer, {
         const ds = T * camera.zoom;
         const terrainKey = this._seasonKey('terrain');
         const terrainSheet = this._sheets.get(terrainKey);
+        const { qMin, qMax, rMin, rMax } = this._frameRange;
+        const canvasW = ctx.canvas.width;
+        const canvasH = ctx.canvas.height;
 
-        for (let r = 0; r < InnerMap.height; r++) {
-            for (let q = 0; q < InnerMap.width; q++) {
-                const tile = InnerMap.tiles[r][q];
-                const screen = camera.worldToScreen(q * T, r * T);
-                const dx = Math.floor(screen.x);
-                const dy = Math.floor(screen.y);
-                const sz = Math.ceil(ds) + 1;
+        // Pre-compute row base screen Y and column base X to avoid per-tile worldToScreen calls
+        // For the inner map, worldPixelWidth is 0 (no wrapping), so we can simplify:
+        //   screenX = cx + (q*T - camX) * zoom
+        //   screenY = cy + (r*T - camY) * zoom
+        // We compute the screen position of (qMin*T, rMin*T) once
+        // and increment by ds for each column/row.
+        const origin = camera.worldToScreenFast(qMin * T, rMin * T);
+        const originX = origin.x;
+        const originY = origin.y;
+
+        // Collect grid rects to batch-draw after all terrain fills
+        const gridVisible = [];   // [dx, dy, sz] rects for visible tiles
+        const gridDim     = [];   // [dx, dy, sz] rects for explored-but-not-visible tiles
+
+        for (let r = rMin; r <= rMax; r++) {
+            const row = InnerMap.tiles[r];
+            const dy0 = originY + (r - rMin) * ds;
+            const dyFloor = Math.floor(dy0);
+
+            // Quick row-level Y culling
+            const sz = Math.ceil(ds) + 1;
+            if (dyFloor + sz < 0 || dyFloor > canvasH) continue;
+
+            for (let q = qMin; q <= qMax; q++) {
+                const dx0 = originX + (q - qMin) * ds;
+                const dx = Math.floor(dx0);
 
                 // Culling
-                if (dx + sz < 0 || dx > ctx.canvas.width) continue;
-                if (dy + sz < 0 || dy > ctx.canvas.height) continue;
+                if (dx + sz < 0 || dx > canvasW) continue;
+
+                const tile = row[q];
+                const dy = dyFloor;
 
                 // Unexplored: black
                 if (!tile.explored) {
                     ctx.fillStyle = '#0a0e17';
                     ctx.fillRect(dx, dy, sz, sz);
+                    continue;
+                }
+
+                // ── Interior tiles: custom rendering ──
+                if (tile._isInterior) {
+                    this._renderInteriorTile(ctx, tile, dx, dy, sz);
                     continue;
                 }
 
@@ -46,11 +88,188 @@ Object.assign(InnerMapRenderer, {
                     ctx.fillRect(dx, dy, sz, sz);
                 }
 
-                // Subtle tile grid
-                ctx.strokeStyle = tile.visible ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)';
-                ctx.lineWidth = 0.5;
-                ctx.strokeRect(dx, dy, sz, sz);
+                // Collect for batched grid drawing
+                (tile.visible ? gridVisible : gridDim).push(dx, dy, sz);
             }
+        }
+
+        // Batched grid strokes — two paths instead of per-tile strokeRect
+        ctx.lineWidth = 0.5;
+        if (gridVisible.length > 0) {
+            ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+            ctx.beginPath();
+            for (let i = 0; i < gridVisible.length; i += 3) {
+                ctx.rect(gridVisible[i], gridVisible[i+1], gridVisible[i+2], gridVisible[i+2]);
+            }
+            ctx.stroke();
+        }
+        if (gridDim.length > 0) {
+            ctx.strokeStyle = 'rgba(255,255,255,0.02)';
+            ctx.beginPath();
+            for (let i = 0; i < gridDim.length; i += 3) {
+                ctx.rect(gridDim[i], gridDim[i+1], gridDim[i+2], gridDim[i+2]);
+            }
+            ctx.stroke();
+        }
+    },
+
+    /**
+     * Render a single interior tile (walls, floors, furniture, door).
+     * Supports both procedural (INTERIOR_LAYOUTS) and custom spritesheet tiles.
+     */
+    _renderInteriorTile(ctx, tile, dx, dy, sz) {
+        // ── Custom spritesheet-based tile ──
+        if (tile._customTile) {
+            this._renderCustomInteriorTile(ctx, tile, dx, dy, sz);
+            return;
+        }
+
+        const isWall = tile.baseTerrain === 'wall';
+        const isDoor = tile._isDoor;
+        const furniture = tile._furniture;
+
+        if (isWall) {
+            // Wall rendering: darker with a 3D effect
+            ctx.fillStyle = tile.subTerrain.color || '#5a4a3a';
+            ctx.fillRect(dx, dy, sz, sz);
+            // Wall top highlight
+            ctx.fillStyle = 'rgba(255,255,255,0.08)';
+            ctx.fillRect(dx, dy, sz, Math.max(2, sz * 0.15));
+            // Wall bottom shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.fillRect(dx, dy + sz - Math.max(2, sz * 0.1), sz, Math.max(2, sz * 0.1));
+            // Brick/stone pattern
+            ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+            ctx.lineWidth = 0.5;
+            const brickH = sz / 3;
+            for (let i = 1; i < 3; i++) {
+                ctx.beginPath();
+                ctx.moveTo(dx, dy + i * brickH);
+                ctx.lineTo(dx + sz, dy + i * brickH);
+                ctx.stroke();
+            }
+            const offset = tile.r % 2 === 0 ? 0 : sz / 2;
+            ctx.beginPath();
+            ctx.moveTo(dx + sz / 2 + offset, dy);
+            ctx.lineTo(dx + sz / 2 + offset, dy + brickH);
+            ctx.moveTo(dx + offset, dy + brickH);
+            ctx.lineTo(dx + offset, dy + 2 * brickH);
+            ctx.stroke();
+        } else if (isDoor) {
+            // Door tile
+            ctx.fillStyle = tile.subTerrain.color || '#6a4a2a';
+            ctx.fillRect(dx, dy, sz, sz);
+            // Door frame
+            ctx.strokeStyle = '#4a3a1a';
+            ctx.lineWidth = Math.max(1, sz * 0.08);
+            ctx.strokeRect(dx + sz * 0.15, dy + sz * 0.05, sz * 0.7, sz * 0.9);
+            // Door handle
+            ctx.fillStyle = '#f5c542';
+            const handleR = Math.max(1.5, sz * 0.06);
+            ctx.beginPath();
+            ctx.arc(dx + sz * 0.65, dy + sz * 0.5, handleR, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            // Floor tile with checkerboard
+            ctx.fillStyle = tile.subTerrain.color || '#8B7355';
+            ctx.fillRect(dx, dy, sz, sz);
+            // Subtle grid
+            ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+            ctx.lineWidth = 0.5;
+            ctx.strokeRect(dx, dy, sz, sz);
+        }
+
+        // Render furniture on top of floor
+        if (furniture && !isWall) {
+            const fc = InnerMap.FURNITURE_COLORS[furniture.type] || '#6a5a4a';
+            const pad = sz * 0.12;
+            // Furniture shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.fillRect(dx + pad + 1, dy + pad + 1, sz - pad * 2, sz - pad * 2);
+            // Furniture body
+            ctx.fillStyle = fc;
+            ctx.fillRect(dx + pad, dy + pad, sz - pad * 2, sz - pad * 2);
+            // Furniture highlight
+            ctx.fillStyle = 'rgba(255,255,255,0.1)';
+            ctx.fillRect(dx + pad, dy + pad, sz - pad * 2, Math.max(1, (sz - pad * 2) * 0.2));
+            // Furniture icon (if zoom is high enough)
+            if (sz >= 16) {
+                ctx.font = `${Math.floor(sz * 0.45)}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(furniture.icon, dx + sz / 2, dy + sz / 2);
+            }
+            // Furniture border
+            ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+            ctx.lineWidth = 0.5;
+            ctx.strokeRect(dx + pad, dy + pad, sz - pad * 2, sz - pad * 2);
+        }
+    },
+
+    /**
+     * Render a custom spritesheet-based interior tile.
+     * Draws floor, walls, overlay layers from LPC sheets, then furniture meta.
+     */
+    _renderCustomInteriorTile(ctx, tile, dx, dy, sz) {
+        const ct = tile._customTile;
+        let drew = false;
+
+        // Helper: draw a single spritesheet cell
+        const drawCell = (cell) => {
+            if (!cell || !cell.sheetPath) return false;
+            const img = (typeof CustomInteriors !== 'undefined') ? CustomInteriors.getImg(cell.sheetPath) : null;
+            if (!img) return false;
+            const sw = cell.sw || 32;
+            const sh = cell.sh || 32;
+            ctx.drawImage(img, cell.sx, cell.sy, sw, sh, dx, dy, sz, sz);
+            return true;
+        };
+
+        // Draw layers bottom-to-top: floor → furniture → walls → overlay
+        if (drawCell(ct.floor))     drew = true;
+        if (drawCell(ct.furniture)) drew = true;
+        if (drawCell(ct.walls))     drew = true;
+        if (drawCell(ct.overlay))   drew = true;
+
+        // Fallback: if no spritesheet data drawn, use subTerrain color
+        if (!drew) {
+            ctx.fillStyle = tile.subTerrain.color || '#2a2a2a';
+            ctx.fillRect(dx, dy, sz, sz);
+        }
+
+        // Subtle tile grid
+        ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(dx, dy, sz, sz);
+
+        // Render furniture meta on top (if present and tile has custom furniture)
+        const furniture = tile._furniture;
+        if (furniture) {
+            // If furniture has its own icon draw that on top
+            if (sz >= 16 && furniture.icon) {
+                ctx.font = `${Math.floor(sz * 0.45)}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                ctx.fillText(furniture.icon, dx + sz / 2 + 1, dy + sz / 2 + 1);
+                // Icon
+                ctx.fillStyle = '#fff';
+                ctx.fillText(furniture.icon, dx + sz / 2, dy + sz / 2);
+            }
+
+            // Impassable highlight
+            if (!furniture.passable) {
+                ctx.fillStyle = 'rgba(200,50,50,0.08)';
+                ctx.fillRect(dx, dy, sz, sz);
+            }
+        }
+
+        // Door highlight
+        if (tile._isDoor && sz >= 12) {
+            ctx.strokeStyle = 'rgba(106,74,42,0.6)';
+            ctx.lineWidth = Math.max(1, sz * 0.06);
+            ctx.strokeRect(dx + 2, dy + 2, sz - 4, sz - 4);
         }
     },
 
@@ -66,18 +285,20 @@ Object.assign(InnerMapRenderer, {
         const terrainKey = this._seasonKey('terrain');
         const terrainSheet = this._sheets.get(terrainKey);
         const dirtFills = this._terrainFills ? this._terrainFills.dirt : null;
+        const canvasW = ctx.canvas.width;
+        const canvasH = ctx.canvas.height;
 
         for (const road of InnerMap.roads) {
             const tile = InnerMap.getTile(road.q, road.r);
             if (!tile || !tile.visible || !tile.subTerrain.passable || tile.building) continue;
 
-            const screen = camera.worldToScreen(road.q * T, road.r * T);
+            const screen = camera.worldToScreenFast(road.q * T, road.r * T);
             const dx = Math.floor(screen.x);
             const dy = Math.floor(screen.y);
             const sz = Math.ceil(ds) + 1;
 
-            if (dx + sz < 0 || dx > ctx.canvas.width) continue;
-            if (dy + sz < 0 || dy > ctx.canvas.height) continue;
+            if (dx + sz < 0 || dx > canvasW) continue;
+            if (dy + sz < 0 || dy > canvasH) continue;
 
             if (terrainSheet && dirtFills && dirtFills.length > 0) {
                 const hash = (Math.abs((road.q * 73856093 ^ road.r * 19349663))) >>> 0;
@@ -99,36 +320,29 @@ Object.assign(InnerMapRenderer, {
     _renderObjectLayer(ctx, camera) {
         const T = this.TILE_SIZE;
         const ds = T * camera.zoom;
+        const cs = Math.ceil(ds) + 1;
+        const { qMin, qMax, rMin, rMax } = this._getVisibleTileRange(camera);
 
         // Collect all object overlays to sort by Y
         const objects = [];
 
-        for (let r = 0; r < InnerMap.height; r++) {
-            for (let q = 0; q < InnerMap.width; q++) {
+        for (let r = rMin; r <= rMax; r++) {
+            for (let q = qMin; q <= qMax; q++) {
                 const tile = InnerMap.tiles[r][q];
                 if (!tile.explored || !tile.visible) continue;
                 if (tile.building) continue; // buildings have their own layer
                 if (tile.customObjectPart) continue; // non-anchor part of a custom object
                 if (tile.customObject) continue;     // anchor — collected separately below
 
-                // Skip built-in objects when "Custom Objects Only" is enabled
-                if (window.gameOptions?.customObjectsOnly) {
-                    continue;
-                }
-
-                const overlay = this._getObjectOverlay(tile);
-                if (!overlay) continue;
-
-                // Sort key: bottom edge in world space (rocks are 2×2, extend further down)
-                const tileSpan = overlay.type === 'rock' ? 2 : 1;
-                objects.push({ q, r, overlay, sortY: (r + tileSpan) * T });
+                // Never render built-in object overlays (editor-authored objects only)
+                continue;
             }
         }
 
         // Collect custom editor-authored objects (anchor tiles only)
         if (typeof CustomObjects !== 'undefined' && CustomObjects.isLoaded()) {
-            for (let r = 0; r < InnerMap.height; r++) {
-                for (let q = 0; q < InnerMap.width; q++) {
+            for (let r = rMin; r <= rMax; r++) {
+                for (let q = qMin; q <= qMax; q++) {
                     const tile = InnerMap.tiles[r][q];
                     if (!tile.explored || !tile.visible) continue;
                     if (!tile.customObject) continue;
@@ -144,13 +358,13 @@ Object.assign(InnerMapRenderer, {
 
         for (const obj of objects) {
             const o = obj.overlay;
-            const screen = camera.worldToScreen(obj.q * T, obj.r * T);
+            const screen = camera.worldToScreenFast(obj.q * T, obj.r * T);
             const dx = Math.floor(screen.x);
             const dy = Math.floor(screen.y);
 
             // Culling
-            if (dx + ds * 3 < 0 || dx > ctx.canvas.width + ds) continue;
-            if (dy + ds * 3 < 0 || dy > ctx.canvas.height + ds) continue;
+            if (dx + cs * 3 < 0 || dx > ctx.canvas.width + cs) continue;
+            if (dy + cs * 3 < 0 || dy > ctx.canvas.height + cs) continue;
 
             // ── Custom editor objects ──
             if (obj.customDef) {
@@ -159,14 +373,11 @@ Object.assign(InnerMapRenderer, {
                 for (const tDef of def.tiles) {
                     const img = tDef.sheetPath ? CustomObjects.getImage(tDef.sheetPath) : singleImg;
                     if (!img || !img.complete) continue;
-                    const tq = obj.q + tDef.localCol;
-                    const tr = obj.r + tDef.localRow;
-                    const tScreen = camera.worldToScreen(tq * T, tr * T);
-                    const tdx = Math.floor(tScreen.x);
-                    const tdy = Math.floor(tScreen.y);
-                    if (tdx + ds * 2 < 0 || tdx > ctx.canvas.width + ds) continue;
-                    if (tdy + ds * 2 < 0 || tdy > ctx.canvas.height + ds) continue;
-                    ctx.drawImage(img, tDef.sx, tDef.sy, tDef.sw, tDef.sh, tdx, tdy, ds, ds);
+                    const tdx = dx + tDef.localCol * cs;
+                    const tdy = dy + tDef.localRow * cs;
+                    if (tdx + cs < 0 || tdx > ctx.canvas.width + cs) continue;
+                    if (tdy + cs < 0 || tdy > ctx.canvas.height + cs) continue;
+                    ctx.drawImage(img, tDef.sx, tDef.sy, tDef.sw, tDef.sh, tdx, tdy, cs, cs);
                 }
                 continue;
             }
@@ -252,12 +463,13 @@ Object.assign(InnerMapRenderer, {
     _renderBuildingLayer(ctx, camera) {
         const T = this.TILE_SIZE;
         const ds = T * camera.zoom;
+        const { qMin, qMax, rMin, rMax } = this._getVisibleTileRange(camera);
 
         // Collect legacy AND custom building anchors, sorted by Y for correct overlap
         const buildings = [];
 
-        for (let r = 0; r < InnerMap.height; r++) {
-            for (let q = 0; q < InnerMap.width; q++) {
+        for (let r = rMin; r <= rMax; r++) {
+            for (let q = qMin; q <= qMax; q++) {
                 const tile = InnerMap.tiles[r][q];
                 if (!tile.visible) continue;
                 if (tile.building) {
@@ -278,7 +490,7 @@ Object.assign(InnerMapRenderer, {
         buildings.sort((a, b) => a.sortY - b.sortY);
 
         for (const b of buildings) {
-            const screen = camera.worldToScreen(b.q * T, b.r * T);
+            const screen = camera.worldToScreenFast(b.q * T, b.r * T);
             const dx = Math.floor(screen.x);
             const dy = Math.floor(screen.y);
 
@@ -319,8 +531,8 @@ Object.assign(InnerMapRenderer, {
      */
     _drawCustomBuilding(ctx, camera, def, anchorQ, anchorR, ds) {
         const T  = this.TILE_SIZE;
-        const cs = Math.ceil(ds);
-        const screen = camera.worldToScreen(anchorQ * T, anchorR * T);
+        const cs = Math.ceil(ds) + 1;
+        const screen = camera.worldToScreenFast(anchorQ * T, anchorR * T);
         const ax = Math.floor(screen.x);
         const ay = Math.floor(screen.y);
 
@@ -397,7 +609,8 @@ Object.assign(InnerMapRenderer, {
     _drawBuildingLabel(ctx, camera, bldg, q, r) {
         const T = this.TILE_SIZE;
         const ds = T * camera.zoom;
-        const screen = camera.worldToScreen(q * T + T / 2, r * T);
+        const screen = camera.worldToScreenFast(q * T + T / 2, r * T);
+        const screenX = screen.x, screenY = screen.y;
 
         const fontSize = Math.max(8, 10 * camera.zoom);
         ctx.font = `600 ${fontSize}px 'Inter', sans-serif`;
@@ -408,8 +621,8 @@ Object.assign(InnerMapRenderer, {
         const metrics = ctx.measureText(labelText);
         const pillW = metrics.width + 10;
         const pillH = fontSize + 6;
-        const pillX = screen.x - pillW / 2;
-        const pillY = screen.y - pillH - 4;
+        const pillX = screenX - pillW / 2;
+        const pillY = screenY - pillH - 4;
 
         ctx.fillStyle = 'rgba(16, 20, 28, 0.85)';
         ctx.beginPath();
@@ -441,7 +654,7 @@ Object.assign(InnerMapRenderer, {
         ctx.stroke();
 
         ctx.fillStyle = isBuilding ? '#e0a040' : (isPlayerProp ? '#2ecc71' : '#f5c542');
-        ctx.fillText(labelText, screen.x, pillY + pillH - 3);
+        ctx.fillText(labelText, screenX, pillY + pillH - 3);
     },
 
     // ══════════════════════════════════════════════
@@ -451,50 +664,109 @@ Object.assign(InnerMapRenderer, {
     _renderFogLayer(ctx, camera) {
         const T = this.TILE_SIZE;
         const ds = T * camera.zoom;
+        const { qMin, qMax, rMin, rMax } = this._frameRange;
+        const canvasW = ctx.canvas.width;
+        const canvasH = ctx.canvas.height;
 
-        for (let r = 0; r < InnerMap.height; r++) {
-            for (let q = 0; q < InnerMap.width; q++) {
-                const tile = InnerMap.tiles[r][q];
+        // Pre-compute origin screen position, then increment by ds
+        const origin = camera.worldToScreenFast(qMin * T, rMin * T);
+        const originX = origin.x;
+        const originY = origin.y;
+
+        // Collect dim rects to batch-draw with a single fill
+        const dimRects = [];     // flat [dx, dy, sz, ...]
+        const impassRects = [];  // flat [dx, dy, sz, ...]
+        const snowRects = [];
+        const rainRects = [];
+        // Collect frost tiles for batched drawing too
+        const frostRects = [];   // flat [dx, dy, sz, alpha, ...]
+
+        for (let r = rMin; r <= rMax; r++) {
+            const row = InnerMap.tiles[r];
+            const dy0 = originY + (r - rMin) * ds;
+            const dyFloor = Math.floor(dy0);
+            const sz = Math.ceil(ds) + 1;
+
+            if (dyFloor + sz < 0 || dyFloor > canvasH) continue;
+
+            for (let q = qMin; q <= qMax; q++) {
+                const tile = row[q];
                 if (!tile.explored) continue;
 
-                const screen = camera.worldToScreen(q * T, r * T);
-                const dx = Math.floor(screen.x);
-                const dy = Math.floor(screen.y);
-                const sz = Math.ceil(ds) + 1;
+                const dx = Math.floor(originX + (q - qMin) * ds);
+                const dy = dyFloor;
 
-                if (dx + sz < 0 || dx > ctx.canvas.width) continue;
-                if (dy + sz < 0 || dy > ctx.canvas.height) continue;
+                if (dx + sz < 0 || dx > canvasW) continue;
 
                 // Dim explored-but-not-visible tiles
                 if (!tile.visible) {
-                    ctx.fillStyle = 'rgba(10, 14, 23, 0.55)';
-                    ctx.fillRect(dx, dy, sz, sz);
+                    dimRects.push(dx, dy, sz);
+                    continue; // not-visible tiles don't need weather/impass
                 }
 
-                // Impassable tint (skip tiles occupied by buildings)
-                if (!tile.subTerrain.passable && tile.visible && !tile.building && !tile.buildingInfo && !tile.customBuilding && !tile.customBuildingPart) {
-                    ctx.strokeStyle = 'rgba(255,80,80,0.3)';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(dx + 1, dy + 1, sz - 2, sz - 2);
+                // Impassable tint (skip tiles occupied by buildings or interior furniture)
+                if (!tile.subTerrain.passable && !tile.building && !tile.buildingInfo && !tile.customBuilding && !tile.customBuildingPart && !tile._isInterior) {
+                    impassRects.push(dx, dy, sz);
                 }
 
-                // Per-tile weather tint
-                if (tile.visible && tile.weatherType) {
+                // Per-tile weather tint (skip in building interiors)
+                if (tile.weatherType && !tile._isInterior) {
                     if (tile.weatherType === 'snow') {
-                        ctx.fillStyle = 'rgba(220, 230, 245, 0.12)';
-                        ctx.fillRect(dx, dy, sz, sz);
+                        snowRects.push(dx, dy, sz);
                     } else if (tile.weatherType === 'rain' || tile.weatherType === 'storm') {
-                        ctx.fillStyle = 'rgba(30, 50, 80, 0.08)';
-                        ctx.fillRect(dx, dy, sz, sz);
+                        rainRects.push(dx, dy, sz);
                     }
                 }
 
-                // Frost tint
-                if (tile.visible && tile.effectiveTemp !== undefined && tile.effectiveTemp < 0.2) {
+                // Frost tint (skip in building interiors) — collect for batched rendering
+                if (tile.effectiveTemp !== undefined && tile.effectiveTemp < 0.2 && !tile._isInterior) {
                     const frostAlpha = (0.2 - tile.effectiveTemp) * 0.3;
-                    ctx.fillStyle = `rgba(200, 220, 255, ${frostAlpha.toFixed(3)})`;
-                    ctx.fillRect(dx, dy, sz, sz);
+                    frostRects.push(dx, dy, sz, frostAlpha);
                 }
+            }
+        }
+
+        // Batch draw dim overlay
+        if (dimRects.length > 0) {
+            ctx.fillStyle = 'rgba(10, 14, 23, 0.55)';
+            ctx.beginPath();
+            for (let i = 0; i < dimRects.length; i += 3) ctx.rect(dimRects[i], dimRects[i+1], dimRects[i+2], dimRects[i+2]);
+            ctx.fill();
+        }
+        // Batch draw impassable strokes
+        if (impassRects.length > 0) {
+            ctx.strokeStyle = 'rgba(255,80,80,0.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < impassRects.length; i += 3) ctx.rect(impassRects[i] + 1, impassRects[i+1] + 1, impassRects[i+2] - 2, impassRects[i+2] - 2);
+            ctx.stroke();
+        }
+        // Batch draw snow overlay
+        if (snowRects.length > 0) {
+            ctx.fillStyle = 'rgba(220, 230, 245, 0.12)';
+            ctx.beginPath();
+            for (let i = 0; i < snowRects.length; i += 3) ctx.rect(snowRects[i], snowRects[i+1], snowRects[i+2], snowRects[i+2]);
+            ctx.fill();
+        }
+        // Batch draw rain overlay
+        if (rainRects.length > 0) {
+            ctx.fillStyle = 'rgba(30, 50, 80, 0.08)';
+            ctx.beginPath();
+            for (let i = 0; i < rainRects.length; i += 3) ctx.rect(rainRects[i], rainRects[i+1], rainRects[i+2], rainRects[i+2]);
+            ctx.fill();
+        }
+        // Batch draw frost — group by quantized alpha to minimize fillStyle changes
+        if (frostRects.length > 0) {
+            // Group by rounded alpha (saves ctx state changes vs. per-tile fill)
+            let lastAlpha = -1;
+            for (let i = 0; i < frostRects.length; i += 4) {
+                const a = frostRects[i + 3];
+                const rounded = (a * 100 | 0) / 100;
+                if (rounded !== lastAlpha) {
+                    ctx.fillStyle = `rgba(200, 220, 255, ${rounded})`;
+                    lastAlpha = rounded;
+                }
+                ctx.fillRect(frostRects[i], frostRects[i + 1], frostRects[i + 2], frostRects[i + 2]);
             }
         }
     },
@@ -506,25 +778,30 @@ Object.assign(InnerMapRenderer, {
     _renderEncounterLayer(ctx, camera) {
         const T = this.TILE_SIZE;
         const ds = T * camera.zoom;
+        const { qMin, qMax, rMin, rMax } = this._frameRange;
+        const canvasW = ctx.canvas.width;
+        const canvasH = ctx.canvas.height;
 
-        for (let r = 0; r < InnerMap.height; r++) {
-            for (let q = 0; q < InnerMap.width; q++) {
-                const tile = InnerMap.tiles[r][q];
+        for (let r = rMin; r <= rMax; r++) {
+            const row = InnerMap.tiles[r];
+            for (let q = qMin; q <= qMax; q++) {
+                const tile = row[q];
                 if (!tile.visible || !tile.encounter || !tile.encounter.discovered) continue;
 
-                const screen = camera.worldToScreen(q * T + T / 2, r * T + T / 2);
+                const screen = camera.worldToScreenFast(q * T + T / 2, r * T + T / 2);
+                const sx = screen.x, sy = screen.y;
 
-                if (screen.x < -ds || screen.x > ctx.canvas.width + ds) continue;
-                if (screen.y < -ds || screen.y > ctx.canvas.height + ds) continue;
+                if (sx < -ds || sx > canvasW + ds) continue;
+                if (sy < -ds || sy > canvasH + ds) continue;
 
                 // Glow
                 const glowRadius = ds * 0.35;
-                const grad = ctx.createRadialGradient(screen.x, screen.y, 0, screen.x, screen.y, glowRadius);
+                const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, glowRadius);
                 grad.addColorStop(0, 'rgba(66, 245, 197, 0.25)');
                 grad.addColorStop(1, 'rgba(66, 245, 197, 0)');
                 ctx.fillStyle = grad;
                 ctx.beginPath();
-                ctx.arc(screen.x, screen.y, glowRadius, 0, Math.PI * 2);
+                ctx.arc(sx, sy, glowRadius, 0, Math.PI * 2);
                 ctx.fill();
 
                 // Icon
@@ -532,7 +809,7 @@ Object.assign(InnerMapRenderer, {
                 ctx.font = `${iconSize}px serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(tile.encounter.icon, screen.x, screen.y);
+                ctx.fillText(tile.encounter.icon, sx, sy);
 
                 // Label (close zoom)
                 if (camera.zoom > 0.8) {
@@ -543,7 +820,7 @@ Object.assign(InnerMapRenderer, {
                     ctx.fillStyle = 'rgba(66, 245, 197, 0.8)';
                     ctx.shadowColor = 'rgba(0,0,0,0.6)';
                     ctx.shadowBlur = 2;
-                    ctx.fillText(tile.encounter.name, screen.x, screen.y + ds * 0.3);
+                    ctx.fillText(tile.encounter.name, sx, sy + ds * 0.3);
                     ctx.shadowBlur = 0;
                 }
             }
@@ -590,7 +867,7 @@ Object.assign(InnerMapRenderer, {
                 worldY = npc.r * T + T / 2;
             }
 
-            const screen = camera.worldToScreen(worldX, worldY);
+            const screen = camera.worldToScreenFast(worldX, worldY);
             const screenX = screen.x;
             const screenY = screen.y;
 
@@ -659,7 +936,8 @@ Object.assign(InnerMapRenderer, {
 
         // Get interpolated player position (smooth walking)
         const pos = InnerMap.getPlayerWorldPos();
-        const screen = camera.worldToScreen(pos.x, pos.y);
+        const screen = camera.worldToScreenFast(pos.x, pos.y);
+        const screenPX = screen.x, screenPY = screen.y;
 
         // Determine animation and facing direction
         let anim = 'idle';
@@ -679,12 +957,12 @@ Object.assign(InnerMapRenderer, {
         }
 
         // Glow
-        const gradient = ctx.createRadialGradient(screen.x, screen.y, 0, screen.x, screen.y, ds * 0.5);
+        const gradient = ctx.createRadialGradient(screenPX, screenPY, 0, screenPX, screenPY, ds * 0.5);
         gradient.addColorStop(0, 'rgba(245,197,66,0.3)');
         gradient.addColorStop(1, 'rgba(245,197,66,0)');
         ctx.fillStyle = gradient;
         ctx.beginPath();
-        ctx.arc(screen.x, screen.y, ds * 0.5, 0, Math.PI * 2);
+        ctx.arc(screenPX, screenPY, ds * 0.5, 0, Math.PI * 2);
         ctx.fill();
 
         // Draw player as LPC character if available
@@ -693,12 +971,12 @@ Object.assign(InnerMapRenderer, {
         if (charReady && InnerMapCharacters.getComposited(playerPreset)) {
             const charW = ds * 1.2;
             const charH = ds * 1.8;
-            const cx = screen.x - charW / 2;
-            const cy = screen.y - charH + ds * 0.3;
+            const cx = screenPX - charW / 2;
+            const cy = screenPY - charH + ds * 0.3;
 
             // Shadow
             ctx.beginPath();
-            ctx.ellipse(screen.x, screen.y + ds * 0.15, charW * 0.2, ds * 0.06, 0, 0, Math.PI * 2);
+            ctx.ellipse(screenPX, screenPY + ds * 0.15, charW * 0.2, ds * 0.06, 0, 0, Math.PI * 2);
             ctx.fillStyle = 'rgba(0,0,0,0.25)';
             ctx.fill();
 
@@ -713,7 +991,7 @@ Object.assign(InnerMapRenderer, {
             ctx.shadowColor = 'rgba(0,0,0,0.8)';
             ctx.shadowBlur = 6;
             ctx.fillStyle = '#ffffff';
-            ctx.fillText('🧭', screen.x, screen.y);
+            ctx.fillText('🧭', screenPX, screenPY);
             ctx.shadowBlur = 0;
         }
 
@@ -726,7 +1004,7 @@ Object.assign(InnerMapRenderer, {
             ctx.fillStyle = '#f5c542';
             ctx.shadowColor = 'rgba(0,0,0,0.8)';
             ctx.shadowBlur = 4;
-            ctx.fillText('You', screen.x, screen.y + ds * 0.35);
+            ctx.fillText('You', screenPX, screenPY + ds * 0.35);
             ctx.shadowBlur = 0;
         }
     },
@@ -739,10 +1017,25 @@ Object.assign(InnerMapRenderer, {
     _renderGroundOverlays(ctx, camera) {
         const T = this.TILE_SIZE;
         const ds = T * camera.zoom;
+        const { qMin, qMax, rMin, rMax } = this._frameRange;
+        const canvasW = ctx.canvas.width;
+        const canvasH = ctx.canvas.height;
 
-        for (let r = 0; r < InnerMap.height; r++) {
-            for (let q = 0; q < InnerMap.width; q++) {
-                const tile = InnerMap.tiles[r][q];
+        // Pre-compute origin
+        const origin = camera.worldToScreenFast(qMin * T, rMin * T);
+        const originX = origin.x;
+        const originY = origin.y;
+
+        for (let r = rMin; r <= rMax; r++) {
+            const row = InnerMap.tiles[r];
+            const dy0 = originY + (r - rMin) * ds;
+            const dyFloor = Math.floor(dy0);
+            const sz = Math.ceil(ds) + 1;
+
+            if (dyFloor + sz < 0 || dyFloor > canvasH) continue;
+
+            for (let q = qMin; q <= qMax; q++) {
+                const tile = row[q];
                 if (!tile.explored || !tile.visible) continue;
                 if (tile.building || tile.customObjectPart || tile.customObject) continue;
 
@@ -750,13 +1043,10 @@ Object.assign(InnerMapRenderer, {
                 if (!o) continue;
                 if (o.type !== 'water_overlay' && o.type !== 'ice_overlay' && o.type !== 'waterfall') continue;
 
-                const screen = camera.worldToScreen(q * T, r * T);
-                const dx = Math.floor(screen.x);
-                const dy = Math.floor(screen.y);
-                const sz = Math.ceil(ds) + 1;
+                const dx = Math.floor(originX + (q - qMin) * ds);
+                const dy = dyFloor;
 
-                if (dx + sz < 0 || dx > ctx.canvas.width) continue;
-                if (dy + sz < 0 || dy > ctx.canvas.height) continue;
+                if (dx + sz < 0 || dx > canvasW) continue;
 
                 if (o.type === 'water_overlay' || o.type === 'ice_overlay') {
                     ctx.fillStyle = o.tint;
@@ -822,6 +1112,15 @@ Object.assign(InnerMapRenderer, {
             const sv = def.seasonVariants[season.toLowerCase()];
             if (sv && sv.length > 0) return sv;
         }
+        // Rotation variants — user-facing rotation states (cycled with R key)
+        if (def.rotationVariants && def.rotationVariants.length > 0 && customObjData) {
+            const idx = customObjData.rotationIdx || 0;
+            if (idx > 0 && idx <= def.rotationVariants.length) {
+                const rv = def.rotationVariants[idx - 1];
+                if (rv && rv.tiles && rv.tiles.length > 0) return rv.tiles;
+            }
+            // idx 0 = default tiles (fall through)
+        }
         return def.tiles;
     },
 
@@ -835,29 +1134,43 @@ Object.assign(InnerMapRenderer, {
     _renderDepthSortedSprites(ctx, camera, deltaTime) {
         const T    = this.TILE_SIZE;
         const ds   = T * camera.zoom;
+        const cs   = Math.ceil(ds) + 1;  // integer tile size — eliminates sub-pixel seams
         const now  = performance.now() / 1000;
         const charReady = typeof InnerMapCharacters !== 'undefined' && InnerMapCharacters.isReady();
         const self = this;
         const items = []; // { sortY, draw() }
+        const { qMin, qMax, rMin, rMax } = this._frameRange;
+        const canvasW = ctx.canvas.width;
+        const canvasH = ctx.canvas.height;
+
+        // Pre-compute origin screen position for incremental tile positioning
+        const origin = camera.worldToScreenFast(qMin * T, rMin * T);
+        const originX = origin.x;
+        const originY = origin.y;
 
         // ── Phase 1: Collect objects (trees, plants, rocks, custom objects) ──────
-        for (let r = 0; r < InnerMap.height; r++) {
-            for (let q = 0; q < InnerMap.width; q++) {
+        for (let r = rMin; r <= rMax; r++) {
+            for (let q = qMin; q <= qMax; q++) {
                 const tile = InnerMap.tiles[r][q];
                 if (!tile.explored || !tile.visible) continue;
                 if (tile.building) continue;
                 if (tile.customObjectPart) continue;
 
                 // Custom editor objects (anchor tile)
+                // Whole object sorted by origin row — if origin is below
+                // another sprite's origin, the entire object draws on top.
                 if (tile.customObject && typeof CustomObjects !== 'undefined' && CustomObjects.isLoaded()) {
                     const def = CustomObjects.getDef(tile.customObject.defId);
                     if (def) {
                         const singleImg = def.sheetPath ? CustomObjects.getImage(def.sheetPath) : null;
                         // For single-sheet objects, skip if image missing; for multi-sheet, check per-tile
                         if (def.sheetPath && (!singleImg || !singleImg.complete)) { continue; }
-                        // Sort by origin row (bottom of anchor tile) so characters
-                        // at the same y-level as the origin draw on top of the object.
+                        // Sort by origin row (bottom of anchor tile) so objects
+                        // whose origin is lower draw entirely in front.
                         const sortY = (r + 1) * T;
+                        const sortH = def.bounds
+                            ? (def.bounds.maxRow - def.bounds.minRow + 1) : 1;
+                        const sortX = q;
                         const oq = q, or2 = r;
                         const customObjRef = tile.customObject;  // capture for health-state lookup
 
@@ -865,7 +1178,7 @@ Object.assign(InnerMapRenderer, {
                         const ia = InnerMap._activeInteraction;
                         const isInteracting = ia && !ia.done && ia.anchorQ === q && ia.anchorR === r;
 
-                        items.push({ sortY, zLayer: 1, draw() {
+                        items.push({ sortY, zLayer: 1, sortH, sortX, draw() {
                             // Apply shake and fade if being interacted with
                             let shakeX = 0, shakeY = 0, alpha = 1.0;
                             if (isInteracting) {
@@ -886,32 +1199,36 @@ Object.assign(InnerMapRenderer, {
                                 if (alpha < 1.0) ctx.globalAlpha = alpha;
                             }
 
+                            // Anchor-relative positioning: compute anchor once,
+                            // offset each tile by integer cs to prevent sub-pixel seams
+                            const anchorScreen = camera.worldToScreenFast(oq * T, or2 * T);
+                            const ax = Math.floor(anchorScreen.x);
+                            const ay = Math.floor(anchorScreen.y);
+
                             // Resolve tile set based on current health (supports damage stages)
                             const activeTiles = self._getActiveObjectTiles(def, customObjRef);
                             for (const td of activeTiles) {
                                 const img = td.sheetPath ? CustomObjects.getImage(td.sheetPath) : singleImg;
                                 if (!img || !img.complete) continue;
-                                const tScreen = camera.worldToScreen((oq + td.localCol) * T, (or2 + td.localRow) * T);
-                                const tdx = Math.floor(tScreen.x) + shakeX;
-                                const tdy = Math.floor(tScreen.y) + shakeY;
-                                if (tdx + ds * 2 < 0 || tdx > ctx.canvas.width + ds) continue;
-                                if (tdy + ds * 2 < 0 || tdy > ctx.canvas.height + ds) continue;
-                                ctx.drawImage(img, td.sx, td.sy, td.sw, td.sh, tdx, tdy, ds, ds);
+                                const tdx = ax + td.localCol * cs + shakeX;
+                                const tdy = ay + td.localRow * cs + shakeY;
+                                if (tdx + cs < 0 || tdx > ctx.canvas.width + cs) continue;
+                                if (tdy + cs < 0 || tdy > ctx.canvas.height + cs) continue;
+                                ctx.drawImage(img, td.sx, td.sy, td.sw, td.sh, tdx, tdy, cs, cs);
                             }
 
                             if (isInteracting && alpha < 1.0) ctx.globalAlpha = 1.0;
+                            // ── Object health bar (shown when object has taken damage) ──
+                            if (typeof InnerMapCombat !== 'undefined' && customObjRef.currentHealthPct != null && customObjRef.currentHealthPct < 100) {
+                                InnerMapCombat.renderObjectHealthBar(ctx, camera, oq, or2, customObjRef.currentHealthPct);
+                            }
                         }});
                     }
                     continue;
                 }
 
-                // Built-in object overlays (tree / plant / rock / flower / mushroom)
-                // Skip when "Custom Objects Only" is enabled
-                if (window.gameOptions?.customObjectsOnly) continue;
-
-                const o = this._getObjectOverlay(tile);
-                if (!o) continue;
-                if (o.type === 'water_overlay' || o.type === 'ice_overlay' || o.type === 'waterfall') continue;
+                // Never render built-in object overlays (editor-authored objects only)
+                continue;
 
                 const sheet = this._sheets.get(o.sheet);
                 if (!sheet) continue;
@@ -945,20 +1262,20 @@ Object.assign(InnerMapRenderer, {
         }
 
         // ── Phase 2: Collect buildings (legacy + custom) ────────────────────────
-        for (let r = 0; r < InnerMap.height; r++) {
-            for (let q = 0; q < InnerMap.width; q++) {
+        for (let r = rMin; r <= rMax; r++) {
+            for (let q = qMin; q <= qMax; q++) {
                 const tile = InnerMap.tiles[r][q];
                 if (!tile.visible) continue;
 
                 if (tile.building) {
-                    const screen = camera.worldToScreen(q * T, r * T);
+                    const screen = camera.worldToScreenFast(q * T, r * T);
                     const dx = Math.floor(screen.x), dy = Math.floor(screen.y);
                     if (dx + ds * 4 < 0 || dx > ctx.canvas.width + ds * 4) continue;
                     if (dy + ds * 4 < 0 || dy > ctx.canvas.height + ds * 4) continue;
 
                     const sortY = (r + 1) * T;
                     const bq = q, br = r;
-                    items.push({ sortY, zLayer: 1, draw() {
+                    items.push({ sortY, zLayer: 1, sortH: 3, sortX: q, draw() {
                         const isUnder = tile._propertyRef && tile._propertyRef.underConstruction;
                         if (isUnder) ctx.globalAlpha = 0.45;
                         self._drawLPCBuilding(ctx, tile.building, dx, dy, ds);
@@ -980,15 +1297,18 @@ Object.assign(InnerMapRenderer, {
                 if (tile.customBuilding && typeof CustomBuildings !== 'undefined' && CustomBuildings.isLoaded()) {
                     const def = CustomBuildings.getBuilding(tile.customBuilding.defId);
                     if (def) {
-                        const screen = camera.worldToScreen(q * T, r * T);
+                        const screen = camera.worldToScreenFast(q * T, r * T);
                         const dx = Math.floor(screen.x), dy = Math.floor(screen.y);
                         if (dx + ds * 4 < 0 || dx > ctx.canvas.width + ds * 4) continue;
                         if (dy + ds * 4 < 0 || dy > ctx.canvas.height + ds * 4) continue;
 
-                        // Sort by origin row so characters above origin draw underneath the building
+                        // Sort by origin row so the whole building draws
+                        // in front of / behind other sprites based on origin Y
                         const sortY = (r + 1) * T;
+                        const bldgH = def.bounds
+                            ? (def.bounds.maxRow - def.bounds.minRow + 1) : 3;
                         const cq = q, cr = r;
-                        items.push({ sortY, zLayer: 1, draw() {
+                        items.push({ sortY, zLayer: 1, sortH: bldgH, sortX: q, draw() {
                             self._drawCustomBuilding(ctx, camera, def, cq, cr, ds);
                         }});
                     }
@@ -1023,7 +1343,7 @@ Object.assign(InnerMapRenderer, {
                     worldY = npc.r * T + T / 2;
                 }
 
-                const screen = camera.worldToScreen(worldX, worldY);
+                const screen = camera.worldToScreenFast(worldX, worldY);
                 const sx = screen.x, sy = screen.y;
                 if (sx < -ds * 2 || sx > ctx.canvas.width + ds * 2) continue;
                 if (sy < -ds * 2 || sy > ctx.canvas.height + ds * 2) continue;
@@ -1066,6 +1386,15 @@ Object.assign(InnerMapRenderer, {
                         ctx.fillText(nRef.name, sx, sy + ds * 0.3);
                         ctx.shadowBlur = 0;
                     }
+                    // ── Health bar (only shown when NPC has taken damage) ──
+                    if (typeof InnerMapCombat !== 'undefined') {
+                        const nHealth = InnerMapCombat.getNPCHealth(nRef.id);
+                        if (nHealth) {
+                            const charScale = nRef.type === 'child' ? 0.7 : 1.0;
+                            const charH = ds * 1.8 * charScale;
+                            InnerMapCombat.renderHealthBar(ctx, camera, worldX, worldY, nHealth.current, nHealth.max, charH);
+                        }
+                    }
                 }});
             }
         }
@@ -1073,16 +1402,28 @@ Object.assign(InnerMapRenderer, {
         // ── Phase 4: Collect Player ─────────────────────────────────────────────
         {
             const pos = InnerMap.getPlayerWorldPos();
-            const screen = camera.worldToScreen(pos.x, pos.y);
+            const screen = camera.worldToScreenFast(pos.x, pos.y);
             let anim = 'idle';
             let direction = this._playerFacing != null ? this._playerFacing : InnerMapCharacters.DIR_DOWN;
             if (pos.walking) {
                 anim = 'walk';
                 direction = InnerMapCharacters.getDirection(pos.dq, pos.dr);
                 this._playerFacing = direction;
+            } else if (typeof InnerMapCombat !== 'undefined' && InnerMapCombat._attackState) {
+                // NPC combat — play slash animation while facing the target
+                anim = 'slash';
+                const ia = InnerMapCombat._attackState;
+                if (ia.targetType === 'npc' && ia.npc) {
+                    const dq = ia.npc.q - InnerMap.playerInnerQ;
+                    const dr = ia.npc.r - InnerMap.playerInnerR;
+                    direction = InnerMapCharacters.getDirection(dq, dr);
+                } else if (ia.targetType === 'object') {
+                    direction = InnerMap.getDirectionToward(ia.targetQ, ia.targetR);
+                }
+                this._playerFacing = direction;
             } else if (InnerMap._activeInteraction && !InnerMap._activeInteraction.done) {
-                // During interaction: face the object, use idle
-                anim = 'idle';
+                // Harvesting / chopping object — play slash animation facing the object
+                anim = 'slash';
                 direction = InnerMap.getDirectionToward(
                     InnerMap._activeInteraction.anchorQ,
                     InnerMap._activeInteraction.anchorR
@@ -1138,7 +1479,22 @@ Object.assign(InnerMapRenderer, {
         }
 
         // ── Phase 5: Sort by Y and draw ─────────────────────────────────────────
-        items.sort((a, b) => a.sortY - b.sortY || a.zLayer - b.zLayer);
+        // Primary: Y position (bottom of origin row)
+        // Then: zLayer (objects=1 < characters=2)
+        // Then: smaller height on top (drawn later)
+        // Then: rightmost X on top (drawn later)
+        items.sort((a, b) =>
+            (a.sortY - b.sortY)
+            || (a.zLayer - b.zLayer)
+            || ((b.sortH || 0) - (a.sortH || 0))
+            || ((a.sortX || 0) - (b.sortX || 0))
+        );
         for (const item of items) item.draw();
+
+        // ── Phase 6: Combat overlays (hit flashes + floating damage numbers) ──
+        // Always rendered on top of all sprites.
+        if (typeof InnerMapCombat !== 'undefined') {
+            InnerMapCombat.render(ctx, camera);
+        }
     },
 });

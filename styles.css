@@ -945,6 +945,241 @@ body {
     letter-spacing: 1px;
 }
 
+#titleButtonsSecondary {
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+}
+
+.title-btn.secondary {
+    padding: 8px 24px;
+    font-size: 12px;
+    letter-spacing: 1px;
+    opacity: 0.7;
+    border-color: var(--border-subtle);
+}
+
+.title-btn.secondary:hover {
+    opacity: 1;
+}
+
+/* ============================================
+   CUSTOM WORLD PICKER MODAL
+   ============================================ */
+
+#customWorldModal {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#customWorldModal.hidden {
+    display: none;
+}
+
+.cw-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+}
+
+.cw-modal-panel {
+    position: relative;
+    width: 480px;
+    max-width: 90vw;
+    max-height: 70vh;
+    background: var(--bg-panel-solid);
+    border: 1px solid var(--border-bright);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-dark), var(--shadow-glow);
+    display: flex;
+    flex-direction: column;
+    animation: modalIn 0.3s ease;
+    overflow: hidden;
+}
+
+.cw-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 2px;
+}
+
+.cw-modal-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 24px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 4px;
+    transition: color var(--transition-fast);
+}
+
+.cw-modal-close:hover {
+    color: var(--gold);
+}
+
+.cw-modal-body {
+    padding: 12px 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.cw-modal-empty {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 24px 0;
+    font-style: italic;
+}
+
+.cw-world-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.cw-world-item:hover {
+    border-color: var(--gold);
+    background: rgba(245, 197, 66, 0.08);
+    transform: translateX(4px);
+}
+
+.cw-world-item:active {
+    transform: translateX(4px) scale(0.99);
+}
+
+.cw-world-name {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: 1px;
+}
+
+.cw-world-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.cw-world-play {
+    font-size: 12px;
+    color: var(--gold);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    letter-spacing: 1px;
+    font-weight: 600;
+}
+
+.cw-world-item:hover .cw-world-play {
+    opacity: 1;
+}
+
+.cw-modal-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* ============================================
+   EDITOR / WORLD EDITOR OVERLAYS
+   ============================================ */
+
+#editorOverlay,
+#worldEditorOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2500;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-dark);
+}
+
+#editorOverlay.hidden,
+#worldEditorOverlay.hidden {
+    display: none;
+}
+
+#editorTopBar,
+#worldEditorTopBar {
+    display: flex;
+    align-items: center;
+    height: 38px;
+    padding: 0 12px;
+    background: #161b22;
+    border-bottom: 1px solid rgba(245, 197, 66, 0.15);
+    flex-shrink: 0;
+    gap: 6px;
+    z-index: 10;
+}
+
+.editor-bar-title {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 1px;
+}
+
+.editor-bar-spacer {
+    flex: 1;
+}
+
+.editor-bar-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text-secondary);
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--font-body);
+}
+
+.editor-bar-btn:hover {
+    background: rgba(245, 197, 66, 0.1);
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+.editor-bar-btn.danger {
+    color: #f85149;
+    border-color: rgba(248, 81, 73, 0.3);
+}
+
+.editor-bar-btn.danger:hover {
+    background: rgba(248, 81, 73, 0.12);
+    border-color: #f85149;
+}
+
+#editorFrame,
+#worldEditorFrame {
+    flex: 1;
+    border: none;
+    width: 100%;
+    background: #0d1117;
+}
+
 /* ============================================
    SETTINGS SCREEN
    ============================================ */

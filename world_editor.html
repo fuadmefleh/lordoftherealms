@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>World Editor — Lord of the Realms</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0e17;--panel:#161b22;--border:#21262d;--border2:#30363d;--text:#c9d1d9;--text-dim:#8b949e;--blue:#58a6ff;--green:#3fb950;--red:#f85149;--gold:#e6a817;--hover:#1c2129}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── Toolbar ── */
+#toolbar{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+#toolbar h1{font-size:14px;font-weight:700;color:var(--gold);margin-right:4px;white-space:nowrap}
+.tb-sep{width:1px;height:20px;background:var(--border2);margin:0 2px}
+.tb-group{display:flex;align-items:center;gap:5px}
+.tb-lbl{font-size:11px;color:var(--text-dim);white-space:nowrap}
+button{background:#21262d;border:1px solid var(--border2);color:var(--text);padding:4px 10px;border-radius:5px;cursor:pointer;font-size:12px;transition:background .12s,border-color .12s}
+button:hover{background:#2d333b;border-color:#484f58}
+button.active{background:#0b2a4a;border-color:var(--blue);color:var(--blue)}
+button.green{background:#0e2a17;border-color:var(--green);color:var(--green)}
+button.gold{background:#2a1f00;border-color:var(--gold);color:var(--gold)}
+button.danger{background:#2a0d0d;border-color:var(--red);color:var(--red)}
+input[type="number"],input[type="text"],select{background:#0d1117;border:1px solid var(--border2);color:var(--text);padding:3px 7px;border-radius:4px;font-size:12px}
+input[type="number"]{width:52px}
+input[type="text"]{width:140px}
+
+/* ── Main layout ── */
+#main{display:flex;flex:1;overflow:hidden}
+
+/* ── Left: Terrain palette ── */
+#palette{width:210px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#palette h2{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);padding:8px 10px 6px;border-bottom:1px solid var(--border)}
+#terrain-list{flex:1;overflow-y:auto;padding:4px}
+.ter-item{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:4px;cursor:pointer;margin-bottom:1px;border:1px solid transparent;font-size:12px}
+.ter-item:hover{background:var(--hover)}
+.ter-item.active{background:#0b2a4a;border-color:var(--blue)}
+.ter-swatch{width:24px;height:24px;border-radius:3px;flex-shrink:0;border:1px solid rgba(255,255,255,.1);background-size:cover;background-position:center;image-rendering:auto}
+.ter-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ter-icon{font-size:14px;flex-shrink:0;width:18px;text-align:center}
+.ter-passable{font-size:9px;color:var(--text-dim)}
+
+/* ── Center: Canvas ── */
+#canvas-area{flex:1;position:relative;overflow:hidden;background:#060a0f}
+#hex-canvas{position:absolute;cursor:crosshair;image-rendering:auto}
+.zoom-badge{font-size:11px;color:var(--text-dim);font-family:monospace;min-width:42px;text-align:center}
+
+/* ── Right: Properties ── */
+#props{width:220px;flex-shrink:0;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;padding:10px 12px}
+#props h3{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin-bottom:8px}
+.prop-section{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.prop-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:12px}
+.prop-row label{color:var(--text-dim);min-width:52px;font-size:11px}
+.prop-row input,.prop-row select{flex:1;min-width:0}
+.prop-row span{flex:1;font-size:11px}
+
+/* ── Minimap ── */
+#minimap-section{margin-top:auto;padding-top:8px;border-top:1px solid var(--border)}
+#minimap-canvas{width:100%;border:1px solid var(--border2);border-radius:3px;image-rendering:pixelated;cursor:crosshair}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* ── Overlay palette ── */
+.palette-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.pal-tab{flex:1;padding:7px 4px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);background:transparent;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:color .1s,border-color .1s}
+.pal-tab:hover{color:var(--text);background:var(--hover)}
+.pal-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+#overlay-list{flex:1;overflow-y:auto;padding:4px;display:none}
+.ovl-cat{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);padding:8px 8px 2px;margin-top:2px}
+.ovl-item{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:4px;cursor:pointer;margin-bottom:1px;border:1px solid transparent;font-size:12px}
+.ovl-item:hover{background:var(--hover)}.ovl-item.active{background:#0b2a4a;border-color:var(--blue)}
+.ovl-icon{font-size:15px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ovl-icon img{width:22px;height:22px;object-fit:cover;border-radius:2px;display:block}
+.ovl-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;border:1px solid rgba(255,255,255,.15)}
+.ovl-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<!-- Toolbar -->
+<div id="toolbar">
+  <h1>🗺 World Editor</h1>
+  <div class="tb-sep"></div>
+  <div class="tb-group">
+    <label class="tb-lbl">Size</label>
+    <input type="number" id="map-w" value="70" min="10" max="500">
+    <label class="tb-lbl">×</label>
+    <input type="number" id="map-h" value="45" min="10" max="500">
+    <button onclick="resizeMap()">Resize</button>
+  </div>
+  <div class="tb-sep"></div>
+  <div class="tb-group">
+    <label class="tb-lbl">Tool</label>
+    <button class="active" id="tool-paint" onclick="setTool('paint')">🖌 Paint</button>
+    <button id="tool-fill" onclick="setTool('fill')">🪣 Fill</button>
+    <button id="tool-rect" onclick="setTool('rect')">▬ Rect</button>
+    <button id="tool-eyedrop" onclick="setTool('eyedrop')">💉 Pick</button>
+  </div>
+  <div class="tb-sep"></div>
+  <div class="tb-group">
+    <label class="tb-lbl">Brush</label>
+    <input type="number" id="brush-size" value="1" min="1" max="20" style="width:40px" onchange="brushRadius=Math.max(0,parseInt(this.value)-1)">
+  </div>
+  <div class="tb-sep"></div>
+  <div class="tb-group">
+    <label class="tb-lbl">Zoom</label>
+    <button onclick="zoomCanvas(-1)">−</button>
+    <span class="zoom-badge" id="zoom-badge">100%</span>
+    <button onclick="zoomCanvas(1)">+</button>
+    <button onclick="fitCanvas()">Fit</button>
+  </div>
+  <div class="tb-sep"></div>
+  <div class="tb-group">
+    <button onclick="generateRandom()" class="gold" title="Generate terrain with noise">⚡ Generate</button>
+    <button onclick="clearMap()" class="danger">Clear</button>
+  </div>
+  <div class="tb-sep"></div>
+  <div class="tb-group">
+    <button id="btn-sprites" class="active" onclick="toggleSprites()">🎨 Sprites</button>
+    <span id="sprite-status" class="tb-lbl">Loading...</span>
+  </div>
+  <div class="tb-sep" id="ovl-toolbar-sep" style="display:none"></div>
+  <div class="tb-group" id="ovl-toolbar-group" style="display:none">
+    <label class="tb-lbl">Place Name</label>
+    <input type="text" id="ovl-place-name" placeholder="(optional)" style="width:130px" title="Name for the next placed overlay">
+    <button onclick="clearAllOverlays()" class="danger" title="Remove all overlays from the map">🗑 Clear Overlays</button>
+  </div>
+</div>
+
+<!-- Main -->
+<div id="main">
+
+  <!-- Terrain / Overlay palette -->
+  <div id="palette">
+    <div class="palette-tabs">
+      <button class="pal-tab active" id="pal-tab-terrain" onclick="setLayer('terrain')">🌍 Terrain</button>
+      <button class="pal-tab" id="pal-tab-overlay" onclick="setLayer('overlay')">🏰 Overlays</button>
+    </div>
+    <div id="terrain-list"></div>
+    <div id="overlay-list"></div>
+  </div>
+
+  <!-- Canvas -->
+  <div id="canvas-area">
+    <canvas id="hex-canvas"></canvas>
+  </div>
+
+  <!-- Properties -->
+  <div id="props">
+    <h3>World Properties</h3>
+    <div class="prop-section">
+      <div class="prop-row"><label>Name</label><input type="text" id="world-name" value="Custom World"></div>
+      <div class="prop-row"><label>Author</label><input type="text" id="world-author" value=""></div>
+      <div class="prop-row"><label>Seed</label><input type="number" id="world-seed" value="0" style="width:80px"></div>
+    </div>
+    <div class="prop-section">
+      <h3>Hex Info</h3>
+      <div class="prop-row"><label>Coord</label><span id="hex-coord">—</span></div>
+      <div class="prop-row"><label>Terrain</label><span id="hex-terrain">—</span></div>
+      <div class="prop-row"><label>Resource</label><span id="hex-resource">—</span></div>
+    </div>
+    <div class="prop-section" id="overlay-info-section" style="display:none">
+      <h3>Hex Overlay</h3>
+      <div class="prop-row"><label>Type</label><span id="prop-ovl-type">—</span></div>
+      <div class="prop-row"><label>Name</label><input type="text" id="prop-ovl-name" placeholder="(none)" style="font-size:11px"></div>
+      <button onclick="applyOverlayNameEdit()" style="width:100%;margin-top:4px;font-size:11px">✏️ Update Name</button>
+      <button onclick="removeOverlayAtSelected()" class="danger" style="width:100%;margin-top:4px;font-size:11px">🗑 Remove Overlay</button>
+    </div>
+    <div class="prop-section">
+      <h3>Statistics</h3>
+      <div id="stats-content" style="font-size:11px;color:var(--text-dim)">—</div>
+    </div>
+
+    <div id="minimap-section">
+      <h3 style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin-bottom:4px">Minimap</h3>
+      <canvas id="minimap-canvas" width="190" height="120"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  TERRAIN TYPES
+// ═══════════════════════════════════════════════════════════════
+const TERRAIN_TYPES = {
+    deep_ocean:           { id:'deep_ocean',           name:'Deep Ocean',           color:'#002b59', icon:'🌊', moveCost:Infinity, passable:false },
+    ocean:                { id:'ocean',                name:'Ocean',                color:'#005b96', icon:'🌊', moveCost:Infinity, passable:false },
+    coast:                { id:'coast',                name:'Coastal Waters',       color:'#6497b1', icon:'🏖️', moveCost:Infinity, passable:false },
+    sea:                  { id:'sea',                  name:'Sea',                  color:'#0077be', icon:'🌊', moveCost:Infinity, passable:false },
+    beach:                { id:'beach',                name:'Beach',                color:'#e8d5a3', icon:'🏖️', moveCost:2, passable:true },
+    lake:                 { id:'lake',                 name:'Lake',                 color:'#5dade2', icon:'💧', moveCost:Infinity, passable:false },
+    ice:                  { id:'ice',                  name:'Ice Sheet',            color:'#e5f9ff', icon:'🧊', moveCost:3, passable:true },
+    snow:                 { id:'snow',                 name:'Snow',                 color:'#ffffff', icon:'❄️', moveCost:3, passable:true },
+    tundra:               { id:'tundra',               name:'Tundra',               color:'#bce4ce', icon:'🥶', moveCost:2, passable:true },
+    grassland:            { id:'grassland',            name:'Grassland',            color:'#88aa55', icon:'🌿', moveCost:2, passable:true },
+    plains:               { id:'plains',               name:'Plains',               color:'#7daa4e', icon:'🌾', moveCost:2, passable:true },
+    woodland:             { id:'woodland',             name:'Woodland',             color:'#668844', icon:'🌳', moveCost:2, passable:true },
+    boreal_forest:        { id:'boreal_forest',        name:'Boreal Forest',        color:'#446633', icon:'🌲', moveCost:3, passable:true },
+    seasonal_forest:      { id:'seasonal_forest',      name:'Seasonal Forest',      color:'#557733', icon:'🍂', moveCost:3, passable:true },
+    temperate_rainforest: { id:'temperate_rainforest', name:'Temperate Rainforest', color:'#335522', icon:'🌧️', moveCost:3, passable:true },
+    tropical_rainforest:  { id:'tropical_rainforest',  name:'Tropical Rainforest',  color:'#224411', icon:'🌴', moveCost:4, passable:true },
+    savanna:              { id:'savanna',              name:'Savanna',              color:'#ddbb66', icon:'🦁', moveCost:2, passable:true },
+    desert:               { id:'desert',               name:'Desert',               color:'#d4a843', icon:'🏜️', moveCost:3, passable:true },
+    hills:                { id:'hills',                name:'Hills',                color:'#8a7a5a', icon:'⛰️', moveCost:3, passable:true },
+    mountain:             { id:'mountain',             name:'Mountain',             color:'#808080', icon:'🏔️', moveCost:5, passable:true },
+    snow_peak:            { id:'snow_peak',            name:'Snow Peak',            color:'#f0f0f0', icon:'🗻', moveCost:Infinity, passable:false },
+    swamp:                { id:'swamp',                name:'Swamp',                color:'#4a6a3a', icon:'🐸', moveCost:4, passable:true },
+    island:               { id:'island',               name:'Island',               color:'#e8d5a3', icon:'🏝️', moveCost:3, passable:true },
+    highlands:            { id:'highlands',            name:'Highlands',            color:'#6d7a5b', icon:'⛰️', moveCost:4, passable:true },
+};
+
+const TERRAIN_ORDER = Object.keys(TERRAIN_TYPES);
+let selectedTerrain = 'grassland';
+
+// ═══════════════════════════════════════════════════════════════
+//  OVERLAY TYPES
+// ═══════════════════════════════════════════════════════════════
+const OVERLAY_TYPES = {
+    // ── Settlements ──────────────────────────────────────────
+    village:     { id:'village',     category:'settlement', name:'Village',     icon:'🏘️', color:'#e6a817' },
+    town:        { id:'town',        category:'settlement', name:'Town',        icon:'🏙️', color:'#f5c518' },
+    city:        { id:'city',        category:'settlement', name:'City',        icon:'🏛', color:'#ffd700' },
+    capital:     { id:'capital',     category:'settlement', name:'Capital',     icon:'👑',  color:'#ffcc00' },
+    outpost:     { id:'outpost',     category:'settlement', name:'Outpost',     icon:'🏯',  color:'#a09070' },
+    port:        { id:'port',        category:'settlement', name:'Port',        icon:'⚓',  color:'#58a6ff' },
+    // ── Roads ────────────────────────────────────────────────
+    road:        { id:'road',        category:'road',       name:'Road',        icon:'🛤️', color:'#a0855a' },
+    trade_road:  { id:'trade_road',  category:'road',       name:'Trade Road',  icon:'🪙',  color:'#c9a04e' },
+    // ── Landmarks ────────────────────────────────────────────
+    dungeon:     { id:'dungeon',     category:'landmark',   name:'Dungeon',     icon:'⚔️',  color:'#8b0000' },
+    ruins:       { id:'ruins',       category:'landmark',   name:'Ruins',       icon:'🗿',  color:'#8b7355' },
+    shrine:      { id:'shrine',      category:'landmark',   name:'Shrine',      icon:'⛩️',  color:'#e8c4a0' },
+    temple:      { id:'temple',      category:'landmark',   name:'Temple',      icon:'🕌',  color:'#c0a870' },
+    tower:       { id:'tower',       category:'landmark',   name:'Watch Tower', icon:'🗼',  color:'#7a7a7a' },
+    fortress:    { id:'fortress',    category:'landmark',   name:'Fortress',    icon:'🏰',  color:'#778899' },
+    cave:        { id:'cave',        category:'landmark',   name:'Cave',        icon:'🕳️',  color:'#555555' },
+    mine:        { id:'mine',        category:'landmark',   name:'Mine',        icon:'⛏️',  color:'#888888' },
+    oasis:       { id:'oasis',       category:'landmark',   name:'Oasis',       icon:'🌴',  color:'#3fb950' },
+    volcano:     { id:'volcano',     category:'landmark',   name:'Volcano',     icon:'🌋',  color:'#cc3300' },
+    shipwreck:   { id:'shipwreck',   category:'landmark',   name:'Shipwreck',   icon:'⛵',  color:'#4a7fa5' },
+};
+
+const OVERLAY_CAT_ORDER = ['settlement', 'road', 'landmark'];
+const OVERLAY_CAT_LABELS = { settlement:'🏘 Settlements', road:'🛤 Roads', landmark:'🗿 Landmarks' };
+const OVERLAY_ORDER = Object.keys(OVERLAY_TYPES);
+
+// Sprite paths for each overlay type (first found in spriteCache wins)
+const OVERLAY_SPRITES = {
+    village:    ['pop_center_images/hexPlainsVillage00.png', 'pop_center_images/village00.png'],
+    town:       ['pop_center_images/hexPlainsWalledCity00.png', 'pop_center_images/village02.png'],
+    city:       ['pop_center_images/walledCity.png'],
+    capital:    ['pop_center_images/hexPlainsCastle00.png', 'pop_center_images/castle.png'],
+    outpost:    ['buildings/strongholdWood00.png', 'buildings/tent00.png'],
+    port:       ['buildings/marketplace00.png'],
+    road:       null,
+    trade_road: null,
+    dungeon:    ['pop_center_images/hexDirtCastleRuins00.png', 'buildings/banditCamp00.png'],
+    ruins:      ['pop_center_images/castleRuinDirt.png', 'buildings/villageRuin00.png'],
+    shrine:     ['pop_center_images/standingStones.png'],
+    temple:     ['pop_center_images/temple.png'],
+    tower:      ['buildings/wizardTower00.png'],
+    fortress:   ['pop_center_images/hexMountainFortress00.png', 'pop_center_images/mountainFortress.png'],
+    cave:       ['pop_center_images/hexMountainCave00.png'],
+    mine:       ['pop_center_images/hexHillsMine00.png', 'pop_center_images/mine00.png'],
+    oasis:      ['pop_center_images/oasis00.png', 'pop_center_images/hexDesertDunesOasis00.png'],
+    volcano:    ['pop_center_images/volcanoCave.png', 'pop_center_images/hexVolcanoCave00.png'],
+    shipwreck:  null,
+};
+
+// Overlay state
+let overlays = {};         // key "q,r" → { type, name } (settlements & landmarks)
+let roadOverlays = {};     // key "q,r" → { type, name } (road & trade_road)
+let activeLayer = 'terrain'; // 'terrain' | 'overlay'
+let selectedOverlay = 'village';
+let selectedHex = null;   // { q, r } last clicked hex
+
+// ═══════════════════════════════════════════════════════════════
+//  SPRITE SYSTEM — loads actual hex tile PNGs from assets/tiles/
+// ═══════════════════════════════════════════════════════════════
+const TILE_BASE = 'assets/tiles/';
+let useSprites = true;
+let spritesLoaded = 0, spritesTotal = 0;
+
+// Map terrain id → array of sprite image paths (variants)
+// Matches the game renderer's getTileImage() logic
+const TERRAIN_SPRITES = {
+    deep_ocean:           ['ocean/hexOceanCalm00.png','ocean/hexOceanCalm01.png','ocean/hexOceanCalm02.png','ocean/hexOceanCalm03.png'],
+    ocean:                ['ocean/hexOceanCalm00.png','ocean/hexOceanCalm01.png','ocean/hexOceanCalm02.png','ocean/hexOceanCalm03.png'],
+    coast:                ['ocean/hexOceanCalm00.png','ocean/hexOceanCalm01.png','ocean/hexOceanCalm02.png','ocean/hexOceanCalm03.png'],
+    sea:                  ['ocean/hexOceanCalm00.png','ocean/hexOceanCalm01.png','ocean/hexOceanCalm02.png','ocean/hexOceanCalm03.png'],
+    beach:                ['tropics_wetlands/hexSand00.png','tropics_wetlands/hexSand01.png','tropics_wetlands/hexSandPalms00.png','tropics_wetlands/hexSandPalms01.png'],
+    lake:                 ['ocean/hexLake00.png','ocean/hexLake01.png','ocean/hexLake02.png','ocean/hexLake03.png'],
+    ice:                  ['cold/hexOceanIceBergs00.png','cold/hexOceanIceBergs01.png','cold/hexOceanIceBergs02.png','cold/hexOceanIceBergs03.png'],
+    snow:                 ['cold/hexSnowField00.png','cold/hexSnowField01.png','cold/hexSnowField02.png','cold/hexSnowField03.png'],
+    tundra:               ['cold/hexPlainsCold00.png','cold/hexPlainsCold01.png','cold/hexPlainsCold02.png','cold/hexPlainsCold03.png'],
+    grassland:            ['hexPlains01.png','hexPlains02.png','hexPlains03.png'],
+    plains:               ['hexPlains01.png','hexPlains02.png','hexPlains03.png','hexDirt01.png','hexDirt02.png'],
+    woodland:             ['hexWoodlands01.png','hexWoodlands02.png','hexWoodlands03.png'],
+    boreal_forest:        ['cold/hexForestPine00.png','cold/hexForestPine01.png','cold/hexForestPine02.png','cold/hexForestPine03.png'],
+    seasonal_forest:      ['hexForestBroadleaf01.png','hexForestBroadleaf02.png','hexForestBroadleaf03.png'],
+    temperate_rainforest: ['hexForestBroadleaf01.png','hexForestBroadleaf02.png','hexWoodlands01.png'],
+    tropical_rainforest:  ['tropics_wetlands/hexJungle00.png','tropics_wetlands/hexJungle01.png','tropics_wetlands/hexJungle02.png','tropics_wetlands/hexJungle03.png'],
+    savanna:              ['hexScrublands01.png','hexScrublands02.png','hexScrublands03.png'],
+    desert:               ['hexDesertDunes01.png','hexDesertDunes02.png','hexDesertDunes03.png'],
+    hills:                ['hexHills01.png','hexHills02.png','hexHills03.png'],
+    mountain:             ['hexMountain01.png','hexMountain02.png','hexMountain03.png'],
+    snow_peak:            ['cold/hexMountainSnow00.png','cold/hexMountainSnow01.png','cold/hexMountainSnow02.png','cold/hexMountainSnow03.png'],
+    swamp:                ['tropics_wetlands/hexSwamp00.png','tropics_wetlands/hexSwamp01.png','tropics_wetlands/hexWetlands00.png','tropics_wetlands/hexWetlands01.png'],
+    island:               ['ocean/hexIslandSandy00.png','ocean/hexIslandSandy01.png','ocean/hexIslandRocky00.png','ocean/hexIslandRocky01.png'],
+    highlands:            ['hexHighlands01.png','hexHighlands02.png','hexHighlands03.png'],
+};
+
+// Road sprites: bitmask (6-digit string) → array of relative paths
+const ROAD_SPRITE_VARIANTS = {};
+
+// Loaded Image objects: spriteCache[fullPath] = HTMLImageElement
+const spriteCache = {};
+
+function buildRoadSpriteLookup() {
+    // Build from known sprite filenames on disk.
+    // Naming: hexRoad-NNNNNN-VV.png where NNNNNN = 6-bit neighbor bitmask, VV = variant
+    // Bitmask bit order (left to right): dir 0(E), 1(NE), 2(NW), 3(W), 4(SW), 5(SE)
+    // We enumerate all 64 possible masks (000000–111111) and known variant counts
+    const KNOWN = {
+        '000001':[0,1,2,3],'000010':[0,1,2,3],'000011':[0,1,2],'000100':[0,1,2,3],'000101':[0,1,2],
+        '000110':[0,1,2],'000111':[0,1],'001000':[0,1,2,3],'001001':[0,1,2],'001010':[0,1,2],
+        '001011':[0],'001100':[0,1,2],'001101':[0],'001110':[0,1],'001111':[0],
+        '010000':[0,1,2,3],'010001':[0,1,2],'010010':[0,1,2],'010011':[0],'010100':[0,1,2],
+        '010101':[0,1],'010110':[0,1],'010111':[0],'011000':[0,1,2],'011001':[0,1],
+        '011010':[0,1],'011011':[0],'011100':[0,1],'011101':[0],'011110':[0,1],'011111':[0],
+        '100000':[0,1,2,3],'100001':[0,1,2],'100010':[0,1,2],'100011':[0],'100100':[0,1,2],
+        '100101':[0,1],'100110':[0,1],'100111':[0,1],'101000':[0,1,2],'101001':[0],'101010':[0],
+        '101011':[0],'101100':[0],'101101':[0],'101110':[0],'101111':[0],
+        '110000':[0,1,2],'110001':[0,1],'110010':[0,1],'110011':[0],'110100':[0,1],
+        '110101':[0,1],'110110':[0,1],'110111':[0,1,2,3],'111000':[0,1],'111001':[0,1],
+        '111010':[0,1,2],'111011':[0,1,2],'111100':[0,1],'111101':[0,1],'111110':[0,1,2],'111111':[0,1,2],
+    };
+    for (const [mask, variants] of Object.entries(KNOWN)) {
+        ROAD_SPRITE_VARIANTS[mask] = variants.map(v =>
+            `roads/hexRoad-${mask}-${String(v).padStart(2,'0')}.png`
+        );
+    }
+}
+buildRoadSpriteLookup();
+
+function loadAllSprites() {
+    const uniquePaths = new Set();
+    for (const paths of Object.values(TERRAIN_SPRITES)) {
+        for (const p of paths) uniquePaths.add(p);
+    }
+    // Also load overlay building sprites
+    for (const paths of Object.values(OVERLAY_SPRITES)) {
+        if (paths) for (const p of paths) uniquePaths.add(p);
+    }
+    // Load road sprites
+    for (const paths of Object.values(ROAD_SPRITE_VARIANTS)) {
+        for (const p of paths) uniquePaths.add(p);
+    }
+    spritesTotal = uniquePaths.size;
+    spritesLoaded = 0;
+    const statusEl = document.getElementById('sprite-status');
+
+    for (const relPath of uniquePaths) {
+        const fullPath = TILE_BASE + relPath;
+        const img = new Image();
+        img.onload = () => {
+            spriteCache[relPath] = img;
+            spritesLoaded++;
+            if (statusEl) statusEl.textContent = `${spritesLoaded}/${spritesTotal}`;
+            if (spritesLoaded === spritesTotal) {
+                if (statusEl) statusEl.textContent = '✓ All loaded';
+                buildTerrainPalette(); // refresh swatches with sprite thumbnails
+                if (activeLayer === 'overlay') buildOverlayPalette();
+                render(); // re-render with sprites
+            }
+        };
+        img.onerror = () => {
+            spritesLoaded++;
+            if (statusEl) statusEl.textContent = `${spritesLoaded}/${spritesTotal}`;
+            if (spritesLoaded === spritesTotal) {
+                if (statusEl) statusEl.textContent = `✓ ${Object.keys(spriteCache).length} loaded`;
+                buildTerrainPalette(); // refresh swatches with sprite thumbnails
+                if (activeLayer === 'overlay') buildOverlayPalette();
+                render();
+            }
+        };
+        img.src = fullPath;
+    }
+}
+
+function getOverlaySprite(type) {
+    const paths = OVERLAY_SPRITES[type];
+    if (!paths) return null;
+    for (const p of paths) {
+        if (spriteCache[p]) return spriteCache[p];
+    }
+    return null;
+}
+
+function getSpriteForTile(terrainId, q, r) {
+    const paths = TERRAIN_SPRITES[terrainId];
+    if (!paths || paths.length === 0) return null;
+    // Deterministic variant selection (same hash as game renderer)
+    const hash = Math.abs((q * 73856093) ^ (r * 19349663));
+    const idx = hash % paths.length;
+    return spriteCache[paths[idx]] || null;
+}
+
+function toggleSprites() {
+    useSprites = !useSprites;
+    const btn = document.getElementById('btn-sprites');
+    if (btn) btn.classList.toggle('active', useSprites);
+    render();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════
+let mapW = 70, mapH = 45;
+let tiles = []; // flat array [r * mapW + q] = terrain id string
+let activeTool = 'paint';
+let brushRadius = 0;
+
+// Camera
+let camX = 0, camY = 0, camZoom = 1;
+let isPanning = false, panStart = null;
+let isDragging = false;
+
+// Hex geometry
+const HEX_SIZE = 18;  // smaller for editor
+const HEX_W = Math.sqrt(3) * HEX_SIZE;
+const HEX_H = 2 * HEX_SIZE;
+const ROW_H = HEX_W * 0.75;
+
+// Canvas
+let canvas, ctx;
+
+// ═══════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════
+function init() {
+    canvas = document.getElementById('hex-canvas');
+    ctx = canvas.getContext('2d');
+
+    // Start loading tile sprites
+    loadAllSprites();
+
+    // Build terrain palette
+    buildTerrainPalette();
+
+    // Init map
+    initMap(mapW, mapH, 'ocean');
+
+    // Input
+    canvas.addEventListener('mousedown', onMouseDown);
+    canvas.addEventListener('mousemove', onMouseMove);
+    canvas.addEventListener('mouseup', onMouseUp);
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('keydown', onKey);
+
+    // Resize
+    window.addEventListener('resize', () => { resizeCanvas(); render(); });
+    resizeCanvas();
+    fitCanvas();
+}
+
+function initMap(w, h, fill) {
+    mapW = w; mapH = h;
+    tiles = new Array(w * h).fill(fill || 'ocean');
+    overlays = {};
+    roadOverlays = {};
+    document.getElementById('map-w').value = w;
+    document.getElementById('map-h').value = h;
+    updateStats();
+    updateSelectedHexInfo();
+}
+
+function resizeMap() {
+    const w = parseInt(document.getElementById('map-w').value) || 70;
+    const h = parseInt(document.getElementById('map-h').value) || 45;
+    const newTiles = new Array(w * h).fill('ocean');
+    // Copy existing
+    for (let r = 0; r < Math.min(h, mapH); r++) {
+        for (let q = 0; q < Math.min(w, mapW); q++) {
+            newTiles[r * w + q] = tiles[r * mapW + q] || 'ocean';
+        }
+    }
+    mapW = w; mapH = h; tiles = newTiles;
+    resizeCanvas();
+    fitCanvas();
+    updateStats();
+}
+
+function clearMap() {
+    if (!confirm('Clear entire map?')) return;
+    tiles.fill('ocean');
+    overlays = {};
+    roadOverlays = {};
+    render();
+    updateStats();
+    updateSelectedHexInfo();
+}
+
+function resizeCanvas() {
+    const area = document.getElementById('canvas-area');
+    canvas.width = area.clientWidth;
+    canvas.height = area.clientHeight;
+    render();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TERRAIN PALETTE
+// ═══════════════════════════════════════════════════════════════
+function buildTerrainPalette() {
+    const list = document.getElementById('terrain-list');
+    list.innerHTML = '';
+    for (const key of TERRAIN_ORDER) {
+        const t = TERRAIN_TYPES[key];
+        const el = document.createElement('div');
+        el.className = 'ter-item' + (key === selectedTerrain ? ' active' : '');
+        el.dataset.key = key;
+
+        // Try to use first sprite as swatch background
+        const spritePaths = TERRAIN_SPRITES[key];
+        const firstSprite = spritePaths && spritePaths[0] ? spriteCache[spritePaths[0]] : null;
+        const swatchStyle = firstSprite
+            ? `background-image:url(${TILE_BASE + spritePaths[0]});background-color:${t.color}`
+            : `background:${t.color}`;
+
+        el.innerHTML = `<span class="ter-icon">${t.icon}</span>` +
+            `<span class="ter-swatch" style="${swatchStyle}"></span>` +
+            `<span class="ter-name">${t.name}</span>` +
+            `<span class="ter-passable">${t.passable ? '' : '⛔'}</span>`;
+        el.onclick = () => { selectedTerrain = key; buildTerrainPalette(); };
+        list.appendChild(el);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  LAYER TOGGLE
+// ═══════════════════════════════════════════════════════════════
+function setLayer(layer) {
+    activeLayer = layer;
+    document.getElementById('pal-tab-terrain').classList.toggle('active', layer === 'terrain');
+    document.getElementById('pal-tab-overlay').classList.toggle('active', layer === 'overlay');
+    document.getElementById('terrain-list').style.display = layer === 'terrain' ? 'block' : 'none';
+    document.getElementById('overlay-list').style.display = layer === 'overlay' ? 'block' : 'none';
+    document.getElementById('ovl-toolbar-sep').style.display = layer === 'overlay' ? '' : 'none';
+    document.getElementById('ovl-toolbar-group').style.display = layer === 'overlay' ? '' : 'none';
+    if (layer === 'overlay') buildOverlayPalette();
+    updateSelectedHexInfo();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  OVERLAY PALETTE
+// ═══════════════════════════════════════════════════════════════
+function buildOverlayPalette() {
+    const list = document.getElementById('overlay-list');
+    list.innerHTML = '';
+    for (const cat of OVERLAY_CAT_ORDER) {
+        const catDiv = document.createElement('div');
+        catDiv.className = 'ovl-cat';
+        catDiv.textContent = OVERLAY_CAT_LABELS[cat];
+        list.appendChild(catDiv);
+        for (const key of OVERLAY_ORDER) {
+            const ot = OVERLAY_TYPES[key];
+            if (ot.category !== cat) continue;
+            const el = document.createElement('div');
+            el.className = 'ovl-item' + (key === selectedOverlay ? ' active' : '');
+            el.dataset.key = key;
+            const sprPaths = OVERLAY_SPRITES[key];
+            const sprPath = sprPaths && sprPaths.find(p => spriteCache[p]);
+            const iconHtml = sprPath
+                ? `<img src="${TILE_BASE}${sprPath}" alt="${ot.name}">`
+                : ot.icon;
+            el.innerHTML =
+                `<span class="ovl-icon">${iconHtml}</span>` +
+                `<span class="ovl-dot" style="background:${ot.color}"></span>` +
+                `<span class="ovl-name">${ot.name}</span>`;
+            el.onclick = () => { selectedOverlay = key; buildOverlayPalette(); };
+            list.appendChild(el);
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  APPLY / REMOVE OVERLAY
+// ═══════════════════════════════════════════════════════════════
+function placeOverlay(q, r) {
+    if (!inBounds(q, r)) return;
+    const ot = OVERLAY_TYPES[selectedOverlay];
+    if (!ot) return;
+    const nameInput = document.getElementById('ovl-place-name');
+    const customName = nameInput ? nameInput.value.trim() : '';
+    const entry = { type: selectedOverlay, name: customName || ot.name };
+    const key = `${q},${r}`;
+    if (ot.category === 'road') {
+        roadOverlays[key] = entry;
+    } else {
+        overlays[key] = entry;
+    }
+    render();
+    // If this is the currently selected hex, refresh info
+    if (selectedHex && selectedHex.q === q && selectedHex.r === r) updateSelectedHexInfo();
+}
+
+function eraseOverlayAt(q, r) {
+    if (!inBounds(q, r)) return;
+    const key = `${q},${r}`;
+    // Erase from the dict matching the currently selected overlay category
+    const selOt = OVERLAY_TYPES[selectedOverlay];
+    let changed = false;
+    if (selOt && selOt.category === 'road') {
+        if (roadOverlays[key]) { delete roadOverlays[key]; changed = true; }
+    } else {
+        if (overlays[key]) { delete overlays[key]; changed = true; }
+    }
+    if (changed) {
+        render();
+        if (selectedHex && selectedHex.q === q && selectedHex.r === r) updateSelectedHexInfo();
+    }
+}
+
+function removeOverlayAtSelected() {
+    if (!selectedHex) return;
+    const key = `${selectedHex.q},${selectedHex.r}`;
+    let changed = false;
+    if (overlays[key]) { delete overlays[key]; changed = true; }
+    if (roadOverlays[key]) { delete roadOverlays[key]; changed = true; }
+    if (changed) { render(); updateSelectedHexInfo(); }
+}
+
+function applyOverlayNameEdit() {
+    if (!selectedHex) return;
+    const key = `${selectedHex.q},${selectedHex.r}`;
+    const ovl = overlays[key] || roadOverlays[key];
+    if (!ovl) return;
+    const input = document.getElementById('prop-ovl-name');
+    if (input) {
+        ovl.name = input.value.trim() || OVERLAY_TYPES[ovl.type]?.name || ovl.type;
+        render();
+    }
+}
+
+function clearAllOverlays() {
+    if (!confirm('Remove all overlays from the map?')) return;
+    overlays = {};
+    roadOverlays = {};
+    render();
+    updateSelectedHexInfo();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SELECTED HEX INFO (overlay panel in props)
+// ═══════════════════════════════════════════════════════════════
+function updateSelectedHexInfo() {
+    const sec = document.getElementById('overlay-info-section');
+    const typeEl = document.getElementById('prop-ovl-type');
+    const nameEl = document.getElementById('prop-ovl-name');
+    if (!sec || !typeEl || !nameEl) return;
+    if (!selectedHex) { sec.style.display = 'none'; return; }
+    const key = `${selectedHex.q},${selectedHex.r}`;
+    // Prefer showing the non-road overlay; fall back to road
+    const ovl = overlays[key] || roadOverlays[key];
+    if (ovl && OVERLAY_TYPES[ovl.type]) {
+        const ot = OVERLAY_TYPES[ovl.type];
+        sec.style.display = '';
+        typeEl.textContent = `${ot.icon} ${ot.name}`;
+        nameEl.value = ovl.name !== ot.name ? ovl.name : '';
+    } else {
+        sec.style.display = 'none';
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  HEX MATH (offset coordinates, even-row shift)
+// ═══════════════════════════════════════════════════════════════
+function hexToPixel(q, r) {
+    const x = q * HEX_W + ((r % 2 === 0) ? HEX_W / 2 : 0);
+    const y = r * ROW_H;
+    return { x, y };
+}
+
+function pixelToHex(px, py) {
+    // Brute-force nearest hex in a search area (fast enough for single lookups)
+    const approxR = Math.round(py / ROW_H);
+    const approxQ = Math.round(px / HEX_W);
+    let best = null, bestDist = Infinity;
+    for (let dr = -2; dr <= 2; dr++) {
+        for (let dq = -2; dq <= 2; dq++) {
+            const r = approxR + dr, q = approxQ + dq;
+            const p = hexToPixel(q, r);
+            const dx = px - p.x, dy = py - p.y;
+            const d = dx * dx + dy * dy;
+            if (d < bestDist) { bestDist = d; best = { q, r }; }
+        }
+    }
+    return best;
+}
+
+function hexCorners(cx, cy) {
+    const corners = [];
+    for (let i = 0; i < 6; i++) {
+        const angle = Math.PI / 180 * (60 * i - 30);
+        corners.push({ x: cx + HEX_SIZE * Math.cos(angle), y: cy + HEX_SIZE * Math.sin(angle) });
+    }
+    return corners;
+}
+
+function hexNeighbors(q, r) {
+    // Even-row offset neighbors (matches Hex.js): E, NE, NW, W, SW, SE
+    const isEven = r % 2 === 0;
+    const dirs = isEven
+        ? [[1,0],[ 1,-1],[ 0,-1],[-1,0],[ 0,1],[ 1,1]]
+        : [[1,0],[ 0,-1],[-1,-1],[-1,0],[-1,1],[ 0,1]];
+    return dirs.map(([dq,dr]) => ({ q: q+dq, r: r+dr }))
+               .filter(h => h.q >= 0 && h.q < mapW && h.r >= 0 && h.r < mapH);
+}
+
+function hexesInRadius(cq, cr, radius) {
+    if (radius <= 0) return [{ q: cq, r: cr }];
+    const result = [];
+    const visited = new Set();
+    const queue = [{ q: cq, r: cr, d: 0 }];
+    visited.add(`${cq},${cr}`);
+    while (queue.length) {
+        const { q, r, d } = queue.shift();
+        result.push({ q, r });
+        if (d < radius) {
+            for (const n of hexNeighbors(q, r)) {
+                const key = `${n.q},${n.r}`;
+                if (!visited.has(key)) {
+                    visited.add(key);
+                    queue.push({ q: n.q, r: n.r, d: d + 1 });
+                }
+            }
+        }
+    }
+    return result;
+}
+
+function inBounds(q, r) { return q >= 0 && q < mapW && r >= 0 && r < mapH; }
+function getTile(q, r) { return inBounds(q, r) ? tiles[r * mapW + q] : null; }
+function setTile(q, r, t) { if (inBounds(q, r)) tiles[r * mapW + q] = t; }
+
+// ═══════════════════════════════════════════════════════════════
+//  RENDERING
+// ═══════════════════════════════════════════════════════════════
+function render() {
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#060a0f';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+
+    ctx.save();
+    ctx.setTransform(camZoom, 0, 0, camZoom, -camX * camZoom, -camY * camZoom);
+
+    // Visible bounds in world coords
+    const vx1 = camX - 10 / camZoom;
+    const vy1 = camY - 10 / camZoom;
+    const vx2 = camX + canvas.width / camZoom + 10;
+    const vy2 = camY + canvas.height / camZoom + 10;
+
+    // Determine row/col range
+    const rMin = Math.max(0, Math.floor(vy1 / ROW_H) - 1);
+    const rMax = Math.min(mapH - 1, Math.ceil(vy2 / ROW_H) + 1);
+
+    for (let r = rMin; r <= rMax; r++) {
+        const qMin = Math.max(0, Math.floor((vx1 - HEX_W) / HEX_W) - 1);
+        const qMax = Math.min(mapW - 1, Math.ceil((vx2 + HEX_W) / HEX_W) + 1);
+        for (let q = qMin; q <= qMax; q++) {
+            const tId = getTile(q, r);
+            if (!tId) continue;
+            const t = TERRAIN_TYPES[tId];
+            if (!t) continue;
+            const p = hexToPixel(q, r);
+            const sprite = useSprites ? getSpriteForTile(tId, q, r) : null;
+            if (sprite) {
+                drawSpriteHex(p.x, p.y, sprite);
+            } else {
+                drawHex(p.x, p.y, t.color);
+            }
+        }
+    }
+
+    // Draw road sprites in world-space
+    for (const [key, ovl] of Object.entries(roadOverlays)) {
+        const [q, r] = key.split(',').map(Number);
+        if (q < 0 || q >= mapW || r < 0 || r >= mapH) continue;
+        const p = hexToPixel(q, r);
+        if (p.x < vx1 - HEX_W * 2 || p.x > vx2 + HEX_W * 2 ||
+            p.y < vy1 - HEX_H * 2 || p.y > vy2 + HEX_H * 2) continue;
+        const sprite = getRoadSprite(q, r);
+        if (sprite) drawSpriteHex(p.x, p.y, sprite);
+    }
+
+    // Draw overlay building sprites in world-space (same transform as terrain)
+    for (const [key, ovl] of Object.entries(overlays)) {
+        const ot = OVERLAY_TYPES[ovl.type];
+        if (!ot) continue;
+        const [q, r] = key.split(',').map(Number);
+        if (q < 0 || q >= mapW || r < 0 || r >= mapH) continue;
+        const p = hexToPixel(q, r);
+        if (p.x < vx1 - HEX_W * 2 || p.x > vx2 + HEX_W * 2 ||
+            p.y < vy1 - HEX_H * 2 || p.y > vy2 + HEX_H * 2) continue;
+        const sprite = getOverlaySprite(ovl.type);
+        if (sprite) drawSpriteHex(p.x, p.y, sprite);
+    }
+
+    ctx.restore();
+
+    // Overlays rendered in screen-space so icons are always readable
+    renderOverlaysScreenSpace();
+
+    renderMinimap();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  OVERLAY RENDERING (screen-space so icons stay legible)
+// ═══════════════════════════════════════════════════════════════
+function worldToScreen(wx, wy) {
+    return {
+        x: (wx - camX) * camZoom,
+        y: (wy - camY) * camZoom,
+    };
+}
+
+function renderOverlaysScreenSpace() {
+    const roadEntries = Object.entries(roadOverlays);
+    const mainEntries = Object.entries(overlays);
+    if (!roadEntries.length && !mainEntries.length) return;
+
+    // ── Pass 1: roads (thick lines fallback when sprites are off) ──
+    if (!useSprites) {
+    ctx.save();
+    ctx.setTransform(camZoom, 0, 0, camZoom, -camX * camZoom, -camY * camZoom);
+    const drawn = new Set();
+    for (const [key, ovl] of roadEntries) {
+        const [q, r] = key.split(',').map(Number);
+        const p = hexToPixel(q, r);
+        const isTradeRoad = ovl.type === 'trade_road';
+        ctx.strokeStyle = isTradeRoad ? '#c9a04e' : '#8b6914';
+        ctx.lineWidth = isTradeRoad ? 3 : 2;
+        ctx.lineCap = 'round';
+        for (const n of hexNeighbors(q, r)) {
+            const nKey = `${n.q},${n.r}`;
+            const nOvl = roadOverlays[nKey];
+            if (nOvl) {
+                const pairKey = [key, nKey].sort().join('|');
+                if (!drawn.has(pairKey)) {
+                    drawn.add(pairKey);
+                    const np = hexToPixel(n.q, n.r);
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(np.x, np.y);
+                    ctx.stroke();
+                }
+            }
+        }
+    }
+    ctx.restore();
+    } // end !useSprites road-lines fallback
+
+    // ── Pass 2: icons in screen space ──
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const ICON_R = 8;   // px radius of badge circle
+    const FONT_SIZE = 13; // px
+    const allEntries = [...mainEntries, ...roadEntries];
+    for (const [key, ovl] of allEntries) {
+        const [q, r] = key.split(',').map(Number);
+        const wp = hexToPixel(q, r);
+        const sp = worldToScreen(wp.x, wp.y);
+        const ot = OVERLAY_TYPES[ovl.type];
+        if (!ot) continue;
+
+        // Skip if off-screen
+        if (sp.x < -30 || sp.x > canvas.width + 30 || sp.y < -30 || sp.y > canvas.height + 30) continue;
+
+        const hasSprite = !!getOverlaySprite(ovl.type);
+
+        if (!hasSprite) {
+            // No sprite: draw color badge + emoji icon
+            if (ot.category !== 'road') {
+                ctx.beginPath();
+                ctx.arc(sp.x, sp.y, ICON_R + 1, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.55)';
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(sp.x, sp.y, ICON_R, 0, Math.PI * 2);
+                ctx.fillStyle = ot.color + 'cc';
+                ctx.fill();
+                ctx.strokeStyle = ot.color;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+            ctx.font = `${FONT_SIZE}px serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(ot.icon, sp.x, sp.y);
+        } else {
+            // Sprite rendered in world-space; draw a small colored dot indicator
+            const DOT_R = Math.max(3, ICON_R * 0.45);
+            ctx.beginPath();
+            ctx.arc(sp.x + ICON_R, sp.y - ICON_R, DOT_R + 1, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0,0,0,0.7)';
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(sp.x + ICON_R, sp.y - ICON_R, DOT_R, 0, Math.PI * 2);
+            ctx.fillStyle = ot.color;
+            ctx.fill();
+        }
+
+        // Custom name label below (if different from default)
+        if (ovl.name && ovl.name !== ot.name) {
+            const labelY = sp.y + ICON_R + 8;
+            ctx.font = `bold 10px sans-serif`;
+            ctx.textBaseline = 'top';
+            ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+            ctx.lineWidth = 3;
+            ctx.strokeText(ovl.name, sp.x, labelY);
+            ctx.fillStyle = '#fff';
+            ctx.fillText(ovl.name, sp.x, labelY);
+        }
+    }
+    ctx.restore();
+}
+
+function getRoadSprite(q, r) {
+    if (!useSprites) return null;
+    // Build 6-bit bitmask matching game renderer (Hex.neighbors order + (i+3)%6 bit rotation)
+    const isEven = r % 2 === 0;
+    const dirs = isEven
+        ? [[1,0],[1,-1],[0,-1],[-1,0],[0,1],[1,1]]   // Even row: E, NE, NW, W, SW, SE
+        : [[1,0],[0,-1],[-1,-1],[-1,0],[-1,1],[0,1]]; // Odd row:  E, NE, NW, W, SW, SE
+    let mask = 0;
+    for (let d = 0; d < 6; d++) {
+        const nq = q + dirs[d][0], nr = r + dirs[d][1];
+        const nKey = `${nq},${nr}`;
+        const nOvl = roadOverlays[nKey];
+        if (nOvl) {
+            mask |= (1 << ((d + 3) % 6));
+        }
+    }
+    if (mask === 0) return null;
+    const key = mask.toString(2).padStart(6, '0');
+    const variants = ROAD_SPRITE_VARIANTS[key];
+    if (!variants || variants.length === 0) return null;
+    // Deterministic variant selection
+    const hash = Math.abs((q * 73856093) ^ (r * 19349663));
+    const idx = hash % variants.length;
+    return spriteCache[variants[idx]] || null;
+}
+
+function drawSpriteHex(cx, cy, sprite) {
+    // Same scaling logic as the game's renderSpriteHex:
+    // scale to cover hex, anchor at bottom
+    const hexWidth = HEX_W;
+    const hexHeight = HEX_H;
+    const scaleX = hexWidth / sprite.width;
+    const scaleY = hexHeight / sprite.height;
+    const scale = Math.max(scaleX, scaleY);
+    const targetWidth = sprite.width * scale;
+    const targetHeight = sprite.height * scale;
+
+    const bottomY = cy + HEX_SIZE;
+    const drawX = cx - targetWidth / 2;
+    const drawY = bottomY - targetHeight;
+
+    ctx.drawImage(sprite, drawX, drawY, targetWidth, targetHeight);
+}
+
+function drawHex(cx, cy, color) {
+    const corners = hexCorners(cx, cy);
+    ctx.beginPath();
+    ctx.moveTo(corners[0].x, corners[0].y);
+    for (let i = 1; i < 6; i++) ctx.lineTo(corners[i].x, corners[i].y);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MINIMAP
+// ═══════════════════════════════════════════════════════════════
+function renderMinimap() {
+    const mc = document.getElementById('minimap-canvas');
+    const mctx = mc.getContext('2d');
+    const mw = mc.width, mh = mc.height;
+    mctx.fillStyle = '#090d14';
+    mctx.fillRect(0, 0, mw, mh);
+
+    const tileW = mw / mapW;
+    const tileH = mh / mapH;
+
+    for (let r = 0; r < mapH; r++) {
+        for (let q = 0; q < mapW; q++) {
+            const t = TERRAIN_TYPES[getTile(q, r)];
+            if (!t) continue;
+            mctx.fillStyle = t.color;
+            mctx.fillRect(q * tileW, r * tileH, Math.ceil(tileW), Math.ceil(tileH));
+        }
+    }
+
+    // Overlay dots on minimap
+    const tileW2 = mw / mapW;
+    const tileH2 = mh / mapH;
+    const allOverlaysForMinimap = [...Object.entries(roadOverlays), ...Object.entries(overlays)];
+    for (const [key, ovl] of allOverlaysForMinimap) {
+        const [q, r] = key.split(',').map(Number);
+        const ot = OVERLAY_TYPES[ovl.type];
+        if (!ot) continue;
+        const mx = (q + 0.5) * tileW2;
+        const my = (r + 0.5) * tileH2;
+        mctx.beginPath();
+        mctx.arc(mx, my, Math.max(1.5, Math.min(tileW2, tileH2) * 0.9), 0, Math.PI * 2);
+        mctx.fillStyle = ot.color;
+        mctx.fill();
+    }
+
+    // Viewport indicator
+    const worldPxW = mapW * HEX_W + HEX_W;
+    const worldPxH = mapH * ROW_H + ROW_H;
+    const vx = (camX / worldPxW) * mw;
+    const vy = (camY / worldPxH) * mh;
+    const vw = (canvas.width / camZoom / worldPxW) * mw;
+    const vh = (canvas.height / camZoom / worldPxH) * mh;
+    mctx.strokeStyle = 'rgba(245,197,66,0.8)';
+    mctx.lineWidth = 1;
+    mctx.strokeRect(vx, vy, vw, vh);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CAMERA
+// ═══════════════════════════════════════════════════════════════
+function zoomCanvas(dir) {
+    const factor = dir > 0 ? 1.2 : 1 / 1.2;
+    const oldZoom = camZoom;
+    camZoom = Math.max(0.1, Math.min(5, camZoom * factor));
+
+    // Zoom toward center of viewport
+    const cx = camX + canvas.width / 2 / oldZoom;
+    const cy = camY + canvas.height / 2 / oldZoom;
+    camX = cx - canvas.width / 2 / camZoom;
+    camY = cy - canvas.height / 2 / camZoom;
+
+    document.getElementById('zoom-badge').textContent = Math.round(camZoom * 100) + '%';
+    render();
+}
+
+function fitCanvas() {
+    const worldPxW = mapW * HEX_W + HEX_W;
+    const worldPxH = mapH * ROW_H + ROW_H;
+    const zw = canvas.width / worldPxW;
+    const zh = canvas.height / worldPxH;
+    camZoom = Math.min(zw, zh) * 0.95;
+    camX = -((canvas.width / camZoom) - worldPxW) / 2;
+    camY = -((canvas.height / camZoom) - worldPxH) / 2;
+    document.getElementById('zoom-badge').textContent = Math.round(camZoom * 100) + '%';
+    render();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  INPUT
+// ═══════════════════════════════════════════════════════════════
+function screenToWorld(sx, sy) {
+    return { x: sx / camZoom + camX, y: sy / camZoom + camY };
+}
+
+function screenToHex(sx, sy) {
+    const w = screenToWorld(sx, sy);
+    return pixelToHex(w.x, w.y);
+}
+
+function onMouseDown(e) {
+    const rect = canvas.getBoundingClientRect();
+    const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+
+    if (e.button === 1 || (e.button === 0 && e.altKey)) {
+        // Middle click or Alt+click: start panning
+        isPanning = true;
+        panStart = { x: e.clientX, y: e.clientY, cx: camX, cy: camY };
+        canvas.style.cursor = 'grabbing';
+        return;
+    }
+
+    const hex = screenToHex(sx, sy);
+
+    if (e.button === 2) {
+        // Right-click: erase overlay (in overlay mode) or eyedrop (terrain mode)
+        e.preventDefault();
+        if (activeLayer === 'overlay' && hex) eraseOverlayAt(hex.q, hex.r);
+        return;
+    }
+
+    if (e.button === 0) {
+        isDragging = true;
+        if (hex) {
+            selectedHex = hex;
+            if (activeLayer === 'overlay') {
+                placeOverlay(hex.q, hex.r);
+            } else {
+                applyTool(hex.q, hex.r);
+                updateSelectedHexInfo();
+            }
+        }
+    }
+}
+
+function onMouseMove(e) {
+    const rect = canvas.getBoundingClientRect();
+    const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+
+    if (isPanning && panStart) {
+        camX = panStart.cx - (e.clientX - panStart.x) / camZoom;
+        camY = panStart.cy - (e.clientY - panStart.y) / camZoom;
+        render();
+        return;
+    }
+
+    if (isDragging) {
+        const hex = screenToHex(sx, sy);
+        if (hex) {
+            if (activeLayer === 'overlay') {
+                // Drag-place overlays for road painting
+                if (selectedOverlay === 'road' || selectedOverlay === 'trade_road') {
+                    placeOverlay(hex.q, hex.r);
+                }
+            } else if (activeTool === 'paint') {
+                applyTool(hex.q, hex.r);
+            }
+        }
+    }
+
+    // Hex info
+    const hex = screenToHex(sx, sy);
+    if (hex && inBounds(hex.q, hex.r)) {
+        document.getElementById('hex-coord').textContent = `(${hex.q}, ${hex.r})`;
+        const t = TERRAIN_TYPES[getTile(hex.q, hex.r)];
+        document.getElementById('hex-terrain').textContent = t ? `${t.icon} ${t.name}` : '—';
+        const ovl = overlays[`${hex.q},${hex.r}`] || roadOverlays[`${hex.q},${hex.r}`];
+        document.getElementById('hex-resource').textContent =
+            ovl ? `${OVERLAY_TYPES[ovl.type]?.icon || ''} ${ovl.name}` : '—';
+    }
+}
+
+function onMouseUp(e) {
+    if (isPanning) {
+        isPanning = false;
+        canvas.style.cursor = 'crosshair';
+    }
+    isDragging = false;
+}
+
+function onWheel(e) {
+    e.preventDefault();
+    const dir = e.deltaY < 0 ? 1 : -1;
+    const factor = dir > 0 ? 1.15 : 1 / 1.15;
+    const oldZoom = camZoom;
+    camZoom = Math.max(0.1, Math.min(5, camZoom * factor));
+
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const wx = mx / oldZoom + camX;
+    const wy = my / oldZoom + camY;
+    camX = wx - mx / camZoom;
+    camY = wy - my / camZoom;
+
+    document.getElementById('zoom-badge').textContent = Math.round(camZoom * 100) + '%';
+    render();
+}
+
+function onKey(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    const map = { p:'paint', f:'fill', r:'rect', i:'eyedrop' };
+    if (map[e.key]) { setTool(map[e.key]); return; }
+    if (e.key === '+' || e.key === '=') { zoomCanvas(1); return; }
+    if (e.key === '-') { zoomCanvas(-1); return; }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TOOLS
+// ═══════════════════════════════════════════════════════════════
+function setTool(t) {
+    activeTool = t;
+    document.querySelectorAll('#toolbar button[id^="tool-"]').forEach(b => b.classList.remove('active'));
+    const btn = document.getElementById('tool-' + t);
+    if (btn) btn.classList.add('active');
+}
+
+function applyTool(q, r) {
+    if (!inBounds(q, r)) return;
+    if (activeTool === 'paint') {
+        const hexes = hexesInRadius(q, r, brushRadius);
+        for (const h of hexes) setTile(h.q, h.r, selectedTerrain);
+        render();
+    } else if (activeTool === 'fill') {
+        floodFill(q, r, selectedTerrain);
+        render();
+        updateStats();
+    } else if (activeTool === 'eyedrop') {
+        const t = getTile(q, r);
+        if (t) { selectedTerrain = t; buildTerrainPalette(); }
+    }
+}
+
+function floodFill(sq, sr, newTerrain) {
+    const oldTerrain = getTile(sq, sr);
+    if (oldTerrain === newTerrain) return;
+    const visited = new Set();
+    const queue = [{ q: sq, r: sr }];
+    visited.add(`${sq},${sr}`);
+    while (queue.length) {
+        const { q, r } = queue.shift();
+        setTile(q, r, newTerrain);
+        for (const n of hexNeighbors(q, r)) {
+            const key = `${n.q},${n.r}`;
+            if (!visited.has(key) && getTile(n.q, n.r) === oldTerrain) {
+                visited.add(key);
+                queue.push(n);
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PROCEDURAL GENERATION (simple Perlin-ish noise)
+// ═══════════════════════════════════════════════════════════════
+function generateRandom() {
+    const seed = parseInt(document.getElementById('world-seed').value) || Math.floor(Math.random() * 999999);
+    document.getElementById('world-seed').value = seed;
+
+    // Simple hash-based noise
+    function hash(x, y, s) {
+        let h = s;
+        h = ((h << 5) + h + x) ^ (h >>> 3);
+        h = ((h << 5) + h + y) ^ (h >>> 7);
+        h = ((h << 5) + h) ^ ((x * 374761393 + y * 668265263 + s) >>> 0);
+        return ((h & 0x7fffffff) % 10000) / 10000;
+    }
+
+    function noise2D(x, y, s, freq) {
+        const fx = x * freq, fy = y * freq;
+        const ix = Math.floor(fx), iy = Math.floor(fy);
+        const lx = fx - ix, ly = fy - iy;
+        const v00 = hash(ix, iy, s), v10 = hash(ix+1, iy, s);
+        const v01 = hash(ix, iy+1, s), v11 = hash(ix+1, iy+1, s);
+        const top = v00 + (v10 - v00) * lx;
+        const bot = v01 + (v11 - v01) * lx;
+        return top + (bot - top) * ly;
+    }
+
+    function octaveNoise(x, y, s, baseFreq, octaves) {
+        let val = 0, amp = 1, freq = baseFreq, totalAmp = 0;
+        for (let o = 0; o < octaves; o++) {
+            val += noise2D(x, y, s + o * 1000, freq) * amp;
+            totalAmp += amp;
+            amp *= 0.5;
+            freq *= 2;
+        }
+        return val / totalAmp;
+    }
+
+    for (let r = 0; r < mapH; r++) {
+        for (let q = 0; q < mapW; q++) {
+            const elev = octaveNoise(q, r, seed, 0.04, 5);
+            const moist = octaveNoise(q, r, seed + 5000, 0.06, 3);
+            const heat = 1 - Math.abs(r / mapH - 0.5) * 2 + octaveNoise(q, r, seed + 9000, 0.03, 2) * 0.3;
+
+            let terrain;
+            if (elev < 0.32) terrain = 'deep_ocean';
+            else if (elev < 0.38) terrain = 'ocean';
+            else if (elev < 0.42) terrain = 'coast';
+            else if (elev < 0.44) terrain = 'beach';
+            else if (elev < 0.82) {
+                // Land biomes based on heat + moisture
+                if (heat < 0.2) {
+                    terrain = elev > 0.7 ? 'snow_peak' : 'snow';
+                } else if (heat < 0.35) {
+                    terrain = moist > 0.5 ? 'boreal_forest' : 'tundra';
+                } else if (heat < 0.55) {
+                    if (moist < 0.3) terrain = 'plains';
+                    else if (moist < 0.5) terrain = 'grassland';
+                    else if (moist < 0.7) terrain = 'seasonal_forest';
+                    else terrain = 'temperate_rainforest';
+                } else {
+                    if (moist < 0.25) terrain = 'desert';
+                    else if (moist < 0.45) terrain = 'savanna';
+                    else if (moist < 0.65) terrain = 'woodland';
+                    else terrain = 'tropical_rainforest';
+                }
+                // Lakes
+                if (terrain !== 'desert' && terrain !== 'snow' && moist > 0.78 && elev < 0.55) terrain = 'lake';
+                // Swamps
+                if (moist > 0.7 && heat > 0.4 && elev < 0.5) terrain = 'swamp';
+            } else if (elev < 0.88) {
+                terrain = 'hills';
+            } else if (elev < 0.94) {
+                terrain = heat < 0.3 ? 'snow_peak' : 'mountain';
+            } else {
+                terrain = 'snow_peak';
+            }
+
+            setTile(q, r, terrain);
+        }
+    }
+
+    render();
+    updateStats();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  STATS
+// ═══════════════════════════════════════════════════════════════
+function updateStats() {
+    const counts = {};
+    for (const t of tiles) { counts[t] = (counts[t] || 0) + 1; }
+    const total = tiles.length;
+    const landCount = tiles.filter(t => TERRAIN_TYPES[t]?.passable).length;
+    const waterCount = total - landCount;
+
+    let html = `<div style="margin-bottom:4px"><strong>${mapW}×${mapH}</strong> = ${total} tiles</div>`;
+    html += `<div>🟢 Land: ${landCount} (${Math.round(landCount/total*100)}%)</div>`;
+    html += `<div>🔵 Water: ${waterCount} (${Math.round(waterCount/total*100)}%)</div>`;
+    html += '<div style="margin-top:6px">';
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    for (const [id, count] of sorted.slice(0, 8)) {
+        const t = TERRAIN_TYPES[id];
+        html += `<div style="display:flex;align-items:center;gap:4px;margin:1px 0">` +
+            `<span style="width:8px;height:8px;background:${t.color};border-radius:2px;display:inline-block"></span>` +
+            `<span>${t.name}</span><span style="margin-left:auto">${count}</span></div>`;
+    }
+    html += '</div>';
+
+    // Overlay summary
+    const ovlEntries = [...Object.values(overlays), ...Object.values(roadOverlays)];
+    if (ovlEntries.length) {
+        html += '<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:4px">';
+        html += `<div style="margin-bottom:3px"><strong>${ovlEntries.length}</strong> overlays</div>`;
+        const ovlCounts = {};
+        for (const o of ovlEntries) ovlCounts[o.type] = (ovlCounts[o.type] || 0) + 1;
+        for (const [type, cnt] of Object.entries(ovlCounts)) {
+            const ot = OVERLAY_TYPES[type];
+            if (!ot) continue;
+            html += `<div style="display:flex;align-items:center;gap:4px;margin:1px 0">` +
+                `<span>${ot.icon}</span><span>${ot.name}</span>` +
+                `<span style="margin-left:auto">${cnt}</span></div>`;
+        }
+        html += '</div>';
+    }
+
+    document.getElementById('stats-content').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  EXPORT / IMPORT (called by parent)
+// ═══════════════════════════════════════════════════════════════
+function getExportData() {
+    return {
+        name: document.getElementById('world-name').value,
+        author: document.getElementById('world-author').value,
+        seed: parseInt(document.getElementById('world-seed').value) || 0,
+        width: mapW,
+        height: mapH,
+        tiles: tiles.slice(), // copy
+        overlays: Object.keys(overlays).length ? { ...overlays } : undefined,
+        roadOverlays: Object.keys(roadOverlays).length ? { ...roadOverlays } : undefined,
+    };
+}
+
+function loadWorldData(data) {
+    if (!data) return;
+    if (data.name) document.getElementById('world-name').value = data.name;
+    if (data.author) document.getElementById('world-author').value = data.author;
+    if (data.seed != null) document.getElementById('world-seed').value = data.seed;
+    if (data.width && data.height && data.tiles) {
+        mapW = data.width;
+        mapH = data.height;
+        tiles = data.tiles.slice();
+        document.getElementById('map-w').value = mapW;
+        document.getElementById('map-h').value = mapH;
+    }
+    overlays = data.overlays ? { ...data.overlays } : {};
+    roadOverlays = data.roadOverlays ? { ...data.roadOverlays } : {};
+    // Migrate legacy: move any road entries from overlays into roadOverlays
+    for (const [key, ovl] of Object.entries(overlays)) {
+        const ot = OVERLAY_TYPES[ovl.type];
+        if (ot && ot.category === 'road') {
+            roadOverlays[key] = ovl;
+            delete overlays[key];
+        }
+    }
+    resizeCanvas();
+    fitCanvas();
+    updateStats();
+    updateSelectedHexInfo();
+}
+
+// Parent communication
+window.addEventListener('message', ev => {
+    if (!ev.data) return;
+    if (ev.data.type === 'loadWorld') {
+        loadWorldData(ev.data.world);
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════════
+init();
+try { window.parent.postMessage({ type: 'worldEditorReady' }, '*'); } catch(e) {}
+</script>
+</body>
+</html>

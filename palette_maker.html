@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Building Palette Maker — Lord of the Realms</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--panel:#161b22;--panel2:#1c2129;
+  --border:#21262d;--border2:#30363d;
+  --text:#c9d1d9;--text-dim:#8b949e;
+  --blue:#58a6ff;--green:#3fb950;--red:#f85149;
+  --gold:#e6a817;--purple:#a371f7;--orange:#f0883e;
+  --hover:#1c2129;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px}
+
+/* ── Toolbar ── */
+#toolbar{display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--panel);
+  border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+#toolbar h2{font-size:12px;font-weight:700;color:var(--gold);letter-spacing:.06em;
+  text-transform:uppercase;margin-right:4px}
+button{background:#21262d;border:1px solid var(--border2);color:var(--text);padding:4px 10px;
+  border-radius:5px;cursor:pointer;font-size:12px;transition:background .12s,border-color .12s}
+button:hover{background:#2d333b;border-color:#484f58}
+button.green{background:#0e2a17;border-color:var(--green);color:var(--green)}
+button.gold{background:#2a1f00;border-color:var(--gold);color:var(--gold)}
+button.danger{background:#2a0d0d;border-color:var(--red);color:var(--red)}
+button.blue{background:#0b2a4a;border-color:var(--blue);color:var(--blue)}
+button.purple{background:#1e0f3a;border-color:var(--purple);color:var(--purple)}
+button:disabled{opacity:.4;cursor:not-allowed;pointer-events:none}
+input[type="text"],input[type="number"],select{background:#0d1117;border:1px solid var(--border2);
+  color:var(--text);padding:3px 7px;border-radius:4px;font-size:12px}
+input:focus,select:focus{outline:none;border-color:var(--blue)}
+.tb-sep{width:1px;height:22px;background:var(--border2);margin:0 2px}
+.status{font-size:11px;color:var(--text-dim)}
+
+/* ── Layout ── */
+#main{display:flex;height:calc(100vh - 41px);overflow:hidden}
+
+/* ── Left: Palette list ── */
+#palette-list-panel{width:230px;min-width:160px;flex-shrink:0;background:var(--panel);
+  border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#pl-header{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;
+  border-bottom:1px solid var(--border);flex-shrink:0}
+#pl-header h3{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim)}
+#pl-actions{display:flex;gap:4px}
+#pl-scroll{flex:1;overflow-y:auto;padding:6px}
+.pal-card{display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:5px;
+  cursor:pointer;border:1px solid transparent;margin-bottom:3px;transition:background .1s,border-color .1s}
+.pal-card:hover{background:var(--hover)}
+.pal-card.selected{background:#0b2a4a;border-color:var(--blue)}
+.pal-card-preview{display:flex;gap:2px;flex-shrink:0}
+.pal-card-preview canvas{width:14px;height:14px;image-rendering:pixelated;border:1px solid var(--border2);border-radius:2px}
+.pal-card-info{flex:1;min-width:0}
+.pal-card-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pal-card-meta{font-size:10px;color:var(--text-dim)}
+#pl-empty{color:var(--text-dim);font-size:11px;font-style:italic;padding:12px;text-align:center}
+
+/* ── Center: Slot assignments ── */
+#slots-panel{width:280px;min-width:220px;flex-shrink:0;background:var(--panel2);
+  border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#sp-header{padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0;
+  display:flex;align-items:center;justify-content:space-between}
+#sp-header h3{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim)}
+#palette-name-input{flex:1;margin-left:10px;font-size:12px;font-weight:600;background:transparent;
+  border:1px solid transparent;border-radius:4px;padding:2px 6px;color:var(--text)}
+#palette-name-input:hover{border-color:var(--border2);background:#0d1117}
+#palette-name-input:focus{border-color:var(--blue);background:#0d1117;outline:none}
+#sp-scroll{flex:1;overflow-y:auto;padding:8px}
+.slot-group-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--text-dim);margin:8px 0 4px;padding-left:2px}
+.slot-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;
+  cursor:pointer;border:1px solid transparent;margin-bottom:2px;transition:background .1s,border-color .1s}
+.slot-row:hover{background:var(--hover)}
+.slot-row.active-slot{background:#0b2a4a;border-color:var(--blue)}
+.slot-icon{font-size:14px;width:20px;text-align:center;flex-shrink:0}
+.slot-info{flex:1;min-width:0}
+.slot-label{font-size:12px;font-weight:600}
+.slot-desc{font-size:10px;color:var(--text-dim)}
+.slot-tile{flex-shrink:0;position:relative}
+.slot-tile canvas{width:32px;height:32px;image-rendering:pixelated;
+  border:1px solid var(--border2);border-radius:3px;display:block}
+.slot-tile.has-tile canvas{border-color:var(--green)}
+.slot-tile.active-tile canvas{border-color:var(--blue);box-shadow:0 0 0 2px rgba(88,166,255,.3)}
+.slot-clear{position:absolute;top:-5px;right:-5px;width:14px;height:14px;border-radius:50%;
+  background:var(--red);font-size:9px;line-height:14px;text-align:center;
+  cursor:pointer;display:none;color:#fff;border:none;padding:0}
+.slot-tile:hover .slot-clear{display:block}
+#sp-hint{font-size:11px;color:var(--text-dim);padding:8px 10px;font-style:italic;text-align:center;border-top:1px solid var(--border)}
+
+/* ── Right: Sheet browser ── */
+#sheet-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+#sheet-tabs{display:flex;flex-wrap:wrap;gap:3px;padding:6px 10px;
+  border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0}
+.sheet-tab{background:#21262d;border:1px solid var(--border2);color:var(--text-dim);
+  padding:3px 9px;border-radius:4px;cursor:pointer;font-size:11px;transition:all .12s}
+.sheet-tab:hover{color:var(--text);background:var(--hover)}
+.sheet-tab.active{background:#0b2a4a;border-color:var(--blue);color:var(--blue)}
+#sheet-zoom-bar{display:flex;align-items:center;gap:8px;padding:5px 10px;
+  background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0}
+#sheet-zoom-bar label{font-size:11px;color:var(--text-dim)}
+#sheet-zoom-bar select{padding:2px 6px;font-size:11px}
+#sheet-viewport{flex:1;overflow:auto;position:relative;background:#0a0a0a}
+#sheet-canvas-wrap{position:relative;display:inline-block}
+#sheet-canvas{image-rendering:pixelated;cursor:crosshair;display:block}
+#sheet-hover{position:absolute;pointer-events:none;border:2px solid rgba(88,166,255,.8);
+  border-radius:1px;display:none;box-shadow:0 0 6px rgba(88,166,255,.4)}
+#sheet-select{position:absolute;pointer-events:none;outline:2px solid var(--green);
+  outline-offset:-1px;background:rgba(63,185,80,.08);display:none;border-radius:1px}
+#sheet-info{font-size:11px;color:var(--text-dim);padding:5px 10px;
+  background:var(--panel);border-top:1px solid var(--border);flex-shrink:0}
+
+/* ── Toast ── */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:#161b22;border:1px solid var(--border2);border-radius:8px;padding:8px 16px;
+  font-size:12px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:999}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.ok{border-color:var(--green);color:var(--green)}
+#toast.err{border-color:var(--red);color:var(--red)}
+
+/* ── Scrollbars ── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#484f58}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ TOOLBAR ═══════════════════ -->
+<div id="toolbar">
+  <h2>🎨 Building Palette Maker</h2>
+  <div class="tb-sep"></div>
+  <button class="green" onclick="newPalette()">＋ New</button>
+  <button onclick="duplicatePalette()" id="btn-dup" disabled>⎘ Duplicate</button>
+  <button class="danger" onclick="deletePalette()" id="btn-del" disabled>🗑 Delete</button>
+  <div class="tb-sep"></div>
+  <button class="gold" onclick="exportJSON()">⬇ Export JSON</button>
+  <button class="blue" onclick="importJSON()">⬆ Import JSON</button>
+  <div class="tb-sep"></div>
+  <button class="purple" onclick="addPresets()">✦ Add Presets</button>
+  <div class="tb-sep"></div>
+  <span class="status" id="status-msg">Ready</span>
+</div>
+
+<!-- ═══════════════════ MAIN ═══════════════════ -->
+<div id="main">
+
+  <!-- LEFT: Palette list -->
+  <div id="palette-list-panel">
+    <div id="pl-header">
+      <h3>Palettes</h3>
+      <div id="pl-actions">
+        <button style="padding:2px 7px;font-size:11px" onclick="newPalette()" title="New palette">＋</button>
+      </div>
+    </div>
+    <div id="pl-scroll">
+      <div id="pl-empty">No palettes yet.<br>Click ＋ New to create one.</div>
+    </div>
+  </div>
+
+  <!-- CENTER: Slot assignments -->
+  <div id="slots-panel">
+    <div id="sp-header">
+      <h3>Slots</h3>
+      <input type="text" id="palette-name-input" placeholder="Palette name…" oninput="onNameChange()" disabled>
+    </div>
+    <div id="sp-scroll">
+      <div id="sp-no-palette" style="color:var(--text-dim);font-size:12px;font-style:italic;padding:16px;text-align:center">
+        Select or create a palette to assign tiles.
+      </div>
+      <div id="sp-slots" style="display:none"></div>
+    </div>
+    <div id="sp-hint">Click a slot, then pick a tile from the sheet →</div>
+  </div>
+
+  <!-- RIGHT: Sheet browser -->
+  <div id="sheet-panel">
+    <div id="sheet-tabs"></div>
+    <div id="sheet-zoom-bar">
+      <label>Zoom:</label>
+      <select id="zoom-select" onchange="setZoom(+this.value)">
+        <option value="1">1×</option>
+        <option value="2" selected>2×</option>
+        <option value="3">3×</option>
+        <option value="4">4×</option>
+      </select>
+      <span id="sheet-name-label" style="font-size:11px;color:var(--text-dim);flex:1;text-align:right"></span>
+    </div>
+    <div id="sheet-viewport">
+      <div id="sheet-canvas-wrap">
+        <canvas id="sheet-canvas"></canvas>
+        <div id="sheet-hover"></div>
+        <div id="sheet-select"></div>
+      </div>
+    </div>
+    <div id="sheet-info">Hover over a tile to inspect. Click to assign to selected slot.</div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+const STORAGE_KEY = 'lrt_building_palettes';
+const TILE_SIZE = 32;
+
+let palettes = [];
+let activePaletteId = null;
+let activeSlot = null;
+let activeSheet = null;
+let sheetZoom = 2;
+const _sheetImgs = {}; // key → HTMLImageElement
+let _hoveredCell = null; // { col, row }
+let _selectedCell = null; // { col, row, sheet }
+
+// ── Sheet definitions ──────────────────────────────────────
+const SHEETS = [
+  { key: 'struct_brick_a', label: 'Brick A',     path: 'assets/lpc/Structure/Structures/Brick House A.png',       group: 'Building' },
+  { key: 'struct_brick_b', label: 'Brick B',     path: 'assets/lpc/Structure/Structures/Brick House B.png',       group: 'Building' },
+  { key: 'struct_panel_a', label: 'Panel A',     path: 'assets/lpc/Structure/Structures/Paneled House A.png',     group: 'Building' },
+  { key: 'roof_shingle',   label: 'Shingle Roof',path: 'assets/lpc/Structure/Roofing/Flat Shingle Roof A.png',    group: 'Roof' },
+  { key: 'roof_gable',     label: 'Gable Roof',  path: 'assets/lpc/Structure/Roofing/Gable Shingle Roof A.png',   group: 'Roof' },
+  { key: 'terrain_summer', label: 'Terrain Sum', path: 'assets/lpc/Terrain/terrain_summer.png',                   group: 'Floor' },
+  { key: 'tilled_soil',    label: 'Tilled Soil', path: 'assets/lpc/Terrain/tilled_soil.png',                      group: 'Floor' },
+  { key: 'fence_plain',    label: 'Fences',      path: 'assets/lpc/Structure/Fences/Plain Fence A.png',           group: 'Building' },
+  { key: 'pool',           label: 'Pool',        path: 'assets/lpc/Structure/Misc/Pool A.png',                    group: 'Building' },
+  { key: 'fireplace',      label: 'Fireplace',   path: 'assets/lpc/Objects/Furniture/Fireplace.png',              group: 'Object' },
+  { key: 'chest',          label: 'Chest',       path: 'assets/lpc/Objects/Furniture/Chest.png',                  group: 'Object' },
+  { key: 'barrel',         label: 'Barrel',      path: 'assets/lpc/Objects/Furniture/Barrel.png',                 group: 'Object' },
+];
+
+// ── Palette slot definitions ───────────────────────────────
+const SLOT_GROUPS = [
+  {
+    label: 'Floor',
+    slots: [
+      { id: 'floor',       label: 'Floor',       icon: '⬜', desc: 'Interior floor tile' },
+      { id: 'floor_alt',   label: 'Floor Alt',   icon: '⬜', desc: 'Alternate floor variant' },
+    ]
+  },
+  {
+    label: 'Walls',
+    slots: [
+      { id: 'wall_n',      label: 'Wall N',      icon: '🧱', desc: 'North / top horizontal wall' },
+      { id: 'wall_s',      label: 'Wall S',      icon: '🧱', desc: 'South wall with depth' },
+      { id: 'wall_v',      label: 'Wall V',      icon: '🧱', desc: 'Vertical side wall (E/W)' },
+      { id: 'wall_corner', label: 'Corner',      icon: '🔲', desc: 'Wall corner junction' },
+    ]
+  },
+  {
+    label: 'Roof',
+    slots: [
+      { id: 'roof',        label: 'Roof',        icon: '🟦', desc: 'Roof center tile' },
+      { id: 'roof_edge_n', label: 'Roof Edge N', icon: '🟦', desc: 'Roof north/top edge' },
+      { id: 'roof_edge_s', label: 'Roof Edge S', icon: '🟦', desc: 'Roof south/bottom edge' },
+      { id: 'roof_edge_v', label: 'Roof Edge V', icon: '🟦', desc: 'Roof vertical side edge' },
+    ]
+  },
+  {
+    label: 'Extras',
+    slots: [
+      { id: 'door',        label: 'Door',        icon: '🚪', desc: 'Door / entrance tile' },
+      { id: 'outer',       label: 'Outer',       icon: '🟫', desc: 'Exterior ground tile' },
+      { id: 'trim',        label: 'Trim',        icon: '🔷', desc: 'Decorative trim / accent' },
+    ]
+  }
+];
+const ALL_SLOTS = SLOT_GROUPS.flatMap(g => g.slots);
+
+// ── Built-in presets ───────────────────────────────────────
+const PRESETS = [
+  {
+    id: 'preset_brick_a', name: 'Brick House A',
+    tiles: {
+      floor:       { sheet: 'struct_brick_a', sx: 64,  sy: 96, sw: 32, sh: 32 },
+      floor_alt:   { sheet: 'terrain_summer', sx: 32,  sy: 32, sw: 32, sh: 32 },
+      wall_n:      { sheet: 'struct_brick_a', sx: 0,   sy: 0,  sw: 32, sh: 32 },
+      wall_s:      { sheet: 'struct_brick_a', sx: 32,  sy: 0,  sw: 32, sh: 32 },
+      wall_v:      { sheet: 'struct_brick_a', sx: 64,  sy: 0,  sw: 32, sh: 32 },
+      wall_corner: { sheet: 'struct_brick_a', sx: 96,  sy: 0,  sw: 32, sh: 32 },
+      roof:        { sheet: 'roof_shingle',   sx: 32,  sy: 32, sw: 32, sh: 32 },
+      roof_edge_n: { sheet: 'roof_shingle',   sx: 32,  sy: 0,  sw: 32, sh: 32 },
+      roof_edge_s: { sheet: 'roof_shingle',   sx: 32,  sy: 64, sw: 32, sh: 32 },
+      roof_edge_v: { sheet: 'roof_shingle',   sx: 0,   sy: 32, sw: 32, sh: 32 },
+      door:        { sheet: 'struct_brick_a', sx: 128, sy: 0,  sw: 32, sh: 32 },
+    }
+  },
+  {
+    id: 'preset_brick_b', name: 'Brick House B',
+    tiles: {
+      floor:       { sheet: 'struct_brick_b', sx: 64,  sy: 96, sw: 32, sh: 32 },
+      floor_alt:   { sheet: 'terrain_summer', sx: 64,  sy: 32, sw: 32, sh: 32 },
+      wall_n:      { sheet: 'struct_brick_b', sx: 0,   sy: 0,  sw: 32, sh: 32 },
+      wall_s:      { sheet: 'struct_brick_b', sx: 32,  sy: 0,  sw: 32, sh: 32 },
+      wall_v:      { sheet: 'struct_brick_b', sx: 64,  sy: 0,  sw: 32, sh: 32 },
+      wall_corner: { sheet: 'struct_brick_b', sx: 96,  sy: 0,  sw: 32, sh: 32 },
+      roof:        { sheet: 'roof_shingle',   sx: 32,  sy: 32, sw: 32, sh: 32 },
+      roof_edge_n: { sheet: 'roof_shingle',   sx: 32,  sy: 0,  sw: 32, sh: 32 },
+      roof_edge_s: { sheet: 'roof_shingle',   sx: 32,  sy: 64, sw: 32, sh: 32 },
+      roof_edge_v: { sheet: 'roof_shingle',   sx: 0,   sy: 32, sw: 32, sh: 32 },
+      door:        { sheet: 'struct_brick_b', sx: 128, sy: 0,  sw: 32, sh: 32 },
+    }
+  },
+  {
+    id: 'preset_wood_panel', name: 'Wood Panel',
+    tiles: {
+      floor:       { sheet: 'struct_panel_a', sx: 64,  sy: 96, sw: 32, sh: 32 },
+      floor_alt:   { sheet: 'tilled_soil',    sx: 0,   sy: 0,  sw: 32, sh: 32 },
+      wall_n:      { sheet: 'struct_panel_a', sx: 0,   sy: 0,  sw: 32, sh: 32 },
+      wall_s:      { sheet: 'struct_panel_a', sx: 32,  sy: 0,  sw: 32, sh: 32 },
+      wall_v:      { sheet: 'struct_panel_a', sx: 64,  sy: 0,  sw: 32, sh: 32 },
+      wall_corner: { sheet: 'struct_panel_a', sx: 96,  sy: 0,  sw: 32, sh: 32 },
+      roof:        { sheet: 'roof_gable',     sx: 32,  sy: 32, sw: 32, sh: 32 },
+      roof_edge_n: { sheet: 'roof_gable',     sx: 32,  sy: 0,  sw: 32, sh: 32 },
+      roof_edge_s: { sheet: 'roof_gable',     sx: 32,  sy: 64, sw: 32, sh: 32 },
+      roof_edge_v: { sheet: 'roof_gable',     sx: 0,   sy: 32, sw: 32, sh: 32 },
+      door:        { sheet: 'struct_panel_a', sx: 128, sy: 0,  sw: 32, sh: 32 },
+    }
+  },
+  {
+    id: 'preset_stone_keep', name: 'Stone Keep',
+    tiles: {
+      floor:       { sheet: 'terrain_summer', sx: 96,  sy: 96, sw: 32, sh: 32 },
+      floor_alt:   { sheet: 'terrain_summer', sx: 128, sy: 96, sw: 32, sh: 32 },
+      wall_n:      { sheet: 'struct_brick_a', sx: 0,   sy: 64, sw: 32, sh: 32 },
+      wall_s:      { sheet: 'struct_brick_a', sx: 32,  sy: 64, sw: 32, sh: 32 },
+      wall_v:      { sheet: 'struct_brick_a', sx: 64,  sy: 64, sw: 32, sh: 32 },
+      wall_corner: { sheet: 'struct_brick_a', sx: 96,  sy: 64, sw: 32, sh: 32 },
+      roof:        { sheet: 'roof_shingle',   sx: 64,  sy: 32, sw: 32, sh: 32 },
+      roof_edge_n: { sheet: 'roof_shingle',   sx: 64,  sy: 0,  sw: 32, sh: 32 },
+      roof_edge_s: { sheet: 'roof_shingle',   sx: 64,  sy: 64, sw: 32, sh: 32 },
+      roof_edge_v: { sheet: 'roof_shingle',   sx: 32,  sy: 32, sw: 32, sh: 32 },
+      door:        { sheet: 'struct_brick_a', sx: 128, sy: 64, sw: 32, sh: 32 },
+    }
+  },
+];
+
+// ============================================================
+// BOOTSTRAP
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  loadPalettes();
+  buildSheetTabs();
+  switchSheet(SHEETS[0].key);
+  renderPaletteList();
+  renderSlots();
+});
+
+// ============================================================
+// PERSISTENCE
+// ============================================================
+function loadPalettes() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    palettes = raw ? JSON.parse(raw) : [];
+  } catch(e) { palettes = []; }
+}
+
+function savePalettes() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(palettes));
+    setStatus('Saved');
+  } catch(e) { toast('Failed to save', 'err'); }
+}
+
+// ============================================================
+// PALETTE CRUD
+// ============================================================
+function uid() {
+  return 'pal_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+}
+
+function newPalette() {
+  const pal = { id: uid(), name: 'New Palette', tiles: {} };
+  palettes.push(pal);
+  savePalettes();
+  renderPaletteList();
+  selectPalette(pal.id);
+  setTimeout(() => {
+    const inp = document.getElementById('palette-name-input');
+    inp.focus(); inp.select();
+  }, 60);
+}
+
+function duplicatePalette() {
+  const src = getActivePalette();
+  if (!src) return;
+  const pal = { id: uid(), name: src.name + ' Copy', tiles: JSON.parse(JSON.stringify(src.tiles)) };
+  palettes.push(pal);
+  savePalettes();
+  renderPaletteList();
+  selectPalette(pal.id);
+}
+
+function deletePalette() {
+  if (!activePaletteId) return;
+  const pal = getActivePalette();
+  if (!pal) return;
+  if (!confirm(`Delete palette "${pal.name}"?`)) return;
+  palettes = palettes.filter(p => p.id !== activePaletteId);
+  activePaletteId = null;
+  savePalettes();
+  renderPaletteList();
+  renderSlots();
+  updateToolbar();
+}
+
+function addPresets() {
+  let added = 0;
+  for (const preset of PRESETS) {
+    if (!palettes.find(p => p.id === preset.id)) {
+      palettes.push(JSON.parse(JSON.stringify(preset)));
+      added++;
+    }
+  }
+  if (added === 0) { toast('All presets already added', 'err'); return; }
+  savePalettes();
+  renderPaletteList();
+  if (!activePaletteId && palettes.length > 0) selectPalette(palettes[0].id);
+  toast(`Added ${added} preset${added > 1 ? 's' : ''}`, 'ok');
+}
+
+function getActivePalette() {
+  return palettes.find(p => p.id === activePaletteId) || null;
+}
+
+function selectPalette(id) {
+  activePaletteId = id;
+  activeSlot = null;
+  renderPaletteList();
+  renderSlots();
+  updateToolbar();
+}
+
+function onNameChange() {
+  const pal = getActivePalette();
+  if (!pal) return;
+  pal.name = document.getElementById('palette-name-input').value;
+  savePalettes();
+  // Update the card name without full re-render
+  const card = document.querySelector(`.pal-card[data-id="${pal.id}"] .pal-card-name`);
+  if (card) card.textContent = pal.name;
+}
+
+function updateToolbar() {
+  const has = !!activePaletteId;
+  document.getElementById('btn-dup').disabled = !has;
+  document.getElementById('btn-del').disabled = !has;
+}
+
+// ============================================================
+// PALETTE LIST RENDER
+// ============================================================
+function renderPaletteList() {
+  const scroll = document.getElementById('pl-scroll');
+  const empty = document.getElementById('pl-empty');
+  if (palettes.length === 0) {
+    scroll.innerHTML = '';
+    scroll.appendChild(empty); empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  scroll.innerHTML = '';
+  for (const pal of palettes) {
+    const card = document.createElement('div');
+    card.className = 'pal-card' + (pal.id === activePaletteId ? ' selected' : '');
+    card.dataset.id = pal.id;
+    card.onclick = () => selectPalette(pal.id);
+
+    // Mini preview of floor + wall_n + roof tiles
+    const prev = document.createElement('div');
+    prev.className = 'pal-card-preview';
+    for (const slot of ['floor','wall_n','roof']) {
+      const cvs = document.createElement('canvas');
+      cvs.width = 32; cvs.height = 32;
+      drawTilePreview(cvs, pal.tiles[slot]);
+      prev.appendChild(cvs);
+    }
+
+    const info = document.createElement('div');
+    info.className = 'pal-card-info';
+    const name = document.createElement('div');
+    name.className = 'pal-card-name';
+    name.textContent = pal.name;
+    const meta = document.createElement('div');
+    meta.className = 'pal-card-meta';
+    const count = Object.values(pal.tiles).filter(Boolean).length;
+    meta.textContent = `${count}/${ALL_SLOTS.length} slots`;
+
+    info.appendChild(name); info.appendChild(meta);
+    card.appendChild(prev); card.appendChild(info);
+    scroll.appendChild(card);
+  }
+}
+
+// ============================================================
+// SLOTS PANEL RENDER
+// ============================================================
+function renderSlots() {
+  const noSel = document.getElementById('sp-no-palette');
+  const slotsDiv = document.getElementById('sp-slots');
+  const nameInp = document.getElementById('palette-name-input');
+  const pal = getActivePalette();
+
+  if (!pal) {
+    noSel.style.display = '';
+    slotsDiv.style.display = 'none';
+    nameInp.value = '';
+    nameInp.disabled = true;
+    return;
+  }
+  noSel.style.display = 'none';
+  slotsDiv.style.display = '';
+  nameInp.value = pal.name;
+  nameInp.disabled = false;
+
+  slotsDiv.innerHTML = '';
+  for (const grp of SLOT_GROUPS) {
+    const lbl = document.createElement('div');
+    lbl.className = 'slot-group-label';
+    lbl.textContent = grp.label;
+    slotsDiv.appendChild(lbl);
+
+    for (const slot of grp.slots) {
+      const row = buildSlotRow(slot, pal.tiles[slot.id]);
+      slotsDiv.appendChild(row);
+    }
+  }
+}
+
+function buildSlotRow(slotDef, tileDef) {
+  const row = document.createElement('div');
+  row.className = 'slot-row' +
+    (activeSlot === slotDef.id ? ' active-slot' : '');
+  row.onclick = () => selectSlot(slotDef.id);
+
+  const icon = document.createElement('div');
+  icon.className = 'slot-icon'; icon.textContent = slotDef.icon;
+
+  const info = document.createElement('div');
+  info.className = 'slot-info';
+  const lbl = document.createElement('div'); lbl.className = 'slot-label'; lbl.textContent = slotDef.label;
+  const desc = document.createElement('div'); desc.className = 'slot-desc'; desc.textContent = slotDef.desc;
+  info.appendChild(lbl); info.appendChild(desc);
+
+  const tilePrev = document.createElement('div');
+  tilePrev.className = 'slot-tile' + (tileDef ? ' has-tile' : '') + (activeSlot === slotDef.id ? ' active-tile' : '');
+  tilePrev.id = 'slot-tile-' + slotDef.id;
+
+  const cvs = document.createElement('canvas'); cvs.width = 32; cvs.height = 32;
+  drawTilePreview(cvs, tileDef);
+  tilePrev.appendChild(cvs);
+
+  if (tileDef) {
+    const clr = document.createElement('button');
+    clr.className = 'slot-clear'; clr.textContent = '×'; clr.title = 'Clear slot';
+    clr.onclick = (e) => { e.stopPropagation(); clearSlot(slotDef.id); };
+    tilePrev.appendChild(clr);
+  }
+
+  row.appendChild(icon); row.appendChild(info); row.appendChild(tilePrev);
+  return row;
+}
+
+function selectSlot(slotId) {
+  activeSlot = slotId;
+  renderSlots();
+  // Highlight the selected tile in the sheet browser if it matches
+  const pal = getActivePalette();
+  if (pal && pal.tiles[slotId] && pal.tiles[slotId].sheet === activeSheet) {
+    const t = pal.tiles[slotId];
+    _selectedCell = { col: t.sx / TILE_SIZE, row: t.sy / TILE_SIZE, sheet: t.sheet };
+    drawSheetOverlays();
+  }
+  setStatus(`Editing slot: ${slotId}`);
+}
+
+function clearSlot(slotId) {
+  const pal = getActivePalette();
+  if (!pal) return;
+  delete pal.tiles[slotId];
+  savePalettes();
+  renderPaletteList();
+  renderSlots();
+}
+
+// ============================================================
+// SHEET BROWSER
+// ============================================================
+function buildSheetTabs() {
+  const container = document.getElementById('sheet-tabs');
+  const groups = [...new Set(SHEETS.map(s => s.group))];
+  for (const g of groups) {
+    const grpLabel = document.createElement('span');
+    grpLabel.style.cssText = 'font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;align-self:center;margin-right:2px';
+    grpLabel.textContent = g + ':';
+    container.appendChild(grpLabel);
+    for (const sheet of SHEETS.filter(s => s.group === g)) {
+      const btn = document.createElement('button');
+      btn.className = 'sheet-tab';
+      btn.dataset.key = sheet.key;
+      btn.textContent = sheet.label;
+      btn.onclick = () => switchSheet(sheet.key);
+      container.appendChild(btn);
+    }
+  }
+}
+
+function switchSheet(key) {
+  activeSheet = key;
+  _hoveredCell = null;
+  _selectedCell = null;
+  // Update tab active states
+  document.querySelectorAll('.sheet-tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.key === key));
+  const def = SHEETS.find(s => s.key === key);
+  document.getElementById('sheet-name-label').textContent = def ? def.path : '';
+  loadAndDrawSheet(key);
+}
+
+function loadAndDrawSheet(key) {
+  const def = SHEETS.find(s => s.key === key);
+  if (!def) return;
+  if (_sheetImgs[key]) { drawSheet(key); return; }
+  const img = new Image();
+  img.onload = () => { _sheetImgs[key] = img; if (activeSheet === key) drawSheet(key); };
+  img.onerror = () => {
+    document.getElementById('sheet-info').textContent = `⚠ Sheet not found: ${def.path}`;
+    const cvs = document.getElementById('sheet-canvas');
+    cvs.width = 320; cvs.height = 200;
+    const ctx = cvs.getContext('2d');
+    ctx.fillStyle = '#1c1c1c'; ctx.fillRect(0,0,320,200);
+    ctx.fillStyle = '#f85149'; ctx.font = '12px monospace';
+    ctx.fillText('Sheet not found:', 10, 30);
+    ctx.fillStyle = '#8b949e'; ctx.font = '11px monospace';
+    ctx.fillText(def.path, 10, 50);
+  };
+  img.src = def.path;
+}
+
+function drawSheet(key) {
+  const img = _sheetImgs[key];
+  if (!img) return;
+  const canvas = document.getElementById('sheet-canvas');
+  const cols = Math.floor(img.width / TILE_SIZE);
+  const rows = Math.floor(img.height / TILE_SIZE);
+  canvas.width = cols * TILE_SIZE * sheetZoom;
+  canvas.height = rows * TILE_SIZE * sheetZoom;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  // Draw grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 0.5;
+  for (let c = 0; c <= cols; c++) {
+    ctx.beginPath();
+    ctx.moveTo(c * TILE_SIZE * sheetZoom, 0);
+    ctx.lineTo(c * TILE_SIZE * sheetZoom, canvas.height);
+    ctx.stroke();
+  }
+  for (let r = 0; r <= rows; r++) {
+    ctx.beginPath();
+    ctx.moveTo(0, r * TILE_SIZE * sheetZoom);
+    ctx.lineTo(canvas.width, r * TILE_SIZE * sheetZoom);
+    ctx.stroke();
+  }
+  // Draw existing slot assignments as colored outlines
+  const pal = getActivePalette();
+  if (pal) {
+    const slotColors = {
+      floor:'#34d399', floor_alt:'#6ee7b7', wall_n:'#f87171', wall_s:'#fca5a5',
+      wall_v:'#fb923c', wall_corner:'#f59e0b', roof:'#60a5fa', roof_edge_n:'#93c5fd',
+      roof_edge_s:'#bfdbfe', roof_edge_v:'#7dd3fc', door:'#c084fc', outer:'#a3a3a3', trim:'#fbbf24'
+    };
+    for (const [slotId, tile] of Object.entries(pal.tiles)) {
+      if (!tile || tile.sheet !== key) continue;
+      const col = tile.sx / TILE_SIZE;
+      const row = tile.sy / TILE_SIZE;
+      const px = TILE_SIZE * sheetZoom;
+      const color = slotColors[slotId] || '#fff';
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(col * px + 1, row * px + 1, px - 2, px - 2);
+      // Tiny label in corner
+      ctx.fillStyle = color;
+      ctx.font = `bold ${Math.max(7, px/4)}px monospace`;
+      ctx.fillText(slotId.replace(/_/g,'').slice(0,4), col * px + 2, row * px + px - 2);
+    }
+  }
+  // Draw overlays
+  drawSheetOverlays();
+  const img2 = _sheetImgs[key];
+  document.getElementById('sheet-info').textContent =
+    `${key} — ${cols}×${rows} tiles (${img2.width}×${img2.height}px)`;
+}
+
+function drawSheetOverlays() {
+  const canvas = document.getElementById('sheet-canvas');
+  const hover = document.getElementById('sheet-hover');
+  const sel  = document.getElementById('sheet-select');
+  const px = TILE_SIZE * sheetZoom;
+
+  if (_hoveredCell) {
+    hover.style.display = '';
+    hover.style.left  = (_hoveredCell.col * px) + 'px';
+    hover.style.top   = (_hoveredCell.row * px) + 'px';
+    hover.style.width = hover.style.height = (px - 2) + 'px';
+  } else {
+    hover.style.display = 'none';
+  }
+  if (_selectedCell && _selectedCell.sheet === activeSheet) {
+    sel.style.display = '';
+    sel.style.left  = (_selectedCell.col * px) + 'px';
+    sel.style.top   = (_selectedCell.row * px) + 'px';
+    sel.style.width = sel.style.height = px + 'px';
+  } else {
+    sel.style.display = 'none';
+  }
+}
+
+// ── Canvas mouse events ────────────────────────────────────
+(function setupCanvasEvents() {
+  const canvas = document.getElementById('sheet-canvas');
+
+  canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    const px = TILE_SIZE * sheetZoom;
+    const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const my = (e.clientY - rect.top)  * (canvas.height / rect.height);
+    const col = Math.floor(mx / px);
+    const row = Math.floor(my / px);
+    _hoveredCell = { col, row };
+    drawSheetOverlays();
+    if (_sheetImgs[activeSheet]) {
+      const img = _sheetImgs[activeSheet];
+      const maxCols = Math.floor(img.width / TILE_SIZE);
+      const maxRows = Math.floor(img.height / TILE_SIZE);
+      document.getElementById('sheet-info').textContent =
+        `Tile (col ${col}, row ${row}) → sx:${col*TILE_SIZE} sy:${row*TILE_SIZE} — Sheet: ${activeSheet}`;
+    }
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    _hoveredCell = null;
+    drawSheetOverlays();
+  });
+
+  canvas.addEventListener('click', e => {
+    if (!activePaletteId) { toast('Select a palette first', 'err'); return; }
+    if (!activeSlot) { toast('Select a slot first', 'err'); return; }
+    const rect = canvas.getBoundingClientRect();
+    const px = TILE_SIZE * sheetZoom;
+    const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const my = (e.clientY - rect.top)  * (canvas.height / rect.height);
+    const col = Math.floor(mx / px);
+    const row = Math.floor(my / px);
+    assignTile(activeSheet, col * TILE_SIZE, row * TILE_SIZE);
+    _selectedCell = { col, row, sheet: activeSheet };
+    drawSheetOverlays();
+  });
+})();
+
+function assignTile(sheet, sx, sy) {
+  const pal = getActivePalette();
+  if (!pal || !activeSlot) return;
+  pal.tiles[activeSlot] = { sheet, sx, sy, sw: TILE_SIZE, sh: TILE_SIZE };
+  savePalettes();
+  renderPaletteList();
+  renderSlots();
+  drawSheet(activeSheet);
+  toast(`Slot "${activeSlot}" ← (${sx}, ${sy}) from ${sheet}`, 'ok');
+}
+
+function setZoom(z) {
+  sheetZoom = z;
+  if (activeSheet) drawSheet(activeSheet);
+}
+
+// ============================================================
+// TILE PREVIEW (draw onto canvas)
+// ============================================================
+function drawTilePreview(canvas, tileDef) {
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!tileDef) {
+    ctx.fillStyle = '#1c2129';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#30363d';
+    ctx.fillText('?', canvas.width/2 - 3, canvas.height/2 + 4);
+    return;
+  }
+  const img = _sheetImgs[tileDef.sheet];
+  if (!img) {
+    // Load and re-render once ready
+    const def = SHEETS.find(s => s.key === tileDef.sheet);
+    if (def && !_sheetImgs['_loading_' + tileDef.sheet]) {
+      _sheetImgs['_loading_' + tileDef.sheet] = true;
+      const i = new Image();
+      i.onload = () => {
+        _sheetImgs[tileDef.sheet] = i;
+        // Re-render palette list and slots to update all previews
+        renderPaletteList();
+        renderSlots();
+        if (activeSheet === tileDef.sheet) drawSheet(tileDef.sheet);
+      };
+      i.src = def.path;
+    }
+    ctx.fillStyle = '#1c2129';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    return;
+  }
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img,
+    tileDef.sx, tileDef.sy, tileDef.sw || TILE_SIZE, tileDef.sh || TILE_SIZE,
+    0, 0, canvas.width, canvas.height);
+}
+
+// ============================================================
+// IMPORT / EXPORT
+// ============================================================
+function exportJSON() {
+  const json = JSON.stringify(palettes, null, 2);
+  navigator.clipboard.writeText(json)
+    .then(() => toast(`Copied ${palettes.length} palette${palettes.length !== 1 ? 's' : ''} to clipboard`, 'ok'))
+    .catch(() => {
+      const win = window.open('', '_blank', 'width=600,height=600');
+      win.document.write('<pre style="background:#000;color:#0f0;padding:16px;font-size:11px;white-space:pre-wrap">' + json.replace(/</g,'&lt;') + '</pre>');
+    });
+}
+
+function importJSON() {
+  const raw = prompt('Paste palette JSON (array of palettes):');
+  if (!raw) return;
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) throw new Error('Expected an array');
+    let added = 0, updated = 0;
+    for (const incoming of arr) {
+      const existing = palettes.find(p => p.id === incoming.id);
+      if (existing) { Object.assign(existing, incoming); updated++; }
+      else { palettes.push(incoming); added++; }
+    }
+    savePalettes();
+    renderPaletteList();
+    toast(`Imported: ${added} new, ${updated} updated`, 'ok');
+  } catch(e) {
+    toast('Invalid JSON: ' + e.message, 'err');
+  }
+}
+
+// ============================================================
+// STATUS / TOAST
+// ============================================================
+function setStatus(msg) {
+  document.getElementById('status-msg').textContent = msg;
+}
+
+let _toastTimer = null;
+function toast(msg, type = 'ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.className = '', 2200);
+}
+
+// ============================================================
+// INTER-FRAME COMMUNICATION (for editor.html parent)
+// ============================================================
+window.addEventListener('message', e => {
+  if (!e.data) return;
+  if (e.data.type === 'getPalettes') {
+    e.source.postMessage({ type: 'palettesData', palettes }, '*');
+  }
+});
+
+/** Called by parent editor to get palette data */
+function getExportData() {
+  return palettes;
+}
+
+// ============================================================
+// KEYBOARD SHORTCUTS
+// ============================================================
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'n' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); newPalette(); }
+  if (e.key === 'd' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); duplicatePalette(); }
+  // Arrow keys to cycle through slots
+  if (!activeSlot) return;
+  const idx = ALL_SLOTS.findIndex(s => s.id === activeSlot);
+  if (e.key === 'ArrowDown' && idx < ALL_SLOTS.length - 1) {
+    selectSlot(ALL_SLOTS[idx + 1].id);
+  } else if (e.key === 'ArrowUp' && idx > 0) {
+    selectSlot(ALL_SLOTS[idx - 1].id);
+  }
+});
+</script>
+</body>
+</html>

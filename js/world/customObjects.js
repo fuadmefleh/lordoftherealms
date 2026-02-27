@@ -77,48 +77,55 @@ const CustomObjects = (() => {
 
         /**
          * Load manifest + all referenced object files.
-         * Uses DataLoader._gamedata when available; falls back to direct fetches.
+         * Reads from the flat `objects` array in gamedata, or falls back to
+         * legacy `custom_objects` nested format.
          * Returns a Promise that resolves when all images are ready.
          */
         loadAll() {
-            // ── shared per-file processor ───────────────────────────────────
+            // ── shared object registration ──────────────────────────────────
+            function registerObj(obj) {
+                const fullDef = { ...obj, sheetName: null, sheetPath: null, tileW: 32, tileH: 32 };
+                _defs.set(obj.id, fullDef);
+                for (const terrainId of (obj.terrainBindings || [])) {
+                    if (!_byTerrain.has(terrainId)) _byTerrain.set(terrainId, []);
+                    _byTerrain.get(terrainId).push(fullDef);
+                }
+                if (!obj.terrainBindings || obj.terrainBindings.length === 0) _unbound.push(fullDef);
+                for (const td of (obj.tiles || [])) {
+                    if (td.sheetPath && !_images.has(td.sheetPath)) _images.set(td.sheetPath, null);
+                }
+                for (const hs of (obj.healthStates || [])) {
+                    for (const td of (hs.tiles || [])) {
+                        if (td.sheetPath && !_images.has(td.sheetPath)) _images.set(td.sheetPath, null);
+                    }
+                }
+                for (const sarr of Object.values(obj.seasonVariants || {})) {
+                    for (const td of (sarr || [])) {
+                        if (td.sheetPath && !_images.has(td.sheetPath)) _images.set(td.sheetPath, null);
+                    }
+                }
+                for (const gs of (obj.growthStates || [])) {
+                    for (const td of (gs.tiles || [])) {
+                        if (td.sheetPath && !_images.has(td.sheetPath)) _images.set(td.sheetPath, null);
+                    }
+                }
+                for (const rv of (obj.rotationVariants || [])) {
+                    for (const td of (rv.tiles || [])) {
+                        if (td.sheetPath && !_images.has(td.sheetPath)) _images.set(td.sheetPath, null);
+                    }
+                }
+            }
+
+            // ── shared per-file processor (legacy sheet-organized format) ──
             function processData(data) {
                 if (!data) return;
-                const tileW = data.tileW || 32;
-                const tileH = data.tileH || 32;
                 if (data.composed && Array.isArray(data.objects)) {
-                    for (const obj of data.objects) {
-                        const fullDef = { ...obj, sheetName: null, sheetPath: null, tileW, tileH };
-                        _defs.set(obj.id, fullDef);
-                        for (const terrainId of (obj.terrainBindings || [])) {
-                            if (!_byTerrain.has(terrainId)) _byTerrain.set(terrainId, []);
-                            _byTerrain.get(terrainId).push(fullDef);
-                        }
-                        if (!obj.terrainBindings || obj.terrainBindings.length === 0) _unbound.push(fullDef);
-                        for (const td of (obj.tiles || [])) {
-                            if (td.sheetPath && !_images.has(td.sheetPath)) _images.set(td.sheetPath, null);
-                        }
-                        for (const hs of (obj.healthStates || [])) {
-                            for (const td of (hs.tiles || [])) {
-                                if (td.sheetPath && !_images.has(td.sheetPath)) _images.set(td.sheetPath, null);
-                            }
-                        }
-                        for (const sarr of Object.values(obj.seasonVariants || {})) {
-                            for (const td of (sarr || [])) {
-                                if (td.sheetPath && !_images.has(td.sheetPath)) _images.set(td.sheetPath, null);
-                            }
-                        }
-                        for (const gs of (obj.growthStates || [])) {
-                            for (const td of (gs.tiles || [])) {
-                                if (td.sheetPath && !_images.has(td.sheetPath)) _images.set(td.sheetPath, null);
-                            }
-                        }
-                    }
+                    for (const obj of data.objects) registerObj(obj);
                     return;
                 }
                 for (const [sheetName, sheetDef] of Object.entries(data.sheets || {})) {
                     for (const obj of (sheetDef.objects || [])) {
-                        const fullDef = { ...obj, sheetName, sheetPath: sheetDef.path, tileW, tileH };
+                        const fullDef = { ...obj, sheetName, sheetPath: sheetDef.path, tileW: data.tileW || 32, tileH: data.tileH || 32 };
                         _defs.set(obj.id, fullDef);
                         for (const terrainId of (obj.terrainBindings || [])) {
                             if (!_byTerrain.has(terrainId)) _byTerrain.set(terrainId, []);
@@ -136,7 +143,7 @@ const CustomObjects = (() => {
                     const p = new Promise(resolve => {
                         const img = new Image();
                         img.onload  = () => { _images.set(path, img); resolve(); };
-                        img.onerror = () => { console.warn(`CustomObjects: image not found — ${path}`); resolve(); };
+                        img.onerror = () => { console.warn(`Objects: image not found — ${path}`); resolve(); };
                         img.src = path;
                     });
                     imgPromises.push(p);
@@ -146,29 +153,33 @@ const CustomObjects = (() => {
 
             function finalize() {
                 _loaded = true;
-                console.log(`CustomObjects loaded: ${_defs.size} defs, ` +
+                console.log(`Objects loaded: ${_defs.size} defs, ` +
                     `${_byTerrain.size} terrain bindings, ${_images.size} sheets`);
             }
 
-            // ── Load from gamedata.json (single source of truth) ─────────
-            if (typeof DataLoader !== 'undefined' && DataLoader._gamedata && DataLoader._gamedata.custom_objects) {
-                const co = DataLoader._gamedata.custom_objects;
-                const manifest = co.manifest || {};
-                const files = co.files || {};
-                if (Array.isArray(manifest.files)) {
-                    for (const filename of manifest.files) {
-                        const data = files[filename];
-                        if (!data) { console.warn(`CustomObjects: missing file in gamedata: ${filename}`); continue; }
-                        processData(data);
+            if (typeof DataLoader !== 'undefined' && DataLoader._gamedata) {
+                // ── New flat format: gamedata.objects = [...]  ────────────
+                const arr = DataLoader._gamedata.objects;
+                if (Array.isArray(arr)) {
+                    for (const obj of arr) registerObj(obj);
+                }
+
+                // ── Legacy nested format (custom_objects.manifest/files) ──
+                if (!arr && DataLoader._gamedata.custom_objects) {
+                    const co = DataLoader._gamedata.custom_objects;
+                    const manifest = co.manifest || {};
+                    const files = co.files || {};
+                    for (const filename of (manifest.files || Object.keys(files))) {
+                        processData(files[filename]);
                     }
                 }
+
                 return loadImages().catch(err => {
-                    console.warn('CustomObjects: image load error —', err);
+                    console.warn('Objects: image load error —', err);
                 }).finally(finalize);
             }
 
-            // No DataLoader / no custom_objects in gamedata — nothing to load
-            console.info('CustomObjects: no custom_objects found in gamedata.json');
+            console.info('Objects: no gamedata available');
             finalize();
             return Promise.resolve();
         },

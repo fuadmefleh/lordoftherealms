@@ -1,0 +1,1610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Interior Editor</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--panel:#161b22;--panel2:#1c2129;
+  --border:#21262d;--border2:#30363d;
+  --text:#c9d1d9;--text-dim:#8b949e;
+  --blue:#58a6ff;--green:#3fb950;--red:#f85149;--gold:#e6a817;--purple:#a371f7;
+  --hover:#1c2129;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px}
+body{display:flex;flex-direction:column}
+
+/* ─── Toolbar ─── */
+#toolbar{display:flex;align-items:center;gap:6px;padding:4px 10px;background:var(--panel);border-bottom:2px solid var(--border);height:40px;flex-shrink:0;overflow-x:auto}
+#toolbar h1{font-size:13px;font-weight:700;color:var(--gold);margin-right:8px;white-space:nowrap}
+#tool-btns{display:flex;gap:3px}
+.tb-sep{width:1px;height:22px;background:var(--border2);margin:0 2px;flex-shrink:0}
+button{background:#21262d;border:1px solid var(--border2);color:var(--text);padding:3px 9px;border-radius:5px;cursor:pointer;font-size:12px;transition:background .12s,border-color .12s}
+button:hover{background:#2d333b;border-color:#484f58}
+button.active{background:#0b2a4a;border-color:var(--blue);color:var(--blue)}
+button.green{background:#0e2a17;border-color:var(--green);color:var(--green)}
+button.gold{background:#2a1f00;border-color:var(--gold);color:var(--gold)}
+button.danger{background:#2a0d0d;border-color:var(--red);color:var(--red)}
+button.purple{background:#1e0f3a;border-color:var(--purple);color:var(--purple)}
+input[type="text"],input[type="number"],select,textarea{background:#0d1117;border:1px solid var(--border2);color:var(--text);padding:3px 7px;border-radius:4px;font-size:12px}
+input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;border-color:var(--blue)}
+
+/* ─── Main 3-col layout ─── */
+#main{display:flex;flex:1;overflow:hidden;min-height:0}
+
+/* LEFT: Palette */
+#palette-panel{width:300px;min-width:180px;max-width:600px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;position:relative;flex-shrink:0}
+#pal-resizer{position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;z-index:10}
+#pal-header{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
+#pal-header h2{font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em}
+#palette-cats{display:flex;flex-wrap:wrap;gap:3px;padding:6px 8px;border-bottom:1px solid var(--border);flex-shrink:0}
+.cat-btn{font-size:10px;padding:3px 7px;border-radius:4px;white-space:nowrap}
+.cat-btn.active{background:#0b2a4a;border-color:var(--blue);color:var(--blue)}
+#palette-sheets{flex:1;overflow-y:auto;overflow-x:auto;min-height:0;padding:6px}
+.sheet-block{margin-bottom:10px}
+.sheet-name{font-size:10px;color:var(--text-dim);padding:2px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sheet-canvas-wrap{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:3px;cursor:crosshair}
+.palette-canvas{display:block;image-rendering:pixelated}
+.stamp-highlight{position:absolute;border:2px solid var(--gold);background:rgba(230,168,23,.15);pointer-events:none;border-radius:2px}
+
+/* CENTER: Canvas */
+#canvas-area{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#canvas-toolbar{display:flex;align-items:center;gap:4px;padding:4px 8px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.layer-btn{font-size:11px;padding:3px 8px;border-radius:4px}
+.layer-btn.active{background:#0b2a4a;border-color:var(--blue);color:var(--blue)}
+#canvas-wrap{flex:1;position:relative;overflow:hidden;background:#0a0e17}
+#build-canvas{position:absolute;image-rendering:pixelated}
+
+/* RIGHT: Properties */
+#props-panel{width:280px;flex-shrink:0;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;padding:10px}
+.rp-section{margin-bottom:14px}
+.rp-section h3{font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.rp-field{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
+.rp-field label{font-size:11px;color:var(--text-dim)}
+.rp-field input,.rp-field select{width:100%}
+.rp-row{display:flex;gap:8px}
+.rp-row .rp-field{flex:1}
+.item-list{border-top:1px solid var(--border);padding-top:8px}
+.item-card{display:flex;align-items:center;gap:6px;padding:5px 7px;border:1px solid var(--border);border-radius:5px;cursor:pointer;margin-bottom:4px;transition:background .1s,border-color .1s}
+.item-card:hover{background:var(--hover)}
+.item-card.selected{background:#0b2a4a;border-color:var(--blue)}
+.item-card .ic-name{flex:1;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-card .ic-type{font-size:10px;color:var(--text-dim)}
+.item-card .ic-del{font-size:11px;color:var(--red);cursor:pointer;padding:2px 4px;border-radius:3px;opacity:.6}
+.item-card .ic-del:hover{opacity:1;background:rgba(248,81,73,.15)}
+#stamp-preview{height:60px;border:1px solid var(--border);border-radius:5px;background:var(--bg);margin-bottom:10px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#stamp-preview canvas{image-rendering:pixelated;max-width:100%;max-height:100%}
+#stamp-preview .empty{color:var(--text-dim);font-size:11px}
+
+/* Furniture marker icons on canvas */
+.furn-ghost{position:absolute;pointer-events:none;font-size:20px;opacity:.7;text-shadow:0 0 3px rgba(0,0,0,.7)}
+</style>
+</head>
+<body>
+
+<!-- ═══ TOOLBAR ═══ -->
+<div id="toolbar">
+  <h1>🏠 Interior Editor</h1>
+  <div class="tb-sep"></div>
+  <label style="font-size:11px;color:var(--text-dim)">W:</label>
+  <input type="number" id="grid-w" value="10" min="4" max="30" style="width:45px">
+  <label style="font-size:11px;color:var(--text-dim)">H:</label>
+  <input type="number" id="grid-h" value="8" min="4" max="30" style="width:45px">
+  <button onclick="resizeGrid()">Resize</button>
+  <div class="tb-sep"></div>
+  <div id="tool-btns">
+    <button id="tool-paint"   class="active" onclick="setTool('paint')">🖌 Paint</button>
+    <button id="tool-erase"   onclick="setTool('erase')">🗑 Erase</button>
+    <button id="tool-fill"    onclick="setTool('fill')">🪣 Fill</button>
+    <button id="tool-eyedrop" onclick="setTool('eyedrop')">💉 Pick</button>
+    <button id="tool-impass"  onclick="setTool('impass')">⛔ Block</button>
+    <button id="tool-door"    onclick="setTool('door')">🚪 Door</button>
+    <button id="tool-furn"    onclick="setTool('furniture')">🪑 Furniture</button>
+  </div>
+  <div class="tb-sep"></div>
+  <button onclick="newInterior()">＋ New</button>
+  <button onclick="saveInterior()" class="green">💾 Save</button>
+  <button onclick="exportAll()" class="gold">⬇ Export JSON</button>
+</div>
+
+<!-- ═══ MAIN ═══ -->
+<div id="main">
+
+  <!-- LEFT: Palette -->
+  <div id="palette-panel">
+    <div id="pal-resizer"></div>
+    <div id="pal-header"><h2>Palette</h2><div style="display:flex;gap:3px;align-items:center"><button onclick="changePalZoom(-0.5)" style="font-size:10px;padding:2px 6px">－</button><span id="pal-zoom-label" style="font-size:10px;color:var(--text-dim);min-width:24px;text-align:center">2×</span><button onclick="changePalZoom(0.5)" style="font-size:10px;padding:2px 6px">＋</button><button onclick="loadCustomSheet()" style="font-size:10px">📂</button></div></div>
+    <div id="palette-cats"></div>
+    <div id="palette-sheets"></div>
+  </div>
+
+  <!-- CENTER: Canvas -->
+  <div id="canvas-area">
+    <div id="canvas-toolbar">
+      <button class="layer-btn active" data-layer="floor" onclick="setLayer('floor')">Floor</button>
+      <button class="layer-btn" data-layer="furniture" onclick="setLayer('furniture')">Furniture</button>
+      <button class="layer-btn" data-layer="walls" onclick="setLayer('walls')">Walls</button>
+      <button class="layer-btn" data-layer="overlay" onclick="setLayer('overlay')">Overlay</button>
+      <div class="tb-sep"></div>
+      <button onclick="zoomIn()">＋</button>
+      <button onclick="zoomOut()">－</button>
+      <button onclick="fitCanvas()">Fit</button>
+      <div class="tb-sep"></div>
+      <button onclick="clearLayer()" class="danger">Clear Layer</button>
+      <button onclick="clearAll()" class="danger">Clear All</button>
+    </div>
+    <div id="canvas-wrap">
+      <canvas id="build-canvas"></canvas>
+    </div>
+  </div>
+
+  <!-- RIGHT: Properties -->
+  <div id="props-panel">
+    <div id="stamp-preview"><span class="empty">Select a tile from the palette</span></div>
+
+    <div class="rp-section" id="interior-props">
+      <h3>Interior Properties</h3>
+      <div class="rp-field">
+        <label>Name</label>
+        <input type="text" id="int-name" placeholder="e.g. Cozy Tavern">
+      </div>
+      <div class="rp-field">
+        <label>Linked Buildings <span style="color:var(--text-dim)">(click to toggle)</span></label>
+        <div id="int-linked-buildings" style="max-height:120px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;padding:4px;background:var(--input-bg);font-size:12px">
+          <span style="color:var(--text-dim);font-style:italic">No buildings available</span>
+        </div>
+      </div>
+      <div class="rp-field">
+        <label>Building Type</label>
+        <select id="int-type">
+          <option value="house">House</option>
+          <option value="tavern">Tavern</option>
+          <option value="blacksmith">Blacksmith</option>
+          <option value="church">Church</option>
+          <option value="temple">Temple</option>
+          <option value="marketplace">Marketplace</option>
+          <option value="town_hall">Town Hall</option>
+          <option value="barracks">Barracks</option>
+          <option value="manor">Manor</option>
+          <option value="granary">Granary</option>
+          <option value="warehouse">Warehouse</option>
+          <option value="stable">Stable</option>
+          <option value="barn">Barn</option>
+          <option value="guard_tower">Guard Tower</option>
+          <option value="farm">Farm</option>
+          <option value="castle">Castle</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="rp-field">
+        <label>Tags <span style="color:var(--text-dim)">(comma separated)</span></label>
+        <input type="text" id="int-tags" placeholder="cozy, wooden, small">
+      </div>
+      <div class="rp-field">
+        <label>Variant Group <span style="color:var(--text-dim)">(same group = interchangeable)</span></label>
+        <input type="text" id="int-group" placeholder="e.g. tavern_interiors">
+      </div>
+    </div>
+
+    <div class="rp-section" id="furniture-props" style="display:none">
+      <h3>Furniture Properties</h3>
+      <div class="rp-field">
+        <label>Furniture Type</label>
+        <select id="furn-type">
+          <option value="table">🪑 Table</option>
+          <option value="chair">🪑 Chair</option>
+          <option value="bed">🛏️ Bed</option>
+          <option value="chest">📦 Chest</option>
+          <option value="barrel">🛢️ Barrel</option>
+          <option value="bookshelf">📚 Bookshelf</option>
+          <option value="fireplace">🔥 Fireplace</option>
+          <option value="candle">🕯️ Candle</option>
+          <option value="bar">🍺 Bar Counter</option>
+          <option value="forge">🔥 Forge</option>
+          <option value="anvil">⚒️ Anvil</option>
+          <option value="altar">⛪ Altar</option>
+          <option value="pew">🪑 Pew</option>
+          <option value="throne">👑 Throne</option>
+          <option value="statue">🗿 Statue</option>
+          <option value="stall">🏪 Market Stall</option>
+          <option value="rack">⚔️ Weapon Rack</option>
+          <option value="crate">📦 Crate</option>
+          <option value="banner">🏴 Banner</option>
+          <option value="well">💧 Well</option>
+          <option value="stairs">🪜 Stairs</option>
+          <option value="scales">⚖️ Scales</option>
+        </select>
+      </div>
+      <div class="rp-field">
+        <label>Custom Name <span style="color:var(--text-dim)">(optional)</span></label>
+        <input type="text" id="furn-name" placeholder="e.g. Grand Fireplace">
+      </div>
+      <div class="rp-field">
+        <label>
+          <input type="checkbox" id="furn-passable"> Passable (can walk through)
+        </label>
+      </div>
+    </div>
+
+    <div class="rp-section item-list">
+      <h3>Saved Interiors (<span id="int-count">0</span>)</h3>
+      <div id="interior-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  INTERIOR EDITOR — Full standalone editor for painting
+//  building interiors with LPC spritesheets.
+//  Follows the same patterns as sprite_editor.html.
+// ═══════════════════════════════════════════════════════
+
+const TILE = 32;
+let PAL_ZOOM = 2;
+
+// ─── State ───
+let gridW = 10, gridH = 8;
+let canvasZoom = 2, panX = 20, panY = 20;
+let layers = { floor: {}, furniture: {}, walls: {}, overlay: {} };
+let meta = {};       // "q,r" → { impassable?, door?, furniture?: { type, name, passable } }
+let placedObjects = {};  // "q,r" → { defId, name, tiles:[{localCol,localRow,sheetPath,sx,sy,sw,sh}], bounds }
+let activeLayer = 'floor';
+let activeTool = 'paint';
+let activeStamp = null;
+
+let interiors = [];  // Saved interior definitions
+let editIdx = -1;    // Index of interior being edited (-1 = new)
+let _buildings = [];  // Buildings list from parent (for linked building checklist)
+let _linkedBuildingIds = [];  // Currently linked building ids (array)
+let _customObjects = [];  // Custom objects from sprite editor
+
+// Palette state
+let currentCategory = null;
+const imageCache = {};
+const palHighlightDivs = new Map();
+let palDragging = false, palDragMeta = null, palDragStart = null, palDragLive = null;
+
+// Undo
+let undoStack = [], redoStack = [];
+const MAX_UNDO = 40;
+
+// Canvas refs
+let cvs, ctx;
+
+// ─── LPC Palette categories ───
+const PALETTE_DATA = {
+  'Floors': [
+    'assets/lpc/Structure/Floor/floors.png',
+    'assets/lpc/Structure/Floor/Diamond Tile A.png',
+    'assets/lpc/Structure/Floor/Diamond Tile B.png',
+    'assets/lpc/Structure/Floor/Diamond Tile C.png',
+    'assets/lpc/Structure/Floor/Floral Carpet A.png',
+    'assets/lpc/Structure/Floor/Floral Carpet B.png',
+    'assets/lpc/Structure/Floor/Geometric Carpet A.png',
+    'assets/lpc/Structure/Floor/Geometric Carpet B.png',
+    'assets/lpc/Structure/Floor/Geometric Carpet C.png',
+    'assets/lpc/Structure/Floor/Gritty Dirt.png',
+    'assets/lpc/Structure/Floor/Herringbone A.png',
+    'assets/lpc/Structure/Floor/Subfloor.png',
+    'assets/lpc/Structure/Floor/Tile A.png',
+    'assets/lpc/Structure/Floor/Tile B.png',
+    'assets/lpc/Structure/Floor/Tile C.png',
+    'assets/lpc/Structure/Floor/Wood Floor A.png',
+    'assets/lpc/Structure/Floor/Wood Floor B.png',
+  ],
+  'Walls': [
+    'assets/lpc/Structure/Walls/walls.png',
+    'assets/lpc/Structure/Walls/Adobe Brick Wall.png',
+    'assets/lpc/Structure/Walls/Adobe Stucco Wall.png',
+    'assets/lpc/Structure/Walls/Brick Wall A.png',
+    'assets/lpc/Structure/Walls/Brick Wall B.png',
+    'assets/lpc/Structure/Walls/Brick Wall Block Edging.png',
+    'assets/lpc/Structure/Walls/Diamond Wallpaper.png',
+    'assets/lpc/Structure/Walls/Drywall.png',
+    'assets/lpc/Structure/Walls/Floral Wallpaper A.png',
+    'assets/lpc/Structure/Walls/Floral Wallpaper B.png',
+    'assets/lpc/Structure/Walls/Grainy Plain Wall.png',
+    'assets/lpc/Structure/Walls/Half-Wall Paneling A.png',
+    'assets/lpc/Structure/Walls/Jagged Stone Walls.png',
+    'assets/lpc/Structure/Walls/Painted Walls.png',
+    'assets/lpc/Structure/Walls/Panels A.png',
+    'assets/lpc/Structure/Walls/Striped Wallpaper A.png',
+    'assets/lpc/Structure/Walls/Striped Wallpaper B.png',
+    'assets/lpc/Structure/Walls/Striped Wallpaper C.png',
+  ],
+  'Wall Borders': [
+    'assets/lpc/Structure/Wall Borders/Decorative Border A.png',
+    'assets/lpc/Structure/Wall Borders/Formal Crown Molding.png',
+    'assets/lpc/Structure/Wall Borders/Pillar Crown Molding.png',
+    'assets/lpc/Structure/Wall Borders/Plain Edged Border - A.png',
+    'assets/lpc/Structure/Wall Borders/Plain Edged Border.png',
+    'assets/lpc/Structure/Wall Borders/Plain Smooth Border.png',
+    'assets/lpc/Structure/Wall Borders/Textured Wood Border.png',
+    'assets/lpc/Structure/Walls/Molding.png',
+    'assets/lpc/Structure/Walls/CutawayOverlay.png',
+  ],
+  'Doors': [
+    'assets/lpc/Structure/Doors/32x48px Doors/12 Panel Door A.png',
+    'assets/lpc/Structure/Doors/32x48px Doors/12 Panel Door B.png',
+    'assets/lpc/Structure/Doors/32x48px Doors/Barred Prison Door A.png',
+    'assets/lpc/Structure/Doors/32x48px Doors/Doorframe A.png',
+    'assets/lpc/Structure/Doors/32x48px Doors/Doorframe B.png',
+    'assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png',
+    'assets/lpc/Structure/Doors/32x64px Doors/Doorframe A.png',
+    'assets/lpc/Structure/Doors/64x64px Arched Doors/Arched Doorway A.png',
+    'assets/lpc/Structure/Doors/64x64px Arched Doors/Arched Double Doors A.png',
+  ],
+  'Furniture': [
+    'assets/lpc/Objects/Furniture/Barrel.png',
+    'assets/lpc/Objects/Furniture/Bin.png',
+    'assets/lpc/Objects/Furniture/Cabinet.png',
+    'assets/lpc/Objects/Furniture/Cauldron.png',
+    'assets/lpc/Objects/Furniture/Chest.png',
+    'assets/lpc/Objects/Furniture/Countertop.png',
+    'assets/lpc/Objects/Furniture/Crate.png',
+    'assets/lpc/Objects/Furniture/Dresser.png',
+    'assets/lpc/Objects/Furniture/End Table.png',
+    'assets/lpc/Objects/Furniture/Fireplace.png',
+    'assets/lpc/Objects/Furniture/Fireplace, Cast Iron.png',
+    'assets/lpc/Objects/Furniture/Ladder.png',
+    'assets/lpc/Objects/Furniture/Mirror, Standing.png',
+    'assets/lpc/Objects/Furniture/Planter.png',
+    'assets/lpc/Objects/Furniture/Shelf.png',
+    'assets/lpc/Objects/Furniture/Standing Screen.png',
+    'assets/lpc/Objects/Furniture/Stone Slab.png',
+    'assets/lpc/Objects/Furniture/Trough.png',
+    'assets/lpc/Objects/Furniture/Wolf Stone.png',
+  ],
+  'Tables & Desks': [
+    'assets/lpc/Objects/Furniture/Table, Card.png',
+    'assets/lpc/Objects/Furniture/Table, Ornate Wood.png',
+    'assets/lpc/Objects/Furniture/Table, Rough Wood.png',
+    'assets/lpc/Objects/Furniture/Table, Workshop.png',
+    'assets/lpc/Objects/Furniture/Desk, Vanity.png',
+    'assets/lpc/Objects/Furniture/Workbench, Carpentry.png',
+  ],
+  'Seating & Beds': [
+    'assets/lpc/Objects/Furniture/Seating/Bar Stools.png',
+    'assets/lpc/Objects/Furniture/Seating/Chair, Dining A.png',
+    'assets/lpc/Objects/Furniture/Seating/Chair, Dining B.png',
+    'assets/lpc/Objects/Furniture/Seating/Chair, Dining C.png',
+    'assets/lpc/Objects/Furniture/Seating/Chair, Dining D.png',
+    'assets/lpc/Objects/Furniture/Seating/Chair, Sofa A.png',
+    'assets/lpc/Objects/Furniture/Seating/Thrones.png',
+    'assets/lpc/Objects/Furniture/Beds/Beds, Single  A.png',
+    'assets/lpc/Objects/Furniture/Beds/Beds, Single B.png',
+    'assets/lpc/Objects/Furniture/Beds/Beds, Double.png',
+    'assets/lpc/Objects/Furniture/Beds/Beds, Double B.png',
+  ],
+  'Rugs': [
+    'assets/lpc/Objects/Furniture/Rugs/Diamond Rug, tiling.png',
+    'assets/lpc/Objects/Furniture/Rugs/Rainbow Checkered Rug.png',
+    'assets/lpc/Objects/Furniture/Rugs/Rainbow Rug.png',
+    'assets/lpc/Objects/Furniture/Rugs/Swirling Vine Rug.png',
+  ],
+  'Smithing': [
+    'assets/lpc/Objects/Furniture/Smithing/Anvils.png',
+    'assets/lpc/Objects/Furniture/Smithing/Bellows.png',
+    'assets/lpc/Objects/Furniture/Smithing/Coal Piles.png',
+    'assets/lpc/Objects/Furniture/Smithing/Forge A.png',
+    'assets/lpc/Objects/Furniture/Smithing/Furnace A.png',
+    'assets/lpc/Objects/Furniture/Smithing/Grindstone.png',
+    'assets/lpc/Objects/Furniture/Smithing/Smelter.png',
+    'assets/lpc/Objects/Furniture/Smithing/Workbench, Smith.png',
+  ],
+  'Small Items': [
+    'assets/lpc/Objects/Small Items/Baskets A.png',
+    'assets/lpc/Objects/Small Items/Boxes.png',
+    'assets/lpc/Objects/Small Items/Buckets.png',
+    'assets/lpc/Objects/Small Items/Dishes A.png',
+    'assets/lpc/Objects/Small Items/Dungeon Elements.png',
+    'assets/lpc/Objects/Small Items/Fire, Camp.png',
+    'assets/lpc/Objects/Small Items/Fire, Fireplace.png',
+    'assets/lpc/Objects/Small Items/Fireplace, Accessories A.png',
+    'assets/lpc/Objects/Small Items/Flowers.png',
+    'assets/lpc/Objects/Small Items/Games.png',
+    'assets/lpc/Objects/Small Items/Hay & Straw.png',
+    'assets/lpc/Objects/Small Items/Kitchen Clutter A.png',
+    'assets/lpc/Objects/Small Items/Lighting, Table.png',
+    'assets/lpc/Objects/Small Items/Lumber.png',
+    'assets/lpc/Objects/Small Items/Pillows.png',
+    'assets/lpc/Objects/Small Items/Skeletons A.png',
+    'assets/lpc/Objects/Small Items/Tools, Carpentry.png',
+    'assets/lpc/Objects/Small Items/Tools, Smithing.png',
+  ],
+  'Lighting': [
+    'assets/lpc/Objects/Furniture/Lighting, Floor.png',
+    'assets/lpc/Objects/Furniture/Lighting, Outdoors.png',
+    'assets/lpc/Objects/Wall Items/Lighting, Wall.png',
+  ],
+  'Wall Decor': [
+    'assets/lpc/Objects/Wall Items/Curtains.png',
+    'assets/lpc/Objects/Wall Items/Mirrors.png',
+    'assets/lpc/Objects/Wall Items/Paintings, Abstract.png',
+    'assets/lpc/Objects/Wall Items/Paintings, Landscape.png',
+    'assets/lpc/Objects/Wall Items/Paintings, Portraits.png',
+    'assets/lpc/Objects/Wall Items/Paintings, Still Life.png',
+    'assets/lpc/Objects/Wall Items/Posters.png',
+    'assets/lpc/Objects/Small Items/Tabletop Portraits.png',
+  ],
+  'Windows': [
+    'assets/lpc/Structure/Windows/Ornamental Windows A.png',
+    'assets/lpc/Structure/Windows/Ornamental Windows B.png',
+    'assets/lpc/Structure/Windows/Stone Windows A.png',
+    'assets/lpc/Structure/Windows/Window Awnings A.png',
+  ],
+  'Structures': [
+    'assets/lpc/Structure/Structures/Brick House A.png',
+    'assets/lpc/Structure/Structures/Brick House B.png',
+    'assets/lpc/Structure/Structures/Paneled House A.png',
+  ],
+  'Roofing': [
+    'assets/lpc/Structure/Roofing/Adobe Brick Roof.png',
+    'assets/lpc/Structure/Roofing/Adobe Stucco Roof.png',
+    'assets/lpc/Structure/Roofing/Flat Shingle Roof A.png',
+    'assets/lpc/Structure/Roofing/Gable Shingle Roof A.png',
+    'assets/lpc/Structure/Roofing/Hipped Shingle Roof A.png',
+    'assets/lpc/Structure/Roofing/Brick Chimney A.png',
+    'assets/lpc/Structure/Roofing/Roof Trim.png',
+  ],
+  'Pillars & Stairs': [
+    'assets/lpc/Structure/Pillars/Floral Pillar A.png',
+    'assets/lpc/Structure/Pillars/Stone Pillar A.png',
+    'assets/lpc/Structure/Stairs/Formal Interior Stairs A.png',
+    'assets/lpc/Structure/Stairs/Wood Interior Stairs A.png',
+    'assets/lpc/Structure/Stairs/Wood Interior Stairs B.png',
+    'assets/lpc/Structure/Stairs/Short Steps A.png',
+    'assets/lpc/Structure/Stairs/Cement Stairs A.png',
+  ],
+  'Misc': [
+    'assets/lpc/Structure/Misc/Fountain A.png',
+    'assets/lpc/Structure/Misc/Pool A.png',
+    'assets/lpc/Structure/Misc/Prison A.png',
+    'assets/lpc/Structure/Misc/Drain A.png',
+    'assets/lpc/Structure/Misc/Trellis A.png',
+    'assets/lpc/Objects/Furniture/Sewing & Weaving/Loom.png',
+    'assets/lpc/Objects/Furniture/Sewing & Weaving/Spinning Wheel.png',
+  ],
+  'Terrain': [
+    'assets/lpc/Terrain/terrain_summer.png',
+    'assets/lpc/Terrain/terrain_spring.png',
+    'assets/lpc/Terrain/terrain_autumn.png',
+    'assets/lpc/Terrain/terrain_winter.png',
+    'assets/lpc/Terrain/tilled_soil.png',
+  ],
+  'Plants': [
+    'assets/lpc/Terrain/plants_summer.png',
+    'assets/lpc/Terrain/plants_spring.png',
+    'assets/lpc/Terrain/flowers.png',
+    'assets/lpc/Terrain/mushrooms.png',
+  ],
+};
+
+// ═══════════════════════════════════════════════════════
+//  IMAGE LOADING
+// ═══════════════════════════════════════════════════════
+
+function loadImage(path) {
+  if (imageCache[path] instanceof HTMLImageElement) return Promise.resolve(imageCache[path]);
+  if (imageCache[path] === 'loading') {
+    return new Promise(res => {
+      const check = setInterval(() => {
+        if (imageCache[path] instanceof HTMLImageElement) { clearInterval(check); res(imageCache[path]); }
+        else if (imageCache[path] === null) { clearInterval(check); res(null); }
+      }, 50);
+    });
+  }
+  imageCache[path] = 'loading';
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => { imageCache[path] = img; res(img); };
+    img.onerror = () => { imageCache[path] = null; res(null); };
+    img.src = path;
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  PALETTE
+// ═══════════════════════════════════════════════════════
+
+function changePalZoom(delta) {
+  PAL_ZOOM = Math.max(0.5, Math.min(6, PAL_ZOOM + delta));
+  const lbl = document.getElementById('pal-zoom-label');
+  if (lbl) lbl.textContent = PAL_ZOOM + '×';
+  // Re-render current category
+  if (currentCategory) showCategory(currentCategory, document.querySelector('.cat-btn.active'));
+}
+
+function buildPaletteCats() {
+  const container = document.getElementById('palette-cats');
+  container.innerHTML = '';
+  const allCats = Object.keys(PALETTE_DATA);
+  if (_customObjects.length) allCats.push('📦 Custom Objects');
+  for (const cat of allCats) {
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn';
+    btn.textContent = cat;
+    btn.onclick = () => showCategory(cat, btn);
+    container.appendChild(btn);
+  }
+}
+
+function showCategory(cat, btn) {
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  currentCategory = cat;
+
+  // Custom Objects category — special rendering
+  if (cat === '📦 Custom Objects') {
+    _showCustomObjectsPalette();
+    return;
+  }
+
+  const container = document.getElementById('palette-sheets');
+  container.innerHTML = '';
+  const paths = PALETTE_DATA[cat] || [];
+  for (const path of paths) {
+    const block = document.createElement('div'); block.className = 'sheet-block';
+    const label = document.createElement('div'); label.className = 'sheet-name';
+    label.textContent = path.split('/').pop().replace(/\.[^.]+$/, '');
+    const wrap = document.createElement('div'); wrap.className = 'sheet-canvas-wrap';
+    const pcvs = document.createElement('canvas'); pcvs.className = 'palette-canvas';
+    const highlight = document.createElement('div'); highlight.className = 'stamp-highlight';
+    highlight.style.display = 'none';
+    wrap.appendChild(pcvs); wrap.appendChild(highlight);
+    block.appendChild(label); block.appendChild(wrap);
+    container.appendChild(block);
+
+    loadImage(path).then(img => {
+      if (!img) { label.textContent += ' ⚠ not found'; return; }
+      const cols = Math.floor(img.width / TILE);
+      const rows = Math.floor(img.height / TILE);
+      const dw = img.width * PAL_ZOOM, dh = img.height * PAL_ZOOM;
+      pcvs.width = dw; pcvs.height = dh;
+      const pctx = pcvs.getContext('2d');
+      pctx.imageSmoothingEnabled = false;
+      pctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, dw, dh);
+      // Grid
+      pctx.strokeStyle = 'rgba(255,255,255,0.18)'; pctx.lineWidth = 0.5;
+      for (let c = 0; c <= cols; c++) { pctx.beginPath(); pctx.moveTo(c * TILE * PAL_ZOOM, 0); pctx.lineTo(c * TILE * PAL_ZOOM, dh); pctx.stroke(); }
+      for (let r = 0; r <= rows; r++) { pctx.beginPath(); pctx.moveTo(0, r * TILE * PAL_ZOOM); pctx.lineTo(dw, r * TILE * PAL_ZOOM); pctx.stroke(); }
+
+      palHighlightDivs.set(path, highlight);
+
+      pcvs.addEventListener('mousedown', e => {
+        const rect = pcvs.getBoundingClientRect();
+        const col = Math.floor((e.clientX - rect.left) / PAL_ZOOM / TILE);
+        const row = Math.floor((e.clientY - rect.top) / PAL_ZOOM / TILE);
+        palDragging = true;
+        palDragMeta = { path, cols, rows };
+        palDragStart = { col, row }; palDragLive = { col, row };
+        updatePalHighlight();
+      });
+      pcvs.addEventListener('mousemove', e => {
+        if (!palDragging || !palDragMeta || palDragMeta.path !== path) return;
+        const rect = pcvs.getBoundingClientRect();
+        palDragLive = {
+          col: Math.max(0, Math.min(cols - 1, Math.floor((e.clientX - rect.left) / PAL_ZOOM / TILE))),
+          row: Math.max(0, Math.min(rows - 1, Math.floor((e.clientY - rect.top) / PAL_ZOOM / TILE))),
+        };
+        updatePalHighlight();
+      });
+    });
+  }
+}
+
+function updatePalHighlight() {
+  if (!palDragging || !palDragMeta) return;
+  const hl = palHighlightDivs.get(palDragMeta.path);
+  if (!hl) return;
+  const c1 = Math.min(palDragStart.col, palDragLive.col);
+  const r1 = Math.min(palDragStart.row, palDragLive.row);
+  const c2 = Math.max(palDragStart.col, palDragLive.col);
+  const r2 = Math.max(palDragStart.row, palDragLive.row);
+  hl.style.display = 'block';
+  hl.style.left = (c1 * TILE * PAL_ZOOM) + 'px';
+  hl.style.top = (r1 * TILE * PAL_ZOOM) + 'px';
+  hl.style.width = ((c2 - c1 + 1) * TILE * PAL_ZOOM) + 'px';
+  hl.style.height = ((r2 - r1 + 1) * TILE * PAL_ZOOM) + 'px';
+}
+
+window.addEventListener('mouseup', () => {
+  if (palDragging && palDragMeta) {
+    const c1 = Math.min(palDragStart.col, palDragLive.col);
+    const r1 = Math.min(palDragStart.row, palDragLive.row);
+    const c2 = Math.max(palDragStart.col, palDragLive.col);
+    const r2 = Math.max(palDragStart.row, palDragLive.row);
+    setStamp(palDragMeta.path, c1, r1, c2, r2);
+  }
+  palDragging = false;
+});
+
+function setStamp(path, c1, r1, c2, r2) {
+  const tiles = [];
+  for (let r = r1; r <= r2; r++) {
+    for (let c = c1; c <= c2; c++) {
+      tiles.push({ localCol: c - c1, localRow: r - r1, sx: c * TILE, sy: r * TILE });
+    }
+  }
+  activeStamp = { sheetPath: path, stampCols: c2 - c1 + 1, stampRows: r2 - r1 + 1, tiles };
+  updateStampPreview();
+  if (activeTool !== 'paint') setTool('paint');
+}
+
+function updateStampPreview() {
+  const el = document.getElementById('stamp-preview');
+  if (!activeStamp) { el.innerHTML = '<span class="empty">Select a tile from the palette</span>'; return; }
+  const pc = document.createElement('canvas');
+  pc.width = activeStamp.stampCols * TILE;
+  pc.height = activeStamp.stampRows * TILE;
+  const pctx = pc.getContext('2d');
+  pctx.imageSmoothingEnabled = false;
+  // Offset for origin-based stamps (custom objects have negative localCol/Row)
+  const offC = activeStamp._originOffCol || 0;
+  const offR = activeStamp._originOffRow || 0;
+  if (activeStamp._isMultiSheet && activeStamp._srcTiles) {
+    // Multi-sheet custom object preview
+    const paths = [...new Set(activeStamp._srcTiles.map(t => t.sheetPath).filter(Boolean))];
+    Promise.all(paths.map(loadImage)).then(() => {
+      for (let i = 0; i < activeStamp.tiles.length; i++) {
+        const t = activeStamp.tiles[i];
+        const src = activeStamp._srcTiles[i];
+        const img = imageCache[src.sheetPath];
+        if (!(img instanceof HTMLImageElement)) continue;
+        pctx.drawImage(img, src.sx, src.sy, src.sw || TILE, src.sh || TILE,
+          (t.localCol + offC) * TILE, (t.localRow + offR) * TILE, TILE, TILE);
+      }
+      el.innerHTML = '';
+      el.appendChild(pc);
+    });
+  } else {
+    loadImage(activeStamp.sheetPath).then(img => {
+      if (!img) return;
+      for (const t of activeStamp.tiles) {
+        pctx.drawImage(img, t.sx, t.sy, TILE, TILE, (t.localCol + offC) * TILE, (t.localRow + offR) * TILE, TILE, TILE);
+      }
+      el.innerHTML = '';
+      el.appendChild(pc);
+    });
+  }
+}
+
+function loadCustomSheet() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*';
+  input.onchange = e => {
+    const file = e.target.files[0]; if (!file) return;
+    const url = URL.createObjectURL(file);
+    const name = file.name.replace(/\.[^.]+$/, '');
+    const catName = 'Custom: ' + name;
+    PALETTE_DATA[catName] = [url];
+    buildPaletteCats();
+    showCategory(catName, document.querySelector('.cat-btn:last-child'));
+  };
+  input.click();
+}
+
+// ─── Custom Objects Palette ───
+
+function _showCustomObjectsPalette() {
+  const container = document.getElementById('palette-sheets');
+  container.innerHTML = '';
+  if (!_customObjects.length) {
+    container.innerHTML = '<div style="color:var(--text-dim);padding:8px;font-size:12px">No custom objects available. Create objects in the Sprite Editor.</div>';
+    return;
+  }
+  for (const obj of _customObjects) {
+    const card = document.createElement('div');
+    card.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px;margin-bottom:4px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--input-bg);transition:border-color .15s';
+    card.onmouseenter = () => card.style.borderColor = 'var(--gold)';
+    card.onmouseleave = () => card.style.borderColor = 'var(--border)';
+
+    // Render a thumbnail
+    const thumb = document.createElement('canvas');
+    const tiles = obj.tiles || [];
+    const bounds = obj.bounds || { minCol: 0, minRow: 0, maxCol: 0, maxRow: 0 };
+    const tw = bounds.maxCol - bounds.minCol + 1;
+    const th = bounds.maxRow - bounds.minRow + 1;
+    const thumbScale = Math.min(48 / (tw * TILE), 48 / (th * TILE), 2);
+    thumb.width = Math.ceil(tw * TILE * thumbScale);
+    thumb.height = Math.ceil(th * TILE * thumbScale);
+    thumb.style.cssText = 'image-rendering:pixelated;background:#111;border-radius:3px;flex-shrink:0';
+    const tctx = thumb.getContext('2d');
+    tctx.imageSmoothingEnabled = false;
+    // Draw tiles once images load
+    const paths = [...new Set(tiles.map(t => t.sheetPath).filter(Boolean))];
+    Promise.all(paths.map(loadImage)).then(() => {
+      for (const t of tiles) {
+        const img = imageCache[t.sheetPath];
+        if (!(img instanceof HTMLImageElement)) continue;
+        const dx = (t.localCol - bounds.minCol) * TILE * thumbScale;
+        const dy = (t.localRow - bounds.minRow) * TILE * thumbScale;
+        tctx.drawImage(img, t.sx, t.sy, t.sw || TILE, t.sh || TILE,
+          dx, dy, TILE * thumbScale, TILE * thumbScale);
+      }
+    });
+
+    const label = document.createElement('div');
+    label.style.cssText = 'font-size:11px;color:var(--text);line-height:1.3';
+    label.innerHTML = `<b>${obj.name}</b><br><span style="color:var(--text-dim)">${tw}×${th} tiles · ${obj.objectType || 'object'}</span>`;
+
+    card.appendChild(thumb);
+    card.appendChild(label);
+    card.addEventListener('click', () => _selectCustomObject(obj));
+    container.appendChild(card);
+  }
+}
+
+function _selectCustomObject(obj) {
+  const tiles = obj.tiles || [];
+  if (!tiles.length) return;
+  const bounds = obj.bounds || { minCol: 0, minRow: 0, maxCol: 0, maxRow: 0 };
+  // Keep raw localCol/localRow so origin (0,0) lands on the clicked tile
+  const stampTiles = tiles.map(t => ({
+    localCol: t.localCol,
+    localRow: t.localRow,
+    sx: t.sx, sy: t.sy,
+  }));
+  activeStamp = {
+    sheetPath: tiles[0].sheetPath,
+    stampCols: bounds.maxCol - bounds.minCol + 1,
+    stampRows: bounds.maxRow - bounds.minRow + 1,
+    tiles: stampTiles,
+    _isMultiSheet: true,
+    _srcTiles: tiles,
+    _originOffCol: -bounds.minCol,
+    _originOffRow: -bounds.minRow,
+    _objDefId: obj.id,
+    _objName: obj.name,
+    _objBounds: bounds,
+  };
+  updateStampPreview();
+  if (activeTool !== 'paint') setTool('paint');
+}
+
+// ─── Object layer helpers ───
+
+/** Remove a placed object by its anchor key */
+function _removeObjectAt(q, r) {
+  delete placedObjects[`${q},${r}`];
+}
+
+/** Erase any placed object whose footprint covers tile (q,r) */
+function _eraseObjectTouching(q, r) {
+  for (const [key, obj] of Object.entries(placedObjects)) {
+    const [aq, ar] = key.split(',').map(Number);
+    for (const t of (obj.tiles || [])) {
+      if (aq + t.localCol === q && ar + t.localRow === r) {
+        delete placedObjects[key];
+        return;
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  TOOLS
+// ═══════════════════════════════════════════════════════
+
+function setTool(t) {
+  activeTool = t;
+  document.querySelectorAll('#tool-btns button').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('tool-' + (t === 'furniture' ? 'furn' : t));
+  if (btn) btn.classList.add('active');
+  // Show/hide furniture props
+  document.getElementById('furniture-props').style.display = t === 'furniture' ? '' : 'none';
+}
+
+function setLayer(l) {
+  activeLayer = l;
+  document.querySelectorAll('.layer-btn').forEach(b => b.classList.toggle('active', b.dataset.layer === l));
+  renderCanvas();
+}
+
+// ═══════════════════════════════════════════════════════
+//  CANVAS — Rendering
+// ═══════════════════════════════════════════════════════
+
+function screenToTile(sx, sy) {
+  const ds = TILE * canvasZoom;
+  const q = Math.floor((sx - panX) / ds), r = Math.floor((sy - panY) / ds);
+  return { q, r, valid: q >= 0 && q < gridW && r >= 0 && r < gridH };
+}
+
+function renderCanvas() {
+  const ds = TILE * canvasZoom;
+  cvs.width = gridW * ds + panX * 2 + 40;
+  cvs.height = gridH * ds + panY * 2 + 40;
+  ctx.imageSmoothingEnabled = false;
+
+  // Background
+  ctx.fillStyle = '#0a0e17';
+  ctx.fillRect(0, 0, cvs.width, cvs.height);
+
+  // Draw layers in order
+  for (const layerName of ['floor', 'furniture', 'walls', 'overlay']) {
+    const lyr = layers[layerName];
+    const isActive = layerName === activeLayer;
+    if (!isActive) ctx.globalAlpha = 0.5;
+    for (const [key, cell] of Object.entries(lyr)) {
+      const [q, r] = key.split(',').map(Number);
+      const dx = panX + q * ds, dy = panY + r * ds;
+      const img = imageCache[cell.sheetPath];
+      if (img instanceof HTMLImageElement) {
+        ctx.drawImage(img, cell.sx, cell.sy, cell.sw || TILE, cell.sh || TILE, dx, dy, ds, ds);
+      } else {
+        ctx.fillStyle = '#333';
+        ctx.fillRect(dx, dy, ds, ds);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Draw placed objects on top of layers, depth-sorted by anchor row
+  const sortedObjs = Object.entries(placedObjects)
+    .map(([key, obj]) => {
+      const [aq, ar] = key.split(',').map(Number);
+      return { aq, ar, obj };
+    })
+    .sort((a, b) => {
+      if (a.ar !== b.ar) return a.ar - b.ar;
+      // Same row: taller objects behind, then rightmost on top
+      const aH = a.obj.bounds ? (a.obj.bounds.maxRow - a.obj.bounds.minRow + 1) : 1;
+      const bH = b.obj.bounds ? (b.obj.bounds.maxRow - b.obj.bounds.minRow + 1) : 1;
+      if (aH !== bH) return bH - aH;
+      return a.aq - b.aq;
+    });
+  for (const { aq, ar, obj } of sortedObjs) {
+    for (const t of (obj.tiles || [])) {
+      const tq = aq + t.localCol, tr = ar + t.localRow;
+      const dx = panX + tq * ds, dy = panY + tr * ds;
+      const img = imageCache[t.sheetPath];
+      if (img instanceof HTMLImageElement) {
+        ctx.drawImage(img, t.sx, t.sy, t.sw || TILE, t.sh || TILE, dx, dy, ds, ds);
+      }
+    }
+  }
+
+  // Grid overlay
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 0.5;
+  for (let q = 0; q <= gridW; q++) {
+    ctx.beginPath(); ctx.moveTo(panX + q * ds, panY); ctx.lineTo(panX + q * ds, panY + gridH * ds); ctx.stroke();
+  }
+  for (let r = 0; r <= gridH; r++) {
+    ctx.beginPath(); ctx.moveTo(panX, panY + r * ds); ctx.lineTo(panX + gridW * ds, panY + r * ds); ctx.stroke();
+  }
+
+  // Meta overlay: impassable, doors, furniture
+  for (const [key, m] of Object.entries(meta)) {
+    const [q, r] = key.split(',').map(Number);
+    const dx = panX + q * ds, dy = panY + r * ds;
+    if (m.impassable) {
+      ctx.fillStyle = 'rgba(248,81,73,0.25)';
+      ctx.fillRect(dx, dy, ds, ds);
+      ctx.strokeStyle = 'rgba(248,81,73,0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(dx, dy); ctx.lineTo(dx + ds, dy + ds); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(dx + ds, dy); ctx.lineTo(dx, dy + ds); ctx.stroke();
+    }
+    if (m.door) {
+      ctx.fillStyle = 'rgba(88,166,255,0.3)';
+      ctx.fillRect(dx, dy, ds, ds);
+      ctx.font = `${ds * 0.5}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(88,166,255,0.9)';
+      ctx.fillText('🚪', dx + ds / 2, dy + ds / 2);
+    }
+    if (m.furniture) {
+      ctx.fillStyle = 'rgba(230,168,23,0.2)';
+      ctx.fillRect(dx, dy, ds, ds);
+      const iconMap = {
+        table:'🪑',chair:'🪑',bed:'🛏️',chest:'📦',barrel:'🛢️',bookshelf:'📚',
+        fireplace:'🔥',candle:'🕯️',bar:'🍺',forge:'🔥',anvil:'⚒️',altar:'⛪',
+        pew:'🪑',throne:'👑',statue:'🗿',stall:'🏪',rack:'⚔️',crate:'📦',
+        banner:'🏴',well:'💧',stairs:'🪜',scales:'⚖️',
+      };
+      ctx.font = `${ds * 0.45}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(230,168,23,0.9)';
+      ctx.fillText(iconMap[m.furniture.type] || '🪑', dx + ds / 2, dy + ds / 2);
+    }
+  }
+
+  // Hover tile highlight
+  if (_hoverTile) {
+    const dx = panX + _hoverTile.q * ds, dy = panY + _hoverTile.r * ds;
+    ctx.strokeStyle = 'rgba(230,168,23,0.6)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(dx, dy, ds, ds);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  CANVAS — Input
+// ═══════════════════════════════════════════════════════
+
+let _painting = false, _panning = false, _panStartX = 0, _panStartY = 0;
+let _hoverTile = null;
+
+function pushUndo() {
+  undoStack.push({
+    layers: JSON.parse(JSON.stringify(layers)),
+    meta: JSON.parse(JSON.stringify(meta)),
+    placedObjects: JSON.parse(JSON.stringify(placedObjects)),
+  });
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  redoStack = [];
+}
+
+function undo() {
+  if (!undoStack.length) return;
+  redoStack.push({ layers: JSON.parse(JSON.stringify(layers)), meta: JSON.parse(JSON.stringify(meta)), placedObjects: JSON.parse(JSON.stringify(placedObjects)) });
+  const state = undoStack.pop();
+  layers = state.layers; meta = state.meta; placedObjects = state.placedObjects || {};
+  renderCanvas();
+}
+
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push({ layers: JSON.parse(JSON.stringify(layers)), meta: JSON.parse(JSON.stringify(meta)), placedObjects: JSON.parse(JSON.stringify(placedObjects)) });
+  const state = redoStack.pop();
+  layers = state.layers; meta = state.meta; placedObjects = state.placedObjects || {};
+  renderCanvas();
+}
+
+function applyTool(sx, sy) {
+  const { q, r, valid } = screenToTile(sx, sy);
+  if (!valid) return;
+  const key = `${q},${r}`;
+  const store = layers[activeLayer];
+
+  switch (activeTool) {
+    case 'paint':
+      if (!activeStamp) return;
+      if (activeStamp._isMultiSheet && activeStamp._srcTiles) {
+        // Custom object: place as a single object on the objects layer
+        // Remove any existing object whose footprint overlaps the anchor
+        _removeObjectAt(q, r);
+        placedObjects[key] = {
+          defId: activeStamp._objDefId || null,
+          name: activeStamp._objName || 'Object',
+          tiles: activeStamp._srcTiles.map(t => ({ ...t })),
+          bounds: activeStamp._objBounds || null,
+        };
+      } else {
+        for (const t of activeStamp.tiles) {
+          const tq = q + t.localCol, tr = r + t.localRow;
+          if (tq < 0 || tq >= gridW || tr < 0 || tr >= gridH) continue;
+          store[`${tq},${tr}`] = {
+            sheetPath: activeStamp.sheetPath,
+            sx: t.sx, sy: t.sy, sw: TILE, sh: TILE,
+          };
+        }
+      }
+      break;
+
+    case 'erase':
+      // Also erase any placed object whose anchor or footprint covers this tile
+      _eraseObjectTouching(q, r);
+      delete store[key];
+      break;
+
+    case 'fill':
+      if (!activeStamp || activeStamp.tiles.length === 0) return;
+      floodFill(q, r);
+      break;
+
+    case 'eyedrop': {
+      // Pick the top visible tile at q,r from any layer (overlay → walls → floor)
+      for (const ln of ['overlay', 'walls', 'floor']) {
+        const cell = layers[ln][key];
+        if (cell) {
+          activeStamp = {
+            sheetPath: cell.sheetPath, stampCols: 1, stampRows: 1,
+            tiles: [{ localCol: 0, localRow: 0, sx: cell.sx, sy: cell.sy }],
+          };
+          setLayer(ln);
+          updateStampPreview();
+          setTool('paint');
+          return;
+        }
+      }
+      break;
+    }
+
+    case 'impass': {
+      if (!meta[key]) meta[key] = {};
+      meta[key].impassable = !meta[key].impassable;
+      if (!meta[key].impassable && !meta[key].door && !meta[key].furniture) delete meta[key];
+      break;
+    }
+
+    case 'door': {
+      // Clear any existing door, then set this tile
+      for (const [k, m] of Object.entries(meta)) {
+        if (m.door) { delete m.door; if (!m.impassable && !m.furniture) delete meta[k]; }
+      }
+      if (!meta[key]) meta[key] = {};
+      meta[key].door = true;
+      break;
+    }
+
+    case 'furniture': {
+      const furnType = document.getElementById('furn-type').value;
+      const furnName = document.getElementById('furn-name').value.trim();
+      const furnPassable = document.getElementById('furn-passable').checked;
+      const iconMap = {
+        table:'🪑',chair:'🪑',bed:'🛏️',chest:'📦',barrel:'🛢️',bookshelf:'📚',
+        fireplace:'🔥',candle:'🕯️',bar:'🍺',forge:'🔥',anvil:'⚒️',altar:'⛪',
+        pew:'🪑',throne:'👑',statue:'🗿',stall:'🏪',rack:'⚔️',crate:'📦',
+        banner:'🏴',well:'💧',stairs:'🪜',scales:'⚖️',
+      };
+      if (!meta[key]) meta[key] = {};
+      // Toggle: if clicking same furniture, remove it
+      if (meta[key].furniture && meta[key].furniture.type === furnType) {
+        delete meta[key].furniture;
+        if (!meta[key].impassable && !meta[key].door) delete meta[key];
+      } else {
+        meta[key].furniture = {
+          type: furnType,
+          name: furnName || (furnType.charAt(0).toUpperCase() + furnType.slice(1)),
+          icon: iconMap[furnType] || '🪑',
+          passable: furnPassable,
+        };
+        // Furniture is typically also impassable
+        if (!furnPassable) meta[key].impassable = true;
+      }
+      break;
+    }
+  }
+  renderCanvas();
+}
+
+function floodFill(startQ, startR) {
+  if (!activeStamp || !activeStamp.tiles.length) return;
+  const store = layers[activeLayer];
+  const t0 = activeStamp.tiles[0];
+  const targetKey = store[`${startQ},${startR}`];
+  const targetStr = targetKey ? JSON.stringify(targetKey) : '__empty__';
+  const newStr = JSON.stringify({ sheetPath: activeStamp.sheetPath, sx: t0.sx, sy: t0.sy, sw: TILE, sh: TILE });
+  if (targetStr === newStr) return;
+
+  const visited = new Set();
+  const queue = [{ q: startQ, r: startR }];
+  while (queue.length) {
+    const { q, r } = queue.shift();
+    const key = `${q},${r}`;
+    if (visited.has(key)) continue;
+    if (q < 0 || q >= gridW || r < 0 || r >= gridH) continue;
+    const cellStr = store[key] ? JSON.stringify(store[key]) : '__empty__';
+    if (cellStr !== targetStr) continue;
+    visited.add(key);
+    // Paint with tiled stamp
+    const tq = ((q - startQ) % activeStamp.stampCols + activeStamp.stampCols) % activeStamp.stampCols;
+    const tr = ((r - startR) % activeStamp.stampRows + activeStamp.stampRows) % activeStamp.stampRows;
+    const tile = activeStamp.tiles.find(t => t.localCol === tq && t.localRow === tr) || activeStamp.tiles[0];
+    store[key] = { sheetPath: activeStamp.sheetPath, sx: tile.sx, sy: tile.sy, sw: TILE, sh: TILE };
+    queue.push({ q: q - 1, r }, { q: q + 1, r }, { q, r: r - 1 }, { q, r: r + 1 });
+  }
+}
+
+function initCanvas() {
+  cvs = document.getElementById('build-canvas');
+  ctx = cvs.getContext('2d');
+
+  const wrap = document.getElementById('canvas-wrap');
+
+  cvs.addEventListener('mousedown', e => {
+    const rect = cvs.getBoundingClientRect();
+    const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+    if (e.button === 1 || (e.button === 0 && e.altKey)) {
+      _panning = true; _panStartX = e.clientX - panX; _panStartY = e.clientY - panY;
+      e.preventDefault(); return;
+    }
+    if (e.button === 0) {
+      pushUndo();
+      _painting = true;
+      applyTool(sx, sy);
+    }
+  });
+
+  cvs.addEventListener('mousemove', e => {
+    const rect = cvs.getBoundingClientRect();
+    const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+    if (_panning) { panX = e.clientX - _panStartX; panY = e.clientY - _panStartY; renderCanvas(); return; }
+    const t = screenToTile(sx, sy);
+    _hoverTile = t.valid ? t : null;
+    if (_painting) { applyTool(sx, sy); }
+    else { renderCanvas(); }
+  });
+
+  cvs.addEventListener('mouseup', () => { _painting = false; _panning = false; });
+  cvs.addEventListener('mouseleave', () => { _painting = false; _panning = false; _hoverTile = null; renderCanvas(); });
+
+  cvs.addEventListener('wheel', e => {
+    e.preventDefault();
+    const old = canvasZoom;
+    canvasZoom = Math.max(0.5, Math.min(6, canvasZoom + (e.deltaY < 0 ? 0.25 : -0.25)));
+    // Zoom toward cursor
+    const rect = cvs.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const ratio = canvasZoom / old;
+    panX = mx - (mx - panX) * ratio;
+    panY = my - (my - panY) * ratio;
+    renderCanvas();
+  }, { passive: false });
+
+  // Keyboard shortcuts
+  window.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+    if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
+    if (e.ctrlKey && e.key === 'y') { e.preventDefault(); redo(); }
+    if (e.key === 'b' || e.key === 'B') setTool('paint');
+    if (e.key === 'e' || e.key === 'E') setTool('erase');
+    if (e.key === 'g' || e.key === 'G') setTool('fill');
+    if (e.key === 'i' || e.key === 'I') setTool('eyedrop');
+    if (e.key === 'f' || e.key === 'F') setTool('furniture');
+  });
+}
+
+function zoomIn()  { canvasZoom = Math.min(6, canvasZoom + 0.5); renderCanvas(); }
+function zoomOut() { canvasZoom = Math.max(0.5, canvasZoom - 0.5); renderCanvas(); }
+function fitCanvas() {
+  const wrap = document.getElementById('canvas-wrap');
+  const ds = TILE * canvasZoom;
+  const totalW = gridW * ds, totalH = gridH * ds;
+  const ww = wrap.clientWidth, wh = wrap.clientHeight;
+  canvasZoom = Math.min(ww / (gridW * TILE) * 0.9, wh / (gridH * TILE) * 0.9, 4);
+  panX = (ww - gridW * TILE * canvasZoom) / 2;
+  panY = (wh - gridH * TILE * canvasZoom) / 2;
+  renderCanvas();
+}
+
+function resizeGrid() {
+  const w = parseInt(document.getElementById('grid-w').value) || 10;
+  const h = parseInt(document.getElementById('grid-h').value) || 8;
+  gridW = Math.max(4, Math.min(30, w));
+  gridH = Math.max(4, Math.min(30, h));
+  // Trim tiles outside new bounds
+  for (const lyr of Object.values(layers)) {
+    for (const key of Object.keys(lyr)) {
+      const [q, r] = key.split(',').map(Number);
+      if (q >= gridW || r >= gridH) delete lyr[key];
+    }
+  }
+  for (const key of Object.keys(meta)) {
+    const [q, r] = key.split(',').map(Number);
+    if (q >= gridW || r >= gridH) delete meta[key];
+  }
+  fitCanvas();
+}
+
+function clearLayer() {
+  pushUndo();
+  layers[activeLayer] = {};
+  renderCanvas();
+}
+
+function clearAll() {
+  pushUndo();
+  layers = { floor: {}, furniture: {}, walls: {}, overlay: {} };
+  meta = {};
+  placedObjects = {};
+  renderCanvas();
+}
+
+// ─── Palette resize drag ───
+function initPaletteResize() {
+  const panel = document.getElementById('palette-panel');
+  const handle = document.getElementById('pal-resizer');
+  let dragging = false;
+  handle.addEventListener('mousedown', e => { dragging = true; e.preventDefault(); });
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const w = Math.max(180, Math.min(600, e.clientX));
+    panel.style.width = w + 'px';
+  });
+  window.addEventListener('mouseup', () => { dragging = false; });
+}
+
+// ═══════════════════════════════════════════════════════
+//  SAVE / LOAD / EXPORT
+// ═══════════════════════════════════════════════════════
+
+function slugify(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''); }
+
+function newInterior() {
+  editIdx = -1;
+  layers = { floor: {}, furniture: {}, walls: {}, overlay: {} };
+  meta = {};
+  placedObjects = {};
+  gridW = parseInt(document.getElementById('grid-w').value) || 10;
+  gridH = parseInt(document.getElementById('grid-h').value) || 8;
+  document.getElementById('int-name').value = '';
+  document.getElementById('int-type').value = 'house';
+  document.getElementById('int-tags').value = '';
+  document.getElementById('int-group').value = '';
+  _linkedBuildingIds = [];
+  _refreshLinkedBuildingChecklist();
+  refreshList();
+  fitCanvas();
+}
+
+function _refreshLinkedBuildingChecklist() {
+  const container = document.getElementById('int-linked-buildings');
+  if (!_buildings.length) {
+    container.innerHTML = '<span style="color:var(--text-dim);font-style:italic">No buildings available</span>';
+    return;
+  }
+  container.innerHTML = '';
+  for (const bld of _buildings) {
+    const row = document.createElement('label');
+    row.style.cssText = 'display:flex;align-items:center;gap:4px;padding:2px 0;cursor:pointer;color:var(--text)';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = bld.id;
+    cb.checked = _linkedBuildingIds.includes(bld.id);
+    cb.addEventListener('change', () => {
+      if (cb.checked) {
+        if (!_linkedBuildingIds.includes(bld.id)) _linkedBuildingIds.push(bld.id);
+      } else {
+        _linkedBuildingIds = _linkedBuildingIds.filter(id => id !== bld.id);
+      }
+      // Auto-set buildingType from first linked building
+      if (_linkedBuildingIds.length) {
+        const first = _buildings.find(b => b.id === _linkedBuildingIds[0]);
+        if (first) document.getElementById('int-type').value = first.buildingType || 'other';
+      }
+    });
+    row.appendChild(cb);
+    row.appendChild(document.createTextNode(`${bld.name} (${bld.buildingType})`));
+    container.appendChild(row);
+  }
+}
+
+function saveInterior() {
+  const name = document.getElementById('int-name').value.trim();
+  if (!name) { alert('Enter an interior name.'); return; }
+  // Gather linked building ids from checklist
+  _linkedBuildingIds = [...document.getElementById('int-linked-buildings').querySelectorAll('input:checked')].map(cb => cb.value);
+  const interior = {
+    id: slugify(name),
+    name,
+    linkedBuildingIds: _linkedBuildingIds.length ? [..._linkedBuildingIds] : undefined,
+    buildingType: document.getElementById('int-type').value,
+    tags: document.getElementById('int-tags').value.trim().split(',').map(s => s.trim()).filter(Boolean),
+    variantGroup: document.getElementById('int-group').value.trim() || null,
+    tileW: TILE, tileH: TILE,
+    width: gridW, height: gridH,
+    layers: {
+      floor: { ...layers.floor },
+      furniture: { ...layers.furniture },
+      walls: { ...layers.walls },
+      overlay: { ...layers.overlay },
+    },
+    meta: { ...meta },
+    placedObjects: JSON.parse(JSON.stringify(placedObjects)),
+  };
+  if (editIdx >= 0) {
+    interiors[editIdx] = interior;
+  } else {
+    interiors.push(interior);
+    editIdx = interiors.length - 1;
+  }
+  refreshList();
+  notifyParent();
+}
+
+function loadInterior(index) {
+  const b = interiors[index];
+  if (!b) return;
+  editIdx = index;
+  gridW = b.width || 10; gridH = b.height || 8;
+  document.getElementById('grid-w').value = gridW;
+  document.getElementById('grid-h').value = gridH;
+  document.getElementById('int-name').value = b.name || '';
+  document.getElementById('int-type').value = b.buildingType || 'house';
+  document.getElementById('int-tags').value = (b.tags || []).join(', ');
+  document.getElementById('int-group').value = b.variantGroup || '';
+  // Support both old linkedBuildingId (string) and new linkedBuildingIds (array)
+  if (Array.isArray(b.linkedBuildingIds)) {
+    _linkedBuildingIds = [...b.linkedBuildingIds];
+  } else if (b.linkedBuildingId) {
+    _linkedBuildingIds = [b.linkedBuildingId];
+  } else {
+    _linkedBuildingIds = [];
+  }
+  _refreshLinkedBuildingChecklist();
+  layers = {
+    floor: { ...(b.layers.floor || {}) },
+    furniture: { ...(b.layers.furniture || {}) },
+    walls: { ...(b.layers.walls || {}) },
+    overlay: { ...(b.layers.overlay || {}) },
+  };
+  meta = { ...(b.meta || {}) };
+  placedObjects = JSON.parse(JSON.stringify(b.placedObjects || {}));
+  // Ensure deep copy of furniture objects in meta
+  for (const key of Object.keys(meta)) {
+    if (meta[key].furniture) meta[key] = { ...meta[key], furniture: { ...meta[key].furniture } };
+  }
+  // Preload images
+  const paths = new Set();
+  for (const lyr of Object.values(layers)) {
+    for (const c of Object.values(lyr)) if (c.sheetPath) paths.add(c.sheetPath);
+  }
+  for (const obj of Object.values(placedObjects)) {
+    for (const t of (obj.tiles || [])) if (t.sheetPath) paths.add(t.sheetPath);
+  }
+  Promise.all([...paths].map(loadImage)).then(() => fitCanvas());
+}
+
+function deleteInterior(index) {
+  interiors.splice(index, 1);
+  if (editIdx === index) { editIdx = -1; newInterior(); }
+  else if (editIdx > index) editIdx--;
+  refreshList();
+  notifyParent();
+}
+
+function duplicateInterior(index) {
+  const copy = JSON.parse(JSON.stringify(interiors[index]));
+  copy.id = copy.id + '_copy';
+  copy.name = copy.name + ' (copy)';
+  interiors.push(copy);
+  refreshList();
+  notifyParent();
+}
+
+function refreshList() {
+  const container = document.getElementById('interior-list');
+  document.getElementById('int-count').textContent = interiors.length;
+  container.innerHTML = '';
+  for (let i = 0; i < interiors.length; i++) {
+    const it = interiors[i];
+    const card = document.createElement('div');
+    card.className = 'item-card' + (i === editIdx ? ' selected' : '');
+    const ids = Array.isArray(it.linkedBuildingIds) ? it.linkedBuildingIds : (it.linkedBuildingId ? [it.linkedBuildingId] : []);
+    const linkedNames = ids.map(id => { const b = _buildings.find(x => x.id === id); return b ? b.name : id; });
+    const linkedLabel = linkedNames.length ? `<span style="font-size:10px;color:var(--gold);margin-left:4px" title="Linked to: ${linkedNames.join(', ')}">🔗${linkedNames.length > 1 ? linkedNames.length : ''}</span>` : '';
+    card.innerHTML = `
+      <span class="ic-name" title="${it.id}">🏠 ${it.name}${linkedLabel}</span>
+      <span class="ic-type">${it.buildingType}</span>
+      <span class="ic-dup" title="Duplicate" style="cursor:pointer;font-size:11px;color:var(--blue);padding:2px 4px;opacity:.6" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.6">📋</span>
+      <span class="ic-del" title="Delete">✕</span>
+    `;
+    card.querySelector('.ic-name').addEventListener('click', () => loadInterior(i));
+    card.querySelector('.ic-del').addEventListener('click', e => { e.stopPropagation(); deleteInterior(i); });
+    card.querySelector('.ic-dup').addEventListener('click', e => { e.stopPropagation(); duplicateInterior(i); });
+    container.appendChild(card);
+  }
+}
+
+// ─── Export ───
+
+function _exportInterior(interior) {
+  // Find origin (top-left of painted tiles and placed object anchors)
+  let minQ = Infinity, minR = Infinity;
+  for (const lyr of Object.values(interior.layers)) {
+    for (const k of Object.keys(lyr)) {
+      const [q, r] = k.split(',').map(Number);
+      if (q < minQ) minQ = q;
+      if (r < minR) minR = r;
+    }
+  }
+  // Include placed object tile footprints in origin calc
+  for (const [key, obj] of Object.entries(interior.placedObjects || {})) {
+    const [aq, ar] = key.split(',').map(Number);
+    for (const t of (obj.tiles || [])) {
+      const tq = aq + t.localCol, tr = ar + t.localRow;
+      if (tq < minQ) minQ = tq;
+      if (tr < minR) minR = tr;
+    }
+  }
+  if (minQ === Infinity) { minQ = 0; minR = 0; }
+
+  const out = { ...interior };
+  out.layers = {};
+  let bMinQ = Infinity, bMinR = Infinity, bMaxQ = -Infinity, bMaxR = -Infinity;
+  for (const [ln, lyr] of Object.entries(interior.layers)) {
+    out.layers[ln] = Object.entries(lyr).map(([key, c]) => {
+      const [q, r] = key.split(',').map(Number);
+      const rq = q - minQ, rr = r - minR;
+      if (rq < bMinQ) bMinQ = rq; if (rq > bMaxQ) bMaxQ = rq;
+      if (rr < bMinR) bMinR = rr; if (rr > bMaxR) bMaxR = rr;
+      return { q: rq, r: rr, sheetPath: c.sheetPath, sx: c.sx, sy: c.sy, sw: c.sw || TILE, sh: c.sh || TILE };
+    });
+  }
+  out.meta = Object.entries(interior.meta || {}).map(([key, m]) => {
+    const [q, r] = key.split(',').map(Number);
+    return { q: q - minQ, r: r - minR, ...m };
+  }).filter(m => m.impassable || m.door || m.furniture);
+  // Export placed objects with offset-adjusted anchor positions
+  out.placedObjects = Object.entries(interior.placedObjects || {}).map(([key, obj]) => {
+    const [aq, ar] = key.split(',').map(Number);
+    return { anchorQ: aq - minQ, anchorR: ar - minR, ...obj };
+  });
+  if (bMinQ !== Infinity) {
+    out.bounds = { minCol: bMinQ, minRow: bMinR, maxCol: bMaxQ, maxRow: bMaxR };
+    out.width = bMaxQ - bMinQ + 1;
+    out.height = bMaxR - bMinR + 1;
+  }
+  return out;
+}
+
+function getExportData() {
+  if (!interiors.length) return {};
+  return {
+    interiors: interiors.map(i => _exportInterior(i))
+  };
+}
+
+function exportAll() {
+  const data = getExportData();
+  if (!data.interiors || !data.interiors.length) { alert('No interiors to export.'); return; }
+  const blob = new Blob([JSON.stringify(data.interiors, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'interiors.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ─── Parent communication ───
+
+function notifyParent() {
+  try {
+    const d = getExportData();
+    window.parent.postMessage({ type: 'interiorDataChanged', ...d }, '*');
+  } catch (e) { /* standalone */ }
+}
+
+window.addEventListener('message', ev => {
+  if (!ev.data) return;
+
+  // ── Handle openBuildingInterior from parent ──
+  if (ev.data.type === 'openBuildingInterior') {
+    const { buildingId, buildingName, buildingType, buildingWidth, buildingHeight, buildings } = ev.data;
+    // Update buildings list
+    if (Array.isArray(buildings)) {
+      _buildings = buildings;
+      _refreshLinkedBuildingChecklist();
+    }
+    // Check if an interior already linked to this building exists
+    const existingIdx = interiors.findIndex(i => {
+      const ids = Array.isArray(i.linkedBuildingIds) ? i.linkedBuildingIds : (i.linkedBuildingId ? [i.linkedBuildingId] : []);
+      return ids.includes(buildingId);
+    });
+    if (existingIdx >= 0) {
+      loadInterior(existingIdx);
+      return;
+    }
+    // Create a new interior pre-populated from the building
+    newInterior();
+    document.getElementById('int-name').value = (buildingName || 'Building') + ' Interior';
+    const typeSelect = document.getElementById('int-type');
+    if (buildingType && [...typeSelect.options].some(o => o.value === buildingType)) {
+      typeSelect.value = buildingType;
+    }
+    // Set linked building
+    _linkedBuildingIds = [buildingId];
+    _refreshLinkedBuildingChecklist();
+    // Adjust grid size based on building dimensions (clamped)
+    if (buildingWidth && buildingHeight) {
+      gridW = Math.max(4, Math.min(buildingWidth, 20));
+      gridH = Math.max(4, Math.min(buildingHeight, 20));
+      document.getElementById('grid-w').value = gridW;
+      document.getElementById('grid-h').value = gridH;
+    }
+    fitCanvas();
+    return;
+  }
+
+  if (ev.data.type !== 'loadGamedata') return;
+  const d = ev.data;
+  // Store buildings list for linked building checklist
+  if (Array.isArray(d.buildings)) {
+    _buildings = d.buildings;
+    _refreshLinkedBuildingChecklist();
+  }
+  // Store custom objects for palette
+  if (Array.isArray(d.objects)) {
+    _customObjects = d.objects;
+    buildPaletteCats();
+  }
+  // New flat format: d.interiors = [...]
+  let allInteriorsToLoad = [];
+  if (Array.isArray(d.interiors) && d.interiors.length) {
+    allInteriorsToLoad = d.interiors;
+  } else if (d.custom_interiors && d.custom_interiors.files) {
+    // Legacy format fallback
+    for (const fileData of Object.values(d.custom_interiors.files)) {
+      if (Array.isArray(fileData.interiors)) allInteriorsToLoad.push(...fileData.interiors);
+    }
+  }
+  if (allInteriorsToLoad.length) {
+      // Import: convert array layers back to dict format, add margin
+      const MARGIN = 1;
+      const imported = allInteriorsToLoad.map(int => {
+        const hasBounds = !!int.bounds;
+        const offQ = hasBounds ? MARGIN - int.bounds.minCol : 0;
+        const offR = hasBounds ? MARGIN - int.bounds.minRow : 0;
+        const newLayers = {};
+        for (const [ln, arr] of Object.entries(int.layers || {})) {
+          newLayers[ln] = {};
+          const cells = Array.isArray(arr) ? arr : Object.entries(arr).map(([k, v]) => {
+            const [q, r] = k.split(',').map(Number);
+            return { q, r, ...v };
+          });
+          for (const c of cells) {
+            newLayers[ln][`${c.q + offQ},${c.r + offR}`] = {
+              sheetPath: c.sheetPath, sx: c.sx, sy: c.sy, sw: c.sw || TILE, sh: c.sh || TILE
+            };
+          }
+        }
+        const newMeta = {};
+        const metaArr = Array.isArray(int.meta) ? int.meta : Object.entries(int.meta || {}).map(([k, v]) => {
+          const [q, r] = k.split(',').map(Number);
+          return { q, r, ...v };
+        });
+        for (const m of metaArr) {
+          const key = `${m.q + offQ},${m.r + offR}`;
+          const entry = {};
+          if (m.impassable) entry.impassable = true;
+          if (m.door) entry.door = true;
+          if (m.furniture) entry.furniture = { ...m.furniture };
+          newMeta[key] = entry;
+        }
+        // Convert placedObjects from export array [{anchorQ, anchorR, ...}] back to dict {"q,r": obj}
+        const newPlacedObjects = {};
+        const poSrc = int.placedObjects || [];
+        if (Array.isArray(poSrc)) {
+          for (const po of poSrc) {
+            const aq = (po.anchorQ != null ? po.anchorQ : 0) + offQ;
+            const ar = (po.anchorR != null ? po.anchorR : 0) + offR;
+            const { anchorQ, anchorR, ...rest } = po;
+            newPlacedObjects[`${aq},${ar}`] = rest;
+          }
+        } else {
+          // Already dict format (e.g. from internal save) — just re-key with offset
+          for (const [k, v] of Object.entries(poSrc)) {
+            const [q, r] = k.split(',').map(Number);
+            newPlacedObjects[`${q + offQ},${r + offR}`] = v;
+          }
+        }
+        const w = hasBounds ? int.bounds.maxCol - int.bounds.minCol + 1 + MARGIN * 2 : (int.width || 10);
+        const h = hasBounds ? int.bounds.maxRow - int.bounds.minRow + 1 + MARGIN * 2 : (int.height || 8);
+        return { ...int, layers: newLayers, meta: newMeta, placedObjects: newPlacedObjects, width: w, height: h };
+      });
+      interiors = imported;
+      refreshList();
+      if (interiors.length) loadInterior(0);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+
+(function init() {
+  initCanvas();
+  initPaletteResize();
+  buildPaletteCats();
+  // Show first category
+  const firstCat = Object.keys(PALETTE_DATA)[0];
+  if (firstCat) {
+    const btn = document.querySelector('.cat-btn');
+    showCategory(firstCat, btn);
+  }
+  refreshList();
+  // Defer fitCanvas until after layout is painted so clientWidth/clientHeight are real
+  requestAnimationFrame(() => requestAnimationFrame(() => fitCanvas()));
+
+  // Notify parent we're ready
+  try { window.parent.postMessage({ type: 'interiorEditorReady' }, '*'); } catch (e) {}
+})();
+</script>
+</body>
+</html>

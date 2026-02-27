@@ -42,11 +42,11 @@ TestRunner.describe('Hex', async function () {
     });
 
     await TestRunner.it('distance: correct for adjacent hexes', () => {
-        // Adjacent hexes should be distance 1
-        const neighbors = Hex.neighbors(5, 5);
-        for (const n of neighbors) {
-            const d = Hex.distance(5, 5, n.q, n.r);
-            assert.equal(d, 1, `Neighbor (${n.q},${n.r}) should be distance 1, got ${d}`);
+        // Use axial directions (distance() works in axial coords, not offset)
+        for (const dir of Hex.DIRECTIONS) {
+            const nq = 5 + dir.q, nr = 5 + dir.r;
+            const d = Hex.distance(5, 5, nq, nr);
+            assert.equal(d, 1, `Neighbor (${nq},${nr}) should be distance 1, got ${d}`);
         }
     });
 

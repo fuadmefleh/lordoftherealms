@@ -16,10 +16,10 @@ function readJson(p) {
 }
 
 const topLevel = [
-    'achievements', 'artifacts', 'assets', 'cartography', 'characters',
+    'achievements', 'artifacts', 'assets', 'buildings', 'cartography', 'characters',
     'colonization', 'culture', 'earlyJobs', 'economy', 'espionage',
-    'housing', 'infrastructure', 'innerMap', 'innerMapRenderer',
-    'kingdomAI', 'kingdoms', 'market', 'military', 'npcLords',
+    'housing', 'infrastructure', 'innerMap', 'innerMapRenderer', 'interiors',
+    'kingdomAI', 'kingdoms', 'market', 'military', 'npcLords', 'objects',
     'peoples', 'playerEconomy', 'quests', 'relationships', 'religion',
     'ships', 'tavern', 'technology', 'terrain', 'titles', 'units', 'worldEvents'
 ];
@@ -39,24 +39,6 @@ for (const f of fs.readdirSync(ssDir).filter(f => f.endsWith('.json'))) {
     const key  = f.replace('.json', '');
     const data = readJson(path.join(ssDir, f));
     if (data !== null) { merged.spritesheets[key] = data; console.log(`  + spritesheets/${f}`); }
-}
-
-// ── custom_buildings/ ───────────────────────────────────────────────
-const cbDir      = path.join(dataDir, 'custom_buildings');
-const cbManifest = readJson(path.join(cbDir, 'manifest.json')) || { files: [] };
-merged.custom_buildings = { manifest: cbManifest, files: {} };
-for (const f of (cbManifest.files || [])) {
-    const data = readJson(path.join(cbDir, f));
-    if (data !== null) { merged.custom_buildings.files[f] = data; console.log(`  + custom_buildings/${f}`); }
-}
-
-// ── custom_objects/ ─────────────────────────────────────────────────
-const coDir      = path.join(dataDir, 'custom_objects');
-const coManifest = readJson(path.join(coDir, 'manifest.json')) || { files: [] };
-merged.custom_objects = { manifest: coManifest, files: {} };
-for (const f of (coManifest.files || [])) {
-    const data = readJson(path.join(coDir, f));
-    if (data !== null) { merged.custom_objects.files[f] = data; console.log(`  + custom_objects/${f}`); }
 }
 
 // ── Write output ─────────────────────────────────────────────────────

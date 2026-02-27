@@ -13,7 +13,7 @@ TestRunner.describe('Player', async function () {
     });
 
     await TestRunner.it('constructor: accepts custom profile', () => {
-        const player = new Player({ name: 'Hero', gender: 'female', age: 25 });
+        const player = new Player({ firstName: 'Hero', gender: 'female', age: 25 });
         assert.equal(player.name, 'Hero');
         assert.equal(player.gender, 'female');
         assert.equal(player.age, 25);
@@ -74,7 +74,7 @@ TestRunner.describe('PlayerEconomy', async function () {
         const goodKeys = new Set(Object.keys(PlayerEconomy.GOODS).map(k => k.toLowerCase()));
         for (const [key, recipe] of Object.entries(PlayerEconomy.RECIPES)) {
             assert.hasProperty(recipe, 'output', `${key} missing output`);
-            assert.hasProperty(recipe, 'inputs', `${key} missing inputs`);
+            assert.hasProperty(recipe, 'input', `${key} missing input`);
         }
     });
 });

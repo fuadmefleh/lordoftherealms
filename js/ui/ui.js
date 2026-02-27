@@ -1572,6 +1572,96 @@ class UI {
     }
 
     /**
+     * Show a confirmation modal for returning to the main menu
+     */
+    _showMainMenuConfirm() {
+        const existing = document.getElementById('mainMenuConfirmOverlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'mainMenuConfirmOverlay';
+        overlay.style.cssText = `
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.75);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            display: flex; align-items: center; justify-content: center;
+        `;
+
+        overlay.innerHTML = `
+            <div style="
+                background: rgba(14,18,26,0.98);
+                border: 2px solid var(--gold);
+                border-radius: 10px;
+                padding: 32px 28px 24px;
+                min-width: 340px;
+                max-width: 420px;
+                box-shadow: 0 12px 48px rgba(0,0,0,0.9);
+                text-align: center;
+                font-family: var(--font-ui, sans-serif);
+            ">
+                <div style="font-size: 40px; margin-bottom: 12px;">🏠</div>
+                <h2 style="margin: 0 0 10px; color: var(--gold); font-family: var(--font-display);">Return to Main Menu?</h2>
+                <p style="margin: 0 0 24px; color: #aaa; font-size: 14px; line-height: 1.5;">
+                    Any unsaved progress will be lost.<br>Consider saving before you leave.
+                </p>
+                <div style="display: flex; gap: 12px; justify-content: center;">
+                    <button id="mainMenuConfirmCancel" style="
+                        flex: 1; padding: 11px 0;
+                        background: rgba(255,255,255,0.07);
+                        border: 1px solid rgba(255,255,255,0.15);
+                        border-radius: 6px;
+                        color: #ccc; font-size: 14px; font-weight: 600;
+                        cursor: pointer;
+                        transition: background 0.15s;
+                    ">Cancel</button>
+                    <button id="mainMenuConfirmOk" style="
+                        flex: 1; padding: 11px 0;
+                        background: #7a2020;
+                        border: 1px solid #a33;
+                        border-radius: 6px;
+                        color: #fff; font-size: 14px; font-weight: 700;
+                        cursor: pointer;
+                        transition: background 0.15s;
+                    ">Leave Game</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        const close = () => overlay.remove();
+
+        document.getElementById('mainMenuConfirmCancel').addEventListener('click', () => {
+            close();
+            this.showSettingsPanel();
+        });
+
+        document.getElementById('mainMenuConfirmOk').addEventListener('click', () => {
+            close();
+            location.reload();
+        });
+
+        // Close on backdrop click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                close();
+                this.showSettingsPanel();
+            }
+        });
+
+        // Close on Escape
+        const onKey = (e) => {
+            if (e.key === 'Escape') {
+                close();
+                this.showSettingsPanel();
+                document.removeEventListener('keydown', onKey);
+            }
+        };
+        document.addEventListener('keydown', onKey);
+    }
+
+    /**
      * Show the finances tracking modal
      */
     showFinancesPanel(player, world) {
@@ -4529,6 +4619,7 @@ class UI {
             <!-- Actions -->
             <div class="gs-actions">
                 <button class="gs-btn gs-btn-secondary" id="gsResetDefaults">Reset Defaults</button>
+                <button class="gs-btn gs-btn-danger" id="gsMainMenu" style="background:#7a2a2a;color:#fff;border:1px solid #a33;">🏠 Main Menu</button>
                 <button class="gs-btn gs-btn-primary" id="gsApply">Apply & Close</button>
             </div>
         </div>`;
@@ -4619,6 +4710,15 @@ class UI {
                 this.hideCustomPanel();
                 this.showSettingsPanel(); // Reopen with defaults
                 this.showNotification('Settings', 'Reset to defaults', 'info');
+            });
+        }
+
+        // Main Menu
+        const mainMenuBtn = document.getElementById('gsMainMenu');
+        if (mainMenuBtn) {
+            mainMenuBtn.addEventListener('click', () => {
+                this.hideCustomPanel();
+                this._showMainMenuConfirm();
             });
         }
 

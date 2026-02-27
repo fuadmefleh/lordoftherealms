@@ -9,7 +9,7 @@ const DataLoader = {
     /**
      * Resolve a data key from _gamedata.
      * Supports paths like 'terrain.json', 'spritesheets/terrain.json',
-     * 'innerMapRenderer.json', 'custom_buildings/manifest.json', etc.
+     * 'innerMapRenderer.json', 'buildings.json', etc.
      */
     _resolve(filename) {
         // Strip leading 'data/' if someone passes a full path
@@ -57,9 +57,25 @@ const DataLoader = {
 
     async _loadGamedata() {
         if (this._gamedata) return;
-        const response = await fetch('data/gamedata.json');
+
+        // Always load the base gamedata.json from disk first
+        const response = await fetch('/data/gamedata.json');
         if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         this._gamedata = await response.json();
+
+        // Merge editor overrides from browser storage (IndexedDB) on top
+        try {
+            if (typeof ModStore !== 'undefined') {
+                await ModStore.init();
+                const stored = await ModStore.loadModData();
+                if (stored && typeof stored === 'object' && (stored.terrain || stored.buildings || stored.objects)) {
+                    console.log('[DataLoader] Merging editor data from browser storage (IndexedDB)');
+                    Object.assign(this._gamedata, stored);
+                }
+            }
+        } catch (e) {
+            console.warn('[DataLoader] ModStore load failed, using base gamedata.json only', e);
+        }
     },
 
     /**

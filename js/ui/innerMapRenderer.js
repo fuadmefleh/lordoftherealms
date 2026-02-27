@@ -122,6 +122,11 @@ const InnerMapRenderer = {
                 promises.push(CustomBuildings.loadAll());
             }
 
+            // Load custom editor-authored interiors (exported from interior_editor.html)
+            if (typeof CustomInteriors !== 'undefined') {
+                promises.push(CustomInteriors.loadAll());
+            }
+
             return Promise.all(promises).then(() => {
                 this._loaded = true;
                 this._initTerrainFills();
@@ -418,9 +423,13 @@ const InnerMapRenderer = {
     // ══════════════════════════════════════════════
 
     _getTerrainFill(tile) {
+        // Cache on tile — result is deterministic per position + baseTerrain
+        if (tile._cachedFill) return tile._cachedFill;
+
         const hash = (Math.abs((tile.q * 73856093 ^ tile.r * 19349663))) >>> 0;
         // Use baseTerrain directly — set during generation, like C#'s tileType
         const fillCat = tile.baseTerrain || 'grass';
+        let result;
 
         if (this._terrainFills) {
             let fills = this._terrainFills[fillCat];
@@ -435,10 +444,14 @@ const InnerMapRenderer = {
             }
             if (fills && fills.length > 0) {
                 const pick = fills[hash % fills.length];
-                return { sx: pick.col * 32, sy: pick.row * 32 };
+                result = { sx: pick.col * 32, sy: pick.row * 32 };
             }
         }
-        return { sx: -1, sy: -1, fallbackColor: this._FALLBACK_COLORS[fillCat] || '#4B8434' };
+        if (!result) {
+            result = { sx: -1, sy: -1, fallbackColor: this._FALLBACK_COLORS[fillCat] || '#4B8434' };
+        }
+        tile._cachedFill = result;
+        return result;
     },
 
     // ══════════════════════════════════════════════
@@ -446,76 +459,71 @@ const InnerMapRenderer = {
     // ══════════════════════════════════════════════
 
     _getObjectOverlay(tile) {
+        // Cache on tile — result is deterministic per subTerrain.id + position
+        if (tile._cachedOverlay !== undefined) return tile._cachedOverlay;
+
         const subId = tile.subTerrain.id;
         const cat = this._OVERLAY_MAP[subId];
-        if (!cat) return null;
+        if (!cat) { tile._cachedOverlay = null; return null; }
 
         const hash = (Math.abs((tile.q * 19349663 ^ tile.r * 73856093))) >>> 0;
+        let result = null;
 
         if (cat === 'trees') {
             const sheetKey = this._seasonKey('trees');
-            if (!this._sheets.has(sheetKey)) return null;
-            const pool = this._analyzedTreeSprites.length > 0
-                ? this._analyzedTreeSprites : this._TREE_SPRITES_FALLBACK;
-            const def = pool[hash % pool.length];
-            return { sheet: sheetKey, ...def, type: 'tree' };
-        }
-
-        if (cat === 'plants') {
+            if (this._sheets.has(sheetKey)) {
+                const pool = this._analyzedTreeSprites.length > 0
+                    ? this._analyzedTreeSprites : this._TREE_SPRITES_FALLBACK;
+                const def = pool[hash % pool.length];
+                result = { sheet: sheetKey, ...def, type: 'tree' };
+            }
+        } else if (cat === 'plants') {
             const sheetKey = this._seasonKey('plants');
-            if (!this._sheets.has(sheetKey)) return null;
-            const pool = this._analyzedPlantSprites.length > 0
-                ? this._analyzedPlantSprites : this._PLANT_SPRITES_FALLBACK;
-            const def = pool[hash % pool.length];
-            return { sheet: sheetKey, ...def, type: 'plant' };
-        }
-
-        if (cat === 'rocks') {
+            if (this._sheets.has(sheetKey)) {
+                const pool = this._analyzedPlantSprites.length > 0
+                    ? this._analyzedPlantSprites : this._PLANT_SPRITES_FALLBACK;
+                const def = pool[hash % pool.length];
+                result = { sheet: sheetKey, ...def, type: 'plant' };
+            }
+        } else if (cat === 'rocks') {
             const def = this._ROCK_SPRITES[hash % this._ROCK_SPRITES.length];
-            if (!this._sheets.has(def.sheet)) return null;
-            return { ...def, type: 'rock' };
-        }
-
-        if (cat === 'wildflowers') {
+            if (this._sheets.has(def.sheet)) {
+                result = { ...def, type: 'rock' };
+            }
+        } else if (cat === 'wildflowers') {
             let sheetKey = this._seasonKey('wildflowers');
             if (!this._sheets.has(sheetKey)) sheetKey = 'flowers';
             const sheet = this._sheets.get(sheetKey);
-            if (!sheet || !sheet.width) return null;
-            const cols = Math.floor(sheet.width / 32);
-            const rows = Math.floor(sheet.height / 32);
-            if (cols <= 0 || rows <= 0) return null;
-            return { sheet: sheetKey, sx: (hash % cols) * 32, sy: ((hash >>> 8) % rows) * 32, sw: 32, sh: 32, type: 'flower' };
-        }
-
-        if (cat === 'mushrooms') {
-            if (!this._sheets.has('mushrooms')) return null;
-            const sheet = this._sheets.get('mushrooms');
-            const cols = Math.floor(sheet.width / 32);
-            const rows = Math.floor(sheet.height / 32);
-            if (cols <= 0 || rows <= 0) return null;
-            return { sheet: 'mushrooms', sx: (hash % cols) * 32, sy: ((hash >>> 8) % rows) * 32, sw: 32, sh: 32, type: 'mushroom' };
-        }
-
-        // Water features — rendered as tinted water overlay on parent terrain
-        if (cat === 'water_feature') {
-            return { type: 'water_overlay', tint: 'rgba(42,133,152,0.55)' };
-        }
-
-        // Frozen water features — icy tint overlay
-        if (cat === 'ice_feature') {
-            return { type: 'ice_overlay', tint: 'rgba(180,220,240,0.50)' };
-        }
-
-        // Waterfall — uses waterfall sheet if available, else water overlay
-        if (cat === 'waterfall') {
-            if (this._sheets.has('waterfall')) {
-                // Waterfall sheet is 512x608, pick a 32x64 frame
-                return { sheet: 'waterfall', sx: 0, sy: 0, sw: 32, sh: 64, type: 'waterfall' };
+            if (sheet && sheet.width) {
+                const cols = Math.floor(sheet.width / 32);
+                const rows = Math.floor(sheet.height / 32);
+                if (cols > 0 && rows > 0) {
+                    result = { sheet: sheetKey, sx: (hash % cols) * 32, sy: ((hash >>> 8) % rows) * 32, sw: 32, sh: 32, type: 'flower' };
+                }
             }
-            return { type: 'water_overlay', tint: 'rgba(42,133,152,0.55)' };
+        } else if (cat === 'mushrooms') {
+            if (this._sheets.has('mushrooms')) {
+                const sheet = this._sheets.get('mushrooms');
+                const cols = Math.floor(sheet.width / 32);
+                const rows = Math.floor(sheet.height / 32);
+                if (cols > 0 && rows > 0) {
+                    result = { sheet: 'mushrooms', sx: (hash % cols) * 32, sy: ((hash >>> 8) % rows) * 32, sw: 32, sh: 32, type: 'mushroom' };
+                }
+            }
+        } else if (cat === 'water_feature') {
+            result = { type: 'water_overlay', tint: 'rgba(42,133,152,0.55)' };
+        } else if (cat === 'ice_feature') {
+            result = { type: 'ice_overlay', tint: 'rgba(180,220,240,0.50)' };
+        } else if (cat === 'waterfall') {
+            if (this._sheets.has('waterfall')) {
+                result = { sheet: 'waterfall', sx: 0, sy: 0, sw: 32, sh: 64, type: 'waterfall' };
+            } else {
+                result = { type: 'water_overlay', tint: 'rgba(42,133,152,0.55)' };
+            }
         }
 
-        return null;
+        tile._cachedOverlay = result;
+        return result;
     },
 
     // ══════════════════════════════════════════════
@@ -542,7 +550,7 @@ const InnerMapRenderer = {
      * @param {number} [destH] - dest height in world px (defaults to srcH)
      */
     _renderSprite(ctx, camera, worldX, worldY, texture, srcX, srcY, srcW, srcH, destW, destH) {
-        const screen = camera.worldToScreen(worldX, worldY);
+        const screen = camera.worldToScreenFast(worldX, worldY);
         const w = (destW || srcW) * camera.zoom;
         const h = (destH || srcH) * camera.zoom;
         ctx.drawImage(texture, srcX, srcY, srcW, srcH,
@@ -566,6 +574,9 @@ const InnerMapRenderer = {
         ctx.fillStyle = '#0a0e17';
         ctx.fillRect(0, 0, w, h);
         ctx.save();
+
+        // Cache visible tile range once per frame for all layers
+        this._frameRange = this._getVisibleTileRange(camera);
 
         // ── Layer 0: Terrain (ground) ──
         this._renderTerrainLayer(ctx, camera);
@@ -628,16 +639,38 @@ const InnerMapRenderer = {
 
         ctx.restore();
 
-        // ── Layer 9: Ambient overlays ──
-        const ambientColor = InnerMap.getAmbientOverlay();
-        if (ambientColor) { ctx.fillStyle = ambientColor; ctx.fillRect(0, 0, w, h); }
-        const weatherColor = InnerMap.getWeatherOverlay();
-        if (weatherColor) { ctx.fillStyle = weatherColor; ctx.fillRect(0, 0, w, h); }
-        const tempColor = InnerMap.getTemperatureOverlay();
-        if (tempColor) { ctx.fillStyle = tempColor; ctx.fillRect(0, 0, w, h); }
+        // ── Layer 9: Dynamic lighting & ambient overlays ──
+        // The light system replaces the old flat ambient overlay with proper
+        // 2D radial lights (player torch, building lights, road torches, etc.)
+        if (typeof LightSystem !== 'undefined' && LightSystem.enabled && LightSystem.ambientDarkness > 0.01) {
+            // Render dynamic light/shadow overlay
+            LightSystem.render(ctx, canvas, deltaTime);
 
-        // ── Layer 10: Weather particles ──
-        this._renderWeatherParticles(ctx, canvas, camera, deltaTime);
+            // Weather overlay on top of lighting (still additive)
+            if (!InnerMap._insideBuilding) {
+                const weatherColor = InnerMap.getWeatherOverlay();
+                if (weatherColor) { ctx.fillStyle = weatherColor; ctx.fillRect(0, 0, w, h); }
+                const tempColor = InnerMap.getTemperatureOverlay();
+                if (tempColor) { ctx.fillStyle = tempColor; ctx.fillRect(0, 0, w, h); }
+            }
+        } else {
+            // During full daylight: just draw weather/temperature overlays
+            if (!InnerMap._insideBuilding) {
+                const weatherColor = InnerMap.getWeatherOverlay();
+                if (weatherColor) { ctx.fillStyle = weatherColor; ctx.fillRect(0, 0, w, h); }
+                const tempColor = InnerMap.getTemperatureOverlay();
+                if (tempColor) { ctx.fillStyle = tempColor; ctx.fillRect(0, 0, w, h); }
+            }
+        }
+
+        // ── Layer 10: Weather particles (always rendered) ──
+        if (!InnerMap._insideBuilding) {
+            this._renderWeatherParticles(ctx, canvas, camera, deltaTime);
+        } else {
+            // Indoor ambient: warm interior tint
+            ctx.fillStyle = 'rgba(245, 197, 66, 0.03)';
+            ctx.fillRect(0, 0, w, h);
+        }
 
         // ── Layer 11: HUD ──
         this._renderHUD(ctx, canvas);

@@ -151,8 +151,17 @@ textarea{resize:vertical;font-family:inherit}
   <div class="nav-tab" data-tab="spritesheet" onclick="switchTab('spritesheet')">
     <span class="tab-icon">🗂️</span> Spritesheet Editor
   </div>
+  <div class="nav-tab" data-tab="interiors"   onclick="switchTab('interiors')">
+    <span class="tab-icon">🏠</span> Interior Editor
+  </div>
+  <div class="nav-tab" data-tab="terrain"     onclick="switchTab('terrain')">
+    <span class="tab-icon">🏔</span> Terrain Editor
+  </div>
   <div class="nav-tab" data-tab="resources"   onclick="switchTab('resources')">
     <span class="tab-icon">💎</span> Resource Types
+  </div>
+  <div class="nav-tab" data-tab="palettes"    onclick="switchTab('palettes')">
+    <span class="tab-icon">🎨</span> Palettes
   </div>
   <div class="nav-spacer"></div>
   <button class="green" style="font-size:11px;padding:3px 9px" onclick="newGamedata()">📄 New</button>
@@ -172,6 +181,21 @@ textarea{resize:vertical;font-family:inherit}
 
   <!-- Spritesheet Editor iframe -->
   <div class="editor-pane" id="pane-spritesheet">
+    <!-- loaded lazily on first activation -->
+  </div>
+
+  <!-- Interior Editor iframe -->
+  <div class="editor-pane" id="pane-interiors">
+    <!-- loaded lazily on first activation -->
+  </div>
+
+  <!-- Terrain Editor iframe -->
+  <div class="editor-pane" id="pane-terrain">
+    <!-- loaded lazily on first activation -->
+  </div>
+
+  <!-- Palette Maker iframe -->
+  <div class="editor-pane" id="pane-palettes">
     <!-- loaded lazily on first activation -->
   </div>
 
@@ -276,6 +300,7 @@ textarea{resize:vertical;font-family:inherit}
 <!-- Toast -->
 <div id="toast"></div>
 
+<script src="js/systems/modStore.js"></script>
 <script>
 'use strict';
 
@@ -283,7 +308,7 @@ textarea{resize:vertical;font-family:inherit}
 //  TAB SWITCHING
 // ═══════════════════════════════════════════════════════
 
-const iframeLoaded = { sprite: true, spritesheet: false };
+const iframeLoaded = { sprite: true, spritesheet: false, interiors: false, terrain: false, palettes: false };
 
 function switchTab(name) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
@@ -295,6 +320,30 @@ function switchTab(name) {
     const pane = document.getElementById('pane-spritesheet');
     const iframe = document.createElement('iframe');
     iframe.src = 'spritesheet_editor.html';
+    pane.appendChild(iframe);
+  }
+  if (name === 'interiors' && !iframeLoaded.interiors) {
+    iframeLoaded.interiors = true;
+    const pane = document.getElementById('pane-interiors');
+    const iframe = document.createElement('iframe');
+    iframe.id = 'iframe-interiors';
+    iframe.src = 'interior_editor.html';
+    pane.appendChild(iframe);
+  }
+  if (name === 'terrain' && !iframeLoaded.terrain) {
+    iframeLoaded.terrain = true;
+    const pane = document.getElementById('pane-terrain');
+    const iframe = document.createElement('iframe');
+    iframe.id = 'iframe-terrain';
+    iframe.src = 'terrain_editor.html';
+    pane.appendChild(iframe);
+  }
+  if (name === 'palettes' && !iframeLoaded.palettes) {
+    iframeLoaded.palettes = true;
+    const pane = document.getElementById('pane-palettes');
+    const iframe = document.createElement('iframe');
+    iframe.id = 'iframe-palettes';
+    iframe.src = 'palette_maker.html';
     pane.appendChild(iframe);
   }
 }
@@ -331,6 +380,20 @@ const CATEGORY_LABELS = {
 
 (async function init() {
   try {
+    // Try loading from browser storage first (IndexedDB)
+    await ModStore.init();
+    const stored = await ModStore.loadModData();
+    if (stored && typeof stored === 'object' && (stored.terrain || stored.buildings || stored.objects)) {
+      _gamedata = { ...makeEmptyGamedata(), ...stored };
+      applyGamedata();
+      toast('Loaded from browser storage', 'ok');
+      return;
+    }
+  } catch (e) {
+    console.warn('ModStore load failed, trying gamedata.json...', e);
+  }
+  // Fall back to fetching gamedata.json from disk
+  try {
     const res = await fetch('data/gamedata.json');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     _gamedata = await res.json();
@@ -338,7 +401,7 @@ const CATEGORY_LABELS = {
     toast('gamedata.json loaded', 'ok');
   } catch (e) {
     newGamedata(true /* silent */);
-    toast('No gamedata.json found — started fresh. Import or create new.', 'err');
+    toast('No saved data found — started fresh. Import or create new.', 'err');
   }
 })();
 
@@ -710,16 +773,25 @@ function buildTerrainJson() {
 
 function makeEmptyGamedata() {
   return {
-    terrain:   { types: {}, resources: {}, resourceChances: {}, biomeTable: [] },
-    custom_buildings: { manifest: { files: ['custom_buildings.json'] }, files: { 'custom_buildings.json': { buildings: [] } } },
-    custom_objects:   { manifest: { files: ['my_objects.json'] },       files: { 'my_objects.json': { composed: true, tileW: 32, tileH: 32, objects: [] } } },
+    terrain:    { types: {}, resources: {}, resourceChances: {}, biomeTable: [] },
+    buildings:  [],
+    objects:    [],
+    interiors:  [],
+    terrainSets:     [],
+    nineTileBrushes: [],
+    doorCatalog:     [],
+    windowCatalog:   [],
   };
 }
 
 function newGamedata(silent) {
   _gamedata = makeEmptyGamedata();
   applyGamedata();
-  if (!silent) { dirty = false; updateDirtyBadge(); toast('Created blank gamedata', 'ok'); }
+  if (!silent) {
+    dirty = false; updateDirtyBadge();
+    autoSaveToBrowser();
+    toast('Created blank gamedata', 'ok');
+  }
 }
 
 /**
@@ -731,8 +803,14 @@ function applyGamedata() {
   _gamedata.terrain = terrainData;
   loadFromTerrainData(terrainData);
 
-  // Sprite editor (iframe) — send buildings + objects
+  // Sprite editor (iframe) — send buildings + objects + terrainSets
   pushToSpriteEditor();
+
+  // Interior editor (iframe) — send interiors
+  pushToInteriorEditor();
+
+  // Terrain editor (iframe) — send terrainSets + nineTileBrushes
+  pushToTerrainEditor();
 }
 
 function pushToSpriteEditor() {
@@ -741,14 +819,48 @@ function pushToSpriteEditor() {
     try {
       iframe.contentWindow.postMessage({
         type: 'loadGamedata',
-        custom_buildings: _gamedata.custom_buildings || {},
-        custom_objects:   _gamedata.custom_objects   || {},
+        buildings:       _gamedata.buildings       || [],
+        objects:         _gamedata.objects         || [],
+        terrainSets:     _gamedata.terrainSets     || [],
+        nineTileBrushes: _gamedata.nineTileBrushes || [],
+        doorCatalog:     _gamedata.doorCatalog     || [],
+        windowCatalog:   _gamedata.windowCatalog   || [],
       }, '*');
     } catch (e) { /* iframe may not be ready yet */ }
   }
 }
 
-// When the sprite iframe loads, push data to it
+function pushToTerrainEditor() {
+  const iframe = document.getElementById('iframe-terrain');
+  if (iframe && iframe.contentWindow) {
+    try {
+      iframe.contentWindow.postMessage({
+        type: 'loadGamedata',
+        data: {
+          terrainSets:     _gamedata.terrainSets     || [],
+          nineTileBrushes: _gamedata.nineTileBrushes  || [],
+          objects:         _gamedata.objects          || [],
+        }
+      }, '*');
+    } catch (e) { /* iframe may not be ready yet */ }
+  }
+}
+
+function pushToInteriorEditor() {
+  const iframe = document.getElementById('iframe-interiors');
+  if (iframe && iframe.contentWindow) {
+    try {
+      iframe.contentWindow.postMessage({
+        type: 'loadGamedata',
+        interiors: _gamedata.interiors || [],
+        buildings: _gamedata.buildings || [],
+        objects:   _gamedata.objects   || [],
+      }, '*');
+    } catch (e) { /* iframe may not be ready yet */ }
+  }
+}
+
+// When the sprite/interior iframes load, push data to them
 window.addEventListener('message', ev => {
   if (!ev.data || !ev.data.type) return;
   // Sprite editor is ready and asking for data
@@ -757,9 +869,60 @@ window.addEventListener('message', ev => {
   }
   // Sprite editor is sending back updated data (on every save)
   if (ev.data.type === 'spriteDataChanged') {
-    if (ev.data.custom_buildings) _gamedata.custom_buildings = ev.data.custom_buildings;
-    if (ev.data.custom_objects)   _gamedata.custom_objects   = ev.data.custom_objects;
+    if (ev.data.buildings)       _gamedata.buildings       = ev.data.buildings;
+    if (ev.data.objects)         _gamedata.objects         = ev.data.objects;
+    if (ev.data.terrainSets)     _gamedata.terrainSets     = ev.data.terrainSets;
+    if (ev.data.nineTileBrushes) _gamedata.nineTileBrushes = ev.data.nineTileBrushes;
+    if (ev.data.doorCatalog)     _gamedata.doorCatalog     = ev.data.doorCatalog;
+    if (ev.data.windowCatalog)   _gamedata.windowCatalog   = ev.data.windowCatalog;
     markDirty();
+    // Push updated objects/buildings to sub-editors so their palettes refresh
+    if (ev.data.objects || ev.data.buildings) {
+      pushToInteriorEditor();
+      pushToTerrainEditor();
+    }
+  }
+  // Interior editor is ready and asking for data
+  if (ev.data.type === 'interiorEditorReady') {
+    pushToInteriorEditor();
+  }
+  // Interior editor is sending back updated data (on every save)
+  if (ev.data.type === 'interiorDataChanged') {
+    if (ev.data.interiors) _gamedata.interiors = ev.data.interiors;
+    markDirty();
+  }
+  // Terrain editor is ready and asking for data
+  if (ev.data.type === 'terrainEditorReady') {
+    pushToTerrainEditor();
+  }
+  // Terrain editor is sending back updated data
+  if (ev.data.type === 'terrainDataChanged') {
+    if (ev.data.terrainSets)     _gamedata.terrainSets     = ev.data.terrainSets;
+    if (ev.data.nineTileBrushes) _gamedata.nineTileBrushes  = ev.data.nineTileBrushes;
+    markDirty();
+  }
+  // Sprite editor requests opening interior for a specific building
+  if (ev.data.type === 'openBuildingInterior') {
+    // Switch to interiors tab (lazy-loads iframe if needed)
+    switchTab('interiors');
+    // Forward to interior editor once it's ready
+    const fwd = () => {
+      const iframe = document.getElementById('iframe-interiors');
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({
+          type: 'openBuildingInterior',
+          buildingId:     ev.data.buildingId,
+          buildingName:   ev.data.buildingName,
+          buildingType:   ev.data.buildingType,
+          buildingWidth:  ev.data.buildingWidth,
+          buildingHeight: ev.data.buildingHeight,
+          buildings:      _gamedata.buildings || [],
+        }, '*');
+      }
+    };
+    // Small delay to let iframe load if it was just created
+    if (iframeLoaded.interiors) { setTimeout(fwd, 100); }
+    else { setTimeout(fwd, 600); }
   }
 });
 
@@ -772,15 +935,49 @@ function handleImport(ev) {
   reader.onload = e => {
     try {
       const parsed = JSON.parse(e.target.result);
-      if (!parsed.terrain && !parsed.custom_buildings && !parsed.custom_objects) {
+      if (!parsed.terrain && !parsed.buildings && !parsed.objects) {
         throw new Error('Not a valid gamedata.json — missing expected keys.');
       }
       // Merge into a full gamedata shell (so partial files still work)
       _gamedata = { ...makeEmptyGamedata(), ...parsed };
+
+      // ── Migrate legacy custom_* nested format to flat arrays ──
+      if (_gamedata.custom_buildings && !_gamedata.buildings?.length) {
+        const files = _gamedata.custom_buildings.files || {};
+        const all = [];
+        for (const fileData of Object.values(files)) {
+          if (Array.isArray(fileData.buildings)) all.push(...fileData.buildings);
+        }
+        if (all.length) _gamedata.buildings = all;
+        delete _gamedata.custom_buildings;
+      }
+      if (_gamedata.custom_objects && !_gamedata.objects?.length) {
+        const files = _gamedata.custom_objects.files || {};
+        const all = [];
+        for (const fileData of Object.values(files)) {
+          const arr = fileData.objects || (Array.isArray(fileData) ? fileData : []);
+          all.push(...arr);
+        }
+        if (all.length) _gamedata.objects = all;
+        delete _gamedata.custom_objects;
+      }
+      if (_gamedata.custom_interiors && !_gamedata.interiors?.length) {
+        const files = _gamedata.custom_interiors.files || {};
+        const all = [];
+        for (const fileData of Object.values(files)) {
+          const arr = fileData.interiors || (Array.isArray(fileData) ? fileData : []);
+          all.push(...arr);
+        }
+        if (all.length) _gamedata.interiors = all;
+        delete _gamedata.custom_interiors;
+      }
+
       applyGamedata();
       dirty = false;
       updateDirtyBadge();
-      toast('gamedata.json imported', 'ok');
+      // Save imported data to browser storage immediately
+      autoSaveToBrowser();
+      toast('gamedata.json imported & saved to browser', 'ok');
     } catch (err) {
       toast('Import failed: ' + err.message, 'err');
     }
@@ -797,9 +994,41 @@ function exportGamedata() {
   const iframe = document.getElementById('iframe-sprite');
   if (iframe && iframe.contentWindow && typeof iframe.contentWindow.getExportData === 'function') {
     const spriteData = iframe.contentWindow.getExportData();
-    if (spriteData.custom_buildings) _gamedata.custom_buildings = spriteData.custom_buildings;
-    if (spriteData.custom_objects)   _gamedata.custom_objects   = spriteData.custom_objects;
+    if (spriteData.buildings) _gamedata.buildings = spriteData.buildings;
+    if (spriteData.objects)   _gamedata.objects   = spriteData.objects;
+    if (spriteData.terrainSets)   _gamedata.terrainSets   = spriteData.terrainSets;
+    if (spriteData.nineTileBrushes) _gamedata.nineTileBrushes = spriteData.nineTileBrushes;
+    if (spriteData.windowCatalog) _gamedata.windowCatalog = spriteData.windowCatalog;
+    if (spriteData.doorCatalog)   _gamedata.doorCatalog   = spriteData.doorCatalog;
   }
+
+  // Ask interior iframe for latest interiors
+  const intIframe = document.getElementById('iframe-interiors');
+  if (intIframe && intIframe.contentWindow && typeof intIframe.contentWindow.getExportData === 'function') {
+    const intData = intIframe.contentWindow.getExportData();
+    if (intData.interiors) _gamedata.interiors = intData.interiors;
+  }
+
+  // Ask sprite editor for latest terrain sets (tbrush sets are authored there)
+  const sprIframe2 = document.getElementById('iframe-sprite');
+  if (sprIframe2 && sprIframe2.contentWindow && typeof sprIframe2.contentWindow.getExportData === 'function') {
+    const sprData2 = sprIframe2.contentWindow.getExportData();
+    if (sprData2.terrainSets) _gamedata.terrainSets = sprData2.terrainSets;
+  }
+
+  // Ask terrain editor iframe for latest nine-tile brushes and map data
+  const terrIframe = document.getElementById('iframe-terrain');
+  if (terrIframe && terrIframe.contentWindow && typeof terrIframe.contentWindow.getExportData === 'function') {
+    const terrData = terrIframe.contentWindow.getExportData();
+    if (terrData.terrainSets)     _gamedata.terrainSets     = terrData.terrainSets;
+    if (terrData.nineTileBrushes) _gamedata.nineTileBrushes  = terrData.nineTileBrushes;
+    if (terrData.terrainMap)      _gamedata.terrainMap       = terrData.terrainMap;
+  }
+
+  // Remove any legacy keys before export
+  delete _gamedata.custom_buildings;
+  delete _gamedata.custom_objects;
+  delete _gamedata.custom_interiors;
 
   const blob = new Blob([JSON.stringify(_gamedata)], { type: 'application/json' });
   const a = document.createElement('a');
@@ -819,6 +1048,55 @@ function exportGamedata() {
 function markDirty() {
   dirty = true;
   updateDirtyBadge();
+  scheduleAutoSave();
+}
+
+// ── Debounced auto-save to IndexedDB ──
+let _autoSaveTimer = null;
+function scheduleAutoSave() {
+  clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(() => autoSaveToBrowser(), 1000);
+}
+
+/** Gather latest data from all sub-editors and save to IndexedDB */
+async function autoSaveToBrowser() {
+  if (!_gamedata) return;
+  try {
+    // Collect latest from resource editor
+    _gamedata.terrain = buildTerrainJson();
+
+    // Pull from sprite editor iframe
+    const sprIframe = document.getElementById('iframe-sprite');
+    if (sprIframe && sprIframe.contentWindow && typeof sprIframe.contentWindow.getExportData === 'function') {
+      const sd = sprIframe.contentWindow.getExportData();
+      if (sd.buildings)    _gamedata.buildings    = sd.buildings;
+      if (sd.objects)      _gamedata.objects      = sd.objects;
+      if (sd.terrainSets)  _gamedata.terrainSets  = sd.terrainSets;
+      if (sd.nineTileBrushes) _gamedata.nineTileBrushes = sd.nineTileBrushes;
+      if (sd.windowCatalog) _gamedata.windowCatalog = sd.windowCatalog;
+      if (sd.doorCatalog)   _gamedata.doorCatalog   = sd.doorCatalog;
+    }
+
+    // Pull from interior editor iframe
+    const intIframe = document.getElementById('iframe-interiors');
+    if (intIframe && intIframe.contentWindow && typeof intIframe.contentWindow.getExportData === 'function') {
+      const id = intIframe.contentWindow.getExportData();
+      if (id.interiors) _gamedata.interiors = id.interiors;
+    }
+
+    // Pull from terrain editor iframe
+    const terrIframe = document.getElementById('iframe-terrain');
+    if (terrIframe && terrIframe.contentWindow && typeof terrIframe.contentWindow.getExportData === 'function') {
+      const td = terrIframe.contentWindow.getExportData();
+      if (td.terrainSets)     _gamedata.terrainSets     = td.terrainSets;
+      if (td.nineTileBrushes) _gamedata.nineTileBrushes  = td.nineTileBrushes;
+    }
+
+    await ModStore.saveModData(_gamedata);
+    console.log('[AutoSave] saved to IndexedDB');
+  } catch (e) {
+    console.warn('[AutoSave] failed:', e);
+  }
 }
 
 function updateDirtyBadge() {

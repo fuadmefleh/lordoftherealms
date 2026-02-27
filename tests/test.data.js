@@ -217,8 +217,8 @@ TestRunner.describe('JSON Data Integrity — Military', async function () {
 TestRunner.describe('JSON Data Integrity — Technology', async function () {
     await TestRunner.it('tech tree: all techs have required fields', async () => {
         const data = await DataLoader.load('technology.json');
-        assert.ok(data.techs, 'techs should exist');
-        const techEntries = Object.entries(data.techs);
+        assert.ok(data.TECHS, 'techs should exist');
+        const techEntries = Object.entries(data.TECHS);
         assert.ok(techEntries.length >= 20, `Expected >= 20 techs, got ${techEntries.length}`);
         for (const [key, tech] of techEntries) {
             assert.hasProperty(tech, 'id', `${key} missing id`);

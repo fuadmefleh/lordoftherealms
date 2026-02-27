@@ -30,6 +30,20 @@ class Camera {
         this.worldPixelWidth = 0;
         this.worldPixelHeight = 0;
 
+        // Lock mode — when true, disables keyboard panning and drag panning
+        // Camera can only move via follow() / centerOn() calls
+        this.locked = false;
+
+        // ── Performance: reusable point objects to avoid per-call allocations ──
+        this._screenPt = { x: 0, y: 0 };
+        this._worldPt  = { x: 0, y: 0 };
+        this._boundsPt = { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 };
+
+        // ── Pre-computed per-frame camera constants ──
+        this._cx = 0;
+        this._cy = 0;
+        this._invZoom = 1;
+
         this.setupControls();
     }
 
@@ -54,8 +68,9 @@ class Camera {
             this.targetZoom = Utils.clamp(this.targetZoom + zoomDelta, this.minZoom, this.maxZoom);
         }, { passive: false });
 
-        // Mouse drag for panning
+        // Mouse drag for panning (disabled when camera is locked)
         canvas.addEventListener('mousedown', (e) => {
+            if (this.locked) return; // Camera locked to player
             if (e.button === 1 || e.button === 2 || (e.button === 0 && e.shiftKey)) {
                 // Middle click, right click, or shift+left click to drag
                 this.isDragging = true;
@@ -118,12 +133,14 @@ class Camera {
      * Update camera (call each frame)
      */
     update(deltaTime) {
-        // Keyboard panning
-        const panSpeed = (this.panSpeedBase || 400) / this.zoom;
-        if (this.keys['ArrowLeft'] || this.keys['a']) this.targetX -= panSpeed * deltaTime;
-        if (this.keys['ArrowRight'] || this.keys['d']) this.targetX += panSpeed * deltaTime;
-        if (this.keys['ArrowUp'] || this.keys['w']) this.targetY -= panSpeed * deltaTime;
-        if (this.keys['ArrowDown'] || this.keys['s']) this.targetY += panSpeed * deltaTime;
+        // Keyboard panning (disabled when camera is locked)
+        if (!this.locked) {
+            const panSpeed = (this.panSpeedBase || 400) / this.zoom;
+            if (this.keys['ArrowLeft'] || this.keys['a']) this.targetX -= panSpeed * deltaTime;
+            if (this.keys['ArrowRight'] || this.keys['d']) this.targetX += panSpeed * deltaTime;
+            if (this.keys['ArrowUp'] || this.keys['w']) this.targetY -= panSpeed * deltaTime;
+            if (this.keys['ArrowDown'] || this.keys['s']) this.targetY += panSpeed * deltaTime;
+        }
 
         // Keyboard zoom
         if (this.keys['+'] || this.keys['=']) this.targetZoom = Utils.clamp(this.targetZoom + 1.5 * deltaTime, this.minZoom, this.maxZoom);
@@ -147,48 +164,70 @@ class Camera {
     }
 
     /**
+     * Pre-compute constants at the start of each frame.
+     * Call once per frame before any worldToScreen / getVisibleBounds calls.
+     */
+    precomputeFrame() {
+        this._cx = this.canvas.width / 2;
+        this._cy = this.canvas.height / 2;
+        this._invZoom = 1 / this.zoom;
+    }
+
+    /**
      * Convert screen coords to world coords
      */
     screenToWorld(screenX, screenY) {
-        const cx = this.canvas.width / 2;
-        const cy = this.canvas.height / 2;
-        const worldX = (screenX - cx) / this.zoom + this.x;
-        const worldY = (screenY - cy) / this.zoom + this.y;
+        const worldX = (screenX - this._cx) * this._invZoom + this.x;
+        const worldY = (screenY - this._cy) * this._invZoom + this.y;
         return { x: worldX, y: worldY };
     }
 
     /**
-     * Convert world coords to screen coords
+     * Convert world coords to screen coords.
+     * Returns a NEW object (safe to store). For hot-path loops use worldToScreenFast().
      */
     worldToScreen(worldX, worldY) {
-        const cx = this.canvas.width / 2;
-        const cy = this.canvas.height / 2;
-
-        // Handle wrapping — find the closest wrapped version
         let dx = worldX - this.x;
         if (this.worldPixelWidth > 0) {
             if (dx > this.worldPixelWidth / 2) dx -= this.worldPixelWidth;
             if (dx < -this.worldPixelWidth / 2) dx += this.worldPixelWidth;
         }
-
-        const screenX = cx + dx * this.zoom;
-        const screenY = cy + (worldY - this.y) * this.zoom;
-        return { x: screenX, y: screenY };
+        return {
+            x: this._cx + dx * this.zoom,
+            y: this._cy + (worldY - this.y) * this.zoom
+        };
     }
 
     /**
-     * Get visible world bounds
+     * Convert world coords to screen coords — FAST version.
+     * Reuses an internal point object. The returned reference is ONLY valid
+     * until the next call to worldToScreenFast. Use for immediate consumption
+     * in tight tile-rendering loops to avoid GC pressure.
+     */
+    worldToScreenFast(worldX, worldY) {
+        let dx = worldX - this.x;
+        if (this.worldPixelWidth > 0) {
+            if (dx > this.worldPixelWidth / 2) dx -= this.worldPixelWidth;
+            if (dx < -this.worldPixelWidth / 2) dx += this.worldPixelWidth;
+        }
+        this._screenPt.x = this._cx + dx * this.zoom;
+        this._screenPt.y = this._cy + (worldY - this.y) * this.zoom;
+        return this._screenPt;
+    }
+
+    /**
+     * Get visible world bounds (reuses internal object — don't store the reference)
      */
     getVisibleBounds() {
-        const halfW = (this.canvas.width / 2) / this.zoom;
-        const halfH = (this.canvas.height / 2) / this.zoom;
-        return {
-            left: this.x - halfW,
-            right: this.x + halfW,
-            top: this.y - halfH,
-            bottom: this.y + halfH,
-            width: halfW * 2,
-            height: halfH * 2
-        };
+        const halfW = this._cx * this._invZoom;
+        const halfH = this._cy * this._invZoom;
+        const b = this._boundsPt;
+        b.left   = this.x - halfW;
+        b.right  = this.x + halfW;
+        b.top    = this.y - halfH;
+        b.bottom = this.y + halfH;
+        b.width  = halfW * 2;
+        b.height = halfH * 2;
+        return b;
     }
 }

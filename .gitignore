@@ -7,4 +7,6 @@ Thumbs.db
 .vscode/
 .idea/
 dist/
+dist-web/
 build/
+data/gamedata.json

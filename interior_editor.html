@@ -79,6 +79,57 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;bo
 
 /* Furniture marker icons on canvas */
 .furn-ghost{position:absolute;pointer-events:none;font-size:20px;opacity:.7;text-shadow:0 0 3px rgba(0,0,0,.7)}
+
+/* ─── Nine-Tile Brush System ─── */
+#ntbModal{position:fixed;inset:0;z-index:1001;background:rgba(0,0,0,0.88);backdrop-filter:blur(5px);display:flex;flex-direction:column}
+.ntb-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0}
+.ntb-body{display:flex;flex:1;overflow:hidden}
+.ntb-left{width:420px;flex-shrink:0;padding:12px;overflow-y:auto;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:12px}
+.ntb-right{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--panel2)}
+.ntb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-width:300px}
+.ntb-cell{border:2px solid var(--border2);border-radius:6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px;background:var(--bg);transition:border-color .12s,background .12s;aspect-ratio:1;min-height:70px}
+.ntb-cell:hover{background:var(--hover);border-color:var(--blue)}
+.ntb-cell.ntb-selected{background:#0b2a4a !important;border-color:var(--blue);outline:2px solid var(--blue)}
+.ntb-cell.ntb-filled{border-color:var(--green)}
+.ntb-cell canvas{image-rendering:pixelated;width:48px;height:48px;display:block}
+.ntb-cell-lbl{font-size:8px;color:var(--text-dim);margin-top:2px;font-weight:600;text-transform:uppercase}
+.ntb-ic-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;max-width:300px;margin-top:4px}
+.ntb-corridor-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;max-width:300px;margin-top:4px}
+.ntb-brush-card{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:6px 8px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:border-color .12s}
+.ntb-brush-card:hover{border-color:var(--blue)}
+.ntb-brush-card.selected{border-color:var(--gold);background:#1a1500}
+.ntb-brush-card canvas{image-rendering:pixelated;flex-shrink:0}
+.ntb-brush-card .ntb-bname{flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ntb-brush-card .ntb-btype{font-size:9px;padding:1px 5px;border-radius:3px;text-transform:uppercase;font-weight:600}
+.ntb-brush-card .ntb-btype.floor{background:#0e2a17;color:var(--green)}
+.ntb-brush-card .ntb-btype.wall{background:#2a1f00;color:var(--gold)}
+.ntb-type-tabs{display:flex;gap:4px;margin-bottom:8px}
+.ntb-type-btn{font-size:11px;padding:4px 12px;border:1px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text-dim);cursor:pointer;transition:all .12s}
+.ntb-type-btn:hover{background:var(--hover);border-color:var(--blue);color:var(--text)}
+.ntb-type-btn.active{background:#0b2a4a;border-color:var(--blue);color:var(--blue);font-weight:600}
+/* Toast */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--border);color:var(--text);padding:8px 18px;border-radius:6px;font-size:12px;display:none;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.5)}
+#toast.ok{border-color:var(--green);color:var(--green)}
+#toast.err{border-color:var(--red);color:var(--red)}
+/* ─── Interior Generator Modal ─── */
+.igen-overlay{position:fixed;inset:0;z-index:1002;background:rgba(0,0,0,0.8);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center}
+.igen-modal{background:var(--panel);border:1px solid var(--border);border-radius:10px;width:520px;max-height:90vh;overflow-y:auto;padding:20px;box-shadow:0 8px 40px rgba(0,0,0,0.6)}
+.igen-modal h3{margin:0 0 14px 0;color:var(--gold);font-size:16px}
+.igen-section{margin-bottom:14px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:6px}
+.igen-section h4{margin:0 0 8px 0;font-size:12px;color:var(--blue);text-transform:uppercase;letter-spacing:.5px}
+.igen-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px}
+.igen-row label{min-width:80px;color:var(--text-dim);text-align:right}
+.igen-row select,.igen-row input[type=number]{background:var(--bg);color:var(--text);border:1px solid var(--border2);padding:3px 6px;border-radius:4px;font-size:11px}
+.igen-row select{min-width:140px}
+.igen-row input[type=range]{flex:1;max-width:140px}
+.igen-preview{display:flex;justify-content:center;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;min-height:120px}
+.igen-preview canvas{image-rendering:pixelated}
+.igen-btns{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.igen-btns button{font-size:12px;padding:6px 16px;border-radius:5px;cursor:pointer;border:1px solid var(--border2);background:var(--bg);color:var(--text)}
+.igen-btns button:hover{background:var(--hover)}
+.igen-btns button.primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+.igen-btns button.primary:hover{filter:brightness(1.15)}
+.igen-warn{color:#d4a05a;font-size:11px;margin:4px 0}
 </style>
 </head>
 <body>
@@ -101,7 +152,11 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;bo
     <button id="tool-impass"  onclick="setTool('impass')">⛔ Block</button>
     <button id="tool-door"    onclick="setTool('door')">🚪 Door</button>
     <button id="tool-furn"    onclick="setTool('furniture')">🪑 Furniture</button>
+    <button id="tool-9tile"   onclick="setTool('9tile')" title="9-Tile Auto-Brush (N)">🖼 9-Tile</button>
   </div>
+  <div class="tb-sep"></div>
+  <button class="purple" onclick="openNtbEditor(-1)" title="Create or edit 9-tile auto-edge brushes">🎨 Brushes</button>
+  <button class="gold" onclick="showInteriorGenerator()" title="Procedurally generate an interior layout">🏗️ Generate</button>
   <div class="tb-sep"></div>
   <button onclick="newInterior()">＋ New</button>
   <button onclick="saveInterior()" class="green">💾 Save</button>
@@ -227,12 +282,80 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;bo
       </div>
     </div>
 
+    <div class="rp-section" id="ntb-brushes-section">
+      <h3>🖼 9-Tile Brushes</h3>
+      <div style="display:flex;gap:4px;margin-bottom:6px">
+        <button class="purple" onclick="openNtbEditor(-1)" style="font-size:10px;padding:2px 7px;flex:1">＋ New Brush</button>
+      </div>
+      <div id="ntb-list-panel" style="display:flex;flex-direction:column;gap:3px;max-height:180px;overflow-y:auto"></div>
+    </div>
+
     <div class="rp-section item-list">
       <h3>Saved Interiors (<span id="int-count">0</span>)</h3>
       <div id="interior-list"></div>
     </div>
   </div>
 </div>
+
+<!-- ═══ NINE-TILE BRUSH EDITOR MODAL ═══ -->
+<div id="ntbModal" style="display:none">
+  <div class="ntb-header">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:15px;font-weight:700;color:var(--purple)">🖼 Nine-Tile Brush Editor</span>
+      <input type="text" id="ntb-name" value="New Brush" placeholder="Brush name..." style="width:160px">
+      <div class="ntb-type-tabs" style="margin-bottom:0">
+        <button class="ntb-type-btn active" id="ntb-type-floor" onclick="ntbSetType('floor')">🟫 Floor</button>
+        <button class="ntb-type-btn" id="ntb-type-wall" onclick="ntbSetType('wall')">🧱 Wall</button>
+      </div>
+      <button class="green" onclick="ntbSave()">💾 Save</button>
+      <button class="danger" onclick="ntbDelete()" id="ntb-del-btn" disabled>🗑 Delete</button>
+      <div style="width:1px;height:22px;background:var(--border);margin:0 4px"></div>
+      <span style="font-size:10px;color:var(--text-dim);text-transform:uppercase;font-weight:600">Cost per tile:</span>
+      <label style="font-size:11px;color:var(--text-dim)">Gold</label>
+      <input type="number" id="ntb-cost-gold" value="0" min="0" max="9999" style="width:60px;font-size:11px;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:2px 5px;border-radius:4px">
+      <div id="ntb-cost-resource-rows" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"></div>
+    </div>
+    <button onclick="closeNtbEditor()" style="font-size:18px;padding:2px 10px;flex-shrink:0">✕</button>
+  </div>
+  <div class="ntb-body">
+    <div class="ntb-left">
+      <div>
+        <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-bottom:6px">Tile Layout</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-bottom:8px;line-height:1.4;padding:6px 8px;background:var(--panel2);border-radius:4px;border:1px solid var(--border)">
+          <b style="color:var(--text)">How it works:</b> Pick 9 outer tiles + 4 inside corners.<br>
+          <b>Center</b> fills interior areas. <b>Edge</b> tiles appear at boundaries.<br>
+          <b>Corner</b> tiles at diagonal boundaries. <b>Inside corners</b> for concave corners.<br>
+          <b style="color:var(--gold)">Wall brushes</b> also have corridor/junction pieces for hallways.<br>
+          <b style="color:var(--green)">Quick:</b> Drag a 3×3 on the palette for outer tiles, or 2×2 for inside corners.
+        </div>
+        <div class="ntb-grid" id="ntb-grid"></div>
+        <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-top:8px;margin-bottom:2px">Inside Corners <span style="font-weight:400;text-transform:none">(optional)</span></div>
+        <div class="ntb-ic-grid" id="ntb-ic-grid"></div>
+        <div id="ntb-corridor-section" style="display:none">
+          <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-top:10px;margin-bottom:2px">Corridors & Junctions <span style="font-weight:400;text-transform:none">(wall brush only)</span></div>
+          <div class="ntb-corridor-grid" id="ntb-corridor-grid"></div>
+          <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-top:8px;margin-bottom:2px">End Caps</div>
+          <div class="ntb-corridor-grid" id="ntb-endcap-grid"></div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-bottom:6px">Saved Brushes</div>
+        <div id="ntb-brush-list" style="display:flex;flex-direction:column;gap:4px"></div>
+      </div>
+    </div>
+    <div class="ntb-right">
+      <div style="padding:7px 8px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-bottom:4px">Category</div>
+        <div id="ntb-cat-btns" style="display:flex;flex-wrap:wrap;gap:3px"></div>
+      </div>
+      <div style="flex:1;overflow:auto;padding:6px">
+        <canvas id="ntb-tileset-canvas" style="image-rendering:pixelated;cursor:crosshair;display:block"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
 
 <script>
 // ═══════════════════════════════════════════════════════
@@ -259,6 +382,17 @@ let editIdx = -1;    // Index of interior being edited (-1 = new)
 let _buildings = [];  // Buildings list from parent (for linked building checklist)
 let _linkedBuildingIds = [];  // Currently linked building ids (array)
 let _customObjects = [];  // Custom objects from sprite editor
+let _resourceTypes = [
+  { id: 'wood', name: 'Wood', icon: '🪵', color: '#8b5a2b', buildCostEligible: true },
+  { id: 'timber', name: 'Timber', icon: '🌲', color: '#8b5a2b', buildCostEligible: true },
+  { id: 'stone', name: 'Stone', icon: '⛰️', color: '#808080', buildCostEligible: true },
+  { id: 'iron', name: 'Iron', icon: '⛏️', color: '#8a7a7a', buildCostEligible: true },
+];
+
+// ─── Nine-Tile Brush State ───
+let nineTileBrushes = [];       // Array of brush definitions
+let activeNineBrush = null;     // Index into nineTileBrushes or null
+let brushGroupMap = {};         // "q,r" → { brushId, layer } — tracks which tiles belong to which brush
 
 // Palette state
 let currentCategory = null;
@@ -272,6 +406,49 @@ const MAX_UNDO = 40;
 
 // Canvas refs
 let cvs, ctx;
+
+function _setResourceTypes(resourceTypes) {
+  if (Array.isArray(resourceTypes) && resourceTypes.length) {
+    _resourceTypes = resourceTypes
+      .map(r => ({
+        id: String(r.id || '').trim(),
+        name: String(r.name || r.id || '').trim(),
+        icon: String(r.icon || '📦'),
+        color: String(r.color || '#888888'),
+        buildCostEligible: !!r.buildCostEligible,
+      }))
+      .filter(r => r.id);
+  }
+  _renderNtbCostResourceRows();
+}
+
+function _getBuildCostResourceTypes() {
+  const eligible = _resourceTypes.filter(r => r.buildCostEligible);
+  if (eligible.length) return eligible;
+  return _resourceTypes.filter(r => ['wood', 'timber', 'stone', 'iron'].includes(r.id));
+}
+
+function _renderNtbCostResourceRows(costMap = null) {
+  const wrap = document.getElementById('ntb-cost-resource-rows');
+  if (!wrap) return;
+  const existing = costMap || {};
+  const defs = [..._getBuildCostResourceTypes()].sort((a, b) => a.name.localeCompare(b.name));
+  wrap.innerHTML = '';
+  for (const r of defs) {
+    const lbl = document.createElement('label');
+    lbl.style.cssText = 'display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-dim)';
+    lbl.textContent = `${r.icon || '📦'} ${r.name}`;
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.min = '0';
+    input.max = '999';
+    input.value = String(existing[r.id] || 0);
+    input.style.cssText = 'width:52px;font-size:11px;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:2px 5px;border-radius:4px';
+    input.dataset.resId = r.id;
+    lbl.appendChild(input);
+    wrap.appendChild(lbl);
+  }
+}
 
 // ─── LPC Palette categories ───
 const PALETTE_DATA = {
@@ -375,6 +552,9 @@ const PALETTE_DATA = {
     'assets/lpc/Objects/Furniture/Seating/Thrones.png',
     'assets/lpc/Objects/Furniture/Beds/Beds, Single  A.png',
     'assets/lpc/Objects/Furniture/Beds/Beds, Single B.png',
+    'assets/lpc/Objects/Furniture/Beds/Beds, Single C.png',
+    'assets/lpc/Objects/Furniture/Beds/Beds, Single Headboards.png',
+    'assets/lpc/Objects/Furniture/Beds/Beds, Single Mattresses.png',
     'assets/lpc/Objects/Furniture/Beds/Beds, Double.png',
     'assets/lpc/Objects/Furniture/Beds/Beds, Double B.png',
   ],
@@ -653,8 +833,17 @@ function updateStampPreview() {
         const src = activeStamp._srcTiles[i];
         const img = imageCache[src.sheetPath];
         if (!(img instanceof HTMLImageElement)) continue;
-        pctx.drawImage(img, src.sx, src.sy, src.sw || TILE, src.sh || TILE,
-          (t.localCol + offC) * TILE, (t.localRow + offR) * TILE, TILE, TILE);
+        const px = (t.localCol + offC) * TILE, py = (t.localRow + offR) * TILE;
+        const rot = t.rotation || 0;
+        if (rot) {
+          pctx.save();
+          pctx.translate(px + TILE/2, py + TILE/2);
+          pctx.rotate(rot * Math.PI / 180);
+          pctx.drawImage(img, src.sx, src.sy, src.sw || TILE, src.sh || TILE, -TILE/2, -TILE/2, TILE, TILE);
+          pctx.restore();
+        } else {
+          pctx.drawImage(img, src.sx, src.sy, src.sw || TILE, src.sh || TILE, px, py, TILE, TILE);
+        }
       }
       el.innerHTML = '';
       el.appendChild(pc);
@@ -746,22 +935,135 @@ function _selectCustomObject(obj) {
     localCol: t.localCol,
     localRow: t.localRow,
     sx: t.sx, sy: t.sy,
+    rotation: t.rotation || 0,
   }));
+
+  // Build rotation variant list: base (default tiles) + any saved rotation variants
+  const _rotVariants = [{ label: 'Default', tiles: tiles }];
+  if (obj.rotationVariants && obj.rotationVariants.length) {
+    for (const rv of obj.rotationVariants) {
+      _rotVariants.push({ label: rv.label || 'Variant', tiles: rv.tiles || [] });
+    }
+  }
+
+  // Build color variant list: base + any saved color variants
+  const _colorVariants = [{ label: 'Base', tiles: tiles, rotationVariants: obj.rotationVariants || [] }];
+  if (obj.colorVariants && obj.colorVariants.length) {
+    for (const cv of obj.colorVariants) {
+      _colorVariants.push({
+        label: cv.label || 'Variant',
+        tiles: cv.tiles || [],
+        rotationVariants: cv.rotationVariants || [],
+      });
+    }
+  }
+
   activeStamp = {
     sheetPath: tiles[0].sheetPath,
     stampCols: bounds.maxCol - bounds.minCol + 1,
     stampRows: bounds.maxRow - bounds.minRow + 1,
     tiles: stampTiles,
     _isMultiSheet: true,
-    _srcTiles: tiles,
+    _srcTiles: tiles.map(t => ({ ...t })),
     _originOffCol: -bounds.minCol,
     _originOffRow: -bounds.minRow,
     _objDefId: obj.id,
     _objName: obj.name,
-    _objBounds: bounds,
+    _objBounds: { ...bounds },
+    _rotVariants: _rotVariants,
+    _rotIndex: 0,
+    _colorVariants: _colorVariants,
+    _colorIndex: 0,
   };
   updateStampPreview();
   if (activeTool !== 'paint') setTool('paint');
+}
+
+/** Cycle through the object's rotation variants (R = next, Shift+R = prev). */
+function rotateObjectStamp(dir) {
+  if (!activeStamp || !activeStamp._isMultiSheet) return;
+  // If no rotation variants defined, do nothing
+  if (!activeStamp._rotVariants || activeStamp._rotVariants.length <= 1) return;
+
+  // Cycle index
+  const len = activeStamp._rotVariants.length;
+  activeStamp._rotIndex = ((activeStamp._rotIndex || 0) + dir + len) % len;
+  const rv = activeStamp._rotVariants[activeStamp._rotIndex];
+  const tiles = rv.tiles || [];
+  if (!tiles.length) return;
+
+  // Recompute bounds from this variant's tiles
+  let minC = Infinity, minR = Infinity, maxC = -Infinity, maxR = -Infinity;
+  for (const t of tiles) {
+    if (t.localCol < minC) minC = t.localCol;
+    if (t.localCol > maxC) maxC = t.localCol;
+    if (t.localRow < minR) minR = t.localRow;
+    if (t.localRow > maxR) maxR = t.localRow;
+  }
+
+  // Rebuild stamp tiles from this variant
+  activeStamp.tiles = tiles.map(t => ({
+    localCol: t.localCol,
+    localRow: t.localRow,
+    sx: t.sx, sy: t.sy,
+    rotation: t.rotation || 0,
+  }));
+  activeStamp._srcTiles = tiles.map(t => ({ ...t }));
+  activeStamp.sheetPath = tiles[0].sheetPath;
+  activeStamp.stampCols = maxC - minC + 1;
+  activeStamp.stampRows = maxR - minR + 1;
+  activeStamp._objBounds = { minCol: minC, minRow: minR, maxCol: maxC, maxRow: maxR };
+  activeStamp._originOffCol = -minC;
+  activeStamp._originOffRow = -minR;
+
+  // Preload images then update preview
+  const paths = [...new Set(tiles.map(t => t.sheetPath).filter(Boolean))];
+  Promise.all(paths.map(loadImage)).then(() => {
+    updateStampPreview();
+    renderCanvas();
+  });
+}
+
+/** Cycle through the object's color variants (T = next, Shift+T = prev). */
+function cycleColorVariant(dir) {
+  if (!activeStamp || !activeStamp._isMultiSheet) return;
+  if (!activeStamp._colorVariants || activeStamp._colorVariants.length <= 1) return;
+
+  const len = activeStamp._colorVariants.length;
+  activeStamp._colorIndex = ((activeStamp._colorIndex || 0) + dir + len) % len;
+  const cv = activeStamp._colorVariants[activeStamp._colorIndex];
+  const tiles = cv.tiles || [];
+  if (!tiles.length) return;
+
+  // Recompute bounds
+  let minC=Infinity, minR_=Infinity, maxC=-Infinity, maxR_=-Infinity;
+  for (const t of tiles){if(t.localCol<minC)minC=t.localCol;if(t.localCol>maxC)maxC=t.localCol;if(t.localRow<minR_)minR_=t.localRow;if(t.localRow>maxR_)maxR_=t.localRow;}
+
+  // Rebuild stamp tiles
+  activeStamp.tiles = tiles.map(t => ({ localCol:t.localCol, localRow:t.localRow, sx:t.sx, sy:t.sy, rotation:t.rotation||0 }));
+  activeStamp._srcTiles = tiles.map(t => ({ ...t }));
+  activeStamp.sheetPath = tiles[0].sheetPath;
+  activeStamp.stampCols = maxC - minC + 1;
+  activeStamp.stampRows = maxR_ - minR_ + 1;
+  activeStamp._objBounds = { minCol:minC, minRow:minR_, maxCol:maxC, maxRow:maxR_ };
+  activeStamp._originOffCol = -minC;
+  activeStamp._originOffRow = -minR_;
+
+  // Rebuild rotation variants for this color variant
+  const _rotVariants = [{ label: 'Default', tiles: tiles }];
+  if (cv.rotationVariants && cv.rotationVariants.length) {
+    for (const rv of cv.rotationVariants) _rotVariants.push({ label: rv.label || 'Variant', tiles: rv.tiles || [] });
+  }
+  activeStamp._rotVariants = _rotVariants;
+  activeStamp._rotIndex = 0;
+
+  const paths = [...new Set(tiles.map(t => t.sheetPath).filter(Boolean))];
+  Promise.all(paths.map(loadImage)).then(() => {
+    updateStampPreview();
+    renderCanvas();
+  });
+
+  showToast(`Color: ${cv.label}`);
 }
 
 // ─── Object layer helpers ───
@@ -791,10 +1093,14 @@ function _eraseObjectTouching(q, r) {
 function setTool(t) {
   activeTool = t;
   document.querySelectorAll('#tool-btns button').forEach(b => b.classList.remove('active'));
-  const btn = document.getElementById('tool-' + (t === 'furniture' ? 'furn' : t));
+  const btn = document.getElementById('tool-' + (t === 'furniture' ? 'furn' : t === '9tile' ? '9tile' : t));
   if (btn) btn.classList.add('active');
   // Show/hide furniture props
   document.getElementById('furniture-props').style.display = t === 'furniture' ? '' : 'none';
+  // If switching away from 9tile, deselect brush
+  if (t !== '9tile') {
+    // Don't deselect — keep brush selected but allow other tools
+  }
 }
 
 function setLayer(l) {
@@ -862,7 +1168,16 @@ function renderCanvas() {
       const dx = panX + tq * ds, dy = panY + tr * ds;
       const img = imageCache[t.sheetPath];
       if (img instanceof HTMLImageElement) {
-        ctx.drawImage(img, t.sx, t.sy, t.sw || TILE, t.sh || TILE, dx, dy, ds, ds);
+        const rot = t.rotation || 0;
+        if (rot) {
+          ctx.save();
+          ctx.translate(dx + ds/2, dy + ds/2);
+          ctx.rotate(rot * Math.PI / 180);
+          ctx.drawImage(img, t.sx, t.sy, t.sw || TILE, t.sh || TILE, -ds/2, -ds/2, ds, ds);
+          ctx.restore();
+        } else {
+          ctx.drawImage(img, t.sx, t.sy, t.sw || TILE, t.sh || TILE, dx, dy, ds, ds);
+        }
       }
     }
   }
@@ -875,6 +1190,24 @@ function renderCanvas() {
   }
   for (let r = 0; r <= gridH; r++) {
     ctx.beginPath(); ctx.moveTo(panX, panY + r * ds); ctx.lineTo(panX + gridW * ds, panY + r * ds); ctx.stroke();
+  }
+
+  // Brush group overlay (show when 9tile tool is active)
+  if (activeTool === '9tile') {
+    for (const [key, entry] of Object.entries(brushGroupMap)) {
+      const [q, r] = key.split(',').map(Number);
+      if (q < 0 || q >= gridW || r < 0 || r >= gridH) continue;
+      const dx = panX + q * ds, dy = panY + r * ds;
+      const brush = nineTileBrushes.find(b => b.id === entry.brushId);
+      if (brush) {
+        const isFloor = brush.brushType !== 'wall';
+        ctx.fillStyle = isFloor ? 'rgba(63,185,80,0.12)' : 'rgba(230,168,23,0.12)';
+        ctx.fillRect(dx, dy, ds, ds);
+        // Small dot indicator
+        ctx.fillStyle = isFloor ? 'rgba(63,185,80,0.5)' : 'rgba(230,168,23,0.5)';
+        ctx.beginPath(); ctx.arc(dx + ds - 5, dy + 5, 3, 0, Math.PI * 2); ctx.fill();
+      }
+    }
   }
 
   // Meta overlay: impassable, doors, furniture
@@ -913,12 +1246,37 @@ function renderCanvas() {
     }
   }
 
-  // Hover tile highlight
+  // Hover tile highlight + stamp ghost preview
   if (_hoverTile) {
-    const dx = panX + _hoverTile.q * ds, dy = panY + _hoverTile.r * ds;
-    ctx.strokeStyle = 'rgba(230,168,23,0.6)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(dx, dy, ds, ds);
+    if (activeTool === 'paint' && activeStamp && activeStamp._isMultiSheet && activeStamp._srcTiles) {
+      // Multi-tile object ghost preview
+      ctx.globalAlpha = 0.5;
+      for (let i = 0; i < activeStamp.tiles.length; i++) {
+        const t = activeStamp.tiles[i];
+        const src = activeStamp._srcTiles[i];
+        const tq = _hoverTile.q + t.localCol, tr = _hoverTile.r + t.localRow;
+        const dx = panX + tq * ds, dy = panY + tr * ds;
+        const img = imageCache[src.sheetPath];
+        if (img instanceof HTMLImageElement) {
+          const rot = t.rotation || 0;
+          if (rot) {
+            ctx.save();
+            ctx.translate(dx + ds/2, dy + ds/2);
+            ctx.rotate(rot * Math.PI / 180);
+            ctx.drawImage(img, src.sx, src.sy, src.sw || TILE, src.sh || TILE, -ds/2, -ds/2, ds, ds);
+            ctx.restore();
+          } else {
+            ctx.drawImage(img, src.sx, src.sy, src.sw || TILE, src.sh || TILE, dx, dy, ds, ds);
+          }
+        }
+      }
+      ctx.globalAlpha = 1;
+    } else {
+      const dx = panX + _hoverTile.q * ds, dy = panY + _hoverTile.r * ds;
+      ctx.strokeStyle = 'rgba(230,168,23,0.6)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(dx, dy, ds, ds);
+    }
   }
 }
 
@@ -934,6 +1292,7 @@ function pushUndo() {
     layers: JSON.parse(JSON.stringify(layers)),
     meta: JSON.parse(JSON.stringify(meta)),
     placedObjects: JSON.parse(JSON.stringify(placedObjects)),
+    brushGroupMap: JSON.parse(JSON.stringify(brushGroupMap)),
   });
   if (undoStack.length > MAX_UNDO) undoStack.shift();
   redoStack = [];
@@ -941,18 +1300,65 @@ function pushUndo() {
 
 function undo() {
   if (!undoStack.length) return;
-  redoStack.push({ layers: JSON.parse(JSON.stringify(layers)), meta: JSON.parse(JSON.stringify(meta)), placedObjects: JSON.parse(JSON.stringify(placedObjects)) });
+  redoStack.push({ layers: JSON.parse(JSON.stringify(layers)), meta: JSON.parse(JSON.stringify(meta)), placedObjects: JSON.parse(JSON.stringify(placedObjects)), brushGroupMap: JSON.parse(JSON.stringify(brushGroupMap)) });
   const state = undoStack.pop();
-  layers = state.layers; meta = state.meta; placedObjects = state.placedObjects || {};
+  layers = state.layers; meta = state.meta; placedObjects = state.placedObjects || {}; brushGroupMap = state.brushGroupMap || {};
   renderCanvas();
+  scheduleAutoSave();
 }
 
 function redo() {
   if (!redoStack.length) return;
-  undoStack.push({ layers: JSON.parse(JSON.stringify(layers)), meta: JSON.parse(JSON.stringify(meta)), placedObjects: JSON.parse(JSON.stringify(placedObjects)) });
+  undoStack.push({ layers: JSON.parse(JSON.stringify(layers)), meta: JSON.parse(JSON.stringify(meta)), placedObjects: JSON.parse(JSON.stringify(placedObjects)), brushGroupMap: JSON.parse(JSON.stringify(brushGroupMap)) });
   const state = redoStack.pop();
-  layers = state.layers; meta = state.meta; placedObjects = state.placedObjects || {};
+  layers = state.layers; meta = state.meta; placedObjects = state.placedObjects || {}; brushGroupMap = state.brushGroupMap || {};
   renderCanvas();
+  scheduleAutoSave();
+}
+
+// ── Debounced auto-save ──
+let _autoSaveTimer = null;
+function scheduleAutoSave() {
+  clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(() => _autoSaveInterior(), 1200);
+}
+
+/** Silently save current canvas state into interiors[editIdx] and notify parent. */
+function _autoSaveInterior() {
+  // Need a name to save — if none, skip
+  const name = document.getElementById('int-name').value.trim();
+  if (!name) return;
+  // Collect linked buildings
+  _linkedBuildingIds = [...document.getElementById('int-linked-buildings').querySelectorAll('input:checked')].map(cb => cb.value);
+  const interior = {
+    id: slugify(name),
+    name,
+    linkedBuildingIds: _linkedBuildingIds.length ? [..._linkedBuildingIds] : undefined,
+    buildingType: document.getElementById('int-type').value,
+    tags: document.getElementById('int-tags').value.trim().split(',').map(s => s.trim()).filter(Boolean),
+    variantGroup: document.getElementById('int-group').value.trim() || null,
+    tileW: TILE, tileH: TILE,
+    width: gridW, height: gridH,
+    layers: {
+      floor: { ...layers.floor },
+      furniture: { ...layers.furniture },
+      walls: { ...layers.walls },
+      overlay: { ...layers.overlay },
+    },
+    meta: { ...meta },
+    placedObjects: JSON.parse(JSON.stringify(placedObjects)),
+    brushGroupMap: JSON.parse(JSON.stringify(brushGroupMap)),
+    nineTileBrushes: JSON.parse(JSON.stringify(nineTileBrushes)),
+  };
+  if (editIdx >= 0) {
+    interiors[editIdx] = interior;
+  } else {
+    interiors.push(interior);
+    editIdx = interiors.length - 1;
+    refreshList();
+  }
+  notifyParent();
+  console.log('[AutoSave] interior saved');
 }
 
 function applyTool(sx, sy) {
@@ -989,6 +1395,8 @@ function applyTool(sx, sy) {
     case 'erase':
       // Also erase any placed object whose anchor or footprint covers this tile
       _eraseObjectTouching(q, r);
+      // Also erase any brush group at this tile
+      nineTileErase(q, r);
       delete store[key];
       break;
 
@@ -1059,6 +1467,13 @@ function applyTool(sx, sy) {
       }
       break;
     }
+
+    case '9tile': {
+      if (activeNineBrush !== null) {
+        nineTilePaint(q, r);
+      }
+      break;
+    }
   }
   renderCanvas();
 }
@@ -1121,8 +1536,8 @@ function initCanvas() {
     else { renderCanvas(); }
   });
 
-  cvs.addEventListener('mouseup', () => { _painting = false; _panning = false; });
-  cvs.addEventListener('mouseleave', () => { _painting = false; _panning = false; _hoverTile = null; renderCanvas(); });
+  cvs.addEventListener('mouseup', () => { if (_painting) { _painting = false; scheduleAutoSave(); } _painting = false; _panning = false; });
+  cvs.addEventListener('mouseleave', () => { if (_painting) scheduleAutoSave(); _painting = false; _panning = false; _hoverTile = null; renderCanvas(); });
 
   cvs.addEventListener('wheel', e => {
     e.preventDefault();
@@ -1147,6 +1562,11 @@ function initCanvas() {
     if (e.key === 'g' || e.key === 'G') setTool('fill');
     if (e.key === 'i' || e.key === 'I') setTool('eyedrop');
     if (e.key === 'f' || e.key === 'F') setTool('furniture');
+    if (e.key === 'n' || e.key === 'N') setTool('9tile');
+    if (e.key === 'r' && !e.shiftKey) rotateObjectStamp(1);    // R = rotate CW
+    if (e.key === 'R' && e.shiftKey)  rotateObjectStamp(-1);   // Shift+R = rotate CCW
+    if (e.key === 't' && !e.shiftKey) cycleColorVariant(1);    // T = next color variant
+    if (e.key === 'T' && e.shiftKey)  cycleColorVariant(-1);   // Shift+T = prev color variant
   });
 }
 
@@ -1179,13 +1599,19 @@ function resizeGrid() {
     const [q, r] = key.split(',').map(Number);
     if (q >= gridW || r >= gridH) delete meta[key];
   }
+  for (const key of Object.keys(brushGroupMap)) {
+    const [q, r] = key.split(',').map(Number);
+    if (q >= gridW || r >= gridH) delete brushGroupMap[key];
+  }
   fitCanvas();
+  scheduleAutoSave();
 }
 
 function clearLayer() {
   pushUndo();
   layers[activeLayer] = {};
   renderCanvas();
+  scheduleAutoSave();
 }
 
 function clearAll() {
@@ -1193,7 +1619,9 @@ function clearAll() {
   layers = { floor: {}, furniture: {}, walls: {}, overlay: {} };
   meta = {};
   placedObjects = {};
+  brushGroupMap = {};
   renderCanvas();
+  scheduleAutoSave();
 }
 
 // ─── Palette resize drag ───
@@ -1211,6 +1639,1182 @@ function initPaletteResize() {
 }
 
 // ═══════════════════════════════════════════════════════
+//  TOAST NOTIFICATIONS
+// ═══════════════════════════════════════════════════════
+let _toastTimer = null;
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = type || '';
+  el.style.display = 'block';
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { el.style.display = 'none'; }, 2200);
+}
+
+// ═══════════════════════════════════════════════════════
+//  NINE-TILE BRUSH SYSTEM
+// ═══════════════════════════════════════════════════════
+
+const NTB_LABELS = [
+  ['TL', 'Top', 'TR'],
+  ['Left', 'Center', 'Right'],
+  ['BL', 'Bottom', 'BR']
+];
+const NTB_IC_LABELS = ['IC-TL', 'IC-TR', 'IC-BL', 'IC-BR'];
+// Corridor pieces for wall brushes:
+// H-corridor (horizontal hall), V-corridor (vertical hall),
+// T-junctions (3 neighbors), Cross (4-way)
+const NTB_CORRIDOR_LABELS = ['V-Hall', 'H-Hall', 'T-Down', 'T-Up', 'T-Right', 'T-Left', 'Cross', 'Solo'];
+const NTB_ENDCAP_LABELS = ['End-N', 'End-S', 'End-W', 'End-E'];
+
+// NTB editor state
+let ntbEditIdx = -1;
+let ntbBrushType = 'floor';   // 'floor' or 'wall'
+let ntbSelSlot = null;         // {row, col} or {type:'ic',idx} or {type:'corr',idx} or {type:'end',idx}
+let ntbTiles = [[null,null,null],[null,null,null],[null,null,null]];
+let ntbCorners = [null, null, null, null];
+let ntbCorridors = new Array(8).fill(null);  // V-Hall, H-Hall, T-Down, T-Up, T-Right, T-Left, Cross, Solo
+let ntbEndCaps = new Array(4).fill(null);    // End-N, End-S, End-W, End-E
+let ntbSheet = null;
+let ntbImgCols = 0, ntbImgRows = 0;
+let ntbDragStart = null;
+let ntbDragCur = null;
+const NTB_SCALE = 2;
+let ntbActiveCat = '';
+let _ntbCanvasEventsSet = false;
+
+function ntbEmptyGrid() { return [[null,null,null],[null,null,null],[null,null,null]]; }
+function ntbEmptyCorners() { return [null, null, null, null]; }
+function ntbEmptyCorridors() { return new Array(8).fill(null); }
+function ntbEmptyEndCaps() { return new Array(4).fill(null); }
+
+// ── Left panel brush list (in props panel) ──
+function buildNtbListPanel() {
+  const list = document.getElementById('ntb-list-panel');
+  if (!list) return;
+  list.innerHTML = '';
+  if (nineTileBrushes.length === 0) {
+    list.innerHTML = '<div style="font-size:11px;color:var(--text-dim);padding:4px 0">No brushes yet — click ＋ to create one</div>';
+    return;
+  }
+  nineTileBrushes.forEach((brush, i) => {
+    const card = document.createElement('div');
+    card.className = 'ntb-brush-card' + (activeNineBrush === i ? ' selected' : '');
+    card.onclick = () => selectNineBrush(i);
+    card.ondblclick = () => openNtbEditor(i);
+    card.title = 'Click to select for painting, double-click to edit';
+    const cvs2 = document.createElement('canvas');
+    cvs2.width = 24; cvs2.height = 24;
+    const ctx2 = cvs2.getContext('2d');
+    ctx2.imageSmoothingEnabled = false;
+    const ctr = brush.tiles[1] && brush.tiles[1][1];
+    if (ctr) {
+      const img = imageCache[ctr.sheetPath];
+      if (img instanceof HTMLImageElement) ctx2.drawImage(img, ctr.sx, ctr.sy, TILE, TILE, 0, 0, 24, 24);
+    } else { ctx2.fillStyle = '#333'; ctx2.fillRect(0, 0, 24, 24); }
+    card.appendChild(cvs2);
+    const name = document.createElement('span');
+    name.className = 'ntb-bname';
+    name.textContent = brush.name;
+    card.appendChild(name);
+    const typeBadge = document.createElement('span');
+    typeBadge.className = 'ntb-btype ' + (brush.brushType || 'floor');
+    typeBadge.textContent = brush.brushType || 'floor';
+    card.appendChild(typeBadge);
+    list.appendChild(card);
+  });
+}
+
+function selectNineBrush(idx) {
+  activeNineBrush = (activeNineBrush === idx) ? null : idx;
+  if (activeNineBrush !== null) {
+    activeStamp = null;
+    // Auto-switch to the target layer for this brush
+    const brush = nineTileBrushes[activeNineBrush];
+    if (brush) setLayer(brush.brushType === 'wall' ? 'walls' : 'floor');
+    if (activeTool !== '9tile') setTool('9tile');
+  }
+  buildNtbListPanel();
+  updateStampPreview();
+}
+
+// ── Nine-Tile Brush Editor Modal ──
+function ntbSetType(type) {
+  ntbBrushType = type;
+  document.getElementById('ntb-type-floor').classList.toggle('active', type === 'floor');
+  document.getElementById('ntb-type-wall').classList.toggle('active', type === 'wall');
+  document.getElementById('ntb-corridor-section').style.display = type === 'wall' ? '' : 'none';
+}
+
+function openNtbEditor(idx) {
+  ntbEditIdx = (idx !== undefined) ? idx : -1;
+  const modal = document.getElementById('ntbModal');
+  modal.style.display = 'flex';
+  if (ntbEditIdx >= 0 && nineTileBrushes[ntbEditIdx]) {
+    const brush = nineTileBrushes[ntbEditIdx];
+    document.getElementById('ntb-name').value = brush.name;
+    ntbTiles = brush.tiles.map(row => row.map(t => t ? {...t} : null));
+    ntbCorners = (brush.insideCorners || ntbEmptyCorners()).map(t => t ? {...t} : null);
+    ntbCorridors = (brush.corridors || ntbEmptyCorridors()).map(t => t ? {...t} : null);
+    ntbEndCaps = (brush.endCaps || ntbEmptyEndCaps()).map(t => t ? {...t} : null);
+    ntbBrushType = brush.brushType || 'floor';
+    document.getElementById('ntb-del-btn').disabled = false;
+    // Populate cost fields
+    const c = brush.cost || {};
+    const cr = c.resources || {};
+    document.getElementById('ntb-cost-gold').value = c.gold || 0;
+    _renderNtbCostResourceRows(cr);
+  } else {
+    ntbEditIdx = -1;
+    document.getElementById('ntb-name').value = 'New Brush';
+    ntbTiles = ntbEmptyGrid();
+    ntbCorners = ntbEmptyCorners();
+    ntbCorridors = ntbEmptyCorridors();
+    ntbEndCaps = ntbEmptyEndCaps();
+    ntbBrushType = 'floor';
+    document.getElementById('ntb-del-btn').disabled = true;
+    // Default costs
+    document.getElementById('ntb-cost-gold').value = 0;
+    _renderNtbCostResourceRows({});
+  }
+  ntbSetType(ntbBrushType);
+  ntbSelSlot = null;
+  ntbDragStart = null; ntbDragCur = null;
+  ntbBuildGrid();
+  ntbBuildBrushList();
+  ntbBuildCatButtons();
+  if (!ntbSheet) {
+    const cats = Object.keys(PALETTE_DATA);
+    if (cats.length > 0) ntbShowCategory(cats[0]);
+  } else {
+    ntbRenderSheetCanvas(ntbSheet);
+  }
+  ntbSetupCanvasEvents();
+}
+
+function closeNtbEditor() {
+  document.getElementById('ntbModal').style.display = 'none';
+  buildNtbListPanel();
+}
+
+function ntbBuildGrid() {
+  // Main 3×3 grid
+  const grid = document.getElementById('ntb-grid');
+  grid.innerHTML = '';
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      const cell = document.createElement('div');
+      const isSel = ntbSelSlot && !ntbSelSlot.type && ntbSelSlot.row === r && ntbSelSlot.col === c;
+      const tileRef = ntbTiles[r][c];
+      cell.className = 'ntb-cell' + (isSel ? ' ntb-selected' : '') + (tileRef ? ' ntb-filled' : '');
+      cell.onclick = () => { ntbSelSlot = {row: r, col: c}; ntbBuildGrid(); };
+      cell.oncontextmenu = ev => { ev.preventDefault(); ntbTiles[r][c] = null; ntbBuildGrid(); };
+      if (tileRef) {
+        const tc = document.createElement('canvas');
+        tc.width = 32; tc.height = 32;
+        const tctx = tc.getContext('2d');
+        tctx.imageSmoothingEnabled = false;
+        const img = imageCache[tileRef.sheetPath];
+        if (img instanceof HTMLImageElement) tctx.drawImage(img, tileRef.sx, tileRef.sy, TILE, TILE, 0, 0, 32, 32);
+        cell.appendChild(tc);
+      }
+      const lbl = document.createElement('div');
+      lbl.className = 'ntb-cell-lbl';
+      lbl.textContent = NTB_LABELS[r][c];
+      cell.appendChild(lbl);
+      grid.appendChild(cell);
+    }
+  }
+  // Inside corners grid
+  const icGrid = document.getElementById('ntb-ic-grid');
+  icGrid.innerHTML = '';
+  for (let i = 0; i < 4; i++) {
+    const cell = document.createElement('div');
+    const isSel = ntbSelSlot && ntbSelSlot.type === 'ic' && ntbSelSlot.idx === i;
+    const tileRef = ntbCorners[i];
+    cell.className = 'ntb-cell' + (isSel ? ' ntb-selected' : '') + (tileRef ? ' ntb-filled' : '');
+    cell.onclick = () => { ntbSelSlot = {type:'ic', idx:i}; ntbBuildGrid(); };
+    cell.oncontextmenu = ev => { ev.preventDefault(); ntbCorners[i] = null; ntbBuildGrid(); };
+    if (tileRef) {
+      const tc = document.createElement('canvas');
+      tc.width = 32; tc.height = 32;
+      const tctx = tc.getContext('2d');
+      tctx.imageSmoothingEnabled = false;
+      const img = imageCache[tileRef.sheetPath];
+      if (img instanceof HTMLImageElement) tctx.drawImage(img, tileRef.sx, tileRef.sy, TILE, TILE, 0, 0, 32, 32);
+      cell.appendChild(tc);
+    }
+    const lbl = document.createElement('div');
+    lbl.className = 'ntb-cell-lbl';
+    lbl.textContent = NTB_IC_LABELS[i];
+    cell.appendChild(lbl);
+    icGrid.appendChild(cell);
+  }
+  // Corridor grid (wall brushes only)
+  const corrGrid = document.getElementById('ntb-corridor-grid');
+  corrGrid.innerHTML = '';
+  for (let i = 0; i < NTB_CORRIDOR_LABELS.length; i++) {
+    const cell = document.createElement('div');
+    const isSel = ntbSelSlot && ntbSelSlot.type === 'corr' && ntbSelSlot.idx === i;
+    const tileRef = ntbCorridors[i];
+    cell.className = 'ntb-cell' + (isSel ? ' ntb-selected' : '') + (tileRef ? ' ntb-filled' : '');
+    cell.onclick = () => { ntbSelSlot = {type:'corr', idx:i}; ntbBuildGrid(); };
+    cell.oncontextmenu = ev => { ev.preventDefault(); ntbCorridors[i] = null; ntbBuildGrid(); };
+    if (tileRef) {
+      const tc = document.createElement('canvas');
+      tc.width = 32; tc.height = 32;
+      const tctx = tc.getContext('2d');
+      tctx.imageSmoothingEnabled = false;
+      const img = imageCache[tileRef.sheetPath];
+      if (img instanceof HTMLImageElement) tctx.drawImage(img, tileRef.sx, tileRef.sy, TILE, TILE, 0, 0, 32, 32);
+      cell.appendChild(tc);
+    }
+    const lbl = document.createElement('div');
+    lbl.className = 'ntb-cell-lbl';
+    lbl.textContent = NTB_CORRIDOR_LABELS[i];
+    cell.appendChild(lbl);
+    corrGrid.appendChild(cell);
+  }
+  // End cap grid
+  const endGrid = document.getElementById('ntb-endcap-grid');
+  endGrid.innerHTML = '';
+  for (let i = 0; i < NTB_ENDCAP_LABELS.length; i++) {
+    const cell = document.createElement('div');
+    const isSel = ntbSelSlot && ntbSelSlot.type === 'end' && ntbSelSlot.idx === i;
+    const tileRef = ntbEndCaps[i];
+    cell.className = 'ntb-cell' + (isSel ? ' ntb-selected' : '') + (tileRef ? ' ntb-filled' : '');
+    cell.onclick = () => { ntbSelSlot = {type:'end', idx:i}; ntbBuildGrid(); };
+    cell.oncontextmenu = ev => { ev.preventDefault(); ntbEndCaps[i] = null; ntbBuildGrid(); };
+    if (tileRef) {
+      const tc = document.createElement('canvas');
+      tc.width = 32; tc.height = 32;
+      const tctx = tc.getContext('2d');
+      tctx.imageSmoothingEnabled = false;
+      const img = imageCache[tileRef.sheetPath];
+      if (img instanceof HTMLImageElement) tctx.drawImage(img, tileRef.sx, tileRef.sy, TILE, TILE, 0, 0, 32, 32);
+      cell.appendChild(tc);
+    }
+    const lbl = document.createElement('div');
+    lbl.className = 'ntb-cell-lbl';
+    lbl.textContent = NTB_ENDCAP_LABELS[i];
+    cell.appendChild(lbl);
+    endGrid.appendChild(cell);
+  }
+}
+
+function ntbBuildBrushList() {
+  const list = document.getElementById('ntb-brush-list');
+  list.innerHTML = '';
+  if (nineTileBrushes.length === 0) {
+    list.innerHTML = '<div style="font-size:11px;color:var(--text-dim)">No saved brushes</div>';
+    return;
+  }
+  nineTileBrushes.forEach((brush, i) => {
+    const card = document.createElement('div');
+    card.className = 'ntb-brush-card' + (ntbEditIdx === i ? ' selected' : '');
+    card.onclick = () => openNtbEditor(i);
+    const cvs2 = document.createElement('canvas');
+    cvs2.width = 24; cvs2.height = 24;
+    const ctx2 = cvs2.getContext('2d');
+    ctx2.imageSmoothingEnabled = false;
+    const ctr = brush.tiles[1] && brush.tiles[1][1];
+    if (ctr) {
+      const img = imageCache[ctr.sheetPath];
+      if (img instanceof HTMLImageElement) ctx2.drawImage(img, ctr.sx, ctr.sy, TILE, TILE, 0, 0, 24, 24);
+    }
+    card.appendChild(cvs2);
+    const name = document.createElement('span');
+    name.className = 'ntb-bname';
+    name.textContent = brush.name;
+    card.appendChild(name);
+    const typeBadge = document.createElement('span');
+    typeBadge.className = 'ntb-btype ' + (brush.brushType || 'floor');
+    typeBadge.textContent = brush.brushType || 'floor';
+    card.appendChild(typeBadge);
+    list.appendChild(card);
+  });
+}
+
+function ntbBuildCatButtons() {
+  const container = document.getElementById('ntb-cat-btns');
+  container.innerHTML = '';
+  const cats = Object.keys(PALETTE_DATA);
+  for (const cat of cats) {
+    const btn = document.createElement('button');
+    btn.style.cssText = 'font-size:10px;padding:2px 7px;border-radius:4px';
+    btn.textContent = cat;
+    btn.className = (cat === ntbActiveCat) ? 'active' : '';
+    btn.onclick = () => ntbShowCategory(cat);
+    container.appendChild(btn);
+  }
+}
+
+function ntbShowCategory(cat) {
+  ntbActiveCat = cat;
+  ntbBuildCatButtons();
+  const paths = PALETTE_DATA[cat] || [];
+  // Build a sheet selector below the cat buttons
+  const container = document.getElementById('ntb-cat-btns');
+  const existing = document.getElementById('ntb-sheet-list-wrap');
+  if (existing) existing.remove();
+  if (paths.length > 1) {
+    const wrap = document.createElement('div');
+    wrap.id = 'ntb-sheet-list-wrap';
+    wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;width:100%';
+    for (const p of paths) {
+      const btn = document.createElement('button');
+      btn.style.cssText = 'font-size:9px;padding:2px 6px;border-radius:3px';
+      btn.textContent = p.split('/').pop().replace(/\.[^.]+$/, '');
+      btn.className = (p === ntbSheet) ? 'active' : '';
+      btn.onclick = () => {
+        ntbSheet = p;
+        loadImage(p).then(() => ntbRenderSheetCanvas(p));
+        wrap.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      };
+      wrap.appendChild(btn);
+    }
+    container.parentElement.appendChild(wrap);
+  }
+  if (paths.length > 0) {
+    ntbSheet = paths[0];
+    loadImage(ntbSheet).then(() => ntbRenderSheetCanvas(ntbSheet));
+  }
+}
+
+function ntbRenderSheetCanvas(sheetPath) {
+  const cvs = document.getElementById('ntb-tileset-canvas');
+  const ctx2 = cvs.getContext('2d');
+  const img = imageCache[sheetPath];
+  if (!(img instanceof HTMLImageElement)) return;
+  ntbImgCols = Math.floor(img.width / TILE);
+  ntbImgRows = Math.floor(img.height / TILE);
+  const dw = img.width * NTB_SCALE, dh = img.height * NTB_SCALE;
+  cvs.width = dw; cvs.height = dh;
+  ctx2.imageSmoothingEnabled = false;
+  ctx2.drawImage(img, 0, 0, img.width, img.height, 0, 0, dw, dh);
+  // Grid lines
+  ctx2.strokeStyle = 'rgba(255,255,255,0.18)'; ctx2.lineWidth = 0.5;
+  for (let c = 0; c <= ntbImgCols; c++) { ctx2.beginPath(); ctx2.moveTo(c * TILE * NTB_SCALE, 0); ctx2.lineTo(c * TILE * NTB_SCALE, dh); ctx2.stroke(); }
+  for (let r = 0; r <= ntbImgRows; r++) { ctx2.beginPath(); ctx2.moveTo(0, r * TILE * NTB_SCALE); ctx2.lineTo(dw, r * TILE * NTB_SCALE); ctx2.stroke(); }
+  // Highlight drag region
+  if (ntbDragStart && ntbDragCur) {
+    const c1 = Math.min(ntbDragStart.col, ntbDragCur.col), r1 = Math.min(ntbDragStart.row, ntbDragCur.row);
+    const c2 = Math.max(ntbDragStart.col, ntbDragCur.col), r2 = Math.max(ntbDragStart.row, ntbDragCur.row);
+    ctx2.fillStyle = 'rgba(230,168,23,0.2)';
+    ctx2.fillRect(c1 * TILE * NTB_SCALE, r1 * TILE * NTB_SCALE, (c2-c1+1) * TILE * NTB_SCALE, (r2-r1+1) * TILE * NTB_SCALE);
+    ctx2.strokeStyle = 'var(--gold)'; ctx2.lineWidth = 2;
+    ctx2.strokeRect(c1 * TILE * NTB_SCALE, r1 * TILE * NTB_SCALE, (c2-c1+1) * TILE * NTB_SCALE, (r2-r1+1) * TILE * NTB_SCALE);
+  }
+}
+
+function ntbSetupCanvasEvents() {
+  if (_ntbCanvasEventsSet) return;
+  _ntbCanvasEventsSet = true;
+  const cvs = document.getElementById('ntb-tileset-canvas');
+  cvs.addEventListener('mousedown', e => {
+    const rect = cvs.getBoundingClientRect();
+    const col = Math.floor((e.clientX - rect.left) / NTB_SCALE / TILE);
+    const row = Math.floor((e.clientY - rect.top) / NTB_SCALE / TILE);
+    if (col < 0 || col >= ntbImgCols || row < 0 || row >= ntbImgRows) return;
+    ntbDragStart = {col, row};
+    ntbDragCur = {col, row};
+    ntbRenderSheetCanvas(ntbSheet);
+  });
+  cvs.addEventListener('mousemove', e => {
+    if (!ntbDragStart) return;
+    const rect = cvs.getBoundingClientRect();
+    ntbDragCur = {
+      col: Math.max(0, Math.min(ntbImgCols - 1, Math.floor((e.clientX - rect.left) / NTB_SCALE / TILE))),
+      row: Math.max(0, Math.min(ntbImgRows - 1, Math.floor((e.clientY - rect.top) / NTB_SCALE / TILE))),
+    };
+    ntbRenderSheetCanvas(ntbSheet);
+  });
+  cvs.addEventListener('mouseup', () => {
+    if (!ntbDragStart || !ntbDragCur) return;
+    const c1 = Math.min(ntbDragStart.col, ntbDragCur.col), r1 = Math.min(ntbDragStart.row, ntbDragCur.row);
+    const c2 = Math.max(ntbDragStart.col, ntbDragCur.col), r2 = Math.max(ntbDragStart.row, ntbDragCur.row);
+    const w = c2 - c1 + 1, h = r2 - r1 + 1;
+
+    if (w === 3 && h === 3) {
+      // Auto-assign 3×3 to main grid
+      for (let dr = 0; dr < 3; dr++) for (let dc = 0; dc < 3; dc++) {
+        ntbTiles[dr][dc] = { sheetPath: ntbSheet, sx: (c1+dc)*TILE, sy: (r1+dr)*TILE };
+      }
+      toast('3×3 outer tiles assigned', 'ok');
+    } else if (w === 2 && h === 2) {
+      // Auto-assign 2×2 to inside corners
+      ntbCorners[0] = { sheetPath: ntbSheet, sx: c1*TILE, sy: r1*TILE };
+      ntbCorners[1] = { sheetPath: ntbSheet, sx: (c1+1)*TILE, sy: r1*TILE };
+      ntbCorners[2] = { sheetPath: ntbSheet, sx: c1*TILE, sy: (r1+1)*TILE };
+      ntbCorners[3] = { sheetPath: ntbSheet, sx: (c1+1)*TILE, sy: (r1+1)*TILE };
+      toast('2×2 inside corners assigned', 'ok');
+    } else if (w === 1 && h === 1) {
+      // Single tile: assign to selected slot
+      const ref = { sheetPath: ntbSheet, sx: c1*TILE, sy: r1*TILE };
+      if (ntbSelSlot) {
+        if (ntbSelSlot.type === 'ic') ntbCorners[ntbSelSlot.idx] = ref;
+        else if (ntbSelSlot.type === 'corr') ntbCorridors[ntbSelSlot.idx] = ref;
+        else if (ntbSelSlot.type === 'end') ntbEndCaps[ntbSelSlot.idx] = ref;
+        else ntbTiles[ntbSelSlot.row][ntbSelSlot.col] = ref;
+        // Advance selection
+        ntbAdvanceSlot();
+      } else {
+        toast('Select a slot first, or drag 3×3 / 2×2', 'err');
+      }
+    } else if (w === 4 && h === 2 && ntbBrushType === 'wall') {
+      // 4×2 block: assign first row to corridors[0..3], second row to corridors[4..7]
+      for (let i = 0; i < 4; i++) ntbCorridors[i] = { sheetPath: ntbSheet, sx: (c1+i)*TILE, sy: r1*TILE };
+      for (let i = 0; i < 4; i++) {
+        if (i < NTB_CORRIDOR_LABELS.length - 4)
+          ntbCorridors[4+i] = { sheetPath: ntbSheet, sx: (c1+i)*TILE, sy: (r1+1)*TILE };
+      }
+      toast('Corridor tiles assigned', 'ok');
+    } else if (w === 4 && h === 1) {
+      // 4×1: assign to end caps
+      for (let i = 0; i < 4; i++) ntbEndCaps[i] = { sheetPath: ntbSheet, sx: (c1+i)*TILE, sy: r1*TILE };
+      toast('End caps assigned', 'ok');
+    } else {
+      toast('Drag 3×3 (outer), 2×2 (corners), or click single tile', 'err');
+    }
+    ntbDragStart = null; ntbDragCur = null;
+    ntbBuildGrid();
+    ntbRenderSheetCanvas(ntbSheet);
+  });
+  cvs.addEventListener('mouseleave', () => {
+    if (ntbDragStart) { ntbDragStart = null; ntbDragCur = null; ntbRenderSheetCanvas(ntbSheet); }
+  });
+}
+
+function ntbAdvanceSlot() {
+  if (!ntbSelSlot) return;
+  if (!ntbSelSlot.type) {
+    // Main grid: advance left-to-right, top-to-bottom
+    let c = ntbSelSlot.col + 1, r = ntbSelSlot.row;
+    if (c >= 3) { c = 0; r++; }
+    if (r < 3) ntbSelSlot = {row: r, col: c};
+    else ntbSelSlot = {type:'ic', idx:0};
+  } else if (ntbSelSlot.type === 'ic') {
+    const next = ntbSelSlot.idx + 1;
+    if (next < 4) ntbSelSlot = {type:'ic', idx:next};
+    else if (ntbBrushType === 'wall') ntbSelSlot = {type:'corr', idx:0};
+    else ntbSelSlot = null;
+  } else if (ntbSelSlot.type === 'corr') {
+    const next = ntbSelSlot.idx + 1;
+    if (next < NTB_CORRIDOR_LABELS.length) ntbSelSlot = {type:'corr', idx:next};
+    else ntbSelSlot = {type:'end', idx:0};
+  } else if (ntbSelSlot.type === 'end') {
+    const next = ntbSelSlot.idx + 1;
+    if (next < 4) ntbSelSlot = {type:'end', idx:next};
+    else ntbSelSlot = null;
+  }
+}
+
+function ntbSave() {
+  const name = document.getElementById('ntb-name').value.trim() || 'Unnamed Brush';
+  if (!ntbTiles[1][1]) {
+    toast('Center tile is required', 'err');
+    return;
+  }
+  const brushData = {
+    id: (ntbEditIdx >= 0 && nineTileBrushes[ntbEditIdx]) ? nineTileBrushes[ntbEditIdx].id : 'ntb_' + Date.now(),
+    name,
+    brushType: ntbBrushType,
+    tiles: ntbTiles.map(row => row.map(t => t ? {...t} : null)),
+    insideCorners: ntbCorners.map(t => t ? {...t} : null),
+    corridors: ntbCorridors.map(t => t ? {...t} : null),
+    endCaps: ntbEndCaps.map(t => t ? {...t} : null),
+    cost: {
+      gold: parseInt(document.getElementById('ntb-cost-gold').value) || 0,
+      resources: Object.fromEntries(
+        [...document.querySelectorAll('#ntb-cost-resource-rows input[data-res-id]')]
+          .map(inp => [inp.dataset.resId, parseInt(inp.value) || 0])
+          .filter(([rid, v]) => rid && v > 0)
+      ),
+    },
+  };
+  if (ntbEditIdx >= 0 && nineTileBrushes[ntbEditIdx]) {
+    nineTileBrushes[ntbEditIdx] = brushData;
+    toast('Brush updated', 'ok');
+  } else {
+    nineTileBrushes.push(brushData);
+    ntbEditIdx = nineTileBrushes.length - 1;
+    toast('Brush saved', 'ok');
+  }
+  document.getElementById('ntb-del-btn').disabled = false;
+  ntbBuildBrushList();
+  buildNtbListPanel();
+  recomputeAllBrushTiles(brushData.id);
+  notifyParent();
+}
+
+function ntbDelete() {
+  if (ntbEditIdx < 0 || !nineTileBrushes[ntbEditIdx]) return;
+  // Double-click guard: require two clicks within 2 seconds
+  if (!ntbDelete._armed) {
+    ntbDelete._armed = true;
+    document.getElementById('ntb-del-btn').textContent = '⚠ Confirm Delete';
+    document.getElementById('ntb-del-btn').style.fontWeight = '700';
+    setTimeout(() => {
+      ntbDelete._armed = false;
+      const btn = document.getElementById('ntb-del-btn');
+      if (btn) { btn.textContent = '🗑 Delete'; btn.style.fontWeight = ''; }
+    }, 2000);
+    return;
+  }
+  ntbDelete._armed = false;
+  document.getElementById('ntb-del-btn').textContent = '🗑 Delete';
+  document.getElementById('ntb-del-btn').style.fontWeight = '';
+  const deletedId = nineTileBrushes[ntbEditIdx].id;
+  nineTileBrushes.splice(ntbEditIdx, 1);
+  // Remove from brushGroupMap
+  for (const key of Object.keys(brushGroupMap)) {
+    if (brushGroupMap[key] && brushGroupMap[key].brushId === deletedId) delete brushGroupMap[key];
+  }
+  if (activeNineBrush === ntbEditIdx) activeNineBrush = null;
+  else if (activeNineBrush !== null && activeNineBrush > ntbEditIdx) activeNineBrush--;
+  ntbEditIdx = -1;
+  ntbTiles = ntbEmptyGrid();
+  ntbCorners = ntbEmptyCorners();
+  ntbCorridors = ntbEmptyCorridors();
+  ntbEndCaps = ntbEmptyEndCaps();
+  document.getElementById('ntb-name').value = 'New Brush';
+  document.getElementById('ntb-del-btn').disabled = true;
+  ntbBuildBrushList();
+  ntbBuildGrid();
+  buildNtbListPanel();
+  renderCanvas();
+  notifyParent();
+}
+
+// ── Nine-Tile Painting ──
+function nineTilePaint(q, r) {
+  if (activeNineBrush === null) return;
+  const brush = nineTileBrushes[activeNineBrush];
+  if (!brush) return;
+  const targetLayer = brush.brushType === 'wall' ? 'walls' : 'floor';
+  const key = `${q},${r}`;
+  brushGroupMap[key] = { brushId: brush.id, layer: targetLayer };
+  // Recompute this cell and all neighbors
+  const toUpdate = new Set();
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      const nq = q + dc, nr = r + dr;
+      if (nq >= 0 && nq < gridW && nr >= 0 && nr < gridH) {
+        const nk = `${nq},${nr}`;
+        if (brushGroupMap[nk] && brushGroupMap[nk].brushId === brush.id) {
+          toUpdate.add(nk);
+        }
+      }
+    }
+  }
+  toUpdate.add(key);
+  for (const k of toUpdate) {
+    const [uq, ur] = k.split(',').map(Number);
+    recomputeNineTile(uq, ur);
+  }
+}
+
+function nineTileErase(q, r) {
+  const key = `${q},${r}`;
+  const entry = brushGroupMap[key];
+  if (!entry) return;
+  const brushId = entry.brushId;
+  const targetLayer = entry.layer;
+  delete brushGroupMap[key];
+  delete layers[targetLayer][key];
+  // Recompute neighbors
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      const nq = q + dc, nr = r + dr;
+      const nk = `${nq},${nr}`;
+      if (nq >= 0 && nq < gridW && nr >= 0 && nr < gridH && brushGroupMap[nk] && brushGroupMap[nk].brushId === brushId) {
+        recomputeNineTile(nq, nr);
+      }
+    }
+  }
+}
+
+function recomputeNineTile(q, r) {
+  const key = `${q},${r}`;
+  const entry = brushGroupMap[key];
+  if (!entry) return;
+  const brush = nineTileBrushes.find(b => b.id === entry.brushId);
+  if (!brush) return;
+  const targetLayer = entry.layer;
+  const groupId = entry.brushId;
+
+  // Check cardinal neighbors
+  const has = (dq, dr) => {
+    const nq = q + dq, nr = r + dr;
+    if (nq < 0 || nq >= gridW || nr < 0 || nr >= gridH) return false;
+    const nk = `${nq},${nr}`;
+    return brushGroupMap[nk] && brushGroupMap[nk].brushId === groupId;
+  };
+
+  const hasTop = has(0, -1), hasBottom = has(0, 1), hasLeft = has(-1, 0), hasRight = has(1, 0);
+  const hasTL = has(-1, -1), hasTR = has(1, -1), hasBL = has(-1, 1), hasBR = has(1, 1);
+
+  const cardCount = (hasTop?1:0) + (hasBottom?1:0) + (hasLeft?1:0) + (hasRight?1:0);
+
+  // Wall brush corridor/junction logic
+  if (brush.brushType === 'wall' && brush.corridors) {
+    // Solo tile (no neighbors)
+    if (cardCount === 0 && brush.corridors[7]) {
+      layers[targetLayer][key] = { sheetPath: brush.corridors[7].sheetPath, sx: brush.corridors[7].sx, sy: brush.corridors[7].sy, sw: TILE, sh: TILE };
+      return;
+    }
+    // End caps: only one cardinal neighbor
+    if (cardCount === 1 && brush.endCaps) {
+      let ecIdx = -1;
+      if (hasBottom && !hasTop && !hasLeft && !hasRight) ecIdx = 0; // End-N (open toward south)
+      else if (hasTop && !hasBottom && !hasLeft && !hasRight) ecIdx = 1; // End-S
+      else if (hasRight && !hasTop && !hasBottom && !hasLeft) ecIdx = 2; // End-W
+      else if (hasLeft && !hasTop && !hasBottom && !hasRight) ecIdx = 3; // End-E
+      if (ecIdx >= 0 && brush.endCaps[ecIdx]) {
+        layers[targetLayer][key] = { sheetPath: brush.endCaps[ecIdx].sheetPath, sx: brush.endCaps[ecIdx].sx, sy: brush.endCaps[ecIdx].sy, sw: TILE, sh: TILE };
+        return;
+      }
+    }
+    // Vertical corridor: top + bottom, no left/right
+    if (hasTop && hasBottom && !hasLeft && !hasRight && brush.corridors[0]) {
+      layers[targetLayer][key] = { sheetPath: brush.corridors[0].sheetPath, sx: brush.corridors[0].sx, sy: brush.corridors[0].sy, sw: TILE, sh: TILE };
+      return;
+    }
+    // Horizontal corridor: left + right, no top/bottom
+    if (hasLeft && hasRight && !hasTop && !hasBottom && brush.corridors[1]) {
+      layers[targetLayer][key] = { sheetPath: brush.corridors[1].sheetPath, sx: brush.corridors[1].sx, sy: brush.corridors[1].sy, sw: TILE, sh: TILE };
+      return;
+    }
+    // T-junctions (3 cardinals)
+    if (cardCount === 3) {
+      let tIdx = -1;
+      if (hasLeft && hasRight && hasBottom && !hasTop) tIdx = 2;   // T-Down (open down)
+      else if (hasLeft && hasRight && hasTop && !hasBottom) tIdx = 3; // T-Up
+      else if (hasTop && hasBottom && hasRight && !hasLeft) tIdx = 4; // T-Right
+      else if (hasTop && hasBottom && hasLeft && !hasRight) tIdx = 5; // T-Left
+      if (tIdx >= 0 && brush.corridors[tIdx]) {
+        layers[targetLayer][key] = { sheetPath: brush.corridors[tIdx].sheetPath, sx: brush.corridors[tIdx].sx, sy: brush.corridors[tIdx].sy, sw: TILE, sh: TILE };
+        return;
+      }
+    }
+    // Cross (4 cardinals, used when no diagonals are present or no standard tile fits)
+    if (cardCount === 4 && brush.corridors[6]) {
+      // Only use cross if at least one diagonal is missing
+      const diagCount = (hasTL?1:0) + (hasTR?1:0) + (hasBL?1:0) + (hasBR?1:0);
+      if (diagCount < 4) {
+        // Check for inside corners first
+        // (fall through to standard inside corner logic below)
+      } else {
+        // All 8 neighbors = center tile (below)
+      }
+    }
+  }
+
+  // Check for inside corners: all 4 cardinals present but a diagonal is missing
+  if (hasTop && hasBottom && hasLeft && hasRight && brush.insideCorners) {
+    // IC indices: 0=TL, 1=TR, 2=BL, 3=BR (the diagonal that's MISSING)
+    const icIdx = !hasTL ? 0 : !hasTR ? 1 : !hasBL ? 2 : !hasBR ? 3 : -1;
+    if (icIdx >= 0 && brush.insideCorners[icIdx]) {
+      const ic = brush.insideCorners[icIdx];
+      layers[targetLayer][key] = { sheetPath: ic.sheetPath, sx: ic.sx, sy: ic.sy, sw: TILE, sh: TILE };
+      return;
+    }
+  }
+
+  // Standard 3×3 mapping
+  // Row: 0=top edge, 1=middle/fill, 2=bottom edge
+  let row = 1;
+  if (!hasTop && hasBottom) row = 0;
+  else if (hasTop && !hasBottom) row = 2;
+  // else: both present OR both absent → center (row=1)
+  // Col: 0=left edge, 1=middle/fill, 2=right edge
+  let col = 1;
+  if (!hasLeft && hasRight) col = 0;
+  else if (hasLeft && !hasRight) col = 2;
+  // else: both present OR both absent → center (col=1)
+
+  const tileRef = brush.tiles[row] && brush.tiles[row][col];
+  if (tileRef) {
+    layers[targetLayer][key] = { sheetPath: tileRef.sheetPath, sx: tileRef.sx, sy: tileRef.sy, sw: TILE, sh: TILE };
+  }
+}
+
+function recomputeAllBrushTiles(brushId) {
+  for (const [key, entry] of Object.entries(brushGroupMap)) {
+    if (entry.brushId === brushId) {
+      const [q, r] = key.split(',').map(Number);
+      recomputeNineTile(q, r);
+    }
+  }
+  renderCanvas();
+}
+
+// ═══════════════════════════════════════════════════════
+//  INTERIOR GENERATOR
+//  Procedurally generates a room layout using 9-tile brushes
+// ═══════════════════════════════════════════════════════
+
+let _igenSeed = 0;
+let _igenResult = null;
+
+function _igenRng() {
+  _igenSeed ^= _igenSeed << 13;
+  _igenSeed ^= _igenSeed >> 17;
+  _igenSeed ^= _igenSeed << 5;
+  return ((_igenSeed >>> 0) % 10000) / 10000;
+}
+function _igenRandInt(a, b) { return a + Math.floor(_igenRng() * (b - a + 1)); }
+
+/**
+ * Generate a floor plan with rooms and optional inner walls.
+ * Returns { width, height, floorCells: Set, wallCells: Set, doorCells: Set }
+ */
+function _igenFloorPlan(rooms, minW, maxW, minH, maxH, addInnerWalls) {
+  // Generate room rectangles — dimensions include the perimeter walls
+  const rects = [];
+  for (let i = 0; i < rooms; i++) {
+    const rw = _igenRandInt(Math.max(3, minW), Math.max(3, maxW));
+    const rh = _igenRandInt(Math.max(3, minH), Math.max(3, maxH));
+    rects.push({ x: 0, y: 0, w: rw, h: rh });
+  }
+
+  // Layout rooms starting at (0,0); adjacent rooms share a wall column/row
+  if (rects.length > 0) {
+    rects[0].x = 0; rects[0].y = 0;
+    for (let i = 1; i < rects.length; i++) {
+      const prev = rects[i - 1];
+      if (_igenRng() > 0.5) {
+        // Attach right — overlap 1 column (shared wall)
+        rects[i].x = prev.x + prev.w - 1;
+        rects[i].y = prev.y + _igenRandInt(0, Math.max(0, prev.h - rects[i].h));
+      } else {
+        // Attach bottom — overlap 1 row (shared wall)
+        rects[i].x = prev.x + _igenRandInt(0, Math.max(0, prev.w - rects[i].w));
+        rects[i].y = prev.y + prev.h - 1;
+      }
+    }
+  }
+
+  // Normalize so min corner is (0,0)
+  let minX = Infinity, minY = Infinity;
+  for (const r of rects) { if (r.x < minX) minX = r.x; if (r.y < minY) minY = r.y; }
+  for (const r of rects) { r.x -= minX; r.y -= minY; }
+
+  // Determine total extent
+  let maxX = 0, maxY = 0;
+  for (const r of rects) {
+    if (r.x + r.w > maxX) maxX = r.x + r.w;
+    if (r.y + r.h > maxY) maxY = r.y + r.h;
+  }
+  const totalW = maxX;
+  const totalH = maxY;
+
+  // All cells inside any room rectangle are floor cells
+  const floorCells = new Set();
+  for (const r of rects) {
+    for (let y = r.y; y < r.y + r.h; y++) {
+      for (let x = r.x; x < r.x + r.w; x++) {
+        floorCells.add(`${x},${y}`);
+      }
+    }
+  }
+
+  // Wall cells = outer rim of floor (floor cells with at least one non-floor neighbor)
+  const wallCells = new Set();
+  for (const key of floorCells) {
+    const [fx, fy] = key.split(',').map(Number);
+    let isEdge = false;
+    for (let dy = -1; dy <= 1 && !isEdge; dy++) {
+      for (let dx = -1; dx <= 1 && !isEdge; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        if (!floorCells.has(`${fx+dx},${fy+dy}`)) isEdge = true;
+      }
+    }
+    if (isEdge) wallCells.add(key);
+  }
+
+  const doorCells = new Set();
+
+  // Inner walls between adjacent rooms (cells on the shared boundary)
+  if (addInnerWalls && rects.length > 1) {
+    for (let i = 1; i < rects.length; i++) {
+      const r = rects[i], prev = rects[i - 1];
+      const sharedCells = [];
+
+      // Vertical shared column
+      if (r.x === prev.x + prev.w - 1) {
+        const overlapStart = Math.max(r.y, prev.y);
+        const overlapEnd   = Math.min(r.y + r.h, prev.y + prev.h);
+        for (let y = overlapStart; y < overlapEnd; y++) sharedCells.push(`${r.x},${y}`);
+      } else if (prev.x === r.x + r.w - 1) {
+        const overlapStart = Math.max(r.y, prev.y);
+        const overlapEnd   = Math.min(r.y + r.h, prev.y + prev.h);
+        for (let y = overlapStart; y < overlapEnd; y++) sharedCells.push(`${prev.x},${y}`);
+      }
+      // Horizontal shared row
+      else if (r.y === prev.y + prev.h - 1) {
+        const overlapStart = Math.max(r.x, prev.x);
+        const overlapEnd   = Math.min(r.x + r.w, prev.x + prev.w);
+        for (let x = overlapStart; x < overlapEnd; x++) sharedCells.push(`${x},${r.y}`);
+      } else if (prev.y === r.y + r.h - 1) {
+        const overlapStart = Math.max(r.x, prev.x);
+        const overlapEnd   = Math.min(r.x + r.w, prev.x + prev.w);
+        for (let x = overlapStart; x < overlapEnd; x++) sharedCells.push(`${x},${prev.y}`);
+      }
+
+      // Skip corner cells (already outer perimeter) — only process interior shared cells
+      if (sharedCells.length >= 3) {
+        const inner = sharedCells.slice(1, -1); // exclude first/last (outer corners)
+        if (inner.length > 0) {
+          const doorIdx = _igenRandInt(0, inner.length - 1);
+          for (let j = 0; j < inner.length; j++) {
+            if (j === doorIdx) {
+              doorCells.add(inner[j]);
+              wallCells.delete(inner[j]); // ensure door is not a wall
+            } else {
+              wallCells.add(inner[j]); // add inner wall
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Add entrance door on the bottom wall
+  let maxFloorR = 0;
+  for (const key of floorCells) {
+    const r = +key.split(',')[1];
+    if (r > maxFloorR) maxFloorR = r;
+  }
+  const bottomWalls = [];
+  for (const key of wallCells) {
+    const [x, y] = key.split(',').map(Number);
+    // Bottom-edge wall cells (on the bottom row and not at the extreme corners)
+    if (y === maxFloorR && x > 0 && x < totalW - 1) bottomWalls.push(key);
+  }
+  if (bottomWalls.length) {
+    bottomWalls.sort((a, b) => +a.split(',')[0] - +b.split(',')[0]);
+    const mid = Math.floor(bottomWalls.length / 2);
+    const doorKey = bottomWalls[mid];
+    wallCells.delete(doorKey);
+    doorCells.add(doorKey);
+  }
+
+  return { width: totalW, height: totalH, floorCells, wallCells, doorCells, rects };
+}
+
+/**
+ * Build the generated interior with brush tiles applied.
+ * Floor covers ALL floor cells (floor layer).
+ * Walls cover the outer rim of the floor (walls layer, overlaid on floor).
+ * Returns { width, height, layers, meta, brushGroupMap }
+ */
+function _igenBuild(plan, floorBrushIdx, wallBrushIdx) {
+  const w = plan.width;
+  const h = plan.height;
+  const newLayers = { floor: {}, furniture: {}, walls: {}, overlay: {} };
+  const newMeta = {};
+  const newBGM = {};
+
+  const floorBrush = floorBrushIdx >= 0 ? nineTileBrushes[floorBrushIdx] : null;
+  const wallBrush  = wallBrushIdx >= 0  ? nineTileBrushes[wallBrushIdx]  : null;
+
+  // Helper: resolve a 9-tile brush sprite for a cell, auto-tiling against a member set
+  function resolveTile(brush, q, r, memberSet) {
+    const has = (dq, dr) => memberSet.has(`${q+dq},${r+dr}`);
+    const hasTop = has(0,-1), hasBot = has(0,1), hasLft = has(-1,0), hasRgt = has(1,0);
+    const hasTL = has(-1,-1), hasTR = has(1,-1), hasBL = has(-1,1), hasBR = has(1,1);
+    const card = (hasTop?1:0)+(hasBot?1:0)+(hasLft?1:0)+(hasRgt?1:0);
+
+    // Wall-type corridor / junction tiles
+    if (brush.brushType === 'wall' && brush.corridors) {
+      if (card === 0 && brush.corridors[7])  return brush.corridors[7];        // solo
+      if (card === 1 && brush.endCaps) {                                        // end cap
+        let ec = hasBot?0 : hasTop?1 : hasRgt?2 : hasLft?3 : -1;
+        if (ec >= 0 && brush.endCaps[ec]) return brush.endCaps[ec];
+      }
+      if (hasTop && hasBot && !hasLft && !hasRgt && brush.corridors[0]) return brush.corridors[0]; // vert
+      if (hasLft && hasRgt && !hasTop && !hasBot && brush.corridors[1]) return brush.corridors[1]; // horiz
+      if (card === 3) {                                                         // T-junction
+        let ti = (hasLft&&hasRgt&&hasBot&&!hasTop)?2 : (hasLft&&hasRgt&&hasTop&&!hasBot)?3
+               : (hasTop&&hasBot&&hasRgt&&!hasLft)?4 : (hasTop&&hasBot&&hasLft&&!hasRgt)?5 : -1;
+        if (ti >= 0 && brush.corridors[ti]) return brush.corridors[ti];
+      }
+      if (card === 4 && brush.corridors[6]) {                                   // cross / IC
+        const diag = (hasTL?1:0)+(hasTR?1:0)+(hasBL?1:0)+(hasBR?1:0);
+        if (diag === 4) { /* fall through to center */ }
+      }
+    }
+
+    // Inside corners
+    if (hasTop && hasBot && hasLft && hasRgt && brush.insideCorners) {
+      const ic = !hasTL?0 : !hasTR?1 : !hasBL?2 : !hasBR?3 : -1;
+      if (ic >= 0 && brush.insideCorners[ic]) return brush.insideCorners[ic];
+    }
+
+    // Standard 3×3 mapping
+    let row = 1;
+    if (!hasTop && hasBot) row = 0;
+    else if (hasTop && !hasBot) row = 2;
+    // else: both present OR both absent → center (row=1)
+    let col = 1;
+    if (!hasLft && hasRgt) col = 0;
+    else if (hasLft && !hasRgt) col = 2;
+    // else: both present OR both absent → center (col=1)
+    return (brush.tiles && brush.tiles[row] && brush.tiles[row][col]) || null;
+  }
+
+  // ── Pass 1: Floor tiles on the floor layer for ALL floor cells ──
+  if (floorBrush) {
+    for (const key of plan.floorCells) {
+      const [q, r] = key.split(',').map(Number);
+      const tile = resolveTile(floorBrush, q, r, plan.floorCells);
+      if (tile) newLayers.floor[key] = { sheetPath: tile.sheetPath, sx: tile.sx, sy: tile.sy, sw: TILE, sh: TILE };
+    }
+  }
+
+  // ── Pass 2: Wall tiles on the walls layer for perimeter cells only ──
+  if (wallBrush) {
+    for (const key of plan.wallCells) {
+      const [q, r] = key.split(',').map(Number);
+      const tile = resolveTile(wallBrush, q, r, plan.wallCells);
+      if (tile) newLayers.walls[key] = { sheetPath: tile.sheetPath, sx: tile.sx, sy: tile.sy, sw: TILE, sh: TILE };
+      newMeta[key] = { impassable: true };
+    }
+  }
+
+  // ── Brush group map: wall brush for perimeter, floor brush for interior ──
+  for (const key of plan.floorCells) {
+    if (plan.wallCells.has(key)) {
+      if (wallBrush) newBGM[key] = { brushId: wallBrush.id, layer: 'walls' };
+    } else {
+      if (floorBrush) newBGM[key] = { brushId: floorBrush.id, layer: 'floor' };
+    }
+  }
+
+  // Door cells
+  for (const key of plan.doorCells) {
+    newMeta[key] = { door: true };
+  }
+
+  return { width: w, height: h, layers: newLayers, meta: newMeta, brushGroupMap: newBGM };
+}
+
+/** Render a small preview of the generated interior */
+function _igenRenderPreview(canvas, result) {
+  if (!result) return;
+  const previewTile = 8;
+  canvas.width  = result.width * previewTile;
+  canvas.height = result.height * previewTile;
+  const pctx = canvas.getContext('2d');
+  pctx.fillStyle = '#0d1117';
+  pctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Draw floors
+  for (const key of Object.keys(result.layers.floor)) {
+    const [q, r] = key.split(',').map(Number);
+    const cell = result.layers.floor[key];
+    const img = cell.sheetPath ? imageCache[cell.sheetPath] : null;
+    if (img) {
+      pctx.drawImage(img, cell.sx, cell.sy, cell.sw || TILE, cell.sh || TILE, q * previewTile, r * previewTile, previewTile, previewTile);
+    } else {
+      pctx.fillStyle = '#6a5a4a';
+      pctx.fillRect(q * previewTile, r * previewTile, previewTile, previewTile);
+    }
+  }
+  // Draw walls
+  for (const key of Object.keys(result.layers.walls)) {
+    const [q, r] = key.split(',').map(Number);
+    const cell = result.layers.walls[key];
+    const img = cell.sheetPath ? imageCache[cell.sheetPath] : null;
+    if (img) {
+      pctx.drawImage(img, cell.sx, cell.sy, cell.sw || TILE, cell.sh || TILE, q * previewTile, r * previewTile, previewTile, previewTile);
+    } else {
+      pctx.fillStyle = '#4a3a2a';
+      pctx.fillRect(q * previewTile, r * previewTile, previewTile, previewTile);
+    }
+  }
+  // Draw doors
+  for (const [key, m] of Object.entries(result.meta)) {
+    if (m.door) {
+      const [q, r] = key.split(',').map(Number);
+      pctx.fillStyle = '#8B6914';
+      pctx.fillRect(q * previewTile + 1, r * previewTile + 1, previewTile - 2, previewTile - 2);
+    }
+  }
+}
+
+function showInteriorGenerator() {
+  // Need at least one brush to generate
+  if (nineTileBrushes.length === 0) {
+    toast('Create 9-tile brushes first (🎨 Brushes button)', 'err');
+    return;
+  }
+
+  const existing = document.querySelector('.igen-overlay');
+  if (existing) existing.remove();
+
+  // Build brush option lists
+  const floorBrushes = nineTileBrushes.map((b, i) => ({ b, i })).filter(({ b }) => b.brushType === 'floor');
+  const wallBrushes  = nineTileBrushes.map((b, i) => ({ b, i })).filter(({ b }) => b.brushType === 'wall');
+
+  const floorOpts = floorBrushes.length
+    ? floorBrushes.map(({ b, i }) => `<option value="${i}">${b.name}</option>`).join('')
+    : '<option value="-1">(no floor brushes)</option>';
+  const wallOpts = wallBrushes.length
+    ? wallBrushes.map(({ b, i }) => `<option value="${i}">${b.name}</option>`).join('')
+    : '<option value="-1">(no wall brushes)</option>';
+
+  const warn = (!floorBrushes.length || !wallBrushes.length)
+    ? `<div class="igen-warn">⚠ Create both floor and wall type brushes in 🎨 Brushes for best results</div>`
+    : '';
+
+  const ov = document.createElement('div');
+  ov.className = 'igen-overlay';
+  ov.innerHTML = `
+<div class="igen-modal">
+  <h3>🏗️ Interior Generator</h3>
+  <div class="igen-section">
+    <h4>Layout</h4>
+    <div class="igen-row">
+      <label>Rooms</label>
+      <input type="range" id="igen-rooms" min="1" max="5" value="1">
+      <span id="igen-rooms-val" style="min-width:16px;color:var(--text)">1</span>
+    </div>
+    <div class="igen-row">
+      <label>Room Width</label>
+      <input type="number" id="igen-minw" value="4" min="2" max="14" style="width:50px"> –
+      <input type="number" id="igen-maxw" value="8" min="2" max="18" style="width:50px">
+    </div>
+    <div class="igen-row">
+      <label>Room Height</label>
+      <input type="number" id="igen-minh" value="3" min="2" max="10" style="width:50px"> –
+      <input type="number" id="igen-maxh" value="6" min="2" max="14" style="width:50px">
+    </div>
+    <div class="igen-row">
+      <label></label>
+      <label style="min-width:0;cursor:pointer"><input type="checkbox" id="igen-innerwalls"> Inner walls between rooms</label>
+    </div>
+  </div>
+  <div class="igen-section">
+    <h4>Brushes</h4>
+    <div class="igen-row"><label>Floor</label><select id="igen-floor">${floorOpts}</select></div>
+    <div class="igen-row"><label>Walls</label><select id="igen-wall">${wallOpts}</select></div>
+    ${warn}
+  </div>
+  <div class="igen-section">
+    <h4>Preview</h4>
+    <div class="igen-preview"><canvas id="igen-preview-cvs"></canvas></div>
+    <div style="text-align:center;margin-top:6px">
+      <button onclick="_igenRegenerate()" style="font-size:11px;padding:4px 12px;border-radius:4px;cursor:pointer;background:var(--bg);color:var(--text);border:1px solid var(--border2)">🎲 Randomize</button>
+    </div>
+  </div>
+  <div class="igen-btns">
+    <button onclick="_igenClose()">Cancel</button>
+    <button class="primary" onclick="_igenApply()">Apply to Canvas</button>
+  </div>
+</div>`;
+  document.body.appendChild(ov);
+
+  // Close on overlay click
+  ov.addEventListener('click', e => { if (e.target === ov) _igenClose(); });
+
+  // Live updates
+  const roomSlider = document.getElementById('igen-rooms');
+  const roomVal = document.getElementById('igen-rooms-val');
+  roomSlider.addEventListener('input', () => { roomVal.textContent = roomSlider.value; _igenRegenerate(); });
+
+  for (const id of ['igen-minw','igen-maxw','igen-minh','igen-maxh','igen-floor','igen-wall','igen-innerwalls']) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', () => _igenRegenerate());
+  }
+
+  // Preload brush sheet images before first generate
+  const sheetsToLoad = new Set();
+  for (const brush of nineTileBrushes) {
+    if (brush.tiles) for (const row of brush.tiles) if (row) for (const t of row) if (t && t.sheetPath) sheetsToLoad.add(t.sheetPath);
+    if (brush.insideCorners) for (const t of brush.insideCorners) if (t && t.sheetPath) sheetsToLoad.add(t.sheetPath);
+    if (brush.corridors) for (const t of brush.corridors) if (t && t.sheetPath) sheetsToLoad.add(t.sheetPath);
+    if (brush.endCaps) for (const t of brush.endCaps) if (t && t.sheetPath) sheetsToLoad.add(t.sheetPath);
+  }
+  const loadPromises = [...sheetsToLoad].filter(p => !imageCache[p]).map(p => loadImage(p));
+  if (loadPromises.length) {
+    Promise.all(loadPromises).then(() => _igenRegenerate());
+  } else {
+    _igenRegenerate();
+  }
+}
+
+function _igenRegenerate() {
+  _igenSeed = Date.now() ^ (Math.random() * 0xffffffff);
+
+  const rooms = +document.getElementById('igen-rooms').value;
+  const minW  = +document.getElementById('igen-minw').value;
+  const maxW  = +document.getElementById('igen-maxw').value;
+  const minH  = +document.getElementById('igen-minh').value;
+  const maxH  = +document.getElementById('igen-maxh').value;
+  const floorBrushIdx = +document.getElementById('igen-floor').value;
+  const wallBrushIdx  = +document.getElementById('igen-wall').value;
+  const innerWalls    = document.getElementById('igen-innerwalls').checked;
+
+  const plan = _igenFloorPlan(rooms, Math.max(2, minW), Math.max(minW, maxW), Math.max(2, minH), Math.max(minH, maxH), innerWalls);
+  _igenResult = _igenBuild(plan, floorBrushIdx, wallBrushIdx);
+
+  const cvs = document.getElementById('igen-preview-cvs');
+  if (cvs) _igenRenderPreview(cvs, _igenResult);
+}
+
+function _igenClose() {
+  const ov = document.querySelector('.igen-overlay');
+  if (ov) ov.remove();
+  _igenResult = null;
+}
+
+function _igenApply() {
+  if (!_igenResult) return;
+  const r = _igenResult;
+
+  // Clear current state
+  layers = { floor: {}, furniture: {}, walls: {}, overlay: {} };
+  meta = {};
+  placedObjects = {};
+  brushGroupMap = {};
+  undoStack = []; redoStack = [];
+  editIdx = -1;
+
+  // Set grid size
+  gridW = r.width;
+  gridH = r.height;
+  document.getElementById('grid-w').value = gridW;
+  document.getElementById('grid-h').value = gridH;
+
+  // Copy layers
+  for (const [ln, lyr] of Object.entries(r.layers)) {
+    for (const [key, val] of Object.entries(lyr)) {
+      layers[ln][key] = { ...val };
+    }
+  }
+
+  // Copy meta
+  for (const [key, val] of Object.entries(r.meta)) {
+    meta[key] = { ...val };
+  }
+
+  // Copy brush group map
+  brushGroupMap = JSON.parse(JSON.stringify(r.brushGroupMap));
+
+  // Close modal
+  _igenClose();
+
+  // Update UI
+  buildNtbListPanel();
+  fitCanvas();
+  toast('Interior generated! Edit it as you like.', 'ok');
+}
+
+// ═══════════════════════════════════════════════════════
 //  SAVE / LOAD / EXPORT
 // ═══════════════════════════════════════════════════════
 
@@ -1221,6 +2825,7 @@ function newInterior() {
   layers = { floor: {}, furniture: {}, walls: {}, overlay: {} };
   meta = {};
   placedObjects = {};
+  brushGroupMap = {};
   gridW = parseInt(document.getElementById('grid-w').value) || 10;
   gridH = parseInt(document.getElementById('grid-h').value) || 8;
   document.getElementById('int-name').value = '';
@@ -1267,7 +2872,7 @@ function _refreshLinkedBuildingChecklist() {
 
 function saveInterior() {
   const name = document.getElementById('int-name').value.trim();
-  if (!name) { alert('Enter an interior name.'); return; }
+  if (!name) { toast('Enter an interior name', 'err'); return; }
   // Gather linked building ids from checklist
   _linkedBuildingIds = [...document.getElementById('int-linked-buildings').querySelectorAll('input:checked')].map(cb => cb.value);
   const interior = {
@@ -1287,6 +2892,8 @@ function saveInterior() {
     },
     meta: { ...meta },
     placedObjects: JSON.parse(JSON.stringify(placedObjects)),
+    brushGroupMap: JSON.parse(JSON.stringify(brushGroupMap)),
+    nineTileBrushes: JSON.parse(JSON.stringify(nineTileBrushes)),
   };
   if (editIdx >= 0) {
     interiors[editIdx] = interior;
@@ -1326,6 +2933,9 @@ function loadInterior(index) {
   };
   meta = { ...(b.meta || {}) };
   placedObjects = JSON.parse(JSON.stringify(b.placedObjects || {}));
+  brushGroupMap = JSON.parse(JSON.stringify(b.brushGroupMap || {}));
+  if (b.nineTileBrushes) nineTileBrushes = JSON.parse(JSON.stringify(b.nineTileBrushes));
+  buildNtbListPanel();
   // Ensure deep copy of furniture objects in meta
   for (const key of Object.keys(meta)) {
     if (meta[key].furniture) meta[key] = { ...meta[key], furniture: { ...meta[key].furniture } };
@@ -1426,6 +3036,18 @@ function _exportInterior(interior) {
     const [aq, ar] = key.split(',').map(Number);
     return { anchorQ: aq - minQ, anchorR: ar - minR, ...obj };
   });
+  // Export brush group map with offset
+  if (interior.brushGroupMap && Object.keys(interior.brushGroupMap).length) {
+    out.brushGroupMap = {};
+    for (const [key, entry] of Object.entries(interior.brushGroupMap)) {
+      const [q, r] = key.split(',').map(Number);
+      out.brushGroupMap[`${q - minQ},${r - minR}`] = entry;
+    }
+  }
+  // Include nine-tile brush definitions
+  if (interior.nineTileBrushes && interior.nineTileBrushes.length) {
+    out.nineTileBrushes = interior.nineTileBrushes;
+  }
   if (bMinQ !== Infinity) {
     out.bounds = { minCol: bMinQ, minRow: bMinR, maxCol: bMaxQ, maxRow: bMaxR };
     out.width = bMaxQ - bMinQ + 1;
@@ -1437,13 +3059,14 @@ function _exportInterior(interior) {
 function getExportData() {
   if (!interiors.length) return {};
   return {
-    interiors: interiors.map(i => _exportInterior(i))
+    interiors: interiors.map(i => _exportInterior(i)),
+    nineTileBrushes: nineTileBrushes.length ? JSON.parse(JSON.stringify(nineTileBrushes)) : undefined,
   };
 }
 
 function exportAll() {
   const data = getExportData();
-  if (!data.interiors || !data.interiors.length) { alert('No interiors to export.'); return; }
+  if (!data.interiors || !data.interiors.length) { toast('No interiors to export', 'err'); return; }
   const blob = new Blob([JSON.stringify(data.interiors, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -1466,7 +3089,7 @@ window.addEventListener('message', ev => {
 
   // ── Handle openBuildingInterior from parent ──
   if (ev.data.type === 'openBuildingInterior') {
-    const { buildingId, buildingName, buildingType, buildingWidth, buildingHeight, buildings } = ev.data;
+    const { buildingId, buildingName, buildingType, buildingWidth, buildingHeight, buildings, autoGenerate } = ev.data;
     // Update buildings list
     if (Array.isArray(buildings)) {
       _buildings = buildings;
@@ -1481,7 +3104,96 @@ window.addEventListener('message', ev => {
       loadInterior(existingIdx);
       return;
     }
-    // Create a new interior pre-populated from the building
+
+    // ── Auto-generate interior using 9-tile brushes if available ──
+    const floorBrushes = nineTileBrushes.filter(b => b.brushType === 'floor');
+    const wallBrushes  = nineTileBrushes.filter(b => b.brushType === 'wall');
+
+    if ((autoGenerate || floorBrushes.length || wallBrushes.length) && (floorBrushes.length > 0 || wallBrushes.length > 0)) {
+      // Determine interior size from building dimensions
+      const intW = Math.max(4, Math.min(buildingWidth || 8, 20));
+      const intH = Math.max(4, Math.min(buildingHeight || 6, 20));
+
+      // Pick random brushes based on building id seed
+      let seedHash = 0;
+      const seedStr = buildingId || 'default';
+      for (let i = 0; i < seedStr.length; i++) seedHash = ((seedHash << 5) - seedHash + seedStr.charCodeAt(i)) | 0;
+      const floorBrushIdx = floorBrushes.length > 0
+        ? nineTileBrushes.indexOf(floorBrushes[Math.abs(seedHash) % floorBrushes.length])
+        : -1;
+      const wallBrushIdx = wallBrushes.length > 0
+        ? nineTileBrushes.indexOf(wallBrushes[Math.abs(seedHash + 7) % wallBrushes.length])
+        : -1;
+
+      // Build a simple rectangular floor plan matching the building exactly
+      const floorCells = new Set();
+      const wallCells  = new Set();
+      const doorCells  = new Set();
+      for (let y = 0; y < intH; y++) {
+        for (let x = 0; x < intW; x++) {
+          floorCells.add(`${x},${y}`);
+        }
+      }
+      // Walls = outer rim (any floor cell with a non-floor neighbor)
+      for (const key of floorCells) {
+        const [fx, fy] = key.split(',').map(Number);
+        let isEdge = false;
+        for (let dy = -1; dy <= 1 && !isEdge; dy++) {
+          for (let dx = -1; dx <= 1 && !isEdge; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            if (!floorCells.has(`${fx+dx},${fy+dy}`)) isEdge = true;
+          }
+        }
+        if (isEdge) wallCells.add(key);
+      }
+      // Door at bottom center
+      const doorX = Math.floor(intW / 2);
+      const doorKey = `${doorX},${intH - 1}`;
+      wallCells.delete(doorKey);
+      doorCells.add(doorKey);
+
+      const plan = { width: intW, height: intH, floorCells, wallCells, doorCells, rects: [{ x: 0, y: 0, w: intW, h: intH }] };
+      const result = _igenBuild(plan, floorBrushIdx, wallBrushIdx);
+
+      // Apply to editor state
+      newInterior();
+      gridW = result.width;
+      gridH = result.height;
+      document.getElementById('grid-w').value = gridW;
+      document.getElementById('grid-h').value = gridH;
+      document.getElementById('int-name').value = (buildingName || 'Building') + ' Interior';
+      const typeSelect = document.getElementById('int-type');
+      if (buildingType && [...typeSelect.options].some(o => o.value === buildingType)) {
+        typeSelect.value = buildingType;
+      }
+      _linkedBuildingIds = [buildingId];
+      _refreshLinkedBuildingChecklist();
+
+      // Copy generated data
+      for (const [ln, lyr] of Object.entries(result.layers)) {
+        for (const [key, val] of Object.entries(lyr)) {
+          layers[ln][key] = { ...val };
+        }
+      }
+      for (const [key, val] of Object.entries(result.meta)) {
+        meta[key] = { ...val };
+      }
+      brushGroupMap = JSON.parse(JSON.stringify(result.brushGroupMap));
+
+      // Auto-save the generated interior
+      saveInterior();
+
+      // Preload images then render
+      const paths = new Set();
+      for (const lyr of Object.values(layers)) {
+        for (const c of Object.values(lyr)) if (c.sheetPath) paths.add(c.sheetPath);
+      }
+      Promise.all([...paths].map(loadImage)).then(() => fitCanvas());
+      toast('Interior auto-generated for ' + (buildingName || 'building'), 'ok');
+      return;
+    }
+
+    // Fallback: no brushes available — create empty interior
     newInterior();
     document.getElementById('int-name').value = (buildingName || 'Building') + ' Interior';
     const typeSelect = document.getElementById('int-type');
@@ -1502,8 +3214,16 @@ window.addEventListener('message', ev => {
     return;
   }
 
+  if (ev.data.type === 'resourceTypesUpdate') {
+    _setResourceTypes(ev.data.resourceTypes || []);
+    return;
+  }
+
   if (ev.data.type !== 'loadGamedata') return;
   const d = ev.data;
+  if (Array.isArray(d.resourceTypes)) {
+    _setResourceTypes(d.resourceTypes);
+  }
   // Store buildings list for linked building checklist
   if (Array.isArray(d.buildings)) {
     _buildings = d.buildings;
@@ -1513,6 +3233,22 @@ window.addEventListener('message', ev => {
   if (Array.isArray(d.objects)) {
     _customObjects = d.objects;
     buildPaletteCats();
+  }
+  // Import nine-tile brush definitions from parent
+  if (Array.isArray(d.nineTileBrushes)) {
+    const seenIds = new Set(nineTileBrushes.map(b => b.id));
+    for (const brush of d.nineTileBrushes) {
+      if (!seenIds.has(brush.id)) { nineTileBrushes.push(brush); seenIds.add(brush.id); }
+    }
+    buildNtbListPanel();
+  }
+  // Also load interiorBrushes (saved separately by editor.html)
+  if (Array.isArray(d.interiorBrushes)) {
+    const seenIds = new Set(nineTileBrushes.map(b => b.id));
+    for (const brush of d.interiorBrushes) {
+      if (!seenIds.has(brush.id)) { nineTileBrushes.push(brush); seenIds.add(brush.id); }
+    }
+    buildNtbListPanel();
   }
   // New flat format: d.interiors = [...]
   let allInteriorsToLoad = [];
@@ -1574,11 +3310,31 @@ window.addEventListener('message', ev => {
             newPlacedObjects[`${q + offQ},${r + offR}`] = v;
           }
         }
+        // Re-key brushGroupMap with offset
+        const newBrushGroupMap = {};
+        const bgSrc = int.brushGroupMap || {};
+        for (const [k, v] of Object.entries(bgSrc)) {
+          const [bq, br] = k.split(',').map(Number);
+          newBrushGroupMap[`${bq + offQ},${br + offR}`] = v;
+        }
         const w = hasBounds ? int.bounds.maxCol - int.bounds.minCol + 1 + MARGIN * 2 : (int.width || 10);
         const h = hasBounds ? int.bounds.maxRow - int.bounds.minRow + 1 + MARGIN * 2 : (int.height || 8);
-        return { ...int, layers: newLayers, meta: newMeta, placedObjects: newPlacedObjects, width: w, height: h };
+        return { ...int, layers: newLayers, meta: newMeta, placedObjects: newPlacedObjects, brushGroupMap: newBrushGroupMap, width: w, height: h };
       });
       interiors = imported;
+      // Merge all brush definitions from imported interiors
+      const seenBrushIds = new Set(nineTileBrushes.map(b => b.id));
+      for (const int of imported) {
+        if (Array.isArray(int.nineTileBrushes)) {
+          for (const brush of int.nineTileBrushes) {
+            if (!seenBrushIds.has(brush.id)) {
+              nineTileBrushes.push(brush);
+              seenBrushIds.add(brush.id);
+            }
+          }
+        }
+      }
+      buildNtbListPanel();
       refreshList();
       if (interiors.length) loadInterior(0);
   }
@@ -1591,6 +3347,7 @@ window.addEventListener('message', ev => {
 (function init() {
   initCanvas();
   initPaletteResize();
+  _renderNtbCostResourceRows({});
   buildPaletteCats();
   // Show first category
   const firstCat = Object.keys(PALETTE_DATA)[0];
@@ -1599,6 +3356,7 @@ window.addEventListener('message', ev => {
     showCategory(firstCat, btn);
   }
   refreshList();
+  buildNtbListPanel();
   // Defer fitCanvas until after layout is painted so clientWidth/clientHeight are real
   requestAnimationFrame(() => requestAnimationFrame(() => fitCanvas()));
 

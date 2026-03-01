@@ -2,22 +2,26 @@
 
 ## Project Overview
 
-Lord of the Realms is a hex-grid strategy game built with **vanilla JavaScript, HTML Canvas, and CSS** — no frameworks. It runs as an Electron app or in the browser via a static file server.
+Lord of the Realms is a hex-grid strategy game built with **React, Vite, and HTML Canvas**. It runs as an Electron app or in the browser via Vite's dev server.
 
 ## Architecture
 
-- **No build step.** All JS/HTML/CSS is authored directly — no bundler, no transpiler.
-- Entry point: `index.html` loads ~40+ scripts from `js/` and data from `data/`.
-- Editors (`sprite_editor.html`, `editor.html`, `world_editor.html`, `interior_editor.html`, `spritesheet_editor.html`) are standalone HTML files, sometimes loaded inside iframes.
-- `editor.html` is a tabbed wrapper that hosts `sprite_editor.html` (buildings/objects), `spritesheet_editor.html`, `interior_editor.html`, and a built-in resource editor inside iframes.
-- Game data lives in `data/gamedata.json` and individual JSON files under `data/`.
+- **Vite** build tool with `@vitejs/plugin-react`. Dev server on port 8081, production output in `dist-web/`.
+- **React 19** renders the UI shell; the core game logic lives in plain ES modules under `src/`.
+- Entry point: `index.html` → `src/main.jsx` → `<App />` → `<GameView />` (instantiates the `Game` class).
+- All game source code is ES modules in `src/` with named imports/exports — path aliases: `@core`, `@world`, `@player`, `@systems`, `@ui`, `@components`.
+- Editors (`sprite_editor.html`, `editor.html`, `world_editor.html`, `interior_editor.html`, `terrain_editor.html`, `spritesheet_editor.html`) are standalone HTML files with inline `<style>`/`<script>` blocks, built as Vite MPA inputs.
+- `editor.html` is a tabbed wrapper that hosts sub-editors inside iframes.
+- Game data lives in individual JSON files under `data/`, merged into `data/gamedata.json` by `npm run build:data`.
+- `data/gamedata.json` is a generated build artifact (gitignored) — do NOT edit it directly.
 - Tile sprites are PNGs in `assets/tiles/` and `assets/lpc/`.
-- Persistence uses IndexedDB via `js/systems/modStore.js` (database: `lord_of_realms_mods`).
+- Persistence uses IndexedDB via `src/systems/modStore.js` (database: `lord_of_realms_mods`).
+- `editor-modstore.js` at root is a standalone IIFE copy of ModStore for editor HTML files (copied to `dist-web/` by a Vite plugin).
 
 ## Critical Rules
 
 ### DO NOT start an HTTP server after every code change.
-The user runs their own server. Do not run `http-server`, `npx http-server`, `npx serve`, or any equivalent after making edits. Only start a server if the user explicitly asks for it.
+The user runs their own dev server (`npm run dev`). Do not run `http-server`, `npx http-server`, `npx serve`, or any equivalent after making edits. Only start a server if the user explicitly asks for it.
 
 ### DO NOT run long terminal commands speculatively.
 Avoid running PowerShell image-inspection loops, pixel-scanning scripts, or other slow commands unless the task requires it.
@@ -30,13 +34,30 @@ Never use native browser dialogs. Always use styled modal dialogs that match the
 
 ## Code Conventions
 
-- All game code is vanilla JS (ES2020+). No TypeScript, no JSX, no imports/exports (everything is script-tag loaded).
-- CSS uses custom properties defined in `:root` (e.g. `--bg`, `--panel`, `--gold`, `--blue`).
-- HTML files are self-contained with inline `<style>` and `<script>` blocks.
+- Game source code is ES modules (ES2020+) in `src/` with named imports/exports.
+- React components are in `src/components/` (JSX).
+- CSS uses custom properties defined in `:root` (e.g. `--bg`, `--panel`, `--gold`, `--blue`). Main stylesheet: `styles.css` (imported via `src/App.css`).
+- Editor HTML files are self-contained with inline `<style>` and `<script>` blocks (no ES modules — they use global scope with `onclick` attributes).
 - Editor HTML files can be 2000–4000+ lines — use targeted searches/reads, not full-file reads.
 - Canvas rendering uses 2D context with manual pan/zoom (`panX`, `panY`, `canvasZoom`).
 - Tile grids use `"q,r"` string keys for tile coordinate lookups (e.g. `objTiles["3,2"]`).
 - The hex world map uses axial coordinates (`q`, `r`) with east-west wrapping.
+
+## Source Layout
+
+```
+src/
+  main.jsx          — React entry point
+  App.jsx / App.css — Root component, imports styles.css
+  components/       — React components (GameView.jsx, TitleScreen.jsx, etc.)
+  context/          — React context providers
+  core/             — dataLoader.js, hex.js, utils.js
+  world/            — terrain.js, kingdom.js, world.js, economy.js, etc.
+  player/           — player.js, playerActions.js, playerEconomy.js, etc.
+  systems/          — modStore.js, quests.js, religion.js, technology.js, etc.
+  ui/               — game.js (Game class), innerMapRenderer.js, etc.
+  __tests__/        — Vitest test files
+```
 
 ## Editor System
 
@@ -112,91 +133,29 @@ Dual-mode tile-based editor for composing custom buildings and objects from LPC 
 
 Standalone utility for extracting sprite tiles from source images and packing them into new spritesheets. **No parent communication** — purely image-in, image-out.
 
-**Key state (`state` object):**
-- `state.img` — Loaded source Image
-- `state.tileSize` (default 32), `state.zoom`
-- `state.mode` — `'select'` | `'crop'`
-- `state.sel` — Selection rect `{ x, y, w, h }`
-- `state.extractions[]` — `[{ id, canvas, origTilesW, origTilesH, name }]`
-
-**Features:**
-- Drag-select tile regions on a source image with grid overlay
-- Auto-trim empty tiles from extractions
-- Retarget extraction to different tile size (nearest-neighbor scaling)
-- Background removal via `@imgly/background-removal` (ONNX model)
-- Pack all extractions into a single spritesheet PNG
-- Paste from clipboard (Ctrl+V), drag-and-drop image loading
-
 ### interior_editor.html — Building Interior Layout Editor (~1300 lines)
 
 Tile-based editor for designing interior layouts of buildings (taverns, houses, churches, etc.).
-
-**Key globals:**
-- `TILE = 32`, `gridW = 10`, `gridH = 8`
-- `layers = { floor:{}, walls:{}, overlay:{} }` — 3 paint layers
-- `meta = {}` — `"q,r" → { impassable?, door?, furniture?: { type, name, passable } }`
-- `interiors[]` — Saved interior definitions
-- `undoStack[]`, `redoStack[]` (max 40)
-
-**Tools:** Paint, Erase, Fill, Eyedropper, Block (impassable), Door, Furniture.
-
-**Building types:** house, tavern, blacksmith, church, temple, marketplace, town_hall, barracks, manor, etc.
-
-**Furniture types:** table, chair, bed, chest, barrel, bookshelf, fireplace, candle, bar, forge, anvil, altar, pew.
-
-**Palette:** LPC interior categories (Floors, Walls, Doors & Windows, Furniture, Interior Objects, Decorations).
 
 ### terrain_editor.html — LPC Terrain Map Editor (~2300 lines)
 
 Square-grid map editor for painting terrain tiles with auto-tiling terrain sets.
 
-**Key globals:**
-- `TILE = 32`, `mapW`/`mapH` (default 32×24)
-- `tiles[][]` — 2D array, `tiles[r][q] = { sheetPath, sx, sy }` or null
-- `activeTool` — `'paint'` | `'terrain'` | `'erase'` | `'fill'` | `'pick'` | `'rect'`
-- `brushSize` — Range 1–8
-- `terrainSets[]` — Auto-tile terrain set definitions
-- `zoom = 2`, `panX`, `panY`
-- `undoStack[]`, `redoStack[]` (max 50)
-
-**Tools:** Stamp Brush (B), Terrain Brush auto-tile (T), Eraser (E), Bucket Fill (G), Eyedropper (I), Shape Fill (R).
-
-**Features:** Variable brush size (1–8), Brush Creator Modal for visually assigning tiles to terrain patterns (corner/edge/mixed), terrain fill mode with random selection, new/load/save map as JSON.
-
-**Default terrain sets:** "LPC Ground" (corner type: Grass/Dirt/Sand/Water), "Paths" (edge type: Ground/Path).
-
 ### world_editor.html — Hex World Map Editor (~1310 lines)
 
 Hex-grid world map editor for painting terrain and placing overlays (villages, castles, ruins, etc.).
 
-**Key globals:**
-- `HEX_SIZE = 18`, `mapW = 70`, `mapH = 45`
-- `tiles[]` — Flat array `[r * mapW + q]` of terrain ID strings
-- `overlays = {}` — `"q,r" → { type, name }`
-- `activeTool` — `'paint'` | `'fill'` | `'rect'` | `'eyedrop'`
-- `activeLayer` — `'terrain'` | `'overlay'`
-- `brushRadius` — 1–20
-- `useSprites` — Toggle between color fill and hex tile sprite rendering
-- `TERRAIN_SPRITES` — Maps terrain IDs to hex tile PNG paths from `assets/tiles/`
-- `spriteCache` — Loaded Image elements
-
-**Hex terrains (~25):** deep_ocean, ocean, coast, sea, beach, lake, ice, snow, tundra, grassland, plains, woodland, boreal_forest, seasonal_forest, temperate_rainforest, tropical_rainforest, savanna, desert, hills, mountain, snow_peak, swamp, island, highlands.
-
-**Overlay types:** village, town, city, castle, fort, ruins (with optional place names).
-
-**Features:** Minimap with click-to-navigate, procedural terrain generation, deterministic sprite variant selection (hash-based), sprite rendering from `assets/tiles/`.
-
-### debug.html — Script Loading Diagnostic (~106 lines)
-
-Not an editor. Diagnostic page that sequentially loads all ~36 game JS files and reports success/failure, then attempts to create a `Game` instance. Terminal-style monospace green-on-black output.
-
 ## Testing
 
-- Tests are in `tests/` — run with `npm test` (opens `tests/index.html` in browser).
-- Test files: `test.hex.js`, `test.terrain.js`, `test.kingdom.js`, `test.player.js`, `test.systems.js`, `test.utils.js`, `test.data.js`.
+- Tests are in `src/__tests__/` — run with `npm test` (Vitest).
+- Test files: `utils.test.js`, `hex.test.js`, `data.test.js`, `terrain.test.js`, `kingdom.test.js`, `player.test.js`, `systems.test.js`.
+- Setup file `src/__tests__/setup.js` mocks `fetch()`, DOM, `indexedDB`, etc. for Node environment.
+- Watch mode: `npm run test:watch`.
 
 ## Running the Game
 
-- **Browser:** `npm start` (serves on port 8081)
-- **Electron:** `npm run electron`
-- **Build:** `npm run dist` (Windows installer via electron-builder)
+- **Dev server:** `npm run dev` (Vite, port 8081)
+- **Build:** `npm run build` (outputs to `dist-web/`)
+- **Build data:** `npm run build:data` (merges `data/*.json` → `data/gamedata.json`)
+- **Electron:** `npm run electron` (loads `dist-web/index.html`)
+- **Package:** `npm run dist` (Windows installer via electron-builder)

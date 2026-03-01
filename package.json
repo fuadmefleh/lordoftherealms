@@ -5,11 +5,15 @@
   "private": true,
   "main": "electron-main.js",
   "scripts": {
-    "start": "npx http-server . -p 8081 -c-1 --cors",
-    "test": "npx http-server . -p 8082 -c-1 --cors -o tests/index.html",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "vite",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "electron": "electron .",
-    "dist": "electron-builder --win",
-    "dist:all": "electron-builder --win --linux --mac",
+    "dist": "vite build && electron-builder --win",
+    "dist:all": "vite build && electron-builder --win --linux --mac",
     "build:data": "node scripts/build-gamedata.js"
   },
   "keywords": [
@@ -17,13 +21,16 @@
     "hex-grid",
     "game",
     "canvas",
-    "vanilla-js"
+    "react",
+    "vite"
   ],
   "license": "MIT",
   "devDependencies": {
+    "@vitejs/plugin-react": "^5.1.4",
     "electron": "^33.0.0",
     "electron-builder": "^25.1.8",
-    "http-server": "^14.1.1"
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
   },
   "build": {
     "appId": "com.lordoftherealms.game",
@@ -33,18 +40,17 @@
     },
     "files": [
       "electron-main.js",
-      "index.html",
-      "standalone.html",
-      "styles.css",
+      "dist-web/**/*",
       "assets/**/*",
-      "data/**/*",
-      "js/**/*"
+      "data/**/*"
     ],
     "win": {
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "assets/icon.png"
@@ -58,12 +64,20 @@
       "shortcutName": "Lord of the Realms"
     },
     "linux": {
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "category": "Game"
     },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "category": "public.app-category.games"
     }
+  },
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   }
 }

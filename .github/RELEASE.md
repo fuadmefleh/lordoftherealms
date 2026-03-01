@@ -63,12 +63,11 @@ Each release will include two download options:
 - Built with Electron + electron-builder
 
 #### Browser Bundle (.zip)
+- `index.html` - Main game entry point (Vite build output)
+- `js/` - Bundled game code and CSS
 - `assets/` - All game sprites and tiles
 - `data/` - Game configuration and data files
-- `js/` - All game logic and modules
-- `index.html` - Main game entry point
-- `standalone.html` - Self-contained version
-- `styles.css` - Game styling
+- `editor.html` + editor HTML files - Built-in modding tools
 - `README.md` - Documentation
 
 ### Local Development with Electron

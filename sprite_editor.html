@@ -145,7 +145,7 @@ canvas.palette-canvas{display:block;image-rendering:pixelated}
 
 /* ── Catalog Modal ── */
 .catalog-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;display:flex;align-items:center;justify-content:center;animation:pbg-fadein .15s}
-.catalog-modal{background:var(--panel);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.6);animation:pbg-scalein .15s;width:480px;max-width:92vw;max-height:80vh;display:flex;flex-direction:column;overflow:hidden}
+.catalog-modal{background:var(--panel);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.6);animation:pbg-scalein .15s;width:980px;max-width:96vw;max-height:84vh;display:flex;flex-direction:column;overflow:hidden}
 .catalog-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 10px;border-bottom:1px solid var(--border)}
 .catalog-header h3{font-size:15px;font-weight:700;color:var(--gold);margin:0}
 .catalog-header .cat-close{background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;padding:2px 6px;border-radius:4px}
@@ -155,12 +155,24 @@ canvas.palette-canvas{display:block;image-rendering:pixelated}
 .catalog-tabs button:hover{color:var(--text);background:var(--hover)}
 .catalog-tabs button.active{color:var(--gold);border-bottom-color:var(--gold)}
 .catalog-body{flex:1;overflow-y:auto;padding:12px 16px}
+.catalog-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-content:start}
+.catalog-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;border-top:1px solid var(--border);background:var(--bg)}
+.catalog-page-info{font-size:11px;color:var(--text-dim);white-space:nowrap}
+.catalog-pager{display:flex;align-items:center;gap:6px}
+.catalog-pager button{font-size:11px;padding:4px 10px;min-width:72px}
 .catalog-empty{color:var(--text-dim);font-size:12px;font-style:italic;padding:20px 0;text-align:center}
+.catalog-empty{grid-column:1 / -1}
 .item-card{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:7px 9px;margin-bottom:5px}
 .item-card .item-title{font-size:12px;font-weight:600;color:var(--gold);margin-bottom:3px}
 .item-card .item-meta{font-size:10px;color:var(--text-dim);margin-bottom:5px}
 .item-card .item-acts{display:flex;gap:4px}
 .item-card .item-acts button{flex:1;padding:2px 0;font-size:10px}
+.item-card.object-card,.item-card.building-card{display:flex;align-items:center;gap:10px;padding:10px;border-radius:6px;transition:border-color .12s,transform .12s,box-shadow .12s}
+.item-card.object-card:hover,.item-card.building-card:hover{border-color:var(--border2);box-shadow:0 4px 14px rgba(0,0,0,.35);transform:translateY(-1px)}
+.obj-thumb-wrap{width:72px;height:72px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#0a0e14;border:1px solid var(--border2);border-radius:6px;overflow:hidden}
+.obj-thumb{width:64px;height:64px;image-rendering:pixelated;display:block}
+.item-main{min-width:0;flex:1}
+.item-main .item-meta{line-height:1.4;word-break:break-word;margin-bottom:7px}
 #stamp-preview{display:flex;align-items:center;gap:8px;min-height:40px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg)}
 #stamp-preview canvas{border:1px solid var(--border2);image-rendering:pixelated;max-width:96px;max-height:96px}
 #stamp-preview .stamp-info{font-size:11px;color:var(--text-dim);line-height:1.5}
@@ -307,6 +319,11 @@ canvas.pal-terrain-overlay{position:absolute;top:0;left:0;pointer-events:none;im
       <div id="n9b-list" style="max-height:160px;overflow-y:auto"></div>
       <div id="n9b-props" style="display:none;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
         <div class="tset-props-row"><label>Name</label><input type="text" id="n9b-name" onchange="n9b_onNameChange()" style="font-size:11px"></div>
+        <div style="margin-top:4px;font-size:10px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-bottom:2px">Cost per tile</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">
+          <div class="tset-props-row" style="flex:1;min-width:60px"><label style="font-size:10px">Gold</label><input type="number" id="n9b-cost-gold" value="0" min="0" max="9999" onchange="n9b_onCostChange()" style="font-size:11px;width:50px"></div>
+                    <div id="n9b-cost-resource-rows" style="display:flex;gap:4px;flex-wrap:wrap;flex:1"></div>
+        </div>
         <div style="display:flex;gap:3px;margin-top:4px">
           <button onclick="n9b_remove()" style="font-size:10px;padding:1px 6px" class="danger">✕ Delete</button>
           <button onclick="n9b_autoFromSelection()" style="font-size:10px;padding:1px 6px" class="gold" title="Select a 3×3 region in the palette, then click this to assign all 9 tiles">⚡ From Selection</button>
@@ -520,24 +537,6 @@ canvas.pal-terrain-overlay{position:absolute;top:0;left:0;pointer-events:none;im
         <div class="res-row">
           <select id="obj-resource">
             <option value="">— None</option>
-            <option value="wood">🪵 Wood</option>
-            <option value="stone">🪨 Stone</option>
-            <option value="iron">⛏️ Iron</option>
-            <option value="gold_ore">🥇 Gold Ore</option>
-            <option value="gems">💎 Gems</option>
-            <option value="grain">🌾 Grain</option>
-            <option value="herbs">🌿 Herbs</option>
-            <option value="fruit">🍎 Fruit</option>
-            <option value="mushrooms">🍄 Mushrooms</option>
-            <option value="fish">🐟 Fish</option>
-            <option value="wool">🧶 Wool</option>
-            <option value="clay">🏺 Clay</option>
-            <option value="leather">🟫 Leather</option>
-            <option value="berries">🫐 Berries</option>
-            <option value="flowers">🌸 Flowers</option>
-            <option value="resin">🟠 Resin</option>
-            <option value="honey">🍯 Honey</option>
-            <option value="feathers">🪶 Feathers</option>
           </select>
           <input type="number" id="obj-resource-amount" value="1" min="1" max="99" step="1" title="Amount per harvest">
         </div>
@@ -548,6 +547,11 @@ canvas.pal-terrain-overlay{position:absolute;top:0;left:0;pointer-events:none;im
         <input type="number" id="obj-resistance" value="0" min="0" max="95" step="5" style="width:55px" title="Damage resistance 0–95. 0=normal, 50=twice as tough, 90=very hard rock"></div>
       <div class="field-row"><label>Spawn After</label>
         <input type="text" id="obj-spawn-after" placeholder="e.g. stump_1" style="width:130px" title="Object ID to spawn at the origin tile after this object is collected / destroyed"></div>
+      <div class="field-row" style="flex-direction:column;align-items:flex-start;gap:4px">
+        <label>Required Techs <span style="font-size:10px;color:var(--text-dim)">(technologies needed to build/use this object)</span></label>
+        <div id="obj-req-techs-tags" style="display:flex;flex-wrap:wrap;gap:4px;min-height:24px;padding:4px;background:#0d1117;border:1px solid var(--border2);border-radius:4px;width:100%;cursor:pointer" onclick="openObjTechPicker()"></div>
+        <div style="font-size:10px;color:var(--text-dim);line-height:1.4">Click to select which researched technologies are required before this object can be built.</div>
+      </div>
       <div class="field-row" style="flex-direction:column;align-items:flex-start;gap:4px">
         <label>Health States <span style="font-size:10px;color:var(--text-dim)">(visual damage stages — optional)</span></label>
         <div id="health-states-list" style="width:100%"></div>
@@ -593,6 +597,15 @@ canvas.pal-terrain-overlay{position:absolute;top:0;left:0;pointer-events:none;im
         </div>
         <div style="font-size:10px;color:var(--text-dim);line-height:1.4">Paint each rotation, then capture it. Default tiles are the base look. Press R in-game to cycle variants.</div>
       </div>
+      <div class="field-row" style="flex-direction:column;align-items:flex-start;gap:4px">
+        <label>Color Variants <span style="font-size:10px;color:var(--text-dim)">(visual alternatives — press T to cycle)</span></label>
+        <div id="color-variants-list" style="width:100%"></div>
+        <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:2px">
+          <input type="text" id="cv-label" placeholder="e.g. Red" style="width:100px" title="Label for this color variant">
+          <button onclick="addColorVariantFromCanvas()" style="font-size:11px;padding:2px 8px" title="Capture current tiles + rotations + seasons as a color variant">+ Capture</button>
+        </div>
+        <div style="font-size:10px;color:var(--text-dim);line-height:1.4">Create the object with its rotations &amp; seasons, then capture as a color variant. Each variant is a complete alternative look. Press T to cycle.</div>
+      </div>
     </div>
 
   </div>
@@ -611,9 +624,16 @@ canvas.pal-terrain-overlay{position:absolute;top:0;left:0;pointer-events:none;im
       <button id="cat-tab-obj" onclick="setCatalogTab('object')">🌳 Objects (<span id="cat-obj-count">0</span>)</button>
     </div>
     <div class="catalog-body">
-      <div id="cat-bld-cards" class="catalog-empty">No buildings saved yet</div>
-      <div id="cat-obj-cards" class="catalog-empty" style="display:none">No objects saved yet</div>
+            <div id="cat-bld-cards" class="catalog-list">No buildings saved yet</div>
+            <div id="cat-obj-cards" class="catalog-list" style="display:none">No objects saved yet</div>
     </div>
+        <div class="catalog-footer">
+            <div id="cat-page-info" class="catalog-page-info">0 items</div>
+            <div class="catalog-pager">
+                <button id="cat-page-prev" onclick="changeCatalogPage(-1)">◀ Prev</button>
+                <button id="cat-page-next" onclick="changeCatalogPage(1)">Next ▶</button>
+            </div>
+        </div>
   </div>
 </div>
 
@@ -840,12 +860,26 @@ const PALETTE_DATA = {
     'assets/lpc/Objects/Furniture/Seating/Chair, Dining D.png',
     'assets/lpc/Objects/Furniture/Seating/Thrones.png',
   ],
-  'Beds': [
+'Beds': [
+    'assets/lpc/Objects/Furniture/Beds/Beds, Child Headboards.png',
+    'assets/lpc/Objects/Furniture/Beds/Beds, Child Mattresses.png',
+    'assets/lpc/Objects/Furniture/Beds/Beds, Child.png',
+    'assets/lpc/Objects/Furniture/Beds/Beds, Double B.png',
+    'assets/lpc/Objects/Furniture/Beds/Beds, Double C - Overlays.png',
+    'assets/lpc/Objects/Furniture/Beds/Beds, Double C.png',
+    'assets/lpc/Objects/Furniture/Beds/Beds, Double Headboards.png',
+    'assets/lpc/Objects/Furniture/Beds/Beds, Double Mattresses.png',
+    'assets/lpc/Objects/Furniture/Beds/Beds, Double.png',
     'assets/lpc/Objects/Furniture/Beds/Beds, Single  A.png',
+    'assets/lpc/Objects/Furniture/Beds/Beds, Single B.png',
+    'assets/lpc/Objects/Furniture/Beds/Beds, Single C.png',
+    'assets/lpc/Objects/Furniture/Beds/Beds, Single Headboards.png',
+    'assets/lpc/Objects/Furniture/Beds/Beds, Single Mattresses.png',
+    'assets/lpc/Objects/Furniture/Beds/Beds, Single A.png',
     'assets/lpc/Objects/Furniture/Beds/Beds, Single B.png',
     'assets/lpc/Objects/Furniture/Beds/Beds, Double.png',
     'assets/lpc/Objects/Furniture/Beds/Beds, Double B.png',
-  ],
+    ],
   'Rugs': [
     'assets/lpc/Objects/Furniture/Rugs/Diamond Rug, tiling.png',
     'assets/lpc/Objects/Furniture/Rugs/Rainbow Checkered Rug.png',
@@ -936,17 +970,103 @@ let buildings     = [];
 let buildingEditIdx = -1;
 
 // ── Object-mode data (always alive) ──
-let objTiles          = {};
+let objLayers         = { base:{}, detail:{}, top:{} };
+let activeObjLayer    = 'base';
+let visibleObjLayers  = new Set(['base','detail','top']);
 let objDefs           = [];
 let objEditIdx        = -1;
 let _objHealthStates  = [];  // Array of {label, minHealthPct, tiles: {key:cell,...}}
 let _objSeasonVariants = {}; // { spring|summer|autumn|winter: {key:cell,...} }
 let _objGrowthStates  = [];  // Array of {label, daysToReach, tiles: {key:cell,...}}
 let _objRotationVariants = []; // Array of {label, tiles: {key:cell,...}}
+let _objColorVariants = []; // Array of {label, objLayers, meta, originQ, originR, gridW, gridH, rotationVariants, seasonVariants}
+let _activeColorVariantIdx = -1; // -1 = base, 0+ = color variant index
+let _objRequiredTechs = []; // Array of tech IDs required to build this object
+let _availableTechs   = []; // Array of {id, name, icon, category} from parent tech editor
+let _resourceTypes = [
+    { id: 'wood', name: 'Wood', icon: '🪵', color: '#8b5a2b', buildCostEligible: true },
+    { id: 'timber', name: 'Timber', icon: '🌲', color: '#8b5a2b', buildCostEligible: true },
+    { id: 'stone', name: 'Stone', icon: '⛰️', color: '#808080', buildCostEligible: true },
+    { id: 'iron', name: 'Iron', icon: '⛏️', color: '#8a7a7a', buildCostEligible: true },
+];
 let _objOriginQ       = null; // Grid col of the origin/anchor tile (null = use top-left painted tile)
 let _objOriginR       = null; // Grid row of the origin/anchor tile
 let _bldOriginQ       = null; // Building origin col (null = use top-left painted tile)
 let _bldOriginR       = null; // Building origin row
+
+function _setResourceTypes(resourceTypes) {
+    if (Array.isArray(resourceTypes) && resourceTypes.length) {
+        _resourceTypes = resourceTypes
+            .map(r => ({
+                id: String(r.id || '').trim(),
+                name: String(r.name || r.id || '').trim(),
+                icon: String(r.icon || '📦'),
+                color: String(r.color || '#888888'),
+                buildCostEligible: !!r.buildCostEligible,
+            }))
+            .filter(r => r.id);
+    }
+    _refreshResourceMenus();
+}
+
+function _getBuildCostResourceTypes() {
+    const eligible = _resourceTypes.filter(r => r.buildCostEligible);
+    if (eligible.length) return eligible;
+    return _resourceTypes.filter(r => ['wood', 'timber', 'stone', 'iron'].includes(r.id));
+}
+
+function _refreshResourceMenus() {
+    _renderObjResourceOptions();
+    _renderN9bCostRows();
+}
+
+function _renderObjResourceOptions() {
+    const sel = document.getElementById('obj-resource');
+    if (!sel) return;
+    const selected = sel.value || '';
+    const opts = [..._resourceTypes].sort((a, b) => a.name.localeCompare(b.name));
+    sel.innerHTML = '<option value="">— None</option>';
+    for (const r of opts) {
+        const o = document.createElement('option');
+        o.value = r.id;
+        o.textContent = `${r.icon || '📦'} ${r.name}`;
+        sel.appendChild(o);
+    }
+        if (selected && !opts.some(r => r.id === selected)) {
+            const fallback = document.createElement('option');
+            fallback.value = selected;
+            fallback.textContent = `📦 ${selected}`;
+            sel.appendChild(fallback);
+        }
+        sel.value = selected || '';
+}
+
+function _renderN9bCostRows(selectedResources = null) {
+    const wrap = document.getElementById('n9b-cost-resource-rows');
+    if (!wrap) return;
+    const costMap = selectedResources || (_n9b_selIdx >= 0 ? ((_nineTileBrushes[_n9b_selIdx].cost || {}).resources || {}) : {});
+    const defs = [..._getBuildCostResourceTypes()].sort((a, b) => a.name.localeCompare(b.name));
+    wrap.innerHTML = '';
+    for (const r of defs) {
+        const row = document.createElement('div');
+        row.className = 'tset-props-row';
+        row.style.cssText = 'flex:1;min-width:64px';
+        const label = document.createElement('label');
+        label.style.fontSize = '10px';
+        label.textContent = `${r.icon || '📦'} ${r.name}`;
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = '0';
+        input.max = '999';
+        input.value = String(costMap[r.id] || 0);
+        input.style.cssText = 'font-size:11px;width:56px';
+        input.dataset.resId = r.id;
+        input.onchange = n9b_onCostChange;
+        row.appendChild(label);
+        row.appendChild(input);
+        wrap.appendChild(row);
+    }
+}
 
 // ── Saved mode states (for restoring on switch) ──
 let _savedBuildingState = null;
@@ -1006,7 +1126,7 @@ const _palOverlayCanvases = new Map(); // sheetPath → overlay canvas element
 // ═══════════════════════════════════════════════════════════════
 /** Returns the tile map that paint/erase/fill operate on */
 function getTileStore() {
-    return editorMode === 'building' ? layers[activeLayer] : objTiles;
+    return editorMode === 'building' ? layers[activeLayer] : objLayers[activeObjLayer];
 }
 
 function slugify(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,''); }
@@ -1017,6 +1137,7 @@ function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replac
 // ═══════════════════════════════════════════════════════════════
 function init() {
     buildPaletteCats();
+    _refreshResourceMenus();
     resizeObserver();
     initBuildCanvas();
     initPaletteResizer();
@@ -1127,7 +1248,9 @@ function setEditorMode(mode) {
         saved.originR = _bldOriginR;
         _savedBuildingState = saved;
     } else {
-        saved.tiles = JSON.parse(JSON.stringify(objTiles));
+        saved.objLayers = JSON.parse(JSON.stringify(objLayers));
+        saved.activeObjLayer = activeObjLayer;
+        saved.visObjLayers = [...visibleObjLayers];
         saved.editIdx = objEditIdx;
         saved.healthStates = JSON.parse(JSON.stringify(_objHealthStates));
         saved.originQ = _objOriginQ;
@@ -1135,6 +1258,7 @@ function setEditorMode(mode) {
         saved.seasonVariants = JSON.parse(JSON.stringify(_objSeasonVariants));
         saved.growthStates = JSON.parse(JSON.stringify(_objGrowthStates));
         saved.rotationVariants = JSON.parse(JSON.stringify(_objRotationVariants));
+        saved.colorVariants = JSON.parse(JSON.stringify(_objColorVariants));
         _savedObjectState = saved;
     }
 
@@ -1160,7 +1284,9 @@ function setEditorMode(mode) {
             _bldOriginQ = restore.originQ != null ? restore.originQ : null;
             _bldOriginR = restore.originR != null ? restore.originR : null;
         } else {
-            objTiles = restore.tiles;
+            objLayers = restore.objLayers || { base: restore.tiles || {}, detail:{}, top:{} };
+            activeObjLayer = restore.activeObjLayer || 'base';
+            visibleObjLayers = restore.visObjLayers ? new Set(restore.visObjLayers) : new Set(['base','detail','top']);
             objEditIdx = restore.editIdx;
             _objHealthStates = restore.healthStates || [];
             refreshHealthStatesList();
@@ -1172,6 +1298,8 @@ function setEditorMode(mode) {
             refreshGrowthStatesList();
             _objRotationVariants = restore.rotationVariants ? JSON.parse(JSON.stringify(restore.rotationVariants)) : [];
             refreshRotationVariantsList();
+            _objColorVariants = restore.colorVariants ? JSON.parse(JSON.stringify(restore.colorVariants)) : [];
+            refreshColorVariantsList();
         }
     } else {
         // Defaults
@@ -1183,7 +1311,10 @@ function setEditorMode(mode) {
             _bldOriginQ = null; _bldOriginR = null;
         } else {
             gridW = 8; gridH = 8;
-            objTiles = {}; meta = {}; objEditIdx = -1;
+            objLayers = { base:{}, detail:{}, top:{} };
+            activeObjLayer = 'base';
+            visibleObjLayers = new Set(['base','detail','top']);
+            meta = {}; objEditIdx = -1;
         }
         undoStack = []; redoStack = [];
         canvasZoom = 2; panX = 20; panY = 20;
@@ -1200,16 +1331,33 @@ function updateModeUI() {
     const isB = editorMode === 'building';
     document.getElementById('mode-building').classList.toggle('active', isB);
     document.getElementById('mode-object').classList.toggle('active', !isB);
-    document.getElementById('layer-section').style.display  = isB ? '' : 'none';
+    document.getElementById('layer-section').style.display  = '';  // Always show layers
     document.getElementById('bld-props').style.display      = isB ? '' : 'none';
     document.getElementById('obj-props').style.display      = isB ? 'none' : '';
     document.getElementById('btn-procgen').style.display    = isB ? '' : 'none';
-    // Catalog modal tabs auto-switch to match current mode
-    // Update layer buttons
-    if (isB) {
-        document.querySelectorAll('#layer-btns .tool-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('layer-' + activeLayer)?.classList.add('active');
-        visibleLayers.forEach(l => document.getElementById('vis-' + l)?.classList.add('active'));
+
+    // Update layer button labels and state
+    const layerNames  = isB ? ['floor','walls','roof','overlay'] : ['base','detail','top'];
+    const layerLabels = isB ? ['Floor','Walls','Roof','Overlay'] : ['Base','Detail','Top'];
+    const layerBtnIds = ['layer-floor','layer-walls','layer-roof','layer-overlay'];
+    const visBtnIds   = ['vis-floor','vis-walls','vis-roof','vis-overlay'];
+
+    for (let i = 0; i < 4; i++) {
+        const lb = document.getElementById(layerBtnIds[i]);
+        const vb = document.getElementById(visBtnIds[i]);
+        if (i < layerNames.length) {
+            lb.style.display = '';
+            lb.textContent = layerLabels[i];
+            lb.onclick = () => setLayer(layerNames[i]);
+            lb.classList.toggle('active', isB ? activeLayer === layerNames[i] : activeObjLayer === layerNames[i]);
+            vb.style.display = '';
+            vb.textContent = layerLabels[i];
+            vb.onclick = () => toggleVis(layerNames[i]);
+            vb.classList.toggle('active', isB ? visibleLayers.has(layerNames[i]) : visibleObjLayers.has(layerNames[i]));
+        } else {
+            lb.style.display = 'none';
+            vb.style.display = 'none';
+        }
     }
     // Update marker tool label
     const markerBtn = document.getElementById('tool-marker');
@@ -1507,14 +1655,21 @@ function setTool(t) {
 }
 
 function setLayer(l) {
-    activeLayer = l;
-    document.querySelectorAll('#layer-btns .tool-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('layer-' + l)?.classList.add('active');
+    if (editorMode === 'building') {
+        activeLayer = l;
+    } else {
+        activeObjLayer = l;
+    }
+    updateModeUI();
 }
 
 function toggleVis(l) {
-    if (visibleLayers.has(l)) visibleLayers.delete(l); else visibleLayers.add(l);
-    document.getElementById('vis-' + l).classList.toggle('active', visibleLayers.has(l));
+    if (editorMode === 'building') {
+        if (visibleLayers.has(l)) visibleLayers.delete(l); else visibleLayers.add(l);
+    } else {
+        if (visibleObjLayers.has(l)) visibleObjLayers.delete(l); else visibleObjLayers.add(l);
+    }
+    updateModeUI();
     renderBuildCanvas();
 }
 
@@ -1529,7 +1684,7 @@ function resizeGrid() {
     gridW = nw; gridH = nh;
     const clipStore = store => { for (const key of Object.keys(store)) { const [q, r] = key.split(',').map(Number); if (q >= gridW || r >= gridH) delete store[key]; } };
     if (editorMode === 'building') { for (const lyr of Object.values(layers)) clipStore(lyr); }
-    else clipStore(objTiles);
+    else { for (const lyr of Object.values(objLayers)) clipStore(lyr); }
     clipStore(meta);
     fitCanvas();
 }
@@ -1541,7 +1696,8 @@ function autofitGrid() {
         for (const lyr of Object.values(layers))
             for (const k of Object.keys(lyr)) keys.add(k);
     } else {
-        for (const k of Object.keys(objTiles)) keys.add(k);
+        for (const lyr of Object.values(objLayers))
+            for (const k of Object.keys(lyr)) keys.add(k);
     }
     for (const k of Object.keys(meta)) keys.add(k);
 
@@ -1580,7 +1736,7 @@ function autofitGrid() {
     if (editorMode === 'building') {
         for (const lyr of Object.values(layers)) shiftStore(lyr);
     } else {
-        shiftStore(objTiles);
+        for (const lyr of Object.values(objLayers)) shiftStore(lyr);
         // Also shift the explicit origin point if set
         if (_objOriginQ != null) {
             _objOriginQ -= newMinQ;
@@ -1703,7 +1859,10 @@ function renderBuildCanvas() {
             drawTiles(ctx, layers[lyrName], ds);
         }
     } else {
-        drawTiles(ctx, objTiles, ds);
+        for (const lyrName of ['base','detail','top']) {
+            if (!visibleObjLayers.has(lyrName)) continue;
+            drawTiles(ctx, objLayers[lyrName], ds);
+        }
     }
 
     // ── Meta overlays ──
@@ -1748,10 +1907,12 @@ function renderBuildCanvas() {
             oq = _objOriginQ; or_ = _objOriginR;
             if (oq == null) {
                 let minOQ = Infinity, minOR = Infinity;
-                for (const k of Object.keys(objTiles)) {
-                    const [cq, cr] = k.split(',').map(Number);
-                    if (cq < minOQ) minOQ = cq;
-                    if (cr < minOR) minOR = cr;
+                for (const ln of ['base','detail','top']) {
+                    for (const k of Object.keys(objLayers[ln])) {
+                        const [cq, cr] = k.split(',').map(Number);
+                        if (cq < minOQ) minOQ = cq;
+                        if (cr < minOR) minOR = cr;
+                    }
                 }
                 if (minOQ !== Infinity) { oq = minOQ; or_ = minOR; }
             }
@@ -1838,14 +1999,16 @@ function canvasRect() { return document.getElementById('build-canvas').getBoundi
 // ═══════════════════════════════════════════════════════════════
 function snapshotState() {
     if (editorMode === 'building') return JSON.stringify({ m:'b', layers, meta, gridW, gridH });
-    return JSON.stringify({ m:'o', tiles: objTiles, meta, gridW, gridH });
+    return JSON.stringify({ m:'o', objLayers, meta, gridW, gridH });
 }
 function pushUndo() { undoStack.push(snapshotState()); if (undoStack.length>50) undoStack.shift(); redoStack = []; }
 function applySnapshot(snap) {
     selFloat=null; selRect=null; selOffset={dq:0,dr:0}; selDrawing=selMoving=false; selMoveAnchor=null;
     const s = JSON.parse(snap);
     gridW = s.gridW; gridH = s.gridH; meta = s.meta;
-    if (s.m === 'b') layers = s.layers; else objTiles = s.tiles;
+    if (s.m === 'b') layers = s.layers;
+    else if (s.objLayers) objLayers = s.objLayers;
+    else if (s.tiles) objLayers = { base: s.tiles, detail:{}, top:{} }; // legacy compat
     document.getElementById('grid-w').value = gridW;
     document.getElementById('grid-h').value = gridH;
     renderBuildCanvas();
@@ -1871,7 +2034,7 @@ function commitSelection() {
     if (editorMode === 'building') {
         for (const ln of ['floor','walls','roof','overlay']) placeTile(layers[ln], selFloat[ln]);
     } else {
-        placeTile(objTiles, selFloat.tiles);
+        for (const ln of ['base','detail','top']) placeTile(objLayers[ln], selFloat[ln]);
     }
     for (const [key, m] of Object.entries(selFloat.meta || {})) {
         const [q, r] = key.split(',').map(Number);
@@ -1888,7 +2051,8 @@ function cancelSelection() {
             for (const ln of ['floor','walls','roof','overlay'])
                 for (const [key, cell] of Object.entries(selFloat[ln] || {})) layers[ln][key] = cell;
         } else {
-            for (const [key, cell] of Object.entries(selFloat.tiles || {})) objTiles[key] = cell;
+            for (const ln of ['base','detail','top'])
+                for (const [key, cell] of Object.entries(selFloat[ln] || {})) objLayers[ln][key] = cell;
         }
         for (const [key, m] of Object.entries(selFloat.meta || {})) meta[key] = m;
     }
@@ -1962,7 +2126,8 @@ function onCanvasUp(e) {
                              roof: liftTiles(layers.roof), overlay: liftTiles(layers.overlay),
                              meta: floatMeta, q1:norm.q1, r1:norm.r1, q2:norm.q2, r2:norm.r2 };
             } else {
-                selFloat = { tiles: liftTiles(objTiles), meta: floatMeta,
+                selFloat = { base: liftTiles(objLayers.base), detail: liftTiles(objLayers.detail),
+                             top: liftTiles(objLayers.top), meta: floatMeta,
                              q1:norm.q1, r1:norm.r1, q2:norm.q2, r2:norm.r2 };
             }
             selOffset = { dq:0, dr:0 };
@@ -2021,9 +2186,12 @@ function applyTool(sx, sy) {
                 }
             }
         } else {
-            if (objTiles[key]) {
-                const c = objTiles[key];
-                setStamp(c.sheetPath, Math.round(c.sx/TILE), Math.round(c.sy/TILE), Math.round(c.sx/TILE), Math.round(c.sy/TILE), c.sheetPath.split('/').pop().replace(/\.[^.]+$/,''));
+            for (const lyr of ['top','detail','base']) {
+                if (visibleObjLayers.has(lyr) && objLayers[lyr][key]) {
+                    const c = objLayers[lyr][key];
+                    setStamp(c.sheetPath, Math.round(c.sx/TILE), Math.round(c.sy/TILE), Math.round(c.sx/TILE), Math.round(c.sy/TILE), c.sheetPath.split('/').pop().replace(/\.[^.]+$/,''));
+                    break;
+                }
             }
         }
         setTool('paint');
@@ -2175,14 +2343,29 @@ function refreshBuildingList() {
     if (!list) return;
     if (!buildings.length) { list.innerHTML = '<div class="catalog-empty">No buildings saved yet</div>'; return; }
     list.innerHTML = '';
-    buildings.forEach((b, i) => {
+    const range = getCatalogPageRange('building');
+    for (let i = range.start; i < range.end; i++) {
+        const b = buildings[i];
+        const bLayers = b.layers || { floor:{}, walls:{}, roof:{}, overlay:{} };
+        const bStores = [bLayers.floor || {}, bLayers.walls || {}, bLayers.roof || {}, bLayers.overlay || {}];
+        const bBounds = getLayersOccupiedBounds(bStores);
+        const paintedW = bBounds ? (bBounds.maxCol - bBounds.minCol + 1) : Math.max(1, b.width || gridW || 1);
+        const paintedH = bBounds ? (bBounds.maxRow - bBounds.minRow + 1) : Math.max(1, b.height || gridH || 1);
         const div = document.createElement('div');
-        div.className = 'item-card'; div.style.borderColor = i===buildingEditIdx ? 'var(--gold)' : '';
-        div.innerHTML = `<div class="item-title">${escHtml(b.name)}</div>
-            <div class="item-meta">${b.buildingType} · ${b.width}×${b.height} tiles</div>
-            <div class="item-acts"><button onclick="loadBuilding(${i});closeCatalog()">✏️ Edit</button><button onclick="openInteriorForBuilding(${i});closeCatalog()">🏠 Interior</button><button class="danger" onclick="deleteBuilding(${i})">🗑</button></div>`;
+        const thumbId = `cat-bld-thumb-${i}`;
+        div.className = 'item-card building-card'; div.style.borderColor = i===buildingEditIdx ? 'var(--gold)' : '';
+        div.innerHTML = `<div class="obj-thumb-wrap"><canvas id="${thumbId}" class="obj-thumb" width="64" height="64"></canvas></div>
+            <div class="item-main"><div class="item-title">${escHtml(b.name)}</div>
+            <div class="item-meta">${b.buildingType} · painted ${paintedW}×${paintedH} · grid ${b.width}×${b.height}</div>
+            <div class="item-acts"><button onclick="loadBuilding(${i});closeCatalog()">✏️ Edit</button><button onclick="openInteriorForBuilding(${i});closeCatalog()">🏠 Interior</button><button class="danger" onclick="deleteBuilding(${i})">🗑</button></div></div>`;
         list.appendChild(div);
-    });
+        drawCatalogThumbnailFromLayers(document.getElementById(thumbId), bStores, bBounds || {
+            minCol: 0,
+            minRow: 0,
+            maxCol: Math.max(0, (b.width || 1) - 1),
+            maxRow: Math.max(0, (b.height || 1) - 1),
+        });
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2277,13 +2460,14 @@ function setSelectedTerrains(arr) { _selectedTerrains = new Set(arr || []); rend
 // ═══════════════════════════════════════════════════════════════
 
 function addHealthStateFromCanvas() {
-    if (Object.keys(objTiles).length === 0) {
+    const allEmpty = ['base','detail','top'].every(ln => Object.keys(objLayers[ln]).length === 0);
+    if (allEmpty) {
         alert('Paint tiles on the canvas for this health state first, then capture.');
         return;
     }
     const label  = document.getElementById('hs-label').value.trim() || ('State ' + (_objHealthStates.length + 1));
     const minPct = Math.max(0, Math.min(99, parseInt(document.getElementById('hs-min-hp').value) || 0));
-    _objHealthStates.push({ label, minHealthPct: minPct, tiles: JSON.parse(JSON.stringify(objTiles)) });
+    _objHealthStates.push({ label, minHealthPct: minPct, objLayers: JSON.parse(JSON.stringify(objLayers)) });
     refreshHealthStatesList();
 }
 
@@ -2303,7 +2487,7 @@ function refreshHealthStatesList() {
     list.innerHTML = '';
     for (let i = 0; i < _objHealthStates.length; i++) {
         const hs   = _objHealthStates[i];
-        const cnt  = Object.keys(hs.tiles).length;
+        const cnt  = hs.objLayers ? ['base','detail','top'].reduce((s,l) => s + Object.keys(hs.objLayers[l]||{}).length, 0) : Object.keys(hs.tiles||{}).length;
         const div  = document.createElement('div');
         div.style.cssText = 'display:flex;align-items:center;gap:6px;margin:2px 0;font-size:11px;background:rgba(255,255,255,0.04);border-radius:4px;padding:2px 4px';
         div.innerHTML =
@@ -2320,12 +2504,13 @@ function refreshHealthStatesList() {
 // ═══════════════════════════════════════════════════════════════
 
 function captureSeasonVariant() {
-    if (Object.keys(objTiles).length === 0) {
+    const allEmpty = ['base','detail','top'].every(ln => Object.keys(objLayers[ln]).length === 0);
+    if (allEmpty) {
         alert('Paint tiles on the canvas for this season first, then capture.');
         return;
     }
     const season = document.getElementById('sv-season').value;
-    _objSeasonVariants[season] = JSON.parse(JSON.stringify(objTiles));
+    _objSeasonVariants[season] = JSON.parse(JSON.stringify(objLayers));
     refreshSeasonVariantsList();
 }
 
@@ -2350,7 +2535,8 @@ function refreshSeasonVariantsList() {
     }
     list.innerHTML = '';
     for (const s of defined) {
-        const cnt = Object.keys(_objSeasonVariants[s.key]).length;
+        const sv = _objSeasonVariants[s.key];
+        const cnt = sv && sv.base !== undefined ? ['base','detail','top'].reduce((sum,l) => sum + Object.keys(sv[l]||{}).length, 0) : Object.keys(sv||{}).length;
         const div = document.createElement('div');
         div.style.cssText = 'display:flex;align-items:center;gap:6px;margin:2px 0;font-size:11px;background:rgba(255,255,255,0.04);border-radius:4px;padding:2px 4px';
         div.innerHTML =
@@ -2367,8 +2553,14 @@ function loadSeasonVariantToCanvas(season) {
     const stiles = _objSeasonVariants[season];
     if (!stiles) return;
     pushUndo();
-    objTiles = JSON.parse(JSON.stringify(stiles));
-    const paths = new Set(Object.values(objTiles).map(c => c.sheetPath));
+    // Support new multi-layer format and legacy single-layer
+    if (stiles.base !== undefined) {
+        objLayers = JSON.parse(JSON.stringify(stiles));
+    } else {
+        objLayers = { base: JSON.parse(JSON.stringify(stiles)), detail: {}, top: {} };
+    }
+    const paths = new Set();
+    for (const ln of ['base','detail','top']) for (const c of Object.values(objLayers[ln])) paths.add(c.sheetPath);
     Promise.all([...paths].map(loadImage)).then(() => renderBuildCanvas());
 }
 
@@ -2377,7 +2569,8 @@ function loadSeasonVariantToCanvas(season) {
 // ═══════════════════════════════════════════════════════════════
 
 function addGrowthStateFromCanvas() {
-    if (Object.keys(objTiles).length === 0) {
+    const allEmpty = ['base','detail','top'].every(ln => Object.keys(objLayers[ln]).length === 0);
+    if (allEmpty) {
         alert('Paint tiles on the canvas for this growth stage first, then capture.');
         return;
     }
@@ -2385,7 +2578,7 @@ function addGrowthStateFromCanvas() {
     const daysToReach = Math.max(0, parseInt(document.getElementById('gs-days').value) || 0);
     // Replace any existing stage at the same day threshold
     const existing = _objGrowthStates.findIndex(gs => gs.daysToReach === daysToReach);
-    const entry = { label, daysToReach, tiles: JSON.parse(JSON.stringify(objTiles)) };
+    const entry = { label, daysToReach, objLayers: JSON.parse(JSON.stringify(objLayers)) };
     if (existing >= 0) _objGrowthStates[existing] = entry;
     else _objGrowthStates.push(entry);
     _objGrowthStates.sort((a, b) => a.daysToReach - b.daysToReach);
@@ -2407,7 +2600,7 @@ function refreshGrowthStatesList() {
     list.innerHTML = '';
     for (let i = 0; i < _objGrowthStates.length; i++) {
         const gs = _objGrowthStates[i];
-        const cnt = Object.keys(gs.tiles).length;
+        const cnt = gs.objLayers ? ['base','detail','top'].reduce((s,l) => s + Object.keys(gs.objLayers[l]||{}).length, 0) : Object.keys(gs.tiles||{}).length;
         const div = document.createElement('div');
         div.style.cssText = 'display:flex;align-items:center;gap:6px;margin:2px 0;font-size:11px;background:rgba(255,255,255,0.04);border-radius:4px;padding:2px 4px';
         div.innerHTML =
@@ -2425,8 +2618,14 @@ function loadGrowthStateToCanvas(index) {
     const gs = _objGrowthStates[index];
     if (!gs) return;
     pushUndo();
-    objTiles = JSON.parse(JSON.stringify(gs.tiles));
-    const paths = new Set(Object.values(objTiles).map(c => c.sheetPath));
+    // Support new multi-layer format and legacy single-layer
+    if (gs.objLayers) {
+        objLayers = JSON.parse(JSON.stringify(gs.objLayers));
+    } else if (gs.tiles) {
+        objLayers = { base: JSON.parse(JSON.stringify(gs.tiles)), detail: {}, top: {} };
+    }
+    const paths = new Set();
+    for (const ln of ['base','detail','top']) for (const c of Object.values(objLayers[ln])) paths.add(c.sheetPath);
     Promise.all([...paths].map(loadImage)).then(() => renderBuildCanvas());
 }
 
@@ -2435,17 +2634,44 @@ function loadGrowthStateToCanvas(index) {
 // ═══════════════════════════════════════════════════════════════
 
 function addRotationVariantFromCanvas() {
-    if (Object.keys(objTiles).length === 0) {
+    const allEmpty = ['base','detail','top'].every(ln => Object.keys(objLayers[ln]).length === 0);
+    if (allEmpty) {
         alert('Paint tiles on the canvas for this rotation first, then capture.');
         return;
     }
     const label = document.getElementById('rv-label').value.trim() || ('Rotation ' + (_objRotationVariants.length + 1));
-    _objRotationVariants.push({ label, tiles: JSON.parse(JSON.stringify(objTiles)) });
+    _objRotationVariants.push({
+        label,
+        objLayers: JSON.parse(JSON.stringify(objLayers)),
+        meta: JSON.parse(JSON.stringify(meta)),
+        originQ: _objOriginQ,
+        originR: _objOriginR,
+        gridW: gridW,
+        gridH: gridH,
+    });
     refreshRotationVariantsList();
 }
 
 function removeRotationVariant(index) {
     _objRotationVariants.splice(index, 1);
+    refreshRotationVariantsList();
+}
+
+/** Re-capture an existing rotation variant from the current canvas state. */
+function recaptureRotationVariant(index) {
+    const rv = _objRotationVariants[index];
+    if (!rv) return;
+    const allEmpty = ['base','detail','top'].every(ln => Object.keys(objLayers[ln]).length === 0);
+    if (allEmpty) {
+        alert('Paint tiles on the canvas first, then re-capture.');
+        return;
+    }
+    rv.objLayers = JSON.parse(JSON.stringify(objLayers));
+    rv.meta = JSON.parse(JSON.stringify(meta));
+    rv.originQ = _objOriginQ;
+    rv.originR = _objOriginR;
+    rv.gridW = gridW;
+    rv.gridH = gridH;
     refreshRotationVariantsList();
 }
 
@@ -2459,14 +2685,23 @@ function refreshRotationVariantsList() {
     list.innerHTML = '';
     for (let i = 0; i < _objRotationVariants.length; i++) {
         const rv = _objRotationVariants[i];
-        const cnt = Object.keys(rv.tiles).length;
+        const cnt = rv.objLayers ? ['base','detail','top'].reduce((s,l) => s + Object.keys(rv.objLayers[l]||{}).length, 0) : Object.keys(rv.tiles||{}).length;
+        const sizeStr = (rv.gridW != null && rv.gridH != null) ? `${rv.gridW}\u00d7${rv.gridH}` : '';
+        const hasOrigin = rv.originQ != null && rv.originR != null;
+        const hasMeta = rv.meta && Object.values(rv.meta).some(m => m && m.interactionPoint);
+        const badges = [];
+        if (sizeStr) badges.push(sizeStr);
+        if (hasOrigin) badges.push('\u2316');
+        if (hasMeta) badges.push('\uD83C\uDFAF');
         const div = document.createElement('div');
         div.style.cssText = 'display:flex;align-items:center;gap:6px;margin:2px 0;font-size:11px;background:rgba(255,255,255,0.04);border-radius:4px;padding:2px 4px';
         div.innerHTML =
             `<span style="color:var(--blue);min-width:18px">#${i + 1}</span>` +
             `<span style="flex:1">${escHtml(rv.label)}</span>` +
             `<span style="color:var(--text-dim)">${cnt}\u00a0tile${cnt!==1?'s':''}</span>` +
+            (badges.length ? `<span style="color:var(--text-dim);font-size:10px" title="Size / Origin / Interact">${badges.join(' ')}</span>` : '') +
             `<button onclick="loadRotationVariantToCanvas(${i})" style="font-size:10px;padding:1px 5px" title="Load onto canvas">\uD83D\uDC41</button>` +
+            `<button onclick="recaptureRotationVariant(${i})" style="font-size:10px;padding:1px 5px" title="Re-capture from current canvas">\uD83D\uDD04</button>` +
             `<button onclick="removeRotationVariant(${i})" class="danger" style="padding:1px 6px;font-size:10px">\u2715</button>`;
         list.appendChild(div);
     }
@@ -2477,9 +2712,202 @@ function loadRotationVariantToCanvas(index) {
     const rv = _objRotationVariants[index];
     if (!rv) return;
     pushUndo();
-    objTiles = JSON.parse(JSON.stringify(rv.tiles));
-    const paths = new Set(Object.values(objTiles).map(c => c.sheetPath));
-    Promise.all([...paths].map(loadImage)).then(() => renderBuildCanvas());
+    const prevGridW = gridW;
+    const prevGridH = gridH;
+    // Support new multi-layer format and legacy single-layer
+    if (rv.objLayers) {
+        objLayers = JSON.parse(JSON.stringify(rv.objLayers));
+    } else if (rv.tiles) {
+        objLayers = { base: JSON.parse(JSON.stringify(rv.tiles)), detail: {}, top: {} };
+    }
+    // Restore per-variant meta (interaction points, impassable markers)
+    if (rv.meta) {
+        meta = JSON.parse(JSON.stringify(rv.meta));
+    }
+    // Restore per-variant origin
+    if (rv.originQ != null) _objOriginQ = rv.originQ;
+    if (rv.originR != null) _objOriginR = rv.originR;
+    // Eye-preview should never resize the canvas.
+    gridW = prevGridW;
+    gridH = prevGridH;
+    document.getElementById('grid-w').value = gridW;
+    document.getElementById('grid-h').value = gridH;
+    const paths = new Set();
+    for (const ln of ['base','detail','top']) for (const c of Object.values(objLayers[ln])) paths.add(c.sheetPath);
+    Promise.all([...paths].map(loadImage)).then(() => { fitCanvas(); renderBuildCanvas(); });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  COLOR VARIANTS
+//  Complete alternative looks for an object — each variant captures
+//  the full visual state: tiles, meta, origin, grid, rotations, seasons.
+//  Press T to cycle in-game and in the interior editor.
+// ═══════════════════════════════════════════════════════════════
+
+function addColorVariantFromCanvas() {
+    const allEmpty = ['base','detail','top'].every(ln => Object.keys(objLayers[ln]).length === 0);
+    if (allEmpty) {
+        alert('Paint tiles on the canvas for this variant first, then capture.');
+        return;
+    }
+    const label = document.getElementById('cv-label').value.trim() || ('Variant ' + (_objColorVariants.length + 1));
+    _objColorVariants.push({
+        label,
+        objLayers: JSON.parse(JSON.stringify(objLayers)),
+        meta: JSON.parse(JSON.stringify(meta)),
+        originQ: _objOriginQ,
+        originR: _objOriginR,
+        gridW: gridW,
+        gridH: gridH,
+        rotationVariants: JSON.parse(JSON.stringify(_objRotationVariants)),
+        seasonVariants: JSON.parse(JSON.stringify(_objSeasonVariants)),
+    });
+    refreshColorVariantsList();
+}
+
+function removeColorVariant(index) {
+    _objColorVariants.splice(index, 1);
+    refreshColorVariantsList();
+}
+
+/** Re-capture an existing color variant from the current canvas state. */
+function recaptureColorVariant(index) {
+    const cv = _objColorVariants[index];
+    if (!cv) return;
+    const allEmpty = ['base','detail','top'].every(ln => Object.keys(objLayers[ln]).length === 0);
+    if (allEmpty) {
+        alert('Paint tiles on the canvas first, then re-capture.');
+        return;
+    }
+    cv.objLayers = JSON.parse(JSON.stringify(objLayers));
+    cv.meta = JSON.parse(JSON.stringify(meta));
+    cv.originQ = _objOriginQ;
+    cv.originR = _objOriginR;
+    cv.gridW = gridW;
+    cv.gridH = gridH;
+    cv.rotationVariants = JSON.parse(JSON.stringify(_objRotationVariants));
+    cv.seasonVariants = JSON.parse(JSON.stringify(_objSeasonVariants));
+    refreshColorVariantsList();
+}
+
+function refreshColorVariantsList() {
+    const list = document.getElementById('color-variants-list');
+    if (!list) return;
+    if (!_objColorVariants.length) {
+        list.innerHTML = '<div style="color:var(--text-dim);font-size:11px;font-style:italic;margin-bottom:2px">No color variants — object has one fixed look.</div>';
+        return;
+    }
+    list.innerHTML = '';
+    for (let i = 0; i < _objColorVariants.length; i++) {
+        const cv = _objColorVariants[i];
+        const cnt = cv.objLayers ? ['base','detail','top'].reduce((s,l) => s + Object.keys(cv.objLayers[l]||{}).length, 0) : 0;
+        const rotCnt = (cv.rotationVariants || []).length;
+        const seaCnt = Object.keys(cv.seasonVariants || {}).length;
+        const badges = [];
+        if (rotCnt) badges.push(rotCnt + ' rot');
+        if (seaCnt) badges.push(seaCnt + ' sea');
+        const div = document.createElement('div');
+        div.style.cssText = 'display:flex;align-items:center;gap:6px;margin:2px 0;font-size:11px;background:rgba(255,255,255,0.04);border-radius:4px;padding:2px 4px';
+        div.innerHTML =
+            `<span style="color:var(--gold);min-width:18px">#${i + 1}</span>` +
+            `<span style="flex:1">${escHtml(cv.label)}</span>` +
+            `<span style="color:var(--text-dim)">${cnt}\u00a0tile${cnt!==1?'s':''}</span>` +
+            (badges.length ? `<span style="color:var(--text-dim);font-size:10px">${badges.join(', ')}</span>` : '') +
+            `<button onclick="loadColorVariantToCanvas(${i})" style="font-size:10px;padding:1px 5px" title="Load onto canvas">\uD83D\uDC41</button>` +
+            `<button onclick="recaptureColorVariant(${i})" style="font-size:10px;padding:1px 5px" title="Re-capture from current canvas">\uD83D\uDD04</button>` +
+            `<button onclick="removeColorVariant(${i})" class="danger" style="padding:1px 6px;font-size:10px">\u2715</button>`;
+        list.appendChild(div);
+    }
+}
+
+/** Load a saved color variant back onto the canvas (for editing). */
+function loadColorVariantToCanvas(index) {
+    const cv = _objColorVariants[index];
+    if (!cv) return;
+    pushUndo();
+    const prevGridW = gridW;
+    const prevGridH = gridH;
+    if (cv.objLayers) {
+        objLayers = JSON.parse(JSON.stringify(cv.objLayers));
+    }
+    if (cv.meta) {
+        meta = JSON.parse(JSON.stringify(cv.meta));
+    }
+    if (cv.originQ != null) _objOriginQ = cv.originQ;
+    if (cv.originR != null) _objOriginR = cv.originR;
+    // Eye-preview should never resize the canvas.
+    gridW = prevGridW;
+    gridH = prevGridH;
+    document.getElementById('grid-w').value = gridW;
+    document.getElementById('grid-h').value = gridH;
+    _objRotationVariants = cv.rotationVariants ? JSON.parse(JSON.stringify(cv.rotationVariants)) : [];
+    refreshRotationVariantsList();
+    _objSeasonVariants = cv.seasonVariants ? JSON.parse(JSON.stringify(cv.seasonVariants)) : {};
+    refreshSeasonVariantsList();
+    const paths = new Set();
+    for (const ln of ['base','detail','top']) for (const c of Object.values(objLayers[ln])) paths.add(c.sheetPath);
+    for (const rv of _objRotationVariants) { for (const ln of ['base','detail','top']) for (const c of Object.values((rv.objLayers||{})[ln]||{})) paths.add(c.sheetPath); }
+    for (const sv of Object.values(_objSeasonVariants)) { for (const ln of ['base','detail','top']) for (const c of Object.values((sv||{})[ln]||{})) paths.add(c.sheetPath); }
+    Promise.all([...paths].filter(Boolean).map(loadImage)).then(() => { fitCanvas(); renderBuildCanvas(); });
+}
+
+// ═══════════════════════════════════════════════════
+//  REQUIRED TECHS — picker & display helpers
+// ═══════════════════════════════════════════════════
+function renderObjTechTags() {
+    const container = document.getElementById('obj-req-techs-tags');
+    if (!container) return;
+    if (!_objRequiredTechs.length) {
+        container.innerHTML = '<span style="font-size:11px;color:var(--text-dim);font-style:italic">None — click to add required techs</span>';
+        return;
+    }
+    container.innerHTML = '';
+    for (const tid of _objRequiredTechs) {
+        const info = _availableTechs.find(t => t.id === tid);
+        const label = info ? `${info.icon||'🔬'} ${info.name}` : tid;
+        const tag = document.createElement('span');
+        tag.style.cssText = 'display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 6px;border-radius:8px;background:#1a1828;color:#58a6ff;border:1px solid rgba(88,166,255,.25)';
+        tag.innerHTML = `${label}<span style="cursor:pointer;font-size:12px;line-height:1;margin-left:2px;opacity:.6" onclick="event.stopPropagation();removeObjTech('${tid}')">&times;</span>`;
+        container.appendChild(tag);
+    }
+}
+function removeObjTech(tid) {
+    _objRequiredTechs = _objRequiredTechs.filter(t => t !== tid);
+    renderObjTechTags();
+}
+function openObjTechPicker() {
+    const modal = document.getElementById('obj-tech-modal');
+    const list = document.getElementById('obj-tech-list');
+    list.innerHTML = '';
+    if (!_availableTechs.length) {
+        list.innerHTML = '<div style="padding:12px;color:var(--text-dim);font-style:italic">No technologies available. Add techs in the Tech Tree editor tab first.</div>';
+    } else {
+        const sorted = [..._availableTechs].sort((a,b) => (a.category||'').localeCompare(b.category||'') || a.name.localeCompare(b.name));
+        let lastCat = '';
+        for (const t of sorted) {
+            if (t.category !== lastCat) {
+                lastCat = t.category;
+                const div = document.createElement('div');
+                div.style.cssText = 'padding:6px 4px 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim)';
+                div.textContent = lastCat;
+                list.appendChild(div);
+            }
+            const lbl = document.createElement('label');
+            lbl.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:4px;cursor:pointer;font-size:12px';
+            const checked = _objRequiredTechs.includes(t.id) ? 'checked' : '';
+            lbl.innerHTML = `<input type="checkbox" value="${t.id}" ${checked}><span>${t.icon||'🔬'} ${t.name}</span>`;
+            lbl.querySelector('input').addEventListener('change', function() {
+                if (this.checked) { if (!_objRequiredTechs.includes(t.id)) _objRequiredTechs.push(t.id); }
+                else { _objRequiredTechs = _objRequiredTechs.filter(x => x !== t.id); }
+                renderObjTechTags();
+            });
+            list.appendChild(lbl);
+        }
+    }
+    modal.style.display = 'flex';
+}
+function closeObjTechPicker() {
+    document.getElementById('obj-tech-modal').style.display = 'none';
 }
 
 function newObject() {
@@ -2503,16 +2931,23 @@ function newObject() {
     refreshGrowthStatesList();
     _objRotationVariants = [];
     refreshRotationVariantsList();
+    _objColorVariants = [];
+    _activeColorVariantIdx = -1;
+    refreshColorVariantsList();
     setSelectedTerrains([]);
+    _objRequiredTechs = [];
+    renderObjTechTags();
 }
 
 function saveObject() {
     const name = document.getElementById('obj-name').value.trim();
     if (!name) { alert('Enter an object name.'); document.getElementById('obj-name').focus(); return; }
-    const tileKeys = Object.keys(objTiles);
-    if (!tileKeys.length) { alert('Paint at least one tile.'); return; }
+    // Collect all tile keys across all layers
+    const allKeys = new Set();
+    for (const ln of ['base','detail','top']) for (const k of Object.keys(objLayers[ln])) allKeys.add(k);
+    if (!allKeys.size) { alert('Paint at least one tile.'); return; }
     let minQ=Infinity, minR=Infinity, maxQ=-Infinity, maxR=-Infinity;
-    for (const key of tileKeys) { const [q, r] = key.split(',').map(Number); if (q<minQ) minQ=q; if (q>maxQ) maxQ=q; if (r<minR) minR=r; if (r>maxR) maxR=r; }
+    for (const key of allKeys) { const [q, r] = key.split(',').map(Number); if (q<minQ) minQ=q; if (q>maxQ) maxQ=q; if (r<minR) minR=r; if (r>maxR) maxR=r; }
     const animation = document.getElementById('obj-animation').value;
     const resourceType = document.getElementById('obj-resource').value;
     const resourceAmount = parseInt(document.getElementById('obj-resource-amount').value) || 1;
@@ -2529,21 +2964,46 @@ function saveObject() {
         tileW: TILE, tileH: TILE, width: tightW, height: tightH,
         bounds: { minCol: minQ, minRow: minR, maxCol: maxQ, maxRow: maxR },
         spawnAfter: document.getElementById('obj-spawn-after').value.trim() || undefined,
+        requiredTechs: _objRequiredTechs.length > 0 ? [..._objRequiredTechs] : undefined,
         healthStates: _objHealthStates.length > 0
-            ? _objHealthStates.map(hs => ({ ...hs, tiles: { ...hs.tiles } }))
+            ? _objHealthStates.map(hs => ({ ...hs, objLayers: JSON.parse(JSON.stringify(hs.objLayers || {base:{},detail:{},top:{}})) }))
             : undefined,
         seasonVariants: Object.keys(_objSeasonVariants).length > 0
-            ? Object.fromEntries(Object.entries(_objSeasonVariants).map(([s, t]) => [s, { ...t }]))
+            ? Object.fromEntries(Object.entries(_objSeasonVariants).map(([s, t]) => [s, JSON.parse(JSON.stringify(t))]))
             : undefined,
         growthStates: _objGrowthStates.length > 0
-            ? _objGrowthStates.map(gs => ({ ...gs, tiles: { ...gs.tiles } }))
+            ? _objGrowthStates.map(gs => ({ ...gs, objLayers: JSON.parse(JSON.stringify(gs.objLayers || {base:{},detail:{},top:{}})) }))
             : undefined,
         rotationVariants: _objRotationVariants.length > 0
-            ? _objRotationVariants.map(rv => ({ ...rv, tiles: { ...rv.tiles } }))
+            ? _objRotationVariants.map(rv => ({
+                label: rv.label,
+                objLayers: JSON.parse(JSON.stringify(rv.objLayers || {base:{},detail:{},top:{}})),
+                meta: rv.meta ? JSON.parse(JSON.stringify(rv.meta)) : {},
+                originQ: rv.originQ != null ? rv.originQ : undefined,
+                originR: rv.originR != null ? rv.originR : undefined,
+                gridW: rv.gridW != null ? rv.gridW : undefined,
+                gridH: rv.gridH != null ? rv.gridH : undefined,
+            }))
+            : undefined,
+        colorVariants: _objColorVariants.length > 0
+            ? _objColorVariants.map(cv => ({
+                label: cv.label,
+                objLayers: JSON.parse(JSON.stringify(cv.objLayers || {base:{},detail:{},top:{}})),
+                meta: cv.meta ? JSON.parse(JSON.stringify(cv.meta)) : {},
+                originQ: cv.originQ != null ? cv.originQ : undefined,
+                originR: cv.originR != null ? cv.originR : undefined,
+                gridW: cv.gridW != null ? cv.gridW : undefined,
+                gridH: cv.gridH != null ? cv.gridH : undefined,
+                rotationVariants: cv.rotationVariants ? JSON.parse(JSON.stringify(cv.rotationVariants)) : undefined,
+                seasonVariants: cv.seasonVariants ? JSON.parse(JSON.stringify(cv.seasonVariants)) : undefined,
+            }))
             : undefined,
         originQ: _objOriginQ != null ? _objOriginQ : undefined,
         originR: _objOriginR != null ? _objOriginR : undefined,
-        tiles: { ...objTiles }, meta: { ...meta },
+        objLayers: JSON.parse(JSON.stringify(objLayers)),
+        // Keep flattened tiles for backward compat (merge base → detail → top)
+        tiles: Object.assign({}, objLayers.base, objLayers.detail, objLayers.top),
+        meta: { ...meta },
     };
     if (objEditIdx >= 0) objDefs[objEditIdx] = obj;
     else { objDefs.push(obj); objEditIdx = objDefs.length-1; }
@@ -2562,31 +3022,89 @@ function loadObject(index) {
     document.getElementById('obj-weight').value = obj.spawnWeight || 1;
     document.getElementById('obj-resistance').value = obj.resistance || 0;
     document.getElementById('obj-spawn-after').value = obj.spawnAfter || '';
+    _objRequiredTechs = obj.requiredTechs ? [...obj.requiredTechs] : [];
+    renderObjTechTags();
     _objOriginQ = obj.originQ != null ? obj.originQ : null;
     _objOriginR = obj.originR != null ? obj.originR : null;
-    _objHealthStates = obj.healthStates ? obj.healthStates.map(hs => ({ ...hs, tiles: { ...hs.tiles } })) : [];
+
+    // Helper to remap state layers for legacy compat
+    const _loadStateLayers = (st) => {
+        if (st.objLayers) return { ...st, objLayers: JSON.parse(JSON.stringify(st.objLayers)) };
+        if (st.tiles) return { ...st, objLayers: { base: JSON.parse(JSON.stringify(st.tiles)), detail: {}, top: {} } };
+        return { ...st, objLayers: { base: {}, detail: {}, top: {} } };
+    };
+
+    _objHealthStates = obj.healthStates ? obj.healthStates.map(_loadStateLayers) : [];
     refreshHealthStatesList();
-    _objSeasonVariants = obj.seasonVariants
-        ? Object.fromEntries(Object.entries(obj.seasonVariants).map(([s, t]) => [s, { ...t }]))
-        : {};
+    _objSeasonVariants = {};
+    if (obj.seasonVariants) {
+        for (const [s, t] of Object.entries(obj.seasonVariants)) {
+            if (t && t.base !== undefined) _objSeasonVariants[s] = JSON.parse(JSON.stringify(t));
+            else _objSeasonVariants[s] = { base: JSON.parse(JSON.stringify(t || {})), detail: {}, top: {} };
+        }
+    }
     refreshSeasonVariantsList();
-    _objGrowthStates = obj.growthStates ? obj.growthStates.map(gs => ({ ...gs, tiles: { ...gs.tiles } })) : [];
+    _objGrowthStates = obj.growthStates ? obj.growthStates.map(_loadStateLayers) : [];
     refreshGrowthStatesList();
-    _objRotationVariants = obj.rotationVariants ? obj.rotationVariants.map(rv => ({ ...rv, tiles: { ...rv.tiles } })) : [];
+    _objRotationVariants = obj.rotationVariants ? obj.rotationVariants.map(rv => {
+        const loaded = _loadStateLayers(rv);
+        if (rv.meta) loaded.meta = JSON.parse(JSON.stringify(rv.meta));
+        if (rv.originQ != null) loaded.originQ = rv.originQ;
+        if (rv.originR != null) loaded.originR = rv.originR;
+        if (rv.gridW != null) loaded.gridW = rv.gridW;
+        if (rv.gridH != null) loaded.gridH = rv.gridH;
+        return loaded;
+    }) : [];
     refreshRotationVariantsList();
-    objTiles = { ...obj.tiles };
+    _objColorVariants = obj.colorVariants ? obj.colorVariants.map(cv => {
+        const loaded = _loadStateLayers(cv);
+        if (cv.meta) loaded.meta = JSON.parse(JSON.stringify(cv.meta));
+        if (cv.originQ != null) loaded.originQ = cv.originQ;
+        if (cv.originR != null) loaded.originR = cv.originR;
+        if (cv.gridW != null) loaded.gridW = cv.gridW;
+        if (cv.gridH != null) loaded.gridH = cv.gridH;
+        loaded.rotationVariants = cv.rotationVariants ? cv.rotationVariants.map(rv => {
+            const lr = _loadStateLayers(rv);
+            if (rv.meta) lr.meta = JSON.parse(JSON.stringify(rv.meta));
+            if (rv.originQ != null) lr.originQ = rv.originQ;
+            if (rv.originR != null) lr.originR = rv.originR;
+            if (rv.gridW != null) lr.gridW = rv.gridW;
+            if (rv.gridH != null) lr.gridH = rv.gridH;
+            return lr;
+        }) : [];
+        loaded.seasonVariants = {};
+        if (cv.seasonVariants) {
+            for (const [s, t] of Object.entries(cv.seasonVariants)) {
+                if (t && t.base !== undefined) loaded.seasonVariants[s] = JSON.parse(JSON.stringify(t));
+                else loaded.seasonVariants[s] = { base: JSON.parse(JSON.stringify(t || {})), detail: {}, top: {} };
+            }
+        }
+        return loaded;
+    }) : [];
+    _activeColorVariantIdx = -1;
+    refreshColorVariantsList();
+
+    // Load layers — new multi-layer format or legacy single tiles
+    if (obj.objLayers) {
+        objLayers = JSON.parse(JSON.stringify(obj.objLayers));
+        if (!objLayers.detail) objLayers.detail = {};
+        if (!objLayers.top) objLayers.top = {};
+    } else {
+        objLayers = { base: { ...(obj.tiles || {}) }, detail: {}, top: {} };
+    }
     meta = { ...obj.meta };
 
     // ── Tight-fit: match autofitGrid() — zero padding, shift to 0,0 ──
-    const tileKeys = Object.keys(objTiles);
-    if (tileKeys.length) {
+    const allKeys = new Set();
+    for (const ln of ['base','detail','top']) for (const k of Object.keys(objLayers[ln])) allKeys.add(k);
+    if (allKeys.size) {
         let minQ=Infinity, minR=Infinity, maxQ=-Infinity, maxR=-Infinity;
         const _scan = (key) => {
             const [q, r] = key.split(',').map(Number);
             if (q < minQ) minQ = q; if (q > maxQ) maxQ = q;
             if (r < minR) minR = r; if (r > maxR) maxR = r;
         };
-        for (const key of tileKeys) _scan(key);
+        for (const key of allKeys) _scan(key);
         for (const key of Object.keys(meta)) _scan(key);
 
         // Shift so minQ,minR becomes 0,0 (same as autofitGrid)
@@ -2599,14 +3117,42 @@ function loadObject(index) {
                 }
                 return out;
             };
-            objTiles = remap(objTiles);
+            const remapLayers = (lyrs) => {
+                if (!lyrs) return { base: {}, detail: {}, top: {} };
+                return { base: remap(lyrs.base || {}), detail: remap(lyrs.detail || {}), top: remap(lyrs.top || {}) };
+            };
+            objLayers = remapLayers(objLayers);
             meta = remap(meta);
-            _objHealthStates = _objHealthStates.map(hs => ({ ...hs, tiles: remap(hs.tiles) }));
+            _objHealthStates = _objHealthStates.map(hs => ({ ...hs, objLayers: remapLayers(hs.objLayers) }));
             _objSeasonVariants = Object.fromEntries(
-                Object.entries(_objSeasonVariants).map(([s, t]) => [s, remap(t)])
+                Object.entries(_objSeasonVariants).map(([s, t]) => [s, remapLayers(t)])
             );
-            _objGrowthStates = _objGrowthStates.map(gs => ({ ...gs, tiles: remap(gs.tiles) }));
-            _objRotationVariants = _objRotationVariants.map(rv => ({ ...rv, tiles: remap(rv.tiles) }));
+            _objGrowthStates = _objGrowthStates.map(gs => ({ ...gs, objLayers: remapLayers(gs.objLayers) }));
+            _objRotationVariants = _objRotationVariants.map(rv => {
+                const updated = { ...rv, objLayers: remapLayers(rv.objLayers) };
+                if (rv.meta) updated.meta = remap(rv.meta);
+                if (rv.originQ != null) { updated.originQ = rv.originQ - minQ; updated.originR = rv.originR - minR; }
+                return updated;
+            });
+            _objColorVariants = _objColorVariants.map(cv => {
+                const updated = { ...cv, objLayers: remapLayers(cv.objLayers) };
+                if (cv.meta) updated.meta = remap(cv.meta);
+                if (cv.originQ != null) { updated.originQ = cv.originQ - minQ; updated.originR = cv.originR - minR; }
+                if (cv.rotationVariants) {
+                    updated.rotationVariants = cv.rotationVariants.map(rv => {
+                        const u2 = { ...rv, objLayers: remapLayers(rv.objLayers) };
+                        if (rv.meta) u2.meta = remap(rv.meta);
+                        if (rv.originQ != null) { u2.originQ = rv.originQ - minQ; u2.originR = rv.originR - minR; }
+                        return u2;
+                    });
+                }
+                if (cv.seasonVariants) {
+                    updated.seasonVariants = Object.fromEntries(
+                        Object.entries(cv.seasonVariants).map(([s, t]) => [s, remapLayers(t)])
+                    );
+                }
+                return updated;
+            });
             if (_objOriginQ != null) { _objOriginQ -= minQ; _objOriginR -= minR; }
         }
 
@@ -2622,11 +3168,17 @@ function loadObject(index) {
     fitCanvas();
 
     const paths = new Set();
-    for (const c of Object.values(objTiles)) paths.add(c.sheetPath);
-    for (const hs of _objHealthStates) for (const c of Object.values(hs.tiles)) paths.add(c.sheetPath);
-    for (const stiles of Object.values(_objSeasonVariants)) for (const c of Object.values(stiles)) paths.add(c.sheetPath);
-    for (const gs of _objGrowthStates) for (const c of Object.values(gs.tiles)) paths.add(c.sheetPath);
-    for (const rv of _objRotationVariants) for (const c of Object.values(rv.tiles)) paths.add(c.sheetPath);
+    const _collectPaths = (lyrs) => { for (const ln of ['base','detail','top']) for (const c of Object.values(lyrs[ln] || {})) paths.add(c.sheetPath); };
+    _collectPaths(objLayers);
+    for (const hs of _objHealthStates) _collectPaths(hs.objLayers || {});
+    for (const sv of Object.values(_objSeasonVariants)) _collectPaths(sv || {});
+    for (const gs of _objGrowthStates) _collectPaths(gs.objLayers || {});
+    for (const rv of _objRotationVariants) _collectPaths(rv.objLayers || {});
+    for (const cv of _objColorVariants) {
+        _collectPaths(cv.objLayers || {});
+        if (cv.rotationVariants) for (const rv of cv.rotationVariants) _collectPaths(rv.objLayers || {});
+        if (cv.seasonVariants) for (const sv of Object.values(cv.seasonVariants)) _collectPaths(sv || {});
+    }
     Promise.all([...paths].map(loadImage)).then(() => { renderBuildCanvas(); });
 }
 
@@ -2638,6 +3190,110 @@ function deleteObject(index) {
     refreshObjectList();
 }
 
+function getObjectLayersForPreview(obj) {
+    const src = obj?.objLayers || { base: obj?.tiles || {}, detail: {}, top: {} };
+    return {
+        base: src.base || {},
+        detail: src.detail || {},
+        top: src.top || {},
+    };
+}
+
+function getLayersOccupiedBounds(layerStores) {
+    let minCol = Infinity, minRow = Infinity, maxCol = -Infinity, maxRow = -Infinity;
+    for (const store of layerStores) {
+        for (const key of Object.keys(store || {})) {
+            const [q, r] = key.split(',').map(Number);
+            if (!Number.isFinite(q) || !Number.isFinite(r)) continue;
+            if (q < minCol) minCol = q;
+            if (r < minRow) minRow = r;
+            if (q > maxCol) maxCol = q;
+            if (r > maxRow) maxRow = r;
+        }
+    }
+    if (!Number.isFinite(minCol) || !Number.isFinite(minRow) || !Number.isFinite(maxCol) || !Number.isFinite(maxRow)) {
+        return null;
+    }
+    return { minCol, minRow, maxCol, maxRow };
+}
+
+function getObjectPreviewBounds(obj, layers) {
+    const stores = [layers.base || {}, layers.detail || {}, layers.top || {}];
+    const occupied = getLayersOccupiedBounds(stores);
+    if (occupied) return occupied;
+    if (obj && obj.bounds && Number.isFinite(obj.bounds.minCol) && Number.isFinite(obj.bounds.minRow) && Number.isFinite(obj.bounds.maxCol) && Number.isFinite(obj.bounds.maxRow)) {
+        return { minCol: obj.bounds.minCol, minRow: obj.bounds.minRow, maxCol: obj.bounds.maxCol, maxRow: obj.bounds.maxRow };
+    }
+    return { minCol: 0, minRow: 0, maxCol: 0, maxRow: 0 };
+}
+
+function drawCatalogThumbnailFromLayers(canvas, layerStores, boundsOverride = null) {
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const size = canvas.width || 64;
+    const bounds = boundsOverride || getLayersOccupiedBounds(layerStores) || { minCol: 0, minRow: 0, maxCol: 0, maxRow: 0 };
+    const widthTiles = Math.max(1, (bounds.maxCol - bounds.minCol + 1) || 1);
+    const heightTiles = Math.max(1, (bounds.maxRow - bounds.minRow + 1) || 1);
+    const pad = 4;
+    const maxDraw = Math.max(1, size - pad * 2);
+    const tileDisp = Math.max(1, Math.floor(Math.min(maxDraw / widthTiles, maxDraw / heightTiles)));
+    const drawW = widthTiles * tileDisp;
+    const drawH = heightTiles * tileDisp;
+    const ox = Math.floor((size - drawW) / 2);
+    const oy = Math.floor((size - drawH) / 2);
+
+    const paintBase = () => {
+        ctx.clearRect(0, 0, size, size);
+        ctx.fillStyle = '#0f141b';
+        ctx.fillRect(0, 0, size, size);
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.strokeRect(0.5, 0.5, size - 1, size - 1);
+        ctx.imageSmoothingEnabled = false;
+    };
+    paintBase();
+
+    const paths = new Set();
+    for (const store of layerStores) for (const c of Object.values(store || {})) if (c?.sheetPath) paths.add(c.sheetPath);
+
+    Promise.all([...paths].map(loadImage)).then(() => {
+        paintBase();
+        for (const store of layerStores) {
+            for (const [key, cell] of Object.entries(store || {})) {
+                const [q, r] = key.split(',').map(Number);
+                if (!Number.isFinite(q) || !Number.isFinite(r) || !cell?.sheetPath) continue;
+                const img = imgCache.get(cell.sheetPath);
+                if (!img || !img.complete) continue;
+
+                const x = ox + (q - bounds.minCol) * tileDisp;
+                const y = oy + (r - bounds.minRow) * tileDisp;
+                const sw = cell.sw || TILE;
+                const sh = cell.sh || TILE;
+                if (cell.rotation) {
+                    ctx.save();
+                    ctx.translate(x + tileDisp / 2, y + tileDisp / 2);
+                    ctx.rotate(cell.rotation * Math.PI / 180);
+                    ctx.drawImage(img, cell.sx, cell.sy, sw, sh, -tileDisp / 2, -tileDisp / 2, tileDisp, tileDisp);
+                    ctx.restore();
+                } else {
+                    ctx.drawImage(img, cell.sx, cell.sy, sw, sh, x, y, tileDisp, tileDisp);
+                }
+            }
+        }
+    }).catch(() => {
+        paintBase();
+    });
+}
+
+function drawObjectCatalogThumbnail(canvas, obj) {
+    if (!canvas) return;
+    const layers = getObjectLayersForPreview(obj);
+    const stores = [layers.base || {}, layers.detail || {}, layers.top || {}];
+    const bounds = getObjectPreviewBounds(obj, layers);
+    drawCatalogThumbnailFromLayers(canvas, stores, bounds);
+}
+
 function refreshObjectList() {
     const countEl = document.getElementById('cat-obj-count');
     const list = document.getElementById('cat-obj-cards');
@@ -2645,8 +3301,11 @@ function refreshObjectList() {
     if (!list) return;
     if (!objDefs.length) { list.innerHTML = '<div class="catalog-empty">No objects saved yet</div>'; return; }
     list.innerHTML = '';
-    objDefs.forEach((o, i) => {
-        const bw = o.bounds.maxCol - o.bounds.minCol + 1, bh = o.bounds.maxRow - o.bounds.minRow + 1;
+    const range = getCatalogPageRange('object');
+    for (let i = range.start; i < range.end; i++) {
+        const o = objDefs[i];
+        const pBounds = getObjectPreviewBounds(o, getObjectLayersForPreview(o));
+        const bw = pBounds.maxCol - pBounds.minCol + 1, bh = pBounds.maxRow - pBounds.minRow + 1;
         let extras = [];
         if (o.terrainBindings && o.terrainBindings.length) extras.push(o.terrainBindings.join(', '));
         if (o.animation) extras.push('🎬 interact: ' + o.animation);
@@ -2658,12 +3317,15 @@ function refreshObjectList() {
         if (o.growthStates && o.growthStates.length) extras.push('🌱 ' + o.growthStates.length + ' growth stage' + (o.growthStates.length > 1 ? 's' : ''));
         if (o.rotationVariants && o.rotationVariants.length) extras.push('🔄 ' + o.rotationVariants.length + ' rotation' + (o.rotationVariants.length > 1 ? 's' : ''));
         const div = document.createElement('div');
-        div.className = 'item-card'; div.style.borderColor = i===objEditIdx ? 'var(--gold)' : '';
-        div.innerHTML = `<div class="item-title">${escHtml(o.name)}</div>
+        const thumbId = `cat-obj-thumb-${i}`;
+        div.className = 'item-card object-card'; div.style.borderColor = i===objEditIdx ? 'var(--gold)' : '';
+        div.innerHTML = `<div class="obj-thumb-wrap"><canvas id="${thumbId}" class="obj-thumb" width="64" height="64"></canvas></div>
+            <div class="item-main"><div class="item-title">${escHtml(o.name)}</div>
             <div class="item-meta">${o.objectType} · ${bw}×${bh} tiles${extras.length ? ' · '+extras.join(' · ') : ''}</div>
-            <div class="item-acts"><button onclick="loadObject(${i});closeCatalog()">✏️ Edit</button><button class="danger" onclick="deleteObject(${i})">🗑</button></div>`;
+            <div class="item-acts"><button onclick="loadObject(${i});closeCatalog()">✏️ Edit</button><button class="danger" onclick="deleteObject(${i})">🗑</button></div></div>`;
         list.appendChild(div);
-    });
+        drawObjectCatalogThumbnail(document.getElementById(thumbId), o);
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2709,6 +3371,63 @@ function openInteriorForBuilding(index) {
 function refreshLibrary() {
     refreshBuildingList();
     refreshObjectList();
+    refreshCatalogPaginationUI();
+}
+
+const CATALOG_PAGE_SIZE = 24;
+let _catalogTab = 'building';
+let _catalogPages = { building: 1, object: 1 };
+
+function getCatalogTotal(mode) {
+    return mode === 'building' ? buildings.length : objDefs.length;
+}
+
+function getCatalogPageCount(mode) {
+    return Math.max(1, Math.ceil(getCatalogTotal(mode) / CATALOG_PAGE_SIZE));
+}
+
+function clampCatalogPage(mode) {
+    const pageCount = getCatalogPageCount(mode);
+    const raw = _catalogPages[mode] || 1;
+    _catalogPages[mode] = Math.max(1, Math.min(pageCount, raw));
+    return _catalogPages[mode];
+}
+
+function getCatalogPageRange(mode) {
+    const total = getCatalogTotal(mode);
+    const page = clampCatalogPage(mode);
+    const start = (page - 1) * CATALOG_PAGE_SIZE;
+    const end = Math.min(start + CATALOG_PAGE_SIZE, total);
+    return { total, page, start, end, pageCount: getCatalogPageCount(mode) };
+}
+
+function refreshCatalogPaginationUI() {
+    const mode = _catalogTab;
+    const infoEl = document.getElementById('cat-page-info');
+    const prevBtn = document.getElementById('cat-page-prev');
+    const nextBtn = document.getElementById('cat-page-next');
+    if (!infoEl || !prevBtn || !nextBtn) return;
+
+    const { total, page, start, end, pageCount } = getCatalogPageRange(mode);
+    if (!total) {
+        infoEl.textContent = '0 items';
+        prevBtn.disabled = true;
+        nextBtn.disabled = true;
+        return;
+    }
+
+    infoEl.textContent = `Showing ${start + 1}-${end} of ${total} · Page ${page}/${pageCount}`;
+    prevBtn.disabled = page <= 1;
+    nextBtn.disabled = page >= pageCount;
+}
+
+function changeCatalogPage(delta) {
+    const mode = _catalogTab;
+    _catalogPages[mode] = (_catalogPages[mode] || 1) + delta;
+    clampCatalogPage(mode);
+    if (mode === 'building') refreshBuildingList();
+    else refreshObjectList();
+    refreshCatalogPaginationUI();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2724,21 +3443,24 @@ function closeCatalog() {
     document.getElementById('catalog-overlay').style.display = 'none';
 }
 function setCatalogTab(mode) {
+    _catalogTab = mode === 'building' ? 'building' : 'object';
     const isBld = mode === 'building';
     document.getElementById('cat-tab-bld').classList.toggle('active', isBld);
     document.getElementById('cat-tab-obj').classList.toggle('active', !isBld);
-    document.getElementById('cat-bld-cards').style.display = isBld ? '' : 'none';
-    document.getElementById('cat-obj-cards').style.display = isBld ? 'none' : '';
+    document.getElementById('cat-bld-cards').style.display = isBld ? 'grid' : 'none';
+    document.getElementById('cat-obj-cards').style.display = isBld ? 'none' : 'grid';
+    refreshCatalogPaginationUI();
 }
 
 // ═══════════════════════════════════════════════════════════════
 //  CLEAR
 // ═══════════════════════════════════════════════════════════════
 function clearLayer(ask = true) {
-    if (editorMode !== 'building') return;
-    if (ask && !confirm(`Clear the ${activeLayer} layer?`)) return;
+    const layerName = editorMode === 'building' ? activeLayer : activeObjLayer;
+    if (ask && !confirm(`Clear the ${layerName} layer?`)) return;
     pushUndo();
-    layers[activeLayer] = {};
+    if (editorMode === 'building') layers[activeLayer] = {};
+    else objLayers[activeObjLayer] = {};
     renderBuildCanvas();
 }
 
@@ -2746,7 +3468,7 @@ function clearAll(skip = false) {
     if (!skip && !confirm('Clear all tiles and meta?')) return;
     pushUndo();
     if (editorMode === 'building') layers = { floor:{}, walls:{}, roof:{}, overlay:{} };
-    else objTiles = {};
+    else objLayers = { base:{}, detail:{}, top:{} };
     meta = {};
     renderBuildCanvas();
 }
@@ -2779,55 +3501,149 @@ function exportObjects() {
     fname = fname.trim().replace(/[/\\]/g,'_');
     if (!fname.endsWith('.json')) fname += '.json';
     const exported = objDefs.map(obj => {
-        const tileKeys = Object.keys(obj.tiles);
+        // Use objLayers (new) or tiles (legacy)
+        const srcLayers = obj.objLayers || { base: obj.tiles || {}, detail: {}, top: {} };
+        const allKeys = new Set();
+        for (const ln of ['base','detail','top']) for (const k of Object.keys(srcLayers[ln] || {})) allKeys.add(k);
         let minQ=Infinity, minR=Infinity, maxQ=-Infinity, maxR=-Infinity;
-        for (const key of tileKeys) { const [q, r] = key.split(',').map(Number); if (q<minQ) minQ=q; if (q>maxQ) maxQ=q; if (r<minR) minR=r; if (r>maxR) maxR=r; }
-        // Use explicit origin if set, otherwise top-left of painted tiles
+        for (const key of allKeys) { const [q, r] = key.split(',').map(Number); if (q<minQ) minQ=q; if (q>maxQ) maxQ=q; if (r<minR) minR=r; if (r>maxR) maxR=r; }
         const originQ = obj.originQ != null ? obj.originQ : minQ;
         const originR = obj.originR != null ? obj.originR : minR;
-        const outTiles = tileKeys.map(key => {
-            const [q, r] = key.split(',').map(Number);
-            const c = obj.tiles[key];
-            return { localCol: q-originQ, localRow: r-originR, sheetPath: c.sheetPath, sx: c.sx, sy: c.sy, sw: c.sw, sh: c.sh };
+
+        const _exportTileDict = (dict) => Object.entries(dict || {}).map(([key,c]) => {
+            const [q,r]=key.split(',').map(Number);
+            return { localCol:q-originQ, localRow:r-originR, sheetPath:c.sheetPath, sx:c.sx, sy:c.sy, sw:c.sw, sh:c.sh };
         });
-        const outMeta = Object.entries(obj.meta).map(([key, m]) => {
+        const _exportObjLayers = (lyrs) => {
+            const out = {};
+            for (const ln of ['base','detail','top']) { const arr = _exportTileDict(lyrs[ln]||{}); if (arr.length) out[ln] = arr; }
+            return out;
+        };
+        const merged = Object.assign({}, srcLayers.base, srcLayers.detail, srcLayers.top);
+        const outTiles = _exportTileDict(merged);
+        const outObjLayers = _exportObjLayers(srcLayers);
+
+        const outMeta = Object.entries(obj.meta || {}).map(([key, m]) => {
             const [q, r] = key.split(',').map(Number);
             return { localCol: q-originQ, localRow: r-originR, ...m };
         }).filter(m => m.impassable || m.interactionPoint);
-        // Export healthStates: normalise tile coords the same way as main tiles
+
+        const _exportStateLayers = (st) => {
+            if (st.objLayers) return _exportObjLayers(st.objLayers);
+            if (st.tiles) return { base: _exportTileDict(st.tiles) };
+            return {};
+        };
+
         const outHealthStates = (obj.healthStates || []).map(hs => ({
-            label: hs.label,
-            minHealthPct: hs.minHealthPct,
-            tiles: Object.entries(hs.tiles).map(([key, c]) => {
-                const [q, r] = key.split(',').map(Number);
-                return { localCol: q-originQ, localRow: r-originR, sheetPath: c.sheetPath, sx: c.sx, sy: c.sy, sw: c.sw, sh: c.sh };
-            })
+            label: hs.label, minHealthPct: hs.minHealthPct,
+            tiles: _exportTileDict(Object.assign({}, ...(hs.objLayers ? ['base','detail','top'].map(l=>hs.objLayers[l]||{}) : [hs.tiles||{}]))),
+            objLayers: _exportStateLayers(hs),
         }));
-        // Export seasonVariants: normalise coords the same way
         const outSeasonVariants = {};
-        for (const [season, stiles] of Object.entries(obj.seasonVariants || {})) {
-            outSeasonVariants[season] = Object.entries(stiles).map(([key, c]) => {
-                const [q, r] = key.split(',').map(Number);
-                return { localCol: q-originQ, localRow: r-originR, sheetPath: c.sheetPath, sx: c.sx, sy: c.sy, sw: c.sw, sh: c.sh };
-            });
+        for (const [season, sv] of Object.entries(obj.seasonVariants || {})) {
+            const svLayers = (sv && sv.base !== undefined) ? sv : { base: sv || {}, detail: {}, top: {} };
+            outSeasonVariants[season] = _exportTileDict(Object.assign({}, svLayers.base, svLayers.detail, svLayers.top));
         }
-        // Export growthStates: normalise coords the same way
         const outGrowthStates = (obj.growthStates || []).map(gs => ({
-            label: gs.label,
-            daysToReach: gs.daysToReach,
-            tiles: Object.entries(gs.tiles).map(([key, c]) => {
-                const [q, r] = key.split(',').map(Number);
-                return { localCol: q-originQ, localRow: r-originR, sheetPath: c.sheetPath, sx: c.sx, sy: c.sy, sw: c.sw, sh: c.sh };
-            })
+            label: gs.label, daysToReach: gs.daysToReach,
+            tiles: _exportTileDict(Object.assign({}, ...(gs.objLayers ? ['base','detail','top'].map(l=>gs.objLayers[l]||{}) : [gs.tiles||{}]))),
+            objLayers: _exportStateLayers(gs),
         }));
-        // Export rotationVariants: normalise coords the same way
-        const outRotationVariants = (obj.rotationVariants || []).map(rv => ({
-            label: rv.label,
-            tiles: Object.entries(rv.tiles).map(([key, c]) => {
+        const outRotationVariants = (obj.rotationVariants || []).map(rv => {
+            // Each rotation variant can have its own origin, meta, and canvas size
+            const rvLayers = rv.objLayers || { base: rv.tiles || {}, detail: {}, top: {} };
+            const rvAllKeys = new Set();
+            for (const ln of ['base','detail','top']) for (const k of Object.keys(rvLayers[ln] || {})) rvAllKeys.add(k);
+            let rvMinQ=Infinity, rvMinR=Infinity, rvMaxQ=-Infinity, rvMaxR=-Infinity;
+            for (const key of rvAllKeys) { const [q,r]=key.split(',').map(Number); if(q<rvMinQ)rvMinQ=q; if(q>rvMaxQ)rvMaxQ=q; if(r<rvMinR)rvMinR=r; if(r>rvMaxR)rvMaxR=r; }
+            const rvOriginQ = rv.originQ != null ? rv.originQ : originQ;
+            const rvOriginR = rv.originR != null ? rv.originR : originR;
+            const _rvExportTileDict = (dict) => Object.entries(dict || {}).map(([key,c]) => {
+                const [q,r]=key.split(',').map(Number);
+                return { localCol:q-rvOriginQ, localRow:r-rvOriginR, sheetPath:c.sheetPath, sx:c.sx, sy:c.sy, sw:c.sw, sh:c.sh };
+            });
+            const _rvExportObjLayers = (lyrs) => {
+                const out = {};
+                for (const ln of ['base','detail','top']) { const arr = _rvExportTileDict(lyrs[ln]||{}); if (arr.length) out[ln] = arr; }
+                return out;
+            };
+            const rvMerged = Object.assign({}, rvLayers.base, rvLayers.detail, rvLayers.top);
+            const rvOutMeta = Object.entries(rv.meta || {}).map(([key, m]) => {
                 const [q, r] = key.split(',').map(Number);
-                return { localCol: q-originQ, localRow: r-originR, sheetPath: c.sheetPath, sx: c.sx, sy: c.sy, sw: c.sw, sh: c.sh };
-            })
-        }));
+                return { localCol: q-rvOriginQ, localRow: r-rvOriginR, ...m };
+            }).filter(m => m.impassable || m.interactionPoint);
+            const rvW = rvAllKeys.size ? rvMaxQ - rvMinQ + 1 : (rv.gridW || 1);
+            const rvH = rvAllKeys.size ? rvMaxR - rvMinR + 1 : (rv.gridH || 1);
+            return {
+                label: rv.label,
+                tiles: _rvExportTileDict(rvMerged),
+                objLayers: _rvExportObjLayers(rvLayers),
+                meta: rvOutMeta.length > 0 ? rvOutMeta : undefined,
+                bounds: rvAllKeys.size ? { minCol: rvMinQ-rvOriginQ, minRow: rvMinR-rvOriginR, maxCol: rvMaxQ-rvOriginQ, maxRow: rvMaxR-rvOriginR } : undefined,
+                width: rvW, height: rvH,
+            };
+        });
+        // ── Color Variants ──
+        const _exportColorVariant = (cv) => {
+            const cvLayers = cv.objLayers || { base: {}, detail: {}, top: {} };
+            const cvAllKeys = new Set();
+            for (const ln of ['base','detail','top']) for (const k of Object.keys(cvLayers[ln] || {})) cvAllKeys.add(k);
+            let cvMinQ=Infinity,cvMinR=Infinity,cvMaxQ=-Infinity,cvMaxR=-Infinity;
+            for (const key of cvAllKeys){ const [q,r]=key.split(',').map(Number); if(q<cvMinQ)cvMinQ=q; if(q>cvMaxQ)cvMaxQ=q; if(r<cvMinR)cvMinR=r; if(r>cvMaxR)cvMaxR=r; }
+            const cvOriginQ = cv.originQ != null ? cv.originQ : originQ;
+            const cvOriginR = cv.originR != null ? cv.originR : originR;
+            const _cvExportTileDict = (dict) => Object.entries(dict||{}).map(([key,c])=>{
+                const [q,r]=key.split(',').map(Number);
+                return { localCol:q-cvOriginQ, localRow:r-cvOriginR, sheetPath:c.sheetPath, sx:c.sx, sy:c.sy, sw:c.sw, sh:c.sh };
+            });
+            const _cvExportObjLayers = (lyrs) => {
+                const out = {};
+                for (const ln of ['base','detail','top']){ const arr=_cvExportTileDict(lyrs[ln]||{}); if(arr.length) out[ln]=arr; }
+                return out;
+            };
+            const cvMerged = Object.assign({}, cvLayers.base, cvLayers.detail, cvLayers.top);
+            const cvOutMeta = Object.entries(cv.meta||{}).map(([key,m])=>{
+                const [q,r]=key.split(',').map(Number);
+                return { localCol:q-cvOriginQ, localRow:r-cvOriginR, ...m };
+            }).filter(m=>m.impassable||m.interactionPoint);
+            const cvW = cvAllKeys.size ? cvMaxQ-cvMinQ+1 : (cv.gridW||1);
+            const cvH = cvAllKeys.size ? cvMaxR-cvMinR+1 : (cv.gridH||1);
+            // Export this variant's rotation variants
+            const cvRotVars = (cv.rotationVariants||[]).map(rv => {
+                const rvL = rv.objLayers||{base:{},detail:{},top:{}};
+                const rvKeys = new Set();
+                for (const ln of ['base','detail','top']) for (const k of Object.keys(rvL[ln]||{})) rvKeys.add(k);
+                let rMinQ=Infinity,rMinR=Infinity,rMaxQ=-Infinity,rMaxR=-Infinity;
+                for (const k of rvKeys){ const [q,r]=k.split(',').map(Number); if(q<rMinQ)rMinQ=q; if(q>rMaxQ)rMaxQ=q; if(r<rMinR)rMinR=r; if(r>rMaxR)rMaxR=r; }
+                const rOQ = rv.originQ!=null?rv.originQ:cvOriginQ;
+                const rOR = rv.originR!=null?rv.originR:cvOriginR;
+                const _rExp = (dict)=>Object.entries(dict||{}).map(([key,c])=>{const [q,r]=key.split(',').map(Number);return{localCol:q-rOQ,localRow:r-rOR,sheetPath:c.sheetPath,sx:c.sx,sy:c.sy,sw:c.sw,sh:c.sh};});
+                const _rExpL = (lyrs)=>{const o={};for(const ln of ['base','detail','top']){const a=_rExp(lyrs[ln]||{});if(a.length)o[ln]=a;}return o;};
+                const rMerged = Object.assign({},rvL.base,rvL.detail,rvL.top);
+                const rMeta = Object.entries(rv.meta||{}).map(([key,m])=>{const [q,r]=key.split(',').map(Number);return{localCol:q-rOQ,localRow:r-rOR,...m};}).filter(m=>m.impassable||m.interactionPoint);
+                const rW=rvKeys.size?rMaxQ-rMinQ+1:(rv.gridW||1);
+                const rH=rvKeys.size?rMaxR-rMinR+1:(rv.gridH||1);
+                return { label:rv.label, tiles:_rExp(rMerged), objLayers:_rExpL(rvL), meta:rMeta.length?rMeta:undefined, bounds:rvKeys.size?{minCol:rMinQ-rOQ,minRow:rMinR-rOR,maxCol:rMaxQ-rOQ,maxRow:rMaxR-rOR}:undefined, width:rW, height:rH };
+            });
+            // Export this variant's season variants
+            const cvSeasonVars = {};
+            for (const [s,sv] of Object.entries(cv.seasonVariants||{})){
+                const svL = (sv&&sv.base!==undefined)?sv:{base:sv||{},detail:{},top:{}};
+                cvSeasonVars[s] = _cvExportTileDict(Object.assign({},svL.base,svL.detail,svL.top));
+            }
+            return {
+                label: cv.label,
+                tiles: _cvExportTileDict(cvMerged),
+                objLayers: _cvExportObjLayers(cvLayers),
+                meta: cvOutMeta.length?cvOutMeta:undefined,
+                bounds: cvAllKeys.size?{minCol:cvMinQ-cvOriginQ,minRow:cvMinR-cvOriginR,maxCol:cvMaxQ-cvOriginQ,maxRow:cvMaxR-cvOriginR}:undefined,
+                width:cvW, height:cvH,
+                rotationVariants: cvRotVars.length?cvRotVars:undefined,
+                seasonVariants: Object.keys(cvSeasonVars).length?cvSeasonVars:undefined,
+            };
+        };
+        const outColorVariants = (obj.colorVariants||[]).map(_exportColorVariant);
+
         return {
             id: obj.id, name: obj.name, objectType: obj.objectType,
             animation: obj.animation || undefined,
@@ -2837,12 +3653,13 @@ function exportObjects() {
             seasonVariants: Object.keys(outSeasonVariants).length > 0 ? outSeasonVariants : undefined,
             growthStates: outGrowthStates.length > 0 ? outGrowthStates : undefined,
             rotationVariants: outRotationVariants.length > 0 ? outRotationVariants : undefined,
+            colorVariants: outColorVariants.length > 0 ? outColorVariants : undefined,
             terrainBindings: obj.terrainBindings, spawnWeight: obj.spawnWeight,
             resistance: obj.resistance || undefined,
             bounds: { minCol: minQ-originQ, minRow: minR-originR, maxCol: maxQ-originQ, maxRow: maxR-originR },
             hasBlockedTiles: outMeta.some(m => m.impassable),
             hasInteraction: outMeta.some(m => m.interactionPoint),
-            tiles: outTiles, meta: outMeta,
+            tiles: outTiles, objLayers: outObjLayers, meta: outMeta,
         };
     });
     downloadJSON(exported, fname);
@@ -2928,8 +3745,6 @@ function onImport(e) {
             if (Array.isArray(data.objects) || (data.composed && data.objects)) {
                 const objArr = Array.isArray(data.objects) ? data.objects : data.objects;
                 const imported = objArr.map(obj => {
-                    // ── Step 1: find the full bounding box across ALL tile sources
-                    //    (localCol/localRow can be negative when origin is not top-left)
                     let minLQ = Infinity, minLR = Infinity, maxLQ = -Infinity, maxLR = -Infinity;
                     const _scanTile = t => {
                         if (t.localCol < minLQ) minLQ = t.localCol;
@@ -2938,24 +3753,28 @@ function onImport(e) {
                         if (t.localRow > maxLR) maxLR = t.localRow;
                     };
                     for (const t of (obj.tiles || [])) _scanTile(t);
-                    for (const hs of (obj.healthStates || [])) for (const t of (hs.tiles || [])) _scanTile(t);
+                    if (obj.objLayers) { for (const ln of ['base','detail','top']) for (const t of (obj.objLayers[ln]||[])) _scanTile(t); }
+                    for (const hs of (obj.healthStates || [])) { for (const t of (hs.tiles || [])) _scanTile(t); if (hs.objLayers) for (const ln of ['base','detail','top']) for (const t of (hs.objLayers[ln]||[])) _scanTile(t); }
                     for (const sarr of Object.values(obj.seasonVariants || {})) for (const t of (sarr || [])) _scanTile(t);
-                    for (const gs of (obj.growthStates || [])) for (const t of (gs.tiles || [])) _scanTile(t);
-                    for (const rv of (obj.rotationVariants || [])) for (const t of (rv.tiles || [])) _scanTile(t);
+                    for (const gs of (obj.growthStates || [])) { for (const t of (gs.tiles || [])) _scanTile(t); if (gs.objLayers) for (const ln of ['base','detail','top']) for (const t of (gs.objLayers[ln]||[])) _scanTile(t); }
+                    for (const rv of (obj.rotationVariants || [])) { for (const t of (rv.tiles || [])) _scanTile(t); if (rv.objLayers) for (const ln of ['base','detail','top']) for (const t of (rv.objLayers[ln]||[])) _scanTile(t); }
                     if (!isFinite(minLQ)) { minLQ=0; minLR=0; maxLQ=0; maxLR=0; }
 
-                    // ── Step 2: compute offset so minimum local coord lands at canvas cell 1
-                    //    local(0,0) — the origin marker — will land at canvas (offQ, offR)
                     const MARGIN = 1;
                     const offQ = MARGIN - minLQ;
                     const offR = MARGIN - minLR;
                     const _shiftKey = (lc, lr) => `${lc + offQ},${lr + offR}`;
+                    const _arrToDict = (arr) => Object.fromEntries((arr||[]).map(t=>[_shiftKey(t.localCol,t.localRow),{sheetPath:t.sheetPath,sx:t.sx,sy:t.sy,sw:t.sw,sh:t.sh}]));
 
-                    // ── Step 3: rebuild tile dicts at shifted canvas coords
-                    const newTiles = {};
-                    for (const t of (obj.tiles || [])) {
-                        newTiles[_shiftKey(t.localCol, t.localRow)] = { sheetPath:t.sheetPath, sx:t.sx, sy:t.sy, sw:t.sw, sh:t.sh };
+                    // Import objLayers (3-layer) if available, else fall back to tiles → base
+                    let newObjLayers;
+                    if (obj.objLayers && (obj.objLayers.base || obj.objLayers.detail || obj.objLayers.top)) {
+                        newObjLayers = { base: _arrToDict(obj.objLayers.base), detail: _arrToDict(obj.objLayers.detail), top: _arrToDict(obj.objLayers.top) };
+                    } else {
+                        newObjLayers = { base: _arrToDict(obj.tiles), detail: {}, top: {} };
                     }
+                    const newTiles = Object.assign({}, newObjLayers.base, newObjLayers.detail, newObjLayers.top);
+
                     const newMeta = {};
                     for (const m of (obj.meta||[])) {
                         const mm = {};
@@ -2963,44 +3782,37 @@ function onImport(e) {
                         if (m.interactionPoint) mm.interactionPoint = true;
                         if (Object.keys(mm).length) newMeta[_shiftKey(m.localCol, m.localRow)] = mm;
                     }
-                    // Restore healthStates to internal dict format
+
+                    const _importStateLayers = (st) => {
+                        if (st.objLayers && (st.objLayers.base || st.objLayers.detail || st.objLayers.top)) {
+                            return { base: _arrToDict(st.objLayers.base), detail: _arrToDict(st.objLayers.detail), top: _arrToDict(st.objLayers.top) };
+                        }
+                        if (st.tiles) return { base: _arrToDict(st.tiles), detail: {}, top: {} };
+                        return { base: {}, detail: {}, top: {} };
+                    };
+
                     const newHealthStates = (obj.healthStates || []).map(hs => ({
-                        label: hs.label,
-                        minHealthPct: hs.minHealthPct,
-                        tiles: Object.fromEntries((hs.tiles || []).map(t =>
-                            [_shiftKey(t.localCol, t.localRow), { sheetPath:t.sheetPath, sx:t.sx, sy:t.sy, sw:t.sw, sh:t.sh }]
-                        ))
+                        label: hs.label, minHealthPct: hs.minHealthPct, objLayers: _importStateLayers(hs)
                     }));
-                    // Restore seasonVariants to internal dict format
                     const newSeasonVariants = {};
-                    for (const [season, sarr] of Object.entries(obj.seasonVariants || {})) {
-                        newSeasonVariants[season] = Object.fromEntries((sarr || []).map(t =>
-                            [_shiftKey(t.localCol, t.localRow), { sheetPath:t.sheetPath, sx:t.sx, sy:t.sy, sw:t.sw, sh:t.sh }]
-                        ));
+                    if (obj.seasonVariantLayers) {
+                        for (const [season,svl] of Object.entries(obj.seasonVariantLayers)) newSeasonVariants[season] = { base: _arrToDict(svl.base), detail: _arrToDict(svl.detail), top: _arrToDict(svl.top) };
+                    } else {
+                        for (const [season, sarr] of Object.entries(obj.seasonVariants || {})) newSeasonVariants[season] = { base: _arrToDict(sarr), detail: {}, top: {} };
                     }
-                    // Restore growthStates to internal dict format
                     const newGrowthStates = (obj.growthStates || []).map(gs => ({
-                        label: gs.label,
-                        daysToReach: gs.daysToReach,
-                        tiles: Object.fromEntries((gs.tiles || []).map(t =>
-                            [_shiftKey(t.localCol, t.localRow), { sheetPath:t.sheetPath, sx:t.sx, sy:t.sy, sw:t.sw, sh:t.sh }]
-                        ))
+                        label: gs.label, daysToReach: gs.daysToReach, objLayers: _importStateLayers(gs)
                     }));
-                    // Restore rotationVariants to internal dict format
                     const newRotationVariants = (obj.rotationVariants || []).map(rv => ({
-                        label: rv.label,
-                        tiles: Object.fromEntries((rv.tiles || []).map(t =>
-                            [_shiftKey(t.localCol, t.localRow), { sheetPath:t.sheetPath, sx:t.sx, sy:t.sy, sw:t.sw, sh:t.sh }]
-                        ))
+                        label: rv.label, objLayers: _importStateLayers(rv)
                     }));
-                    // Grid must hold the full shifted extent + 1 tile of right/bottom margin
+
                     const newWidth  = (maxLQ - minLQ) + MARGIN * 2 + 1;
                     const newHeight = (maxLR - minLR) + MARGIN * 2 + 1;
                     return { ...obj,
                              width: newWidth, height: newHeight,
-                             // Origin lives at canvas (offQ, offR) — local(0,0) shifted into view
                              originQ: offQ, originR: offR,
-                             tiles: newTiles, meta: newMeta,
+                             tiles: newTiles, objLayers: newObjLayers, meta: newMeta,
                              healthStates: newHealthStates.length > 0 ? newHealthStates : undefined,
                              seasonVariants: Object.keys(newSeasonVariants).length > 0 ? newSeasonVariants : undefined,
                              growthStates: newGrowthStates.length > 0 ? newGrowthStates : undefined,
@@ -3032,7 +3844,8 @@ function onImport(e) {
                             if (t.interactionPoint) mm.interactionPoint = true;
                             if (Object.keys(mm).length) newMeta[`${t.localCol},${t.localRow}`] = mm;
                         }
-                        imported.push({ ...obj, width: maxQ+2, height: maxR+2, tiles: newTiles, meta: newMeta });
+                        // Legacy sheet imports go to base layer only
+                        imported.push({ ...obj, width: maxQ+2, height: maxR+2, tiles: newTiles, objLayers: { base: { ...newTiles }, detail: {}, top: {} }, meta: newMeta });
                     }
                 }
                 if (editorMode !== 'object') setEditorMode('object');
@@ -3083,7 +3896,8 @@ function toggleSection(id) {
 function n9b_add() {
     _nineTileBrushes.push({
         name: `Brush ${_nineTileBrushes.length + 1}`,
-        tiles: { TL:null,TC:null,TR:null,ML:null,MC:null,MR:null,BL:null,BC:null,BR:null }
+        tiles: { TL:null,TC:null,TR:null,ML:null,MC:null,MR:null,BL:null,BC:null,BR:null },
+        cost: { gold: 0, resources: {} }
     });
     _n9b_selIdx = _nineTileBrushes.length - 1;
     _n9b_selSlot = null;
@@ -3104,6 +3918,20 @@ function n9b_onNameChange() {
     if (_n9b_selIdx < 0) return;
     _nineTileBrushes[_n9b_selIdx].name = document.getElementById('n9b-name').value;
     n9b_refreshUI();
+    notifyParent();
+}
+
+function n9b_onCostChange() {
+    if (_n9b_selIdx < 0) return;
+    const brush = _nineTileBrushes[_n9b_selIdx];
+    const gold = parseInt(document.getElementById('n9b-cost-gold').value) || 0;
+    const resources = {};
+    document.querySelectorAll('#n9b-cost-resource-rows input[data-res-id]').forEach(inp => {
+        const rid = inp.dataset.resId;
+        const val = parseInt(inp.value) || 0;
+        if (rid && val > 0) resources[rid] = val;
+    });
+    brush.cost = { gold, resources };
     notifyParent();
 }
 
@@ -3201,6 +4029,10 @@ function n9b_refreshUI() {
     props.style.display = _n9b_selIdx >= 0 ? '' : 'none';
     if (_n9b_selIdx >= 0) {
         document.getElementById('n9b-name').value = _nineTileBrushes[_n9b_selIdx].name;
+        const c = _nineTileBrushes[_n9b_selIdx].cost || {};
+        const cr = c.resources || {};
+        document.getElementById('n9b-cost-gold').value = c.gold || 0;
+        _renderN9bCostRows(cr);
         _n9b_renderSlotGrid();
     }
 }
@@ -4050,6 +4882,21 @@ function onKey(e) {
     if (e.key === 'Escape') { if (document.getElementById('catalog-overlay').style.display !== 'none') { closeCatalog(); return; } if (_tbrush_popup.visible) { _tbrush_cancelPopup(); return; } if (selFloat) commitSelection(); else setTool('paint'); return; }
     if ((e.key==='Delete'||e.key==='Backspace') && activeTool==='select') { e.preventDefault(); cancelSelection(); return; }
     if (e.key === 'r' || e.key === 'R') { e.preventDefault(); rotateStampOrSelection(e.shiftKey ? -1 : 1); return; }
+    // T (Shift+T) — cycle color variants in object mode
+    if (e.key === 'T' && editorMode === 'object') {
+        e.preventDefault();
+        if (_objColorVariants.length === 0) { showToast('No color variants defined'); return; }
+        const nextIdx = (_activeColorVariantIdx + 2) % (_objColorVariants.length + 1) - 1;
+        _activeColorVariantIdx = nextIdx;
+        if (nextIdx === -1) {
+            showToast('Color variant: Base');
+            renderBuildCanvas();
+        } else {
+            loadColorVariantToCanvas(nextIdx);
+            showToast(`Color variant: ${_objColorVariants[nextIdx].label}`);
+        }
+        return;
+    }
     // Layer shortcuts 1–4 (building mode only)
     if (editorMode === 'building') {
         const layerKeys = ['floor','walls','roof','overlay'];
@@ -4139,49 +4986,158 @@ function getExportData() {
   // Objects — flat array
   if (objDefs.length) {
     const exported = objDefs.map(obj => {
-      const tileKeys = Object.keys(obj.tiles);
+      // Get tiles from objLayers (new) or tiles (legacy)
+      const srcLayers = obj.objLayers || { base: obj.tiles || {}, detail: {}, top: {} };
+      // Scan bounds across all layers
+      const allKeys = new Set();
+      for (const ln of ['base','detail','top']) for (const k of Object.keys(srcLayers[ln] || {})) allKeys.add(k);
       let minQ=Infinity, minR=Infinity, maxQ=-Infinity, maxR=-Infinity;
-      for (const key of tileKeys) { const [q,r]=key.split(',').map(Number); if(q<minQ)minQ=q; if(q>maxQ)maxQ=q; if(r<minR)minR=r; if(r>maxR)maxR=r; }
+      for (const key of allKeys) { const [q,r]=key.split(',').map(Number); if(q<minQ)minQ=q; if(q>maxQ)maxQ=q; if(r<minR)minR=r; if(r>maxR)maxR=r; }
       const originQ = obj.originQ != null ? obj.originQ : minQ;
       const originR = obj.originR != null ? obj.originR : minR;
-      const outTiles = tileKeys.map(key => {
+
+      // Helper to export a tile dict to array format
+      const _exportTileDict = (dict) => Object.entries(dict || {}).map(([key,c]) => {
         const [q,r]=key.split(',').map(Number);
-        const c = obj.tiles[key];
         return { localCol:q-originQ, localRow:r-originR, sheetPath:c.sheetPath, sx:c.sx, sy:c.sy, sw:c.sw, sh:c.sh };
       });
-      const outMeta = Object.entries(obj.meta).map(([key,m]) => {
+      // Helper to export multi-layer objLayers to layered array format
+      const _exportObjLayers = (lyrs) => {
+        const out = {};
+        for (const ln of ['base','detail','top']) {
+          const arr = _exportTileDict(lyrs[ln] || {});
+          if (arr.length) out[ln] = arr;
+        }
+        return out;
+      };
+
+      // Export tiles (flattened merge for backward compat)
+      const merged = Object.assign({}, srcLayers.base, srcLayers.detail, srcLayers.top);
+      const outTiles = _exportTileDict(merged);
+
+      // Export objLayers (new multi-layer format)
+      const outObjLayers = _exportObjLayers(srcLayers);
+
+      const outMeta = Object.entries(obj.meta || {}).map(([key,m]) => {
         const [q,r]=key.split(',').map(Number);
         return { localCol:q-originQ, localRow:r-originR, ...m };
       }).filter(m => m.impassable || m.interactionPoint);
+
+      // Helper to export state objLayers (with legacy tiles fallback)
+      const _exportStateLayers = (st) => {
+        if (st.objLayers) return _exportObjLayers(st.objLayers);
+        if (st.tiles) return { base: _exportTileDict(st.tiles) };
+        return {};
+      };
+
       const outHealthStates = (obj.healthStates||[]).map(hs=>({
         label:hs.label, minHealthPct:hs.minHealthPct,
-        tiles:Object.entries(hs.tiles).map(([key,c])=>{ const [q,r]=key.split(',').map(Number); return { localCol:q-originQ,localRow:r-originR,sheetPath:c.sheetPath,sx:c.sx,sy:c.sy,sw:c.sw,sh:c.sh }; })
+        tiles: _exportTileDict(Object.assign({}, ...(hs.objLayers ? ['base','detail','top'].map(l=>hs.objLayers[l]||{}) : [hs.tiles||{}]))),
+        objLayers: _exportStateLayers(hs),
       }));
       const outSeasonVariants = {};
-      for (const [season, stiles] of Object.entries(obj.seasonVariants||{})) {
-        outSeasonVariants[season] = Object.entries(stiles).map(([key,c])=>{ const [q,r]=key.split(',').map(Number); return { localCol:q-originQ,localRow:r-originR,sheetPath:c.sheetPath,sx:c.sx,sy:c.sy,sw:c.sw,sh:c.sh }; });
+      for (const [season, sv] of Object.entries(obj.seasonVariants||{})) {
+        const svLayers = (sv && sv.base !== undefined) ? sv : { base: sv || {}, detail: {}, top: {} };
+        outSeasonVariants[season] = _exportTileDict(Object.assign({}, svLayers.base, svLayers.detail, svLayers.top));
+        // Also include layered format under a sibling key (handled below)
+      }
+      const outSeasonVariantLayers = {};
+      for (const [season, sv] of Object.entries(obj.seasonVariants||{})) {
+        const svLayers = (sv && sv.base !== undefined) ? sv : { base: sv || {}, detail: {}, top: {} };
+        outSeasonVariantLayers[season] = _exportObjLayers(svLayers);
       }
       const outGrowthStates = (obj.growthStates||[]).map(gs=>({
         label:gs.label, daysToReach:gs.daysToReach,
-        tiles:Object.entries(gs.tiles).map(([key,c])=>{ const [q,r]=key.split(',').map(Number); return { localCol:q-originQ,localRow:r-originR,sheetPath:c.sheetPath,sx:c.sx,sy:c.sy,sw:c.sw,sh:c.sh }; })
+        tiles: _exportTileDict(Object.assign({}, ...(gs.objLayers ? ['base','detail','top'].map(l=>gs.objLayers[l]||{}) : [gs.tiles||{}]))),
+        objLayers: _exportStateLayers(gs),
       }));
-      const outRotationVariants = (obj.rotationVariants||[]).map(rv=>({
-        label:rv.label,
-        tiles:Object.entries(rv.tiles).map(([key,c])=>{ const [q,r]=key.split(',').map(Number); return { localCol:q-originQ,localRow:r-originR,sheetPath:c.sheetPath,sx:c.sx,sy:c.sy,sw:c.sw,sh:c.sh }; })
-      }));
+      const outRotationVariants = (obj.rotationVariants||[]).map(rv=>{
+        // Each rotation variant can have its own origin, meta, and canvas size
+        const rvLayers = rv.objLayers || { base: rv.tiles || {}, detail: {}, top: {} };
+        const rvAllKeys = new Set();
+        for (const ln of ['base','detail','top']) for (const k of Object.keys(rvLayers[ln] || {})) rvAllKeys.add(k);
+        let rvMinQ=Infinity, rvMinR=Infinity, rvMaxQ=-Infinity, rvMaxR=-Infinity;
+        for (const key of rvAllKeys) { const [q,r]=key.split(',').map(Number); if(q<rvMinQ)rvMinQ=q; if(q>rvMaxQ)rvMaxQ=q; if(r<rvMinR)rvMinR=r; if(r>rvMaxR)rvMaxR=r; }
+        const rvOriginQ = rv.originQ != null ? rv.originQ : originQ;
+        const rvOriginR = rv.originR != null ? rv.originR : originR;
+        const _rvExportTileDict = (dict) => Object.entries(dict || {}).map(([key,c]) => {
+          const [q,r]=key.split(',').map(Number);
+          return { localCol:q-rvOriginQ, localRow:r-rvOriginR, sheetPath:c.sheetPath, sx:c.sx, sy:c.sy, sw:c.sw, sh:c.sh };
+        });
+        const _rvExportObjLayers = (lyrs) => {
+          const out = {};
+          for (const ln of ['base','detail','top']) { const arr = _rvExportTileDict(lyrs[ln]||{}); if (arr.length) out[ln] = arr; }
+          return out;
+        };
+        const rvMerged = Object.assign({}, rvLayers.base, rvLayers.detail, rvLayers.top);
+        const rvOutMeta = Object.entries(rv.meta || {}).map(([key, m]) => {
+          const [q, r] = key.split(',').map(Number);
+          return { localCol: q-rvOriginQ, localRow: r-rvOriginR, ...m };
+        }).filter(m => m.impassable || m.interactionPoint);
+        const rvW = rvAllKeys.size ? rvMaxQ - rvMinQ + 1 : (rv.gridW || 1);
+        const rvH = rvAllKeys.size ? rvMaxR - rvMinR + 1 : (rv.gridH || 1);
+        return {
+          label: rv.label,
+          tiles: _rvExportTileDict(rvMerged),
+          objLayers: _rvExportObjLayers(rvLayers),
+          meta: rvOutMeta.length > 0 ? rvOutMeta : undefined,
+          bounds: rvAllKeys.size ? { minCol: rvMinQ-rvOriginQ, minRow: rvMinR-rvOriginR, maxCol: rvMaxQ-rvOriginQ, maxRow: rvMaxR-rvOriginR } : undefined,
+          width: rvW, height: rvH,
+        };
+      });
+      // ── Color Variants ──
+      const _getExpColorVariant = (cv) => {
+        const cvL = cv.objLayers||{base:{},detail:{},top:{}};
+        const cvK = new Set();
+        for (const ln of ['base','detail','top']) for (const k of Object.keys(cvL[ln]||{})) cvK.add(k);
+        let cMnQ=Infinity,cMnR=Infinity,cMxQ=-Infinity,cMxR=-Infinity;
+        for (const k of cvK){const [q,r]=k.split(',').map(Number);if(q<cMnQ)cMnQ=q;if(q>cMxQ)cMxQ=q;if(r<cMnR)cMnR=r;if(r>cMxR)cMxR=r;}
+        const cOQ=cv.originQ!=null?cv.originQ:originQ;
+        const cOR=cv.originR!=null?cv.originR:originR;
+        const _cExp=(dict)=>Object.entries(dict||{}).map(([key,c])=>{const[q,r]=key.split(',').map(Number);return{localCol:q-cOQ,localRow:r-cOR,sheetPath:c.sheetPath,sx:c.sx,sy:c.sy,sw:c.sw,sh:c.sh};});
+        const _cExpL=(lyrs)=>{const o={};for(const ln of ['base','detail','top']){const a=_cExp(lyrs[ln]||{});if(a.length)o[ln]=a;}return o;};
+        const cMerged=Object.assign({},cvL.base,cvL.detail,cvL.top);
+        const cMeta=Object.entries(cv.meta||{}).map(([key,m])=>{const[q,r]=key.split(',').map(Number);return{localCol:q-cOQ,localRow:r-cOR,...m};}).filter(m=>m.impassable||m.interactionPoint);
+        const cW=cvK.size?cMxQ-cMnQ+1:(cv.gridW||1);
+        const cH=cvK.size?cMxR-cMnR+1:(cv.gridH||1);
+        // Rotation variants within this color variant
+        const cRotVars=(cv.rotationVariants||[]).map(rv=>{
+          const rL=rv.objLayers||{base:{},detail:{},top:{}};
+          const rK=new Set();for(const ln of ['base','detail','top'])for(const k of Object.keys(rL[ln]||{}))rK.add(k);
+          let rMnQ=Infinity,rMnR=Infinity,rMxQ=-Infinity,rMxR=-Infinity;
+          for(const k of rK){const[q,r]=k.split(',').map(Number);if(q<rMnQ)rMnQ=q;if(q>rMxQ)rMxQ=q;if(r<rMnR)rMnR=r;if(r>rMxR)rMxR=r;}
+          const rOQ=rv.originQ!=null?rv.originQ:cOQ;const rOR=rv.originR!=null?rv.originR:cOR;
+          const _rExp2=(dict)=>Object.entries(dict||{}).map(([key,c])=>{const[q,r]=key.split(',').map(Number);return{localCol:q-rOQ,localRow:r-rOR,sheetPath:c.sheetPath,sx:c.sx,sy:c.sy,sw:c.sw,sh:c.sh};});
+          const _rExpL2=(lyrs)=>{const o={};for(const ln of ['base','detail','top']){const a=_rExp2(lyrs[ln]||{});if(a.length)o[ln]=a;}return o;};
+          const rMerged2=Object.assign({},rL.base,rL.detail,rL.top);
+          const rMeta2=Object.entries(rv.meta||{}).map(([key,m])=>{const[q,r]=key.split(',').map(Number);return{localCol:q-rOQ,localRow:r-rOR,...m};}).filter(m=>m.impassable||m.interactionPoint);
+          const rW2=rK.size?rMxQ-rMnQ+1:(rv.gridW||1);const rH2=rK.size?rMxR-rMnR+1:(rv.gridH||1);
+          return{label:rv.label,tiles:_rExp2(rMerged2),objLayers:_rExpL2(rL),meta:rMeta2.length?rMeta2:undefined,bounds:rK.size?{minCol:rMnQ-rOQ,minRow:rMnR-rOR,maxCol:rMxQ-rOQ,maxRow:rMxR-rOR}:undefined,width:rW2,height:rH2};
+        });
+        const cSeasonVars={};
+        for(const[s,sv] of Object.entries(cv.seasonVariants||{})){
+          const svL=(sv&&sv.base!==undefined)?sv:{base:sv||{},detail:{},top:{}};
+          cSeasonVars[s]=_cExp(Object.assign({},svL.base,svL.detail,svL.top));
+        }
+        return{label:cv.label,tiles:_cExp(cMerged),objLayers:_cExpL(cvL),meta:cMeta.length?cMeta:undefined,bounds:cvK.size?{minCol:cMnQ-cOQ,minRow:cMnR-cOR,maxCol:cMxQ-cOQ,maxRow:cMxR-cOR}:undefined,width:cW,height:cH,rotationVariants:cRotVars.length?cRotVars:undefined,seasonVariants:Object.keys(cSeasonVars).length?cSeasonVars:undefined};
+      };
+      const outColorVariants=(obj.colorVariants||[]).map(_getExpColorVariant);
+
       return {
         id:obj.id, name:obj.name, objectType:obj.objectType,
         animation:obj.animation||undefined, resource:obj.resource||undefined,
         spawnAfter:obj.spawnAfter||undefined,
         healthStates:outHealthStates.length>0?outHealthStates:undefined,
         seasonVariants:Object.keys(outSeasonVariants).length>0?outSeasonVariants:undefined,
+        seasonVariantLayers:Object.keys(outSeasonVariantLayers).length>0?outSeasonVariantLayers:undefined,
         growthStates:outGrowthStates.length>0?outGrowthStates:undefined,
         rotationVariants:outRotationVariants.length>0?outRotationVariants:undefined,
+        colorVariants:outColorVariants.length>0?outColorVariants:undefined,
         terrainBindings:obj.terrainBindings, spawnWeight:obj.spawnWeight,
         resistance:obj.resistance||undefined,
         bounds:{minCol:minQ-originQ,minRow:minR-originR,maxCol:maxQ-originQ,maxRow:maxR-originR},
         hasBlockedTiles:outMeta.some(m=>m.impassable), hasInteraction:outMeta.some(m=>m.interactionPoint),
-        tiles:outTiles, meta:outMeta,
+        tiles:outTiles, objLayers:outObjLayers, meta:outMeta,
       };
     });
     result.objects = exported;
@@ -4193,8 +5149,21 @@ function getExportData() {
  * Listen for the parent editor sending gamedata sections.
  */
 window.addEventListener('message', ev => {
-  if (!ev.data || ev.data.type !== 'loadGamedata') return;
+  if (!ev.data) return;
+  if (ev.data.type === 'techListUpdate') {
+    _availableTechs = ev.data.techs || [];
+    renderObjTechTags();
+    return;
+  }
+    if (ev.data.type === 'resourceTypesUpdate') {
+        _setResourceTypes(ev.data.resourceTypes || []);
+        return;
+    }
+  if (ev.data.type !== 'loadGamedata') return;
   const d = ev.data;
+    if (Array.isArray(d.resourceTypes)) {
+        _setResourceTypes(d.resourceTypes);
+    }
   // Load terrain sets
   if (d.terrainSets && Array.isArray(d.terrainSets)) {
     _tbrush_sets = d.terrainSets;
@@ -4288,24 +5257,100 @@ window.addEventListener('message', ev => {
         let minLQ=Infinity, minLR=Infinity, maxLQ=-Infinity, maxLR=-Infinity;
         const _scanTile = t => { if(t.localCol<minLQ)minLQ=t.localCol; if(t.localCol>maxLQ)maxLQ=t.localCol; if(t.localRow<minLR)minLR=t.localRow; if(t.localRow>maxLR)maxLR=t.localRow; };
         for (const t of (obj.tiles||[])) _scanTile(t);
-        for (const hs of (obj.healthStates||[])) for (const t of (hs.tiles||[])) _scanTile(t);
+        // Also scan objLayers if present
+        if (obj.objLayers) { for (const ln of ['base','detail','top']) for (const t of (obj.objLayers[ln]||[])) _scanTile(t); }
+        for (const hs of (obj.healthStates||[])) { for (const t of (hs.tiles||[])) _scanTile(t); if (hs.objLayers) for (const ln of ['base','detail','top']) for (const t of (hs.objLayers[ln]||[])) _scanTile(t); }
         for (const sarr of Object.values(obj.seasonVariants||{})) for (const t of (sarr||[])) _scanTile(t);
-        for (const gs of (obj.growthStates||[])) for (const t of (gs.tiles||[])) _scanTile(t);
-        for (const rv of (obj.rotationVariants||[])) for (const t of (rv.tiles||[])) _scanTile(t);
+        if (obj.seasonVariantLayers) for (const svl of Object.values(obj.seasonVariantLayers)) for (const ln of ['base','detail','top']) for (const t of (svl[ln]||[])) _scanTile(t);
+        for (const gs of (obj.growthStates||[])) { for (const t of (gs.tiles||[])) _scanTile(t); if (gs.objLayers) for (const ln of ['base','detail','top']) for (const t of (gs.objLayers[ln]||[])) _scanTile(t); }
+        for (const rv of (obj.rotationVariants||[])) { for (const t of (rv.tiles||[])) _scanTile(t); if (rv.objLayers) for (const ln of ['base','detail','top']) for (const t of (rv.objLayers[ln]||[])) _scanTile(t); }
         if (!isFinite(minLQ)){minLQ=0;minLR=0;maxLQ=0;maxLR=0;}
         const MARGIN=1, offQ=MARGIN-minLQ, offR=MARGIN-minLR;
         const _shiftKey=(lc,lr)=>`${lc+offQ},${lr+offR}`;
-        const newTiles={};
-        for (const t of (obj.tiles||[])) newTiles[_shiftKey(t.localCol,t.localRow)]={sheetPath:t.sheetPath,sx:t.sx,sy:t.sy,sw:t.sw,sh:t.sh};
+        const _arrToDict = (arr) => Object.fromEntries((arr||[]).map(t=>[_shiftKey(t.localCol,t.localRow),{sheetPath:t.sheetPath,sx:t.sx,sy:t.sy,sw:t.sw,sh:t.sh}]));
+
+        // Import objLayers (3-layer) if available, else fall back to tiles → base layer
+        let newObjLayers;
+        if (obj.objLayers && (obj.objLayers.base || obj.objLayers.detail || obj.objLayers.top)) {
+            newObjLayers = { base: _arrToDict(obj.objLayers.base), detail: _arrToDict(obj.objLayers.detail), top: _arrToDict(obj.objLayers.top) };
+        } else {
+            newObjLayers = { base: _arrToDict(obj.tiles), detail: {}, top: {} };
+        }
+        // Keep flattened tiles for backward compat
+        const newTiles = Object.assign({}, newObjLayers.base, newObjLayers.detail, newObjLayers.top);
+
         const newMeta={};
         for (const m of (obj.meta||[])) { const mm={}; if(m.impassable)mm.impassable=true; if(m.interactionPoint)mm.interactionPoint=true; if(Object.keys(mm).length)newMeta[_shiftKey(m.localCol,m.localRow)]=mm; }
-        const newHealthStates=(obj.healthStates||[]).map(hs=>({label:hs.label,minHealthPct:hs.minHealthPct,tiles:Object.fromEntries((hs.tiles||[]).map(t=>[_shiftKey(t.localCol,t.localRow),{sheetPath:t.sheetPath,sx:t.sx,sy:t.sy,sw:t.sw,sh:t.sh}]))}));
+
+        // Helper to import state objLayers with legacy fallback
+        const _importStateLayers = (st) => {
+            if (st.objLayers && (st.objLayers.base || st.objLayers.detail || st.objLayers.top)) {
+                return { base: _arrToDict(st.objLayers.base), detail: _arrToDict(st.objLayers.detail), top: _arrToDict(st.objLayers.top) };
+            }
+            if (st.tiles) return { base: _arrToDict(st.tiles), detail: {}, top: {} };
+            return { base: {}, detail: {}, top: {} };
+        };
+
+        const newHealthStates=(obj.healthStates||[]).map(hs=>({label:hs.label,minHealthPct:hs.minHealthPct,objLayers:_importStateLayers(hs)}));
         const newSeasonVariants={};
-        for (const [season,sarr] of Object.entries(obj.seasonVariants||{})) newSeasonVariants[season]=Object.fromEntries((sarr||[]).map(t=>[_shiftKey(t.localCol,t.localRow),{sheetPath:t.sheetPath,sx:t.sx,sy:t.sy,sw:t.sw,sh:t.sh}]));
-        const newGrowthStates=(obj.growthStates||[]).map(gs=>({label:gs.label,daysToReach:gs.daysToReach,tiles:Object.fromEntries((gs.tiles||[]).map(t=>[_shiftKey(t.localCol,t.localRow),{sheetPath:t.sheetPath,sx:t.sx,sy:t.sy,sw:t.sw,sh:t.sh}]))}));
-        const newRotationVariants=(obj.rotationVariants||[]).map(rv=>({label:rv.label,tiles:Object.fromEntries((rv.tiles||[]).map(t=>[_shiftKey(t.localCol,t.localRow),{sheetPath:t.sheetPath,sx:t.sx,sy:t.sy,sw:t.sw,sh:t.sh}]))}));
-        return { ...obj, width:(maxLQ-minLQ)+MARGIN*2+1, height:(maxLR-minLR)+MARGIN*2+1, originQ:offQ, originR:offR, tiles:newTiles, meta:newMeta,
-          healthStates:newHealthStates.length>0?newHealthStates:undefined, seasonVariants:Object.keys(newSeasonVariants).length>0?newSeasonVariants:undefined, growthStates:newGrowthStates.length>0?newGrowthStates:undefined, rotationVariants:newRotationVariants.length>0?newRotationVariants:undefined };
+        if (obj.seasonVariantLayers) {
+            for (const [season,svl] of Object.entries(obj.seasonVariantLayers)) newSeasonVariants[season]={ base: _arrToDict(svl.base), detail: _arrToDict(svl.detail), top: _arrToDict(svl.top) };
+        } else {
+            for (const [season,sarr] of Object.entries(obj.seasonVariants||{})) newSeasonVariants[season]={ base: _arrToDict(sarr), detail: {}, top: {} };
+        }
+        const newGrowthStates=(obj.growthStates||[]).map(gs=>({label:gs.label,daysToReach:gs.daysToReach,objLayers:_importStateLayers(gs)}));
+        const newRotationVariants=(obj.rotationVariants||[]).map(rv=>{
+            const rvObj = {label:rv.label,objLayers:_importStateLayers(rv)};
+            // Import per-variant meta (interaction points, impassable markers)
+            if (rv.meta && rv.meta.length) {
+                const rvMeta = {};
+                for (const m of rv.meta) { const mm={}; if(m.impassable)mm.impassable=true; if(m.interactionPoint)mm.interactionPoint=true; if(Object.keys(mm).length)rvMeta[_shiftKey(m.localCol,m.localRow)]=mm; }
+                rvObj.meta = rvMeta;
+            }
+            // Import per-variant origin (same offset as main object)
+            rvObj.originQ = offQ;
+            rvObj.originR = offR;
+            // Import per-variant canvas size from bounds or width/height
+            if (rv.width != null && rv.height != null) {
+                rvObj.gridW = rv.width + MARGIN * 2;
+                rvObj.gridH = rv.height + MARGIN * 2;
+            }
+            return rvObj;
+        });
+        // ── Color Variants ──
+        const _importColorVariant = (cv) => {
+            const cvObj = { label: cv.label, objLayers: _importStateLayers(cv) };
+            if (cv.meta && cv.meta.length) {
+                const cvMeta = {};
+                for (const m of cv.meta) { const mm={}; if(m.impassable)mm.impassable=true; if(m.interactionPoint)mm.interactionPoint=true; if(Object.keys(mm).length)cvMeta[_shiftKey(m.localCol,m.localRow)]=mm; }
+                cvObj.meta = cvMeta;
+            }
+            cvObj.originQ = offQ;
+            cvObj.originR = offR;
+            if (cv.width != null && cv.height != null) { cvObj.gridW = cv.width + MARGIN * 2; cvObj.gridH = cv.height + MARGIN * 2; }
+            // Import nested rotation variants
+            cvObj.rotationVariants = (cv.rotationVariants||[]).map(rv => {
+                const rObj = { label: rv.label, objLayers: _importStateLayers(rv) };
+                if (rv.meta && rv.meta.length) {
+                    const rMeta = {};
+                    for (const m of rv.meta) { const mm={}; if(m.impassable)mm.impassable=true; if(m.interactionPoint)mm.interactionPoint=true; if(Object.keys(mm).length)rMeta[_shiftKey(m.localCol,m.localRow)]=mm; }
+                    rObj.meta = rMeta;
+                }
+                rObj.originQ = offQ; rObj.originR = offR;
+                if (rv.width != null && rv.height != null) { rObj.gridW = rv.width + MARGIN * 2; rObj.gridH = rv.height + MARGIN * 2; }
+                return rObj;
+            });
+            // Import nested season variants
+            cvObj.seasonVariants = {};
+            for (const [season, sarr] of Object.entries(cv.seasonVariants||{})) {
+                cvObj.seasonVariants[season] = { base: _arrToDict(sarr), detail: {}, top: {} };
+            }
+            return cvObj;
+        };
+        const newColorVariants = (obj.colorVariants||[]).map(_importColorVariant);
+
+        return { ...obj, width:(maxLQ-minLQ)+MARGIN*2+1, height:(maxLR-minLR)+MARGIN*2+1, originQ:offQ, originR:offR, tiles:newTiles, objLayers:newObjLayers, meta:newMeta,
+          healthStates:newHealthStates.length>0?newHealthStates:undefined, seasonVariants:Object.keys(newSeasonVariants).length>0?newSeasonVariants:undefined, growthStates:newGrowthStates.length>0?newGrowthStates:undefined, rotationVariants:newRotationVariants.length>0?newRotationVariants:undefined, colorVariants:newColorVariants.length>0?newColorVariants:undefined };
       });
       objDefs = imported;
       objEditIdx = -1;
@@ -4313,6 +5358,11 @@ window.addEventListener('message', ev => {
       // Only auto-load the first object if already in object mode;
       // otherwise just populate the list (user will click Edit later).
       if (editorMode === 'object' && objDefs.length) loadObject(0);
+  }
+  // Load tech list if included
+  if (d.techs && Array.isArray(d.techs)) {
+    _availableTechs = d.techs;
+    renderObjTechTags();
   }
 });
 
@@ -5276,9 +6326,47 @@ function _pbgApply() {
     document.getElementById('grid-h').value = gridH;
     fitCanvas();
     renderBuildCanvas();
+
+    // Auto-save the generated building and trigger interior generation
+    _pbgAutoSaveAndGenerateInterior(r);
   });
 
   _pbgClose();
+}
+
+/**
+ * After a building is generated, auto-save it and ask the interior editor
+ * to generate a matching interior linked to this building.
+ */
+function _pbgAutoSaveAndGenerateInterior(buildResult) {
+  // Auto-fill a name if empty
+  const nameInput = document.getElementById('bld-name');
+  if (!nameInput.value.trim()) {
+    const types = ['Cottage','House','Shop','Hall','Lodge','Dwelling','Homestead','Cabin','Manor','Hut'];
+    const pick = types[Math.floor(Math.random() * types.length)];
+    nameInput.value = pick;
+  }
+  // Save the building
+  saveBuilding();
+
+  // Now trigger interior generation for the saved building
+  const bIdx = buildingEditIdx >= 0 ? buildingEditIdx : buildings.length - 1;
+  const b = buildings[bIdx];
+  if (!b) return;
+
+  // Notify parent so data is synced, then ask for interior generation
+  notifyParent();
+  try {
+    window.parent.postMessage({
+      type: 'openBuildingInterior',
+      buildingId:     b.id,
+      buildingName:   b.name,
+      buildingType:   b.buildingType,
+      buildingWidth:  b.width,
+      buildingHeight: b.height,
+      autoGenerate:   true,
+    }, '*');
+  } catch(e) { /* standalone mode — no interior generation from here */ }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -5288,5 +6376,17 @@ init();
 // Tell the parent editor we're ready to receive data
 try { window.parent.postMessage({ type: 'spriteEditorReady' }, '*'); } catch(e) {}
 </script>
+
+<!-- Required Techs Picker Modal -->
+<div id="obj-tech-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:500">
+  <div style="background:var(--panel);border:1px solid var(--border2);border-radius:10px;width:380px;max-height:70vh;display:flex;flex-direction:column;overflow:hidden">
+    <h3 style="padding:12px 16px;font-size:12px;border-bottom:1px solid var(--border);margin:0">Select Required Technologies</h3>
+    <div id="obj-tech-list" style="flex:1;overflow-y:auto;padding:8px 12px"></div>
+    <div style="display:flex;justify-content:flex-end;padding:10px 16px;border-top:1px solid var(--border);gap:8px">
+      <button onclick="closeObjTechPicker()">Done</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

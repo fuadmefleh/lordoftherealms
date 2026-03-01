@@ -22,8 +22,8 @@ function createWindow() {
     // Remove the default menu bar for a cleaner game experience
     Menu.setApplicationMenu(null);
 
-    // Load the game
-    mainWindow.loadFile('index.html');
+    // Load the game from dist-web/ (built by Vite)
+    mainWindow.loadFile(path.join(__dirname, 'dist-web', 'index.html'));
 
     // Show window when ready to avoid visual flash
     mainWindow.once('ready-to-show', () => {

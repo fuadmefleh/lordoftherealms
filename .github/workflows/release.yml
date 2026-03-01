@@ -26,39 +26,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
+      - name: Build game data
+        run: npm run build:data
+
       - name: Run tests
-        run: |
-          # Start the test server in the background
-          npx http-server . -p 8082 -c-1 --cors &
-          SERVER_PID=$!
-          
-          # Wait for server to be ready
-          echo "Waiting for server to start..."
-          SERVER_STARTED=false
-          for i in {1..30}; do
-            if curl -s http://localhost:8082 > /dev/null; then
-              echo "Server is ready"
-              SERVER_STARTED=true
-              break
-            fi
-            sleep 1
-          done
-          
-          # Verify server started
-          if [ "$SERVER_STARTED" = false ]; then
-            echo "❌ Server failed to start within 30 seconds"
-            kill $SERVER_PID 2>/dev/null || true
-            exit 1
-          fi
-          
-          # Run tests using a headless browser approach
-          # Since this is browser-based, we'll verify the test page loads
-          curl -f http://localhost:8082/tests/index.html > /dev/null
-          
-          # Kill the server
-          kill $SERVER_PID
-          
-          echo "Tests completed successfully"
+        run: npm test
 
   build-windows-exe:
     name: Build Windows Installer
@@ -90,6 +62,9 @@ jobs:
             echo "prerelease=false" >> $GITHUB_OUTPUT
           fi
       
+      - name: Build game data
+        run: npm run build:data
+
       - name: Build Electron app
         run: npm run dist
         env:
@@ -142,18 +117,21 @@ jobs:
           name: windows-installer
           path: dist-win
 
+      - name: Build game data
+        run: npm run build:data
+
+      - name: Build for production
+        run: npm run build
+
       - name: Create release bundle
         run: |
           # Create a directory for the release
           mkdir -p release/lord-of-the-realms-${{ steps.version.outputs.version }}
           
-          # Copy game files (exclude development and git files)
+          # Copy Vite build output + runtime data
+          cp -r dist-web/* release/lord-of-the-realms-${{ steps.version.outputs.version }}/
           cp -r assets release/lord-of-the-realms-${{ steps.version.outputs.version }}/
           cp -r data release/lord-of-the-realms-${{ steps.version.outputs.version }}/
-          cp -r js release/lord-of-the-realms-${{ steps.version.outputs.version }}/
-          cp index.html release/lord-of-the-realms-${{ steps.version.outputs.version }}/
-          cp standalone.html release/lord-of-the-realms-${{ steps.version.outputs.version }}/
-          cp styles.css release/lord-of-the-realms-${{ steps.version.outputs.version }}/
           cp README.md release/lord-of-the-realms-${{ steps.version.outputs.version }}/
           cp LICENSE release/lord-of-the-realms-${{ steps.version.outputs.version }}/ 2>/dev/null || echo "No LICENSE file found"
           
@@ -180,7 +158,8 @@ jobs:
           #### Browser Version
           1. Download the **lord-of-the-realms-*.zip** file below
           2. Extract the archive
-          3. Open `index.html` in your web browser
+          3. Serve the folder with any static HTTP server (e.g. `npx serve .`)
+          4. Open the URL in your browser
           
           ### 📦 What's Included
           

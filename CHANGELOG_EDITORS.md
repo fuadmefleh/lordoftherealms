@@ -21,7 +21,7 @@ A full hex tile map editor, standalone HTML loaded in an iframe.
 - **Export API**: `getExportData()` returns `{name, author, seed, width, height, tiles[]}` for parent iframe communication
 - **Import**: listens for `postMessage({type:'loadWorld', world})` to load saved worlds
 
-### `js/systems/modStore.js`
+### `src/systems/modStore.js`
 IndexedDB persistence layer for all editor/mod data.
 
 - **Database**: `lord_of_realms_mods`, version 1
@@ -43,7 +43,7 @@ IndexedDB persistence layer for all editor/mod data.
   - 🎮 **Play Custom World** (`#btnPlayCustom`)
 - **Editor overlay** (`#editorOverlay`): full-screen hidden div (z-index 2500) with top bar (Save / Close) + iframe for `editor.html`
 - **World editor overlay** (`#worldEditorOverlay`): same pattern, top bar (Save World / Load / Close) + iframe for `world_editor.html`
-- **Script tag**: loads `js/systems/modStore.js` before `game.js`
+- **Script tag**: loads `src/systems/modStore.js` (via Vite module bundling)
 
 ### `styles.css`
 - `#titleButtonsSecondary` — flex row for secondary buttons
@@ -52,7 +52,7 @@ IndexedDB persistence layer for all editor/mod data.
 - `.editor-bar-title`, `.editor-bar-btn`, `.editor-bar-spacer` — top bar styling
 - `#editorFrame`, `#worldEditorFrame` — borderless iframes filling the overlay
 
-### `js/ui/game.js`
+### `src/ui/game.js`
 New methods added to the `Game` class:
 
 | Method | Purpose |
@@ -69,7 +69,7 @@ New methods added to the `Game` class:
 | `startCustomWorld(data)` | Full game boot from custom world data (like `_doStartNewGame` but uses editor tiles) |
 | `_editorFlashButton()` | Brief "Saved!" / "Error" feedback on bar buttons |
 
-### `js/world/world.js`
+### `src/world/world.js`
 New methods on the `World` class:
 
 | Method | Purpose |
@@ -105,5 +105,5 @@ Title Screen
 - **Coordinate system**: both the world editor and game use **even-row offset** hex coordinates with pointy-top hexagons
 - **Storage**: IndexedDB (`lord_of_realms_mods` database), survives browser refresh, no server needed
 - **Iframe isolation**: editors run in iframes, communicate via `postMessage` and direct `contentWindow.getExportData()` calls
-- **Terrain matching**: the world editor's 24 terrain types exactly match `Terrain.TYPES` in `js/world/terrain.js`
+- **Terrain matching**: the world editor's 24 terrain types exactly match `Terrain.TYPES` in `src/world/terrain.js`
 - **Resource assignment**: custom worlds get resources via the same probability tables used by procedural generation (`Terrain.RESOURCE_CHANCES`)

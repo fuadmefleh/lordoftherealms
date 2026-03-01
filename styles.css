@@ -366,6 +366,56 @@ body {
     font-size: 14px;
 }
 
+/* ── Sims-style Time Controls ── */
+.sims-time-controls {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: rgba(10, 14, 23, 0.7);
+    border: 1px solid rgba(245, 197, 66, 0.2);
+    border-radius: var(--radius-md);
+    padding: 2px;
+    height: 36px;
+}
+
+.sims-time-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 30px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    letter-spacing: -1px;
+    padding: 0 2px;
+}
+
+.sims-time-btn:hover {
+    background: rgba(245, 197, 66, 0.12);
+    color: var(--gold-light);
+}
+
+.sims-time-btn.active {
+    background: linear-gradient(180deg, rgba(245, 197, 66, 0.25) 0%, rgba(180, 140, 40, 0.35) 100%);
+    color: var(--gold);
+    box-shadow: 0 0 8px rgba(245, 197, 66, 0.15), inset 0 0 4px rgba(245, 197, 66, 0.1);
+    text-shadow: 0 0 6px rgba(245, 197, 66, 0.4);
+}
+
+.sims-time-btn.paused-flash {
+    animation: pauseFlash 1.2s ease-in-out infinite;
+}
+
+@keyframes pauseFlash {
+    0%, 100% { color: var(--gold); }
+    50% { color: rgba(245, 197, 66, 0.3); }
+}
+
 /* Settings gear button */
 .civ-settings-btn {
     width: 36px;

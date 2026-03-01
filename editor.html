@@ -133,6 +133,55 @@ textarea{resize:vertical;font-family:inherit}
 #toast.ok{border-color:var(--green);color:var(--green)}
 #toast.err{border-color:var(--red);color:var(--red)}
 
+/* ════════════════════════════════════════════════════
+   TECH TREE EDITOR
+   ════════════════════════════════════════════════════ */
+#tt-editor{display:flex;flex-direction:column;height:100%;overflow:hidden;background:var(--bg)}
+#tt-toolbar{display:flex;align-items:center;gap:8px;padding:7px 14px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+#tt-toolbar h2{font-size:12px;font-weight:700;color:var(--text-dim);letter-spacing:.06em;text-transform:uppercase;margin-right:4px}
+#tt-main{display:flex;flex:1;overflow:hidden}
+#tt-list-panel{width:280px;min-width:180px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#tt-list-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+#tt-list-header h3{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim)}
+#tt-search{width:100%;background:#0d1117;border:none;border-bottom:1px solid var(--border);padding:6px 12px;color:var(--text);font-size:12px;flex-shrink:0}
+#tt-search:focus{outline:none;border-bottom-color:var(--blue)}
+#tt-list-scroll{flex:1;overflow-y:auto;padding:6px}
+#tt-right{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#tt-form-panel{padding:16px 18px;border-bottom:1px solid var(--border);flex-shrink:0;overflow-y:auto;max-height:52%}
+#tt-form-panel h3{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin-bottom:12px}
+#tt-tree-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+#tt-canvas{display:block}
+.tt-card{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:5px;cursor:pointer;border:1px solid transparent;transition:background .1s,border-color .1s;margin-bottom:2px}
+.tt-card:hover{background:var(--hover)}
+.tt-card.selected{background:#0b2a4a;border-color:var(--blue)}
+.tt-card.builtin{opacity:.8;border-left:2px solid #30363d}
+.tt-card.builtin .tc-name{color:#8b949e}
+.tt-card .tc-icon{font-size:18px;width:24px;text-align:center;flex-shrink:0}
+.tt-card .tc-info{flex:1;min-width:0}
+.tt-card .tc-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tt-card .tc-id{font-size:10px;color:var(--text-dim);font-family:monospace}
+.tt-card .tc-cat{font-size:10px;color:var(--text-dim)}
+.tt-badge{display:inline-block;font-size:8px;padding:1px 5px;border-radius:3px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;vertical-align:middle}
+.tt-badge.badge-builtin{background:rgba(139,148,158,.15);color:#8b949e;border:1px solid rgba(139,148,158,.25)}
+.tt-badge.badge-custom{background:rgba(88,166,255,.1);color:var(--blue);border:1px solid rgba(88,166,255,.2)}
+#tt-builtin-notice{background:rgba(240,180,40,.06);border:1px solid rgba(240,180,40,.18);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:#e6a817;line-height:1.5}
+#tt-show-filter{display:flex;gap:6px;align-items:center;margin-left:6px}
+#tt-show-filter label{font-size:11px;color:var(--text-dim);cursor:pointer;display:flex;align-items:center;gap:3px}
+.tt-tag{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 6px;border-radius:8px;background:#1a1828;color:var(--blue);border:1px solid rgba(88,166,255,.25);cursor:default}
+.tt-tag .tag-x{cursor:pointer;font-size:12px;line-height:1;margin-left:2px;opacity:.6}
+.tt-tag .tag-x:hover{opacity:1;color:var(--red)}
+
+/* Prereq picker modal */
+#tt-prereq-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:500}
+#tt-prereq-modal.open{display:flex}
+#tt-prereq-box{background:var(--panel);border:1px solid var(--border2);border-radius:10px;width:380px;max-height:70vh;display:flex;flex-direction:column;overflow:hidden}
+#tt-prereq-box h3{padding:12px 16px;font-size:12px;border-bottom:1px solid var(--border)}
+#tt-prereq-list{flex:1;overflow-y:auto;padding:8px 12px}
+#tt-prereq-list label{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:4px;cursor:pointer;font-size:12px}
+#tt-prereq-list label:hover{background:var(--hover)}
+#tt-prereq-list label input{flex-shrink:0}
+#tt-prereq-box .modal-actions{display:flex;justify-content:flex-end;padding:10px 16px;border-top:1px solid var(--border);gap:8px}
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -159,6 +208,9 @@ textarea{resize:vertical;font-family:inherit}
   </div>
   <div class="nav-tab" data-tab="resources"   onclick="switchTab('resources')">
     <span class="tab-icon">💎</span> Resource Types
+  </div>
+  <div class="nav-tab" data-tab="techtree"    onclick="switchTab('techtree')">
+    <span class="tab-icon">🔬</span> Tech Tree
   </div>
   <div class="nav-tab" data-tab="palettes"    onclick="switchTab('palettes')">
     <span class="tab-icon">🎨</span> Palettes
@@ -197,6 +249,73 @@ textarea{resize:vertical;font-family:inherit}
   <!-- Palette Maker iframe -->
   <div class="editor-pane" id="pane-palettes">
     <!-- loaded lazily on first activation -->
+  </div>
+
+  <!-- Tech Tree inline editor -->
+  <div class="editor-pane" id="pane-techtree">
+    <div id="tt-editor">
+      <div id="tt-toolbar">
+        <h2>Tech Tree Builder</h2>
+        <div class="tb-sep"></div>
+        <button class="green" onclick="ttAddTech()">＋ New Tech</button>
+        <button onclick="ttAddCategory()">＋ Category</button>
+        <div class="tb-sep"></div>
+        <label style="font-size:11px;color:var(--text-dim)">Category:</label>
+        <select id="tt-cat-filter" onchange="ttRender()" style="font-size:12px;min-width:110px">
+          <option value="">All</option>
+        </select>
+        <div id="tt-show-filter">
+          <label><input type="checkbox" id="tt-show-builtin" checked onchange="ttRender();ttDrawTree()"> Built-in</label>
+          <label><input type="checkbox" id="tt-show-custom" checked onchange="ttRender();ttDrawTree()"> Custom</label>
+        </div>
+      </div>
+      <div id="tt-main">
+        <div id="tt-list-panel">
+          <div id="tt-list-header"><h3>Technologies (<span id="tt-count">0</span>)</h3></div>
+          <input id="tt-search" type="text" placeholder="🔍  Search techs…" oninput="ttRender()">
+          <div id="tt-list-scroll"></div>
+        </div>
+        <div id="tt-right">
+          <div id="tt-form-panel">
+            <div id="tt-no-sel">← Select a tech to edit, or click <strong>＋ New Tech</strong>.</div>
+            <div id="tt-form" style="display:none">
+              <h3>Edit Technology</h3>
+              <div class="form-grid">
+                <div class="form-field"><label>ID <span style="color:var(--text-dim)">(snake_case)</span></label><input type="text" id="tt-id" placeholder="e.g. steel_forging" oninput="markDirty()"></div>
+                <div class="form-field"><label>Display Name</label><input type="text" id="tt-name" placeholder="e.g. Steel Forging" oninput="markDirty()"></div>
+                <div class="form-field"><label>Icon (emoji)</label><div class="icon-row"><span class="icon-preview" id="tt-icon-preview">🔬</span><input type="text" id="tt-icon" placeholder="🔬" maxlength="4" oninput="document.getElementById('tt-icon-preview').textContent=this.value||'🔬';markDirty()"></div></div>
+                <div class="form-field"><label>Category</label><select id="tt-category" onchange="markDirty()"></select></div>
+                <div class="form-field"><label>Tier</label><input type="number" id="tt-tier" value="1" min="1" max="10" step="1" style="width:60px" oninput="markDirty()"></div>
+                <div class="form-field"><label>Cost (gold)</label><input type="number" id="tt-cost" value="100" min="0" step="50" style="width:80px" oninput="markDirty()"></div>
+                <div class="form-field"><label>Days</label><input type="number" id="tt-days" value="5" min="1" max="999" step="1" style="width:60px" oninput="markDirty()"></div>
+                <div class="form-field"><label>Research Mats <span style="color:var(--text-dim)">(JSON)</span></label><input type="text" id="tt-materials" placeholder='{"iron":10,"wood":5}' oninput="markDirty()"></div>
+                <div class="form-field full">
+                  <label>Prerequisites <span style="color:var(--text-dim)">(click to add/remove)</span></label>
+                  <div id="tt-prereqs-tags" style="display:flex;flex-wrap:wrap;gap:4px;min-height:24px;padding:4px;background:#0d1117;border:1px solid var(--border2);border-radius:4px;cursor:pointer" onclick="ttOpenPrereqPicker()"></div>
+                </div>
+                <div class="form-field full"><label>Description</label><textarea id="tt-desc" rows="2" placeholder="What this tech does…" oninput="markDirty()"></textarea></div>
+                <div class="form-field full"><label>Flavor Text</label><textarea id="tt-flavor" rows="1" placeholder="Flavor quote…" oninput="markDirty()"></textarea></div>
+                <div class="form-field full">
+                  <label>Effects <span style="color:var(--text-dim)">(JSON — e.g. {"farmProductionBonus":0.2})</span></label>
+                  <textarea id="tt-effects" rows="2" placeholder='{"farmProductionBonus": 0.20}' oninput="markDirty()"></textarea>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button class="green" onclick="ttSave()">💾 Save Tech</button>
+                <button class="danger" onclick="ttDelete()">🗑 Delete</button>
+                <span id="tt-msg" style="font-size:11px;color:var(--text-dim);margin-left:4px"></span>
+              </div>
+            </div>
+          </div>
+          <div id="tt-tree-panel">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+              <h3 style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim)">Tech Tree Preview</h3>
+            </div>
+            <canvas id="tt-canvas" style="width:100%;flex:1;cursor:grab"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Resource Types inline editor -->
@@ -268,6 +387,13 @@ textarea{resize:vertical;font-family:inherit}
                   <label>Base Value <span style="color:var(--text-dim)">(gold)</span></label>
                   <input type="number" id="f-value" min="0" step="1" placeholder="10" style="width:100%" oninput="markDirty()">
                 </div>
+                <div class="form-field">
+                  <label>Usage</label>
+                  <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);margin-top:4px">
+                    <input type="checkbox" id="f-build-cost" onchange="markDirty()">
+                    Usable in building cost menus
+                  </label>
+                </div>
                 <div class="form-field full">
                   <label>Description <span style="color:var(--text-dim)">(optional)</span></label>
                   <textarea id="f-desc" rows="2" placeholder="Flavour text shown in the UI…" oninput="markDirty()"></textarea>
@@ -300,7 +426,18 @@ textarea{resize:vertical;font-family:inherit}
 <!-- Toast -->
 <div id="toast"></div>
 
-<script src="js/systems/modStore.js"></script>
+<!-- Prereq Picker Modal -->
+<div id="tt-prereq-modal">
+  <div id="tt-prereq-box">
+    <h3>Select Prerequisites</h3>
+    <div id="tt-prereq-list"></div>
+    <div class="modal-actions">
+      <button onclick="ttClosePrereqPicker()">Done</button>
+    </div>
+  </div>
+</div>
+
+<script src="editor-modstore.js"></script>
 <script>
 'use strict';
 
@@ -308,7 +445,7 @@ textarea{resize:vertical;font-family:inherit}
 //  TAB SWITCHING
 // ═══════════════════════════════════════════════════════
 
-const iframeLoaded = { sprite: true, spritesheet: false, interiors: false, terrain: false, palettes: false };
+const iframeLoaded = { sprite: true, spritesheet: false, interiors: false, terrain: false, palettes: false, techtree: true };
 
 function switchTab(name) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
@@ -358,7 +495,7 @@ let _gamedata = null;
 let terrainData = null;
 
 // Working copies of the two sections we edit
-let resources    = {};   // KEY → { id, name, icon, color, category, baseValue, description }
+let resources    = {};   // KEY → { id, name, icon, color, category, baseValue, description, buildCostEligible }
 let resChanc     = {};   // terrainId → [ { resource, chance } ]
 
 let selectedId  = null;  // currently selected resource KEY
@@ -378,13 +515,44 @@ const CATEGORY_LABELS = {
 //  INIT — load gamedata.json
 // ═══════════════════════════════════════════════════════
 
+// Built-in game data (technology, etc.) loaded from gamedata.json on disk
+let _builtinGamedata = null;
+
+function isLegacyBuildCostResource(id) {
+  return ['wood', 'timber', 'stone', 'iron'].includes(String(id || '').toLowerCase());
+}
+
+function mergeTerrainWithBuiltins(terrain) {
+  const base = (_builtinGamedata && _builtinGamedata.terrain) ? _builtinGamedata.terrain : {};
+  const incoming = terrain || {};
+  return {
+    ...base,
+    ...incoming,
+    types: { ...(base.types || {}), ...(incoming.types || {}) },
+    resources: { ...(base.resources || {}), ...(incoming.resources || {}) },
+    resourceChances: { ...(base.resourceChances || {}), ...(incoming.resourceChances || {}) },
+    biomeTable: (Array.isArray(incoming.biomeTable) && incoming.biomeTable.length)
+      ? incoming.biomeTable
+      : (base.biomeTable || []),
+  };
+}
+
 (async function init() {
+  // Always fetch the full gamedata.json to get built-in data (technology tree, etc.)
+  try {
+    const res = await fetch('data/gamedata.json');
+    if (res.ok) _builtinGamedata = await res.json();
+  } catch(e) { console.warn('Could not fetch gamedata.json for built-in data:', e); }
+
   try {
     // Try loading from browser storage first (IndexedDB)
     await ModStore.init();
     const stored = await ModStore.loadModData();
     if (stored && typeof stored === 'object' && (stored.terrain || stored.buildings || stored.objects)) {
       _gamedata = { ...makeEmptyGamedata(), ...stored };
+      _gamedata.terrain = mergeTerrainWithBuiltins(_gamedata.terrain);
+      // Inject built-in data that the editor doesn't persist but needs to display
+      if (_builtinGamedata) _gamedata.technology = _builtinGamedata.technology;
       applyGamedata();
       toast('Loaded from browser storage', 'ok');
       return;
@@ -392,14 +560,12 @@ const CATEGORY_LABELS = {
   } catch (e) {
     console.warn('ModStore load failed, trying gamedata.json...', e);
   }
-  // Fall back to fetching gamedata.json from disk
-  try {
-    const res = await fetch('data/gamedata.json');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    _gamedata = await res.json();
+  // Fall back to the fetched gamedata.json
+  if (_builtinGamedata) {
+    _gamedata = _builtinGamedata;
     applyGamedata();
     toast('gamedata.json loaded', 'ok');
-  } catch (e) {
+  } else {
     newGamedata(true /* silent */);
     toast('No saved data found — started fresh. Import or create new.', 'err');
   }
@@ -408,14 +574,16 @@ const CATEGORY_LABELS = {
 function loadFromTerrainData(data) {
   resources = {};
   for (const [KEY, r] of Object.entries(data.resources || {})) {
+    const rid = r.id || KEY.toLowerCase();
     resources[KEY] = {
-      id:          r.id          || KEY.toLowerCase(),
+      id:          rid,
       name:        r.name        || KEY,
       icon:        r.icon        || '📦',
       color:       r.color       || '#888888',
-      category:    r.category    || guessCategory(r.id || KEY.toLowerCase()),
+      category:    r.category    || guessCategory(rid),
       baseValue:   r.baseValue   ?? 10,
       description: r.description || '',
+      buildCostEligible: (r.buildCostEligible === true || r.buildCost === true || isLegacyBuildCostResource(rid)),
     };
   }
   resChanc = {};
@@ -424,6 +592,29 @@ function loadFromTerrainData(data) {
   }
   renderResourceList();
   renderChances();
+  broadcastResourceTypes();
+}
+
+function getResourceTypesForEditors() {
+  return Object.values(resources).map(r => ({
+    id: r.id,
+    name: r.name,
+    icon: r.icon || '📦',
+    color: r.color || '#888888',
+    buildCostEligible: !!r.buildCostEligible,
+  }));
+}
+
+function broadcastResourceTypes() {
+  const payload = { type: 'resourceTypesUpdate', resourceTypes: getResourceTypesForEditors() };
+  const spr = document.getElementById('iframe-sprite');
+  if (spr && spr.contentWindow) {
+    try { spr.contentWindow.postMessage(payload, '*'); } catch (e) {}
+  }
+  const interior = document.getElementById('iframe-interiors');
+  if (interior && interior.contentWindow) {
+    try { interior.contentWindow.postMessage(payload, '*'); } catch (e) {}
+  }
 }
 
 function guessCategory(id) {
@@ -500,6 +691,7 @@ function populateForm(r) {
   document.getElementById('f-color-picker').value = r.color.length === 7 ? r.color : '#888888';
   document.getElementById('f-category').value = r.category || 'other';
   document.getElementById('f-value').value    = r.baseValue ?? 10;
+  document.getElementById('f-build-cost').checked = !!r.buildCostEligible;
   document.getElementById('f-desc').value     = r.description || '';
   document.getElementById('form-msg').textContent = '';
 }
@@ -531,6 +723,7 @@ function saveCurrentResource() {
     color:       document.getElementById('f-color').value.trim() || '#888888',
     category:    document.getElementById('f-category').value,
     baseValue:   parseFloat(document.getElementById('f-value').value) || 0,
+    buildCostEligible: !!document.getElementById('f-build-cost').checked,
     description: document.getElementById('f-desc').value.trim(),
   };
 
@@ -551,6 +744,7 @@ function saveCurrentResource() {
 
   renderResourceList();
   renderChances();
+  broadcastResourceTypes();
   markDirty();
   setFormMsg('Saved.', false);
 }
@@ -570,6 +764,7 @@ function deleteCurrentResource() {
   document.getElementById('res-form').style.display     = 'none';
   renderResourceList();
   renderChances();
+  broadcastResourceTypes();
   markDirty();
 }
 
@@ -579,7 +774,7 @@ function addNewResource() {
   const KEY = `NEW_RESOURCE_${n}`;
   resources[KEY] = {
     id: `new_resource_${n}`, name: `New Resource ${n}`,
-    icon: '📦', color: '#888888', category: 'other', baseValue: 10, description: '',
+    icon: '📦', color: '#888888', category: 'other', baseValue: 10, description: '', buildCostEligible: false,
   };
   renderResourceList();
   selectResource(KEY);
@@ -754,6 +949,7 @@ function buildTerrainJson() {
     if (r.category && r.category !== 'other') outResources[KEY].category = r.category;
     if (r.baseValue && r.baseValue !== 10)     outResources[KEY].baseValue = r.baseValue;
     if (r.description)                          outResources[KEY].description = r.description;
+    if (r.buildCostEligible)                    outResources[KEY].buildCostEligible = true;
   }
   // Compose output resourceChances
   const outChances = {};
@@ -777,15 +973,25 @@ function makeEmptyGamedata() {
     buildings:  [],
     objects:    [],
     interiors:  [],
+    interiorBrushes: [],
     terrainSets:     [],
     nineTileBrushes: [],
     doorCatalog:     [],
     windowCatalog:   [],
+    customTechs: {
+      categories: {},
+      techs: {},
+      researchCosts: {},
+    },
   };
 }
 
 function newGamedata(silent) {
   _gamedata = makeEmptyGamedata();
+  // Always inject built-in technology data
+  if (_builtinGamedata && _builtinGamedata.technology) {
+    _gamedata.technology = _builtinGamedata.technology;
+  }
   applyGamedata();
   if (!silent) {
     dirty = false; updateDirtyBadge();
@@ -799,9 +1005,12 @@ function newGamedata(silent) {
  */
 function applyGamedata() {
   // Resource editor
-  terrainData = _gamedata.terrain || { types: {}, resources: {}, resourceChances: {}, biomeTable: [] };
+  terrainData = mergeTerrainWithBuiltins(_gamedata.terrain || { types: {}, resources: {}, resourceChances: {}, biomeTable: [] });
   _gamedata.terrain = terrainData;
   loadFromTerrainData(terrainData);
+
+  // Tech tree editor
+  ttLoadFromGamedata();
 
   // Sprite editor (iframe) — send buildings + objects + terrainSets
   pushToSpriteEditor();
@@ -817,6 +1026,7 @@ function pushToSpriteEditor() {
   const iframe = document.getElementById('iframe-sprite');
   if (iframe && iframe.contentWindow) {
     try {
+      const techList = Object.values(_ttTechs).map(t => ({ id: t.id, name: t.name, icon: t.icon, category: t.category, _builtin: !!t._builtin }));
       iframe.contentWindow.postMessage({
         type: 'loadGamedata',
         buildings:       _gamedata.buildings       || [],
@@ -825,6 +1035,8 @@ function pushToSpriteEditor() {
         nineTileBrushes: _gamedata.nineTileBrushes || [],
         doorCatalog:     _gamedata.doorCatalog     || [],
         windowCatalog:   _gamedata.windowCatalog   || [],
+        techs:           techList,
+        resourceTypes:   getResourceTypesForEditors(),
       }, '*');
     } catch (e) { /* iframe may not be ready yet */ }
   }
@@ -853,8 +1065,10 @@ function pushToInteriorEditor() {
       iframe.contentWindow.postMessage({
         type: 'loadGamedata',
         interiors: _gamedata.interiors || [],
+        interiorBrushes: _gamedata.interiorBrushes || [],
         buildings: _gamedata.buildings || [],
         objects:   _gamedata.objects   || [],
+        resourceTypes: getResourceTypesForEditors(),
       }, '*');
     } catch (e) { /* iframe may not be ready yet */ }
   }
@@ -889,6 +1103,7 @@ window.addEventListener('message', ev => {
   // Interior editor is sending back updated data (on every save)
   if (ev.data.type === 'interiorDataChanged') {
     if (ev.data.interiors) _gamedata.interiors = ev.data.interiors;
+    if (ev.data.nineTileBrushes) _gamedata.interiorBrushes = ev.data.nineTileBrushes;
     markDirty();
   }
   // Terrain editor is ready and asking for data
@@ -916,13 +1131,14 @@ window.addEventListener('message', ev => {
           buildingType:   ev.data.buildingType,
           buildingWidth:  ev.data.buildingWidth,
           buildingHeight: ev.data.buildingHeight,
+          autoGenerate:   ev.data.autoGenerate || false,
           buildings:      _gamedata.buildings || [],
         }, '*');
       }
     };
     // Small delay to let iframe load if it was just created
     if (iframeLoaded.interiors) { setTimeout(fwd, 100); }
-    else { setTimeout(fwd, 600); }
+    else { setTimeout(fwd, 1200); }
   }
 });
 
@@ -940,6 +1156,10 @@ function handleImport(ev) {
       }
       // Merge into a full gamedata shell (so partial files still work)
       _gamedata = { ...makeEmptyGamedata(), ...parsed };
+      // Ensure built-in technology data is always available
+      if (_builtinGamedata && _builtinGamedata.technology && !_gamedata.technology) {
+        _gamedata.technology = _builtinGamedata.technology;
+      }
 
       // ── Migrate legacy custom_* nested format to flat arrays ──
       if (_gamedata.custom_buildings && !_gamedata.buildings?.length) {
@@ -989,6 +1209,8 @@ function handleImport(ev) {
 function exportGamedata() {
   // Collect latest terrain edits from the resource editor
   _gamedata.terrain = buildTerrainJson();
+  // Collect latest tech tree edits
+  _gamedata.customTechs = ttBuildGamedata();
 
   // Ask sprite iframe for latest buildings/objects via synchronous pull
   const iframe = document.getElementById('iframe-sprite');
@@ -1064,6 +1286,8 @@ async function autoSaveToBrowser() {
   try {
     // Collect latest from resource editor
     _gamedata.terrain = buildTerrainJson();
+    // Collect latest from tech tree editor
+    _gamedata.customTechs = ttBuildGamedata();
 
     // Pull from sprite editor iframe
     const sprIframe = document.getElementById('iframe-sprite');
@@ -1082,6 +1306,7 @@ async function autoSaveToBrowser() {
     if (intIframe && intIframe.contentWindow && typeof intIframe.contentWindow.getExportData === 'function') {
       const id = intIframe.contentWindow.getExportData();
       if (id.interiors) _gamedata.interiors = id.interiors;
+      if (id.nineTileBrushes) _gamedata.interiorBrushes = id.nineTileBrushes;
     }
 
     // Pull from terrain editor iframe
@@ -1121,6 +1346,616 @@ function toast(msg, type = '') {
 
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ═══════════════════════════════════════════════════════
+//  TECH TREE EDITOR
+// ═══════════════════════════════════════════════════════
+
+let _ttCategories = {}; // id → { id, name, icon, color }
+let _ttTechs      = {}; // KEY → { id, name, icon, category, tier, cost, days, requires, description, flavorText, effects, materials }
+let _ttSelected   = null;
+
+// Default categories from the game
+const _ttDefaultCats = {
+  agriculture:    { id:'agriculture',    name:'Agriculture',       icon:'🌾', color:'#4caf50' },
+  industry:       { id:'industry',       name:'Industry',          icon:'⚒️', color:'#ff9800' },
+  military:       { id:'military',       name:'Military',          icon:'⚔️', color:'#f44336' },
+  infrastructure: { id:'infrastructure', name:'Infrastructure',    icon:'🛤️', color:'#9c27b0' },
+  commerce:       { id:'commerce',       name:'Commerce',          icon:'💰', color:'#ffc107' },
+  naval:          { id:'naval',          name:'Naval',             icon:'⚓', color:'#0097a7' },
+  culture:        { id:'culture',        name:'Culture & Learning',icon:'📚', color:'#7e57c2' },
+  medicine:       { id:'medicine',       name:'Medicine',          icon:'💊', color:'#66bb6a' },
+};
+
+function ttLoadFromGamedata() {
+  const ct = _gamedata.customTechs || {};
+  _ttCategories = { ..._ttDefaultCats, ...(ct.categories || {}) };
+  _ttTechs = {};
+
+  // Load built-in techs from the game's technology data
+  const builtinTechs = (_gamedata.technology && _gamedata.technology.TECHS) || {};
+  for (const [KEY, t] of Object.entries(builtinTechs)) {
+    _ttTechs[KEY] = { ...t, _builtin: true };
+  }
+
+  // Load custom techs (overrides built-in if same KEY)
+  for (const [KEY, t] of Object.entries(ct.techs || {})) {
+    _ttTechs[KEY] = { ...t, _builtin: false };
+  }
+  ttBuildCatFilter();
+  ttRender();
+  ttDrawTree();
+}
+
+function ttBuildGamedata() {
+  const cats = {};
+  for (const [id, c] of Object.entries(_ttCategories)) {
+    if (!_ttDefaultCats[id]) cats[id] = { ...c };
+  }
+  // Only export custom techs, not built-in ones
+  const techs = {};
+  const costs = {};
+  for (const [KEY, t] of Object.entries(_ttTechs)) {
+    if (t._builtin) continue; // skip built-in techs
+    techs[KEY] = {
+      id: t.id, name: t.name, icon: t.icon || '🔬',
+      category: t.category, tier: t.tier || 1,
+      cost: t.cost || 100, days: t.days || 5,
+      requires: t.requires || [],
+      description: t.description || '',
+      flavorText: t.flavorText || '',
+      effects: t.effects || {},
+    };
+    if (t.materials && Object.keys(t.materials).length) {
+      costs[t.id] = { gold: t.cost || 100, materials: t.materials, days: t.days || 5 };
+    }
+  }
+  return { categories: cats, techs, researchCosts: costs };
+}
+
+function ttBuildCatFilter() {
+  const sel = document.getElementById('tt-cat-filter');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">All</option>';
+  for (const c of Object.values(_ttCategories).sort((a,b) => a.name.localeCompare(b.name))) {
+    sel.innerHTML += `<option value="${c.id}">${c.icon} ${escHtml(c.name)}</option>`;
+  }
+  sel.value = cur;
+  // Also populate the form category dropdown
+  const formCat = document.getElementById('tt-category');
+  if (formCat) {
+    const fc = formCat.value;
+    formCat.innerHTML = '';
+    for (const c of Object.values(_ttCategories).sort((a,b) => a.name.localeCompare(b.name))) {
+      formCat.innerHTML += `<option value="${c.id}">${c.icon} ${escHtml(c.name)}</option>`;
+    }
+    formCat.value = fc;
+  }
+}
+
+function ttRender() {
+  const q = (document.getElementById('tt-search').value || '').toLowerCase();
+  const catFilter = document.getElementById('tt-cat-filter').value;
+  const showBuiltin = document.getElementById('tt-show-builtin').checked;
+  const showCustom = document.getElementById('tt-show-custom').checked;
+  const scr = document.getElementById('tt-list-scroll');
+  const keys = Object.keys(_ttTechs).filter(k => {
+    const t = _ttTechs[k];
+    if (t._builtin && !showBuiltin) return false;
+    if (!t._builtin && !showCustom) return false;
+    if (catFilter && t.category !== catFilter) return false;
+    return !q || t.name.toLowerCase().includes(q) || t.id.toLowerCase().includes(q);
+  }).sort((a,b) => {
+    const ta = _ttTechs[a], tb = _ttTechs[b];
+    // Custom techs first, then built-in
+    if (ta._builtin !== tb._builtin) return ta._builtin ? 1 : -1;
+    if (ta.category !== tb.category) return (ta.category||'').localeCompare(tb.category||'');
+    return (ta.tier||1) - (tb.tier||1) || ta.name.localeCompare(tb.name);
+  });
+  const totalCustom = Object.values(_ttTechs).filter(t => !t._builtin).length;
+  const totalBuiltin = Object.values(_ttTechs).filter(t => t._builtin).length;
+  document.getElementById('tt-count').textContent = `${totalCustom} custom · ${totalBuiltin} built-in`;
+  if (!keys.length) {
+    scr.innerHTML = `<div class="list-empty">${q||catFilter ? 'No matches.' : 'No techs loaded.'}</div>`;
+    return;
+  }
+  scr.innerHTML = '';
+  let lastSection = null;
+  for (const KEY of keys) {
+    const t = _ttTechs[KEY];
+    const section = t._builtin ? 'builtin' : 'custom';
+    if (section !== lastSection) {
+      lastSection = section;
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'padding:6px 9px 3px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);border-bottom:1px solid var(--border);margin-bottom:2px';
+      hdr.textContent = t._builtin ? `📦 Built-in (${totalBuiltin})` : `✏️ Custom (${totalCustom})`;
+      scr.appendChild(hdr);
+    }
+    const cat = _ttCategories[t.category] || {};
+    const card = document.createElement('div');
+    card.className = `tt-card${KEY === _ttSelected ? ' selected' : ''}${t._builtin ? ' builtin' : ''}`;
+    const badge = t._builtin
+      ? '<span class="tt-badge badge-builtin" title="Part of the base game">base</span>'
+      : '<span class="tt-badge badge-custom" title="Custom tech">mod</span>';
+    card.innerHTML =
+      `<div class="tc-icon">${t.icon || '🔬'}</div>` +
+      `<div class="tc-info">` +
+        `<div class="tc-name">${escHtml(t.name)} ${badge}</div>` +
+        `<div class="tc-id">${escHtml(t.id)} · T${t.tier||1}</div>` +
+      `</div>` +
+      `<span style="font-size:10px;color:${cat.color||'var(--text-dim)'};opacity:.8">${cat.icon||''} ${escHtml(cat.name||t.category||'')}</span>`;
+    card.addEventListener('click', () => ttSelect(KEY));
+    scr.appendChild(card);
+  }
+}
+
+function ttSelect(KEY) {
+  _ttSelected = KEY;
+  ttRender();
+  const t = _ttTechs[KEY];
+  if (!t) return;
+  const isBuiltin = !!t._builtin;
+  document.getElementById('tt-no-sel').style.display = 'none';
+  document.getElementById('tt-form').style.display = 'block';
+
+  // Show/hide built-in notice
+  let notice = document.getElementById('tt-builtin-notice');
+  if (!notice) {
+    notice = document.createElement('div');
+    notice.id = 'tt-builtin-notice';
+    document.getElementById('tt-form').insertBefore(notice, document.getElementById('tt-form').firstChild);
+  }
+  if (isBuiltin) {
+    notice.style.display = 'block';
+    notice.innerHTML = '🔒 <strong>Built-in tech</strong> — this is part of the base game\'s tech tree and cannot be edited. You can create new custom techs that <em>require</em> this tech as a prerequisite.';
+  } else {
+    notice.style.display = 'none';
+  }
+
+  document.getElementById('tt-id').value = t.id;
+  document.getElementById('tt-name').value = t.name;
+  document.getElementById('tt-icon').value = t.icon || '';
+  document.getElementById('tt-icon-preview').textContent = t.icon || '🔬';
+  document.getElementById('tt-category').value = t.category || 'agriculture';
+  document.getElementById('tt-tier').value = t.tier || 1;
+  document.getElementById('tt-cost').value = t.cost || 100;
+  document.getElementById('tt-days').value = t.days || 5;
+  document.getElementById('tt-materials').value = t.materials ? JSON.stringify(t.materials) : '';
+  document.getElementById('tt-desc').value = t.description || '';
+  document.getElementById('tt-flavor').value = t.flavorText || '';
+  document.getElementById('tt-effects').value = t.effects ? JSON.stringify(t.effects) : '';
+  _ttSelectedPrereqs = new Set(t.requires || []);
+  ttRenderPrereqTags();
+
+  // Disable/enable form fields based on built-in status
+  const formFields = ['tt-id','tt-name','tt-icon','tt-category','tt-tier','tt-cost','tt-days','tt-materials','tt-desc','tt-flavor','tt-effects'];
+  for (const fid of formFields) {
+    const el = document.getElementById(fid);
+    if (el) {
+      el.disabled = isBuiltin;
+      el.style.opacity = isBuiltin ? '0.5' : '1';
+    }
+  }
+  // Disable prereq editing for built-in
+  const prereqBox = document.getElementById('tt-prereqs-tags');
+  if (prereqBox) {
+    prereqBox.style.pointerEvents = isBuiltin ? 'none' : '';
+    prereqBox.style.opacity = isBuiltin ? '0.5' : '1';
+  }
+  // Hide save/delete for built-in
+  const actions = document.querySelector('#tt-form .form-actions');
+  if (actions) actions.style.display = isBuiltin ? 'none' : '';
+}
+
+let _ttSelectedPrereqs = new Set();
+
+function ttRenderPrereqTags() {
+  const container = document.getElementById('tt-prereqs-tags');
+  if (!_ttSelectedPrereqs.size) {
+    container.innerHTML = '<span style="font-size:11px;color:var(--text-dim);font-style:italic">None — click to add prerequisites</span>';
+    return;
+  }
+  container.innerHTML = '';
+  for (const pid of _ttSelectedPrereqs) {
+    // Find the tech with this id (works for both built-in and custom)
+    const pt = Object.values(_ttTechs).find(t => t.id === pid);
+    const label = pt ? `${pt.icon} ${pt.name}` : pid;
+    const badgeHtml = pt && pt._builtin ? ' <span style="font-size:7px;color:#8b949e">(base)</span>' : '';
+    container.innerHTML += `<span class="tt-tag">${escHtml(label)}${badgeHtml}<span class="tag-x" onclick="event.stopPropagation();_ttSelectedPrereqs.delete('${pid}');ttRenderPrereqTags();markDirty()">&times;</span></span>`;
+  }
+}
+
+function ttOpenPrereqPicker() {
+  const modal = document.getElementById('tt-prereq-modal');
+  const list = document.getElementById('tt-prereq-list');
+  list.innerHTML = '';
+  const curId = document.getElementById('tt-id').value.trim();
+  // Show ALL techs (built-in + custom) except self, so custom techs can depend on built-in ones
+  const sorted = Object.values(_ttTechs).filter(t => t.id !== curId).sort((a,b) => {
+    // Built-in first, then custom
+    if (a._builtin !== b._builtin) return a._builtin ? -1 : 1;
+    if (a.category !== b.category) return (a.category||'').localeCompare(b.category||'');
+    return a.name.localeCompare(b.name);
+  });
+  if (!sorted.length) { list.innerHTML = '<div style="padding:12px;color:var(--text-dim);font-style:italic">No other techs to link to. Create more techs first.</div>'; }
+  let lastSection = null;
+  let lastCat = '';
+  for (const t of sorted) {
+    const section = t._builtin ? 'builtin' : 'custom';
+    if (section !== lastSection) {
+      lastSection = section;
+      lastCat = '';
+      list.innerHTML += `<div style="padding:8px 4px 3px;font-size:9px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);margin-top:4px">${t._builtin ? '📦 Built-in Techs' : '✏️ Custom Techs'}</div>`;
+    }
+    if (t.category !== lastCat) {
+      lastCat = t.category;
+      const cat = _ttCategories[t.category] || {};
+      list.innerHTML += `<div style="padding:6px 4px 2px;font-size:10px;font-weight:700;color:${cat.color||'var(--text-dim)'};text-transform:uppercase;letter-spacing:.06em">${cat.icon||''} ${escHtml(cat.name||t.category||'Other')}</div>`;
+    }
+    const checked = _ttSelectedPrereqs.has(t.id) ? 'checked' : '';
+    const badge = t._builtin ? ' <span style="font-size:8px;color:#8b949e;opacity:.7">(base)</span>' : '';
+    list.innerHTML += `<label><input type="checkbox" value="${t.id}" ${checked} onchange="if(this.checked)_ttSelectedPrereqs.add('${t.id}');else _ttSelectedPrereqs.delete('${t.id}');ttRenderPrereqTags();markDirty()"><span>${t.icon} ${escHtml(t.name)}${badge}</span></label>`;
+  }
+  modal.classList.add('open');
+}
+
+function ttClosePrereqPicker() {
+  document.getElementById('tt-prereq-modal').classList.remove('open');
+}
+
+function ttSave() {
+  if (!_ttSelected) return;
+  const newId = document.getElementById('tt-id').value.trim().replace(/\s+/g, '_').toLowerCase();
+  if (!newId) { ttMsg('ID is required.', true); return; }
+  let matObj = {};
+  const matStr = document.getElementById('tt-materials').value.trim();
+  if (matStr) { try { matObj = JSON.parse(matStr); } catch(e) { ttMsg('Invalid materials JSON.', true); return; } }
+  let effObj = {};
+  const effStr = document.getElementById('tt-effects').value.trim();
+  if (effStr) { try { effObj = JSON.parse(effStr); } catch(e) { ttMsg('Invalid effects JSON.', true); return; } }
+  const tech = {
+    id: newId,
+    name: document.getElementById('tt-name').value.trim() || newId,
+    icon: document.getElementById('tt-icon').value.trim() || '🔬',
+    category: document.getElementById('tt-category').value,
+    tier: parseInt(document.getElementById('tt-tier').value) || 1,
+    cost: parseInt(document.getElementById('tt-cost').value) || 100,
+    days: parseInt(document.getElementById('tt-days').value) || 5,
+    requires: [..._ttSelectedPrereqs],
+    materials: matObj,
+    description: document.getElementById('tt-desc').value.trim(),
+    flavorText: document.getElementById('tt-flavor').value.trim(),
+    effects: effObj,
+  };
+  // If KEY changed, rename
+  const oldId = _ttTechs[_ttSelected].id;
+  const newKEY = newId.toUpperCase().replace(/-/g, '_');
+  if (newKEY !== _ttSelected) {
+    delete _ttTechs[_ttSelected];
+    _ttSelected = newKEY;
+  }
+  // Update prerequisite references in other techs if id changed
+  if (oldId !== newId) {
+    for (const t of Object.values(_ttTechs)) {
+      if (t.requires) t.requires = t.requires.map(r => r === oldId ? newId : r);
+    }
+  }
+  _ttTechs[_ttSelected] = tech;
+  ttRender();
+  ttDrawTree();
+  markDirty();
+  // Push tech list to sprite editor for object tech requirements
+  pushTechListToSpriteEditor();
+  ttMsg('Saved.', false);
+}
+
+function ttDelete() {
+  if (!_ttSelected) return;
+  const t = _ttTechs[_ttSelected];
+  if (!confirm(`Delete tech "${t.name}"?`)) return;
+  const delId = t.id;
+  // Remove from other techs' prerequisites
+  for (const ot of Object.values(_ttTechs)) {
+    if (ot.requires) ot.requires = ot.requires.filter(r => r !== delId);
+  }
+  delete _ttTechs[_ttSelected];
+  _ttSelected = null;
+  document.getElementById('tt-no-sel').style.display = '';
+  document.getElementById('tt-form').style.display = 'none';
+  ttRender();
+  ttDrawTree();
+  markDirty();
+  pushTechListToSpriteEditor();
+}
+
+function ttAddTech() {
+  let n = 1;
+  while (_ttTechs[`NEW_TECH_${n}`]) n++;
+  const KEY = `NEW_TECH_${n}`;
+  _ttTechs[KEY] = {
+    id: `new_tech_${n}`, name: `New Tech ${n}`, icon: '🔬',
+    category: document.getElementById('tt-cat-filter').value || 'agriculture',
+    tier: 1, cost: 100, days: 5, requires: [],
+    materials: {}, description: '', flavorText: '', effects: {},
+  };
+  ttRender();
+  ttSelect(KEY);
+  document.getElementById('tt-id').focus();
+  markDirty();
+  pushTechListToSpriteEditor();
+}
+
+function ttAddCategory() {
+  const name = prompt('New category name:');
+  if (!name) return;
+  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  if (_ttCategories[id]) { toast('Category already exists.', 'err'); return; }
+  const icon = prompt('Icon emoji (e.g. 🔥):', '⚡') || '⚡';
+  const color = prompt('Color hex (e.g. #ff9800):', '#58a6ff') || '#58a6ff';
+  _ttCategories[id] = { id, name, icon, color };
+  ttBuildCatFilter();
+  markDirty();
+  toast(`Category "${name}" added`, 'ok');
+}
+
+function ttMsg(msg, isErr) {
+  const el = document.getElementById('tt-msg');
+  el.textContent = msg;
+  el.style.color = isErr ? 'var(--red)' : 'var(--green)';
+  if (!isErr) setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 2000);
+}
+
+// ── Tech Tree Canvas Drawing ──
+let _ttPanX = 40, _ttPanY = 40, _ttZoom = 1;
+let _ttIsPanning = false, _ttPanStartX = 0, _ttPanStartY = 0, _ttPanOrigX = 0, _ttPanOrigY = 0;
+let _ttNodePositions = {};  // tech id → {x, y} in local (pre-transform) coords
+let _ttNodeW = 140, _ttNodeH = 48;
+
+function ttDrawTree() {
+  const cvs = document.getElementById('tt-canvas');
+  if (!cvs) return;
+  const panel = document.getElementById('tt-tree-panel');
+  const rect = panel.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  cvs.width = rect.width * dpr;
+  cvs.height = (rect.height - 40) * dpr;
+  cvs.style.width = rect.width + 'px';
+  cvs.style.height = (rect.height - 40) + 'px';
+  const ctx = cvs.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, rect.width, rect.height);
+
+  const showBuiltin = document.getElementById('tt-show-builtin').checked;
+  const showCustom = document.getElementById('tt-show-custom').checked;
+  const techs = Object.values(_ttTechs).filter(t => {
+    if (t._builtin && !showBuiltin) return false;
+    if (!t._builtin && !showCustom) return false;
+    return true;
+  });
+  if (!techs.length) {
+    ctx.fillStyle = '#8b949e'; ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center'; ctx.fillText('Add technologies to see the tree', rect.width/2, (rect.height-40)/2);
+    return;
+  }
+
+  // Apply pan + zoom transform
+  ctx.save();
+  ctx.translate(_ttPanX, _ttPanY);
+  ctx.scale(_ttZoom, _ttZoom);
+
+  // Zoom indicator
+  ctx.restore();
+  ctx.save();
+  ctx.fillStyle = 'rgba(139,148,158,0.5)'; ctx.font = '10px sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+  ctx.fillText(`${Math.round(_ttZoom*100)}%`, rect.width - 8, rect.height - 48);
+  ctx.restore();
+  ctx.save();
+  ctx.translate(_ttPanX, _ttPanY);
+  ctx.scale(_ttZoom, _ttZoom);
+
+  // Group by category, then by tier
+  const catGroups = {};
+  for (const t of techs) {
+    const cat = t.category || 'other';
+    if (!catGroups[cat]) catGroups[cat] = [];
+    catGroups[cat].push(t);
+  }
+  // Sort within each category by tier
+  for (const arr of Object.values(catGroups)) arr.sort((a,b) => (a.tier||1) - (b.tier||1));
+
+  const NODE_W = 140, NODE_H = 48, GAP_X = 36, GAP_Y = 24;
+  const positions = {}; // tech id → {x, y}
+
+  // Layout: each category gets a row-band, techs arranged by tier columns
+  const catKeys = Object.keys(catGroups).sort();
+  let curY = 10;
+  for (const cat of catKeys) {
+    const catInfo = _ttCategories[cat] || {};
+    // Category label
+    ctx.fillStyle = catInfo.color || '#8b949e';
+    ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(`${catInfo.icon||''} ${catInfo.name||cat}`, 10, curY + 10);
+    curY += 22;
+
+    // Group by tier within category
+    const byTier = {};
+    for (const t of catGroups[cat]) {
+      const tier = t.tier || 1;
+      if (!byTier[tier]) byTier[tier] = [];
+      byTier[tier].push(t);
+    }
+    const tiers = Object.keys(byTier).map(Number).sort((a,b) => a-b);
+    let maxRowH = 0;
+    for (const tier of tiers) {
+      const col = tier - 1;
+      const colTechs = byTier[tier];
+      for (let i = 0; i < colTechs.length; i++) {
+        const x = 10 + col * (NODE_W + GAP_X);
+        const y = curY + i * (NODE_H + GAP_Y);
+        positions[colTechs[i].id] = { x, y };
+        maxRowH = Math.max(maxRowH, (i+1) * (NODE_H + GAP_Y));
+      }
+    }
+    curY += maxRowH + 16;
+  }
+
+  // Draw edges (prerequisite lines)
+  ctx.lineWidth = 1.5;
+  for (const t of techs) {
+    const pos = positions[t.id];
+    if (!pos) continue;
+    for (const req of (t.requires || [])) {
+      const rpos = positions[req];
+      if (!rpos) continue;
+      ctx.strokeStyle = 'rgba(88,166,255,0.3)';
+      ctx.beginPath();
+      ctx.moveTo(rpos.x + NODE_W, rpos.y + NODE_H/2);
+      ctx.lineTo(pos.x, pos.y + NODE_H/2);
+      ctx.stroke();
+      // Arrow head
+      const ax = pos.x, ay = pos.y + NODE_H/2;
+      ctx.fillStyle = 'rgba(88,166,255,0.4)';
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(ax - 6, ay - 4);
+      ctx.lineTo(ax - 6, ay + 4);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+
+  // Draw nodes
+  for (const t of techs) {
+    const pos = positions[t.id];
+    if (!pos) continue;
+    const cat = _ttCategories[t.category] || {};
+    const isSelected = _ttSelected && _ttTechs[_ttSelected] && _ttTechs[_ttSelected].id === t.id;
+    const isBuiltin = !!t._builtin;
+    // Node box — built-in techs use a dimmer, dotted border style
+    ctx.fillStyle = isSelected ? '#0b2a4a' : (isBuiltin ? '#12161d' : '#161b22');
+    ctx.strokeStyle = isSelected ? '#58a6ff' : (isBuiltin ? '#30363d' : (cat.color || '#30363d'));
+    ctx.lineWidth = isSelected ? 2 : 1;
+    if (isBuiltin && !isSelected) ctx.setLineDash([3, 2]); else ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.roundRect(pos.x, pos.y, NODE_W, NODE_H, 6);
+    ctx.fill(); ctx.stroke();
+    ctx.setLineDash([]);
+    // Icon
+    ctx.font = '16px serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.globalAlpha = isBuiltin ? 0.7 : 1;
+    ctx.fillText(t.icon || '🔬', pos.x + 6, pos.y + NODE_H/2);
+    // Name
+    ctx.fillStyle = isBuiltin ? '#8b949e' : '#c9d1d9'; ctx.font = 'bold 10px sans-serif'; ctx.textBaseline = 'top';
+    const maxTextW = NODE_W - 32;
+    let displayName = t.name;
+    while (ctx.measureText(displayName).width > maxTextW && displayName.length > 3) displayName = displayName.slice(0,-1);
+    if (displayName !== t.name) displayName += '…';
+    ctx.fillText(displayName, pos.x + 26, pos.y + 8);
+    // Tier + builtin badge
+    ctx.fillStyle = '#8b949e'; ctx.font = '9px sans-serif';
+    ctx.fillText(`T${t.tier||1} · ${t.cost||0}g${isBuiltin ? ' · base' : ''}`, pos.x + 26, pos.y + 24);
+    ctx.globalAlpha = 1;
+    // Prereq count badge
+    if (t.requires && t.requires.length) {
+      ctx.fillStyle = 'rgba(88,166,255,0.15)';
+      ctx.beginPath(); ctx.roundRect(pos.x + NODE_W - 22, pos.y + 4, 18, 14, 3); ctx.fill();
+      ctx.fillStyle = '#58a6ff'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(t.requires.length, pos.x + NODE_W - 13, pos.y + 7);
+    }
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  }
+  // Store positions for hit-testing
+  _ttNodePositions = positions;
+  _ttNodeW = NODE_W; _ttNodeH = NODE_H;
+  ctx.restore();
+}
+
+// ── Pan & Zoom event handlers ──
+{
+  const cvs = document.getElementById('tt-canvas');
+  if (cvs) {
+    let _ttDragDist = 0;  // track total drag movement to distinguish click vs pan
+
+    // Pan: middle-click drag or left-click drag
+    cvs.addEventListener('mousedown', e => {
+      // left button (0) or middle button (1)
+      if (e.button === 0 || e.button === 1) {
+        _ttIsPanning = true;
+        _ttDragDist = 0;
+        _ttPanStartX = e.clientX;
+        _ttPanStartY = e.clientY;
+        _ttPanOrigX = _ttPanX;
+        _ttPanOrigY = _ttPanY;
+        cvs.style.cursor = 'grabbing';
+        e.preventDefault();
+      }
+    });
+    window.addEventListener('mousemove', e => {
+      if (!_ttIsPanning) return;
+      const dx = e.clientX - _ttPanStartX;
+      const dy = e.clientY - _ttPanStartY;
+      _ttDragDist = Math.abs(dx) + Math.abs(dy);
+      _ttPanX = _ttPanOrigX + dx;
+      _ttPanY = _ttPanOrigY + dy;
+      ttDrawTree();
+    });
+    window.addEventListener('mouseup', e => {
+      if (_ttIsPanning) {
+        const wasDrag = _ttDragDist > 4;
+        _ttIsPanning = false;
+        cvs.style.cursor = 'grab';
+        // If it was a click (not a drag), hit-test nodes
+        if (!wasDrag && e.button === 0) {
+          const rect = cvs.getBoundingClientRect();
+          const mx = (e.clientX - rect.left - _ttPanX) / _ttZoom;
+          const my = (e.clientY - rect.top - _ttPanY) / _ttZoom;
+          let hit = null;
+          for (const [tid, pos] of Object.entries(_ttNodePositions)) {
+            if (mx >= pos.x && mx <= pos.x + _ttNodeW && my >= pos.y && my <= pos.y + _ttNodeH) {
+              hit = tid; break;
+            }
+          }
+          if (hit) {
+            // Find the KEY in _ttTechs whose .id matches
+            const key = Object.keys(_ttTechs).find(k => _ttTechs[k].id === hit);
+            if (key) { ttSelect(key); }
+          }
+        }
+      }
+    });
+
+    // Zoom: mouse wheel with zoom-toward-cursor
+    cvs.addEventListener('wheel', e => {
+      e.preventDefault();
+      const rect = cvs.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const oldZoom = _ttZoom;
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      _ttZoom = Math.min(3, Math.max(0.15, _ttZoom * delta));
+      // Adjust pan so the point under the cursor stays fixed
+      _ttPanX = mx - (_ttZoom / oldZoom) * (mx - _ttPanX);
+      _ttPanY = my - (_ttZoom / oldZoom) * (my - _ttPanY);
+      ttDrawTree();
+    }, { passive: false });
+
+    // Prevent context-menu on middle-click
+    cvs.addEventListener('contextmenu', e => e.preventDefault());
+  }
+}
+
+// Resize observer for the tree canvas
+new ResizeObserver(() => ttDrawTree()).observe(document.getElementById('tt-tree-panel') || document.body);
+
+// ── Push tech list to sprite editor ──
+function pushTechListToSpriteEditor() {
+  const iframe = document.getElementById('iframe-sprite');
+  if (!iframe || !iframe.contentWindow) return;
+  // Include both built-in and custom techs so objects can reference any tech
+  const techList = Object.values(_ttTechs).map(t => ({ id: t.id, name: t.name, icon: t.icon, category: t.category, _builtin: !!t._builtin }));
+  try {
+    iframe.contentWindow.postMessage({ type: 'techListUpdate', techs: techList }, '*');
+  } catch(e) { /* ignore */ }
 }
 </script>
 </body>

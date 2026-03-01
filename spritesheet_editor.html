@@ -114,6 +114,28 @@ input:focus, select:focus { outline: none; border-color: var(--blue); }
 #pack-footer { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
 #pack-footer .pack-info { font-size: 11px; color: var(--text-dim); }
 
+/* ── Nano Banana modal ── */
+#nano-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.72); display: none; align-items: center; justify-content: center; z-index: 3100; }
+#nano-modal.show { display: flex; }
+#nano-box { background: var(--panel); border: 1px solid var(--border2); border-radius: 10px; width: 980px; max-width: 96vw; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; }
+#nano-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+#nano-header h2 { font-size: 13px; font-weight: 700; color: var(--gold); }
+#nano-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 16px; flex: 1; overflow: auto; }
+#nano-grid .panel { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; min-height: 160px; }
+#nano-grid h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); margin-bottom: 8px; }
+#nano-grid textarea, #nano-grid input[type="text"], #nano-grid input[type="password"] {
+  width: 100%; background: #0d1117; border: 1px solid var(--border2); color: var(--text); border-radius: 6px; padding: 8px; font-size: 12px;
+}
+#nano-grid textarea { resize: vertical; min-height: 110px; }
+#nano-grid input:focus, #nano-grid textarea:focus { outline: none; border-color: var(--blue); }
+.nano-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+#nano-status { margin-top: 6px; font-size: 11px; color: var(--text-dim); min-height: 16px; }
+#nano-result-wrap { display: none; margin-top: 8px; border: 1px solid var(--border2); border-radius: 6px; padding: 8px; background: #060a0f; }
+#nano-result-wrap.show { display: block; }
+#nano-result-img { max-width: 100%; image-rendering: pixelated; display: block; margin: 0 auto; }
+#nano-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
+#nano-footer .note { font-size: 11px; color: var(--text-dim); }
+
 /* Toast */
 #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); padding: 8px 20px; background: var(--green); color: #000; font-weight: 600; border-radius: 6px; font-size: 12px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 1000; }
 #toast.show { opacity: 1; }
@@ -138,6 +160,14 @@ input:focus, select:focus { outline: none; border-color: var(--blue); }
     <label class="tb-lbl">Mode</label>
     <button class="mode-tab active" id="mode-select" onclick="setMode('select')">⬜ Select</button>
     <button class="mode-tab" id="mode-crop" onclick="setMode('crop')">✂️ Crop</button>
+    <button class="mode-tab" id="mode-wand" onclick="setMode('wand')">🪄 Wand</button>
+  </div>
+
+  <div class="tb-sep"></div>
+
+  <div class="tb-group" title="Magic wand color tolerance (0-255)">
+    <label class="tb-lbl">Wand tol</label>
+    <input type="number" id="wand-tolerance" value="24" min="0" max="255">
   </div>
 
   <div class="tb-sep"></div>
@@ -173,6 +203,7 @@ input:focus, select:focus { outline: none; border-color: var(--blue); }
   <div class="tb-group">
     <button onclick="extractSelection()" class="gold" id="btn-extract" disabled>📦 Extract Selection</button>
     <button onclick="applyCrop()" class="green" id="btn-crop" disabled style="display:none">✂️ Apply Crop</button>
+    <button onclick="openNanoModal()" title="Build LPC prompt and send to Google Nano Banana Pro 2">🍌 Nano Banana</button>
   </div>
 
   <div class="tb-sep"></div>
@@ -314,6 +345,68 @@ input:focus, select:focus { outline: none; border-color: var(--blue); }
   </div>
 </div>
 
+<!-- Nano Banana Pro 2 modal -->
+<div id="nano-modal">
+  <div id="nano-box">
+    <div id="nano-header">
+      <h2>🍌 Nano Banana Pro 2 — LPC Spritesheet Generator</h2>
+      <button onclick="closeNanoModal()">✕ Close</button>
+    </div>
+    <div id="nano-grid">
+      <div class="panel">
+        <h3>Request Augmentation</h3>
+        <textarea id="nano-user-request" placeholder="Describe what to add/change (example: add blacksmith weapon racks, 4 damaged variants, darker soot palette)"></textarea>
+        <div class="tb-group" style="margin-top:8px">
+          <label class="tb-lbl">Output focus</label>
+          <select id="nano-focus">
+            <option value="balanced" selected>Balanced (objects + structures)</option>
+            <option value="objects">Objects-heavy</option>
+            <option value="structures">Structures-heavy</option>
+            <option value="military">Military & camp assets</option>
+            <option value="domestic">Domestic & market assets</option>
+          </select>
+        </div>
+        <div class="nano-actions">
+          <button class="gold" onclick="buildNanoPrompt()">🧱 Build Prompt</button>
+          <button onclick="copyNanoPrompt()">📋 Copy Prompt</button>
+          <button onclick="openGoogleAiStudio()">🌐 Open Google AI Studio</button>
+        </div>
+        <div id="nano-status"></div>
+      </div>
+      <div class="panel">
+        <h3>Google Connection</h3>
+        <div class="tb-group" style="margin-bottom:6px;align-items:flex-start;flex-direction:column;gap:4px">
+          <label class="tb-lbl">Google API key</label>
+          <input id="nano-api-key" type="password" placeholder="AIza...">
+        </div>
+        <div class="tb-group" style="margin-bottom:6px;align-items:flex-start;flex-direction:column;gap:4px">
+          <label class="tb-lbl">Model name</label>
+          <input id="nano-model" type="text" value="nano-banana-pro-2" placeholder="nano-banana-pro-2">
+        </div>
+        <div class="tb-group" style="margin-bottom:6px;align-items:flex-start;flex-direction:column;gap:4px">
+          <label class="tb-lbl">Google API base URL</label>
+          <input id="nano-api-base" type="text" value="https://generativelanguage.googleapis.com/v1beta" placeholder="https://generativelanguage.googleapis.com/v1beta">
+        </div>
+        <div class="nano-actions">
+          <button class="green" onclick="generateNanoWithGoogle()">🚀 Generate via Google</button>
+          <button onclick="downloadNanoResult()" id="nano-download-btn" disabled>⬇ Download Result</button>
+        </div>
+        <div id="nano-result-wrap">
+          <img id="nano-result-img" alt="Generated spritesheet preview">
+        </div>
+      </div>
+      <div class="panel" style="grid-column:1 / span 2">
+        <h3>Generated Prompt</h3>
+        <textarea id="nano-prompt-output" style="min-height:260px" placeholder="Build prompt to view output..."></textarea>
+      </div>
+    </div>
+    <div id="nano-footer">
+      <span class="note">Base prompt is Roman LPC focused and auto-augmented with your request, tile context, and extraction summary.</span>
+      <button class="gold" onclick="buildNanoPrompt()">Rebuild Prompt</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ===================================================================
 //  SPRITESHEET EDITOR — Core State
@@ -322,7 +415,7 @@ const state = {
   img: null,            // loaded Image element
   tileSize: 32,         // current tile size in px
   zoom: 1,
-  mode: 'select',       // 'select' | 'crop'
+  mode: 'select',       // 'select' | 'crop' | 'wand'
   // selection in pixel coords (snapped to tile grid)
   sel: null,            // { x, y, w, h } or null
   cropSel: null,        // same for crop mode
@@ -346,6 +439,43 @@ const selBox        = document.getElementById('selection-box');
 const cropBoxEl     = document.getElementById('crop-box');
 const zoomBadge     = document.getElementById('zoom-badge');
 const extractionsEl = document.getElementById('extractions');
+let _nanoResultDataUrl = '';
+
+const NANO_BASE_PROMPT = `# LPC Roman Objects, Crafting Structures & Tools — Sprite Sheet Prompt
+
+> For use with Nano Banana Pro or similar pixel art generation tools.
+
+Create a pixel art sprite sheet in the Liberated Pixel Cup (LPC) art style featuring Roman Imperial-era interior objects, crafting structures, and tools for use in a top-down 2D RPG or adventure game. Draw inspiration from Roman Republic through Imperial period material culture across domestic, military, commercial, and civic contexts including insulae apartments, domus households, thermopolium food stalls, workshops, and military encampments.
+
+## Style Requirements
+- Match LPC conventions with clean pixel art and a classical palette: marble whites, travertine creams, terracotta reds, mosaic blues/greens, iron greys, bronze ambers, deep purple accents, warm oil-lamp golds.
+- Base tile unit is 32×32 pixels.
+- Multi-tile structures are allowed where specified.
+- Transparent background PNG.
+- Subtle top-down lighting from upper-left.
+- Roman ornamentation is simplified, readable 2-3 pixel motifs (laurel, meander, acanthus, capitals).
+
+## Section 1 — Small Objects
+- 32×32 each, 4 variations per object set.
+- Include furniture/storage, tools/implements, decorative/ritual objects.
+- Must include examples like arca strongboxes, amphorae, dolia, armarium, farming tools, medical tools, construction tools, trade objects, bathing objects, military equipment, oil lamps, votive/statuary objects, and mosaic panel tiles.
+- Grid layout target: 13 rows × 4 columns, no gaps.
+
+## Section 2 — Multi-Tile Crafting Structures
+- Every structure has 4 left-to-right states: idle → in progress → near complete → finished.
+- Include: Fullonica (2×2), Pistrinum bakery+mill (3×2), Pottery kiln (2×2), Blacksmith forge (2×2), Thermopolium counter (3×1), Scriptorium station (2×1), Lararium shrine (2×2), Glassblowing station (2×2).
+- Add a 2px vertical gap between structure blocks and optional tiny Latin labels above each block.
+
+## Full Sheet Layout
+- Place Section 1 at top and Section 2 below with a 4px separator.
+- Minimum sheet width: 384px.
+- Keep palette, lighting direction, readability, and progression coherent across all assets.
+
+## Technical Notes
+- Keep clean tile seams and avoid critical details crossing boundaries awkwardly.
+- Use obvious visual progression for crafting states.
+- Military equipment should look heavy/functional with restrained ornament.
+- Output a single transparent PNG spritesheet suitable for LPC workflows.`;
 
 // ===================================================================
 //  IMAGE LOADING
@@ -506,12 +636,23 @@ function setMode(mode) {
   state.mode = mode;
   document.getElementById('mode-select').classList.toggle('active', mode === 'select');
   document.getElementById('mode-crop').classList.toggle('active', mode === 'crop');
+  document.getElementById('mode-wand').classList.toggle('active', mode === 'wand');
   document.getElementById('btn-extract').style.display = mode === 'select' ? '' : 'none';
   document.getElementById('btn-crop').style.display = mode === 'crop' ? '' : 'none';
-  document.getElementById('st-mode').textContent = 'Mode: ' + (mode === 'select' ? 'Select' : 'Crop');
+  document.getElementById('st-mode').textContent = 'Mode: ' + (mode === 'select' ? 'Select' : mode === 'crop' ? 'Crop' : 'Wand');
   // Clear opposite selection visual
-  if (mode === 'select') { cropBoxEl.style.display = 'none'; state.cropSel = null; }
-  else { selBox.style.display = 'none'; state.sel = null; }
+  if (mode === 'select') {
+    cropBoxEl.style.display = 'none';
+    state.cropSel = null;
+  } else if (mode === 'crop') {
+    selBox.style.display = 'none';
+    state.sel = null;
+  } else {
+    selBox.style.display = 'none';
+    cropBoxEl.style.display = 'none';
+    state.sel = null;
+    state.cropSel = null;
+  }
   updateSelectionUI();
 }
 
@@ -535,6 +676,11 @@ function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 srcCanvas.addEventListener('mousedown', e => {
   if (!state.img || e.button !== 0) return;
   const pos = getImageCoords(e);
+  if (state.mode === 'wand') {
+    applyMagicWandAtPoint(pos.x, pos.y);
+    e.preventDefault();
+    return;
+  }
   state.dragging = true;
   state.dragStart = {
     x: clamp(snapToGrid(pos.x), 0, state.img.width),
@@ -549,6 +695,11 @@ gridCanvas.style.cursor = 'crosshair';
 gridCanvas.addEventListener('mousedown', e => {
   if (!state.img || e.button !== 0) return;
   const pos = getImageCoords(e);
+  if (state.mode === 'wand') {
+    applyMagicWandAtPoint(pos.x, pos.y);
+    e.preventDefault();
+    return;
+  }
   state.dragging = true;
   state.dragStart = {
     x: clamp(snapToGrid(pos.x), 0, state.img.width),
@@ -607,7 +758,7 @@ function showBox(el, x, y, w, h) {
 }
 
 function updateSelectionUI() {
-  const s = state.mode === 'select' ? state.sel : state.cropSel;
+  const s = state.mode === 'select' ? state.sel : (state.mode === 'crop' ? state.cropSel : null);
   const btnEx = document.getElementById('btn-extract');
   const btnCr = document.getElementById('btn-crop');
   if (s && s.w > 0 && s.h > 0) {
@@ -621,6 +772,51 @@ function updateSelectionUI() {
     btnEx.disabled = true;
     btnCr.disabled = true;
   }
+}
+
+function applyMagicWandAtPoint(px, py) {
+  if (!state.img) return;
+
+  const x = clamp(Math.floor(px), 0, srcCanvas.width - 1);
+  const y = clamp(Math.floor(py), 0, srcCanvas.height - 1);
+  const toleranceInput = document.getElementById('wand-tolerance');
+  const tolerance = clamp(parseInt(toleranceInput?.value || '24', 10) || 0, 0, 255);
+
+  const imgData = srcCtx.getImageData(0, 0, srcCanvas.width, srcCanvas.height);
+  const d = imgData.data;
+  const seedIndex = (y * srcCanvas.width + x) * 4;
+  const seedR = d[seedIndex];
+  const seedG = d[seedIndex + 1];
+  const seedB = d[seedIndex + 2];
+
+  let removed = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    if (
+      d[i + 3] > 0 &&
+      Math.abs(d[i] - seedR) <= tolerance &&
+      Math.abs(d[i + 1] - seedG) <= tolerance &&
+      Math.abs(d[i + 2] - seedB) <= tolerance
+    ) {
+      d[i + 3] = 0;
+      removed++;
+    }
+  }
+
+  if (!removed) {
+    toast(`Wand: no pixels matched (tol ${tolerance})`);
+    return;
+  }
+
+  srcCtx.putImageData(imgData, 0, 0);
+
+  const updated = new Image();
+  updated.onload = () => {
+    state.img = updated;
+    renderGrid();
+  };
+  updated.src = srcCanvas.toDataURL('image/png');
+
+  toast(`Wand removed ${removed.toLocaleString()} px (tol ${tolerance})`);
 }
 
 // ===================================================================
@@ -774,7 +970,7 @@ function extractSelection() {
   let c = document.createElement('canvas');
   c.width = w; c.height = h;
   const ctx = c.getContext('2d');
-  ctx.drawImage(state.img, x, y, w, h, 0, 0, w, h);
+  ctx.drawImage(srcCanvas, x, y, w, h, 0, 0, w, h);
 
   let tilesW = Math.round(w / state.tileSize);
   let tilesH = Math.round(h / state.tileSize);
@@ -820,7 +1016,7 @@ function applyCrop() {
 
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
-  c.getContext('2d').drawImage(state.img, x, y, w, h, 0, 0, w, h);
+  c.getContext('2d').drawImage(srcCanvas, x, y, w, h, 0, 0, w, h);
 
   // Replace source image with cropped version
   const img = new Image();
@@ -1192,6 +1388,7 @@ document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   if (e.key === 's' || e.key === 'S') { e.preventDefault(); setMode('select'); }
   if (e.key === 'c' || e.key === 'C') { e.preventDefault(); setMode('crop'); }
+  if (e.key === 'w' || e.key === 'W') { e.preventDefault(); setMode('wand'); }
   if (e.key === 'g' || e.key === 'G') {
     const cb = document.getElementById('show-grid');
     cb.checked = !cb.checked;
@@ -1219,6 +1416,190 @@ function toast(msg) {
   el.classList.add('show');
   clearTimeout(el._t);
   el._t = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+function openNanoModal() {
+  document.getElementById('nano-modal').classList.add('show');
+  restoreNanoSettings();
+  if (!document.getElementById('nano-prompt-output').value.trim()) buildNanoPrompt();
+}
+
+function closeNanoModal() {
+  document.getElementById('nano-modal').classList.remove('show');
+}
+
+function setNanoStatus(msg) {
+  document.getElementById('nano-status').textContent = msg || '';
+}
+
+function getExtractionSummary() {
+  if (!state.extractions.length) return 'No current extraction context.';
+  const top = state.extractions.slice(0, 6).map(e => {
+    const rw = e.retargetTilesW || e.origTilesW;
+    const rh = e.retargetTilesH || e.origTilesH;
+    return `#${e.id}: ${rw}x${rh} tiles`;
+  });
+  const more = state.extractions.length > 6 ? ` (+${state.extractions.length - 6} more)` : '';
+  return `Current editor extractions: ${top.join(', ')}${more}.`;
+}
+
+function buildNanoPrompt() {
+  const request = document.getElementById('nano-user-request').value.trim();
+  const focus = document.getElementById('nano-focus').value;
+  const tileSize = parseInt(document.getElementById('tile-size').value, 10) || 32;
+  const focusInstruction = {
+    balanced: 'Keep a balanced split between small objects and multi-tile structures.',
+    objects: 'Bias output toward dense small-object coverage and variation sets.',
+    structures: 'Bias output toward larger multi-tile crafting structures and clear state storytelling.',
+    military: 'Prioritize military camp, legionary equipment, and logistics props.',
+    domestic: 'Prioritize domestic interiors, market stalls, and household utility props.'
+  }[focus] || 'Keep balanced composition.';
+
+  const augmentation = [
+    '## Request Augmentation',
+    request ? `- User request: ${request}` : '- User request: Generate a complete baseline Roman interior+crafter set ready for gameplay.',
+    `- Tile preference from editor context: ${tileSize}px base tile; retain LPC readability.`,
+    `- ${focusInstruction}`,
+    `- ${getExtractionSummary()}`,
+    '- Keep output strictly as one coherent transparent PNG spritesheet and avoid non-pixel rendering artifacts.',
+    '- Maintain top-down game readability and clean tile boundaries for direct map placement.'
+  ].join('\n');
+
+  document.getElementById('nano-prompt-output').value = `${NANO_BASE_PROMPT}\n\n-----\n\n${augmentation}`;
+  setNanoStatus('Prompt built. You can copy it or generate directly via Google.');
+  saveNanoSettings();
+}
+
+function copyNanoPrompt() {
+  const prompt = document.getElementById('nano-prompt-output').value.trim();
+  if (!prompt) {
+    toast('Build prompt first');
+    return;
+  }
+  navigator.clipboard.writeText(prompt).then(
+    () => {
+      toast('Prompt copied');
+      setNanoStatus('Prompt copied to clipboard.');
+    },
+    () => toast('Copy failed')
+  );
+}
+
+function openGoogleAiStudio() {
+  saveNanoSettings();
+  window.open('https://aistudio.google.com/', '_blank', 'noopener,noreferrer');
+  setNanoStatus('Opened Google AI Studio. Paste prompt there if you prefer manual flow.');
+}
+
+function saveNanoSettings() {
+  const payload = {
+    apiKey: document.getElementById('nano-api-key').value || '',
+    model: document.getElementById('nano-model').value || 'nano-banana-pro-2',
+    apiBase: document.getElementById('nano-api-base').value || 'https://generativelanguage.googleapis.com/v1beta',
+    request: document.getElementById('nano-user-request').value || '',
+    focus: document.getElementById('nano-focus').value || 'balanced'
+  };
+  localStorage.setItem('lor.nanoBanana.settings', JSON.stringify(payload));
+}
+
+function restoreNanoSettings() {
+  try {
+    const raw = localStorage.getItem('lor.nanoBanana.settings');
+    if (!raw) return;
+    const v = JSON.parse(raw);
+    if (typeof v.apiKey === 'string') document.getElementById('nano-api-key').value = v.apiKey;
+    if (typeof v.model === 'string') document.getElementById('nano-model').value = v.model;
+    if (typeof v.apiBase === 'string') document.getElementById('nano-api-base').value = v.apiBase;
+    if (typeof v.request === 'string') document.getElementById('nano-user-request').value = v.request;
+    if (typeof v.focus === 'string') document.getElementById('nano-focus').value = v.focus;
+  } catch (err) {
+    console.warn('Failed to restore Nano settings', err);
+  }
+}
+
+function parseGoogleError(data, fallback) {
+  if (data && data.error && data.error.message) return data.error.message;
+  return fallback || 'Google request failed';
+}
+
+async function generateNanoWithGoogle() {
+  const prompt = document.getElementById('nano-prompt-output').value.trim();
+  const apiKey = document.getElementById('nano-api-key').value.trim();
+  const model = document.getElementById('nano-model').value.trim() || 'nano-banana-pro-2';
+  const apiBase = (document.getElementById('nano-api-base').value.trim() || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/$/, '');
+
+  if (!prompt) {
+    toast('Build prompt first');
+    return;
+  }
+  if (!apiKey) {
+    toast('Add Google API key first');
+    return;
+  }
+
+  saveNanoSettings();
+  setNanoStatus(`Calling Google model: ${model}...`);
+
+  const url = `${apiBase}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const payload = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      responseModalities: ['TEXT', 'IMAGE']
+    }
+  };
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(parseGoogleError(data, `HTTP ${res.status}`));
+
+    const parts = [];
+    const candidates = (data && data.candidates) || [];
+    for (const c of candidates) {
+      const p = c && c.content && c.content.parts;
+      if (Array.isArray(p)) parts.push(...p);
+    }
+
+    const imagePart = parts.find(p => p && p.inlineData && p.inlineData.mimeType && p.inlineData.mimeType.startsWith('image/') && p.inlineData.data);
+    const textParts = parts.filter(p => p && typeof p.text === 'string' && p.text.trim()).map(p => p.text.trim());
+
+    if (textParts.length) {
+      const existing = document.getElementById('nano-prompt-output').value.trim();
+      document.getElementById('nano-prompt-output').value = `${existing}\n\n-----\n\n# Google Model Notes\n${textParts.join('\n\n')}`;
+    }
+
+    if (!imagePart) {
+      setNanoStatus('Google replied without image data. Prompt notes appended to output.');
+      toast('No image in response');
+      return;
+    }
+
+    const mime = imagePart.inlineData.mimeType || 'image/png';
+    const b64 = imagePart.inlineData.data;
+    _nanoResultDataUrl = `data:${mime};base64,${b64}`;
+    const img = document.getElementById('nano-result-img');
+    img.src = _nanoResultDataUrl;
+    document.getElementById('nano-result-wrap').classList.add('show');
+    document.getElementById('nano-download-btn').disabled = false;
+    setNanoStatus('Image generated successfully. Use Download Result to save PNG.');
+    toast('Nano Banana generation complete');
+  } catch (err) {
+    console.error('Google generation failed:', err);
+    setNanoStatus(`Google request failed: ${err.message || err}`);
+    toast('Google generation failed');
+  }
+}
+
+function downloadNanoResult() {
+  if (!_nanoResultDataUrl) return;
+  const a = document.createElement('a');
+  a.href = _nanoResultDataUrl;
+  a.download = 'nano_banana_spritesheet.png';
+  a.click();
 }
 
 // ===================================================================
@@ -1353,6 +1734,10 @@ function downloadPackedSheet() {
 // Close pack modal on backdrop click
 document.getElementById('pack-modal').addEventListener('click', e => {
   if (e.target === document.getElementById('pack-modal')) closePackModal();
+});
+
+document.getElementById('nano-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('nano-modal')) closeNanoModal();
 });
 
 // ===================================================================

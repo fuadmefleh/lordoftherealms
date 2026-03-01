@@ -1,0 +1,16 @@
+/* App.css — imports the legacy stylesheet and adds React-specific overrides */
+@import url('/styles.css');
+
+/* Ensure the app root fills the viewport */
+#app-root {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* React-rendered title screen inherits legacy styles */
+#root {
+  width: 100%;
+  height: 100%;
+}

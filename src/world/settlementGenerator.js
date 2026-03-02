@@ -79,6 +79,7 @@ function jitter(rng, amount) {
 }
 
 // ── Helper: Bresenham-like thick line rasterizer ──
+// Fills diagonal gaps so lines never have thin staircase artifacts.
 function rasterizeLine(x0, y0, x1, y1, width) {
     const tiles = [];
     const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
@@ -87,27 +88,60 @@ function rasterizeLine(x0, y0, x1, y1, width) {
     let cx = x0, cy = y0;
     const half = Math.floor(width / 2);
     const visited = new Set();
-    while (true) {
+
+    const addTile = (tq, tr) => {
+        const k = `${tq},${tr}`;
+        if (!visited.has(k)) {
+            visited.add(k);
+            tiles.push({ q: tq, r: tr });
+        }
+    };
+
+    const stamp = (px, py) => {
         for (let tw = -half; tw <= half; tw++) {
-            // Thicken perpendicular to the major axis
-            let tq, tr;
             if (dx >= dy) {
-                tq = cx; tr = cy + tw;
+                addTile(px, py + tw);
             } else {
-                tq = cx + tw; tr = cy;
-            }
-            const k = `${tq},${tr}`;
-            if (!visited.has(k)) {
-                visited.add(k);
-                tiles.push({ q: tq, r: tr });
+                addTile(px + tw, py);
             }
         }
+    };
+
+    while (true) {
+        stamp(cx, cy);
         if (cx === x1 && cy === y1) break;
         const e2 = 2 * err;
-        if (e2 > -dy) { err -= dy; cx += sx; }
-        if (e2 < dx)  { err += dx; cy += sy; }
+        const stepX = e2 > -dy;
+        const stepY = e2 < dx;
+        // When stepping diagonally, also stamp the two cardinal
+        // intermediate tiles so the line stays gap-free.
+        if (stepX && stepY) {
+            stamp(cx + sx, cy);  // horizontal neighbor
+            stamp(cx, cy + sy);  // vertical neighbor
+        }
+        if (stepX) { err -= dy; cx += sx; }
+        if (stepY) { err += dx; cy += sy; }
     }
     return tiles;
+}
+
+// ── Helper: widen road set by 1 tile in cardinal directions ──
+// This makes roads at least ~2 tiles wide and fills staircase gaps.
+function widenRoads(roadSet, roadTiles, mapW, mapH) {
+    const extra = [];
+    for (const rt of roadTiles) {
+        const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+        for (const [dq, dr] of dirs) {
+            const nq = rt.q + dq, nr = rt.r + dr;
+            if (nq < 0 || nq >= mapW || nr < 0 || nr >= mapH) continue;
+            const k = `${nq},${nr}`;
+            if (!roadSet.has(k)) {
+                roadSet.add(k);
+                extra.push({ q: nq, r: nr });
+            }
+        }
+    }
+    for (const t of extra) roadTiles.push(t);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -236,6 +270,9 @@ function generate(tiles, settlement, rng, mapW, mapH) {
             }
         }
     }
+
+    // Widen roads to at least 2 tiles for smoother appearance
+    widenRoads(roadSet, roadTiles, mapW, mapH);
 
     // Mark road tiles on the grid
     for (const rt of roadTiles) {
@@ -450,27 +487,32 @@ function generate(tiles, settlement, rng, mapW, mapH) {
         return DISTRICT.RESIDENTIAL;
     }
 
-    // Helper: try to place a building (custom or sprite) onto a lot
+    // Helper: try to place a custom building onto a lot.
+    // No sprite fallback — settlements should only use editor-authored buildings.
     function placeOnLot(lotIdx, buildingType) {
         const lot = lots[lotIdx];
-        usedLots.add(lotIdx);
+        if (!hasCustom) return false;
 
-        // Try custom building first
-        if (hasCustom) {
-            const candidates = CustomBuildings.getByType(buildingType);
-            if (candidates.length > 0) {
-                const def = candidates[Math.floor(rng() * candidates.length)];
-                if (_tryPlaceCustomBuilding(tiles, def, lot, mapW, mapH)) {
-                    placedCount++;
-                    return true;
-                }
+        const candidates = CustomBuildings.getByType(buildingType);
+        if (!candidates.length) return false;
+
+        const shuffled = [...candidates];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(rng() * (i + 1));
+            const tmp = shuffled[i];
+            shuffled[i] = shuffled[j];
+            shuffled[j] = tmp;
+        }
+
+        for (const def of shuffled) {
+            if (_tryPlaceCustomBuilding(tiles, def, lot, mapW, mapH)) {
+                usedLots.add(lotIdx);
+                placedCount++;
+                return true;
             }
         }
 
-        // Fall back to sprite-based building placement
-        _placeSpriteBuilding(tiles, lot, buildingType, settlement, rng);
-        placedCount++;
-        return true;
+        return false;
     }
 
     // Place required buildings first — prefer matching district lots
@@ -510,14 +552,31 @@ function generate(tiles, settlement, rng, mapW, mapH) {
         if (bestIdx >= 0) placeOnLot(bestIdx, bType);
     }
 
-    // If we still have lots left and haven't hit max, fill with extra houses
+    // If we still have lots left and haven't hit max, fill with any custom
+    // building types valid for that lot's district (or generic house as fallback type key).
     for (let li = 0; li < lots.length && placedCount < maxBuildings; li++) {
         if (usedLots.has(li)) continue;
         const lot = lots[li];
-        if (lot.district === DISTRICT.FARM) {
-            placeOnLot(li, 'farm');
-        } else {
-            placeOnLot(li, 'house');
+
+        const preferredTypes = lot.district === DISTRICT.FARM
+            ? ['farm', 'pasture', 'barn', 'house']
+            : lot.district === DISTRICT.CIVIC
+                ? ['town_hall', 'marketplace', 'tavern', 'blacksmith', 'church', 'house']
+                : lot.district === DISTRICT.INDUSTRIAL
+                    ? ['workshop', 'warehouse', 'blacksmith', 'house']
+                    : ['house', 'manor'];
+
+        let placed = false;
+        for (const t of preferredTypes) {
+            if (placeOnLot(li, t)) {
+                placed = true;
+                break;
+            }
+        }
+
+        if (!placed && hasCustom) {
+            // Final attempt: try common residential type keys.
+            placeOnLot(li, 'house') || placeOnLot(li, 'other');
         }
     }
 
@@ -526,6 +585,22 @@ function generate(tiles, settlement, rng, mapW, mapH) {
 
     // ── 7. Paths from center to map edges (entry roads) ──────
     _placeEntryRoads(tiles, spokeAngles, cx, cy, radius, mapW, mapH, roadSet, roadTiles);
+
+    // Widen entry roads too
+    widenRoads(roadSet, roadTiles, mapW, mapH);
+
+    // Mark any newly widened tiles on the grid
+    for (const rt of roadTiles) {
+        const tile = tiles[rt.r][rt.q];
+        if (!tile.isRoad) {
+            tile.isRoad = true;
+            tile.subTerrain.passable = true;
+            tile.baseTerrain = 'dirt';
+            tile.subTerrain.id = 'dirt';
+            tile.subTerrain.name = 'Road';
+            tile.subTerrain.color = '#8b7355';
+        }
+    }
 
     // Return data for the buildings list and roadTiles
     return { roadTiles, blocks, lots };
@@ -588,42 +663,6 @@ function _tryPlaceCustomBuilding(tiles, def, lot, mapW, mapH) {
     }
 
     return true;
-}
-
-// ══════════════════════════════════════════════════════════════
-//  SPRITE-BASED BUILDING PLACEMENT ON A LOT
-// ══════════════════════════════════════════════════════════════
-
-function _placeSpriteBuilding(tiles, lot, buildingType, settlement, rng) {
-    const type = settlement.type || 'village';
-
-    // Choose the sprite for this building type
-    const btDef = (typeof InnerMap !== 'undefined' && InnerMap.BUILDING_TYPES)
-        ? (InnerMap.BUILDING_TYPES[buildingType] || InnerMap.BUILDING_TYPES.house)
-        : { sprite: 'buildings/villageSmall00.png' };
-
-    // Building anchor = bottom-center of the lot
-    const bq = lot.q + Math.floor(lot.w / 2);
-    const br = lot.r + lot.h - 1;
-
-    if (br < 0 || br >= tiles.length || bq < 0 || bq >= tiles[0].length) return;
-
-    const tile = tiles[br][bq];
-    if (tile.building || tile.isRoad) return;
-
-    tile.building = btDef.sprite;
-    tile._buildingTypeHint = buildingType;
-
-    // Mark a 3×3 footprint as impassable (buildings render 3w × 3h)
-    const H = tiles.length, W = tiles[0].length;
-    for (let dq = -1; dq <= 1; dq++) {
-        for (let dr = -2; dr <= 0; dr++) {
-            const fq = bq + dq, fr = br + dr;
-            if (fr >= 0 && fr < H && fq >= 0 && fq < W) {
-                tiles[fr][fq].subTerrain.passable = false;
-            }
-        }
-    }
 }
 
 // ══════════════════════════════════════════════════════════════

@@ -66,6 +66,8 @@ export class Game {
 
         this.isRunning = false;
         this.lastTime = 0;
+        this.timeSpeed = 1;
+        this._timeAccumulator = 0;
 
         // Mouse state
         this.mouseX = 0;
@@ -79,10 +81,6 @@ export class Game {
         this.innerMapCamera = new Camera(this.canvas);
         this.innerMapCamera.locked = true;  // Camera always follows player
         this.innerMapMode = false;
-
-        // ── Sims-style time system ──
-        // 0 = paused, 1 = normal (1 min real = 1 hr game), 2 = fast (2x), 3 = ultra (4x)
-        this.timeSpeed = 1;
         this._enteringInnerMap = false;
 
         this.setupInputHandlers();
@@ -514,95 +512,78 @@ export class Game {
     startCustomWorld(editorWorldData) {
         console.log('Starting game with custom world:', editorWorldData.name);
 
-        if (this._reactMode) {
-            // React mode — run directly without DOM manipulation
-            this._doStartCustomWorld(editorWorldData);
-            return;
-        }
-
-        // Legacy mode — show loading overlay, then start
         const loadingOverlay = document.getElementById('loadingOverlay');
         const loadingSubtext = document.getElementById('loadingSubtext');
         if (loadingOverlay) loadingOverlay.classList.remove('hidden');
         if (loadingSubtext) loadingSubtext.textContent = 'Loading custom world...';
 
-        setTimeout(() => this._doStartCustomWorld(editorWorldData), 50);
-    }
+        setTimeout(() => {
+            try {
+                // Clear any cached inner maps
+                if (typeof InnerMap !== 'undefined' && InnerMap.clearCache) InnerMap.clearCache();
 
-    /**
-     * Internal: perform the actual custom world start.
-     */
-    _doStartCustomWorld(editorWorldData) {
-        const loadingOverlay = document.getElementById('loadingOverlay');
+                // Create and populate world from editor data
+                this.world = new World(editorWorldData.width, editorWorldData.height);
+                this.world.loadFromEditorData(editorWorldData);
 
-        try {
-            // Clear any cached inner maps
-            if (typeof InnerMap !== 'undefined' && InnerMap.clearCache) InnerMap.clearCache();
+                // Create player with default character (user can customize later)
+                this.player = new Player({
+                    firstName: 'Wanderer',
+                    lastName: '',
+                    gender: 'male',
+                    age: 20,
+                });
+                this.player.placeInWorld(this.world);
 
-            // Create and populate world from editor data
-            this.world = new World(editorWorldData.width, editorWorldData.height);
-            this.world.loadFromEditorData(editorWorldData);
+                // Setup renderer
+                this.renderer.setWorld(this.world);
+                this.renderer.setPlayer(this.player);
 
-            // Create player with default character (user can customize later)
-            this.player = new Player({
-                firstName: 'Wanderer',
-                lastName: '',
-                gender: 'male',
-                age: 20,
-            });
-            this.player.placeInWorld(this.world);
+                const worldPixelWidth = Math.sqrt(3) * this.renderer.hexSize * this.world.width;
+                const worldPixelHeight = 1.5 * this.renderer.hexSize * this.world.height;
+                this.camera.setWorldBounds(worldPixelWidth, worldPixelHeight);
 
-            // Setup renderer
-            this.renderer.setWorld(this.world);
-            this.renderer.setPlayer(this.player);
+                const playerPos = this.renderer.getHexPixelPos(this.player.q, this.player.r);
+                this.camera.centerOn(playerPos.x, playerPos.y);
 
-            const worldPixelWidth = Math.sqrt(3) * this.renderer.hexSize * this.world.width;
-            const worldPixelHeight = 1.5 * this.renderer.hexSize * this.world.height;
-            this.camera.setWorldBounds(worldPixelWidth, worldPixelHeight);
+                // Initialize UI
+                this.ui = new UI(this);
+                this.ui.applySettings();
+                this.ui.updateStats(this.player, this.world);
+                this.minimap = new Minimap(this);
 
-            const playerPos = this.renderer.getHexPixelPos(this.player.q, this.player.r);
-            this.camera.centerOn(playerPos.x, playerPos.y);
+                Quests.initialize(this.player);
+                Achievements.initialize(this.player);
+                MarketDynamics.initialize();
+                if (typeof Technology !== 'undefined') Technology.initPlayer(this.player);
+                if (typeof Relationships !== 'undefined') Relationships.initialize(this.player);
+                if (!this.player.taxRate) this.player.taxRate = 'moderate';
+                if (typeof Titles !== 'undefined') Titles.initialize(this.player);
+                if (typeof Councils !== 'undefined') Councils.initializePlayer(this.player);
 
-            // Initialize UI
-            this.ui = new UI(this);
-            this.ui.applySettings();
-            this.ui.updateStats(this.player, this.world);
-            this.minimap = new Minimap(this);
-
-            Quests.initialize(this.player);
-            Achievements.initialize(this.player);
-            MarketDynamics.initialize();
-            if (typeof Technology !== 'undefined') Technology.initPlayer(this.player);
-            if (typeof Relationships !== 'undefined') Relationships.initialize(this.player);
-            if (!this.player.taxRate) this.player.taxRate = 'moderate';
-            if (typeof Titles !== 'undefined') Titles.initialize(this.player);
-            if (typeof Councils !== 'undefined') Councils.initializePlayer(this.player);
-
-            // Hide title screen, show game (legacy DOM path only)
-            if (!this._reactMode) {
+                // Hide title screen, show game
                 document.getElementById('settingsScreen')?.classList.add('hidden');
                 if (loadingOverlay) loadingOverlay.classList.add('hidden');
                 this.ui.hideTitleScreen();
+
+                setTimeout(() => {
+                    this.ui.showNotification(
+                        'Custom World: ' + (editorWorldData.name || 'Unnamed'),
+                        `Playing on a hand-crafted ${this.world.width}×${this.world.height} world with ${this.world.kingdoms.length} kingdoms.`,
+                        'info'
+                    );
+                }, 1200);
+
+                this.isRunning = true;
+                this.lastTime = performance.now();
+                requestAnimationFrame((t) => this.gameLoop(t));
+                audioManager.updateSceneFromGameState(this);
+            } catch (err) {
+                console.error('Error starting custom world:', err);
+                if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                alert('Failed to start custom world: ' + err.message);
             }
-
-            setTimeout(() => {
-                this.ui.showNotification(
-                    'Custom World: ' + (editorWorldData.name || 'Unnamed'),
-                    `Playing on a hand-crafted ${this.world.width}×${this.world.height} world with ${this.world.kingdoms.length} kingdoms.`,
-                    'info'
-                );
-            }, 1200);
-
-            this.isRunning = true;
-            this.lastTime = performance.now();
-            requestAnimationFrame((t) => this.gameLoop(t));
-            audioManager.updateSceneFromGameState(this);
-        } catch (err) {
-            console.error('Error starting custom world:', err);
-            if (!this._reactMode && loadingOverlay) loadingOverlay.classList.add('hidden');
-            if (!this._reactMode) alert('Failed to start custom world: ' + err.message);
-            throw err; // Re-throw so React's catch block can handle it
-        }
+        }, 50);
     }
 
     /**
@@ -856,12 +837,12 @@ export class Game {
      * Start a new game.
      * @param {Object} [settingsObj] - Settings from React. If omitted, reads from DOM (legacy).
      */
-    startNewGame(settingsObj) {
+    async startNewGame(settingsObj) {
         console.log('Starting new game with custom settings...');
 
         if (this._reactMode) {
             // React mode — settings already provided, just run directly
-            this._doStartNewGame(settingsObj || {});
+            await this._doStartNewGame(settingsObj || {});
             return;
         }
 
@@ -872,7 +853,12 @@ export class Game {
         if (loadingSubtext) loadingSubtext.textContent = 'Forging continents and oceans...';
 
         // Use setTimeout to let the loading overlay render before heavy generation
-        setTimeout(() => this._doStartNewGame(), 50);
+        await new Promise((resolve) => {
+            setTimeout(async () => {
+                await this._doStartNewGame();
+                resolve();
+            }, 50);
+        });
     }
 
     /**
@@ -923,7 +909,7 @@ export class Game {
      * Internal: perform the actual game start.
      * @param {Object} [settingsOverride] - Settings from React (if provided, skip DOM read)
      */
-    _doStartNewGame(settingsOverride) {
+    async _doStartNewGame(settingsOverride) {
         const loadingOverlay = document.getElementById('loadingOverlay');
         const loadingSubtext = document.getElementById('loadingSubtext');
 
@@ -1087,13 +1073,17 @@ export class Game {
         // Start game loop
         this.isRunning = true;
         this.lastTime = performance.now();
+        console.log('[DIAG] Game loop starting, isRunning =', this.isRunning);
         requestAnimationFrame((t) => this.gameLoop(t));
+
+        // Auto-enter inner map at spawn (fire-and-forget — do NOT await, else
+        // the React LoadingOverlay stays on-screen blocking all input until
+        // inner-map assets finish loading).
+        console.log('[DIAG] Firing enterInnerMap (not awaited)...');
+        this.enterInnerMap(this.player.q, this.player.r);
 
         // Start context-aware music
         audioManager.updateSceneFromGameState(this);
-
-        // ── Auto-enter inner map at spawn location (Sims-style start) ──
-        this.enterInnerMap(this.player.q, this.player.r);
 
         } catch (err) {
             console.error('Error starting game:', err);
@@ -1105,13 +1095,22 @@ export class Game {
      * Main game loop
      */
     gameLoop(timestamp) {
-        if (!this.isRunning) return;
+        if (!this.isRunning) { console.warn('[DIAG] gameLoop: isRunning is false, stopping.'); return; }
+
+        this._loopCount = (this._loopCount || 0) + 1;
+        if (this._loopCount <= 5 || this._loopCount % 300 === 0) {
+            console.log(`[DIAG] gameLoop #${this._loopCount}: InnerMap.active=${InnerMap.active}, _enteringInnerMap=${this._enteringInnerMap}, innerMapMode=${this.innerMapMode}`);
+        }
 
         const deltaTime = Math.min((timestamp - this.lastTime) / 1000, 0.1);
         this.lastTime = timestamp;
 
         // ── Inner Map Mode ──
-        if (this.innerMapMode && InnerMap.active) {
+        if (InnerMap.active) {
+            try {
+            if (this._loopCount <= 3) {
+                console.log(`[DIAG] inner-map render: canvas=${this.canvas.width}x${this.canvas.height}, cam.zoom=${this.innerMapCamera.zoom}, cam.x=${this.innerMapCamera.x}, cam.y=${this.innerMapCamera.y}, tiles=${InnerMap.tiles?.length}x${InnerMap.tiles?.[0]?.length}, tileSize=${InnerMapRenderer.TILE_SIZE}`);
+            }
             this.innerMapCamera.update(deltaTime);
             this.innerMapCamera.precomputeFrame();
 
@@ -1119,9 +1118,8 @@ export class Game {
             InnerMapRenderer._hoveredInnerHex = InnerMapRenderer.getInnerHexAtScreen(
                 this.mouseX, this.mouseY, this.innerMapCamera);
 
-            // Update time system — scaled by timeSpeed (0=paused, 1=normal, 2=fast, 3=ultra)
-            const speedMult = [0, 1, 2, 4][this.timeSpeed] || 0;
-            const timeResult = InnerMap.updateTime(deltaTime * speedMult);
+            // Update time system (1 hour per real minute)
+            const timeResult = InnerMap.updateTime(deltaTime);
             if (timeResult === 'day_ended' && !this._innerMapDayEndShown) {
                 this._innerMapDayEndShown = true;
                 this._showInnerMapEndDayModal();
@@ -1136,9 +1134,8 @@ export class Game {
                 const periodIcon = periodIcons[period] || '🕐';
                 const dayInSeason = ((this.world.day - 1) % 30) + 1;
                 const insideBldg = InnerMap._insideBuilding;
-                const locationSuffix = insideBldg ? ` \u2014 Inside ${insideBldg.name}` : '';
-                const speedLabel = this.timeSpeed === 0 ? ' \u23F8' : '';
-                turnEl.textContent = `${periodIcon} ${timeStr} \u2014 Day ${dayInSeason}, ${this.world.season}, Year ${this.world.year}${locationSuffix}${speedLabel}`;
+                const locationSuffix = insideBldg ? ` — Inside ${insideBldg.name}` : '';
+                turnEl.textContent = `${periodIcon} ${timeStr} — Day ${dayInSeason}, ${this.world.season}, Year ${this.world.year}${locationSuffix}`;
             }
 
             // Update toolbar: show/hide "Exit Building" button
@@ -1236,6 +1233,18 @@ export class Game {
             // Render inner map
             InnerMapRenderer.render(this.renderer.ctx, this.canvas, this.innerMapCamera, deltaTime);
 
+            // Render minimap for inner map
+            this.minimap.render();
+
+            } catch (innerErr) {
+                console.error('[DIAG] CRASH in inner map branch of gameLoop:', innerErr);
+            }
+            requestAnimationFrame((t) => this.gameLoop(t));
+            return;
+        }
+
+        // While inner map is loading, skip world-map updates/rendering.
+        if (this._enteringInnerMap) {
             requestAnimationFrame((t) => this.gameLoop(t));
             return;
         }
@@ -1243,39 +1252,6 @@ export class Game {
         // Update camera (locked to player position)
         this.camera.update(deltaTime);
         this.camera.precomputeFrame();
-
-        // ── World-map continual time (Sims-style) ──
-        // Time ticks even on the world map, scaled by timeSpeed
-        if (typeof InnerMap !== 'undefined' && InnerMap.TIME_SCALE) {
-            const speedMult = [0, 1, 2, 4][this.timeSpeed] || 0;
-            if (speedMult > 0) {
-                // If InnerMap time isn't active yet, initialize it so the clock runs
-                if (!InnerMap.active) {
-                    if (InnerMap.timeOfDay === undefined) InnerMap.timeOfDay = 8;
-                    if (InnerMap._timeAccumulator === undefined) InnerMap._timeAccumulator = 0;
-                    if (InnerMap.dayEnded === undefined) InnerMap.dayEnded = false;
-                }
-                const timeResult = InnerMap.updateTime(deltaTime * speedMult);
-                if (timeResult === 'day_ended') {
-                    // Auto-advance day on the world map
-                    InnerMap.timeOfDay = 8;
-                    InnerMap._timeAccumulator = 0;
-                    InnerMap.dayEnded = false;
-                    this.endDay();
-                }
-            }
-            // Update turn display with real-time clock
-            const turnEl = document.getElementById('turnDisplay');
-            if (turnEl && InnerMap.getTimeString) {
-                const timeStr = InnerMap.getTimeString();
-                const period = InnerMap.getTimePeriod ? InnerMap.getTimePeriod() : '';
-                const periodIcons = { morning: '\uD83C\uDF05', midday: '\u2600\uFE0F', afternoon: '\uD83C\uDF24\uFE0F', evening: '\uD83C\uDF06', night: '\uD83C\uDF19' };
-                const periodIcon = periodIcons[period] || '\uD83D\uDD50';
-                const dayInSeason = ((this.world.day - 1) % 30) + 1;
-                const speedLabel = this.timeSpeed === 0 ? ' ⏸' : '';
-                turnEl.textContent = `${periodIcon} ${timeStr} \u2014 Day ${dayInSeason}, ${this.world.season}, Year ${this.world.year}${speedLabel}`;
-            }
-        }
 
         // Always follow the player on the world map
         {
@@ -1286,6 +1262,19 @@ export class Game {
         // Update weather
         if (this.world && this.world.weather) {
             this.world.weather.update(deltaTime);
+        }
+
+        // Auto-advance day based on time speed (pause/play/fast/ultra)
+        const speed = Number.isFinite(this.timeSpeed) ? this.timeSpeed : 1;
+        if (speed <= 0) {
+            this._timeAccumulator = 0;
+        } else if (!this.isProcessingTurn && this.player && !this.player.isMoving) {
+            const secondsPerDay = speed === 1 ? 14 : speed === 2 ? 7 : 3;
+            this._timeAccumulator += deltaTime;
+            if (this._timeAccumulator >= secondsPerDay) {
+                this._timeAccumulator = 0;
+                this.endDay();
+            }
         }
 
         // Update player movement
@@ -1330,10 +1319,23 @@ export class Game {
     /**
      * Set up mouse/click handlers
      */
+    _clientToCanvas(clientX, clientY) {
+        const rect = this.canvas.getBoundingClientRect();
+        const safeW = rect.width || 1;
+        const safeH = rect.height || 1;
+        const scaleX = this.canvas.width / safeW;
+        const scaleY = this.canvas.height / safeH;
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY,
+        };
+    }
+
     setupInputHandlers() {
         this.canvas.addEventListener('mousemove', (e) => {
-            this.mouseX = e.clientX;
-            this.mouseY = e.clientY;
+            const p = this._clientToCanvas(e.clientX, e.clientY);
+            this.mouseX = p.x;
+            this.mouseY = p.y;
         });
 
         this.canvas.addEventListener('mousedown', (e) => {
@@ -1352,11 +1354,12 @@ export class Game {
                 const dist = Math.hypot(e.clientX - this.mouseDownX, e.clientY - this.mouseDownY);
                 const timeDiff = Date.now() - this.mouseDownTime;
                 if (dist < 5 && timeDiff < 500) {
+                    const p = this._clientToCanvas(e.clientX, e.clientY);
                     // Left click = show info, Right click = move
                     if (e.button === 0) {
-                        this.handleClick(e.clientX, e.clientY, 'left');
+                        this.handleClick(p.x, p.y, 'left');
                     } else if (e.button === 2) {
-                        this.handleClick(e.clientX, e.clientY, 'right');
+                        this.handleClick(p.x, p.y, 'right');
                     }
                 }
                 this.mouseDown = false;
@@ -1371,7 +1374,8 @@ export class Game {
 
         // Double-click for quick info
         this.canvas.addEventListener('dblclick', (e) => {
-            this.handleDoubleClick(e.clientX, e.clientY);
+            const p = this._clientToCanvas(e.clientX, e.clientY);
+            this.handleDoubleClick(p.x, p.y);
         });
 
         // Keyboard shortcut: M to cycle map modes
@@ -1386,7 +1390,7 @@ export class Game {
             }
             if (e.key === 'Escape') {
                 // Exit inner map mode
-                if (this.innerMapMode && InnerMap.active) {
+                if (InnerMap.active) {
                     // If inside a building, exit the building first
                     if (InnerMap._insideBuilding) {
                         InnerMapRenderer.closeContextMenu();
@@ -1401,13 +1405,15 @@ export class Game {
                             const canvasH = this.canvas.height;
                             const VISIBLE_TILES = 10;
                             const zoomLevel = Math.min(canvasW, canvasH) / (VISIBLE_TILES * tileSize);
-                            this.innerMapCamera.minZoom = Math.max(0.5, zoomLevel * 0.5);
-                            this.innerMapCamera.maxZoom = zoomLevel * 2.0;
-                            this.innerMapCamera.zoom = zoomLevel;
-                            this.innerMapCamera.targetZoom = zoomLevel;
+                            const clampedZoom = Number.isFinite(zoomLevel) && zoomLevel > 0 ? zoomLevel : 2.0;
+                            this.innerMapCamera.minZoom = Math.max(0.5, clampedZoom * 0.5);
+                            this.innerMapCamera.maxZoom = clampedZoom * 2.0;
+                            this.innerMapCamera.zoom = clampedZoom;
+                            this.innerMapCamera.targetZoom = clampedZoom;
                             // Center on player position (camera locked to player)
                             const pWorld = InnerMap.getPlayerWorldPos();
                             this.innerMapCamera.centerOn(pWorld.x, pWorld.y);
+                            this.innerMapCamera.precomputeFrame();
                         }
                         this.ui.showNotification('🚪 Exited Building', 'You step back outside.', 'info');
                         return;
@@ -1422,7 +1428,7 @@ export class Game {
                 }
             }
             // R key: rotate selected custom object (cycle rotation variants)
-            if ((e.key === 'r' || e.key === 'R') && this.innerMapMode && InnerMap.active) {
+            if ((e.key === 'r' || e.key === 'R') && InnerMap.active) {
                 const sel = InnerMapRenderer._selectedObject;
                 if (sel && typeof CustomObjects !== 'undefined') {
                     const def = CustomObjects.getDef(sel.defId);
@@ -1436,7 +1442,7 @@ export class Game {
                 }
             }
             // T key: cycle color variants on selected custom object
-            if ((e.key === 't' || e.key === 'T') && this.innerMapMode && InnerMap.active) {
+            if ((e.key === 't' || e.key === 'T') && InnerMap.active) {
                 const sel = InnerMapRenderer._selectedObject;
                 if (sel && typeof CustomObjects !== 'undefined') {
                     const def = CustomObjects.getDef(sel.defId);
@@ -1467,8 +1473,11 @@ export class Game {
     handleClick(screenX, screenY, button = 'left') {
         if (!this.world || !this.player) return;
 
+        // Block clicks while inner map is loading
+        if (this._enteringInnerMap) return;
+
         // ── Inner Map Mode clicks ──
-        if (this.innerMapMode && InnerMap.active) {
+        if (InnerMap.active) {
             const innerHex = InnerMapRenderer.getInnerHexAtScreen(screenX, screenY, this.innerMapCamera);
             if (!innerHex) return;
 
@@ -1584,19 +1593,25 @@ export class Game {
         const tile = this.world.getTile(hex.q, hex.r);
         if (!tile) return;
 
-        // Left click = show info
+        // Left click on current tile = show info/action menu
         if (button === 'left') {
-            this.renderer.selectedHex = hex;
-            this.ui.showHexInfo(tile, hex.q, hex.r);
+            if (!(this.player.q === hex.q && this.player.r === hex.r)) {
+                // For movement consistency with the manual, regular click moves.
+                // Detailed tile info is still available via double-click.
+                button = 'right';
+            } else {
+                this.renderer.selectedHex = hex;
+                this.ui.showHexInfo(tile, hex.q, hex.r);
 
-            // If clicking on self, open action menu
-            if (this.player.q === hex.q && this.player.r === hex.r) {
-                ActionMenu.show(this, tile);
+                // If clicking on self, open action menu
+                if (this.player.q === hex.q && this.player.r === hex.r) {
+                    ActionMenu.show(this, tile);
+                }
+                return;
             }
-            return;
         }
 
-        // Right click = move
+        // Right click (and non-self left click) = move
         if (button === 'right') {
             // Check if tile is accessible based on player's current state
             let isAccessible = false;
@@ -1674,8 +1689,11 @@ export class Game {
     handleDoubleClick(screenX, screenY) {
         if (!this.world) return;
 
+        // Block clicks while inner map is loading
+        if (this._enteringInnerMap) return;
+
         // Double-click in inner map shows detailed tile info
-        if (this.innerMapMode && InnerMap.active) {
+        if (InnerMap.active) {
             const innerHex = InnerMapRenderer.getInnerHexAtScreen(screenX, screenY, this.innerMapCamera);
             if (!innerHex) return;
             InnerMapRenderer._selectedInnerHex = innerHex;
@@ -1712,20 +1730,27 @@ export class Game {
      * Enter the inner map for a given world tile
      */
     async enterInnerMap(worldQ, worldR) {
-        if (!this.world || !this.player) return;
-        if (typeof InnerMap === 'undefined') return;
-        if (this.innerMapMode && InnerMap.active) return;
+        console.log('[DIAG] enterInnerMap called for', worldQ, worldR);
+        if (!this.world || !this.player) { console.warn('[DIAG] enterInnerMap: no world or player'); return; }
+        if (typeof InnerMap === 'undefined') { console.warn('[DIAG] enterInnerMap: InnerMap undefined'); return; }
+        if (InnerMap.active) { console.warn('[DIAG] enterInnerMap: already active'); return; }
 
         // Prevent concurrent async entry — the await below creates a window
         // where a second click could pass the guard above and double-enter.
-        if (this._enteringInnerMap) return;
+        if (this._enteringInnerMap) { console.warn('[DIAG] enterInnerMap: already entering'); return; }
         this._enteringInnerMap = true;
 
         try {
             const tile = this.world.getTile(worldQ, worldR);
-            if (!tile || !tile.explored) {
+            const isPlayerTile = this.player && this.player.q === worldQ && this.player.r === worldR;
+            const isKnownTile = !!tile && (tile.explored || tile.visible || isPlayerTile);
+            if (!isKnownTile) {
                 this.ui.showNotification('Unexplored', 'You must explore this tile first!', 'error');
                 return;
+            }
+
+            if (tile.visible && !tile.explored) {
+                tile.explored = true;
             }
 
             // Only allow on passable land tiles
@@ -1747,9 +1772,11 @@ export class Game {
             }
 
             // Re-check after async gap — another code-path may have entered in the meantime
-            if (this.innerMapMode && InnerMap.active) return;
+            if (InnerMap.active) { console.warn('[DIAG] enterInnerMap: became active during await'); return; }
 
+            console.log('[DIAG] Calling InnerMap.enter...');
             const success = InnerMap.enter(this, worldQ, worldR);
+            console.log('[DIAG] InnerMap.enter returned', success, 'active=', InnerMap.active);
             if (!success) {
                 this.ui.showNotification('Error', 'Cannot enter this tile.', 'error');
                 return;
@@ -1772,20 +1799,21 @@ export class Game {
             const innerPixelHeight = tileSize * mapHeight;
             this.innerMapCamera.setWorldBounds(0, innerPixelHeight);  // width=0 disables X-wrap
 
-            // Zoom level — lock to ~10 tile visible diameter (immersive, Sims-like)
+            // Zoom level — lock to ~10 visible tiles for stable click/path feel
             const canvasW = this.canvas.width;
             const canvasH = this.canvas.height;
-            const VISIBLE_TILES = 10;  // diameter of visible area in tiles
+            const VISIBLE_TILES = 10;
             const zoomLevel = Math.min(canvasW, canvasH) / (VISIBLE_TILES * tileSize);
             const clampedZoom = Number.isFinite(zoomLevel) && zoomLevel > 0 ? zoomLevel : 2.0;
             this.innerMapCamera.minZoom = Math.max(0.5, clampedZoom * 0.5);
-            this.innerMapCamera.maxZoom = clampedZoom * 2.0;  // allow zooming in more
+            this.innerMapCamera.maxZoom = clampedZoom * 2.0;
             this.innerMapCamera.zoom = clampedZoom;
             this.innerMapCamera.targetZoom = clampedZoom;
 
             // Center camera on the player position (camera is locked to player)
             const playerWorld = InnerMap.getPlayerWorldPos();
             this.innerMapCamera.centerOn(playerWorld.x, playerWorld.y);
+            this.innerMapCamera.precomputeFrame();
 
             // Hide world map UI elements
             this._hideWorldMapUI();
@@ -1804,6 +1832,8 @@ export class Game {
             }
         } finally {
             this._enteringInnerMap = false;
+            this.innerMapMode = !!InnerMap.active;
+            console.log('[DIAG] enterInnerMap finally: _enteringInnerMap=false, innerMapMode=', this.innerMapMode, 'InnerMap.active=', InnerMap.active);
         }
     }
 
@@ -2070,6 +2100,44 @@ export class Game {
     }
 
     /**
+     * Configure the inner-map camera for the given context.
+     * Called by innerMapUI.js when entering/exiting building interiors.
+     * @param {'outer'|'interior'} mode
+     */
+    _configureInnerMapCamera(mode) {
+        if (!this.innerMapCamera) return;
+        const tileSize = InnerMapRenderer.tileSize;
+        const innerPixelHeight = tileSize * InnerMap.height;
+        this.innerMapCamera.setWorldBounds(0, innerPixelHeight);
+
+        const canvasW = this.canvas.width;
+        const canvasH = this.canvas.height;
+
+        if (mode === 'interior') {
+            const innerPixelWidth = tileSize * InnerMap.width;
+            const fitZoom = Math.min(canvasW / innerPixelWidth, canvasH / innerPixelHeight);
+            const zoomLevel = (Number.isFinite(fitZoom) && fitZoom > 0) ? fitZoom * 0.9 : 1.5;
+            this.innerMapCamera.minZoom = Math.max(0.5, zoomLevel * 0.6);
+            this.innerMapCamera.maxZoom = Math.max(this.innerMapCamera.minZoom + 0.5, zoomLevel * 2.5);
+            this.innerMapCamera.zoom = zoomLevel;
+            this.innerMapCamera.targetZoom = zoomLevel;
+        } else {
+            // Outer inner-map (settlement / wilderness)
+            const VISIBLE_TILES = 10;
+            const zoomLevel = Math.min(canvasW, canvasH) / (VISIBLE_TILES * tileSize);
+            const clampedZoom = Number.isFinite(zoomLevel) && zoomLevel > 0 ? zoomLevel : 2.0;
+            this.innerMapCamera.minZoom = Math.max(0.5, clampedZoom * 0.5);
+            this.innerMapCamera.maxZoom = clampedZoom * 2.0;
+            this.innerMapCamera.zoom = clampedZoom;
+            this.innerMapCamera.targetZoom = clampedZoom;
+        }
+
+        const pWorld = InnerMap.getPlayerWorldPos();
+        this.innerMapCamera.centerOn(pWorld.x, pWorld.y);
+        this.innerMapCamera.precomputeFrame();
+    }
+
+    /**
      * Hide the inner map exit button
      */
     _hideInnerMapExitButton() {
@@ -2127,12 +2195,14 @@ export class Game {
                     const canvasH = this.canvas.height;
                     const VISIBLE_TILES = 10;
                     const zoomLevel = Math.min(canvasW, canvasH) / (VISIBLE_TILES * tileSize);
-                    this.innerMapCamera.minZoom = Math.max(0.5, zoomLevel * 0.5);
-                    this.innerMapCamera.maxZoom = zoomLevel * 2.0;
-                    this.innerMapCamera.zoom = zoomLevel;
-                    this.innerMapCamera.targetZoom = zoomLevel;
+                    const clampedZoom = Number.isFinite(zoomLevel) && zoomLevel > 0 ? zoomLevel : 2.0;
+                    this.innerMapCamera.minZoom = Math.max(0.5, clampedZoom * 0.5);
+                    this.innerMapCamera.maxZoom = clampedZoom * 2.0;
+                    this.innerMapCamera.zoom = clampedZoom;
+                    this.innerMapCamera.targetZoom = clampedZoom;
                     const pWorld = InnerMap.getPlayerWorldPos();
                     this.innerMapCamera.centerOn(pWorld.x, pWorld.y);
+                    this.innerMapCamera.precomputeFrame();
                 }
                 this.ui.showNotification('🚪 Exited Building', 'You step back outside.', 'info');
             });
@@ -2230,10 +2300,6 @@ export class Game {
         const kingdomPanel = document.getElementById('kingdomPanel');
         if (kingdomPanel) kingdomPanel.classList.add('hidden');
 
-        // Hide minimap temporarily
-        const minimapCanvas = document.getElementById('minimapCanvas');
-        if (minimapCanvas) minimapCanvas.style.display = 'none';
-
         // Close action menu if open
         if (typeof ActionMenu !== 'undefined') ActionMenu.close();
     }
@@ -2242,9 +2308,7 @@ export class Game {
      * Show world map UI elements when exiting inner map
      */
     _showWorldMapUI() {
-        // Restore minimap
-        const minimapCanvas = document.getElementById('minimapCanvas');
-        if (minimapCanvas) minimapCanvas.style.display = '';
+        // Minimap stays visible (it switches between world/inner map view automatically)
     }
 
     /**

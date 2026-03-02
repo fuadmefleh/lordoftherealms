@@ -247,6 +247,269 @@ export const InnerMap = {
         return this.PARENT_TO_BASE_TERRAIN[terrainId] || 'grass';
     },
 
+    _getGrassNineTileBrush() {
+        const gd = (typeof DataLoader !== 'undefined') ? DataLoader._gamedata : null;
+        // Terrain editor brushes live in terrainNineTileBrushes (NOT nineTileBrushes which is building brushes)
+        const brushes = Array.isArray(gd && gd.terrainNineTileBrushes) ? gd.terrainNineTileBrushes : [];
+        if (!brushes.length) return null;
+
+        const valid = brushes.filter(b => b && b.tiles && typeof b.tiles === 'object');
+        if (!valid.length) return null;
+
+        const byName = valid.find(b => /grass|meadow|lawn|turf/i.test(String(b.name || '')));
+        if (byName) return byName;
+
+        // Fallback: any brush with a valid center tile (tiles[1][1])
+        const hasCenter = valid.find(b => {
+            return Array.isArray(b.tiles) && b.tiles[1] && b.tiles[1][1] && b.tiles[1][1].sheetPath;
+        });
+        return hasCenter || valid[0] || null;
+    },
+
+    /**
+     * Pick the correct tile from a 9-tile brush for a given position in a
+     * boolean mask, using the same auto-tiling logic as the terrain editor:
+     *   - Check 4 cardinal neighbors to determine edge/center
+     *   - If all 4 cardinals present, check diagonals for inside corners
+     * Returns { row, col } for the 3×3 tiles grid, or { ic: 0-3 } for an
+     * inside corner, or null if no tile should be placed.
+     */
+    _pickNineTileInfo(mask, q, r) {
+        const H = mask.length;
+        const W = H > 0 ? mask[0].length : 0;
+        const has = (nq, nr) => (nr >= 0 && nr < H && nq >= 0 && nq < W) ? !!mask[nr][nq] : false;
+
+        const hasTop = has(q, r - 1);
+        const hasBottom = has(q, r + 1);
+        const hasLeft = has(q - 1, r);
+        const hasRight = has(q + 1, r);
+
+        // Check for inside corners: all 4 cardinals present but a diagonal is missing
+        if (hasTop && hasBottom && hasLeft && hasRight) {
+            const hasTL = has(q - 1, r - 1);
+            const hasTR = has(q + 1, r - 1);
+            const hasBL = has(q - 1, r + 1);
+            const hasBR = has(q + 1, r + 1);
+
+            // IC indices: 0=TL, 1=TR, 2=BL, 3=BR (which diagonal is MISSING)
+            const icIdx = !hasTL ? 0 : !hasTR ? 1 : !hasBL ? 2 : !hasBR ? 3 : -1;
+            if (icIdx >= 0) return { ic: icIdx };
+        }
+
+        // Map to 3×3 grid: row 0=top edge, 1=middle, 2=bottom edge
+        let row = 1;
+        if (!hasTop && hasBottom) row = 0;
+        else if (hasTop && !hasBottom) row = 2;
+        // col 0=left edge, 1=middle, 2=right edge
+        let col = 1;
+        if (!hasLeft && hasRight) col = 0;
+        else if (hasLeft && !hasRight) col = 2;
+
+        return { row, col };
+    },
+
+    _paintGrassSecondLayer(tiles, worldQ, worldR) {
+        const brush = this._getGrassNineTileBrush();
+        const H = this.height;
+        const W = this.width;
+
+        // Paintable mask — the detail layer is purely visual and always on top,
+        // so every tile that exists is paintable. No exceptions.
+        const paintable = Array.from({ length: H }, () => Array(W).fill(false));
+        for (let r = 0; r < H; r++) {
+            for (let q = 0; q < W; q++) {
+                if (tiles[r][q]) paintable[r][q] = true;
+            }
+        }
+
+        // ── Generate grass mask using LOW-frequency noise for large smooth blobs ──
+        // Use a small scale so each inner map gets just 2-4 big blob shapes
+        const mask = Array.from({ length: H }, () => Array(W).fill(false));
+        const scale = 0.045;  // low frequency → big shapes
+        const seedX = worldQ * 7.77 + 13.3;
+        const seedY = worldR * 7.77 + 29.1;
+
+        for (let r = 0; r < H; r++) {
+            for (let q = 0; q < W; q++) {
+                if (!paintable[r][q]) continue;
+                // Exclude road tiles — they stay as bare dirt so the 9-tile
+                // brush creates proper grass-to-dirt edges around them.
+                const tile = tiles[r][q];
+                if (tile && tile.isRoad) continue;
+                const nx = seedX + q * scale;
+                const ny = seedY + r * scale;
+                // 2 octaves only — keeps shapes smooth, avoids high-freq jaggedness
+                const v = (Utils.fbm(nx, ny, 2, 2.0, 0.4) + 1) / 2;
+                if (v > 0.47) mask[r][q] = true;
+            }
+        }
+
+        // ── Morphological smoothing ──
+        // Helper: count cardinal (4-connected) neighbors
+        const cardinal4 = (m, q, r) => {
+            let c = 0;
+            if (r > 0     && m[r - 1][q]) c++;
+            if (r < H - 1 && m[r + 1][q]) c++;
+            if (q > 0     && m[r][q - 1]) c++;
+            if (q < W - 1 && m[r][q + 1]) c++;
+            return c;
+        };
+        // Helper: count all 8 neighbors
+        const count8 = (m, q, r) => {
+            let c = 0;
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dq = -1; dq <= 1; dq++) {
+                    if (dr === 0 && dq === 0) continue;
+                    const nr = r + dr, nq = q + dq;
+                    if (nr >= 0 && nr < H && nq >= 0 && nq < W && m[nr][nq]) c++;
+                }
+            }
+            return c;
+        };
+
+        // Step 1 — Close: fill any empty paintable tile with ≥4 of 8 grass neighbors.
+        // This seals narrow gaps and smooths concavities.  Two passes close
+        // channels up to ~2 tiles wide.
+        for (let pass = 0; pass < 2; pass++) {
+            const fills = [];
+            for (let r = 1; r < H - 1; r++) {
+                for (let q = 1; q < W - 1; q++) {
+                    if (mask[r][q] || !paintable[r][q]) continue;
+                    if (count8(mask, q, r) >= 4) fills.push([r, q]);
+                }
+            }
+            if (!fills.length) break;
+            for (const [r, q] of fills) mask[r][q] = true;
+        }
+
+        // Step 2 — Erode thin protrusions: iteratively remove tiles with < 2
+        // cardinal neighbors (shaves off 1-wide peninsulas)
+        for (let pass = 0; pass < 3; pass++) {
+            let changed = false;
+            for (let r = 0; r < H; r++) {
+                for (let q = 0; q < W; q++) {
+                    if (!mask[r][q]) continue;
+                    if (cardinal4(mask, q, r) < 2) {
+                        mask[r][q] = false;
+                        changed = true;
+                    }
+                }
+            }
+            if (!changed) break;
+        }
+
+        // Step 3 — Remove small blobs (< 9 tiles)
+        const visited = Array.from({ length: H }, () => Array(W).fill(false));
+        for (let r = 0; r < H; r++) {
+            for (let q = 0; q < W; q++) {
+                if (!mask[r][q] || visited[r][q]) continue;
+                const stack = [{ q, r }];
+                const component = [];
+                visited[r][q] = true;
+                while (stack.length) {
+                    const { q: cq, r: cr } = stack.pop();
+                    component.push({ q: cq, r: cr });
+                    const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+                    for (const [dq, dr] of dirs) {
+                        const nq = cq + dq, nr = cr + dr;
+                        if (nr >= 0 && nr < H && nq >= 0 && nq < W && mask[nr][nq] && !visited[nr][nq]) {
+                            visited[nr][nq] = true;
+                            stack.push({ q: nq, r: nr });
+                        }
+                    }
+                }
+                if (component.length < 9) {
+                    for (const { q: cq, r: cr } of component) mask[cr][cq] = false;
+                }
+            }
+        }
+
+        // Also remove small dirt holes inside grass (< 9 empty paintable tiles
+        // surrounded by grass → fill them in)
+        const visitedGap = Array.from({ length: H }, () => Array(W).fill(false));
+        for (let r = 0; r < H; r++) {
+            for (let q = 0; q < W; q++) {
+                if (mask[r][q] || visitedGap[r][q] || !paintable[r][q]) continue;
+                const stack = [{ q, r }];
+                const component = [];
+                let touchesEdge = false;
+                visitedGap[r][q] = true;
+                while (stack.length) {
+                    const { q: cq, r: cr } = stack.pop();
+                    component.push({ q: cq, r: cr });
+                    if (cr === 0 || cr === H - 1 || cq === 0 || cq === W - 1) touchesEdge = true;
+                    const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+                    for (const [dq, dr] of dirs) {
+                        const nq = cq + dq, nr = cr + dr;
+                        if (nr >= 0 && nr < H && nq >= 0 && nq < W && !mask[nr][nq] && paintable[nr][nq] && !visitedGap[nr][nq]) {
+                            visitedGap[nr][nq] = true;
+                            stack.push({ q: nq, r: nr });
+                        }
+                    }
+                }
+                // Fill small interior holes that don't touch the map edge
+                if (!touchesEdge && component.length < 9) {
+                    for (const { q: cq, r: cr } of component) mask[cr][cq] = true;
+                }
+            }
+        }
+
+        // Get season-specific tiles if available
+        const season = (this.season || 'spring').toLowerCase();
+        const tilesGrid = (brush && brush.seasonTiles && brush.seasonTiles[season])
+            ? brush.seasonTiles[season]
+            : (brush ? brush.tiles : null);
+        const cornersArr = (brush && brush.seasonInsideCorners && brush.seasonInsideCorners[season])
+            ? brush.seasonInsideCorners[season]
+            : (brush ? brush.insideCorners || null : null);
+
+        // Assign terrain detail for each grass tile
+        for (let r = 0; r < H; r++) {
+            for (let q = 0; q < W; q++) {
+                if (!mask[r][q]) continue;
+                const tile = tiles[r][q];
+                if (!tile) continue;
+
+                if (tilesGrid) {
+                    const info = this._pickNineTileInfo(mask, q, r);
+
+                    // Inside corner
+                    if (info.ic !== undefined && cornersArr && cornersArr[info.ic]) {
+                        const ic = cornersArr[info.ic];
+                        if (ic && ic.sheetPath) {
+                            tile.terrainDetail = {
+                                sheetPath: ic.sheetPath,
+                                sx: Number.isFinite(ic.sx) ? ic.sx : 0,
+                                sy: Number.isFinite(ic.sy) ? ic.sy : 0,
+                                sw: 32,
+                                sh: 32,
+                            };
+                            continue;
+                        }
+                    }
+
+                    // Normal 3×3 grid tile
+                    if (info.row !== undefined) {
+                        const tileRef = tilesGrid[info.row] && tilesGrid[info.row][info.col];
+                        if (tileRef && tileRef.sheetPath) {
+                            tile.terrainDetail = {
+                                sheetPath: tileRef.sheetPath,
+                                sx: Number.isFinite(tileRef.sx) ? tileRef.sx : 0,
+                                sy: Number.isFinite(tileRef.sy) ? tileRef.sy : 0,
+                                sw: 32,
+                                sh: 32,
+                            };
+                            continue;
+                        }
+                    }
+                }
+
+                // Fallback: use terrain fill tile for grass
+                tile.terrainDetail = { fillCategory: 'grass' };
+            }
+        }
+    },
+
     /**
      * Generate or retrieve an inner map for a world tile
      * @param {Object} worldTile - The world tile object
@@ -396,8 +659,8 @@ export const InnerMap = {
 
                 const passable = selectedTerrain.passable !== false;
 
-                // Determine base terrain fill — like C#'s tileType
-                const baseTerrain = this._getBaseTerrain(terrainId, selectedTerrain.id);
+                // Inner map base layer: force dirt everywhere, then paint grass as a second layer.
+                const baseTerrain = 'dirt';
 
                 row.push({
                     q, r,
@@ -424,6 +687,8 @@ export const InnerMap = {
         }
 
         // --- Settlement building placement ---
+        // Must run BEFORE the grass layer so road tiles are excluded from
+        // the grass mask and the 9-tile brush creates proper edges.
         if (worldTile.settlement) {
             // Use the procedural settlement generator (road network + parcels + lots)
             if (typeof SettlementGenerator !== 'undefined') {
@@ -437,6 +702,11 @@ export const InnerMap = {
                 this._placeCustomBuildings(tiles, worldTile.settlement, rng);
             }
         }
+
+        // Paint a second grass layer using saved 9-tile brushes (fallback: grass fill overlays).
+        // Road tiles (isRoad) are excluded from the mask so the brush auto-tiles
+        // smooth edges around dirt paths.
+        this._paintGrassSecondLayer(tiles, worldQ, worldR);
 
         // --- Player property placement ---
         this._placePlayerProperties(tiles, worldTile, rng);
@@ -1675,12 +1945,42 @@ export const InnerMap = {
             }
         }
 
-        // ── Try custom-authored interior by building type ──
+        // ── Try custom-authored interior by building type (plus aliases) ──
         if (typeof CustomInteriors !== 'undefined' && CustomInteriors.hasAny()) {
             const seed = interiorKey || `${building.type}_${building.q}_${building.r}`;
-            const def  = CustomInteriors.pickForBuilding(building.type, seed);
-            if (def) {
-                return this._generateCustomInterior(def, building);
+            const typeCandidates = [];
+            const addType = (t) => {
+                if (!t || typeof t !== 'string') return;
+                if (!typeCandidates.includes(t)) typeCandidates.push(t);
+            };
+
+            addType(building.type);
+            addType((building.type || '').replace(/^player_/, ''));
+
+            if (building._customDefId && typeof CustomBuildings !== 'undefined' && typeof CustomBuildings.getBuilding === 'function') {
+                const customDef = CustomBuildings.getBuilding(building._customDefId);
+                if (customDef && customDef.buildingType) {
+                    addType(customDef.buildingType);
+                }
+            }
+
+            const typeAlias = {
+                marketplace: 'market',
+                market: 'marketplace',
+                town_hall: 'townhall',
+                townhall: 'town_hall',
+                blacksmith: 'smithy',
+                smithy: 'blacksmith',
+            };
+            for (const t of [...typeCandidates]) {
+                addType(typeAlias[t]);
+            }
+
+            for (const t of typeCandidates) {
+                const def = CustomInteriors.pickForBuilding(t, `${seed}_${t}`);
+                if (def) {
+                    return this._generateCustomInterior(def, building);
+                }
             }
         }
 
@@ -2621,7 +2921,7 @@ export const InnerMap = {
         const buildingTiles = [];
         for (let r = 0; r < this.height; r++) {
             for (let q = 0; q < this.width; q++) {
-                if (this.tiles[r][q].building) {
+                if (this.tiles[r][q].building || this.tiles[r][q].customBuilding) {
                     buildingTiles.push({ q, r, sprite: this.tiles[r][q].building });
                 }
             }
@@ -2648,23 +2948,31 @@ export const InnerMap = {
         for (let i = 0; i < buildingTiles.length; i++) {
             const bt = buildingTiles[i];
             let buildingType;
+            let customBuildingDef = null;
 
             // Honour placement-time type hint (e.g. farm tiles placed at outer ring)
             const tile = this.tiles[bt.r][bt.q];
+            const customDefId = tile.customBuilding && tile.customBuilding.defId;
+            if (customDefId && typeof CustomBuildings !== 'undefined' && typeof CustomBuildings.getBuilding === 'function') {
+                customBuildingDef = CustomBuildings.getBuilding(customDefId);
+                if (customBuildingDef && customBuildingDef.buildingType) {
+                    buildingType = customBuildingDef.buildingType;
+                }
+            }
             // Skip player property tiles — they are handled by _addPropertyBuildings()
             if (tile._buildingTypeHint === 'player_property') continue;
-            if (tile._buildingTypeHint) {
+            if (!buildingType && tile._buildingTypeHint) {
                 buildingType = tile._buildingTypeHint;
                 // Remove from required/optional lists to avoid double-assignment
                 const reqIdx = required.indexOf(buildingType);
                 if (reqIdx !== -1) required.splice(reqIdx, 1);
                 const optIdx = optional.indexOf(buildingType);
                 if (optIdx !== -1) optional.splice(optIdx, 1);
-            } else if (required.length > 0) {
+            } else if (!buildingType && required.length > 0) {
                 buildingType = required.shift();
-            } else if (optional.length > 0) {
+            } else if (!buildingType && optional.length > 0) {
                 buildingType = optional.shift();
-            } else {
+            } else if (!buildingType) {
                 buildingType = 'house'; // fallback
             }
 
@@ -2674,11 +2982,15 @@ export const InnerMap = {
                 q: bt.q,
                 r: bt.r,
                 type: buildingType,
-                name: def.name,
+                name: customBuildingDef && customBuildingDef.name ? customBuildingDef.name : def.name,
                 icon: def.icon,
                 sprite: bt.sprite,  // keep original sprite for visuals
                 actions: [...def.actions],
             };
+
+            if (customDefId) {
+                bldg._customDefId = customDefId;
+            }
 
             // Update the tile's building info
             this.tiles[bt.r][bt.q].buildingInfo = bldg;
@@ -2711,7 +3023,6 @@ export const InnerMap = {
                         if (!tile || !tile.subTerrain.passable) continue;
                         roadSet.add(key);
                         this.roads.push({ q: step.q, r: step.r });
-                        // Mark road on tile
                         if (!tile.building) {
                             tile.isRoad = true;
                         }
@@ -2740,6 +3051,24 @@ export const InnerMap = {
                 }
             }
         }
+
+        // Widen roads by 1 tile in cardinal directions for smoother appearance
+        const extraRoads = [];
+        for (const rd of this.roads) {
+            const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+            for (const [dq, dr] of dirs) {
+                const nq = rd.q + dq, nr = rd.r + dr;
+                const key = `${nq},${nr}`;
+                if (roadSet.has(key)) continue;
+                if (nq < 0 || nq >= this.width || nr < 0 || nr >= this.height) continue;
+                const tile = this.getTile(nq, nr);
+                if (!tile || !tile.subTerrain.passable || tile.building) continue;
+                roadSet.add(key);
+                extraRoads.push({ q: nq, r: nr });
+                tile.isRoad = true;
+            }
+        }
+        for (const rd of extraRoads) this.roads.push(rd);
     },
 
     /**

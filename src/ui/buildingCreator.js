@@ -10,6 +10,7 @@ import { CustomInteriors } from '../world/customInteriors.js';
 import { CustomBuildings } from '../world/customBuildings.js';
 import { InnerMap } from '../world/innerMap.js';
 import { InnerMapRenderer } from './innerMapRenderer.js';
+import { DataLoader } from '../core/dataLoader.js';
 
 // ─── Constants ────────────────────────────────────────────
 const TILE = 32;
@@ -98,6 +99,49 @@ const DEFAULT_COSTS = {
     wall:  { gold: 5, resources: { stone: 1, wood: 1 } },
 };
 
+const FALLBACK_RESOURCE_DEFS = [
+    { id: 'wood', name: 'Wood', icon: '🪵', color: '#8b5a2b' },
+    { id: 'timber', name: 'Timber', icon: '🌲', color: '#8b5a2b' },
+    { id: 'stone', name: 'Stone', icon: '⛰️', color: '#808080' },
+    { id: 'iron', name: 'Iron', icon: '⛏️', color: '#8a7a7a' },
+];
+
+function _prettyResourceId(itemId) {
+    return String(itemId || '').trim().replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown Resource';
+}
+
+function _getTerrainResourceDefs() {
+    const resources = DataLoader?.get?.('terrain.json')?.resources;
+    if (!resources || typeof resources !== 'object') return [];
+    return Object.entries(resources)
+        .map(([key, r]) => {
+            const id = String((r && r.id) || key || '').trim().toLowerCase();
+            if (!id) return null;
+            return {
+                id,
+                name: String((r && r.name) || id).trim() || _prettyResourceId(id),
+                icon: String((r && r.icon) || '📦'),
+                color: String((r && r.color) || '#888888'),
+            };
+        })
+        .filter(Boolean);
+}
+
+function _getResourceDefs() {
+    const byId = new Map();
+    for (const def of FALLBACK_RESOURCE_DEFS) byId.set(def.id, def);
+    for (const def of _getTerrainResourceDefs()) byId.set(def.id, def);
+    return [...byId.values()];
+}
+
+function _getResourceDef(itemId) {
+    const id = String(itemId || '').trim().toLowerCase();
+    if (!id) return { id: '', name: 'Unknown Resource', icon: '📦', color: '#888888' };
+    const found = _getResourceDefs().find(r => r.id === id);
+    if (found) return found;
+    return { id, name: _prettyResourceId(id), icon: '📦', color: '#888888' };
+}
+
 // ═══════════════════════════════════════════════════════════
 //  IMAGE HELPERS
 // ═══════════════════════════════════════════════════════════
@@ -183,8 +227,8 @@ function _formatCost(cost) {
     const parts = [];
     if (cost.gold > 0) parts.push(`${cost.gold}g`);
     for (const [itemId, qty] of Object.entries(cost.resources || {})) {
-        const name = itemId.replace(/_/g, ' ');
-        parts.push(`${qty} ${name}`);
+        const def = _getResourceDef(itemId);
+        parts.push(`${qty} ${def.icon} ${def.name}`);
     }
     return parts.join(', ') || 'Free';
 }
@@ -496,9 +540,11 @@ function _updateResourceDisplay() {
     const p = _game.player;
     const items = [];
     items.push(`💰 ${p.gold}g`);
-    if (p.inventory.wood)  items.push(`🌲 ${p.inventory.wood} wood`);
-    if (p.inventory.stone) items.push(`⛰️ ${p.inventory.stone} stone`);
-    if (p.inventory.iron)  items.push(`⚒️ ${p.inventory.iron} iron`);
+    const invEntries = Object.entries(p.inventory || {}).filter(([, qty]) => qty > 0);
+    for (const [itemId, qty] of invEntries.slice(0, 5)) {
+        const def = _getResourceDef(itemId);
+        items.push(`${def.icon} ${qty} ${def.name}`);
+    }
     el.textContent = items.join('  ·  ');
 }
 
@@ -888,16 +934,20 @@ function _updateCostEditor() {
     `;
 
     const resContainer = container.querySelector('#bc-cost-resources');
-    const resourceOptions = ['wood', 'stone', 'iron', 'gold_ore', 'gems', 'tools', 'textiles'];
+    const resourceDefs = _getResourceDefs().sort((a, b) => a.name.localeCompare(b.name));
 
     function _renderResources() {
         resContainer.innerHTML = '';
         for (const [itemId, qty] of Object.entries(cost.resources)) {
+            const rowOptions = [...resourceDefs];
+            if (itemId && !rowOptions.some(r => r.id === itemId)) {
+                rowOptions.push(_getResourceDef(itemId));
+            }
             const row = document.createElement('div');
             row.style.cssText = 'display:flex;align-items:center;gap:4px';
             row.innerHTML = `
                 <select style="flex:1;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:2px 4px;border-radius:3px;font-size:11px">
-                    ${resourceOptions.map(r => `<option value="${r}" ${r === itemId ? 'selected' : ''}>${r.replace(/_/g, ' ')}</option>`).join('')}
+                    ${rowOptions.map(r => `<option value="${r.id}" ${r.id === itemId ? 'selected' : ''}>${r.icon || '📦'} ${r.name || _prettyResourceId(r.id)}</option>`).join('')}
                 </select>
                 <input type="number" value="${qty}" min="0" max="100" style="width:50px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:2px 4px;border-radius:3px;font-size:11px">
                 <button style="font-size:10px;color:#f85149;background:none;border:none;cursor:pointer;padding:2px 4px">✕</button>
@@ -913,9 +963,9 @@ function _updateCostEditor() {
     _renderResources();
 
     container.querySelector('#bc-cost-add-res').addEventListener('click', () => {
-        const unused = resourceOptions.find(r => !(r in cost.resources));
-        if (unused) {
-            cost.resources[unused] = 1;
+        const unused = resourceDefs.find(r => !(r.id in cost.resources));
+        if (unused && unused.id) {
+            cost.resources[unused.id] = 1;
             _renderResources();
         }
     });
@@ -1092,7 +1142,8 @@ function _updateTotalCost() {
     const parts = [`<b>${tileCount}</b> tiles placed`];
     if (totalGold > 0) parts.push(`💰 <b>${totalGold}</b> gold`);
     for (const [itemId, qty] of Object.entries(totalRes)) {
-        parts.push(`${qty} ${itemId.replace(/_/g, ' ')}`);
+        const def = _getResourceDef(itemId);
+        parts.push(`${qty} ${def.icon} ${def.name}`);
     }
     el.innerHTML = parts.join('<br>');
 }

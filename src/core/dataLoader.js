@@ -82,13 +82,27 @@ export const DataLoader = {
         return data;
     },
 
+    _loadingPromise: null,  // Dedup concurrent _loadGamedata calls
+
     async _loadGamedata() {
         if (this._gamedata) return;
+        // Prevent concurrent calls (e.g. React StrictMode double-fire)
+        if (this._loadingPromise) return this._loadingPromise;
+        this._loadingPromise = this._doLoadGamedata();
+        try {
+            await this._loadingPromise;
+        } finally {
+            this._loadingPromise = null;
+        }
+    },
 
+    async _doLoadGamedata() {
         // Always load the base gamedata.json from disk first
+        console.log('[DataLoader] Fetching gamedata.json...');
         const response = await fetch('/data/gamedata.json');
         if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         this._gamedata = await response.json();
+        console.log('[DataLoader] gamedata.json parsed successfully');
 
         // Merge ONLY editor-authored keys from browser storage (IndexedDB).
         // The editor stores the full gamedata blob, but we only want the keys
@@ -96,9 +110,16 @@ export const DataLoader = {
         // terrain.biomeTable, kingdoms, economy, etc.
         try {
             if (typeof ModStore !== 'undefined') {
-                await ModStore.init();
-                const stored = await ModStore.loadModData();
-                if (stored && typeof stored === 'object' && (stored.terrain || stored.buildings || stored.objects)) {
+                // Timeout IndexedDB operations — if they hang (blocked/corrupt),
+                // fall back to base gamedata after 3 seconds.
+                const modStoreTimeout = (promise, ms = 3000) =>
+                    Promise.race([
+                        promise,
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('ModStore timeout')), ms)),
+                    ]);
+                await modStoreTimeout(ModStore.init());
+                const stored = await modStoreTimeout(ModStore.loadModData());
+                if (stored && typeof stored === 'object' && (stored.terrain || stored.buildings || stored.objects || stored.playerEconomy)) {
                     console.log('[DataLoader] Merging editor data from browser storage (IndexedDB)');
                     this._mergeEditorData(stored);
                 }
@@ -119,6 +140,7 @@ export const DataLoader = {
         const editorKeys = [
             'buildings', 'objects', 'interiors',
             'terrainSets', 'nineTileBrushes', 'terrainMap',
+            'buildingNineTileBrushes', 'terrainNineTileBrushes',
             'doorCatalog', 'windowCatalog',
         ];
         for (const key of editorKeys) {
@@ -137,6 +159,19 @@ export const DataLoader = {
                     Object.keys(stored.terrain[key]).length > 0) {
                     this._gamedata.terrain[key] = stored.terrain[key];
                 }
+            }
+        }
+
+        // Player economy section: merge inner-map goods from the editor without
+        // replacing unrelated base economy sections.
+        if (stored.playerEconomy && typeof stored.playerEconomy === 'object') {
+            if (!this._gamedata.playerEconomy) this._gamedata.playerEconomy = {};
+            const incomingGoods = stored.playerEconomy.GOODS;
+            if (incomingGoods && typeof incomingGoods === 'object' && Object.keys(incomingGoods).length > 0) {
+                this._gamedata.playerEconomy.GOODS = {
+                    ...(this._gamedata.playerEconomy.GOODS || {}),
+                    ...incomingGoods,
+                };
             }
         }
     },

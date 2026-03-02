@@ -38,6 +38,10 @@ function open() {
             console.error('ModStore: failed to open IndexedDB', e.target.error);
             reject(e.target.error);
         };
+        req.onblocked = () => {
+            console.warn('ModStore: IndexedDB open blocked — another connection may be open');
+            reject(new Error('IndexedDB open blocked'));
+        };
     });
 }
 

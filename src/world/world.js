@@ -16,6 +16,7 @@ import { Culture } from '../systems/culture.js';
 import { Peoples } from '../systems/peoples.js';
 import { Colonization } from './colonization.js';
 import { Cartography } from '../systems/cartography.js';
+import { KingdomAI } from './kingdomAI.js';
 
 export class World {
     constructor(width = 70, height = 45) {

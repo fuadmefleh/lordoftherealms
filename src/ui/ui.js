@@ -352,8 +352,17 @@ export class UI {
         const title = document.getElementById('hexInfoTitle');
         const body = document.getElementById('hexInfoBody');
 
+        const isPlayerTile = !!this.game?.player && this.game.player.q === q && this.game.player.r === r;
+        const isKnownTile = !!tile && (tile.explored || tile.visible || isPlayerTile);
+
+        // Defensive backfill for older/mismatched states where visibility is present
+        // but explored flag wasn't persisted.
+        if (tile && tile.visible && !tile.explored) {
+            tile.explored = true;
+        }
+
         // Unexplored tiles: show only coordinates
-        if (!tile.explored) {
+        if (!isKnownTile) {
             title.textContent = 'Unexplored';
             title.style.color = '#888888';
             body.innerHTML = `
@@ -457,10 +466,12 @@ export class UI {
         }
 
         if (tile.resource) {
+            const resourceName = tile.resource.name || tile.resource.id || 'Unknown Resource';
+            const resourceIcon = tile.resource.icon || '📦';
             html += `
                 <div class="info-section-title">Resources</div>
                 <div class="info-row">
-                    <span class="info-label">${tile.resource.icon} ${tile.resource.name}</span>
+                    <span class="info-label">${resourceIcon} ${resourceName}</span>
                 </div>
             `;
         }
@@ -1911,8 +1922,9 @@ export class UI {
                 if (quantity <= 0) continue;
                 // Try to find the item in PlayerEconomy.GOODS
                 const item = PlayerEconomy.GOODS ? PlayerEconomy.GOODS[itemId.toUpperCase()] : null;
-                const icon = item ? item.icon : '📦';
-                const name = item ? item.name : itemId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                const fallbackName = itemId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                const icon = (item && item.icon) ? item.icon : '📦';
+                const name = (item && item.name) ? item.name : fallbackName;
                 inventoryHtml += `
                     <div style="display: flex; justify-content: space-between; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
                         <span>${icon} ${name}</span>
@@ -3305,8 +3317,8 @@ export class UI {
             marketHtml += `
                 <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap:10px; padding:8px 0; align-items:center; border-bottom:1px solid rgba(255,255,255,0.05);">
                     <div style="display:flex; align-items:center;">
-                        <span style="font-size:18px; margin-right:8px;">${item.icon}</span>
-                        <span style="color:var(--text-primary);">${item.name}</span>
+                        <span style="font-size:18px; margin-right:8px;">${item.icon || '📦'}</span>
+                        <span style="color:var(--text-primary);">${item.name || item.id || 'Unknown Item'}</span>
                     </div>
                     <div style="text-align:right; font-weight:bold; color:${priceColor};">${item.price}g</div>
                     <div style="text-align:center; color:${trendColor};">${trendIcon}</div>

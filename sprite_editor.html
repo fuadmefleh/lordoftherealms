@@ -322,7 +322,9 @@ canvas.pal-terrain-overlay{position:absolute;top:0;left:0;pointer-events:none;im
         <div style="margin-top:4px;font-size:10px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-bottom:2px">Cost per tile</div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">
           <div class="tset-props-row" style="flex:1;min-width:60px"><label style="font-size:10px">Gold</label><input type="number" id="n9b-cost-gold" value="0" min="0" max="9999" onchange="n9b_onCostChange()" style="font-size:11px;width:50px"></div>
-                    <div id="n9b-cost-resource-rows" style="display:flex;gap:4px;flex-wrap:wrap;flex:1"></div>
+          <div class="tset-props-row" style="flex:1;min-width:60px"><label style="font-size:10px">Wood</label><input type="number" id="n9b-cost-wood" value="0" min="0" max="999" onchange="n9b_onCostChange()" style="font-size:11px;width:50px"></div>
+          <div class="tset-props-row" style="flex:1;min-width:60px"><label style="font-size:10px">Stone</label><input type="number" id="n9b-cost-stone" value="0" min="0" max="999" onchange="n9b_onCostChange()" style="font-size:11px;width:50px"></div>
+          <div class="tset-props-row" style="flex:1;min-width:60px"><label style="font-size:10px">Iron</label><input type="number" id="n9b-cost-iron" value="0" min="0" max="999" onchange="n9b_onCostChange()" style="font-size:11px;width:50px"></div>
         </div>
         <div style="display:flex;gap:3px;margin-top:4px">
           <button onclick="n9b_remove()" style="font-size:10px;padding:1px 6px" class="danger">✕ Delete</button>
@@ -537,6 +539,24 @@ canvas.pal-terrain-overlay{position:absolute;top:0;left:0;pointer-events:none;im
         <div class="res-row">
           <select id="obj-resource">
             <option value="">— None</option>
+            <option value="wood">🪵 Wood</option>
+            <option value="stone">🪨 Stone</option>
+            <option value="iron">⛏️ Iron</option>
+            <option value="gold_ore">🥇 Gold Ore</option>
+            <option value="gems">💎 Gems</option>
+            <option value="grain">🌾 Grain</option>
+            <option value="herbs">🌿 Herbs</option>
+            <option value="fruit">🍎 Fruit</option>
+            <option value="mushrooms">🍄 Mushrooms</option>
+            <option value="fish">🐟 Fish</option>
+            <option value="wool">🧶 Wool</option>
+            <option value="clay">🏺 Clay</option>
+            <option value="leather">🟫 Leather</option>
+            <option value="berries">🫐 Berries</option>
+            <option value="flowers">🌸 Flowers</option>
+            <option value="resin">🟠 Resin</option>
+            <option value="honey">🍯 Honey</option>
+            <option value="feathers">🪶 Feathers</option>
           </select>
           <input type="number" id="obj-resource-amount" value="1" min="1" max="99" step="1" title="Amount per harvest">
         </div>
@@ -983,90 +1003,10 @@ let _objColorVariants = []; // Array of {label, objLayers, meta, originQ, origin
 let _activeColorVariantIdx = -1; // -1 = base, 0+ = color variant index
 let _objRequiredTechs = []; // Array of tech IDs required to build this object
 let _availableTechs   = []; // Array of {id, name, icon, category} from parent tech editor
-let _resourceTypes = [
-    { id: 'wood', name: 'Wood', icon: '🪵', color: '#8b5a2b', buildCostEligible: true },
-    { id: 'timber', name: 'Timber', icon: '🌲', color: '#8b5a2b', buildCostEligible: true },
-    { id: 'stone', name: 'Stone', icon: '⛰️', color: '#808080', buildCostEligible: true },
-    { id: 'iron', name: 'Iron', icon: '⛏️', color: '#8a7a7a', buildCostEligible: true },
-];
 let _objOriginQ       = null; // Grid col of the origin/anchor tile (null = use top-left painted tile)
 let _objOriginR       = null; // Grid row of the origin/anchor tile
 let _bldOriginQ       = null; // Building origin col (null = use top-left painted tile)
 let _bldOriginR       = null; // Building origin row
-
-function _setResourceTypes(resourceTypes) {
-    if (Array.isArray(resourceTypes) && resourceTypes.length) {
-        _resourceTypes = resourceTypes
-            .map(r => ({
-                id: String(r.id || '').trim(),
-                name: String(r.name || r.id || '').trim(),
-                icon: String(r.icon || '📦'),
-                color: String(r.color || '#888888'),
-                buildCostEligible: !!r.buildCostEligible,
-            }))
-            .filter(r => r.id);
-    }
-    _refreshResourceMenus();
-}
-
-function _getBuildCostResourceTypes() {
-    const eligible = _resourceTypes.filter(r => r.buildCostEligible);
-    if (eligible.length) return eligible;
-    return _resourceTypes.filter(r => ['wood', 'timber', 'stone', 'iron'].includes(r.id));
-}
-
-function _refreshResourceMenus() {
-    _renderObjResourceOptions();
-    _renderN9bCostRows();
-}
-
-function _renderObjResourceOptions() {
-    const sel = document.getElementById('obj-resource');
-    if (!sel) return;
-    const selected = sel.value || '';
-    const opts = [..._resourceTypes].sort((a, b) => a.name.localeCompare(b.name));
-    sel.innerHTML = '<option value="">— None</option>';
-    for (const r of opts) {
-        const o = document.createElement('option');
-        o.value = r.id;
-        o.textContent = `${r.icon || '📦'} ${r.name}`;
-        sel.appendChild(o);
-    }
-        if (selected && !opts.some(r => r.id === selected)) {
-            const fallback = document.createElement('option');
-            fallback.value = selected;
-            fallback.textContent = `📦 ${selected}`;
-            sel.appendChild(fallback);
-        }
-        sel.value = selected || '';
-}
-
-function _renderN9bCostRows(selectedResources = null) {
-    const wrap = document.getElementById('n9b-cost-resource-rows');
-    if (!wrap) return;
-    const costMap = selectedResources || (_n9b_selIdx >= 0 ? ((_nineTileBrushes[_n9b_selIdx].cost || {}).resources || {}) : {});
-    const defs = [..._getBuildCostResourceTypes()].sort((a, b) => a.name.localeCompare(b.name));
-    wrap.innerHTML = '';
-    for (const r of defs) {
-        const row = document.createElement('div');
-        row.className = 'tset-props-row';
-        row.style.cssText = 'flex:1;min-width:64px';
-        const label = document.createElement('label');
-        label.style.fontSize = '10px';
-        label.textContent = `${r.icon || '📦'} ${r.name}`;
-        const input = document.createElement('input');
-        input.type = 'number';
-        input.min = '0';
-        input.max = '999';
-        input.value = String(costMap[r.id] || 0);
-        input.style.cssText = 'font-size:11px;width:56px';
-        input.dataset.resId = r.id;
-        input.onchange = n9b_onCostChange;
-        row.appendChild(label);
-        row.appendChild(input);
-        wrap.appendChild(row);
-    }
-}
 
 // ── Saved mode states (for restoring on switch) ──
 let _savedBuildingState = null;
@@ -1137,7 +1077,6 @@ function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replac
 // ═══════════════════════════════════════════════════════════════
 function init() {
     buildPaletteCats();
-    _refreshResourceMenus();
     resizeObserver();
     initBuildCanvas();
     initPaletteResizer();
@@ -3925,12 +3864,13 @@ function n9b_onCostChange() {
     if (_n9b_selIdx < 0) return;
     const brush = _nineTileBrushes[_n9b_selIdx];
     const gold = parseInt(document.getElementById('n9b-cost-gold').value) || 0;
+    const wood = parseInt(document.getElementById('n9b-cost-wood').value) || 0;
+    const stone = parseInt(document.getElementById('n9b-cost-stone').value) || 0;
+    const iron = parseInt(document.getElementById('n9b-cost-iron').value) || 0;
     const resources = {};
-    document.querySelectorAll('#n9b-cost-resource-rows input[data-res-id]').forEach(inp => {
-        const rid = inp.dataset.resId;
-        const val = parseInt(inp.value) || 0;
-        if (rid && val > 0) resources[rid] = val;
-    });
+    if (wood > 0) resources.wood = wood;
+    if (stone > 0) resources.stone = stone;
+    if (iron > 0) resources.iron = iron;
     brush.cost = { gold, resources };
     notifyParent();
 }
@@ -4032,7 +3972,9 @@ function n9b_refreshUI() {
         const c = _nineTileBrushes[_n9b_selIdx].cost || {};
         const cr = c.resources || {};
         document.getElementById('n9b-cost-gold').value = c.gold || 0;
-        _renderN9bCostRows(cr);
+        document.getElementById('n9b-cost-wood').value = cr.wood || 0;
+        document.getElementById('n9b-cost-stone').value = cr.stone || 0;
+        document.getElementById('n9b-cost-iron').value = cr.iron || 0;
         _n9b_renderSlotGrid();
     }
 }
@@ -5155,15 +5097,8 @@ window.addEventListener('message', ev => {
     renderObjTechTags();
     return;
   }
-    if (ev.data.type === 'resourceTypesUpdate') {
-        _setResourceTypes(ev.data.resourceTypes || []);
-        return;
-    }
   if (ev.data.type !== 'loadGamedata') return;
   const d = ev.data;
-    if (Array.isArray(d.resourceTypes)) {
-        _setResourceTypes(d.resourceTypes);
-    }
   // Load terrain sets
   if (d.terrainSets && Array.isArray(d.terrainSets)) {
     _tbrush_sets = d.terrainSets;

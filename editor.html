@@ -35,6 +35,27 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
    ════════════════════════════════════════════════════ */
 #res-editor{display:flex;flex-direction:column;height:100%;overflow:hidden;background:var(--bg)}
 
+/* ════════════════════════════════════════════════════
+  INNER MAP RESOURCE EDITOR
+  ════════════════════════════════════════════════════ */
+#imr-editor{display:flex;flex-direction:column;height:100%;overflow:hidden;background:var(--bg)}
+#imr-toolbar{display:flex;align-items:center;gap:8px;padding:7px 14px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+#imr-toolbar h2{font-size:12px;font-weight:700;color:var(--text-dim);letter-spacing:.06em;text-transform:uppercase;margin-right:4px}
+#imr-main{display:flex;flex:1;overflow:hidden}
+#imr-list-panel{width:300px;min-width:190px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#imr-list-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+#imr-list-header h3{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim)}
+#imr-filter-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--panel2);flex-shrink:0}
+#imr-filter-row label{font-size:11px;color:var(--text-dim)}
+#imr-type-filter{min-width:120px;font-size:11px;padding:3px 6px}
+#imr-search{width:100%;background:#0d1117;border:none;border-bottom:1px solid var(--border);padding:6px 12px;color:var(--text);font-size:12px;flex-shrink:0}
+#imr-search:focus{outline:none;border-bottom-color:var(--blue)}
+#imr-list-scroll{flex:1;overflow-y:auto;padding:6px}
+#imr-right{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#imr-form-panel{padding:16px 18px;overflow-y:auto}
+#imr-form-panel h3{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin-bottom:12px}
+#imr-note{margin-top:10px;color:var(--text-dim);font-size:11px}
+
 /* toolbar */
 #res-toolbar{display:flex;align-items:center;gap:8px;padding:7px 14px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
 #res-toolbar h2{font-size:12px;font-weight:700;color:var(--text-dim);letter-spacing:.06em;text-transform:uppercase;margin-right:4px}
@@ -208,6 +229,9 @@ textarea{resize:vertical;font-family:inherit}
   </div>
   <div class="nav-tab" data-tab="resources"   onclick="switchTab('resources')">
     <span class="tab-icon">💎</span> Resource Types
+  </div>
+  <div class="nav-tab" data-tab="innerresources" onclick="switchTab('innerresources')">
+    <span class="tab-icon">📦</span> Inner Map Resources
   </div>
   <div class="nav-tab" data-tab="techtree"    onclick="switchTab('techtree')">
     <span class="tab-icon">🔬</span> Tech Tree
@@ -421,6 +445,76 @@ textarea{resize:vertical;font-family:inherit}
     </div><!-- /#res-editor -->
   </div><!-- /#pane-resources -->
 
+  <!-- Inner Map Resources inline editor -->
+  <div class="editor-pane" id="pane-innerresources">
+    <div id="imr-editor">
+      <div id="imr-toolbar">
+        <h2>Inner Map Resources</h2>
+        <div class="tb-sep"></div>
+        <button class="green" onclick="imrAddResource()">＋ New Inner Resource</button>
+      </div>
+
+      <div id="imr-main">
+        <div id="imr-list-panel">
+          <div id="imr-list-header">
+            <h3>Goods (<span id="imr-count">0</span>)</h3>
+          </div>
+          <div id="imr-filter-row">
+            <label for="imr-type-filter">Filter:</label>
+            <select id="imr-type-filter" onchange="imrRenderList()">
+              <option value="all">All</option>
+              <option value="raw">Raw</option>
+              <option value="material">Material</option>
+              <option value="finished">Finished</option>
+            </select>
+          </div>
+          <input id="imr-search" type="text" placeholder="🔍  Search inner resources…" oninput="imrRenderList()">
+          <div id="imr-list-scroll"></div>
+        </div>
+
+        <div id="imr-right">
+          <div id="imr-form-panel">
+            <div id="imr-no-selection">← Select an inner resource to edit, or click <strong>＋ New Inner Resource</strong>.</div>
+            <div id="imr-form" style="display:none">
+              <h3>Edit Inner Resource</h3>
+              <div class="form-grid">
+                <div class="form-field">
+                  <label>ID <span style="color:var(--text-dim)">(snake_case)</span></label>
+                  <input type="text" id="imr-id" placeholder="e.g. wood" oninput="markDirty()">
+                </div>
+                <div class="form-field">
+                  <label>Display Name</label>
+                  <input type="text" id="imr-name" placeholder="e.g. Wood" oninput="markDirty()">
+                </div>
+                <div class="form-field">
+                  <label>Icon (emoji)</label>
+                  <div class="icon-row">
+                    <span class="icon-preview" id="imr-icon-preview">📦</span>
+                    <input type="text" id="imr-icon" placeholder="🌲" maxlength="4" oninput="imrUpdateIconPreview();markDirty()">
+                  </div>
+                </div>
+                <div class="form-field">
+                  <label>Base Price <span style="color:var(--text-dim)">(gold)</span></label>
+                  <input type="number" id="imr-base-price" min="0" step="1" placeholder="10" style="width:100%" oninput="markDirty()">
+                </div>
+                <div class="form-field full">
+                  <label>Description <span style="color:var(--text-dim)">(optional)</span></label>
+                  <textarea id="imr-desc" rows="2" placeholder="Optional economy description…" oninput="markDirty()"></textarea>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button class="green" onclick="imrSaveCurrent()">💾 Save Inner Resource</button>
+                <button class="danger" onclick="imrDeleteCurrent()">🗑 Delete</button>
+                <span id="imr-msg" style="font-size:11px;color:var(--text-dim);margin-left:4px"></span>
+              </div>
+              <div id="imr-note">These goods are used for player inventory, property production, workshops, and recipes. World-map terrain resource modifiers remain in <strong>Resource Types</strong>.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /#content -->
 
 <!-- Toast -->
@@ -501,6 +595,9 @@ let resChanc     = {};   // terrainId → [ { resource, chance } ]
 let selectedId  = null;  // currently selected resource KEY
 let dirty       = false;
 
+let innerGoods = {};      // KEY → playerEconomy.GOODS entries
+let innerSelectedId = null;
+
 const CATEGORY_LABELS = {
   ore:     { label: '⛏️ Ore',      cls: 'cat-ore'    },
   mineral: { label: '💎 Mineral',  cls: 'cat-mineral' },
@@ -537,6 +634,18 @@ function mergeTerrainWithBuiltins(terrain) {
   };
 }
 
+function mergePlayerEconomyWithBuiltins(playerEconomy) {
+  const base = (_builtinGamedata && _builtinGamedata.playerEconomy) ? _builtinGamedata.playerEconomy : {};
+  const incoming = playerEconomy || {};
+  return {
+    ...base,
+    ...incoming,
+    GOODS: { ...(base.GOODS || {}), ...(incoming.GOODS || {}) },
+    PROPERTY_TYPES: { ...(base.PROPERTY_TYPES || {}), ...(incoming.PROPERTY_TYPES || {}) },
+    RECIPES: { ...(base.RECIPES || {}), ...(incoming.RECIPES || {}) },
+  };
+}
+
 (async function init() {
   // Always fetch the full gamedata.json to get built-in data (technology tree, etc.)
   try {
@@ -548,9 +657,10 @@ function mergeTerrainWithBuiltins(terrain) {
     // Try loading from browser storage first (IndexedDB)
     await ModStore.init();
     const stored = await ModStore.loadModData();
-    if (stored && typeof stored === 'object' && (stored.terrain || stored.buildings || stored.objects)) {
+    if (stored && typeof stored === 'object' && (stored.terrain || stored.buildings || stored.objects || stored.playerEconomy)) {
       _gamedata = { ...makeEmptyGamedata(), ...stored };
       _gamedata.terrain = mergeTerrainWithBuiltins(_gamedata.terrain);
+      _gamedata.playerEconomy = mergePlayerEconomyWithBuiltins(_gamedata.playerEconomy);
       // Inject built-in data that the editor doesn't persist but needs to display
       if (_builtinGamedata) _gamedata.technology = _builtinGamedata.technology;
       applyGamedata();
@@ -605,6 +715,15 @@ function getResourceTypesForEditors() {
   }));
 }
 
+function getInnerResourceTypesForEditors() {
+  return Object.values(innerGoods).map(g => ({
+    id: String(g.id || '').trim().toLowerCase(),
+    name: String(g.name || g.id || '').trim(),
+    icon: String(g.icon || '📦'),
+    color: '#888888',
+  })).filter(r => r.id);
+}
+
 function broadcastResourceTypes() {
   const payload = { type: 'resourceTypesUpdate', resourceTypes: getResourceTypesForEditors() };
   const spr = document.getElementById('iframe-sprite');
@@ -614,6 +733,14 @@ function broadcastResourceTypes() {
   const interior = document.getElementById('iframe-interiors');
   if (interior && interior.contentWindow) {
     try { interior.contentWindow.postMessage(payload, '*'); } catch (e) {}
+  }
+}
+
+function broadcastObjectResourceTypes() {
+  const payload = { type: 'objectResourceTypesUpdate', objectResourceTypes: getInnerResourceTypesForEditors() };
+  const spr = document.getElementById('iframe-sprite');
+  if (spr && spr.contentWindow) {
+    try { spr.contentWindow.postMessage(payload, '*'); } catch (e) {}
   }
 }
 
@@ -963,6 +1090,250 @@ function buildTerrainJson() {
   };
 }
 
+function loadFromInnerResourceData(playerEconomy) {
+  innerGoods = {};
+  const srcGoods = (playerEconomy && playerEconomy.GOODS) ? playerEconomy.GOODS : {};
+  for (const [KEY, g] of Object.entries(srcGoods)) {
+    const rid = (g && g.id) ? g.id : String(KEY || '').toLowerCase();
+    innerGoods[KEY] = {
+      ...(g || {}),
+      id: rid,
+      name: (g && g.name) ? g.name : rid,
+      icon: (g && g.icon) ? g.icon : '📦',
+      basePrice: Number.isFinite(Number(g && g.basePrice)) ? Number(g.basePrice) : 10,
+      description: (g && g.description) ? g.description : '',
+    };
+  }
+  innerSelectedId = null;
+  document.getElementById('imr-no-selection').style.display = '';
+  document.getElementById('imr-form').style.display = 'none';
+  imrRenderList();
+  broadcastObjectResourceTypes();
+}
+
+function buildInnerResourceJson() {
+  const base = (_gamedata && _gamedata.playerEconomy) ? _gamedata.playerEconomy : {};
+  const outGoods = {};
+  for (const [KEY, g] of Object.entries(innerGoods)) {
+    outGoods[KEY] = {
+      ...g,
+      id: String(g.id || '').trim().toLowerCase(),
+      name: String(g.name || '').trim() || String(g.id || '').trim().toLowerCase(),
+      icon: String(g.icon || '').trim() || '📦',
+      basePrice: Number.isFinite(Number(g.basePrice)) ? Number(g.basePrice) : 0,
+    };
+  }
+  return {
+    ...base,
+    GOODS: outGoods,
+  };
+}
+
+function imrRenderList() {
+  const q = (document.getElementById('imr-search').value || '').toLowerCase();
+  const typeFilter = (document.getElementById('imr-type-filter')?.value || 'all').toLowerCase();
+  const scr = document.getElementById('imr-list-scroll');
+  const keys = Object.keys(innerGoods).filter(k => {
+    const g = innerGoods[k] || {};
+    const id = String(g.id || '').toLowerCase();
+    const name = String(g.name || '').toLowerCase();
+    const type = imrClassifyGood(g.id || k);
+    const passesText = !q || id.includes(q) || name.includes(q);
+    const passesType = (typeFilter === 'all') || (type === typeFilter);
+    return passesText && passesType;
+  });
+  document.getElementById('imr-count').textContent = Object.keys(innerGoods).length;
+
+  if (!keys.length) {
+    scr.innerHTML = `<div class="list-empty">${q ? 'No matches.' : 'No inner resources yet.'}</div>`;
+    return;
+  }
+
+  scr.innerHTML = '';
+  for (const KEY of keys) {
+    const g = innerGoods[KEY] || {};
+    const cat = CATEGORY_LABELS[guessCategory(g.id || KEY)] || CATEGORY_LABELS.other;
+    const usageCount = imrCountUsage(g.id || KEY);
+    const card = document.createElement('div');
+    card.className = `res-card${KEY === innerSelectedId ? ' selected' : ''}`;
+    card.innerHTML =
+      `<div class="rc-icon">${g.icon || '📦'}</div>` +
+      `<div class="rc-dot" style="background:${(cat && cat.cls) ? 'var(--blue)' : '#888888'}"></div>` +
+      `<div class="rc-info">` +
+        `<div class="rc-name">${escHtml(g.name || g.id || KEY)}</div>` +
+        `<div class="rc-id">${escHtml(g.id || KEY)}</div>` +
+      `</div>` +
+      `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">` +
+        `<span class="cat-badge ${cat.cls}">${cat.label}</span>` +
+        `<span class="rc-count" title="${usageCount} usage${usageCount===1?'':'s'} in recipes/properties">${usageCount > 0 ? usageCount+'⚙' : ''}</span>` +
+      `</div>`;
+    card.addEventListener('click', () => imrSelect(KEY));
+    scr.appendChild(card);
+  }
+}
+
+function imrClassifyGood(resourceId) {
+  const rid = String(resourceId || '').toLowerCase();
+  const pe = (_gamedata && _gamedata.playerEconomy) ? _gamedata.playerEconomy : {};
+  const recipes = Object.values(pe.RECIPES || {});
+
+  let usedAsInput = false;
+  let producedAsOutput = false;
+
+  for (const rec of recipes) {
+    if (!rec) continue;
+    if (String(rec.input || '').toLowerCase() === rid) usedAsInput = true;
+    if (String(rec.output || '').toLowerCase() === rid) producedAsOutput = true;
+    if (usedAsInput && producedAsOutput) break;
+  }
+
+  if (!producedAsOutput) return 'raw';
+  if (usedAsInput) return 'material';
+  return 'finished';
+}
+
+function imrSelect(KEY) {
+  innerSelectedId = KEY;
+  imrRenderList();
+  imrPopulateForm(innerGoods[KEY]);
+}
+
+function imrPopulateForm(g) {
+  const item = g || {};
+  document.getElementById('imr-no-selection').style.display = 'none';
+  document.getElementById('imr-form').style.display = 'block';
+  document.getElementById('imr-id').value = item.id || '';
+  document.getElementById('imr-name').value = item.name || '';
+  document.getElementById('imr-icon').value = item.icon || '';
+  document.getElementById('imr-icon-preview').textContent = item.icon || '📦';
+  document.getElementById('imr-base-price').value = Number.isFinite(Number(item.basePrice)) ? Number(item.basePrice) : 10;
+  document.getElementById('imr-desc').value = item.description || '';
+  document.getElementById('imr-msg').textContent = '';
+}
+
+function imrUpdateIconPreview() {
+  document.getElementById('imr-icon-preview').textContent = document.getElementById('imr-icon').value || '📦';
+}
+
+function imrCountUsage(resourceId) {
+  const pe = (_gamedata && _gamedata.playerEconomy) ? _gamedata.playerEconomy : {};
+  const recipes = pe.RECIPES || {};
+  const props = pe.PROPERTY_TYPES || {};
+  let count = 0;
+  for (const rec of Object.values(recipes)) {
+    if (rec && (rec.input === resourceId || rec.output === resourceId)) count++;
+  }
+  for (const prop of Object.values(props)) {
+    if (!prop) continue;
+    if (prop.produces === resourceId) count++;
+    if (Array.isArray(prop.requiredResource) && prop.requiredResource.includes(resourceId)) count++;
+    if (prop.requiredResource === resourceId) count++;
+  }
+  return count;
+}
+
+function imrRemapReferences(oldId, newId) {
+  if (!_gamedata || !_gamedata.playerEconomy || !oldId || oldId === newId) return;
+  const pe = _gamedata.playerEconomy;
+  const recipes = pe.RECIPES || {};
+  const props = pe.PROPERTY_TYPES || {};
+
+  for (const rec of Object.values(recipes)) {
+    if (!rec) continue;
+    if (rec.input === oldId) rec.input = newId;
+    if (rec.output === oldId) rec.output = newId;
+  }
+
+  for (const prop of Object.values(props)) {
+    if (!prop) continue;
+    if (prop.produces === oldId) prop.produces = newId;
+    if (Array.isArray(prop.requiredResource)) {
+      prop.requiredResource = prop.requiredResource.map(r => r === oldId ? newId : r);
+    } else if (prop.requiredResource === oldId) {
+      prop.requiredResource = newId;
+    }
+  }
+}
+
+function imrSaveCurrent() {
+  if (!innerSelectedId) return;
+  const newId = document.getElementById('imr-id').value.trim().replace(/\s+/g, '_').toLowerCase();
+  if (!newId) { imrSetMsg('ID is required.', true); return; }
+
+  const existing = innerGoods[innerSelectedId] || {};
+  const oldId = existing.id;
+  innerGoods[innerSelectedId] = {
+    ...existing,
+    id: newId,
+    name: document.getElementById('imr-name').value.trim() || newId,
+    icon: document.getElementById('imr-icon').value.trim() || '📦',
+    basePrice: Number.isFinite(Number(document.getElementById('imr-base-price').value))
+      ? Number(document.getElementById('imr-base-price').value)
+      : 0,
+    description: document.getElementById('imr-desc').value.trim(),
+  };
+
+  if (oldId !== newId) {
+    imrRemapReferences(oldId, newId);
+  }
+
+  const newKEY = newId.toUpperCase().replace(/-/g, '_');
+  if (newKEY !== innerSelectedId) {
+    innerGoods[newKEY] = innerGoods[innerSelectedId];
+    delete innerGoods[innerSelectedId];
+    innerSelectedId = newKEY;
+  }
+
+  imrRenderList();
+  markDirty();
+  broadcastObjectResourceTypes();
+  imrSetMsg('Saved.', false);
+}
+
+function imrDeleteCurrent() {
+  if (!innerSelectedId) return;
+  const item = innerGoods[innerSelectedId] || {};
+  const rid = item.id || innerSelectedId;
+  const usage = imrCountUsage(rid);
+  if (usage > 0) {
+    imrSetMsg(`Cannot delete: in use by ${usage} recipe/property entries.`, true);
+    return;
+  }
+
+  delete innerGoods[innerSelectedId];
+  innerSelectedId = null;
+  document.getElementById('imr-no-selection').style.display = '';
+  document.getElementById('imr-form').style.display = 'none';
+  imrRenderList();
+  markDirty();
+  broadcastObjectResourceTypes();
+}
+
+function imrAddResource() {
+  let n = 1;
+  while (innerGoods[`NEW_GOOD_${n}`]) n++;
+  const KEY = `NEW_GOOD_${n}`;
+  innerGoods[KEY] = {
+    id: `new_good_${n}`,
+    name: `New Good ${n}`,
+    icon: '📦',
+    basePrice: 10,
+    description: '',
+  };
+  imrRenderList();
+  imrSelect(KEY);
+  document.getElementById('imr-id').focus();
+  markDirty();
+  broadcastObjectResourceTypes();
+}
+
+function imrSetMsg(msg, isErr) {
+  const el = document.getElementById('imr-msg');
+  el.textContent = msg;
+  el.style.color = isErr ? 'var(--red)' : 'var(--green)';
+  if (!isErr) setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 2000);
+}
+
 // ═══════════════════════════════════════════════════════
 //  GAMEDATA — unified import / export / new
 // ═══════════════════════════════════════════════════════
@@ -970,11 +1341,14 @@ function buildTerrainJson() {
 function makeEmptyGamedata() {
   return {
     terrain:    { types: {}, resources: {}, resourceChances: {}, biomeTable: [] },
+    playerEconomy: { PROPERTY_TYPES: {}, GOODS: {}, RECIPES: {} },
     buildings:  [],
     objects:    [],
     interiors:  [],
     interiorBrushes: [],
     terrainSets:     [],
+    buildingNineTileBrushes: [],
+    terrainNineTileBrushes:  [],
     nineTileBrushes: [],
     doorCatalog:     [],
     windowCatalog:   [],
@@ -984,6 +1358,20 @@ function makeEmptyGamedata() {
       researchCosts: {},
     },
   };
+}
+
+function syncNineTileBrushAliases() {
+  if (!Array.isArray(_gamedata.buildingNineTileBrushes)) {
+    _gamedata.buildingNineTileBrushes = Array.isArray(_gamedata.nineTileBrushes)
+      ? _gamedata.nineTileBrushes
+      : [];
+  }
+  if (!Array.isArray(_gamedata.terrainNineTileBrushes)) {
+    _gamedata.terrainNineTileBrushes = Array.isArray(_gamedata.nineTileBrushes)
+      ? _gamedata.nineTileBrushes
+      : [];
+  }
+  _gamedata.nineTileBrushes = _gamedata.buildingNineTileBrushes || [];
 }
 
 function newGamedata(silent) {
@@ -1004,10 +1392,15 @@ function newGamedata(silent) {
  * Distribute _gamedata to every sub-editor.
  */
 function applyGamedata() {
+  syncNineTileBrushAliases();
   // Resource editor
   terrainData = mergeTerrainWithBuiltins(_gamedata.terrain || { types: {}, resources: {}, resourceChances: {}, biomeTable: [] });
   _gamedata.terrain = terrainData;
   loadFromTerrainData(terrainData);
+
+  // Inner map resource editor
+  _gamedata.playerEconomy = mergePlayerEconomyWithBuiltins(_gamedata.playerEconomy || {});
+  loadFromInnerResourceData(_gamedata.playerEconomy);
 
   // Tech tree editor
   ttLoadFromGamedata();
@@ -1032,11 +1425,13 @@ function pushToSpriteEditor() {
         buildings:       _gamedata.buildings       || [],
         objects:         _gamedata.objects         || [],
         terrainSets:     _gamedata.terrainSets     || [],
-        nineTileBrushes: _gamedata.nineTileBrushes || [],
+        buildingNineTileBrushes: _gamedata.buildingNineTileBrushes || [],
+        nineTileBrushes: _gamedata.buildingNineTileBrushes || [],
         doorCatalog:     _gamedata.doorCatalog     || [],
         windowCatalog:   _gamedata.windowCatalog   || [],
         techs:           techList,
         resourceTypes:   getResourceTypesForEditors(),
+        objectResourceTypes: getInnerResourceTypesForEditors(),
       }, '*');
     } catch (e) { /* iframe may not be ready yet */ }
   }
@@ -1050,7 +1445,8 @@ function pushToTerrainEditor() {
         type: 'loadGamedata',
         data: {
           terrainSets:     _gamedata.terrainSets     || [],
-          nineTileBrushes: _gamedata.nineTileBrushes  || [],
+          terrainNineTileBrushes: _gamedata.terrainNineTileBrushes || [],
+          nineTileBrushes: _gamedata.terrainNineTileBrushes || [],
           objects:         _gamedata.objects          || [],
         }
       }, '*');
@@ -1086,9 +1482,11 @@ window.addEventListener('message', ev => {
     if (ev.data.buildings)       _gamedata.buildings       = ev.data.buildings;
     if (ev.data.objects)         _gamedata.objects         = ev.data.objects;
     if (ev.data.terrainSets)     _gamedata.terrainSets     = ev.data.terrainSets;
-    if (ev.data.nineTileBrushes) _gamedata.nineTileBrushes = ev.data.nineTileBrushes;
+    if (ev.data.buildingNineTileBrushes) _gamedata.buildingNineTileBrushes = ev.data.buildingNineTileBrushes;
+    else if (ev.data.nineTileBrushes) _gamedata.buildingNineTileBrushes = ev.data.nineTileBrushes;
     if (ev.data.doorCatalog)     _gamedata.doorCatalog     = ev.data.doorCatalog;
     if (ev.data.windowCatalog)   _gamedata.windowCatalog   = ev.data.windowCatalog;
+    syncNineTileBrushAliases();
     markDirty();
     // Push updated objects/buildings to sub-editors so their palettes refresh
     if (ev.data.objects || ev.data.buildings) {
@@ -1113,7 +1511,9 @@ window.addEventListener('message', ev => {
   // Terrain editor is sending back updated data
   if (ev.data.type === 'terrainDataChanged') {
     if (ev.data.terrainSets)     _gamedata.terrainSets     = ev.data.terrainSets;
-    if (ev.data.nineTileBrushes) _gamedata.nineTileBrushes  = ev.data.nineTileBrushes;
+    if (ev.data.terrainNineTileBrushes) _gamedata.terrainNineTileBrushes = ev.data.terrainNineTileBrushes;
+    else if (ev.data.nineTileBrushes) _gamedata.terrainNineTileBrushes = ev.data.nineTileBrushes;
+    syncNineTileBrushAliases();
     markDirty();
   }
   // Sprite editor requests opening interior for a specific building
@@ -1156,6 +1556,7 @@ function handleImport(ev) {
       }
       // Merge into a full gamedata shell (so partial files still work)
       _gamedata = { ...makeEmptyGamedata(), ...parsed };
+      syncNineTileBrushAliases();
       // Ensure built-in technology data is always available
       if (_builtinGamedata && _builtinGamedata.technology && !_gamedata.technology) {
         _gamedata.technology = _builtinGamedata.technology;
@@ -1209,6 +1610,8 @@ function handleImport(ev) {
 function exportGamedata() {
   // Collect latest terrain edits from the resource editor
   _gamedata.terrain = buildTerrainJson();
+  // Collect latest inner-map resource edits
+  _gamedata.playerEconomy = buildInnerResourceJson();
   // Collect latest tech tree edits
   _gamedata.customTechs = ttBuildGamedata();
 
@@ -1219,7 +1622,8 @@ function exportGamedata() {
     if (spriteData.buildings) _gamedata.buildings = spriteData.buildings;
     if (spriteData.objects)   _gamedata.objects   = spriteData.objects;
     if (spriteData.terrainSets)   _gamedata.terrainSets   = spriteData.terrainSets;
-    if (spriteData.nineTileBrushes) _gamedata.nineTileBrushes = spriteData.nineTileBrushes;
+    if (spriteData.buildingNineTileBrushes) _gamedata.buildingNineTileBrushes = spriteData.buildingNineTileBrushes;
+    else if (spriteData.nineTileBrushes) _gamedata.buildingNineTileBrushes = spriteData.nineTileBrushes;
     if (spriteData.windowCatalog) _gamedata.windowCatalog = spriteData.windowCatalog;
     if (spriteData.doorCatalog)   _gamedata.doorCatalog   = spriteData.doorCatalog;
   }
@@ -1243,9 +1647,11 @@ function exportGamedata() {
   if (terrIframe && terrIframe.contentWindow && typeof terrIframe.contentWindow.getExportData === 'function') {
     const terrData = terrIframe.contentWindow.getExportData();
     if (terrData.terrainSets)     _gamedata.terrainSets     = terrData.terrainSets;
-    if (terrData.nineTileBrushes) _gamedata.nineTileBrushes  = terrData.nineTileBrushes;
+    if (terrData.terrainNineTileBrushes) _gamedata.terrainNineTileBrushes = terrData.terrainNineTileBrushes;
+    else if (terrData.nineTileBrushes) _gamedata.terrainNineTileBrushes = terrData.nineTileBrushes;
     if (terrData.terrainMap)      _gamedata.terrainMap       = terrData.terrainMap;
   }
+  syncNineTileBrushAliases();
 
   // Remove any legacy keys before export
   delete _gamedata.custom_buildings;
@@ -1286,6 +1692,8 @@ async function autoSaveToBrowser() {
   try {
     // Collect latest from resource editor
     _gamedata.terrain = buildTerrainJson();
+    // Collect latest from inner-map resource editor
+    _gamedata.playerEconomy = buildInnerResourceJson();
     // Collect latest from tech tree editor
     _gamedata.customTechs = ttBuildGamedata();
 
@@ -1296,7 +1704,8 @@ async function autoSaveToBrowser() {
       if (sd.buildings)    _gamedata.buildings    = sd.buildings;
       if (sd.objects)      _gamedata.objects      = sd.objects;
       if (sd.terrainSets)  _gamedata.terrainSets  = sd.terrainSets;
-      if (sd.nineTileBrushes) _gamedata.nineTileBrushes = sd.nineTileBrushes;
+      if (sd.buildingNineTileBrushes) _gamedata.buildingNineTileBrushes = sd.buildingNineTileBrushes;
+      else if (sd.nineTileBrushes) _gamedata.buildingNineTileBrushes = sd.nineTileBrushes;
       if (sd.windowCatalog) _gamedata.windowCatalog = sd.windowCatalog;
       if (sd.doorCatalog)   _gamedata.doorCatalog   = sd.doorCatalog;
     }
@@ -1314,8 +1723,11 @@ async function autoSaveToBrowser() {
     if (terrIframe && terrIframe.contentWindow && typeof terrIframe.contentWindow.getExportData === 'function') {
       const td = terrIframe.contentWindow.getExportData();
       if (td.terrainSets)     _gamedata.terrainSets     = td.terrainSets;
-      if (td.nineTileBrushes) _gamedata.nineTileBrushes  = td.nineTileBrushes;
+      if (td.terrainNineTileBrushes) _gamedata.terrainNineTileBrushes = td.terrainNineTileBrushes;
+      else if (td.nineTileBrushes) _gamedata.terrainNineTileBrushes = td.nineTileBrushes;
     }
+
+    syncNineTileBrushAliases();
 
     await ModStore.saveModData(_gamedata);
     console.log('[AutoSave] saved to IndexedDB');

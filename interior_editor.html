@@ -313,7 +313,12 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;bo
       <span style="font-size:10px;color:var(--text-dim);text-transform:uppercase;font-weight:600">Cost per tile:</span>
       <label style="font-size:11px;color:var(--text-dim)">Gold</label>
       <input type="number" id="ntb-cost-gold" value="0" min="0" max="9999" style="width:60px;font-size:11px;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:2px 5px;border-radius:4px">
-      <div id="ntb-cost-resource-rows" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"></div>
+      <label style="font-size:11px;color:var(--text-dim)">Wood</label>
+      <input type="number" id="ntb-cost-wood" value="0" min="0" max="999" style="width:50px;font-size:11px;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:2px 5px;border-radius:4px">
+      <label style="font-size:11px;color:var(--text-dim)">Stone</label>
+      <input type="number" id="ntb-cost-stone" value="0" min="0" max="999" style="width:50px;font-size:11px;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:2px 5px;border-radius:4px">
+      <label style="font-size:11px;color:var(--text-dim)">Iron</label>
+      <input type="number" id="ntb-cost-iron" value="0" min="0" max="999" style="width:50px;font-size:11px;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:2px 5px;border-radius:4px">
     </div>
     <button onclick="closeNtbEditor()" style="font-size:18px;padding:2px 10px;flex-shrink:0">✕</button>
   </div>
@@ -382,12 +387,6 @@ let editIdx = -1;    // Index of interior being edited (-1 = new)
 let _buildings = [];  // Buildings list from parent (for linked building checklist)
 let _linkedBuildingIds = [];  // Currently linked building ids (array)
 let _customObjects = [];  // Custom objects from sprite editor
-let _resourceTypes = [
-  { id: 'wood', name: 'Wood', icon: '🪵', color: '#8b5a2b', buildCostEligible: true },
-  { id: 'timber', name: 'Timber', icon: '🌲', color: '#8b5a2b', buildCostEligible: true },
-  { id: 'stone', name: 'Stone', icon: '⛰️', color: '#808080', buildCostEligible: true },
-  { id: 'iron', name: 'Iron', icon: '⛏️', color: '#8a7a7a', buildCostEligible: true },
-];
 
 // ─── Nine-Tile Brush State ───
 let nineTileBrushes = [];       // Array of brush definitions
@@ -406,49 +405,6 @@ const MAX_UNDO = 40;
 
 // Canvas refs
 let cvs, ctx;
-
-function _setResourceTypes(resourceTypes) {
-  if (Array.isArray(resourceTypes) && resourceTypes.length) {
-    _resourceTypes = resourceTypes
-      .map(r => ({
-        id: String(r.id || '').trim(),
-        name: String(r.name || r.id || '').trim(),
-        icon: String(r.icon || '📦'),
-        color: String(r.color || '#888888'),
-        buildCostEligible: !!r.buildCostEligible,
-      }))
-      .filter(r => r.id);
-  }
-  _renderNtbCostResourceRows();
-}
-
-function _getBuildCostResourceTypes() {
-  const eligible = _resourceTypes.filter(r => r.buildCostEligible);
-  if (eligible.length) return eligible;
-  return _resourceTypes.filter(r => ['wood', 'timber', 'stone', 'iron'].includes(r.id));
-}
-
-function _renderNtbCostResourceRows(costMap = null) {
-  const wrap = document.getElementById('ntb-cost-resource-rows');
-  if (!wrap) return;
-  const existing = costMap || {};
-  const defs = [..._getBuildCostResourceTypes()].sort((a, b) => a.name.localeCompare(b.name));
-  wrap.innerHTML = '';
-  for (const r of defs) {
-    const lbl = document.createElement('label');
-    lbl.style.cssText = 'display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-dim)';
-    lbl.textContent = `${r.icon || '📦'} ${r.name}`;
-    const input = document.createElement('input');
-    input.type = 'number';
-    input.min = '0';
-    input.max = '999';
-    input.value = String(existing[r.id] || 0);
-    input.style.cssText = 'width:52px;font-size:11px;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:2px 5px;border-radius:4px';
-    input.dataset.resId = r.id;
-    lbl.appendChild(input);
-    wrap.appendChild(lbl);
-  }
-}
 
 // ─── LPC Palette categories ───
 const PALETTE_DATA = {
@@ -1764,7 +1720,9 @@ function openNtbEditor(idx) {
     const c = brush.cost || {};
     const cr = c.resources || {};
     document.getElementById('ntb-cost-gold').value = c.gold || 0;
-    _renderNtbCostResourceRows(cr);
+    document.getElementById('ntb-cost-wood').value = cr.wood || 0;
+    document.getElementById('ntb-cost-stone').value = cr.stone || 0;
+    document.getElementById('ntb-cost-iron').value = cr.iron || 0;
   } else {
     ntbEditIdx = -1;
     document.getElementById('ntb-name').value = 'New Brush';
@@ -1776,7 +1734,9 @@ function openNtbEditor(idx) {
     document.getElementById('ntb-del-btn').disabled = true;
     // Default costs
     document.getElementById('ntb-cost-gold').value = 0;
-    _renderNtbCostResourceRows({});
+    document.getElementById('ntb-cost-wood').value = 0;
+    document.getElementById('ntb-cost-stone').value = 0;
+    document.getElementById('ntb-cost-iron').value = 0;
   }
   ntbSetType(ntbBrushType);
   ntbSelSlot = null;
@@ -2128,9 +2088,10 @@ function ntbSave() {
     cost: {
       gold: parseInt(document.getElementById('ntb-cost-gold').value) || 0,
       resources: Object.fromEntries(
-        [...document.querySelectorAll('#ntb-cost-resource-rows input[data-res-id]')]
-          .map(inp => [inp.dataset.resId, parseInt(inp.value) || 0])
-          .filter(([rid, v]) => rid && v > 0)
+        [['wood', parseInt(document.getElementById('ntb-cost-wood').value) || 0],
+         ['stone', parseInt(document.getElementById('ntb-cost-stone').value) || 0],
+         ['iron', parseInt(document.getElementById('ntb-cost-iron').value) || 0]]
+        .filter(([, v]) => v > 0)
       ),
     },
   };
@@ -3214,16 +3175,8 @@ window.addEventListener('message', ev => {
     return;
   }
 
-  if (ev.data.type === 'resourceTypesUpdate') {
-    _setResourceTypes(ev.data.resourceTypes || []);
-    return;
-  }
-
   if (ev.data.type !== 'loadGamedata') return;
   const d = ev.data;
-  if (Array.isArray(d.resourceTypes)) {
-    _setResourceTypes(d.resourceTypes);
-  }
   // Store buildings list for linked building checklist
   if (Array.isArray(d.buildings)) {
     _buildings = d.buildings;
@@ -3347,7 +3300,6 @@ window.addEventListener('message', ev => {
 (function init() {
   initCanvas();
   initPaletteResize();
-  _renderNtbCostResourceRows({});
   buildPaletteCats();
   // Show first category
   const firstCat = Object.keys(PALETTE_DATA)[0];

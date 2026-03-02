@@ -2809,7 +2809,7 @@ export const ActionMenu = {
                     // It's a map object — add to player's map collection
                     if (!player.maps) player.maps = [];
                     player.maps.push(lootItem);
-                    rewardLines.push(`<div style="color: #e67e22;">🗺️ Found: ${lootItem.name}</div>`);
+                    rewardLines.push(`<div style="color: #e67e22;">🗺️ Found: ${lootItem.name || lootItem.type || 'Unknown Map'}</div>`);
                 }
             }
             poi.loot = []; // Clear loot after pickup
@@ -6946,8 +6946,10 @@ export const ActionMenu = {
                         totals[key].foundQty += f.qty;
                     }
                     for (const item of Object.values(totals)) {
+                        const itemIcon = item.icon || '📦';
+                        const itemName = item.name || item.id || 'Unknown Item';
                         html += `<div style="padding: 6px 12px; margin-bottom: 4px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between;">
-                            <div>${item.icon} ${item.name} x${item.foundQty}</div>
+                            <div>${itemIcon} ${itemName} x${item.foundQty}</div>
                             <div style="color: var(--gold);">${item.foundQty * item.sellPrice}g</div>
                         </div>`;
                     }
@@ -7241,8 +7243,10 @@ export const ActionMenu = {
                     html += `<div style="font-size: 48px; margin: 12px 0;">${preyIcon}</div>`;
                     html += `<div style="font-size: 16px; color: #2ecc71; font-weight: bold; margin-bottom: 8px;">Successful Hunt!</div>`;
                     for (const item of totalLoot) {
+                        const itemIcon = item.icon || '📦';
+                        const itemName = item.name || item.id || 'Unknown Item';
                         html += `<div style="padding: 6px 12px; margin-bottom: 4px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
-                            <div>${item.icon} ${item.name} x${item.foundQty}</div>
+                            <div>${itemIcon} ${itemName} x${item.foundQty}</div>
                             <div style="color: var(--gold);">${item.foundQty * item.sellPrice}g</div>
                         </div>`;
                     }

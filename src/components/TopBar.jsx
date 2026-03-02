@@ -176,6 +176,11 @@ export default function TopBar() {
           <span className="audio-icon">🔊</span>
         </button>
         <button className="civ-settings-btn" id="btnSettings" title="Settings">⚙️</button>
+
+        <button className="civ-end-turn-btn" id="btnEndTurn" title="End Day">
+          <span className="civ-end-turn-label">End Day</span>
+          <span className="civ-end-turn-icon">⏭️</span>
+        </button>
       </div>
     </div>
   );

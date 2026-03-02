@@ -2,6 +2,9 @@
 // MINIMAP — Minimap rendering
 // ============================================
 
+import { InnerMap } from '../world/innerMap.js';
+import { InnerMapRenderer } from './innerMapRenderer.js';
+
 
 export class Minimap {
     constructor(game) {
@@ -29,6 +32,17 @@ export class Minimap {
      * Render minimap
      */
     render() {
+        // Update label based on current mode
+        const label = document.getElementById('minimapLabel');
+        if (label) {
+            label.textContent = (this.game.innerMapMode && InnerMap.active) ? 'Inner Map' : 'World Map';
+        }
+
+        if (this.game.innerMapMode && InnerMap.active) {
+            this.renderInnerMap();
+            return;
+        }
+
         if (!this.needsRedraw && !this.game.player.isMoving) return;
         this.needsRedraw = false;
 
@@ -134,6 +148,62 @@ export class Minimap {
         this.renderViewportIndicator(ctx, tileW, tileH);
     }
 
+    renderInnerMap() {
+        const ctx = this.ctx;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+
+        ctx.fillStyle = '#090d14';
+        ctx.fillRect(0, 0, w, h);
+
+        if (!InnerMap.tiles || !InnerMap.width || !InnerMap.height) return;
+
+        const tileW = w / InnerMap.width;
+        const tileH = h / InnerMap.height;
+
+        for (let r = 0; r < InnerMap.height; r++) {
+            for (let q = 0; q < InnerMap.width; q++) {
+                const tile = InnerMap.tiles[r] && InnerMap.tiles[r][q];
+                if (!tile) continue;
+
+                const x = Math.floor(q * tileW);
+                const y = Math.floor(r * tileH);
+                const rw = Math.ceil(tileW) + 1;
+                const rh = Math.ceil(tileH) + 1;
+
+                if (!tile.explored) {
+                    ctx.fillStyle = '#090d14';
+                    ctx.fillRect(x, y, rw, rh);
+                    continue;
+                }
+
+                const color = (tile.subTerrain && tile.subTerrain.color) || '#2b3647';
+                ctx.fillStyle = color;
+                ctx.fillRect(x, y, rw, rh);
+
+                if (!tile.visible) {
+                    ctx.fillStyle = 'rgba(9, 13, 20, 0.5)';
+                    ctx.fillRect(x, y, rw, rh);
+                }
+            }
+        }
+
+        const px = (InnerMap.playerInnerQ + 0.5) * tileW;
+        const py = (InnerMap.playerInnerR + 0.5) * tileH;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(px, py, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(px, py, 5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        this.renderInnerViewportIndicator(ctx, tileW, tileH);
+    }
+
     /**
      * Render viewport rectangle on minimap
      */
@@ -169,6 +239,28 @@ export class Minimap {
         ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
     }
 
+    renderInnerViewportIndicator(ctx, tileW, tileH) {
+        const camera = this.game.innerMapCamera;
+        if (!camera) return;
+
+        const tileSize = InnerMapRenderer.tileSize;
+        const bounds = camera.getVisibleBounds();
+
+        const q1 = bounds.left / tileSize;
+        const q2 = bounds.right / tileSize;
+        const r1 = bounds.top / tileSize;
+        const r2 = bounds.bottom / tileSize;
+
+        const x1 = q1 * tileW;
+        const y1 = r1 * tileH;
+        const x2 = q2 * tileW;
+        const y2 = r2 * tileH;
+
+        ctx.strokeStyle = 'rgba(245, 197, 66, 0.7)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+    }
+
     /**
      * Handle click on minimap to navigate
      */
@@ -176,6 +268,17 @@ export class Minimap {
         const rect = this.canvas.getBoundingClientRect();
         const mx = (e.clientX - rect.left) * (this.canvas.width / rect.width);
         const my = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+
+        // Inner map mode: navigate the inner map camera
+        if (this.game.innerMapMode && InnerMap.active) {
+            const tileSize = InnerMapRenderer.tileSize;
+            const q = (mx / this.canvas.width) * InnerMap.width;
+            const r = (my / this.canvas.height) * InnerMap.height;
+            const worldX = q * tileSize;
+            const worldY = r * tileSize;
+            this.game.innerMapCamera.centerOn(worldX, worldY);
+            return;
+        }
 
         const world = this.game.world;
         const q = Math.floor((mx / this.canvas.width) * world.width);

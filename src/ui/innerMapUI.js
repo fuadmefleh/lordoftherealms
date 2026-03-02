@@ -518,20 +518,24 @@ Object.assign(InnerMapRenderer, {
                     if (typeof InnerMap.enterBuilding === 'function') {
                         const success = InnerMap.enterBuilding(building, game);
                         if (success) {
-                            // Re-setup the camera for the smaller interior
-                            const tileSize = InnerMapRenderer.tileSize;
-                            const innerPixelWidth = tileSize * InnerMap.width;
-                            const innerPixelHeight = tileSize * InnerMap.height;
-                            if (game.innerMapCamera) {
+                            if (typeof game._configureInnerMapCamera === 'function') {
+                                game._configureInnerMapCamera('interior');
+                            } else if (game.innerMapCamera) {
+                                const tileSize = InnerMapRenderer.tileSize;
+                                const innerPixelWidth = tileSize * InnerMap.width;
+                                const innerPixelHeight = tileSize * InnerMap.height;
                                 game.innerMapCamera.setWorldBounds(0, innerPixelHeight);
                                 const canvasW = game.canvas.width;
                                 const canvasH = game.canvas.height;
-                                const zoomLevel = Math.min(canvasW / innerPixelWidth, canvasH / innerPixelHeight) * 0.85;
-                                game.innerMapCamera.minZoom = Math.min(0.1, zoomLevel);
+                                const fitZoom = Math.min(canvasW / innerPixelWidth, canvasH / innerPixelHeight);
+                                const zoomLevel = (Number.isFinite(fitZoom) && fitZoom > 0) ? fitZoom * 0.9 : 1.5;
+                                game.innerMapCamera.minZoom = Math.max(0.5, zoomLevel * 0.6);
+                                game.innerMapCamera.maxZoom = Math.max(game.innerMapCamera.minZoom + 0.5, zoomLevel * 2.5);
                                 game.innerMapCamera.zoom = zoomLevel;
                                 game.innerMapCamera.targetZoom = zoomLevel;
                                 const pWorld = InnerMap.getPlayerWorldPos();
                                 game.innerMapCamera.centerOn(pWorld.x, pWorld.y);
+                                game.innerMapCamera.precomputeFrame();
                             }
                             game.ui.showNotification(`🚪 Entered ${building.name}`, `You step inside ${building.name}. Press ESC or click "Exit" to leave.`, 'info');
                         } else {
@@ -544,20 +548,8 @@ Object.assign(InnerMapRenderer, {
             case 'exit_building': {
                 if (typeof InnerMap.exitBuilding === 'function') {
                     InnerMap.exitBuilding(game);
-                    // Re-setup the camera for the outer inner map
-                    const tileSize = InnerMapRenderer.tileSize;
-                    const innerPixelWidth = tileSize * InnerMap.width;
-                    const innerPixelHeight = tileSize * InnerMap.height;
-                    if (game.innerMapCamera) {
-                        game.innerMapCamera.setWorldBounds(0, innerPixelHeight);
-                        const canvasW = game.canvas.width;
-                        const canvasH = game.canvas.height;
-                        const zoomLevel = Math.min(canvasW / innerPixelWidth, canvasH / innerPixelHeight) * 0.95;
-                        game.innerMapCamera.minZoom = Math.min(0.1, zoomLevel);
-                        game.innerMapCamera.zoom = zoomLevel;
-                        game.innerMapCamera.targetZoom = zoomLevel;
-                        const pWorld = InnerMap.getPlayerWorldPos();
-                        game.innerMapCamera.centerOn(pWorld.x, pWorld.y);
+                    if (typeof game._configureInnerMapCamera === 'function') {
+                        game._configureInnerMapCamera('outer');
                     }
                     game.ui.showNotification('🚪 Exited Building', 'You step back outside.', 'info');
                 }

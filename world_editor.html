@@ -588,13 +588,37 @@ function buildOverlayPalette() {
 // ═══════════════════════════════════════════════════════════════
 //  APPLY / REMOVE OVERLAY
 // ═══════════════════════════════════════════════════════════════
+function getOverlayDisplayName(ovl) {
+    if (!ovl) return 'Unknown';
+    const ot = OVERLAY_TYPES[ovl.type];
+    let custom = typeof ovl.name === 'string' ? ovl.name.trim() : '';
+    const lc = custom.toLowerCase();
+    if (lc === 'undefined' || lc === 'null') custom = '';
+    return custom || ot?.name || ovl.type || 'Unknown';
+}
+
+function getOverlayDisplayIcon(ovl) {
+    if (!ovl) return '📍';
+    return OVERLAY_TYPES[ovl.type]?.icon || '📍';
+}
+
+function normalizeOverlayMap(mapObj) {
+    const out = {};
+    if (!mapObj || typeof mapObj !== 'object') return out;
+    for (const [key, ovl] of Object.entries(mapObj)) {
+        if (!ovl || !ovl.type || !OVERLAY_TYPES[ovl.type]) continue;
+        out[key] = { type: ovl.type, name: getOverlayDisplayName(ovl) };
+    }
+    return out;
+}
+
 function placeOverlay(q, r) {
     if (!inBounds(q, r)) return;
     const ot = OVERLAY_TYPES[selectedOverlay];
     if (!ot) return;
     const nameInput = document.getElementById('ovl-place-name');
     const customName = nameInput ? nameInput.value.trim() : '';
-    const entry = { type: selectedOverlay, name: customName || ot.name };
+    const entry = { type: selectedOverlay, name: customName || ot.name || selectedOverlay };
     const key = `${q},${r}`;
     if (ot.category === 'road') {
         roadOverlays[key] = entry;
@@ -639,7 +663,7 @@ function applyOverlayNameEdit() {
     if (!ovl) return;
     const input = document.getElementById('prop-ovl-name');
     if (input) {
-        ovl.name = input.value.trim() || OVERLAY_TYPES[ovl.type]?.name || ovl.type;
+        ovl.name = input.value.trim() || getOverlayDisplayName(ovl);
         render();
     }
 }
@@ -666,9 +690,10 @@ function updateSelectedHexInfo() {
     const ovl = overlays[key] || roadOverlays[key];
     if (ovl && OVERLAY_TYPES[ovl.type]) {
         const ot = OVERLAY_TYPES[ovl.type];
+        const displayName = getOverlayDisplayName(ovl);
         sec.style.display = '';
         typeEl.textContent = `${ot.icon} ${ot.name}`;
-        nameEl.value = ovl.name !== ot.name ? ovl.name : '';
+        nameEl.value = displayName !== ot.name ? displayName : '';
     } else {
         sec.style.display = 'none';
     }
@@ -1146,7 +1171,7 @@ function onMouseMove(e) {
         document.getElementById('hex-terrain').textContent = t ? `${t.icon} ${t.name}` : '—';
         const ovl = overlays[`${hex.q},${hex.r}`] || roadOverlays[`${hex.q},${hex.r}`];
         document.getElementById('hex-resource').textContent =
-            ovl ? `${OVERLAY_TYPES[ovl.type]?.icon || ''} ${ovl.name}` : '—';
+            ovl ? `${getOverlayDisplayIcon(ovl)} ${getOverlayDisplayName(ovl)}` : '—';
     }
 }
 
@@ -1386,8 +1411,8 @@ function loadWorldData(data) {
         document.getElementById('map-w').value = mapW;
         document.getElementById('map-h').value = mapH;
     }
-    overlays = data.overlays ? { ...data.overlays } : {};
-    roadOverlays = data.roadOverlays ? { ...data.roadOverlays } : {};
+    overlays = normalizeOverlayMap(data.overlays);
+    roadOverlays = normalizeOverlayMap(data.roadOverlays);
     // Migrate legacy: move any road entries from overlays into roadOverlays
     for (const [key, ovl] of Object.entries(overlays)) {
         const ot = OVERLAY_TYPES[ovl.type];

@@ -225,6 +225,12 @@ export class Player {
      * Reveal tiles around the player
      */
     revealArea(world, radius) {
+        const currentTile = world.getTile(this.q, this.r);
+        if (currentTile) {
+            currentTile.explored = true;
+            currentTile.visible = true;
+        }
+
         const hexes = Hex.hexesInRange(this.q, this.r, radius);
         for (const hex of hexes) {
             const tile = world.getTile(hex.q, hex.r);
@@ -244,6 +250,12 @@ export class Player {
             for (let q = 0; q < world.width; q++) {
                 world.tiles[r][q].visible = false;
             }
+        }
+
+        const currentTile = world.getTile(this.q, this.r);
+        if (currentTile) {
+            currentTile.explored = true;
+            currentTile.visible = true;
         }
 
         // Then reveal around player
@@ -476,6 +488,13 @@ export class Player {
             // Ensure q coordinate is wrapped (for world wrapping)
             if (typeof Hex !== 'undefined' && world.width) {
                 this.q = Hex.wrapQ(this.q, world.width);
+            }
+
+            // Always mark the exact tile stepped on as explored.
+            const currentTile = world.getTile(this.q, this.r);
+            if (currentTile) {
+                currentTile.explored = true;
+                currentTile.visible = true;
             }
             
             this.movementRemaining -= moveCost;

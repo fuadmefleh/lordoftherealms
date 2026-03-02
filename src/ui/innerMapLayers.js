@@ -121,6 +121,65 @@ Object.assign(InnerMapRenderer, {
         }
     },
 
+    // ══════════════════════════════════════════════
+    // LAYER 0.5 — TERRAIN DETAIL
+    // Draws brush-painted ground detail tiles (e.g. grass over dirt).
+    // ══════════════════════════════════════════════
+
+    _renderTerrainDetailLayer(ctx, camera) {
+        const T = this.TILE_SIZE;
+        const ds = T * camera.zoom;
+        const terrainKey = this._seasonKey('terrain');
+        const terrainSheet = this._sheets.get(terrainKey);
+        const { qMin, qMax, rMin, rMax } = this._frameRange;
+        const canvasW = ctx.canvas.width;
+        const canvasH = ctx.canvas.height;
+
+        const origin = camera.worldToScreenFast(qMin * T, rMin * T);
+        const originX = origin.x;
+        const originY = origin.y;
+
+        for (let r = rMin; r <= rMax; r++) {
+            const row = InnerMap.tiles[r];
+            const dy0 = originY + (r - rMin) * ds;
+            const dyFloor = Math.floor(dy0);
+            const sz = Math.ceil(ds) + 1;
+
+            if (dyFloor + sz < 0 || dyFloor > canvasH) continue;
+
+            for (let q = qMin; q <= qMax; q++) {
+                const tile = row[q];
+                if (!tile || !tile.explored || tile._isInterior) continue;
+
+                const ov = tile.terrainDetail || tile.grassOverlay || null;
+                if (!ov) continue;
+
+                const dx = Math.floor(originX + (q - qMin) * ds);
+                const dy = dyFloor;
+
+                if (dx + sz < 0 || dx > canvasW) continue;
+
+                if (ov.sheetPath) {
+                    const ovImg = this._getSheetByPath(ov.sheetPath);
+                    if (ovImg) {
+                        const sw = Number.isFinite(ov.sw) ? ov.sw : 32;
+                        const sh = Number.isFinite(ov.sh) ? ov.sh : 32;
+                        const sx = Number.isFinite(ov.sx) ? ov.sx : 0;
+                        const sy = Number.isFinite(ov.sy) ? ov.sy : 0;
+                        ctx.drawImage(ovImg, sx, sy, sw, sh, dx, dy, sz, sz);
+                    }
+                } else if (ov.fillCategory === 'grass') {
+                    const fills = this._terrainFills && this._terrainFills.grass;
+                    if (terrainSheet && fills && fills.length > 0) {
+                        const hash = (Math.abs((q * 83492791 ^ r * 29765729))) >>> 0;
+                        const pick = fills[hash % fills.length];
+                        ctx.drawImage(terrainSheet, pick.col * 32, pick.row * 32, 32, 32, dx, dy, sz, sz);
+                    }
+                }
+            }
+        }
+    },
+
     /**
      * Render a single interior tile (walls, floors, furniture, door).
      * Supports both procedural (INTERIOR_LAYOUTS) and custom spritesheet tiles.
@@ -283,6 +342,9 @@ Object.assign(InnerMapRenderer, {
 
     // ══════════════════════════════════════════════
     // LAYER 1 — ROADS
+    // Draws dirt fills on road tiles. Edge blending is handled by
+    // the terrain detail layer's 9-tile brush (roads are excluded
+    // from the grass mask so the brush auto-tiles smooth edges).
     // ══════════════════════════════════════════════
 
     _renderRoadLayer(ctx, camera) {
@@ -299,6 +361,8 @@ Object.assign(InnerMapRenderer, {
         for (const road of InnerMap.roads) {
             const tile = InnerMap.getTile(road.q, road.r);
             if (!tile || !tile.visible || !tile.subTerrain.passable || tile.building) continue;
+            // Skip tiles that already show dirt (no grass detail painted)
+            if (!tile.terrainDetail) continue;
 
             const screen = camera.worldToScreenFast(road.q * T, road.r * T);
             const dx = Math.floor(screen.x);
@@ -313,7 +377,7 @@ Object.assign(InnerMapRenderer, {
                 const pick = dirtFills[hash % dirtFills.length];
                 ctx.drawImage(terrainSheet, pick.col * 32, pick.row * 32, 32, 32, dx, dy, sz, sz);
             } else {
-                ctx.fillStyle = 'rgba(139, 115, 85, 0.6)';
+                ctx.fillStyle = '#8b7355';
                 ctx.fillRect(dx, dy, sz, sz);
             }
         }

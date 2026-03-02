@@ -1763,7 +1763,7 @@ export class Renderer {
                 ctx.shadowBlur = 4;
                 ctx.fillStyle = '#ffffff';
 
-                ctx.fillText(tile.resource.icon, screen.x + renderSize * 0.35, screen.y + renderSize * 0.35);
+                ctx.fillText(tile.resource.icon || '📦', screen.x + renderSize * 0.35, screen.y + renderSize * 0.35);
 
                 // Reset shadow
                 ctx.shadowColor = 'transparent';

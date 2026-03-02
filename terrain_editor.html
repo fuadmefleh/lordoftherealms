@@ -4041,6 +4041,7 @@ function notifyParent() {
         window.parent.postMessage({
             type: 'terrainDataChanged',
             terrainSets:     terrainSets,
+            terrainNineTileBrushes: nineTileBrushes,
             nineTileBrushes: nineTileBrushes,
         }, '*');
     } catch(e) { /* standalone mode */ }
@@ -4054,8 +4055,11 @@ window.addEventListener('message', ev => {
             terrainSets = msg.data.terrainSets;
             buildTSetsList();
         }
-        if (msg.data.nineTileBrushes) {
-            nineTileBrushes = msg.data.nineTileBrushes;
+        const incomingTerrainBrushes = Array.isArray(msg.data.terrainNineTileBrushes)
+            ? msg.data.terrainNineTileBrushes
+            : (Array.isArray(msg.data.nineTileBrushes) ? msg.data.nineTileBrushes : null);
+        if (incomingTerrainBrushes) {
+            nineTileBrushes = incomingTerrainBrushes;
             buildNtbListPanel();
         }
         if (Array.isArray(msg.data.objects)) {
@@ -4072,6 +4076,7 @@ if (window.parent !== window) {
 window.getExportData = function() {
     return {
         terrainSets,
+        terrainNineTileBrushes: nineTileBrushes,
         nineTileBrushes,
         terrainMap: mapW > 0 ? {
             width: mapW, height: mapH, numLayers: numLayers,

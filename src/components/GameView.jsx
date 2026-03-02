@@ -9,6 +9,19 @@ export default function GameView() {
   const canvasRef = useRef(null);
   const initRef = useRef(false);
 
+  // Unmount-only cleanup: stop the game loop when GameView leaves the DOM.
+  // This must NOT be in the phase-dependent effect, because that effect's
+  // cleanup runs on every phase change (loading → playing), which would
+  // kill the game loop the instant setPhase('playing') triggers a re-render.
+  useEffect(() => {
+    return () => {
+      if (gameRef.current) {
+        gameRef.current.isRunning = false;
+        gameRef.current = null;
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (initRef.current) return;
     if (gameState.phase !== 'loading') return;
@@ -18,14 +31,19 @@ export default function GameView() {
     const settings = gameState.settings || {};
     const customWorldData = settings._customWorldData;
 
+    // Track whether this effect invocation was cleaned up (React StrictMode)
+    let cancelled = false;
+
     // Initialize game asynchronously
     (async () => {
       try {
         // Initialize all game data first
         await DataLoader.initializeAll();
+        if (cancelled) return;
 
         // Create the Game instance in React mode, passing the canvas directly
         const game = new Game({ canvas: canvasRef.current, reactMode: true });
+        if (cancelled) { game.isRunning = false; return; }
         gameRef.current = game;
 
         // Bridge: let the Game push stats back into React
@@ -39,19 +57,21 @@ export default function GameView() {
           await game.startNewGame(settings);
         }
 
+        if (cancelled) return;
+        console.log('[DIAG] GameView: startNewGame resolved, setting phase to playing');
         setPhase('playing');
       } catch (err) {
+        if (cancelled) return;
         console.error('[GameView] Failed to initialize game:', err);
         setPhase('title');
       }
     })();
 
     return () => {
-      // Cleanup on unmount
-      if (gameRef.current) {
-        gameRef.current.isRunning = false;
-        gameRef.current = null;
-      }
+      // Mark this effect invocation as stale (handles React StrictMode double-fire).
+      // Do NOT kill the game loop here — this cleanup runs on every phase change,
+      // not just on unmount. The unmount-only effect above handles that.
+      cancelled = true;
       initRef.current = false;
     };
   }, [gameState.phase]);

@@ -39,6 +39,7 @@ export const InnerMapRenderer = {
 
     // ── LPC sprite sheets ────────────────────────────────
     _sheets: new Map(),  // key → HTMLImageElement
+    _sheetPathCache: new Map(), // path → { status:'loading'|'ready'|'error', img }
     _loaded: false,
 
     // ── UI state ─────────────────────────────────────────
@@ -221,6 +222,36 @@ export const InnerMapRenderer = {
         const s = (InnerMap.season || 'Summer').toLowerCase();
         const k = `${base}_${s}`;
         return this._sheets.has(k) ? k : `${base}_summer`;
+    },
+
+    _getSheetByPath(path) {
+        if (!path) return null;
+
+        // First resolve against known configured sheet paths
+        for (const [key, p] of Object.entries(this.SHEET_PATHS || {})) {
+            if (p === path) {
+                return this._sheets.get(key) || null;
+            }
+        }
+
+        // Then dynamic per-path cache for editor-authored brush tiles
+        const cached = this._sheetPathCache.get(path);
+        if (cached) {
+            if (cached.status === 'ready') return cached.img;
+            return null;
+        }
+
+        const img = new Image();
+        this._sheetPathCache.set(path, { status: 'loading', img: null });
+        img.onload = () => {
+            this._sheetPathCache.set(path, { status: 'ready', img });
+        };
+        img.onerror = () => {
+            console.warn(`InnerMapRenderer: failed to load sheet path ${path}`);
+            this._sheetPathCache.set(path, { status: 'error', img: null });
+        };
+        img.src = path;
+        return null;
     },
 
     // ══════════════════════════════════════════════════════════════
@@ -590,6 +621,9 @@ export const InnerMapRenderer = {
 
         // ── Layer 0: Terrain (ground) ──
         this._renderTerrainLayer(ctx, camera);
+
+        // ── Layer 0.5: Terrain detail (9-tile brush paint over base) ──
+        this._renderTerrainDetailLayer(ctx, camera);
 
         // ── Layer 1: Roads ──
         this._renderRoadLayer(ctx, camera);

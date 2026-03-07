@@ -1191,6 +1191,49 @@ export class Game {
                         this._showEncounterNotification(playerStepResult.encounter);
                     }
 
+                    // ── Auto-enter building when stepping on a door tile ──
+                    // Triggers when walking onto: a tile with an explicit door marker,
+                    // OR a passable tile within a custom building's footprint (the "door" area).
+                    if (arrivedTile && !InnerMap._insideBuilding) {
+                        let autoEnterBuilding = null;
+                        if (arrivedTile._doorMarker) {
+                            // Explicit door marker set by the editor
+                            autoEnterBuilding = InnerMap.getBuildingAt(arrivedTile._doorMarker.anchorQ, arrivedTile._doorMarker.anchorR);
+                        } else if (arrivedTile.customBuildingPart && arrivedTile.subTerrain && arrivedTile.subTerrain.passable) {
+                            // Passable tile within a custom building footprint = door area
+                            autoEnterBuilding = InnerMap.getBuildingAt(arrivedTile.customBuildingPart.anchorQ, arrivedTile.customBuildingPart.anchorR);
+                        }
+                        if (autoEnterBuilding && typeof InnerMap.enterBuilding === 'function') {
+                            InnerMap.cancelPlayerWalk();
+                            InnerMap._pendingInteraction = null;
+                            InnerMap._pendingCombat = null;
+                            InnerMap._pendingDialog = null;
+                            const success = InnerMap.enterBuilding(autoEnterBuilding, this);
+                            if (success) {
+                                if (typeof this._configureInnerMapCamera === 'function') {
+                                    this._configureInnerMapCamera('interior');
+                                } else if (this.innerMapCamera) {
+                                    const tileSize = InnerMapRenderer.tileSize;
+                                    const innerPixelWidth = tileSize * InnerMap.width;
+                                    const innerPixelHeight = tileSize * InnerMap.height;
+                                    this.innerMapCamera.setWorldBounds(0, innerPixelHeight);
+                                    const canvasW = this.canvas.width;
+                                    const canvasH = this.canvas.height;
+                                    const fitZoom = Math.min(canvasW / innerPixelWidth, canvasH / innerPixelHeight);
+                                    const zoomLevel = (Number.isFinite(fitZoom) && fitZoom > 0) ? fitZoom * 0.9 : 1.5;
+                                    this.innerMapCamera.minZoom = Math.max(0.5, zoomLevel * 0.6);
+                                    this.innerMapCamera.maxZoom = Math.max(this.innerMapCamera.minZoom + 0.5, zoomLevel * 2.5);
+                                    this.innerMapCamera.zoom = zoomLevel;
+                                    this.innerMapCamera.targetZoom = zoomLevel;
+                                    const pWorld = InnerMap.getPlayerWorldPos();
+                                    this.innerMapCamera.centerOn(pWorld.x, pWorld.y);
+                                    this.innerMapCamera.precomputeFrame();
+                                }
+                                this.ui.showNotification(`🚪 Entered ${autoEnterBuilding.name}`, `You step inside ${autoEnterBuilding.name}. Press ESC or click "Exit" to leave.`, 'info');
+                            }
+                        }
+                    }
+
                     // ── Trigger pending object interaction on arrival ──
                     if (playerStepResult.arrived && InnerMap._pendingInteraction) {
                         const pi = InnerMap._pendingInteraction;

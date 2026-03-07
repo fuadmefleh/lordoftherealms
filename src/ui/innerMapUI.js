@@ -17,6 +17,7 @@ import { CustomBuildings } from '../world/customBuildings.js';
 import { BuildingCreator } from './buildingCreator.js';
 import { Hotbar } from './hotbar.js';
 import { NpcDialog } from './npcDialog.js';
+import { ObjectActions } from './objectActions.js';
 
 
 Object.assign(InnerMapRenderer, {
@@ -226,6 +227,12 @@ Object.assign(InnerMapRenderer, {
             const objIcon = typeIcons[customObjDef.objectType] || '📦';
             menuItems.push({ type: 'header', label: `${objIcon} ${customObjDef.name || customObjDef.id}` });
             menuItems.push({ type: 'action', action: 'interact_object', label: 'Interact', icon: '🤚', desc: `Interact with ${customObjDef.name || 'this object'}`, customObjDef, objAnchorQ, objAnchorR });
+            // ── Editor-defined object actions (sleep, cook, craft, etc.) ──
+            const objActionItems = ObjectActions.buildMenuItems(game, customObjDef, objAnchorQ, objAnchorR);
+            if (objActionItems.length > 0) {
+                menuItems.push({ type: 'separator' });
+                for (const ai of objActionItems) menuItems.push(ai);
+            }
             if (customObjDef.resource) {
                 const resName = (customObjDef.resource.type || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                 menuItems.push({ type: 'action', action: 'harvest_object', label: `Harvest ${resName}`, icon: '⛏️', desc: `Gather resources from this ${customObjDef.name || 'object'}`, customObjDef, objAnchorQ, objAnchorR });
@@ -812,7 +819,13 @@ Object.assign(InnerMapRenderer, {
                 break;
             }
             default:
-                game.ui.showNotification('ℹ️ Action', `${action} is not available right now.`, 'info');
+                // ── Handle object actions (obj_action_sleep, obj_action_cook, etc.) ──
+                if (action.startsWith('obj_action_')) {
+                    const actionKey = action.slice('obj_action_'.length);
+                    ObjectActions.execute(game, actionKey, item.customObjDef, item.objAnchorQ, item.objAnchorR);
+                } else {
+                    game.ui.showNotification('ℹ️ Action', `${action} is not available right now.`, 'info');
+                }
                 break;
         }
     },

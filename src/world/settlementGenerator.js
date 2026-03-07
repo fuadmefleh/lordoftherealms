@@ -659,6 +659,12 @@ function _tryPlaceCustomBuilding(tiles, def, lot, mapW, mapH) {
         const fr = anchorR + m.r, fq = anchorQ + m.q;
         if (fr >= 0 && fr < mapH && fq >= 0 && fq < mapW) {
             if (m.impassable) tiles[fr][fq].subTerrain.passable = false;
+            if (m.door) {
+                // Tag this tile as a door so the player auto-enters on step
+                tiles[fr][fq]._doorMarker = { anchorQ, anchorR, defId: def.id };
+                // Ensure door tiles are passable so the player can walk onto them
+                tiles[fr][fq].subTerrain.passable = true;
+            }
         }
     }
 

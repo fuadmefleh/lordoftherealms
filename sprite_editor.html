@@ -568,6 +568,11 @@ canvas.pal-terrain-overlay{position:absolute;top:0;left:0;pointer-events:none;im
       <div class="field-row"><label>Spawn After</label>
         <input type="text" id="obj-spawn-after" placeholder="e.g. stump_1" style="width:130px" title="Object ID to spawn at the origin tile after this object is collected / destroyed"></div>
       <div class="field-row" style="flex-direction:column;align-items:flex-start;gap:4px">
+        <label>Actions <span style="font-size:10px;color:var(--text-dim)">(what the player can do with this object)</span></label>
+        <div id="obj-actions-tags" style="display:flex;flex-wrap:wrap;gap:4px;min-height:24px;padding:4px;background:#0d1117;border:1px solid var(--border2);border-radius:4px;width:100%;cursor:pointer" onclick="openObjActionPicker()"></div>
+        <div style="font-size:10px;color:var(--text-dim);line-height:1.4">Click to assign actions like Sleep, Cook, Craft, etc.</div>
+      </div>
+      <div class="field-row" style="flex-direction:column;align-items:flex-start;gap:4px">
         <label>Required Techs <span style="font-size:10px;color:var(--text-dim)">(technologies needed to build/use this object)</span></label>
         <div id="obj-req-techs-tags" style="display:flex;flex-wrap:wrap;gap:4px;min-height:24px;padding:4px;background:#0d1117;border:1px solid var(--border2);border-radius:4px;width:100%;cursor:pointer" onclick="openObjTechPicker()"></div>
         <div style="font-size:10px;color:var(--text-dim);line-height:1.4">Click to select which researched technologies are required before this object can be built.</div>
@@ -1004,6 +1009,7 @@ let _objColorVariants = []; // Array of {label, objLayers, meta, originQ, origin
 let _activeColorVariantIdx = -1; // -1 = base, 0+ = color variant index
 let _objRequiredTechs = []; // Array of tech IDs required to build this object
 let _availableTechs   = []; // Array of {id, name, icon, category} from parent tech editor
+let _objActions       = []; // Array of action keys assigned to this object (sleep, cook, craft, etc.)
 let _objOriginQ       = null; // Grid col of the origin/anchor tile (null = use top-left painted tile)
 let _objOriginR       = null; // Grid row of the origin/anchor tile
 let _bldOriginQ       = null; // Building origin col (null = use top-left painted tile)
@@ -2915,6 +2921,110 @@ function closeObjTechPicker() {
     document.getElementById('obj-tech-modal').style.display = 'none';
 }
 
+// ═══════════════════════════════════════════════════
+//  OBJECT ACTIONS — picker & display helpers
+// ═══════════════════════════════════════════════════
+const _ALL_OBJ_ACTIONS = {
+    // Rest & Recovery
+    sleep:           { label: 'Sleep',         icon: '🛏️', category: 'Rest & Recovery',     desc: 'Rest and recover energy (hour slider)' },
+    sit:             { label: 'Sit Down',      icon: '🪑', category: 'Rest & Recovery',     desc: 'Take a seat, restore comfort' },
+    warm:            { label: 'Warm Up',       icon: '🔥', category: 'Rest & Recovery',     desc: 'Warm by fire, restore comfort' },
+    meditate:        { label: 'Meditate',      icon: '🧘', category: 'Rest & Recovery',     desc: 'Clear mind, restore energy' },
+    // Hygiene
+    wash:            { label: 'Wash',          icon: '💧', category: 'Hygiene',             desc: 'Clean yourself' },
+    bathe:           { label: 'Bathe',         icon: '🛁', category: 'Hygiene',             desc: 'Take a luxurious bath' },
+    // Food & Drink
+    eat:             { label: 'Eat',           icon: '🍽️', category: 'Food & Drink',        desc: 'Eat food from inventory' },
+    drink:           { label: 'Have a Drink',  icon: '🍺', category: 'Food & Drink',        desc: 'Drink an ale (costs gold)' },
+    cook:            { label: 'Cook',          icon: '🍳', category: 'Food & Drink',        desc: 'Cook raw ingredients into meals' },
+    // Entertainment
+    read:            { label: 'Read',          icon: '📖', category: 'Entertainment',       desc: 'Read and learn, restore fun' },
+    play_instrument: { label: 'Play Music',   icon: '🎵', category: 'Entertainment',       desc: 'Play music, restore fun & social' },
+    play_game:       { label: 'Play Game',    icon: '🎲', category: 'Entertainment',       desc: 'Play a game, restore fun & social' },
+    pray:            { label: 'Pray',          icon: '🙏', category: 'Spiritual',           desc: 'Pray, restore comfort & karma' },
+    // Crafting & Production
+    craft:           { label: 'Craft',         icon: '🔨', category: 'Crafting & Production', desc: 'Craft items at a workbench' },
+    smelt:           { label: 'Smelt Ore',     icon: '⚒️', category: 'Crafting & Production', desc: 'Smelt ore into ingots' },
+    brew:            { label: 'Brew Potion',   icon: '🧪', category: 'Crafting & Production', desc: 'Brew potions from herbs' },
+    tan:             { label: 'Tan Leather',   icon: '🟫', category: 'Crafting & Production', desc: 'Tan hides into leather' },
+    // Gathering
+    fish:            { label: 'Fish',          icon: '🎣', category: 'Gathering',           desc: 'Cast a line and catch fish' },
+    draw_water:      { label: 'Draw Water',   icon: '🪣', category: 'Gathering',           desc: 'Draw water from a well' },
+    // Storage & Healing
+    store:           { label: 'Store Items',   icon: '📦', category: 'Storage & Healing',   desc: 'Store or retrieve items' },
+    heal:            { label: 'Heal',          icon: '💊', category: 'Storage & Healing',   desc: 'Use healing items' },
+};
+
+function renderObjActionTags() {
+    const container = document.getElementById('obj-actions-tags');
+    if (!container) return;
+    if (!_objActions.length) {
+        container.innerHTML = '<span style="font-size:11px;color:var(--text-dim);font-style:italic">None — click to add actions</span>';
+        return;
+    }
+    container.innerHTML = '';
+    for (const aid of _objActions) {
+        const info = _ALL_OBJ_ACTIONS[aid];
+        const label = info ? `${info.icon} ${info.label}` : aid;
+        const tag = document.createElement('span');
+        tag.style.cssText = 'display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 6px;border-radius:8px;background:#1a2818;color:#5ddb6a;border:1px solid rgba(93,219,106,.25)';
+        tag.innerHTML = `${label}<span style="cursor:pointer;font-size:12px;line-height:1;margin-left:2px;opacity:.6" onclick="event.stopPropagation();removeObjAction('${aid}')">&times;</span>`;
+        container.appendChild(tag);
+    }
+}
+
+function removeObjAction(aid) {
+    _objActions = _objActions.filter(a => a !== aid);
+    renderObjActionTags();
+}
+
+function openObjActionPicker() {
+    // Reuse the tech modal pattern: create/show a picker
+    let modal = document.getElementById('obj-action-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'obj-action-modal';
+        modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center';
+        modal.innerHTML = `<div style="background:var(--panel);border:2px solid var(--gold);border-radius:8px;padding:16px;width:380px;max-height:70vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.7)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                <h3 style="margin:0;font-size:14px;color:var(--gold)">🎯 Assign Object Actions</h3>
+                <button onclick="closeObjActionPicker()" style="background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer">&times;</button>
+            </div>
+            <div id="obj-action-list" style="display:flex;flex-direction:column;gap:2px"></div>
+        </div>`;
+        document.body.appendChild(modal);
+    }
+    const list = document.getElementById('obj-action-list');
+    list.innerHTML = '';
+    const allActions = Object.entries(_ALL_OBJ_ACTIONS);
+    let lastCat = '';
+    for (const [key, act] of allActions) {
+        if (act.category !== lastCat) {
+            lastCat = act.category;
+            const div = document.createElement('div');
+            div.style.cssText = 'padding:8px 4px 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim)';
+            div.textContent = lastCat;
+            list.appendChild(div);
+        }
+        const lbl = document.createElement('label');
+        lbl.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:4px;cursor:pointer;font-size:12px';
+        const checked = _objActions.includes(key) ? 'checked' : '';
+        lbl.innerHTML = `<input type="checkbox" value="${key}" ${checked}><span>${act.icon} ${act.label}</span><span style="font-size:10px;color:var(--text-dim);margin-left:auto">${act.desc}</span>`;
+        lbl.querySelector('input').addEventListener('change', function() {
+            if (this.checked) { if (!_objActions.includes(key)) _objActions.push(key); }
+            else { _objActions = _objActions.filter(x => x !== key); }
+            renderObjActionTags();
+        });
+        list.appendChild(lbl);
+    }
+    modal.style.display = 'flex';
+}
+
+function closeObjActionPicker() {
+    const m = document.getElementById('obj-action-modal');
+    if (m) m.style.display = 'none';
+}
+
 function newObject() {
     clearAll(true);
     objEditIdx = -1;
@@ -2942,6 +3052,8 @@ function newObject() {
     setSelectedTerrains([]);
     _objRequiredTechs = [];
     renderObjTechTags();
+    _objActions = [];
+    renderObjActionTags();
 }
 
 function saveObject() {
@@ -2970,6 +3082,7 @@ function saveObject() {
         bounds: { minCol: minQ, minRow: minR, maxCol: maxQ, maxRow: maxR },
         spawnAfter: document.getElementById('obj-spawn-after').value.trim() || undefined,
         requiredTechs: _objRequiredTechs.length > 0 ? [..._objRequiredTechs] : undefined,
+        actions: _objActions.length > 0 ? [..._objActions] : undefined,
         healthStates: _objHealthStates.length > 0
             ? _objHealthStates.map(hs => ({ ...hs, objLayers: JSON.parse(JSON.stringify(hs.objLayers || {base:{},detail:{},top:{}})) }))
             : undefined,
@@ -3029,6 +3142,8 @@ function loadObject(index) {
     document.getElementById('obj-spawn-after').value = obj.spawnAfter || '';
     _objRequiredTechs = obj.requiredTechs ? [...obj.requiredTechs] : [];
     renderObjTechTags();
+    _objActions = obj.actions ? [...obj.actions] : [];
+    renderObjActionTags();
     _objOriginQ = obj.originQ != null ? obj.originQ : null;
     _objOriginR = obj.originR != null ? obj.originR : null;
 
@@ -5143,6 +5258,8 @@ function getExportData() {
         colorVariants:outColorVariants.length>0?outColorVariants:undefined,
         terrainBindings:obj.terrainBindings, spawnWeight:obj.spawnWeight,
         resistance:obj.resistance||undefined,
+        requiredTechs:obj.requiredTechs||undefined,
+        actions:obj.actions||undefined,
         bounds:{minCol:minQ-originQ,minRow:minR-originR,maxCol:maxQ-originQ,maxRow:maxR-originR},
         hasBlockedTiles:outMeta.some(m=>m.impassable), hasInteraction:outMeta.some(m=>m.interactionPoint),
         tiles:outTiles, objLayers:outObjLayers, meta:outMeta,

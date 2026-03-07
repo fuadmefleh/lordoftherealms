@@ -249,6 +249,10 @@ export const SaveLoad = {
             houses: player.houses || [],
             ships: player.ships || [],
 
+            // Needs (Sims-style)
+            needs: player.needs || { hunger: 100, energy: 100, social: 100, fun: 100, hygiene: 100, comfort: 100 },
+            _lastNeedDecayHour: player._lastNeedDecayHour || 8,
+
             // Espionage
             espionage: player.espionage || null,
 
@@ -432,6 +436,13 @@ export const SaveLoad = {
                 boardOffers: [],
             };
         }
+
+        // Needs system fallback for older saves
+        if (!player.needs || typeof player.needs !== 'object') {
+            player.needs = { hunger: 100, energy: 100, social: 100, fun: 100, hygiene: 100, comfort: 100 };
+        }
+        if (player._lastNeedDecayHour == null) player._lastNeedDecayHour = 8;
+        if (!player._needWarnings) player._needWarnings = {};
 
         // Legendary artifacts fallback
         if (!player.artifacts || typeof player.artifacts !== 'object') {

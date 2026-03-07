@@ -143,18 +143,16 @@ export const LightSystem = {
      * Add a player light (always present, larger during night)
      */
     addPlayerLight(screenX, screenY, zoom, darkness) {
-        // Player always carries a faint visibility light
-        // At night it becomes a torch light
-        const baseRadius = 80 * zoom;
-        const nightBonus = darkness * 120 * zoom;
+        // Player carries a torch at night, subtle visibility during day
+        const baseRadius = 55 * zoom;
+        const nightBonus = darkness * 80 * zoom;
         const radius = baseRadius + nightBonus;
 
-        // Warm torch color at night, subtle glow during day
         const color = darkness > 0.1
             ? { r: 255, g: 180, b: 80 }
             : { r: 255, g: 240, b: 200 };
 
-        this.addLight(screenX, screenY, radius, color, 0.95, darkness > 0.1 ? 'torch' : 'point');
+        this.addLight(screenX, screenY, radius, color, 0.8, darkness > 0.1 ? 'torch' : 'point');
     },
 
     /**
@@ -167,16 +165,16 @@ export const LightSystem = {
     addBuildingLight(screenX, screenY, zoom, buildingType) {
         // Different buildings emit different lights
         const configs = {
-            tavern:      { radius: 100, color: { r: 255, g: 190, b: 90 },  intensity: 0.9, type: 'fire' },
-            blacksmith:  { radius: 90,  color: { r: 255, g: 140, b: 40 },  intensity: 0.85, type: 'fire' },
-            church:      { radius: 80,  color: { r: 255, g: 240, b: 200 }, intensity: 0.7, type: 'point' },
-            temple:      { radius: 90,  color: { r: 220, g: 200, b: 255 }, intensity: 0.75, type: 'point' },
-            town_hall:   { radius: 85,  color: { r: 255, g: 210, b: 120 }, intensity: 0.8, type: 'torch' },
-            marketplace: { radius: 70,  color: { r: 255, g: 200, b: 100 }, intensity: 0.6, type: 'torch' },
-            barracks:    { radius: 60,  color: { r: 255, g: 180, b: 80 },  intensity: 0.5, type: 'torch' },
-            manor:       { radius: 100, color: { r: 255, g: 220, b: 150 }, intensity: 0.85, type: 'torch' },
-            house:       { radius: 50,  color: { r: 255, g: 200, b: 120 }, intensity: 0.5, type: 'point' },
-            farm:        { radius: 40,  color: { r: 255, g: 190, b: 100 }, intensity: 0.3, type: 'point' },
+            tavern:      { radius: 65,  color: { r: 255, g: 190, b: 90 },  intensity: 0.7, type: 'fire' },
+            blacksmith:  { radius: 60,  color: { r: 255, g: 140, b: 40 },  intensity: 0.65, type: 'fire' },
+            church:      { radius: 55,  color: { r: 255, g: 240, b: 200 }, intensity: 0.5, type: 'point' },
+            temple:      { radius: 60,  color: { r: 220, g: 200, b: 255 }, intensity: 0.55, type: 'point' },
+            town_hall:   { radius: 55,  color: { r: 255, g: 210, b: 120 }, intensity: 0.6, type: 'torch' },
+            marketplace: { radius: 50,  color: { r: 255, g: 200, b: 100 }, intensity: 0.45, type: 'torch' },
+            barracks:    { radius: 45,  color: { r: 255, g: 180, b: 80 },  intensity: 0.4, type: 'torch' },
+            manor:       { radius: 65,  color: { r: 255, g: 220, b: 150 }, intensity: 0.65, type: 'torch' },
+            house:       { radius: 40,  color: { r: 255, g: 200, b: 120 }, intensity: 0.35, type: 'point' },
+            farm:        { radius: 30,  color: { r: 255, g: 190, b: 100 }, intensity: 0.2, type: 'point' },
         };
 
         // Fallback for unknown building types
@@ -195,16 +193,16 @@ export const LightSystem = {
      * Add a fireplace / campfire light
      */
     addFireLight(screenX, screenY, zoom) {
-        this.addLight(screenX, screenY, 110 * zoom,
-            { r: 255, g: 160, b: 50 }, 0.95, 'fire');
+        this.addLight(screenX, screenY, 70 * zoom,
+            { r: 255, g: 160, b: 50 }, 0.75, 'fire');
     },
 
     /**
-     * Add a torch light (for roads, walls)
+     * Add a torch light (for walls, posts)
      */
     addTorchLight(screenX, screenY, zoom) {
-        this.addLight(screenX, screenY, 55 * zoom,
-            { r: 255, g: 170, b: 60 }, 0.75, 'torch');
+        this.addLight(screenX, screenY, 45 * zoom,
+            { r: 255, g: 170, b: 60 }, 0.6, 'torch');
     },
 
     // ══════════════════════════════════════════════
@@ -249,14 +247,13 @@ export const LightSystem = {
             let intensity = light.intensity;
 
             if (light.flicker) {
-                const flickerSpeed = light.type === 'fire' ? 8 : 6;
-                const flickerAmt = light.type === 'fire' ? 0.12 : 0.08;
+                const flickerSpeed = light.type === 'fire' ? 5 : 4;
+                const flickerAmt = light.type === 'fire' ? 0.04 : 0.025;
                 const flicker = 1.0
                     + Math.sin(time * flickerSpeed + light.x * 0.1) * flickerAmt
-                    + Math.sin(time * flickerSpeed * 1.7 + light.y * 0.13) * (flickerAmt * 0.5)
-                    + Math.sin(time * flickerSpeed * 3.1) * (flickerAmt * 0.3);
+                    + Math.sin(time * flickerSpeed * 1.7 + light.y * 0.13) * (flickerAmt * 0.4);
                 radius *= flicker;
-                intensity *= (0.9 + Math.sin(time * flickerSpeed * 0.8) * 0.1);
+                intensity *= (0.96 + Math.sin(time * flickerSpeed * 0.8) * 0.04);
             }
 
             resolvedRadius[i] = radius;
@@ -425,22 +422,9 @@ export const LightSystem = {
             }
         }
 
-        // ── Road torches — place lights along roads at night ──
-        if (this.ambientDarkness > 0.3 && InnerMap.roads && InnerMap.roads.length > 0) {
-            for (let i = 0; i < InnerMap.roads.length; i += 4) {
-                const road = InnerMap.roads[i];
-                if (road.q < qMin - 1 || road.q > qMax + 1) continue;
-                if (road.r < rMin - 1 || road.r > rMax + 1) continue;
-
-                const screen = camera.worldToScreenFast(road.q * T + T / 2, road.r * T + T / 2);
-                this.addTorchLight(screen.x, screen.y, camera.zoom);
-            }
-        }
-
         // ── NPC-carried lights at night ──
-        if (this.ambientDarkness > 0.4 && InnerMap.npcs) {
+        if (this.ambientDarkness > 0.2 && InnerMap.npcs) {
             for (const npc of InnerMap.npcs) {
-                if (npc.type === 'guard' || npc.type === 'merchant' || npc.type === 'innkeeper') {
                     let worldX, worldY;
                     if (npc.state === 'walking' && npc.path && npc.pathIndex < npc.path.length) {
                         const target = npc.path[npc.pathIndex];
@@ -454,7 +438,6 @@ export const LightSystem = {
                     const screen = camera.worldToScreenFast(worldX, worldY);
                     this.addLight(screen.x, screen.y, 50 * camera.zoom,
                         { r: 255, g: 190, b: 90 }, 0.6, 'torch');
-                }
             }
         }
     },

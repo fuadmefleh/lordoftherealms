@@ -160,25 +160,52 @@ export class UI {
      * Setup Sims-style time control buttons (pause / play / fast / ultra)
      */
     _setupTimeControls() {
+        // Old top-bar buttons (hidden but still bound for compatibility)
         const btnPause = document.getElementById('btnTimePause');
         const btnPlay  = document.getElementById('btnTimePlay');
         const btnFast  = document.getElementById('btnTimeFast');
         const btnUltra = document.getElementById('btnTimeUltra');
-        const buttons = [btnPause, btnPlay, btnFast, btnUltra];
+        const oldButtons = [btnPause, btnPlay, btnFast, btnUltra];
+
+        // New bottom HUD buttons
+        const sPause = document.getElementById('simsTimePause');
+        const sPlay  = document.getElementById('simsTimePlay');
+        const sFast  = document.getElementById('simsTimeFast');
+        const sUltra = document.getElementById('simsTimeUltra');
+        const newButtons = [sPause, sPlay, sFast, sUltra];
+
+        const allButtons = [...oldButtons, ...newButtons];
 
         const setSpeed = (speed) => {
             this.game.timeSpeed = speed;
-            // Update active state
-            buttons.forEach(b => { if (b) { b.classList.remove('active', 'paused-flash'); } });
-            const activeBtn = buttons[speed];
-            if (activeBtn) activeBtn.classList.add('active');
-            if (speed === 0 && btnPause) btnPause.classList.add('paused-flash');
+            // Update active state on both sets
+            allButtons.forEach(b => { if (b) { b.classList.remove('active', 'paused-flash'); } });
+            const activeOld = oldButtons[speed];
+            const activeNew = newButtons[speed];
+            if (activeOld) activeOld.classList.add('active');
+            if (activeNew) activeNew.classList.add('active');
+            if (speed === 0) {
+                if (btnPause) btnPause.classList.add('paused-flash');
+                if (sPause) sPause.classList.add('paused-flash');
+            }
         };
 
         if (btnPause) btnPause.addEventListener('click', () => setSpeed(0));
         if (btnPlay)  btnPlay.addEventListener('click',  () => setSpeed(1));
         if (btnFast)  btnFast.addEventListener('click',  () => setSpeed(2));
         if (btnUltra) btnUltra.addEventListener('click', () => setSpeed(3));
+
+        if (sPause) sPause.addEventListener('click', () => setSpeed(0));
+        if (sPlay)  sPlay.addEventListener('click',  () => setSpeed(1));
+        if (sFast)  sFast.addEventListener('click',  () => setSpeed(2));
+        if (sUltra) sUltra.addEventListener('click', () => setSpeed(3));
+
+        // Wire bottom HUD End Day button
+        const simsEndDay = document.getElementById('simsEndDay');
+        const btnEndTurn = document.getElementById('btnEndTurn');
+        if (simsEndDay && btnEndTurn) {
+            simsEndDay.addEventListener('click', () => btnEndTurn.click());
+        }
 
         // Keyboard shortcuts: Space = toggle pause, 1/2/3 = speeds
         window.addEventListener('keydown', (e) => {
@@ -267,7 +294,7 @@ export class UI {
     }
 
     /**
-     * Update top bar stats display
+     * Update top bar stats display and bottom HUD needs bars
      */
     updateStats(player, world) {
         document.getElementById('goldValue').textContent = Utils.formatNumber(player.gold);
@@ -307,6 +334,9 @@ export class UI {
             hpDisplay.style.color = pct <= 0.25 ? '#e74c3c' : pct <= 0.5 ? '#f39c12' : '';
         }
 
+        // === Update Bottom HUD (Sims-style needs bars) ===
+        this._updateSimsHUD(player, world);
+
         // Show jail status if active
         let jailEl = document.getElementById('jailDisplay');
         if (player.jailState) {
@@ -340,8 +370,90 @@ export class UI {
         }
 
         const dayInSeason = ((world.day - 1) % 30) + 1;
-        document.getElementById('turnDisplay').textContent =
-            `Day ${dayInSeason} — ${world.season}, Year ${world.year}`;
+        const turnEl = document.getElementById('turnDisplay');
+        // Show time of day from cache or from the live InnerMap clock
+        const cachedTime = InnerMap.getCachedTimeForTile
+            ? InnerMap.getCachedTimeForTile(this.game.player.q, this.game.player.r)
+            : null;
+        if (cachedTime) {
+            turnEl.textContent = `${cachedTime.periodIcon} ${cachedTime.timeString} — Day ${dayInSeason}, ${world.season}, Year ${world.year}`;
+        } else {
+            // Fallback: derive time directly from InnerMap's live clock
+            const timeStr = InnerMap.getTimeString ? InnerMap.getTimeString() : null;
+            const period = InnerMap.getTimePeriod ? InnerMap.getTimePeriod() : null;
+            const periodIcons = { morning: '🌅', midday: '☀️', afternoon: '🌤️', evening: '🌇', night: '🌙' };
+            if (timeStr && period) {
+                turnEl.textContent = `${periodIcons[period] || '🕐'} ${timeStr} — Day ${dayInSeason}, ${world.season}, Year ${world.year}`;
+            } else {
+                turnEl.textContent = `Day ${dayInSeason} — ${world.season}, Year ${world.year}`;
+            }
+        }
+    }
+
+    /**
+     * Update the Sims-style bottom HUD — needs bars, resources, day display
+     */
+    _updateSimsHUD(player, world) {
+        // Resource values
+        const simsGold = document.getElementById('simsGold');
+        const simsRenown = document.getElementById('simsRenown');
+        const simsKarma = document.getElementById('simsKarma');
+        if (simsGold) simsGold.textContent = Utils.formatNumber(player.gold);
+        if (simsRenown) simsRenown.textContent = player.renown;
+        if (simsKarma) simsKarma.textContent = player.karma;
+
+        // ── Sims-style 6 Needs Bars ──
+        if (player.needs) {
+            const needBars = {
+                hunger:  'simsHungerBar',
+                energy:  'simsEnergyBar',
+                social:  'simsSocialBar',
+                fun:     'simsFunBar',
+                hygiene: 'simsHygieneBar',
+                comfort: 'simsComfortBar',
+            };
+            for (const [need, barId] of Object.entries(needBars)) {
+                const pct = Math.round(player.needs[need]);
+                this._setNeedBar(barId, null, pct, '');
+            }
+        }
+
+        // Mood indicator
+        if (player.getMood) {
+            const mood = player.getMood();
+            const moodIcon = document.getElementById('simsMoodIcon');
+            const moodLabel = document.getElementById('simsMoodLabel');
+            if (moodIcon) moodIcon.textContent = mood.icon;
+            if (moodLabel) moodLabel.textContent = mood.label;
+
+            // Color the mood label based on score
+            if (moodLabel) {
+                if (mood.score >= 70) moodLabel.style.color = '#2ecc71';
+                else if (mood.score >= 50) moodLabel.style.color = '#f1c40f';
+                else if (mood.score >= 30) moodLabel.style.color = '#e67e22';
+                else moodLabel.style.color = '#e74c3c';
+            }
+        }
+
+        // Day display
+        const simsDay = document.getElementById('simsDay');
+        if (simsDay && world) {
+            const dayInSeason = ((world.day - 1) % 30) + 1;
+            simsDay.textContent = `Day ${dayInSeason}`;
+        }
+    }
+
+    /**
+     * Helper: set a Sims-style need bar width, color class, and value text
+     */
+    _setNeedBar(barId, valId, pct, text) {
+        const bar = document.getElementById(barId);
+        const val = document.getElementById(valId);
+        if (bar) {
+            bar.style.width = pct + '%';
+            bar.className = 'sims-need-bar-fill ' + (pct > 60 ? 'high' : pct > 25 ? 'mid' : 'low');
+        }
+        if (val) val.textContent = text;
     }
 
     /**
@@ -2144,17 +2256,36 @@ export class UI {
     }
 
     /**
-     * Show a notification toast
+     * Show a notification toast (Sims-style card)
      */
     showNotification(title, message, type = 'default') {
         const area = document.getElementById('notificationArea');
         const notif = document.createElement('div');
         notif.className = `notification ${type}`;
+
+        // Icon per type
+        const typeIcons = { success: '✅', error: '❌', info: 'ℹ️', default: '📌' };
+        const icon = typeIcons[type] || typeIcons.default;
+
         notif.innerHTML = `
-            <div class="notif-title">${title}</div>
-            <div>${message}</div>
+            <div class="notif-accent"></div>
+            <div class="notif-icon">${icon}</div>
+            <div class="notif-body">
+                <div class="notif-title">${title}</div>
+                <div class="notif-msg">${message}</div>
+            </div>
+            <button class="notif-dismiss" title="Dismiss">✕</button>
         `;
         area.appendChild(notif);
+
+        // Dismiss button
+        const dismissBtn = notif.querySelector('.notif-dismiss');
+        if (dismissBtn) {
+            dismissBtn.addEventListener('click', () => {
+                notif.style.animation = 'notifOut 0.3s ease forwards';
+                setTimeout(() => notif.remove(), 300);
+            });
+        }
 
         // Play notification SFX based on type
         if (typeof audioManager !== 'undefined') {

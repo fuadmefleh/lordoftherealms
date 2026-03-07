@@ -1633,6 +1633,7 @@ function exportGamedata() {
   if (intIframe && intIframe.contentWindow && typeof intIframe.contentWindow.getExportData === 'function') {
     const intData = intIframe.contentWindow.getExportData();
     if (intData.interiors) _gamedata.interiors = intData.interiors;
+    if (intData.nineTileBrushes) _gamedata.interiorBrushes = intData.nineTileBrushes;
   }
 
   // Ask sprite editor for latest terrain sets (tbrush sets are authored there)

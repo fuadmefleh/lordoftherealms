@@ -74,6 +74,15 @@ export const CustomObjects = {
 
     isLoaded() { return _loaded; },
 
+    /** Clear all registered defs and images so loadAll() can rebuild from fresh gamedata. */
+    reset() {
+        _defs.clear();
+        _images.clear();
+        _byTerrain.clear();
+        _unbound.length = 0;
+        _loaded = false;
+    },
+
     // ── Loading ────────────────────────────────────────────────
 
     /**
@@ -92,42 +101,35 @@ export const CustomObjects = {
                 _byTerrain.get(terrainId).push(fullDef);
             }
             if (!obj.terrainBindings || obj.terrainBindings.length === 0) _unbound.push(fullDef);
-            for (const td of (obj.tiles || [])) {
-                if (td.sheetPath && !_images.has(td.sheetPath)) _images.set(td.sheetPath, null);
-            }
+            // Collect all sheet paths from tiles and objLayers for preloading
+            const _queueTile = td => { if (td.sheetPath && !_images.has(td.sheetPath)) _images.set(td.sheetPath, null); };
+            const _queueLayers = lyrs => { if (!lyrs) return; for (const ln of ['base','detail','top']) for (const td of (lyrs[ln] || [])) _queueTile(td); };
+            for (const td of (obj.tiles || [])) _queueTile(td);
+            _queueLayers(obj.objLayers);
             for (const hs of (obj.healthStates || [])) {
-                for (const td of (hs.tiles || [])) {
-                    if (td.sheetPath && !_images.has(td.sheetPath)) _images.set(td.sheetPath, null);
-                }
+                for (const td of (hs.tiles || [])) _queueTile(td);
+                _queueLayers(hs.objLayers);
             }
             for (const sarr of Object.values(obj.seasonVariants || {})) {
-                for (const td of (sarr || [])) {
-                    if (td.sheetPath && !_images.has(td.sheetPath)) _images.set(td.sheetPath, null);
-                }
+                for (const td of (sarr || [])) _queueTile(td);
             }
             for (const gs of (obj.growthStates || [])) {
-                for (const td of (gs.tiles || [])) {
-                    if (td.sheetPath && !_images.has(td.sheetPath)) _images.set(td.sheetPath, null);
-                }
+                for (const td of (gs.tiles || [])) _queueTile(td);
+                _queueLayers(gs.objLayers);
             }
             for (const rv of (obj.rotationVariants || [])) {
-                for (const td of (rv.tiles || [])) {
-                    if (td.sheetPath && !_images.has(td.sheetPath)) _images.set(td.sheetPath, null);
-                }
+                for (const td of (rv.tiles || [])) _queueTile(td);
+                _queueLayers(rv.objLayers);
             }
             for (const cv of (obj.colorVariants || [])) {
-                for (const td of (cv.tiles || [])) {
-                    if (td.sheetPath && !_images.has(td.sheetPath)) _images.set(td.sheetPath, null);
-                }
+                for (const td of (cv.tiles || [])) _queueTile(td);
+                _queueLayers(cv.objLayers);
                 for (const rv of (cv.rotationVariants || [])) {
-                    for (const td of (rv.tiles || [])) {
-                        if (td.sheetPath && !_images.has(td.sheetPath)) _images.set(td.sheetPath, null);
-                    }
+                    for (const td of (rv.tiles || [])) _queueTile(td);
+                    _queueLayers(rv.objLayers);
                 }
                 for (const sarr of Object.values(cv.seasonVariants || {})) {
-                    for (const td of (sarr || [])) {
-                        if (td.sheetPath && !_images.has(td.sheetPath)) _images.set(td.sheetPath, null);
-                    }
+                    for (const td of (sarr || [])) _queueTile(td);
                 }
             }
         }

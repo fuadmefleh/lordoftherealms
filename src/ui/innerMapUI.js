@@ -15,6 +15,8 @@ import { InnerMapCombat } from './innerMapCombat.js';
 import { Relationships } from '../systems/relationships.js';
 import { CustomBuildings } from '../world/customBuildings.js';
 import { BuildingCreator } from './buildingCreator.js';
+import { Hotbar } from './hotbar.js';
+import { NpcDialog } from './npcDialog.js';
 
 
 Object.assign(InnerMapRenderer, {
@@ -251,6 +253,14 @@ Object.assign(InnerMapRenderer, {
             }
         }
 
+        // ── Ground item pick-up ──
+        if (tile.groundItem && !building) {
+            if (menuItems.length > 0) menuItems.push({ type: 'separator' });
+            const gi = tile.groundItem;
+            menuItems.push({ type: 'header', label: `${gi.icon} ${gi.name}` });
+            menuItems.push({ type: 'action', action: 'pickup_ground_item', label: `Pick Up ${gi.name}`, icon: '🖐️', desc: 'Add this item back to your inventory', groundItemTileQ: q, groundItemTileR: r });
+        }
+
         // ── Terrain actions (only for bare terrain, no building or object) ──
         if (!building && !customObjDef && (!builtinOverlay || !builtinOverlay.type)) {
             if (menuItems.length > 0) menuItems.push({ type: 'separator' });
@@ -413,15 +423,47 @@ Object.assign(InnerMapRenderer, {
             case 'talk_merchant': case 'talk_locals': case 'talk_priest': case 'talk_captain':
             case 'talk_guard': case 'talk_official': case 'ask_directions': case 'talk_npc': {
                 const npc = item.npc;
-                const name = npc ? npc.name : (item.building ? item.building.name : 'someone');
-                const rumors = [
-                    'I heard bandits on the road to the east.', 'The harvest was good this year, prices should be fair.',
-                    'A traveling merchant passed through with exotic goods.', 'The lord has been raising taxes again...',
-                    'Strange lights were seen in the forest last night.', 'A caravan from the capital is expected any day now.',
-                    'The well water has been tasting odd lately.', 'They say there\'s treasure hidden in the old ruins.',
-                    'Watch yourself at night, the guards are spread thin.', 'The blacksmith just got a shipment of fine ore.',
-                ];
-                game.ui.showNotification(`💬 ${name}`, `"${rumors[Math.floor(Math.random() * rumors.length)]}"`, 'info');
+                if (npc) {
+                    // Freeze the NPC immediately so they don't wander off
+                    npc._dialogFrozen = true;
+                    npc._preDialogState = npc.state;
+                    npc.state = 'dialog';
+                    npc.path = null;
+                    npc.moveProgress = 0;
+
+                    // If player is already adjacent, open dialog immediately
+                    const adjDist = Math.abs(playerQ - npc.q) + Math.abs(playerR - npc.r);
+                    if (adjDist <= 1) {
+                        NpcDialog.open(game, npc);
+                    } else {
+                        // Find passable tile adjacent to the NPC
+                        const adj = InnerMap.findAdjacentPassable(npc.q, npc.r);
+                        if (adj) {
+                            InnerMap.cancelPlayerWalk();
+                            InnerMap._pendingDialog = { npc, game };
+                            const walkResult = InnerMap.movePlayerTo(adj.q, adj.r);
+                            if (!walkResult.started) {
+                                InnerMap._pendingDialog = null;
+                                npc._dialogFrozen = false;
+                                npc.state = npc._preDialogState || 'idle';
+                                npc.idleTimer = 1;
+                                game.ui.showNotification('Blocked', `Cannot reach ${npc.name}!`, 'error');
+                            }
+                        } else {
+                            npc._dialogFrozen = false;
+                            npc.state = npc._preDialogState || 'idle';
+                            npc.idleTimer = 1;
+                            game.ui.showNotification('Blocked', `Cannot reach ${npc.name}!`, 'error');
+                        }
+                    }
+                } else {
+                    // Fallback for building-based NPCs without an NPC object
+                    const name = item.building ? item.building.name : 'someone';
+                    game.ui.showNotification(`💬 ${name}`, '"Not much to say right now."', 'info');
+                    if (game.player.modifyNeed) {
+                        game.player.modifyNeed('social', 5);
+                    }
+                }
                 break;
             }
             case 'tavern': {
@@ -429,14 +471,40 @@ Object.assign(InnerMapRenderer, {
                 if (worldTile && typeof ActionMenu !== 'undefined') ActionMenu.handleAction(game, worldTile, 'tavern');
                 break;
             }
-            case 'rest': { game.ui.showNotification('💤 Rest', 'You rest for a while and recover some energy.', 'info'); break; }
-            case 'pray': case 'meditate': { game.ui.showNotification('🙏 Prayer', 'You spend time in quiet contemplation.', 'info'); break; }
+            case 'rest': {
+                game.ui.showNotification('💤 Rest', 'You rest for a while and recover some energy.', 'info');
+                if (game.player.modifyNeed) {
+                    game.player.modifyNeed('energy', 15);
+                    game.player.modifyNeed('comfort', 8);
+                    // Resting inside a building is better
+                    if (InnerMap._insideBuilding) {
+                        game.player.modifyNeed('energy', 5);
+                        game.player.modifyNeed('comfort', 5);
+                    }
+                }
+                // Advance time by 1 hour
+                InnerMap._timeAccumulator = InnerMap.TIME_SCALE;
+                break;
+            }
+            case 'pray': case 'meditate': {
+                game.ui.showNotification('🙏 Prayer', 'You spend time in quiet contemplation.', 'info');
+                if (game.player.modifyNeed) {
+                    game.player.modifyNeed('comfort', 12);
+                    game.player.modifyNeed('fun', 5);
+                    game.player.modifyNeed('social', -3); // solitary activity
+                }
+                break;
+            }
             case 'donate': {
                 if (game.player.gold >= 10) {
                     game.player.gold -= 10;
                     game.ui.showNotification('💰 Donation', 'You donated 10 gold to the church. Your karma improves.', 'success');
                     game.player.karma = (game.player.karma || 0) + 1;
                     game.ui.updateStats(game.player, game.world);
+                    if (game.player.modifyNeed) {
+                        game.player.modifyNeed('comfort', 8);
+                        game.player.modifyNeed('social', 5);
+                    }
                 } else { game.ui.showNotification('💰 Donation', 'You don\'t have enough gold to donate.', 'error'); }
                 break;
             }
@@ -504,6 +572,13 @@ Object.assign(InnerMapRenderer, {
             case 'wait_here': {
                 InnerMap._timeAccumulator = InnerMap.TIME_SCALE;
                 game.ui.showNotification('⏳ Wait', 'You wait for an hour...', 'info');
+                // Waiting is boring but restful if sheltered
+                if (game.player.modifyNeed) {
+                    game.player.modifyNeed('fun', -3);
+                    if (InnerMap._insideBuilding) {
+                        game.player.modifyNeed('comfort', 3);
+                    }
+                }
                 break;
             }
             case 'enter_building': {
@@ -577,14 +652,22 @@ Object.assign(InnerMapRenderer, {
                     game.player.gold += goldFound;
                     game.ui.updateStats(game.player, game.world);
                     game.ui.showNotification('⛏️ Dig Here', `You dug up ${goldFound} gold coins buried in the ground!`, 'success');
+                    if (game.player.modifyNeed) game.player.modifyNeed('fun', 12);
                 } else if (digRoll < 0.30) {
                     const resources = ['iron ore', 'clay', 'flint', 'ancient pottery shard', 'gemstone'];
                     const found = resources[Math.floor(Math.random() * resources.length)];
                     game.ui.showNotification('⛏️ Dig Here', `You found ${found} while digging!`, 'success');
+                    if (game.player.modifyNeed) game.player.modifyNeed('fun', 8);
                 } else if (digRoll < 0.40) {
                     game.ui.showNotification('⛏️ Dig Here', 'You uncovered an old bone. Probably nothing important.', 'info');
+                    if (game.player.modifyNeed) game.player.modifyNeed('fun', 3);
                 } else {
                     game.ui.showNotification('⛏️ Dig Here', 'You dug for a while but found nothing of interest.', 'info');
+                }
+                // Digging is physical work
+                if (game.player.modifyNeed) {
+                    game.player.modifyNeed('energy', -5);
+                    game.player.modifyNeed('hygiene', -5);
                 }
                 break;
             }
@@ -697,6 +780,35 @@ Object.assign(InnerMapRenderer, {
                 };
                 const msg = furnitureMessages[furn.type] || `You examine the ${furn.name}.`;
                 game.ui.showNotification(`${furn.icon} ${furn.name}`, msg, 'info');
+
+                // Furniture-specific need effects
+                if (game.player.modifyNeed) {
+                    const furnType = furn.type;
+                    if (furnType === 'bed') { game.player.modifyNeed('energy', 10); game.player.modifyNeed('comfort', 12); }
+                    else if (furnType === 'fireplace') { game.player.modifyNeed('comfort', 10); game.player.modifyNeed('fun', 3); }
+                    else if (furnType === 'table' || furnType === 'pew') { game.player.modifyNeed('comfort', 6); }
+                    else if (furnType === 'bookshelf') { game.player.modifyNeed('fun', 8); game.player.modifyNeed('comfort', 3); }
+                    else if (furnType === 'altar') { game.player.modifyNeed('comfort', 10); }
+                    else if (furnType === 'well' || furnType === 'bucket') { game.player.modifyNeed('hygiene', 8); }
+                    else if (furnType === 'bar') { game.player.modifyNeed('social', 5); game.player.modifyNeed('fun', 3); }
+                    else if (furnType === 'throne') { game.player.modifyNeed('fun', 5); }
+                    else if (furnType === 'statue') { game.player.modifyNeed('fun', 3); }
+                }
+                break;
+            }
+            case 'pickup_ground_item': {
+                const gTile = InnerMap.getTile(item.groundItemTileQ, item.groundItemTileR);
+                if (gTile && gTile.groundItem) {
+                    const gi = gTile.groundItem;
+                    // Add item back to player inventory
+                    if (!game.player.inventory) game.player.inventory = {};
+                    game.player.inventory[gi.itemId] = (game.player.inventory[gi.itemId] || 0) + (gi.quantity || 1);
+                    game.ui.showNotification(`${gi.icon} Picked Up`, `Picked up ${gi.name}.`, 'success');
+                    delete gTile.groundItem;
+                    game.ui.updateStats(game.player, game.world);
+                    // Refresh hotbar if available
+                    Hotbar.refresh();
+                }
                 break;
             }
             default:

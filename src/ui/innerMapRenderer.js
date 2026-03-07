@@ -74,6 +74,12 @@ export const InnerMapRenderer = {
         return this._loadingPromise;
     },
 
+    /** Reset loading state so sheets and asset modules are reloaded on next whenLoaded(). */
+    reset() {
+        this._loaded = false;
+        this._loadingPromise = null;
+    },
+
     // ══════════════════════════════════════════════
     // LPC SHEET PATHS — loaded from data/innerMapRenderer.json
     // ══════════════════════════════════════════════

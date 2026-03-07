@@ -111,6 +111,52 @@ export const Tavern = {
             }
         }
 
+        // ── Needs-satisfying actions ──────────────────────────
+
+        // Buy a hot meal (hunger)
+        const mealCost = 8;
+        options.push({
+            id: 'buy_meal',
+            label: 'Buy a hot meal',
+            icon: '🍖',
+            cost: mealCost,
+            description: `A hearty stew and fresh bread (${mealCost}g). Satisfies hunger and comfort.`,
+            available: player.gold >= mealCost,
+        });
+
+        // Take a bath / wash up (hygiene)
+        const bathCost = 6;
+        options.push({
+            id: 'take_bath',
+            label: 'Wash up at the basin',
+            icon: '🧼',
+            cost: bathCost,
+            description: `Use the tavern's wash basin (${bathCost}g). Restores hygiene.`,
+            available: player.gold >= bathCost,
+        });
+
+        // Rest at the inn (energy)
+        const innCost = 15;
+        options.push({
+            id: 'rest_at_inn',
+            label: 'Rent a room to rest',
+            icon: '🛏️',
+            cost: innCost,
+            description: `Rest in a private room (${innCost}g). Restores energy and comfort.`,
+            available: player.gold >= innCost,
+        });
+
+        // Play dice (fun + social)
+        const diceBet = 10;
+        options.push({
+            id: 'play_dice',
+            label: 'Play a game of dice',
+            icon: '🎲',
+            cost: diceBet,
+            description: `Join a dice game with the locals (${diceBet}g bet). Win or lose, it's fun.`,
+            available: player.gold >= diceBet,
+        });
+
         // 6. Check rumor board (free)
         options.push({
             id: 'rumor_board',
@@ -170,26 +216,170 @@ export const Tavern = {
 
         switch (actionId) {
             case 'buy_drinks':
+                // Drinking satisfies social and fun
+                if (player.modifyNeed) {
+                    player.modifyNeed('social', 15);
+                    player.modifyNeed('fun', 10);
+                    player.modifyNeed('comfort', 5);
+                }
                 return Tavern._buyDrinks(player, tile, world);
+            case 'buy_meal':
+                return Tavern._buyMeal(player, tile, world);
+            case 'take_bath':
+                return Tavern._takeBath(player, tile, world);
+            case 'rest_at_inn':
+                return Tavern._restAtInn(player, tile, world);
+            case 'play_dice':
+                return Tavern._playDice(player, tile, world);
             case 'ask_merchants':
+                if (player.modifyNeed) player.modifyNeed('social', 8);
                 return Tavern._askMerchants(player, tile, world);
             case 'ask_characters':
+                if (player.modifyNeed) player.modifyNeed('social', 8);
                 return Tavern._askCharacters(player, tile, world);
             case 'ask_military':
+                if (player.modifyNeed) player.modifyNeed('social', 5);
                 return Tavern._askMilitary(player, tile, world);
             case 'hire_informant':
+                if (player.modifyNeed) player.modifyNeed('social', 5);
                 return Tavern._hireInformant(player, tile, world);
             case 'rumor_board':
+                if (player.modifyNeed) player.modifyNeed('fun', 5);
                 return Tavern._checkRumorBoard(player, tile, world);
             case 'sell_soul':
                 return Tavern._sellSoul(player, tile, world);
             case 'buy_tavern_map':
                 return Tavern._buyTavernMap(player, tile, world);
             case 'ask_religious_lore':
+                if (player.modifyNeed) player.modifyNeed('social', 5);
                 return Tavern._askReligiousLore(player, tile, world);
             default:
                 return [];
         }
+    },
+
+    // ────────────────────────────────────────────────────────────────────
+    //  Needs-Satisfying Actions
+    // ────────────────────────────────────────────────────────────────────
+
+    /**
+     * Buy a hot meal — restores hunger and provides comfort
+     */
+    _buyMeal(player, tile, world) {
+        const cost = 8;
+        player.gold -= cost;
+        if (player.modifyNeed) {
+            player.modifyNeed('hunger', 35);
+            player.modifyNeed('comfort', 10);
+            player.modifyNeed('energy', 5);
+        }
+        return [{
+            category: Tavern.CATEGORIES.RUMORS_GOSSIP,
+            icon: '🍖',
+            title: 'Hot Meal',
+            text: `You enjoy a hearty stew with bread and ale at ${tile.settlement.name}. Your belly is full and your spirits lifted.`,
+            reliability: Tavern.RELIABILITY.TAVERN_GOSSIP,
+            accurate: true,
+            day: world.day,
+            source: tile.settlement.name,
+        }];
+    },
+
+    /**
+     * Wash up at the basin — restores hygiene
+     */
+    _takeBath(player, tile, world) {
+        const cost = 6;
+        player.gold -= cost;
+        if (player.modifyNeed) {
+            player.modifyNeed('hygiene', 40);
+            player.modifyNeed('comfort', 8);
+        }
+        return [{
+            category: Tavern.CATEGORIES.RUMORS_GOSSIP,
+            icon: '🧼',
+            title: 'Washed Up',
+            text: `You scrub the road dust off at the wash basin. You feel clean and refreshed.`,
+            reliability: Tavern.RELIABILITY.TAVERN_GOSSIP,
+            accurate: true,
+            day: world.day,
+            source: tile.settlement.name,
+        }];
+    },
+
+    /**
+     * Rest at the inn — restores energy and comfort, sets rest type override
+     */
+    _restAtInn(player, tile, world) {
+        const cost = 15;
+        player.gold -= cost;
+        if (player.modifyNeed) {
+            player.modifyNeed('energy', 50);
+            player.modifyNeed('comfort', 30);
+            player.modifyNeed('hunger', -10); // sleeping makes you hungry
+        }
+        // Mark for overnight rest quality
+        player._restTypeOverride = 'inn';
+        return [{
+            category: Tavern.CATEGORIES.RUMORS_GOSSIP,
+            icon: '🛏️',
+            title: 'Well Rested',
+            text: `You rent a private room at the inn in ${tile.settlement.name}. A real bed makes all the difference.`,
+            reliability: Tavern.RELIABILITY.TAVERN_GOSSIP,
+            accurate: true,
+            day: world.day,
+            source: tile.settlement.name,
+        }];
+    },
+
+    /**
+     * Play dice — fun and social, with a chance to win or lose gold
+     */
+    _playDice(player, tile, world) {
+        const bet = 10;
+        player.gold -= bet;
+
+        // 45% win, 55% lose (house edge)
+        const roll = Math.random();
+        let winnings = 0;
+        let resultText = '';
+
+        if (roll < 0.20) {
+            // Big win
+            winnings = bet * 3;
+            resultText = `Lady Luck smiles on you! You win ${winnings} gold with a spectacular roll!`;
+        } else if (roll < 0.45) {
+            // Small win
+            winnings = bet * 2;
+            resultText = `A good round! You pocket ${winnings} gold.`;
+        } else if (roll < 0.75) {
+            // Lose
+            resultText = `Bad luck — the dice weren't in your favor. You lose your ${bet} gold bet.`;
+        } else {
+            // Big loss (lose extra)
+            const extraLoss = Math.min(player.gold, 5);
+            player.gold -= extraLoss;
+            resultText = `Terrible rolls! You lose your bet and ${extraLoss} extra gold in a double-or-nothing gone wrong.`;
+        }
+
+        if (winnings > 0) player.gold += winnings;
+
+        if (player.modifyNeed) {
+            player.modifyNeed('fun', 20);
+            player.modifyNeed('social', 15);
+            if (winnings > 0) player.modifyNeed('comfort', 5);
+        }
+
+        return [{
+            category: Tavern.CATEGORIES.RUMORS_GOSSIP,
+            icon: '🎲',
+            title: winnings > 0 ? 'Dice — Winner!' : 'Dice — Unlucky',
+            text: resultText,
+            reliability: Tavern.RELIABILITY.TAVERN_GOSSIP,
+            accurate: true,
+            day: world.day,
+            source: tile.settlement.name,
+        }];
     },
 
     // ────────────────────────────────────────────────────────────────────

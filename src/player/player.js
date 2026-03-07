@@ -154,6 +154,18 @@ export class Player {
         // Starvation tracking
         this.starvationDays = 0; // Consecutive days without food
 
+        // ── Sims-style Needs (0–100 each) ────────────────
+        this.needs = {
+            hunger:  100,   // Eating food → restored at taverns, inns, consuming bread
+            energy:  100,   // Sleeping → resting at inns, hours of day
+            social:  100,   // Talking to NPCs, visiting taverns, relationships
+            fun:     100,   // Entertainment → tavern, festivals, exploring
+            hygiene: 100,   // Bathing → visiting bathhouses, rivers, or rain
+            comfort: 100,   // Good shelter → being indoors, nice housing, sitting
+        };
+        this._needWarnings = {};  // Track which low-need warnings have fired today
+        this._lastNeedDecayHour = 8; // Track inner-map hour for smooth decay
+
         // Tracking
         this.visitedImprovements = new Set();
         this.discoveredLore = new Set(); // IDs of discovered world history entries
@@ -562,6 +574,163 @@ export class Player {
         return current;
     }
 
+    // ═══════════════════════════════════════════
+    //  SIMS-STYLE NEEDS SYSTEM
+    // ═══════════════════════════════════════════
+
+    /**
+     * Decay needs over one inner-map hour.
+     * Called from the game loop each time innerMap.timeOfDay advances.
+     * Rates are per-hour; 16 waking hours × rate is about one day's drain.
+     */
+    decayNeedsPerHour(context = {}) {
+        if (!this.needs) return;
+
+        // Base hourly decay rates (per hour, so ~16 hrs drains the amount)
+        // At default rates a full night's sleep + decent day refills most bars.
+        const rates = {
+            hunger:  -3.0,   // ~48 over 16 hrs → need to eat 1-2 meals
+            energy:  -2.5,   // ~40 over 16 hrs → need ~6-8 hrs rest
+            social:  -1.5,   // ~24 → talking/tavern helps
+            fun:     -1.8,   // ~29 → exploring/events help
+            hygiene: -1.0,   // ~16 → slow decline
+            comfort: -1.2,   // ~19 → being outdoors/traveling hurts
+        };
+
+        // Context modifiers
+        if (context.insideBuilding) {
+            rates.comfort += 0.8;  // Indoors is comfortable
+            rates.hygiene += 0.3;  // Slightly better indoors
+        }
+        if (context.isNight) {
+            rates.energy -= 1.0;   // Extra tired at night
+            rates.fun    -= 0.5;   // Boring at night
+        }
+        if (context.isRaining) {
+            rates.hygiene += 0.5;  // Rain = partial cleaning
+            rates.comfort -= 0.8;  // But uncomfortable
+            rates.fun     -= 0.3;
+        }
+        if (context.inOwnHouse) {
+            rates.comfort += 1.5;  // Home comfort
+            rates.hygiene += 0.5;
+        }
+
+        for (const [need, rate] of Object.entries(rates)) {
+            this.needs[need] = Math.max(0, Math.min(100, this.needs[need] + rate));
+        }
+    }
+
+    /**
+     * Modify a specific need by the given amount (positive = satisfy, negative = drain).
+     * Clamps to [0, 100].
+     */
+    modifyNeed(need, amount) {
+        if (!this.needs || this.needs[need] == null) return;
+        this.needs[need] = Math.max(0, Math.min(100, this.needs[need] + amount));
+    }
+
+    /**
+     * Get the player's overall mood (0-100) based on the average of all needs.
+     * Returns { score, label, icon, effects }
+     */
+    getMood() {
+        if (!this.needs) return { score: 75, label: 'Fine', icon: '😐', effects: {} };
+
+        const vals = Object.values(this.needs);
+        const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+        const lowest = Math.min(...vals);
+
+        // Mood is weighted: average matters but lowest need drags it down
+        const score = Math.round(avg * 0.6 + lowest * 0.4);
+
+        let label, icon;
+        if (score >= 85)      { label = 'Ecstatic';  icon = '😄'; }
+        else if (score >= 70) { label = 'Happy';     icon = '😊'; }
+        else if (score >= 50) { label = 'Fine';      icon = '😐'; }
+        else if (score >= 30) { label = 'Tense';     icon = '😟'; }
+        else if (score >= 15) { label = 'Miserable'; icon = '😩'; }
+        else                  { label = 'Desperate'; icon = '😵'; }
+
+        // Gameplay effects based on mood
+        const effects = {};
+        if (score >= 80) {
+            effects.combatBonus = 1;       // +1 combat skill in fights
+            effects.charismaBonus = 1;     // Better prices / diplomacy
+            effects.reputationGain = 0.5;  // Slight renown bonus per day
+        } else if (score < 30) {
+            effects.combatPenalty = -1;
+            effects.charismaPenalty = -1;
+            effects.movementPenalty = -2;  // Sluggish movement
+        }
+        if (score < 15) {
+            effects.healthDrain = 3;       // Desperation hurts health
+            effects.movementPenalty = -4;
+        }
+
+        return { score, label, icon, effects };
+    }
+
+    /**
+     * Get need category ("high" / "mid" / "low" / "critical")
+     */
+    getNeedLevel(need) {
+        const v = this.needs ? this.needs[need] : 100;
+        if (v >= 60) return 'high';
+        if (v >= 30) return 'mid';
+        if (v >= 10) return 'low';
+        return 'critical';
+    }
+
+    /**
+     * Apply overnight rest to needs (called during endDay when player rests).
+     * Where they rest matters: inn > own house > camp > outdoors.
+     */
+    restOvernight(restType = 'outdoors') {
+        if (!this.needs) return;
+
+        // Energy recovery depends on shelter quality
+        const energyGain = {
+            inn:      70,    // Full rest at an inn
+            ownHouse: 65,    // Rest at player's own house
+            camp:     40,    // Rough camping
+            outdoors: 25,    // Sleeping rough
+        }[restType] || 25;
+
+        const comfortGain = {
+            inn:      40,
+            ownHouse: 45,
+            camp:     15,
+            outdoors: 5,
+        }[restType] || 5;
+
+        const hygieneGain = {
+            inn:      25,    // Inns have wash basins
+            ownHouse: 20,
+            camp:     0,
+            outdoors: -5,    // Gets dirtier
+        }[restType] || 0;
+
+        this.modifyNeed('energy', energyGain);
+        this.modifyNeed('comfort', comfortGain);
+        this.modifyNeed('hygiene', hygieneGain);
+
+        // Hunger still decays overnight
+        this.modifyNeed('hunger', -15);
+
+        // Social / fun don't change much overnight
+        this.modifyNeed('social', -5);
+        this.modifyNeed('fun', -5);
+    }
+
+    /**
+     * Reset per-day need tracking
+     */
+    resetDailyNeedTracking() {
+        this._needWarnings = {};
+        this._lastNeedDecayHour = 8;
+    }
+
     /**
      * Rest (end day — restore stamina)
      */
@@ -570,6 +739,8 @@ export class Player {
         if (this.consumeFood()) {
             // Fed — reset starvation counter
             this.starvationDays = 0;
+            // Eating food satisfies hunger
+            this.modifyNeed('hunger', 30);
         } else {
             // No food — increment starvation
             this.starvationDays = (this.starvationDays || 0) + 1;
@@ -614,6 +785,34 @@ export class Player {
             this.stamina = 0;
             this.actionPoints = 0;
         }
+
+        // ── Overnight needs rest ──
+        // Determine rest quality from context
+        let restType = 'outdoors';
+        if (this.houses && this.houses.length > 0) {
+            // Check if player is on a tile with their own house
+            const hasHouseHere = this.houses.some(h => h.q === this.q && h.r === this.r);
+            if (hasHouseHere) restType = 'ownHouse';
+        }
+        // If on a settlement tile, assume access to inn
+        // (game.js will override this with 'inn' if player chose to sleep at inn)
+        if (restType === 'outdoors' && this._restTypeOverride) {
+            restType = this._restTypeOverride;
+            this._restTypeOverride = null;
+        }
+        this.restOvernight(restType);
+
+        // Apply mood effects
+        const mood = this.getMood();
+        if (mood.effects.healthDrain) {
+            this.health = Math.max(0, this.health - mood.effects.healthDrain);
+        }
+        if (mood.effects.movementPenalty) {
+            this.movementRemaining = Math.max(1, this.movementRemaining + mood.effects.movementPenalty);
+        }
+
+        // Reset daily need tracking
+        this.resetDailyNeedTracking();
     }
 
     /**

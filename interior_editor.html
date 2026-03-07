@@ -362,6 +362,7 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;bo
 
 <div id="toast"></div>
 
+<script src="editor-modstore.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 //  INTERIOR EDITOR — Full standalone editor for painting
@@ -821,14 +822,91 @@ function loadCustomSheet() {
   input.type = 'file'; input.accept = 'image/*';
   input.onchange = e => {
     const file = e.target.files[0]; if (!file) return;
-    const url = URL.createObjectURL(file);
-    const name = file.name.replace(/\.[^.]+$/, '');
-    const catName = 'Custom: ' + name;
-    PALETTE_DATA[catName] = [url];
-    buildPaletteCats();
-    showCategory(catName, document.querySelector('.cat-btn:last-child'));
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const dataUrl = ev.target.result;
+      const baseName = file.name.replace(/\.[^.]+$/, '');
+      const assetPath = `custom/${Date.now()}_${file.name}`;
+      _customSheetEntries.push({ name: baseName, assetPath, dataUrl });
+      _registerCustomSheet(baseName, assetPath, dataUrl);
+      _saveCustomSheets();
+      toast('Custom sheet loaded & saved', 'ok');
+    };
+    reader.readAsDataURL(file);
   };
   input.click();
+}
+
+const _customSheetEntries = [];
+
+function _registerCustomSheet(baseName, assetPath, dataUrl) {
+  const img = new Image();
+  img.onload = () => {
+    imageCache[assetPath] = img;
+    const catName = 'Custom: ' + baseName;
+    if (!PALETTE_DATA[catName]) PALETTE_DATA[catName] = [];
+    if (!PALETTE_DATA[catName].includes(assetPath)) PALETTE_DATA[catName].push(assetPath);
+    buildPaletteCats();
+  };
+  img.src = dataUrl;
+}
+
+async function _msSaveSheets(key, data) {
+  const db = await new Promise((resolve, reject) => {
+    const req = indexedDB.open('lord_of_realms_mods', 1);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('moddata')) d.createObjectStore('moddata');
+      if (!d.objectStoreNames.contains('worlds')) d.createObjectStore('worlds');
+      if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta');
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = e => reject(e.target.error);
+  });
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('meta', 'readwrite');
+    tx.objectStore('meta').put(data, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = e => reject(e.target.error);
+  });
+}
+
+async function _msLoadSheets(key) {
+  const db = await new Promise((resolve, reject) => {
+    const req = indexedDB.open('lord_of_realms_mods', 1);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('moddata')) d.createObjectStore('moddata');
+      if (!d.objectStoreNames.contains('worlds')) d.createObjectStore('worlds');
+      if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta');
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = e => reject(e.target.error);
+  });
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('meta', 'readonly');
+    const r = tx.objectStore('meta').get(key);
+    r.onsuccess = () => resolve(r.result || []);
+    r.onerror = e => reject(e.target.error);
+  });
+}
+
+async function _saveCustomSheets() {
+  try {
+    const entries = _customSheetEntries.map(e => ({ name: e.name, assetPath: e.assetPath, dataUrl: e.dataUrl }));
+    await _msSaveSheets('customSheets_interior', entries);
+  } catch (e) { console.warn('Failed to save custom sheets:', e); }
+}
+
+async function _loadSavedCustomSheets() {
+  try {
+    const entries = await _msLoadSheets('customSheets_interior');
+    for (const entry of entries) {
+      if (_customSheetEntries.some(e => e.assetPath === entry.assetPath)) continue;
+      _customSheetEntries.push(entry);
+      _registerCustomSheet(entry.name, entry.assetPath, entry.dataUrl);
+    }
+  } catch (e) { console.warn('Failed to load saved custom sheets:', e); }
 }
 
 // ─── Custom Objects Palette ───
@@ -3301,6 +3379,7 @@ window.addEventListener('message', ev => {
   initCanvas();
   initPaletteResize();
   buildPaletteCats();
+  _loadSavedCustomSheets(); // restore persisted custom sheets
   // Show first category
   const firstCat = Object.keys(PALETTE_DATA)[0];
   if (firstCat) {

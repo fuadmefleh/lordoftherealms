@@ -680,6 +680,7 @@ canvas.pal-terrain-overlay{position:absolute;top:0;left:0;pointer-events:none;im
   </div>
 </div>
 
+<script src="editor-modstore.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════════
 //  PALETTE DATA — all LPC sheets organised by category
@@ -1077,6 +1078,7 @@ function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replac
 // ═══════════════════════════════════════════════════════════════
 function init() {
     buildPaletteCats();
+    _loadSavedCustomSheets(); // restore persisted custom sheets
     resizeObserver();
     initBuildCanvas();
     initPaletteResizer();
@@ -1420,35 +1422,99 @@ function updatePaletteHighlight(path, highlight) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  CUSTOM SHEET LOADING
+//  CUSTOM SHEET LOADING & PERSISTENCE
 // ═══════════════════════════════════════════════════════════════
+const _customSheetEntries = []; // { name, assetPath, dataUrl }
+
 function loadCustomSheet() {
     const input = document.createElement('input');
     input.type = 'file'; input.accept = 'image/*';
     input.onchange = e => {
         const file = e.target.files[0];
         if (!file) return;
-        const assetPath = prompt('Asset path for this sheet (relative to project root):', `assets/${file.name}`);
-        if (!assetPath) return;
         const reader = new FileReader();
         reader.onload = ev => {
-            const img = new Image();
-            img.onload = () => {
-                imgCache.set(assetPath, img);
-                const baseName = file.name.replace(/\.[^.]+$/, '');
-                const catName = `📂 ${baseName}`;
-                PALETTE_DATA[catName] = [assetPath];
-                buildPaletteCats();
-                // Auto-show the new category
-                const btns = document.querySelectorAll('#palette-cats .cat-btn');
-                const lastBtn = btns[btns.length - 1];
-                if (lastBtn) showCategory(catName, lastBtn);
-            };
-            img.src = ev.target.result;
+            const dataUrl = ev.target.result;
+            const baseName = file.name.replace(/\.[^.]+$/, '');
+            const assetPath = `custom/${Date.now()}_${file.name}`;
+            _customSheetEntries.push({ name: baseName, assetPath, dataUrl });
+            _registerCustomSheet(baseName, assetPath, dataUrl);
+            _saveCustomSheets();
         };
         reader.readAsDataURL(file);
     };
     input.click();
+}
+
+function _registerCustomSheet(baseName, assetPath, dataUrl) {
+    const img = new Image();
+    img.onload = () => {
+        imgCache.set(assetPath, img);
+        const catName = `📂 ${baseName}`;
+        if (!PALETTE_DATA[catName]) PALETTE_DATA[catName] = [];
+        if (!PALETTE_DATA[catName].includes(assetPath)) PALETTE_DATA[catName].push(assetPath);
+        buildPaletteCats();
+    };
+    img.src = dataUrl;
+}
+
+// Persist helper — direct IndexedDB access to the meta store
+async function _msSaveSheets(key, data) {
+    const db = await new Promise((resolve, reject) => {
+        const req = indexedDB.open('lord_of_realms_mods', 1);
+        req.onupgradeneeded = e => {
+            const d = e.target.result;
+            if (!d.objectStoreNames.contains('moddata')) d.createObjectStore('moddata');
+            if (!d.objectStoreNames.contains('worlds')) d.createObjectStore('worlds');
+            if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta');
+        };
+        req.onsuccess = e => resolve(e.target.result);
+        req.onerror = e => reject(e.target.error);
+    });
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('meta', 'readwrite');
+        tx.objectStore('meta').put(data, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = e => reject(e.target.error);
+    });
+}
+
+async function _msLoadSheets(key) {
+    const db = await new Promise((resolve, reject) => {
+        const req = indexedDB.open('lord_of_realms_mods', 1);
+        req.onupgradeneeded = e => {
+            const d = e.target.result;
+            if (!d.objectStoreNames.contains('moddata')) d.createObjectStore('moddata');
+            if (!d.objectStoreNames.contains('worlds')) d.createObjectStore('worlds');
+            if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta');
+        };
+        req.onsuccess = e => resolve(e.target.result);
+        req.onerror = e => reject(e.target.error);
+    });
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('meta', 'readonly');
+        const r = tx.objectStore('meta').get(key);
+        r.onsuccess = () => resolve(r.result || []);
+        r.onerror = e => reject(e.target.error);
+    });
+}
+
+async function _saveCustomSheets() {
+    try {
+        const entries = _customSheetEntries.map(e => ({ name: e.name, assetPath: e.assetPath, dataUrl: e.dataUrl }));
+        await _msSaveSheets('customSheets_sprite', entries);
+    } catch (e) { console.warn('Failed to save custom sheets:', e); }
+}
+
+async function _loadSavedCustomSheets() {
+    try {
+        const entries = await _msLoadSheets('customSheets_sprite');
+        for (const entry of entries) {
+            if (_customSheetEntries.some(e => e.assetPath === entry.assetPath)) continue;
+            _customSheetEntries.push(entry);
+            _registerCustomSheet(entry.name, entry.assetPath, entry.dataUrl);
+        }
+    } catch (e) { console.warn('Failed to load saved custom sheets:', e); }
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -99,6 +99,14 @@ export const CustomBuildings = {
     isLoaded() { return _loaded; },
     hasAny()   { return _defs.size > 0; },
 
+    /** Clear all registered defs and images so loadAll() can rebuild from fresh gamedata. */
+    reset() {
+        _defs.clear();
+        _byType.clear();
+        _imgCache.clear();
+        _loaded = false;
+    },
+
     getBuilding(id) { return _defs.get(id) || null; },
     getByType(type) { return _byType.get(type) || []; },
     getImg(path)    { return _imgCache.get(path) || null; },

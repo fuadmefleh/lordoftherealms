@@ -489,6 +489,41 @@ export const ActionMenu = {
             }
         }
 
+        // ── Apply need effects based on action type ──
+        if (game.player.modifyNeed) {
+            const p = game.player;
+            switch (actionType) {
+                case 'forage':      p.modifyNeed('energy', -8); p.modifyNeed('hygiene', -5); p.modifyNeed('fun', 5); break;
+                case 'hunt':        p.modifyNeed('energy', -12); p.modifyNeed('hygiene', -8); p.modifyNeed('fun', 10); break;
+                case 'fish':        p.modifyNeed('energy', -5); p.modifyNeed('fun', 12); p.modifyNeed('comfort', 5); break;
+                case 'meditate':    p.modifyNeed('comfort', 15); p.modifyNeed('energy', 8); p.modifyNeed('fun', 3); break;
+                case 'train_combat': p.modifyNeed('energy', -15); p.modifyNeed('hygiene', -10); p.modifyNeed('fun', 8); break;
+                case 'meet_people': p.modifyNeed('social', 15); p.modifyNeed('fun', 5); break;
+                case 'talk_locals': p.modifyNeed('social', 10); p.modifyNeed('fun', 3); break;
+                case 'gambling':    p.modifyNeed('fun', 15); p.modifyNeed('social', 10); break;
+                case 'busking':     p.modifyNeed('fun', 12); p.modifyNeed('social', 8); p.modifyNeed('energy', -5); break;
+                case 'host_feast':  p.modifyNeed('social', 20); p.modifyNeed('fun', 15); p.modifyNeed('hunger', 25); break;
+                case 'hold_tournament': p.modifyNeed('fun', 20); p.modifyNeed('social', 15); break;
+                case 'host_festival':   p.modifyNeed('fun', 25); p.modifyNeed('social', 20); break;
+                case 'preach':      p.modifyNeed('social', 8); p.modifyNeed('comfort', 5); break;
+                case 'pilgrimage':  p.modifyNeed('comfort', 15); p.modifyNeed('energy', -10); break;
+                case 'donate':      p.modifyNeed('comfort', 8); break;
+                case 'trade':       p.modifyNeed('social', 5); break;
+                case 'tavern':      p.modifyNeed('social', 5); p.modifyNeed('comfort', 5); break;
+                case 'explore_poi': p.modifyNeed('fun', 10); p.modifyNeed('energy', -5); break;
+                case 'explore_inner_map': p.modifyNeed('fun', 5); break;
+                case 'clear_trees': p.modifyNeed('energy', -10); p.modifyNeed('hygiene', -5); break;
+                case 'pickpocket':  p.modifyNeed('fun', 5); p.modifyNeed('comfort', -8); break;
+                case 'smuggle':     p.modifyNeed('fun', 5); p.modifyNeed('comfort', -5); break;
+                case 'request_meeting': p.modifyNeed('social', 10); break;
+                case 'prospect':    p.modifyNeed('energy', -8); p.modifyNeed('fun', 5); break;
+                case 'tame_horse':  p.modifyNeed('fun', 10); p.modifyNeed('energy', -8); break;
+                case 'craft_campfire': p.modifyNeed('comfort', 10); p.modifyNeed('fun', 3); break;
+                case 'dig_treasure': p.modifyNeed('fun', 10); p.modifyNeed('energy', -8); p.modifyNeed('hygiene', -5); break;
+                case 'odd_jobs':    p.modifyNeed('energy', -8); p.modifyNeed('social', 5); break;
+            }
+        }
+
         switch (actionType) {
             case 'trade':
                 ActionMenu.showTradeMenu(game, tile);
@@ -1596,63 +1631,173 @@ export const ActionMenu = {
      */
     showTradeMenu(game, tile) {
         const goods = Trading.getAvailableGoods(tile.settlement, tile);
+        const playerGold = game.player.gold || 0;
+        const settlementName = tile.settlement?.name || 'Market';
+        const settlementType = tile.settlement?.type || 'village';
 
-        let html = '<div style="max-height: 400px; overflow-y: auto;">';
-        html += '<h4 style="margin-top: 0;">Buy Goods</h4>';
+        // ── Categorise goods ──
+        const CATEGORIES = {
+            food:      { label: 'Food & Drink', icon: '🍞', keys: new Set(['grain','flour','bread','fish','preserved_fish','beer','liquor','meat','berries','mushrooms','small_fish','large_fish','crab','swordfish','lobster','golden_fish','cheese','dried_meat','honey','salt','tea','wine']) },
+            materials: { label: 'Materials',     icon: '⛏️', keys: new Set(['wood','firewood','stone','iron','ore','wool','hide','pelts','rope','candles','dyes','incense','pottery','lantern','arrows','compass']) },
+            crafted:   { label: 'Crafted Goods', icon: '🔧', keys: new Set(['tools','weapons','textiles','clothes','agri_parts','industry_parts','military_parts','infra_parts','commerce_parts','leather_armor','shield','bow']) },
+            luxury:    { label: 'Luxury & Rare', icon: '💎', keys: new Set(['luxuries','gems','gold_ore','spices','exotic_spices','silk','perfume','horses','horse','herbs','antler','feather','healing_salve','potion','elixir','treasure_map','ancient_coin','rare_book','amulet','enchanted_ring']) },
+        };
+        function getCat(id) {
+            for (const [cat, def] of Object.entries(CATEGORIES)) { if (def.keys.has(id)) return cat; }
+            return 'materials';
+        }
+        const grouped = {};
+        for (const g of goods) {
+            const cat = getCat(g.id);
+            if (!grouped[cat]) grouped[cat] = [];
+            grouped[cat].push(g);
+        }
 
-        for (const good of goods) {
-            if (good.quantity <= 0) {
-                html += `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); opacity: 0.4;">
-                        <span>${good.icon} ${good.name}</span>
-                        <span style="color: #e74c3c;">Sold Out</span>
-                    </div>
-                `;
-            } else {
-                html += `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                        <span>${good.icon} ${good.name}</span>
-                        <span>${good.price} gold (${good.quantity} available)</span>
-                        <button onclick="window.buyGood('${good.id}', ${good.price}, ${good.quantity})" style="padding: 4px 12px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer;">Buy</button>
-                    </div>
-                `;
+        // ── Build sell list from player inventory ──
+        const sellItems = [];
+        if (game.player.inventory) {
+            for (const [goodId, quantity] of Object.entries(game.player.inventory)) {
+                if (quantity <= 0) continue;
+                const good = PlayerEconomy.GOODS[goodId.toUpperCase()];
+                if (!good) continue;
+                const sellPrice = Math.floor(good.basePrice * 0.7);
+                sellItems.push({ ...good, quantity, sellPrice });
             }
         }
 
-        // Sell goods section
-        html += '<h4 style="margin-top: 16px;">Sell Goods</h4>';
-        if (game.player.inventory && Object.keys(game.player.inventory).length > 0) {
-            for (const [goodId, quantity] of Object.entries(game.player.inventory)) {
-                if (quantity <= 0) continue;
+        // ── Render HTML ──
+        let html = `
+        <style>
+            .trade-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+            .trade-purse { display:flex; align-items:center; gap:6px; font-size:15px; font-weight:700; color:var(--gold); font-family:var(--font-display); }
+            .trade-tabs { display:flex; gap:0; border-bottom:2px solid rgba(245,197,66,0.15); margin-bottom:12px; }
+            .trade-tab { padding:7px 16px; font-size:12px; font-weight:600; color:rgba(255,255,255,0.45); background:none; border:none;
+                         border-bottom:2px solid transparent; cursor:pointer; font-family:var(--font-display); letter-spacing:0.5px;
+                         transition:all .15s; margin-bottom:-2px; }
+            .trade-tab:hover { color:rgba(255,255,255,0.7); }
+            .trade-tab.active { color:var(--gold); border-bottom-color:var(--gold); }
+            .trade-section { display:none; }
+            .trade-section.active { display:block; }
+            .trade-cat { margin-bottom:14px; }
+            .trade-cat-header { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:rgba(255,255,255,0.35);
+                                text-transform:uppercase; letter-spacing:1px; padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.06); margin-bottom:6px; }
+            .trade-row { display:grid; grid-template-columns:36px 1fr auto auto; gap:8px; align-items:center; padding:6px 8px;
+                         border-radius:6px; transition:background .12s; }
+            .trade-row:hover { background:rgba(245,197,66,0.06); }
+            .trade-row.sold-out { opacity:0.35; pointer-events:none; }
+            .trade-icon { font-size:22px; text-align:center; }
+            .trade-name { font-size:13px; font-weight:600; color:var(--text-primary); }
+            .trade-meta { font-size:11px; color:var(--text-secondary); }
+            .trade-price { font-size:13px; font-weight:700; color:var(--gold); white-space:nowrap; text-align:right; min-width:70px; }
+            .trade-price .trade-qty { font-weight:400; font-size:11px; color:rgba(255,255,255,0.4); display:block; }
+            .trade-btn { padding:4px 14px; border:none; border-radius:5px; font-size:12px; font-weight:700; cursor:pointer;
+                         font-family:var(--font-body); transition:all .15s; white-space:nowrap; }
+            .trade-btn-buy { background:linear-gradient(180deg,rgba(245,197,66,0.9),rgba(200,155,30,0.95)); color:#1a1a2e; }
+            .trade-btn-buy:hover { background:linear-gradient(180deg,rgba(255,210,80,1),rgba(220,170,40,1)); transform:scale(1.04); }
+            .trade-btn-sell { background:linear-gradient(180deg,rgba(46,204,113,0.85),rgba(39,174,96,0.9)); color:#fff; }
+            .trade-btn-sell:hover { background:linear-gradient(180deg,rgba(56,220,130,1),rgba(46,200,110,1)); transform:scale(1.04); }
+            .trade-sold-out { font-size:11px; color:rgba(231,76,60,0.7); font-weight:600; white-space:nowrap; }
+            .trade-empty { text-align:center; padding:20px; color:var(--text-secondary); font-size:13px; }
+            .trade-settlement-badge { font-size:11px; color:rgba(255,255,255,0.35); font-weight:400; }
+        </style>
 
-                const good = PlayerEconomy.GOODS[goodId.toUpperCase()];
-                if (!good) continue;
+        <div class="trade-header">
+            <div>
+                <span style="font-size:13px;color:var(--text-secondary);">Trading at</span>
+                <span style="font-size:14px;font-weight:700;color:var(--text-primary);margin-left:4px;">${settlementName}</span>
+                <span class="trade-settlement-badge">(${settlementType})</span>
+            </div>
+            <div class="trade-purse">💰 ${playerGold.toLocaleString()} gold</div>
+        </div>
 
-                // Calculate sell price (70% of base price locally)
-                // Or better yet call Trading.calculatePrice? But sell price is usually lower.
-                // Let's stick to what Trading.sellGoods does (70% of base).
-                const basePrice = good.basePrice;
-                const sellPrice = Math.floor(basePrice * 0.7); // Simple sell price
+        <div class="trade-tabs">
+            <button class="trade-tab active" data-trade-tab="buy">🛒 Buy</button>
+            <button class="trade-tab" data-trade-tab="sell">💰 Sell</button>
+        </div>
 
-                html += `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                        <span>${good.icon} ${good.name} (${quantity})</span>
-                        <span>Sell for ${sellPrice} gold</span>
-                        <button onclick="window.sellGood('${good.id}', ${sellPrice}, ${quantity})" style="padding: 4px 12px; background: #27ae60; border: none; border-radius: 4px; cursor: pointer;">Sell</button>
+        <!-- BUY SECTION -->
+        <div class="trade-section active" data-trade-section="buy">`;
+
+        const catOrder = ['food','materials','crafted','luxury'];
+        let hasBuyGoods = false;
+        for (const cat of catOrder) {
+            const items = grouped[cat];
+            if (!items || items.length === 0) continue;
+            hasBuyGoods = true;
+            const def = CATEGORIES[cat];
+            html += `<div class="trade-cat">
+                <div class="trade-cat-header">${def.icon} ${def.label}</div>`;
+            for (const good of items) {
+                const isSoldOut = good.quantity <= 0;
+                const canAfford = playerGold >= good.price;
+                html += `<div class="trade-row ${isSoldOut ? 'sold-out' : ''}">
+                    <span class="trade-icon">${good.icon}</span>
+                    <div>
+                        <div class="trade-name">${good.name}</div>
                     </div>
-                `;
+                    <div class="trade-price">${isSoldOut ? '' : good.price + ' 💰'}
+                        <span class="trade-qty">${isSoldOut ? '' : good.quantity + ' avail.'}</span>
+                    </div>
+                    <div>${isSoldOut
+                        ? '<span class="trade-sold-out">Sold Out</span>'
+                        : `<button class="trade-btn trade-btn-buy ${canAfford ? '' : 'trade-btn-disabled'}" onclick="window._tradeBuy('${good.id}', ${good.price}, ${good.quantity})">Buy</button>`
+                    }</div>
+                </div>`;
+            }
+            html += '</div>';
+        }
+        if (!hasBuyGoods) {
+            html += '<div class="trade-empty">No goods available at this market.</div>';
+        }
+
+        html += `</div>
+
+        <!-- SELL SECTION -->
+        <div class="trade-section" data-trade-section="sell">`;
+
+        if (sellItems.length > 0) {
+            for (const item of sellItems) {
+                html += `<div class="trade-row">
+                    <span class="trade-icon">${item.icon}</span>
+                    <div>
+                        <div class="trade-name">${item.name}</div>
+                        <div class="trade-meta">You have: ${item.quantity}</div>
+                    </div>
+                    <div class="trade-price" style="color:#2ecc71;">${item.sellPrice} 💰
+                        <span class="trade-qty">per unit</span>
+                    </div>
+                    <div>
+                        <button class="trade-btn trade-btn-sell" onclick="window._tradeSell('${item.id}', ${item.sellPrice}, ${item.quantity})">Sell</button>
+                    </div>
+                </div>`;
             }
         } else {
-            html += '<p style="color: var(--text-secondary); font-size: 12px;">You have no goods to sell.</p>';
+            html += '<div class="trade-empty">You have no goods to sell.</div>';
         }
 
         html += '</div>';
 
-        game.ui.showCustomPanel('Trade', html);
+        game.ui.showCustomPanel(`🏪 Trade — ${settlementName}`, html);
 
-        // Store for buy/sell function
+        // ── Tab switching ──
+        setTimeout(() => {
+            const tabs = document.querySelectorAll('[data-trade-tab]');
+            const sections = document.querySelectorAll('[data-trade-section]');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    sections.forEach(s => s.classList.remove('active'));
+                    tab.classList.add('active');
+                    const target = tab.getAttribute('data-trade-tab');
+                    const sec = document.querySelector(`[data-trade-section="${target}"]`);
+                    if (sec) sec.classList.add('active');
+                });
+            });
+        }, 50);
+
+        // ── Buy / Sell handlers ──
         window.currentTile = tile;
-        window.buyGood = (goodId, price, maxQty) => {
+        window._tradeBuy = (goodId, price, maxQty) => {
             ActionMenu.showQuantityInput(`Buy ${PlayerEconomy.GOODS[goodId.toUpperCase()]?.name || goodId}`, maxQty, (qty) => {
                 const good = goods.find(g => g.id === goodId);
                 if (good) {
@@ -1660,11 +1805,9 @@ export const ActionMenu = {
                     const result = Trading.buyGoods(game.player, good, qty, tile.settlement);
                     if (result.success) {
                         game.ui.showNotification('Purchase Complete', `Bought ${qty}x ${good.name} for ${result.spent} gold`, 'success');
-                        // Discover economy knowledge through trade
                         if (tile.settlement.kingdom) {
                             game.player.learnAboutKingdom(tile.settlement.kingdom, 'economy');
                         }
-                        // Trade Envoy — foreign trade counts as a mission
                         if (typeof Titles !== 'undefined' && game.player.currentTitle === 'trade_envoy' &&
                             tile.settlement.kingdom && tile.settlement.kingdom !== game.player.allegiance) {
                             const tradeResult = Titles.recordTradeMission(game.player);
@@ -1673,7 +1816,7 @@ export const ActionMenu = {
                             }
                         }
                         game.ui.updateStats(game.player, game.world);
-                        ActionMenu.showTradeMenu(game, tile); // Refresh
+                        ActionMenu.showTradeMenu(game, tile);
                     } else {
                         game.ui.showNotification('Cannot Buy', result.reason, 'error');
                     }
@@ -1681,22 +1824,238 @@ export const ActionMenu = {
             });
         };
 
-        window.sellGood = (goodId, price, maxQty) => {
+        window._tradeSell = (goodId, price, maxQty) => {
             ActionMenu.showQuantityInput(`Sell ${PlayerEconomy.GOODS[goodId.toUpperCase()]?.name || goodId}`, maxQty, (qty) => {
                 if (!ActionMenu.commitPendingAP(game)) return;
                 const result = Trading.sellGoods(game.player, goodId, qty);
                 if (result.success) {
                     const good = PlayerEconomy.GOODS[goodId.toUpperCase()];
                     game.ui.showNotification('Sale Complete', `Sold ${qty}x ${good.name} for ${result.earned} gold`, 'success');
-                    // Discover economy knowledge through trade
                     if (tile.settlement.kingdom) {
                         game.player.learnAboutKingdom(tile.settlement.kingdom, 'economy');
                     }
                     game.ui.updateStats(game.player, game.world);
-                    ActionMenu.showTradeMenu(game, tile); // Refresh
+                    ActionMenu.showTradeMenu(game, tile);
                 } else {
                     game.ui.showNotification('Cannot Sell', result.reason, 'error');
                 }
+            });
+        };
+    },
+
+    /**
+     * Show NPC personal trade menu (merchants, travelers, blacksmiths)
+     * Uses the NPC's shopInventory instead of the settlement market.
+     */
+    showNpcTradeMenu(game, npc) {
+        if (!npc || !npc.shopInventory) {
+            game.ui.showNotification('No Goods', `${npc?.name || 'This person'} has nothing to trade.`, 'info');
+            return;
+        }
+
+        const playerGold = game.player.gold || 0;
+        const npcName = npc.name || 'Trader';
+        const npcIcon = npc.icon || '🧑';
+        const npcType = npc.type || 'merchant';
+
+        const TYPE_LABELS = {
+            merchant: 'Merchant',
+            traveler: 'Traveling Trader',
+            blacksmith_npc: 'Blacksmith',
+        };
+        const typeLabel = TYPE_LABELS[npcType] || 'Trader';
+
+        // Build goods list from NPC inventory
+        const CATEGORIES = {
+            food:      { label: 'Food & Drink',   icon: '🍞', keys: new Set(['grain','flour','bread','fish','preserved_fish','beer','liquor','meat','berries','mushrooms','cheese','dried_meat','honey','salt','tea','wine']) },
+            materials: { label: 'Materials',       icon: '⛏️', keys: new Set(['wood','firewood','stone','iron','ore','wool','hide','pelts','rope','candles','dyes','incense','pottery','lantern','arrows','compass']) },
+            crafted:   { label: 'Equipment',       icon: '⚔️', keys: new Set(['tools','weapons','textiles','clothes','leather_armor','shield','bow','agri_parts','industry_parts','military_parts','infra_parts','commerce_parts']) },
+            rare:      { label: 'Exotic & Rare',   icon: '✨', keys: new Set(['luxuries','gems','gold_ore','spices','exotic_spices','silk','perfume','horses','horse','herbs','antler','feather','healing_salve','potion','elixir','treasure_map','ancient_coin','rare_book','amulet','enchanted_ring']) },
+        };
+        function getCat(id) {
+            for (const [cat, def] of Object.entries(CATEGORIES)) { if (def.keys.has(id)) return cat; }
+            return 'materials';
+        }
+
+        // Resolve inventory items
+        const shopGoods = [];
+        for (const [itemId, data] of Object.entries(npc.shopInventory)) {
+            const goodDef = PlayerEconomy.GOODS[itemId.toUpperCase()] || Object.values(PlayerEconomy.GOODS).find(g => g.id === itemId);
+            if (!goodDef || data.qty <= 0) continue;
+            const price = Math.max(1, Math.round(goodDef.basePrice * (data.markup || 1)));
+            shopGoods.push({ ...goodDef, quantity: data.qty, price, _itemId: itemId });
+        }
+
+        // Group by category
+        const grouped = {};
+        for (const g of shopGoods) {
+            const cat = getCat(g.id);
+            if (!grouped[cat]) grouped[cat] = [];
+            grouped[cat].push(g);
+        }
+
+        // Build sell list from player inventory
+        const sellItems = [];
+        if (game.player.inventory) {
+            for (const [goodId, quantity] of Object.entries(game.player.inventory)) {
+                if (quantity <= 0) continue;
+                const good = PlayerEconomy.GOODS[goodId.toUpperCase()];
+                if (!good) continue;
+                const sellPrice = Math.max(1, Math.floor(good.basePrice * 0.65));
+                sellItems.push({ ...good, quantity, sellPrice });
+            }
+        }
+
+        // ── Render ──
+        let html = `
+        <style>
+            .npc-trade-header { display:flex; align-items:center; gap:12px; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid rgba(245,197,66,0.12); }
+            .npc-trade-portrait { font-size:36px; width:48px; height:48px; display:flex; align-items:center; justify-content:center;
+                background:rgba(245,197,66,0.08); border:1px solid rgba(245,197,66,0.2); border-radius:10px; }
+            .npc-trade-info { flex:1; }
+            .npc-trade-name { font-size:16px; font-weight:700; color:var(--text-primary); font-family:var(--font-display); }
+            .npc-trade-type { font-size:11px; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:1px; }
+            .npc-trade-purse { font-size:15px; font-weight:700; color:var(--gold); font-family:var(--font-display); white-space:nowrap; }
+            .npc-trade-tabs { display:flex; gap:0; border-bottom:2px solid rgba(245,197,66,0.15); margin-bottom:12px; }
+            .npc-trade-tab { padding:7px 16px; font-size:12px; font-weight:600; color:rgba(255,255,255,0.45); background:none; border:none;
+                             border-bottom:2px solid transparent; cursor:pointer; font-family:var(--font-display); letter-spacing:0.5px;
+                             transition:all .15s; margin-bottom:-2px; }
+            .npc-trade-tab:hover { color:rgba(255,255,255,0.7); }
+            .npc-trade-tab.active { color:var(--gold); border-bottom-color:var(--gold); }
+            .npc-trade-section { display:none; }
+            .npc-trade-section.active { display:block; }
+            .npc-cat { margin-bottom:14px; }
+            .npc-cat-hdr { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:rgba(255,255,255,0.35);
+                           text-transform:uppercase; letter-spacing:1px; padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.06); margin-bottom:6px; }
+            .npc-row { display:grid; grid-template-columns:36px 1fr auto auto; gap:8px; align-items:center; padding:6px 8px; border-radius:6px; transition:background .12s; }
+            .npc-row:hover { background:rgba(245,197,66,0.06); }
+            .npc-row.out { opacity:0.35; pointer-events:none; }
+            .npc-ico { font-size:22px; text-align:center; }
+            .npc-gname { font-size:13px; font-weight:600; color:var(--text-primary); }
+            .npc-gmeta { font-size:11px; color:var(--text-secondary); }
+            .npc-gprice { font-size:13px; font-weight:700; color:var(--gold); white-space:nowrap; text-align:right; min-width:65px; }
+            .npc-gprice .npc-qty { font-weight:400; font-size:11px; color:rgba(255,255,255,0.4); display:block; }
+            .npc-btn { padding:4px 14px; border:none; border-radius:5px; font-size:12px; font-weight:700; cursor:pointer; font-family:var(--font-body); transition:all .15s; white-space:nowrap; }
+            .npc-btn-buy { background:linear-gradient(180deg,rgba(245,197,66,0.9),rgba(200,155,30,0.95)); color:#1a1a2e; }
+            .npc-btn-buy:hover { background:linear-gradient(180deg,rgba(255,210,80,1),rgba(220,170,40,1)); transform:scale(1.04); }
+            .npc-btn-sell { background:linear-gradient(180deg,rgba(46,204,113,0.85),rgba(39,174,96,0.9)); color:#fff; }
+            .npc-btn-sell:hover { background:linear-gradient(180deg,rgba(56,220,130,1),rgba(46,200,110,1)); transform:scale(1.04); }
+            .npc-empty { text-align:center; padding:20px; color:var(--text-secondary); font-size:13px; }
+        </style>
+
+        <div class="npc-trade-header">
+            <div class="npc-trade-portrait">${npcIcon}</div>
+            <div class="npc-trade-info">
+                <div class="npc-trade-name">${npcName}</div>
+                <div class="npc-trade-type">${typeLabel}</div>
+            </div>
+            <div class="npc-trade-purse">💰 ${playerGold.toLocaleString()}</div>
+        </div>
+
+        <div class="npc-trade-tabs">
+            <button class="npc-trade-tab active" data-npc-tab="buy">🛒 Buy</button>
+            <button class="npc-trade-tab" data-npc-tab="sell">💰 Sell to ${npcName}</button>
+        </div>
+
+        <div class="npc-trade-section active" data-npc-section="buy">`;
+
+        const catOrder = ['food','materials','crafted','rare'];
+        let hasGoods = false;
+        for (const cat of catOrder) {
+            const items = grouped[cat];
+            if (!items || items.length === 0) continue;
+            hasGoods = true;
+            const def = CATEGORIES[cat];
+            html += `<div class="npc-cat"><div class="npc-cat-hdr">${def.icon} ${def.label}</div>`;
+            for (const good of items) {
+                const canAfford = playerGold >= good.price;
+                html += `<div class="npc-row">
+                    <span class="npc-ico">${good.icon}</span>
+                    <div><div class="npc-gname">${good.name}</div></div>
+                    <div class="npc-gprice">${good.price} 💰<span class="npc-qty">${good.quantity} avail.</span></div>
+                    <div><button class="npc-btn npc-btn-buy" onclick="window._npcBuy('${good._itemId}',${good.price},${good.quantity})">Buy</button></div>
+                </div>`;
+            }
+            html += '</div>';
+        }
+        if (!hasGoods) html += '<div class="npc-empty">This trader has nothing left to sell.</div>';
+
+        html += `</div><div class="npc-trade-section" data-npc-section="sell">`;
+
+        if (sellItems.length > 0) {
+            for (const item of sellItems) {
+                html += `<div class="npc-row">
+                    <span class="npc-ico">${item.icon}</span>
+                    <div>
+                        <div class="npc-gname">${item.name}</div>
+                        <div class="npc-gmeta">You have: ${item.quantity}</div>
+                    </div>
+                    <div class="npc-gprice" style="color:#2ecc71;">${item.sellPrice} 💰<span class="npc-qty">per unit</span></div>
+                    <div><button class="npc-btn npc-btn-sell" onclick="window._npcSell('${item.id}',${item.sellPrice},${item.quantity})">Sell</button></div>
+                </div>`;
+            }
+        } else {
+            html += '<div class="npc-empty">You have no goods to sell.</div>';
+        }
+
+        html += '</div>';
+
+        game.ui.showCustomPanel(`${npcIcon} ${npcName} — ${typeLabel}`, html);
+
+        // Tab switching
+        setTimeout(() => {
+            const tabs = document.querySelectorAll('[data-npc-tab]');
+            const sections = document.querySelectorAll('[data-npc-section]');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    sections.forEach(s => s.classList.remove('active'));
+                    tab.classList.add('active');
+                    const sec = document.querySelector(`[data-npc-section="${tab.getAttribute('data-npc-tab')}"]`);
+                    if (sec) sec.classList.add('active');
+                });
+            });
+        }, 50);
+
+        // Buy handler — deducts from NPC's shopInventory
+        window._npcBuy = (itemId, price, maxQty) => {
+            const goodDef = PlayerEconomy.GOODS[itemId.toUpperCase()] || Object.values(PlayerEconomy.GOODS).find(g => g.id === itemId);
+            const displayName = goodDef ? goodDef.name : itemId;
+            ActionMenu.showQuantityInput(`Buy ${displayName}`, maxQty, (qty) => {
+                const totalCost = price * qty;
+                if (game.player.gold < totalCost) {
+                    game.ui.showNotification('Not Enough Gold', `You need ${totalCost} gold but only have ${game.player.gold}.`, 'error');
+                    return;
+                }
+                // Deduct gold, add to player inventory, reduce NPC stock
+                game.player.gold -= totalCost;
+                if (!game.player.inventory) game.player.inventory = {};
+                game.player.inventory[itemId] = (game.player.inventory[itemId] || 0) + qty;
+                npc.shopInventory[itemId].qty -= qty;
+                if (npc.shopInventory[itemId].qty <= 0) delete npc.shopInventory[itemId];
+                game.ui.showNotification('Purchase Complete', `Bought ${qty}x ${displayName} for ${totalCost} gold`, 'success');
+                game.ui.updateStats(game.player, game.world);
+                ActionMenu.showNpcTradeMenu(game, npc);
+            });
+        };
+
+        // Sell handler — gives gold to player, NPC absorbs item
+        window._npcSell = (goodId, sellPrice, maxQty) => {
+            const goodDef = PlayerEconomy.GOODS[goodId.toUpperCase()];
+            const displayName = goodDef ? goodDef.name : goodId;
+            ActionMenu.showQuantityInput(`Sell ${displayName}`, maxQty, (qty) => {
+                const totalEarned = sellPrice * qty;
+                // Remove from player inventory
+                if (!game.player.inventory || (game.player.inventory[goodId] || 0) < qty) {
+                    game.ui.showNotification('Cannot Sell', 'You don\'t have enough of this item.', 'error');
+                    return;
+                }
+                game.player.inventory[goodId] -= qty;
+                if (game.player.inventory[goodId] <= 0) delete game.player.inventory[goodId];
+                game.player.gold += totalEarned;
+                game.ui.showNotification('Sale Complete', `Sold ${qty}x ${displayName} for ${totalEarned} gold`, 'success');
+                game.ui.updateStats(game.player, game.world);
+                ActionMenu.showNpcTradeMenu(game, npc);
             });
         };
     },
@@ -2809,7 +3168,7 @@ export const ActionMenu = {
                     // It's a map object — add to player's map collection
                     if (!player.maps) player.maps = [];
                     player.maps.push(lootItem);
-                    rewardLines.push(`<div style="color: #e67e22;">🗺️ Found: ${lootItem.name || lootItem.type || 'Unknown Map'}</div>`);
+                    rewardLines.push(`<div style="color: #e67e22;">🗺️ Found: ${lootItem.name}</div>`);
                 }
             }
             poi.loot = []; // Clear loot after pickup
@@ -6946,10 +7305,8 @@ export const ActionMenu = {
                         totals[key].foundQty += f.qty;
                     }
                     for (const item of Object.values(totals)) {
-                        const itemIcon = item.icon || '📦';
-                        const itemName = item.name || item.id || 'Unknown Item';
                         html += `<div style="padding: 6px 12px; margin-bottom: 4px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between;">
-                            <div>${itemIcon} ${itemName} x${item.foundQty}</div>
+                            <div>${item.icon} ${item.name} x${item.foundQty}</div>
                             <div style="color: var(--gold);">${item.foundQty * item.sellPrice}g</div>
                         </div>`;
                     }
@@ -7243,10 +7600,8 @@ export const ActionMenu = {
                     html += `<div style="font-size: 48px; margin: 12px 0;">${preyIcon}</div>`;
                     html += `<div style="font-size: 16px; color: #2ecc71; font-weight: bold; margin-bottom: 8px;">Successful Hunt!</div>`;
                     for (const item of totalLoot) {
-                        const itemIcon = item.icon || '📦';
-                        const itemName = item.name || item.id || 'Unknown Item';
                         html += `<div style="padding: 6px 12px; margin-bottom: 4px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
-                            <div>${itemIcon} ${itemName} x${item.foundQty}</div>
+                            <div>${item.icon} ${item.name} x${item.foundQty}</div>
                             <div style="color: var(--gold);">${item.foundQty * item.sellPrice}g</div>
                         </div>`;
                     }

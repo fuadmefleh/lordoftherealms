@@ -40,6 +40,8 @@ import { Economy } from '../world/economy.js';
 import { TiledExport } from '../systems/tiledExport.js';
 import { CustomObjects } from '../world/customObjects.js';
 import { CustomBuildings } from '../world/customBuildings.js';
+import { Hotbar } from './hotbar.js';
+import { NpcDialog } from './npcDialog.js';
 
 // Side-effect imports: these extend InnerMapRenderer via Object.assign
 import './innerMapLayers.js';
@@ -959,6 +961,12 @@ export class Game {
         // Clear any cached inner maps from a previous game session
         if (typeof InnerMap !== 'undefined' && InnerMap.clearCache) InnerMap.clearCache();
 
+        // Reset data pipeline so fresh gamedata (including ModStore edits) is reloaded
+        DataLoader.reset();
+        CustomObjects.reset();
+        CustomBuildings.reset();
+        InnerMapRenderer.reset();
+
         // Generate world
         this.world = new World(width, height);
         this.world.generate({
@@ -1114,12 +1122,41 @@ export class Game {
             this.innerMapCamera.update(deltaTime);
             this.innerMapCamera.precomputeFrame();
 
+            // Apply time speed multiplier for inner map simulation
+            // speed 0 = paused, 1 = normal, 2 = fast (2×), 3 = ultra (4×)
+            const innerSpeed = Number.isFinite(this.timeSpeed) ? this.timeSpeed : 1;
+            const simDelta = deltaTime * (innerSpeed === 3 ? 4 : innerSpeed);
+
             // Update inner map hover
             InnerMapRenderer._hoveredInnerHex = InnerMapRenderer.getInnerHexAtScreen(
                 this.mouseX, this.mouseY, this.innerMapCamera);
 
             // Update time system (1 hour per real minute)
-            const timeResult = InnerMap.updateTime(deltaTime);
+            const prevHour = InnerMap.timeOfDay;
+            const timeResult = InnerMap.updateTime(simDelta);
+
+            // ── Hourly needs decay ──
+            if (InnerMap.timeOfDay > prevHour && this.player && this.player.needs) {
+                const context = {
+                    insideBuilding: !!InnerMap._insideBuilding,
+                    isNight: InnerMap.timeOfDay >= 21 || InnerMap.timeOfDay < 6,
+                    isRaining: !!(InnerMap._weather && InnerMap._weather.type === 'rain'),
+                    inOwnHouse: false,
+                };
+                // Check if inside player's own house
+                if (InnerMap._insideBuilding && this.player.houses) {
+                    context.inOwnHouse = this.player.houses.some(h =>
+                        h.q === this.player.q && h.r === this.player.r);
+                }
+                // Decay once per hour that passed
+                const hoursPassed = InnerMap.timeOfDay - prevHour;
+                for (let i = 0; i < hoursPassed; i++) {
+                    this.player.decayNeedsPerHour(context);
+                }
+                // Check for low-need warnings
+                this._checkNeedWarnings();
+            }
+
             if (timeResult === 'day_ended' && !this._innerMapDayEndShown) {
                 this._innerMapDayEndShown = true;
                 this._showInnerMapEndDayModal();
@@ -1142,7 +1179,7 @@ export class Game {
             this._updateBuildingExitButton();
 
             // Update player walking animation
-            const playerStepResult = InnerMap.updatePlayer(deltaTime);
+            const playerStepResult = InnerMap.updatePlayer(simDelta);
             if (playerStepResult) {
                 if (playerStepResult.moved) {
                     const arrivedTile = InnerMap.getTile(InnerMap.playerInnerQ, InnerMap.playerInnerR);
@@ -1173,15 +1210,38 @@ export class Game {
                             if (targetNpc) InnerMapCombat._beginNPCAttack(pc.game || this, targetNpc);
                         }
                     }
+                    // ── Trigger pending NPC dialog on arrival ──
+                    if (playerStepResult.arrived && InnerMap._pendingDialog) {
+                        const pd = InnerMap._pendingDialog;
+                        InnerMap._pendingDialog = null;
+                        if (pd.npc) {
+                            // Face the NPC
+                            const dir = InnerMap.getDirectionToward(pd.npc.q, pd.npc.r);
+                            InnerMapRenderer._playerFacing = dir;
+                            NpcDialog.open(pd.game || this, pd.npc);
+                        }
+                    }
                 } else if (playerStepResult.blocked) {
                     InnerMap._pendingInteraction = null;
                     InnerMap._pendingCombat = null;
+                    // Unfreeze NPC if dialog walk was blocked
+                    if (InnerMap._pendingDialog) {
+                        const pd = InnerMap._pendingDialog;
+                        InnerMap._pendingDialog = null;
+                        if (pd.npc) {
+                            pd.npc._dialogFrozen = false;
+                            if (pd.npc.state === 'dialog') {
+                                pd.npc.state = 'idle';
+                                pd.npc.idleTimer = 1;
+                            }
+                        }
+                    }
                     this.ui.showNotification('Blocked', 'Path blocked — impassable terrain!', 'error');
                 }
             }
 
             // ── Update active object interaction ──
-            const interactionResult = InnerMap.updateInteraction(deltaTime);
+            const interactionResult = InnerMap.updateInteraction(simDelta);
             if (interactionResult && interactionResult.hit && typeof InnerMapCombat !== 'undefined') {
                 // Spawn floating damage number over object on each swing
                 const ia = InnerMap._activeInteraction;
@@ -1217,11 +1277,11 @@ export class Game {
             this.innerMapCamera.follow(pWorld.x, pWorld.y);
 
             // Update NPCs
-            InnerMap.updateNPCs(deltaTime);
+            InnerMap.updateNPCs(simDelta);
 
             // ── Update combat system (NPC attacks, float numbers, hit flashes) ──
             if (typeof InnerMapCombat !== 'undefined') {
-                InnerMapCombat.update(deltaTime, this);
+                InnerMapCombat.update(simDelta, this);
             }
 
             // Update light system from time of day
@@ -1264,15 +1324,30 @@ export class Game {
             this.world.weather.update(deltaTime);
         }
 
-        // Auto-advance day based on time speed (pause/play/fast/ultra)
+        // Advance inner-map hour clock on the world map so time visibly progresses.
+        // speed 0 = paused, 1 = normal, 2 = fast (2×), 3 = ultra (4×)
         const speed = Number.isFinite(this.timeSpeed) ? this.timeSpeed : 1;
         if (speed <= 0) {
-            this._timeAccumulator = 0;
-        } else if (!this.isProcessingTurn && this.player && !this.player.isMoving) {
-            const secondsPerDay = speed === 1 ? 14 : speed === 2 ? 7 : 3;
-            this._timeAccumulator += deltaTime;
-            if (this._timeAccumulator >= secondsPerDay) {
-                this._timeAccumulator = 0;
+            // paused — do nothing
+        } else if (!this.isProcessingTurn && this.player) {
+            const simDelta = deltaTime * (speed === 3 ? 4 : speed);
+            InnerMap._timeAccumulator += simDelta;
+            if (InnerMap._timeAccumulator >= InnerMap.TIME_SCALE) {
+                InnerMap._timeAccumulator -= InnerMap.TIME_SCALE;
+                InnerMap.timeOfDay++;
+            }
+            // Update time cache for the player's current tile so the HUD reflects it
+            const tileKey = `${this.player.q},${this.player.r}`;
+            InnerMap._timeCache[tileKey] = {
+                timeOfDay: InnerMap.timeOfDay,
+                _timeAccumulator: InnerMap._timeAccumulator,
+                dayEnded: InnerMap.dayEnded,
+            };
+            // When the clock hits 24, end the day and reset to 8 AM
+            if (InnerMap.timeOfDay >= 24) {
+                InnerMap.timeOfDay = 8;
+                InnerMap._timeAccumulator = 0;
+                InnerMap.dayEnded = false;
                 this.endDay();
             }
         }
@@ -1306,6 +1381,13 @@ export class Game {
 
         // Update hover hex
         this.updateHoveredHex();
+
+        // Update stats display periodically (every ~0.5s) so clock is visible
+        this._worldStatsTimer = (this._worldStatsTimer || 0) + deltaTime;
+        if (this._worldStatsTimer >= 0.5) {
+            this._worldStatsTimer = 0;
+            this.ui.updateStats(this.player, this.world);
+        }
 
         // Render
         this.renderer.render(deltaTime);
@@ -1476,12 +1558,21 @@ export class Game {
         // Block clicks while inner map is loading
         if (this._enteringInnerMap) return;
 
+        // Block clicks while NPC dialog is open
+        if (NpcDialog.active) return;
+
         // ── Inner Map Mode clicks ──
         if (InnerMap.active) {
             const innerHex = InnerMapRenderer.getInnerHexAtScreen(screenX, screenY, this.innerMapCamera);
             if (!innerHex) return;
 
             if (button === 'left') {
+                // ── Hotbar placement on left-click ──
+                if (Hotbar.activeItemId) {
+                    Hotbar.useActiveItem(innerHex.q, innerHex.r);
+                    return;
+                }
+
                 InnerMapRenderer._selectedInnerHex = innerHex;
                 InnerMapRenderer.closeContextMenu();
                 const innerTile = InnerMap.getTile(innerHex.q, innerHex.r);
@@ -1515,6 +1606,19 @@ export class Game {
                 InnerMap.cancelPlayerWalk();
                 InnerMap._pendingInteraction = null;
                 InnerMap._activeInteraction = null;
+
+                // Unfreeze NPC if we were walking to talk
+                if (InnerMap._pendingDialog) {
+                    const pd = InnerMap._pendingDialog;
+                    InnerMap._pendingDialog = null;
+                    if (pd.npc) {
+                        pd.npc._dialogFrozen = false;
+                        if (pd.npc.state === 'dialog') {
+                            pd.npc.state = 'idle';
+                            pd.npc.idleTimer = 1;
+                        }
+                    }
+                }
 
                 // Check if the clicked tile has a custom object with a resource
                 // AND the clicked tile is an interaction point on that object
@@ -1821,6 +1925,10 @@ export class Game {
             // Show inner map exit button
             this._showInnerMapExitButton();
 
+            // Show hotbar
+            Hotbar.init(this);
+            Hotbar.show();
+
             // Notification
             const terrainName = tile.terrain.name || tile.terrain.id;
             if (tile.settlement) {
@@ -1850,6 +1958,12 @@ export class Game {
 
         // Remove exit button
         this._hideInnerMapExitButton();
+
+        // Hide hotbar
+        Hotbar.hide();
+
+        // Close any open dialog
+        NpcDialog.close();
 
         // Restore world map UI
         this._showWorldMapUI();
@@ -1921,6 +2035,49 @@ export class Game {
                 window.removeEventListener('keydown', handler);
             }
         });
+    }
+
+    /**
+     * Check for low-need warnings and show notifications
+     */
+    _checkNeedWarnings() {
+        if (!this.player || !this.player.needs) return;
+        const warnings = this.player._needWarnings || (this.player._needWarnings = {});
+
+        const needNames = {
+            hunger:  { icon: '🍖', label: 'Hungry' },
+            energy:  { icon: '💤', label: 'Exhausted' },
+            social:  { icon: '💬', label: 'Lonely' },
+            fun:     { icon: '🎭', label: 'Bored' },
+            hygiene: { icon: '🧼', label: 'Dirty' },
+            comfort: { icon: '🪑', label: 'Uncomfortable' },
+        };
+
+        for (const [need, info] of Object.entries(needNames)) {
+            const val = this.player.needs[need];
+            if (val <= 15 && !warnings[`${need}_critical`]) {
+                warnings[`${need}_critical`] = true;
+                this.ui.showNotification(
+                    `${info.icon} ${info.label}!`,
+                    `Your ${need} is critically low! Find a way to satisfy this need soon.`,
+                    'error'
+                );
+            } else if (val <= 30 && val > 15 && !warnings[`${need}_low`]) {
+                warnings[`${need}_low`] = true;
+                this.ui.showNotification(
+                    `${info.icon} ${info.label}`,
+                    `Your ${need} is getting low. Consider addressing it.`,
+                    'info'
+                );
+            }
+        }
+
+        // Update mood display on portrait
+        const mood = this.player.getMood();
+        const portraitIcon = document.getElementById('simsPortrait');
+        if (portraitIcon) {
+            portraitIcon.title = `Mood: ${mood.label} (${mood.score})`;
+        }
     }
 
     /**

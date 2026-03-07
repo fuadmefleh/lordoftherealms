@@ -9,6 +9,7 @@ import { InnerMapRenderer } from './innerMapRenderer.js';
 import { InnerMap } from '../world/innerMap.js';
 import { CustomObjects } from '../world/customObjects.js';
 import { CustomBuildings } from '../world/customBuildings.js';
+import { CustomInteriors } from '../world/customInteriors.js';
 import { InnerMapCharacters } from './innerMapCharacters.js';
 import { InnerMapCombat } from './innerMapCombat.js';
 
@@ -284,7 +285,7 @@ Object.assign(InnerMapRenderer, {
         // Helper: draw a single spritesheet cell
         const drawCell = (cell) => {
             if (!cell || !cell.sheetPath) return false;
-            const img = (typeof CustomInteriors !== 'undefined') ? CustomInteriors.getImg(cell.sheetPath) : null;
+            const img = CustomInteriors.getImg(cell.sheetPath);
             if (!img) return false;
             const sw = cell.sw || 32;
             const sh = cell.sh || 32;
@@ -776,8 +777,8 @@ Object.assign(InnerMapRenderer, {
                     continue; // not-visible tiles don't need weather/impass
                 }
 
-                // Impassable tint (skip tiles occupied by buildings or interior furniture)
-                if (!tile.subTerrain.passable && !tile.building && !tile.buildingInfo && !tile.customBuilding && !tile.customBuildingPart && !tile._isInterior) {
+                // Impassable tint (skip tiles occupied by buildings, objects, or interior furniture)
+                if (!tile.subTerrain.passable && !tile.building && !tile.buildingInfo && !tile.customBuilding && !tile.customBuildingPart && !tile.customObject && !tile.customObjectPart && !tile._isInterior) {
                     impassRects.push(dx, dy, sz);
                 }
 
@@ -1054,6 +1055,9 @@ Object.assign(InnerMapRenderer, {
 
             InnerMapCharacters.drawCharacter(ctx, playerPreset, anim, direction, now,
                 cx, cy, charW, charH);
+
+            // ── Plumbob (green diamond above player's head) ──
+            this._drawPlumbob(ctx, screenPX, cy - ds * 0.05, ds, now);
         } else {
             // Fallback: compass icon
             const iconSize = Math.max(16, ds * 0.55);
@@ -1065,6 +1069,9 @@ Object.assign(InnerMapRenderer, {
             ctx.fillStyle = '#ffffff';
             ctx.fillText('🧭', screenPX, screenPY);
             ctx.shadowBlur = 0;
+
+            // Plumbob above fallback icon
+            this._drawPlumbob(ctx, screenPX, screenPY - ds * 0.5, ds, now);
         }
 
         // Label
@@ -1079,6 +1086,55 @@ Object.assign(InnerMapRenderer, {
             ctx.fillText('You', screenPX, screenPY + ds * 0.35);
             ctx.shadowBlur = 0;
         }
+    },
+
+    /**
+     * Draw a Sims-style plumbob (green diamond) floating above the player.
+     * Gently bobs up and down and pulses glow.
+     */
+    _drawPlumbob(ctx, x, topY, ds, now) {
+        const size = Math.max(6, ds * 0.22);
+        // gentle bob
+        const bob = Math.sin(now * 2.5) * size * 0.25;
+        const cy = topY + bob;
+
+        ctx.save();
+
+        // glow
+        const glowAlpha = 0.25 + Math.sin(now * 3) * 0.1;
+        ctx.shadowColor = `rgba(46, 204, 113, ${glowAlpha + 0.3})`;
+        ctx.shadowBlur = size * 1.2;
+
+        // diamond shape
+        ctx.beginPath();
+        ctx.moveTo(x, cy - size);          // top
+        ctx.lineTo(x + size * 0.6, cy);    // right
+        ctx.lineTo(x, cy + size);          // bottom
+        ctx.lineTo(x - size * 0.6, cy);    // left
+        ctx.closePath();
+
+        // gradient fill
+        const grad = ctx.createLinearGradient(x, cy - size, x, cy + size);
+        grad.addColorStop(0, '#5dfc8a');
+        grad.addColorStop(0.45, '#2ecc71');
+        grad.addColorStop(1, '#1a9c52');
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // highlight edge
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // inner shine line (top-left facet)
+        ctx.beginPath();
+        ctx.moveTo(x, cy - size * 0.7);
+        ctx.lineTo(x - size * 0.3, cy);
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+
+        ctx.restore();
     },
 
     // ══════════════════════════════════════════════
@@ -1150,6 +1206,21 @@ Object.assign(InnerMapRenderer, {
     // current health percentage (supports healthStates damage stages).
     // Falls back to def.tiles when no health states are defined.
     // ─────────────────────────────────────────────────────────────────
+    /**
+     * Flatten an objLayers structure { base:[], detail:[], top:[] } into
+     * a single draw-order array (base first, then detail, then top).
+     * Returns null if layerObj is empty/missing.
+     */
+    _flattenObjLayers(layerObj) {
+        if (!layerObj) return null;
+        const out = [];
+        for (const ln of ['base', 'detail', 'top']) {
+            const arr = layerObj[ln];
+            if (Array.isArray(arr)) for (const t of arr) out.push(t);
+        }
+        return out.length > 0 ? out : null;
+    },
+
     _getActiveObjectTiles(def, customObjData) {
         // Color variants — use variant's tiles/rotations/seasons instead of base def
         if (def.colorVariants && def.colorVariants.length > 0 && customObjData) {
@@ -1160,6 +1231,7 @@ Object.assign(InnerMapRenderer, {
                 def = {
                     ...def,
                     tiles: cv.tiles || def.tiles,
+                    objLayers: cv.objLayers || def.objLayers,
                     rotationVariants: cv.rotationVariants || [],
                     seasonVariants: cv.seasonVariants || null,
                 };
@@ -1177,7 +1249,11 @@ Object.assign(InnerMapRenderer, {
                     best = hs;
                 }
             }
-            if (best && best.tiles && best.tiles.length > 0) return best.tiles;
+            if (best) {
+                const layered = this._flattenObjLayers(best.objLayers);
+                if (layered) return layered;
+                if (best.tiles && best.tiles.length > 0) return best.tiles;
+            }
         }
         // Growth stages — age-based appearance (computed from days elapsed since planting)
         if (def.growthStates && def.growthStates.length > 0) {
@@ -1190,7 +1266,11 @@ Object.assign(InnerMapRenderer, {
             for (const gs of def.growthStates) {
                 if (daysElapsed >= gs.daysToReach) activeStage = gs;
             }
-            if (activeStage && activeStage.tiles && activeStage.tiles.length > 0) return activeStage.tiles;
+            if (activeStage) {
+                const layered = this._flattenObjLayers(activeStage.objLayers);
+                if (layered) return layered;
+                if (activeStage.tiles && activeStage.tiles.length > 0) return activeStage.tiles;
+            }
         }
         // Season variants — healthy appearance per season
         if (def.seasonVariants) {
@@ -1203,10 +1283,17 @@ Object.assign(InnerMapRenderer, {
             const idx = customObjData.rotationIdx || 0;
             if (idx > 0 && idx <= def.rotationVariants.length) {
                 const rv = def.rotationVariants[idx - 1];
-                if (rv && rv.tiles && rv.tiles.length > 0) return rv.tiles;
+                if (rv) {
+                    const layered = this._flattenObjLayers(rv.objLayers);
+                    if (layered) return layered;
+                    if (rv.tiles && rv.tiles.length > 0) return rv.tiles;
+                }
             }
             // idx 0 = default tiles (fall through)
         }
+        // Default: prefer objLayers over merged tiles
+        const layered = this._flattenObjLayers(def.objLayers);
+        if (layered) return layered;
         return def.tiles;
     },
 
@@ -1311,6 +1398,35 @@ Object.assign(InnerMapRenderer, {
                         }});
                     }
                     continue;
+                }
+
+                // ── Ground items (placed from hotbar) ──
+                if (tile.groundItem) {
+                    const gq = q, gr = r;
+                    const gIcon = tile.groundItem.icon || '📦';
+                    const sortY = (r + 0.5) * T; // slightly above ground
+                    items.push({ sortY, zLayer: 0, sortX: q, draw() {
+                        const screen = camera.worldToScreenFast(gq * T, gr * T);
+                        const dx = Math.floor(screen.x);
+                        const dy = Math.floor(screen.y);
+                        // Draw a subtle shadow ellipse under the item
+                        const cx = dx + cs / 2;
+                        const cy = dy + cs * 0.6;
+                        const rad = cs * 0.28;
+                        ctx.save();
+                        ctx.globalAlpha = 0.35;
+                        ctx.fillStyle = '#000';
+                        ctx.beginPath();
+                        ctx.ellipse(cx, cy, rad, rad * 0.5, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
+                        // Draw the item icon
+                        const sz = Math.max(12, cs * 0.55);
+                        ctx.font = `${sz}px serif`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(gIcon, cx, dy + cs * 0.45);
+                    }});
                 }
 
                 // Never render built-in object overlays (editor-authored objects only)

@@ -437,6 +437,7 @@ input[type="color"]{padding:2px;width:28px;height:24px;cursor:pointer;background
 
 <div id="toast"></div>
 
+<script src="editor-modstore.js"></script>
 <script>
 // ╔═══════════════════════════════════════════════════════════════════╗
 // ║  LPC TERRAIN EDITOR — Tiled-compatible Terrain Brush System     ║
@@ -2205,16 +2206,89 @@ function loadCustomSheet() {
         const reader = new FileReader();
         reader.onload = ev => {
             const dataUrl = ev.target.result;
-            const catName = 'Custom';
-            if (!PALETTE_DATA[catName]) PALETTE_DATA[catName] = [];
-            PALETTE_DATA[catName].push(dataUrl);
-            buildCatButtons();
-            showCategory(catName);
-            toast('Custom sheet loaded', 'ok');
+            const baseName = file.name.replace(/\.[^.]+$/, '');
+            const assetPath = `custom/${Date.now()}_${file.name}`;
+            _customSheetEntries.push({ name: baseName, assetPath, dataUrl });
+            _registerCustomSheet(baseName, assetPath, dataUrl);
+            _saveCustomSheets();
+            toast('Custom sheet loaded & saved', 'ok');
         };
         reader.readAsDataURL(file);
     };
     input.click();
+}
+
+const _customSheetEntries = [];
+
+function _registerCustomSheet(baseName, assetPath, dataUrl) {
+    const catName = 'Custom';
+    if (!PALETTE_DATA[catName]) PALETTE_DATA[catName] = [];
+    // Store as dataUrl in imgCache so loadImage works
+    const img = new Image();
+    img.onload = () => {
+        imgCache.set(assetPath, img);
+        if (!PALETTE_DATA[catName].includes(assetPath)) PALETTE_DATA[catName].push(assetPath);
+        buildCatButtons();
+    };
+    img.src = dataUrl;
+}
+
+async function _msSaveSheets(key, data) {
+    const db = await new Promise((resolve, reject) => {
+        const req = indexedDB.open('lord_of_realms_mods', 1);
+        req.onupgradeneeded = e => {
+            const d = e.target.result;
+            if (!d.objectStoreNames.contains('moddata')) d.createObjectStore('moddata');
+            if (!d.objectStoreNames.contains('worlds')) d.createObjectStore('worlds');
+            if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta');
+        };
+        req.onsuccess = e => resolve(e.target.result);
+        req.onerror = e => reject(e.target.error);
+    });
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('meta', 'readwrite');
+        tx.objectStore('meta').put(data, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = e => reject(e.target.error);
+    });
+}
+
+async function _msLoadSheets(key) {
+    const db = await new Promise((resolve, reject) => {
+        const req = indexedDB.open('lord_of_realms_mods', 1);
+        req.onupgradeneeded = e => {
+            const d = e.target.result;
+            if (!d.objectStoreNames.contains('moddata')) d.createObjectStore('moddata');
+            if (!d.objectStoreNames.contains('worlds')) d.createObjectStore('worlds');
+            if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta');
+        };
+        req.onsuccess = e => resolve(e.target.result);
+        req.onerror = e => reject(e.target.error);
+    });
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('meta', 'readonly');
+        const r = tx.objectStore('meta').get(key);
+        r.onsuccess = () => resolve(r.result || []);
+        r.onerror = e => reject(e.target.error);
+    });
+}
+
+async function _saveCustomSheets() {
+    try {
+        const entries = _customSheetEntries.map(e => ({ name: e.name, assetPath: e.assetPath, dataUrl: e.dataUrl }));
+        await _msSaveSheets('customSheets_terrain', entries);
+    } catch (e) { console.warn('Failed to save custom sheets:', e); }
+}
+
+async function _loadSavedCustomSheets() {
+    try {
+        const entries = await _msLoadSheets('customSheets_terrain');
+        for (const entry of entries) {
+            if (_customSheetEntries.some(e => e.assetPath === entry.assetPath)) continue;
+            _customSheetEntries.push(entry);
+            _registerCustomSheet(entry.name, entry.assetPath, entry.dataUrl);
+        }
+    } catch (e) { console.warn('Failed to load saved custom sheets:', e); }
 }
 
 function loadImage(path) {
@@ -4012,6 +4086,7 @@ window.addEventListener('resize', resizeCanvas);
 (async function boot() {
     resizeCanvas();
     buildCatButtons();
+    await _loadSavedCustomSheets(); // restore persisted custom sheets
     buildTSetsList();
     buildNtbListPanel();
     setTool('paint');

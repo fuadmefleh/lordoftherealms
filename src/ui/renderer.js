@@ -1896,6 +1896,9 @@ export class Renderer {
         const displayIcon = this.player.boardedShip ? '⛵' : '👤';
         ctx.fillText(displayIcon, screen.x, screen.y);
 
+        // Plumbob above player on world map
+        this._drawWorldPlumbob(ctx, screen.x, screen.y - renderSize * 0.55, renderSize);
+
         // Direction indicator / name
         if (this.camera.zoom > 0.7) {
             const fsize = Math.max(9, 11 * this.camera.zoom);
@@ -1916,6 +1919,40 @@ export class Renderer {
                 }
             );
         }
+    }
+
+    /**
+     * Draw a Sims plumbob (green diamond) above the player on the world map
+     */
+    _drawWorldPlumbob(ctx, x, topY, renderSize) {
+        const size = Math.max(5, renderSize * 0.2);
+        const now = performance.now() / 1000;
+        const bob = Math.sin(now * 2.5) * size * 0.25;
+        const cy = topY + bob;
+
+        ctx.save();
+        const glowAlpha = 0.25 + Math.sin(now * 3) * 0.1;
+        ctx.shadowColor = `rgba(46, 204, 113, ${glowAlpha + 0.3})`;
+        ctx.shadowBlur = size * 1.2;
+
+        ctx.beginPath();
+        ctx.moveTo(x, cy - size);
+        ctx.lineTo(x + size * 0.6, cy);
+        ctx.lineTo(x, cy + size);
+        ctx.lineTo(x - size * 0.6, cy);
+        ctx.closePath();
+
+        const grad = ctx.createLinearGradient(x, cy - size, x, cy + size);
+        grad.addColorStop(0, '#5dfc8a');
+        grad.addColorStop(0.45, '#2ecc71');
+        grad.addColorStop(1, '#1a9c52');
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
     }
 
     /**

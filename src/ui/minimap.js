@@ -178,7 +178,23 @@ export class Minimap {
                 }
 
                 const color = (tile.subTerrain && tile.subTerrain.color) || '#2b3647';
-                ctx.fillStyle = color;
+                // Use ground-based color: grass for terrainDetail tiles, dirt otherwise.
+                // Skip rendering trees/objects — show only terrain, roads, buildings, water.
+                let minimapColor;
+                if (tile.building || tile.customBuilding) {
+                    minimapColor = '#8B7355';  // building footprint = brown
+                } else if (tile.isRoad) {
+                    minimapColor = '#a08060';  // road = light brown
+                } else if (tile.subTerrain && !tile.subTerrain.passable) {
+                    minimapColor = color;       // walls, water, etc. keep original color
+                } else if (tile.baseTerrain === 'water' || tile.baseTerrain === 'deep_water') {
+                    minimapColor = color;
+                } else if (tile.terrainDetail) {
+                    minimapColor = '#4B8434';  // grass
+                } else {
+                    minimapColor = '#a0854d';  // dirt
+                }
+                ctx.fillStyle = minimapColor;
                 ctx.fillRect(x, y, rw, rh);
 
                 if (!tile.visible) {
@@ -188,6 +204,35 @@ export class Minimap {
             }
         }
 
+        // ── Draw building / landmark icons ──
+        if (InnerMap.buildings && InnerMap.buildings.length > 0) {
+            // Compute icon size based on tile density — readable but not overwhelming
+            const iconSize = Math.max(8, Math.min(14, Math.floor(tileW * 3)));
+            ctx.font = `${iconSize}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            for (const bldg of InnerMap.buildings) {
+                // Skip buildings on unexplored tiles
+                const tile = InnerMap.tiles[bldg.r] && InnerMap.tiles[bldg.r][bldg.q];
+                if (!tile || !tile.explored) continue;
+
+                const bx = (bldg.q + 0.5) * tileW;
+                const by = (bldg.r + 0.5) * tileH;
+
+                // Dark background circle for readability
+                ctx.fillStyle = 'rgba(0,0,0,0.55)';
+                ctx.beginPath();
+                ctx.arc(bx, by, iconSize * 0.55, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw the emoji icon
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(bldg.icon || '🏠', bx, by);
+            }
+        }
+
+        // ── Draw player position ──
         const px = (InnerMap.playerInnerQ + 0.5) * tileW;
         const py = (InnerMap.playerInnerR + 0.5) * tileH;
         ctx.fillStyle = '#ffffff';

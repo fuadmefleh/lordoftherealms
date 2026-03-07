@@ -121,6 +121,116 @@ export default function GameView() {
       {/* Notification Area */}
       <div id="notificationArea"></div>
 
+      {/* Bottom UI Stack — hotbar + HUD in a column so they don't overlap */}
+      <div id="bottomUIStack">
+
+      {/* Item Hotbar — above bottom HUD, visible only on inner map */}
+      <div id="itemHotbar" className="hidden">
+        {[1,2,3,4,5,6,7].map(n => (
+          <div key={n} className="hotbar-slot" data-slot={n}>
+            <span className="hotbar-key">{n}</span>
+            <span className="hotbar-icon"></span>
+            <span className="hotbar-qty"></span>
+          </div>
+        ))}
+      </div>
+
+      {/* Sims-style Bottom HUD */}
+      <div id="simsBottomHUD">
+        {/* Character Portrait */}
+        <div className="sims-portrait-panel">
+          <div className="sims-portrait-frame" id="simsPortrait" title="Character">
+            <span className="sims-portrait-icon">🧑</span>
+            <span className="sims-portrait-level" id="simsPortraitLevel">1</span>
+          </div>
+        </div>
+
+        {/* Main HUD Panel */}
+        <div className="sims-hud-main">
+          {/* Gold & Resources */}
+          <div className="sims-resources">
+            <div className="sims-resource-row">
+              <span className="res-icon">💰</span>
+              <span className="res-val" id="simsGold">0</span>
+            </div>
+            <div className="sims-resource-row">
+              <span className="res-icon">⭐</span>
+              <span className="res-val" id="simsRenown">0</span>
+            </div>
+            <div className="sims-resource-row">
+              <span className="res-icon">☯</span>
+              <span className="res-val" id="simsKarma">0</span>
+            </div>
+          </div>
+
+          <div className="sims-hud-sep"></div>
+
+          {/* Needs Bars — Sims-style 6 needs */}
+          <div className="sims-needs">
+            <div className="sims-need-row">
+              <span className="sims-need-label">🍖 Hunger</span>
+              <div className="sims-need-bar-bg">
+                <div className="sims-need-bar-fill high" id="simsHungerBar" style={{width: '100%'}}></div>
+              </div>
+            </div>
+            <div className="sims-need-row">
+              <span className="sims-need-label">💤 Energy</span>
+              <div className="sims-need-bar-bg">
+                <div className="sims-need-bar-fill high" id="simsEnergyBar" style={{width: '100%'}}></div>
+              </div>
+            </div>
+            <div className="sims-need-row">
+              <span className="sims-need-label">💬 Social</span>
+              <div className="sims-need-bar-bg">
+                <div className="sims-need-bar-fill high" id="simsSocialBar" style={{width: '100%'}}></div>
+              </div>
+            </div>
+            <div className="sims-need-row">
+              <span className="sims-need-label">🎭 Fun</span>
+              <div className="sims-need-bar-bg">
+                <div className="sims-need-bar-fill high" id="simsFunBar" style={{width: '100%'}}></div>
+              </div>
+            </div>
+            <div className="sims-need-row">
+              <span className="sims-need-label">🧼 Hygiene</span>
+              <div className="sims-need-bar-bg">
+                <div className="sims-need-bar-fill high" id="simsHygieneBar" style={{width: '100%'}}></div>
+              </div>
+            </div>
+            <div className="sims-need-row">
+              <span className="sims-need-label">🪑 Comfort</span>
+              <div className="sims-need-bar-bg">
+                <div className="sims-need-bar-fill high" id="simsComfortBar" style={{width: '100%'}}></div>
+              </div>
+            </div>
+          </div>
+
+          <div className="sims-hud-sep"></div>
+
+          {/* Mood indicator */}
+          <div className="sims-mood" id="simsMoodPanel">
+            <span className="sims-mood-icon" id="simsMoodIcon">😊</span>
+            <span className="sims-mood-label" id="simsMoodLabel">Happy</span>
+          </div>
+
+          <div className="sims-hud-sep"></div>
+
+          {/* Time Controls */}
+          <div className="sims-hud-time">
+            <span className="sims-hud-day" id="simsDay">Day 1</span>
+            <div className="sims-hud-time-controls">
+              <button className="sims-hud-time-btn" id="simsTimePause" title="Pause (Space)">⏸</button>
+              <button className="sims-hud-time-btn active" id="simsTimePlay" title="Normal Speed (1)">▶</button>
+              <button className="sims-hud-time-btn" id="simsTimeFast" title="Fast (2)">▶▶</button>
+              <button className="sims-hud-time-btn" id="simsTimeUltra" title="Ultra (3)">▶▶▶</button>
+            </div>
+            <button className="sims-hud-end-day" id="simsEndDay">☀ End Day</button>
+          </div>
+        </div>
+      </div>
+
+      </div>{/* /bottomUIStack */}
+
       {/* Tooltip */}
       <div id="tooltip" className="hidden"></div>
 

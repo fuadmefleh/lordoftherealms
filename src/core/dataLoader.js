@@ -33,6 +33,13 @@ export const DataLoader = {
     _cache: {},
     _gamedata: null,  // The full merged data object once loaded
 
+    /** Reset all cached data so the next load() re-fetches gamedata.json + ModStore. */
+    reset() {
+        this._cache = {};
+        this._gamedata = null;
+        this._loadingPromise = null;
+    },
+
     /**
      * Resolve a data key from _gamedata.
      * Supports paths like 'terrain.json', 'spritesheets/terrain.json',
@@ -119,7 +126,7 @@ export const DataLoader = {
                     ]);
                 await modStoreTimeout(ModStore.init());
                 const stored = await modStoreTimeout(ModStore.loadModData());
-                if (stored && typeof stored === 'object' && (stored.terrain || stored.buildings || stored.objects || stored.playerEconomy)) {
+                if (stored && typeof stored === 'object' && (stored.terrain || stored.buildings || stored.objects || stored.playerEconomy || stored.interiors || stored.interiorBrushes)) {
                     console.log('[DataLoader] Merging editor data from browser storage (IndexedDB)');
                     this._mergeEditorData(stored);
                 }
@@ -138,7 +145,7 @@ export const DataLoader = {
     _mergeEditorData(stored) {
         // Direct array/object replacements for editor-only keys
         const editorKeys = [
-            'buildings', 'objects', 'interiors',
+            'buildings', 'objects', 'interiors', 'interiorBrushes',
             'terrainSets', 'nineTileBrushes', 'terrainMap',
             'buildingNineTileBrushes', 'terrainNineTileBrushes',
             'doorCatalog', 'windowCatalog',

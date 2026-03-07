@@ -20,6 +20,8 @@ export const InnerMap = {
     
     // Cache of generated inner maps keyed by "q,r"
     _cache: {},
+    // Cache of time state per tile keyed by "q,r"
+    _timeCache: {},
 
     // Current inner map state
     active: false,
@@ -58,6 +60,7 @@ export const InnerMap = {
     // ── Object interaction state ─────────────────────────
     _pendingInteraction: null,  // { anchorQ, anchorR, defId } — set when walking toward an object
     _activeInteraction: null,   // { anchorQ, anchorR, defId, elapsed, duration, fading }
+    _pendingDialog: null,       // { npc, game } — set when walking toward an NPC to talk
 
     // ── NPC system ───────────────────────────────────────
     npcs: [],                  // Array of NPC objects on the inner map
@@ -167,6 +170,60 @@ export const InnerMap = {
     // ══════════════════════════════════════════════
     // NPC TYPES — townspeople that walk around the inner map
     // ══════════════════════════════════════════════
+    // ── NPC shop inventory generation ──
+    // Called when NPCs are spawned; gives merchant/traveler/blacksmith their own stock
+    _NPC_SHOP_POOLS: {
+        merchant: {
+            common: ['grain','bread','cheese','dried_meat','salt','candles','rope','honey','beer','tools','wood','wool','textiles','pottery','dyes','flour','tea'],
+            uncommon: ['wine','spices','exotic_spices','silk','perfume','clothes','firewood','iron','healing_salve','incense','lantern','arrows'],
+            rare: ['luxuries','gems','potion','amulet','rare_book'],
+            counts: { common: [5,8], uncommon: [3,5], rare: [0,2] },
+            qtyRange: { common: [3,12], uncommon: [1,6], rare: [1,2] },
+        },
+        traveler: {
+            common: ['dried_meat','bread','cheese','herbs','honey','salt','candles','rope','compass','lantern','tea','mushrooms'],
+            uncommon: ['exotic_spices','silk','perfume','wine','healing_salve','pelts','ancient_coin','dyes','potion','rare_book','incense','treasure_map'],
+            rare: ['elixir','enchanted_ring','amulet','gems'],
+            counts: { common: [3,5], uncommon: [2,4], rare: [1,2] },
+            qtyRange: { common: [1,5], uncommon: [1,3], rare: [1,1] },
+        },
+        blacksmith_npc: {
+            common: ['tools','iron','arrows','rope','lantern'],
+            uncommon: ['weapons','shield','bow','leather_armor','ore'],
+            rare: ['military_parts'],
+            counts: { common: [3,4], uncommon: [2,3], rare: [0,1] },
+            qtyRange: { common: [2,8], uncommon: [1,4], rare: [1,2] },
+        },
+    },
+
+    _generateNpcShop(npcType, rng) {
+        const pool = this._NPC_SHOP_POOLS[npcType];
+        if (!pool) return null;
+
+        const inv = {};  // { itemId: { qty, price } }
+        const pick = (arr, min, max) => {
+            const count = min + Math.floor(rng() * (max - min + 1));
+            const shuffled = arr.slice().sort(() => rng() - 0.5);
+            return shuffled.slice(0, Math.min(count, shuffled.length));
+        };
+
+        for (const tier of ['common', 'uncommon', 'rare']) {
+            const [cMin, cMax] = pool.counts[tier];
+            const [qMin, qMax] = pool.qtyRange[tier];
+            const picked = pick(pool[tier], cMin, cMax);
+            for (const itemId of picked) {
+                const qty = qMin + Math.floor(rng() * (qMax - qMin + 1));
+                // Price markup: merchants 1.0-1.15×, travelers 1.1-1.3×, blacksmiths 0.95-1.1×
+                let markup = 1.0;
+                if (npcType === 'traveler')      markup = 1.1 + rng() * 0.2;
+                else if (npcType === 'merchant') markup = 1.0 + rng() * 0.15;
+                else                             markup = 0.95 + rng() * 0.15;
+                inv[itemId] = { qty, markup: Math.round(markup * 100) / 100 };
+            }
+        }
+        return inv;
+    },
+
     NPC_TYPES: {
         merchant:    { name: 'Merchant',     icon: '🧑‍💼', speed: 0.4, destinations: ['marketplace', 'warehouse', 'tavern'] },
         guard:       { name: 'Guard',        icon: '💂', speed: 0.3, destinations: ['guard_tower', 'barracks', 'town_hall', 'gate'] },
@@ -251,19 +308,60 @@ export const InnerMap = {
         const gd = (typeof DataLoader !== 'undefined') ? DataLoader._gamedata : null;
         // Terrain editor brushes live in terrainNineTileBrushes (NOT nineTileBrushes which is building brushes)
         const brushes = Array.isArray(gd && gd.terrainNineTileBrushes) ? gd.terrainNineTileBrushes : [];
-        if (!brushes.length) return null;
 
-        const valid = brushes.filter(b => b && b.tiles && typeof b.tiles === 'object');
-        if (!valid.length) return null;
+        if (brushes.length) {
+            const valid = brushes.filter(b => b && b.tiles && typeof b.tiles === 'object');
+            if (valid.length) {
+                const byName = valid.find(b => /grass|meadow|lawn|turf/i.test(String(b.name || '')));
+                if (byName) return byName;
+                const hasCenter = valid.find(b => {
+                    return Array.isArray(b.tiles) && b.tiles[1] && b.tiles[1][1] && b.tiles[1][1].sheetPath;
+                });
+                if (hasCenter) return hasCenter;
+                return valid[0];
+            }
+        }
 
-        const byName = valid.find(b => /grass|meadow|lawn|turf/i.test(String(b.name || '')));
-        if (byName) return byName;
+        // ── Hardcoded fallback: build a brush from the LPC terrain sheet ──
+        // Edge tiles use the grass-to-dirt transition block (rows 0-2, cols 6-8).
+        // These are fully opaque tiles with textured grass/dirt blending — much
+        // fuller than the transparent overlay tiles at cols 0-2.
+        // Center + IC tiles are left null so they fall through to
+        // fillCategory:'grass' which gives hash-based fill variety.
+        if (this._fallbackGrassBrush) return this._fallbackGrassBrush;
 
-        // Fallback: any brush with a valid center tile (tiles[1][1])
-        const hasCenter = valid.find(b => {
-            return Array.isArray(b.tiles) && b.tiles[1] && b.tiles[1][1] && b.tiles[1][1].sheetPath;
-        });
-        return hasCenter || valid[0] || null;
+        const seasons = ['spring', 'summer', 'autumn', 'winter'];
+        const seasonTiles = {};
+        const seasonInsideCorners = {};
+
+        for (const season of seasons) {
+            const sheet = `assets/lpc/Terrain/terrain_${season}.png`;
+            const grid = [];
+            for (let row = 0; row < 3; row++) {
+                grid[row] = [];
+                for (let col = 0; col < 3; col++) {
+                    if (row === 1 && col === 1) {
+                        // Center: null → falls through to fillCategory:'grass'
+                        grid[row][col] = null;
+                    } else {
+                        // Edge/corner: transition tile at same position + 6 cols
+                        grid[row][col] = { sheetPath: sheet, sx: (col + 6) * 32, sy: row * 32 };
+                    }
+                }
+            }
+            seasonTiles[season] = grid;
+            // Inside corners: null → falls through to fillCategory:'grass'
+            seasonInsideCorners[season] = [null, null, null, null];
+        }
+
+        this._fallbackGrassBrush = {
+            name: 'Grass (Default)',
+            tiles: seasonTiles.spring,
+            insideCorners: [null, null, null, null],
+            seasonTiles,
+            seasonInsideCorners,
+        };
+        return this._fallbackGrassBrush;
     },
 
     /**
@@ -481,6 +579,21 @@ export const InnerMap = {
                                 sheetPath: ic.sheetPath,
                                 sx: Number.isFinite(ic.sx) ? ic.sx : 0,
                                 sy: Number.isFinite(ic.sy) ? ic.sy : 0,
+                                sw: 32,
+                                sh: 32,
+                            };
+                            continue;
+                        }
+                    }
+
+                    // Fallback for inside corners w/o defined IC tiles: use center fill
+                    if (info.ic !== undefined) {
+                        const center = tilesGrid[1] && tilesGrid[1][1];
+                        if (center && center.sheetPath) {
+                            tile.terrainDetail = {
+                                sheetPath: center.sheetPath,
+                                sx: Number.isFinite(center.sx) ? center.sx : 0,
+                                sy: Number.isFinite(center.sy) ? center.sy : 0,
                                 sw: 32,
                                 sh: 32,
                             };
@@ -730,6 +843,77 @@ export const InnerMap = {
     },
 
     // ══════════════════════════════════════════════════════════════
+    // DOOR EXCLUSION ZONE
+    // Scans all placed buildings for door markers and returns a Set
+    // of "q,r" keys forming a clearance area in front of each door.
+    // Trees/objects should not be placed on these tiles.
+    // ══════════════════════════════════════════════════════════════
+
+    _buildDoorExclusionZone(tiles, W, H) {
+        const zone = new Set();
+        const CLEARANCE = 3; // tiles of clearance in front of door
+
+        for (let r = 0; r < H; r++) {
+            for (let q = 0; q < W; q++) {
+                const tile = tiles[r][q];
+
+                // Custom buildings: check anchor tiles for door meta
+                if (tile.customBuilding) {
+                    const def = (typeof CustomBuildings !== 'undefined' && CustomBuildings.isLoaded())
+                        ? CustomBuildings.getBuilding(tile.customBuilding.defId)
+                        : null;
+                    if (def && def.meta) {
+                        const bounds = def.bounds || { minRow: 0, maxRow: 0, minCol: 0, maxCol: 0 };
+                        for (const m of def.meta) {
+                            if (!m.door) continue;
+                            const doorQ = q + m.q;
+                            const doorR = r + m.r;
+
+                            // Determine facing: door on bottom edge = faces south,
+                            // top edge = north, left edge = west, right edge = east.
+                            // Default: south (most common for LPC buildings).
+                            let dq = 0, dr = 1; // south by default
+                            if (m.r === bounds.minRow)      { dq = 0; dr = -1; } // top → north
+                            else if (m.r === bounds.maxRow)  { dq = 0; dr = 1;  } // bottom → south
+                            else if (m.q === bounds.minCol)  { dq = -1; dr = 0; } // left → west
+                            else if (m.q === bounds.maxCol)  { dq = 1; dr = 0;  } // right → east
+
+                            // Mark clearance in front of door + 1 tile width either side
+                            for (let d = 0; d <= CLEARANCE; d++) {
+                                const cq = doorQ + dq * d;
+                                const cr = doorR + dr * d;
+                                for (let s = -1; s <= 1; s++) {
+                                    const fq = cq + (dr !== 0 ? s : 0);
+                                    const fr = cr + (dq !== 0 ? s : 0);
+                                    if (fq >= 0 && fq < W && fr >= 0 && fr < H) {
+                                        zone.add(`${fq},${fr}`);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Legacy sprite buildings: door is assumed at bottom-center
+                if (tile.building && !tile.customBuilding) {
+                    // Mark 3 tiles directly below the building tile
+                    for (let d = 1; d <= CLEARANCE; d++) {
+                        const fr = r + d;
+                        for (let s = -1; s <= 1; s++) {
+                            const fq = q + s;
+                            if (fq >= 0 && fq < W && fr >= 0 && fr < H) {
+                                zone.add(`${fq},${fr}`);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return zone;
+    },
+
+    // ══════════════════════════════════════════════════════════════
     // CUSTOM OBJECT SCATTER
     // Called from generate() after terrain + buildings are placed.
     // Places editor-authored objects from CustomObjects by matching
@@ -741,6 +925,11 @@ export const InnerMap = {
         const W = this.width;
         const H = this.height;
         const unboundPool = CustomObjects.getUnboundObjects();
+
+        // ── Build door exclusion zone ──
+        // Prevent trees/objects from being placed directly in front of building doors.
+        // For each building with door meta, mark a clearance area around/in front of the door.
+        const doorExclusion = this._buildDoorExclusionZone(tiles, W, H);
 
         // Build set of object IDs that are only spawned via spawnAfter
         // (e.g. stumps) — these should never be auto-scattered.
@@ -800,6 +989,9 @@ export const InnerMap = {
                     const ft = tiles[fr][fq];
                     if (ft.building || ft.customObject || ft.customObjectPart)
                         { clear = false; break; }
+                    // Prevent placement in front of building doors
+                    if (doorExclusion.has(`${fq},${fr}`))
+                        { clear = false; break; }
                 }
                 if (!clear) continue;
 
@@ -819,6 +1011,15 @@ export const InnerMap = {
                 if (autoColorVariantIdx != null) customObj.colorVariantIdx = autoColorVariantIdx;
                 tile.customObject = customObj;
 
+                // ── Build meta lookup for Format B composed objects ──
+                let metaLookup = null;
+                if (Array.isArray(def.meta) && def.meta.length > 0) {
+                    metaLookup = {};
+                    for (const m of def.meta) {
+                        metaLookup[`${m.localCol},${m.localRow}`] = m;
+                    }
+                }
+
                 // ── Mark footprint ──
                 for (const tDef of def.tiles) {
                     const fr = r + tDef.localRow;
@@ -829,7 +1030,10 @@ export const InnerMap = {
                         ft.customObjectPart = { anchorQ: q, anchorR: r };
                     }
                     // Honour the per-tile impassable flag from the editor
-                    if (tDef.impassable) {
+                    // Format A: impassable is directly on tDef
+                    // Format B: impassable is in def.meta[] keyed by localCol,localRow
+                    const meta = metaLookup && metaLookup[`${tDef.localCol},${tDef.localRow}`];
+                    if (tDef.impassable || (meta && meta.impassable)) {
                         ft.subTerrain.passable = false;
                     }
                 }
@@ -1512,10 +1716,18 @@ export const InnerMap = {
         // Make sure center and surroundings are explored
         this._revealAround(this.tiles, this.playerInnerQ, this.playerInnerR, 2);
 
-        // ── Initialize time system ──
-        this.timeOfDay = 8;  // Start at 8 AM
-        this._timeAccumulator = 0;
-        this.dayEnded = false;
+        // ── Restore or initialize time system ──
+        const timeKey = `${worldQ},${worldR}`;
+        const savedTime = this._timeCache[timeKey];
+        if (savedTime) {
+            this.timeOfDay = savedTime.timeOfDay;
+            this._timeAccumulator = savedTime._timeAccumulator;
+            this.dayEnded = savedTime.dayEnded || false;
+        } else {
+            this.timeOfDay = 8;  // Start at 8 AM
+            this._timeAccumulator = 0;
+            this.dayEnded = false;
+        }
 
         // ── Snapshot weather / temperature from world ──
         if (game.world && game.world.weather) {
@@ -1581,6 +1793,17 @@ export const InnerMap = {
         if (this._insideBuilding) {
             this.exitBuilding(game);
         }
+
+        // Save time state for this tile before exiting
+        if (this.currentWorldTile) {
+            const timeKey = `${this.currentWorldTile.q},${this.currentWorldTile.r}`;
+            this._timeCache[timeKey] = {
+                timeOfDay: this.timeOfDay,
+                _timeAccumulator: this._timeAccumulator,
+                dayEnded: this.dayEnded
+            };
+        }
+
         this.active = false;
         this.currentWorldTile = null;
         this._currentWorldTileRef = null;
@@ -1590,6 +1813,7 @@ export const InnerMap = {
         this.dayEnded = false;
         this._pendingInteraction = null;
         this._activeInteraction = null;
+        this._pendingDialog = null;
         this._insideBuilding = null;
         this._outerMapState = null;
         // Tiles remain cached for re-entry
@@ -1938,9 +2162,10 @@ export const InnerMap = {
      */
     _generateInterior(building, interiorKey) {
         // ── Try linked custom interior first (by building def ID) ──
-        if (building._customDefId && typeof CustomInteriors !== 'undefined' && CustomInteriors.hasAny()) {
+        if (building._customDefId && typeof CustomInteriors !== 'undefined') {
             const linked = CustomInteriors.pickForBuildingId(building._customDefId);
             if (linked) {
+                console.log(`[Interior] Using linked interior "${linked.id || linked.name}" for building "${building.name}" (defId: ${building._customDefId})`);
                 return this._generateCustomInterior(linked, building);
             }
         }
@@ -1985,6 +2210,7 @@ export const InnerMap = {
         }
 
         // ── Fallback: procedural interior from INTERIOR_LAYOUTS ──
+        console.log(`[Interior] Falling back to procedural interior for "${building.name}" (type: ${building.type}, defId: ${building._customDefId || 'none'}, customInteriorsLoaded: ${typeof CustomInteriors !== 'undefined' ? CustomInteriors.hasAny() : false})`);
         const layout = this.INTERIOR_LAYOUTS[building.type] || this.INTERIOR_LAYOUTS.house;
         const w = layout.width;
         const h = layout.height;
@@ -2178,6 +2404,56 @@ export const InnerMap = {
                         overlay:   overlayCell   || null,
                     },
                 };
+            }
+        }
+
+        // ── Place custom objects from the interior definition ──
+        if (Array.isArray(def.placedObjects) && def.placedObjects.length > 0 &&
+            typeof CustomObjects !== 'undefined' && CustomObjects.isLoaded()) {
+            for (const po of def.placedObjects) {
+                const aq = po.anchorQ;
+                const ar = po.anchorR;
+                // Bounds check — anchor must be within the generated tile grid
+                if (aq < 0 || aq >= w || ar < 0 || ar >= h) continue;
+
+                const objDef = po.defId ? CustomObjects.getDef(po.defId) : null;
+                // Use the CustomObjects def tiles if available, otherwise use embedded tiles
+                const objTiles = (objDef && objDef.tiles) ? objDef.tiles : (po.tiles || []);
+                if (objTiles.length === 0) continue;
+
+                // Set the anchor tile's customObject reference
+                tiles[ar][aq].customObject = {
+                    defId: po.defId || null,
+                    sheetPath: objDef ? objDef.sheetPath : null,
+                    currentHealthPct: 100,
+                    _interiorPlaced: true,
+                };
+
+                // Build meta lookup for impassable flags
+                let metaLookup = null;
+                if (objDef && Array.isArray(objDef.meta) && objDef.meta.length > 0) {
+                    metaLookup = {};
+                    for (const m of objDef.meta) {
+                        metaLookup[`${m.localCol},${m.localRow}`] = m;
+                    }
+                }
+
+                // Mark footprint tiles
+                for (const td of objTiles) {
+                    const fq = aq + td.localCol;
+                    const fr = ar + td.localRow;
+                    if (fq < 0 || fq >= w || fr < 0 || fr >= h) continue;
+                    const ft = tiles[fr][fq];
+                    // Non-anchor tiles get a back-reference
+                    if (td.localCol !== 0 || td.localRow !== 0) {
+                        ft.customObjectPart = { anchorQ: aq, anchorR: ar };
+                    }
+                    // Honour impassable flags
+                    const meta = metaLookup && metaLookup[`${td.localCol},${td.localRow}`];
+                    if (td.impassable || (meta && meta.impassable)) {
+                        ft.subTerrain.passable = false;
+                    }
+                }
             }
         }
 
@@ -2424,6 +2700,14 @@ export const InnerMap = {
                     const spawnColorVariantIdx = this._pickAutoColorVariantIdx(spawnDef, Math.random);
                     if (spawnColorVariantIdx != null) newObj.colorVariantIdx = spawnColorVariantIdx;
                     anchorTile.customObject = newObj;
+                    // Build meta lookup for Format B composed objects
+                    let spawnMetaLookup = null;
+                    if (Array.isArray(spawnDef.meta) && spawnDef.meta.length > 0) {
+                        spawnMetaLookup = {};
+                        for (const m of spawnDef.meta) {
+                            spawnMetaLookup[`${m.localCol},${m.localRow}`] = m;
+                        }
+                    }
                     // Mark footprint tiles
                     for (const tDef of spawnDef.tiles) {
                         const fq = anchorQ + tDef.localCol;
@@ -2433,11 +2717,33 @@ export const InnerMap = {
                         if (tDef.localCol !== 0 || tDef.localRow !== 0) {
                             ft.customObjectPart = { anchorQ, anchorR };
                         }
-                        if (tDef.impassable) ft.subTerrain.passable = false;
+                        const sMeta = spawnMetaLookup && spawnMetaLookup[`${tDef.localCol},${tDef.localRow}`];
+                        if (tDef.impassable || (sMeta && sMeta.impassable)) ft.subTerrain.passable = false;
                     }
                 }
             }
         }
+    },
+
+    /**
+     * Find the best walkable tile adjacent to a single tile (e.g. an NPC).
+     * Returns { q, r } closest to the player, or null.
+     */
+    findAdjacentPassable(tq, tr) {
+        const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+        const candidates = [];
+        for (const [dq, dr] of dirs) {
+            const nq = tq + dq, nr = tr + dr;
+            if (nq < 0 || nq >= this.width || nr < 0 || nr >= this.height) continue;
+            const t = this.getTile(nq, nr);
+            if (!t || !t.subTerrain.passable) continue;
+            if (t.building || t.customObject) continue;
+            const dist = Math.abs(nq - this.playerInnerQ) + Math.abs(nr - this.playerInnerR);
+            candidates.push({ q: nq, r: nr, dist });
+        }
+        if (candidates.length === 0) return null;
+        candidates.sort((a, b) => a.dist - b.dist);
+        return { q: candidates[0].q, r: candidates[0].r };
     },
 
     /**
@@ -2764,7 +3070,8 @@ export const InnerMap = {
     serialize() {
         return {
             cache: this._cache,
-            discoveredEncounters: this._discoveredEncounters
+            discoveredEncounters: this._discoveredEncounters,
+            timeCache: this._timeCache
         };
     },
 
@@ -2775,6 +3082,7 @@ export const InnerMap = {
         if (data) {
             this._cache = data.cache || {};
             this._discoveredEncounters = data.discoveredEncounters || {};
+            this._timeCache = data.timeCache || {};
 
             // ── Migration: Fix stale baseTerrain on water/ice feature tiles ──
             // Old saves set baseTerrain='water' for brooks/streams/ponds etc.
@@ -2808,6 +3116,7 @@ export const InnerMap = {
     clearCache() {
         this._cache = {};
         this._discoveredEncounters = {};
+        this._timeCache = {};
     },
 
     // ══════════════════════════════════════════════
@@ -2833,6 +3142,34 @@ export const InnerMap = {
             }
         }
         return null;
+    },
+
+    /**
+     * Get cached time info for a world tile (when not actively in inner map).
+     * Returns { timeOfDay, timeString, period, periodIcon } or null.
+     */
+    getCachedTimeForTile(q, r) {
+        const key = `${q},${r}`;
+        const saved = this._timeCache[key];
+        if (!saved) return null;
+        const hour = saved.timeOfDay % 24;
+        const acc = saved._timeAccumulator || 0;
+        const minuteProgress = acc / this.TIME_SCALE;
+        const minutes = Math.floor(minuteProgress * 60);
+        const mm = minutes < 10 ? `0${minutes}` : `${minutes}`;
+        let timeString;
+        if (hour === 0) timeString = `12:${mm} AM`;
+        else if (hour < 12) timeString = `${hour}:${mm} AM`;
+        else if (hour === 12) timeString = `12:${mm} PM`;
+        else timeString = `${hour - 12}:${mm} PM`;
+        let period;
+        if (hour >= 6 && hour < 10) period = 'morning';
+        else if (hour >= 10 && hour < 14) period = 'midday';
+        else if (hour >= 14 && hour < 18) period = 'afternoon';
+        else if (hour >= 18 && hour < 21) period = 'evening';
+        else period = 'night';
+        const periodIcons = { morning: '🌅', midday: '☀️', afternoon: '🌤️', evening: '🌇', night: '🌙' };
+        return { timeOfDay: saved.timeOfDay, timeString, period, periodIcon: periodIcons[period] || '🕐' };
     },
 
     /**
@@ -2955,7 +3292,11 @@ export const InnerMap = {
             const customDefId = tile.customBuilding && tile.customBuilding.defId;
             if (customDefId && typeof CustomBuildings !== 'undefined' && typeof CustomBuildings.getBuilding === 'function') {
                 customBuildingDef = CustomBuildings.getBuilding(customDefId);
-                if (customBuildingDef && customBuildingDef.buildingType) {
+                // Only use the custom def's buildingType if it's a specific role
+                // (not the generic 'house' default), so settlement role assignment
+                // (tavern, blacksmith, marketplace, etc.) can take precedence.
+                if (customBuildingDef && customBuildingDef.buildingType &&
+                    customBuildingDef.buildingType !== 'house') {
                     buildingType = customBuildingDef.buildingType;
                 }
             }
@@ -3237,6 +3578,8 @@ export const InnerMap = {
                     // Traveler tracking
                     visitsLeft: npcType === 'traveler' ? (1 + Math.floor(rng() * 3)) : -1,
                     departing: false,
+                    // Personal trade inventory (merchants, travelers, blacksmiths)
+                    shopInventory: this._generateNpcShop(npcType, rng),
                 });
             }
         }
@@ -3275,6 +3618,9 @@ export const InnerMap = {
                 }
                 if (!relocated) { npc.state = 'gone'; continue; }
             }
+
+            // Skip update for NPCs frozen in dialog
+            if (npc._dialogFrozen || npc.state === 'dialog') continue;
 
             switch (npc.state) {
                 case 'idle':

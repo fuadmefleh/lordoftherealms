@@ -1421,13 +1421,16 @@ export const InnerMap = {
             // Mark anchor tile
             tiles[ar][aq].customBuilding = { defId: def.id };
 
-            // Mark the remaining footprint tiles as "part of building"
+            // Mark the remaining footprint tiles as "part of building" and block them
             for (let dr = bounds.minRow; dr <= bounds.maxRow; dr++) {
                 for (let dq = bounds.minCol; dq <= bounds.maxCol; dq++) {
                     if (dr === 0 && dq === 0) continue;
                     tiles[ar + dr][aq + dq].customBuildingPart = { anchorQ: aq, anchorR: ar };
+                    tiles[ar + dr][aq + dq].subTerrain.passable = false;
                 }
             }
+            // Also block the anchor tile itself
+            tiles[ar][aq].subTerrain.passable = false;
 
             // Apply impassable / door meta from the building editor
             for (const m of (def.meta || [])) {
@@ -2089,7 +2092,20 @@ export const InnerMap = {
         this.height = interior.height;
         this.buildings = []; // No sub-buildings inside
         this.roads = [];
-        this.npcs = [];
+
+        // Populate interior with NPCs that are currently inside this building
+        const interiorNpcs = [];
+        const outerNpcs = this._outerMapState.npcs;
+        for (const npc of outerNpcs) {
+            if (npc.state === 'inside_building' &&
+                npc._insideBuildingQ === building.q &&
+                npc._insideBuildingR === building.r) {
+                // Place NPC on a passable interior tile
+                const placed = this._placeNpcInInterior(npc, interior);
+                if (placed) interiorNpcs.push(npc);
+            }
+        }
+        this.npcs = interiorNpcs;
 
         // Place player at the door (bottom center)
         this.playerInnerQ = Math.floor(this.width / 2);
@@ -2131,6 +2147,9 @@ export const InnerMap = {
             this.playerInnerR = adj.r;
         }
 
+        // Any NPCs that were shown in the interior go back to inside_building state
+        // (they'll eventually exit on their own timer from outerNpcs)
+
         this._insideBuilding = null;
         this._outerMapState = null;
 
@@ -2138,6 +2157,36 @@ export const InnerMap = {
         this.cancelPlayerWalk();
         this._pendingInteraction = null;
         this._activeInteraction = null;
+    },
+
+    /**
+     * Place an NPC at a walkable position inside a building interior.
+     * Modifies npc.q/r in place. Returns true if placed successfully.
+     */
+    _placeNpcInInterior(npc, interior) {
+        const w = interior.width, h = interior.height;
+        const tiles = interior.tiles;
+        // Collect passable interior tiles (avoid the door row)
+        const candidates = [];
+        for (let r = 1; r < h - 1; r++) {
+            for (let q = 1; q < w - 1; q++) {
+                if (tiles[r] && tiles[r][q] && tiles[r][q].subTerrain &&
+                    tiles[r][q].subTerrain.passable && !tiles[r][q]._isDoor) {
+                    candidates.push({ q, r });
+                }
+            }
+        }
+        if (candidates.length === 0) return false;
+        const pos = candidates[Math.floor(Math.random() * candidates.length)];
+        npc.q = pos.q;
+        npc.r = pos.r;
+        npc.prevQ = pos.q;
+        npc.prevR = pos.r;
+        npc.path = null;
+        npc.moveProgress = 0;
+        // Keep them idle inside the interior (state stays inside_building
+        // but the renderer will show them because _insideBuilding is set)
+        return true;
     },
 
     /**
@@ -3669,16 +3718,24 @@ export const InnerMap = {
                                     continue;
                                 }
 
-                                const bldg = this.getBuildingAt(npc.q, npc.r);
+                                // Check if we arrived at a building we were targeting
+                                const bldg = npc._targetBuilding || this.getBuildingAt(npc.q, npc.r);
                                 if (bldg) {
-                                    npc.state = 'at_building';
+                                    // NPC "enters" the building — hidden from outdoor map
+                                    npc.state = 'inside_building';
                                     npc.currentBuilding = bldg.type;
-                                    npc.idleTimer = 3 + Math.random() * 8;
+                                    npc._insideBuildingQ = bldg.q;
+                                    npc._insideBuildingR = bldg.r;
+                                    npc._outsideQ = npc.q; // remember position for when they exit
+                                    npc._outsideR = npc.r;
+                                    npc.idleTimer = 8 + Math.random() * 20; // stay inside 8-28 seconds
+                                    npc._targetBuilding = null;
                                     // Traveler visited a place
                                     if (npc.visitsLeft > 0) npc.visitsLeft--;
                                 } else {
                                     npc.state = 'idle';
                                     npc.idleTimer = 1 + Math.random() * 4;
+                                    npc._targetBuilding = null;
                                 }
                             }
                         }
@@ -3696,11 +3753,64 @@ export const InnerMap = {
                         npc.idleTimer = 0.5;
                     }
                     break;
+
+                case 'inside_building':
+                    npc.idleTimer -= deltaTime;
+                    if (npc.idleTimer <= 0) {
+                        if (this._insideBuilding) {
+                            // Player is viewing this interior — NPC "leaves" the building
+                            // Remove from interior npcs array (they'll reappear outside
+                            // when player exits, since outerMapState still has them)
+                            npc.state = 'leaving_building';
+                        } else {
+                            // Normal outdoor map — NPC exits, reappear at outdoor position
+                            npc.currentBuilding = null;
+                            npc._insideBuildingQ = undefined;
+                            npc._insideBuildingR = undefined;
+                            if (npc._outsideQ != null) {
+                                npc.q = npc._outsideQ;
+                                npc.r = npc._outsideR;
+                                npc.prevQ = npc.q;
+                                npc.prevR = npc.r;
+                            }
+                            npc._outsideQ = undefined;
+                            npc._outsideR = undefined;
+                            npc.state = 'idle';
+                            npc.idleTimer = 1 + Math.random() * 3;
+                        }
+                    }
+                    break;
             }
         }
 
-        // Remove departed travelers
-        this.npcs = this.npcs.filter(n => n.state !== 'gone');
+        // Remove departed travelers and NPCs that left the building interior
+        if (this._insideBuilding) {
+            // When inside a building, NPCs that "leave" should be marked as
+            // exited in the outer map state so they reappear outside
+            for (const npc of this.npcs) {
+                if (npc.state === 'leaving_building' && this._outerMapState) {
+                    const outerNpc = this._outerMapState.npcs.find(n => n.id === npc.id);
+                    if (outerNpc) {
+                        outerNpc.state = 'idle';
+                        outerNpc.idleTimer = 1 + Math.random() * 3;
+                        outerNpc.currentBuilding = null;
+                        if (outerNpc._outsideQ != null) {
+                            outerNpc.q = outerNpc._outsideQ;
+                            outerNpc.r = outerNpc._outsideR;
+                            outerNpc.prevQ = outerNpc.q;
+                            outerNpc.prevR = outerNpc.r;
+                        }
+                        outerNpc._outsideQ = undefined;
+                        outerNpc._outsideR = undefined;
+                        outerNpc._insideBuildingQ = undefined;
+                        outerNpc._insideBuildingR = undefined;
+                    }
+                }
+            }
+            this.npcs = this.npcs.filter(n => n.state !== 'leaving_building' && n.state !== 'gone');
+        } else {
+            this.npcs = this.npcs.filter(n => n.state !== 'gone');
+        }
     },
 
     /**
@@ -3769,8 +3879,13 @@ export const InnerMap = {
         );
 
         let target = null;
+        let targetBuilding = null;
         if (candidates.length > 0) {
-            target = candidates[Math.floor(Math.random() * candidates.length)];
+            const bldg = candidates[Math.floor(Math.random() * candidates.length)];
+            // Path to a passable tile adjacent to the building (anchor may be impassable)
+            const adj = this._findPassableAdjacentTile(bldg.q, bldg.r);
+            target = adj;
+            targetBuilding = bldg;
         } else {
             // Random passable tile
             let attempts = 0;
@@ -3794,6 +3909,7 @@ export const InnerMap = {
                 npc.prevQ = npc.q;
                 npc.prevR = npc.r;
                 npc.state = 'walking';
+                npc._targetBuilding = targetBuilding; // remember the building we're headed to
                 return;
             }
         }

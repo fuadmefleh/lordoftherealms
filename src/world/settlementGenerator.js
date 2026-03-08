@@ -645,14 +645,17 @@ function _tryPlaceCustomBuilding(tiles, def, lot, mapW, mapH) {
     // Place anchor
     tiles[anchorR][anchorQ].customBuilding = { defId: def.id };
 
-    // Mark footprint
+    // Mark footprint — block all tiles by default (doors override below)
     for (let dr = bounds.minRow; dr <= bounds.maxRow; dr++) {
         for (let dq = bounds.minCol; dq <= bounds.maxCol; dq++) {
             if (dr === 0 && dq === 0) continue;
             const fq = anchorQ + dq, fr = anchorR + dr;
             tiles[fr][fq].customBuildingPart = { anchorQ, anchorR };
+            tiles[fr][fq].subTerrain.passable = false;
         }
     }
+    // Also block the anchor tile itself
+    tiles[anchorR][anchorQ].subTerrain.passable = false;
 
     // Apply meta (impassable, door)
     for (const m of (def.meta || [])) {

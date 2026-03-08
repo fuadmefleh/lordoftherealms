@@ -159,3 +159,34 @@ Hex-grid world map editor for painting terrain and placing overlays (villages, c
 - **Build data:** `npm run build:data` (merges `data/*.json` → `data/gamedata.json`)
 - **Electron:** `npm run electron` (loads `dist-web/index.html`)
 - **Package:** `npm run dist` (Windows installer via electron-builder)
+
+## Self-Learning
+
+After completing any non-trivial task (bug fix, new feature, refactor, or architectural change), update this file with lessons learned so future sessions benefit. Append new entries to the relevant section below — never remove existing entries.
+
+### Pitfalls & Gotchas
+
+- **Vite HMR kills the game loop.** React Fast Refresh re-runs effect cleanups, including the `[]` effect in `GameView.jsx` that sets `isRunning = false`. The fix uses a module-level `_hmrGame` variable to persist the `Game` instance across HMR and a recovery effect that re-attaches and restarts the loop.
+- **Building footprint tiles must default to impassable.** Custom buildings mark footprint tiles via `customBuildingPart` but originally left `subTerrain.passable` unchanged. This let the player walk through buildings. Fix: block all footprint tiles by default in both `innerMap.js` and `settlementGenerator.js`, then let `door` meta re-enable passability.
+- **Loop-based time advancement overwrites instead of accumulating.** A `for` loop that sets `_timeAccumulator = TIME_SCALE` on each iteration only advances 1 hour regardless of the loop count. Fix: directly modify `timeOfDay += hours` with proper 24-hour wrapping.
+- **Auto-enter door checks must be narrow.** Using `customBuildingPart && passable` as a door heuristic is too broad — it treats every passable building tile as a door. Only tiles with an explicit `_doorMarker` (set via the editor's Door tool) should trigger auto-enter.
+- **`data/gamedata.json` is a generated build artifact.** Never edit it directly — edit individual JSON files under `data/` and run `npm run build:data`.
+- **Editor HTML files use global scope, not ES modules.** They have inline `<script>` blocks with `onclick` attributes. Don't try to use `import`/`export` in them.
+- **Never use `prompt()`, `alert()`, or `confirm()`.** Use the editor's `modalPrompt()`, `modalMultiPrompt()`, `modalConfirm()` helpers instead.
+
+### Architectural Patterns
+
+- **Module-level singletons for HMR resilience:** Store critical instances (like the `Game` object) in module-level variables outside React's lifecycle so they survive Hot Module Replacement. Add recovery effects that detect and re-attach orphaned instances.
+- **Inner map tile structure:** Each tile has `subTerrain.passable` for pathfinding, `customBuilding` on anchor tiles, `customBuildingPart` on non-anchor footprint tiles, `_doorMarker` on door tiles, and optional `building` for legacy sprite buildings.
+- **Pathfinding uses `subTerrain.passable` exclusively.** The A* algorithm in `InnerMap._findPath` only checks `tile.subTerrain.passable` — any other blocking mechanism must funnel through this flag.
+- **Building placement order matters:** (1) mark anchor with `customBuilding`, (2) mark footprint with `customBuildingPart` + block passability, (3) apply meta overrides (impassable/door). Door meta must come last so it can re-enable passability on specific tiles.
+- **Fire-and-forget async patterns:** `enterInnerMap()` is called without `await` from `_doStartNewGame()` to avoid blocking the React loading overlay. Use `_enteringInnerMap` guard flag to prevent double-entry during the async gap.
+- **Camera systems:** World map uses `Camera` with hex wrapping; inner map uses `innerMapCamera` with pixel bounds and no X-wrap. Interior mode reconfigures zoom/bounds via `_configureInnerMapCamera('interior')`.
+- **NPC building entry lifecycle:** NPCs path to a passable tile adjacent to a building, then enter `inside_building` state (hidden outdoors). When the player enters that building, matching NPCs are placed on interior tiles and rendered. When an NPC's timer expires inside an interior the player is viewing, it transitions to `leaving_building` state (removed from interior, restored to outdoor idle in `_outerMapState`). The `_outerMapState` preserves all outdoor NPCs while the player is in a building interior.
+
+### Common Debugging Strategies
+
+- **Game loop stops unexpectedly:** Check all code paths that set `isRunning = false` (constructor, React cleanup effects). Also check for unhandled exceptions in the loop body — wrap critical sections in try/catch.
+- **Player walks through solid objects:** Verify `subTerrain.passable` is being set to `false` at placement time. Check the order of operations — meta overrides (door) may re-enable passability after blocking.
+- **Inner map rendering blank:** Check `InnerMap.active`, `InnerMap.tiles` array dimensions, camera zoom/position, and `InnerMapRenderer.whenLoaded()` completion.
+- **Editor data not saving:** Verify `notifyParent()` sends the correct postMessage type, and that `editor.html` has a matching handler that merges into `_gamedata`.

@@ -4,10 +4,27 @@ import TopBar from './TopBar';
 import { Game } from '../ui/game';
 import { DataLoader } from '../core/dataLoader';
 
+// Persist game instance at module level so Vite HMR doesn't lose it.
+// React Fast Refresh re-runs all effect cleanups (even [] deps) during HMR,
+// which would kill the game loop and null-out gameRef. By keeping a reference
+// here, the next render can recover the running game.
+let _hmrGame = null;
+
 export default function GameView() {
   const { gameState, gameRef, setPhase, updatePlayerStats, updateTurn } = useGame();
   const canvasRef = useRef(null);
   const initRef = useRef(false);
+
+  // ── HMR recovery: if a previous game instance survived a hot reload,
+  //    re-attach it to gameRef and restart the loop.
+  useEffect(() => {
+    if (_hmrGame && !gameRef.current && gameState.phase === 'playing') {
+      _hmrGame.isRunning = true;
+      _hmrGame.lastTime = performance.now();
+      gameRef.current = _hmrGame;
+      requestAnimationFrame((t) => _hmrGame.gameLoop(t));
+    }
+  });
 
   // Unmount-only cleanup: stop the game loop when GameView leaves the DOM.
   // This must NOT be in the phase-dependent effect, because that effect's
@@ -19,6 +36,8 @@ export default function GameView() {
         gameRef.current.isRunning = false;
         gameRef.current = null;
       }
+      // Don't clear _hmrGame here — it's intentionally kept alive
+      // so HMR can recover. It gets replaced when a new game starts.
     };
   }, []);
 
@@ -45,6 +64,7 @@ export default function GameView() {
         const game = new Game({ canvas: canvasRef.current, reactMode: true });
         if (cancelled) { game.isRunning = false; return; }
         gameRef.current = game;
+        _hmrGame = game;  // Persist for HMR recovery
 
         // Bridge: let the Game push stats back into React
         game._reactBridge = { updatePlayerStats, updateTurn, setPhase };
@@ -58,7 +78,6 @@ export default function GameView() {
         }
 
         if (cancelled) return;
-        console.log('[DIAG] GameView: startNewGame resolved, setting phase to playing');
         setPhase('playing');
       } catch (err) {
         if (cancelled) return;

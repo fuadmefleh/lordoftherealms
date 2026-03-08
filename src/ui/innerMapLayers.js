@@ -913,6 +913,8 @@ Object.assign(InnerMapRenderer, {
         const charReady = InnerMapCharacters.isReady();
 
         for (const npc of InnerMap.npcs) {
+            // Skip NPCs that are hidden inside a building (on outdoor map)
+            if (npc.state === 'inside_building' && !InnerMap._insideBuilding) continue;
             // Lazy preset assignment — runs once per NPC after characters are loaded
             if (charReady && !npc.preset) {
                 npc.preset = InnerMapCharacters.getPresetForNPC(npc.type, npc.id);
@@ -1521,6 +1523,8 @@ Object.assign(InnerMapRenderer, {
         // ── Phase 3: Collect NPCs ───────────────────────────────────────────────
         if (InnerMap.npcs && InnerMap.npcs.length > 0) {
             for (const npc of InnerMap.npcs) {
+                // Skip NPCs that are hidden inside a building (on outdoor map)
+                if (npc.state === 'inside_building' && !InnerMap._insideBuilding) continue;
                 if (charReady && !npc.preset) {
                     npc.preset = InnerMapCharacters.getPresetForNPC(npc.type, npc.id);
                 }

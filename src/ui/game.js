@@ -1081,13 +1081,11 @@ export class Game {
         // Start game loop
         this.isRunning = true;
         this.lastTime = performance.now();
-        console.log('[DIAG] Game loop starting, isRunning =', this.isRunning);
         requestAnimationFrame((t) => this.gameLoop(t));
 
         // Auto-enter inner map at spawn (fire-and-forget — do NOT await, else
         // the React LoadingOverlay stays on-screen blocking all input until
         // inner-map assets finish loading).
-        console.log('[DIAG] Firing enterInnerMap (not awaited)...');
         this.enterInnerMap(this.player.q, this.player.r);
 
         // Start context-aware music
@@ -1103,12 +1101,7 @@ export class Game {
      * Main game loop
      */
     gameLoop(timestamp) {
-        if (!this.isRunning) { console.warn('[DIAG] gameLoop: isRunning is false, stopping.'); return; }
-
-        this._loopCount = (this._loopCount || 0) + 1;
-        if (this._loopCount <= 5 || this._loopCount % 300 === 0) {
-            console.log(`[DIAG] gameLoop #${this._loopCount}: InnerMap.active=${InnerMap.active}, _enteringInnerMap=${this._enteringInnerMap}, innerMapMode=${this.innerMapMode}`);
-        }
+        if (!this.isRunning) return;
 
         const deltaTime = Math.min((timestamp - this.lastTime) / 1000, 0.1);
         this.lastTime = timestamp;
@@ -1116,9 +1109,6 @@ export class Game {
         // ── Inner Map Mode ──
         if (InnerMap.active) {
             try {
-            if (this._loopCount <= 3) {
-                console.log(`[DIAG] inner-map render: canvas=${this.canvas.width}x${this.canvas.height}, cam.zoom=${this.innerMapCamera.zoom}, cam.x=${this.innerMapCamera.x}, cam.y=${this.innerMapCamera.y}, tiles=${InnerMap.tiles?.length}x${InnerMap.tiles?.[0]?.length}, tileSize=${InnerMapRenderer.TILE_SIZE}`);
-            }
             this.innerMapCamera.update(deltaTime);
             this.innerMapCamera.precomputeFrame();
 
@@ -1192,17 +1182,9 @@ export class Game {
                     }
 
                     // ── Auto-enter building when stepping on a door tile ──
-                    // Triggers when walking onto: a tile with an explicit door marker,
-                    // OR a passable tile within a custom building's footprint (the "door" area).
-                    if (arrivedTile && !InnerMap._insideBuilding) {
-                        let autoEnterBuilding = null;
-                        if (arrivedTile._doorMarker) {
-                            // Explicit door marker set by the editor
-                            autoEnterBuilding = InnerMap.getBuildingAt(arrivedTile._doorMarker.anchorQ, arrivedTile._doorMarker.anchorR);
-                        } else if (arrivedTile.customBuildingPart && arrivedTile.subTerrain && arrivedTile.subTerrain.passable) {
-                            // Passable tile within a custom building footprint = door area
-                            autoEnterBuilding = InnerMap.getBuildingAt(arrivedTile.customBuildingPart.anchorQ, arrivedTile.customBuildingPart.anchorR);
-                        }
+                    // Only triggers on tiles with an explicit _doorMarker set by the building editor.
+                    if (arrivedTile && !InnerMap._insideBuilding && arrivedTile._doorMarker) {
+                        const autoEnterBuilding = InnerMap.getBuildingAt(arrivedTile._doorMarker.anchorQ, arrivedTile._doorMarker.anchorR);
                         if (autoEnterBuilding && typeof InnerMap.enterBuilding === 'function') {
                             InnerMap.cancelPlayerWalk();
                             InnerMap._pendingInteraction = null;
@@ -1340,7 +1322,7 @@ export class Game {
             this.minimap.render();
 
             } catch (innerErr) {
-                console.error('[DIAG] CRASH in inner map branch of gameLoop:', innerErr);
+                console.error('CRASH in inner map branch of gameLoop:', innerErr);
             }
             requestAnimationFrame((t) => this.gameLoop(t));
             return;
@@ -1877,14 +1859,13 @@ export class Game {
      * Enter the inner map for a given world tile
      */
     async enterInnerMap(worldQ, worldR) {
-        console.log('[DIAG] enterInnerMap called for', worldQ, worldR);
-        if (!this.world || !this.player) { console.warn('[DIAG] enterInnerMap: no world or player'); return; }
-        if (typeof InnerMap === 'undefined') { console.warn('[DIAG] enterInnerMap: InnerMap undefined'); return; }
-        if (InnerMap.active) { console.warn('[DIAG] enterInnerMap: already active'); return; }
+        if (!this.world || !this.player) return;
+        if (typeof InnerMap === 'undefined') return;
+        if (InnerMap.active) return;
 
         // Prevent concurrent async entry — the await below creates a window
         // where a second click could pass the guard above and double-enter.
-        if (this._enteringInnerMap) { console.warn('[DIAG] enterInnerMap: already entering'); return; }
+        if (this._enteringInnerMap) return;
         this._enteringInnerMap = true;
 
         try {
@@ -1919,11 +1900,9 @@ export class Game {
             }
 
             // Re-check after async gap — another code-path may have entered in the meantime
-            if (InnerMap.active) { console.warn('[DIAG] enterInnerMap: became active during await'); return; }
+            if (InnerMap.active) return;
 
-            console.log('[DIAG] Calling InnerMap.enter...');
             const success = InnerMap.enter(this, worldQ, worldR);
-            console.log('[DIAG] InnerMap.enter returned', success, 'active=', InnerMap.active);
             if (!success) {
                 this.ui.showNotification('Error', 'Cannot enter this tile.', 'error');
                 return;
@@ -1984,7 +1963,6 @@ export class Game {
         } finally {
             this._enteringInnerMap = false;
             this.innerMapMode = !!InnerMap.active;
-            console.log('[DIAG] enterInnerMap finally: _enteringInnerMap=false, innerMapMode=', this.innerMapMode, 'InnerMap.active=', InnerMap.active);
         }
     }
 

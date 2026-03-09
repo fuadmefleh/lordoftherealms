@@ -46,7 +46,10 @@ function loadImg(path) {
 }
 
 function registerBuilding(b) {
-    if (!b.id || !b.layers) return;
+    if (!b.id || !b.layers) {
+        console.warn(`[Buildings] skipping building: missing id=${b.id} or layers`, b.name || b);
+        return;
+    }
 
     // Normalise layers to arrays and build per-cell lookup maps
     const layerMaps = {};
@@ -135,8 +138,15 @@ export const CustomBuildings = {
      * Reads from the flat `buildings` array in gamedata.
      * Returns a Promise that resolves when all buildings and images are ready.
      */
-    loadAll() {
-        if (_loaded) return Promise.resolve();
+    async loadAll() {
+        if (_loaded) return;
+
+        // Ensure gamedata is loaded (including IndexedDB merge) before reading buildings
+        if (typeof DataLoader !== 'undefined') {
+            if (!DataLoader._gamedata) {
+                await DataLoader.load('buildings');  // triggers _loadGamedata() if needed
+            }
+        }
 
         if (typeof DataLoader !== 'undefined' && DataLoader._gamedata) {
             // ── New flat format: gamedata.buildings = [...]  ─────────
@@ -164,9 +174,12 @@ export const CustomBuildings = {
             }
             return Promise.all(pending).finally(() => {
                 _loaded = true;
-                if (_defs.size > 0)
+                if (_defs.size > 0) {
                     console.log(`[Buildings] loaded ${_defs.size} building(s) across ${_byType.size} type(s)`);
-                else
+                    for (const [type, arr] of _byType) {
+                        console.log(`  type '${type}': ${arr.length} building(s) → [${arr.map(d => d.id).join(', ')}]`);
+                    }
+                } else
                     console.info('[Buildings] no buildings found in gamedata.json');
             });
         }

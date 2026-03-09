@@ -154,98 +154,90 @@ export default function GameView() {
         ))}
       </div>
 
-      {/* Sims-style Bottom HUD */}
+      {/* ═══ Sims 3 Bottom HUD ═══ */}
       <div id="simsBottomHUD">
-        {/* Character Portrait */}
-        <div className="sims-portrait-panel">
-          <div className="sims-portrait-frame" id="simsPortrait" title="Character">
-            <span className="sims-portrait-icon">🧑</span>
-            <span className="sims-portrait-level" id="simsPortraitLevel">1</span>
+
+        {/* ── Portrait wing (left bump) ── */}
+        <div className="s3-portrait-wing">
+          <div className="s3-plumbob" id="simsPlumbob">◆</div>
+          <div className="s3-portrait-frame" id="simsPortrait" title="Character">
+            <span className="s3-portrait-icon">🧑</span>
+            <span className="s3-portrait-level" id="simsPortraitLevel">1</span>
           </div>
         </div>
 
-        {/* Main HUD Panel */}
-        <div className="sims-hud-main">
-          {/* Gold & Resources */}
-          <div className="sims-resources">
-            <div className="sims-resource-row">
-              <span className="res-icon">💰</span>
-              <span className="res-val" id="simsGold">0</span>
+        {/* ── Main bar ── */}
+        <div className="s3-main-bar">
+
+          {/* Collapsible wrapper */}
+          <div className="s3-collapsible" id="simsCollapsible">
+
+          {/* Row 1: Resources + Mood + Speed */}
+          <div className="s3-top-row">
+            <div className="s3-resources">
+              <div className="s3-res"><span className="s3-res-icon">💰</span><span className="s3-res-val" id="simsGold">0</span></div>
+              <div className="s3-res"><span className="s3-res-icon">⭐</span><span className="s3-res-val" id="simsRenown">0</span></div>
+              <div className="s3-res"><span className="s3-res-icon">☯</span><span className="s3-res-val" id="simsKarma">0</span></div>
             </div>
-            <div className="sims-resource-row">
-              <span className="res-icon">⭐</span>
-              <span className="res-val" id="simsRenown">0</span>
+            <div className="s3-mood" id="simsMoodPanel">
+              <span className="s3-mood-icon" id="simsMoodIcon">😊</span>
+              <span className="s3-mood-label" id="simsMoodLabel">Happy</span>
             </div>
-            <div className="sims-resource-row">
-              <span className="res-icon">☯</span>
-              <span className="res-val" id="simsKarma">0</span>
+            <div className="s3-time-controls">
+              <span className="s3-day" id="simsDay">Day 1</span>
+              <div className="s3-speed-row">
+                <button className="s3-speed-btn" id="simsTimePause" title="Pause (Space)">⏸</button>
+                <button className="s3-speed-btn active" id="simsTimePlay" title="Normal Speed (1)">▶</button>
+                <button className="s3-speed-btn" id="simsTimeFast" title="Fast (2)">▶▶</button>
+                <button className="s3-speed-btn" id="simsTimeUltra" title="Ultra (3)">▶▶▶</button>
+              </div>
+              <button className="s3-end-day" id="simsEndDay">☀ End Day</button>
             </div>
           </div>
 
-          <div className="sims-hud-sep"></div>
-
-          {/* Needs Bars — Sims-style 6 needs */}
-          <div className="sims-needs">
-            <div className="sims-need-row">
-              <span className="sims-need-label">🍖 Hunger</span>
-              <div className="sims-need-bar-bg">
-                <div className="sims-need-bar-fill high" id="simsHungerBar" style={{width: '100%'}}></div>
+          {/* Row 2: Content panels (tabs switch between these) */}
+          <div className="s3-content">
+            {/* PAGE: Stats / Needs */}
+            <div className="sims-hub-page" id="simsPageStats">
+              <div className="s3-needs-list">
+                <div className="s3-need"><span className="s3-need-label">Hunger</span><div className="s3-need-track"><div className="sims-need-bar-fill high" id="simsHungerBar" style={{width:'100%'}}></div></div></div>
+                <div className="s3-need"><span className="s3-need-label">Energy</span><div className="s3-need-track"><div className="sims-need-bar-fill high" id="simsEnergyBar" style={{width:'100%'}}></div></div></div>
+                <div className="s3-need"><span className="s3-need-label">Social</span><div className="s3-need-track"><div className="sims-need-bar-fill high" id="simsSocialBar" style={{width:'100%'}}></div></div></div>
+                <div className="s3-need"><span className="s3-need-label">Fun</span><div className="s3-need-track"><div className="sims-need-bar-fill high" id="simsFunBar" style={{width:'100%'}}></div></div></div>
+                <div className="s3-need"><span className="s3-need-label">Hygiene</span><div className="s3-need-track"><div className="sims-need-bar-fill high" id="simsHygieneBar" style={{width:'100%'}}></div></div></div>
+                <div className="s3-need"><span className="s3-need-label">Comfort</span><div className="s3-need-track"><div className="sims-need-bar-fill high" id="simsComfortBar" style={{width:'100%'}}></div></div></div>
               </div>
             </div>
-            <div className="sims-need-row">
-              <span className="sims-need-label">💤 Energy</span>
-              <div className="sims-need-bar-bg">
-                <div className="sims-need-bar-fill high" id="simsEnergyBar" style={{width: '100%'}}></div>
+            {/* PAGE: Relationships */}
+            <div className="sims-hub-page sims-hub-page-col hidden" id="simsPageRelationships">
+              <div className="srel-filters" id="simsRelFilters">
+                <button className="srel-filter-btn active" data-filter="all">All</button>
+                <button className="srel-filter-btn" data-filter="family">👨‍👩‍👦 Family</button>
+                <button className="srel-filter-btn" data-filter="friends">😊 Friends</button>
+                <button className="srel-filter-btn" data-filter="romantic">💕 Romantic</button>
+                <button className="srel-filter-btn" data-filter="rivals">⚡ Rivals</button>
+                <button className="srel-filter-btn" data-filter="locals">🏘️ Locals</button>
               </div>
+              <div className="sims-rel-body" id="simsRelBody"></div>
             </div>
-            <div className="sims-need-row">
-              <span className="sims-need-label">💬 Social</span>
-              <div className="sims-need-bar-bg">
-                <div className="sims-need-bar-fill high" id="simsSocialBar" style={{width: '100%'}}></div>
-              </div>
-            </div>
-            <div className="sims-need-row">
-              <span className="sims-need-label">🎭 Fun</span>
-              <div className="sims-need-bar-bg">
-                <div className="sims-need-bar-fill high" id="simsFunBar" style={{width: '100%'}}></div>
-              </div>
-            </div>
-            <div className="sims-need-row">
-              <span className="sims-need-label">🧼 Hygiene</span>
-              <div className="sims-need-bar-bg">
-                <div className="sims-need-bar-fill high" id="simsHygieneBar" style={{width: '100%'}}></div>
-              </div>
-            </div>
-            <div className="sims-need-row">
-              <span className="sims-need-label">🪑 Comfort</span>
-              <div className="sims-need-bar-bg">
-                <div className="sims-need-bar-fill high" id="simsComfortBar" style={{width: '100%'}}></div>
+            {/* PAGE: Inventory */}
+            <div className="sims-hub-page hidden" id="simsPageInventory">
+              <div className="sims-inv-body" id="simsInvBody">
+                <p className="srel-empty">Your pack is empty.</p>
               </div>
             </div>
           </div>
 
-          <div className="sims-hud-sep"></div>
+          </div>{/* /s3-collapsible */}
 
-          {/* Mood indicator */}
-          <div className="sims-mood" id="simsMoodPanel">
-            <span className="sims-mood-icon" id="simsMoodIcon">😊</span>
-            <span className="sims-mood-label" id="simsMoodLabel">Happy</span>
+          {/* Tab strip at the very bottom of the bar */}
+          <div className="s3-tabs">
+            <button className="s3-tab active" id="simsTabStats">Simology</button>
+            <button className="s3-tab" id="simsTabRelationships">Relationships</button>
+            <button className="s3-tab" id="simsTabInventory">Inventory</button>
           </div>
 
-          <div className="sims-hud-sep"></div>
-
-          {/* Time Controls */}
-          <div className="sims-hud-time">
-            <span className="sims-hud-day" id="simsDay">Day 1</span>
-            <div className="sims-hud-time-controls">
-              <button className="sims-hud-time-btn" id="simsTimePause" title="Pause (Space)">⏸</button>
-              <button className="sims-hud-time-btn active" id="simsTimePlay" title="Normal Speed (1)">▶</button>
-              <button className="sims-hud-time-btn" id="simsTimeFast" title="Fast (2)">▶▶</button>
-              <button className="sims-hud-time-btn" id="simsTimeUltra" title="Ultra (3)">▶▶▶</button>
-            </div>
-            <button className="sims-hud-end-day" id="simsEndDay">☀ End Day</button>
-          </div>
-        </div>
+        </div>{/* /s3-main-bar */}
       </div>
 
       </div>{/* /bottomUIStack */}

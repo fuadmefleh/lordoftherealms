@@ -383,6 +383,10 @@ function generate(tiles, settlement, rng, mapW, mapH) {
     if (!hasCivic && blocks.length > 0) blocks[0].district = DISTRICT.CIVIC;
     if (!hasComm  && blocks.length > 1) blocks[1].district = DISTRICT.COMMERCIAL;
 
+    // Get custom building defs if available (needed for lot sizing + placement)
+    const hasCustom = typeof CustomBuildings !== 'undefined' && CustomBuildings.isLoaded() && CustomBuildings.hasAny();
+    console.log(`[SettlementGen] type=${type}, pop=${pop}, blocks=${blocks.length}, hasCustom=${hasCustom}, CB.isLoaded=${typeof CustomBuildings !== 'undefined' && CustomBuildings.isLoaded()}, CB.hasAny=${typeof CustomBuildings !== 'undefined' && CustomBuildings.hasAny()}`);
+
     // ── 4. Subdivide blocks into building lots ──────────────────
     // Each lot is a rectangular area within a block where one building fits.
     const lots = []; // [{ q, r, w, h, district, blockId }]
@@ -401,7 +405,8 @@ function generate(tiles, settlement, rng, mapW, mapH) {
             tileSet.add(`${t.q},${t.r}`);
         }
 
-        // Determine lot size based on district
+        // Determine lot size based on district — adapts to actual building
+        // catalog footprints so all authored variants can fit.
         let lotW, lotH, lotSpacing;
         if (block.district === DISTRICT.CIVIC) {
             lotW = 5; lotH = 7; lotSpacing = 2;
@@ -448,6 +453,8 @@ function generate(tiles, settlement, rng, mapW, mapH) {
         }
     }
 
+    console.log(`[SettlementGen] lots found: ${lots.length} across ${blocks.length} blocks`);
+
     // Shuffle lots to avoid always filling blocks top-to-bottom
     for (let i = lots.length - 1; i > 0; i--) {
         const j = Math.floor(rng() * (i + 1));
@@ -476,9 +483,6 @@ function generate(tiles, settlement, rng, mapW, mapH) {
     // Track which lot indices we've used
     const usedLots = new Set();
 
-    // Get custom building defs if available
-    const hasCustom = typeof CustomBuildings !== 'undefined' && CustomBuildings.isLoaded() && CustomBuildings.hasAny();
-
     // Helper: find the best district for a building type
     function districtForType(bType) {
         for (const [dist, types] of Object.entries(DISTRICT_BUILDING_MAP)) {
@@ -487,27 +491,54 @@ function generate(tiles, settlement, rng, mapW, mapH) {
         return DISTRICT.RESIDENTIAL;
     }
 
+    // Track which building IDs have already been placed so we try to
+    // use different ones before repeating (variety cycling).
+    const _placedIds = [];
+
     // Helper: try to place a custom building onto a lot.
     // No sprite fallback — settlements should only use editor-authored buildings.
     function placeOnLot(lotIdx, buildingType) {
         const lot = lots[lotIdx];
-        if (!hasCustom) return false;
-
-        const candidates = CustomBuildings.getByType(buildingType);
-        if (!candidates.length) return false;
-
-        const shuffled = [...candidates];
-        for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(rng() * (i + 1));
-            const tmp = shuffled[i];
-            shuffled[i] = shuffled[j];
-            shuffled[j] = tmp;
+        if (!hasCustom) {
+            console.warn(`[SettlementGen] placeOnLot(${buildingType}) SKIPPED: hasCustom=false`);
+            return false;
         }
 
-        for (const def of shuffled) {
+        // Gather candidates — first try exact type match, then broaden
+        // to ALL buildings eligible for this settlement so we maximise
+        // the variety of authored buildings used.
+        let candidates = CustomBuildings.getByType(buildingType);
+        if (!candidates.length) {
+            // Broaden: pool all building types valid for this settlement
+            candidates = CustomBuildings.getAllForSettlement(type, rng);
+        }
+        if (!candidates.length) {
+            console.warn(`[SettlementGen] placeOnLot(${buildingType}) SKIPPED: 0 candidates`);
+            return false;
+        }
+
+        // Sort candidates to prefer buildings we haven't placed yet,
+        // then shuffle within each priority tier for randomness.
+        const unplacedPool = candidates.filter(d => !_placedIds.includes(d.id));
+        const placedPool   = candidates.filter(d => _placedIds.includes(d.id));
+
+        // Shuffle each pool independently
+        const shuffle = (arr) => {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(rng() * (i + 1));
+                const tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+            }
+            return arr;
+        };
+
+        // Try unplaced buildings first (variety), then fall back to placed ones
+        const ordered = [...shuffle(unplacedPool), ...shuffle(placedPool)];
+
+        for (const def of ordered) {
             if (_tryPlaceCustomBuilding(tiles, def, lot, mapW, mapH)) {
                 usedLots.add(lotIdx);
                 placedCount++;
+                _placedIds.push(def.id);
                 return true;
             }
         }
@@ -580,6 +611,8 @@ function generate(tiles, settlement, rng, mapW, mapH) {
         }
     }
 
+    console.log(`[SettlementGen] placed ${placedCount}/${maxBuildings} buildings on ${usedLots.size}/${lots.length} lots`);
+
     // ── 6. Decorations on remaining open space ──────────────
     _placeDecorations(tiles, roadSet, settlement, rng, cx, cy, radius, mapW, mapH);
 
@@ -612,7 +645,8 @@ function generate(tiles, settlement, rng, mapW, mapH) {
 
 /**
  * Place a custom (editor-authored) building onto a lot.
- * Checks footprint against the lot area and marks tiles.
+ * Ignores lot size — just places the building centred on the lot position
+ * as long as the footprint tiles are in-bounds and free.
  */
 function _tryPlaceCustomBuilding(tiles, def, lot, mapW, mapH) {
     const bounds = def.bounds || {
@@ -623,10 +657,7 @@ function _tryPlaceCustomBuilding(tiles, def, lot, mapW, mapH) {
     const footW = bounds.maxCol - bounds.minCol + 1;
     const footH = bounds.maxRow - bounds.minRow + 1;
 
-    // Building must fit within lot (with a 1-tile margin if lot is large enough)
-    if (footW > lot.w || footH > lot.h) return false;
-
-    // Center the building in the lot
+    // Centre the building on the lot (may extend beyond lot borders — that's fine)
     const offsetQ = Math.floor((lot.w - footW) / 2) - bounds.minCol;
     const offsetR = Math.floor((lot.h - footH) / 2) - bounds.minRow;
     const anchorQ = lot.q + offsetQ;

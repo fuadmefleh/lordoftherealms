@@ -13,6 +13,7 @@ import { CustomInteriors } from './customInteriors.js';
 import { SettlementGenerator } from './settlementGenerator.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Terrain } from './terrain.js';
+import { NpcFamily } from '../systems/npcFamily.js';
 
 export const InnerMap = {
     // Configuration (loaded from JSON)
@@ -3638,6 +3639,10 @@ export const InnerMap = {
                 });
             }
         }
+
+        // Generate family trees and NPC-NPC relationships
+        NpcFamily.setInnerMapRef(this);
+        NpcFamily.generateFamilies(this.npcs, rng);
     },
 
     /**

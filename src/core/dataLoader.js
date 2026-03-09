@@ -152,6 +152,12 @@ export const DataLoader = {
         ];
         for (const key of editorKeys) {
             if (stored[key] !== undefined) {
+                const count = Array.isArray(stored[key]) ? stored[key].length : Object.keys(stored[key]).length;
+                console.log(`[DataLoader] Merging editor key '${key}': ${count} item(s)`);
+                if (key === 'buildings' && Array.isArray(stored[key])) {
+                    console.log(`[DataLoader] Building IDs from ModStore: [${stored[key].map(b => b.id || '(no id)').join(', ')}]`);
+                    console.log(`[DataLoader] Building types from ModStore: [${stored[key].map(b => b.buildingType || '(none)').join(', ')}]`);
+                }
                 this._gamedata[key] = stored[key];
             }
         }

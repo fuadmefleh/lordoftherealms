@@ -162,7 +162,14 @@ Hex-grid world map editor for painting terrain and placing overlays (villages, c
 
 ## Self-Learning
 
-After completing any non-trivial task (bug fix, new feature, refactor, or architectural change), update this file with lessons learned so future sessions benefit. Append new entries to the relevant section below — never remove existing entries.
+This project uses two tiers of persistent knowledge:
+
+1. **`.github/repo-memory.md`** — Short, factual notes auto-injected at session start via a `SessionStart` hook. Append new discoveries here first (1-2 line entries). This is the primary memory mechanism.
+2. **This file's sections below** — Longer architectural patterns and debugging strategies that belong in the agent's system prompt.
+
+After completing any non-trivial task (bug fix, new feature, refactor, or architectural change):
+- **Always** append a short entry to `.github/repo-memory.md` under the appropriate section.
+- **Optionally** update the sections below if the insight is a major architectural pattern or debugging strategy worth permanently embedding in the agent prompt.
 
 ### Pitfalls & Gotchas
 

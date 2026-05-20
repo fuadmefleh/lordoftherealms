@@ -126,7 +126,7 @@ export const DataLoader = {
                     ]);
                 await modStoreTimeout(ModStore.init());
                 const stored = await modStoreTimeout(ModStore.loadModData());
-                if (stored && typeof stored === 'object' && (stored.terrain || stored.buildings || stored.objects || stored.playerEconomy || stored.interiors || stored.interiorBrushes)) {
+                if (stored && typeof stored === 'object' && (stored.terrain || stored.buildings || stored.objects || stored.playerEconomy || stored.interiors || stored.interiorBrushes || stored.terrainNineTileBrushes || stored.terrainSets || stored.terrainMap || stored.nineTileBrushes)) {
                     console.log('[DataLoader] Merging editor data from browser storage (IndexedDB)');
                     this._mergeEditorData(stored);
                 }
@@ -430,6 +430,12 @@ export const DataLoader = {
                 if (espionageData.levelTitles) Espionage.LEVEL_TITLES = espionageData.levelTitles;
                 if (espionageData.rebellionEffects) Espionage.REBELLION_EFFECTS = espionageData.rebellionEffects;
             }
+        }
+
+        // ── Gossip / Rumor System ──
+        const gossipData = data['gossip.json'];
+        if (gossipData) {
+            DataLoader.gossip = gossipData;
         }
 
         // ── Legendary Artifacts ──

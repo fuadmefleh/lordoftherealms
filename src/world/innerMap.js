@@ -395,6 +395,10 @@ export const InnerMap = {
             if (icIdx >= 0) return { ic: icIdx };
         }
 
+        // Degenerate case: both sides of an axis missing → no valid 3×3 tile.
+        // Return null so the tile gets no grass overlay (base dirt shows through).
+        if ((!hasTop && !hasBottom) || (!hasLeft && !hasRight)) return null;
+
         // Map to 3×3 grid: row 0=top edge, 1=middle, 2=bottom edge
         let row = 1;
         if (!hasTop && hasBottom) row = 0;
@@ -497,6 +501,28 @@ export const InnerMap = {
             if (!changed) break;
         }
 
+        // Step 2.5 — Remove tiles missing neighbors on both sides of an axis.
+        // The 3×3 autotile grid can't represent "both top and bottom missing"
+        // or "both left and right missing" — those tiles would get a flat grass
+        // fill with no transition edges, creating visible rectangular artifacts.
+        for (let pass = 0; pass < 2; pass++) {
+            let changed = false;
+            for (let r = 0; r < H; r++) {
+                for (let q = 0; q < W; q++) {
+                    if (!mask[r][q]) continue;
+                    const ht = (r > 0 && mask[r - 1][q]);
+                    const hb = (r < H - 1 && mask[r + 1][q]);
+                    const hl = (q > 0 && mask[r][q - 1]);
+                    const hr = (q < W - 1 && mask[r][q + 1]);
+                    if ((!ht && !hb) || (!hl && !hr)) {
+                        mask[r][q] = false;
+                        changed = true;
+                    }
+                }
+            }
+            if (!changed) break;
+        }
+
         // Step 3 — Remove small blobs (< 9 tiles)
         const visited = Array.from({ length: H }, () => Array(W).fill(false));
         for (let r = 0; r < H; r++) {
@@ -561,6 +587,10 @@ export const InnerMap = {
         const cornersArr = (brush && brush.seasonInsideCorners && brush.seasonInsideCorners[season])
             ? brush.seasonInsideCorners[season]
             : (brush ? brush.insideCorners || null : null);
+        // Alternate center fill tiles — picked by hash for variety
+        const altFills = (brush && brush.seasonAltFills && brush.seasonAltFills[season] && brush.seasonAltFills[season].length)
+            ? brush.seasonAltFills[season]
+            : null;
 
         // Assign terrain detail for each grass tile
         for (let r = 0; r < H; r++) {
@@ -571,6 +601,9 @@ export const InnerMap = {
 
                 if (tilesGrid) {
                     const info = this._pickNineTileInfo(mask, q, r);
+
+                    // Degenerate config (both sides of an axis missing) → skip
+                    if (!info) continue;
 
                     // Inside corner
                     if (info.ic !== undefined && cornersArr && cornersArr[info.ic]) {
@@ -604,7 +637,13 @@ export const InnerMap = {
 
                     // Normal 3×3 grid tile
                     if (info.row !== undefined) {
-                        const tileRef = tilesGrid[info.row] && tilesGrid[info.row][info.col];
+                        let tileRef = tilesGrid[info.row] && tilesGrid[info.row][info.col];
+                        // For the center slot (row 1, col 1), hash-pick from alt fills pool if available
+                        if (info.row === 1 && info.col === 1 && altFills && altFills.length) {
+                            const pool = tileRef ? [tileRef, ...altFills] : altFills;
+                            const hash = Math.abs((q * 73856093 ^ r * 19349663)) >>> 0;
+                            tileRef = pool[hash % pool.length];
+                        }
                         if (tileRef && tileRef.sheetPath) {
                             tile.terrainDetail = {
                                 sheetPath: tileRef.sheetPath,
@@ -820,7 +859,10 @@ export const InnerMap = {
         // Paint a second grass layer using saved 9-tile brushes (fallback: grass fill overlays).
         // Road tiles (isRoad) are excluded from the mask so the brush auto-tiles
         // smooth edges around dirt paths.
-        this._paintGrassSecondLayer(tiles, worldQ, worldR);
+        // Only apply on grass-based terrains — skip sand/stone/dry_dirt etc.
+        if (this._getBaseTerrain(terrainId, null) === 'grass') {
+            this._paintGrassSecondLayer(tiles, worldQ, worldR);
+        }
 
         // --- Player property placement ---
         this._placePlayerProperties(tiles, worldTile, rng);
@@ -1687,6 +1729,126 @@ export const InnerMap = {
     },
 
     /**
+     * Assign NPC owners to settlement buildings.
+     * Called after _spawnNPCs() so the NPC roster is available.
+     * Adds ownerId, ownerName, ownerTitle to each building where possible.
+     * Also marks the player's own house (from player.houses) as player-owned.
+     */
+    _assignBuildingOwners(player) {
+        if (!this.buildings.length) return;
+
+        // Map NPC types to the building types they typically own/work at
+        const NPC_TO_BUILDINGS = {
+            blacksmith_npc: ['blacksmith'],
+            priest:         ['church', 'temple'],
+            guard:          ['barracks', 'guard_tower'],
+            merchant:       ['marketplace'],
+            noble:          ['manor', 'town_hall'],
+            farmer:         ['farm', 'granary'],
+        };
+
+        // Display titles for each building type
+        const OWNER_TITLES = {
+            blacksmith:  'Blacksmith',
+            church:      'Priest',
+            temple:      'High Priest',
+            barracks:    'Commander',
+            guard_tower: 'Guard Captain',
+            marketplace: 'Merchant',
+            manor:       'Lord',
+            town_hall:   'Official',
+            farm:        'Farmer',
+            granary:     'Keeper',
+            tavern:      'Innkeeper',
+            house:       'Resident',
+            stable:      'Stable Master',
+            warehouse:   'Keeper',
+            barn:        'Farmer',
+        };
+
+        const assignedNpcs = new Set();
+        const assignedBldgs = new Set();
+
+        // Match NPCs with known roles to their corresponding buildings
+        for (const npc of this.npcs) {
+            const targets = NPC_TO_BUILDINGS[npc.type];
+            if (!targets) continue;
+            for (const bType of targets) {
+                const bldg = this.buildings.find(b => b.type === bType && !assignedBldgs.has(b));
+                if (bldg) {
+                    bldg.ownerId   = npc.id;
+                    bldg.ownerName = npc.name;
+                    bldg.ownerTitle = OWNER_TITLES[bType] || npc.type;
+                    assignedBldgs.add(bldg);
+                    assignedNpcs.add(npc.id);
+                    break;
+                }
+            }
+        }
+
+        // Tavern: first unassigned villager/merchant/traveler NPC becomes innkeeper
+        const tavernBldg = this.buildings.find(b => b.type === 'tavern' && !assignedBldgs.has(b));
+        if (tavernBldg) {
+            const keeper = this.npcs.find(n =>
+                !assignedNpcs.has(n.id) && ['villager', 'merchant', 'traveler'].includes(n.type)
+            ) || this.npcs.find(n => !assignedNpcs.has(n.id));
+            if (keeper) {
+                tavernBldg.ownerId   = keeper.id;
+                tavernBldg.ownerName = keeper.name;
+                tavernBldg.ownerTitle = 'Innkeeper';
+                assignedBldgs.add(tavernBldg);
+                assignedNpcs.add(keeper.id);
+            }
+        }
+
+        // Stable: next available NPC
+        const stableBldg = this.buildings.find(b => b.type === 'stable' && !assignedBldgs.has(b));
+        if (stableBldg) {
+            const master = this.npcs.find(n => !assignedNpcs.has(n.id));
+            if (master) {
+                stableBldg.ownerId   = master.id;
+                stableBldg.ownerName = master.name;
+                stableBldg.ownerTitle = 'Stable Master';
+                assignedBldgs.add(stableBldg);
+                assignedNpcs.add(master.id);
+            }
+        }
+
+        // Houses: assign remaining villager/farmer NPCs as residents
+        const houseBuildings = this.buildings.filter(b => b.type === 'house' && !assignedBldgs.has(b));
+        const residentNpcs = this.npcs.filter(n =>
+            !assignedNpcs.has(n.id) && ['villager', 'farmer', 'merchant'].includes(n.type)
+        );
+        for (let i = 0; i < houseBuildings.length && i < residentNpcs.length; i++) {
+            houseBuildings[i].ownerId   = residentNpcs[i].id;
+            houseBuildings[i].ownerName = residentNpcs[i].name;
+            houseBuildings[i].ownerTitle = 'Resident';
+            assignedBldgs.add(houseBuildings[i]);
+            assignedNpcs.add(residentNpcs[i].id);
+        }
+
+        // Mark the player's own house in this settlement
+        if (player) {
+            const wq = this.currentWorldTile && this.currentWorldTile.q;
+            const wr = this.currentWorldTile && this.currentWorldTile.r;
+            if (wq != null) {
+                const playerHouseHere = (player.houses || []).find(h => h.q === wq && h.r === wr);
+                if (playerHouseHere) {
+                    const myHouse = this.buildings.find(b => b.type === 'house' && !assignedBldgs.has(b))
+                                 || this.buildings.find(b => b.type === 'house');
+                    if (myHouse && !myHouse.isPlayerOwned) {
+                        myHouse.isPlayerOwned = true;
+                        myHouse.ownerId       = 'player';
+                        myHouse.ownerName     = player.name || 'You';
+                        myHouse.ownerTitle    = 'Owner';
+                        myHouse.name          = myHouse.name + ' (Yours)';
+                    }
+                }
+            }
+        }
+    },
+
+    /**
      * Default sub-terrains for terrain types with no JSON config
      */
     _defaultSubTerrains(terrainId) {
@@ -1780,6 +1942,7 @@ export const InnerMap = {
         this._npcMoveTimer = 0;
         if (hasSettlement) {
             this._spawnNPCs(worldTile.settlement);
+            this._assignBuildingOwners(game.player);
         }
 
         // For settlements, reveal all tiles (you're visiting a known location)
@@ -2610,22 +2773,54 @@ export const InnerMap = {
      * Start an interaction with a custom object.
      * Called when the player arrives at a tile adjacent to the target object.
      * @param {number} baseDamage  % of the object's health removed per swing
+     * @param {string} [animKey]   Internal animation key (e.g. 'slash','sitting','emotes')
      */
-    startInteraction(anchorQ, anchorR, defId, baseDamage) {
-        // Ensure health is initialised (objects placed before this feature always start at 100).
-        const anchorTile = this.getTile(anchorQ, anchorR);
-        if (anchorTile && anchorTile.customObject && anchorTile.customObject.currentHealthPct == null) {
-            anchorTile.customObject.currentHealthPct = 100;
-        }
-        this._activeInteraction = {
-            anchorQ, anchorR, defId,
-            baseDamage: baseDamage || 20,  // % HP removed per swing
-            swingTimer: 0,
-            swingInterval: 0.5,  // seconds between swings
-            fadeDuration: 0.4,   // seconds to fade out once health hits 0
-            fading: false,
-            done: false
+    startInteraction(anchorQ, anchorR, defId, baseDamage, animKey) {
+        // Map from object def animation name → internal anim key
+        const _ANIM_KEY_MAP = {
+            'combat_1h_slash': 'slash', 'combat_1h_halfslash': 'halfslash',
+            'legacy_swing': 'swing', 'sitting': 'sitting',
+            'emotes': 'emotes', 'idle': 'idle', 'climb': 'idle',
         };
+        const _NON_DESTRUCTIVE = new Set(['sitting', 'emotes', 'idle']);
+
+        // Resolve animation key from object definition if not provided
+        if (!animKey) {
+            const def = typeof CustomObjects !== 'undefined' ? CustomObjects.getDef(defId) : null;
+            animKey = (def && def.animation && _ANIM_KEY_MAP[def.animation]) || 'slash';
+        }
+
+        // Check if this is a non-destructive animation (sitting, emotes, idle)
+        const nonDestructive = _NON_DESTRUCTIVE.has(animKey);
+
+        if (nonDestructive) {
+            // Non-destructive interaction: play the animation for a duration, then complete
+            this._activeInteraction = {
+                anchorQ, anchorR, defId,
+                animKey,
+                nonDestructive: true,
+                elapsed: 0,
+                duration: 3.0,  // seconds to play the animation
+                done: false
+            };
+        } else {
+            // Destructive interaction: damage the object per swing
+            const anchorTile = this.getTile(anchorQ, anchorR);
+            if (anchorTile && anchorTile.customObject && anchorTile.customObject.currentHealthPct == null) {
+                anchorTile.customObject.currentHealthPct = 100;
+            }
+            this._activeInteraction = {
+                anchorQ, anchorR, defId,
+                animKey,
+                nonDestructive: false,
+                baseDamage: baseDamage || 20,
+                swingTimer: 0,
+                swingInterval: 0.5,
+                fadeDuration: 0.4,
+                fading: false,
+                done: false
+            };
+        }
         this._pendingInteraction = null;
     },
 
@@ -2655,6 +2850,17 @@ export const InnerMap = {
     updateInteraction(deltaTime) {
         const ia = this._activeInteraction;
         if (!ia || ia.done) return null;
+
+        // Non-destructive interactions (sitting, emotes, idle) — just play animation for a duration
+        if (ia.nonDestructive) {
+            ia.elapsed = (ia.elapsed || 0) + deltaTime;
+            if (ia.elapsed >= ia.duration) {
+                ia.done = true;
+                this._activeInteraction = null;
+                return { completed: true, anchorQ: ia.anchorQ, anchorR: ia.anchorR, defId: ia.defId, resource: null, nonDestructive: true };
+            }
+            return null;
+        }
 
         ia.swingTimer += deltaTime;
 

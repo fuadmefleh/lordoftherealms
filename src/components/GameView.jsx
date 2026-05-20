@@ -36,6 +36,7 @@ export default function GameView() {
         gameRef.current.isRunning = false;
         gameRef.current = null;
       }
+      window.game = null;
       // Don't clear _hmrGame here — it's intentionally kept alive
       // so HMR can recover. It gets replaced when a new game starts.
     };
@@ -65,6 +66,7 @@ export default function GameView() {
         if (cancelled) { game.isRunning = false; return; }
         gameRef.current = game;
         _hmrGame = game;  // Persist for HMR recovery
+        window.game = game;  // Expose globally for inline onclick handlers
 
         // Bridge: let the Game push stats back into React
         game._reactBridge = { updatePlayerStats, updateTurn, setPhase };
@@ -199,7 +201,7 @@ export default function GameView() {
           <div className="s3-content">
             {/* PAGE: Stats / Needs */}
             <div className="sims-hub-page" id="simsPageStats">
-              <div className="s3-needs-list">
+              <div className="s3-needs-list" style={{display:'none'}}>
                 <div className="s3-need"><span className="s3-need-label">Hunger</span><div className="s3-need-track"><div className="sims-need-bar-fill high" id="simsHungerBar" style={{width:'100%'}}></div></div></div>
                 <div className="s3-need"><span className="s3-need-label">Energy</span><div className="s3-need-track"><div className="sims-need-bar-fill high" id="simsEnergyBar" style={{width:'100%'}}></div></div></div>
                 <div className="s3-need"><span className="s3-need-label">Social</span><div className="s3-need-track"><div className="sims-need-bar-fill high" id="simsSocialBar" style={{width:'100%'}}></div></div></div>

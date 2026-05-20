@@ -76,6 +76,10 @@ export default function TopBar() {
               <span className="civ-dd-icon">💰</span>
               <span className="civ-dd-text">Treasury & Market</span>
             </button>
+            <button className="civ-dropdown-item" id="btnProperties">
+              <span className="civ-dd-icon">🏠</span>
+              <span className="civ-dd-text">My Properties</span>
+            </button>
             <div className="civ-dd-separator"></div>
             <button className="civ-dropdown-item" id="btnTechnology">
               <span className="civ-dd-icon">🔬</span>

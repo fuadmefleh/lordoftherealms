@@ -30,6 +30,31 @@ export const InnerMapCharacters = {
     IDLE_FPS: 2,         // frames per second for idle cycle
     SLASH_FPS: 12,       // frames per second for slash/attack cycle
 
+    // Extra animation types loaded from LPC sheets
+    // key: internal anim key used by drawCharacter
+    // file: LPC sprite sheet filename (without .png)
+    // frames/fps: playback parameters
+    _EXTRA_ANIMS: [
+        { key: 'sitting',   file: 'Sitting',              frames: 3, fps: 2  },
+        { key: 'emotes',    file: 'Emotes',               frames: 3, fps: 2  },
+        { key: 'halfslash', file: 'Combat 1h - Halfslash', frames: 6, fps: 12 },
+        { key: 'swing',     file: 'Legacy - Swing',        frames: 6, fps: 12 },
+    ],
+
+    // Map from object-definition animation name → internal drawCharacter anim key
+    ANIM_KEY_MAP: {
+        'combat_1h_slash': 'slash',
+        'combat_1h_halfslash': 'halfslash',
+        'legacy_swing': 'swing',
+        'sitting': 'sitting',
+        'emotes': 'emotes',
+        'idle': 'idle',
+        'climb': 'idle',  // climb has only 1 direction row; fall back to idle
+    },
+
+    // Animation types that don't deal damage to the object
+    NON_DESTRUCTIVE_ANIMS: new Set(['sitting', 'emotes', 'idle']),
+
     // Direction constants
     DIR_UP: 0,
     DIR_LEFT: 1,
@@ -81,6 +106,9 @@ export const InnerMapCharacters = {
                 pathSet.add(this._basePath + layerPath + '/Walk.png');
                 pathSet.add(this._basePath + layerPath + '/Idle.png');
                 pathSet.add(this._basePath + layerPath + '/Combat 1h - Slash.png');
+                for (const ea of this._EXTRA_ANIMS) {
+                    pathSet.add(this._basePath + layerPath + '/' + ea.file + '.png');
+                }
             }
         }
 
@@ -128,11 +156,18 @@ export const InnerMapCharacters = {
             this.SLASH_FRAMES * this.FRAME_W, this.DIR_ROWS * this.FRAME_H);
 
         if (walkCanvas || idleCanvas) {
-            this._composited.set(presetId, {
+            const entry = {
                 walk: walkCanvas,
-                idle: idleCanvas || walkCanvas,  // fallback: use walk frame 0 as idle
-                slash: slashCanvas || null,       // null if sheet missing — falls back in drawCharacter
-            });
+                idle: idleCanvas || walkCanvas,
+                slash: slashCanvas || null,
+            };
+            // Composite extra animation types (sitting, emotes, halfslash, swing)
+            for (const ea of this._EXTRA_ANIMS) {
+                const canvas = this._compositeAnimation(preset.layers, ea.file,
+                    ea.frames * this.FRAME_W, this.DIR_ROWS * this.FRAME_H);
+                entry[ea.key] = canvas || null;
+            }
+            this._composited.set(presetId, entry);
         }
     },
 
@@ -223,22 +258,38 @@ export const InnerMapCharacters = {
         const comp = this._composited.get(presetId);
         if (!comp) return false;
 
-        // Resolve sheet — slash falls back to walk if the asset is missing
+        // Check if this is an extra animation type (sitting, emotes, halfslash, swing)
+        const extraDef = this._EXTRA_ANIMS.find(ea => ea.key === anim);
+
+        // Resolve sheet — slash/extra anims fall back to walk if the asset is missing
         const isSlash = (anim === 'slash');
         const isWalk  = (anim === 'walk');
-        const sheet = isSlash
-            ? (comp.slash || comp.walk || comp.idle)
-            : (comp[anim] || comp.idle || comp.walk);
+        let sheet;
+        if (isSlash) {
+            sheet = comp.slash || comp.walk || comp.idle;
+        } else if (extraDef) {
+            sheet = comp[anim] || comp.idle || comp.walk;
+        } else {
+            sheet = comp[anim] || comp.idle || comp.walk;
+        }
         if (!sheet) return false;
 
         let totalFrames, fps;
-        if (isSlash) {
-            // If no dedicated slash sheet loaded, simulate attack with a fast walk
+        if (extraDef) {
+            // Extra animation type — use its defined frame count and fps
+            if (comp[anim]) {
+                totalFrames = extraDef.frames;
+                fps         = extraDef.fps;
+            } else {
+                // Fell back to idle/walk
+                totalFrames = comp.idle === sheet ? this.IDLE_FRAMES : this.WALK_FRAMES;
+                fps         = comp.idle === sheet ? this.IDLE_FPS : this.WALK_FPS;
+            }
+        } else if (isSlash) {
             if (comp.slash) {
                 totalFrames = this.SLASH_FRAMES;
                 fps         = this.SLASH_FPS;
             } else {
-                // Fallback — play walk cycle at double speed so it looks active
                 totalFrames = this.WALK_FRAMES;
                 fps         = this.WALK_FPS * 2;
             }

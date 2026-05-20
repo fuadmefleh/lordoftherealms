@@ -208,6 +208,13 @@ Object.assign(InnerMapRenderer, {
         if (building) {
             const actions = InnerMap.getBuildingActions(building);
             menuItems.push({ type: 'header', label: `${building.icon} ${building.name}` });
+            // Show ownership info
+            if (building.ownerName) {
+                const ownerLabel = building.isPlayerOwned
+                    ? `👤 Owned by you`
+                    : `👤 ${building.ownerTitle ? building.ownerTitle + ': ' : ''}${building.ownerName}`;
+                menuItems.push({ type: 'disabled', label: ownerLabel });
+            }
             // Add "Enter" action for buildings
             menuItems.push({ type: 'action', action: 'enter_building', label: 'Enter', icon: '🚪', desc: `Enter ${building.name}`, building });
             for (const action of actions) {
@@ -690,6 +697,21 @@ Object.assign(InnerMapRenderer, {
                             if (InnerMap.playerInnerQ === adj.q && InnerMap.playerInnerR === adj.r) {
                                 InnerMap.startInteraction(aQ, aR, cDef.id,
                                     InnerMap._computeObjectDamage(game.player, cDef));
+                                const dir = InnerMap.getDirectionToward(aQ, aR);
+                                InnerMapRenderer._playerFacing = dir;
+                            } else {
+                                InnerMap._pendingInteraction = { anchorQ: aQ, anchorR: aR, defId: cDef.id };
+                                InnerMap.movePlayerTo(adj.q, adj.r);
+                            }
+                        } else {
+                            game.ui.showNotification('Blocked', 'Cannot reach that object!', 'error');
+                        }
+                    } else if (cDef.animation && cDef.animation !== 'none') {
+                        // Non-resource object with an animation (e.g. chair → sitting)
+                        const adj = InnerMap.findAdjacentToObject(aQ, aR, cDef);
+                        if (adj) {
+                            if (InnerMap.playerInnerQ === adj.q && InnerMap.playerInnerR === adj.r) {
+                                InnerMap.startInteraction(aQ, aR, cDef.id, 0);
                                 const dir = InnerMap.getDirectionToward(aQ, aR);
                                 InnerMapRenderer._playerFacing = dir;
                             } else {

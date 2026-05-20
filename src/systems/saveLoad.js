@@ -8,6 +8,7 @@ import { Espionage } from './espionage.js';
 import { Festivals } from './festivals.js';
 import { Councils } from './councils.js';
 import { BountyHunting } from './bountyHunting.js';
+import { Gossip } from './gossip.js';
 
 
 export const SaveLoad = {
@@ -261,6 +262,9 @@ export const SaveLoad = {
 
             // Councils & parliament
             council: player.council || null,
+
+            // Gossip / Rumors
+            gossip: player.gossip || null,
         };
     },
 
@@ -395,6 +399,9 @@ export const SaveLoad = {
         if (typeof Councils !== 'undefined') {
             Councils.loadState(player);
         }
+
+        // Restore gossip system state
+        Gossip.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

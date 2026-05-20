@@ -690,6 +690,16 @@ body {
     opacity: 0;
 }
 
+/* When collapsed: hide portrait wing and tighten main bar */
+#simsBottomHUD:has(.s3-collapsible.collapsed) .s3-portrait-wing {
+    display: none;
+}
+
+.s3-main-bar:has(.s3-collapsible.collapsed) {
+    border-radius: 8px 8px 0 0;
+    min-width: auto;
+}
+
 /* Top row: resources | mood | speed */
 .s3-top-row {
     display: flex;
@@ -833,7 +843,7 @@ body {
 .s3-content {
     flex: 1;
     overflow: hidden;
-    min-height: 90px;
+    min-height: 148px;
 }
 
 /* Pages (shared) */
@@ -1017,11 +1027,75 @@ body {
 .sims-inv-body {
     overflow-y: auto;
     max-height: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 6px 4px;
+    align-content: flex-start;
 }
 
 .sims-inv-body::-webkit-scrollbar { width: 4px; }
 .sims-inv-body::-webkit-scrollbar-track { background: transparent; }
 .sims-inv-body::-webkit-scrollbar-thumb { background: rgba(46,138,92,0.25); border-radius: 3px; }
+
+/* Inventory grid tile */
+.sinv-tile {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.05);
+    border: 2px solid rgba(74,122,98,0.25);
+    cursor: default;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    margin-bottom: 12px;
+}
+.sinv-tile:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(74,122,98,0.5);
+    transform: scale(1.08);
+    z-index: 2;
+}
+.sinv-tile-icon {
+    font-size: 22px;
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+}
+.sinv-tile-qty {
+    position: absolute;
+    bottom: -2px;
+    right: -4px;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 0 4px;
+    min-width: 14px;
+    text-align: center;
+    border-radius: 6px;
+    background: rgba(0,0,0,0.7);
+    color: #e6a817;
+    white-space: nowrap;
+    pointer-events: none;
+}
+.sinv-tile-name {
+    position: absolute;
+    bottom: -13px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 7px;
+    font-weight: 600;
+    color: rgba(160,196,176,0.55);
+    white-space: nowrap;
+    max-width: 58px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+    pointer-events: none;
+}
 
 /* Section headings (grid) */
 .srel-section-label {

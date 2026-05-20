@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "bash .github/scripts/load-repo-memory.sh",
+        "windows": "powershell -ExecutionPolicy Bypass -File .github/scripts/load-repo-memory.ps1",
+        "timeout": 5
+      }
+    ]
+  }
+}

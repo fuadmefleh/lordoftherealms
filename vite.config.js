@@ -28,7 +28,8 @@ export default defineConfig({
   root: '.',
   publicDir: false, // static files served from project root by Vite dev server
   server: {
-    port: 8081,
+    host: '0.0.0.0',
+    port: 8082,
     open: true,
     // Serve static files (data/, assets/, styles.css, editor HTML files)
     fs: {

@@ -931,7 +931,30 @@ export class Renderer {
                 const wq = Hex.wrapQ(q, world.width);
                 const tile = world.tiles[r][wq];
 
-                if (!tile.explored) continue; // FOW: skip unexplored tiles
+                if (!tile.explored) {
+                    // FOW: render dark fog hex instead of void
+                    const fpx = q * hexWidth + offsetX;
+                    const fpy = r * rowHeight;
+                    const fscreen = this.camera.worldToScreen(fpx, fpy);
+                    if (fscreen.x < -hexWidth * this.camera.zoom || fscreen.x > this.canvas.width + hexWidth * this.camera.zoom) continue;
+                    if (fscreen.y < -hexHeight * this.camera.zoom || fscreen.y > this.canvas.height + hexHeight * this.camera.zoom) continue;
+                    const fs = size * this.camera.zoom;
+                    const fX = 0.866 * fs;
+                    ctx.beginPath();
+                    ctx.moveTo(fscreen.x,      fscreen.y - 0.732 * fs);
+                    ctx.lineTo(fscreen.x + fX, fscreen.y - 0.305 * fs);
+                    ctx.lineTo(fscreen.x + fX, fscreen.y + 0.567 * fs);
+                    ctx.lineTo(fscreen.x,      fscreen.y + 1.000 * fs);
+                    ctx.lineTo(fscreen.x - fX, fscreen.y + 0.567 * fs);
+                    ctx.lineTo(fscreen.x - fX, fscreen.y - 0.305 * fs);
+                    ctx.closePath();
+                    ctx.fillStyle = '#0d1520';
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
+                    continue;
+                }
 
                 // Calculate Pixel Position using Offset Logic
                 // q is column (x), r is row (y)
@@ -1045,7 +1068,16 @@ export class Renderer {
      * Render a hex with a PNG sprite (clipped to hex shape)
      */
     renderSpriteHex(ctx, cx, cy, size, sprite, tile, overlaySprite = null, roadSprite = null) {
-        const corners = Hex.hexCorners(cx, cy, size);
+        // Use sprite-derived isometric corners (measured from 256×384 tile pixel data)
+        const sX = 0.866 * size;
+        const corners = [
+            { x: cx,       y: cy - 0.732 * size },
+            { x: cx + sX,  y: cy - 0.305 * size },
+            { x: cx + sX,  y: cy + 0.567 * size },
+            { x: cx,       y: cy + 1.000 * size },
+            { x: cx - sX,  y: cy + 0.567 * size },
+            { x: cx - sX,  y: cy - 0.305 * size },
+        ];
 
         ctx.save();
 
@@ -1279,7 +1311,7 @@ export class Renderer {
                     const imgW = renderSize * 2.3;
                     const imgH = imgW * (sprite.height / sprite.width);
                     ctx.globalAlpha = 1.0;
-                    ctx.drawImage(sprite, screen.x - imgW / 2, screen.y - imgH * 0.72, imgW, imgH);
+                    ctx.drawImage(sprite, screen.x - imgW / 2, screen.y - imgH / 2, imgW, imgH);
                 } else {
                     // Fallback to icon if image failed to load
                     const icon = settlement.type === 'capital' ? '🏰' : (settlement.type === 'town' ? '🏘️' : '🏠');
@@ -1819,16 +1851,27 @@ export class Renderer {
         const size = this.hexSize;
         const pulse = Math.sin(this.time * 3) * 0.1 + 0.2;
 
+        const yScaleR = Math.sqrt(3) / 2;
+
         for (const [key] of this.reachableHexes) {
             const [q, r] = key.split(',').map(Number);
             const pos = this.getHexPixelPos(q, r);
             const screen = this.camera.worldToScreen(pos.x, pos.y);
-            const renderSize = size * this.camera.zoom;
+            const s = size * this.camera.zoom;
 
             if (screen.x < -50 || screen.x > this.canvas.width + 50) continue;
             if (screen.y < -50 || screen.y > this.canvas.height + 50) continue;
 
-            const corners = Hex.hexCorners(screen.x, screen.y, renderSize * 0.92);
+            const x = screen.x, y = screen.y;
+            const X = 0.866 * s;
+            const corners = [
+                { x: x,     y: y - 0.732 * s },
+                { x: x + X, y: y - 0.305 * s },
+                { x: x + X, y: y + 0.567 * s },
+                { x: x,     y: y + 1.000 * s },
+                { x: x - X, y: y + 0.567 * s },
+                { x: x - X, y: y - 0.305 * s },
+            ];
             ctx.beginPath();
             ctx.moveTo(corners[0].x, corners[0].y);
             for (let i = 1; i < 6; i++) ctx.lineTo(corners[i].x, corners[i].y);
@@ -1846,9 +1889,21 @@ export class Renderer {
         const size = this.hexSize;
         const pos = this.getHexPixelPos(q, r);
         const screen = this.camera.worldToScreen(pos.x, pos.y);
-        const renderSize = size * this.camera.zoom;
+        const s = size * this.camera.zoom;
+        const x = screen.x, y = screen.y;
+        const X = 0.866 * s; // √3/2
 
-        const corners = Hex.hexCorners(screen.x, screen.y, renderSize);
+        // Corner offsets measured from sprite pixel data (256×384 tile):
+        //   Top (128,128), Upper corners (0/255,191), Lower corners (0/255,320), Bottom (128,383)
+        // Converted to screen-space offsets from (cx, cy) in units of renderSize.
+        const corners = [
+            { x: x,     y: y - 0.732 * s },  // top
+            { x: x + X, y: y - 0.305 * s },  // upper-right
+            { x: x + X, y: y + 0.567 * s },  // lower-right
+            { x: x,     y: y + 1.000 * s },  // bottom
+            { x: x - X, y: y + 0.567 * s },  // lower-left
+            { x: x - X, y: y - 0.305 * s },  // upper-left
+        ];
 
         ctx.beginPath();
         ctx.moveTo(corners[0].x, corners[0].y);
@@ -1870,20 +1925,23 @@ export class Renderer {
         const pixelPos = this.getHexPixelPos(this.player.q, this.player.r);
         const screen = this.camera.worldToScreen(pixelPos.x, pixelPos.y);
         const renderSize = size * this.camera.zoom;
+        const isDead = !!this.player._isDead;
 
         // Player glow
         const glowPulse = Math.sin(this.time * 2) * 0.2 + 0.4;
         ctx.beginPath();
         ctx.arc(screen.x, screen.y, renderSize * 0.7, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${glowPulse * 0.15})`;
+        ctx.fillStyle = isDead
+            ? `rgba(200, 30, 30, ${glowPulse * 0.2})`
+            : `rgba(255, 255, 255, ${glowPulse * 0.15})`;
         ctx.fill();
 
         // Player circle
         ctx.beginPath();
         ctx.arc(screen.x, screen.y, renderSize * 0.38, 0, Math.PI * 2);
-        ctx.fillStyle = '#1a1a2e';
+        ctx.fillStyle = isDead ? '#2e0a0a' : '#1a1a2e';
         ctx.fill();
-        ctx.strokeStyle = '#ffffff';
+        ctx.strokeStyle = isDead ? '#aa3333' : '#ffffff';
         ctx.lineWidth = 2.5 * this.camera.zoom;
         ctx.stroke();
 
@@ -1892,12 +1950,19 @@ export class Renderer {
         ctx.font = `${iconSize}px serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        // Show ship icon if player is boarded on a ship
-        const displayIcon = this.player.boardedShip ? '⛵' : '👤';
-        ctx.fillText(displayIcon, screen.x, screen.y);
+        if (isDead) {
+            ctx.fillText('💀', screen.x, screen.y);
+        } else {
+            const displayIcon = this.player.boardedShip ? '⛵' : '👤';
+            ctx.fillText(displayIcon, screen.x, screen.y);
+        }
 
         // Plumbob above player on world map
-        this._drawWorldPlumbob(ctx, screen.x, screen.y - renderSize * 0.55, renderSize);
+        if (isDead) {
+            this._drawWorldDeadPlumbob(ctx, screen.x, screen.y - renderSize * 0.55, renderSize);
+        } else {
+            this._drawWorldPlumbob(ctx, screen.x, screen.y - renderSize * 0.55, renderSize);
+        }
 
         // Direction indicator / name
         if (this.camera.zoom > 0.7) {
@@ -1906,13 +1971,13 @@ export class Renderer {
             
             // Add to label queue with highest priority
             this.addLabel(
-                this.player.name,
+                isDead ? 'Dead' : this.player.name,
                 screen.x,
                 screen.y + renderSize * 0.55,
-                10, // Player has highest priority
+                10,
                 {
                     font: font,
-                    fillStyle: '#ffffff',
+                    fillStyle: isDead ? '#aa3333' : '#ffffff',
                     shadowColor: 'rgba(0,0,0,0.6)',
                     textAlign: 'center',
                     textBaseline: 'top'
@@ -1950,6 +2015,35 @@ export class Renderer {
         ctx.fill();
 
         ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    /**
+     * Draw a red "dead" plumbob — static, no bob — on the world map.
+     */
+    _drawWorldDeadPlumbob(ctx, x, topY, renderSize) {
+        const size = Math.max(5, renderSize * 0.2);
+        ctx.save();
+        ctx.shadowColor = 'rgba(200, 30, 30, 0.6)';
+        ctx.shadowBlur = size * 1.5;
+
+        ctx.beginPath();
+        ctx.moveTo(x, topY - size);
+        ctx.lineTo(x + size * 0.6, topY);
+        ctx.lineTo(x, topY + size);
+        ctx.lineTo(x - size * 0.6, topY);
+        ctx.closePath();
+
+        const grad = ctx.createLinearGradient(x, topY - size, x, topY + size);
+        grad.addColorStop(0, '#ff4444');
+        grad.addColorStop(0.45, '#cc2222');
+        grad.addColorStop(1, '#881111');
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
         ctx.lineWidth = 1;
         ctx.stroke();
         ctx.restore();

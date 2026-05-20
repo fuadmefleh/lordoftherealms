@@ -9,6 +9,7 @@ import { MarketDynamics } from '../systems/marketDynamics.js';
 import { Characters } from '../world/characters.js';
 import { Cartography } from '../systems/cartography.js';
 import { Religion } from '../systems/religion.js';
+import { Gossip } from '../systems/gossip.js';
 
 
 export const Tavern = {
@@ -204,6 +205,19 @@ export const Tavern = {
             });
         }
 
+        // 10. Listen for gossip about your crimes
+        const gossipItems = Gossip.getTavernGossip(player, tile.q, tile.r, world);
+        if (gossipItems.length > 0) {
+            options.push({
+                id: 'listen_gossip',
+                label: 'Listen for gossip about you',
+                icon: '👂',
+                cost: 0,
+                description: `People are whispering... ${gossipItems.length} rumor${gossipItems.length > 1 ? 's' : ''} circulating here.`,
+                available: true,
+            });
+        }
+
         return options;
     },
 
@@ -253,6 +267,8 @@ export const Tavern = {
             case 'ask_religious_lore':
                 if (player.modifyNeed) player.modifyNeed('social', 5);
                 return Tavern._askReligiousLore(player, tile, world);
+            case 'listen_gossip':
+                return Tavern._listenForGossip(player, tile, world);
             default:
                 return [];
         }
@@ -730,6 +746,56 @@ export const Tavern = {
                 reliability: 1.0,
                 day: world.day,
             });
+        }
+
+        Tavern._storeRumors(player, rumors);
+        return rumors;
+    },
+
+    /**
+     * Listen for gossip about your crimes — shows what people are saying about you
+     */
+    _listenForGossip(player, tile, world) {
+        const gossipItems = Gossip.getTavernGossip(player, tile.q, tile.r, world);
+        const rumors = [];
+
+        if (gossipItems.length === 0) {
+            rumors.push({
+                category: Tavern.CATEGORIES.RUMORS_GOSSIP,
+                icon: '👂',
+                title: 'No Gossip',
+                text: '"Nobody seems to be talking about you here."',
+                reliability: 1.0,
+                day: world.day,
+            });
+        } else {
+            for (const item of gossipItems) {
+                let text = `"${item.text}"`;
+                if (item.hasBounty) {
+                    text += ` (Bounty: ${item.bountyGold}g)`;
+                }
+                rumors.push({
+                    category: Tavern.CATEGORIES.RUMORS_GOSSIP,
+                    icon: item.icon || '🗣️',
+                    title: `${item.freshness}: ${item.hasBounty ? '⚠️ ' : ''}Crime Rumor`,
+                    text,
+                    reliability: Tavern.RELIABILITY.TAVERN_GOSSIP,
+                    day: world.day,
+                });
+            }
+
+            // Show notoriety summary
+            const notoriety = Gossip.getPlayerNotoriety(player);
+            if (notoriety.totalBounty > 0) {
+                rumors.push({
+                    category: Tavern.CATEGORIES.RUMORS_GOSSIP,
+                    icon: '💰',
+                    title: `Your Notoriety: ${notoriety.notoriety}`,
+                    text: `Total bounty on your head: ${notoriety.totalBounty}g across ${notoriety.activeBounties} jurisdiction${notoriety.activeBounties !== 1 ? 's' : ''}.`,
+                    reliability: 1.0,
+                    day: world.day,
+                });
+            }
         }
 
         Tavern._storeRumors(player, rumors);

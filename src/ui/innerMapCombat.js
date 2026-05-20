@@ -18,6 +18,7 @@ import { InnerMapRenderer } from './innerMapRenderer.js';
 import { InnerMapCharacters } from './innerMapCharacters.js';
 import { Relationships } from '../systems/relationships.js';
 import { CustomObjects } from '../world/customObjects.js';
+import { Gossip } from '../systems/gossip.js';
 
 
 export const InnerMapCombat = {
@@ -275,6 +276,24 @@ export const InnerMapCombat = {
         // Clean up health and reaction state
         this._npcHealth.delete(npc.id);
         this._npcReactions.delete(npc.id);
+
+        // ── Gossip: report the kill ──
+        if (game && game.player && game.world) {
+            const worldTile = InnerMap.currentWorldTile || {};
+            const result = Gossip.reportCrime(game.player, game.world, {
+                crimeType: 'murder',
+                victim: { name: npc.name, type: npc.type, icon: npc.icon },
+                q: worldTile.q,
+                r: worldTile.r,
+            });
+            if (result.witnessed && game.ui) {
+                game.ui.showNotification(
+                    '👁️ Witnessed!',
+                    `${result.witnessCount} witness${result.witnessCount > 1 ? 'es' : ''} saw you kill ${npc.name}! Rumors will spread.`,
+                    'warning'
+                );
+            }
+        }
 
         // Small loot drop
         if (game && game.ui) {

@@ -8,8 +8,9 @@
 
 import { CustomInteriors } from '../world/customInteriors.js';
 import { CustomBuildings } from '../world/customBuildings.js';
-import { InnerMap } from '../world/innerMap.js';
-import { InnerMapRenderer } from './innerMapRenderer.js';
+// DISABLED: Inner map feature disabled
+// import { InnerMap } from '../world/innerMap.js';
+// import { InnerMapRenderer } from './innerMapRenderer.js';
 import { DataLoader } from '../core/dataLoader.js';
 
 // ─── Constants ────────────────────────────────────────────
@@ -1366,9 +1367,10 @@ function _finishBuilding() {
     }
 
     // Place the building on the inner map at the anchor position
-    if (InnerMap.active && InnerMap.tiles) {
-        _placeOnInnerMap(buildingDef);
-    }
+    // DISABLED: Inner map feature disabled
+    // if (InnerMap.active && InnerMap.tiles) {
+    //     _placeOnInnerMap(buildingDef);
+    // }
 
     _showToast('Building placed!', 'ok');
 

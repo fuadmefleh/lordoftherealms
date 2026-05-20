@@ -22,6 +22,7 @@
 
 import { CustomBuildings } from './customBuildings.js';
 import { InnerMap } from './innerMap.js';
+import { DataLoader } from '../core/dataLoader.js';
 
 // ── District types ──────────────────────────────────────────
 const DISTRICT = {
@@ -609,6 +610,24 @@ function generate(tiles, settlement, rng, mapW, mapH) {
             // Final attempt: try common residential type keys.
             placeOnLot(li, 'house') || placeOnLot(li, 'other');
         }
+
+        // Procedural brush-tile fallback for residential/farm lots that are still empty
+        if (!usedLots.has(li) && (lot.district === DISTRICT.RESIDENTIAL || lot.district === DISTRICT.FARM)) {
+            try {
+                const gd = DataLoader._gamedata;
+                const procDef = _generateProceduralBuilding(lot, gd);
+                if (procDef) {
+                    CustomBuildings._registerPlayerBuilding(procDef);
+                    if (_tryPlaceCustomBuilding(tiles, procDef, lot, mapW, mapH)) {
+                        usedLots.add(li);
+                        placedCount++;
+                        _placedIds.push(procDef.id);
+                    }
+                }
+            } catch (e) {
+                // Non-critical: silently skip if brush data is unavailable
+            }
+        }
     }
 
     console.log(`[SettlementGen] placed ${placedCount}/${maxBuildings} buildings on ${usedLots.size}/${lots.length} lots`);
@@ -818,6 +837,135 @@ function _placeEntryRoads(tiles, spokeAngles, cx, cy, radius, mapW, mapH, roadSe
             }
         }
     }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  PROCEDURAL BUILDING GENERATION (brush-based fallback)
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * Resolve a 9-tile brush tile for a cell given its neighbours in a member set.
+ * Mirrors resolveTile() in interior_editor.html so the same brush logic works
+ * in both contexts.
+ */
+function _resolveBrushTile(brush, q, r, memberSet) {
+    const has = (dq, dr) => memberSet.has(`${q + dq},${r + dr}`);
+    const hasTop = has(0, -1), hasBot = has(0, 1), hasLft = has(-1, 0), hasRgt = has(1, 0);
+    const hasTL  = has(-1,-1), hasTR  = has(1,-1), hasBL  = has(-1, 1), hasBR  = has(1, 1);
+    const card   = (hasTop?1:0)+(hasBot?1:0)+(hasLft?1:0)+(hasRgt?1:0);
+
+    // Wall-type corridor / junction tiles
+    if (brush.brushType === 'wall' && brush.corridors) {
+        if (card === 0 && brush.corridors[7]) return brush.corridors[7]; // solo
+        if (card === 1 && brush.endCaps) {
+            const ec = hasBot?0 : hasTop?1 : hasRgt?2 : hasLft?3 : -1;
+            if (ec >= 0 && brush.endCaps[ec]) return brush.endCaps[ec];
+        }
+        if (hasTop && hasBot && !hasLft && !hasRgt && brush.corridors[0]) return brush.corridors[0];
+        if (hasLft && hasRgt && !hasTop && !hasBot && brush.corridors[1]) return brush.corridors[1];
+        if (card === 3) {
+            const ti = (hasLft&&hasRgt&&hasBot&&!hasTop)?2
+                     : (hasLft&&hasRgt&&hasTop&&!hasBot)?3
+                     : (hasTop&&hasBot&&hasRgt&&!hasLft)?4
+                     : (hasTop&&hasBot&&hasLft&&!hasRgt)?5 : -1;
+            if (ti >= 0 && brush.corridors[ti]) return brush.corridors[ti];
+        }
+    }
+
+    // Inside corners
+    if (hasTop && hasBot && hasLft && hasRgt && brush.insideCorners) {
+        const ic = !hasTL?0 : !hasTR?1 : !hasBL?2 : !hasBR?3 : -1;
+        if (ic >= 0 && brush.insideCorners[ic]) return brush.insideCorners[ic];
+    }
+
+    // Standard 3×3 mapping
+    let row = 1;
+    if (!hasTop && hasBot) row = 0;
+    else if (hasTop && !hasBot) row = 2;
+    let col = 1;
+    if (!hasLft && hasRgt) col = 0;
+    else if (hasLft && !hasRgt) col = 2;
+
+    return (brush.tiles && brush.tiles[row] && brush.tiles[row][col]) || null;
+}
+
+/**
+ * Procedurally generate a simple building def for a lot using 9-tile brushes
+ * from gamedata.  Returns a building def ready for _tryPlaceCustomBuilding, or
+ * null if no brushes are available.
+ *
+ * Only used as a fallback when no authored building fits the lot.
+ */
+function _generateProceduralBuilding(lot, gd) {
+    if (!gd) return null;
+    const brushes = Array.isArray(gd.nineTileBrushes) ? gd.nineTileBrushes : [];
+    const wallBrush  = brushes.find(b => b.brushType === 'wall');
+    const floorBrush = brushes.find(b => b.brushType === 'floor' || !b.brushType);
+    if (!wallBrush && !floorBrush) return null;
+
+    // Clamp footprint to something sensible for a lot
+    const w = Math.min(Math.max(4, lot.w), 12);
+    const h = Math.min(Math.max(4, lot.h), 12);
+
+    // Build floor & wall cell sets
+    const floorCells = new Set();
+    for (let r = 0; r < h; r++) {
+        for (let c = 0; c < w; c++) {
+            floorCells.add(`${c},${r}`);
+        }
+    }
+    const wallCells = new Set();
+    for (const key of floorCells) {
+        const [c, r] = key.split(',').map(Number);
+        if (c === 0 || c === w - 1 || r === 0 || r === h - 1) wallCells.add(key);
+    }
+
+    // Build layers
+    const floorLayer = [];
+    const wallsLayer = [];
+    const metaArr    = [];
+
+    const TILE_SIZE = 32;
+
+    if (floorBrush) {
+        for (const key of floorCells) {
+            const [q, r] = key.split(',').map(Number);
+            const t = _resolveBrushTile(floorBrush, q, r, floorCells);
+            if (t) floorLayer.push({ q, r, sheetPath: t.sheetPath, sx: t.sx, sy: t.sy, sw: TILE_SIZE, sh: TILE_SIZE });
+        }
+    }
+    if (wallBrush) {
+        for (const key of wallCells) {
+            const [q, r] = key.split(',').map(Number);
+            const t = _resolveBrushTile(wallBrush, q, r, wallCells);
+            if (t) wallsLayer.push({ q, r, sheetPath: t.sheetPath, sx: t.sx, sy: t.sy, sw: TILE_SIZE, sh: TILE_SIZE });
+            metaArr.push({ q, r, impassable: true });
+        }
+    }
+
+    // Place door at south-center of the wall
+    const doorQ = Math.floor(w / 2);
+    const doorR = h - 1;
+    const doorKey = `${doorQ},${doorR}`;
+    // Remove wall tile entry for door cell and replace its meta
+    const wallIdx = wallsLayer.findIndex(e => e.q === doorQ && e.r === doorR);
+    if (wallIdx >= 0) wallsLayer.splice(wallIdx, 1);
+    const metaIdx = metaArr.findIndex(e => e.q === doorQ && e.r === doorR);
+    if (metaIdx >= 0) metaArr.splice(metaIdx, 1);
+    metaArr.push({ q: doorQ, r: doorR, door: true });
+
+    const uid = `proc_${Date.now()}_${Math.floor(Math.random() * 0xffff).toString(16)}`;
+    return {
+        id:           uid,
+        name:         'House',
+        buildingType: 'house',
+        width:         w,
+        height:        h,
+        layers:        { floor: floorLayer, walls: wallsLayer },
+        meta:          metaArr,
+        bounds:        { minCol: 0, minRow: 0, maxCol: w - 1, maxRow: h - 1 },
+        _procedural:   true,
+    };
 }
 
 // ── Public API ──────────────────────────────────────────────

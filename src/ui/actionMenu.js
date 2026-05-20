@@ -11,7 +11,10 @@ import { Banking, MarketDynamics, Taxation } from '../systems/marketDynamics.js'
 import { Technology } from '../systems/technology.js';
 import { Titles } from '../systems/titles.js';
 import { Quests } from '../systems/quests.js';
-import { InnerMap } from '../world/innerMap.js';
+// import { InnerMap } from '../world/innerMap.js';  // DISABLED: Inner map feature disabled
+import { Terrain } from '../world/terrain.js';
+import { Kingdom } from '../world/kingdom.js';
+import { NPCLords } from '../world/npcLords.js';
 import { Peoples } from '../systems/peoples.js';
 import { LegendaryArtifacts } from '../systems/legendaryArtifacts.js';
 import { BountyHunting } from '../systems/bountyHunting.js';
@@ -28,6 +31,7 @@ import { Councils } from '../systems/councils.js';
 import { SaveLoad } from '../systems/saveLoad.js';
 import { Economy } from '../world/economy.js';
 import { DataLoader } from '../core/dataLoader.js';
+// import { InnerMapRenderer } from './innerMapRenderer.js';  // DISABLED: Inner map feature disabled
 
 
 export const ActionMenu = {
@@ -66,7 +70,7 @@ export const ActionMenu = {
             rest: 'general', explore_poi: 'general', clear_trees: 'general', dig_treasure: 'general',
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general',
             prospect: 'general', tame_horse: 'general', craft_campfire: 'general',
-            disembark: 'general', explore_inner_map: 'general',
+            disembark: 'general', // explore_inner_map: 'general',  // DISABLED
             trade: 'commerce', contract: 'commerce', ship_passage: 'commerce',
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
             odd_jobs: 'commerce', bounty_board: 'commerce', busking: 'commerce', gambling: 'commerce',
@@ -355,7 +359,7 @@ export const ActionMenu = {
         // Free actions (0 AP)
         rest: 0,
         disembark: 0,
-        explore_inner_map: 0,
+        // explore_inner_map: 0,  // DISABLED
         jail_wait: 0, jail_bail: 0, jail_escape: 0,
         servitude_wait: 0, servitude_escape: 0, servitude_buy_freedom: 0,
         view_relationships: 0, manage_dynasty: 0,
@@ -511,7 +515,7 @@ export const ActionMenu = {
                 case 'trade':       p.modifyNeed('social', 5); break;
                 case 'tavern':      p.modifyNeed('social', 5); p.modifyNeed('comfort', 5); break;
                 case 'explore_poi': p.modifyNeed('fun', 10); p.modifyNeed('energy', -5); break;
-                case 'explore_inner_map': p.modifyNeed('fun', 5); break;
+                // case 'explore_inner_map': p.modifyNeed('fun', 5); break;  // DISABLED
                 case 'clear_trees': p.modifyNeed('energy', -10); p.modifyNeed('hygiene', -5); break;
                 case 'pickpocket':  p.modifyNeed('fun', 5); p.modifyNeed('comfort', -8); break;
                 case 'smuggle':     p.modifyNeed('fun', 5); p.modifyNeed('comfort', -5); break;
@@ -555,19 +559,20 @@ export const ActionMenu = {
             case 'rest':
                 game.endDay();
                 break;
-            case 'explore_inner_map':
-                ActionMenu.close();
-                {
-                    const targetQ = (tile && Number.isFinite(tile.q)) ? tile.q : game.player.q;
-                    const targetR = (tile && Number.isFinite(tile.r)) ? tile.r : game.player.r;
-                    Promise.resolve(game.enterInnerMap(targetQ, targetR)).catch((err) => {
-                    console.error('[ActionMenu] Failed to enter inner map:', err);
-                    if (game && game.ui && typeof game.ui.showNotification === 'function') {
-                        game.ui.showNotification('Inner Map Error', 'Failed to enter the inner map. Check console for details.', 'error');
-                    }
-                });
-                }
-                break;
+            // DISABLED: Inner map feature disabled
+            // case 'explore_inner_map':
+            //     ActionMenu.close();
+            //     {
+            //         const targetQ = (tile && Number.isFinite(tile.q)) ? tile.q : game.player.q;
+            //         const targetR = (tile && Number.isFinite(tile.r)) ? tile.r : game.player.r;
+            //         Promise.resolve(game.enterInnerMap(targetQ, targetR)).catch((err) => {
+            //         console.error('[ActionMenu] Failed to enter inner map:', err);
+            //         if (game && game.ui && typeof game.ui.showNotification === 'function') {
+            //             game.ui.showNotification('Inner Map Error', 'Failed to enter the inner map. Check console for details.', 'error');
+            //         }
+            //     });
+            //     }
+            //     break;
             case 'disembark':
                 ActionMenu.disembarkShip(game);
                 break;
@@ -917,7 +922,13 @@ export const ActionMenu = {
 
         const prop = tile.playerProperty;
         const propType = PlayerEconomy.PROPERTY_TYPES[prop.type.toUpperCase()];
-        const isWorkshop = prop.type === 'workshop';
+        const RECIPE_BUILDING_TYPES = [
+            'workshop', 'brewery', 'grain_mill', 'bakery', 'forge', 'tannery', 'sawmill',
+            'smokehouse', 'butcher', 'rope_walk', 'pottery_kiln', 'weaver', 'winery',
+            'apothecary', 'fletcher', 'jeweler', 'dye_works', 'chandlery',
+            'glassworks', 'scriptorium', 'blacksmith', 'perfumery',
+        ];
+        const isWorkshop = RECIPE_BUILDING_TYPES.includes(prop.type);
 
         // Calculate upgrade info
         const isMaxLevel = prop.level >= 5;
@@ -1045,7 +1056,7 @@ export const ActionMenu = {
 
             html += `
             <div style="margin-bottom:20px; background:rgba(255,255,255,0.03); padding:16px; border-radius:8px; border:1px solid ${isRetooling ? 'rgba(245,166,35,0.3)' : 'rgba(255,255,255,0.08)'};">
-                <h4 style="margin:0 0 12px 0; color:var(--gold); font-size:14px; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:8px; font-family:var(--font-display);">Workshop Configuration</h4>
+                <h4 style="margin:0 0 12px 0; color:var(--gold); font-size:14px; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:8px; font-family:var(--font-display);">Production Configuration</h4>
             `;
 
             // Show retooling status banner
@@ -1071,7 +1082,8 @@ export const ActionMenu = {
                         <option value="" style="background:#0c1220; color:var(--text-primary);">-- Select Recipe --</option>
                         ${(() => {
                             const allRecipes = (typeof Technology !== 'undefined') ? Technology.getUnlockedRecipes(game.player) : PlayerEconomy.RECIPES;
-                            return Object.values(allRecipes).map(r => `
+                            const allowed = propType && propType.allowedRecipes ? propType.allowedRecipes : null;
+                            return Object.values(allRecipes).filter(r => !allowed || allowed.includes(r.id.toUpperCase())).map(r => `
                             <option value="${r.id.toUpperCase()}" ${prop.activeRecipe === r.id.toUpperCase() ? 'selected' : ''} style="background:#0c1220; color:var(--text-primary); padding:6px 10px;">
                                 ${r.name} (${r.inputQty} ${PlayerEconomy.GOODS[r.input.toUpperCase()]?.name} ➔ ${r.outputQty} ${PlayerEconomy.GOODS[r.output.toUpperCase()]?.name})
                             </option>
@@ -8167,6 +8179,7 @@ export const ActionMenu = {
             { id: 'crown_anchor', name: 'Crown & Anchor', icon: '🎲', desc: 'Pick a symbol, roll 3 dice. The more matches, the bigger the payout!', minBet: 5, color: '#9b59b6' },
             { id: 'dragons_flip', name: "Dragon's Flip", icon: '🐉', desc: 'Call Dragon or Shield. Double or nothing — simple and deadly.', minBet: 10, color: '#e67e22' },
             { id: 'high_low', name: 'High-Low', icon: '🃏', desc: 'Guess if the next card is higher or lower. Build streaks for bigger payouts!', minBet: 5, color: '#2ecc71' },
+            { id: 'poker', name: "Texas Hold'em", icon: '🂡', desc: 'Two hole cards, five community cards. Outplay the dealer across four betting rounds!', minBet: 10, color: '#e74c3c' },
         ];
 
         let html = '<div style="width: 100%; box-sizing: border-box;">';
@@ -8208,7 +8221,363 @@ export const ActionMenu = {
             if (id === 'crown_anchor') ActionMenu._minigameCrownAnchor(game, tile);
             else if (id === 'dragons_flip') ActionMenu._minigameDragonsFlip(game, tile);
             else if (id === 'high_low') ActionMenu._minigameHighLow(game, tile);
+            else if (id === 'poker') ActionMenu._minigamePoker(game, tile);
         };
+    },
+
+    // ── MINIGAME: Texas Hold'em Poker ──────────────────────────────────────────
+    _minigamePoker(game, tile) {
+        window._gambGame = game;
+        window._gambTile = tile;
+
+        // ── Deck utilities ────────────────────────────────────────────────────
+        const SUITS = [
+            { sym: '♠', color: '#ccc', name: 'Spades' },
+            { sym: '♥', color: '#e74c3c', name: 'Hearts' },
+            { sym: '♦', color: '#e74c3c', name: 'Diamonds' },
+            { sym: '♣', color: '#ccc', name: 'Clubs' },
+        ];
+        const RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+        const RANK_VAL = { '2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13,'A':14 };
+
+        const makeDeck = () => {
+            const deck = [];
+            for (const s of SUITS) for (const r of RANKS) deck.push({ rank: r, suit: s });
+            // Fisher-Yates shuffle
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+            return deck;
+        };
+
+        const cardHTML = (card, faceDown = false) => {
+            if (faceDown) return `<div style="width:48px;height:68px;border-radius:6px;background:linear-gradient(135deg,#1a3a5c,#0d2137);border:2px solid rgba(255,255,255,0.15);display:inline-flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 3px 8px rgba(0,0,0,0.5);color:rgba(255,255,255,0.15);">🂠</div>`;
+            return `<div style="width:48px;height:68px;border-radius:6px;background:rgba(255,255,255,0.96);border:2px solid rgba(255,255,255,0.2);display:inline-flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 3px 8px rgba(0,0,0,0.5);gap:2px;">
+                <div style="font-size:13px;font-weight:900;line-height:1;color:${card.suit.color};">${card.rank}</div>
+                <div style="font-size:18px;line-height:1;color:${card.suit.color};">${card.suit.sym}</div>
+            </div>`;
+        };
+
+        // ── Hand evaluator ────────────────────────────────────────────────────
+        const evalHand = (cards) => {
+            // Best 5-card hand from any subset of cards
+            const vals = cards.map(c => RANK_VAL[c.rank]).sort((a,b) => b-a);
+            const suits = cards.map(c => c.suit.name);
+            const groups = {};
+            for (const v of vals) groups[v] = (groups[v]||0)+1;
+            const counts = Object.values(groups).sort((a,b) => b-a);
+            const uniq = Object.keys(groups).map(Number).sort((a,b) => b-a);
+
+            const isFlush = suits.every(s => s === suits[0]) && cards.length >= 5;
+            const isStraight = (() => {
+                const u = [...new Set(vals)].sort((a,b) => b-a);
+                if (u.length < 5) return false;
+                // Check regular straight
+                for (let i = 0; i <= u.length - 5; i++) {
+                    if (u[i] - u[i+4] === 4) return true;
+                }
+                // Wheel: A-2-3-4-5
+                if (u[0] === 14 && u[u.length-1] === 2 && u[u.length-2] === 3 && u[u.length-3] === 4 && u[u.length-4] === 5) return true;
+                return false;
+            })();
+
+            if (isFlush && isStraight && vals[0] === 14 && vals[1] === 13) return { rank: 9, name: 'Royal Flush',      score: 9000 + vals[0] };
+            if (isFlush && isStraight)                                       return { rank: 8, name: 'Straight Flush',  score: 8000 + vals[0] };
+            if (counts[0] === 4)                                             return { rank: 7, name: 'Four of a Kind',  score: 7000 + uniq.find(v => groups[v]===4)*10 };
+            if (counts[0] === 3 && counts[1] === 2)                         return { rank: 6, name: 'Full House',      score: 6000 + uniq.find(v => groups[v]===3)*10 };
+            if (isFlush)                                                     return { rank: 5, name: 'Flush',           score: 5000 + vals[0] };
+            if (isStraight)                                                  return { rank: 4, name: 'Straight',        score: 4000 + vals[0] };
+            if (counts[0] === 3)                                             return { rank: 3, name: 'Three of a Kind', score: 3000 + uniq.find(v => groups[v]===3)*10 };
+            if (counts[0] === 2 && counts[1] === 2)                         return { rank: 2, name: 'Two Pair',        score: 2000 + uniq.filter(v => groups[v]===2).reduce((a,v)=>a+v,0) };
+            if (counts[0] === 2)                                             return { rank: 1, name: 'Pair',            score: 1000 + uniq.find(v => groups[v]===2)*10 };
+            return                                                                  { rank: 0, name: 'High Card',       score: vals[0] };
+        };
+
+        const handColor = (rank) => ['#aaa','#3498db','#3498db','#2ecc71','#2ecc71','#9b59b6','#e67e22','#e67e22','#e74c3c','#f1c40f'][rank] || '#aaa';
+
+        // ── Dealer AI ─────────────────────────────────────────────────────────
+        const dealerDecide = (dealerCards, community, pot, street) => {
+            const hand = evalHand([...dealerCards, ...community]);
+            if (street === 'preflop') return hand.rank >= 1 ? 'bet' : (Math.random() < 0.4 ? 'bet' : 'check');
+            if (street === 'flop')   return hand.rank >= 2 ? 'bet' : (Math.random() < 0.25 ? 'bet' : 'check');
+            if (street === 'turn')   return hand.rank >= 1 ? 'bet' : 'check';
+            return hand.rank >= 1 ? 'bet' : 'check'; // river
+        };
+
+        // ── Game State ────────────────────────────────────────────────────────
+        const maxBet = Math.min(500, game.player.gold);
+        let deck, playerCards, dealerCards, community;
+        let pot = 0, playerBet = 0, dealerBet = 0, currentAnte = 0;
+        let street = 'ante'; // ante → preflop → flop → turn → river → showdown
+        let statusMsg = '';
+        let lastAction = '';
+        let gameOver = false;
+
+        const startHand = (ante) => {
+            deck = makeDeck();
+            playerCards = [deck.pop(), deck.pop()];
+            dealerCards = [deck.pop(), deck.pop()];
+            community = [];
+            pot = ante * 2;
+            playerBet = ante;
+            dealerBet = ante;
+            currentAnte = ante;
+            game.player.gold -= ante;
+            street = 'preflop';
+            statusMsg = 'Pre-flop: Check, Bet more, or Fold.';
+            lastAction = '';
+            gameOver = false;
+            ActionMenu._gamblingFinance(game, -ante);
+            game.ui.updateStats(game.player, game.world);
+            render();
+        };
+
+        // ── Advance streets ───────────────────────────────────────────────────
+        const nextStreet = (playerAction) => {
+            if (playerAction === 'fold') {
+                // Dealer wins pot
+                game.ui.updateStats(game.player, game.world);
+                statusMsg = '😔 You folded. Dealer takes the pot.';
+                street = 'folded';
+                gameOver = true;
+                render();
+                return;
+            }
+
+            const betAmount = parseInt(document.getElementById('pokerBetInput')?.value || currentAnte);
+            const dealerAction = dealerDecide(dealerCards, community, pot, street);
+
+            if (playerAction === 'bet') {
+                const extra = Math.max(1, betAmount);
+                if (game.player.gold < extra) { game.ui.showNotification('Not enough gold!', '', 'error'); return; }
+                game.player.gold -= extra;
+                pot += extra;
+                playerBet += extra;
+                ActionMenu._gamblingFinance(game, -extra);
+                if (dealerAction === 'bet') { pot += extra; dealerBet += extra; lastAction = `You bet ${extra}g. Dealer calls.`; }
+                else { lastAction = `You bet ${extra}g. Dealer checks.`; }
+            } else {
+                // check
+                if (dealerAction === 'bet') {
+                    const dExtra = currentAnte;
+                    pot += dExtra;
+                    dealerBet += dExtra;
+                    lastAction = `Dealer bets ${dExtra}g!`;
+                    // Player must call or fold
+                    street = street + '_facing_bet';
+                    statusMsg = `Dealer bet ${dExtra}g — Call (${dExtra}g) or Fold?`;
+                    render();
+                    return;
+                } else {
+                    lastAction = 'Both check.';
+                }
+            }
+
+            advanceStreet();
+        };
+
+        const callBet = () => {
+            // Called when facing dealer bet
+            const base = street.replace('_facing_bet','');
+            const callAmt = currentAnte;
+            if (game.player.gold < callAmt) { game.ui.showNotification('Not enough gold!', '', 'error'); return; }
+            game.player.gold -= callAmt;
+            pot += callAmt;
+            playerBet += callAmt;
+            ActionMenu._gamblingFinance(game, -callAmt);
+            lastAction = `You call ${callAmt}g.`;
+            street = base;
+            advanceStreet();
+        };
+
+        const advanceStreet = () => {
+            if (street === 'preflop') {
+                community = [deck.pop(), deck.pop(), deck.pop()];
+                street = 'flop';
+                statusMsg = 'Flop dealt. Check, Bet, or Fold.';
+            } else if (street === 'flop') {
+                community.push(deck.pop());
+                street = 'turn';
+                statusMsg = 'Turn dealt. Check, Bet, or Fold.';
+            } else if (street === 'turn') {
+                community.push(deck.pop());
+                street = 'river';
+                statusMsg = 'River dealt. Final round — Check, Bet, or Fold.';
+            } else if (street === 'river') {
+                street = 'showdown';
+                statusMsg = 'Showdown!';
+                resolveShowdown();
+                return;
+            }
+            game.ui.updateStats(game.player, game.world);
+            render();
+        };
+
+        const resolveShowdown = () => {
+            const playerHand = evalHand([...playerCards, ...community]);
+            const dealerHand = evalHand([...dealerCards, ...community]);
+            const luckBonus = ActionMenu._getTavernLuckBonus(tile);
+            // Luck can swing borderline hands: if scores are within 50, luck may tip it
+            const playerScore = playerHand.score + (Math.random() < luckBonus ? 30 : 0);
+
+            if (playerScore > dealerHand.score) {
+                game.player.gold += pot;
+                ActionMenu._gamblingFinance(game, pot - playerBet);
+                statusMsg = `🎉 You win! ${playerHand.name} beats ${dealerHand.name}. +${pot}g`;
+            } else if (playerScore === dealerHand.score) {
+                const half = Math.floor(pot / 2);
+                game.player.gold += half; // ties go to house (floor)
+                ActionMenu._gamblingFinance(game, half - playerBet);
+                statusMsg = `🤝 Tie! ${playerHand.name} vs ${dealerHand.name}. +${half}g returned.`;
+            } else {
+                ActionMenu._gamblingFinance(game, -playerBet);
+                statusMsg = `😞 Dealer wins. ${dealerHand.name} beats ${playerHand.name}.`;
+            }
+            gameOver = true;
+            game.ui.updateStats(game.player, game.world);
+            render();
+        };
+
+        // ── Render ────────────────────────────────────────────────────────────
+        const render = () => {
+            const gold = game.player.gold;
+            const isFacingBet = street.endsWith('_facing_bet');
+
+            let html = `<div style="width:100%;box-sizing:border-box;">`;
+
+            // Header
+            html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <button onclick="ActionMenu.showGamblingMenu(window._gambGame,window._gambTile)" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:13px;">← Back</button>
+                <span style="color:var(--gold);font-weight:bold;">💰 ${gold}g</span>
+            </div>`;
+            html += `<h4 style="margin:0 0 2px;text-align:center;">🂡 Texas Hold'em</h4>`;
+            if (pot > 0) html += `<div style="text-align:center;font-size:13px;color:var(--gold);margin-bottom:8px;">Pot: <b>${pot}g</b></div>`;
+
+            if (street === 'ante') {
+                // Ante selection screen
+                html += `<p style="font-size:12px;color:var(--text-secondary);text-align:center;margin-bottom:14px;">Set your ante to start a hand. Both you and the dealer put the ante in the pot.</p>`;
+                const anteMax = Math.min(200, Math.floor(gold / 2));
+                html += `<div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:18px;">
+                    <span style="font-size:12px;color:var(--text-secondary);">Ante:</span>
+                    <input type="range" id="pokerAnte" min="10" max="${anteMax}" value="${Math.min(20,anteMax)}"
+                        oninput="document.getElementById('pokerAnteLabel').textContent=this.value"
+                        style="width:160px;accent-color:#e74c3c;">
+                    <span id="pokerAnteLabel" style="color:var(--gold);font-weight:bold;min-width:38px;">${Math.min(20,anteMax)}</span>g
+                </div>`;
+                html += `<button onclick="ActionMenu._pokerDeal(parseInt(document.getElementById('pokerAnte').value))"
+                    style="display:block;width:100%;padding:12px;background:linear-gradient(135deg,#c0392b,#e74c3c);color:white;border:none;
+                           border-radius:8px;cursor:pointer;font-family:var(--font-display);font-size:15px;letter-spacing:1px;font-weight:bold;">
+                    🂡 Deal Cards
+                </button>`;
+            } else {
+                // ── Community cards ──
+                html += `<div style="text-align:center;margin-bottom:10px;">`;
+                html += `<div style="font-size:10px;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;">Community Cards</div>`;
+                html += `<div style="display:flex;gap:6px;justify-content:center;align-items:center;min-height:76px;">`;
+                for (let i = 0; i < 5; i++) {
+                    if (i < community.length) {
+                        html += cardHTML(community[i]);
+                    } else {
+                        html += `<div style="width:48px;height:68px;border-radius:6px;border:2px dashed rgba(255,255,255,0.1);display:inline-flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.1);font-size:20px;">?</div>`;
+                    }
+                }
+                html += `</div></div>`;
+
+                // ── Player hand ──
+                const showDown = street === 'showdown' || street === 'folded';
+                const playerHandResult = showDown ? evalHand([...playerCards, ...community]) : null;
+                html += `<div style="display:flex;gap:16px;justify-content:space-around;margin-bottom:10px;">`;
+
+                // Player
+                html += `<div style="text-align:center;">
+                    <div style="font-size:10px;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;">Your Hand</div>
+                    <div style="display:flex;gap:5px;justify-content:center;">${playerCards.map(c=>cardHTML(c)).join('')}</div>`;
+                if (playerHandResult) html += `<div style="font-size:11px;margin-top:5px;color:${handColor(playerHandResult.rank)};font-weight:bold;">${playerHandResult.name}</div>`;
+                html += `</div>`;
+
+                // Dealer
+                html += `<div style="text-align:center;">
+                    <div style="font-size:10px;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;">Dealer</div>
+                    <div style="display:flex;gap:5px;justify-content:center;">`;
+                if (showDown) {
+                    const dealerHandResult = evalHand([...dealerCards, ...community]);
+                    html += dealerCards.map(c=>cardHTML(c)).join('');
+                    html += `</div><div style="font-size:11px;margin-top:5px;color:${handColor(dealerHandResult.rank)};font-weight:bold;">${dealerHandResult.name}</div>`;
+                } else {
+                    html += dealerCards.map(()=>cardHTML(null,true)).join('');
+                    html += `</div>`;
+                }
+                html += `</div></div>`;
+
+                // ── Status / last action ──
+                if (lastAction) html += `<div style="font-size:11px;color:var(--text-muted);text-align:center;margin-bottom:6px;">${lastAction}</div>`;
+                html += `<div style="font-size:13px;color:var(--text-secondary);text-align:center;margin-bottom:10px;">${statusMsg}</div>`;
+
+                // ── Action buttons ──
+                if (!gameOver && !isFacingBet) {
+                    const betMax = Math.min(100, gold, pot);
+                    html += `<div style="display:flex;align-items:center;gap:6px;justify-content:center;margin-bottom:10px;">
+                        <span style="font-size:11px;color:var(--text-secondary);">Raise:</span>
+                        <input type="range" id="pokerBetInput" min="${currentAnte}" max="${betMax}" value="${currentAnte}"
+                            oninput="document.getElementById('pokerBetLabel').textContent=this.value"
+                            style="width:120px;accent-color:#e74c3c;">
+                        <span id="pokerBetLabel" style="color:var(--gold);font-weight:bold;min-width:32px;">${currentAnte}</span>g
+                    </div>`;
+                    html += `<div style="display:flex;gap:8px;justify-content:center;">
+                        <button onclick="ActionMenu._pokerAction('check')"
+                            style="padding:10px 20px;background:rgba(52,152,219,0.15);border:2px solid #3498db;border-radius:8px;
+                                   cursor:pointer;color:#3498db;font-size:13px;font-weight:bold;">✔ Check</button>
+                        <button onclick="ActionMenu._pokerAction('bet')"
+                            style="padding:10px 20px;background:rgba(231,76,60,0.15);border:2px solid #e74c3c;border-radius:8px;
+                                   cursor:pointer;color:#e74c3c;font-size:13px;font-weight:bold;">💰 Bet</button>
+                        <button onclick="ActionMenu._pokerAction('fold')"
+                            style="padding:10px 18px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:8px;
+                                   cursor:pointer;color:var(--text-secondary);font-size:13px;">✖ Fold</button>
+                    </div>`;
+                } else if (!gameOver && isFacingBet) {
+                    html += `<div style="display:flex;gap:8px;justify-content:center;">
+                        <button onclick="ActionMenu._pokerCall()"
+                            style="padding:10px 24px;background:rgba(46,204,113,0.15);border:2px solid #2ecc71;border-radius:8px;
+                                   cursor:pointer;color:#2ecc71;font-size:13px;font-weight:bold;">📲 Call</button>
+                        <button onclick="ActionMenu._pokerAction('fold')"
+                            style="padding:10px 18px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:8px;
+                                   cursor:pointer;color:var(--text-secondary);font-size:13px;">✖ Fold</button>
+                    </div>`;
+                } else if (gameOver) {
+                    html += `<button onclick="ActionMenu._pokerNewHand()"
+                        style="display:block;width:100%;padding:11px;margin-top:4px;background:linear-gradient(135deg,#c0392b,#e74c3c);color:white;border:none;
+                               border-radius:8px;cursor:pointer;font-family:var(--font-display);font-size:14px;letter-spacing:1px;"
+                        ${gold < 10 ? 'disabled style="opacity:0.4;"' : ''}>
+                        ${gold >= 10 ? '🂡 New Hand' : 'Out of gold!'}
+                    </button>`;
+                    html += `<button onclick="game.ui.hideCustomPanel();"
+                        style="display:block;width:100%;padding:9px;margin-top:6px;background:none;border:1px solid rgba(255,255,255,0.1);
+                               border-radius:8px;cursor:pointer;color:var(--text-secondary);font-size:12px;">Leave Table</button>`;
+                }
+            }
+
+            html += `</div>`;
+            game.ui.showCustomPanel("🂡 Texas Hold'em", html);
+        };
+
+        // Expose methods referenced in HTML onclick
+        window._pokerDeal = (ante) => {
+            if (!ActionMenu._gamblingCheckAP(game, tile)) return;
+            if (game.player.gold < ante * 1) { game.ui.showNotification('Not Enough Gold', `Need at least ${ante}g to ante.`, 'error'); return; }
+            startHand(ante);
+        };
+        window._pokerAction = (action) => nextStreet(action);
+        window._pokerCall = () => callBet();
+        window._pokerNewHand = () => {
+            street = 'ante';
+            pot = 0; playerBet = 0; dealerBet = 0;
+            statusMsg = '';
+            gameOver = false;
+            render();
+        };
+
+        render();
     },
 
     /**
@@ -9111,137 +9480,220 @@ export const ActionMenu = {
         document.addEventListener('keydown', keyHandler);
     },
 
-    // ── Busking Minigame: Singing — Pitch matching slider game ──
+    // ── Busking Minigame: Singing — Guitar Hero rhythm game ──
     _buskSinging(game, tile, crowdMultiplier) {
         const charisma = ActionMenu._getPlayerStat(game.player, 'charisma');
-        const totalBeats = 12;
-        let currentBeat = 0;
+
+        // ── Config ──────────────────────────────────────────────────────────
+        const LANES = 4;
+        const LANE_COLORS = ['#e74c3c', '#3498db', '#f1c40f', '#2ecc71'];
+        const LANE_KEYS  = ['d', 'f', 'j', 'k'];
+        const LANE_LABELS = ['D', 'F', 'J', 'K'];
+        const TRACK_H = 260;   // px (CSS in the panel)
+        const HIT_ZONE_TOP = 0.80; // hit zone starts at 80% down the track
+        const PERFECT_RANGE = 0.05;  // ± 5% of track height for perfect
+        const GOOD_RANGE   = 0.12;  // ± 12% for good
+
+        // Difficulty scales with charisma (higher = easier)
+        const baseSpeed = Math.max(1.8, 3.0 - charisma * 0.05);   // px per tick (50ms)
+        const hitBonus = charisma * 0.003; // extra hit window fraction
+        const startCrowd = 40 + charisma * 3;
+
+        // ── Song generation ──────────────────────────────────────────────────
+        const totalNotes = 28 + Math.floor(charisma * 0.5);
+        const generateSong = () => {
+            const notes = [];
+            for (let i = 0; i < totalNotes; i++) {
+                const lane = Math.floor(Math.random() * LANES);
+                // Delay each note so they don't all spawn at once
+                const spawnDelay = 40 + i * 22; // ticks after game start
+                notes.push({ lane, yPct: -0.10 - i * 0.035, spawned: false, active: false, hit: false, missed: false, spawnTick: spawnDelay });
+            }
+            return notes;
+        };
+
+        // ── State ────────────────────────────────────────────────────────────
+        let notes = generateSong();
+        let tick = 0;
         let score = 0;
-        let playerPitch = 50; // 0-100
-        let targetPitch = 50; // 0-100 — drifts each beat
+        let maxScore = 0;
+        let combo = 0;
+        let maxCombo = 0;
+        let crowdMood = Math.min(100, startCrowd);
+        let feedback = '';
+        let feedbackTimer = 0;
         let gameInterval = null;
         let gameOver = false;
-        let lastResult = '';
-        let crowdMood = 50;
+        let noteSpeed = baseSpeed / TRACK_H; // fraction of track per tick
 
-        const noteIcons = ['🎵', '🎶', '🎼', '♪', '♫', '🎤'];
+        const cleanup = () => { if (gameInterval) { clearInterval(gameInterval); gameInterval = null; } document.removeEventListener('keydown', keyHandler); };
 
-        const cleanup = () => { if (gameInterval) { clearInterval(gameInterval); gameInterval = null; } };
+        // ── Hit detection ────────────────────────────────────────────────────
+        const pressLane = (lane) => {
+            if (gameOver) return;
+            // Find lowest active note in this lane within hit zone
+            const hitZoneCenter = HIT_ZONE_TOP + 0.075; // center of hit zone band
+            let best = null, bestDist = 999;
+            for (const n of notes) {
+                if (n.lane !== lane || n.hit || n.missed || !n.active) continue;
+                const dist = Math.abs(n.yPct - hitZoneCenter);
+                if (dist < bestDist) { bestDist = dist; best = n; }
+            }
+            const perf  = PERFECT_RANGE + hitBonus;
+            const good  = GOOD_RANGE   + hitBonus;
+            if (best && bestDist <= good) {
+                best.hit = true;
+                best.active = false;
+                combo++;
+                maxCombo = Math.max(maxCombo, combo);
+                const multiplier = combo >= 5 ? 1.5 : 1.0;
+                if (bestDist <= perf) {
+                    score += Math.round(10 * multiplier);
+                    maxScore += 10;
+                    crowdMood = Math.min(100, crowdMood + 4);
+                    feedback = combo >= 5 ? `<span style="color:#f1c40f;">✨ Perfect! ×${multiplier}</span>` : '<span style="color:#f1c40f;">✨ Perfect!</span>';
+                } else {
+                    score += Math.round(6 * multiplier);
+                    maxScore += 10;
+                    crowdMood = Math.min(100, crowdMood + 2);
+                    feedback = '<span style="color:#2ecc71;">🎵 Good!</span>';
+                }
+                feedbackTimer = 6;
+            } else {
+                feedback = '<span style="color:#e74c3c;">❌ Miss!</span>';
+                feedbackTimer = 5;
+                combo = 0;
+                crowdMood = Math.max(0, crowdMood - 3);
+            }
+        };
 
+        // ── Keyboard ─────────────────────────────────────────────────────────
+        const keyHandler = (e) => {
+            const idx = LANE_KEYS.indexOf(e.key.toLowerCase());
+            if (idx >= 0) { e.preventDefault(); pressLane(idx); render(); }
+        };
+        document.addEventListener('keydown', keyHandler);
+
+        // ── Render ────────────────────────────────────────────────────────────
         const render = () => {
-            let html = '<div style="max-width: 420px; text-align: center;">';
-            html += '<h4 style="margin: 0 0 4px;">🎵 Sing Ballads</h4>';
-            html += `<p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">Match your pitch to the glowing note! Beat ${currentBeat}/${totalBeats}</p>`;
-
-            // Crowd mood bar
             const moodColor = crowdMood >= 60 ? '#2ecc71' : crowdMood >= 35 ? '#f39c12' : '#e74c3c';
-            html += `<div style="margin-bottom: 10px;">
-                <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px;">
-                    <span style="color: var(--text-muted);">Crowd Mood</span>
-                    <span style="color: ${moodColor};">${Math.round(crowdMood)}%</span>
+            let html = `<div style="width:100%;max-width:360px;box-sizing:border-box;">`;
+            html += `<h4 style="margin:0 0 4px;text-align:center;">🎵 Sing Ballads</h4>`;
+
+            // Score + combo
+            html += `<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">
+                <span style="color:var(--gold);">Score: <b>${score}</b></span>
+                ${combo >= 2 ? `<span style="color:#f1c40f;">🔥 Combo ×${combo}</span>` : '<span></span>'}
+                <span style="color:var(--text-muted);">Notes: ${notes.filter(n=>n.hit||n.missed||n.active||n.spawned).length}/${totalNotes}</span>
+            </div>`;
+
+            // Crowd mood
+            html += `<div style="margin-bottom:8px;">
+                <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+                    <span style="color:var(--text-muted);">Crowd Mood</span>
+                    <span style="color:${moodColor};">${Math.round(crowdMood)}%</span>
                 </div>
-                <div style="background: rgba(255,255,255,0.06); border-radius: 6px; height: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
-                    <div style="width: ${crowdMood}%; height: 100%; background: ${moodColor}; transition: width 0.3s; border-radius: 5px;"></div>
+                <div style="background:rgba(255,255,255,0.06);border-radius:6px;height:8px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);">
+                    <div style="width:${crowdMood}%;height:100%;background:${moodColor};border-radius:5px;transition:width 0.15s;"></div>
                 </div>
             </div>`;
 
-            if (!gameOver) {
-                // Pitch visualization — vertical bar with target and player markers
-                html += `<div style="position: relative; height: 200px; width: 80px; margin: 0 auto 12px; background: rgba(0,0,0,0.2); border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);">`;
-                // Target pitch zone (golden glow)
-                const targetY = 100 - targetPitch;
-                const tolerance = 8 + charisma;
-                html += `<div style="position: absolute; left: 0; right: 0; top: ${Math.max(0, targetY - tolerance)}%; height: ${tolerance * 2}%;
-                    background: rgba(243,156,18,0.15); border-top: 2px solid rgba(243,156,18,0.4); border-bottom: 2px solid rgba(243,156,18,0.4);"></div>`;
-                // Target note
-                html += `<div style="position: absolute; left: 50%; top: ${targetY}%; transform: translate(-50%, -50%); font-size: 20px;
-                    opacity: 0.8; text-shadow: 0 0 10px rgba(243,156,18,0.6);">${noteIcons[currentBeat % noteIcons.length]}</div>`;
-                // Player pitch marker
-                const playerY = 100 - playerPitch;
-                const diff = Math.abs(playerPitch - targetPitch);
-                const markerColor = diff <= tolerance ? '#2ecc71' : diff <= tolerance * 2 ? '#f39c12' : '#e74c3c';
-                html += `<div style="position: absolute; left: 50%; top: ${playerY}%; transform: translate(-50%, -50%);
-                    font-size: 24px; filter: drop-shadow(0 0 8px ${markerColor}); transition: top 0.15s;">🎤</div>`;
-                // Scale labels
-                html += `<div style="position: absolute; right: -28px; top: 5%; font-size: 9px; color: var(--text-muted);">High</div>`;
-                html += `<div style="position: absolute; right: -24px; bottom: 5%; font-size: 9px; color: var(--text-muted);">Low</div>`;
-                html += '</div>';
+            // Track
+            const laneW = 60; const gap = 6;
+            const totalTrackW = LANES * laneW + (LANES - 1) * gap;
+            html += `<div style="position:relative;height:${TRACK_H}px;width:${totalTrackW}px;margin:0 auto;background:rgba(0,0,0,0.25);border-radius:10px;border:1px solid rgba(255,255,255,0.08);overflow:hidden;">`;
 
-                if (lastResult) html += `<div style="font-size: 13px; margin-bottom: 8px;">${lastResult}</div>`;
-
-                // Pitch controls
-                html += `<div style="display: flex; gap: 10px; justify-content: center;">
-                    <button onmousedown="window._singPitch(1)" ontouchstart="window._singPitch(1)"
-                        style="padding: 12px 28px; background: rgba(155,89,182,0.15); border: 2px solid #9b59b6;
-                               border-radius: 8px; cursor: pointer; color: #9b59b6; font-size: 16px; font-weight: bold; user-select: none;"
-                        onmouseenter="this.style.background='rgba(155,89,182,0.25)'" onmouseleave="this.style.background='rgba(155,89,182,0.15)'">
-                        🔼 Higher
-                    </button>
-                    <button onmousedown="window._singPitch(-1)" ontouchstart="window._singPitch(-1)"
-                        style="padding: 12px 28px; background: rgba(52,152,219,0.15); border: 2px solid #3498db;
-                               border-radius: 8px; cursor: pointer; color: #3498db; font-size: 16px; font-weight: bold; user-select: none;"
-                        onmouseenter="this.style.background='rgba(52,152,219,0.25)'" onmouseleave="this.style.background='rgba(52,152,219,0.15)'">
-                        🔽 Lower
-                    </button>
-                </div>`;
-                html += `<div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">Adjust your pitch to match the golden note!</div>`;
+            // Lane backgrounds + hit zone shading
+            for (let l = 0; l < LANES; l++) {
+                const lx = l * (laneW + gap);
+                html += `<div style="position:absolute;left:${lx}px;top:0;width:${laneW}px;height:100%;background:rgba(255,255,255,0.02);border-right:${l<LANES-1?'1px solid rgba(255,255,255,0.04)':'none'};"></div>`;
+                // Hit zone highlight
+                const hzTop = Math.round(HIT_ZONE_TOP * TRACK_H);
+                html += `<div style="position:absolute;left:${lx}px;top:${hzTop}px;width:${laneW}px;height:${Math.round(0.15*TRACK_H)}px;
+                    background:rgba(${LANE_COLORS[l].slice(1).match(/../g).map(x=>parseInt(x,16)).join(',')},0.08);
+                    border-top:2px solid ${LANE_COLORS[l]}44;"></div>`;
             }
 
-            html += '</div>';
+            // Draw notes
+            for (const n of notes) {
+                if (!n.active && !n.hit) continue;
+                const lx = n.lane * (laneW + gap);
+                const topPx = Math.round(n.yPct * TRACK_H);
+                const noteH = 16;
+                if (topPx < -noteH || topPx > TRACK_H) continue;
+                const col = n.hit ? 'rgba(255,255,255,0.3)' : LANE_COLORS[n.lane];
+                html += `<div style="position:absolute;left:${lx+4}px;top:${topPx}px;width:${laneW-8}px;height:${noteH}px;
+                    background:${col};border-radius:5px;box-shadow:0 0 8px ${col};opacity:${n.hit?0.4:1};"></div>`;
+            }
+
+            html += `</div>`; // track
+
+            // Feedback
+            if (feedbackTimer > 0) html += `<div style="text-align:center;font-size:15px;min-height:24px;margin-top:4px;">${feedback}</div>`;
+            else html += `<div style="min-height:24px;margin-top:4px;"></div>`;
+
+            // Lane buttons
+            html += `<div style="display:flex;gap:${gap}px;justify-content:center;margin-top:6px;">`;
+            for (let l = 0; l < LANES; l++) {
+                html += `<button onpointerdown="ActionMenu._ghLanePress(${l})" ontouchstart="ActionMenu._ghLanePress(${l})"
+                    style="width:${laneW}px;height:48px;background:${LANE_COLORS[l]}22;border:3px solid ${LANE_COLORS[l]};border-radius:8px;
+                           cursor:pointer;color:${LANE_COLORS[l]};font-size:13px;font-weight:bold;user-select:none;-webkit-user-select:none;"
+                    onmouseenter="this.style.background='${LANE_COLORS[l]}44'" onmouseleave="this.style.background='${LANE_COLORS[l]}22'">
+                    ${LANE_LABELS[l]}
+                </button>`;
+            }
+            html += `</div>`;
+            html += `<div style="text-align:center;font-size:10px;color:var(--text-muted);margin-top:4px;">Press D · F · J · K or tap the lane buttons</div>`;
+
+            if (gameOver) {
+                const pct = maxScore > 0 ? Math.min(100, Math.round(score / maxScore * 100)) : Math.round(crowdMood);
+                html += `<div style="text-align:center;font-size:12px;margin-top:8px;color:var(--text-muted);">Song complete! Score: ${score}/${maxScore} — ${pct}%</div>`;
+            }
+
+            html += `</div>`;
             game.ui.showCustomPanel('🎵 Singing', html);
         };
 
+        // Expose lane press for buttons
+        ActionMenu._ghLanePress = (lane) => { pressLane(lane); render(); };
+
         render();
 
-        // Game loop — target pitch drifts, score is checked each beat
+        // ── Game loop — 50ms ticks ───────────────────────────────────────────
         gameInterval = setInterval(() => {
             if (gameOver) return;
+            tick++;
+            if (feedbackTimer > 0) feedbackTimer--;
 
-            const tolerance = 8 + charisma;
-            const diff = Math.abs(playerPitch - targetPitch);
-
-            if (diff <= tolerance) {
-                const quality = diff <= tolerance * 0.4 ? 'perfect' : 'good';
-                if (quality === 'perfect') {
-                    score += 10;
-                    crowdMood = Math.min(100, crowdMood + 5);
-                    lastResult = '<span style="color: #f1c40f;">✨ Perfect pitch!</span>';
-                } else {
-                    score += 6;
-                    crowdMood = Math.min(100, crowdMood + 2);
-                    lastResult = '<span style="color: #2ecc71;">🎵 Good!</span>';
+            // Activate + move notes
+            for (const n of notes) {
+                if (!n.spawned && tick >= n.spawnTick) { n.spawned = true; n.active = true; }
+                if (n.active && !n.hit && !n.missed) {
+                    n.yPct += noteSpeed;
+                    // Missed if it scrolled past hit zone
+                    if (n.yPct > HIT_ZONE_TOP + 0.15 + GOOD_RANGE) {
+                        n.missed = true;
+                        n.active = false;
+                        combo = 0;
+                        maxScore += 10;
+                        crowdMood = Math.max(0, crowdMood - 3);
+                    }
                 }
-            } else if (diff <= tolerance * 2.5) {
-                score += 2;
-                lastResult = '<span style="color: #f39c12;">~ Close...</span>';
-            } else {
-                crowdMood = Math.max(0, crowdMood - 4);
-                lastResult = '<span style="color: #e74c3c;">🔇 Off-key!</span>';
             }
 
-            currentBeat++;
-
-            // Drift target pitch
-            const drift = (Math.random() - 0.5) * 25;
-            targetPitch = Math.max(10, Math.min(90, targetPitch + drift));
-
-            if (currentBeat >= totalBeats) {
+            // Check end condition: all notes spawned + none active
+            const allDone = notes.every(n => n.spawned) && notes.every(n => !n.active);
+            if (allDone) {
                 gameOver = true;
                 cleanup();
-                const pct = Math.min(100, Math.round(crowdMood));
-                setTimeout(() => ActionMenu._buskingReward(game, tile, crowdMultiplier, 'singing', pct), 800);
+                const pct = maxScore > 0 ? Math.min(100, Math.round(score / maxScore * 100)) : Math.round(crowdMood);
+                render();
+                setTimeout(() => ActionMenu._buskingReward(game, tile, crowdMultiplier, 'singing', pct), 1000);
                 return;
             }
 
             render();
-        }, 1200);
-
-        window._singPitch = (dir) => {
-            if (gameOver) return;
-            const step = 8 + charisma * 0.5;
-            playerPitch = Math.max(0, Math.min(100, playerPitch + dir * step));
-            render();
-        };
+        }, 50);
     },
 
     // ── Busking Minigame: Storytelling — Word chain story building ──
@@ -14407,6 +14859,10 @@ export const ActionMenu = {
         window._succeedAsHeir = (childId) => {
             const result = Relationships.succeedAsHeir(player, childId, game.world);
             if (result.success) {
+                // Clear death animation state
+                InnerMapRenderer.clearDeathAnimation();
+                game.player._isDead = false;
+
                 game.ui.hideCustomPanel();
 
                 let successHtml = '<div style="text-align: center;">';
@@ -14496,6 +14952,19 @@ export const ActionMenu = {
                 game.ui.hideCustomPanel();
                 game.ui.showNotification('🏠 New Home!', result.message, 'success');
                 game.ui.updateStats(player, game.world);
+                // Refresh inner map building ownership so house is immediately marked as Yours
+                if (typeof InnerMap !== 'undefined' && InnerMap.active && InnerMap.buildings) {
+                    // Clear previous player-owned flags to avoid duplicate '(Yours)' labels
+                    for (const b of InnerMap.buildings) {
+                        if (b.isPlayerOwned) {
+                            b.isPlayerOwned = false;
+                            if (b.name && b.name.includes(' (Yours)')) {
+                                b.name = b.name.replace(' (Yours)', '');
+                            }
+                        }
+                    }
+                    InnerMap._assignBuildingOwners(player);
+                }
                 game.endDay();
             } else {
                 game.ui.showNotification('Cannot Buy', result.message, 'error');
@@ -14753,6 +15222,7 @@ export const ActionMenu = {
         for (const ship of playerShipsHere) {
             const st = Ships.getShipType(ship.typeId);
             if (!st) continue;
+            const eff = Ships.getShipEffectiveStats(ship);
             const condition = Math.max(0, Math.min(100, Number(ship.condition || 0)));
             const conditionColor = condition >= 70 ? '#5cb85c' : condition >= 40 ? '#f0ad4e' : '#d9534f';
             html += '<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;background:rgba(255,255,255,0.02);">';
@@ -14762,8 +15232,8 @@ export const ActionMenu = {
             html += '</div>';
             html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px;font-size:11px;">';
             html += statPill('🔧', `${condition}%`);
-            html += statPill('⚓', st.speed);
-            html += statPill('📦', st.cargoCapacity);
+            html += statPill('⚓', eff.speed);
+            html += statPill('📦', eff.cargoCapacity);
             if (ship.customizations && ship.customizations.length > 0) {
                 html += statPill('🔧 Mods', ship.customizations.length);
             }
@@ -14932,6 +15402,8 @@ export const ActionMenu = {
         if (!ship) return;
         const st = Ships.getShipType(ship.typeId);
         if (!st) return;
+        const eff = Ships.getShipEffectiveStats(ship);
+        const availableUpgrades = Ships.getUpgradeableCustomizations(ship);
 
         const value = Ships.getShipValue(ship);
         const salePrice = Math.floor(value * 0.5);
@@ -14957,10 +15429,10 @@ export const ActionMenu = {
         html += `<div style="font-size:11px;color:${conditionColor};margin-bottom:8px;">Condition: ${condition}%</div>`;
 
         html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">';
-        html += statPill('⚓ Speed', st.speed);
-        html += statPill('📦 Cargo', st.cargoCapacity);
-        html += statPill('⚔️ Str', st.combatStrength);
-        html += statPill('👥 Crew', st.crewRequired);
+        html += statPill('⚓ Speed', eff.speed);
+        html += statPill('📦 Cargo', eff.cargoCapacity);
+        html += statPill('⚔️ Str', eff.combatStrength);
+        html += statPill('👥 Crew', eff.crewRequired);
         html += statPill('💰/day', `${st.dailyUpkeep}g`);
         if (ship.status === 'building') html += statPill('🏗️', `${ship.buildDaysLeft}d left`);
         if (ship.status === 'moving') html += statPill('🧭', ship.destinationName || 'en route');
@@ -14993,6 +15465,9 @@ export const ActionMenu = {
             html += `<button onclick="window._repairShip('${ship.id}')" style="flex:1;${btnPrimary}">🔧 Repair (${repCost}g)</button>`;
         }
         if (ship.status === 'docked') {
+            if (availableUpgrades.length > 0) {
+                html += `<button onclick="window._upgradeShipMenu('${ship.id}')" style="flex:1;${btnPrimary}">⬆️ Upgrade (${availableUpgrades.length})</button>`;
+            }
             html += `<button onclick="window._renameShip('${ship.id}')" style="flex:1;${btnSecondary}">✏️ Rename</button>`;
             html += `<button onclick="window._sellShipConfirm('${ship.id}', ${salePrice})" style="flex:1;${btnDanger}">🏷️ Sell (~${salePrice}g)</button>`;
         }
@@ -15035,6 +15510,10 @@ export const ActionMenu = {
             ActionMenu._showShipManagePanel(game, tile, sid);
         };
 
+        window._upgradeShipMenu = (sid) => {
+            ActionMenu._showShipUpgradePanel(game, tile, sid);
+        };
+
         window._sellShipConfirm = (sid, price) => {
             const sellBtnDanger = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;border:1px solid rgba(255,120,120,0.4);background:linear-gradient(180deg,#7f1d1d,#5c1212);color:#ffd6d6;';
             const sellBtnSecondary = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);';
@@ -15060,11 +15539,89 @@ export const ActionMenu = {
         };
     },
 
+    _showShipUpgradePanel(game, tile, shipId) {
+        const player = game.player;
+        const ship = Ships.getShipById(player, shipId);
+        if (!ship) return;
+        const st = Ships.getShipType(ship.typeId);
+        if (!st) return;
+
+        const upgrades = Ships.getUpgradeableCustomizations(ship);
+        const btnBase = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;';
+        const btnPrimary = `${btnBase}border:1px solid rgba(245,197,66,0.55);background:linear-gradient(180deg,#f6cf57,#d9a92a);color:#1a1a1a;`;
+        const btnSecondary = `${btnBase}border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);`;
+
+        let html = '<div style="max-height:460px;overflow-y:auto;">';
+        html += `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">`;
+        html += `<div><h4 style="margin:0;">⬆️ Upgrade ${st.icon} ${ship.name}</h4><div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">Install additional upgrades while docked.</div></div>`;
+        html += `<div style="font-size:12px;color:var(--gold);white-space:nowrap;background:rgba(245,197,66,0.12);padding:4px 8px;border-radius:6px;">💰 ${player.gold}g</div>`;
+        html += '</div>';
+
+        if (upgrades.length === 0) {
+            html += '<div style="padding:14px;border:1px dashed var(--border);border-radius:8px;text-align:center;font-size:12px;color:var(--text-secondary);">No upgrades available for this ship.</div>';
+        } else {
+            for (const c of upgrades) {
+                html += `<div style="border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:6px;background:rgba(255,255,255,0.02);">`;
+                html += `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;">`;
+                html += `<input type="checkbox" class="shipUpgradeCheck" value="${c.id}" data-cost="${c.cost}" />`;
+                html += `<span style="font-size:12px;"><b>${c.icon} ${c.name}</b> <span style="color:var(--gold);">(+${c.cost}g)</span></span>`;
+                html += '</label>';
+                html += `<div style="font-size:10px;color:var(--text-secondary);margin-left:22px;margin-top:2px;">${c.description}</div>`;
+                const efParts = [];
+                if (c.effects.speedBonus) efParts.push(`+${c.effects.speedBonus} speed`);
+                if (c.effects.cargoBonus) efParts.push(`+${c.effects.cargoBonus} cargo`);
+                if (c.effects.combatBonus) efParts.push(`+${c.effects.combatBonus} combat`);
+                if (c.effects.armorBonus) efParts.push(`+${c.effects.armorBonus} armor`);
+                if (c.effects.crewBonus) efParts.push(`+${c.effects.crewBonus} crew`);
+                if (c.effects.stealthBonus) efParts.push(`stealth ${c.effects.stealthBonus >= 0 ? '+' : ''}${c.effects.stealthBonus}`);
+                if (c.effects.explorationBonus) efParts.push(`explore +${c.effects.explorationBonus}`);
+                if (efParts.length) html += `<div style="font-size:10px;color:#5cb85c;margin-left:22px;margin-top:2px;">${efParts.join(' · ')}</div>`;
+                html += '</div>';
+            }
+        }
+
+        html += `<div id="shipUpgradeTotal" style="font-size:13px;font-weight:bold;margin:10px 0 8px;padding:8px;border-radius:6px;background:rgba(245,197,66,0.08);border:1px solid rgba(245,197,66,0.25);">Total: 0g</div>`;
+        html += `<button onclick="window._confirmShipUpgrade('${ship.id}')" style="width:100%;${btnPrimary}">Install Upgrades</button>`;
+        html += `<button onclick="ActionMenu._showShipManagePanel(window._game, window._tile, '${ship.id}')" style="width:100%;margin-top:6px;${btnSecondary}">← Back to Ship</button>`;
+        html += '</div>';
+
+        game.ui.showCustomPanel('Ship Upgrades', html);
+        window._game = game;
+        window._tile = tile;
+
+        setTimeout(() => {
+            document.querySelectorAll('.shipUpgradeCheck').forEach(cb => {
+                cb.addEventListener('change', () => {
+                    let total = 0;
+                    document.querySelectorAll('.shipUpgradeCheck:checked').forEach(checked => {
+                        total += parseInt(checked.dataset.cost, 10) || 0;
+                    });
+                    const totalEl = document.getElementById('shipUpgradeTotal');
+                    if (totalEl) totalEl.textContent = `Total: ${total}g`;
+                });
+            });
+        }, 50);
+
+        window._confirmShipUpgrade = (sid) => {
+            const selected = [];
+            document.querySelectorAll('.shipUpgradeCheck:checked').forEach(cb => selected.push(cb.value));
+            const result = Ships.upgradeShip(player, sid, selected);
+            if (result.success) {
+                game.ui.showNotification('⬆️ Ship Upgraded!', result.message, 'success');
+                game.ui.updateStats(player, game.world);
+                ActionMenu._showShipManagePanel(game, tile, sid);
+            } else {
+                game.ui.showNotification('Cannot Upgrade', result.message, 'error');
+            }
+        };
+    },
+
     _showMoveShipMenu(game, tile, shipId) {
         const player = game.player;
         const ship = Ships.getShipById(player, shipId);
         if (!ship) return;
         const st = Ships.getShipType(ship.typeId);
+        const eff = Ships.getShipEffectiveStats(ship);
         const btnBase = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;';
         const btnPrimary = `${btnBase}border:1px solid rgba(245,197,66,0.55);background:linear-gradient(180deg,#f6cf57,#d9a92a);color:#1a1a1a;`;
         const btnSecondary = `${btnBase}border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);`;
@@ -15082,7 +15639,7 @@ export const ActionMenu = {
         let html = '<div style="max-height:430px;overflow-y:auto;">';
         html += `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">`;
         html += `<div><h4 style="margin:0;">🧭 Move ${ship.name}</h4><div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">Choose a destination port; travel time depends on ship speed.</div></div>`;
-        html += `<div style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,0.03);">⚓ Speed ${st ? st.speed : 4}</div>`;
+        html += `<div style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,0.03);">⚓ Speed ${eff.speed}</div>`;
         html += '</div>';
 
         if (coastalDests.length === 0) {
@@ -15090,7 +15647,7 @@ export const ActionMenu = {
         }
         for (const dest of coastalDests) {
             const dist = Hex.distance(tile.q, tile.r, dest.q, dest.r);
-            const travelDays = Math.max(1, Math.ceil(dist / (st ? st.speed : 4)));
+            const travelDays = Math.max(1, Math.ceil(dist / eff.speed));
             html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:6px;">`;
             html += `<div><div style="font-size:12px;font-weight:bold;">${dest.name} (${dest.type})</div>`;
             html += `<div style="font-size:10px;color:var(--text-secondary);">${dist} hexes · ~${travelDays} days</div></div>`;
@@ -15138,6 +15695,7 @@ export const ActionMenu = {
             if (ship.status !== 'docked') continue;
             const st = Ships.getShipType(ship.typeId);
             if (!st) continue;
+            const eff = Ships.getShipEffectiveStats(ship);
             shown++;
             const condition = Math.max(0, Math.min(100, Number(ship.condition || 0)));
             const conditionColor = condition >= 70 ? '#5cb85c' : condition >= 40 ? '#f0ad4e' : '#d9534f';
@@ -15150,10 +15708,10 @@ export const ActionMenu = {
             html += `<div style="width:${condition}%;height:100%;background:${conditionColor};"></div>`;
             html += '</div>';
             html += '<div style="font-size:11px;display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px;">';
-            html += statPill('⚓', st.speed);
-            html += statPill('⚔️', st.combatStrength);
-            html += statPill('📦', st.cargoCapacity);
-            html += statPill('👥', st.crewRequired);
+            html += statPill('⚓', eff.speed);
+            html += statPill('⚔️', eff.combatStrength);
+            html += statPill('📦', eff.cargoCapacity);
+            html += statPill('👥', eff.crewRequired);
             html += '</div>';
             html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">';
             html += `<button onclick="window._boardShip('${ship.id}')" style="width:100%;${btnPrimary}">⛵ Board & Set Sail</button>`;
@@ -16417,3 +16975,6 @@ export const ActionMenu = {
         window._espTile = tile;
     },
 };
+
+// Expose ActionMenu globally so inline onclick handlers in dynamic HTML can access it
+window.ActionMenu = ActionMenu;

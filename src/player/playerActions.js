@@ -2,7 +2,7 @@
 // PLAYER ACTIONS — Contextual actions
 // ============================================
 
-import { InnerMap } from '../world/innerMap.js';
+// import { InnerMap } from '../world/innerMap.js';  // DISABLED: Inner map feature disabled
 import { BountyHunting } from '../systems/bountyHunting.js';
 import { Hex } from '../core/hex.js';
 import { Colonization } from '../world/colonization.js';
@@ -92,14 +92,15 @@ export const PlayerActions = {
         });
 
         // Explore Inner Map (available on explored passable tiles)
-        if (tile.explored && tile.terrain.passable && typeof InnerMap !== 'undefined') {
-            actions.push({
-                type: 'explore_inner_map',
-                label: 'Explore Area',
-                icon: '🔍',
-                description: 'Explore the interior of this tile in detail — discover hidden encounters and features'
-            });
-        }
+        // DISABLED: Inner map feature disabled
+        // if (tile.explored && tile.terrain.passable && typeof InnerMap !== 'undefined') {
+        //     actions.push({
+        //         type: 'explore_inner_map',
+        //         label: 'Explore Area',
+        //         icon: '🔍',
+        //         description: 'Explore the interior of this tile in detail — discover hidden encounters and features'
+        //     });
+        // }
 
         // Disembark from ship (if on a ship and on land/coast)
         if (player.boardedShip && tile.terrain.passable) {

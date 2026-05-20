@@ -1,0 +1,126 @@
+{
+    "_comment": "Gossip & Rumor System — configurable parameters",
+
+    "rumorTypes": {
+        "murder": {
+            "label": "Murder",
+            "icon": "💀",
+            "baseSeverity": 80,
+            "reputationPenalty": -25,
+            "renownPenalty": -10,
+            "karmaPenalty": -15,
+            "bountyGold": 200,
+            "decayDays": 60,
+            "spreadChance": 0.7,
+            "description": "{perpetrator} murdered {victim} in {location}"
+        },
+        "assault": {
+            "label": "Assault",
+            "icon": "⚔️",
+            "baseSeverity": 40,
+            "reputationPenalty": -10,
+            "renownPenalty": -3,
+            "karmaPenalty": -5,
+            "bountyGold": 50,
+            "decayDays": 30,
+            "spreadChance": 0.5,
+            "description": "{perpetrator} attacked {victim} in {location}"
+        },
+        "theft": {
+            "label": "Theft",
+            "icon": "🗝️",
+            "baseSeverity": 25,
+            "reputationPenalty": -8,
+            "renownPenalty": -2,
+            "karmaPenalty": -3,
+            "bountyGold": 30,
+            "decayDays": 20,
+            "spreadChance": 0.35,
+            "description": "{perpetrator} stole from {victim} in {location}"
+        },
+        "child_murder": {
+            "label": "Child Murder",
+            "icon": "👶💀",
+            "baseSeverity": 100,
+            "reputationPenalty": -50,
+            "renownPenalty": -25,
+            "karmaPenalty": -30,
+            "bountyGold": 500,
+            "decayDays": 120,
+            "spreadChance": 0.9,
+            "description": "{perpetrator} killed an innocent child in {location}"
+        },
+        "guard_murder": {
+            "label": "Guard Murder",
+            "icon": "💂💀",
+            "baseSeverity": 90,
+            "reputationPenalty": -35,
+            "renownPenalty": -15,
+            "karmaPenalty": -20,
+            "bountyGold": 350,
+            "decayDays": 90,
+            "spreadChance": 0.85,
+            "description": "{perpetrator} killed a guard in {location}"
+        },
+        "noble_murder": {
+            "label": "Noble Murder",
+            "icon": "🤴💀",
+            "baseSeverity": 95,
+            "reputationPenalty": -45,
+            "renownPenalty": -20,
+            "karmaPenalty": -25,
+            "bountyGold": 400,
+            "decayDays": 100,
+            "spreadChance": 0.85,
+            "description": "{perpetrator} killed a noble in {location}"
+        },
+        "priest_murder": {
+            "label": "Priest Murder",
+            "icon": "⚖️💀",
+            "baseSeverity": 85,
+            "reputationPenalty": -30,
+            "renownPenalty": -15,
+            "karmaPenalty": -25,
+            "bountyGold": 300,
+            "decayDays": 80,
+            "spreadChance": 0.75,
+            "description": "{perpetrator} killed a holy person in {location}"
+        }
+    },
+
+    "witnessRadius": 5,
+    "maxRumorsPerSettlement": 30,
+    "maxActiveRumors": 100,
+
+    "spreadSettings": {
+        "baseSpreadChance": 0.3,
+        "tradeRouteBonus": 0.2,
+        "maxSpreadDistance": 3,
+        "spreadPerDay": 1
+    },
+
+    "consequenceThresholds": {
+        "guardHostile": 60,
+        "bountyIssued": 50,
+        "settlementBanned": 80,
+        "kingdomWarrant": 90
+    },
+
+    "credibility": {
+        "singleWitness": 0.5,
+        "twoWitnesses": 0.75,
+        "threeOrMore": 0.95,
+        "guardWitnessBonus": 0.3,
+        "nobleWitnessBonus": 0.2
+    },
+
+    "decayRate": 1,
+    "forgivenessDays": 90,
+
+    "npcTypeWeights": {
+        "child": "child_murder",
+        "guard": "guard_murder",
+        "noble": "noble_murder",
+        "priest": "priest_murder"
+    }
+}

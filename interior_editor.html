@@ -355,6 +355,10 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;bo
       </div>
       <div style="flex:1;overflow:auto;padding:6px">
         <canvas id="ntb-tileset-canvas" style="image-rendering:pixelated;cursor:crosshair;display:block"></canvas>
+        <div id="ntb-quickfill-wrap" style="margin-top:8px;display:none">
+          <button id="ntb-quickfill-btn" onclick="ntbQuickFillAll()" style="width:100%;padding:6px 10px;background:var(--purple);color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;letter-spacing:0.02em">⚡ Quick Fill All Empty Slots</button>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:4px;text-align:center">Fills every empty slot with the selected tile</div>
+        </div>
       </div>
     </div>
   </div>
@@ -1710,6 +1714,7 @@ let ntbTiles = [[null,null,null],[null,null,null],[null,null,null]];
 let ntbCorners = [null, null, null, null];
 let ntbCorridors = new Array(8).fill(null);  // V-Hall, H-Hall, T-Down, T-Up, T-Right, T-Left, Cross, Solo
 let ntbEndCaps = new Array(4).fill(null);    // End-N, End-S, End-W, End-E
+let ntbLastSingleTile = null; // Last 1×1 tile picked — used by Quick Fill
 let ntbSheet = null;
 let ntbImgCols = 0, ntbImgRows = 0;
 let ntbDragStart = null;
@@ -1818,6 +1823,8 @@ function openNtbEditor(idx) {
   }
   ntbSetType(ntbBrushType);
   ntbSelSlot = null;
+  ntbLastSingleTile = null;
+  document.getElementById('ntb-quickfill-wrap').style.display = 'none';
   ntbDragStart = null; ntbDragCur = null;
   ntbBuildGrid();
   ntbBuildBrushList();
@@ -2091,6 +2098,8 @@ function ntbSetupCanvasEvents() {
     } else if (w === 1 && h === 1) {
       // Single tile: assign to selected slot
       const ref = { sheetPath: ntbSheet, sx: c1*TILE, sy: r1*TILE };
+      ntbLastSingleTile = ref;
+      document.getElementById('ntb-quickfill-wrap').style.display = '';
       if (ntbSelSlot) {
         if (ntbSelSlot.type === 'ic') ntbCorners[ntbSelSlot.idx] = ref;
         else if (ntbSelSlot.type === 'corr') ntbCorridors[ntbSelSlot.idx] = ref;
@@ -2147,6 +2156,37 @@ function ntbAdvanceSlot() {
     if (next < 4) ntbSelSlot = {type:'end', idx:next};
     else ntbSelSlot = null;
   }
+}
+
+/**
+ * Quick-fill: populate every empty brush slot with the last single-tile picked.
+ * Great for flat-colour wall sheets where all slots use the same tile.
+ */
+function ntbQuickFillAll() {
+  if (!ntbLastSingleTile) { toast('Pick a tile first', 'err'); return; }
+  const ref = { ...ntbLastSingleTile };
+  let filled = 0;
+  // Main 3×3 grid
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      if (!ntbTiles[r][c]) { ntbTiles[r][c] = { ...ref }; filled++; }
+    }
+  }
+  // Inside corners
+  for (let i = 0; i < 4; i++) {
+    if (!ntbCorners[i]) { ntbCorners[i] = { ...ref }; filled++; }
+  }
+  // Corridor & end-cap slots (wall brush only)
+  if (ntbBrushType === 'wall') {
+    for (let i = 0; i < ntbCorridors.length; i++) {
+      if (!ntbCorridors[i]) { ntbCorridors[i] = { ...ref }; filled++; }
+    }
+    for (let i = 0; i < ntbEndCaps.length; i++) {
+      if (!ntbEndCaps[i]) { ntbEndCaps[i] = { ...ref }; filled++; }
+    }
+  }
+  ntbBuildGrid();
+  toast(filled > 0 ? `Filled ${filled} empty slot${filled !== 1 ? 's' : ''}` : 'All slots already filled', filled > 0 ? 'ok' : 'err');
 }
 
 function ntbSave() {
@@ -2408,30 +2448,88 @@ function _igenRandInt(a, b) { return a + Math.floor(_igenRng() * (b - a + 1)); }
 
 /**
  * Generate a floor plan with rooms and optional inner walls.
+ * @param {number} rooms - number of rooms (used by 'simple' preset)
+ * @param {number} minW/maxW/minH/maxH - room dimension range
+ * @param {boolean} addInnerWalls - whether to add shared walls between rooms
+ * @param {string} layoutType - 'simple'|'l_shape'|'t_shape'|'hallway'|'courtyard'
+ * @param {string} doorSide - 'N'|'S'|'E'|'W'
  * Returns { width, height, floorCells: Set, wallCells: Set, doorCells: Set }
  */
-function _igenFloorPlan(rooms, minW, maxW, minH, maxH, addInnerWalls) {
-  // Generate room rectangles — dimensions include the perimeter walls
-  const rects = [];
-  for (let i = 0; i < rooms; i++) {
-    const rw = _igenRandInt(Math.max(3, minW), Math.max(3, maxW));
-    const rh = _igenRandInt(Math.max(3, minH), Math.max(3, maxH));
-    rects.push({ x: 0, y: 0, w: rw, h: rh });
-  }
+function _igenFloorPlan(rooms, minW, maxW, minH, maxH, addInnerWalls, layoutType, doorSide) {
+  layoutType = layoutType || 'simple';
+  doorSide   = doorSide   || 'S';
 
-  // Layout rooms starting at (0,0); adjacent rooms share a wall column/row
-  if (rects.length > 0) {
-    rects[0].x = 0; rects[0].y = 0;
-    for (let i = 1; i < rects.length; i++) {
-      const prev = rects[i - 1];
-      if (_igenRng() > 0.5) {
-        // Attach right — overlap 1 column (shared wall)
-        rects[i].x = prev.x + prev.w - 1;
-        rects[i].y = prev.y + _igenRandInt(0, Math.max(0, prev.h - rects[i].h));
+  // ── Build room rectangles based on preset ──────────────────
+  const rects = [];
+
+  if (layoutType === 'l_shape') {
+    // Two rooms: main room + wing at 90° (attached bottom-right)
+    const mainW = _igenRandInt(Math.max(3, minW), Math.max(3, maxW));
+    const mainH = _igenRandInt(Math.max(3, minH), Math.max(3, maxH));
+    const wingW = _igenRandInt(Math.max(3, minW), Math.max(3, Math.floor(maxW * 0.8)));
+    const wingH = _igenRandInt(Math.max(3, minH), Math.max(3, Math.floor(maxH * 0.8)));
+    rects.push({ x: 0,                       y: 0,              w: mainW, h: mainH });
+    rects.push({ x: mainW - 1,               y: mainH - wingH,  w: wingW, h: wingH });
+
+  } else if (layoutType === 't_shape') {
+    // Three rooms: wide horizontal top + two rooms attached below at each end
+    const topW  = _igenRandInt(Math.max(5, maxW), Math.max(5, maxW + 2));
+    const topH  = _igenRandInt(Math.max(3, minH), Math.max(3, Math.floor(maxH * 0.6)));
+    const sideW = _igenRandInt(Math.max(3, minW), Math.max(3, Math.floor(topW * 0.45)));
+    const sideH = _igenRandInt(Math.max(3, minH), Math.max(3, maxH));
+    rects.push({ x: 0,              y: 0,        w: topW,  h: topH });   // top bar
+    rects.push({ x: 0,              y: topH - 1, w: sideW, h: sideH }); // left wing
+    rects.push({ x: topW - sideW,   y: topH - 1, w: sideW, h: sideH }); // right wing
+
+  } else if (layoutType === 'hallway') {
+    // Central corridor + alternating side rooms
+    const hallW   = _igenRandInt(Math.max(5, maxW), Math.max(6, maxW + 3));
+    const hallH   = Math.max(3, minH);
+    const sideH   = _igenRandInt(Math.max(3, minH), Math.max(3, maxH));
+    const sideW   = _igenRandInt(Math.max(3, minW), Math.max(3, Math.floor(maxW * 0.7)));
+    const nSides  = _igenRandInt(2, 4);
+    rects.push({ x: 0, y: sideH - 1, w: hallW, h: hallH }); // corridor (centered vertically)
+    // Attach rooms above and below the corridor alternately
+    const step = Math.max(1, Math.floor((hallW - sideW) / Math.max(1, nSides - 1)));
+    for (let i = 0; i < nSides; i++) {
+      const sx = Math.min(i * step, hallW - sideW);
+      if (i % 2 === 0) {
+        rects.push({ x: sx, y: 0,            w: sideW, h: sideH }); // above
       } else {
-        // Attach bottom — overlap 1 row (shared wall)
-        rects[i].x = prev.x + _igenRandInt(0, Math.max(0, prev.w - rects[i].w));
-        rects[i].y = prev.y + prev.h - 1;
+        rects.push({ x: sx, y: sideH - 1 + hallH - 1, w: sideW, h: sideH }); // below
+      }
+    }
+
+  } else if (layoutType === 'courtyard') {
+    // Four rooms arranged around the perimeter leaving an open center
+    const cw = _igenRandInt(Math.max(3, minW), Math.max(3, maxW));
+    const ch = _igenRandInt(Math.max(3, minH), Math.max(3, maxH));
+    const wing = _igenRandInt(Math.max(3, minW), Math.max(3, Math.floor(maxW * 0.7)));
+    rects.push({ x: 0,          y: 0,          w: cw,   h: ch   }); // TL
+    rects.push({ x: cw - 1,     y: 0,          w: wing, h: ch   }); // TR (shares left wall)
+    rects.push({ x: 0,          y: ch - 1,     w: cw,   h: wing }); // BL (shares top wall)
+    rects.push({ x: cw - 1,     y: ch - 1,     w: wing, h: wing }); // BR
+    // Hollow out the center
+    // (handled below by clearing interior floor cells that are fully surrounded)
+
+  } else {
+    // 'simple': original stacked-rooms behaviour
+    for (let i = 0; i < rooms; i++) {
+      const rw = _igenRandInt(Math.max(3, minW), Math.max(3, maxW));
+      const rh = _igenRandInt(Math.max(3, minH), Math.max(3, maxH));
+      rects.push({ x: 0, y: 0, w: rw, h: rh });
+    }
+    if (rects.length > 0) {
+      rects[0].x = 0; rects[0].y = 0;
+      for (let i = 1; i < rects.length; i++) {
+        const prev = rects[i - 1];
+        if (_igenRng() > 0.5) {
+          rects[i].x = prev.x + prev.w - 1;
+          rects[i].y = prev.y + _igenRandInt(0, Math.max(0, prev.h - rects[i].h));
+        } else {
+          rects[i].x = prev.x + _igenRandInt(0, Math.max(0, prev.w - rects[i].w));
+          rects[i].y = prev.y + prev.h - 1;
+        }
       }
     }
   }
@@ -2460,7 +2558,25 @@ function _igenFloorPlan(rooms, minW, maxW, minH, maxH, addInnerWalls) {
     }
   }
 
-  // Wall cells = outer rim of floor (floor cells with at least one non-floor neighbor)
+  // For courtyard: hollow out the interior (cells fully enclosed by floor on all 8 sides
+  // and whose removal leaves a connected interior space)
+  if (layoutType === 'courtyard' && rects.length === 4) {
+    // Simple approach: clear cells that are strictly inside all four rects combined
+    const r0 = rects[0], r1 = rects[1], r2 = rects[2], r3 = rects[3];
+    const cx0 = Math.max(r0.x + 1, r2.x + 1);
+    const cy0 = Math.max(r0.y + 1, r1.y + 1);
+    const cx1 = Math.min(r0.x + r0.w - 1, r1.x + r1.w - 1) - 1;
+    const cy1 = Math.min(r2.y + r2.h - 1, r3.y + r3.h - 1) - 1;
+    if (cx1 > cx0 && cy1 > cy0) {
+      for (let y = cy0; y <= cy1; y++) {
+        for (let x = cx0; x <= cx1; x++) {
+          floorCells.delete(`${x},${y}`);
+        }
+      }
+    }
+  }
+
+  // Wall cells = outer rim of floor (floor cells with at least one non-floor 8-neighbor)
   const wallCells = new Set();
   for (const key of floorCells) {
     const [fx, fy] = key.split(',').map(Number);
@@ -2521,22 +2637,34 @@ function _igenFloorPlan(rooms, minW, maxW, minH, maxH, addInnerWalls) {
     }
   }
 
-  // Add entrance door on the bottom wall
-  let maxFloorR = 0;
+  // ── Add entrance door on the chosen side ──────────────────
+  // Collect candidate wall cells on the requested edge
+  let minFloorX = Infinity, maxFloorX = -Infinity;
+  let minFloorY = Infinity, maxFloorY = -Infinity;
   for (const key of floorCells) {
-    const r = +key.split(',')[1];
-    if (r > maxFloorR) maxFloorR = r;
-  }
-  const bottomWalls = [];
-  for (const key of wallCells) {
     const [x, y] = key.split(',').map(Number);
-    // Bottom-edge wall cells (on the bottom row and not at the extreme corners)
-    if (y === maxFloorR && x > 0 && x < totalW - 1) bottomWalls.push(key);
+    if (x < minFloorX) minFloorX = x; if (x > maxFloorX) maxFloorX = x;
+    if (y < minFloorY) minFloorY = y; if (y > maxFloorY) maxFloorY = y;
   }
-  if (bottomWalls.length) {
-    bottomWalls.sort((a, b) => +a.split(',')[0] - +b.split(',')[0]);
-    const mid = Math.floor(bottomWalls.length / 2);
-    const doorKey = bottomWalls[mid];
+
+  let sideWalls = [];
+  if (doorSide === 'S') {
+    sideWalls = [...wallCells].filter(k => { const [x, y] = k.split(',').map(Number); return y === maxFloorY && x > minFloorX && x < maxFloorX; });
+    sideWalls.sort((a, b) => +a.split(',')[0] - +b.split(',')[0]);
+  } else if (doorSide === 'N') {
+    sideWalls = [...wallCells].filter(k => { const [x, y] = k.split(',').map(Number); return y === minFloorY && x > minFloorX && x < maxFloorX; });
+    sideWalls.sort((a, b) => +a.split(',')[0] - +b.split(',')[0]);
+  } else if (doorSide === 'W') {
+    sideWalls = [...wallCells].filter(k => { const [x, y] = k.split(',').map(Number); return x === minFloorX && y > minFloorY && y < maxFloorY; });
+    sideWalls.sort((a, b) => +a.split(',')[1] - +b.split(',')[1]);
+  } else if (doorSide === 'E') {
+    sideWalls = [...wallCells].filter(k => { const [x, y] = k.split(',').map(Number); return x === maxFloorX && y > minFloorY && y < maxFloorY; });
+    sideWalls.sort((a, b) => +a.split(',')[1] - +b.split(',')[1]);
+  }
+
+  if (sideWalls.length) {
+    const mid = Math.floor(sideWalls.length / 2);
+    const doorKey = sideWalls[mid];
     wallCells.delete(doorKey);
     doorCells.add(doorKey);
   }
@@ -2718,6 +2846,16 @@ function showInteriorGenerator() {
   <div class="igen-section">
     <h4>Layout</h4>
     <div class="igen-row">
+      <label>Preset</label>
+      <select id="igen-layout">
+        <option value="simple">Simple (stacked rooms)</option>
+        <option value="l_shape">L-Shape</option>
+        <option value="t_shape">T-Shape</option>
+        <option value="hallway">Hallway + Side Rooms</option>
+        <option value="courtyard">Courtyard</option>
+      </select>
+    </div>
+    <div class="igen-row" id="igen-rooms-row">
       <label>Rooms</label>
       <input type="range" id="igen-rooms" min="1" max="5" value="1">
       <span id="igen-rooms-val" style="min-width:16px;color:var(--text)">1</span>
@@ -2731,6 +2869,15 @@ function showInteriorGenerator() {
       <label>Room Height</label>
       <input type="number" id="igen-minh" value="3" min="2" max="10" style="width:50px"> –
       <input type="number" id="igen-maxh" value="6" min="2" max="14" style="width:50px">
+    </div>
+    <div class="igen-row">
+      <label>Door Side</label>
+      <select id="igen-doorside">
+        <option value="S">South (bottom)</option>
+        <option value="N">North (top)</option>
+        <option value="W">West (left)</option>
+        <option value="E">East (right)</option>
+      </select>
     </div>
     <div class="igen-row">
       <label></label>
@@ -2765,7 +2912,17 @@ function showInteriorGenerator() {
   const roomVal = document.getElementById('igen-rooms-val');
   roomSlider.addEventListener('input', () => { roomVal.textContent = roomSlider.value; _igenRegenerate(); });
 
-  for (const id of ['igen-minw','igen-maxw','igen-minh','igen-maxh','igen-floor','igen-wall','igen-innerwalls']) {
+  // Show/hide room count based on preset
+  const layoutSel = document.getElementById('igen-layout');
+  const roomsRow  = document.getElementById('igen-rooms-row');
+  const _updateRoomsVisibility = () => {
+    const preset = layoutSel.value;
+    roomsRow.style.display = preset === 'simple' ? '' : 'none';
+  };
+  layoutSel.addEventListener('change', () => { _updateRoomsVisibility(); _igenRegenerate(); });
+  _updateRoomsVisibility();
+
+  for (const id of ['igen-minw','igen-maxw','igen-minh','igen-maxh','igen-floor','igen-wall','igen-innerwalls','igen-doorside']) {
     const el = document.getElementById(id);
     if (el) el.addEventListener('change', () => _igenRegenerate());
   }
@@ -2789,16 +2946,18 @@ function showInteriorGenerator() {
 function _igenRegenerate() {
   _igenSeed = Date.now() ^ (Math.random() * 0xffffffff);
 
-  const rooms = +document.getElementById('igen-rooms').value;
-  const minW  = +document.getElementById('igen-minw').value;
-  const maxW  = +document.getElementById('igen-maxw').value;
-  const minH  = +document.getElementById('igen-minh').value;
-  const maxH  = +document.getElementById('igen-maxh').value;
+  const layout     = (document.getElementById('igen-layout')   || {}).value || 'simple';
+  const rooms      = +document.getElementById('igen-rooms').value;
+  const minW       = +document.getElementById('igen-minw').value;
+  const maxW       = +document.getElementById('igen-maxw').value;
+  const minH       = +document.getElementById('igen-minh').value;
+  const maxH       = +document.getElementById('igen-maxh').value;
   const floorBrushIdx = +document.getElementById('igen-floor').value;
   const wallBrushIdx  = +document.getElementById('igen-wall').value;
   const innerWalls    = document.getElementById('igen-innerwalls').checked;
+  const doorSide      = (document.getElementById('igen-doorside') || {}).value || 'S';
 
-  const plan = _igenFloorPlan(rooms, Math.max(2, minW), Math.max(minW, maxW), Math.max(2, minH), Math.max(minH, maxH), innerWalls);
+  const plan = _igenFloorPlan(rooms, Math.max(2, minW), Math.max(minW, maxW), Math.max(2, minH), Math.max(minH, maxH), innerWalls, layout, doorSide);
   _igenResult = _igenBuild(plan, floorBrushIdx, wallBrushIdx);
 
   const cvs = document.getElementById('igen-preview-cvs');

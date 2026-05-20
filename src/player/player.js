@@ -584,6 +584,7 @@ export class Player {
      * Rates are per-hour; 16 waking hours × rate is about one day's drain.
      */
     decayNeedsPerHour(context = {}) {
+        return; // needs system disabled
         if (!this.needs) return;
 
         // Base hourly decay rates (per hour, so ~16 hrs drains the amount)

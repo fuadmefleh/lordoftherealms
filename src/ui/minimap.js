@@ -2,8 +2,9 @@
 // MINIMAP — Minimap rendering
 // ============================================
 
-import { InnerMap } from '../world/innerMap.js';
-import { InnerMapRenderer } from './innerMapRenderer.js';
+// DISABLED: Inner map feature disabled
+// import { InnerMap } from '../world/innerMap.js';
+// import { InnerMapRenderer } from './innerMapRenderer.js';
 
 
 export class Minimap {
@@ -35,13 +36,15 @@ export class Minimap {
         // Update label based on current mode
         const label = document.getElementById('minimapLabel');
         if (label) {
-            label.textContent = (this.game.innerMapMode && InnerMap.active) ? 'Inner Map' : 'World Map';
+            // DISABLED: Inner map always shows World Map
+            label.textContent = 'World Map';
         }
 
-        if (this.game.innerMapMode && InnerMap.active) {
-            this.renderInnerMap();
-            return;
-        }
+        // DISABLED: Inner map feature disabled
+        // if (this.game.innerMapMode && InnerMap.active) {
+        //     this.renderInnerMap();
+        //     return;
+        // }
 
         if (!this.needsRedraw && !this.game.player.isMoving) return;
         this.needsRedraw = false;

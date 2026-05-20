@@ -35,6 +35,7 @@ import { PlayerMilitary } from '../player/playerMilitary.js';
 import { ActionMenu } from './actionMenu.js';
 import { Housing } from '../systems/housing.js';
 import { Espionage } from '../systems/espionage.js';
+import { Gossip } from '../systems/gossip.js';
 import { Tavern } from '../player/tavern.js';
 import { Economy } from '../world/economy.js';
 import { TiledExport } from '../systems/tiledExport.js';
@@ -965,7 +966,7 @@ export class Game {
         DataLoader.reset();
         CustomObjects.reset();
         CustomBuildings.reset();
-        InnerMapRenderer.reset();
+        // InnerMapRenderer.reset();  // DISABLED: Inner map feature disabled
 
         // Generate world
         this.world = new World(width, height);
@@ -1106,8 +1107,9 @@ export class Game {
         const deltaTime = Math.min((timestamp - this.lastTime) / 1000, 0.1);
         this.lastTime = timestamp;
 
-        // ── Inner Map Mode ──
-        if (InnerMap.active) {
+        // ── Inner Map Mode ── DISABLED: Inner map feature disabled
+        // if (InnerMap.active) {
+        if (false) {
             try {
             this.innerMapCamera.update(deltaTime);
             this.innerMapCamera.precomputeFrame();
@@ -1273,8 +1275,9 @@ export class Game {
                 if (ia) InnerMapCombat.onObjectHit(ia.anchorQ, ia.anchorR, interactionResult.damage, interactionResult.healthPct);
             }
             if (interactionResult && interactionResult.completed) {
-                // Grant resource to player
-                if (interactionResult.resource) {
+                if (interactionResult.nonDestructive) {
+                    // Non-destructive interaction (sitting, emoting) — no resource, no removal
+                } else if (interactionResult.resource) {
                     const resType = interactionResult.resource.type;
                     const resAmt = interactionResult.resource.amount || 1;
                     if (resType === 'gold') {
@@ -1350,32 +1353,32 @@ export class Game {
         }
 
         // Advance inner-map hour clock on the world map so time visibly progresses.
-        // speed 0 = paused, 1 = normal, 2 = fast (2×), 3 = ultra (4×)
-        const speed = Number.isFinite(this.timeSpeed) ? this.timeSpeed : 1;
-        if (speed <= 0) {
-            // paused — do nothing
-        } else if (!this.isProcessingTurn && this.player) {
-            const simDelta = deltaTime * (speed === 3 ? 4 : speed);
-            InnerMap._timeAccumulator += simDelta;
-            if (InnerMap._timeAccumulator >= InnerMap.TIME_SCALE) {
-                InnerMap._timeAccumulator -= InnerMap.TIME_SCALE;
-                InnerMap.timeOfDay++;
-            }
-            // Update time cache for the player's current tile so the HUD reflects it
-            const tileKey = `${this.player.q},${this.player.r}`;
-            InnerMap._timeCache[tileKey] = {
-                timeOfDay: InnerMap.timeOfDay,
-                _timeAccumulator: InnerMap._timeAccumulator,
-                dayEnded: InnerMap.dayEnded,
-            };
-            // When the clock hits 24, end the day and reset to 8 AM
-            if (InnerMap.timeOfDay >= 24) {
-                InnerMap.timeOfDay = 8;
-                InnerMap._timeAccumulator = 0;
-                InnerMap.dayEnded = false;
-                this.endDay();
-            }
-        }
+        // DISABLED: Inner map feature disabled
+        // const speed = Number.isFinite(this.timeSpeed) ? this.timeSpeed : 1;
+        // if (speed <= 0) {
+        //     // paused — do nothing
+        // } else if (!this.isProcessingTurn && this.player) {
+        //     const simDelta = deltaTime * (speed === 3 ? 4 : speed);
+        //     InnerMap._timeAccumulator += simDelta;
+        //     if (InnerMap._timeAccumulator >= InnerMap.TIME_SCALE) {
+        //         InnerMap._timeAccumulator -= InnerMap.TIME_SCALE;
+        //         InnerMap.timeOfDay++;
+        //     }
+        //     // Update time cache for the player's current tile so the HUD reflects it
+        //     const tileKey = `${this.player.q},${this.player.r}`;
+        //     InnerMap._timeCache[tileKey] = {
+        //         timeOfDay: InnerMap.timeOfDay,
+        //         _timeAccumulator: InnerMap._timeAccumulator,
+        //         dayEnded: InnerMap.dayEnded,
+        //     };
+        //     // When the clock hits 24, end the day and reset to 8 AM
+        //     if (InnerMap.timeOfDay >= 24) {
+        //         InnerMap.timeOfDay = 8;
+        //         InnerMap._timeAccumulator = 0;
+        //         InnerMap.dayEnded = false;
+        //         this.endDay();
+        //     }
+        // }
 
         // Update player movement
         if (this.player.isMoving) {
@@ -1586,8 +1589,9 @@ export class Game {
         // Block clicks while NPC dialog is open
         if (NpcDialog.active) return;
 
-        // ── Inner Map Mode clicks ──
-        if (InnerMap.active) {
+        // ── Inner Map Mode clicks ── DISABLED
+        // if (InnerMap.active) {
+        if (false) {
             const innerHex = InnerMapRenderer.getInnerHexAtScreen(screenX, screenY, this.innerMapCamera);
             if (!innerHex) return;
 
@@ -1822,7 +1826,9 @@ export class Game {
         if (this._enteringInnerMap) return;
 
         // Double-click in inner map shows detailed tile info
-        if (InnerMap.active) {
+        // DISABLED
+        // if (InnerMap.active) {
+        if (false) {
             const innerHex = InnerMapRenderer.getInnerHexAtScreen(screenX, screenY, this.innerMapCamera);
             if (!innerHex) return;
             InnerMapRenderer._selectedInnerHex = innerHex;
@@ -1956,6 +1962,13 @@ export class Game {
             if (tile.settlement) {
                 this.ui.showNotification('🏘️ Entering Settlement',
                     `Welcome to ${tile.settlement.name}! Time: ${InnerMap.getTimeString()}. Right-click buildings to interact.`, 'info');
+
+                // Check guard hostility from gossip/rumors
+                const hostility = Gossip.checkGuardHostility(this.player, worldQ, worldR, this.world);
+                if (hostility.hostile) {
+                    this.ui.showNotification('⚠️ Hostile Guards!',
+                        `The guards here know about your crimes! Bounty: ${hostility.bountyTotal}g.`, 'error');
+                }
             } else {
                 this.ui.showNotification('🗺️ Entering Inner Map',
                     `Exploring the interior of ${terrainName}. Right-click to move, ESC to return.`, 'info');
@@ -2062,6 +2075,7 @@ export class Game {
      * Check for low-need warnings and show notifications
      */
     _checkNeedWarnings() {
+        return; // needs system disabled
         if (!this.player || !this.player.needs) return;
         const warnings = this.player._needWarnings || (this.player._needWarnings = {});
 
@@ -2613,12 +2627,9 @@ export class Game {
 
                 // ── Starvation check ─────────────────────────────
                 if (this.player.health <= 0 && this.player.starvationDays > 0) {
-                    // Player starved to death
-                    if (typeof Relationships !== 'undefined') Relationships.prepareForSave(this.player);
-                    this.isProcessingTurn = false;
-                    document.body.style.cursor = 'default';
-                    ActionMenu.showDeathScreen(this, 'starvation');
-                    return; // Stop processing — death screen handles continuation
+                    // Player starved to death — play death animation then show screen
+                    this._triggerDeath('starvation');
+                    return; // Stop processing — death animation + screen handles continuation
                 }
 
                 // Show starvation warnings
@@ -2767,12 +2778,9 @@ export class Game {
                     const agingResult = Relationships.processAging(this.player, this.world);
                     if (agingResult) {
                         if (agingResult.died) {
-                            // Player has died of old age — show death/succession screen
-                            Relationships.prepareForSave(this.player);
-                            this.isProcessingTurn = false;
-                            document.body.style.cursor = 'default';
-                            ActionMenu.showDeathScreen(this);
-                            return; // Stop processing — death screen handles continuation
+                            // Player has died of old age — play death animation then show screen
+                            this._triggerDeath();
+                            return; // Stop processing — death animation + screen handles continuation
                         } else {
                             this.ui.showNotification('🎂 Birthday', `You are now ${agingResult.age} years old.`, 'info');
                         }
@@ -2831,6 +2839,18 @@ export class Game {
                         }
                     }
                     Espionage.prepareForSave(this.player);
+                }
+
+                // Process gossip / rumors
+                {
+                    const gossipResult = Gossip.processDaily(this.player, this.world);
+                    for (const c of gossipResult.newConsequences) {
+                        if (c.consequence === 'bounty') {
+                            this.ui.showNotification('⚠️ Bounty Issued!', `A bounty has been placed on you in ${c.settlementName} for ${c.rumorType}.`, 'error');
+                        } else if (c.consequence === 'warrant') {
+                            this.ui.showNotification('🚨 Kingdom Warrant!', `A kingdom-wide warrant for your arrest has been issued near ${c.settlementName}!`, 'error');
+                        }
+                    }
                 }
 
                 // Process loans
@@ -3345,6 +3365,23 @@ export class Game {
             }
         };
         window.addEventListener('keydown', keyHandler);
+    }
+
+    /**
+     * Trigger death with animation (if on inner map) then show death screen.
+     * @param {string} [cause] - Death cause passed to showDeathScreen
+     */
+    _triggerDeath(cause) {
+        if (typeof Relationships !== 'undefined') Relationships.prepareForSave(this.player);
+        this.isProcessingTurn = false;
+        document.body.style.cursor = 'default';
+
+        if (InnerMap.active) {
+            InnerMap.active = false;
+            this.innerMapMode = false;
+        }
+        this.player._isDead = true;
+        setTimeout(() => ActionMenu.showDeathScreen(this, cause), 1200);
     }
 
     /**

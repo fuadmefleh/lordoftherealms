@@ -63,6 +63,75 @@ export const Ships = {
         return st.customizations.map(cid => this.getCustomization(cid)).filter(Boolean);
     },
 
+    _getCustomizationEffectTotals(ship) {
+        const totals = {
+            speedBonus: 0,
+            cargoBonus: 0,
+            combatBonus: 0,
+            armorBonus: 0,
+            crewBonus: 0,
+            stealthBonus: 0,
+            explorationBonus: 0,
+            captureBonus: 0,
+            fishingBonus: 0,
+            renownBonus: 0,
+            charismaBonus: 0,
+        };
+
+        for (const cid of (ship && ship.customizations) || []) {
+            const c = this.getCustomization(cid);
+            if (!c || !c.effects) continue;
+            for (const [key, value] of Object.entries(c.effects)) {
+                if (!Number.isFinite(value)) continue;
+                if (totals[key] === undefined) totals[key] = 0;
+                totals[key] += value;
+            }
+        }
+
+        return totals;
+    },
+
+    getShipEffectiveStats(ship) {
+        const st = this.getShipType(ship.typeId);
+        const fx = this._getCustomizationEffectTotals(ship);
+
+        return {
+            speed: Math.max(1, (st ? st.speed : 3) + (fx.speedBonus || 0)),
+            cargoCapacity: Math.max(0, (st ? st.cargoCapacity : 10) + (fx.cargoBonus || 0)),
+            combatStrength: Math.max(1, (st ? st.combatStrength : 5) + (fx.combatBonus || 0)),
+            armor: Math.max(0, (st ? st.armor : 0) + (fx.armorBonus || 0)),
+            crewRequired: Math.max(1, (st ? st.crewRequired : 1) + (fx.crewBonus || 0)),
+            effects: fx,
+        };
+    },
+
+    getUpgradeableCustomizations(ship) {
+        const st = this.getShipType(ship && ship.typeId);
+        if (!st || !Array.isArray(st.customizations)) return [];
+        const installed = new Set((ship && ship.customizations) || []);
+        return st.customizations
+            .filter(cid => !installed.has(cid))
+            .map(cid => this.getCustomization(cid))
+            .filter(Boolean);
+    },
+
+    getShipUpgradeQuote(ship, customizationIds) {
+        const wantIds = Array.isArray(customizationIds) ? customizationIds : [customizationIds];
+        const available = new Map(this.getUpgradeableCustomizations(ship).map(c => [c.id, c]));
+        const picked = [];
+        let totalCost = 0;
+
+        for (const cid of wantIds) {
+            const c = available.get(cid);
+            if (!c) continue;
+            picked.push(c);
+            totalCost += c.cost || 0;
+            available.delete(cid);
+        }
+
+        return { totalCost, picked };
+    },
+
     /* ── Player ship queries ─────────────────────────────────── */
 
     getShipById(player, shipId) {
@@ -278,6 +347,38 @@ export const Ships = {
         return { success: true, message: `Repaired ${ship.name} for ${cost}g.` };
     },
 
+    upgradeShip(player, shipId, customizationIds) {
+        const ship = this.getShipById(player, shipId);
+        if (!ship) return { success: false, message: 'Ship not found.' };
+        if (ship.status !== 'docked') return { success: false, message: 'Ship must be docked for upgrades.' };
+
+        const ids = Array.isArray(customizationIds) ? customizationIds : [customizationIds];
+        if (!ids.length) return { success: false, message: 'No upgrades selected.' };
+
+        const quote = this.getShipUpgradeQuote(ship, ids);
+        if (!quote.picked.length) return { success: false, message: 'No valid upgrades available.' };
+
+        if (player.gold < quote.totalCost) {
+            return { success: false, message: `Not enough gold. Need ${quote.totalCost}g.` };
+        }
+
+        player.gold -= quote.totalCost;
+        if (!Array.isArray(ship.customizations)) ship.customizations = [];
+        for (const c of quote.picked) ship.customizations.push(c.id);
+
+        if (player.financeToday) {
+            player.financeToday.expenses.ships = (player.financeToday.expenses.ships || 0) + quote.totalCost;
+        }
+
+        const names = quote.picked.map(c => c.name).join(', ');
+        return {
+            success: true,
+            message: `Upgraded ${ship.name} with ${names} for ${quote.totalCost}g.`,
+            totalCost: quote.totalCost,
+            upgrades: quote.picked,
+        };
+    },
+
     /* ── Moving ships between ports ──────────────────────────── */
 
     moveShip(player, shipId, destQ, destR, destName, world) {
@@ -285,9 +386,9 @@ export const Ships = {
         if (!ship) return { success: false, message: 'Ship not found.' };
         if (ship.status !== 'docked') return { success: false, message: 'Ship must be docked to move.' };
 
-        const st = this.getShipType(ship.typeId);
+        const stats = this.getShipEffectiveStats(ship);
         const dist = Hex.distance(ship.q, ship.r, destQ, destR);
-        const speed = st ? st.speed : 3;
+        const speed = stats.speed;
         const travelDays = Math.max(1, Math.ceil(dist / speed));
 
         ship.status = 'moving';
@@ -307,8 +408,9 @@ export const Ships = {
         if (ship.status !== 'docked') return { success: false, message: 'Ship must be docked.' };
 
         const st = this.getShipType(ship.typeId);
+        const stats = this.getShipEffectiveStats(ship);
         const dist = Hex.distance(ship.q, ship.r, destQ, destR);
-        const speed = st ? st.speed : 3;
+        const speed = stats.speed;
         const travelDays = Math.max(1, Math.ceil(dist / speed));
         const travelCost = travelDays * (st ? st.dailyUpkeep : 5);
 
@@ -529,8 +631,8 @@ export const Ships = {
             return { success: true, icon: '💰', title: 'No trade opportunities available.', type: 'info' };
         }
 
-        const st = this.getShipType(ship.typeId);
-        const cargoSpace = st ? st.cargoCapacity : 10;
+        const stats = this.getShipEffectiveStats(ship);
+        const cargoSpace = stats.cargoCapacity;
 
         // Simulate a quick trade run
         const good = goods[Math.floor(Math.random() * goods.length)];
@@ -644,16 +746,8 @@ export const Ships = {
     /* ── Combat helpers ──────────────────────────────────────── */
 
     _getShipCombatStrength(ship) {
-        const st = this.getShipType(ship.typeId);
-        let strength = st ? st.combatStrength : 5;
-
-        // Add customization combat bonuses
-        for (const cid of (ship.customizations || [])) {
-            const c = this.getCustomization(cid);
-            if (c && c.effects && c.effects.combatBonus) {
-                strength += c.effects.combatBonus;
-            }
-        }
+        const stats = this.getShipEffectiveStats(ship);
+        let strength = stats.combatStrength;
 
         // Condition penalty
         strength = Math.floor(strength * (ship.condition / 100));

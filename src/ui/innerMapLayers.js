@@ -16,6 +16,53 @@ import { InnerMapCombat } from './innerMapCombat.js';
 
 Object.assign(InnerMapRenderer, {
 
+    // ── Death animation state ──
+    _deathAnim: null,   // { startTime, duration, callback, phase: 'falling'|'dead' }
+
+    /**
+     * Start a death animation — character falls over and lies on the ground.
+     * @param {Function} callback — called when the animation finishes (~2s)
+     */
+    startDeathAnimation(callback) {
+        this._deathAnim = {
+            startTime: performance.now() / 1000,
+            fallDuration: 0.8,      // seconds to fall over
+            holdDuration: 1.2,      // seconds to hold on ground before callback
+            callback,
+            fired: false,
+        };
+    },
+
+    /** Clear death animation state (e.g., after heir succession). */
+    clearDeathAnimation() {
+        this._deathAnim = null;
+    },
+
+    /**
+     * Internal: compute death animation progress.
+     * Returns { active, rotation, alpha, tint, done } or null.
+     */
+    _getDeathAnimState(now) {
+        const da = this._deathAnim;
+        if (!da) return null;
+        const elapsed = now - da.startTime;
+        const totalDuration = da.fallDuration + da.holdDuration;
+
+        if (elapsed < da.fallDuration) {
+            // Falling phase — ease-out rotation 0 → π/2
+            const t = elapsed / da.fallDuration;
+            const eased = 1 - (1 - t) * (1 - t); // ease-out quadratic
+            return { active: true, rotation: eased * (Math.PI / 2), alpha: 1, tint: t * 0.4, done: false };
+        }
+
+        // On the ground
+        if (!da.fired && elapsed >= totalDuration) {
+            da.fired = true;
+            if (da.callback) da.callback();
+        }
+        return { active: true, rotation: Math.PI / 2, alpha: 1, tint: 0.4, done: elapsed >= totalDuration };
+    },
+
     // ── Viewport culling helper: compute visible tile range from camera ──
     _getVisibleTileRange(camera) {
         const T = this.TILE_SIZE;
@@ -1008,6 +1055,7 @@ Object.assign(InnerMapRenderer, {
         const ds = T * camera.zoom;
         const now = performance.now() / 1000;
         const charReady = InnerMapCharacters.isReady();
+        const deathState = this._getDeathAnimState(now);
 
         // Get interpolated player position (smooth walking)
         const pos = InnerMap.getPlayerWorldPos();
@@ -1018,23 +1066,28 @@ Object.assign(InnerMapRenderer, {
         let anim = 'idle';
         let direction = this._playerFacing != null ? this._playerFacing : InnerMapCharacters.DIR_DOWN;
 
-        if (pos.walking) {
-            anim = 'walk';
-            direction = InnerMapCharacters.getDirection(pos.dq, pos.dr);
-            this._playerFacing = direction;
-        } else if (InnerMap._activeInteraction && !InnerMap._activeInteraction.done) {
-            anim = 'idle';
-            direction = InnerMap.getDirectionToward(
-                InnerMap._activeInteraction.anchorQ,
-                InnerMap._activeInteraction.anchorR
-            );
-            this._playerFacing = direction;
+        if (!deathState) {
+            if (pos.walking) {
+                anim = 'walk';
+                direction = InnerMapCharacters.getDirection(pos.dq, pos.dr);
+                this._playerFacing = direction;
+            } else if (InnerMap._activeInteraction && !InnerMap._activeInteraction.done) {
+                anim = InnerMap._activeInteraction.animKey || 'idle';
+                direction = InnerMap.getDirectionToward(
+                    InnerMap._activeInteraction.anchorQ,
+                    InnerMap._activeInteraction.anchorR
+                );
+                this._playerFacing = direction;
+            }
         }
 
-        // Glow
+        // Glow — turns red during death
+        const glowR = deathState ? 200 : 245;
+        const glowG = deathState ? 50 : 197;
+        const glowB = deathState ? 50 : 66;
         const gradient = ctx.createRadialGradient(screenPX, screenPY, 0, screenPX, screenPY, ds * 0.5);
-        gradient.addColorStop(0, 'rgba(245,197,66,0.3)');
-        gradient.addColorStop(1, 'rgba(245,197,66,0)');
+        gradient.addColorStop(0, `rgba(${glowR},${glowG},${glowB},0.3)`);
+        gradient.addColorStop(1, `rgba(${glowR},${glowG},${glowB},0)`);
         ctx.fillStyle = gradient;
         ctx.beginPath();
         ctx.arc(screenPX, screenPY, ds * 0.5, 0, Math.PI * 2);
@@ -1046,22 +1099,57 @@ Object.assign(InnerMapRenderer, {
         if (charReady && InnerMapCharacters.getComposited(playerPreset)) {
             const charW = ds * 1.2;
             const charH = ds * 1.8;
-            const cx = screenPX - charW / 2;
-            const cy = screenPY - charH + ds * 0.3;
 
-            // Shadow
-            ctx.beginPath();
-            ctx.ellipse(screenPX, screenPY + ds * 0.15, charW * 0.2, ds * 0.06, 0, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(0,0,0,0.25)';
-            ctx.fill();
+            if (deathState) {
+                // ── Death animation: rotate character to fall over ──
+                ctx.save();
+                // Pivot at the character's feet
+                ctx.translate(screenPX, screenPY + ds * 0.15);
+                ctx.rotate(deathState.rotation);
 
-            InnerMapCharacters.drawCharacter(ctx, playerPreset, anim, direction, now,
-                cx, cy, charW, charH);
+                // Shadow — elongates as character falls
+                const shadowStretch = 1 + deathState.rotation / (Math.PI / 2) * 2;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, charW * 0.2 * shadowStretch, ds * 0.06, 0, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.fill();
 
-            // ── Plumbob (green diamond above player's head) ──
-            this._drawPlumbob(ctx, screenPX, cy - ds * 0.05, ds, now);
+                // Draw the character rotated (idle frame, facing down)
+                const cx = -charW / 2;
+                const cy = -charH + ds * 0.15;
+                InnerMapCharacters.drawCharacter(ctx, playerPreset, 'idle', direction, 0,
+                    cx, cy, charW, charH);
+
+                // Red death tint overlay on the character
+                if (deathState.tint > 0) {
+                    ctx.globalAlpha = deathState.tint;
+                    ctx.fillStyle = 'rgba(139, 0, 0, 0.5)';
+                    ctx.fillRect(cx, cy, charW, charH);
+                    ctx.globalAlpha = 1;
+                }
+
+                ctx.restore();
+
+                // Dead plumbob (red, no bob)
+                this._drawDeadPlumbob(ctx, screenPX, screenPY - charH + ds * 0.1, ds);
+            } else {
+                const cx = screenPX - charW / 2;
+                const cy = screenPY - charH + ds * 0.3;
+
+                // Shadow
+                ctx.beginPath();
+                ctx.ellipse(screenPX, screenPY + ds * 0.15, charW * 0.2, ds * 0.06, 0, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                ctx.fill();
+
+                InnerMapCharacters.drawCharacter(ctx, playerPreset, anim, direction, now,
+                    cx, cy, charW, charH);
+
+                // ── Plumbob (green diamond above player's head) ──
+                this._drawPlumbob(ctx, screenPX, cy - ds * 0.05, ds, now);
+            }
         } else {
-            // Fallback: compass icon
+            // Fallback: compass icon (or skull if dead)
             const iconSize = Math.max(16, ds * 0.55);
             ctx.font = `${iconSize}px serif`;
             ctx.textAlign = 'center';
@@ -1069,11 +1157,14 @@ Object.assign(InnerMapRenderer, {
             ctx.shadowColor = 'rgba(0,0,0,0.8)';
             ctx.shadowBlur = 6;
             ctx.fillStyle = '#ffffff';
-            ctx.fillText('🧭', screenPX, screenPY);
+            ctx.fillText(deathState ? '💀' : '🧭', screenPX, screenPY);
             ctx.shadowBlur = 0;
 
-            // Plumbob above fallback icon
-            this._drawPlumbob(ctx, screenPX, screenPY - ds * 0.5, ds, now);
+            if (deathState) {
+                this._drawDeadPlumbob(ctx, screenPX, screenPY - ds * 0.5, ds);
+            } else {
+                this._drawPlumbob(ctx, screenPX, screenPY - ds * 0.5, ds, now);
+            }
         }
 
         // Label
@@ -1082,10 +1173,10 @@ Object.assign(InnerMapRenderer, {
             ctx.font = `700 ${fontSize}px 'Inter', sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
-            ctx.fillStyle = '#f5c542';
+            ctx.fillStyle = deathState ? '#a33' : '#f5c542';
             ctx.shadowColor = 'rgba(0,0,0,0.8)';
             ctx.shadowBlur = 4;
-            ctx.fillText('You', screenPX, screenPY + ds * 0.35);
+            ctx.fillText(deathState ? 'Dead' : 'You', screenPX, screenPY + ds * 0.35);
             ctx.shadowBlur = 0;
         }
     },
@@ -1136,6 +1227,35 @@ Object.assign(InnerMapRenderer, {
         ctx.lineWidth = 0.8;
         ctx.stroke();
 
+        ctx.restore();
+    },
+
+    /**
+     * Draw a red "dead" plumbob — static, no bob.
+     */
+    _drawDeadPlumbob(ctx, x, topY, ds) {
+        const size = Math.max(6, ds * 0.22);
+        ctx.save();
+        ctx.shadowColor = 'rgba(200, 30, 30, 0.6)';
+        ctx.shadowBlur = size * 1.5;
+
+        ctx.beginPath();
+        ctx.moveTo(x, topY - size);
+        ctx.lineTo(x + size * 0.6, topY);
+        ctx.lineTo(x, topY + size);
+        ctx.lineTo(x - size * 0.6, topY);
+        ctx.closePath();
+
+        const grad = ctx.createLinearGradient(x, topY - size, x, topY + size);
+        grad.addColorStop(0, '#ff4444');
+        grad.addColorStop(0.45, '#cc2222');
+        grad.addColorStop(1, '#881111');
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
         ctx.restore();
     },
 
@@ -1609,43 +1729,46 @@ Object.assign(InnerMapRenderer, {
         {
             const pos = InnerMap.getPlayerWorldPos();
             const screen = camera.worldToScreenFast(pos.x, pos.y);
+            const deathState = this._getDeathAnimState(now);
             let anim = 'idle';
             let direction = this._playerFacing != null ? this._playerFacing : InnerMapCharacters.DIR_DOWN;
-            if (pos.walking) {
-                anim = 'walk';
-                direction = InnerMapCharacters.getDirection(pos.dq, pos.dr);
-                this._playerFacing = direction;
-            } else if (typeof InnerMapCombat !== 'undefined' && InnerMapCombat._attackState) {
-                // NPC combat — play slash animation while facing the target
-                anim = 'slash';
-                const ia = InnerMapCombat._attackState;
-                if (ia.targetType === 'npc' && ia.npc) {
-                    const dq = ia.npc.q - InnerMap.playerInnerQ;
-                    const dr = ia.npc.r - InnerMap.playerInnerR;
-                    direction = InnerMapCharacters.getDirection(dq, dr);
-                } else if (ia.targetType === 'object') {
-                    direction = InnerMap.getDirectionToward(ia.targetQ, ia.targetR);
+            if (!deathState) {
+                if (pos.walking) {
+                    anim = 'walk';
+                    direction = InnerMapCharacters.getDirection(pos.dq, pos.dr);
+                    this._playerFacing = direction;
+                } else if (typeof InnerMapCombat !== 'undefined' && InnerMapCombat._attackState) {
+                    anim = 'slash';
+                    const ia = InnerMapCombat._attackState;
+                    if (ia.targetType === 'npc' && ia.npc) {
+                        const dq = ia.npc.q - InnerMap.playerInnerQ;
+                        const dr = ia.npc.r - InnerMap.playerInnerR;
+                        direction = InnerMapCharacters.getDirection(dq, dr);
+                    } else if (ia.targetType === 'object') {
+                        direction = InnerMap.getDirectionToward(ia.targetQ, ia.targetR);
+                    }
+                    this._playerFacing = direction;
+                } else if (InnerMap._activeInteraction && !InnerMap._activeInteraction.done) {
+                    anim = InnerMap._activeInteraction.animKey || 'slash';
+                    direction = InnerMap.getDirectionToward(
+                        InnerMap._activeInteraction.anchorQ,
+                        InnerMap._activeInteraction.anchorR
+                    );
+                    this._playerFacing = direction;
                 }
-                this._playerFacing = direction;
-            } else if (InnerMap._activeInteraction && !InnerMap._activeInteraction.done) {
-                // Harvesting / chopping object — play slash animation facing the object
-                anim = 'slash';
-                direction = InnerMap.getDirectionToward(
-                    InnerMap._activeInteraction.anchorQ,
-                    InnerMap._activeInteraction.anchorR
-                );
-                this._playerFacing = direction;
             }
-            const sortY = pos.y + T / 2;   // bottom-of-tile for consistent depth sort
+            const sortY = pos.y + T / 2;
             const px = screen.x, py = screen.y;
             const pAnim = anim, pDir = direction;
             const playerPreset = this._playerPreset || 'male_noble';
+            const pDeathState = deathState; // capture for closure
 
-            items.push({ sortY, zLayer: 2, draw() {
-                // Glow
+            items.push({ sortY, zLayer: 2, draw: () => {
+                // Glow — turns red during death
+                const glR = pDeathState ? 200 : 245, glG = pDeathState ? 50 : 197, glB = pDeathState ? 50 : 66;
                 const gradient = ctx.createRadialGradient(px, py, 0, px, py, ds * 0.5);
-                gradient.addColorStop(0, 'rgba(245,197,66,0.3)');
-                gradient.addColorStop(1, 'rgba(245,197,66,0)');
+                gradient.addColorStop(0, `rgba(${glR},${glG},${glB},0.3)`);
+                gradient.addColorStop(1, `rgba(${glR},${glG},${glB},0)`);
                 ctx.fillStyle = gradient;
                 ctx.beginPath();
                 ctx.arc(px, py, ds * 0.5, 0, Math.PI * 2);
@@ -1653,12 +1776,35 @@ Object.assign(InnerMapRenderer, {
 
                 if (charReady && InnerMapCharacters.getComposited(playerPreset)) {
                     const charW = ds * 1.2, charH = ds * 1.8;
-                    const cx = px - charW / 2, cy = py - charH + ds * 0.3;
-                    ctx.beginPath();
-                    ctx.ellipse(px, py + ds * 0.15, charW * 0.2, ds * 0.06, 0, 0, Math.PI * 2);
-                    ctx.fillStyle = 'rgba(0,0,0,0.25)';
-                    ctx.fill();
-                    InnerMapCharacters.drawCharacter(ctx, playerPreset, pAnim, pDir, now, cx, cy, charW, charH);
+
+                    if (pDeathState) {
+                        // Death: rotate character to fall over
+                        ctx.save();
+                        ctx.translate(px, py + ds * 0.15);
+                        ctx.rotate(pDeathState.rotation);
+                        const shadowStretch = 1 + pDeathState.rotation / (Math.PI / 2) * 2;
+                        ctx.beginPath();
+                        ctx.ellipse(0, 0, charW * 0.2 * shadowStretch, ds * 0.06, 0, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                        ctx.fill();
+                        const cx = -charW / 2, cy = -charH + ds * 0.15;
+                        InnerMapCharacters.drawCharacter(ctx, playerPreset, 'idle', pDir, 0, cx, cy, charW, charH);
+                        if (pDeathState.tint > 0) {
+                            ctx.globalAlpha = pDeathState.tint;
+                            ctx.fillStyle = 'rgba(139, 0, 0, 0.5)';
+                            ctx.fillRect(cx, cy, charW, charH);
+                            ctx.globalAlpha = 1;
+                        }
+                        ctx.restore();
+                        this._drawDeadPlumbob(ctx, px, py - charH + ds * 0.1, ds);
+                    } else {
+                        const cx = px - charW / 2, cy = py - charH + ds * 0.3;
+                        ctx.beginPath();
+                        ctx.ellipse(px, py + ds * 0.15, charW * 0.2, ds * 0.06, 0, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                        ctx.fill();
+                        InnerMapCharacters.drawCharacter(ctx, playerPreset, pAnim, pDir, now, cx, cy, charW, charH);
+                    }
                 } else {
                     const iconSize = Math.max(16, ds * 0.55);
                     ctx.font = `${iconSize}px serif`;
@@ -1667,7 +1813,7 @@ Object.assign(InnerMapRenderer, {
                     ctx.shadowColor = 'rgba(0,0,0,0.8)';
                     ctx.shadowBlur = 6;
                     ctx.fillStyle = '#ffffff';
-                    ctx.fillText('🧭', px, py);
+                    ctx.fillText(pDeathState ? '💀' : '🧭', px, py);
                     ctx.shadowBlur = 0;
                 }
                 if (camera.zoom > 0.5) {
@@ -1675,10 +1821,10 @@ Object.assign(InnerMapRenderer, {
                     ctx.font = `700 ${fontSize}px 'Inter', sans-serif`;
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'top';
-                    ctx.fillStyle = '#f5c542';
+                    ctx.fillStyle = pDeathState ? '#a33' : '#f5c542';
                     ctx.shadowColor = 'rgba(0,0,0,0.8)';
                     ctx.shadowBlur = 4;
-                    ctx.fillText('You', px, py + ds * 0.35);
+                    ctx.fillText(pDeathState ? 'Dead' : 'You', px, py + ds * 0.35);
                     ctx.shadowBlur = 0;
                 }
             }});

@@ -21,7 +21,8 @@ const topLevel = [
     'housing', 'infrastructure', 'innerMap', 'innerMapRenderer', 'interiors',
     'kingdomAI', 'kingdoms', 'market', 'military', 'npcLords', 'objects',
     'peoples', 'playerEconomy', 'quests', 'relationships', 'religion',
-    'ships', 'tavern', 'technology', 'terrain', 'titles', 'units', 'worldEvents'
+    'ships', 'tavern', 'technology', 'terrain', 'titles', 'units', 'worldEvents',
+    'gossip'
 ];
 
 const merged = {};

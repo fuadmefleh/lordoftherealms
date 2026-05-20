@@ -5,8 +5,9 @@
 // in the inner map with a single keypress.
 // ============================================
 
-import { InnerMap } from '../world/innerMap.js';
-import { InnerMapRenderer } from './innerMapRenderer.js';
+// DISABLED: Inner map feature disabled
+// import { InnerMap } from '../world/innerMap.js';
+// import { InnerMapRenderer } from './innerMapRenderer.js';
 import { PlayerEconomy } from '../player/playerEconomy.js';
 
 const SLOT_COUNT = 7;
@@ -301,12 +302,14 @@ export const Hotbar = {
         }
 
         // Keyboard: 1-7 select hotbar slots when in inner map
+        // DISABLED: Inner map feature disabled
         window.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
             if (e.ctrlKey || e.altKey || e.metaKey) return;
 
             // Only handle hotbar keys when inner map is active & hotbar visible
-            if (!InnerMap.active || !this.visible) return;
+            // DISABLED: if (!InnerMap.active || !this.visible) return;
+            if (true) return;  // Inner map disabled - always return early
 
             const num = parseInt(e.key, 10);
             if (num >= 1 && num <= SLOT_COUNT) {

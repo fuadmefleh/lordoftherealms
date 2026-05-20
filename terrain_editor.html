@@ -173,6 +173,15 @@ input[type="color"]{padding:2px;width:28px;height:24px;cursor:pointer;background
 .ntb-season-btn .season-dot.empty{background:var(--border2)}
 .ntb-copy-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:10px;color:var(--text-dim)}
 .ntb-ic-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;max-width:300px;margin-top:4px}
+/* Alt fills row */
+.ntb-alt-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;align-items:center}
+.ntb-alt-cell{border:2px solid var(--border2);border-radius:5px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px;background:var(--bg);transition:border-color .12s,background .12s;width:72px;flex-shrink:0}
+.ntb-alt-cell:hover{background:var(--hover);border-color:var(--blue)}
+.ntb-alt-cell.ntb-selected{background:#0b2a4a !important;border-color:var(--blue);outline:2px solid var(--blue)}
+.ntb-alt-cell canvas{image-rendering:pixelated;width:48px;height:48px;display:block}
+.ntb-alt-cell-lbl{font-size:8px;color:var(--text-dim);margin-top:2px;font-weight:600}
+.ntb-alt-add{width:72px;height:72px;border:2px dashed var(--border2);border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--text-dim);background:var(--bg);flex-shrink:0;transition:border-color .12s,color .12s}
+.ntb-alt-add:hover{border-color:var(--gold);color:var(--gold)}
 </style>
 </head>
 <body>
@@ -391,7 +400,7 @@ input[type="color"]{padding:2px;width:28px;height:24px;cursor:pointer;background
       <input type="text" id="ntb-name" value="New Brush" placeholder="Brush name..." style="width:160px">
       <button class="green" onclick="ntbSave()">💾 Save Brush</button>
       <button class="danger" onclick="ntbDelete()" id="ntb-del-btn" disabled>🗑 Delete</button>
-      <span id="ntb-hint" style="font-size:11px;color:var(--blue);font-style:italic">Drag 3×3 for outer tiles, 2×2 for inside corners — or click a slot then click a tile</span>
+      <span id="ntb-hint" style="font-size:11px;color:var(--blue);font-style:italic">Drag 3×6 (LPC format) to fill all 13 slots at once — or 3×3 outer, 2×2 corners, or click a slot then a tile</span>
     </div>
     <button onclick="closeNtbEditor()" style="font-size:18px;padding:2px 10px;flex-shrink:0">✕</button>
   </div>
@@ -413,6 +422,8 @@ input[type="color"]{padding:2px;width:28px;height:24px;cursor:pointer;background
         <div class="ntb-grid" id="ntb-grid"></div>
         <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-top:8px;margin-bottom:2px">Inside Corners <span style="font-weight:400;text-transform:none">(optional)</span></div>
         <div class="ntb-ic-grid" id="ntb-ic-grid"></div>
+        <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-top:10px;margin-bottom:2px">Alternate Center Fills <span style="font-weight:400;text-transform:none">(optional — hash-varied interior tiles)</span></div>
+        <div class="ntb-alt-row" id="ntb-alt-row"></div>
       </div>
       <div>
         <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-bottom:6px">Saved Brushes</div>
@@ -3243,30 +3254,42 @@ let ntbActiveCat = '';
 let ntbActiveSeason = 'spring';
 let ntbSeasonTiles = null; // { spring: 3x3, summer: 3x3, autumn: 3x3, winter: 3x3 }
 let ntbSeasonCorners = null; // { spring: [4], summer: [4], autumn: [4], winter: [4] }
-// ntbTiles/ntbCorners point to the active season
+let ntbSeasonAltFills = null; // { spring: [tileRef,...], summer: [...], ... }
+// ntbTiles/ntbCorners/ntbAltFills point to the active season
 let ntbTiles = [[null,null,null],[null,null,null],[null,null,null]];
 let ntbCorners = [null, null, null, null];
+let ntbAltFills = []; // flat array of extra center tiles for active season
+let ntbAltSelIdx = -1; // which alt fill slot is selected (-1 = none, -2 = add-pending)
 
 function ntbEmptyGrid() { return [[null,null,null],[null,null,null],[null,null,null]]; }
 function ntbEmptyCorners() { return [null, null, null, null]; }
+function ntbEmptyAltFills() { return []; }
 
 function ntbInitSeasonTiles() {
     ntbSeasonTiles = {};
     ntbSeasonCorners = {};
+    ntbSeasonAltFills = {};
     for (const s of SEASONS) {
         ntbSeasonTiles[s] = ntbEmptyGrid();
         ntbSeasonCorners[s] = ntbEmptyCorners();
+        ntbSeasonAltFills[s] = ntbEmptyAltFills();
     }
 }
 
 function ntbSyncTilesToSeason() {
-    // Point ntbTiles/ntbCorners at the active season's data
+    // Point ntbTiles/ntbCorners/ntbAltFills at the active season's data
     if (ntbSeasonTiles && ntbSeasonTiles[ntbActiveSeason]) {
         ntbTiles = ntbSeasonTiles[ntbActiveSeason];
     }
     if (ntbSeasonCorners && ntbSeasonCorners[ntbActiveSeason]) {
         ntbCorners = ntbSeasonCorners[ntbActiveSeason];
     }
+    if (ntbSeasonAltFills && ntbSeasonAltFills[ntbActiveSeason]) {
+        ntbAltFills = ntbSeasonAltFills[ntbActiveSeason];
+    } else {
+        ntbAltFills = [];
+    }
+    ntbAltSelIdx = -1;
 }
 
 function ntbSeasonTileCount(season) {
@@ -3279,6 +3302,8 @@ function ntbSeasonTileCount(season) {
     if (corners) {
         for (let i = 0; i < 4; i++) if (corners[i]) count++;
     }
+    const alts = ntbSeasonAltFills ? ntbSeasonAltFills[season] : null;
+    if (alts) count += alts.length;
     return count;
 }
 
@@ -3288,6 +3313,7 @@ function ntbSetSeason(season) {
     ntbBuildSeasonTabs();
     ntbBuildCopyRow();
     ntbBuildGrid();
+    ntbBuildAltFills();
     const img = imgCache.get(ntbSheet);
     if (img) ntbRedrawSheet(img);
 }
@@ -3307,9 +3333,15 @@ function ntbCopyFromSeason(srcSeason) {
     if (srcIC && dstIC) {
         for (let i = 0; i < 4; i++) dstIC[i] = srcIC[i] ? {...srcIC[i]} : null;
     }
+    // Copy alt fills
+    const srcAlt = ntbSeasonAltFills[srcSeason];
+    if (srcAlt) {
+        ntbSeasonAltFills[ntbActiveSeason] = srcAlt.map(t => t ? {...t} : null);
+    }
     ntbSyncTilesToSeason();
     ntbBuildSeasonTabs();
     ntbBuildGrid();
+    ntbBuildAltFills();
     toast(`Copied ${srcSeason} tiles to ${ntbActiveSeason}`, 'ok');
     const img = imgCache.get(ntbSheet);
     if (img) ntbRedrawSheet(img);
@@ -3397,6 +3429,9 @@ function recomputeNineTile(q, r, season) {
     const cornersArr = (season && brush.seasonInsideCorners && brush.seasonInsideCorners[season])
         ? brush.seasonInsideCorners[season]
         : (brush.insideCorners || null);
+    const altFillsArr = (season && brush.seasonAltFills && brush.seasonAltFills[season] && brush.seasonAltFills[season].length)
+        ? brush.seasonAltFills[season]
+        : null;
 
     // Check for inside corners: all 4 cardinals present but a diagonal is missing
     if (hasTop && hasBottom && hasLeft && hasRight && cornersArr) {
@@ -3423,7 +3458,13 @@ function recomputeNineTile(q, r, season) {
     if (!hasLeft && hasRight) col = 0;
     else if (hasLeft && !hasRight) col = 2;
 
-    const tileRef = tilesGrid[row] && tilesGrid[row][col];
+    let tileRef = tilesGrid[row] && tilesGrid[row][col];
+    // For the center slot, hash-pick from the alt fills pool for variety
+    if (row === 1 && col === 1 && altFillsArr && altFillsArr.length) {
+        const pool = tileRef ? [tileRef, ...altFillsArr] : altFillsArr;
+        const hash = Math.abs((q * 73856093 ^ r * 19349663)) >>> 0;
+        tileRef = pool[hash % pool.length];
+    }
     if (tileRef) {
         tiles[r][q][activeLayer] = { sheetPath: tileRef.sheetPath, sx: tileRef.sx, sy: tileRef.sy };
     }
@@ -3562,6 +3603,18 @@ function openNtbEditor(editIdx) {
             ntbSeasonCorners = {};
             for (const s of SEASONS) ntbSeasonCorners[s] = ntbEmptyCorners();
         }
+        // Load alt fills
+        if (brush.seasonAltFills) {
+            ntbSeasonAltFills = {};
+            for (const s of SEASONS) {
+                ntbSeasonAltFills[s] = brush.seasonAltFills[s]
+                    ? brush.seasonAltFills[s].map(t => t ? {...t} : null)
+                    : ntbEmptyAltFills();
+            }
+        } else {
+            ntbSeasonAltFills = {};
+            for (const s of SEASONS) ntbSeasonAltFills[s] = ntbEmptyAltFills();
+        }
         document.getElementById('ntb-del-btn').disabled = false;
     } else {
         ntbEditIdx = -1;
@@ -3576,6 +3629,7 @@ function openNtbEditor(editIdx) {
     ntbBuildSeasonTabs();
     ntbBuildCopyRow();
     ntbBuildGrid();
+    ntbBuildAltFills();
     ntbBuildBrushList();
     ntbBuildCatButtons();
     if (!ntbSheet) {
@@ -3604,7 +3658,7 @@ function ntbBuildGrid() {
             const tileRef = ntbTiles[r][c];
             const fallbackRef = (!tileRef && fallbackGrid) ? fallbackGrid[r][c] : null;
             cell.className = 'ntb-cell' + (isSel ? ' ntb-selected' : '') + (tileRef ? ' ntb-filled' : '');
-            cell.onclick = () => { ntbSelSlot = {row: r, col: c}; ntbBuildGrid(); };
+            cell.onclick = () => { ntbSelSlot = {row: r, col: c}; ntbAltSelIdx = -1; ntbBuildGrid(); ntbBuildAltFills(); };
             cell.oncontextmenu = ev => { ev.preventDefault(); ntbTiles[r][c] = null; ntbBuildSeasonTabs(); ntbBuildGrid(); };
             if (tileRef || fallbackRef) {
                 const tc = document.createElement('canvas');
@@ -3636,7 +3690,7 @@ function ntbBuildGrid() {
         const tileRef = ntbCorners[i];
         const fallbackRef = (!tileRef && fallbackCorners) ? fallbackCorners[i] : null;
         cell.className = 'ntb-cell' + (isSel ? ' ntb-selected' : '') + (tileRef ? ' ntb-filled' : '');
-        cell.onclick = () => { ntbSelSlot = {row: 3, col: i}; ntbBuildGrid(); };
+        cell.onclick = () => { ntbSelSlot = {row: 3, col: i}; ntbAltSelIdx = -1; ntbBuildGrid(); ntbBuildAltFills(); };
         cell.oncontextmenu = ev => { ev.preventDefault(); ntbCorners[i] = null; ntbBuildSeasonTabs(); ntbBuildGrid(); };
         if (tileRef || fallbackRef) {
             const tc = document.createElement('canvas');
@@ -3658,6 +3712,72 @@ function ntbBuildGrid() {
         cell.appendChild(lbl);
         icGrid.appendChild(cell);
     }
+}
+
+function ntbBuildAltFills() {
+    const row = document.getElementById('ntb-alt-row');
+    if (!row) return;
+    row.innerHTML = '';
+    // Existing alt fill slots
+    ntbAltFills.forEach((tileRef, i) => {
+        const cell = document.createElement('div');
+        const isSel = ntbAltSelIdx === i;
+        cell.className = 'ntb-alt-cell' + (isSel ? ' ntb-selected' : '');
+        cell.title = `Alt fill ${i + 1} — click to reassign, right-click to remove`;
+        cell.onclick = () => {
+            ntbAltSelIdx = isSel ? -1 : i;
+            ntbSelSlot = null; // deselect grid slot
+            ntbBuildGrid();
+            ntbBuildAltFills();
+            const img = imgCache.get(ntbSheet);
+            if (img) ntbRedrawSheet(img);
+        };
+        cell.oncontextmenu = ev => {
+            ev.preventDefault();
+            ntbAltFills.splice(i, 1);
+            if (ntbAltSelIdx >= ntbAltFills.length) ntbAltSelIdx = -1;
+            ntbBuildSeasonTabs();
+            ntbBuildAltFills();
+            const img = imgCache.get(ntbSheet);
+            if (img) ntbRedrawSheet(img);
+        };
+        if (tileRef) {
+            const tc = document.createElement('canvas');
+            tc.width = 32; tc.height = 32;
+            const tctx = tc.getContext('2d');
+            tctx.imageSmoothingEnabled = false;
+            const img = imgCache.get(tileRef.sheetPath);
+            if (img) tctx.drawImage(img, tileRef.sx, tileRef.sy, TILE, TILE, 0, 0, 32, 32);
+            cell.appendChild(tc);
+        }
+        const lbl = document.createElement('div');
+        lbl.className = 'ntb-alt-cell-lbl';
+        lbl.textContent = `Alt ${i + 1}`;
+        cell.appendChild(lbl);
+        row.appendChild(cell);
+    });
+    // Add button
+    const addBtn = document.createElement('div');
+    addBtn.className = 'ntb-alt-add' + (ntbAltSelIdx === -2 ? ' ntb-alt-add-active' : '');
+    addBtn.title = 'Add alternate center fill tile';
+    addBtn.textContent = '+';
+    if (ntbAltSelIdx === -2) {
+        addBtn.style.borderColor = 'var(--gold)';
+        addBtn.style.color = 'var(--gold)';
+    }
+    addBtn.onclick = () => {
+        ntbAltSelIdx = ntbAltSelIdx === -2 ? -1 : -2; // toggle pending-add mode
+        ntbSelSlot = null;
+        ntbBuildGrid();
+        ntbBuildAltFills();
+        const img = imgCache.get(ntbSheet);
+        if (img) ntbRedrawSheet(img);
+        if (ntbAltSelIdx === -2) {
+            const hint = document.getElementById('ntb-hint');
+            hint.textContent = 'Click a tile on the tileset to add it as an alternate center fill';
+        }
+    };
+    row.appendChild(addBtn);
 }
 
 function ntbBuildBrushList() {
@@ -3731,11 +3851,13 @@ function ntbSave() {
         tiles: defaultTiles.map(row => row.map(t => t ? {...t} : null)),
         insideCorners: defaultCorners.map(t => t ? {...t} : null),
         seasonTiles: {},
-        seasonInsideCorners: {}
+        seasonInsideCorners: {},
+        seasonAltFills: {}
     };
     for (const s of SEASONS) {
         brushData.seasonTiles[s] = ntbSeasonTiles[s].map(row => row.map(t => t ? {...t} : null));
         brushData.seasonInsideCorners[s] = ntbSeasonCorners[s].map(t => t ? {...t} : null);
+        brushData.seasonAltFills[s] = (ntbSeasonAltFills[s] || []).map(t => t ? {...t} : null);
     }
     if (ntbEditIdx >= 0 && nineTileBrushes[ntbEditIdx]) {
         nineTileBrushes[ntbEditIdx] = brushData;
@@ -3879,6 +4001,20 @@ function ntbRedrawSheet(img) {
             ctx2.fillText(NTB_IC_LABELS[i], ac*ts+4, ar*ts+12);
         }
     }
+    // Highlight assigned alt-fill tiles (gold border)
+    for (let i = 0; i < ntbAltFills.length; i++) {
+        const t = ntbAltFills[i];
+        if (t && t.sheetPath === ntbSheet) {
+            const ac = t.sx / TILE, ar = t.sy / TILE;
+            const isSel = ntbAltSelIdx === i;
+            ctx2.strokeStyle = isSel ? 'rgba(230,168,23,1.0)' : 'rgba(230,168,23,0.7)'; ctx2.lineWidth = 2;
+            ctx2.strokeRect(ac*ts+1, ar*ts+1, ts-2, ts-2);
+            ctx2.fillStyle = 'rgba(0,0,0,0.65)';
+            ctx2.fillRect(ac*ts+2, ar*ts+2, ts-4, 14);
+            ctx2.fillStyle = 'var(--gold)'; ctx2.fillStyle = '#e6a817'; ctx2.font = 'bold 9px sans-serif';
+            ctx2.fillText(`Alt${i+1}`, ac*ts+4, ar*ts+12);
+        }
+    }
     // Hover
     if (ntbHoverCol >= 0 && ntbHoverRow >= 0) {
         ctx2.fillStyle = 'rgba(230,168,23,0.22)';
@@ -3893,26 +4029,48 @@ function ntbRedrawSheet(img) {
         const c1 = Math.max(ntbDragStart.col, ntbDragCur.col);
         const r1 = Math.max(ntbDragStart.row, ntbDragCur.row);
         const sw = c1 - c0 + 1, sh = r1 - r0 + 1;
+        const is3x6 = (sw === 3 && sh === 6);
         const is3x3 = (sw === 3 && sh === 3);
         const is2x2 = (sw === 2 && sh === 2);
-        const match = is3x3 || is2x2;
+        const match = is3x6 || is3x3 || is2x2;
         ctx2.fillStyle = match ? 'rgba(63,185,80,0.15)' : 'rgba(88,166,255,0.15)';
         ctx2.fillRect(c0*ts, r0*ts, sw*ts, sh*ts);
         ctx2.strokeStyle = match ? 'rgba(63,185,80,0.9)' : 'rgba(88,166,255,0.7)';
         ctx2.lineWidth = 2;
         ctx2.strokeRect(c0*ts+1, r0*ts+1, sw*ts-2, sh*ts-2);
-        if (is3x3) {
+        if (is3x6) {
+            // Shade rows 0-2 (outer) and rows 3-4 (inside corners) differently
+            ctx2.fillStyle = 'rgba(63,185,80,0.12)';
+            ctx2.fillRect(c0*ts, r0*ts, sw*ts, 3*ts);
+            ctx2.fillStyle = 'rgba(163,113,247,0.12)';
+            ctx2.fillRect(c0*ts, (r0+3)*ts, sw*ts, 2*ts);
+            // Divider between outer tiles and inside corners
+            ctx2.strokeStyle = 'rgba(255,255,255,0.35)';
+            ctx2.lineWidth = 1;
+            ctx2.setLineDash([4, 3]);
+            ctx2.beginPath();
+            ctx2.moveTo(c0*ts, (r0+3)*ts);
+            ctx2.lineTo((c0+sw)*ts, (r0+3)*ts);
+            ctx2.stroke();
+            ctx2.setLineDash([]);
+            ctx2.strokeStyle = 'rgba(63,185,80,0.9)';
+            ctx2.lineWidth = 2;
+            ctx2.strokeRect(c0*ts+1, r0*ts+1, sw*ts-2, sh*ts-2);
             ctx2.fillStyle = 'rgba(63,185,80,0.9)';
             ctx2.font = 'bold 10px sans-serif';
-            ctx2.fillText('3×3 ✓ outer tiles', c0*ts+4, r0*ts-4);
+            ctx2.fillText('3×6 ✓ outer + corners', c0*ts+4, r0*ts > 14 ? r0*ts-4 : r0*ts+12);
+        } else if (is3x3) {
+            ctx2.fillStyle = 'rgba(63,185,80,0.9)';
+            ctx2.font = 'bold 10px sans-serif';
+            ctx2.fillText('3×3 ✓ outer tiles', c0*ts+4, r0*ts > 14 ? r0*ts-4 : r0*ts+12);
         } else if (is2x2) {
             ctx2.fillStyle = 'rgba(163,113,247,0.9)';
             ctx2.font = 'bold 10px sans-serif';
-            ctx2.fillText('2×2 ✓ inside corners', c0*ts+4, r0*ts-4);
+            ctx2.fillText('2×2 ✓ inside corners', c0*ts+4, r0*ts > 14 ? r0*ts-4 : r0*ts+12);
         } else {
             ctx2.fillStyle = 'rgba(88,166,255,0.9)';
             ctx2.font = 'bold 9px sans-serif';
-            ctx2.fillText(`${sw}×${sh}`, c0*ts+4, r0*ts-3);
+            ctx2.fillText(`${sw}×${sh}`, c0*ts+4, r0*ts > 10 ? r0*ts-3 : r0*ts+10);
         }
     }
 }
@@ -3981,7 +4139,29 @@ function ntbSetupCanvasEvents() {
         ntbDragStart = null;
         ntbDragCur   = null;
 
-        if (sw === 3 && sh === 3) {
+        if (sw === 3 && sh === 6) {
+            // ── Auto-assign all 13 slots from 3×6 LPC selection ──
+            // Rows 0-2: 9 outer tiles (TL/T/TR / L/C/R / BL/B/BR)
+            for (let gr = 0; gr < 3; gr++) {
+                for (let gc = 0; gc < 3; gc++) {
+                    ntbTiles[gr][gc] = { sheetPath: ntbSheet, sx: (c0 + gc) * TILE, sy: (r0 + gr) * TILE };
+                }
+            }
+            // Row 3 cols 0-1: IC-TL, IC-TR
+            ntbCorners[0] = { sheetPath: ntbSheet, sx: c0 * TILE,       sy: (r0 + 3) * TILE };
+            ntbCorners[1] = { sheetPath: ntbSheet, sx: (c0 + 1) * TILE, sy: (r0 + 3) * TILE };
+            // Row 4 cols 0-1: IC-BL, IC-BR
+            ntbCorners[2] = { sheetPath: ntbSheet, sx: c0 * TILE,       sy: (r0 + 4) * TILE };
+            ntbCorners[3] = { sheetPath: ntbSheet, sx: (c0 + 1) * TILE, sy: (r0 + 4) * TILE };
+            ntbSelSlot = null;
+            ntbBuildSeasonTabs();
+            ntbBuildCopyRow();
+            ntbBuildGrid();
+            ntbBuildAltFills();
+            const hint = document.getElementById('ntb-hint');
+            hint.textContent = `✓ All 13 slots (outer + corners) auto-assigned for ${ntbActiveSeason}!`;
+            toast(`All 13 tiles auto-assigned (${ntbActiveSeason}) ✓`, 'ok');
+        } else if (sw === 3 && sh === 3) {
             // ── Auto-assign all 9 outer slots from 3×3 selection ──
             for (let gr = 0; gr < 3; gr++) {
                 for (let gc = 0; gc < 3; gc++) {
@@ -3992,6 +4172,7 @@ function ntbSetupCanvasEvents() {
             ntbBuildSeasonTabs();
             ntbBuildCopyRow();
             ntbBuildGrid();
+            ntbBuildAltFills();
             const hint = document.getElementById('ntb-hint');
             hint.textContent = `✓ All 9 outer ${ntbActiveSeason} tiles auto-assigned!`;
             toast(`All 9 outer tiles auto-assigned (${ntbActiveSeason}) ✓`, 'ok');
@@ -4006,68 +4187,87 @@ function ntbSetupCanvasEvents() {
             ntbBuildSeasonTabs();
             ntbBuildCopyRow();
             ntbBuildGrid();
+            ntbBuildAltFills();
             const hint = document.getElementById('ntb-hint');
             hint.textContent = `✓ All 4 inside corners (${ntbActiveSeason}) auto-assigned!`;
             toast(`4 inside corners auto-assigned (${ntbActiveSeason}) ✓`, 'ok');
         } else if (sw === 1 && sh === 1) {
-            // ── Single click: assign to selected slot ──
+            // ── Single click ──
             const col = c0, row = r0;
             if (col < 0 || col >= ntbImgCols || row < 0 || row >= ntbImgRows) return;
-            if (!ntbSelSlot) { toast('Select a slot first', 'err'); return; }
             const tileData = { sheetPath: ntbSheet, sx: col * TILE, sy: row * TILE };
-            let assignedLabel;
-            if (ntbSelSlot.row < 3) {
-                assignedLabel = NTB_LABELS[ntbSelSlot.row][ntbSelSlot.col];
-                ntbTiles[ntbSelSlot.row][ntbSelSlot.col] = tileData;
-            } else {
-                assignedLabel = NTB_IC_LABELS[ntbSelSlot.col];
-                ntbCorners[ntbSelSlot.col] = tileData;
-            }
-            // Auto-advance: search next empty slot (3×3 grid then IC slots)
-            let nextSlot = null;
-            const curFlat = ntbSelSlot.row * 3 + (ntbSelSlot.row < 3 ? ntbSelSlot.col : 0);
-            const startRow = ntbSelSlot.row;
-            const startCol = ntbSelSlot.col;
-            // Search remaining 3×3 grid slots after current position
-            if (startRow < 3) {
-                for (let sr = startRow; sr < 3 && !nextSlot; sr++) {
-                    for (let sc = (sr === startRow ? startCol + 1 : 0); sc < 3 && !nextSlot; sc++) {
-                        if (!ntbTiles[sr][sc]) nextSlot = {row: sr, col: sc};
+
+            // Handle alt-fill assignment (add-pending or replace-existing)
+            if (ntbAltSelIdx === -2) {
+                // Add new alt fill
+                ntbAltFills.push(tileData);
+                ntbAltSelIdx = -1;
+                ntbBuildSeasonTabs();
+                ntbBuildAltFills();
+                toast(`Alt fill ${ntbAltFills.length} added (${ntbActiveSeason}) ✓`, 'ok');
+                const hint = document.getElementById('ntb-hint');
+                hint.textContent = `✓ Alt fill added. Click + to add another, or click a grid slot to assign a tile.`;
+            } else if (ntbAltSelIdx >= 0) {
+                // Replace existing alt fill
+                ntbAltFills[ntbAltSelIdx] = tileData;
+                ntbAltSelIdx = -1;
+                ntbBuildSeasonTabs();
+                ntbBuildAltFills();
+                toast(`Alt fill updated (${ntbActiveSeason}) ✓`, 'ok');
+            } else if (ntbSelSlot) {
+                // Normal grid/IC slot assignment
+                let assignedLabel;
+                if (ntbSelSlot.row < 3) {
+                    assignedLabel = NTB_LABELS[ntbSelSlot.row][ntbSelSlot.col];
+                    ntbTiles[ntbSelSlot.row][ntbSelSlot.col] = tileData;
+                } else {
+                    assignedLabel = NTB_IC_LABELS[ntbSelSlot.col];
+                    ntbCorners[ntbSelSlot.col] = tileData;
+                }
+                // Auto-advance: search next empty slot (3×3 grid then IC slots)
+                let nextSlot = null;
+                const startRow = ntbSelSlot.row;
+                const startCol = ntbSelSlot.col;
+                if (startRow < 3) {
+                    for (let sr = startRow; sr < 3 && !nextSlot; sr++) {
+                        for (let sc = (sr === startRow ? startCol + 1 : 0); sc < 3 && !nextSlot; sc++) {
+                            if (!ntbTiles[sr][sc]) nextSlot = {row: sr, col: sc};
+                        }
                     }
                 }
-            }
-            // Then search IC slots
-            if (!nextSlot) {
-                const icStart = startRow === 3 ? startCol + 1 : 0;
-                for (let i = icStart; i < 4 && !nextSlot; i++) {
-                    if (!ntbCorners[i]) nextSlot = {row: 3, col: i};
-                }
-            }
-            // Wrap around: search from beginning of 3×3 grid
-            if (!nextSlot) {
-                for (let sr = 0; sr < 3 && !nextSlot; sr++) {
-                    for (let sc = 0; sc < 3 && !nextSlot; sc++) {
-                        if (!ntbTiles[sr][sc]) nextSlot = {row: sr, col: sc};
+                if (!nextSlot) {
+                    const icStart = startRow === 3 ? startCol + 1 : 0;
+                    for (let i = icStart; i < 4 && !nextSlot; i++) {
+                        if (!ntbCorners[i]) nextSlot = {row: 3, col: i};
                     }
                 }
-            }
-            // Wrap around: check IC slots from start
-            if (!nextSlot) {
-                for (let i = 0; i < 4 && !nextSlot; i++) {
-                    if (!ntbCorners[i]) nextSlot = {row: 3, col: i};
+                if (!nextSlot) {
+                    for (let sr = 0; sr < 3 && !nextSlot; sr++) {
+                        for (let sc = 0; sc < 3 && !nextSlot; sc++) {
+                            if (!ntbTiles[sr][sc]) nextSlot = {row: sr, col: sc};
+                        }
+                    }
                 }
-            }
-            ntbSelSlot = nextSlot;
-            ntbBuildSeasonTabs();
-            ntbBuildCopyRow();
-            ntbBuildGrid();
-            toast(`Assigned ${assignedLabel} tile (${ntbActiveSeason}) ✓`, 'ok');
-            const hint = document.getElementById('ntb-hint');
-            if (nextSlot) {
-                const nextLabel = nextSlot.row < 3 ? NTB_LABELS[nextSlot.row][nextSlot.col] : NTB_IC_LABELS[nextSlot.col];
-                hint.textContent = `Next: ${nextLabel} (${ntbActiveSeason}) — click a tile`;
+                if (!nextSlot) {
+                    for (let i = 0; i < 4 && !nextSlot; i++) {
+                        if (!ntbCorners[i]) nextSlot = {row: 3, col: i};
+                    }
+                }
+                ntbSelSlot = nextSlot;
+                ntbBuildSeasonTabs();
+                ntbBuildCopyRow();
+                ntbBuildGrid();
+                ntbBuildAltFills();
+                toast(`Assigned ${assignedLabel} tile (${ntbActiveSeason}) ✓`, 'ok');
+                const hint = document.getElementById('ntb-hint');
+                if (nextSlot) {
+                    const nextLabel = nextSlot.row < 3 ? NTB_LABELS[nextSlot.row][nextSlot.col] : NTB_IC_LABELS[nextSlot.col];
+                    hint.textContent = `Next: ${nextLabel} (${ntbActiveSeason}) — click a tile`;
+                } else {
+                    hint.textContent = `✓ All tiles (${ntbActiveSeason}) assigned!`;
+                }
             } else {
-                hint.textContent = `✓ All tiles (${ntbActiveSeason}) assigned!`;
+                toast('Select a slot first', 'err');
             }
         } else {
             toast(`Drag 3×3 for outer tiles or 2×2 for inside corners (got ${sw}×${sh})`, 'err');

@@ -10,8 +10,9 @@ import { PlayerEconomy } from '../player/playerEconomy.js';
 import { PlayerReligion } from '../player/playerReligion.js';
 import { Infrastructure } from '../systems/infrastructure.js';
 import { Peoples } from '../systems/peoples.js';
-import { InnerMap } from '../world/innerMap.js';
-import { InnerMapRenderer } from './innerMapRenderer.js';
+// DISABLED: Inner map feature disabled
+// import { InnerMap } from '../world/innerMap.js';
+// import { InnerMapRenderer } from './innerMapRenderer.js';
 import { CustomObjects } from '../world/customObjects.js';
 import { Characters } from '../world/characters.js';
 import { Culture } from '../systems/culture.js';
@@ -23,7 +24,9 @@ import { SaveLoad } from '../systems/saveLoad.js';
 import { audioManager } from '../systems/audio.js';
 import { NpcFamily } from '../systems/npcFamily.js';
 import { Relationships } from '../systems/relationships.js';
-import { InnerMapCharacters } from './innerMapCharacters.js';
+import { Housing } from '../systems/housing.js';
+// DISABLED: Inner map feature disabled
+// import { InnerMapCharacters } from './innerMapCharacters.js';
 
 
 export class UI {
@@ -47,6 +50,7 @@ export class UI {
             btnHistory.addEventListener('click', () => this.showHistoryPanel());
         }
         document.getElementById('btnTreasury')?.addEventListener('click', () => this.showTreasuryPanel(this.game.player, this.game.world));
+        document.getElementById('btnProperties')?.addEventListener('click', () => this.showPropertiesPanel(this.game.player, this.game.world));
 
         // Dynasties button
         const btnDynasties = document.getElementById('btnDynasties');
@@ -380,23 +384,24 @@ export class UI {
 
         const dayInSeason = ((world.day - 1) % 30) + 1;
         const turnEl = document.getElementById('turnDisplay');
-        // Show time of day from cache or from the live InnerMap clock
-        const cachedTime = InnerMap.getCachedTimeForTile
-            ? InnerMap.getCachedTimeForTile(this.game.player.q, this.game.player.r)
-            : null;
-        if (cachedTime) {
-            turnEl.textContent = `${cachedTime.periodIcon} ${cachedTime.timeString} — Day ${dayInSeason}, ${world.season}, Year ${world.year}`;
-        } else {
-            // Fallback: derive time directly from InnerMap's live clock
-            const timeStr = InnerMap.getTimeString ? InnerMap.getTimeString() : null;
-            const period = InnerMap.getTimePeriod ? InnerMap.getTimePeriod() : null;
-            const periodIcons = { morning: '🌅', midday: '☀️', afternoon: '🌤️', evening: '🌇', night: '🌙' };
-            if (timeStr && period) {
-                turnEl.textContent = `${periodIcons[period] || '🕐'} ${timeStr} — Day ${dayInSeason}, ${world.season}, Year ${world.year}`;
-            } else {
-                turnEl.textContent = `Day ${dayInSeason} — ${world.season}, Year ${world.year}`;
-            }
-        }
+        // Show time of day - DISABLED: Inner map feature disabled, show simple day display
+        // const cachedTime = InnerMap.getCachedTimeForTile
+        //     ? InnerMap.getCachedTimeForTile(this.game.player.q, this.game.player.r)
+        //     : null;
+        // if (cachedTime) {
+        //     turnEl.textContent = `${cachedTime.periodIcon} ${cachedTime.timeString} — Day ${dayInSeason}, ${world.season}, Year ${world.year}`;
+        // } else {
+        //     // Fallback: derive time directly from InnerMap's live clock
+        //     const timeStr = InnerMap.getTimeString ? InnerMap.getTimeString() : null;
+        //     const period = InnerMap.getTimePeriod ? InnerMap.getTimePeriod() : null;
+        //     const periodIcons = { morning: '🌅', midday: '☀️', afternoon: '🌤️', evening: '🌇', night: '🌙' };
+        //     if (timeStr && period) {
+        //         turnEl.textContent = `${periodIcons[period] || '🕐'} ${timeStr} — Day ${dayInSeason}, ${world.season}, Year ${world.year}`;
+        //     } else {
+        //         turnEl.textContent = `Day ${dayInSeason} — ${world.season}, Year ${world.year}`;
+        //     }
+        // }
+        turnEl.textContent = `Day ${dayInSeason} — ${world.season}, Year ${world.year}`;
     }
 
     /**
@@ -411,8 +416,8 @@ export class UI {
         if (simsRenown) simsRenown.textContent = player.renown;
         if (simsKarma) simsKarma.textContent = player.karma;
 
-        // ── Sims-style 6 Needs Bars ──
-        if (player.needs) {
+        // ── Sims-style 6 Needs Bars (disabled) ──
+        if (false && player.needs) {
             const needBars = {
                 hunger:  'simsHungerBar',
                 energy:  'simsEnergyBar',
@@ -707,7 +712,8 @@ export class UI {
         tile += `>`;
 
         // Face — try sprite canvas first, fall back to emoji icon
-        if (preset && InnerMapCharacters.isReady()) {
+        // DISABLED: InnerMapCharacters disabled
+        if (false && preset && InnerMapCharacters.isReady()) {
             tile += `<canvas class="srel-tile-face" data-preset="${preset}" width="48" height="48" style="width:42px;height:42px;"></canvas>`;
         } else {
             tile += `<span class="srel-tile-face">${icon}</span>`;
@@ -722,9 +728,11 @@ export class UI {
 
     /**
      * Draw sprite portraits onto tile canvases that have a data-preset attribute.
+     * DISABLED: InnerMapCharacters disabled
      */
     _drawTilePortraits(container) {
-        if (!InnerMapCharacters.isReady()) return;
+        if (true) return;  // DISABLED: Inner map feature disabled
+        // if (!InnerMapCharacters.isReady()) return;
         const canvases = container.querySelectorAll('canvas[data-preset]');
         for (const cvs of canvases) {
             const presetId = cvs.dataset.preset;
@@ -838,11 +846,10 @@ export class UI {
             const fallbackName = itemId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
             const icon = (item && item.icon) ? item.icon : '📦';
             const name = (item && item.name) ? item.name : fallbackName;
-            html += `<div class="srel-card" style="padding:6px 10px;">`;
-            html += `<div class="srel-card-top">`;
-            html += `<span class="srel-card-name">${icon} ${name}</span>`;
-            html += `<span class="srel-card-badge srel-badge-neutral">×${quantity}</span>`;
-            html += `</div>`;
+            html += `<div class="sinv-tile" title="${name} ×${quantity}">`;
+            html += `<span class="sinv-tile-icon">${icon}</span>`;
+            if (quantity > 1) html += `<span class="sinv-tile-qty">${quantity}</span>`;
+            html += `<span class="sinv-tile-name">${name}</span>`;
             html += `</div>`;
         }
         body.innerHTML = html || '<p class="srel-empty">Your pack is empty.</p>';
@@ -4348,6 +4355,104 @@ export class UI {
         } else {
             this.showNotification('Bid Failed', result.reason, 'error');
         }
+    }
+
+    // ============================================
+    // MY PROPERTIES PANEL
+    // ============================================
+
+    showPropertiesPanel(player, world) {
+        const houses = player.houses || [];
+        const properties = player.properties || [];
+
+        let html = '<div style="max-height:520px;overflow-y:auto;">';
+
+        // ── Owned Houses ───────────────────────────────────────
+        html += `<h4 style="margin-top:0;">🏠 Owned Houses <span style="font-size:12px;font-weight:400;color:var(--text-secondary);">(${houses.length})</span></h4>`;
+
+        if (houses.length === 0) {
+            html += '<div style="font-size:12px;color:var(--text-secondary);padding:8px;margin-bottom:12px;">You don\'t own any houses yet. Visit a settlement and buy one.</div>';
+        } else {
+            for (const house of houses) {
+                const ht = Housing.getHouseType(house.typeId);
+                const name = ht ? ht.name : house.typeId;
+                const icon = ht ? ht.icon : '🏠';
+                const isHere = (house.q === player.q && house.r === player.r);
+                const condColor = house.condition >= 80 ? '#27ae60' : house.condition >= 50 ? '#f39c12' : '#e74c3c';
+
+                html += `<div style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:8px;background:rgba(255,255,255,0.02);">`;
+                html += `<div style="display:flex;justify-content:space-between;align-items:flex-start;">`;
+                html += `<div>`;
+                html += `<div style="font-weight:bold;font-size:13px;">${icon} ${name}</div>`;
+                html += `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">📍 ${house.settlementName || `(${house.q}, ${house.r})`}</div>`;
+                html += `<div style="font-size:11px;margin-top:2px;">🔧 Condition: <span style="color:${condColor};">${house.condition}%</span>`;
+                if (house.upgrades && house.upgrades.length > 0) {
+                    html += ` · 🛠️ ${house.upgrades.length} upgrade${house.upgrades.length !== 1 ? 's' : ''}`;
+                }
+                html += `</div>`;
+                html += `</div>`;
+                html += `<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">`;
+                if (isHere) {
+                    html += `<span style="font-size:11px;color:#27ae60;font-style:italic;">You are here</span>`;
+                } else {
+                    html += `<button onclick="window._travelToProperty(${house.q},${house.r})" style="font-size:11px;padding:3px 8px;">🧭 Travel Here</button>`;
+                }
+                html += `</div>`;
+                html += `</div>`;
+                html += `</div>`;
+            }
+        }
+
+        // ── Owned Properties (farms, mines, etc.) ─────────────
+        html += `<h4 style="margin-top:12px;">🏗️ Properties & Businesses <span style="font-size:12px;font-weight:400;color:var(--text-secondary);">(${properties.length})</span></h4>`;
+
+        if (properties.length === 0) {
+            html += '<div style="font-size:12px;color:var(--text-secondary);padding:8px;">You haven\'t built any farms, mines, or workshops yet.</div>';
+        } else {
+            for (const prop of properties) {
+                const isHere = (prop.q === player.q && prop.r === player.r);
+                const statusLabel = prop.underConstruction
+                    ? `<span style="color:#f39c12;font-size:10px;">🏗️ Building (${prop.constructionDaysLeft || '?'}d left)</span>`
+                    : `<span style="color:#27ae60;font-size:10px;">✅ Active</span>`;
+
+                html += `<div style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:8px;background:rgba(255,255,255,0.02);">`;
+                html += `<div style="display:flex;justify-content:space-between;align-items:flex-start;">`;
+                html += `<div>`;
+                html += `<div style="font-weight:bold;font-size:13px;">${prop.icon || '🏗️'} ${prop.name}</div>`;
+                html += `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">📍 (${prop.q}, ${prop.r}) ${statusLabel}</div>`;
+                if (prop.produces) {
+                    const storage = prop.storage || 0;
+                    html += `<div style="font-size:11px;margin-top:2px;">📦 ${prop.produces}: ${storage} stored · +${prop.productionRate || 0}/day</div>`;
+                }
+                html += `</div>`;
+                html += `<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">`;
+                if (isHere) {
+                    html += `<span style="font-size:11px;color:#27ae60;font-style:italic;">You are here</span>`;
+                } else {
+                    html += `<button onclick="window._travelToProperty(${prop.q},${prop.r})" style="font-size:11px;padding:3px 8px;">🧭 Travel Here</button>`;
+                }
+                html += `</div>`;
+                html += `</div>`;
+                html += `</div>`;
+            }
+        }
+
+        html += '</div>';
+
+        this.showCustomPanel('🏠 My Properties', html);
+
+        window._travelToProperty = (q, r) => {
+            this.hideCustomPanel();
+            const moved = this.game.player.moveTo(q, r, this.game.world);
+            if (moved) {
+                this.game.renderer.reachableHexes = this.game.player.getReachableHexes(this.game.world);
+                const dest = this.game.world.getTile(q, r);
+                const destName = dest?.settlement?.name || `(${q}, ${r})`;
+                this.showNotification('🧭 Travelling', `Heading to ${destName}...`, 'info');
+            } else {
+                this.showNotification('Cannot Travel', 'No path to that location.', 'error');
+            }
+        };
     }
 
     // ============================================

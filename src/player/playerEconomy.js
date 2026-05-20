@@ -6,7 +6,7 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { WorldUnit } from '../world/units.js';
 import { MarketDynamics } from '../systems/marketDynamics.js';
-import { InnerMap } from '../world/innerMap.js';
+// import { InnerMap } from '../world/innerMap.js';  // DISABLED: Inner map feature disabled
 import { Quests } from '../systems/quests.js';
 import { Technology } from '../systems/technology.js';
 import { Infrastructure } from '../systems/infrastructure.js';
@@ -125,6 +125,249 @@ export const PlayerEconomy = {
             requiredSettlement: true,
             description: 'A place for drink, gambling, and gossip. Earns gold daily from patrons. Upkeep: 12g/day'
         },
+        GRAIN_MILL: {
+            id: 'grain_mill',
+            name: 'Grain Mill',
+            icon: '🌬️',
+            cost: 600,
+            constructionDays: 6,
+            produces: null, // Recipe-based
+            productionRate: 6,
+            upkeep: 8,
+            requiredSettlement: true,
+            allowedRecipes: ['FLOUR'],
+            recipeChangeCost: 0,
+            description: 'Grinds grain into flour. Requires grain supply. Upkeep: 8g/day'
+        },
+        BAKERY: {
+            id: 'bakery',
+            name: 'Bakery',
+            icon: '🍞',
+            cost: 700,
+            constructionDays: 7,
+            produces: null, // Recipe-based
+            productionRate: 6,
+            upkeep: 8,
+            requiredSettlement: true,
+            allowedRecipes: ['BREAD'],
+            recipeChangeCost: 0,
+            description: 'Bakes bread from flour. Requires flour supply. Upkeep: 8g/day'
+        },
+        FORGE: {
+            id: 'forge',
+            name: 'Forge',
+            icon: '🔥',
+            cost: 1000,
+            constructionDays: 9,
+            produces: null, // Recipe-based (tools or weapons)
+            productionRate: 5,
+            upkeep: 12,
+            requiredSettlement: true,
+            allowedRecipes: ['TOOLS', 'WEAPONS'],
+            recipeChangeCost: 200,
+            description: 'A dedicated smithy. Forges tools or weapons from iron. Upkeep: 12g/day'
+        },
+        TANNERY: {
+            id: 'tannery',
+            name: 'Tannery',
+            icon: '🦺',
+            cost: 650,
+            constructionDays: 6,
+            produces: null, // Recipe-based
+            productionRate: 4,
+            upkeep: 8,
+            requiredSettlement: true,
+            allowedRecipes: ['LEATHER_ARMOR', 'TEXTILES'],
+            recipeChangeCost: 150,
+            description: 'Processes animal hides into leather armor or cured hides. Upkeep: 8g/day'
+        },
+        SAWMILL: {
+            id: 'sawmill',
+            name: 'Sawmill',
+            icon: '🪚',
+            cost: 500,
+            constructionDays: 5,
+            produces: null, // Recipe-based
+            productionRate: 6,
+            upkeep: 7,
+            requiredTerrain: ['forest', 'dense_forest', 'woodland', 'boreal_forest', 'seasonal_forest', 'temperate_rainforest', 'tropical_rainforest', 'plains', 'grassland', 'hills'],
+            allowedRecipes: ['FIREWOOD'],
+            recipeChangeCost: 0,
+            description: 'Processes timber into firewood and lumber. Upkeep: 7g/day'
+        },
+
+        // ── Raw Material Producers ──
+        QUARRY: {
+            id: 'quarry', name: 'Quarry', icon: '⛰️',
+            cost: 700, constructionDays: 8,
+            produces: 'stone', productionRate: 8, upkeep: 10,
+            requiredResource: ['stone'],
+            description: 'Cuts stone blocks from rocky outcrops. Essential for construction. Upkeep: 10g/day'
+        },
+        SALT_PANS: {
+            id: 'salt_pans', name: 'Salt Pans', icon: '🧂',
+            cost: 350, constructionDays: 4,
+            produces: 'salt', productionRate: 6, upkeep: 5,
+            requiredTerrain: ['coast', 'beach'],
+            description: 'Evaporates seawater to harvest salt. A vital food preservative. Upkeep: 5g/day'
+        },
+        APIARY: {
+            id: 'apiary', name: 'Apiary', icon: '🐝',
+            cost: 300, constructionDays: 3,
+            produces: 'honey', productionRate: 5, upkeep: 4,
+            requiredTerrain: ['plains', 'grassland', 'forest', 'woodland', 'hills'],
+            description: 'Keeps beehives for honey. Used in mead and candle-making. Upkeep: 4g/day'
+        },
+        ORCHARD: {
+            id: 'orchard', name: 'Orchard', icon: '🍎',
+            cost: 400, constructionDays: 5,
+            produces: 'fruit', productionRate: 8, upkeep: 5,
+            requiredTerrain: ['plains', 'grassland', 'hills', 'woodland'],
+            description: 'Cultivates fruit trees for winemaking or fresh trade. Upkeep: 5g/day'
+        },
+        HEMP_FARM: {
+            id: 'hemp_farm', name: 'Hemp Farm', icon: '🌿',
+            cost: 350, constructionDays: 4,
+            produces: 'hemp', productionRate: 8, upkeep: 4,
+            requiredTerrain: ['plains', 'grassland'],
+            description: 'Grows hemp fiber for rope-making. Vital for ships and construction. Upkeep: 4g/day'
+        },
+        CLAY_PIT: {
+            id: 'clay_pit', name: 'Clay Pit', icon: '🟫',
+            cost: 300, constructionDays: 3,
+            produces: 'clay', productionRate: 8, upkeep: 4,
+            requiredSettlement: true,
+            description: 'Digs raw clay from riverbeds. Used for pottery. Upkeep: 4g/day'
+        },
+        DAIRY: {
+            id: 'dairy', name: 'Dairy', icon: '🧀',
+            cost: 450, constructionDays: 4,
+            produces: 'cheese', productionRate: 4, upkeep: 6,
+            requiredTerrain: ['plains', 'grassland'],
+            description: 'Raises dairy cattle to produce aged cheese. Popular with traders. Upkeep: 6g/day'
+        },
+
+        // ── Processing Buildings ──
+        SMOKEHOUSE: {
+            id: 'smokehouse', name: 'Smokehouse', icon: '🍖',
+            cost: 500, constructionDays: 5,
+            produces: null, productionRate: 5, upkeep: 6,
+            requiredSettlement: true,
+            allowedRecipes: ['PRESERVED_FISH', 'DRIED_MEAT'], recipeChangeCost: 0,
+            description: 'Smokes fish and cures meat for long-term preservation. Upkeep: 6g/day'
+        },
+        BUTCHER: {
+            id: 'butcher', name: 'Butcher', icon: '🥩',
+            cost: 400, constructionDays: 3,
+            produces: null, productionRate: 5, upkeep: 5,
+            requiredSettlement: true,
+            allowedRecipes: ['DRIED_MEAT'], recipeChangeCost: 0,
+            description: 'Processes hunted game and livestock into dried provisions. Upkeep: 5g/day'
+        },
+        ROPE_WALK: {
+            id: 'rope_walk', name: 'Rope Walk', icon: '🪢',
+            cost: 350, constructionDays: 3,
+            produces: null, productionRate: 5, upkeep: 5,
+            requiredSettlement: true,
+            allowedRecipes: ['ROPE'], recipeChangeCost: 0,
+            description: 'Twists hemp fiber into rope. Vital for ships and construction. Upkeep: 5g/day'
+        },
+        POTTERY_KILN: {
+            id: 'pottery_kiln', name: 'Pottery Kiln', icon: '🏺',
+            cost: 400, constructionDays: 4,
+            produces: null, productionRate: 4, upkeep: 5,
+            requiredSettlement: true,
+            allowedRecipes: ['POTTERY'], recipeChangeCost: 0,
+            description: 'Fires clay pots and vessels for households and traders. Upkeep: 5g/day'
+        },
+        WEAVER: {
+            id: 'weaver', name: 'Weaver', icon: '🧵',
+            cost: 500, constructionDays: 5,
+            produces: null, productionRate: 5, upkeep: 6,
+            requiredSettlement: true,
+            allowedRecipes: ['TEXTILES', 'CLOTHES'], recipeChangeCost: 100,
+            description: 'Weaves wool into cloth and sews fine garments. Upkeep: 6g/day'
+        },
+        WINERY: {
+            id: 'winery', name: 'Winery', icon: '🍷',
+            cost: 700, constructionDays: 7,
+            produces: null, productionRate: 4, upkeep: 8,
+            requiredSettlement: true,
+            allowedRecipes: ['WINE', 'MEAD'], recipeChangeCost: 100,
+            description: 'Ferments fruit into wine and honey into mead. Premium beverages. Upkeep: 8g/day'
+        },
+        APOTHECARY: {
+            id: 'apothecary', name: 'Apothecary', icon: '⚗️',
+            cost: 600, constructionDays: 6,
+            produces: null, productionRate: 3, upkeep: 8,
+            requiredSettlement: true,
+            allowedRecipes: ['HEALING_SALVE', 'POTION'], recipeChangeCost: 150,
+            description: 'Prepares herbal remedies and alchemical potions. Upkeep: 8g/day'
+        },
+        FLETCHER: {
+            id: 'fletcher', name: 'Fletcher', icon: '🏹',
+            cost: 450, constructionDays: 4,
+            produces: null, productionRate: 6, upkeep: 6,
+            requiredSettlement: true,
+            allowedRecipes: ['ARROWS', 'BOW'], recipeChangeCost: 100,
+            description: 'Crafts arrows and bows for hunters and archers. Upkeep: 6g/day'
+        },
+        JEWELER: {
+            id: 'jeweler', name: 'Jeweler', icon: '💍',
+            cost: 900, constructionDays: 8,
+            produces: null, productionRate: 2, upkeep: 10,
+            requiredSettlement: true,
+            allowedRecipes: ['AMULET', 'LUXURIES'], recipeChangeCost: 200,
+            description: 'Cuts gems and crafts fine jewelry for nobility. Upkeep: 10g/day'
+        },
+        DYE_WORKS: {
+            id: 'dye_works', name: 'Dye Works', icon: '🎨',
+            cost: 450, constructionDays: 4,
+            produces: null, productionRate: 5, upkeep: 6,
+            requiredSettlement: true,
+            allowedRecipes: ['DYES'], recipeChangeCost: 0,
+            description: 'Extracts natural dyes from berries and plants. Upkeep: 6g/day'
+        },
+        CHANDLERY: {
+            id: 'chandlery', name: 'Chandlery', icon: '🕯️',
+            cost: 350, constructionDays: 3,
+            produces: null, productionRate: 5, upkeep: 5,
+            requiredSettlement: true,
+            allowedRecipes: ['CANDLES'], recipeChangeCost: 0,
+            description: 'Renders beeswax into candles. An essential light source. Upkeep: 5g/day'
+        },
+        GLASSWORKS: {
+            id: 'glassworks', name: 'Glassworks', icon: '🔮',
+            cost: 750, constructionDays: 7,
+            produces: null, productionRate: 4, upkeep: 10,
+            requiredSettlement: true,
+            allowedRecipes: ['GLASS', 'LANTERN'], recipeChangeCost: 150,
+            description: 'Melts stone into glass and blows glass into lanterns. Upkeep: 10g/day'
+        },
+        SCRIPTORIUM: {
+            id: 'scriptorium', name: 'Scriptorium', icon: '📖',
+            cost: 600, constructionDays: 5,
+            produces: null, productionRate: 3, upkeep: 8,
+            requiredSettlement: true,
+            allowedRecipes: ['PARCHMENT', 'RARE_BOOK'], recipeChangeCost: 100,
+            description: 'Monks and scribes prepare parchment and copy rare texts. Upkeep: 8g/day'
+        },
+        BLACKSMITH: {
+            id: 'blacksmith', name: 'Blacksmith', icon: '⚔️',
+            cost: 800, constructionDays: 7,
+            produces: null, productionRate: 4, upkeep: 10,
+            requiredSettlement: true,
+            allowedRecipes: ['SHIELD', 'TOOLS', 'WEAPONS'], recipeChangeCost: 150,
+            description: 'Versatile smithy producing shields, tools, and weapons. Upkeep: 10g/day'
+        },
+        PERFUMERY: {
+            id: 'perfumery', name: 'Perfumery', icon: '🌸',
+            cost: 650, constructionDays: 6,
+            produces: null, productionRate: 3, upkeep: 8,
+            requiredSettlement: true,
+            allowedRecipes: ['PERFUME', 'INCENSE'], recipeChangeCost: 100,
+            description: 'Distils flowers and resins into perfumes and incense. Upkeep: 8g/day'
+        },
     },
 
     /**
@@ -208,6 +451,13 @@ export const PlayerEconomy = {
         ENCHANTED_RING: { id: 'enchanted_ring',  name: 'Enchanted Ring',     icon: '💍', basePrice: 150 },
         DYES:           { id: 'dyes',            name: 'Dyes',               icon: '🎨', basePrice: 28 },
         INCENSE:        { id: 'incense',         name: 'Incense',            icon: '🪔', basePrice: 22 },
+        // ── Production chain intermediates ──
+        HEMP:       { id: 'hemp',       name: 'Hemp Fiber',   icon: '🌿', basePrice: 6 },
+        CLAY:       { id: 'clay',       name: 'Raw Clay',     icon: '🟫', basePrice: 4 },
+        FRUIT:      { id: 'fruit',      name: 'Fresh Fruit',  icon: '🍎', basePrice: 5 },
+        GLASS:      { id: 'glass',      name: 'Glass',        icon: '🪟', basePrice: 18 },
+        MEAD:       { id: 'mead',       name: 'Mead',         icon: '🫗', basePrice: 25 },
+        PARCHMENT:  { id: 'parchment',  name: 'Parchment',    icon: '📄', basePrice: 14 },
     },
 
     /**
@@ -225,6 +475,27 @@ export const PlayerEconomy = {
         LUXURIES: { id: 'luxuries', name: 'Refine Luxuries', input: 'gold_ore', inputQty: 2, output: 'luxuries', outputQty: 1, description: 'Craft fine jewelry.' },
         BEER: { id: 'beer', name: 'Brew Beer', input: 'grain', inputQty: 3, output: 'beer', outputQty: 4, description: 'Brew ale from grain. Popular at taverns.' },
         LIQUOR: { id: 'liquor', name: 'Distill Liquor', input: 'grain', inputQty: 5, output: 'liquor', outputQty: 2, description: 'Distill strong spirits from grain. High value.' },
+        LEATHER_ARMOR: { id: 'leather_armor', name: 'Tan Leather Armor', input: 'hide', inputQty: 3, output: 'leather_armor', outputQty: 1, description: 'Cure hides into protective leather armor.' },
+        // ── New production chain recipes ──
+        DRIED_MEAT:    { id: 'dried_meat',    name: 'Cure Dried Meat',    input: 'meat',      inputQty: 2, output: 'dried_meat',    outputQty: 3, description: 'Cure raw meat into dried provisions.' },
+        WINE:          { id: 'wine',          name: 'Ferment Wine',       input: 'fruit',     inputQty: 3, output: 'wine',          outputQty: 2, description: 'Ferment fruit into fine wine.' },
+        MEAD:          { id: 'mead',          name: 'Brew Mead',          input: 'honey',     inputQty: 3, output: 'mead',          outputQty: 2, description: 'Ferment honey into golden mead.' },
+        CANDLES:       { id: 'candles',       name: 'Dip Candles',        input: 'honey',     inputQty: 2, output: 'candles',       outputQty: 4, description: 'Render beeswax into candles.' },
+        ROPE:          { id: 'rope',          name: 'Twist Rope',         input: 'hemp',      inputQty: 2, output: 'rope',          outputQty: 3, description: 'Twist hemp fiber into rope.' },
+        POTTERY:       { id: 'pottery',       name: 'Fire Pottery',       input: 'clay',      inputQty: 3, output: 'pottery',       outputQty: 2, description: 'Fire clay into pots and vessels.' },
+        GLASS:         { id: 'glass',         name: 'Smelt Glass',        input: 'stone',     inputQty: 3, output: 'glass',         outputQty: 2, description: 'Melt stone into clear glass.' },
+        LANTERN:       { id: 'lantern',       name: 'Blow Lanterns',      input: 'glass',     inputQty: 2, output: 'lantern',       outputQty: 1, description: 'Blow glass into oil lanterns.' },
+        PARCHMENT:     { id: 'parchment',     name: 'Prepare Parchment',  input: 'hide',      inputQty: 2, output: 'parchment',     outputQty: 3, description: 'Scrape hides into writing parchment.' },
+        RARE_BOOK:     { id: 'rare_book',     name: 'Copy Rare Book',     input: 'parchment', inputQty: 3, output: 'rare_book',     outputQty: 1, description: 'Hand-copy illuminated manuscripts.' },
+        DYES:          { id: 'dyes',          name: 'Extract Dyes',       input: 'berries',   inputQty: 3, output: 'dyes',          outputQty: 2, description: 'Crush berries into natural dyes.' },
+        SHIELD:        { id: 'shield',        name: 'Forge Shield',       input: 'iron',      inputQty: 2, output: 'shield',        outputQty: 1, description: 'Hammer iron into a sturdy shield.' },
+        ARROWS:        { id: 'arrows',        name: 'Fletch Arrows',      input: 'wood',      inputQty: 1, output: 'arrows',        outputQty: 8, description: 'Whittle and tip arrows for archers.' },
+        BOW:           { id: 'bow',           name: 'Craft Bow',          input: 'wood',      inputQty: 3, output: 'bow',           outputQty: 1, description: 'Bend a yew stave into a longbow.' },
+        HEALING_SALVE: { id: 'healing_salve', name: 'Brew Healing Salve', input: 'herbs',     inputQty: 2, output: 'healing_salve', outputQty: 1, description: 'Infuse herbs into a medicinal salve.' },
+        POTION:        { id: 'potion',        name: 'Brew Potion',        input: 'mushrooms', inputQty: 3, output: 'potion',        outputQty: 1, description: 'Brew mushrooms into a mysterious potion.' },
+        AMULET:        { id: 'amulet',        name: 'Cut Amulet',         input: 'gems',      inputQty: 2, output: 'amulet',        outputQty: 1, description: 'Cut gemstones into enchanted amulets.' },
+        PERFUME:       { id: 'perfume',       name: 'Distil Perfume',     input: 'herbs',     inputQty: 3, output: 'perfume',       outputQty: 1, description: 'Distil aromatic herbs into perfume.' },
+        INCENSE_RECIPE: { id: 'incense_recipe', name: 'Press Incense',    input: 'herbs',     inputQty: 2, output: 'incense',       outputQty: 2, description: 'Press herbs into fragrant incense.' },
     },
 
     ROUTE_CREATION_COST: {
@@ -716,9 +987,15 @@ export const PlayerEconomy = {
         if (prop.requiredSettlement) {
             let hasSettlement = tile.settlement != null;
 
-            // Allow Workshops and Breweries to be built adjacent to settlements
-            if (!hasSettlement && (propertyType.toUpperCase() === 'WORKSHOP' || propertyType.toUpperCase() === 'BREWERY')) {
-                // Check neighbors
+            // Allow settlement-requiring buildings to be built on tiles adjacent to settlements
+            const ADJACENT_OK_TYPES = [
+                'workshop', 'brewery', 'grain_mill', 'bakery', 'forge', 'tannery', 'sawmill',
+                'smokehouse', 'butcher', 'rope_walk', 'pottery_kiln', 'weaver', 'winery',
+                'apothecary', 'fletcher', 'jeweler', 'dye_works', 'chandlery',
+                'glassworks', 'scriptorium', 'blacksmith', 'perfumery',
+                'clay_pit',
+            ];
+            if (!hasSettlement && ADJACENT_OK_TYPES.includes(prop.id)) {
                 const neighbors = Hex.neighbors(tile.q, tile.r);
                 for (const n of neighbors) {
                     const nTile = world.getTile(n.q, n.r);
@@ -730,7 +1007,7 @@ export const PlayerEconomy = {
             }
 
             if (!hasSettlement) {
-                return { canBuild: false, reason: 'Requires a settlement (or adjacent for Workshops)' };
+                return { canBuild: false, reason: 'Requires a settlement (or adjacent to one for production buildings)' };
             }
         }
 
@@ -804,9 +1081,10 @@ export const PlayerEconomy = {
         player.skills.commerce = Math.min(10, player.skills.commerce + 0.5);
 
         // Place property on inner map (assigns inner tile position and updates cache)
-        if (typeof InnerMap !== 'undefined') {
-            InnerMap.placePropertyOnInnerMap(tile, newProperty, tile.q, tile.r);
-        }
+        // DISABLED: Inner map feature disabled
+        // if (typeof InnerMap !== 'undefined') {
+        //     InnerMap.placePropertyOnInnerMap(tile, newProperty, tile.q, tile.r);
+        // }
 
         return { success: true, property: tile.playerProperty, underConstruction: constructionDays > 0, constructionDays };
     },
@@ -912,8 +1190,14 @@ export const PlayerEconomy = {
             let producedGood = property.produces;
             let consumedInput = false;
 
-            // Workshop & Brewery Specific Logic (recipe-based production)
-            if (property.type === 'workshop' || property.type === 'brewery') {
+            // Workshop & Brewery & Specialized Buildings Specific Logic (recipe-based production)
+            const RECIPE_BUILDINGS = [
+                'workshop', 'brewery', 'grain_mill', 'bakery', 'forge', 'tannery', 'sawmill',
+                'smokehouse', 'butcher', 'rope_walk', 'pottery_kiln', 'weaver', 'winery',
+                'apothecary', 'fletcher', 'jeweler', 'dye_works', 'chandlery',
+                'glassworks', 'scriptorium', 'blacksmith', 'perfumery',
+            ];
+            if (RECIPE_BUILDINGS.includes(property.type)) {
                 if (!property.activeRecipe) {
                     producedAmount = 0; // No recipe, no production
                 } else {
@@ -1568,6 +1852,14 @@ export const Trading = {
             addGood('LIQUOR', 0.03);
         }
 
+        // Horses available at larger settlements
+        if (settlement.type === 'town') {
+            addGood('HORSES', 0.005);  // Basic workhorses at towns
+        }
+        if (settlement.type === 'city' || settlement.type === 'capital') {
+            addGood('HORSE', 0.003);   // Quality riding horses at cities/capitals
+        }
+
         return goods;
     },
 
@@ -1644,7 +1936,7 @@ export const Trading = {
         if (!player.inventory) player.inventory = {};
         player.inventory[good.id] = (player.inventory[good.id] || 0) + quantity;
 
-        // Reduce settlement stock
+        // Reduce settlement stock (increase the "bought" counter)
         if (!settlement.marketStock) settlement.marketStock = {};
         settlement.marketStock[good.id] = (settlement.marketStock[good.id] || 0) + quantity;
 

@@ -3,6 +3,7 @@
 // ============================================
 
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog } from './_gameImports.js';
+import { resolveHostileEncounter } from './combat.logic.js';
 
 export function playerPray() {
     if (!this.player) return;
@@ -262,80 +263,13 @@ export function _checkHostileEncounters() {
     audioManager.playSFX('combat_hit');
     audioManager.setScene('combat');
 
-    const playerArmySize = this.player.army ? this.player.army.length : 0;
-
-    if (playerArmySize === 0) {
-        // --- No army: player is robbed / roughed up ---
-        const goldStolen = Math.min(this.player.gold, Math.floor(this.player.gold * Utils.randFloat(0.15, 0.4)));
-        const healthLost = Utils.randInt(5, 15);
-
-        this.player.gold -= goldStolen;
-        this.player.health = Math.max(1, this.player.health - healthLost);
-
-        // Steal random inventory items
-        const stolenItems = {};
-        if (this.player.inventory) {
-            const itemKeys = Object.keys(this.player.inventory).filter(k => k !== 'quest' && this.player.inventory[k] > 0);
-            const itemsToSteal = Math.min(itemKeys.length, Utils.randInt(1, 3));
-            for (let i = 0; i < itemsToSteal; i++) {
-                const key = Utils.randPick(itemKeys);
-                const qty = Math.min(this.player.inventory[key], Utils.randInt(1, Math.ceil(this.player.inventory[key] * 0.5)));
-                if (qty > 0) {
-                    this.player.inventory[key] -= qty;
-                    stolenItems[key] = qty;
-                    if (this.player.inventory[key] <= 0) delete this.player.inventory[key];
-                }
-            }
-        }
-
-        // Transfer stolen goods to attacker
-        attacker.inventory['gold'] = (attacker.inventory['gold'] || 0) + goldStolen;
-        for (const [item, qty] of Object.entries(stolenItems)) {
-            attacker.inventory[item] = (attacker.inventory[item] || 0) + qty;
-        }
-
-        // Build notification message
-        let msg = `A ${attacker.name} ambushed you! Without an army you were defenseless.`;
-        if (goldStolen > 0) msg += ` They stole ${goldStolen} gold.`;
-        const stolenList = Object.entries(stolenItems).map(([k, v]) => `${v} ${k}`).join(', ');
-        if (stolenList) msg += ` They also took: ${stolenList}.`;
-        msg += ` You lost ${healthLost} health.`;
-
-        this.ui.showNotification(`⚔️ ${attacker.name} Attack!`, msg, 'error');
-
-        if (this.world.events) {
-            this.world.events.push({
-                text: `${this.player.name || 'A traveller'} was robbed by a ${attacker.name}!`,
-                type: 'military'
-            });
-        }
-
-        // The raider moves on after robbing (pick new target)
-        attacker.targetQ = null;
-        attacker.targetR = null;
-    } else {
-        // --- Player has army: full combat ---
-        const result = PlayerMilitary.attackUnit(this.player, attacker, this.world);
-
-        if (result.victory) {
-            let lootMsg = `Victory! You defeated the ${attacker.name}!`;
-            if (result.casualties > 0) lootMsg += ` Lost ${result.casualties} soldiers.`;
-            if (result.loot > 0) lootMsg += ` Gained ${result.loot} gold.`;
-            const itemLoot = Object.entries(result.inventoryLoot || {}).map(([k, v]) => `${v} ${k}`).join(', ');
-            if (itemLoot) lootMsg += ` Seized: ${itemLoot}.`;
-            if (result.renownChange > 0) lootMsg += ` +${result.renownChange} renown!`;
-
-            this.ui.showNotification(`⚔️ Victory!`, lootMsg, 'success');
-        } else {
-            let defeatMsg = `Defeated by the ${attacker.name}!`;
-            if (result.casualties > 0) defeatMsg += ` Lost ${result.casualties} soldiers.`;
-            if (result.captured) {
-                defeatMsg += ` You have been captured and forced into servitude for ${result.servitudeDays} days!`;
-                if (result.goldConfiscated > 0) defeatMsg += ` ${result.goldConfiscated} gold confiscated.`;
-            }
-            this.ui.showNotification(`💀 Defeat!`, defeatMsg, 'error');
-        }
-    }
+    // Resolve the encounter (pure logic — mutates state, returns effects to render)
+    const outcome = resolveHostileEncounter(this.player, attacker, this.world);
+    this.ui.showNotification(
+        outcome.notification.title,
+        outcome.notification.body,
+        outcome.notification.type
+    );
 
     // Restore music scene after combat
     setTimeout(() => {

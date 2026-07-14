@@ -807,7 +807,7 @@ export const PlayerEconomy = {
         };
     },
 
-    _applyAuctionReward(player, lot) {
+    _applyAuctionReward(player, world, lot) {
         if (!lot || !lot.reward) return;
         const reward = lot.reward;
 
@@ -825,7 +825,7 @@ export const PlayerEconomy = {
         }
 
         player.auctions.won.push({
-            day: (typeof window !== 'undefined' && window.game && window.game.world) ? window.game.world.day : null,
+            day: world ? world.day : null,
             title: lot.title,
             rarity: lot.rarity,
             reward: reward.label,
@@ -899,7 +899,7 @@ export const PlayerEconomy = {
             if ((world.day || 1) < lot.endsOnDay) continue;
 
             if (lot.topBidder === 'player') {
-                PlayerEconomy._applyAuctionReward(player, lot);
+                PlayerEconomy._applyAuctionReward(player, world, lot);
                 events.push({
                     eventType: 'auction',
                     title: 'Auction Won!',
@@ -1809,7 +1809,7 @@ export const Trading = {
     /**
      * Get available goods at a settlement
      */
-    getAvailableGoods(settlement, tile) {
+    getAvailableGoods(settlement, tile, world = null) {
         const goods = [];
         if (!settlement.marketStock) settlement.marketStock = {};
 
@@ -1825,7 +1825,7 @@ export const Trading = {
             goods.push({
                 ...good,
                 quantity: available,
-                price: Trading.calculatePrice(good, settlement, tile),
+                price: Trading.calculatePrice(good, settlement, tile, world),
             });
         };
 
@@ -1866,7 +1866,7 @@ export const Trading = {
     /**
      * Calculate price based on settlement and resources
      */
-    calculatePrice(good, settlement, tile) {
+    calculatePrice(good, settlement, tile, world = null) {
         let price = good.basePrice;
 
         // Larger settlements have better prices (cheaper to buy)
@@ -1878,9 +1878,9 @@ export const Trading = {
         };
         price *= sizeMultiplier[settlement.type] || 1.0;
 
-        // Temperature based demand for Firewood and Warm Clothes
-        const world = (typeof window !== 'undefined' && window.game) ? window.game.world : null;
-
+        // Temperature based demand for Firewood and Warm Clothes.
+        // `world` is injected by the caller (Trading.getAvailableGoods ← UI);
+        // null in headless/test contexts, which skips weather-based demand.
         if (world && world.weather) {
             const temp = tile.temperature ?? 15; // default 15
             const isCold = temp < 5;

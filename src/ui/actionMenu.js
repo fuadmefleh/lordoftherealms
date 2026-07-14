@@ -1641,7 +1641,7 @@ export const ActionMenu = {
      * Show trade menu
      */
     showTradeMenu(game, tile) {
-        const goods = Trading.getAvailableGoods(tile.settlement, tile);
+        const goods = Trading.getAvailableGoods(tile.settlement, tile, game.world);
         const playerGold = game.player.gold || 0;
         const settlementName = tile.settlement?.name || 'Market';
         const settlementType = tile.settlement?.type || 'village';

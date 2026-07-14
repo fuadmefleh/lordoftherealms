@@ -66,7 +66,14 @@ export default function GameView() {
         if (cancelled) { game.isRunning = false; return; }
         gameRef.current = game;
         _hmrGame = game;  // Persist for HMR recovery
-        window.game = game;  // Expose globally for inline onclick handlers
+        // ── SANCTIONED GLOBAL ── This is the single composition-root binding of
+        // the live Game instance to the global namespace. It exists ONLY as the
+        // adapter for the legacy inline-onclick handler surface in src/ui/**.
+        // Domain code (core/world/systems/player) must NEVER read window.game or
+        // a bare `game` — it receives game/world/player as parameters instead
+        // (enforced by the no-restricted-globals ESLint rule). See
+        // docs/architecture-globals.md.
+        window.game = game;
 
         // Bridge: let the Game push stats back into React
         game._reactBridge = { updatePlayerStats, updateTurn, setPhase };

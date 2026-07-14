@@ -31,6 +31,26 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 8082,
     open: true,
+    // Cache static assets (sprites, data) for 1 hour in the dev server
+    headers: {
+      'Cache-Control': 'public, max-age=3600',
+    },
+    warmup: {
+      // Pre-transform hot paths so the first page load doesn't stall on module transforms
+      clientFiles: [
+        './src/main.jsx',
+        './src/App.jsx',
+        './src/components/GameView.jsx',
+        './src/ui/game.js',
+        './src/ui/renderer.js',
+        './src/ui/actionMenu.js',
+        './src/ui/innerMapRenderer.js',
+        './src/core/dataLoader.js',
+        './src/world/world.js',
+        './src/player/player.js',
+        './src/player/playerEconomy.js',
+      ],
+    },
     // Serve static files (data/, assets/, styles.css, editor HTML files)
     fs: {
       allow: ['.'],

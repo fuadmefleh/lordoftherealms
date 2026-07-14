@@ -93,6 +93,8 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;bo
 .ntb-cell.ntb-filled{border-color:var(--green)}
 .ntb-cell canvas{image-rendering:pixelated;width:48px;height:48px;display:block}
 .ntb-cell-lbl{font-size:8px;color:var(--text-dim);margin-top:2px;font-weight:600;text-transform:uppercase}
+.ntb-help-body{transition:max-height .2s;overflow:hidden;max-height:600px}
+.ntb-help.collapsed .ntb-help-body{max-height:0}
 .ntb-ic-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;max-width:300px;margin-top:4px}
 .ntb-corridor-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;max-width:300px;margin-top:4px}
 .ntb-brush-card{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:6px 8px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:border-color .12s}
@@ -149,7 +151,7 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;bo
     <button id="tool-erase"   onclick="setTool('erase')">🗑 Erase</button>
     <button id="tool-fill"    onclick="setTool('fill')">🪣 Fill</button>
     <button id="tool-eyedrop" onclick="setTool('eyedrop')">💉 Pick</button>
-    <button id="tool-impass"  onclick="setTool('impass')">⛔ Block</button>
+    <button id="tool-impass"  onclick="setTool('impass')" title="Block/Unblock tiles — activates green/red passability overlay. Click or drag to block (red ✕). Click an already-blocked tile to unblock it (green ✓).">⛔ Block</button>
     <button id="tool-door"    onclick="setTool('door')">🚪 Door</button>
     <button id="tool-furn"    onclick="setTool('furniture')">🪑 Furniture</button>
     <button id="tool-9tile"   onclick="setTool('9tile')" title="9-Tile Auto-Brush (N)">🖼 9-Tile</button>
@@ -284,8 +286,13 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;bo
 
     <div class="rp-section" id="ntb-brushes-section">
       <h3>🖼 9-Tile Brushes</h3>
-      <div style="display:flex;gap:4px;margin-bottom:6px">
+      <div style="display:flex;gap:4px;margin-bottom:4px;flex-wrap:wrap">
         <button class="purple" onclick="openNtbEditor(-1)" style="font-size:10px;padding:2px 7px;flex:1">＋ New Brush</button>
+        <button class="purple" onclick="openNtbEditor(-1,'interior_floor')" style="font-size:10px;padding:2px 7px;flex:1;background:#2a6a3a">＋ Int. Floor</button>
+        <button class="purple" onclick="openNtbEditor(-1,'interior_wall')" style="font-size:10px;padding:2px 7px;flex:1;background:#5a3a6a">＋ Int. Wall</button>
+      </div>
+      <div style="display:flex;gap:4px;margin-bottom:6px">
+        <button onclick="ntbLoadDemoBrushes()" style="font-size:10px;padding:2px 7px;flex:1;background:#1a3a5a;border:1px solid #2a5a8a;border-radius:4px;color:#8ac4f0;cursor:pointer" title="Creates 2 example brushes (wood floor + stone wall) so you can see the system working right away">📦 Load Demo Brushes</button>
       </div>
       <div id="ntb-list-panel" style="display:flex;flex-direction:column;gap:3px;max-height:180px;overflow-y:auto"></div>
     </div>
@@ -306,6 +313,8 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;bo
       <div class="ntb-type-tabs" style="margin-bottom:0">
         <button class="ntb-type-btn active" id="ntb-type-floor" onclick="ntbSetType('floor')">🟫 Floor</button>
         <button class="ntb-type-btn" id="ntb-type-wall" onclick="ntbSetType('wall')">🧱 Wall</button>
+        <button class="ntb-type-btn" id="ntb-type-interior_floor" onclick="ntbSetType('interior_floor')">🏠 Int. Floor</button>
+        <button class="ntb-type-btn" id="ntb-type-interior_wall" onclick="ntbSetType('interior_wall')">🏛 Int. Wall</button>
       </div>
       <button class="green" onclick="ntbSave()">💾 Save</button>
       <button class="danger" onclick="ntbDelete()" id="ntb-del-btn" disabled>🗑 Delete</button>
@@ -319,6 +328,9 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;bo
       <input type="number" id="ntb-cost-stone" value="0" min="0" max="999" style="width:50px;font-size:11px;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:2px 5px;border-radius:4px">
       <label style="font-size:11px;color:var(--text-dim)">Iron</label>
       <input type="number" id="ntb-cost-iron" value="0" min="0" max="999" style="width:50px;font-size:11px;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:2px 5px;border-radius:4px">
+      <div style="width:1px;height:22px;background:var(--border);margin:0 4px"></div>
+      <label style="font-size:11px;color:var(--text-dim)" title="Comma-separated building types that can use this brush (e.g. tavern, inn). Leave blank to match all buildings.">🏷 Bldg Tags</label>
+      <input type="text" id="ntb-building-tags" placeholder="tavern, inn, ..." style="width:110px;font-size:11px;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:2px 5px;border-radius:4px">
     </div>
     <button onclick="closeNtbEditor()" style="font-size:18px;padding:2px 10px;flex-shrink:0">✕</button>
   </div>
@@ -326,12 +338,47 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;bo
     <div class="ntb-left">
       <div>
         <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-bottom:6px">Tile Layout</div>
-        <div style="font-size:10px;color:var(--text-dim);margin-bottom:8px;line-height:1.4;padding:6px 8px;background:var(--panel2);border-radius:4px;border:1px solid var(--border)">
-          <b style="color:var(--text)">How it works:</b> Pick 9 outer tiles + 4 inside corners.<br>
-          <b>Center</b> fills interior areas. <b>Edge</b> tiles appear at boundaries.<br>
-          <b>Corner</b> tiles at diagonal boundaries. <b>Inside corners</b> for concave corners.<br>
-          <b style="color:var(--gold)">Wall brushes</b> also have corridor/junction pieces for hallways.<br>
-          <b style="color:var(--green)">Quick:</b> Drag a 3×3 on the palette for outer tiles, or 2×2 for inside corners.
+        <div class="ntb-help" style="font-size:10px;color:var(--text-dim);margin-bottom:8px;line-height:1.5;padding:7px 9px;background:var(--panel2);border-radius:4px;border:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <b style="color:var(--text);font-size:11px">📖 How to fill out a brush</b>
+            <button onclick="const h=this.closest('.ntb-help');h.classList.toggle('collapsed');this.textContent=h.classList.contains('collapsed')?'▶ show':'▼ hide'" style="font-size:9px;padding:1px 6px;background:none;border:1px solid var(--border2);color:var(--text-dim);border-radius:3px;cursor:pointer">▼ hide</button>
+          </div>
+          <div class="ntb-help-body">
+            <b style="color:var(--green)">Quick start:</b> Pick a category on the right, then <b>drag a 3×3 block</b> on the tileset → all 9 slots fill at once. Drag a <b>2×2 block</b> to fill the 4 inside corner slots.<br><br>
+
+            <b style="color:var(--text)">The 3×3 grid slots:</b><br>
+            <span style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px 6px;margin:4px 0 6px 0;font-size:9px">
+              <span style="background:var(--bg);border:1px solid var(--border2);border-radius:3px;padding:2px 4px;text-align:center"><b>TL</b> outer top-left corner</span>
+              <span style="background:var(--bg);border:1px solid var(--border2);border-radius:3px;padding:2px 4px;text-align:center"><b>Top</b> top edge</span>
+              <span style="background:var(--bg);border:1px solid var(--border2);border-radius:3px;padding:2px 4px;text-align:center"><b>TR</b> outer top-right corner</span>
+              <span style="background:var(--bg);border:1px solid var(--border2);border-radius:3px;padding:2px 4px;text-align:center"><b>Left</b> left edge</span>
+              <span style="background:var(--bg);border:1px solid var(--border2);border-radius:3px;padding:2px 4px;text-align:center"><b>Center ★</b> interior fill</span>
+              <span style="background:var(--bg);border:1px solid var(--border2);border-radius:3px;padding:2px 4px;text-align:center"><b>Right</b> right edge</span>
+              <span style="background:var(--bg);border:1px solid var(--border2);border-radius:3px;padding:2px 4px;text-align:center"><b>BL</b> outer bottom-left</span>
+              <span style="background:var(--bg);border:1px solid var(--border2);border-radius:3px;padding:2px 4px;text-align:center"><b>Bottom</b> bottom edge</span>
+              <span style="background:var(--bg);border:1px solid var(--border2);border-radius:3px;padding:2px 4px;text-align:center"><b>BR</b> outer bottom-right</span>
+            </span>
+
+            <b>Center ★</b> is the most important — it's used for every fully-surrounded tile (the whole room floor or the bulk of a wall mass).<br>
+            <b>Edge tiles</b> (Top/Bottom/Left/Right) appear where the brush meets open space on that side.<br>
+            <b>Corner tiles</b> (TL/TR/BL/BR) appear where two edges meet at an outer corner.<br><br>
+
+            <b style="color:var(--text)">Inside Corners (IC-TL … IC-BR):</b><br>
+            Used for <i>concave</i> corners — a tile surrounded on 3 sides where the 4th diagonal is open (e.g. inside corner of an L-shaped room). Optional but makes rooms look much better.<br><br>
+
+            <b style="color:var(--gold)">Wall / Int. Wall brushes — Corridors &amp; End Caps:</b><br>
+            <span style="display:grid;grid-template-columns:1fr 1fr;gap:2px 6px;margin:3px 0 4px 0;font-size:9px">
+              <span style="background:var(--bg);border:1px solid var(--border2);border-radius:3px;padding:2px 4px"><b>V-Hall</b> — wall runs vertically (neighbors above &amp; below)</span>
+              <span style="background:var(--bg);border:1px solid var(--border2);border-radius:3px;padding:2px 4px"><b>H-Hall</b> — wall runs horizontally</span>
+              <span style="background:var(--bg);border:1px solid var(--border2);border-radius:3px;padding:2px 4px"><b>T-Down/Up/Right/Left</b> — 3-way junction; letter = open direction</span>
+              <span style="background:var(--bg);border:1px solid var(--border2);border-radius:3px;padding:2px 4px"><b>Cross</b> — 4-way intersection</span>
+              <span style="background:var(--bg);border:1px solid var(--border2);border-radius:3px;padding:2px 4px"><b>Solo</b> — single isolated wall tile, no neighbors</span>
+              <span style="background:var(--bg);border:1px solid var(--border2);border-radius:3px;padding:2px 4px"><b>End-N/S/W/E</b> — dead-end cap opening toward that direction</span>
+            </span>
+            Corridor/endcap slots are optional — if empty the engine reuses the nearest matching tile as a fallback.<br><br>
+
+            <b style="color:var(--purple)">🏷 Bldg Tags:</b> comma-separated building types (e.g. <code>tavern, inn</code>). Leave blank to match all buildings. The generator picks tagged brushes first, then falls back to untagged ones.
+          </div>
         </div>
         <div class="ntb-grid" id="ntb-grid"></div>
         <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-top:8px;margin-bottom:2px">Inside Corners <span style="font-weight:400;text-transform:none">(optional)</span></div>
@@ -407,6 +454,7 @@ let palDragging = false, palDragMeta = null, palDragStart = null, palDragLive = 
 // Undo
 let undoStack = [], redoStack = [];
 const MAX_UNDO = 40;
+let _impassDragSet = null; // true = painting blocked, false = painting passable, null = not set
 
 // Canvas refs
 let cvs, ctx;
@@ -954,11 +1002,28 @@ function _showCustomObjectsPalette() {
     });
 
     const label = document.createElement('div');
-    label.style.cssText = 'font-size:11px;color:var(--text);line-height:1.3';
-    label.innerHTML = `<b>${obj.name}</b><br><span style="color:var(--text-dim)">${tw}×${th} tiles · ${obj.objectType || 'object'}</span>`;
+    label.style.cssText = 'font-size:11px;color:var(--text);line-height:1.3;flex:1;min-width:0';
+    const tagsStr = (obj.buildingTags || []).join(', ');
+    label.innerHTML = `<b>${obj.name}</b><br><span style="color:var(--text-dim)">${tw}×${th} tiles · ${obj.objectType || 'object'}</span>`
+      + (tagsStr ? `<br><span style="color:var(--gold);font-size:10px">🏷 ${tagsStr}</span>` : '');
+
+    const tagBtn = document.createElement('button');
+    tagBtn.title = 'Edit building tags for this object';
+    tagBtn.style.cssText = 'font-size:11px;padding:1px 5px;flex-shrink:0;cursor:pointer';
+    tagBtn.textContent = '🏷';
+    tagBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const current = (obj.buildingTags || []).join(', ');
+      const input = prompt(`Building tags for "${obj.name}" (comma-separated, e.g. tavern, inn):`, current);
+      if (input === null) return;
+      obj.buildingTags = input.split(',').map(s => s.trim()).filter(Boolean);
+      notifyParent();
+      _showCustomObjectsPalette(); // re-render
+    });
 
     card.appendChild(thumb);
     card.appendChild(label);
+    card.appendChild(tagBtn);
     card.addEventListener('click', () => _selectCustomObject(obj));
     container.appendChild(card);
   }
@@ -1238,7 +1303,7 @@ function renderCanvas() {
       const dx = panX + q * ds, dy = panY + r * ds;
       const brush = nineTileBrushes.find(b => b.id === entry.brushId);
       if (brush) {
-        const isFloor = brush.brushType !== 'wall';
+        const isFloor = brush.brushType !== 'wall' && brush.brushType !== 'interior_wall';
         ctx.fillStyle = isFloor ? 'rgba(63,185,80,0.12)' : 'rgba(230,168,23,0.12)';
         ctx.fillRect(dx, dy, ds, ds);
         // Small dot indicator
@@ -1248,11 +1313,42 @@ function renderCanvas() {
     }
   }
 
+  // Passability overlay — when Block tool is active, show full green/red pass map
+  if (activeTool === 'impass') {
+    for (let r = 0; r < gridH; r++) {
+      for (let q = 0; q < gridW; q++) {
+        const key = `${q},${r}`;
+        const dx = panX + q * ds, dy = panY + r * ds;
+        const isWall = !!(layers.walls[key]);
+        const isBlocked = !!(meta[key] && meta[key].impassable) || isWall;
+        if (isBlocked) {
+          ctx.fillStyle = 'rgba(248,81,73,0.30)';
+        } else if (layers.floor[key] || layers.furniture[key] || layers.overlay[key]) {
+          ctx.fillStyle = 'rgba(63,185,80,0.25)';
+        } else {
+          continue;
+        }
+        ctx.fillRect(dx, dy, ds, ds);
+        if (isBlocked) {
+          ctx.strokeStyle = 'rgba(248,81,73,0.7)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(dx + ds*0.2, dy + ds*0.2); ctx.lineTo(dx + ds*0.8, dy + ds*0.8); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(dx + ds*0.8, dy + ds*0.2); ctx.lineTo(dx + ds*0.2, dy + ds*0.8); ctx.stroke();
+        } else {
+          ctx.strokeStyle = 'rgba(63,185,80,0.5)';
+          ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(dx + ds*0.3, dy + ds*0.5); ctx.lineTo(dx + ds*0.5, dy + ds*0.72); ctx.lineTo(dx + ds*0.75, dy + ds*0.28); ctx.stroke();
+        }
+      }
+    }
+  }
+
   // Meta overlay: impassable, doors, furniture
   for (const [key, m] of Object.entries(meta)) {
     const [q, r] = key.split(',').map(Number);
     const dx = panX + q * ds, dy = panY + r * ds;
-    if (m.impassable) {
+    if (m.impassable && activeTool !== 'impass') {
+      // Outside pass-view mode: subtle red X so blocked tiles are still visible
       ctx.fillStyle = 'rgba(248,81,73,0.25)';
       ctx.fillRect(dx, dy, ds, ds);
       ctx.strokeStyle = 'rgba(248,81,73,0.6)';
@@ -1462,9 +1558,17 @@ function applyTool(sx, sy) {
     }
 
     case 'impass': {
-      if (!meta[key]) meta[key] = {};
-      meta[key].impassable = !meta[key].impassable;
-      if (!meta[key].impassable && !meta[key].door && !meta[key].furniture) delete meta[key];
+      // _impassDragSet is determined on first cell of a drag stroke (set in mousedown)
+      const setTo = (typeof _impassDragSet === 'boolean') ? _impassDragSet : !(meta[key] && meta[key].impassable);
+      if (setTo) {
+        if (!meta[key]) meta[key] = {};
+        meta[key].impassable = true;
+      } else {
+        if (meta[key]) {
+          delete meta[key].impassable;
+          if (!meta[key].door && !meta[key].furniture) delete meta[key];
+        }
+      }
       break;
     }
 
@@ -1560,6 +1664,18 @@ function initCanvas() {
     if (e.button === 0) {
       pushUndo();
       _painting = true;
+      // For impass tool: decide on first click whether this stroke blocks or unblocks
+      if (activeTool === 'impass') {
+        const t0 = screenToTile(sx, sy);
+        if (t0.valid) {
+          const k0 = `${t0.q},${t0.r}`;
+          _impassDragSet = !(meta[k0] && meta[k0].impassable);
+        } else {
+          _impassDragSet = true;
+        }
+      } else {
+        _impassDragSet = null;
+      }
       applyTool(sx, sy);
     }
   });
@@ -1771,7 +1887,7 @@ function selectNineBrush(idx) {
     activeStamp = null;
     // Auto-switch to the target layer for this brush
     const brush = nineTileBrushes[activeNineBrush];
-    if (brush) setLayer(brush.brushType === 'wall' ? 'walls' : 'floor');
+    if (brush) setLayer((brush.brushType === 'wall' || brush.brushType === 'interior_wall') ? 'walls' : 'floor');
     if (activeTool !== '9tile') setTool('9tile');
   }
   buildNtbListPanel();
@@ -1783,10 +1899,13 @@ function ntbSetType(type) {
   ntbBrushType = type;
   document.getElementById('ntb-type-floor').classList.toggle('active', type === 'floor');
   document.getElementById('ntb-type-wall').classList.toggle('active', type === 'wall');
-  document.getElementById('ntb-corridor-section').style.display = type === 'wall' ? '' : 'none';
+  document.getElementById('ntb-type-interior_floor').classList.toggle('active', type === 'interior_floor');
+  document.getElementById('ntb-type-interior_wall').classList.toggle('active', type === 'interior_wall');
+  const isWall = type === 'wall' || type === 'interior_wall';
+  document.getElementById('ntb-corridor-section').style.display = isWall ? '' : 'none';
 }
 
-function openNtbEditor(idx) {
+function openNtbEditor(idx, defaultType) {
   ntbEditIdx = (idx !== undefined) ? idx : -1;
   const modal = document.getElementById('ntbModal');
   modal.style.display = 'flex';
@@ -1806,6 +1925,7 @@ function openNtbEditor(idx) {
     document.getElementById('ntb-cost-wood').value = cr.wood || 0;
     document.getElementById('ntb-cost-stone').value = cr.stone || 0;
     document.getElementById('ntb-cost-iron').value = cr.iron || 0;
+    document.getElementById('ntb-building-tags').value = (brush.buildingTags || []).join(', ');
   } else {
     ntbEditIdx = -1;
     document.getElementById('ntb-name').value = 'New Brush';
@@ -1813,13 +1933,14 @@ function openNtbEditor(idx) {
     ntbCorners = ntbEmptyCorners();
     ntbCorridors = ntbEmptyCorridors();
     ntbEndCaps = ntbEmptyEndCaps();
-    ntbBrushType = 'floor';
+    ntbBrushType = defaultType || 'floor';
     document.getElementById('ntb-del-btn').disabled = true;
     // Default costs
     document.getElementById('ntb-cost-gold').value = 0;
     document.getElementById('ntb-cost-wood').value = 0;
     document.getElementById('ntb-cost-stone').value = 0;
     document.getElementById('ntb-cost-iron').value = 0;
+    document.getElementById('ntb-building-tags').value = '';
   }
   ntbSetType(ntbBrushType);
   ntbSelSlot = null;
@@ -2110,7 +2231,7 @@ function ntbSetupCanvasEvents() {
       } else {
         toast('Select a slot first, or drag 3×3 / 2×2', 'err');
       }
-    } else if (w === 4 && h === 2 && ntbBrushType === 'wall') {
+    } else if (w === 4 && h === 2 && (ntbBrushType === 'wall' || ntbBrushType === 'interior_wall')) {
       // 4×2 block: assign first row to corridors[0..3], second row to corridors[4..7]
       for (let i = 0; i < 4; i++) ntbCorridors[i] = { sheetPath: ntbSheet, sx: (c1+i)*TILE, sy: r1*TILE };
       for (let i = 0; i < 4; i++) {
@@ -2145,7 +2266,7 @@ function ntbAdvanceSlot() {
   } else if (ntbSelSlot.type === 'ic') {
     const next = ntbSelSlot.idx + 1;
     if (next < 4) ntbSelSlot = {type:'ic', idx:next};
-    else if (ntbBrushType === 'wall') ntbSelSlot = {type:'corr', idx:0};
+    else if (ntbBrushType === 'wall' || ntbBrushType === 'interior_wall') ntbSelSlot = {type:'corr', idx:0};
     else ntbSelSlot = null;
   } else if (ntbSelSlot.type === 'corr') {
     const next = ntbSelSlot.idx + 1;
@@ -2177,7 +2298,7 @@ function ntbQuickFillAll() {
     if (!ntbCorners[i]) { ntbCorners[i] = { ...ref }; filled++; }
   }
   // Corridor & end-cap slots (wall brush only)
-  if (ntbBrushType === 'wall') {
+  if (ntbBrushType === 'wall' || ntbBrushType === 'interior_wall' || ntbBrushType === 'interior_wall') {
     for (let i = 0; i < ntbCorridors.length; i++) {
       if (!ntbCorridors[i]) { ntbCorridors[i] = { ...ref }; filled++; }
     }
@@ -2199,6 +2320,8 @@ function ntbSave() {
     id: (ntbEditIdx >= 0 && nineTileBrushes[ntbEditIdx]) ? nineTileBrushes[ntbEditIdx].id : 'ntb_' + Date.now(),
     name,
     brushType: ntbBrushType,
+    buildingTags: document.getElementById('ntb-building-tags').value
+      .split(',').map(s => s.trim()).filter(Boolean),
     tiles: ntbTiles.map(row => row.map(t => t ? {...t} : null)),
     insideCorners: ntbCorners.map(t => t ? {...t} : null),
     corridors: ntbCorridors.map(t => t ? {...t} : null),
@@ -2226,6 +2349,103 @@ function ntbSave() {
   buildNtbListPanel();
   recomputeAllBrushTiles(brushData.id);
   notifyParent();
+}
+
+function ntbLoadDemoBrushes() {
+  // Build a flat tile ref (all 9 slots same tile) for a given sheet + pixel coords
+  function flatGrid(sheetPath, sx, sy) {
+    const t = { sheetPath, sx, sy, sw: 32, sh: 32 };
+    return [[{...t},{...t},{...t}],[{...t},{...t},{...t}],[{...t},{...t},{...t}]];
+  }
+  function flatCorners(sheetPath, sx, sy) {
+    const t = { sheetPath, sx, sy, sw: 32, sh: 32 };
+    return [{...t},{...t},{...t},{...t}];
+  }
+  function flatCorridors(sheetPath, sx, sy) {
+    const t = { sheetPath, sx, sy, sw: 32, sh: 32 };
+    return new Array(8).fill(null).map(() => ({...t}));
+  }
+  function flatEndCaps(sheetPath, sx, sy) {
+    const t = { sheetPath, sx, sy, sw: 32, sh: 32 };
+    return new Array(4).fill(null).map(() => ({...t}));
+  }
+
+  const DEMOS = [
+    {
+      id: 'demo_wood_floor',
+      name: 'Wood Floor (Demo)',
+      brushType: 'interior_floor',
+      buildingTags: [],
+      // Wood Floor A.png — flat repeating plank, same tile fills all slots
+      tiles: flatGrid('assets/lpc/Structure/Floor/Wood Floor A.png', 0, 0),
+      insideCorners: flatCorners('assets/lpc/Structure/Floor/Wood Floor A.png', 0, 0),
+      corridors: ntbEmptyCorridors(),
+      endCaps: ntbEmptyEndCaps(),
+      cost: { gold: 0, resources: {} },
+    },
+    {
+      id: 'demo_stone_wall',
+      name: 'Stone Wall (Demo)',
+      brushType: 'interior_wall',
+      buildingTags: [],
+      // walls.png — first bordered set, top-left of sheet (4×4 tile block):
+      //   Row 0: TL | Top | TR
+      //   Row 1: Left | Center | Right
+      //   Row 2: BL | Bottom | BR
+      //   Row 3: IC-TL | IC-TR | IC-BL | IC-BR
+      tiles: [
+        [{ sheetPath:'assets/lpc/Structure/Walls/walls.png', sx:0,  sy:0,  sw:32, sh:32 },
+         { sheetPath:'assets/lpc/Structure/Walls/walls.png', sx:32, sy:0,  sw:32, sh:32 },
+         { sheetPath:'assets/lpc/Structure/Walls/walls.png', sx:64, sy:0,  sw:32, sh:32 }],
+        [{ sheetPath:'assets/lpc/Structure/Walls/walls.png', sx:0,  sy:32, sw:32, sh:32 },
+         { sheetPath:'assets/lpc/Structure/Walls/walls.png', sx:32, sy:32, sw:32, sh:32 },
+         { sheetPath:'assets/lpc/Structure/Walls/walls.png', sx:64, sy:32, sw:32, sh:32 }],
+        [{ sheetPath:'assets/lpc/Structure/Walls/walls.png', sx:0,  sy:64, sw:32, sh:32 },
+         { sheetPath:'assets/lpc/Structure/Walls/walls.png', sx:32, sy:64, sw:32, sh:32 },
+         { sheetPath:'assets/lpc/Structure/Walls/walls.png', sx:64, sy:64, sw:32, sh:32 }],
+      ],
+      insideCorners: [
+        { sheetPath:'assets/lpc/Structure/Walls/walls.png', sx:0,  sy:96, sw:32, sh:32 },
+        { sheetPath:'assets/lpc/Structure/Walls/walls.png', sx:32, sy:96, sw:32, sh:32 },
+        { sheetPath:'assets/lpc/Structure/Walls/walls.png', sx:64, sy:96, sw:32, sh:32 },
+        { sheetPath:'assets/lpc/Structure/Walls/walls.png', sx:96, sy:96, sw:32, sh:32 },
+      ],
+      corridors: ntbEmptyCorridors(),
+      endCaps: ntbEmptyEndCaps(),
+      cost: { gold: 0, resources: {} },
+    },
+    {
+      id: 'demo_carpet_floor',
+      name: 'Carpet Floor (Demo)',
+      brushType: 'interior_floor',
+      buildingTags: ['tavern', 'manor'],
+      // Floral Carpet A.png — flat repeating, same tile fills all slots
+      tiles: flatGrid('assets/lpc/Structure/Floor/Floral Carpet A.png', 0, 0),
+      insideCorners: flatCorners('assets/lpc/Structure/Floor/Floral Carpet A.png', 0, 0),
+      corridors: ntbEmptyCorridors(),
+      endCaps: ntbEmptyEndCaps(),
+      cost: { gold: 0, resources: {} },
+    },
+  ];
+
+  let added = 0;
+  for (const demo of DEMOS) {
+    if (nineTileBrushes.find(b => b.id === demo.id)) continue;
+    nineTileBrushes.push(demo);
+    // Preload images
+    [demo.tiles[0][0].sheetPath].forEach(p => {
+      if (!imageCache[p]) {
+        const img = new Image(); img.src = p;
+        img.onload = () => { imageCache[p] = img; buildNtbListPanel(); };
+        imageCache[p] = img;
+      }
+    });
+    added++;
+  }
+
+  notifyParent();
+  buildNtbListPanel();
+  showToast(added > 0 ? `📦 Added ${added} demo brush${added>1?'es':''}. Open one to see how slots are filled, then swap tiles to suit your style.` : '📦 Demo brushes already loaded.');
 }
 
 function ntbDelete() {
@@ -2272,7 +2492,7 @@ function nineTilePaint(q, r) {
   if (activeNineBrush === null) return;
   const brush = nineTileBrushes[activeNineBrush];
   if (!brush) return;
-  const targetLayer = brush.brushType === 'wall' ? 'walls' : 'floor';
+  const targetLayer = (brush.brushType === 'wall' || brush.brushType === 'interior_wall') ? 'walls' : 'floor';
   const key = `${q},${r}`;
   brushGroupMap[key] = { brushId: brush.id, layer: targetLayer };
   // Recompute this cell and all neighbors
@@ -2338,7 +2558,7 @@ function recomputeNineTile(q, r) {
   const cardCount = (hasTop?1:0) + (hasBottom?1:0) + (hasLeft?1:0) + (hasRight?1:0);
 
   // Wall brush corridor/junction logic
-  if (brush.brushType === 'wall' && brush.corridors) {
+  if ((brush.brushType === 'wall' || brush.brushType === 'interior_wall') && brush.corridors) {
     // Solo tile (no neighbors)
     if (cardCount === 0 && brush.corridors[7]) {
       layers[targetLayer][key] = { sheetPath: brush.corridors[7].sheetPath, sx: brush.corridors[7].sx, sy: brush.corridors[7].sy, sw: TILE, sh: TILE };
@@ -2696,7 +2916,7 @@ function _igenBuild(plan, floorBrushIdx, wallBrushIdx) {
     const card = (hasTop?1:0)+(hasBot?1:0)+(hasLft?1:0)+(hasRgt?1:0);
 
     // Wall-type corridor / junction tiles
-    if (brush.brushType === 'wall' && brush.corridors) {
+    if ((brush.brushType === 'wall' || brush.brushType === 'interior_wall') && brush.corridors) {
       if (card === 0 && brush.corridors[7])  return brush.corridors[7];        // solo
       if (card === 1 && brush.endCaps) {                                        // end cap
         let ec = hasBot?0 : hasTop?1 : hasRgt?2 : hasLft?3 : -1;
@@ -2824,8 +3044,8 @@ function showInteriorGenerator() {
   if (existing) existing.remove();
 
   // Build brush option lists
-  const floorBrushes = nineTileBrushes.map((b, i) => ({ b, i })).filter(({ b }) => b.brushType === 'floor');
-  const wallBrushes  = nineTileBrushes.map((b, i) => ({ b, i })).filter(({ b }) => b.brushType === 'wall');
+  const floorBrushes = nineTileBrushes.map((b, i) => ({ b, i })).filter(({ b }) => b.brushType === 'floor' || b.brushType === 'interior_floor');
+  const wallBrushes  = nineTileBrushes.map((b, i) => ({ b, i })).filter(({ b }) => b.brushType === 'wall' || b.brushType === 'interior_wall');
 
   const floorOpts = floorBrushes.length
     ? floorBrushes.map(({ b, i }) => `<option value="${i}">${b.name}</option>`).join('')
@@ -3255,10 +3475,11 @@ function _exportInterior(interior) {
 }
 
 function getExportData() {
-  if (!interiors.length) return {};
+  const taggedObjects = _customObjects.filter(o => Array.isArray(o.buildingTags) && o.buildingTags.length > 0);
   return {
-    interiors: interiors.map(i => _exportInterior(i)),
+    interiors: interiors.length ? interiors.map(i => _exportInterior(i)) : undefined,
     nineTileBrushes: nineTileBrushes.length ? JSON.parse(JSON.stringify(nineTileBrushes)) : undefined,
+    taggedObjects: taggedObjects.length ? taggedObjects.map(o => ({ id: o.id, buildingTags: o.buildingTags })) : undefined,
   };
 }
 
@@ -3304,8 +3525,8 @@ window.addEventListener('message', ev => {
     }
 
     // ── Auto-generate interior using 9-tile brushes if available ──
-    const floorBrushes = nineTileBrushes.filter(b => b.brushType === 'floor');
-    const wallBrushes  = nineTileBrushes.filter(b => b.brushType === 'wall');
+    const floorBrushes = nineTileBrushes.filter(b => b.brushType === 'floor' || b.brushType === 'interior_floor');
+    const wallBrushes  = nineTileBrushes.filter(b => b.brushType === 'wall' || b.brushType === 'interior_wall');
 
     if ((autoGenerate || floorBrushes.length || wallBrushes.length) && (floorBrushes.length > 0 || wallBrushes.length > 0)) {
       // Determine interior size from building dimensions

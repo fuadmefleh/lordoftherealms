@@ -70,7 +70,7 @@ export const ActionMenu = {
             rest: 'general', explore_poi: 'general', clear_trees: 'general', dig_treasure: 'general',
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general',
             prospect: 'general', tame_horse: 'general', craft_campfire: 'general',
-            disembark: 'general', // explore_inner_map: 'general',  // DISABLED
+            disembark: 'general', explore_inner_map: 'general',
             trade: 'commerce', contract: 'commerce', ship_passage: 'commerce',
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
             odd_jobs: 'commerce', bounty_board: 'commerce', busking: 'commerce', gambling: 'commerce',
@@ -359,7 +359,7 @@ export const ActionMenu = {
         // Free actions (0 AP)
         rest: 0,
         disembark: 0,
-        // explore_inner_map: 0,  // DISABLED
+        explore_inner_map: 0,
         jail_wait: 0, jail_bail: 0, jail_escape: 0,
         servitude_wait: 0, servitude_escape: 0, servitude_buy_freedom: 0,
         view_relationships: 0, manage_dynasty: 0,
@@ -515,7 +515,7 @@ export const ActionMenu = {
                 case 'trade':       p.modifyNeed('social', 5); break;
                 case 'tavern':      p.modifyNeed('social', 5); p.modifyNeed('comfort', 5); break;
                 case 'explore_poi': p.modifyNeed('fun', 10); p.modifyNeed('energy', -5); break;
-                // case 'explore_inner_map': p.modifyNeed('fun', 5); break;  // DISABLED
+                case 'explore_inner_map': p.modifyNeed('fun', 5); break;
                 case 'clear_trees': p.modifyNeed('energy', -10); p.modifyNeed('hygiene', -5); break;
                 case 'pickpocket':  p.modifyNeed('fun', 5); p.modifyNeed('comfort', -8); break;
                 case 'smuggle':     p.modifyNeed('fun', 5); p.modifyNeed('comfort', -5); break;
@@ -559,20 +559,19 @@ export const ActionMenu = {
             case 'rest':
                 game.endDay();
                 break;
-            // DISABLED: Inner map feature disabled
-            // case 'explore_inner_map':
-            //     ActionMenu.close();
-            //     {
-            //         const targetQ = (tile && Number.isFinite(tile.q)) ? tile.q : game.player.q;
-            //         const targetR = (tile && Number.isFinite(tile.r)) ? tile.r : game.player.r;
-            //         Promise.resolve(game.enterInnerMap(targetQ, targetR)).catch((err) => {
-            //         console.error('[ActionMenu] Failed to enter inner map:', err);
-            //         if (game && game.ui && typeof game.ui.showNotification === 'function') {
-            //             game.ui.showNotification('Inner Map Error', 'Failed to enter the inner map. Check console for details.', 'error');
-            //         }
-            //     });
-            //     }
-            //     break;
+            case 'explore_inner_map':
+                ActionMenu.close();
+                {
+                    const targetQ = (tile && Number.isFinite(tile.q)) ? tile.q : game.player.q;
+                    const targetR = (tile && Number.isFinite(tile.r)) ? tile.r : game.player.r;
+                    Promise.resolve(game.enterInnerMap(targetQ, targetR)).catch((err) => {
+                        console.error('[ActionMenu] Failed to enter inner map:', err);
+                        if (game && game.ui && typeof game.ui.showNotification === 'function') {
+                            game.ui.showNotification('Inner Map Error', 'Failed to enter the inner map. Check console for details.', 'error');
+                        }
+                    });
+                }
+                break;
             case 'disembark':
                 ActionMenu.disembarkShip(game);
                 break;

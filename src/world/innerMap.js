@@ -10,6 +10,7 @@ import { Hex } from '../core/hex.js';
 import { CustomObjects } from './customObjects.js';
 import { CustomBuildings } from './customBuildings.js';
 import { CustomInteriors } from './customInteriors.js';
+import { generateSpriteInterior } from './interiorGenerator.js';
 import { SettlementGenerator } from './settlementGenerator.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Terrain } from './terrain.js';
@@ -425,157 +426,25 @@ export const InnerMap = {
             }
         }
 
-        // ── Generate grass mask using LOW-frequency noise for large smooth blobs ──
-        // Use a small scale so each inner map gets just 2-4 big blob shapes
+        // ── Grass mask: cover all paintable non-road tiles ──
+        // Full coverage gives a clean grassy meadow. The 9-tile brush then
+        // creates proper transitions only where grass meets road/dirt.
         const mask = Array.from({ length: H }, () => Array(W).fill(false));
-        const scale = 0.045;  // low frequency → big shapes
-        const seedX = worldQ * 7.77 + 13.3;
-        const seedY = worldR * 7.77 + 29.1;
 
         for (let r = 0; r < H; r++) {
             for (let q = 0; q < W; q++) {
                 if (!paintable[r][q]) continue;
-                // Exclude road tiles — they stay as bare dirt so the 9-tile
-                // brush creates proper grass-to-dirt edges around them.
                 const tile = tiles[r][q];
                 if (tile && tile.isRoad) continue;
-                const nx = seedX + q * scale;
-                const ny = seedY + r * scale;
-                // 2 octaves only — keeps shapes smooth, avoids high-freq jaggedness
-                const v = (Utils.fbm(nx, ny, 2, 2.0, 0.4) + 1) / 2;
-                if (v > 0.47) mask[r][q] = true;
+                mask[r][q] = true;
             }
         }
 
-        // ── Morphological smoothing ──
-        // Helper: count cardinal (4-connected) neighbors
-        const cardinal4 = (m, q, r) => {
-            let c = 0;
-            if (r > 0     && m[r - 1][q]) c++;
-            if (r < H - 1 && m[r + 1][q]) c++;
-            if (q > 0     && m[r][q - 1]) c++;
-            if (q < W - 1 && m[r][q + 1]) c++;
-            return c;
-        };
-        // Helper: count all 8 neighbors
-        const count8 = (m, q, r) => {
-            let c = 0;
-            for (let dr = -1; dr <= 1; dr++) {
-                for (let dq = -1; dq <= 1; dq++) {
-                    if (dr === 0 && dq === 0) continue;
-                    const nr = r + dr, nq = q + dq;
-                    if (nr >= 0 && nr < H && nq >= 0 && nq < W && m[nr][nq]) c++;
-                }
-            }
-            return c;
-        };
-
-        // Step 1 — Close: fill any empty paintable tile with ≥4 of 8 grass neighbors.
-        // This seals narrow gaps and smooths concavities.  Two passes close
-        // channels up to ~2 tiles wide.
-        for (let pass = 0; pass < 2; pass++) {
-            const fills = [];
-            for (let r = 1; r < H - 1; r++) {
-                for (let q = 1; q < W - 1; q++) {
-                    if (mask[r][q] || !paintable[r][q]) continue;
-                    if (count8(mask, q, r) >= 4) fills.push([r, q]);
-                }
-            }
-            if (!fills.length) break;
-            for (const [r, q] of fills) mask[r][q] = true;
-        }
-
-        // Step 2 — Erode thin protrusions: iteratively remove tiles with < 2
-        // cardinal neighbors (shaves off 1-wide peninsulas)
-        for (let pass = 0; pass < 3; pass++) {
-            let changed = false;
-            for (let r = 0; r < H; r++) {
-                for (let q = 0; q < W; q++) {
-                    if (!mask[r][q]) continue;
-                    if (cardinal4(mask, q, r) < 2) {
-                        mask[r][q] = false;
-                        changed = true;
-                    }
-                }
-            }
-            if (!changed) break;
-        }
-
-        // Step 2.5 — Remove tiles missing neighbors on both sides of an axis.
-        // The 3×3 autotile grid can't represent "both top and bottom missing"
-        // or "both left and right missing" — those tiles would get a flat grass
-        // fill with no transition edges, creating visible rectangular artifacts.
-        for (let pass = 0; pass < 2; pass++) {
-            let changed = false;
-            for (let r = 0; r < H; r++) {
-                for (let q = 0; q < W; q++) {
-                    if (!mask[r][q]) continue;
-                    const ht = (r > 0 && mask[r - 1][q]);
-                    const hb = (r < H - 1 && mask[r + 1][q]);
-                    const hl = (q > 0 && mask[r][q - 1]);
-                    const hr = (q < W - 1 && mask[r][q + 1]);
-                    if ((!ht && !hb) || (!hl && !hr)) {
-                        mask[r][q] = false;
-                        changed = true;
-                    }
-                }
-            }
-            if (!changed) break;
-        }
-
-        // Step 3 — Remove small blobs (< 9 tiles)
-        const visited = Array.from({ length: H }, () => Array(W).fill(false));
+        // Shrink the mask 1 tile inward so the map border always has a clean
+        // dirt edge (prevents the brush edge tiles from being cut off at the screen edge).
         for (let r = 0; r < H; r++) {
             for (let q = 0; q < W; q++) {
-                if (!mask[r][q] || visited[r][q]) continue;
-                const stack = [{ q, r }];
-                const component = [];
-                visited[r][q] = true;
-                while (stack.length) {
-                    const { q: cq, r: cr } = stack.pop();
-                    component.push({ q: cq, r: cr });
-                    const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
-                    for (const [dq, dr] of dirs) {
-                        const nq = cq + dq, nr = cr + dr;
-                        if (nr >= 0 && nr < H && nq >= 0 && nq < W && mask[nr][nq] && !visited[nr][nq]) {
-                            visited[nr][nq] = true;
-                            stack.push({ q: nq, r: nr });
-                        }
-                    }
-                }
-                if (component.length < 9) {
-                    for (const { q: cq, r: cr } of component) mask[cr][cq] = false;
-                }
-            }
-        }
-
-        // Also remove small dirt holes inside grass (< 9 empty paintable tiles
-        // surrounded by grass → fill them in)
-        const visitedGap = Array.from({ length: H }, () => Array(W).fill(false));
-        for (let r = 0; r < H; r++) {
-            for (let q = 0; q < W; q++) {
-                if (mask[r][q] || visitedGap[r][q] || !paintable[r][q]) continue;
-                const stack = [{ q, r }];
-                const component = [];
-                let touchesEdge = false;
-                visitedGap[r][q] = true;
-                while (stack.length) {
-                    const { q: cq, r: cr } = stack.pop();
-                    component.push({ q: cq, r: cr });
-                    if (cr === 0 || cr === H - 1 || cq === 0 || cq === W - 1) touchesEdge = true;
-                    const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
-                    for (const [dq, dr] of dirs) {
-                        const nq = cq + dq, nr = cr + dr;
-                        if (nr >= 0 && nr < H && nq >= 0 && nq < W && !mask[nr][nq] && paintable[nr][nq] && !visitedGap[nr][nq]) {
-                            visitedGap[nr][nq] = true;
-                            stack.push({ q: nq, r: nr });
-                        }
-                    }
-                }
-                // Fill small interior holes that don't touch the map edge
-                if (!touchesEdge && component.length < 9) {
-                    for (const { q: cq, r: cr } of component) mask[cr][cq] = true;
-                }
+                if (r === 0 || r === H - 1 || q === 0 || q === W - 1) mask[r][q] = false;
             }
         }
 
@@ -600,10 +469,9 @@ export const InnerMap = {
                 if (!tile) continue;
 
                 if (tilesGrid) {
-                    const info = this._pickNineTileInfo(mask, q, r);
-
-                    // Degenerate config (both sides of an axis missing) → skip
-                    if (!info) continue;
+                    // Degenerate tiles (thin/isolated, no neighbors on one axis) use center fill
+                    // rather than being skipped — custom brushes have a real center tile that fills nicely.
+                    const info = this._pickNineTileInfo(mask, q, r) || { row: 1, col: 1 };
 
                     // Inside corner
                     if (info.ic !== undefined && cornersArr && cornersArr[info.ic]) {
@@ -1009,8 +877,9 @@ export const InnerMap = {
                 const pool = rawPool.filter(canScatter);
                 if (!pool.length) continue;
 
-                // Per-tile spawn roll (~8% base)
-                if (rng() > 0.08) continue;
+                // Per-tile spawn roll (~8% base for non-trees, ~20% for trees on grass)
+                const spawnThreshold = (pool.some(d => d.objectType === 'tree')) ? 0.20 : 0.08;
+                if (rng() > spawnThreshold) continue;
 
                 // Weighted-random pick from the combined pool
                 const total = pool.reduce((s, d) => s + (d.spawnWeight || 1), 0);
@@ -1021,6 +890,9 @@ export const InnerMap = {
                     if (roll <= 0) { def = d; break; }
                 }
                 if (!def || !def.tiles || def.tiles.length === 0) continue;
+
+                // Trees only spawn on grass (tiles that have a grass detail overlay)
+                if (def.objectType === 'tree' && !tile.terrainDetail) continue;
 
                 // Verify every footprint tile is in-bounds and free
                 let clear = true;
@@ -2425,6 +2297,17 @@ export const InnerMap = {
                 if (def) {
                     return this._generateCustomInterior(def, building);
                 }
+            }
+        }
+
+        // ── Try sprite-based procedural interior (interior_floor/interior_wall brushes) ──
+        // This runs after custom authored interiors and before the colored-box fallback.
+        // Returns null if no interior brush types are registered, so the fallback still works.
+        if (typeof CustomInteriors !== 'undefined') {
+            const seed = interiorKey || `${building.type}_${building.q}_${building.r}`;
+            const spriteInterior = generateSpriteInterior(building, seed);
+            if (spriteInterior) {
+                return spriteInterior;
             }
         }
 

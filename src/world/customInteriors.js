@@ -46,6 +46,7 @@ const _byType   = new Map();   // buildingType → [def, ...]
 const _byGroup  = new Map();   // variantGroup → [def, ...]
 const _imgCache = new Map();   // sheetPath → HTMLImageElement | null
 const _brushes  = [];          // All nine-tile brush definitions (floor + wall)
+const _brushesByTag = new Map(); // buildingTag → [brush, ...]
 let   _loaded   = false;
 
 // ─── Image preloading ───
@@ -65,6 +66,11 @@ function registerBrush(raw) {
     // Avoid duplicates
     if (_brushes.find(b => b.id === raw.id)) return;
     _brushes.push(raw);
+    // Index by buildingTags
+    for (const tag of (raw.buildingTags || [])) {
+        if (!_brushesByTag.has(tag)) _brushesByTag.set(tag, []);
+        _brushesByTag.get(tag).push(raw);
+    }
     // Register all sheet paths for preloading
     const registerTile = (t) => {
         if (t && t.sheetPath) _imgCache.set(t.sheetPath, _imgCache.get(t.sheetPath) || null);
@@ -144,10 +150,33 @@ export const CustomInteriors = {
     getBrushes() { return _brushes; },
 
     /** Get all floor-type brushes */
-    getFloorBrushes() { return _brushes.filter(b => b.brushType === 'floor'); },
+    getFloorBrushes() { return _brushes.filter(b => b.brushType === 'floor' || b.brushType === 'interior_floor'); },
 
     /** Get all wall-type brushes */
-    getWallBrushes() { return _brushes.filter(b => b.brushType === 'wall'); },
+    getWallBrushes() { return _brushes.filter(b => b.brushType === 'wall' || b.brushType === 'interior_wall'); },
+
+    /**
+     * Get brushes matching both a building tag and a brush type.
+     * Falls back to all brushes of that type if none are tagged.
+     * @param {string} buildingType - Building type tag (e.g. 'tavern')
+     * @param {string} brushType - 'interior_floor' or 'interior_wall'
+     * @returns {Object[]} Array of matching brush definitions
+     */
+    getBrushesForType(buildingType, brushType) {
+        // Look for tagged brushes matching this building type
+        const tagged = (_brushesByTag.get(buildingType) || []).filter(b => b.brushType === brushType);
+        if (tagged.length > 0) return tagged;
+        // Fall back: all brushes of the requested type
+        return _brushes.filter(b => b.brushType === brushType);
+    },
+
+    /**
+     * Preload all given sheet paths. Returns a Promise that resolves when done.
+     * @param {string[]} paths
+     */
+    preloadPaths(paths) {
+        return Promise.all((paths || []).map(p => loadImg(p)));
+    },
 
     /**
      * Pick a floor brush deterministically from a seed string.
@@ -208,7 +237,7 @@ export const CustomInteriors = {
         const cardCount = (hasTop?1:0) + (hasBottom?1:0) + (hasLeft?1:0) + (hasRight?1:0);
 
         // Wall brush corridor / junction logic
-        if (brush.brushType === 'wall' && brush.corridors) {
+        if ((brush.brushType === 'wall' || brush.brushType === 'interior_wall') && brush.corridors) {
             // Solo tile
             if (cardCount === 0 && brush.corridors[7]) return brush.corridors[7];
             // End caps

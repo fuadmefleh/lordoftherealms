@@ -264,7 +264,7 @@ export class WorldUnit {
         const isShip = this.type === 'pirate';
 
         // --- Check for player in range (priority target) ---
-        const player = (typeof game !== 'undefined' && game.player) ? game.player : null;
+        const player = (typeof game !== 'undefined' && game !== null && game.player) ? game.player : null;
         if (player && !player.indenturedServitude) {
             const playerDist = Hex.wrappingDistance(this.q, this.r, player.q, player.r, world.width);
             const detectionRange = isShip ? 6 : 5;
@@ -458,7 +458,7 @@ export class WorldUnit {
             // Player pioneer settler — found a player colony
             if (this.isPlayerPioneer && typeof Colonization !== 'undefined') {
                 // Player reference from game global
-                const player = (typeof game !== 'undefined' && game.player) ? game.player : null;
+                const player = (typeof game !== 'undefined' && game !== null && game.player) ? game.player : null;
                 Colonization.onPioneerArrival(this, world, player);
                 this.destroyed = true;
                 return;

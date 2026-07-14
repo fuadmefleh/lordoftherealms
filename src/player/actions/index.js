@@ -1,0 +1,320 @@
+// ============================================
+// PLAYER ACTIONS — Contextual actions index
+// Orchestrates action building and exports PlayerActions.
+// Settlement actions → settlementActions.js
+// Wilderness/anywhere actions → wildernessActions.js
+// ============================================
+
+import { BountyHunting } from '../../systems/bountyHunting.js';
+import { Hex } from '../../core/hex.js';
+import { Colonization } from '../../world/colonization.js';
+import { LegendaryArtifacts } from '../../systems/legendaryArtifacts.js';
+import { Espionage } from '../../systems/espionage.js';
+import { Ships } from '../../systems/ships.js';
+import { Housing } from '../../systems/housing.js';
+import { Cartography } from '../../systems/cartography.js';
+import { Religion } from '../../systems/religion.js';
+import { Titles } from '../../systems/titles.js';
+import { Festivals } from '../../systems/festivals.js';
+import { Infrastructure } from '../../systems/infrastructure.js';
+import { Technology } from '../../systems/technology.js';
+import { Culture } from '../../systems/culture.js';
+import { PlayerEconomy } from '../playerEconomy.js';
+import { PlayerMilitary } from '../playerMilitary.js';
+import { PlayerReligion } from '../playerReligion.js';
+import { Quests } from '../../systems/quests.js';
+import { Achievements } from '../../systems/achievements.js';
+
+import { addSettlementActions } from './settlementActions.js';
+import { addWildernessActions } from './wildernessActions.js';
+
+export const PlayerActions = {
+    /**
+     * Get available actions for a specific tile.
+     * Jail/servitude states short-circuit the full list.
+     * Settlement block is delegated to addSettlementActions.
+     * Wilderness/anywhere block is delegated to addWildernessActions.
+     */
+    getAvailableActions(player, tile, world) {
+        const actions = [];
+
+        // ── Jail: only jail actions ──
+        if (player.jailState) {
+            const jail = player.jailState;
+            actions.push({
+                type: 'jail_wait',
+                label: 'Serve Time',
+                icon: '🔒',
+                description: `${jail.daysRemaining} day(s) remain in jail. Offense #${jail.offenseNumber}.`
+            });
+            if (jail.bailCost && player.gold >= jail.bailCost) {
+                actions.push({
+                    type: 'jail_bail',
+                    label: 'Post Bail',
+                    icon: '💰',
+                    description: `Pay ${jail.bailCost} gold to get out of jail immediately.`
+                });
+            }
+            actions.push({
+                type: 'jail_escape',
+                label: 'Attempt Jailbreak',
+                icon: '🏃',
+                description: `Try to escape (${Math.floor((jail.escapeChance || 0.1) * 100)}% chance). Failure adds more time.`
+            });
+            return actions;
+        }
+
+        // ── Indentured Servitude: only servitude actions ──
+        if (player.indenturedServitude) {
+            const servitude = player.indenturedServitude;
+            actions.push({
+                type: 'servitude_wait',
+                label: 'Endure Servitude',
+                icon: '⛓️',
+                description: `${servitude.daysRemaining} days remain under ${servitude.captor}. Work and wait for freedom.`
+            });
+            actions.push({
+                type: 'servitude_escape',
+                label: 'Attempt Escape',
+                icon: '🏃',
+                description: `Try to slip away (${Math.floor(servitude.escapeChance * 100)}% chance). Failure means punishment and extra days.`
+            });
+            if (servitude.canBuyFreedom && player.gold >= servitude.freedomCost) {
+                actions.push({
+                    type: 'servitude_buy_freedom',
+                    label: 'Buy Your Freedom',
+                    icon: '💰',
+                    description: `Pay ${servitude.freedomCost} gold to end your servitude immediately.`
+                });
+            }
+            return actions;
+        }
+
+        // ── Base actions (always available) ──
+        actions.push({
+            type: 'rest',
+            label: 'Rest / Camp',
+            icon: '⛺',
+            description: 'Recover stamina and wait for the next day'
+        });
+
+        // Disembark from ship
+        if (player.boardedShip && tile.terrain.passable) {
+            actions.push({
+                type: 'disembark',
+                label: 'Disembark',
+                icon: '🚶',
+                description: 'Leave your ship and return to land'
+            });
+        }
+
+        // Bounty hunting
+        const pendingCapturedBounty = (player.activeBounties || []).find(b =>
+            b.type === 'criminal_hunt' && b.status === 'captured_pending_decision'
+        );
+        if (pendingCapturedBounty) {
+            actions.push({
+                type: 'capture_criminal',
+                label: 'Judge Captured Criminal',
+                icon: '⛓️',
+                description: `${pendingCapturedBounty.targetName} awaits your decision: turn in or recruit.`
+            });
+        } else if (typeof BountyHunting !== 'undefined') {
+            const criminalTarget = BountyHunting.getBountyTargetAtPlayer(player);
+            if (criminalTarget) {
+                actions.push({
+                    type: 'capture_criminal',
+                    label: 'Capture Wanted Criminal',
+                    icon: '🎯',
+                    description: `Attempt to capture ${criminalTarget.targetName} (${criminalTarget.notoriety || 'wanted'}, difficulty ${criminalTarget.difficulty}).`
+                });
+            }
+        }
+
+        // ── Shared tile context ──
+        const isSettlement = !!tile.settlement;
+        const isCity = isSettlement && (tile.settlement.type === 'town' || tile.settlement.type === 'capital');
+        const isVillage = isSettlement && tile.settlement.type === 'village';
+        const isEmptyColony = isSettlement && tile.settlement.colony && tile.settlement.colony.isPlayerColony && tile.settlement.population < 10;
+        const isPlayerSettlement = isSettlement && (
+            (tile.settlement.colony && tile.settlement.colony.isPlayerColony) ||
+            ((player.colonies || []).some(c => c.q === tile.q && c.r === tile.r))
+        );
+        const playerSettlementCount = (player.colonies || []).reduce((count, c) => {
+            const colonyTile = world.getTile(c.q, c.r);
+            if (!colonyTile || !colonyTile.settlement) return count;
+            return count + 1;
+        }, 0);
+        const playerKingdom = player.allegiance ? world.getKingdom(player.allegiance) : null;
+        const hasPlayerFoundedKingdom = !!(playerKingdom && playerKingdom.createdByPlayer);
+
+        // ── Settlement branch ──
+        if (isSettlement) {
+            // Empty player colony: restricted menu, skip wilderness actions
+            if (isEmptyColony) {
+                actions.push({
+                    type: 'manage_colony',
+                    label: 'Manage Colony',
+                    icon: '📋',
+                    description: `Manage ${tile.settlement.name} — recruit settlers, set incentives`
+                });
+                if (!tile.settlement.colony.recruitment?.signboard) {
+                    actions.push({
+                        type: 'post_signboard',
+                        label: 'Post Signboard',
+                        icon: '🪧',
+                        description: 'Erect a signboard to attract passing travelers (20g)'
+                    });
+                }
+                if (!tile.structure && !tile.improvement && tile.terrain.passable) {
+                    actions.push({
+                        type: 'build_property',
+                        label: 'Build Property',
+                        icon: '🏗️',
+                        description: 'Construct a resource gathering building'
+                    });
+                }
+                const emptyPopInfo = tile.settlement.population === 0 ? ' (uninhabited)' : ` (${tile.settlement.population} settlers)`;
+                actions.push({
+                    type: 'wait_here',
+                    label: `Survey Settlement${emptyPopInfo}`,
+                    icon: '👁️',
+                    description: 'Your settlement needs people. Visit other towns to recruit settlers or set incentives at the colony panel.'
+                });
+                return actions;
+            }
+
+            // Normal settlement actions
+            addSettlementActions(actions, player, tile, world, {
+                isCity,
+                isVillage,
+                isPlayerSettlement,
+                playerSettlementCount,
+                playerKingdom,
+                hasPlayerFoundedKingdom
+            });
+        }
+
+        // ── Wilderness & Anywhere Actions ──
+        addWildernessActions(actions, player, tile, world);
+
+        return actions;
+    },
+
+    /**
+     * Process end of day for player — jail, servitude, production, upkeep, research, culture, bounties.
+     * Called by game.js during the daily turn cycle.
+     */
+    endDay(player, world) {
+        const results = {
+            production: {},
+            faithIncome: 0,
+            upkeepCost: 0,
+            mercenaryWages: 0,
+            mercenaryEvents: [],
+            unitsLost: 0,
+            caravansCompleted: [],
+            contractUpdate: null,
+            followersGained: 0,
+            blessingsExpired: [],
+            researchUpdate: null,
+            craftingUpdate: null,
+            cultureIncome: 0,
+            cultureRenown: 0,
+            servitudeUpdate: null,
+            jailUpdate: null,
+            bountyTracking: null,
+            festivalUpdate: null,
+        };
+
+        // Process jail sentence if active
+        if (player.jailState) {
+            player.jailState.daysRemaining--;
+            player.stamina = 0;
+            player.movementRemaining = 0;
+            if (player.jailState.daysRemaining <= 0) {
+                const settlement = player.jailState.settlement;
+                player.jailState = null;
+                player.stamina = player.maxStamina;
+                player.movementRemaining = player.maxStamina;
+                results.jailUpdate = { freed: true, message: `You have served your sentence and are released from jail in ${settlement}.` };
+            } else {
+                results.jailUpdate = { freed: false, daysRemaining: player.jailState.daysRemaining, message: `${player.jailState.daysRemaining} day(s) of jail time remain.` };
+            }
+        }
+
+        // Process indentured servitude if active
+        if (player.indenturedServitude) {
+            results.servitudeUpdate = PlayerMilitary.processServitude(player, world);
+        }
+
+        // Produce goods from properties
+        results.production = PlayerEconomy.produceGoods(player, world);
+
+        // Collect faith income
+        results.faithIncome = PlayerReligion.collectFaithIncome(player);
+
+        // Pay army upkeep
+        const upkeep = PlayerMilitary.payUpkeep(player, world);
+        results.upkeepCost = upkeep.cost || 0;
+        results.mercenaryWages = upkeep.mercenaryWages || 0;
+        results.mercenaryEvents = upkeep.mercenaryEvents || [];
+        results.unitsLost = upkeep.unitsLost || 0;
+
+        // Update caravans
+        results.caravansCompleted = PlayerEconomy.updateCaravans(player, world);
+
+        // Update contract
+        results.contractUpdate = PlayerMilitary.updateContract(player);
+
+        // Spread faith
+        results.followersGained = PlayerReligion.spreadFaith(player, world);
+
+        // Update blessings
+        results.blessingsExpired = PlayerReligion.updateBlessings(player);
+
+        // Process technology research
+        if (typeof Technology !== 'undefined') {
+            results.researchUpdate = Technology.processResearch(player);
+            results.craftingUpdate = Technology.processCrafting(player);
+        }
+
+        // Process cultural buildings income & renown
+        if (typeof Culture !== 'undefined') {
+            const cultureResult = Culture.processPlayerCulture(player, world);
+            results.cultureIncome = cultureResult.income;
+            results.cultureRenown = cultureResult.renown;
+        }
+
+        if (typeof Festivals !== 'undefined') {
+            results.festivalUpdate = Festivals.processDaily(player, world);
+        }
+
+        // Process active bounties — tick down timers and expire old ones
+        if (player.activeBounties && player.activeBounties.length > 0) {
+            if (typeof BountyHunting !== 'undefined') {
+                results.bountyTracking = BountyHunting.processDaily(player, world);
+            }
+
+            const expired = [];
+            for (let i = player.activeBounties.length - 1; i >= 0; i--) {
+                const bounty = player.activeBounties[i];
+                if (bounty.status !== 'active') continue;
+                bounty.daysElapsed = (bounty.daysElapsed || 0) + 1;
+                if (bounty.daysElapsed >= bounty.daysLimit) {
+                    expired.push(bounty);
+                    player.activeBounties.splice(i, 1);
+                }
+            }
+            results.bountiesExpired = expired;
+        }
+
+        // Process title duties daily
+        if (typeof Titles !== 'undefined' && player.currentTitle) {
+            Titles.initialize(player);
+            results.titleUpdate = Titles.processDaily(player, world);
+        }
+
+        return results;
+    }
+};

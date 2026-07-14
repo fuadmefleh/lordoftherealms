@@ -618,6 +618,16 @@ function _renderChoices(box) {
         });
     }
 
+    // ── Accept / decline a pending quest ──
+    if (mem.pendingHook && !mem.questAccepted) {
+        choices.push({
+            icon: '✅', label: "I'll help you.", action: 'accept_quest',
+        });
+        choices.push({
+            icon: '❌', label: "That's not for me.", action: 'decline_quest',
+        });
+    }
+
     // ── Give gift ──
     const hasGiftableItems = _game?.player?.gold > 0 || _hasGiftableInventory();
     if (hasGiftableItems && mem.disposition < 95) {
@@ -883,16 +893,33 @@ function _handleChoice(action) {
                     const hook = _pick(hooks);
                     responseText = hook.text;
                     mem.questOffered = true;
+                    mem.pendingHook = hook;
                     dispositionChange = 3;
-                    // Give the player a notification about a potential quest
-                    if (_game?.ui?.showNotification) {
-                        setTimeout(() => {
-                            _game.ui.showNotification('📜 Quest Lead', `${_npc?.name || 'Someone'} hinted at a job. Keep this in mind for future adventures.`, 'info');
-                        }, 2000);
-                    }
                 } else {
                     responseText = 'I appreciate you asking, but I don\'t need anything right now.';
                 }
+                break;
+            }
+
+            case 'accept_quest': {
+                const hook = mem.pendingHook;
+                mem.pendingHook = null;
+                mem.questAccepted = true;
+                responseText = 'Thank you! I knew I could count on someone like you.';
+                dispositionChange = 10;
+                const rewardHint = hook?.reward === 'gold' ? 'gold' : hook?.reward === 'equipment' ? 'a forged reward' : hook?.reward === 'blessing' ? 'a blessing' : 'renown';
+                if (_game?.ui?.showNotification) {
+                    setTimeout(() => {
+                        _game.ui.showNotification('📜 Task Accepted', `You agreed to help ${_npc?.name || 'them'}. Complete the task for ${rewardHint}.`, 'success');
+                    }, 800);
+                }
+                break;
+            }
+
+            case 'decline_quest': {
+                mem.pendingHook = null;
+                responseText = 'I understand. Not everyone can spare the time.';
+                dispositionChange = -3;
                 break;
             }
 

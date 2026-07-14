@@ -8,9 +8,7 @@
 
 import { CustomInteriors } from '../world/customInteriors.js';
 import { CustomBuildings } from '../world/customBuildings.js';
-// DISABLED: Inner map feature disabled
-// import { InnerMap } from '../world/innerMap.js';
-// import { InnerMapRenderer } from './innerMapRenderer.js';
+import { InnerMap } from '../world/innerMap.js';
 import { DataLoader } from '../core/dataLoader.js';
 
 // ─── Constants ────────────────────────────────────────────
@@ -405,6 +403,32 @@ function _brushErase(q, r) {
     }
 }
 
+function _metaToggle(q, r, type) {
+    const key = `${q},${r}`;
+    if (type === 'block') {
+        // Toggle impassable on the tile (don't overwrite exteriorWall lock)
+        const m = _meta[key];
+        if (m && m.impassable && !m.door && !m._exteriorWall) {
+            delete _meta[key];
+        } else {
+            _meta[key] = { ...(m || {}), impassable: true, door: false };
+        }
+    } else if (type === 'door') {
+        const m = _meta[key];
+        if (m && m.door) {
+            // Toggle off
+            const rest = { ...m };
+            delete rest.door;
+            if (Object.keys(rest).filter(k => k !== '_exteriorWall').length === 0) delete _meta[key];
+            else _meta[key] = rest;
+        } else {
+            // Door is passable; clear impassable
+            _meta[key] = { ...(m || {}), door: true, impassable: false };
+        }
+    }
+    _renderCanvas();
+}
+
 function _stampPaint(q, r) {
     if (!_activeStamp) return;
     const player = _game && _game.player;
@@ -490,22 +514,46 @@ function _renderCanvas() {
         }
     }
 
-    // Meta overlay (impassable markers)
+    // Meta overlay (impassable / door markers)
     for (const [key, m] of Object.entries(_meta)) {
-        if (!m.impassable) continue;
         const [cq, cr] = key.split(',').map(Number);
         const dx = ox + cq * TILE * CANVAS_ZOOM;
         const dy = oy + cr * TILE * CANVAS_ZOOM;
-        if (m._exteriorWall) {
-            // Exterior wall (locked) — blue tint
-            _ctx.fillStyle = 'rgba(88, 166, 255, 0.18)';
-            _ctx.fillRect(dx, dy, TILE * CANVAS_ZOOM, TILE * CANVAS_ZOOM);
-            _ctx.strokeStyle = 'rgba(88, 166, 255, 0.4)';
-            _ctx.lineWidth = 1;
-            _ctx.strokeRect(dx + 1, dy + 1, TILE * CANVAS_ZOOM - 2, TILE * CANVAS_ZOOM - 2);
-        } else {
-            _ctx.fillStyle = 'rgba(255, 50, 50, 0.15)';
-            _ctx.fillRect(dx, dy, TILE * CANVAS_ZOOM, TILE * CANVAS_ZOOM);
+        const ds2 = TILE * CANVAS_ZOOM;
+        if (m.door) {
+            // Door — green tint + icon
+            _ctx.fillStyle = 'rgba(63, 185, 80, 0.30)';
+            _ctx.fillRect(dx, dy, ds2, ds2);
+            _ctx.strokeStyle = 'rgba(63, 185, 80, 0.8)';
+            _ctx.lineWidth = 1.5;
+            _ctx.strokeRect(dx + 1, dy + 1, ds2 - 2, ds2 - 2);
+            _ctx.fillStyle = '#3fb950';
+            _ctx.font = `${Math.floor(ds2 * 0.55)}px serif`;
+            _ctx.textAlign = 'center';
+            _ctx.textBaseline = 'middle';
+            _ctx.fillText('🚪', dx + ds2 / 2, dy + ds2 / 2);
+        } else if (m.impassable) {
+            if (m._exteriorWall) {
+                // Exterior wall (locked) — blue tint
+                _ctx.fillStyle = 'rgba(88, 166, 255, 0.18)';
+                _ctx.fillRect(dx, dy, ds2, ds2);
+                _ctx.strokeStyle = 'rgba(88, 166, 255, 0.4)';
+                _ctx.lineWidth = 1;
+                _ctx.strokeRect(dx + 1, dy + 1, ds2 - 2, ds2 - 2);
+            } else {
+                // Manually blocked — red tint + X
+                _ctx.fillStyle = 'rgba(255, 50, 50, 0.22)';
+                _ctx.fillRect(dx, dy, ds2, ds2);
+                _ctx.strokeStyle = 'rgba(255, 80, 80, 0.6)';
+                _ctx.lineWidth = 1.5;
+                _ctx.strokeRect(dx + 1, dy + 1, ds2 - 2, ds2 - 2);
+                _ctx.strokeStyle = 'rgba(255, 80, 80, 0.5)';
+                _ctx.lineWidth = 1.5;
+                _ctx.beginPath();
+                _ctx.moveTo(dx + 4, dy + 4); _ctx.lineTo(dx + ds2 - 4, dy + ds2 - 4);
+                _ctx.moveTo(dx + ds2 - 4, dy + 4); _ctx.lineTo(dx + 4, dy + ds2 - 4);
+                _ctx.stroke();
+            }
         }
     }
 
@@ -599,9 +647,9 @@ function _buildUI() {
     // LEFT: Brush palette
     const leftPanel = document.createElement('div');
     leftPanel.style.cssText = `
-        width: 280px; flex-shrink: 0; background: #161b22;
-        border-right: 1px solid #21262d; display: flex;
-        flex-direction: column; overflow: hidden;
+        width: 280px; min-width: 160px; max-width: 600px; flex-shrink: 0;
+        background: #161b22; border-right: 1px solid #21262d; display: flex;
+        flex-direction: column; overflow: hidden; position: relative;
     `;
     leftPanel.innerHTML = `
         <div style="padding:7px 10px;border-bottom:1px solid #21262d;flex-shrink:0">
@@ -615,9 +663,32 @@ function _buildUI() {
             <div style="font-size:10px;font-weight:600;color:#8b949e;text-transform:uppercase;letter-spacing:.06em">Tile Palette</div>
         </div>
         <div id="bc-pal-cats" style="display:flex;flex-wrap:wrap;gap:3px;padding:4px 8px;border-bottom:1px solid #21262d;flex-shrink:0"></div>
-        <div id="bc-pal-sheets" style="flex:1;overflow-y:auto;padding:6px"></div>
+        <div id="bc-pal-sheets" style="flex:1;overflow-y:auto;overflow-x:auto;padding:6px"></div>
+        <div id="bc-left-resize" style="position:absolute;right:0;top:0;width:5px;height:100%;cursor:col-resize;z-index:10;background:transparent"></div>
     `;
     main.appendChild(leftPanel);
+
+    // Drag-to-resize the left panel
+    const leftResizeHandle = leftPanel.querySelector('#bc-left-resize');
+    leftResizeHandle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const startX = e.clientX;
+        const startWidth = leftPanel.offsetWidth;
+        const onMove = (ev) => {
+            const newWidth = Math.max(160, Math.min(600, startWidth + (ev.clientX - startX)));
+            leftPanel.style.width = newWidth + 'px';
+        };
+        const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            leftResizeHandle.style.background = 'transparent';
+        };
+        leftResizeHandle.style.background = 'rgba(88,166,255,0.25)';
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
+    leftResizeHandle.addEventListener('mouseenter', () => { leftResizeHandle.style.background = 'rgba(88,166,255,0.15)'; });
+    leftResizeHandle.addEventListener('mouseleave', () => { leftResizeHandle.style.background = 'transparent'; });
 
     // CENTER: Canvas area
     const center = document.createElement('div');
@@ -739,6 +810,8 @@ function _buildUI() {
         if (e.key === 'Escape') { close(); e.preventDefault(); }
         if (e.key === 'p' || e.key === 'P') _setTool('paint');
         if (e.key === 'e' || e.key === 'E') _setTool('erase');
+        if (e.key === 'b' || e.key === 'B') _setTool('block');
+        if (e.key === 'd' || e.key === 'D') _setTool('door');
     });
     _overlay.tabIndex = 0;
     _overlay.focus();
@@ -762,6 +835,10 @@ function _handleCanvasClick(e) {
         }
     } else if (_activeTool === 'erase') {
         _brushErase(q, r);
+    } else if (_activeTool === 'block') {
+        _metaToggle(q, r, 'block');
+    } else if (_activeTool === 'door') {
+        _metaToggle(q, r, 'door');
     }
 
     _renderCanvas();
@@ -772,8 +849,10 @@ function _buildToolButtons() {
     const container = _overlay.querySelector('#bc-tool-btns');
     if (!container) return;
     const tools = [
-        { id: 'paint', label: '🖌 Paint', key: 'P' },
-        { id: 'erase', label: '🗑 Erase', key: 'E' },
+        { id: 'paint', label: '🖌 Paint',  key: 'P' },
+        { id: 'erase', label: '🗑 Erase',  key: 'E' },
+        { id: 'block', label: '🚧 Block',  key: 'B' },
+        { id: 'door',  label: '🚪 Door',   key: 'D' },
     ];
     container.innerHTML = '';
     for (const t of tools) {
@@ -1367,10 +1446,9 @@ function _finishBuilding() {
     }
 
     // Place the building on the inner map at the anchor position
-    // DISABLED: Inner map feature disabled
-    // if (InnerMap.active && InnerMap.tiles) {
-    //     _placeOnInnerMap(buildingDef);
-    // }
+    if (InnerMap.active && InnerMap.tiles) {
+        _placeOnInnerMap(buildingDef);
+    }
 
     _showToast('Building placed!', 'ok');
 

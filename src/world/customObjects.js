@@ -65,6 +65,8 @@ const _defs       = new Map();
 const _images     = new Map();
 // subTerrainId → [def, ...]
 const _byTerrain  = new Map();
+// buildingTag → [def, ...]
+const _byBuildingTag = new Map();
 // objects with no terrain bindings (placed on any passable terrain)
 const _unbound    = [];
 
@@ -79,6 +81,7 @@ export const CustomObjects = {
         _defs.clear();
         _images.clear();
         _byTerrain.clear();
+        _byBuildingTag.clear();
         _unbound.length = 0;
         _loaded = false;
     },
@@ -101,6 +104,11 @@ export const CustomObjects = {
                 _byTerrain.get(terrainId).push(fullDef);
             }
             if (!obj.terrainBindings || obj.terrainBindings.length === 0) _unbound.push(fullDef);
+            // Index by buildingTags
+            for (const tag of (obj.buildingTags || [])) {
+                if (!_byBuildingTag.has(tag)) _byBuildingTag.set(tag, []);
+                _byBuildingTag.get(tag).push(fullDef);
+            }
             // Collect all sheet paths from tiles and objLayers for preloading
             const _queueTile = td => { if (td.sheetPath && !_images.has(td.sheetPath)) _images.set(td.sheetPath, null); };
             const _queueLayers = lyrs => { if (!lyrs) return; for (const ln of ['base','detail','top']) for (const td of (lyrs[ln] || [])) _queueTile(td); };
@@ -182,6 +190,22 @@ export const CustomObjects = {
                 for (const obj of arr) registerObj(obj);
             }
 
+            // ── Apply buildingTag overrides from interior editor ──────
+            // taggedObjects is an array of { id, buildingTags } patches
+            const taggedObjects = DataLoader._gamedata.taggedObjects;
+            if (Array.isArray(taggedObjects)) {
+                for (const patch of taggedObjects) {
+                    const def = _defs.get(patch.id);
+                    if (def && Array.isArray(patch.buildingTags)) {
+                        def.buildingTags = patch.buildingTags;
+                        for (const tag of patch.buildingTags) {
+                            if (!_byBuildingTag.has(tag)) _byBuildingTag.set(tag, []);
+                            if (!_byBuildingTag.get(tag).includes(def)) _byBuildingTag.get(tag).push(def);
+                        }
+                    }
+                }
+            }
+
             // ── Legacy nested format (custom_objects.manifest/files) ──
             if (!arr && DataLoader._gamedata.custom_objects) {
                 const co = DataLoader._gamedata.custom_objects;
@@ -233,6 +257,15 @@ export const CustomObjects = {
 
     /** Return the list of objects with no terrain bindings (universal) */
     getUnboundObjects() { return _unbound; },
+
+    /**
+     * Return all objects tagged for a given building type.
+     * @param {string} buildingType - e.g. 'tavern'
+     * @returns {Object[]} Matching definitions
+     */
+    getObjectsForType(buildingType) {
+        return _byBuildingTag.get(buildingType) || [];
+    },
 
     /** True if there is at least one def available for scattering */
     hasAnyBindings() { return _byTerrain.size > 0 || _unbound.length > 0; },

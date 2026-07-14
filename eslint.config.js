@@ -11,10 +11,10 @@ import reactHooks from 'eslint-plugin-react-hooks';
 // UI composition root (src/components/GameView.jsx) and is used only by the
 // legacy inline-onclick handler surface in src/ui/**.
 //
-// Severity is 'warn' during the decoupling work and flips to 'error' in Phase 4
-// once the domain layer is clean, so `npm run lint` then fails on any new leak.
+// The domain layer is now clean, so this is 'error': `npm run lint` fails if any
+// new game/window.game global reach is introduced into core/world/systems/player.
 // ─────────────────────────────────────────────────────────────────────────────
-const DOMAIN_GLOBAL_SEVERITY = 'warn';
+const DOMAIN_GLOBAL_SEVERITY = 'error';
 
 const noDomainGlobals = {
     'no-restricted-globals': [

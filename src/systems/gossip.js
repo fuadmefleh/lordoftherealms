@@ -330,7 +330,7 @@ export const Gossip = {
         const baseChance = (typeDef.spreadChance || 0.5) * (settings.baseSpreadChance || 0.3);
 
         // Pick a random source settlement it's already at
-        const sourceKey = rumor.spreadTo[Math.floor(Math.random() * rumor.spreadTo.length)];
+        const sourceKey = rumor.spreadTo[Math.floor(Utils.random() * rumor.spreadTo.length)];
         const [sq, sr] = sourceKey.split(',').map(Number);
 
         // Find nearby settlements within maxDist hexes
@@ -354,7 +354,7 @@ export const Gossip = {
                     tradeBonus = settings.tradeRouteBonus;
                 }
 
-                if (Math.random() < chance + tradeBonus) {
+                if (Utils.random() < chance + tradeBonus) {
                     rumor.spreadTo.push(sKey);
                     return; // One spread per call
                 }

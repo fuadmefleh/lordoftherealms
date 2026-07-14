@@ -356,7 +356,7 @@ export const Tavern = {
         player.gold -= bet;
 
         // 45% win, 55% lose (house edge)
-        const roll = Math.random();
+        const roll = Utils.random();
         let winnings = 0;
         let resultText = '';
 
@@ -446,7 +446,7 @@ export const Tavern = {
         }
 
         // Maybe also a trade opportunity tip
-        if (Math.random() < 0.5 && chosen.length > 0) {
+        if (Utils.random() < 0.5 && chosen.length > 0) {
             const tip = Tavern._generateTradeOpportunity(tile, chosen, world);
             if (tip) rumors.push(tip);
         }
@@ -478,7 +478,7 @@ export const Tavern = {
         }
 
         // Maybe an advisor rumor
-        if (Math.random() < 0.4 && withDist.length > 0) {
+        if (Utils.random() < 0.4 && withDist.length > 0) {
             const k = withDist[0].kingdom;
             const advisorRumor = Tavern._generateAdvisorIntel(k, world, Tavern.RELIABILITY.LOCAL_TALK);
             if (advisorRumor) rumors.push(advisorRumor);
@@ -505,7 +505,7 @@ export const Tavern = {
                 if (!enemy) continue;
 
                 const reliability = Tavern.RELIABILITY.LOCAL_TALK;
-                const accurate = Math.random() < reliability.accuracy;
+                const accurate = Utils.random() < reliability.accuracy;
 
                 // Real or distorted military strength
                 const kStr = accurate ? k.military : Math.floor(k.military * Utils.randFloat(0.5, 1.8));
@@ -535,7 +535,7 @@ export const Tavern = {
 
         for (const k of nearby) {
             const reliability = Tavern.RELIABILITY.TAVERN_GOSSIP;
-            const accurate = Math.random() < reliability.accuracy;
+            const accurate = Utils.random() < reliability.accuracy;
             const reported = accurate ? k.military : Math.floor(k.military * Utils.randFloat(0.4, 2.0));
 
             const statusWords = reported > 500 ? 'strong' : reported > 200 ? 'moderate' : 'weak';
@@ -723,7 +723,7 @@ export const Tavern = {
 
         // Also chance to discover extinct faiths not tied to known holy sites
         const undiscoveredFaiths = Object.values(Religion.FAITHS).filter(f => f.extinct && !player.discoveredExtinctFaiths.has(f.id));
-        if (undiscoveredFaiths.length > 0 && Math.random() < 0.5) {
+        if (undiscoveredFaiths.length > 0 && Utils.random() < 0.5) {
             const faith = Utils.randPick(undiscoveredFaiths);
             if (player.discoverExtinctFaith(faith.id)) {
                 rumors.push({
@@ -873,7 +873,7 @@ export const Tavern = {
         const kingdoms = world.kingdoms.filter(k => k.isAlive);
         if (kingdoms.length === 0) return null;
 
-        const accurate = Math.random() < reliability.accuracy;
+        const accurate = Utils.random() < reliability.accuracy;
 
         switch (type) {
             case 'kingdom_gossip': {
@@ -1013,7 +1013,7 @@ export const Tavern = {
      * Generate price intel for a specific settlement
      */
     _generatePriceIntel(dest, fromTile, world, reliability) {
-        const accurate = Math.random() < reliability.accuracy;
+        const accurate = Utils.random() < reliability.accuracy;
         const distance = Hex.wrappingDistance(fromTile.q, fromTile.r, dest.q, dest.r, world.width);
 
         // Pick 3-5 goods to report on
@@ -1053,7 +1053,7 @@ export const Tavern = {
      * Generate a random price hint rumor
      */
     _generateRandomPriceHint(tile, world, reliability) {
-        const accurate = Math.random() < reliability.accuracy;
+        const accurate = Utils.random() < reliability.accuracy;
         const settlements = world.getAllSettlements().filter(s => s.q !== tile.q || s.r !== tile.r);
         if (settlements.length === 0) return null;
 
@@ -1130,7 +1130,7 @@ export const Tavern = {
         if (!cd || !cd.ruler) return null;
 
         const ruler = cd.ruler;
-        const accurate = Math.random() < reliability.accuracy;
+        const accurate = Utils.random() < reliability.accuracy;
 
         let locationText = '';
         if (kingdom.capital) {
@@ -1180,7 +1180,7 @@ export const Tavern = {
         const roleId = Utils.randPick(roleKeys);
         const advisor = cd.advisors[roleId];
         const role = Characters.ADVISOR_ROLES[roleId];
-        const accurate = Math.random() < reliability.accuracy;
+        const accurate = Utils.random() < reliability.accuracy;
 
         const loyaltyDesc = accurate
             ? (advisor.loyalty > 70 ? 'deeply loyal' : advisor.loyalty > 40 ? 'dutiful' : 'discontented')

@@ -713,7 +713,7 @@ export const Peoples = {
             Peoples.processPopulationDrift(settlement);
 
             // 2. Cultural interactions (rare events)
-            if (Math.random() < 0.005) { // 0.5% per day per settlement
+            if (Utils.random() < 0.005) { // 0.5% per day per settlement
                 Peoples.generateCulturalInteraction(settlement, world);
             }
 
@@ -726,7 +726,7 @@ export const Peoples = {
                 settlement.population += Utils.randInt(0, 2);
             } else if (settlement.culturalHarmony < 30) {
                 // Low harmony = some people leave
-                if (Math.random() < 0.1) {
+                if (Utils.random() < 0.1) {
                     settlement.population = Math.max(10, settlement.population - Utils.randInt(1, 5));
                 }
             }
@@ -783,7 +783,7 @@ export const Peoples = {
         });
 
         // Occasionally generate a hybrid tradition
-        if (interaction.harmonyBonus > 3 && Math.random() < 0.1) {
+        if (interaction.harmonyBonus > 3 && Utils.random() < 0.1) {
             Peoples.generateHybridTradition(settlement, d1, d2, world);
         }
     },
@@ -927,7 +927,7 @@ export const Peoples = {
         const discovered = [];
 
         for (let i = 0; i < count; i++) {
-            const idx = Math.floor(Math.random() * candidates.length);
+            const idx = Math.floor(Utils.random() * candidates.length);
             const entry = candidates[idx];
             player.discoveredLore.add(entry.id);
             discovered.push(entry);

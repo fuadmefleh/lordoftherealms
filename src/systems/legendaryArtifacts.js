@@ -75,7 +75,7 @@ export const LegendaryArtifacts = {
         if (progress.length === 0) return null;
 
         const biased = progress.filter(artifact => Array.isArray(artifact.poiBias) && artifact.poiBias.includes(poiType));
-        if (biased.length > 0 && Math.random() < 0.75) {
+        if (biased.length > 0 && Utils.random() < 0.75) {
             return Utils.randPick(biased);
         }
 
@@ -87,7 +87,7 @@ export const LegendaryArtifacts = {
         if (candidates.length === 0) return null;
 
         const biased = candidates.filter(artifact => Array.isArray(artifact.poiBias) && artifact.poiBias.includes(poiType));
-        if (biased.length > 0 && Math.random() < 0.8) {
+        if (biased.length > 0 && Utils.random() < 0.8) {
             return Utils.randPick(biased);
         }
 
@@ -117,7 +117,7 @@ export const LegendaryArtifacts = {
         const directChance = directArtifactChanceByType[poi.type] || 0.02;
         const fragmentChance = fragmentChanceByType[poi.type] || 0.16;
 
-        const roll = Math.random();
+        const roll = Utils.random();
 
         if (roll < directChance) {
             const artifact = this._chooseUndiscoveredArtifact(player, poi.type);

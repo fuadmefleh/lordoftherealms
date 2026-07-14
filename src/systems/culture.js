@@ -229,7 +229,7 @@ export const Culture = {
             );
 
             // 3. Random cultural events (1% per day)
-            if (Math.random() < 0.01 && kingdom.cultureData.events.length < 2) {
+            if (Utils.random() < 0.01 && kingdom.cultureData.events.length < 2) {
                 const evt = Utils.randPick(Culture.CULTURAL_EVENTS);
                 if (kingdom.treasury >= evt.cost) {
                     kingdom.treasury -= evt.cost;

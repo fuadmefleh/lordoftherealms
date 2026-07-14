@@ -6,6 +6,7 @@ import { PlayerEconomy } from '../player/playerEconomy.js';
 import { Economy } from '../world/economy.js';
 import { Hex } from '../core/hex.js';
 import { Councils } from './councils.js';
+import { Utils } from '../core/utils.js';
 
 
 export const MarketDynamics = {
@@ -318,7 +319,7 @@ export const Banking = {
 
         // Add loan to player's debts for this kingdom
         player.loans[kingdomId].push({
-            id: Math.random().toString(36).substr(2, 9),
+            id: Utils.random().toString(36).substr(2, 9),
             type: loanType,
             kingdomId,
             principal: loan.amount,

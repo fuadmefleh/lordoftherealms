@@ -117,7 +117,7 @@ export const NPCLords = {
             lord.age++;
 
             // Death from old age
-            if (lord.age > 70 && Math.random() < (lord.age - 70) * 0.1) {
+            if (lord.age > 70 && Utils.random() < (lord.age - 70) * 0.1) {
                 NPCLords.lordDies(kingdom, world);
                 return;
             }
@@ -125,7 +125,7 @@ export const NPCLords = {
 
         // Pursue goals
         for (const goal of lord.goals) {
-            if (Math.random() < 0.3) { // 30% chance to pursue each goal
+            if (Utils.random() < 0.3) { // 30% chance to pursue each goal
                 NPCLords.pursueGoal(kingdom, lord, goal, world);
             }
         }
@@ -176,21 +176,21 @@ export const NPCLords = {
         switch (goal.type) {
             case 'expand':
                 // More aggressive expansion
-                if (Math.random() < 0.5) {
+                if (Utils.random() < 0.5) {
                     KingdomAI.tryExpand(kingdom, world);
                 }
                 break;
 
             case 'wealth':
                 // Focus on trade
-                if (Math.random() < 0.6) {
+                if (Utils.random() < 0.6) {
                     TradeRoutes.establishRoutes(kingdom, world);
                 }
                 break;
 
             case 'conquer':
                 // More likely to declare war
-                if (Math.random() < 0.4) {
+                if (Utils.random() < 0.4) {
                     KingdomAI.considerWar(kingdom, world);
                 }
                 break;
@@ -209,7 +209,7 @@ export const NPCLords = {
 
             case 'peace':
                 // Try to end wars
-                if (kingdom.wars.length > 0 && Math.random() < 0.4) {
+                if (kingdom.wars.length > 0 && Utils.random() < 0.4) {
                     const enemy = world.getKingdom(kingdom.wars[0]);
                     if (enemy) {
                         KingdomAI.makePeace(kingdom, enemy, world);
@@ -219,7 +219,7 @@ export const NPCLords = {
 
             case 'colonize':
                 // Establish colonies in wilderness
-                if (typeof Colonization !== 'undefined' && Math.random() < 0.3) {
+                if (typeof Colonization !== 'undefined' && Utils.random() < 0.3) {
                     Colonization.processKingdomColonization(world);
                 }
                 break;

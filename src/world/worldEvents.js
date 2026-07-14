@@ -87,31 +87,31 @@ export const WorldEvents = {
         const events = [];
 
         // Political events (30% chance)
-        if (Math.random() < 0.3) {
+        if (Utils.random() < 0.3) {
             const politicalEvent = WorldEvents.generatePoliticalEvent(world);
             if (politicalEvent) events.push(politicalEvent);
         }
 
         // Economic events (20% chance)
-        if (Math.random() < 0.2) {
+        if (Utils.random() < 0.2) {
             const economicEvent = WorldEvents.generateEconomicEvent(world);
             if (economicEvent) events.push(economicEvent);
         }
 
         // Military events (15% chance)
-        if (Math.random() < 0.15) {
+        if (Utils.random() < 0.15) {
             const militaryEvent = WorldEvents.generateMilitaryEvent(world);
             if (militaryEvent) events.push(militaryEvent);
         }
 
         // Natural disasters (10% chance)
-        if (Math.random() < 0.1) {
+        if (Utils.random() < 0.1) {
             const naturalEvent = WorldEvents.generateNaturalEvent(world);
             if (naturalEvent) events.push(naturalEvent);
         }
 
         // Religious events (15% chance)
-        if (Math.random() < 0.15) {
+        if (Utils.random() < 0.15) {
             const religiousEvent = WorldEvents.generateReligiousEvent(world);
             if (religiousEvent) events.push(religiousEvent);
         }

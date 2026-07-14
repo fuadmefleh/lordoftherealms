@@ -129,7 +129,7 @@ export const Characters = {
      */
     generateCharacter(options = {}) {
         const culture = options.culture || 'Imperial';
-        const gender = options.gender || (Math.random() < 0.5 ? 'male' : 'female');
+        const gender = options.gender || (Utils.random() < 0.5 ? 'male' : 'female');
         const age = options.age || Utils.randInt(18, 55);
         const dynasty = options.dynasty || null;
         const isRuler = options.isRuler || false;
@@ -248,13 +248,13 @@ export const Characters = {
 
         // Generate spouse (70% chance of being married)
         let spouse = null;
-        if (Math.random() < 0.7) {
+        if (Utils.random() < 0.7) {
             const spouseGender = ruler.gender === 'male' ? 'female' : 'male';
             spouse = Characters.generateCharacter({
-                culture: Math.random() < 0.7 ? kingdom.culture : Utils.randPick(Object.keys(Characters.FIRST_NAMES)),
+                culture: Utils.random() < 0.7 ? kingdom.culture : Utils.randPick(Object.keys(Characters.FIRST_NAMES)),
                 gender: spouseGender,
                 age: Utils.randInt(ruler.age - 5, ruler.age + 5),
-                dynasty: Math.random() < 0.5 ? dynasty.name : Utils.randPick(Characters.DYNASTY_NAMES[kingdom.culture] || Characters.DYNASTY_NAMES.Imperial),
+                dynasty: Utils.random() < 0.5 ? dynasty.name : Utils.randPick(Characters.DYNASTY_NAMES[kingdom.culture] || Characters.DYNASTY_NAMES.Imperial),
                 birthDay: -(Utils.randInt(25, 50) * 120),
             });
             spouse.kingdomId = kingdom.id;
@@ -470,7 +470,7 @@ export const Characters = {
 
         // Succession crisis chance
         let crisisOccurred = false;
-        if (successionType === 'distant_relative' || (successionType === 'regent' && Math.random() < 0.3)) {
+        if (successionType === 'distant_relative' || (successionType === 'regent' && Utils.random() < 0.3)) {
             crisisOccurred = Characters._triggerSuccessionCrisis(kingdom, heir, world);
         }
 
@@ -487,10 +487,10 @@ export const Characters = {
 
         // Generate new spouse if heir is unmarried
         if (!heir.spouseId) {
-            if (Math.random() < 0.5) {
+            if (Utils.random() < 0.5) {
                 const spouseGender = heir.gender === 'male' ? 'female' : 'male';
                 const newSpouse = Characters.generateCharacter({
-                    culture: Math.random() < 0.7 ? kingdom.culture : Utils.randPick(Object.keys(Characters.FIRST_NAMES)),
+                    culture: Utils.random() < 0.7 ? kingdom.culture : Utils.randPick(Object.keys(Characters.FIRST_NAMES)),
                     gender: spouseGender,
                     age: Utils.randInt(heir.age - 5, heir.age + 5),
                     dynasty: Utils.randPick(Characters.DYNASTY_NAMES[kingdom.culture] || Characters.DYNASTY_NAMES.Imperial),
@@ -673,7 +673,7 @@ export const Characters = {
         }
 
         // Consider diplomatic marriages between kingdoms (rare)
-        if (Math.random() < 0.02) {
+        if (Utils.random() < 0.02) {
             Characters._considerDiplomaticMarriages(world);
         }
     },
@@ -698,14 +698,14 @@ export const Characters = {
         kingdom.characterBonuses = bonuses;
 
         // ── Random character events (5% chance per day per kingdom) ──
-        if (Math.random() < 0.05) {
+        if (Utils.random() < 0.05) {
             Characters._triggerCharacterEvent(kingdom, world);
         }
 
         // ── Heir birth chance (every 30 days if married, ruler < 50) ──
         if (world.day % 30 === 0 && data.spouse && data.spouse.isAlive && ruler.age < 50) {
             const fertilityBonus = ruler.traits.some(t => t.id === 'fertile') ? 0.15 : 0;
-            if (Math.random() < 0.08 + fertilityBonus) {
+            if (Utils.random() < 0.08 + fertilityBonus) {
                 Characters._birthChild(kingdom, ruler, data.spouse, world);
             }
         }
@@ -721,7 +721,7 @@ export const Characters = {
                 advisor.loyalty = Utils.clamp(advisor.loyalty + loyaltyChange, 0, 100);
 
                 // Very disloyal advisor may leave or betray
-                if (advisor.loyalty < 10 && Math.random() < 0.3) {
+                if (advisor.loyalty < 10 && Utils.random() < 0.3) {
                     world.events.push({
                         category: 'political',
                         text: `🚪 The ${Characters.ADVISOR_ROLES[roleId].name} of ${kingdom.name}, ${Characters.getFullName(advisor)}, has abandoned their post!`,
@@ -758,7 +758,7 @@ export const Characters = {
             // Death chance increases sharply after maxLifespan
             if (char.age >= char.maxLifespan) {
                 const deathChance = (char.age - char.maxLifespan + 1) * 0.15;
-                if (Math.random() < deathChance) {
+                if (Utils.random() < deathChance) {
                     char.isAlive = false;
                     char.deathDay = world.day;
 
@@ -783,19 +783,19 @@ export const Characters = {
             }
 
             // Illness
-            if (!char.isIll && char.age > 45 && Math.random() < 0.02) {
+            if (!char.isIll && char.age > 45 && Utils.random() < 0.02) {
                 char.isIll = true;
                 char.health = Math.max(20, char.health - Utils.randInt(20, 50));
             }
 
             // Recovery from illness
-            if (char.isIll && Math.random() < 0.3) {
+            if (char.isIll && Utils.random() < 0.3) {
                 char.isIll = false;
                 char.health = Math.min(100, char.health + Utils.randInt(10, 30));
             }
 
             // Ill characters have higher death chance
-            if (char.isIll && Math.random() < 0.05) {
+            if (char.isIll && Utils.random() < 0.05) {
                 char.isAlive = false;
                 char.deathDay = world.day;
 
@@ -882,7 +882,7 @@ export const Characters = {
 
         // Weighted pick
         const totalWeight = applicable.reduce((s, e) => s + e.weight, 0);
-        let roll = Math.random() * totalWeight;
+        let roll = Utils.random() * totalWeight;
         let chosen = applicable[0];
         for (const e of applicable) {
             roll -= e.weight;
@@ -974,7 +974,7 @@ export const Characters = {
                 const spymaster = kingdom.characterData.advisors?.spymaster;
                 // Spymaster skill determines survival chance
                 const survivalChance = spymaster ? 0.5 + (spymaster.skills.intrigue / 40) : 0.4;
-                if (Math.random() > survivalChance) {
+                if (Utils.random() > survivalChance) {
                     // Ruler dies from assassination
                     world.events.push({
                         category: 'political',

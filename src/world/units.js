@@ -14,7 +14,7 @@ export class WorldUnit {
         this.r = r;
         this.sourceQ = q;
         this.sourceR = r;
-        this.id = Math.random().toString(36).substr(2, 9);
+        this.id = Utils.random().toString(36).substr(2, 9);
         this.targetQ = targetQ;
         this.targetR = targetR;
         this.path = [];
@@ -303,7 +303,7 @@ export class WorldUnit {
                     // Already adjacent? Always engage
                     if (playerDist <= 1) pursuitChance = 1.0;
 
-                    if (Math.random() < pursuitChance) {
+                    if (Utils.random() < pursuitChance) {
                         this.targetQ = player.q;
                         this.targetR = player.r;
                         this.path = [];
@@ -564,9 +564,9 @@ export class WorldUnit {
             const cities = settlements.filter(s => s.type === 'city' || s.type === 'capital');
 
             let dest;
-            if (capitals.length > 0 && Math.random() < 0.4) {
+            if (capitals.length > 0 && Utils.random() < 0.4) {
                 dest = Utils.randPick(capitals);
-            } else if (cities.length > 0 && Math.random() < 0.5) {
+            } else if (cities.length > 0 && Utils.random() < 0.5) {
                 dest = Utils.randPick(cities);
             } else {
                 dest = Utils.randPick(settlements);

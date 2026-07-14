@@ -48,22 +48,22 @@ export const KingdomAI = {
         KingdomAI.updateEconomy(kingdom, world);
 
         // Consider expansion
-        if (Math.random() < personality.expansionChance) {
+        if (Utils.random() < personality.expansionChance) {
             KingdomAI.tryExpand(kingdom, world);
         }
 
         // Consider establishing trade routes
-        if (Math.random() < personality.tradeChance) {
+        if (Utils.random() < personality.tradeChance) {
             TradeRoutes.establishRoutes(kingdom, world);
         }
 
         // Consider diplomatic actions
-        if (Math.random() < 0.3) {
+        if (Utils.random() < 0.3) {
             KingdomAI.considerDiplomacy(kingdom, world);
         }
 
         // Consider war
-        if (Math.random() < personality.warChance) {
+        if (Utils.random() < personality.warChance) {
             KingdomAI.considerWar(kingdom, world);
         }
 
@@ -145,7 +145,7 @@ export const KingdomAI = {
         kingdom.territory.push({ q: target.q, r: target.r });
 
         // Small chance to found a new settlement
-        if (Math.random() < 0.1 && !target.tile.settlement) {
+        if (Utils.random() < 0.1 && !target.tile.settlement) {
             target.tile.settlement = {
                 type: 'village',
                 name: Kingdom.generateCityName(kingdom.culture),
@@ -225,7 +225,7 @@ export const KingdomAI = {
         const ourStrength = kingdom.military + kingdom.population * 0.1;
         const theirStrength = target.military + target.population * 0.1;
 
-        if (ourStrength > theirStrength * 0.8 || Math.random() < 0.1) {
+        if (ourStrength > theirStrength * 0.8 || Utils.random() < 0.1) {
             kingdom.wars.push(target.id);
             target.wars.push(kingdom.id);
 
@@ -351,7 +351,7 @@ export const KingdomAI = {
         const ratio = enemyStrength / Math.max(1, ownStrength);
         if (ratio < 1.8) return false;
         const chance = Math.max(0.06, Math.min(0.72, (ratio - 1.6) * 0.42 + (1 - moraleValue) * 0.55));
-        return Math.random() < chance;
+        return Utils.random() < chance;
     },
 
     /**
@@ -441,7 +441,7 @@ export const KingdomAI = {
             defender.military = Math.floor(defender.military * defenderLossMult);
 
             // Small chance war ends
-            if (Math.random() < 0.2) {
+            if (Utils.random() < 0.2) {
                 attacker.wars = attacker.wars.filter(id => id !== defender.id);
                 defender.wars = defender.wars.filter(id => id !== attacker.id);
 

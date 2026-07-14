@@ -2213,7 +2213,7 @@ export const InnerMap = {
             }
         }
         if (candidates.length === 0) return false;
-        const pos = candidates[Math.floor(Math.random() * candidates.length)];
+        const pos = candidates[Math.floor(Utils.random() * candidates.length)];
         npc.q = pos.q;
         npc.r = pos.r;
         npc.prevQ = pos.q;
@@ -2773,7 +2773,7 @@ export const InnerMap = {
                 return { completed: true, anchorQ: ia.anchorQ, anchorR: ia.anchorR, defId: ia.defId, resource: null };
             }
             // Apply swing with ±12.5% variance
-            const dmg = ia.baseDamage * (0.875 + Math.random() * 0.25);
+            const dmg = ia.baseDamage * (0.875 + Utils.random() * 0.25);
             anchorTile.customObject.currentHealthPct =
                 Math.max(0, anchorTile.customObject.currentHealthPct - dmg);
             const hp = anchorTile.customObject.currentHealthPct;
@@ -3794,7 +3794,7 @@ export const InnerMap = {
                             if (!stepTile || !stepTile.subTerrain.passable) {
                                 npc.path = null;
                                 npc.state = 'idle';
-                                npc.idleTimer = 1 + Math.random() * 3;
+                                npc.idleTimer = 1 + Utils.random() * 3;
                                 break;
                             }
 
@@ -3822,20 +3822,20 @@ export const InnerMap = {
                                     npc._insideBuildingR = bldg.r;
                                     npc._outsideQ = npc.q; // remember position for when they exit
                                     npc._outsideR = npc.r;
-                                    npc.idleTimer = 8 + Math.random() * 20; // stay inside 8-28 seconds
+                                    npc.idleTimer = 8 + Utils.random() * 20; // stay inside 8-28 seconds
                                     npc._targetBuilding = null;
                                     // Traveler visited a place
                                     if (npc.visitsLeft > 0) npc.visitsLeft--;
                                 } else {
                                     npc.state = 'idle';
-                                    npc.idleTimer = 1 + Math.random() * 4;
+                                    npc.idleTimer = 1 + Utils.random() * 4;
                                     npc._targetBuilding = null;
                                 }
                             }
                         }
                     } else {
                         npc.state = 'idle';
-                        npc.idleTimer = 1 + Math.random() * 3;
+                        npc.idleTimer = 1 + Utils.random() * 3;
                     }
                     break;
 
@@ -3870,7 +3870,7 @@ export const InnerMap = {
                             npc._outsideQ = undefined;
                             npc._outsideR = undefined;
                             npc.state = 'idle';
-                            npc.idleTimer = 1 + Math.random() * 3;
+                            npc.idleTimer = 1 + Utils.random() * 3;
                         }
                     }
                     break;
@@ -3886,7 +3886,7 @@ export const InnerMap = {
                     const outerNpc = this._outerMapState.npcs.find(n => n.id === npc.id);
                     if (outerNpc) {
                         outerNpc.state = 'idle';
-                        outerNpc.idleTimer = 1 + Math.random() * 3;
+                        outerNpc.idleTimer = 1 + Utils.random() * 3;
                         outerNpc.currentBuilding = null;
                         if (outerNpc._outsideQ != null) {
                             outerNpc.q = outerNpc._outsideQ;
@@ -3975,7 +3975,7 @@ export const InnerMap = {
         let target = null;
         let targetBuilding = null;
         if (candidates.length > 0) {
-            const bldg = candidates[Math.floor(Math.random() * candidates.length)];
+            const bldg = candidates[Math.floor(Utils.random() * candidates.length)];
             // Path to a passable tile adjacent to the building (anchor may be impassable)
             const adj = this._findPassableAdjacentTile(bldg.q, bldg.r);
             target = adj;
@@ -3984,8 +3984,8 @@ export const InnerMap = {
             // Random passable tile
             let attempts = 0;
             do {
-                const rq = Math.floor(Math.random() * this.width);
-                const rr = Math.floor(Math.random() * this.height);
+                const rq = Math.floor(Utils.random() * this.width);
+                const rr = Math.floor(Utils.random() * this.height);
                 if (this.tiles[rr] && this.tiles[rr][rq] && this.tiles[rr][rq].subTerrain.passable) {
                     target = { q: rq, r: rr };
                     break;
@@ -4010,7 +4010,7 @@ export const InnerMap = {
 
         // Couldn't find a path, just idle again
         npc.state = 'idle';
-        npc.idleTimer = 2 + Math.random() * 5;
+        npc.idleTimer = 2 + Utils.random() * 5;
     },
 
     /**

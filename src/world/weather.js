@@ -12,8 +12,8 @@ export class WeatherSystem {
         this.globalState = 'clear'; // clear, sunny, overcast
 
         // Weather noise offsets
-        this.noiseOffsetX = Math.random() * 1000;
-        this.noiseOffsetY = Math.random() * 1000;
+        this.noiseOffsetX = Utils.random() * 1000;
+        this.noiseOffsetY = Utils.random() * 1000;
     }
 
     /**

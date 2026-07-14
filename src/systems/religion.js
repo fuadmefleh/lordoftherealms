@@ -386,7 +386,7 @@ export const Religion = {
             ));
 
             // 4. Heresy spread chance
-            if (kingdom.religion.piety < 30 && Math.random() < 0.005) {
+            if (kingdom.religion.piety < 30 && Utils.random() < 0.005) {
                 Religion.spawnHeresy(kingdom, world);
             }
 

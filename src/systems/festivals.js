@@ -192,8 +192,8 @@ export const Festivals = {
             const hostileBias = relation < 0 ? 0.1 : 0;
             const sabotageChance = (stance === 'diplomatic' ? 0.24 : 0.11) + hostileBias;
 
-            if (Math.random() < sabotageChance) {
-                const caught = stance === 'security' && Math.random() < 0.55;
+            if (Utils.random() < sabotageChance) {
+                const caught = stance === 'security' && Utils.random() < 0.55;
                 if (!caught) {
                     const loss = Utils.randInt(40, 140) + (tier.id === 'grand' ? 50 : 0);
                     player.gold = Math.max(0, player.gold - loss);
@@ -222,7 +222,7 @@ export const Festivals = {
         player.renown = (player.renown || 0) + renownGain;
         player.gold += contestResult.gold;
 
-        if (Math.random() < (stance === 'diplomatic' ? 0.35 : 0.18)) {
+        if (Utils.random() < (stance === 'diplomatic' ? 0.35 : 0.18)) {
             player.skills.diplomacy = Math.min(10, (player.skills.diplomacy || 1) + 1);
         }
 

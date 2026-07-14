@@ -151,14 +151,14 @@ export const Espionage = {
         const names = this._getSpyNames();
         const traits = this._getSpyTraits();
 
-        const gender = Math.random() < 0.5 ? 'male' : 'female';
+        const gender = Utils.random() < 0.5 ? 'male' : 'female';
         const namePool = names[gender] || names.male;
         const firstName = Utils.randPick(namePool);
         const surname = Utils.randPick(names.surnames);
         const name = `${firstName} ${surname}`;
 
         // Generate base skills (1-5 range, based on spy quality)
-        const quality = Math.random(); // 0-1, higher = better spy
+        const quality = Utils.random(); // 0-1, higher = better spy
         const skillBase = Math.floor(quality * 3) + 2; // 2-4
 
         const skills = {
@@ -169,7 +169,7 @@ export const Espionage = {
         };
 
         // Pick 1-2 random traits
-        const numTraits = Math.random() < 0.3 ? 2 : 1;
+        const numTraits = Utils.random() < 0.3 ? 2 : 1;
         const spyTraits = [];
         const availTraits = [...traits];
         for (let i = 0; i < numTraits && availTraits.length > 0; i++) {
@@ -382,7 +382,7 @@ export const Espionage = {
         const duration = Math.max(3, mission.baseDuration - durationReduction);
 
         const activeMission = {
-            id: Date.now() + Math.floor(Math.random() * 1000),
+            id: Date.now() + Math.floor(Utils.random() * 1000),
             spyId: spy.id,
             type: missionType,
             targetKingdom: targetKingdomId,
@@ -470,7 +470,7 @@ export const Espionage = {
             // Betrayal check
             if (spy.loyalty < config.loyaltyMinBeforeBetrayal) {
                 const betrayalRisk = this._getSpyBetrayalRisk(spy);
-                if (Math.random() < betrayalRisk) {
+                if (Utils.random() < betrayalRisk) {
                     spy.status = 'deserted';
                     results.lostSpies++;
                     // Cancel any active mission
@@ -579,11 +579,11 @@ export const Espionage = {
         }
 
         // Roll for outcome
-        const roll = Math.random();
+        const roll = Utils.random();
         let outcome;
 
         // Capture check (separate from success)
-        const captureRoll = Math.random();
+        const captureRoll = Utils.random();
         let captured = false;
         let captureChance = mission.captureChance;
 

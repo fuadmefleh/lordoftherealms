@@ -5,6 +5,7 @@
 // ============================================
 
 import { Hex } from '../../core/hex.js';
+import { Utils } from '../../core/utils.js';
 
 export class Player {
     constructor(profile = {}) {
@@ -140,7 +141,7 @@ export class Player {
         this.relationships = {};       // { npcId: { score, romantic, affection, history[] } }
         this.heir = null;              // Child id designated as heir
         this.travelParty = [];         // Relationship NPC ids currently traveling with player
-        this.maxLifespan = 55 + Math.floor(Math.random() * 31); // 55-85
+        this.maxLifespan = 55 + Math.floor(Utils.random() * 31); // 55-85
         this.birthDay = 0;
         this.marriageDay = null;
 

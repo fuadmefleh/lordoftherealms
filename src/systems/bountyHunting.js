@@ -133,7 +133,7 @@ export const BountyHunting = {
             return [...state.boardOffers, ...existingOffers];
         }
 
-        const targetCount = 1 + (Math.random() < 0.4 ? 1 : 0);
+        const targetCount = 1 + (Utils.random() < 0.4 ? 1 : 0);
         const generated = [];
         for (let i = 0; i < targetCount; i++) {
             generated.push(this._generateCriminalTarget(player, world, tile));
@@ -255,7 +255,7 @@ export const BountyHunting = {
         for (const bounty of player.activeBounties || []) {
             if (bounty.type !== 'criminal_hunt' || bounty.status !== 'active') continue;
 
-            if (Math.random() < 0.55) {
+            if (Utils.random() < 0.55) {
                 const oldQ = bounty.targetQ;
                 const oldR = bounty.targetR;
                 const deltaQ = Utils.randInt(-1, 1);

@@ -572,7 +572,7 @@ export const PlayerEconomy = {
         );
         if (duplicate) return { success: false, reason: 'A matching route already exists' };
 
-        const routeId = `${isSmuggling ? 'SR' : 'TR'}-${Date.now()}-${Math.floor(Math.random() * 999)}`;
+        const routeId = `${isSmuggling ? 'SR' : 'TR'}-${Date.now()}-${Math.floor(Utils.random() * 999)}`;
         const route = {
             id: routeId,
             isSmuggling,
@@ -756,14 +756,14 @@ export const PlayerEconomy = {
     _generateAuctionLot(player, world) {
         const types = ['rare_item', 'artifact', 'land'];
         const type = Utils.randPick(types);
-        const rarityRoll = Math.random();
+        const rarityRoll = Utils.random();
         const rarity = rarityRoll > 0.92 ? 'legendary' : rarityRoll > 0.68 ? 'epic' : 'rare';
         const rarityMult = rarity === 'legendary' ? 2.2 : rarity === 'epic' ? 1.55 : 1.0;
 
         let title = '';
         let description = '';
         let reward = {};
-        let basePrice = Math.floor((160 + (world.day || 1) * 3 + Math.random() * 120) * rarityMult);
+        let basePrice = Math.floor((160 + (world.day || 1) * 3 + Utils.random() * 120) * rarityMult);
 
         if (type === 'rare_item') {
             const goodsPool = ['gems', 'luxuries', 'weapons', 'tools', 'spices', 'liquor'];
@@ -880,7 +880,7 @@ export const PlayerEconomy = {
         for (const lot of player.auctions.active) {
             if (lot.topBidder === 'player') {
                 const pressureChance = 0.28 + (lot.rarity === 'legendary' ? 0.18 : lot.rarity === 'epic' ? 0.1 : 0.04);
-                if (Math.random() < pressureChance) {
+                if (Utils.random() < pressureChance) {
                     const increment = lot.minIncrement + Utils.randInt(0, Math.floor(lot.minIncrement * 0.5));
                     lot.currentBid += increment;
                     lot.topBidder = 'ai';
@@ -889,7 +889,7 @@ export const PlayerEconomy = {
                         lot.playerStake = 0;
                     }
                 }
-            } else if (Math.random() < 0.2) {
+            } else if (Utils.random() < 0.2) {
                 lot.currentBid += Utils.randInt(Math.floor(lot.minIncrement * 0.4), lot.minIncrement);
             }
         }
@@ -1617,9 +1617,9 @@ export const PlayerEconomy = {
                             0.28 + dist * 0.01 - stealth * 0.02 - (routeRef.protection || 0) * 0.03
                         ));
 
-                        if (Math.random() < caughtChance) {
+                        if (Utils.random() < caughtChance) {
                             smuggleCaught = true;
-                            const confiscated = Math.floor(finalProfit * (0.35 + Math.random() * 0.2));
+                            const confiscated = Math.floor(finalProfit * (0.35 + Utils.random() * 0.2));
                             finalProfit = Math.max(0, finalProfit - confiscated);
 
                             const fine = Math.min(player.gold, Math.floor(confiscated * 0.4));
@@ -1675,7 +1675,7 @@ export const PlayerEconomy = {
 
         // 20% chance per trading post per day
         for (const post of tradingPosts) {
-            if (Math.random() < 0.2) {
+            if (Utils.random() < 0.2) {
                 const tile = world.getTile(post.q, post.r);
                 if (!tile) continue;
 

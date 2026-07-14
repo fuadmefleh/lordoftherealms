@@ -132,7 +132,7 @@ export const Cartography = {
 
         // 20-40% of ruins/caves get an ancient map
         const mapCount = Math.max(2, Math.floor(pois.length * Utils.randFloat(0.20, 0.40)));
-        const shuffled = Utils.shuffle ? Utils.shuffle([...pois]) : pois.sort(() => Math.random() - 0.5);
+        const shuffled = Utils.shuffle ? Utils.shuffle([...pois]) : pois.sort(() => Utils.random() - 0.5);
 
         for (let i = 0; i < Math.min(mapCount, shuffled.length); i++) {
             const poi = shuffled[i];
@@ -326,7 +326,7 @@ export const Cartography = {
             name: `Ancient Map Fragment — ${Cartography._getRegionName(targetQ, targetR, world)}`,
             icon: '📜',
             quality: 'crude',
-            accuracy: 0.5 + Math.random() * 0.3,
+            accuracy: 0.5 + Utils.random() * 0.3,
             centerQ: targetQ,
             centerR: targetR,
             radius: radius,
@@ -367,7 +367,7 @@ export const Cartography = {
                 discovered: false,
             };
             // Sometimes include a bonus item
-            if (Math.random() < 0.3) {
+            if (Utils.random() < 0.3) {
                 targetTile.buried.items.push('ancient_relic');
             }
         }
@@ -378,7 +378,7 @@ export const Cartography = {
             name: 'Treasure Map',
             icon: '💎',
             quality: 'basic',
-            accuracy: 0.7 + Math.random() * 0.2,
+            accuracy: 0.7 + Utils.random() * 0.2,
             centerQ: targetQ,
             centerR: targetR,
             radius: 3,
@@ -510,7 +510,7 @@ export const Cartography = {
                     const tile = world.getTile(q, r);
                     if (!tile) continue;
                     if (tile.regionId === map.regionId) {
-                        if (Math.random() > accuracy) continue;
+                        if (Utils.random() > accuracy) continue;
                         if (!tile.explored) {
                             tile.explored = true;
                             tilesRevealed++;
@@ -525,7 +525,7 @@ export const Cartography = {
             for (const hex of hexes) {
                 const tile = world.getTile(hex.q, hex.r);
                 if (!tile) continue;
-                if (Math.random() > accuracy) continue;
+                if (Utils.random() > accuracy) continue;
                 tile.explored = true;
                 tilesRevealed++;
             }
@@ -603,7 +603,7 @@ export const Cartography = {
     attemptStealMap(player, world, tile) {
         const skill = player.skills.stealth || 1;
         const chance = 0.2 + skill * 0.08;
-        const roll = Math.random();
+        const roll = Utils.random();
 
         if (roll < chance) {
             // Success — generate a useful stolen map
@@ -665,7 +665,7 @@ export const Cartography = {
                     name: `Stolen Map of ${kingdom.name}`,
                     icon: '🗡️',
                     quality: Utils.randPick(['basic', 'detailed']),
-                    accuracy: 0.6 + Math.random() * 0.2,
+                    accuracy: 0.6 + Utils.random() * 0.2,
                     kingdomId: kingdom.id,
                     centerQ: kingdom.capital.q,
                     centerR: kingdom.capital.r,
@@ -692,7 +692,7 @@ export const Cartography = {
                 name: `Stolen Regional Map`,
                 icon: '🗡️',
                 quality: Utils.randPick(['crude', 'basic', 'detailed']),
-                accuracy: 0.5 + Math.random() * 0.3,
+                accuracy: 0.5 + Utils.random() * 0.3,
                 centerQ: q,
                 centerR: r,
                 radius: Cartography.MAP_TYPES.regional.radius,
@@ -784,7 +784,7 @@ export const Cartography = {
         }
 
         // Chance of treasure map in taverns (30%)
-        if (isCity && Math.random() < 0.3) {
+        if (isCity && Utils.random() < 0.3) {
             const tMap = Cartography.generateTreasureMap(world);
             if (tMap) {
                 maps.push({
@@ -795,7 +795,7 @@ export const Cartography = {
         }
 
         // Chance of ancient map (15%)
-        if (Math.random() < 0.15) {
+        if (Utils.random() < 0.15) {
             const aMap = Cartography.generateAncientMap(world, q, r);
             maps.push({
                 map: aMap,
@@ -822,7 +822,7 @@ export const Cartography = {
         }
 
         // Continent map — extremely rare (3% chance, capitals only)
-        if (settlement.type === 'capital' && Math.random() < 0.03) {
+        if (settlement.type === 'capital' && Utils.random() < 0.03) {
             const currentTile = world.getTile(q, r);
             if (currentTile && currentTile.regionId !== undefined) {
                 // Count tiles in this continent for pricing
@@ -913,7 +913,7 @@ export const Cartography = {
             }
 
             // Small chance to generate propaganda during wartime
-            if (kingdom.wars && kingdom.wars.length > 0 && Math.random() < Cartography.PROPAGANDA_CHANCE) {
+            if (kingdom.wars && kingdom.wars.length > 0 && Utils.random() < Cartography.PROPAGANDA_CHANCE) {
                 const propMap = Cartography.generatePropagandaMap(kingdom, world);
                 if (propMap) {
                     kingdom.cartography.propagandaMaps.push(propMap);
@@ -943,7 +943,7 @@ export const Cartography = {
         for (const hex of hexes) {
             const tile = world.getTile(hex.q, hex.r);
             if (!tile) continue;
-            if (Math.random() > accuracy) continue;
+            if (Utils.random() > accuracy) continue;
 
             const entry = {
                 q: hex.q,
@@ -969,7 +969,7 @@ export const Cartography = {
         if (!kingdom.territory) return charted;
 
         for (const t of kingdom.territory) {
-            if (Math.random() > accuracy) continue;
+            if (Utils.random() > accuracy) continue;
             const tile = world.getTile(t.q, t.r);
             if (!tile) continue;
 
@@ -1000,7 +1000,7 @@ export const Cartography = {
                 const neighbors = Hex.neighbors(t.q, t.r);
                 for (const n of neighbors) {
                     const tile = world.getTile(n.q, n.r);
-                    if (tile && tile.terrain.passable && tile.kingdom !== kingdom.id && Math.random() < 0.4) {
+                    if (tile && tile.terrain.passable && tile.kingdom !== kingdom.id && Utils.random() < 0.4) {
                         charted.push({
                             q: n.q,
                             r: n.r,
@@ -1087,6 +1087,6 @@ export const Cartography = {
         const skill = player.skills.cartography || 0;
         const intelligence = player.intelligence || 5;
         const detectChance = (skill * 0.08) + (intelligence * 0.03);
-        return Math.random() < detectChance;
+        return Utils.random() < detectChance;
     },
 };

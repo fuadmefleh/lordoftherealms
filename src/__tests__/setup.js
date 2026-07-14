@@ -1,10 +1,17 @@
 /**
  * Vitest global setup — mock browser APIs that game modules expect.
  */
-import { vi } from 'vitest';
+import { vi, beforeEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { Utils } from '../core/utils.js';
+
+// Reset the injectable RNG before every test so a seed set in one case never
+// leaks into the next. Tests that need determinism call Utils.setSeed(n).
+beforeEach(() => {
+    Utils.resetRng();
+});
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');

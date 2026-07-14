@@ -1,5 +1,6 @@
 
 import { DataLoader } from '../core/dataLoader.js';
+import { Utils } from '../core/utils.js';
 
 /**
  * Housing System
@@ -310,7 +311,7 @@ export const Housing = {
             totalMaintenance += maint;
 
             // Condition degrades slowly (1% every 30 days, approx)
-            if (Math.random() < 0.033) {
+            if (Utils.random() < 0.033) {
                 house.condition = Math.max(10, house.condition - 1);
             }
         }
@@ -367,12 +368,12 @@ export const Housing = {
 
         for (let i = 0; i < maxNpc; i++) {
             const chance = chances[tile.settlement.type] || 0.05;
-            if (Math.random() < chance * 3) { // higher chance so settlements feel lived-in
-                const ht = types[Math.floor(Math.random() * types.length)];
+            if (Utils.random() < chance * 3) { // higher chance so settlements feel lived-in
+                const ht = types[Math.floor(Utils.random() * types.length)];
                 if (!ht) continue;
-                const numUpgrades = Math.floor(Math.random() * (ht.maxUpgradeSlots + 1));
+                const numUpgrades = Math.floor(Utils.random() * (ht.maxUpgradeSlots + 1));
                 npcHouses.push({
-                    owner: titles[Math.floor(Math.random() * titles.length)],
+                    owner: titles[Math.floor(Utils.random() * titles.length)],
                     typeId: ht.id,
                     upgrades: numUpgrades,
                 });

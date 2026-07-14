@@ -230,7 +230,7 @@ export class World {
                     id: 'gen_kingdom_' + (i + 1),
                     name: 'Kingdom ' + (i + 1),
                     ruler: 'Ruler ' + (i + 1),
-                    color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6,'0'),
+                    color: '#' + Math.floor(Utils.random()*16777215).toString(16).padStart(6,'0'),
                     colorLight: 'rgba(128,128,128,0.2)',
                     culture: 'Imperial',
                     description: 'A realm born of custom creation.',
@@ -314,7 +314,7 @@ export class World {
                 const chances = Terrain.RESOURCE_CHANCES[terrainId];
                 if (!chances) continue;
                 for (const { resource, chance } of chances) {
-                    if (Math.random() < chance) {
+                    if (Utils.random() < chance) {
                         tile.resource = resource;
                         break; // one resource per tile
                     }
@@ -352,7 +352,7 @@ export class World {
                     return nt && (nt.terrain.id === 'ocean' || nt.terrain.id === 'deep_ocean');
                 });
 
-                if (!isCoastal && Math.random() < 0.75) continue;
+                if (!isCoastal && Utils.random() < 0.75) continue;
 
                 // Check distance to all other settlements
                 let tooClose = false;
@@ -875,7 +875,7 @@ export class World {
 
         // Spawn caravan
         if (this.units.filter(u => u.type === 'caravan').length < settlements.length) {
-            if (Math.random() < 0.4) {
+            if (Utils.random() < 0.4) {
                 const s1 = Utils.randPick(settlements);
                 const t1 = this.getTile(s1.q, s1.r);
                 if (t1) {
@@ -902,7 +902,7 @@ export class World {
             });
         });
         if (coastalSettlements.length >= 2 && this.units.filter(u => u.type === 'ship').length < coastalSettlements.length * 2) {
-            if (Math.random() < 0.4) {
+            if (Utils.random() < 0.4) {
                 const s1 = Utils.randPick(coastalSettlements);
 
                 // Find water region for ship
@@ -939,7 +939,7 @@ export class World {
         if (this.units.filter(u => u.type === 'raider').length < 8) {
             // Only spawn raiders if zoomed in enough to see them, or if camera is not defined (e.g., headless mode)
             if (!this.camera || this.camera.zoom > 0.4) {
-                if (Math.random() < 0.2) {
+                if (Utils.random() < 0.2) {
                     const q = Utils.randInt(0, this.width - 1);
                     const r = Utils.randInt(0, this.height - 1);
                     if (this.isPassable(q, r)) {
@@ -951,7 +951,7 @@ export class World {
 
         // Spawn pirate
         if (this.units.filter(u => u.type === 'pirate').length < 6) {
-            if (Math.random() < 0.1) {
+            if (Utils.random() < 0.1) {
                 const q = Utils.randInt(0, this.width - 1);
                 const r = Utils.randInt(0, this.height - 1);
                 const tile = this.getTile(q, r);
@@ -963,7 +963,7 @@ export class World {
 
         // Spawn patrol
         if (this.units.filter(u => u.type === 'patrol').length < 4) {
-            if (Math.random() < 0.05) {
+            if (Utils.random() < 0.05) {
                 const capital = settlements.find(s => s.type === 'capital');
                 if (capital) {
                     this.units.push(new WorldUnit('patrol', capital.q, capital.r));
@@ -972,7 +972,7 @@ export class World {
         }
 
         // Spawn settler
-        if (this.day % 20 === 0 && Math.random() < 0.1 && this.units.filter(u => u.type === 'settler').length < 2) {
+        if (this.day % 20 === 0 && Utils.random() < 0.1 && this.units.filter(u => u.type === 'settler').length < 2) {
             const s = Utils.randPick(settlements);
             this.units.push(new WorldUnit('settler', s.q, s.r));
         }
@@ -1001,7 +1001,7 @@ export class World {
         this.events = [];
 
         // Small chance of various events
-        if (Math.random() < 0.05) {
+        if (Utils.random() < 0.05) {
             const k1 = Utils.randPick(this.kingdoms.filter(k => k.isAlive));
             const k2 = Utils.randPick(this.kingdoms.filter(k => k.isAlive && k.id !== k1.id));
             if (k1 && k2) {
@@ -1014,7 +1014,7 @@ export class World {
             }
         }
 
-        if (Math.random() < 0.03) {
+        if (Utils.random() < 0.03) {
             this.events.push({
                 text: `Traveling merchants report a bountiful harvest in the ${this.season} `,
                 type: 'economic'

@@ -1,6 +1,7 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
+import { Utils } from '../core/utils.js';
 
 /**
  * Ships System
@@ -162,20 +163,20 @@ export const Ships = {
         const ships = [];
 
         for (let i = 0; i < maxUsed; i++) {
-            if (Math.random() > 0.5) continue; // ~50% chance per slot
-            const st = types[Math.floor(Math.random() * types.length)];
+            if (Utils.random() > 0.5) continue; // ~50% chance per slot
+            const st = types[Math.floor(Utils.random() * types.length)];
             if (!st) continue;
 
             const condRange = settings.usedShipConditionRange || [40, 85];
-            const condition = condRange[0] + Math.floor(Math.random() * (condRange[1] - condRange[0]));
+            const condition = condRange[0] + Math.floor(Utils.random() * (condRange[1] - condRange[0]));
             const priceRange = settings.usedShipPriceMultiplier || [0.4, 0.75];
-            const priceMult = priceRange[0] + Math.random() * (priceRange[1] - priceRange[0]);
+            const priceMult = priceRange[0] + Utils.random() * (priceRange[1] - priceRange[0]);
             const price = Math.floor(st.baseCost * priceMult * (condition / 100));
 
             ships.push({
                 typeId: st.id,
-                name: names[Math.floor(Math.random() * names.length)],
-                description: descs[Math.floor(Math.random() * descs.length)],
+                name: names[Math.floor(Utils.random() * names.length)],
+                description: descs[Math.floor(Utils.random() * descs.length)],
                 condition,
                 price,
             });
@@ -450,7 +451,7 @@ export const Ships = {
         }
 
         // Pick event by weighted chance
-        const roll = Math.random();
+        const roll = Utils.random();
         let cumulative = 0;
         let event = null;
         for (const e of events) {
@@ -469,11 +470,11 @@ export const Ships = {
         if (event.danger) {
             if (event.danger.combatStrength) {
                 const enemyStr = Array.isArray(event.danger.combatStrength)
-                    ? event.danger.combatStrength[0] + Math.floor(Math.random() * (event.danger.combatStrength[1] - event.danger.combatStrength[0]))
+                    ? event.danger.combatStrength[0] + Math.floor(Utils.random() * (event.danger.combatStrength[1] - event.danger.combatStrength[0]))
                     : event.danger.combatStrength;
                 const shipStr = this._getShipCombatStrength(ship);
 
-                if (shipStr * (0.8 + Math.random() * 0.4) > enemyStr * (0.8 + Math.random() * 0.4)) {
+                if (shipStr * (0.8 + Utils.random() * 0.4) > enemyStr * (0.8 + Utils.random() * 0.4)) {
                     resultText += ' You fought and won!';
                     resultType = 'success';
                     // Give rewards
@@ -483,7 +484,7 @@ export const Ships = {
                     resultType = 'error';
                     const dmg = event.danger.damage
                         ? (Array.isArray(event.danger.damage)
-                            ? event.danger.damage[0] + Math.floor(Math.random() * (event.danger.damage[1] - event.danger.damage[0]))
+                            ? event.danger.damage[0] + Math.floor(Utils.random() * (event.danger.damage[1] - event.danger.damage[0]))
                             : event.danger.damage)
                         : 10;
                     ship.condition = Math.max(5, ship.condition - dmg);
@@ -491,7 +492,7 @@ export const Ships = {
                 }
             } else if (event.danger.damage) {
                 const dmg = Array.isArray(event.danger.damage)
-                    ? event.danger.damage[0] + Math.floor(Math.random() * (event.danger.damage[1] - event.danger.damage[0]))
+                    ? event.danger.damage[0] + Math.floor(Utils.random() * (event.danger.damage[1] - event.danger.damage[0]))
                     : event.danger.damage;
                 ship.condition = Math.max(5, ship.condition - dmg);
                 resultType = 'warning';
@@ -514,11 +515,11 @@ export const Ships = {
 
         const data = (typeof DataLoader !== 'undefined' && DataLoader.ships) ? DataLoader.ships : {};
         const pirateStr = data.pirateStrength || { min: 8, max: 30 };
-        const enemyStrength = pirateStr.min + Math.floor(Math.random() * (pirateStr.max - pirateStr.min));
+        const enemyStrength = pirateStr.min + Math.floor(Utils.random() * (pirateStr.max - pirateStr.min));
         const shipStr = this._getShipCombatStrength(ship);
 
         // 50% chance to find pirates
-        if (Math.random() < 0.5) {
+        if (Utils.random() < 0.5) {
             ship.condition = Math.max(5, ship.condition - 1);
             return {
                 success: true,
@@ -528,15 +529,15 @@ export const Ships = {
             };
         }
 
-        const playerPower = shipStr * (0.8 + Math.random() * 0.4);
-        const enemyPower = enemyStrength * (0.8 + Math.random() * 0.4);
+        const playerPower = shipStr * (0.8 + Utils.random() * 0.4);
+        const enemyPower = enemyStrength * (0.8 + Utils.random() * 0.4);
 
         if (playerPower > enemyPower) {
-            const loot = enemyStrength * (2 + Math.floor(Math.random() * 4));
+            const loot = enemyStrength * (2 + Math.floor(Utils.random() * 4));
             player.gold += loot;
             player.karma = (player.karma || 0) + 2;
             player.renown = (player.renown || 0) + 3;
-            ship.condition = Math.max(5, ship.condition - Math.floor(Math.random() * 5 + 2));
+            ship.condition = Math.max(5, ship.condition - Math.floor(Utils.random() * 5 + 2));
 
             if (player.financeToday) {
                 player.financeToday.income.pirateBounty = (player.financeToday.income.pirateBounty || 0) + loot;
@@ -549,7 +550,7 @@ export const Ships = {
                 type: 'success'
             };
         } else {
-            const dmg = 5 + Math.floor(Math.random() * 15);
+            const dmg = 5 + Math.floor(Utils.random() * 15);
             ship.condition = Math.max(5, ship.condition - dmg);
             player.health = Math.max(1, player.health - Math.floor(dmg / 2));
             return {
@@ -571,7 +572,7 @@ export const Ships = {
         const goldRange = data.piracyGoldRange || [50, 300];
 
         // 60% chance to find a target
-        if (Math.random() < 0.4) {
+        if (Utils.random() < 0.4) {
             ship.condition = Math.max(5, ship.condition - 1);
             return {
                 success: true,
@@ -582,17 +583,17 @@ export const Ships = {
         }
 
         // Target merchant ship strength
-        const targetStr = 3 + Math.floor(Math.random() * 12);
+        const targetStr = 3 + Math.floor(Utils.random() * 12);
         const shipStr = this._getShipCombatStrength(ship);
-        const playerPower = shipStr * (0.8 + Math.random() * 0.4);
-        const targetPower = targetStr * (0.8 + Math.random() * 0.4);
+        const playerPower = shipStr * (0.8 + Utils.random() * 0.4);
+        const targetPower = targetStr * (0.8 + Utils.random() * 0.4);
 
         if (playerPower > targetPower) {
-            const loot = goldRange[0] + Math.floor(Math.random() * (goldRange[1] - goldRange[0]));
+            const loot = goldRange[0] + Math.floor(Utils.random() * (goldRange[1] - goldRange[0]));
             player.gold += loot;
             player.karma = (player.karma || 0) - karmaLoss;
             player.renown = Math.max(0, (player.renown || 0) - renownLoss);
-            ship.condition = Math.max(5, ship.condition - Math.floor(Math.random() * 3 + 1));
+            ship.condition = Math.max(5, ship.condition - Math.floor(Utils.random() * 3 + 1));
 
             // Reputation loss with all kingdoms
             for (const kId of Object.keys(player.reputation || {})) {
@@ -610,7 +611,7 @@ export const Ships = {
                 type: 'warning'
             };
         } else {
-            const dmg = 5 + Math.floor(Math.random() * 10);
+            const dmg = 5 + Math.floor(Utils.random() * 10);
             ship.condition = Math.max(5, ship.condition - dmg);
             player.karma = (player.karma || 0) - Math.floor(karmaLoss / 2);
             return {
@@ -635,16 +636,16 @@ export const Ships = {
         const cargoSpace = stats.cargoCapacity;
 
         // Simulate a quick trade run
-        const good = goods[Math.floor(Math.random() * goods.length)];
-        const buyPrice = good.buyPrice[0] + Math.floor(Math.random() * (good.buyPrice[1] - good.buyPrice[0]));
-        const sellPrice = good.sellPrice[0] + Math.floor(Math.random() * (good.sellPrice[1] - good.sellPrice[0]));
+        const good = goods[Math.floor(Utils.random() * goods.length)];
+        const buyPrice = good.buyPrice[0] + Math.floor(Utils.random() * (good.buyPrice[1] - good.buyPrice[0]));
+        const sellPrice = good.sellPrice[0] + Math.floor(Utils.random() * (good.sellPrice[1] - good.sellPrice[0]));
 
         const maxUnits = Math.min(cargoSpace, Math.floor(player.gold / buyPrice));
         if (maxUnits <= 0) {
             return { success: true, icon: '💰', title: `Cannot afford ${good.name} at ${buyPrice}g each.`, type: 'warning' };
         }
 
-        const units = Math.max(1, Math.floor(maxUnits * (0.3 + Math.random() * 0.7)));
+        const units = Math.max(1, Math.floor(maxUnits * (0.3 + Utils.random() * 0.7)));
         const cost = units * buyPrice;
         const revenue = units * sellPrice;
         const profit = revenue - cost;
@@ -654,7 +655,7 @@ export const Ships = {
 
         // Commerce skill gain
         if (player.skills) {
-            const skillGain = Math.random() < 0.3 ? 0.1 : 0;
+            const skillGain = Utils.random() < 0.3 ? 0.1 : 0;
             if (skillGain > 0) {
                 player.skills.commerce = Math.min(10, (player.skills.commerce || 1) + skillGain);
             }
@@ -729,7 +730,7 @@ export const Ships = {
             totalUpkeep += st.dailyUpkeep;
 
             // Condition decay
-            if (Math.random() < (settings.conditionDecayChance || 0.04)) {
+            if (Utils.random() < (settings.conditionDecayChance || 0.04)) {
                 ship.condition = Math.max(10, ship.condition - 1);
             }
         }
@@ -759,7 +760,7 @@ export const Ships = {
     _applyReward(player, reward) {
         if (reward.gold) {
             const amt = Array.isArray(reward.gold)
-                ? reward.gold[0] + Math.floor(Math.random() * (reward.gold[1] - reward.gold[0]))
+                ? reward.gold[0] + Math.floor(Utils.random() * (reward.gold[1] - reward.gold[0]))
                 : reward.gold;
             player.gold += amt;
             if (player.financeToday) {
@@ -778,8 +779,8 @@ export const Ships = {
         const data = (typeof DataLoader !== 'undefined' && DataLoader.ships) ? DataLoader.ships : {};
         const prefixes = data.shipNamePrefixes || ['The', 'HMS'];
         const words = data.shipNameWords || ['Tempest', 'Horizon', 'Phoenix'];
-        const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-        const word = words[Math.floor(Math.random() * words.length)];
+        const prefix = prefixes[Math.floor(Utils.random() * prefixes.length)];
+        const word = words[Math.floor(Utils.random() * words.length)];
         return `${prefix} ${word}`;
     },
 

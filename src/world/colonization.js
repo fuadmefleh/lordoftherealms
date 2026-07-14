@@ -292,7 +292,7 @@ export const Colonization = {
             }
 
             // ── Independence revolt ──
-            if (colonyData.loyalty <= Colonization.REVOLT_LOYALTY && Math.random() < Colonization.REVOLT_CHANCE_PER_DAY) {
+            if (colonyData.loyalty <= Colonization.REVOLT_LOYALTY && Utils.random() < Colonization.REVOLT_CHANCE_PER_DAY) {
                 // Colony declares independence!
                 toRemove.push(colony);
                 tile.kingdom = null;
@@ -347,7 +347,7 @@ export const Colonization = {
                 const ind = tile.indigenous;
 
                 // Slow population growth
-                if (ind.population < 500 && Math.random() < 0.05) {
+                if (ind.population < 500 && Utils.random() < 0.05) {
                     ind.population += Utils.randInt(1, 5);
                 }
 
@@ -369,7 +369,7 @@ export const Colonization = {
                 }
 
                 // Hostile indigenous may attack nearby colonies
-                if (ind.relation < -50 && encroached && Math.random() < 0.02) {
+                if (ind.relation < -50 && encroached && Utils.random() < 0.02) {
                     // Find nearest colony settlement
                     for (const n of neighbors) {
                         const nt = world.getTile(n.q, n.r);
@@ -412,7 +412,7 @@ export const Colonization = {
             }
 
             // Chance to launch a pioneer party (every ~15 days, 20% chance)
-            if (world.day % 15 !== 0 || Math.random() > 0.20) continue;
+            if (world.day % 15 !== 0 || Utils.random() > 0.20) continue;
 
             // Only if kingdom is stable enough
             if (kingdom.treasury < 300 || kingdom.military < 100) continue;
@@ -425,7 +425,7 @@ export const Colonization = {
             let bestScore = -Infinity;
 
             for (let attempt = 0; attempt < 40; attempt++) {
-                const angle = Math.random() * Math.PI * 2;
+                const angle = Utils.random() * Math.PI * 2;
                 const tq = Math.round(kingdom.capital.q + Math.cos(angle) * targetDist);
                 const tr = Math.round(kingdom.capital.r + Math.sin(angle) * targetDist * 0.75);
                 const wq = Hex.wrapQ(tq, world.width);
@@ -630,7 +630,7 @@ export const Colonization = {
         }
 
         // Roll for passive settlers
-        if (arrivalChance > 0 && Math.random() < arrivalChance) {
+        if (arrivalChance > 0 && Utils.random() < arrivalChance) {
             const settlers = Utils.randInt(1, 3);
             rec.enRoute += settlers;
         }

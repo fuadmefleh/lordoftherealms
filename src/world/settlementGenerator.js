@@ -23,6 +23,7 @@
 import { CustomBuildings } from './customBuildings.js';
 import { InnerMap } from './innerMap.js';
 import { DataLoader } from '../core/dataLoader.js';
+import { Utils } from '../core/utils.js';
 
 // ── District types ──────────────────────────────────────────
 const DISTRICT = {
@@ -954,7 +955,7 @@ function _generateProceduralBuilding(lot, gd) {
     if (metaIdx >= 0) metaArr.splice(metaIdx, 1);
     metaArr.push({ q: doorQ, r: doorR, door: true });
 
-    const uid = `proc_${Date.now()}_${Math.floor(Math.random() * 0xffff).toString(16)}`;
+    const uid = `proc_${Date.now()}_${Math.floor(Utils.random() * 0xffff).toString(16)}`;
     return {
         id:           uid,
         name:         'House',

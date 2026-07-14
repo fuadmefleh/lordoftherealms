@@ -181,7 +181,7 @@ export const PlayerMilitary = {
         const outnumberedRatio = enemyStrength / Math.max(1, ownStrength);
         if (outnumberedRatio < 1.8) return false;
         const chance = Math.max(0.05, Math.min(0.75, (outnumberedRatio - 1.6) * 0.45 + (1 - moraleValue) * 0.6));
-        return Math.random() < chance;
+        return Utils.random() < chance;
     },
 
     _getSettlementComposition(settlement, tile) {
@@ -571,8 +571,8 @@ export const PlayerMilitary = {
 
         const activeTemplateIds = new Set((player.mercenaryCompanies || []).map(c => c.templateId));
         const pool = PlayerMilitary.MERCENARY_COMPANIES.filter(company => !activeTemplateIds.has(company.id));
-        const shuffled = [...pool].sort(() => Math.random() - 0.5);
-        const offerCount = Math.min(shuffled.length, Math.max(1, 2 + (Math.random() < 0.35 ? 1 : 0)));
+        const shuffled = [...pool].sort(() => Utils.random() - 0.5);
+        const offerCount = Math.min(shuffled.length, Math.max(1, 2 + (Utils.random() < 0.35 ? 1 : 0)));
 
         const offers = [];
         for (let i = 0; i < offerCount; i++) {
@@ -613,7 +613,7 @@ export const PlayerMilitary = {
             return { success: false, reason: `Need ${offer.hireCost} gold to hire ${offer.name}.` };
         }
 
-        const companyId = `merc_${Date.now()}_${Math.floor(Math.random() * 999)}`;
+        const companyId = `merc_${Date.now()}_${Math.floor(Utils.random() * 999)}`;
         const company = {
             id: companyId,
             templateId: offer.templateId,
@@ -725,7 +725,7 @@ export const PlayerMilitary = {
             const loyaltyPressure = Math.max(0, (45 - company.loyalty) * 0.012);
             const switchChance = Math.max(0.04, Math.min(0.82, company.outbidRisk + outbidPressure + loyaltyPressure));
 
-            if (Math.random() < switchChance) {
+            if (Utils.random() < switchChance) {
                 const unitsRemoved = PlayerMilitary._removeMercenaryCompanyUnits(player, company.id);
                 player.mercenaryCompanies.splice(i, 1);
 
@@ -807,7 +807,7 @@ export const PlayerMilitary = {
 
             // Check for casualties (if risky contract)
             let casualties = 0;
-            if (contract.risk > 0 && Math.random() < contract.risk) {
+            if (contract.risk > 0 && Utils.random() < contract.risk) {
                 casualties = Math.ceil(player.army.length * Utils.randFloat(0.1, 0.3));
                 for (let i = 0; i < casualties && player.army.length > 0; i++) {
                     player.army.pop();
@@ -922,7 +922,7 @@ export const PlayerMilitary = {
             player.renown += Math.floor(enemyStrength / 10);
         } else {
             // Defeat — chance of capture and indentured servitude
-            if (player.army.length === 0 && Math.random() < 0.4) {
+            if (player.army.length === 0 && Utils.random() < 0.4) {
                 // Player is captured! Enter indentured servitude
                 const servitudeDays = Utils.randInt(5, 15);
                 const captor = enemyName;
@@ -1023,7 +1023,7 @@ export const PlayerMilitary = {
         if (!player.indenturedServitude) return { success: false, reason: 'Not in servitude' };
 
         const servitude = player.indenturedServitude;
-        const roll = Math.random();
+        const roll = Utils.random();
 
         if (roll < servitude.escapeChance) {
             // Successful escape!

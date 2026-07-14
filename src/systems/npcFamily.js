@@ -12,6 +12,7 @@
 // the existing Relationships system (persistent relationship NPCs).
 
 import { Relationships } from './relationships.js';
+import { Utils } from '../core/utils.js';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -765,7 +766,7 @@ export const NpcFamily = {
         const event = sorted[0];
 
         const pool = event.delta > 0 ? FAMILY_REACTION_LINES.positive : FAMILY_REACTION_LINES.negative;
-        const template = pool[Math.floor(Math.random() * pool.length)];
+        const template = pool[Math.floor(Utils.random() * pool.length)];
 
         return template
             .replace(/\{name\}/g, event.npcName)
@@ -793,7 +794,7 @@ export const NpcFamily = {
             pool = GOSSIP_LINES.neutral;
         }
 
-        const template = pool[Math.floor(Math.random() * pool.length)];
+        const template = pool[Math.floor(Utils.random() * pool.length)];
         const typeName = aboutNpc.type ? aboutNpc.type.replace('_npc', '').replace('_', ' ') : 'person';
         const trait = (aboutNpc.personalityTraits && aboutNpc.personalityTraits.length > 0)
             ? aboutNpc.personalityTraits[0]

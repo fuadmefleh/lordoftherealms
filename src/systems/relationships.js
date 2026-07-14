@@ -156,7 +156,7 @@ export const Relationships = {
             ? Characters.FIRST_NAMES[culture]
             : { male: ['Edmund', 'Roland', 'Victor'], female: ['Helena', 'Isabella', 'Vivienne'] };
 
-        const gender = Math.random() < 0.5 ? 'male' : 'female';
+        const gender = Utils.random() < 0.5 ? 'male' : 'female';
         const age = Utils.randInt(18, 45);
         const firstName = Utils.randPick(namePool[gender]);
 
@@ -188,7 +188,7 @@ export const Relationships = {
             // Relationship stats
             affection: 0,       // Romantic interest (0-100)
             friendship: 0,      // Platonic regard (-100 to 100)
-            attraction: Math.random() < 0.7 ? Utils.randInt(20, 80) : Utils.randInt(0, 30), // How receptive they are
+            attraction: Utils.random() < 0.7 ? Utils.randInt(20, 80) : Utils.randInt(0, 30), // How receptive they are
             loyalty: 50,        // How loyal they are to the player
 
             // State
@@ -293,7 +293,7 @@ export const Relationships = {
         if (traitList.includes('fickle')) chance -= 0.08;
 
         chance = Math.max(0.05, Math.min(0.95, chance));
-        const roll = Math.random();
+        const roll = Utils.random();
 
         if (roll <= chance) {
             player.travelParty.push(npcId);
@@ -356,7 +356,7 @@ export const Relationships = {
         const traits = [];
         const pool = [...traitPool];
         for (let i = 0; i < count; i++) {
-            const idx = Math.floor(Math.random() * pool.length);
+            const idx = Math.floor(Utils.random() * pool.length);
             traits.push(pool.splice(idx, 1)[0]);
         }
         return traits;
@@ -552,7 +552,7 @@ export const Relationships = {
         const personalityMod = baseGain >= 0 ? personality.friendModifier : personality.rivalModifier;
 
         // Failure check
-        if (action.failChance && Math.random() < action.failChance) {
+        if (action.failChance && Utils.random() < action.failChance) {
             const penalty = action.failPenalty ?? (action.failResult === 'humiliation' ? -3 : -1);
             rel.score = Math.max(-100, Math.min(100, rel.score + penalty));
             rel.history.push({ day: 0, action: actionId, result: 'failed' });
@@ -570,7 +570,7 @@ export const Relationships = {
 
         // Diplomacy skill chance
         let skillUp = false;
-        if (Math.random() < 0.1 && player.skills) {
+        if (Utils.random() < 0.1 && player.skills) {
             player.skills.diplomacy = Math.min((player.skills.diplomacy || 1) + 1, 10);
             skillUp = true;
         }
@@ -633,7 +633,7 @@ export const Relationships = {
 
         // Failure check
         const adjustedFail = Math.max(0.02, action.failChance - (statVal * 0.01));
-        if (Math.random() < adjustedFail) {
+        if (Utils.random() < adjustedFail) {
             const penalty = action.failPenalty || -2;
             rel.affection = Math.max(0, rel.affection + penalty);
             rel.history.push({ day: 0, action: actionId, result: 'failed', romantic: true });
@@ -668,7 +668,7 @@ export const Relationships = {
 
         // Charisma growth chance
         let charismaUp = false;
-        if (Math.random() < 0.08) {
+        if (Utils.random() < 0.08) {
             player.charisma = (player.charisma || 5) + 1;
             charismaUp = true;
         }
@@ -780,7 +780,7 @@ export const Relationships = {
         const affectionBonus = (rel.affection || 50) / 200; // 0 to 0.5
         const chance = settings.childbirthChancePerYear + affectionBonus;
 
-        if (Math.random() > chance) return null;
+        if (Utils.random() > chance) return null;
 
         // Generate child!
         return Relationships.generateChild(player, spouse, world);
@@ -788,7 +788,7 @@ export const Relationships = {
 
     generateChild(player, spouse, world) {
         const culture = spouse.culture || 'Imperial';
-        const gender = Math.random() < 0.5 ? 'male' : 'female';
+        const gender = Utils.random() < 0.5 ? 'male' : 'female';
 
         const namePool = (typeof Characters !== 'undefined' && Characters.FIRST_NAMES[culture])
             ? Characters.FIRST_NAMES[culture]
@@ -800,7 +800,7 @@ export const Relationships = {
         const childTraits = Relationships._getChildTraits();
         const traits = [];
         for (const [id, trait] of Object.entries(childTraits)) {
-            if (Math.random() < trait.chance) {
+            if (Utils.random() < trait.chance) {
                 traits.push({ ...trait });
             }
         }
@@ -883,7 +883,7 @@ export const Relationships = {
                 const growthChance = 0.3;
                 const skillKeys = Object.keys(child.skills);
                 for (const skill of skillKeys) {
-                    if (Math.random() < growthChance) {
+                    if (Utils.random() < growthChance) {
                         child.skills[skill] = Math.min(child.skills[skill] + 1, 5);
                     }
                 }
@@ -891,7 +891,7 @@ export const Relationships = {
 
             // Older children can get stronger stats
             if (child.age >= 14) {
-                if (Math.random() < 0.2) {
+                if (Utils.random() < 0.2) {
                     const stat = Utils.randPick(['strength', 'charisma', 'intelligence', 'faith', 'luck']);
                     child[stat] = (child[stat] || 5) + 1;
                 }
@@ -921,7 +921,7 @@ export const Relationships = {
         for (const npc of Relationships._npcs) {
             if (npc.isAlive) npc.age++;
             // NPC death (old age)
-            if (npc.age > Utils.randInt(55, 85) && Math.random() < 0.15) {
+            if (npc.age > Utils.randInt(55, 85) && Utils.random() < 0.15) {
                 npc.isAlive = false;
                 if (player.spouse === npc.id) {
                     player.spouse = null;
@@ -937,7 +937,7 @@ export const Relationships = {
         if (player.age > player.maxLifespan) {
             const yearsOver = player.age - player.maxLifespan;
             const deathChance = yearsOver * settings.deathChancePerYearOverMax;
-            if (Math.random() < deathChance) {
+            if (Utils.random() < deathChance) {
                 return { aged: true, died: true, age: player.age };
             }
         }
@@ -1093,7 +1093,7 @@ export const Relationships = {
             const marriageEvents = data?.marriageEvents || [];
             for (const evt of marriageEvents) {
                 if (evt.requiresChildren && (!player.children || player.children.length === 0)) continue;
-                if (Math.random() < (evt.chance || 0)) {
+                if (Utils.random() < (evt.chance || 0)) {
                     const spouse = Relationships.getNPC(player.spouse);
                     if (!spouse) continue;
 
@@ -1118,7 +1118,7 @@ export const Relationships = {
             if (!npc || !npc.isAlive) continue;
 
             for (const evt of courtEvents) {
-                if (Math.random() < (evt.chance || 0)) {
+                if (Utils.random() < (evt.chance || 0)) {
                     let text = evt.text
                         .replace('{npc}', npc.firstName)
                         .replace('{item}', Utils.randPick(['pressed flower', 'carved charm', 'ribbon', 'sweet cake']));
@@ -1156,7 +1156,7 @@ export const Relationships = {
 
             // Slow decay if not interacted in a while
             const daysSinceInteraction = (world?.day || 0) - (npc.lastInteraction || 0);
-            if (daysSinceInteraction > 30 && Math.random() < 0.05) {
+            if (daysSinceInteraction > 30 && Utils.random() < 0.05) {
                 if (rel.score > 0) rel.score = Math.max(0, rel.score - 1);
                 if (rel.affection > 0 && !npc.isMarried) rel.affection = Math.max(0, rel.affection - 1);
             }

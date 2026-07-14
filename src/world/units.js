@@ -131,7 +131,7 @@ export class WorldUnit {
     /**
      * Update unit logic for the day
      */
-    update(world) {
+    update(world, player = null) {
         this.age++;
         if (this.age > this.maxAge && this.type !== 'settler' && this.type !== 'fishing_boat') {
             this.destroyed = true;
@@ -146,13 +146,13 @@ export class WorldUnit {
                 break;
             case 'raider':
             case 'pirate':
-                this.updateRaider(world);
+                this.updateRaider(world, player);
                 break;
             case 'patrol':
                 this.updatePatrol(world);
                 break;
             case 'settler':
-                this.updateSettler(world);
+                this.updateSettler(world, player);
                 break;
             case 'fishing_boat':
                 this.updateFishingBoat(world);
@@ -258,13 +258,14 @@ export class WorldUnit {
     /**
      * Raider logic: Look for caravans to rob or the player to attack
      */
-    updateRaider(world) {
+    updateRaider(world, player = null) {
         const currentTile = world.getTile(this.q, this.r);
         const regionId = currentTile ? currentTile.regionId : null;
         const isShip = this.type === 'pirate';
 
         // --- Check for player in range (priority target) ---
-        const player = (typeof game !== 'undefined' && game !== null && game.player) ? game.player : null;
+        // `player` is injected by the caller (World.processUnits ← Game.endDay);
+        // null in headless/test contexts, which skips player pursuit.
         if (player && !player.indenturedServitude) {
             const playerDist = Hex.wrappingDistance(this.q, this.r, player.q, player.r, world.width);
             const detectionRange = isShip ? 6 : 5;
@@ -414,7 +415,7 @@ export class WorldUnit {
     /**
      * Settler logic: Move to a far away spot and build a village
      */
-    updateSettler(world) {
+    updateSettler(world, player = null) {
         if (this.targetQ === null) {
             // Pick a distant, empty, passable tile
             const currentTile = world.getTile(this.q, this.r);
@@ -457,8 +458,7 @@ export class WorldUnit {
 
             // Player pioneer settler — found a player colony
             if (this.isPlayerPioneer && typeof Colonization !== 'undefined') {
-                // Player reference from game global
-                const player = (typeof game !== 'undefined' && game !== null && game.player) ? game.player : null;
+                // `player` is injected by the caller (World.processUnits ← Game.endDay).
                 Colonization.onPioneerArrival(this, world, player);
                 this.destroyed = true;
                 return;

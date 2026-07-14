@@ -111,7 +111,7 @@ export function endDay() {
             }
 
             // Process world turn
-            const result = this.world.advanceDay();
+            const result = this.world.advanceDay(this.player);
             this.player.endDay();
             this.player.updateVisibility(this.world, 4);
 

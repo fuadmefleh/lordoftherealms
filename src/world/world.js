@@ -627,7 +627,7 @@ export class World {
     /**
      * Advance one day
      */
-    advanceDay() {
+    advanceDay(player = null) {
         this.day++;
 
         // Season tracking (30 days per season)
@@ -705,8 +705,8 @@ export class World {
             }
         }
 
-        // Process units
-        this.processUnits();
+        // Process units (player injected so raiders can target them without a global)
+        this.processUnits(player);
 
         return {
             day: this.day,
@@ -850,13 +850,13 @@ export class World {
     /**
      * Process all world units
      */
-    processUnits() {
+    processUnits(player = null) {
         if (!this.units) this.units = [];
 
         // Move units
         for (let i = this.units.length - 1; i >= 0; i--) {
             const unit = this.units[i];
-            unit.update(this);
+            unit.update(this, player);
             if (unit.destroyed) {
                 this.units.splice(i, 1);
             }

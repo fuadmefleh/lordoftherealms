@@ -1,0 +1,54 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`golden: seeded RNG contract > snapshot: deterministic draws for seed 777 1`] = `
+{
+  "noise": [
+    0,
+    0.243589,
+  ],
+  "randFloat": [
+    0.652452,
+    0.667271,
+    0.499734,
+  ],
+  "randInt": [
+    23,
+    46,
+    73,
+    8,
+    55,
+  ],
+  "randPick": [
+    "a",
+    "b",
+    "c",
+    "d",
+    "c",
+  ],
+  "random": [
+    0.190732,
+    0.21121,
+    0.672788,
+    0.813122,
+    0.05505,
+  ],
+  "shuffle": [
+    3,
+    5,
+    2,
+    7,
+    4,
+    8,
+    1,
+    6,
+  ],
+  "weightedPick": [
+    "y",
+    "y",
+    "y",
+    "y",
+    "y",
+    "y",
+  ],
+}
+`;

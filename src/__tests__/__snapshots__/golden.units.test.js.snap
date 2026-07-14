@@ -1,0 +1,134 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`golden: raider AI on a uniform world (no player) > snapshot: raider trail over 25 turns, seed 42 1`] = `
+{
+  "events": [],
+  "trail": [
+    {
+      "destroyed": false,
+      "q": 9,
+      "r": 10,
+    },
+    {
+      "destroyed": false,
+      "q": 10,
+      "r": 10,
+    },
+    {
+      "destroyed": false,
+      "q": 10,
+      "r": 11,
+    },
+    {
+      "destroyed": false,
+      "q": 9,
+      "r": 12,
+    },
+    {
+      "destroyed": false,
+      "q": 9,
+      "r": 13,
+    },
+    {
+      "destroyed": false,
+      "q": 9,
+      "r": 12,
+    },
+    {
+      "destroyed": false,
+      "q": 9,
+      "r": 13,
+    },
+    {
+      "destroyed": false,
+      "q": 9,
+      "r": 14,
+    },
+    {
+      "destroyed": false,
+      "q": 10,
+      "r": 15,
+    },
+    {
+      "destroyed": false,
+      "q": 10,
+      "r": 16,
+    },
+    {
+      "destroyed": false,
+      "q": 11,
+      "r": 15,
+    },
+    {
+      "destroyed": false,
+      "q": 12,
+      "r": 15,
+    },
+    {
+      "destroyed": false,
+      "q": 11,
+      "r": 15,
+    },
+    {
+      "destroyed": false,
+      "q": 10,
+      "r": 16,
+    },
+    {
+      "destroyed": false,
+      "q": 11,
+      "r": 16,
+    },
+    {
+      "destroyed": false,
+      "q": 11,
+      "r": 15,
+    },
+    {
+      "destroyed": false,
+      "q": 11,
+      "r": 14,
+    },
+    {
+      "destroyed": false,
+      "q": 11,
+      "r": 13,
+    },
+    {
+      "destroyed": false,
+      "q": 10,
+      "r": 14,
+    },
+    {
+      "destroyed": false,
+      "q": 11,
+      "r": 14,
+    },
+    {
+      "destroyed": false,
+      "q": 10,
+      "r": 14,
+    },
+    {
+      "destroyed": false,
+      "q": 10,
+      "r": 15,
+    },
+    {
+      "destroyed": false,
+      "q": 9,
+      "r": 14,
+    },
+    {
+      "destroyed": false,
+      "q": 9,
+      "r": 15,
+    },
+    {
+      "destroyed": false,
+      "q": 10,
+      "r": 15,
+    },
+  ],
+}
+`;

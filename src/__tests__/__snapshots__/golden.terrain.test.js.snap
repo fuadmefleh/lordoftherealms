@@ -1,0 +1,27 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`golden: terrain generation > snapshot: 40x30 map for seed 12345 1`] = `
+{
+  "hist": {
+    "boreal_forest": 22,
+    "coast": 31,
+    "deep_ocean": 633,
+    "highlands": 3,
+    "hills": 36,
+    "island": 5,
+    "mountain": 6,
+    "ocean": 382,
+    "seasonal_forest": 9,
+    "snow": 12,
+    "snow_peak": 1,
+    "temperate_rainforest": 12,
+    "tropical_rainforest": 7,
+    "woodland": 41,
+  },
+  "sample": [
+    0.4073,
+    0.3047,
+    0.0091,
+  ],
+}
+`;

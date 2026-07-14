@@ -661,14 +661,14 @@ export const Titles = {
     /**
      * Get duty progress summary for display
      */
-    getDutyProgress(player) {
+    getDutyProgress(player, world = null) {
         if (!player.currentTitle) return null;
         const titles = Titles.getTitleDefinitions();
         const title = titles[player.currentTitle];
         if (!title) return null;
 
         const eval_ = Titles._evaluateDuties(player, title, { day: 0 });
-        const daysLeft = Math.max(0, (player.titleDutyDeadline || 0) - (typeof game !== 'undefined' ? game.world.day : 0));
+        const daysLeft = Math.max(0, (player.titleDutyDeadline || 0) - (world ? world.day : 0));
 
         return {
             titleId: player.currentTitle,

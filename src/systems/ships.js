@@ -188,8 +188,8 @@ export const Ships = {
 
     /* ── Buying a used ship ──────────────────────────────────── */
 
-    buyUsedShip(player, q, r, usedIndex) {
-        const tile = (typeof game !== 'undefined') ? game.world.getTile(q, r) : null;
+    buyUsedShip(player, world, q, r, usedIndex) {
+        const tile = world ? world.getTile(q, r) : null;
         const usedShips = tile ? this.getUsedShipsForSale(tile) : [];
         if (usedIndex < 0 || usedIndex >= usedShips.length) {
             return { success: false, message: 'Ship no longer available.' };
@@ -213,7 +213,7 @@ export const Ships = {
             customizations: [],
             cargo: {},
             dockedAt: tile && tile.settlement ? tile.settlement.name : 'Unknown',
-            purchaseDay: (typeof game !== 'undefined') ? game.world.day : 0,
+            purchaseDay: world ? world.day : 0,
         };
         player.ships.push(ship);
 

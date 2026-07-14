@@ -15280,7 +15280,7 @@ export const ActionMenu = {
 
         window._buyUsedShip = (index) => {
             if (!ActionMenu.commitPendingAP(game)) return;
-            const result = Ships.buyUsedShip(player, tile.q, tile.r, index);
+            const result = Ships.buyUsedShip(player, game.world, tile.q, tile.r, index);
             if (result.success) {
                 game.ui.hideCustomPanel();
                 game.ui.showNotification('⛵ Ship Purchased!', result.message, 'success');

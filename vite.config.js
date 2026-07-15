@@ -11,7 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // HTML files, which Vite intentionally does not bundle, so we emit them
 // verbatim to dist-web instead.
 function copyEditorAssets() {
-  const files = ['editor-modstore.js', 'editor-ui.js'];
+  const files = ['editor-modstore.js', 'editor-ui.js', 'editor-core.js'];
   return {
     name: 'copy-editor-assets',
     generateBundle() {

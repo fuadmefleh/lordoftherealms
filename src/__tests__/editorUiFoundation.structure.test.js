@@ -26,6 +26,8 @@ describe('editor UI foundation', () => {
   it('the shared foundation files exist at the project root', () => {
     expect(existsSync(path.join(ROOT, 'editor-ui.css'))).toBe(true);
     expect(existsSync(path.join(ROOT, 'editor-ui.js'))).toBe(true);
+    // Shared pure-logic core extracted from the tile-painter editors.
+    expect(existsSync(path.join(ROOT, 'editor-core.js'))).toBe(true);
   });
 
   it('every editor links editor-ui.css, editor-ui.js, and the game fonts', () => {
@@ -52,5 +54,10 @@ describe('editor UI foundation', () => {
   it('the Vite build copies editor-ui.js into the output', () => {
     const cfg = read('vite.config.js');
     expect(cfg).toContain('editor-ui.js');
+  });
+
+  it('the Vite build copies editor-core.js into the output', () => {
+    const cfg = read('vite.config.js');
+    expect(cfg).toContain('editor-core.js');
   });
 });

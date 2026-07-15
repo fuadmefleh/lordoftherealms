@@ -1,0 +1,30 @@
+// Centralized re-exports for the ActionMenu group modules. All path changes
+// (../ -> ../../) live here so the split files import from one place.
+export { PlayerActions } from '../../player/playerActions.js';
+export { PlayerEconomy, Trading } from '../../player/playerEconomy.js';
+export { PlayerMilitary } from '../../player/playerMilitary.js';
+export { Hex } from '../../core/hex.js';
+export { Utils } from '../../core/utils.js';
+export { Banking, MarketDynamics, Taxation } from '../../systems/marketDynamics.js';
+export { Technology } from '../../systems/technology.js';
+export { Titles } from '../../systems/titles.js';
+export { Quests } from '../../systems/quests.js';
+export { Terrain } from '../../world/terrain.js';
+export { Kingdom } from '../../world/kingdom.js';
+export { NPCLords } from '../../world/npcLords.js';
+export { Peoples } from '../../systems/peoples.js';
+export { LegendaryArtifacts } from '../../systems/legendaryArtifacts.js';
+export { BountyHunting } from '../../systems/bountyHunting.js';
+export { Religion } from '../../systems/religion.js';
+export { Espionage } from '../../systems/espionage.js';
+export { Infrastructure } from '../../systems/infrastructure.js';
+export { Tavern } from '../../player/tavern.js';
+export { Ships } from '../../systems/ships.js';
+export { Housing } from '../../systems/housing.js';
+export { Cartography } from '../../systems/cartography.js';
+export { Colonization } from '../../world/colonization.js';
+export { Relationships } from '../../systems/relationships.js';
+export { Councils } from '../../systems/councils.js';
+export { SaveLoad } from '../../systems/saveLoad.js';
+export { Economy } from '../../world/economy.js';
+export { DataLoader } from '../../core/dataLoader.js';

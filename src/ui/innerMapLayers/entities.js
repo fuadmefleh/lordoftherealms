@@ -551,19 +551,24 @@ Object.assign(InnerMapRenderer, {
                                 if (alpha < 1.0) ctx.globalAlpha = alpha;
                             }
 
-                            // Anchor-relative positioning: compute anchor once,
-                            // offset each tile by integer cs to prevent sub-pixel seams
+                            // Anchor-relative positioning: keep the anchor as a
+                            // fractional screen coord and place each sub-tile on the
+                            // true grid (spacing = ds), flooring per tile. Stepping by
+                            // the integer cs instead would make sub-tiles snap relative
+                            // to the terrain whenever ds crosses an integer during the
+                            // zoom lerp — the visible jitter. Size stays cs so adjacent
+                            // tiles still overlap a pixel and show no seams.
                             const anchorScreen = camera.worldToScreenFast(oq * T, or2 * T);
-                            const ax = Math.floor(anchorScreen.x);
-                            const ay = Math.floor(anchorScreen.y);
+                            const ax = anchorScreen.x;
+                            const ay = anchorScreen.y;
 
                             // Resolve tile set based on current health (supports damage stages)
                             const activeTiles = self._getActiveObjectTiles(def, customObjRef);
                             for (const td of activeTiles) {
                                 const img = td.sheetPath ? CustomObjects.getImage(td.sheetPath) : singleImg;
                                 if (!img || !img.complete) continue;
-                                const tdx = ax + td.localCol * cs + shakeX;
-                                const tdy = ay + td.localRow * cs + shakeY;
+                                const tdx = Math.floor(ax + td.localCol * ds) + shakeX;
+                                const tdy = Math.floor(ay + td.localRow * ds) + shakeY;
                                 if (tdx + cs < 0 || tdx > ctx.canvas.width + cs) continue;
                                 if (tdy + cs < 0 || tdy > ctx.canvas.height + cs) continue;
                                 ctx.drawImage(img, td.sx, td.sy, td.sw, td.sh, tdx, tdy, cs, cs);

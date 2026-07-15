@@ -11,7 +11,7 @@
 <script src="editor-ui.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0d1117;--panel:#161b22;--panel2:#1c2129;--border:#21262d;--border2:#30363d;--text:#c9d1d9;--text-dim:#8b949e;--blue:#58a6ff;--green:#3fb950;--red:#f85149;--gold:#e6a817;--purple:#a371f7;--hover:#1c2129}
+/* Design tokens live in the shared editor-ui.css (:root:root). */
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px}
 button{background:#21262d;border:1px solid var(--border2);color:var(--text);padding:4px 10px;border-radius:5px;cursor:pointer;font-size:12px;transition:background .12s,border-color .12s}
 button:hover{background:#2d333b;border-color:#484f58}
@@ -3088,41 +3088,10 @@ let toastTimer = null;
  * @param {string} placeholder
  * @param {string} [defaultVal]
  */
+// Thin delegators to the shared EditorUI dialog system (editor-ui.js).
+// Signatures preserved so existing call sites are unchanged.
 function modalPrompt(title, placeholder, defaultVal = '') {
-    return new Promise(resolve => {
-        const ov = document.createElement('div');
-        ov.className = 'te-modal-overlay';
-        const box = document.createElement('div');
-        box.className = 'te-modal';
-        box.innerHTML = `<h3>${title}</h3>`;
-        const inp = document.createElement('input');
-        inp.type = 'text';
-        inp.placeholder = placeholder;
-        inp.value = defaultVal;
-        box.appendChild(inp);
-        const btns = document.createElement('div');
-        btns.className = 'te-modal-btns';
-        const cancel = document.createElement('button');
-        cancel.textContent = 'Cancel';
-        const ok = document.createElement('button');
-        ok.className = 'primary';
-        ok.textContent = 'OK';
-        btns.appendChild(cancel);
-        btns.appendChild(ok);
-        box.appendChild(btns);
-        ov.appendChild(box);
-        document.body.appendChild(ov);
-        inp.focus();
-        inp.select();
-        const close = val => { ov.remove(); resolve(val); };
-        ok.onclick = () => close(inp.value);
-        cancel.onclick = () => close(null);
-        ov.addEventListener('mousedown', e => { if (e.target === ov) close(null); });
-        inp.addEventListener('keydown', e => {
-            if (e.key === 'Enter') close(inp.value);
-            if (e.key === 'Escape') close(null);
-        });
-    });
+    return EditorUI.prompt('', { title, placeholder, value: defaultVal });
 }
 
 /**
@@ -3131,59 +3100,9 @@ function modalPrompt(title, placeholder, defaultVal = '') {
  * @param {{key:string,label:string,placeholder?:string,defaultVal?:string}[]} fields
  */
 function modalMultiPrompt(title, fields) {
-    return new Promise(resolve => {
-        const ov = document.createElement('div');
-        ov.className = 'te-modal-overlay';
-        const box = document.createElement('div');
-        box.className = 'te-modal';
-        box.innerHTML = `<h3>${title}</h3>`;
-        const inputs = {};
-        for (const f of fields) {
-            const row = document.createElement('div');
-            row.className = 'te-modal-row';
-            const lbl = document.createElement('label');
-            lbl.textContent = f.label;
-            const inp = document.createElement('input');
-            inp.type = f.type || 'text';
-            inp.placeholder = f.placeholder || '';
-            inp.value = f.defaultVal || '';
-            inputs[f.key] = inp;
-            row.appendChild(lbl);
-            row.appendChild(inp);
-            box.appendChild(row);
-        }
-        const spacer = document.createElement('div');
-        spacer.style.height = '8px';
-        box.appendChild(spacer);
-        const btns = document.createElement('div');
-        btns.className = 'te-modal-btns';
-        const cancel = document.createElement('button');
-        cancel.textContent = 'Cancel';
-        const ok = document.createElement('button');
-        ok.className = 'primary';
-        ok.textContent = 'OK';
-        btns.appendChild(cancel);
-        btns.appendChild(ok);
-        box.appendChild(btns);
-        ov.appendChild(box);
-        document.body.appendChild(ov);
-        const firstInp = inputs[fields[0].key];
-        if (firstInp) { firstInp.focus(); firstInp.select(); }
-        const close = val => { ov.remove(); resolve(val); };
-        ok.onclick = () => {
-            const result = {};
-            for (const f of fields) result[f.key] = inputs[f.key].value;
-            close(result);
-        };
-        cancel.onclick = () => close(null);
-        ov.addEventListener('mousedown', e => { if (e.target === ov) close(null); });
-        // Enter on last field submits
-        const lastInp = inputs[fields[fields.length - 1].key];
-        if (lastInp) lastInp.addEventListener('keydown', e => {
-            if (e.key === 'Enter') ok.click();
-            if (e.key === 'Escape') close(null);
-        });
-    });
+    return EditorUI.form(title, fields.map(f => ({
+        key: f.key, label: f.label, type: f.type, placeholder: f.placeholder, value: f.defaultVal,
+    })));
 }
 
 /**
@@ -3194,42 +3113,11 @@ function modalMultiPrompt(title, fields) {
  * @param {boolean} [opts.danger]  — red confirm button
  */
 function modalConfirm(title, message, opts = {}) {
-    return new Promise(resolve => {
-        const ov = document.createElement('div');
-        ov.className = 'te-modal-overlay';
-        const box = document.createElement('div');
-        box.className = 'te-modal';
-        box.innerHTML = `<h3>${title}</h3><p>${message}</p>`;
-        const btns = document.createElement('div');
-        btns.className = 'te-modal-btns';
-        const cancel = document.createElement('button');
-        cancel.textContent = 'Cancel';
-        const ok = document.createElement('button');
-        ok.className = opts.danger ? 'danger' : 'primary';
-        ok.textContent = opts.danger ? 'Delete' : 'Confirm';
-        btns.appendChild(cancel);
-        btns.appendChild(ok);
-        box.appendChild(btns);
-        ov.appendChild(box);
-        document.body.appendChild(ov);
-        ok.focus();
-        const close = val => { ov.remove(); resolve(val); };
-        ok.onclick = () => close(true);
-        cancel.onclick = () => close(false);
-        ov.addEventListener('mousedown', e => { if (e.target === ov) close(false); });
-        box.addEventListener('keydown', e => {
-            if (e.key === 'Escape') close(false);
-            if (e.key === 'Enter') close(true);
-        });
-    });
+    return EditorUI.confirm(message, { title, danger: !!opts.danger });
 }
 
 function toast(msg, type = '') {
-    const el = document.getElementById('toast');
-    el.textContent = msg;
-    el.className = `show ${type}`;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.className = type; }, 2400);
+    EditorUI.toast(msg, { type });
 }
 
 

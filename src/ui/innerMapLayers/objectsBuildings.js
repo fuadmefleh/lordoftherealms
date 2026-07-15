@@ -227,16 +227,20 @@ Object.assign(InnerMapRenderer, {
     _drawCustomBuilding(ctx, camera, def, anchorQ, anchorR, ds) {
         const T  = this.TILE_SIZE;
         const cs = Math.ceil(ds) + 1;
+        // Keep the anchor fractional and place each cell on the true grid
+        // (spacing = ds), flooring per cell. Stepping by the integer cs would make
+        // cells snap relative to the terrain when ds crosses an integer during the
+        // zoom lerp — the visible jitter. Size stays cs so cells overlap a pixel.
         const screen = camera.worldToScreenFast(anchorQ * T, anchorR * T);
-        const ax = Math.floor(screen.x);
-        const ay = Math.floor(screen.y);
+        const ax = screen.x;
+        const ay = screen.y;
 
         for (const lyrName of ['floor', 'walls', 'roof', 'overlay']) {
             const lyrArr = def.layers[lyrName];
             if (!lyrArr || !lyrArr.length) continue;
             for (const cell of lyrArr) {
-                const x = ax + cell.q * cs;
-                const y = ay + cell.r * cs;
+                const x = Math.floor(ax + cell.q * ds);
+                const y = Math.floor(ay + cell.r * ds);
                 if (x + cs < 0 || x > ctx.canvas.width  + cs) continue;
                 if (y + cs < 0 || y > ctx.canvas.height + cs) continue;
                 const img = CustomBuildings.getImg(cell.sheetPath);
@@ -244,7 +248,7 @@ Object.assign(InnerMapRenderer, {
                 ctx.imageSmoothingEnabled = false;
                 ctx.drawImage(img,
                     cell.sx, cell.sy, cell.sw || 32, cell.sh || 32,
-                    Math.floor(x), Math.floor(y), cs, cs);
+                    x, y, cs, cs);
             }
         }
     },

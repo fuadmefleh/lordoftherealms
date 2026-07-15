@@ -11,7 +11,7 @@
 <script src="editor-ui.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0d1117;--panel:#161b22;--border:#21262d;--border2:#30363d;--text:#c9d1d9;--text-dim:#8b949e;--blue:#58a6ff;--green:#3fb950;--red:#f85149;--gold:#e6a817;--hover:#1c2129}
+/* Design tokens live in the shared editor-ui.css (:root:root). */
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
 
 /* ── Toolbar ── */
@@ -1693,10 +1693,10 @@ function toggleVis(l) {
 // ═══════════════════════════════════════════════════════════════
 //  GRID RESIZE
 // ═══════════════════════════════════════════════════════════════
-function resizeGrid() {
+async function resizeGrid() {
     const nw = Math.max(1, Math.min(64, parseInt(document.getElementById('grid-w').value) || gridW));
     const nh = Math.max(1, Math.min(64, parseInt(document.getElementById('grid-h').value) || gridH));
-    if (!confirm(`Resize to ${nw}×${nh}? Tiles outside the new bounds will be removed.`)) return;
+    if (!await EditorUI.confirm(`Resize to ${nw}×${nh}? Tiles outside the new bounds will be removed.`, { title: 'Resize Grid' })) return;
     pushUndo();
     gridW = nw; gridH = nh;
     const clipStore = store => { for (const key of Object.keys(store)) { const [q, r] = key.split(',').map(Number); if (q >= gridW || r >= gridH) delete store[key]; } };
@@ -1718,7 +1718,7 @@ function autofitGrid() {
     }
     for (const k of Object.keys(meta)) keys.add(k);
 
-    if (!keys.size) { alert('Nothing on the canvas to fit.'); return; }
+    if (!keys.size) { EditorUI.toast('Nothing on the canvas to fit.', { type: 'err' }); return; }
 
     let minQ = Infinity, minR = Infinity, maxQ = -Infinity, maxR = -Infinity;
     for (const k of keys) {
@@ -1736,7 +1736,7 @@ function autofitGrid() {
     const newH = maxR - minR + 1;
 
     if (newW === gridW && newH === gridH && newMinQ === 0 && newMinR === 0) {
-        alert('Grid already fits the content.'); return;
+        EditorUI.toast('Grid already fits the content.'); return;
     }
 
     pushUndo();
@@ -2310,7 +2310,7 @@ function newBuilding() {
 
 function saveBuilding() {
     const name = document.getElementById('bld-name').value.trim();
-    if (!name) { alert('Enter a building name.'); document.getElementById('bld-name').focus(); return; }
+    if (!name) { EditorUI.toast('Enter a building name.', { type: 'err' }); document.getElementById('bld-name').focus(); return; }
     const b = {
         id: slugify(name), name,
         buildingType: document.getElementById('bld-type').value,
@@ -2345,8 +2345,8 @@ function loadBuilding(index) {
     Promise.all([...paths].map(loadImage)).then(() => { fitCanvas(); });
 }
 
-function deleteBuilding(index) {
-    if (!confirm(`Delete "${buildings[index].name}"?`)) return;
+async function deleteBuilding(index) {
+    if (!await EditorUI.confirm(`Delete "${buildings[index].name}"?`, { title: 'Delete Building', danger: true })) return;
     buildings.splice(index, 1);
     if (buildingEditIdx === index) { buildingEditIdx = -1; clearAll(true); }
     else if (buildingEditIdx > index) buildingEditIdx--;
@@ -2479,7 +2479,7 @@ function setSelectedTerrains(arr) { _selectedTerrains = new Set(arr || []); rend
 function addHealthStateFromCanvas() {
     const allEmpty = ['base','detail','top'].every(ln => Object.keys(objLayers[ln]).length === 0);
     if (allEmpty) {
-        alert('Paint tiles on the canvas for this health state first, then capture.');
+        EditorUI.toast('Paint tiles on the canvas for this health state first, then capture.', { type: 'err' });
         return;
     }
     const label  = document.getElementById('hs-label').value.trim() || ('State ' + (_objHealthStates.length + 1));
@@ -2523,7 +2523,7 @@ function refreshHealthStatesList() {
 function captureSeasonVariant() {
     const allEmpty = ['base','detail','top'].every(ln => Object.keys(objLayers[ln]).length === 0);
     if (allEmpty) {
-        alert('Paint tiles on the canvas for this season first, then capture.');
+        EditorUI.toast('Paint tiles on the canvas for this season first, then capture.', { type: 'err' });
         return;
     }
     const season = document.getElementById('sv-season').value;
@@ -2588,7 +2588,7 @@ function loadSeasonVariantToCanvas(season) {
 function addGrowthStateFromCanvas() {
     const allEmpty = ['base','detail','top'].every(ln => Object.keys(objLayers[ln]).length === 0);
     if (allEmpty) {
-        alert('Paint tiles on the canvas for this growth stage first, then capture.');
+        EditorUI.toast('Paint tiles on the canvas for this growth stage first, then capture.', { type: 'err' });
         return;
     }
     const label = document.getElementById('gs-label').value.trim() || ('Stage ' + (_objGrowthStates.length + 1));
@@ -2653,7 +2653,7 @@ function loadGrowthStateToCanvas(index) {
 function addRotationVariantFromCanvas() {
     const allEmpty = ['base','detail','top'].every(ln => Object.keys(objLayers[ln]).length === 0);
     if (allEmpty) {
-        alert('Paint tiles on the canvas for this rotation first, then capture.');
+        EditorUI.toast('Paint tiles on the canvas for this rotation first, then capture.', { type: 'err' });
         return;
     }
     const label = document.getElementById('rv-label').value.trim() || ('Rotation ' + (_objRotationVariants.length + 1));
@@ -2680,7 +2680,7 @@ function recaptureRotationVariant(index) {
     if (!rv) return;
     const allEmpty = ['base','detail','top'].every(ln => Object.keys(objLayers[ln]).length === 0);
     if (allEmpty) {
-        alert('Paint tiles on the canvas first, then re-capture.');
+        EditorUI.toast('Paint tiles on the canvas first, then re-capture.', { type: 'err' });
         return;
     }
     rv.objLayers = JSON.parse(JSON.stringify(objLayers));
@@ -2764,7 +2764,7 @@ function loadRotationVariantToCanvas(index) {
 function addColorVariantFromCanvas() {
     const allEmpty = ['base','detail','top'].every(ln => Object.keys(objLayers[ln]).length === 0);
     if (allEmpty) {
-        alert('Paint tiles on the canvas for this variant first, then capture.');
+        EditorUI.toast('Paint tiles on the canvas for this variant first, then capture.', { type: 'err' });
         return;
     }
     const label = document.getElementById('cv-label').value.trim() || ('Variant ' + (_objColorVariants.length + 1));
@@ -2793,7 +2793,7 @@ function recaptureColorVariant(index) {
     if (!cv) return;
     const allEmpty = ['base','detail','top'].every(ln => Object.keys(objLayers[ln]).length === 0);
     if (allEmpty) {
-        alert('Paint tiles on the canvas first, then re-capture.');
+        EditorUI.toast('Paint tiles on the canvas first, then re-capture.', { type: 'err' });
         return;
     }
     cv.objLayers = JSON.parse(JSON.stringify(objLayers));
@@ -3064,11 +3064,11 @@ function newObject() {
 
 function saveObject() {
     const name = document.getElementById('obj-name').value.trim();
-    if (!name) { alert('Enter an object name.'); document.getElementById('obj-name').focus(); return; }
+    if (!name) { EditorUI.toast('Enter an object name.', { type: 'err' }); document.getElementById('obj-name').focus(); return; }
     // Collect all tile keys across all layers
     const allKeys = new Set();
     for (const ln of ['base','detail','top']) for (const k of Object.keys(objLayers[ln])) allKeys.add(k);
-    if (!allKeys.size) { alert('Paint at least one tile.'); return; }
+    if (!allKeys.size) { EditorUI.toast('Paint at least one tile.', { type: 'err' }); return; }
     let minQ=Infinity, minR=Infinity, maxQ=-Infinity, maxR=-Infinity;
     for (const key of allKeys) { const [q, r] = key.split(',').map(Number); if (q<minQ) minQ=q; if (q>maxQ) maxQ=q; if (r<minR) minR=r; if (r>maxR) maxR=r; }
     const animation = document.getElementById('obj-animation').value;
@@ -3308,8 +3308,8 @@ function loadObject(index) {
     Promise.all([...paths].map(loadImage)).then(() => { renderBuildCanvas(); });
 }
 
-function deleteObject(index) {
-    if (!confirm(`Delete "${objDefs[index].name}"?`)) return;
+async function deleteObject(index) {
+    if (!await EditorUI.confirm(`Delete "${objDefs[index].name}"?`, { title: 'Delete Object', danger: true })) return;
     objDefs.splice(index, 1);
     if (objEditIdx === index) { objEditIdx = -1; clearAll(true); }
     else if (objEditIdx > index) objEditIdx--;
@@ -3457,8 +3457,8 @@ function refreshObjectList() {
 // ═══════════════════════════════════════════════════════════════
 //  UNIFIED NEW / SAVE / LIBRARY
 // ═══════════════════════════════════════════════════════════════
-function newItem() {
-    if (!confirm('Start new? Unsaved changes will be lost.')) return;
+async function newItem() {
+    if (!await EditorUI.confirm('Start new? Unsaved changes will be lost.', { title: 'New Item' })) return;
     if (editorMode === 'building') newBuilding(); else newObject();
 }
 
@@ -3490,7 +3490,7 @@ function openInteriorForBuilding(index) {
       buildingHeight: b.height,
     }, '*');
   } catch(e) {
-    alert('Interior editing requires the parent Editor hub (editor.html).');
+    EditorUI.toast('Interior editing requires the parent Editor hub (editor.html).', { type: 'err' });
   }
 }
 
@@ -3581,17 +3581,17 @@ function setCatalogTab(mode) {
 // ═══════════════════════════════════════════════════════════════
 //  CLEAR
 // ═══════════════════════════════════════════════════════════════
-function clearLayer(ask = true) {
+async function clearLayer(ask = true) {
     const layerName = editorMode === 'building' ? activeLayer : activeObjLayer;
-    if (ask && !confirm(`Clear the ${layerName} layer?`)) return;
+    if (ask && !await EditorUI.confirm(`Clear the ${layerName} layer?`, { title: 'Clear Layer' })) return;
     pushUndo();
     if (editorMode === 'building') layers[activeLayer] = {};
     else objLayers[activeObjLayer] = {};
     renderBuildCanvas();
 }
 
-function clearAll(skip = false) {
-    if (!skip && !confirm('Clear all tiles and meta?')) return;
+async function clearAll(skip = false) {
+    if (!skip && !await EditorUI.confirm('Clear all tiles and meta?', { title: 'Clear All', danger: true })) return;
     pushUndo();
     if (editorMode === 'building') layers = { floor:{}, walls:{}, roof:{}, overlay:{} };
     else objLayers = { base:{}, detail:{}, top:{} };
@@ -3607,22 +3607,20 @@ function exportAllJSON() {
     else exportObjects();
 }
 
-function exportBuildings() {
-    if (!buildings.length) { alert('Save at least one building first.'); return; }
-    let fname = prompt('Export filename:', 'buildings.json');
+async function exportBuildings() {
+    if (!buildings.length) { EditorUI.toast('Save at least one building first.', { type: 'err' }); return; }
+    let fname = await EditorUI.prompt('Export filename:', { title: 'Export Buildings', value: 'buildings.json' });
     if (!fname) return;
     fname = fname.trim().replace(/[/\\]/g,'_');
     if (!fname.endsWith('.json')) fname += '.json';
     const exported = buildings.map(b => _exportBuilding(b));
     downloadJSON(exported, fname);
-    setTimeout(() => alert(
-        `✅  Exported "${fname}"\n\nPlace it in data/ as buildings.json and run build:data,\nor import it via the editor.`
-    ), 200);
+    EditorUI.toast(`Exported "${fname}" — place in data/ as buildings.json`, { type: 'ok', duration: 4000 });
 }
 
-function exportObjects() {
-    if (!objDefs.length) { alert('Save at least one object first.'); return; }
-    let fname = prompt('Export filename:', 'objects.json');
+async function exportObjects() {
+    if (!objDefs.length) { EditorUI.toast('Save at least one object first.', { type: 'err' }); return; }
+    let fname = await EditorUI.prompt('Export filename:', { title: 'Export Objects', value: 'objects.json' });
     if (!fname) return;
     fname = fname.trim().replace(/[/\\]/g,'_');
     if (!fname.endsWith('.json')) fname += '.json';
@@ -3789,9 +3787,7 @@ function exportObjects() {
         };
     });
     downloadJSON(exported, fname);
-    setTimeout(() => alert(
-        `✅  Exported "${fname}"\n\nPlace it in data/ as objects.json and run build:data,\nor import it via the editor.`
-    ), 200);
+    EditorUI.toast(`Exported "${fname}" — place in data/ as objects.json`, { type: 'ok', duration: 4000 });
 }
 
 function downloadJSON(data, fname) {
@@ -3827,7 +3823,7 @@ function onImport(e) {
                             if (Array.isArray(fileData.buildings)) bArr.push(...fileData.buildings);
                         }
                     }
-                    if (!bArr.length) { alert('No building data found.'); e.target.value = ''; return; }
+                    if (!bArr.length) { EditorUI.toast('No building data found.', { type: 'err' }); e.target.value = ''; return; }
                     data = { buildings: bArr };
                 } else {
                     let oArr = [];
@@ -3837,7 +3833,7 @@ function onImport(e) {
                             if (fileData.composed && Array.isArray(fileData.objects)) oArr.push(...fileData.objects);
                         }
                     }
-                    if (!oArr.length) { alert('No object data found.'); e.target.value = ''; return; }
+                    if (!oArr.length) { EditorUI.toast('No object data found.', { type: 'err' }); e.target.value = ''; return; }
                     data = { objects: oArr };
                 }
             }
@@ -3863,7 +3859,7 @@ function onImport(e) {
                 buildings = imported; buildingEditIdx = -1;
                 refreshBuildingList();
                 if (buildings.length) loadBuilding(0);
-                alert(`Imported ${buildings.length} building(s).`);
+                EditorUI.toast(`Imported ${buildings.length} building(s).`, { type: 'ok' });
                 e.target.value = ''; return;
             }
 
@@ -3948,7 +3944,7 @@ function onImport(e) {
                 objDefs = imported; objEditIdx = -1;
                 refreshObjectList();
                 if (objDefs.length) loadObject(0);
-                alert(`Imported ${objDefs.length} object(s).`);
+                EditorUI.toast(`Imported ${objDefs.length} object(s).`, { type: 'ok' });
                 e.target.value = ''; return;
             }
 
@@ -3978,12 +3974,12 @@ function onImport(e) {
                 objDefs = imported; objEditIdx = -1;
                 refreshObjectList();
                 if (objDefs.length) loadObject(0);
-                alert(`Imported ${objDefs.length} object(s) from sheet format.`);
+                EditorUI.toast(`Imported ${objDefs.length} object(s) from sheet format.`, { type: 'ok' });
                 e.target.value = ''; return;
             }
 
-            alert('Unrecognized format.');
-        } catch(err) { alert('Import failed: ' + err.message); }
+            EditorUI.toast('Unrecognized format.', { type: 'err' });
+        } catch(err) { EditorUI.toast('Import failed: ' + err.message, { type: 'err' }); }
     };
     reader.readAsText(file);
     e.target.value = '';
@@ -4463,12 +4459,12 @@ function _tb_autoDetectLPC(sheetPath) {
 }
 
 function tbrush_autoAssign() {
-    if (_tbrush_selSet < 0) { alert('Select a terrain set first.'); return; }
+    if (_tbrush_selSet < 0) { EditorUI.toast('Select a terrain set first.', { type: 'err' }); return; }
     const tset = _tbrush_sets[_tbrush_selSet];
-    if (tset.type !== 'corner') { alert('Auto-detect only works for Corner sets (the standard LPC layout).'); return; }
+    if (tset.type !== 'corner') { EditorUI.toast('Auto-detect only works for Corner sets (the standard LPC layout).', { type: 'err' }); return; }
 
     const terrainSheets = PALETTE_DATA['Terrain'] || [];
-    if (!terrainSheets.length) { alert('No terrain sheets found.'); return; }
+    if (!terrainSheets.length) { EditorUI.toast('No terrain sheets found.', { type: 'err' }); return; }
 
     const sheet = terrainSheets[0]; // terrain_spring.png
     const mappings = _tb_autoDetectLPC(sheet);
@@ -4477,7 +4473,7 @@ function tbrush_autoAssign() {
     }
     tbrush_refreshUI();
     _tbrush_updatePaletteOverlays();
-    alert(`Auto-assigned ${mappings.length} patterns from ${sheet.split('/').pop()}`);
+    EditorUI.toast(`Auto-assigned ${mappings.length} patterns from ${sheet.split('/').pop()}`, { type: 'ok' });
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -4925,9 +4921,9 @@ function tbrush_addSet() {
     tbrush_selectSet(_tbrush_sets.length - 1);
 }
 
-function tbrush_removeSet() {
+async function tbrush_removeSet() {
     if (_tbrush_selSet < 0) return;
-    if (!confirm(`Delete terrain set "${_tbrush_sets[_tbrush_selSet].name}"?`)) return;
+    if (!await EditorUI.confirm(`Delete terrain set "${_tbrush_sets[_tbrush_selSet].name}"?`, { title: 'Delete Terrain Set', danger: true })) return;
     _tbrush_sets.splice(_tbrush_selSet, 1);
     _tbrush_selSet = Math.min(_tbrush_selSet, _tbrush_sets.length - 1);
     _tbrush_selTerrain = -1;

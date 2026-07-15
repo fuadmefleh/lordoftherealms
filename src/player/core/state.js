@@ -145,6 +145,10 @@ export class Player {
         this.birthDay = 0;
         this.marriageDay = null;
 
+        // The House — persistent dynasty entity (systems/house.js).
+        // Populated by House.initialize() during game setup; null until then.
+        this.house = null;
+
         // Visuals
         this.color = '#ffffff';
         this.icon = '👤';

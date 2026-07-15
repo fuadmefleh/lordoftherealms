@@ -2,7 +2,7 @@
 // GAME SETUP � audio controls, title screen, randomize settings, startNewGame
 // ============================================
 
-import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog } from './_gameImports.js';
+import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog } from './_gameImports.js';
 
 export function _setupAudioControls() {
     const btn = document.getElementById('btnAudioToggle');
@@ -461,6 +461,11 @@ export async function _doStartNewGame(settingsOverride) {
     // Initialize relationships system
     if (typeof Relationships !== 'undefined') {
         Relationships.initialize(this.player);
+    }
+
+    // Initialize the House (dynasty spine) — after relationships so family exists
+    if (typeof House !== 'undefined') {
+        House.initialize(this.player, this.world);
     }
 
     // Initialize player's tax rate

@@ -34,6 +34,7 @@ export { PlayerEconomy } from '../../player/playerEconomy.js';
 export { PlayerMilitary } from '../../player/playerMilitary.js';
 export { ActionMenu } from '../actionMenu.js';
 export { Housing } from '../../systems/housing.js';
+export { House } from '../../systems/house.js';
 export { Espionage } from '../../systems/espionage.js';
 export { Gossip } from '../../systems/gossip.js';
 export { Tavern } from '../../player/tavern.js';

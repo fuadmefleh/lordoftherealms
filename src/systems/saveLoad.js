@@ -3,6 +3,7 @@
 // ============================================
 
 import { Characters } from '../world/characters.js';
+import { House } from './house.js';
 import { Titles } from './titles.js';
 import { Espionage } from './espionage.js';
 import { Festivals } from './festivals.js';
@@ -234,6 +235,7 @@ export const SaveLoad = {
             relationships: player.relationships || {},
             travelParty: player.travelParty || [],
             heir: player.heir || null,
+            house: (typeof House !== 'undefined') ? House.serialize(player.house) : (player.house || null),
             maxLifespan: player.maxLifespan || 70,
             birthDay: player.birthDay || 0,
             marriageDay: player.marriageDay || null,
@@ -336,6 +338,11 @@ export const SaveLoad = {
             const parts = player.name.split(' ');
             player.firstName = parts[0] || 'Wanderer';
             player.lastName = parts.slice(1).join(' ') || '';
+        }
+
+        // Restore the House (backfills a blank for legacy saves without one)
+        if (typeof House !== 'undefined') {
+            House.deserialize(player, null, saveData.house);
         }
 
         // Restore title progress (convert Arrays back to Sets)

@@ -1,0 +1,932 @@
+// UI — panels methods.
+import { UI } from './core.js';
+import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing } from './_imports.js';
+
+Object.assign(UI.prototype, {
+    /**
+     * Toggle character panel
+     */
+    toggleCharacterPanel() {
+        const panel = document.getElementById('characterPanel');
+        if (panel.classList.contains('hidden')) {
+            this.showCharacterPanel();
+        } else {
+            this.hidePanel('characterPanel');
+        }
+    },
+
+    /**
+     * Show character panel
+     */
+    showCharacterPanel() {
+        const player = this.game.player;
+        const body = document.getElementById('characterBody');
+
+        let skillsHtml = '';
+        for (const [skill, level] of Object.entries(player.skills)) {
+            const barWidth = (level / 10) * 100;
+            skillsHtml += `
+                <div class="info-row">
+                    <span class="info-label">${skill.charAt(0).toUpperCase() + skill.slice(1)}</span>
+                    <span class="info-value">
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <div style="width:60px; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
+                                <div style="width:${barWidth}%; height:100%; background:var(--gold); border-radius:3px;"></div>
+                            </div>
+                            <span>${level}</span>
+                        </div>
+                    </span>
+                </div>
+            `;
+        }
+
+        body.innerHTML = `
+            <div style="text-align:center; margin-bottom:16px;">
+                <div style="font-size:48px; margin-bottom:8px;">👤</div>
+                <div style="font-family:var(--font-display); font-size:20px; color:var(--gold);">${player.name}</div>
+                <div style="font-size:12px; color:var(--text-secondary);">${player.title}</div>
+            </div>
+
+            <div class="info-section-title">Vitals</div>
+            <div class="info-row">
+                <span class="info-label">❤️ Health</span>
+                <span class="info-value">${player.health} / ${player.maxHealth}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">⚡ Stamina</span>
+                <span class="info-value">${player.movementRemaining} / ${player.maxStamina}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">🎯 Action Points</span>
+                <span class="info-value">${player.actionPoints != null ? player.actionPoints : 10} / ${player.maxActionPoints || 10}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">💰 Gold</span>
+                <span class="info-value">${Utils.formatNumber(player.gold)}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">☯ Karma</span>
+                <span class="info-value">${player.karma}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">⭐ Renown</span>
+                <span class="info-value">${player.renown}</span>
+            </div>
+
+            <div class="info-section-title">Attributes</div>
+            <div class="info-row">
+                <span class="info-label">💪 Strength</span>
+                <span class="info-value">${player.strength}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">💬 Charisma</span>
+                <span class="info-value">${player.charisma}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">🧠 Intelligence</span>
+                <span class="info-value">${player.intelligence}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">🙏 Faith</span>
+                <span class="info-value">${player.faith}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">🍀 Luck</span>
+                <span class="info-value">${player.luck}</span>
+            </div>
+            ${player.soulSoldCount ? `
+            <div class="info-row" style="color: #e74c3c;">
+                <span class="info-label">🔥 Soul</span>
+                <span class="info-value">Sold ×${player.soulSoldCount}</span>
+            </div>` : ''}
+            ${player.indenturedServitude ? `
+            <div class="info-row" style="color: #e67e22;">
+                <span class="info-label">⛓️ Servitude</span>
+                <span class="info-value">${player.indenturedServitude.daysRemaining} days under ${player.indenturedServitude.captor}</span>
+            </div>` : ''}
+            ${player.jailState ? `
+            <div class="info-row" style="color: #e74c3c;">
+                <span class="info-label">🔒 Jail</span>
+                <span class="info-value">${player.jailState.daysRemaining} days (${player.jailState.offense} #${player.jailState.offenseNumber})</span>
+            </div>` : ''}
+            ${player.currentTitle && typeof Titles !== 'undefined' ? (() => {
+                const titleDef = Titles.getActiveTitle(player);
+                const dutyInfo = Titles.getDutyProgress(player);
+                if (!titleDef) return '';
+                return `
+                <div class="info-section-title">Royal Office</div>
+                <div class="info-row">
+                    <span class="info-label">${titleDef.icon || '🏅'} Title</span>
+                    <span class="info-value" style="color:#ffd700;">${titleDef.name}</span>
+                </div>
+                ${dutyInfo ? `<div class="info-row">
+                    <span class="info-label">📋 Duties</span>
+                    <span class="info-value">${dutyInfo.progress}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">⏰ Deadline</span>
+                    <span class="info-value" style="color:${dutyInfo.daysLeft <= 5 ? '#f44336' : '#aaa'};">${dutyInfo.daysLeft} days</span>
+                </div>` : ''}
+                <div class="info-row">
+                    <span class="info-label">💰 Salary</span>
+                    <span class="info-value">${titleDef.salary} gold/day</span>
+                </div>`;
+            })() : ''}
+            ${player.criminalRecord && (player.criminalRecord.pickpocket > 0 || player.criminalRecord.smuggling > 0) ? `
+            <div class="info-row" style="color: #e67e22;">
+                <span class="info-label">📋 Record</span>
+                <span class="info-value">${player.criminalRecord.pickpocket > 0 ? 'Pickpocket ×' + player.criminalRecord.pickpocket : ''}${player.criminalRecord.pickpocket > 0 && player.criminalRecord.smuggling > 0 ? ', ' : ''}${player.criminalRecord.smuggling > 0 ? 'Smuggling ×' + player.criminalRecord.smuggling : ''}</span>
+            </div>` : ''}
+
+            <div class="info-section-title">Skills</div>
+            ${skillsHtml}
+        `;
+
+        this.showPanel('characterPanel');
+    },
+
+    /**
+     * Show the Dynasties & Characters overview panel
+     */
+    showDynastiesPanel() {
+        if (!this.game.world || typeof Characters === 'undefined') return;
+
+        const player = this.game.player;
+        let html = '';
+
+        for (const kingdom of this.game.world.kingdoms) {
+            if (!kingdom.isAlive) continue;
+            const cd = kingdom.characterData;
+            if (!cd) continue;
+
+            const ruler = cd.ruler;
+            if (!ruler || !ruler.isAlive) continue;
+
+            // Gate behind ruler knowledge
+            if (!player.knowsAbout(kingdom.id, 'ruler')) {
+                html += `
+                    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-left:3px solid ${kingdom.color};border-radius:6px;padding:12px;margin-bottom:10px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                            <span style="font-family:var(--font-display);color:var(--gold);font-size:14px;">
+                                ${kingdom.name}
+                            </span>
+                        </div>
+                        <div style="color: #95a5a6; font-style: italic; font-size: 12px;">You know nothing of this kingdom's ruling dynasty. Visit their settlements, speak with locals, or meet their lord to learn more.</div>
+                    </div>
+                `;
+                continue;
+            }
+
+            // Trait badges
+            const traitBadges = ruler.traits.map(t => {
+                const colorMap = { positive: '#27ae60', negative: '#c0392b', neutral: '#f1c40f' };
+                const col = colorMap[t.category] || '#9a8e7e';
+                return `<span style="background:${col}22;color:${col};padding:1px 5px;border-radius:3px;font-size:10px;" title="${t.description}">${t.icon||''} ${t.name}</span>`;
+            }).join(' ');
+
+            // Heirs count
+            const livingHeirs = cd.children ? cd.children.filter(c => c.isAlive && c.age >= 16).length : 0;
+            const totalChildren = cd.children ? cd.children.filter(c => c.isAlive).length : 0;
+
+            // Advisor summary
+            let advisorSummary = '';
+            if (cd.advisors) {
+                const advisorLines = Object.entries(cd.advisors).map(([roleId, adv]) => {
+                    if (!adv) return '';
+                    const role = Characters.ADVISOR_ROLES[roleId];
+                    const loyColor = adv.loyalty > 60 ? '#27ae60' : adv.loyalty > 30 ? '#f39c12' : '#c0392b';
+                    return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;">
+                        <span>${role.icon} ${role.name}: ${Characters.getFullName(adv)}</span>
+                        <span style="color:${loyColor}">${adv.loyalty}%</span>
+                    </div>`;
+                }).join('');
+                advisorSummary = advisorLines;
+            }
+
+            // Kingdom bonuses from characters
+            let bonusHtml = '';
+            if (kingdom.characterBonuses) {
+                const b = kingdom.characterBonuses;
+                const bonusList = [];
+                if (b.military) bonusList.push(`⚔️ Military ${b.military > 0 ? '+' : ''}${(b.military * 100).toFixed(0)}%`);
+                if (b.treasury) bonusList.push(`💰 Treasury ${b.treasury > 0 ? '+' : ''}${(b.treasury * 100).toFixed(0)}%`);
+                if (b.diplomacy) bonusList.push(`🗣️ Diplomacy ${b.diplomacy > 0 ? '+' : ''}${(b.diplomacy * 100).toFixed(0)}%`);
+                if (b.stability) bonusList.push(`🏛️ Stability ${b.stability > 0 ? '+' : ''}${(b.stability * 100).toFixed(0)}%`);
+                if (bonusList.length > 0) {
+                    bonusHtml = `<div style="font-size:10px;color:var(--text-secondary);margin-top:4px;">${bonusList.join(' · ')}</div>`;
+                }
+            }
+
+            html += `
+                <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-left:3px solid ${kingdom.color};border-radius:6px;padding:12px;margin-bottom:10px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <span style="font-family:var(--font-display);color:var(--gold);font-size:14px;">
+                            ${kingdom.name}
+                        </span>
+                        <span style="font-size:11px;color:var(--text-secondary);">
+                            Dynasty: ${cd.dynasty.name} (⭐${cd.dynasty.prestige})
+                        </span>
+                    </div>
+                    <div style="font-size:12px;margin-bottom:4px;">
+                        👑 <strong>${Characters.getDisplayName(ruler, kingdom)}</strong>, Age ${ruler.age} ${ruler.isIll ? '🤒' : ''}
+                    </div>
+                    <div style="margin-bottom:4px;">${traitBadges}</div>
+                    ${cd.spouse && cd.spouse.isAlive ? `<div style="font-size:11px;color:var(--text-secondary);">💒 Consort: ${Characters.getFullName(cd.spouse)} (${cd.spouse.culture}${cd.spouse.culture !== kingdom.culture ? ' — Foreign' : ''})</div>` : ''}
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">
+                        👨‍👧‍👦 Children: ${totalChildren} (${livingHeirs} eligible heirs)
+                    </div>
+                    ${bonusHtml}
+                    <div style="margin-top:6px;border-top:1px solid rgba(255,255,255,0.05);padding-top:6px;">
+                        ${advisorSummary}
+                    </div>
+                </div>
+            `;
+        }
+
+        if (!html) {
+            html = '<p style="color:var(--text-secondary);">No kingdoms with dynasty data available.</p>';
+        }
+
+        this.showCustomPanel('👑 Dynasties & Characters', html);
+    },
+
+    /**
+     * Show a panel by ID
+     */
+    showPanel(panelId) {
+        document.getElementById(panelId).classList.remove('hidden');
+    },
+
+    /**
+     * Hide a panel by ID
+     */
+    hidePanel(panelId) {
+        document.getElementById(panelId).classList.add('hidden');
+    },
+
+    /**
+     * Show a custom panel with dynamic content
+     */
+    showCustomPanel(title, htmlContent) {
+        // Remove existing custom panel if any
+        const existing = document.getElementById('customPanel');
+        if (existing) {
+            // If panel exists, just update the content body to prevent "blips"
+            const contentBody = existing.querySelector('.custom-panel-body');
+            if (contentBody) {
+                contentBody.innerHTML = htmlContent;
+            }
+            const titleEl = existing.querySelector('.custom-panel-title');
+            if (titleEl) {
+                titleEl.textContent = title;
+            }
+            return; // Done update
+        }
+
+        const panel = document.createElement('div');
+        panel.id = 'customPanel';
+        panel.className = 'modal-panel';
+        panel.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 24, 32, 0.98);
+            backdrop-filter: blur(10px);
+            border: 2px solid var(--gold);
+            border-radius: 8px;
+            padding: 0;
+            min-width: 400px;
+            max-width: 700px;
+            max-height: 80vh;
+            z-index: 1000;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column; 
+        `;
+
+        panel.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <h3 class="custom-panel-title" style="margin: 0; font-family: var(--font-display); color: var(--gold);">${title}</h3>
+                <button id="closeCustomPanel" style="background: none; border: none; color: var(--text-primary); font-size: 20px; cursor: pointer;">✕</button>
+            </div>
+            <div class="custom-panel-body" style="padding: 16px; overflow-y: auto; max-height: calc(80vh - 60px);">
+                ${htmlContent}
+            </div>
+        `;
+
+        document.body.appendChild(panel);
+
+        document.getElementById('closeCustomPanel').addEventListener('click', () => {
+            this.hideCustomPanel();
+        });
+    },
+
+    /**
+     * Hide the custom panel
+     */
+    hideCustomPanel() {
+        const panel = document.getElementById('customPanel');
+        if (panel) panel.remove();
+    },
+
+    /**
+     * Show a confirmation modal for returning to the main menu
+     */
+    _showMainMenuConfirm() {
+        const existing = document.getElementById('mainMenuConfirmOverlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'mainMenuConfirmOverlay';
+        overlay.style.cssText = `
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.75);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            display: flex; align-items: center; justify-content: center;
+        `;
+
+        overlay.innerHTML = `
+            <div style="
+                background: rgba(14,18,26,0.98);
+                border: 2px solid var(--gold);
+                border-radius: 10px;
+                padding: 32px 28px 24px;
+                min-width: 340px;
+                max-width: 420px;
+                box-shadow: 0 12px 48px rgba(0,0,0,0.9);
+                text-align: center;
+                font-family: var(--font-ui, sans-serif);
+            ">
+                <div style="font-size: 40px; margin-bottom: 12px;">🏠</div>
+                <h2 style="margin: 0 0 10px; color: var(--gold); font-family: var(--font-display);">Return to Main Menu?</h2>
+                <p style="margin: 0 0 24px; color: #aaa; font-size: 14px; line-height: 1.5;">
+                    Any unsaved progress will be lost.<br>Consider saving before you leave.
+                </p>
+                <div style="display: flex; gap: 12px; justify-content: center;">
+                    <button id="mainMenuConfirmCancel" style="
+                        flex: 1; padding: 11px 0;
+                        background: rgba(255,255,255,0.07);
+                        border: 1px solid rgba(255,255,255,0.15);
+                        border-radius: 6px;
+                        color: #ccc; font-size: 14px; font-weight: 600;
+                        cursor: pointer;
+                        transition: background 0.15s;
+                    ">Cancel</button>
+                    <button id="mainMenuConfirmOk" style="
+                        flex: 1; padding: 11px 0;
+                        background: #7a2020;
+                        border: 1px solid #a33;
+                        border-radius: 6px;
+                        color: #fff; font-size: 14px; font-weight: 700;
+                        cursor: pointer;
+                        transition: background 0.15s;
+                    ">Leave Game</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        const close = () => overlay.remove();
+
+        document.getElementById('mainMenuConfirmCancel').addEventListener('click', () => {
+            close();
+            this.showSettingsPanel();
+        });
+
+        document.getElementById('mainMenuConfirmOk').addEventListener('click', () => {
+            close();
+            location.reload();
+        });
+
+        // Close on backdrop click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                close();
+                this.showSettingsPanel();
+            }
+        });
+
+        // Close on Escape
+        const onKey = (e) => {
+            if (e.key === 'Escape') {
+                close();
+                this.showSettingsPanel();
+                document.removeEventListener('keydown', onKey);
+            }
+        };
+        document.addEventListener('keydown', onKey);
+    },
+
+    /**
+     * Show the finances tracking modal
+     */
+    showFinancesPanel(player, world) {
+        if (!player) return;
+
+        const history = player.financeHistory || [];
+        const recent = history.slice(-30); // Last 30 days
+
+        // ── Summary stats ──
+        let totalIncome = 0, totalExpenses = 0;
+        const incomeByType = {};
+        const expenseByType = {};
+        for (const entry of recent) {
+            totalIncome += entry.totalIncome || 0;
+            totalExpenses += entry.totalExpenses || 0;
+            for (const [k, v] of Object.entries(entry.income || {})) {
+                incomeByType[k] = (incomeByType[k] || 0) + v;
+            }
+            for (const [k, v] of Object.entries(entry.expenses || {})) {
+                expenseByType[k] = (expenseByType[k] || 0) + v;
+            }
+        }
+        const netChange = totalIncome - totalExpenses;
+        const avgDaily = recent.length > 0 ? Math.round(netChange / recent.length) : 0;
+
+        // Label mapping for nice display
+        const labels = {
+            faith: '🙏 Faith Income',
+            culture: '📚 Cultural Income',
+            caravans: '🚚 Caravan Profits',
+            contracts: '📜 Contract Pay',
+            taxes: '🏛️ Tax Collection',
+            armyUpkeep: '⚔️ Army Upkeep',
+            loanPayments: '🏦 Loan Payments',
+            informants: '🕵️ Informant Upkeep',
+            propertyUpkeep: '🏗️ Property Upkeep',
+        };
+
+        let html = '<div style="max-height: 500px; overflow-y: auto;">';
+
+        // ── Current Balance ──
+        html += `
+            <div style="text-align: center; margin-bottom: 16px; padding: 16px; background: rgba(255,255,255,0.04); border-radius: 8px;">
+                <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">Current Balance</div>
+                <div style="font-size: 32px; font-weight: bold; color: var(--gold); font-family: var(--font-display);">💰 ${Utils.formatNumber(player.gold)}</div>
+                <div style="font-size: 13px; color: ${avgDaily >= 0 ? '#27ae60' : '#e74c3c'}; margin-top: 4px;">
+                    ${avgDaily >= 0 ? '▲' : '▼'} ${avgDaily >= 0 ? '+' : ''}${avgDaily} gold/day avg (last ${recent.length} days)
+                </div>
+            </div>
+        `;
+
+        // ── Summary cards row ──
+        html += `
+            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                <div style="flex: 1; padding: 12px; background: rgba(39,174,96,0.1); border: 1px solid rgba(39,174,96,0.3); border-radius: 6px; text-align: center;">
+                    <div style="font-size: 11px; color: #27ae60; text-transform: uppercase;">Income (${recent.length}d)</div>
+                    <div style="font-size: 20px; font-weight: bold; color: #27ae60;">+${Utils.formatNumber(totalIncome)}</div>
+                </div>
+                <div style="flex: 1; padding: 12px; background: rgba(231,76,60,0.1); border: 1px solid rgba(231,76,60,0.3); border-radius: 6px; text-align: center;">
+                    <div style="font-size: 11px; color: #e74c3c; text-transform: uppercase;">Expenses (${recent.length}d)</div>
+                    <div style="font-size: 20px; font-weight: bold; color: #e74c3c;">-${Utils.formatNumber(totalExpenses)}</div>
+                </div>
+                <div style="flex: 1; padding: 12px; background: rgba(${netChange >= 0 ? '39,174,96' : '231,76,60'},0.1); border: 1px solid rgba(${netChange >= 0 ? '39,174,96' : '231,76,60'},0.3); border-radius: 6px; text-align: center;">
+                    <div style="font-size: 11px; color: ${netChange >= 0 ? '#27ae60' : '#e74c3c'}; text-transform: uppercase;">Net (${recent.length}d)</div>
+                    <div style="font-size: 20px; font-weight: bold; color: ${netChange >= 0 ? '#27ae60' : '#e74c3c'};">${netChange >= 0 ? '+' : ''}${Utils.formatNumber(netChange)}</div>
+                </div>
+            </div>
+        `;
+
+        // ── Income breakdown ──
+        const incomeKeys = Object.keys(incomeByType).sort((a, b) => incomeByType[b] - incomeByType[a]);
+        if (incomeKeys.length > 0) {
+            html += `<div style="margin-bottom: 16px;">`;
+            html += `<div style="font-weight: bold; color: #27ae60; font-size: 13px; margin-bottom: 8px; border-bottom: 1px solid rgba(39,174,96,0.3); padding-bottom: 4px;">Income Sources</div>`;
+            for (const k of incomeKeys) {
+                const pct = totalIncome > 0 ? Math.round(incomeByType[k] / totalIncome * 100) : 0;
+                html += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px;">
+                        <span style="color: var(--text-secondary);">${labels[k] || k}</span>
+                        <span style="display: flex; align-items: center; gap: 8px;">
+                            <span style="width: 60px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; display: inline-block; overflow: hidden;">
+                                <span style="display: block; width: ${pct}%; height: 100%; background: #27ae60; border-radius: 3px;"></span>
+                            </span>
+                            <span style="color: #27ae60; font-weight: bold; min-width: 60px; text-align: right;">+${Utils.formatNumber(incomeByType[k])}</span>
+                        </span>
+                    </div>
+                `;
+            }
+            html += `</div>`;
+        }
+
+        // ── Expense breakdown ──
+        const expenseKeys = Object.keys(expenseByType).sort((a, b) => expenseByType[b] - expenseByType[a]);
+        if (expenseKeys.length > 0) {
+            html += `<div style="margin-bottom: 16px;">`;
+            html += `<div style="font-weight: bold; color: #e74c3c; font-size: 13px; margin-bottom: 8px; border-bottom: 1px solid rgba(231,76,60,0.3); padding-bottom: 4px;">Expense Sources</div>`;
+            for (const k of expenseKeys) {
+                const pct = totalExpenses > 0 ? Math.round(expenseByType[k] / totalExpenses * 100) : 0;
+                html += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px;">
+                        <span style="color: var(--text-secondary);">${labels[k] || k}</span>
+                        <span style="display: flex; align-items: center; gap: 8px;">
+                            <span style="width: 60px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; display: inline-block; overflow: hidden;">
+                                <span style="display: block; width: ${pct}%; height: 100%; background: #e74c3c; border-radius: 3px;"></span>
+                            </span>
+                            <span style="color: #e74c3c; font-weight: bold; min-width: 60px; text-align: right;">-${Utils.formatNumber(expenseByType[k])}</span>
+                        </span>
+                    </div>
+                `;
+            }
+            html += `</div>`;
+        }
+
+        // ── Gold history chart (ASCII-style bar chart) ──
+        if (recent.length > 1) {
+            html += `<div style="margin-bottom: 8px;">`;
+            html += `<div style="font-weight: bold; color: var(--gold); font-size: 13px; margin-bottom: 8px; border-bottom: 1px solid rgba(245,197,66,0.3); padding-bottom: 4px;">Gold Over Time (last ${recent.length} days)</div>`;
+
+            const goldValues = recent.map(e => e.goldEnd);
+            const maxGold = Math.max(...goldValues, 1);
+            const minGold = Math.min(...goldValues, 0);
+            const range = maxGold - minGold || 1;
+
+            html += `<div style="display: flex; align-items: flex-end; gap: 1px; height: 80px; padding: 4px 0;">`;
+            for (let i = 0; i < recent.length; i++) {
+                const entry = recent[i];
+                const heightPct = Math.max(2, ((entry.goldEnd - minGold) / range) * 100);
+                const color = entry.netChange >= 0 ? '#27ae60' : '#e74c3c';
+                const barWidth = Math.max(3, Math.floor(360 / recent.length) - 1);
+                html += `<div title="Day ${entry.day}: ${Utils.formatNumber(entry.goldEnd)}g (${entry.netChange >= 0 ? '+' : ''}${entry.netChange})" 
+                    style="width: ${barWidth}px; height: ${heightPct}%; background: ${color}; border-radius: 2px 2px 0 0; min-height: 2px; cursor: help; opacity: 0.8;"></div>`;
+            }
+            html += `</div>`;
+            html += `<div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); margin-top: 2px;">
+                <span>${Utils.formatNumber(minGold)}g</span>
+                <span>${Utils.formatNumber(maxGold)}g</span>
+            </div>`;
+            html += `</div>`;
+        }
+
+        // ── Recent daily log ──
+        if (recent.length > 0) {
+            html += `<div>`;
+            html += `<div style="font-weight: bold; color: white; font-size: 13px; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 4px;">Daily Log</div>`;
+            const lastDays = recent.slice(-10).reverse(); // Show last 10 entries, newest first
+            for (const entry of lastDays) {
+                const dayInSeason = ((entry.day - 1) % 30) + 1;
+                const incomeStr = entry.totalIncome > 0 ? `<span style="color: #27ae60;">+${entry.totalIncome}</span>` : '';
+                const expenseStr = entry.totalExpenses > 0 ? `<span style="color: #e74c3c;">-${entry.totalExpenses}</span>` : '';
+                const netColor = entry.netChange >= 0 ? '#27ae60' : '#e74c3c';
+                html += `
+                    <div style="display: flex; justify-content: space-between; padding: 3px 0; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.04);">
+                        <span style="color: var(--text-secondary); min-width: 110px;">Day ${dayInSeason}, ${entry.season} Y${entry.year}</span>
+                        <span style="display: flex; gap: 12px;">
+                            ${incomeStr}
+                            ${expenseStr}
+                            <span style="color: ${netColor}; font-weight: bold; min-width: 50px; text-align: right;">= ${entry.netChange >= 0 ? '+' : ''}${entry.netChange}</span>
+                            <span style="color: var(--gold); min-width: 65px; text-align: right;">${Utils.formatNumber(entry.goldEnd)}g</span>
+                        </span>
+                    </div>
+                `;
+            }
+            html += `</div>`;
+        }
+
+        if (recent.length === 0) {
+            html += `<p style="color: var(--text-secondary); text-align: center; padding: 20px;">No financial data yet. End a day to start tracking.</p>`;
+        }
+
+        html += '</div>';
+
+        this.showCustomPanel('💰 Finances', html);
+    },
+
+    /**
+     * Show inventory panel
+     */
+    showInventoryPanel() {
+        const player = this.game.player;
+
+        let inventoryHtml = '<p style="color: var(--text-secondary);">Your inventory is empty.</p>';
+
+        if (player.inventory && Object.keys(player.inventory).length > 0) {
+            inventoryHtml = '<div style="display: grid; gap: 8px;">';
+            for (const [itemId, quantity] of Object.entries(player.inventory)) {
+                if (quantity <= 0) continue;
+                // Try to find the item in PlayerEconomy.GOODS
+                const item = PlayerEconomy.GOODS ? PlayerEconomy.GOODS[itemId.toUpperCase()] : null;
+                const fallbackName = itemId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                const icon = (item && item.icon) ? item.icon : '📦';
+                const name = (item && item.name) ? item.name : fallbackName;
+                inventoryHtml += `
+                    <div style="display: flex; justify-content: space-between; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                        <span>${icon} ${name}</span>
+                        <span style="color: var(--gold);">×${quantity}</span>
+                    </div>
+                `;
+            }
+            inventoryHtml += '</div>';
+        }
+
+        this.showCustomPanel('Inventory', inventoryHtml);
+    },
+
+    /**
+     * Show quests panel
+     */
+    showQuestsPanel() {
+        const player = this.game.player;
+        const world = this.game.world;
+
+        let html = '';
+
+        // ── ACTIVE JOBS SECTION ──
+        const jobs = [];
+
+        // Jail
+        if (player.jailState) {
+            const j = player.jailState;
+            jobs.push({
+                icon: '🔒',
+                name: `Serving Jail Time`,
+                detail: `Sentenced for ${j.offense} (offense #${j.offenseNumber})`,
+                status: `${j.daysRemaining} day(s) remaining`,
+                statusColor: '#e74c3c',
+                location: j.settlement,
+            });
+        }
+
+        // Indentured servitude
+        if (player.indenturedServitude) {
+            const s = player.indenturedServitude;
+            jobs.push({
+                icon: '⛓️',
+                name: `Indentured Servitude`,
+                detail: `Bound to ${s.captor}`,
+                status: `${s.daysRemaining} day(s) remaining`,
+                statusColor: '#e67e22',
+                location: null,
+            });
+        }
+
+        // Mercenary contract
+        if (player.activeContract) {
+            const c = player.activeContract;
+            jobs.push({
+                icon: '⚔️',
+                name: c.name,
+                detail: `Payment: ${c.payment}g`,
+                status: `${c.daysRemaining} day(s) remaining`,
+                statusColor: '#3498db',
+                location: c.settlement,
+            });
+        }
+
+        // Active bounties
+        if (player.activeBounties && player.activeBounties.length > 0) {
+            for (const b of player.activeBounties) {
+                const daysLeft = b.daysLimit - (b.daysElapsed || 0);
+                const isCriminal = b.type === 'criminal_hunt';
+                const detail = isCriminal
+                    ? `Reward: ${b.actualPay}g — ${b.targetName}, wanted for ${b.crime}.`
+                    : `Reward: ${b.actualPay}g — ${b.description || ''}`;
+                const status = isCriminal
+                    ? (b.status === 'captured_pending_decision'
+                        ? 'Captured — awaiting judgment'
+                        : `${daysLeft} day(s) left · Last seen (${b.targetQ}, ${b.targetR})`)
+                    : `${daysLeft} day(s) left`;
+                jobs.push({
+                    icon: b.icon || '📜',
+                    name: b.name,
+                    detail,
+                    status,
+                    statusColor: daysLeft <= 2 ? '#e74c3c' : '#2ecc71',
+                    location: b.fromSettlement || null,
+                });
+            }
+        }
+
+        if (player.festivals && player.festivals.moraleBoostDays > 0) {
+            jobs.push({
+                icon: '🎉',
+                name: 'Festival Spirit',
+                detail: `Army morale bonus active (+${Math.round((player.festivals.moraleBoostValue || 0) * 100)}%)`,
+                status: `${player.festivals.moraleBoostDays} day(s) remaining`,
+                statusColor: '#f39c12',
+                location: null,
+            });
+        }
+
+        // Caravans in transit
+        if (player.caravans && player.caravans.length > 0) {
+            for (const c of player.caravans) {
+                const daysLeft = c.travelDays - (c.daysElapsed || 0);
+                jobs.push({
+                    icon: '🐫',
+                    name: `Caravan to ${c.destination || 'unknown'}`,
+                    detail: `Carrying ${c.goods || 'goods'} — Expected profit: ${c.expectedProfit || '?'}g`,
+                    status: `${daysLeft} day(s) in transit`,
+                    statusColor: '#f39c12',
+                    location: null,
+                });
+            }
+        }
+
+        // Ships being built or moving
+        if (player.ships && player.ships.length > 0) {
+            for (const s of player.ships) {
+                if (s.status === 'building') {
+                    jobs.push({
+                        icon: '🔨',
+                        name: `Building ${s.name}`,
+                        detail: `Ship under construction`,
+                        status: `${s.buildDaysLeft} day(s) left`,
+                        statusColor: '#f39c12',
+                        location: s.dockedAt || null,
+                    });
+                } else if (s.status === 'moving') {
+                    jobs.push({
+                        icon: '⛵',
+                        name: `${s.name} en route`,
+                        detail: `Sailing to ${s.destinationName || 'destination'}`,
+                        status: `${s.travelDaysLeft} day(s) remaining`,
+                        statusColor: '#3498db',
+                        location: null,
+                    });
+                }
+            }
+        }
+
+        // Render active jobs
+        html += '<h4 style="margin-top: 0; color:var(--text-primary); border-bottom: 2px solid #3498db; padding-bottom: 8px;">📋 Active Jobs & Commitments</h4>';
+        if (jobs.length > 0) {
+            for (const job of jobs) {
+                html += `
+                    <div style="margin-bottom: 8px; padding: 10px 12px; background: rgba(20, 20, 30, 0.5); border-left: 3px solid ${job.statusColor}; border-radius: 4px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span style="font-size: 15px;">${job.icon}</span>
+                                <strong style="color: var(--text-primary); margin-left: 4px;">${job.name}</strong>
+                                ${job.location ? `<span style="font-size: 11px; color: var(--text-secondary); margin-left: 6px;">@ ${job.location}</span>` : ''}
+                            </div>
+                            <span style="font-size: 12px; color: ${job.statusColor}; font-weight: 600;">${job.status}</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 3px;">${job.detail}</div>
+                    </div>
+                `;
+            }
+        } else {
+            html += '<p style="color: var(--text-secondary); font-style: italic;">No active jobs or commitments.</p>';
+        }
+
+        // ── ACTIVE QUESTS ──
+        html += '<h4 style="margin-top: 24px; color:var(--text-primary); border-bottom: 2px solid var(--gold); padding-bottom: 8px;">Active Quests</h4>';
+        if (player.quests && player.quests.active && player.quests.active.length > 0) {
+            for (const quest of player.quests.active) {
+                const progress = Quests.getProgressSummary(quest);
+                html += `
+                    <div style="margin-bottom: 16px; padding: 16px; background: rgba(20, 20, 30, 0.6); border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                            <div style="font-family: var(--font-display); font-size: 18px; color: var(--gold);">${quest.title}</div>
+                            <div style="font-size: 12px; background: rgba(255,215,0,0.1); padding: 4px 8px; border-radius: 12px; color: var(--gold);">Active</div>
+                        </div>
+                        <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 12px; font-style: italic;">${quest.description}</div>
+                        
+                        <div style="background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px;">
+                            <div style="font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--text-primary);">Objectives:</div>
+                            ${quest.objectives.map(obj => `
+                                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; margin-top: 4px; color: ${obj.completed ? '#2ecc71' : 'var(--text-secondary)'};">
+                                    <span style="font-size: 16px;">${obj.completed ? '✅' : '⭕'}</span> 
+                                    <span>${obj.text} (${obj.current}/${obj.target})</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+        } else {
+            html += '<p style="color: var(--text-secondary); font-style: italic;">No active quests at the moment.</p>';
+        }
+
+        // Available quests
+        html += '<h4 style="margin-top: 24px; color:var(--text-primary); border-bottom: 2px solid var(--text-secondary); padding-bottom: 8px;">Available Quests</h4>';
+        if (player.quests && player.quests.available && player.quests.available.length > 0) {
+            for (const quest of player.quests.available) {
+                const rewards = JSON.stringify(quest.rewards).replace(/{|}|"/g, '').replace(/,/g, ', ');
+                html += `
+                    <div style="margin-bottom: 12px; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px;">
+                        <div style="font-weight: 600; margin-bottom: 4px; color: var(--text-primary);">${quest.title}</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">${quest.description}</div>
+                        <div style="display: flex; gap: 8px; font-size: 11px;">
+                            <span style="background: rgba(255,215,0,0.1); padding: 2px 6px; border-radius: 4px; color: var(--gold);">Rewards: ${rewards}</span>
+                        </div>
+                    </div>
+                `;
+            }
+        } else {
+            html += '<p style="color: var(--text-secondary); font-style: italic;">No new quests available.</p>';
+        }
+
+        // Completed quests
+        if (player.quests && player.quests.completed && player.quests.completed.length > 0) {
+            html += `<h4 style="margin-top: 24px; color:var(--text-primary); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">Completed (${player.quests.completed.length})</h4>`;
+            html += '<div style="font-size: 13px; color: var(--text-secondary);">Check your achievements panel for history of completed quests.</div>';
+        }
+
+        this.showCustomPanel('Quest Journal', html);
+    },
+
+    /**
+     * Show a notification toast (Sims-style card)
+     */
+    showNotification(title, message, type = 'default') {
+        const area = document.getElementById('notificationArea');
+        const notif = document.createElement('div');
+        notif.className = `notification ${type}`;
+
+        // Icon per type
+        const typeIcons = { success: '✅', error: '❌', info: 'ℹ️', default: '📌' };
+        const icon = typeIcons[type] || typeIcons.default;
+
+        notif.innerHTML = `
+            <div class="notif-accent"></div>
+            <div class="notif-icon">${icon}</div>
+            <div class="notif-body">
+                <div class="notif-title">${title}</div>
+                <div class="notif-msg">${message}</div>
+            </div>
+            <button class="notif-dismiss" title="Dismiss">✕</button>
+        `;
+        area.appendChild(notif);
+
+        // Dismiss button
+        const dismissBtn = notif.querySelector('.notif-dismiss');
+        if (dismissBtn) {
+            dismissBtn.addEventListener('click', () => {
+                notif.style.animation = 'notifOut 0.3s ease forwards';
+                setTimeout(() => notif.remove(), 300);
+            });
+        }
+
+        // Play notification SFX based on type
+        if (typeof audioManager !== 'undefined') {
+            if (type === 'success') audioManager.playSFX('success');
+            else if (type === 'error') audioManager.playSFX('error');
+            else audioManager.playSFX('notify');
+        }
+
+        // Log notification for history
+        const world = this.game && this.game.world;
+        const dayInSeason = world ? ((world.day - 1) % 30) + 1 : 1;
+        const season = world ? world.season : 'Spring';
+        const year = world ? world.year : 1;
+        this.notificationLog.push({
+            title, message, type,
+            day: dayInSeason, season, year,
+            timestamp: Date.now()
+        });
+        // Cap log at 200 entries
+        if (this.notificationLog.length > 200) {
+            this.notificationLog = this.notificationLog.slice(-200);
+        }
+
+        // Auto-remove based on settings duration
+        const duration = this._notifDuration || 4000;
+        setTimeout(() => {
+            notif.style.animation = 'notifOut 0.3s ease forwards';
+            setTimeout(() => notif.remove(), 300);
+        }, duration);
+    },
+
+    /**
+     * Show the event log panel with all past notifications
+     */
+    showEventLogPanel() {
+        const log = this.notificationLog;
+        let html = '<div style="max-width: 650px;">';
+
+        if (log.length === 0) {
+            html += '<p style="color: var(--text-secondary); text-align: center; padding: 24px;">No events recorded yet.</p>';
+        } else {
+            // Show newest first
+            const typeIcons = {
+                success: '✅', error: '❌', info: 'ℹ️', default: '📌'
+            };
+            const typeBorders = {
+                success: 'var(--accent-green)', error: 'var(--accent-red)',
+                info: 'var(--accent-blue)', default: 'var(--gold)'
+            };
+            for (let i = log.length - 1; i >= 0; i--) {
+                const entry = log[i];
+                const icon = typeIcons[entry.type] || typeIcons.default;
+                const borderColor = typeBorders[entry.type] || typeBorders.default;
+                html += `
+                    <div style="padding: 8px 12px; margin-bottom: 6px; background: rgba(255,255,255,0.03); border-left: 3px solid ${borderColor}; border-radius: 4px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                            <span style="font-family: var(--font-display); font-size: 12px; font-weight: 600; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px;">${icon} ${entry.title}</span>
+                            <span style="font-size: 11px; color: var(--text-muted);">Day ${entry.day}, ${entry.season}, Year ${entry.year}</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.4;">${entry.message}</div>
+                    </div>`;
+            }
+        }
+
+        html += '</div>';
+        this.showCustomPanel('📋 Event Log', html);
+    },
+});

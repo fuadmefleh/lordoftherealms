@@ -1,0 +1,21 @@
+// Centralized re-exports for the UI group modules (paths one level deeper).
+export { Utils } from '../../core/utils.js';
+export { ActionMenu } from '../actionMenu.js';
+export { Religion } from '../../systems/religion.js';
+export { Economy } from '../../world/economy.js';
+export { PlayerEconomy } from '../../player/playerEconomy.js';
+export { PlayerReligion } from '../../player/playerReligion.js';
+export { Infrastructure } from '../../systems/infrastructure.js';
+export { Peoples } from '../../systems/peoples.js';
+export { CustomObjects } from '../../world/customObjects.js';
+export { Characters } from '../../world/characters.js';
+export { Culture } from '../../systems/culture.js';
+export { Quests } from '../../systems/quests.js';
+export { Technology } from '../../systems/technology.js';
+export { Banking, MarketDynamics, Taxation } from '../../systems/marketDynamics.js';
+export { Hex } from '../../core/hex.js';
+export { SaveLoad } from '../../systems/saveLoad.js';
+export { audioManager } from '../../systems/audio.js';
+export { NpcFamily } from '../../systems/npcFamily.js';
+export { Relationships } from '../../systems/relationships.js';
+export { Housing } from '../../systems/housing.js';

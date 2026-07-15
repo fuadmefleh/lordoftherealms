@@ -109,11 +109,114 @@ export default function GameView() {
       {/* Top Bar HUD — always rendered so UI.setupEventListeners can bind */}
       <TopBar />
 
+      {/* ═══ Left icon rail ═══ */}
+      <div id="hudLeftRail" className="hud-frame">
+        <button className="hud-rail-btn active" id="railOverview" title="Overview">
+          <span className="hud-rail-icon">👑</span>
+          <span className="hud-rail-label">Overview</span>
+        </button>
+        <button className="hud-rail-btn" id="railArmies" title="Armies">
+          <span className="hud-rail-icon">⚔️</span>
+          <span className="hud-rail-label">Armies</span>
+        </button>
+        <button className="hud-rail-btn" id="railSettlements" title="Settlements">
+          <span className="hud-rail-icon">🏰</span>
+          <span className="hud-rail-label">Settlements</span>
+        </button>
+        <button className="hud-rail-btn" id="railResources" title="Resources">
+          <span className="hud-rail-icon">⛏️</span>
+          <span className="hud-rail-label">Resources</span>
+        </button>
+        <button className="hud-rail-btn" id="railFactions" title="Factions">
+          <span className="hud-rail-icon">🛡️</span>
+          <span className="hud-rail-label">Factions</span>
+        </button>
+      </div>
+
+      {/* ═══ Right info panel ═══ */}
+      <div id="hudRightRail">
+        {/* Current Objective */}
+        <div className="hud-frame hud-info-card">
+          <div className="hud-card-header">◆ Current Objective</div>
+          <div className="hud-obj-body">
+            <div className="hud-obj-row">
+              <div className="hud-obj-text">
+                <div className="hud-obj-title" id="objectiveTitle">A New Beginning</div>
+                <div className="hud-obj-desc" id="objectiveDesc">Explore nearby lands, discover settlements, and grow your influence.</div>
+              </div>
+              <div className="hud-obj-compass">🧭</div>
+            </div>
+            <div className="hud-obj-progress-row">
+              <span className="hud-obj-prog-label">◆ Explore hexes</span>
+              <span className="hud-obj-prog-count" id="objectiveProgress">0 / 2</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Region Details */}
+        <div className="hud-frame hud-info-card">
+          <div className="hud-card-header">Region Details</div>
+          <div className="hud-region-body">
+            <div className="hud-region-title-row">
+              <span className="hud-region-terrain-icon" id="regionTerrainIcon">🌳</span>
+              <div>
+                <div className="hud-region-name" id="regionName">Coastal Woodlands</div>
+                <div className="hud-region-subtitle" id="regionSubtitle">Unclaimed Lands</div>
+              </div>
+            </div>
+            <div className="hud-region-desc" id="regionDesc">Forests and rolling hills stretch across this peaceful land.</div>
+            <div className="hud-region-stats">
+              <div className="hud-region-stat">
+                <span className="hud-region-stat-label">Terrain</span>
+                <span className="hud-region-stat-val" id="regionTerrain">Forest</span>
+              </div>
+              <div className="hud-region-stat">
+                <span className="hud-region-stat-label">Move Cost</span>
+                <span className="hud-region-stat-val" id="regionMoveCost">2</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Events */}
+        <div className="hud-frame hud-info-card">
+          <div className="hud-card-header">Recent Events</div>
+          <div className="hud-events" id="eventsList"></div>
+        </div>
+      </div>
+
+      {/* ═══ Bottom-left character card ═══ */}
+      <div id="hudCharCard" className="hud-frame">
+        <div className="hud-char-portrait-wrap">
+          <div className="hud-char-portrait" id="charCardPortrait">🧑</div>
+          <span className="hud-char-level" id="charCardLevel">1</span>
+        </div>
+        <div className="hud-char-info">
+          <div className="hud-char-name" id="charCardName">WANDERER</div>
+          <div className="hud-char-alignment" id="charCardAlignment">Unaligned</div>
+          <div className="hud-char-stat">
+            <span className="hud-char-stat-icon">❤️</span>
+            <span className="hud-char-stat-val" id="charCardMorale">100%</span>
+            <span className="hud-char-stat-label">Morale</span>
+          </div>
+          <div className="hud-char-stat">
+            <span className="hud-char-stat-icon">⭐</span>
+            <span className="hud-char-stat-val" id="charCardStance">Neutral</span>
+            <span className="hud-char-stat-label">Stance</span>
+          </div>
+        </div>
+      </div>
+
       {/* Minimap */}
-      <div id="minimapContainer">
+      <div id="minimapContainer" className="hud-frame">
         <div id="minimapLabel">World Map</div>
         <canvas id="minimapCanvas"></canvas>
         <div id="minimapViewport"></div>
+        <div className="minimap-zoom">
+          <button className="minimap-zoom-btn" id="minimapZoomOut" title="Zoom Out">−</button>
+          <button className="minimap-zoom-btn" id="minimapZoomReset" title="Center on You">⊕</button>
+          <button className="minimap-zoom-btn" id="minimapZoomIn" title="Zoom In">+</button>
+        </div>
       </div>
 
       {/* Hex Info Panel */}
@@ -160,90 +263,73 @@ export default function GameView() {
         ))}
       </div>
 
-      {/* ═══ Sims 3 Bottom HUD ═══ */}
-      <div id="simsBottomHUD">
-
-        {/* ── Portrait wing (left bump) ── */}
-        <div className="s3-portrait-wing">
-          <div className="s3-plumbob" id="simsPlumbob">◆</div>
-          <div className="s3-portrait-frame" id="simsPortrait" title="Character">
-            <span className="s3-portrait-icon">🧑</span>
-            <span className="s3-portrait-level" id="simsPortraitLevel">1</span>
+      {/* ═══ Compact bottom turn bar ═══ */}
+      <div id="simsBottomHUD" className="hud-frame hud-bottom-bar">
+        {/* Date + mood */}
+        <div className="hud-bb-datecol">
+          <div className="hud-bb-dateline">
+            <span className="hud-bb-sun">☀️</span>
+            <span className="hud-bb-date" id="hudBottomDate">Day 1 of Spring, Year 853</span>
+          </div>
+          <div className="hud-mood">
+            <span className="hud-mood-icon" id="simsMoodIcon">😄</span>
+            <span className="hud-mood-label" id="simsMoodLabel">ECSTATIC</span>
+            <div className="hud-mood-meter"><div className="hud-mood-fill" id="moodMeterFill" style={{width:'100%'}}></div></div>
           </div>
         </div>
 
-        {/* ── Main bar ── */}
-        <div className="s3-main-bar">
+        <div className="hud-bb-divider"></div>
 
-          {/* Collapsible wrapper */}
-          <div className="s3-collapsible" id="simsCollapsible">
-
-          {/* Row 1: Resources + Mood + Speed */}
-          <div className="s3-top-row">
-            <div className="s3-resources">
-              <div className="s3-res"><span className="s3-res-icon">💰</span><span className="s3-res-val" id="simsGold">0</span></div>
-              <div className="s3-res"><span className="s3-res-icon">⭐</span><span className="s3-res-val" id="simsRenown">0</span></div>
-              <div className="s3-res"><span className="s3-res-icon">☯</span><span className="s3-res-val" id="simsKarma">0</span></div>
-            </div>
-            <div className="s3-mood" id="simsMoodPanel">
-              <span className="s3-mood-icon" id="simsMoodIcon">😊</span>
-              <span className="s3-mood-label" id="simsMoodLabel">Happy</span>
-            </div>
-            <div className="s3-time-controls">
-              <span className="s3-day" id="simsDay">Day 1</span>
-              <div className="s3-speed-row">
-                <button className="s3-speed-btn" id="simsTimePause" title="Pause (Space)">⏸</button>
-                <button className="s3-speed-btn active" id="simsTimePlay" title="Normal Speed (1)">▶</button>
-                <button className="s3-speed-btn" id="simsTimeFast" title="Fast (2)">▶▶</button>
-                <button className="s3-speed-btn" id="simsTimeUltra" title="Ultra (3)">▶▶▶</button>
-              </div>
-              <button className="s3-end-day" id="simsEndDay">☀ End Day</button>
-            </div>
+        {/* Resources */}
+        <div className="hud-bb-resources">
+          <div className="hud-bb-res" title="Gold">
+            <span className="hud-bb-res-icon">🪙</span>
+            <span className="hud-bb-res-val" id="simsGold">0</span>
+            <span className="hud-bb-res-sub" id="incomePerDay">+0/d</span>
           </div>
-
-          {/* Row 2: Content panels (tabs switch between these) */}
-          <div className="s3-content">
-            {/* PAGE: Stats / Needs */}
-            <div className="sims-hub-page" id="simsPageStats">
-              <div className="s3-needs-list" style={{display:'none'}}>
-                <div className="s3-need"><span className="s3-need-label">Hunger</span><div className="s3-need-track"><div className="sims-need-bar-fill high" id="simsHungerBar" style={{width:'100%'}}></div></div></div>
-                <div className="s3-need"><span className="s3-need-label">Energy</span><div className="s3-need-track"><div className="sims-need-bar-fill high" id="simsEnergyBar" style={{width:'100%'}}></div></div></div>
-                <div className="s3-need"><span className="s3-need-label">Social</span><div className="s3-need-track"><div className="sims-need-bar-fill high" id="simsSocialBar" style={{width:'100%'}}></div></div></div>
-                <div className="s3-need"><span className="s3-need-label">Fun</span><div className="s3-need-track"><div className="sims-need-bar-fill high" id="simsFunBar" style={{width:'100%'}}></div></div></div>
-                <div className="s3-need"><span className="s3-need-label">Hygiene</span><div className="s3-need-track"><div className="sims-need-bar-fill high" id="simsHygieneBar" style={{width:'100%'}}></div></div></div>
-                <div className="s3-need"><span className="s3-need-label">Comfort</span><div className="s3-need-track"><div className="sims-need-bar-fill high" id="simsComfortBar" style={{width:'100%'}}></div></div></div>
-              </div>
-            </div>
-            {/* PAGE: Relationships */}
-            <div className="sims-hub-page sims-hub-page-col hidden" id="simsPageRelationships">
-              <div className="srel-filters" id="simsRelFilters">
-                <button className="srel-filter-btn active" data-filter="all">All</button>
-                <button className="srel-filter-btn" data-filter="family">👨‍👩‍👦 Family</button>
-                <button className="srel-filter-btn" data-filter="friends">😊 Friends</button>
-                <button className="srel-filter-btn" data-filter="romantic">💕 Romantic</button>
-                <button className="srel-filter-btn" data-filter="rivals">⚡ Rivals</button>
-                <button className="srel-filter-btn" data-filter="locals">🏘️ Locals</button>
-              </div>
-              <div className="sims-rel-body" id="simsRelBody"></div>
-            </div>
-            {/* PAGE: Inventory */}
-            <div className="sims-hub-page hidden" id="simsPageInventory">
-              <div className="sims-inv-body" id="simsInvBody">
-                <p className="srel-empty">Your pack is empty.</p>
-              </div>
-            </div>
+          <div className="hud-bb-res" title="Renown">
+            <span className="hud-bb-res-icon">⭐</span>
+            <span className="hud-bb-res-val" id="simsRenown">0</span>
           </div>
-
-          </div>{/* /s3-collapsible */}
-
-          {/* Tab strip at the very bottom of the bar */}
-          <div className="s3-tabs">
-            <button className="s3-tab active" id="simsTabStats">Simology</button>
-            <button className="s3-tab" id="simsTabRelationships">Relationships</button>
-            <button className="s3-tab" id="simsTabInventory">Inventory</button>
+          <div className="hud-bb-res" title="Military Strength">
+            <span className="hud-bb-res-icon">🛡️</span>
+            <span className="hud-bb-res-val" id="bbShields">0</span>
           </div>
+        </div>
 
-        </div>{/* /s3-main-bar */}
+        <div className="hud-bb-divider"></div>
+
+        {/* Playback + End Turn */}
+        <div className="hud-bb-controls">
+          <div className="hud-speed">
+            <button className="hud-speed-btn" id="simsTimePause" title="Pause (Space)">⏸</button>
+            <button className="hud-speed-btn active" id="simsTimePlay" title="Normal Speed (1)">▶</button>
+            <button className="hud-speed-btn" id="simsTimeFast" title="Fast (2)">⏩</button>
+            <button className="hud-speed-btn" id="simsTimeUltra" title="Ultra (3)">⏭️</button>
+          </div>
+          <button className="hud-end-turn" id="simsEndDay">
+            <span className="hud-end-turn-icon">🛡️</span>
+            <span>End Turn</span>
+          </button>
+        </div>
+
+        {/* Activity Log (collapsible) */}
+        <div className="hud-activity">
+          <button className="hud-activity-toggle collapsed" id="activityLogToggle">
+            <span className="hud-activity-caret">▾</span>
+            <span>Activity Log</span>
+          </button>
+          <div className="hud-activity-body collapsed" id="activityLogBody"></div>
+        </div>
+      </div>
+
+      {/* Hidden legacy elements kept so _updateSimsHUD bindings stay harmless no-ops */}
+      <div style={{display:'none'}}>
+        <span id="simsDay">Day 1</span>
+        <span id="simsKarma">0</span>
+        <div id="simsCollapsible"></div>
+        <div id="simsRelBody"></div>
+        <div id="simsInvBody"></div>
       </div>
 
       </div>{/* /bottomUIStack */}

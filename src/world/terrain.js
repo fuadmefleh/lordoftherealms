@@ -861,5 +861,109 @@ export const Terrain = {
                 }
             }
         }
-    }
+    },
+
+    // ── Region naming ────────────────────────────────────────────────
+    // Water terrain ids used for region categorisation and coast detection.
+    WATER_IDS: ['ocean', 'deep_ocean', 'coast', 'lake', 'sea'],
+
+    // Family noun used to name a land region, keyed by terrain id.
+    REGION_FAMILY: {
+        woodland: 'Woodlands', seasonal_forest: 'Woodlands',
+        boreal_forest: 'Pinewoods', temperate_rainforest: 'Rainforest',
+        tropical_rainforest: 'Jungle',
+        grassland: 'Grasslands', plains: 'Plains', savanna: 'Savanna',
+        hills: 'Hills', highlands: 'Highlands', mountain: 'Mountains',
+        desert: 'Desert', tundra: 'Tundra', snow: 'Snowfields', ice: 'Frostlands',
+        swamp: 'Marshes', beach: 'Shores', island: 'Isles',
+    },
+
+    // Short flavour description keyed by family noun.
+    REGION_DESC: {
+        Woodlands: 'Forests and rolling hills stretch across this peaceful land.',
+        Pinewoods: 'Dark evergreens crowd the cold northern reaches.',
+        Rainforest: 'Mist clings to a dense, dripping canopy.',
+        Jungle: 'Tangled green swallows all who wander from the path.',
+        Grasslands: 'Open grass ripples for miles beneath a wide sky.',
+        Plains: 'Flat, fertile country good for farm and road alike.',
+        Savanna: 'Golden grass and scattered trees bake in the sun.',
+        Hills: 'Low hills fold the land into hidden valleys.',
+        Highlands: 'Windswept heights look down on the lands below.',
+        Mountains: 'Sheer peaks and narrow passes bar easy travel.',
+        Desert: 'Sun-scorched dunes stretch to a shimmering horizon.',
+        Tundra: 'A frozen plain endures beneath pale, low light.',
+        Snowfields: 'Deep snow blankets a silent, sleeping country.',
+        Frostlands: 'Ancient ice grips this bitter, unforgiving land.',
+        Marshes: 'Reed and bog conspire to swallow careless feet.',
+        Shores: 'Sand and tide mark where the land meets the sea.',
+        Isles: 'Scattered land rises from the surrounding waters.',
+    },
+
+    /**
+     * Check whether a terrain id is a water body.
+     */
+    isWaterId(id) {
+        return Terrain.WATER_IDS.includes(id);
+    },
+
+    /**
+     * Derive a human-readable region name for a tile's region.
+     * Pure and deterministic (no RNG, no globals) — safe for world/ layer.
+     * e.g. "Coastal Woodlands", "Highlands", "Open Waters".
+     */
+    getRegionName(tile, world) {
+        if (!tile || !world) return 'Uncharted Lands';
+        const info = Terrain._regionInfo(tile, world);
+        if (info.isWater) return info.coastal ? 'Coastal Waters' : 'Open Waters';
+        const noun = Terrain.REGION_FAMILY[info.dominant] || 'Wilds';
+        return info.coastal ? `Coastal ${noun}` : noun;
+    },
+
+    /**
+     * Derive a short flavour description for a tile's region. Deterministic.
+     */
+    getRegionDescription(tile, world) {
+        if (!tile || !world) return 'An unexplored stretch of the realm.';
+        const info = Terrain._regionInfo(tile, world);
+        if (info.isWater) return 'Restless waters roll toward a far horizon.';
+        const noun = Terrain.REGION_FAMILY[info.dominant] || 'Wilds';
+        return Terrain.REGION_DESC[noun] || 'Untamed country awaits the bold.';
+    },
+
+    /**
+     * Internal: bounded BFS over the tile's region to find the dominant
+     * passable terrain and whether the region touches water. Deterministic
+     * (fixed neighbour order, capped iteration).
+     */
+    _regionInfo(tile, world) {
+        const MAX = 500;
+        const counts = {};
+        let coastal = false;
+        const visited = new Set([`${tile.q},${tile.r}`]);
+        const queue = [tile];
+        let ptr = 0;
+        while (ptr < queue.length && ptr < MAX) {
+            const curr = queue[ptr++];
+            if (curr.terrain.passable) {
+                counts[curr.terrain.id] = (counts[curr.terrain.id] || 0) + 1;
+            }
+            const neighbors = Hex.neighbors(curr.q, curr.r);
+            for (const n of neighbors) {
+                const nb = world.getTile(n.q, n.r);
+                if (!nb) continue;
+                if (Terrain.isWaterId(nb.terrain.id)) coastal = true;
+                const nKey = `${nb.q},${nb.r}`;
+                if (!visited.has(nKey) && nb.regionId === tile.regionId) {
+                    visited.add(nKey);
+                    queue.push(nb);
+                }
+            }
+        }
+        let dominant = tile.terrain.id;
+        let best = -1;
+        for (const [id, c] of Object.entries(counts)) {
+            if (c > best) { best = c; dominant = id; }
+        }
+        return { dominant, coastal, isWater: Terrain.isWaterId(tile.terrain.id) };
+    },
 };

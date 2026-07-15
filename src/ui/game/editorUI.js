@@ -384,6 +384,7 @@ export function startCustomWorld(editorWorldData) {
             this.minimap = new Minimap(this);
 
             Quests.initialize(this.player);
+            Quests.grantStarterQuest(this.player, this.world);
             Achievements.initialize(this.player);
             MarketDynamics.initialize();
             if (typeof Technology !== 'undefined') Technology.initPlayer(this.player);

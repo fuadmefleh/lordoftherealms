@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <title>Interior Editor</title>
+<!-- Shared editor design system (foundation) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&family=MedievalSharp&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="editor-ui.css">
+<script src="editor-ui.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -1011,10 +1017,10 @@ function _showCustomObjectsPalette() {
     tagBtn.title = 'Edit building tags for this object';
     tagBtn.style.cssText = 'font-size:11px;padding:1px 5px;flex-shrink:0;cursor:pointer';
     tagBtn.textContent = '🏷';
-    tagBtn.addEventListener('click', (e) => {
+    tagBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const current = (obj.buildingTags || []).join(', ');
-      const input = prompt(`Building tags for "${obj.name}" (comma-separated, e.g. tavern, inn):`, current);
+      const input = await EditorUI.prompt(`Building tags for "${obj.name}" (comma-separated, e.g. tavern, inn):`, { title: 'Building Tags', value: current, placeholder: 'tavern, inn' });
       if (input === null) return;
       obj.buildingTags = input.split(',').map(s => s.trim()).filter(Boolean);
       notifyParent();

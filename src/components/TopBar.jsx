@@ -8,7 +8,9 @@ export default function TopBar() {
   return (
     <div id="topBar">
       <div id="topBarLeft">
-        {/* Stats moved to bottom HUD — keep hidden DOM elements for compatibility */}
+        {/* Hidden legacy stat items — kept so hud.js updateStats bindings stay alive.
+            #goldValue/#karmaValue/#renownValue are read WITHOUT null-guards, so they
+            must remain in the DOM (see hud.js updateStats). */}
         <div className="stat-item" id="goldStat" style={{display:'none'}}>
           <span className="stat-value" id="goldValue">{playerStats.gold}</span>
         </div>
@@ -31,11 +33,13 @@ export default function TopBar() {
           <span className="stat-value" id="hpValue">{playerStats.hp}</span>
         </div>
 
-        {/* Menu buttons now in top-left */}
-        {/* Map Menu */}
+        {/* ═══ Top tab nav ═══ (Map/Kingdom/Journal reuse the existing dropdown
+            groups so their child bindings survive; Quests/Diplomacy are direct.) */}
+
+        {/* MAP */}
         <div className="civ-menu-group">
-          <button className="civ-menu-btn" id="civMapBtn" title="Map Options">
-            <span className="civ-menu-icon">🗺️</span>
+          <button className="civ-menu-btn hud-tab" id="civMapBtn" title="Map Options">
+            <span className="civ-menu-icon">🧭</span>
             <span className="civ-menu-label">Map</span>
           </button>
           <div className="civ-dropdown" id="civMapDropdown">
@@ -57,11 +61,11 @@ export default function TopBar() {
           </div>
         </div>
 
-        {/* Empire Menu */}
+        {/* KINGDOM (formerly Empire) */}
         <div className="civ-menu-group">
-          <button className="civ-menu-btn" id="civEmpireBtn" title="Empire Overview">
-            <span className="civ-menu-icon">👑</span>
-            <span className="civ-menu-label">Empire</span>
+          <button className="civ-menu-btn hud-tab" id="civEmpireBtn" title="Kingdom Overview">
+            <span className="civ-menu-icon">🏰</span>
+            <span className="civ-menu-label">Kingdom</span>
           </button>
           <div className="civ-dropdown" id="civEmpireDropdown">
             <button className="civ-dropdown-item" id="btnCharacter">
@@ -108,10 +112,16 @@ export default function TopBar() {
           </div>
         </div>
 
-        {/* Journal Menu */}
+        {/* QUESTS (direct → showQuestsPanel via #navTabQuests) */}
+        <button className="civ-menu-btn hud-tab" id="navTabQuests" title="Quest Journal">
+          <span className="civ-menu-icon">⚔️</span>
+          <span className="civ-menu-label">Quests</span>
+        </button>
+
+        {/* JOURNAL */}
         <div className="civ-menu-group">
-          <button className="civ-menu-btn" id="civJournalBtn" title="Reports & History">
-            <span className="civ-menu-icon">📜</span>
+          <button className="civ-menu-btn hud-tab" id="civJournalBtn" title="Reports & History">
+            <span className="civ-menu-icon">📖</span>
             <span className="civ-menu-label">Journal</span>
           </button>
           <div className="civ-dropdown" id="civJournalDropdown">
@@ -138,9 +148,16 @@ export default function TopBar() {
             </button>
           </div>
         </div>
+
+        {/* DIPLOMACY (direct → _showDiplomacyPanel via #navTabDiplomacy) */}
+        <button className="civ-menu-btn hud-tab" id="navTabDiplomacy" title="Diplomacy">
+          <span className="civ-menu-icon">🤝</span>
+          <span className="civ-menu-label">Diplomacy</span>
+        </button>
       </div>
 
       <div id="topBarCenter">
+        <span id="titleFlourish" className="title-flourish">♛</span>
         <span id="gameTitle">Lord of the Realms</span>
         <span id="turnDisplay">Day {turn.day} — {turn.season}, Year {turn.year}</span>
       </div>
@@ -154,10 +171,33 @@ export default function TopBar() {
           <button className="sims-time-btn" id="btnTimeUltra"><span>▶▶▶</span></button>
         </div>
 
-        <button className="civ-audio-btn" id="btnAudioToggle" title="Toggle Music">
+        {/* Resource counters */}
+        <div className="tb-resources">
+          <div className="tb-res tb-res-gold" title="Gold">
+            <span className="tb-res-icon">🪙</span>
+            <span className="tb-res-col">
+              <span className="tb-res-val" id="tbGold">0</span>
+              <span className="tb-res-sub" id="tbIncome">+0/d</span>
+            </span>
+          </div>
+          <div className="tb-res" title="Renown">
+            <span className="tb-res-icon">⭐</span>
+            <span className="tb-res-val" id="tbStars">0</span>
+          </div>
+          <div className="tb-res" title="Military Strength">
+            <span className="tb-res-icon">🛡️</span>
+            <span className="tb-res-val" id="tbShields">0</span>
+          </div>
+        </div>
+
+        <button className="tb-icon-btn" id="btnHelp" title="How to Play">?</button>
+        <button className="tb-icon-btn civ-audio-btn" id="btnAudioToggle" title="Toggle Music">
           <span className="audio-icon">🔊</span>
         </button>
-        <button className="civ-settings-btn" id="btnSettings" title="Settings">⚙️</button>
+        <button className="tb-icon-btn civ-settings-btn" id="btnSettings" title="Settings">⚙️</button>
+
+        {/* Player portrait */}
+        <div className="tb-portrait" id="tbPortrait" title="Character">🧑</div>
 
         {/* End Day hidden from top, now in bottom HUD */}
         <button className="civ-end-turn-btn" id="btnEndTurn" title="End Day" style={{display:'none'}}>

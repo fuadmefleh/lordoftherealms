@@ -62,14 +62,25 @@ Object.assign(InnerMap, {
                 }
             }
             seasonTiles[season] = grid;
-            // Inside corners: null → falls through to fillCategory:'grass'
-            seasonInsideCorners[season] = [null, null, null, null];
+            // Inside corners: the opaque grass→dirt block carries dedicated
+            // concave-corner tiles at rows 3-4, cols 6-7 — a grass field with a
+            // dirt diamond-notch biting into one corner. Without these, a grass
+            // tile that fully surrounds a diagonal dirt cell falls back to the
+            // opaque centre fill and shows a hard 90° notch. IC order matches
+            // _pickNineTileInfo (0=TL, 1=TR, 2=BL, 3=BR missing diagonal), i.e.
+            // the tile whose dirt bite sits in that corner.
+            seasonInsideCorners[season] = [
+                { sheetPath: sheet, sx: 7 * 32, sy: 4 * 32 }, // 0: TL missing → bite top-left
+                { sheetPath: sheet, sx: 6 * 32, sy: 4 * 32 }, // 1: TR missing → bite top-right
+                { sheetPath: sheet, sx: 7 * 32, sy: 3 * 32 }, // 2: BL missing → bite bottom-left
+                { sheetPath: sheet, sx: 6 * 32, sy: 3 * 32 }, // 3: BR missing → bite bottom-right
+            ];
         }
 
         this._fallbackGrassBrush = {
             name: 'Grass (Default)',
             tiles: seasonTiles.spring,
-            insideCorners: [null, null, null, null],
+            insideCorners: seasonInsideCorners.spring,
             seasonTiles,
             seasonInsideCorners,
         };
@@ -155,6 +166,35 @@ Object.assign(InnerMap, {
         for (let r = 0; r < H; r++) {
             for (let q = 0; q < W; q++) {
                 if (r === 0 || r === H - 1 || q === 0 || q === W - 1) mask[r][q] = false;
+            }
+        }
+
+        // ── Erode un-tileable stubs ──
+        // A grass tile whose neighbours don't span a full axis — e.g. a single-tile
+        // protrusion with grass only below it — has no valid 9-tile representation, so
+        // _pickNineTileInfo returns null and the caller falls back to the opaque centre
+        // fill. That renders as a hard-edged grass square floating in the dirt (the very
+        // artifact we're fixing). Remove such degenerate tiles from the mask, iterating
+        // because each removal can expose a new stub (thin peninsulas peel back to the
+        // solid patch), so every remaining grass tile auto-tiles with blended edges.
+        const inMask = (nq, nr) => (nr >= 0 && nr < H && nq >= 0 && nq < W) ? mask[nr][nq] : false;
+        let eroded = true;
+        while (eroded) {
+            eroded = false;
+            const toClear = [];
+            for (let r = 0; r < H; r++) {
+                for (let q = 0; q < W; q++) {
+                    if (!mask[r][q]) continue;
+                    const hasTop = inMask(q, r - 1);
+                    const hasBottom = inMask(q, r + 1);
+                    const hasLeft = inMask(q - 1, r);
+                    const hasRight = inMask(q + 1, r);
+                    if ((!hasTop && !hasBottom) || (!hasLeft && !hasRight)) toClear.push(r, q);
+                }
+            }
+            for (let i = 0; i < toClear.length; i += 2) {
+                mask[toClear[i]][toClear[i + 1]] = false;
+                eroded = true;
             }
         }
 

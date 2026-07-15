@@ -100,6 +100,17 @@
       "rewards": { "gold": 1500, "karma": 10 },
       "difficulty": "medium"
     },
+    "A_NEW_BEGINNING": {
+      "id": "a_new_beginning",
+      "title": "A New Beginning",
+      "description": "Explore nearby lands, discover settlements, and grow your influence.",
+      "type": "exploration",
+      "objectives": [
+        { "type": "tiles_explored_since", "target": 2, "current": 0, "baseline": 0, "text": "Explore 2 more hexes" }
+      ],
+      "rewards": { "renown": 5 },
+      "difficulty": "easy"
+    },
     "WANDERER": {
       "id": "wanderer",
       "title": "Wanderer",

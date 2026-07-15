@@ -1,6 +1,6 @@
 // UI — hud methods.
 import { UI } from './core.js';
-import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing } from './_imports.js';
+import { Utils, ActionMenu, Religion, Economy, Terrain, PlayerEconomy, PlayerMilitary, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing } from './_imports.js';
 
 Object.assign(UI.prototype, {
     setupEventListeners() {
@@ -114,6 +114,9 @@ Object.assign(UI.prototype, {
 
         // --- Civ-style dropdown menu behavior ---
         this.setupCivDropdowns();
+
+        // --- Redesigned HUD navigation (top tabs, left rail, zoom, log) ---
+        this._setupHudNav();
 
         // Gold stat click — show finance tracker
         const goldStat = document.getElementById('goldStat');
@@ -314,6 +317,14 @@ Object.assign(UI.prototype, {
         // === Update Bottom HUD (Sims-style needs bars) ===
         this._updateSimsHUD(player, world);
 
+        // === Update redesigned HUD regions (top bar, right rail, char card) ===
+        this.updateTopBarResources(player, world);
+        this.updateCharacterCard(player);
+        this.updateMoodMeter(player);
+        this.updateObjectivePanel(player);
+        this.updateRegionPanel(player, world);
+        this.updateEventsPanel();
+
         // Show jail status if active
         let jailEl = document.getElementById('jailDisplay');
         if (player.jailState) {
@@ -365,7 +376,13 @@ Object.assign(UI.prototype, {
         //         turnEl.textContent = `Day ${dayInSeason} — ${world.season}, Year ${world.year}`;
         //     }
         // }
-        turnEl.textContent = `Day ${dayInSeason} — ${world.season}, Year ${world.year}`;
+        // Top-bar subtitle: season + year (mockup style). Bottom bar carries the day.
+        if (turnEl) turnEl.textContent = `${world.season}, Year ${world.year}`;
+        const bottomDate = document.getElementById('hudBottomDate');
+        if (bottomDate) {
+            const s = `Day ${dayInSeason} of ${world.season}, Year ${world.year}`;
+            if (bottomDate.textContent !== s) bottomDate.textContent = s;
+        }
     },
 
     /**
@@ -861,5 +878,302 @@ Object.assign(UI.prototype, {
                 }
             });
         });
+    },
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// REDESIGNED HUD — pure display helpers (module scope; not on the prototype)
+// ══════════════════════════════════════════════════════════════════════════
+
+/** Alignment label: "Unaligned" when the player owes no allegiance. */
+function hudAlignment(player) {
+    return player.allegiance == null ? 'Unaligned' : (player.kingdomTitle || 'Citizen');
+}
+
+/** Moral stance derived from karma. */
+function hudStance(player) {
+    const k = player.karma || 0;
+    if (k >= 25) return 'Righteous';
+    if (k <= -25) return 'Ruthless';
+    return 'Neutral';
+}
+
+/** Morale % derived from health. Starts at 100 (full health) to match the mockup. */
+function hudMorale(player) {
+    const hp = player.health != null ? player.health : 100;
+    const max = player.maxHealth || 100;
+    return Math.max(0, Math.min(100, Math.round((hp / max) * 100)));
+}
+
+/** Mood label + icon derived from morale %, reusing the needs.js thresholds. */
+function hudMoodFromMorale(pct) {
+    if (pct >= 85) return { label: 'Ecstatic', icon: '😄' };
+    if (pct >= 70) return { label: 'Happy', icon: '😊' };
+    if (pct >= 50) return { label: 'Content', icon: '😐' };
+    if (pct >= 30) return { label: 'Tense', icon: '😟' };
+    if (pct >= 15) return { label: 'Miserable', icon: '😩' };
+    return { label: 'Desperate', icon: '😵' };
+}
+
+/** Character level derived from renown + skill totals (1 at game start). */
+function hudLevel(player) {
+    const renown = player.renown || 0;
+    const skillSum = Object.values(player.skills || {}).reduce((a, b) => a + (b || 0), 0);
+    return 1 + Math.floor(renown / 100) + Math.floor(skillSum / 50);
+}
+
+/** Minimal HTML escaper for injected event strings. */
+function hudEscHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// REDESIGNED HUD — prototype update methods + navigation (additive)
+// ══════════════════════════════════════════════════════════════════════════
+
+Object.assign(UI.prototype, {
+    /** Set an element's textContent only when it changed (cheap for the 0.5s loop). */
+    _setHudText(id, val) {
+        const el = document.getElementById(id);
+        if (el && el.textContent !== String(val)) el.textContent = String(val);
+    },
+
+    /** Top-bar gold + income + stars (renown) + shields (army strength). */
+    updateTopBarResources(player, world) {
+        this._setHudText('tbGold', Utils.formatNumber(player.gold));
+
+        // Per-day income from the latest finance snapshot (0 before day 1 ends).
+        const hist = player.financeHistory;
+        const fin = hist && hist.length ? hist[hist.length - 1] : null;
+        const net = fin ? Math.round(fin.netChange || 0) : 0;
+        const incomeStr = `${net >= 0 ? '+' : '−'}${Utils.formatNumber(Math.abs(net))}/d`;
+        for (const id of ['tbIncome', 'incomePerDay']) {
+            const el = document.getElementById(id);
+            if (el) {
+                if (el.textContent !== incomeStr) el.textContent = incomeStr;
+                el.classList.toggle('negative', net < 0);
+            }
+        }
+
+        this._setHudText('tbStars', player.renown || 0);
+        const shields = (typeof PlayerMilitary !== 'undefined' && PlayerMilitary.getArmyStrength)
+            ? PlayerMilitary.getArmyStrength(player)
+            : (player.army ? player.army.length : 0);
+        this._setHudText('tbShields', shields);
+        this._setHudText('bbShields', shields);
+    },
+
+    /** Bottom-left character card: name, alignment, morale, stance, level, portrait. */
+    updateCharacterCard(player) {
+        this._setHudText('charCardName', (player.name || player.firstName || 'Wanderer').toUpperCase());
+        this._setHudText('charCardAlignment', hudAlignment(player));
+        this._setHudText('charCardMorale', `${hudMorale(player)}%`);
+        this._setHudText('charCardStance', hudStance(player));
+        this._setHudText('charCardLevel', hudLevel(player));
+        const port = document.getElementById('charCardPortrait');
+        if (port) {
+            const icon = player.icon || '🧑';
+            if (port.textContent !== icon) port.textContent = icon;
+        }
+    },
+
+    /** Bottom-bar mood label + meter, derived from morale so it reads high at full health. */
+    updateMoodMeter(player) {
+        const pct = hudMorale(player);
+        const mood = hudMoodFromMorale(pct);
+        this._setHudText('simsMoodIcon', mood.icon);
+        this._setHudText('simsMoodLabel', mood.label.toUpperCase());
+        const fill = document.getElementById('moodMeterFill');
+        if (fill) fill.style.width = pct + '%';
+    },
+
+    /** Right-rail Current Objective, bound to the first active quest. Read-only. */
+    updateObjectivePanel(player) {
+        const titleEl = document.getElementById('objectiveTitle');
+        const descEl = document.getElementById('objectiveDesc');
+        const progEl = document.getElementById('objectiveProgress');
+        if (!titleEl && !descEl && !progEl) return;
+
+        const q = player.quests && player.quests.active && player.quests.active[0];
+        if (!q) {
+            if (titleEl) titleEl.textContent = 'No Active Objective';
+            if (descEl) descEl.textContent = 'Seek quests from the folk you meet along the road.';
+            if (progEl) progEl.textContent = '';
+            return;
+        }
+
+        const obj = q.objectives.find(o => !o.completed) || q.objectives[q.objectives.length - 1];
+        if (titleEl && titleEl.textContent !== q.title) titleEl.textContent = q.title;
+        if (descEl) {
+            const text = obj ? obj.text : q.description;
+            if (descEl.textContent !== text) descEl.textContent = text;
+        }
+        if (progEl && obj) {
+            const s = `${obj.current || 0} / ${obj.target}`;
+            if (progEl.textContent !== s) progEl.textContent = s;
+        }
+    },
+
+    /** Right-rail Region Details for the player's current tile. Region name memoized. */
+    updateRegionPanel(player, world) {
+        const tile = world.getTile(player.q, player.r);
+        if (!tile || !tile.terrain) return;
+
+        this._setHudText('regionTerrain', tile.terrain.name);
+        this._setHudText('regionTerrainIcon', tile.terrain.icon || '');
+        const moveCost = (Infrastructure && Infrastructure.getEffectiveMoveCost)
+            ? Infrastructure.getEffectiveMoveCost(tile)
+            : tile.terrain.moveCost;
+        this._setHudText('regionMoveCost', moveCost === Infinity ? '—' : moveCost);
+
+        // Region name + description, memoized by regionId.
+        if (!this._regionCache) this._regionCache = {};
+        const rid = tile.regionId;
+        let info = this._regionCache[rid];
+        if (!info) {
+            info = {
+                name: Terrain.getRegionName(tile, world),
+                desc: Terrain.getRegionDescription(tile, world),
+            };
+            this._regionCache[rid] = info;
+        }
+        this._setHudText('regionName', info.name);
+        this._setHudText('regionDesc', info.desc);
+
+        // Claim status.
+        let subtitle = 'Unclaimed Lands';
+        if (tile.kingdom != null && world.getKingdom) {
+            const kd = world.getKingdom(tile.kingdom);
+            subtitle = kd && kd.name ? kd.name : 'Claimed Territory';
+        }
+        this._setHudText('regionSubtitle', subtitle);
+    },
+
+    /** Right-rail Recent Events + bottom Activity Log, from notificationLog. */
+    updateEventsPanel() {
+        const log = this.notificationLog || [];
+        if (this._lastEventLen === log.length) return;
+        this._lastEventLen = log.length;
+
+        const recent = log.slice(-6).reverse();
+        const typeIcons = { success: '✅', error: '⚠️', info: 'ℹ️', default: '📜' };
+        let rows = '';
+        if (recent.length === 0) {
+            rows = '<div class="hud-event-empty">No events yet. Your journey begins…</div>';
+        } else {
+            for (const e of recent) {
+                const icon = typeIcons[e.type] || typeIcons.default;
+                rows += `<div class="hud-event">`
+                    + `<span class="hud-event-icon">${icon}</span>`
+                    + `<div class="hud-event-body">`
+                    + `<span class="hud-event-head"><span class="hud-event-title">${hudEscHtml(e.title)}</span>`
+                    + `<span class="hud-event-day">Day ${e.day}</span></span>`
+                    + `<span class="hud-event-msg">${hudEscHtml(e.message)}</span>`
+                    + `</div></div>`;
+            }
+        }
+        const list = document.getElementById('eventsList');
+        if (list) list.innerHTML = rows;
+        const logBody = document.getElementById('activityLogBody');
+        if (logBody) logBody.innerHTML = rows;
+    },
+
+    /** Wire the redesigned top tabs, left rail, minimap zoom, and activity-log toggle. */
+    _setupHudNav() {
+        const game = this.game;
+        const bind = (id, fn) => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('click', fn);
+        };
+        const tileAt = () => game.world.getTile(game.player.q, game.player.r);
+        const recenter = () => {
+            const pos = game.renderer.getHexPixelPos(game.player.q, game.player.r);
+            if (game.camera && game.camera.centerOn) game.camera.centerOn(pos.x, pos.y);
+        };
+
+        // Top tabs — Map/Kingdom/Journal are dropdown buttons (see setupCivDropdowns);
+        // Quests and Diplomacy are direct-action tabs.
+        bind('navTabQuests', () => this.showQuestsPanel());
+        bind('navTabDiplomacy', () => this._showDiplomacyPanel(game.player, game.world));
+
+        // Left rail
+        bind('railOverview', () => this.showCharacterPanel());
+        bind('railArmies', () => ActionMenu.showTravelPartyMenu(game, tileAt()));
+        bind('railSettlements', () => this._showSettlementsPanel(game.player, game.world));
+        bind('railResources', () => this.showTreasuryPanel(game.player, game.world));
+        bind('railFactions', () => this._showDiplomacyPanel(game.player, game.world));
+
+        // Help
+        bind('btnHelp', () => this.showNotification(
+            'How to Play',
+            'Click a hex to travel, end each day to advance time, and complete objectives to grow your influence.',
+            'info'));
+
+        // Activity log collapse toggle
+        const logToggle = document.getElementById('activityLogToggle');
+        if (logToggle) {
+            logToggle.addEventListener('click', () => {
+                const body = document.getElementById('activityLogBody');
+                if (body) body.classList.toggle('collapsed');
+                logToggle.classList.toggle('collapsed');
+            });
+        }
+
+        // Minimap zoom controls
+        const zoomBy = (delta) => {
+            if (!game.camera) return;
+            const base = game.camera.targetZoom != null ? game.camera.targetZoom : game.camera.zoom;
+            game.camera.targetZoom = Utils.clamp(base + delta, game.camera.minZoom, game.camera.maxZoom);
+        };
+        const step = () => (game.camera && game.camera.zoomStep ? game.camera.zoomStep * 2 : 0.2);
+        bind('minimapZoomIn', () => zoomBy(step()));
+        bind('minimapZoomOut', () => zoomBy(-step()));
+        bind('minimapZoomReset', recenter);
+    },
+
+    /** Lightweight Diplomacy / Factions panel listing the realm's kingdoms. */
+    _showDiplomacyPanel(player, world) {
+        const kingdoms = (world.kingdoms || []).filter(k => k.isAlive !== false);
+        let html = '<div style="max-width: 640px;">';
+        if (kingdoms.length === 0) {
+            html += '<p style="color: var(--text-secondary); text-align:center; padding: 24px;">No known realms.</p>';
+        } else {
+            for (const k of kingdoms) {
+                const rep = (player.reputation && player.reputation[k.id]) || 0;
+                const relLabel = rep >= 50 ? 'Friendly' : rep <= -50 ? 'Hostile' : 'Neutral';
+                const relColor = rep >= 50 ? 'var(--accent-green)' : rep <= -50 ? 'var(--accent-red)' : 'var(--text-secondary)';
+                html += `<div class="hud-faction-row" data-ui-act="showKingdomDetails" data-ui-args='["${k.id}"]'>`
+                    + `<span class="hud-faction-swatch" style="background:${k.color || '#888'};"></span>`
+                    + `<span class="hud-faction-name">${hudEscHtml(k.name)}</span>`
+                    + `<span class="hud-faction-rep" style="color:${relColor};">${relLabel} (${rep >= 0 ? '+' : ''}${rep})</span>`
+                    + `</div>`;
+            }
+        }
+        html += '</div>';
+        this.showCustomPanel('🤝 Diplomacy', html);
+    },
+
+    /** Lightweight Settlements panel listing all settlements in the world. */
+    _showSettlementsPanel(player, world) {
+        const settlements = (world.getAllSettlements ? world.getAllSettlements() : []);
+        settlements.sort((a, b) => (b.population || 0) - (a.population || 0));
+        let html = '<div style="max-width: 640px;">';
+        if (settlements.length === 0) {
+            html += '<p style="color: var(--text-secondary); text-align:center; padding: 24px;">No settlements discovered yet.</p>';
+        } else {
+            for (const s of settlements) {
+                const typeLabel = (s.type || 'settlement').replace(/\b\w/g, c => c.toUpperCase());
+                html += `<div class="hud-settle-row" data-ui-act="showSettlementDetails" data-ui-args="[${s.q}, ${s.r}]">`
+                    + `<span class="hud-settle-name">${hudEscHtml(s.name || 'Unknown')}</span>`
+                    + `<span class="hud-settle-type">${hudEscHtml(typeLabel)}</span>`
+                    + `<span class="hud-settle-pop">👥 ${Utils.formatNumber(s.population || 0)}</span>`
+                    + `</div>`;
+            }
+        }
+        html += '</div>';
+        this.showCustomPanel('🏰 Settlements', html);
     },
 });

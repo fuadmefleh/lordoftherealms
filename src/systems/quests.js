@@ -117,6 +117,17 @@ export const Quests = {
         },
 
         // Exploration Quests
+        A_NEW_BEGINNING: {
+            id: 'a_new_beginning',
+            title: 'A New Beginning',
+            description: 'Explore nearby lands, discover settlements, and grow your influence.',
+            type: 'exploration',
+            objectives: [
+                { type: 'tiles_explored_since', target: 2, current: 0, baseline: 0, text: 'Explore 2 more hexes' }
+            ],
+            rewards: { renown: 5 },
+            difficulty: 'easy',
+        },
         WANDERER: {
             id: 'wanderer',
             title: 'Wanderer',
@@ -388,6 +399,18 @@ export const Quests = {
                         }
                         objective.current = exploredCount;
                         break;
+                    case 'tiles_explored_since': {
+                        // Progress relative to a baseline captured when the
+                        // quest was granted, so it reads "explore N more hexes".
+                        let sinceCount = 0;
+                        for (let r = 0; r < world.height; r++) {
+                            for (let q = 0; q < world.width; q++) {
+                                if (world.tiles[r][q].explored) sinceCount++;
+                            }
+                        }
+                        objective.current = Math.max(0, sinceCount - (objective.baseline || 0));
+                        break;
+                    }
                     case 'settlements_visited':
                         objective.current = player.quests.settlementsVisited.size;
                         break;
@@ -502,5 +525,38 @@ export const Quests = {
         const total = quest.objectives.length;
         const completed = quest.objectives.filter(obj => obj.completed).length;
         return `${completed}/${total}`;
+    },
+
+    /**
+     * Grant the intro "A New Beginning" quest as an active quest at game start.
+     * Captures the current explored-tile count as a baseline so the objective
+     * reads "explore 2 MORE hexes". Idempotent.
+     */
+    grantStarterQuest(player, world) {
+        if (!player.quests) return;
+        if (Quests.hasQuest(player, 'a_new_beginning')) return;
+
+        const quest = Quests.createQuest('A_NEW_BEGINNING', player);
+        if (!quest) return;
+
+        // Baseline = tiles already explored at grant time.
+        let explored = 0;
+        if (world && world.tiles) {
+            for (let r = 0; r < world.height; r++) {
+                for (let q = 0; q < world.width; q++) {
+                    if (world.tiles[r][q].explored) explored++;
+                }
+            }
+        }
+        for (const obj of quest.objectives) {
+            if (obj.type === 'tiles_explored_since') {
+                obj.baseline = explored;
+                obj.current = 0;
+            }
+        }
+
+        quest.status = 'active';
+        quest.startedAt = world ? world.day : 0;
+        player.quests.active.push(quest);
     },
 };

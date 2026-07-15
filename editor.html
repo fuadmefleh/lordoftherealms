@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <title>Lord of the Realms — Editors</title>
+<!-- Shared editor design system (foundation) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&family=MedievalSharp&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="editor-ui.css">
+<script src="editor-ui.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -213,37 +219,34 @@ textarea{resize:vertical;font-family:inherit}
 <body>
 
 <!-- ═══════════════════ TOP NAV ═══════════════════ -->
-<div id="nav">
+<div id="nav" role="tablist" aria-label="Editor tools">
   <div class="brand">⚔️ Lord of the Realms <span>Editors</span></div>
-  <div class="nav-tab active" data-tab="sprite"    onclick="switchTab('sprite')">
+  <div class="nav-tab active" data-tab="sprite" role="tab" tabindex="0" aria-selected="true" onclick="switchTab('sprite')">
     <span class="tab-icon">🎨</span> Sprite Editor
   </div>
-  <div class="nav-tab" data-tab="spritesheet" onclick="switchTab('spritesheet')">
+  <div class="nav-tab" data-tab="spritesheet" role="tab" tabindex="-1" aria-selected="false" onclick="switchTab('spritesheet')">
     <span class="tab-icon">🗂️</span> Spritesheet Editor
   </div>
-  <div class="nav-tab" data-tab="interiors"   onclick="switchTab('interiors')">
+  <div class="nav-tab" data-tab="interiors" role="tab" tabindex="-1" aria-selected="false" onclick="switchTab('interiors')">
     <span class="tab-icon">🏠</span> Interior Editor
   </div>
-  <div class="nav-tab" data-tab="terrain"     onclick="switchTab('terrain')">
+  <div class="nav-tab" data-tab="terrain" role="tab" tabindex="-1" aria-selected="false" onclick="switchTab('terrain')">
     <span class="tab-icon">🏔</span> Terrain Editor
   </div>
-  <div class="nav-tab" data-tab="resources"   onclick="switchTab('resources')">
+  <div class="nav-tab" data-tab="resources" role="tab" tabindex="-1" aria-selected="false" onclick="switchTab('resources')">
     <span class="tab-icon">💎</span> Resource Types
   </div>
-  <div class="nav-tab" data-tab="innerresources" onclick="switchTab('innerresources')">
+  <div class="nav-tab" data-tab="innerresources" role="tab" tabindex="-1" aria-selected="false" onclick="switchTab('innerresources')">
     <span class="tab-icon">📦</span> Inner Map Resources
   </div>
-  <div class="nav-tab" data-tab="techtree"    onclick="switchTab('techtree')">
+  <div class="nav-tab" data-tab="techtree" role="tab" tabindex="-1" aria-selected="false" onclick="switchTab('techtree')">
     <span class="tab-icon">🔬</span> Tech Tree
   </div>
-  <div class="nav-tab" data-tab="palettes"    onclick="switchTab('palettes')">
-    <span class="tab-icon">🎨</span> Palettes
-  </div>
   <div class="nav-spacer"></div>
-  <button class="green" style="font-size:11px;padding:3px 9px" onclick="newGamedata()">📄 New</button>
-  <button class="purple" style="font-size:11px;padding:3px 9px" onclick="triggerImport()">⬆ Import</button>
+  <button class="green btn-sm" onclick="newGamedata()">📄 New</button>
+  <button class="purple btn-sm" onclick="triggerImport()">⬆ Import</button>
   <input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)">
-  <button class="gold" style="font-size:11px;padding:3px 9px" onclick="exportGamedata()">⬇ Export gamedata.json</button>
+  <button class="gold btn-sm" onclick="exportGamedata()">⬇ Export gamedata.json</button>
   <span id="dirty-badge" class="status-badge" style="font-size:10px;margin-left:4px">unchanged</span>
 </div>
 
@@ -252,26 +255,25 @@ textarea{resize:vertical;font-family:inherit}
 
   <!-- Sprite Editor iframe -->
   <div class="editor-pane active" id="pane-sprite">
+    <div class="pane-loading"><div class="eui-spinner"></div><div>Loading Sprite Editor…</div></div>
     <iframe src="sprite_editor.html" id="iframe-sprite"></iframe>
   </div>
 
   <!-- Spritesheet Editor iframe -->
   <div class="editor-pane" id="pane-spritesheet">
+    <div class="pane-loading"><div class="eui-spinner"></div><div>Loading Spritesheet Editor…</div></div>
     <!-- loaded lazily on first activation -->
   </div>
 
   <!-- Interior Editor iframe -->
   <div class="editor-pane" id="pane-interiors">
+    <div class="pane-loading"><div class="eui-spinner"></div><div>Loading Interior Editor…</div></div>
     <!-- loaded lazily on first activation -->
   </div>
 
   <!-- Terrain Editor iframe -->
   <div class="editor-pane" id="pane-terrain">
-    <!-- loaded lazily on first activation -->
-  </div>
-
-  <!-- Palette Maker iframe -->
-  <div class="editor-pane" id="pane-palettes">
+    <div class="pane-loading"><div class="eui-spinner"></div><div>Loading Terrain Editor…</div></div>
     <!-- loaded lazily on first activation -->
   </div>
 
@@ -539,45 +541,88 @@ textarea{resize:vertical;font-family:inherit}
 //  TAB SWITCHING
 // ═══════════════════════════════════════════════════════
 
-const iframeLoaded = { sprite: true, spritesheet: false, interiors: false, terrain: false, palettes: false, techtree: true };
+const iframeLoaded = { sprite: true, spritesheet: false, interiors: false, terrain: false, techtree: true };
+
+// Lazy-loaded iframe panes: tab name → editor source file.
+const LAZY_PANES = {
+  spritesheet: { id: 'iframe-spritesheet', src: 'spritesheet_editor.html' },
+  interiors:   { id: 'iframe-interiors',   src: 'interior_editor.html' },
+  terrain:     { id: 'iframe-terrain',     src: 'terrain_editor.html' },
+};
+
+// Hide a pane's loading overlay once its iframe finishes loading.
+function onPaneIframeLoad(iframe) {
+  const pane = iframe.closest('.editor-pane');
+  const loader = pane && pane.querySelector('.pane-loading');
+  if (loader) loader.classList.add('hidden');
+}
+
+// Wire loading overlays for any iframe already present in the DOM
+// (the eager Sprite iframe). Hide immediately if it already loaded,
+// otherwise on its load event — avoids a race with the inline handler.
+document.querySelectorAll('.editor-pane iframe').forEach(f => {
+  try {
+    if (f.contentDocument && f.contentDocument.readyState === 'complete') { onPaneIframeLoad(f); return; }
+  } catch (e) { /* cross-origin — fall through to load listener */ }
+  f.addEventListener('load', () => onPaneIframeLoad(f));
+});
+// Safety net: never leave a spinner covering a loaded editor.
+window.addEventListener('load', () => {
+  document.querySelectorAll('.editor-pane iframe').forEach(f => onPaneIframeLoad(f));
+});
 
 function switchTab(name) {
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.nav-tab').forEach(t => {
+    const on = t.dataset.tab === name;
+    t.classList.toggle('active', on);
+    t.setAttribute('aria-selected', on ? 'true' : 'false');
+    t.tabIndex = on ? 0 : -1;
+  });
   document.querySelectorAll('.editor-pane').forEach(p => p.classList.toggle('active', p.id === `pane-${name}`));
 
-  // Lazy-load iframes
-  if (name === 'spritesheet' && !iframeLoaded.spritesheet) {
-    iframeLoaded.spritesheet = true;
-    const pane = document.getElementById('pane-spritesheet');
+  // Lazy-load iframes on first activation.
+  const lazy = LAZY_PANES[name];
+  if (lazy && !iframeLoaded[name]) {
+    iframeLoaded[name] = true;
+    const pane = document.getElementById(`pane-${name}`);
     const iframe = document.createElement('iframe');
-    iframe.src = 'spritesheet_editor.html';
-    pane.appendChild(iframe);
-  }
-  if (name === 'interiors' && !iframeLoaded.interiors) {
-    iframeLoaded.interiors = true;
-    const pane = document.getElementById('pane-interiors');
-    const iframe = document.createElement('iframe');
-    iframe.id = 'iframe-interiors';
-    iframe.src = 'interior_editor.html';
-    pane.appendChild(iframe);
-  }
-  if (name === 'terrain' && !iframeLoaded.terrain) {
-    iframeLoaded.terrain = true;
-    const pane = document.getElementById('pane-terrain');
-    const iframe = document.createElement('iframe');
-    iframe.id = 'iframe-terrain';
-    iframe.src = 'terrain_editor.html';
-    pane.appendChild(iframe);
-  }
-  if (name === 'palettes' && !iframeLoaded.palettes) {
-    iframeLoaded.palettes = true;
-    const pane = document.getElementById('pane-palettes');
-    const iframe = document.createElement('iframe');
-    iframe.id = 'iframe-palettes';
-    iframe.src = 'palette_maker.html';
+    iframe.id = lazy.id;
+    iframe.src = lazy.src;
+    iframe.addEventListener('load', () => onPaneIframeLoad(iframe));
     pane.appendChild(iframe);
   }
 }
+
+// ── Keyboard tab navigation ──
+// Ctrl/Cmd+1..N jumps to a tab; Ctrl+Tab / Ctrl+Shift+Tab cycles.
+document.addEventListener('keydown', (e) => {
+  const tabs = Array.from(document.querySelectorAll('.nav-tab'));
+  if (!tabs.length) return;
+  const activeIdx = tabs.findIndex(t => t.classList.contains('active'));
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key >= '1' && e.key <= '9') {
+    const idx = parseInt(e.key, 10) - 1;
+    if (idx < tabs.length) { e.preventDefault(); switchTab(tabs[idx].dataset.tab); tabs[idx].focus(); }
+  } else if ((e.ctrlKey || e.metaKey) && e.key === 'Tab') {
+    e.preventDefault();
+    const next = (activeIdx + (e.shiftKey ? -1 : 1) + tabs.length) % tabs.length;
+    switchTab(tabs[next].dataset.tab);
+    tabs[next].focus();
+  }
+});
+
+// Arrow-key navigation within the tablist (WAI-ARIA tabs pattern).
+document.getElementById('nav').addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Enter' && e.key !== ' ') return;
+  const tabs = Array.from(document.querySelectorAll('.nav-tab'));
+  const cur = document.activeElement;
+  const curIdx = tabs.indexOf(cur);
+  if (curIdx === -1) return;
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); switchTab(cur.dataset.tab); return; }
+  e.preventDefault();
+  const next = (curIdx + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+  tabs[next].focus();
+  switchTab(tabs[next].dataset.tab);
+});
 
 // ═══════════════════════════════════════════════════════
 //  RESOURCE TYPES EDITOR — STATE
@@ -876,9 +921,9 @@ function saveCurrentResource() {
   setFormMsg('Saved.', false);
 }
 
-function deleteCurrentResource() {
+async function deleteCurrentResource() {
   if (!selectedId) return;
-  if (!confirm(`Delete "${resources[selectedId].name}"? All terrain chance entries for this resource will also be removed.`)) return;
+  if (!await EditorUI.confirm(`Delete "${resources[selectedId].name}"? All terrain chance entries for this resource will also be removed.`, { title: 'Delete Resource', danger: true })) return;
   const delId = resources[selectedId].id;
   // Remove from chances
   for (const terrain of Object.keys(resChanc)) {
@@ -1029,14 +1074,14 @@ function removeChanceRow(terrain, idx) {
   renderChances();
 }
 
-function removeTerrain(terrain) {
-  if (!confirm(`Remove all spawn chances for terrain "${terrain}"?`)) return;
+async function removeTerrain(terrain) {
+  if (!await EditorUI.confirm(`Remove all spawn chances for terrain "${terrain}"?`, { title: 'Remove Terrain' })) return;
   delete resChanc[terrain];
   markDirty();
   renderChances();
 }
 
-function addTerrainBlock() {
+async function addTerrainBlock() {
   // Show a quick prompt with available terrain types
   const types = terrainData && terrainData.types ? terrainData.types : {};
   const existing = new Set(Object.keys(resChanc));
@@ -1044,10 +1089,10 @@ function addTerrainBlock() {
     .filter(t => !existing.has(t.id))
     .map(t => `${t.icon} ${t.id}`)
     .join('\n');
-  const input = prompt(
+  const input = await EditorUI.prompt(
     'Enter terrain ID to add spawn chances for.\n\nAvailable terrains not yet in list:\n' +
     (available || '(all already added)'),
-    ''
+    { title: 'Add Terrain', placeholder: 'terrain id' }
   );
   if (!input) return;
   const tid = input.trim().toLowerCase();
@@ -2063,10 +2108,10 @@ function ttSave() {
   ttMsg('Saved.', false);
 }
 
-function ttDelete() {
+async function ttDelete() {
   if (!_ttSelected) return;
   const t = _ttTechs[_ttSelected];
-  if (!confirm(`Delete tech "${t.name}"?`)) return;
+  if (!await EditorUI.confirm(`Delete tech "${t.name}"?`, { title: 'Delete Tech', danger: true })) return;
   const delId = t.id;
   // Remove from other techs' prerequisites
   for (const ot of Object.values(_ttTechs)) {
@@ -2099,13 +2144,18 @@ function ttAddTech() {
   pushTechListToSpriteEditor();
 }
 
-function ttAddCategory() {
-  const name = prompt('New category name:');
-  if (!name) return;
+async function ttAddCategory() {
+  const result = await EditorUI.form('New Category', [
+    { key: 'name', label: 'Name', placeholder: 'e.g. Metallurgy' },
+    { key: 'icon', label: 'Icon', value: '⚡' },
+    { key: 'color', label: 'Color', value: '#58a6ff' },
+  ]);
+  if (!result || !result.name.trim()) return;
+  const name = result.name.trim();
   const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
   if (_ttCategories[id]) { toast('Category already exists.', 'err'); return; }
-  const icon = prompt('Icon emoji (e.g. 🔥):', '⚡') || '⚡';
-  const color = prompt('Color hex (e.g. #ff9800):', '#58a6ff') || '#58a6ff';
+  const icon = result.icon || '⚡';
+  const color = result.color || '#58a6ff';
   _ttCategories[id] = { id, name, icon, color };
   ttBuildCatFilter();
   markDirty();

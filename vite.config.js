@@ -6,25 +6,31 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Tiny plugin to copy editor-modstore.js into the build output
-function copyEditorModstore() {
+// Tiny plugin to copy classic (non-module) editor scripts into the build
+// output. These are referenced via plain <script src="…"> in the editor
+// HTML files, which Vite intentionally does not bundle, so we emit them
+// verbatim to dist-web instead.
+function copyEditorAssets() {
+  const files = ['editor-modstore.js', 'editor-ui.js'];
   return {
-    name: 'copy-editor-modstore',
+    name: 'copy-editor-assets',
     generateBundle() {
-      const src = path.resolve(__dirname, 'editor-modstore.js');
-      if (fs.existsSync(src)) {
-        this.emitFile({
-          type: 'asset',
-          fileName: 'editor-modstore.js',
-          source: fs.readFileSync(src, 'utf-8'),
-        });
+      for (const file of files) {
+        const src = path.resolve(__dirname, file);
+        if (fs.existsSync(src)) {
+          this.emitFile({
+            type: 'asset',
+            fileName: file,
+            source: fs.readFileSync(src, 'utf-8'),
+          });
+        }
       }
     },
   };
 }
 
 export default defineConfig({
-  plugins: [react(), copyEditorModstore()],
+  plugins: [react(), copyEditorAssets()],
   root: '.',
   publicDir: false, // static files served from project root by Vite dev server
   server: {

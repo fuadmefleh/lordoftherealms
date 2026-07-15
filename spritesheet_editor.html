@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <title>Spritesheet Editor — Lord of the Realms</title>
+<!-- Shared editor design system (foundation) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&family=MedievalSharp&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="editor-ui.css">
+<script src="editor-ui.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -1342,8 +1348,8 @@ function removeExtraction(id) {
   updateExtractionButtons();
 }
 
-function clearExtractions() {
-  if (!confirm('Remove all extractions?')) return;
+async function clearExtractions() {
+  if (!await EditorUI.confirm('Remove all extractions?', { title: 'Clear Extractions', danger: true })) return;
   state.extractions = [];
   renderExtractions();
   updateExtractionButtons();

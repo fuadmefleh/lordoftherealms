@@ -447,6 +447,7 @@ export async function _doStartNewGame(settingsOverride) {
 
     // Initialize quests and achievements
     Quests.initialize(this.player);
+    Quests.grantStarterQuest(this.player, this.world);
     Achievements.initialize(this.player);
 
     // Initialize market dynamics

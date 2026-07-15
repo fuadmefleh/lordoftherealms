@@ -57,13 +57,15 @@ Object.assign(ActionMenu, {
             `;
         }
 
-        html += `<button onclick="game.ui.hideCustomPanel();"
+        html += `<button onclick="window._oddJobsCancel()"
             style="margin-top: 6px; padding: 8px 20px; background: none; border: 1px solid rgba(255,255,255,0.1);
                    border-radius: 6px; cursor: pointer; color: var(--text-secondary); font-size: 12px;">
             Cancel
         </button>`;
         html += '</div>';
         game.ui.showCustomPanel('Day Labor', html);
+
+        window._oddJobsCancel = () => game.ui.hideCustomPanel();
 
         window._startLabor = (idx) => {
             if (!ActionMenu.commitPendingAP(game)) return;
@@ -139,7 +141,7 @@ Object.assign(ActionMenu, {
         html += `<div style="font-size: 24px; color: var(--gold); font-weight: bold; margin: 8px 0;">+${actualPay} gold</div>`;
         if (scorePercent >= 40) html += `<div style="font-size: 12px; color: #9b59b6;">+1 Renown</div>`;
 
-        html += `<button onclick="game.ui.hideCustomPanel();"
+        html += `<button onclick="window._laborContinue()"
             style="padding: 10px 32px; margin-top: 16px; background: linear-gradient(135deg, var(--gold), #d4a030); color: #1a1a2e; border: none;
                    border-radius: 6px; cursor: pointer; font-family: var(--font-display); font-size: 14px; font-weight: bold; letter-spacing: 1px;">
             Continue
@@ -147,6 +149,7 @@ Object.assign(ActionMenu, {
         html += '</div>';
 
         game.ui.showCustomPanel('🔨 Work Complete', html);
+        window._laborContinue = () => game.ui.hideCustomPanel();
         game.ui.updateStats(player, game.world);
         game.endDay();
     },
@@ -938,12 +941,13 @@ Object.assign(ActionMenu, {
                     html += `<div style="font-size: 16px; color: #f39c12; margin-bottom: 8px;">Slim Pickings</div>`;
                     html += `<div style="color: var(--text-secondary);">You searched but found nothing of value today.</div>`;
                 }
-                html += `<button onclick="game.ui.hideCustomPanel(); game.endDay();"
+                html += `<button onclick="window._forageContinue()"
                     style="width: 100%; margin-top: 12px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
             }
 
             html += '</div>';
             game.ui.showCustomPanel('🌿 Foraging', html);
+            window._forageContinue = () => { game.ui.hideCustomPanel(); game.endDay(); };
         };
 
         render();
@@ -1243,12 +1247,13 @@ Object.assign(ActionMenu, {
                     html += `<div style="font-size: 16px; color: var(--text-secondary); font-weight: bold; margin-bottom: 8px;">Missed!</div>`;
                     html += `<div style="font-size: 13px; color: var(--text-secondary);">${statusMsg}</div>`;
                 }
-                html += `<button onclick="game.ui.hideCustomPanel(); game.endDay();"
+                html += `<button onclick="window._huntContinue()"
                     style="width: 100%; margin-top: 12px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
             }
 
             html += '</div>';
             game.ui.showCustomPanel('🏹 Hunting', html);
+            window._huntContinue = () => { game.ui.hideCustomPanel(); game.endDay(); };
         };
 
         render();

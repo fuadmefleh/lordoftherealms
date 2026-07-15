@@ -2,6 +2,12 @@
 import { Peoples } from './_ref.js';
 import { Utils, Kingdom } from './_imports.js';
 
+// Module-scoped helper (was a top-level function in the original peoples.js;
+// used by generateCulturalEvolution below).
+function settlement_name_for_kingdom(kingdom) {
+    return Kingdom.generateCityName(kingdom.culture);
+}
+
 Object.assign(Peoples, {
     // ─────────────────────────────────────────────
     // CULTURAL EVOLUTION HISTORY

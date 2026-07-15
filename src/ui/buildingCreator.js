@@ -17,26 +17,47 @@ const CANVAS_ZOOM = 2;
 const PAL_ZOOM = 2;
 
 // ─── Module state ─────────────────────────────────────────
-let _overlay = null;          // Root DOM element
-let _game = null;             // Game reference
-let _anchorQ = 0;             // World inner-map anchor tile Q
-let _anchorR = 0;             // World inner-map anchor tile R
-let _gridW = 8;               // Grid width
-let _gridH = 8;               // Grid height
-let _layers = { floor: {}, walls: {}, roof: {}, overlay: {} };
-let _meta = {};               // "q,r" → { impassable }
-let _brushGroupMap = {};      // "q,r" → { brushId, layer }
-let _activeLayer = 'floor';
-let _activeTool = 'paint';    // paint | erase | fill
-let _activeBrush = null;      // Index into combined brush list
-let _activeStamp = null;      // Single-tile stamp { sheetPath, sx, sy }
-let _panX = 10, _panY = 10;
-let _buildingName = '';
-let _isOpen = false;
+// ─── Module state (single shared object so split modules can mutate it) ───
+const bcState = {
+    _overlay: null,
+    _game: null,
+    _anchorQ: 0,
+    _anchorR: 0,
+    _gridW: 8,
+    _gridH: 8,
+    _layers: { floor: {}, walls: {}, roof: {}, overlay: {} },
+    _meta: {},
+    _brushGroupMap: {},
+    _activeLayer: 'floor',
+    _activeTool: 'paint',
+    _activeBrush: null,
+    _activeStamp: null,
+    _panX: 10,
+    _panY: 10,
+    _buildingName: '',
+    _isOpen: false,
+    _phase: 'exterior',
+    _exteriorDef: null,
+};          // Root DOM element
+             // Game reference
+             // World inner-map anchor tile Q
+             // World inner-map anchor tile R
+               // Grid width
+               // Grid height
+
+               // "q,r" → { impassable }
+      // "q,r" → { brushId, layer }
+
+    // paint | erase | fill
+      // Index into combined brush list
+      // Single-tile stamp { sheetPath, sx, sy }
+
+
+
 
 // ─── Two-phase flow state ─────────────────────────────────
-let _phase = 'exterior';      // 'exterior' | 'interior'
-let _exteriorDef = null;      // Saved exterior building def from Phase 1
+      // 'exterior' | 'interior'
+      // Saved exterior building def from Phase 1
 
 // Brush cost registry: brushId → { gold, resources: { [itemId]: qty } }
 const _brushCosts = new Map();
@@ -238,7 +259,7 @@ function _formatCost(cost) {
 
 function _recomputeNineTile(q, r) {
     const key = `${q},${r}`;
-    const entry = _brushGroupMap[key];
+    const entry = bcState._brushGroupMap[key];
     if (!entry) return;
     const brushes = _getAllBrushes();
     const brush = brushes.find(b => b.id === entry.brushId);
@@ -248,9 +269,9 @@ function _recomputeNineTile(q, r) {
 
     const has = (dq, dr) => {
         const nq = q + dq, nr = r + dr;
-        if (nq < 0 || nq >= _gridW || nr < 0 || nr >= _gridH) return false;
+        if (nq < 0 || nq >= bcState._gridW || nr < 0 || nr >= bcState._gridH) return false;
         const nk = `${nq},${nr}`;
-        return _brushGroupMap[nk] && _brushGroupMap[nk].brushId === groupId;
+        return bcState._brushGroupMap[nk] && bcState._brushGroupMap[nk].brushId === groupId;
     };
 
     const hasTop = has(0, -1), hasBottom = has(0, 1), hasLeft = has(-1, 0), hasRight = has(1, 0);
@@ -260,22 +281,22 @@ function _recomputeNineTile(q, r) {
     // Wall brush corridor/junction logic
     if (brush.brushType === 'wall' && brush.corridors) {
         if (cardCount === 0 && brush.corridors[7]) {
-            _layers[targetLayer][key] = { sheetPath: brush.corridors[7].sheetPath, sx: brush.corridors[7].sx, sy: brush.corridors[7].sy, sw: TILE, sh: TILE };
+            bcState._layers[targetLayer][key] = { sheetPath: brush.corridors[7].sheetPath, sx: brush.corridors[7].sx, sy: brush.corridors[7].sy, sw: TILE, sh: TILE };
             return;
         }
         if (cardCount === 1 && brush.endCaps) {
             let ec = hasBottom ? 0 : hasTop ? 1 : hasRight ? 2 : hasLeft ? 3 : -1;
             if (ec >= 0 && brush.endCaps[ec]) {
-                _layers[targetLayer][key] = { sheetPath: brush.endCaps[ec].sheetPath, sx: brush.endCaps[ec].sx, sy: brush.endCaps[ec].sy, sw: TILE, sh: TILE };
+                bcState._layers[targetLayer][key] = { sheetPath: brush.endCaps[ec].sheetPath, sx: brush.endCaps[ec].sx, sy: brush.endCaps[ec].sy, sw: TILE, sh: TILE };
                 return;
             }
         }
         if (hasTop && hasBottom && !hasLeft && !hasRight && brush.corridors[0]) {
-            _layers[targetLayer][key] = { sheetPath: brush.corridors[0].sheetPath, sx: brush.corridors[0].sx, sy: brush.corridors[0].sy, sw: TILE, sh: TILE };
+            bcState._layers[targetLayer][key] = { sheetPath: brush.corridors[0].sheetPath, sx: brush.corridors[0].sx, sy: brush.corridors[0].sy, sw: TILE, sh: TILE };
             return;
         }
         if (hasLeft && hasRight && !hasTop && !hasBottom && brush.corridors[1]) {
-            _layers[targetLayer][key] = { sheetPath: brush.corridors[1].sheetPath, sx: brush.corridors[1].sx, sy: brush.corridors[1].sy, sw: TILE, sh: TILE };
+            bcState._layers[targetLayer][key] = { sheetPath: brush.corridors[1].sheetPath, sx: brush.corridors[1].sx, sy: brush.corridors[1].sy, sw: TILE, sh: TILE };
             return;
         }
         if (cardCount === 3) {
@@ -285,7 +306,7 @@ function _recomputeNineTile(q, r) {
             else if (hasTop && hasBottom && hasRight && !hasLeft) tIdx = 4;
             else if (hasTop && hasBottom && hasLeft && !hasRight) tIdx = 5;
             if (tIdx >= 0 && brush.corridors[tIdx]) {
-                _layers[targetLayer][key] = { sheetPath: brush.corridors[tIdx].sheetPath, sx: brush.corridors[tIdx].sx, sy: brush.corridors[tIdx].sy, sw: TILE, sh: TILE };
+                bcState._layers[targetLayer][key] = { sheetPath: brush.corridors[tIdx].sheetPath, sx: brush.corridors[tIdx].sx, sy: brush.corridors[tIdx].sy, sw: TILE, sh: TILE };
                 return;
             }
         }
@@ -300,7 +321,7 @@ function _recomputeNineTile(q, r) {
         const icIdx = !hasTL ? 0 : !hasTR ? 1 : !hasBL ? 2 : !hasBR ? 3 : -1;
         if (icIdx >= 0 && brush.insideCorners[icIdx]) {
             const ic = brush.insideCorners[icIdx];
-            _layers[targetLayer][key] = { sheetPath: ic.sheetPath, sx: ic.sx, sy: ic.sy, sw: TILE, sh: TILE };
+            bcState._layers[targetLayer][key] = { sheetPath: ic.sheetPath, sx: ic.sx, sy: ic.sy, sw: TILE, sh: TILE };
             return;
         }
     }
@@ -315,22 +336,22 @@ function _recomputeNineTile(q, r) {
 
     const tileRef = brush.tiles[row] && brush.tiles[row][col];
     if (tileRef) {
-        _layers[targetLayer][key] = { sheetPath: tileRef.sheetPath, sx: tileRef.sx, sy: tileRef.sy, sw: TILE, sh: TILE };
+        bcState._layers[targetLayer][key] = { sheetPath: tileRef.sheetPath, sx: tileRef.sx, sy: tileRef.sy, sw: TILE, sh: TILE };
     }
 }
 
 function _brushPaint(q, r) {
-    if (_activeBrush === null) return false;
+    if (bcState._activeBrush === null) return false;
     const brushes = _getAllBrushes();
-    const brush = brushes[_activeBrush];
+    const brush = brushes[bcState._activeBrush];
     if (!brush) return false;
 
-    const player = _game && _game.player;
+    const player = bcState._game && bcState._game.player;
     if (!player) return false;
 
     // Prevent painting on locked exterior walls during interior phase
     const key = `${q},${r}`;
-    if (_phase === 'interior' && _meta[key] && _meta[key]._exteriorWall) return false;
+    if (bcState._phase === 'interior' && bcState._meta[key] && bcState._meta[key]._exteriorWall) return false;
 
     // Check cost
     if (!_canAfford(player, brush.id)) {
@@ -341,16 +362,16 @@ function _brushPaint(q, r) {
     const targetLayer = brush.brushType === 'wall' ? 'walls' : 'floor';
 
     // Don't charge again if already painted with the same brush
-    const existing = _brushGroupMap[key];
+    const existing = bcState._brushGroupMap[key];
     if (!existing || existing.brushId !== brush.id) {
         _deductCost(player, brush.id);
     }
 
-    _brushGroupMap[key] = { brushId: brush.id, layer: targetLayer };
+    bcState._brushGroupMap[key] = { brushId: brush.id, layer: targetLayer };
 
     // Mark wall tiles as impassable
     if (brush.brushType === 'wall') {
-        _meta[key] = { impassable: true };
+        bcState._meta[key] = { impassable: true };
     }
 
     // Recompute this cell and all neighbors
@@ -358,9 +379,9 @@ function _brushPaint(q, r) {
     for (let dr = -1; dr <= 1; dr++) {
         for (let dc = -1; dc <= 1; dc++) {
             const nq = q + dc, nr = r + dr;
-            if (nq >= 0 && nq < _gridW && nr >= 0 && nr < _gridH) {
+            if (nq >= 0 && nq < bcState._gridW && nr >= 0 && nr < bcState._gridH) {
                 const nk = `${nq},${nr}`;
-                if (_brushGroupMap[nk] && _brushGroupMap[nk].brushId === brush.id) {
+                if (bcState._brushGroupMap[nk] && bcState._brushGroupMap[nk].brushId === brush.id) {
                     toUpdate.add(nk);
                 }
             }
@@ -377,26 +398,26 @@ function _brushPaint(q, r) {
 function _brushErase(q, r) {
     const key = `${q},${r}`;
     // Prevent erasing locked exterior walls during interior phase
-    if (_phase === 'interior' && _meta[key] && _meta[key]._exteriorWall) return;
-    const entry = _brushGroupMap[key];
+    if (bcState._phase === 'interior' && bcState._meta[key] && bcState._meta[key]._exteriorWall) return;
+    const entry = bcState._brushGroupMap[key];
     if (!entry) {
         // Erase single-tile stamp
-        delete _layers[_activeLayer][key];
-        delete _meta[key];
+        delete bcState._layers[bcState._activeLayer][key];
+        delete bcState._meta[key];
         return;
     }
     const brushId = entry.brushId;
     const targetLayer = entry.layer;
-    delete _brushGroupMap[key];
-    delete _layers[targetLayer][key];
-    delete _meta[key];
+    delete bcState._brushGroupMap[key];
+    delete bcState._layers[targetLayer][key];
+    delete bcState._meta[key];
 
     for (let dr = -1; dr <= 1; dr++) {
         for (let dc = -1; dc <= 1; dc++) {
             const nq = q + dc, nr = r + dr;
             const nk = `${nq},${nr}`;
-            if (nq >= 0 && nq < _gridW && nr >= 0 && nr < _gridH &&
-                _brushGroupMap[nk] && _brushGroupMap[nk].brushId === brushId) {
+            if (nq >= 0 && nq < bcState._gridW && nr >= 0 && nr < bcState._gridH &&
+                bcState._brushGroupMap[nk] && bcState._brushGroupMap[nk].brushId === brushId) {
                 _recomputeNineTile(nq, nr);
             }
         }
@@ -407,36 +428,36 @@ function _metaToggle(q, r, type) {
     const key = `${q},${r}`;
     if (type === 'block') {
         // Toggle impassable on the tile (don't overwrite exteriorWall lock)
-        const m = _meta[key];
+        const m = bcState._meta[key];
         if (m && m.impassable && !m.door && !m._exteriorWall) {
-            delete _meta[key];
+            delete bcState._meta[key];
         } else {
-            _meta[key] = { ...(m || {}), impassable: true, door: false };
+            bcState._meta[key] = { ...(m || {}), impassable: true, door: false };
         }
     } else if (type === 'door') {
-        const m = _meta[key];
+        const m = bcState._meta[key];
         if (m && m.door) {
             // Toggle off
             const rest = { ...m };
             delete rest.door;
-            if (Object.keys(rest).filter(k => k !== '_exteriorWall').length === 0) delete _meta[key];
-            else _meta[key] = rest;
+            if (Object.keys(rest).filter(k => k !== '_exteriorWall').length === 0) delete bcState._meta[key];
+            else bcState._meta[key] = rest;
         } else {
             // Door is passable; clear impassable
-            _meta[key] = { ...(m || {}), door: true, impassable: false };
+            bcState._meta[key] = { ...(m || {}), door: true, impassable: false };
         }
     }
     _renderCanvas();
 }
 
 function _stampPaint(q, r) {
-    if (!_activeStamp) return;
-    const player = _game && _game.player;
+    if (!bcState._activeStamp) return;
+    const player = bcState._game && bcState._game.player;
     if (!player) return;
 
     // Prevent painting on locked exterior walls during interior phase
     const key = `${q},${r}`;
-    if (_phase === 'interior' && _meta[key] && _meta[key]._exteriorWall) return;
+    if (bcState._phase === 'interior' && bcState._meta[key] && bcState._meta[key]._exteriorWall) return;
 
     // Stamp tiles cost gold only (no brush cost)
     const stampCost = { gold: 3, resources: {} };
@@ -446,16 +467,16 @@ function _stampPaint(q, r) {
     }
 
     // Don't charge if same stamp already placed
-    const existingTile = _layers[_activeLayer][key];
-    if (!existingTile || existingTile.sheetPath !== _activeStamp.sheetPath ||
-        existingTile.sx !== _activeStamp.sx || existingTile.sy !== _activeStamp.sy) {
+    const existingTile = bcState._layers[bcState._activeLayer][key];
+    if (!existingTile || existingTile.sheetPath !== bcState._activeStamp.sheetPath ||
+        existingTile.sx !== bcState._activeStamp.sx || existingTile.sy !== bcState._activeStamp.sy) {
         player.gold -= stampCost.gold;
     }
 
-    _layers[_activeLayer][key] = {
-        sheetPath: _activeStamp.sheetPath,
-        sx: _activeStamp.sx,
-        sy: _activeStamp.sy,
+    bcState._layers[bcState._activeLayer][key] = {
+        sheetPath: bcState._activeStamp.sheetPath,
+        sx: bcState._activeStamp.sx,
+        sy: bcState._activeStamp.sy,
         sw: TILE, sh: TILE
     };
 }
@@ -468,8 +489,8 @@ let _cvs, _ctx;
 
 function _renderCanvas() {
     if (!_cvs || !_ctx) return;
-    const w = _gridW * TILE * CANVAS_ZOOM;
-    const h = _gridH * TILE * CANVAS_ZOOM;
+    const w = bcState._gridW * TILE * CANVAS_ZOOM;
+    const h = bcState._gridH * TILE * CANVAS_ZOOM;
     _cvs.width = Math.max(w + 40, 400);
     _cvs.height = Math.max(h + 40, 300);
     _ctx.clearRect(0, 0, _cvs.width, _cvs.height);
@@ -478,19 +499,19 @@ function _renderCanvas() {
     _ctx.fillStyle = '#0a0e17';
     _ctx.fillRect(0, 0, _cvs.width, _cvs.height);
 
-    const ox = _panX;
-    const oy = _panY;
+    const ox = bcState._panX;
+    const oy = bcState._panY;
 
     // Grid
     _ctx.strokeStyle = 'rgba(255,255,255,0.08)';
     _ctx.lineWidth = 0.5;
-    for (let c = 0; c <= _gridW; c++) {
+    for (let c = 0; c <= bcState._gridW; c++) {
         _ctx.beginPath();
         _ctx.moveTo(ox + c * TILE * CANVAS_ZOOM, oy);
         _ctx.lineTo(ox + c * TILE * CANVAS_ZOOM, oy + h);
         _ctx.stroke();
     }
-    for (let r = 0; r <= _gridH; r++) {
+    for (let r = 0; r <= bcState._gridH; r++) {
         _ctx.beginPath();
         _ctx.moveTo(ox, oy + r * TILE * CANVAS_ZOOM);
         _ctx.lineTo(ox + w, oy + r * TILE * CANVAS_ZOOM);
@@ -500,7 +521,7 @@ function _renderCanvas() {
     // Draw layers bottom to top
     const layerOrder = ['floor', 'walls', 'roof', 'overlay'];
     for (const lyrName of layerOrder) {
-        const lyr = _layers[lyrName];
+        const lyr = bcState._layers[lyrName];
         if (!lyr) continue;
         for (const [key, cell] of Object.entries(lyr)) {
             const [cq, cr] = key.split(',').map(Number);
@@ -515,7 +536,7 @@ function _renderCanvas() {
     }
 
     // Meta overlay (impassable / door markers)
-    for (const [key, m] of Object.entries(_meta)) {
+    for (const [key, m] of Object.entries(bcState._meta)) {
         const [cq, cr] = key.split(',').map(Number);
         const dx = ox + cq * TILE * CANVAS_ZOOM;
         const dy = oy + cr * TILE * CANVAS_ZOOM;
@@ -558,9 +579,9 @@ function _renderCanvas() {
     }
 
     // Active layer highlight
-    _ctx.strokeStyle = _activeLayer === 'walls' ? 'rgba(230,168,23,0.3)' :
-                       _activeLayer === 'roof' ? 'rgba(163,113,247,0.3)' :
-                       _activeLayer === 'floor' ? 'rgba(63,185,80,0.3)' :
+    _ctx.strokeStyle = bcState._activeLayer === 'walls' ? 'rgba(230,168,23,0.3)' :
+                       bcState._activeLayer === 'roof' ? 'rgba(163,113,247,0.3)' :
+                       bcState._activeLayer === 'floor' ? 'rgba(63,185,80,0.3)' :
                        'rgba(88,166,255,0.3)';
     _ctx.lineWidth = 2;
     _ctx.strokeRect(ox - 1, oy - 1, w + 2, h + 2);
@@ -574,7 +595,7 @@ function _renderCanvas() {
 // ═══════════════════════════════════════════════════════════
 
 function _showToast(msg, type) {
-    const toast = _overlay && _overlay.querySelector('#bc-toast');
+    const toast = bcState._overlay && bcState._overlay.querySelector('#bc-toast');
     if (!toast) return;
     toast.textContent = msg;
     toast.className = 'bc-toast ' + (type || '');
@@ -584,9 +605,9 @@ function _showToast(msg, type) {
 }
 
 function _updateResourceDisplay() {
-    const el = _overlay && _overlay.querySelector('#bc-resources');
-    if (!el || !_game || !_game.player) return;
-    const p = _game.player;
+    const el = bcState._overlay && bcState._overlay.querySelector('#bc-resources');
+    if (!el || !bcState._game || !bcState._game.player) return;
+    const p = bcState._game.player;
     const items = [];
     items.push(`💰 ${p.gold}g`);
     const invEntries = Object.entries(p.inventory || {}).filter(([, qty]) => qty > 0);
@@ -599,9 +620,9 @@ function _updateResourceDisplay() {
 
 function _buildUI() {
     // Root overlay
-    _overlay = document.createElement('div');
-    _overlay.id = 'buildingCreatorOverlay';
-    _overlay.style.cssText = `
+    bcState._overlay = document.createElement('div');
+    bcState._overlay.id = 'buildingCreatorOverlay';
+    bcState._overlay.style.cssText = `
         position: fixed; inset: 0; z-index: 1500;
         background: rgba(0,0,0,0.92); backdrop-filter: blur(6px);
         display: flex; flex-direction: column;
@@ -618,27 +639,27 @@ function _buildUI() {
     `;
     toolbar.innerHTML = `
         <span style="font-size:14px;font-weight:700;color:#e6a817;margin-right:10px">🏗️ Building Creator</span>
-        <span id="bc-phase-badge" style="font-size:10px;padding:2px 8px;border-radius:4px;text-transform:uppercase;font-weight:600;background:#0b2a4a;color:#58a6ff;border:1px solid #58a6ff">${_phase === 'exterior' ? 'Phase 1: Exterior' : 'Phase 2: Interior'}</span>
+        <span id="bc-phase-badge" style="font-size:10px;padding:2px 8px;border-radius:4px;text-transform:uppercase;font-weight:600;background:#0b2a4a;color:#58a6ff;border:1px solid #58a6ff">${bcState._phase === 'exterior' ? 'Phase 1: Exterior' : 'Phase 2: Interior'}</span>
         <div style="width:1px;height:22px;background:#30363d;margin:0 4px"></div>
         <label style="font-size:11px;color:#8b949e">Name:</label>
-        <input type="text" id="bc-name" value="${_buildingName || ''}" placeholder="My Building" style="width:140px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 7px;border-radius:4px;font-size:12px">
+        <input type="text" id="bc-name" value="${bcState._buildingName || ''}" placeholder="My Building" style="width:140px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 7px;border-radius:4px;font-size:12px">
         <div style="width:1px;height:22px;background:#30363d;margin:0 4px"></div>
         <label style="font-size:11px;color:#8b949e">W:</label>
-        <input type="number" id="bc-grid-w" value="${_gridW}" min="3" max="20" style="width:42px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 5px;border-radius:4px;font-size:12px" ${_phase === 'interior' ? 'disabled' : ''}>
+        <input type="number" id="bc-grid-w" value="${bcState._gridW}" min="3" max="20" style="width:42px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 5px;border-radius:4px;font-size:12px" ${bcState._phase === 'interior' ? 'disabled' : ''}>
         <label style="font-size:11px;color:#8b949e">H:</label>
-        <input type="number" id="bc-grid-h" value="${_gridH}" min="3" max="20" style="width:42px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 5px;border-radius:4px;font-size:12px" ${_phase === 'interior' ? 'disabled' : ''}>
-        <button id="bc-resize-btn" style="background:#21262d;border:1px solid #30363d;color:#c9d1d9;padding:3px 9px;border-radius:5px;cursor:pointer;font-size:12px" ${_phase === 'interior' ? 'disabled' : ''}>Resize</button>
+        <input type="number" id="bc-grid-h" value="${bcState._gridH}" min="3" max="20" style="width:42px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 5px;border-radius:4px;font-size:12px" ${bcState._phase === 'interior' ? 'disabled' : ''}>
+        <button id="bc-resize-btn" style="background:#21262d;border:1px solid #30363d;color:#c9d1d9;padding:3px 9px;border-radius:5px;cursor:pointer;font-size:12px" ${bcState._phase === 'interior' ? 'disabled' : ''}>Resize</button>
         <div style="width:1px;height:22px;background:#30363d;margin:0 4px"></div>
         <div id="bc-tool-btns" style="display:flex;gap:3px"></div>
         <div style="width:1px;height:22px;background:#30363d;margin:0 4px"></div>
         <div id="bc-resources" style="font-size:11px;color:#8b949e;flex:1"></div>
-        ${_phase === 'exterior'
+        ${bcState._phase === 'exterior'
             ? '<button id="bc-finish-btn" style="background:#0b2a4a;border:1px solid #58a6ff;color:#58a6ff;padding:5px 14px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600">▶ Finish Exterior → Interior</button>'
             : '<button id="bc-finish-btn" style="background:#0e2a17;border:1px solid #3fb950;color:#3fb950;padding:5px 14px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600">✅ Finish & Place</button>'
         }
         <button id="bc-cancel-btn" style="background:#2a0d0d;border:1px solid #f85149;color:#f85149;padding:5px 14px;border-radius:5px;cursor:pointer;font-size:12px">Cancel</button>
     `;
-    _overlay.appendChild(toolbar);
+    bcState._overlay.appendChild(toolbar);
 
     // ── Main 3-column layout ──
     const main = document.createElement('div');
@@ -726,7 +747,7 @@ function _buildUI() {
     `;
     main.appendChild(rightPanel);
 
-    _overlay.appendChild(main);
+    bcState._overlay.appendChild(main);
 
     // Toast
     const toast = document.createElement('div');
@@ -738,7 +759,7 @@ function _buildUI() {
         padding: 8px 18px; border-radius: 6px; font-size: 12px;
         display: none; z-index: 9999; box-shadow: 0 4px 16px rgba(0,0,0,0.5);
     `;
-    _overlay.appendChild(toast);
+    bcState._overlay.appendChild(toast);
 
     // Add style overrides
     const style = document.createElement('style');
@@ -759,28 +780,28 @@ function _buildUI() {
         .bc-tool-btn.active { background:#0b2a4a;border-color:#58a6ff;color:#58a6ff; }
         #bc-canvas-wrap { cursor: crosshair; }
     `;
-    _overlay.appendChild(style);
+    bcState._overlay.appendChild(style);
 
-    document.body.appendChild(_overlay);
+    document.body.appendChild(bcState._overlay);
 
     // ── Wire up events ──
-    _cvs = _overlay.querySelector('#bc-canvas');
+    _cvs = bcState._overlay.querySelector('#bc-canvas');
     _ctx = _cvs.getContext('2d');
 
     // Toolbar buttons
-    _overlay.querySelector('#bc-cancel-btn').addEventListener('click', () => close());
-    _overlay.querySelector('#bc-finish-btn').addEventListener('click', () => {
-        if (_phase === 'exterior') {
+    bcState._overlay.querySelector('#bc-cancel-btn').addEventListener('click', () => close());
+    bcState._overlay.querySelector('#bc-finish-btn').addEventListener('click', () => {
+        if (bcState._phase === 'exterior') {
             _finishExteriorPhase();
         } else {
             _finishBuilding();
         }
     });
-    const resizeBtn = _overlay.querySelector('#bc-resize-btn');
+    const resizeBtn = bcState._overlay.querySelector('#bc-resize-btn');
     if (resizeBtn && !resizeBtn.disabled) {
         resizeBtn.addEventListener('click', () => {
-            _gridW = Math.max(3, Math.min(20, parseInt(_overlay.querySelector('#bc-grid-w').value) || 8));
-            _gridH = Math.max(3, Math.min(20, parseInt(_overlay.querySelector('#bc-grid-h').value) || 8));
+            bcState._gridW = Math.max(3, Math.min(20, parseInt(bcState._overlay.querySelector('#bc-grid-w').value) || 8));
+            bcState._gridH = Math.max(3, Math.min(20, parseInt(bcState._overlay.querySelector('#bc-grid-h').value) || 8));
             _renderCanvas();
         });
     }
@@ -805,7 +826,7 @@ function _buildUI() {
     window.addEventListener('mouseup', () => { drawing = false; });
 
     // Keyboard shortcuts
-    _overlay.addEventListener('keydown', (e) => {
+    bcState._overlay.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT') return;
         if (e.key === 'Escape') { close(); e.preventDefault(); }
         if (e.key === 'p' || e.key === 'P') _setTool('paint');
@@ -813,8 +834,8 @@ function _buildUI() {
         if (e.key === 'b' || e.key === 'B') _setTool('block');
         if (e.key === 'd' || e.key === 'D') _setTool('door');
     });
-    _overlay.tabIndex = 0;
-    _overlay.focus();
+    bcState._overlay.tabIndex = 0;
+    bcState._overlay.focus();
 
     _renderCanvas();
 }
@@ -823,30 +844,30 @@ function _handleCanvasClick(e) {
     const rect = _cvs.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
-    const q = Math.floor((mx - _panX) / (TILE * CANVAS_ZOOM));
-    const r = Math.floor((my - _panY) / (TILE * CANVAS_ZOOM));
-    if (q < 0 || q >= _gridW || r < 0 || r >= _gridH) return;
+    const q = Math.floor((mx - bcState._panX) / (TILE * CANVAS_ZOOM));
+    const r = Math.floor((my - bcState._panY) / (TILE * CANVAS_ZOOM));
+    if (q < 0 || q >= bcState._gridW || r < 0 || r >= bcState._gridH) return;
 
-    if (_activeTool === 'paint') {
-        if (_activeBrush !== null) {
+    if (bcState._activeTool === 'paint') {
+        if (bcState._activeBrush !== null) {
             _brushPaint(q, r);
-        } else if (_activeStamp) {
+        } else if (bcState._activeStamp) {
             _stampPaint(q, r);
         }
-    } else if (_activeTool === 'erase') {
+    } else if (bcState._activeTool === 'erase') {
         _brushErase(q, r);
-    } else if (_activeTool === 'block') {
+    } else if (bcState._activeTool === 'block') {
         _metaToggle(q, r, 'block');
-    } else if (_activeTool === 'door') {
+    } else if (bcState._activeTool === 'door') {
         _metaToggle(q, r, 'door');
     }
 
     _renderCanvas();
-    if (_game && _game.ui) _game.ui.updateStats(_game.player, _game.world);
+    if (bcState._game && bcState._game.ui) bcState._game.ui.updateStats(bcState._game.player, bcState._game.world);
 }
 
 function _buildToolButtons() {
-    const container = _overlay.querySelector('#bc-tool-btns');
+    const container = bcState._overlay.querySelector('#bc-tool-btns');
     if (!container) return;
     const tools = [
         { id: 'paint', label: '🖌 Paint',  key: 'P' },
@@ -857,7 +878,7 @@ function _buildToolButtons() {
     container.innerHTML = '';
     for (const t of tools) {
         const btn = document.createElement('button');
-        btn.className = 'bc-tool-btn' + (_activeTool === t.id ? ' active' : '');
+        btn.className = 'bc-tool-btn' + (bcState._activeTool === t.id ? ' active' : '');
         btn.textContent = t.label;
         btn.title = `${t.label} (${t.key})`;
         btn.addEventListener('click', () => _setTool(t.id));
@@ -866,22 +887,22 @@ function _buildToolButtons() {
 }
 
 function _setTool(tool) {
-    _activeTool = tool;
+    bcState._activeTool = tool;
     _buildToolButtons();
 }
 
 function _buildLayerButtons() {
-    const container = _overlay.querySelector('#bc-layer-bar');
+    const container = bcState._overlay.querySelector('#bc-layer-bar');
     if (!container) return;
     const layerNames = ['floor', 'walls', 'roof', 'overlay'];
     const layerIcons = { floor: '🟫', walls: '🧱', roof: '🏠', overlay: '✨' };
     container.innerHTML = '';
     for (const ln of layerNames) {
         const btn = document.createElement('button');
-        btn.className = 'bc-layer-btn' + (_activeLayer === ln ? ' active' : '');
+        btn.className = 'bc-layer-btn' + (bcState._activeLayer === ln ? ' active' : '');
         btn.textContent = `${layerIcons[ln] || ''} ${ln.charAt(0).toUpperCase() + ln.slice(1)}`;
         btn.addEventListener('click', () => {
-            _activeLayer = ln;
+            bcState._activeLayer = ln;
             _buildLayerButtons();
         });
         container.appendChild(btn);
@@ -897,12 +918,12 @@ function _buildLayerButtons() {
     clearBtn.style.cssText = 'color:#f85149;border-color:#f85149';
     clearBtn.textContent = '🗑 Clear Layer';
     clearBtn.addEventListener('click', () => {
-        _layers[_activeLayer] = {};
+        bcState._layers[bcState._activeLayer] = {};
         // Remove brush group entries for this layer
-        for (const [key, entry] of Object.entries(_brushGroupMap)) {
-            if (entry.layer === _activeLayer) {
-                delete _brushGroupMap[key];
-                delete _meta[key];
+        for (const [key, entry] of Object.entries(bcState._brushGroupMap)) {
+            if (entry.layer === bcState._activeLayer) {
+                delete bcState._brushGroupMap[key];
+                delete bcState._meta[key];
             }
         }
         _renderCanvas();
@@ -911,7 +932,7 @@ function _buildLayerButtons() {
 }
 
 function _buildBrushList() {
-    const container = _overlay.querySelector('#bc-brush-list');
+    const container = bcState._overlay.querySelector('#bc-brush-list');
     if (!container) return;
     const brushes = _getAllBrushes();
     container.innerHTML = '';
@@ -923,7 +944,7 @@ function _buildBrushList() {
 
     brushes.forEach((brush, i) => {
         const card = document.createElement('div');
-        card.className = 'bc-brush-card' + (_activeBrush === i ? ' selected' : '');
+        card.className = 'bc-brush-card' + (bcState._activeBrush === i ? ' selected' : '');
         card.addEventListener('click', () => _selectBrush(i));
 
         // Thumbnail
@@ -970,12 +991,12 @@ function _buildBrushList() {
 }
 
 function _selectBrush(idx) {
-    _activeBrush = (_activeBrush === idx) ? null : idx;
-    _activeStamp = null;
-    if (_activeBrush !== null) {
-        const brush = _getAllBrushes()[_activeBrush];
+    bcState._activeBrush = (bcState._activeBrush === idx) ? null : idx;
+    bcState._activeStamp = null;
+    if (bcState._activeBrush !== null) {
+        const brush = _getAllBrushes()[bcState._activeBrush];
         if (brush) {
-            _activeLayer = brush.brushType === 'wall' ? 'walls' : 'floor';
+            bcState._activeLayer = brush.brushType === 'wall' ? 'walls' : 'floor';
             _buildLayerButtons();
         }
         _setTool('paint');
@@ -986,16 +1007,16 @@ function _selectBrush(idx) {
 }
 
 function _updateCostEditor() {
-    const container = _overlay.querySelector('#bc-cost-editor');
+    const container = bcState._overlay.querySelector('#bc-cost-editor');
     if (!container) return;
 
-    if (_activeBrush === null) {
+    if (bcState._activeBrush === null) {
         container.innerHTML = '<div style="color:#8b949e">Select a brush to edit its cost per tile</div>';
         return;
     }
 
     const brushes = _getAllBrushes();
-    const brush = brushes[_activeBrush];
+    const brush = brushes[bcState._activeBrush];
     if (!brush) return;
 
     const cost = getBrushCost(brush.id);
@@ -1072,15 +1093,15 @@ function _updateCostEditor() {
 }
 
 function _updateStampPreview() {
-    const el = _overlay && _overlay.querySelector('#bc-stamp-preview');
+    const el = bcState._overlay && bcState._overlay.querySelector('#bc-stamp-preview');
     if (!el) return;
-    if (!_activeStamp && _activeBrush === null) {
+    if (!bcState._activeStamp && bcState._activeBrush === null) {
         el.innerHTML = '<span style="color:#8b949e;font-size:11px">No tile selected</span>';
         return;
     }
-    if (_activeBrush !== null) {
+    if (bcState._activeBrush !== null) {
         const brushes = _getAllBrushes();
-        const brush = brushes[_activeBrush];
+        const brush = brushes[bcState._activeBrush];
         if (!brush || !brush.tiles[1] || !brush.tiles[1][1]) {
             el.innerHTML = '<span style="color:#8b949e;font-size:11px">Brush has no center tile</span>';
             return;
@@ -1108,14 +1129,14 @@ function _updateStampPreview() {
         });
         return;
     }
-    if (_activeStamp) {
+    if (bcState._activeStamp) {
         const pc = document.createElement('canvas');
         pc.width = TILE; pc.height = TILE;
         pc.style.cssText = 'image-rendering:pixelated';
         const pctx = pc.getContext('2d');
         pctx.imageSmoothingEnabled = false;
-        _loadImg(_activeStamp.sheetPath).then(img => {
-            if (img) pctx.drawImage(img, _activeStamp.sx, _activeStamp.sy, TILE, TILE, 0, 0, TILE, TILE);
+        _loadImg(bcState._activeStamp.sheetPath).then(img => {
+            if (img) pctx.drawImage(img, bcState._activeStamp.sx, bcState._activeStamp.sy, TILE, TILE, 0, 0, TILE, TILE);
             el.innerHTML = '';
             el.appendChild(pc);
         });
@@ -1123,7 +1144,7 @@ function _updateStampPreview() {
 }
 
 function _buildPaletteCats() {
-    const container = _overlay.querySelector('#bc-pal-cats');
+    const container = bcState._overlay.querySelector('#bc-pal-cats');
     if (!container) return;
     container.innerHTML = '';
     for (const cat of Object.keys(BUILDING_PALETTE)) {
@@ -1139,10 +1160,10 @@ function _buildPaletteCats() {
 }
 
 function _showPaletteCategory(cat, btn) {
-    _overlay.querySelectorAll('.bc-cat-btn').forEach(b => b.classList.remove('active'));
+    bcState._overlay.querySelectorAll('.bc-cat-btn').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
 
-    const container = _overlay.querySelector('#bc-pal-sheets');
+    const container = bcState._overlay.querySelector('#bc-pal-sheets');
     if (!container) return;
     container.innerHTML = '';
 
@@ -1181,8 +1202,8 @@ function _showPaletteCategory(cat, btn) {
                 const rect = pcvs.getBoundingClientRect();
                 const col = Math.floor((e.clientX - rect.left) / PAL_ZOOM / TILE);
                 const row = Math.floor((e.clientY - rect.top) / PAL_ZOOM / TILE);
-                _activeStamp = { sheetPath: path, sx: col * TILE, sy: row * TILE };
-                _activeBrush = null;
+                bcState._activeStamp = { sheetPath: path, sx: col * TILE, sy: row * TILE };
+                bcState._activeBrush = null;
                 _setTool('paint');
                 _buildBrushList();
                 _updateStampPreview();
@@ -1193,14 +1214,14 @@ function _showPaletteCategory(cat, btn) {
 }
 
 function _updateTotalCost() {
-    const el = _overlay && _overlay.querySelector('#bc-total-cost');
+    const el = bcState._overlay && bcState._overlay.querySelector('#bc-total-cost');
     if (!el) return;
 
     let totalGold = 0;
     const totalRes = {};
     let tileCount = 0;
 
-    for (const [key, entry] of Object.entries(_brushGroupMap)) {
+    for (const [key, entry] of Object.entries(bcState._brushGroupMap)) {
         const cost = getBrushCost(entry.brushId);
         totalGold += cost.gold;
         for (const [itemId, qty] of Object.entries(cost.resources)) {
@@ -1211,8 +1232,8 @@ function _updateTotalCost() {
 
     // Count non-brush tiles
     for (const lyrName of ['floor', 'walls', 'roof', 'overlay']) {
-        for (const key of Object.keys(_layers[lyrName])) {
-            if (!_brushGroupMap[key]) {
+        for (const key of Object.keys(bcState._layers[lyrName])) {
+            if (!bcState._brushGroupMap[key]) {
                 totalGold += 3; // basic stamp cost
                 tileCount++;
             }
@@ -1236,7 +1257,7 @@ function _finishExteriorPhase() {
     // Collect exterior tiles
     let hasTiles = false;
     for (const lyrName of ['floor', 'walls', 'roof', 'overlay']) {
-        if (Object.keys(_layers[lyrName]).length > 0) { hasTiles = true; break; }
+        if (Object.keys(bcState._layers[lyrName]).length > 0) { hasTiles = true; break; }
     }
     if (!hasTiles) {
         _showToast('Place some tiles for the exterior first!', 'err');
@@ -1244,13 +1265,13 @@ function _finishExteriorPhase() {
     }
 
     // Save building name
-    _buildingName = (_overlay.querySelector('#bc-name').value || '').trim() || 'Custom Building';
+    bcState._buildingName = (bcState._overlay.querySelector('#bc-name').value || '').trim() || 'Custom Building';
 
     // Build the exterior definition (same format as _finishBuilding)
     const extLayers = { floor: [], walls: [], roof: [], overlay: [] };
     let minQ = Infinity, minR = Infinity, maxQ = -Infinity, maxR = -Infinity;
     for (const lyrName of ['floor', 'walls', 'roof', 'overlay']) {
-        for (const [key, cell] of Object.entries(_layers[lyrName])) {
+        for (const [key, cell] of Object.entries(bcState._layers[lyrName])) {
             const [q, r] = key.split(',').map(Number);
             extLayers[lyrName].push({ q, r, sheetPath: cell.sheetPath, sx: cell.sx, sy: cell.sy, sw: cell.sw || TILE, sh: cell.sh || TILE });
             if (q < minQ) minQ = q; if (q > maxQ) maxQ = q;
@@ -1258,44 +1279,44 @@ function _finishExteriorPhase() {
         }
     }
     const extMeta = [];
-    for (const [key, m] of Object.entries(_meta)) {
+    for (const [key, m] of Object.entries(bcState._meta)) {
         const [q, r] = key.split(',').map(Number);
         extMeta.push({ q, r, impassable: !!m.impassable, door: !!m.door });
     }
 
-    _exteriorDef = {
-        name: _buildingName,
-        gridW: _gridW,
-        gridH: _gridH,
+    bcState._exteriorDef = {
+        name: bcState._buildingName,
+        gridW: bcState._gridW,
+        gridH: bcState._gridH,
         layers: extLayers,
         meta: extMeta,
-        brushGroupMap: JSON.parse(JSON.stringify(_brushGroupMap)),
+        brushGroupMap: JSON.parse(JSON.stringify(bcState._brushGroupMap)),
         bounds: { minCol: minQ, minRow: minR, maxCol: maxQ, maxRow: maxR },
         width: maxQ - minQ + 1,
         height: maxR - minR + 1,
     };
 
     // ── Transition to Phase 2: Interior ──
-    _phase = 'interior';
+    bcState._phase = 'interior';
     // Keep the same grid dimensions
-    const intW = _gridW;
-    const intH = _gridH;
+    const intW = bcState._gridW;
+    const intH = bcState._gridH;
 
     // Reset layers/meta for interior
-    _layers = { floor: {}, walls: {}, roof: {}, overlay: {} };
-    _meta = {};
-    _brushGroupMap = {};
-    _activeLayer = 'floor';
-    _activeTool = 'paint';
-    _activeBrush = null;
-    _activeStamp = null;
+    bcState._layers = { floor: {}, walls: {}, roof: {}, overlay: {} };
+    bcState._meta = {};
+    bcState._brushGroupMap = {};
+    bcState._activeLayer = 'floor';
+    bcState._activeTool = 'paint';
+    bcState._activeBrush = null;
+    bcState._activeStamp = null;
 
     // Pre-populate outer walls from exterior
     // Scan the exterior's wall layer to find edge/boundary tiles
     _prePlaceOuterWalls(intW, intH);
 
     // Rebuild the UI for Phase 2
-    if (_overlay) { _overlay.remove(); _overlay = null; }
+    if (bcState._overlay) { bcState._overlay.remove(); bcState._overlay = null; }
     _cvs = null; _ctx = null;
     _buildUI();
 
@@ -1307,16 +1328,16 @@ function _finishExteriorPhase() {
  * Uses the wall tiles from the exterior's perimeter as impassable boundary walls.
  */
 function _prePlaceOuterWalls(w, h) {
-    if (!_exteriorDef) return;
+    if (!bcState._exteriorDef) return;
 
     // Collect all wall positions from the exterior's brushGroupMap
     const extWallPositions = new Set();
-    for (const [key, entry] of Object.entries(_exteriorDef.brushGroupMap)) {
+    for (const [key, entry] of Object.entries(bcState._exteriorDef.brushGroupMap)) {
         if (entry.layer === 'walls') extWallPositions.add(key);
     }
 
     // Also check exterior meta for impassable tiles
-    for (const m of _exteriorDef.meta) {
+    for (const m of bcState._exteriorDef.meta) {
         if (m.impassable) extWallPositions.add(`${m.q},${m.r}`);
     }
 
@@ -1326,16 +1347,16 @@ function _prePlaceOuterWalls(w, h) {
         // Copy wall tiles from exterior layers
         for (const key of extWallPositions) {
             // Copy from exterior wall layer
-            const extWallCell = _exteriorDef.layers.walls.find(c => `${c.q},${c.r}` === key);
+            const extWallCell = bcState._exteriorDef.layers.walls.find(c => `${c.q},${c.r}` === key);
             if (extWallCell) {
-                _layers.walls[key] = {
+                bcState._layers.walls[key] = {
                     sheetPath: extWallCell.sheetPath,
                     sx: extWallCell.sx, sy: extWallCell.sy,
                     sw: extWallCell.sw || TILE, sh: extWallCell.sh || TILE,
                 };
             }
             // Mark as impassable
-            _meta[key] = { impassable: true, _exteriorWall: true };
+            bcState._meta[key] = { impassable: true, _exteriorWall: true };
         }
     } else {
         // No explicit wall brush used — generate perimeter walls
@@ -1344,18 +1365,18 @@ function _prePlaceOuterWalls(w, h) {
             for (let r = 0; r < h; r++) {
                 if (q === 0 || q === w - 1 || r === 0 || r === h - 1) {
                     const key = `${q},${r}`;
-                    _meta[key] = { impassable: true, _exteriorWall: true };
+                    bcState._meta[key] = { impassable: true, _exteriorWall: true };
                 }
             }
         }
     }
 
     // Copy floor tiles from exterior as the base interior floor
-    for (const cell of _exteriorDef.layers.floor) {
+    for (const cell of bcState._exteriorDef.layers.floor) {
         const key = `${cell.q},${cell.r}`;
         // Don't overwrite walls
-        if (!_meta[key] || !_meta[key]._exteriorWall) {
-            _layers.floor[key] = {
+        if (!bcState._meta[key] || !bcState._meta[key]._exteriorWall) {
+            bcState._layers.floor[key] = {
                 sheetPath: cell.sheetPath,
                 sx: cell.sx, sy: cell.sy,
                 sw: cell.sw || TILE, sh: cell.sh || TILE,
@@ -1374,7 +1395,7 @@ function _finishBuilding() {
     let hasTiles = false;
 
     for (const lyrName of ['floor', 'walls', 'overlay']) {
-        for (const [key, cell] of Object.entries(_layers[lyrName])) {
+        for (const [key, cell] of Object.entries(bcState._layers[lyrName])) {
             const [q, r] = key.split(',').map(Number);
             intLayers[lyrName].push({
                 q, r,
@@ -1388,20 +1409,20 @@ function _finishBuilding() {
 
     // Build interior meta
     const intMeta = [];
-    for (const [key, m] of Object.entries(_meta)) {
+    for (const [key, m] of Object.entries(bcState._meta)) {
         const [q, r] = key.split(',').map(Number);
         intMeta.push({ q, r, impassable: !!m.impassable, door: !!m.door });
     }
 
-    const name = (_overlay.querySelector('#bc-name').value || '').trim() || _buildingName || 'Custom Building';
+    const name = (bcState._overlay.querySelector('#bc-name').value || '').trim() || bcState._buildingName || 'Custom Building';
     const buildingId = 'player_building_' + Date.now();
 
     // ── Register exterior building ──
     // Use the saved exterior def from Phase 1
-    const extDef = _exteriorDef;
+    const extDef = bcState._exteriorDef;
     const extLayers = extDef ? extDef.layers : { floor: [], walls: [], roof: [], overlay: [] };
     const extMeta = extDef ? extDef.meta : [];
-    const extBounds = extDef ? extDef.bounds : { minCol: 0, minRow: 0, maxCol: _gridW - 1, maxRow: _gridH - 1 };
+    const extBounds = extDef ? extDef.bounds : { minCol: 0, minRow: 0, maxCol: bcState._gridW - 1, maxRow: bcState._gridH - 1 };
 
     const buildingDef = {
         id: buildingId,
@@ -1410,8 +1431,8 @@ function _finishBuilding() {
         tags: ['player_built'],
         tileW: TILE,
         tileH: TILE,
-        width: extDef ? extDef.width : _gridW,
-        height: extDef ? extDef.height : _gridH,
+        width: extDef ? extDef.width : bcState._gridW,
+        height: extDef ? extDef.height : bcState._gridH,
         layers: extLayers,
         meta: extMeta,
         bounds: extBounds,
@@ -1433,11 +1454,11 @@ function _finishBuilding() {
             tags: ['player_built'],
             tileW: TILE,
             tileH: TILE,
-            width: _gridW,
-            height: _gridH,
+            width: bcState._gridW,
+            height: bcState._gridH,
             layers: intLayers,
             meta: intMeta,
-            bounds: { minCol: 0, minRow: 0, maxCol: _gridW - 1, maxRow: _gridH - 1 },
+            bounds: { minCol: 0, minRow: 0, maxCol: bcState._gridW - 1, maxRow: bcState._gridH - 1 },
         };
         // Register with CustomInteriors
         if (typeof CustomInteriors !== 'undefined' && CustomInteriors.registerInterior) {
@@ -1452,10 +1473,10 @@ function _finishBuilding() {
 
     _showToast('Building placed!', 'ok');
 
-    if (_game && _game.ui) {
-        _game.ui.showNotification('🏗️ Building Complete',
+    if (bcState._game && bcState._game.ui) {
+        bcState._game.ui.showNotification('🏗️ Building Complete',
             `"${name}" has been placed! (${buildingDef.width}×${buildingDef.height} tiles)`, 'success');
-        _game.ui.updateStats(_game.player, _game.world);
+        bcState._game.ui.updateStats(bcState._game.player, bcState._game.world);
     }
 
     close();
@@ -1463,8 +1484,8 @@ function _finishBuilding() {
 
 function _placeOnInnerMap(def) {
     // Place at the anchor position on the inner map
-    const aq = _anchorQ;
-    const ar = _anchorR;
+    const aq = bcState._anchorQ;
+    const ar = bcState._anchorR;
 
     // Offset so the building's min corner lands at the anchor
     const offQ = aq - (def.bounds.minCol);
@@ -1527,23 +1548,23 @@ function _placeOnInnerMap(def) {
  * @param {number} anchorR - Inner map tile R
  */
 function open(game, anchorQ, anchorR) {
-    if (_isOpen) return;
-    _isOpen = true;
-    _game = game;
-    _anchorQ = anchorQ;
-    _anchorR = anchorR;
-    _gridW = 8;
-    _gridH = 8;
-    _layers = { floor: {}, walls: {}, roof: {}, overlay: {} };
-    _meta = {};
-    _brushGroupMap = {};
-    _activeLayer = 'floor';
-    _activeTool = 'paint';
-    _activeBrush = null;
-    _activeStamp = null;
-    _buildingName = '';
-    _phase = 'exterior';
-    _exteriorDef = null;
+    if (bcState._isOpen) return;
+    bcState._isOpen = true;
+    bcState._game = game;
+    bcState._anchorQ = anchorQ;
+    bcState._anchorR = anchorR;
+    bcState._gridW = 8;
+    bcState._gridH = 8;
+    bcState._layers = { floor: {}, walls: {}, roof: {}, overlay: {} };
+    bcState._meta = {};
+    bcState._brushGroupMap = {};
+    bcState._activeLayer = 'floor';
+    bcState._activeTool = 'paint';
+    bcState._activeBrush = null;
+    bcState._activeStamp = null;
+    bcState._buildingName = '';
+    bcState._phase = 'exterior';
+    bcState._exteriorDef = null;
 
     // Preload brush images
     const brushes = _getAllBrushes();
@@ -1569,21 +1590,21 @@ function open(game, anchorQ, anchorR) {
  * Close the building creator overlay.
  */
 function close() {
-    _isOpen = false;
-    if (_overlay) {
-        _overlay.remove();
-        _overlay = null;
+    bcState._isOpen = false;
+    if (bcState._overlay) {
+        bcState._overlay.remove();
+        bcState._overlay = null;
     }
     _cvs = null;
     _ctx = null;
-    _game = null;
+    bcState._game = null;
 }
 
 /**
  * Check if the building creator is currently open.
  */
 function isOpen() {
-    return _isOpen;
+    return bcState._isOpen;
 }
 
 export const BuildingCreator = {

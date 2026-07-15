@@ -29,12 +29,71 @@ import { Housing } from '../systems/housing.js';
 // import { InnerMapCharacters } from './innerMapCharacters.js';
 
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Delegated event routing. Dynamically-built panel HTML uses data-ui-act /
+// data-am-act attributes instead of inline onclick="window.game.ui.X()" /
+// onclick="ActionMenu.Y(window.game)", so the game no longer has to be published
+// on the window global. One document-level listener (attached once) routes each
+// click to the CURRENT UI instance, which carries the game reference.
+// ─────────────────────────────────────────────────────────────────────────────
+let _activeUI = null;
+let _delegationAttached = false;
+
+function _parseArgs(raw) {
+    if (!raw) return [];
+    try {
+        return JSON.parse(raw);
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Pure dispatch for a delegated panel click. Given the UI instance and the
+ * clicked element, routes to a UI method (data-ui-act) or an ActionMenu method
+ * (data-am-act, called with the game). Exported so the routing is unit-testable
+ * without a real DOM. Returns the matched action name, or null if none.
+ */
+export function routeDelegatedClick(ui, targetEl) {
+    if (!ui || !targetEl || !targetEl.closest) return null;
+
+    const uiEl = targetEl.closest('[data-ui-act]');
+    if (uiEl) {
+        const method = uiEl.dataset.uiAct;
+        const args = _parseArgs(uiEl.dataset.uiArgs);
+        if (uiEl.dataset.uiEl) args.push(uiEl); // methods that took the clicked element (was `this`)
+        if (typeof ui[method] === 'function') ui[method](...args);
+        return `ui:${method}`;
+    }
+
+    const amEl = targetEl.closest('[data-am-act]');
+    if (amEl) {
+        const method = amEl.dataset.amAct;
+        const args = _parseArgs(amEl.dataset.amArgs);
+        if (ActionMenu && typeof ActionMenu[method] === 'function') ActionMenu[method](ui.game, ...args);
+        return `am:${method}`;
+    }
+
+    return null;
+}
+
+function _handleDelegatedClick(e) {
+    routeDelegatedClick(_activeUI, e.target);
+}
+
 export class UI {
     constructor(game) {
         this.game = game;
         this.activePanel = null;
         this._activeHudTab = 'stats';
         this.notificationLog = [];
+
+        // Route delegated panel clicks to this (the latest) UI instance.
+        _activeUI = this;
+        if (!_delegationAttached && typeof document !== 'undefined' && document.addEventListener) {
+            _delegationAttached = true;
+            document.addEventListener('click', _handleDelegatedClick);
+        }
 
         this.setupEventListeners();
     }
@@ -1015,7 +1074,7 @@ export class UI {
         // Add Actions button if player is here
         if (this.game.player.q === q && this.game.player.r === r) {
             html += `
-                <button onclick="window.game.ui.openActionMenu()" style="width:100%; margin-top:8px; padding:8px; background:var(--gold); border:none; border-radius:4px; font-weight:bold; cursor:pointer; color:var(--text-primary);">
+                <button data-ui-act="openActionMenu" style="width:100%; margin-top:8px; padding:8px; background:var(--gold); border:none; border-radius:4px; font-weight:bold; cursor:pointer; color:var(--text-primary);">
                     Open Actions
                 </button>
             `;
@@ -1059,7 +1118,7 @@ export class UI {
                 <div class="info-section-title">Settlement</div>
                 <div class="info-row">
                     <span class="info-label">Name</span>
-                    <span class="info-value" style="color:#ffffff !important; cursor: pointer; text-decoration: underline;" onclick="window.game.ui.showSettlementDetails(${q}, ${r})">${tile.settlement.name}</span>
+                    <span class="info-value" style="color:#ffffff !important; cursor: pointer; text-decoration: underline;" data-ui-act="showSettlementDetails" data-ui-args="[${q}, ${r}]">${tile.settlement.name}</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Type</span>
@@ -1074,15 +1133,15 @@ export class UI {
             if (knowsEcon) {
                 html += `
                 <div class="info-section-title">Economy</div>
-                <div class="info-row economic-row" onclick="window.game.ui.showEconomicBreakdown('${q},${r}')" style="cursor:pointer; transition: background 0.2s; border-radius: 4px; padding: 4px;" title="Click for economic breakdown">
+                <div class="info-row economic-row" data-ui-act="showEconomicBreakdown" data-ui-args='["${q},${r}"]' style="cursor:pointer; transition: background 0.2s; border-radius: 4px; padding: 4px;" title="Click for economic breakdown">
                     <span class="info-label">💰 Gold Production</span>
                     <span class="info-value">+${econ.production.gold}/day <i style="font-size:10px; opacity:0.6;">(details)</i></span>
                 </div>
-                <div class="info-row economic-row" onclick="window.game.ui.showEconomicBreakdown('${q},${r}')" style="cursor:pointer; transition: background 0.2s; border-radius: 4px; padding: 4px;" title="Click for economic breakdown">
+                <div class="info-row economic-row" data-ui-act="showEconomicBreakdown" data-ui-args='["${q},${r}"]' style="cursor:pointer; transition: background 0.2s; border-radius: 4px; padding: 4px;" title="Click for economic breakdown">
                     <span class="info-label">🌾 Food Production</span>
                     <span class="info-value">+${econ.production.food}/day <i style="font-size:10px; opacity:0.6;">(details)</i></span>
                 </div>
-                <div class="info-row economic-row" onclick="window.game.ui.showEconomicBreakdown('${q},${r}')" style="cursor:pointer; transition: background 0.2s; border-radius: 4px; padding: 4px;" title="Click for economic breakdown">
+                <div class="info-row economic-row" data-ui-act="showEconomicBreakdown" data-ui-args='["${q},${r}"]' style="cursor:pointer; transition: background 0.2s; border-radius: 4px; padding: 4px;" title="Click for economic breakdown">
                     <span class="info-label">📦 Goods Production</span>
                     <span class="info-value">+${econ.production.goods}/day <i style="font-size:10px; opacity:0.6;">(details)</i></span>
                 </div>
@@ -3091,7 +3150,7 @@ export class UI {
                     <div class="info-section-title">Allegiance</div>
                     <div class="info-row">
                         <span class="info-label">Kingdom</span>
-                        <span class="info-value" style="cursor: pointer; text-decoration: underline; color: ${kingdom.color};" onclick="window.game.ui.showKingdomDetails('${kingdom.id}')">
+                        <span class="info-value" style="cursor: pointer; text-decoration: underline; color: ${kingdom.color};" data-ui-act="showKingdomDetails" data-ui-args='["${kingdom.id}"]'>
                             <span class="kingdom-dot" style="color:${kingdom.color}; background:${kingdom.color}"></span>
                             ${kingdom.name}
                         </span>
@@ -3490,7 +3549,7 @@ export class UI {
                     : '';
 
                 html += `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer;" onclick="window.game.ui.showSettlementDetails(${s.q}, ${s.r})">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer;" data-ui-act="showSettlementDetails" data-ui-args="[${s.q}, ${s.r}]">
                         <div>
                             <span style="color: #fff; font-size: 13px;">${s.name || settlement.name}</span>
                             <span style="color: var(--text-secondary); font-size: 11px; margin-left: 8px;">${numPeoples} peoples</span>
@@ -3635,7 +3694,7 @@ export class UI {
             const cat = Technology.CATEGORIES[catKeys[i]];
             const isActive = i === 0;
             const hasLab = Technology.hasLabForCategory(player, cat.id, world);
-            tabsHtml += `<button onclick="window.game.ui.openTechTab('${cat.id}', this)" class="tech-tab-btn" style="flex:1; min-width: 70px; padding:6px 4px; background:${isActive ? 'rgba(255,255,255,0.1)' : 'none'}; border:none; color:${isActive ? 'var(--gold)' : hasLab ? 'var(--text-secondary)' : '#666'}; cursor:pointer; border-bottom:2px solid ${isActive ? cat.color : 'transparent'}; font-size: 11px; font-weight: ${isActive ? 'bold' : 'normal'};">${cat.icon} ${cat.name}${!hasLab ? ' 🔒' : ''}</button>`;
+            tabsHtml += `<button data-ui-act="openTechTab" data-ui-args='["${cat.id}"]' data-ui-el="1" class="tech-tab-btn" style="flex:1; min-width: 70px; padding:6px 4px; background:${isActive ? 'rgba(255,255,255,0.1)' : 'none'}; border:none; color:${isActive ? 'var(--gold)' : hasLab ? 'var(--text-secondary)' : '#666'}; cursor:pointer; border-bottom:2px solid ${isActive ? cat.color : 'transparent'}; font-size: 11px; font-weight: ${isActive ? 'bold' : 'normal'};">${cat.icon} ${cat.name}${!hasLab ? ' 🔒' : ''}</button>`;
         }
         tabsHtml += '</div>';
 
@@ -3936,7 +3995,7 @@ export class UI {
                         </div>
                         <div style="font-size:11px; color:var(--text-secondary); margin-bottom:3px;">From: ${kingdomName}</div>
                         <div style="font-size:12px; color:var(--text-secondary);">Daily Payment: ${loan.dailyPayment}g</div>
-                        <button onclick="window.game.ui.repayLoan('${loan.id}')" style="margin-top:8px; width:100%; padding:6px; background:#e74c3c; color:white; border:none; border-radius:3px; cursor:pointer;">Repay Full Amount (${loan.totalOwed}g)</button>
+                        <button data-ui-act="repayLoan" data-ui-args='["${loan.id}"]' style="margin-top:8px; width:100%; padding:6px; background:#e74c3c; color:white; border:none; border-radius:3px; cursor:pointer;">Repay Full Amount (${loan.totalOwed}g)</button>
                     </div>
                 `;
             }
@@ -3967,7 +4026,7 @@ export class UI {
                         <div style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:4px; text-align:center;">
                             <div style="font-weight:bold; color:var(--gold); margin-bottom:5px;">${opt.amount}g</div>
                             <div style="font-size:11px; color:#aaa; margin-bottom:8px;">${(opt.interestRate * 100).toFixed(0)}% Interest<br>${opt.duration} Days</div>
-                            <button onclick="window.game.ui.takeLoan('${opt.id}', '${kingdom.id}')" style="width:100%; padding:4px; font-size:12px; background:var(--gold); border:none; border-radius:3px; cursor:pointer;">Take Loan</button>
+                            <button data-ui-act="takeLoan" data-ui-args='["${opt.id}", "${kingdom.id}"]' style="width:100%; padding:4px; font-size:12px; background:var(--gold); border:none; border-radius:3px; cursor:pointer;">Take Loan</button>
                         </div>
                     `;
                 } else {
@@ -4023,7 +4082,7 @@ export class UI {
         for (const [key, rate] of Object.entries(Taxation.TAX_RATES)) {
             const isSelected = rate.id === currentRate;
             taxHtml += `
-                <button onclick="window.game.ui.setTaxRate('${rate.id}')" style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:${isSelected ? 'var(--gold)' : 'rgba(255,255,255,0.05)'}; color:${isSelected ? 'black' : 'var(--text-primary)'}; border:none; border-radius:4px; cursor:pointer; text-align:left;">
+                <button data-ui-act="setTaxRate" data-ui-args='["${rate.id}"]' style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:${isSelected ? 'var(--gold)' : 'rgba(255,255,255,0.05)'}; color:${isSelected ? 'black' : 'var(--text-primary)'}; border:none; border-radius:4px; cursor:pointer; text-align:left;">
                     <span style="font-weight:bold;">${rate.name}</span>
                     <span style="font-size:12px; opacity:0.8;">Happ: ${rate.happinessBonus > 0 ? '+' : ''}${rate.happinessBonus} | Growth: ${rate.growthBonus > 0 ? '+' : ''}${(rate.growthBonus * 100).toFixed(0)}%</span>
                 </button>
@@ -4075,8 +4134,8 @@ export class UI {
                     </select>
                 </div>
                 <div style="display:flex; gap:8px; margin-bottom:12px;">
-                    <button onclick="window.game.ui.createTreasuryRoute(false)" style="flex:1; padding:8px; background:var(--gold); color:#111; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Establish Trade Route</button>
-                    <button onclick="window.game.ui.createTreasuryRoute(true)" style="flex:1; padding:8px; background:#8b0000; color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Establish Smuggling Route</button>
+                    <button data-ui-act="createTreasuryRoute" data-ui-args="[false]" style="flex:1; padding:8px; background:var(--gold); color:#111; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Establish Trade Route</button>
+                    <button data-ui-act="createTreasuryRoute" data-ui-args="[true]" style="flex:1; padding:8px; background:#8b0000; color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Establish Smuggling Route</button>
                 </div>
             `;
         }
@@ -4099,9 +4158,9 @@ export class UI {
                         <div style="background:rgba(0,0,0,0.2); padding:6px; border-radius:3px; text-align:center;">Runs<br><span style="color:var(--gold); font-weight:bold;">${route.successfulRuns || 0}/${route.totalRuns || 0}</span></div>
                     </div>
                     <div style="display:flex; gap:6px;">
-                        <button onclick="window.game.ui.upgradeTreasuryRouteProtection('${route.id}', ${isSmuggling ? 'true' : 'false'})" style="flex:1; padding:6px; background:rgba(52,152,219,0.2); border:1px solid rgba(52,152,219,0.5); color:#7fb3ff; border-radius:3px; cursor:pointer;">+ Guard</button>
-                        <button onclick="window.game.ui.upgradeTreasuryRouteRoads('${route.id}', ${isSmuggling ? 'true' : 'false'})" style="flex:1; padding:6px; background:rgba(46,204,113,0.2); border:1px solid rgba(46,204,113,0.5); color:#7dffb4; border-radius:3px; cursor:pointer;">+ Roads</button>
-                        <button onclick="window.game.ui.cancelTreasuryRoute('${route.id}', ${isSmuggling ? 'true' : 'false'})" style="flex:1; padding:6px; background:rgba(231,76,60,0.2); border:1px solid rgba(231,76,60,0.5); color:#ff9a9a; border-radius:3px; cursor:pointer;">Cancel</button>
+                        <button data-ui-act="upgradeTreasuryRouteProtection" data-ui-args='["${route.id}", ${isSmuggling ? 'true' : 'false'}]' style="flex:1; padding:6px; background:rgba(52,152,219,0.2); border:1px solid rgba(52,152,219,0.5); color:#7fb3ff; border-radius:3px; cursor:pointer;">+ Guard</button>
+                        <button data-ui-act="upgradeTreasuryRouteRoads" data-ui-args='["${route.id}", ${isSmuggling ? 'true' : 'false'}]' style="flex:1; padding:6px; background:rgba(46,204,113,0.2); border:1px solid rgba(46,204,113,0.5); color:#7dffb4; border-radius:3px; cursor:pointer;">+ Roads</button>
+                        <button data-ui-act="cancelTreasuryRoute" data-ui-args='["${route.id}", ${isSmuggling ? 'true' : 'false'}]' style="flex:1; padding:6px; background:rgba(231,76,60,0.2); border:1px solid rgba(231,76,60,0.5); color:#ff9a9a; border-radius:3px; cursor:pointer;">Cancel</button>
                     </div>
                 </div>
             `;
@@ -4153,7 +4212,7 @@ export class UI {
                             <span>Current Bid: <strong style="color:var(--gold);">${lot.currentBid}g</strong></span>
                             <span style="color:var(--text-secondary);">Ends day ${lot.endsOnDay} ${youLead ? '• You lead' : ''}</span>
                         </div>
-                        <button onclick="window.game.ui.placeTreasuryAuctionBid('${lot.id}')" style="width:100%; padding:8px; background:${youLead ? 'rgba(255,255,255,0.1)' : 'var(--gold)'}; color:${youLead ? 'var(--text-primary)' : '#111'}; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">
+                        <button data-ui-act="placeTreasuryAuctionBid" data-ui-args='["${lot.id}"]' style="width:100%; padding:8px; background:${youLead ? 'rgba(255,255,255,0.1)' : 'var(--gold)'}; color:${youLead ? 'var(--text-primary)' : '#111'}; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">
                             ${youLead ? `Raise Bid (${nextBid}g)` : `Bid ${nextBid}g`}
                         </button>
                     </div>
@@ -4177,11 +4236,11 @@ export class UI {
         // Combine into simple tabs
         const html = `
             <div style="display:flex; border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:15px;">
-                <button onclick="window.game.ui.openTreasuryTab('tabMarket', this)" class="tab-btn active" style="flex:1; padding:10px; background:none; border:none; color:var(--text-primary); cursor:pointer; border-bottom:2px solid var(--gold); font-weight:bold;">Market</button>
-                <button onclick="window.game.ui.openTreasuryTab('tabBank', this)" class="tab-btn" style="flex:1; padding:10px; background:none; border:none; color:var(--text-secondary); cursor:pointer;">Bank</button>
-                <button onclick="window.game.ui.openTreasuryTab('tabTax', this)" class="tab-btn" style="flex:1; padding:10px; background:none; border:none; color:var(--text-secondary); cursor:pointer;">Taxes</button>
-                <button onclick="window.game.ui.openTreasuryTab('tabRoutes', this)" class="tab-btn" style="flex:1; padding:10px; background:none; border:none; color:var(--text-secondary); cursor:pointer;">Routes</button>
-                <button onclick="window.game.ui.openTreasuryTab('tabAuctions', this)" class="tab-btn" style="flex:1; padding:10px; background:none; border:none; color:var(--text-secondary); cursor:pointer;">Auctions</button>
+                <button data-ui-act="openTreasuryTab" data-ui-args='["tabMarket"]' data-ui-el="1" class="tab-btn active" style="flex:1; padding:10px; background:none; border:none; color:var(--text-primary); cursor:pointer; border-bottom:2px solid var(--gold); font-weight:bold;">Market</button>
+                <button data-ui-act="openTreasuryTab" data-ui-args='["tabBank"]' data-ui-el="1" class="tab-btn" style="flex:1; padding:10px; background:none; border:none; color:var(--text-secondary); cursor:pointer;">Bank</button>
+                <button data-ui-act="openTreasuryTab" data-ui-args='["tabTax"]' data-ui-el="1" class="tab-btn" style="flex:1; padding:10px; background:none; border:none; color:var(--text-secondary); cursor:pointer;">Taxes</button>
+                <button data-ui-act="openTreasuryTab" data-ui-args='["tabRoutes"]' data-ui-el="1" class="tab-btn" style="flex:1; padding:10px; background:none; border:none; color:var(--text-secondary); cursor:pointer;">Routes</button>
+                <button data-ui-act="openTreasuryTab" data-ui-args='["tabAuctions"]' data-ui-el="1" class="tab-btn" style="flex:1; padding:10px; background:none; border:none; color:var(--text-secondary); cursor:pointer;">Auctions</button>
             </div>
             
             ${marketHtml}

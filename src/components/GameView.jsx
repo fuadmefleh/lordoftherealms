@@ -36,7 +36,6 @@ export default function GameView() {
         gameRef.current.isRunning = false;
         gameRef.current = null;
       }
-      window.game = null;
       // Don't clear _hmrGame here — it's intentionally kept alive
       // so HMR can recover. It gets replaced when a new game starts.
     };
@@ -66,14 +65,12 @@ export default function GameView() {
         if (cancelled) { game.isRunning = false; return; }
         gameRef.current = game;
         _hmrGame = game;  // Persist for HMR recovery
-        // ── SANCTIONED GLOBAL ── This is the single composition-root binding of
-        // the live Game instance to the global namespace. It exists ONLY as the
-        // adapter for the legacy inline-onclick handler surface in src/ui/**.
-        // Domain code (core/world/systems/player) must NEVER read window.game or
-        // a bare `game` — it receives game/world/player as parameters instead
+        // NOTE: the live Game is intentionally NOT published to window.game.
+        // Panel HTML routes clicks through delegated data-ui-act / data-am-act
+        // handlers (see src/ui/ui.js) that hold the game reference internally.
+        // Domain code (core/world/systems/player) must never read a game global
         // (enforced by the no-restricted-globals ESLint rule). See
         // docs/architecture-globals.md.
-        window.game = game;
 
         // Bridge: let the Game push stats back into React
         game._reactBridge = { updatePlayerStats, updateTurn, setPhase };

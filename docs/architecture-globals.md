@@ -4,17 +4,20 @@ The game engine is imperative and canvas-based; the React shell only mirrors a
 display copy of state. To keep the simulation layers unit-testable, there is a
 strict rule about how code may reach the live `Game` instance.
 
-## The one sanctioned global
+## No `window.game`
 
-`window.game` is bound in exactly one place — the composition root in
-`src/components/GameView.jsx` (where the `Game` is constructed). It exists solely
-as an adapter for the **legacy inline-onclick handler surface** in `src/ui/**`
-(HTML strings like `onclick="window.game.ui.doThing()"` and the
-`window.<handler> = (…) => {…}` closures in `actionMenu.js`).
+The live `Game` instance is **not** published to `window.game` (Phase 6 removed
+that binding). Dynamically-built panel HTML that used to call
+`onclick="window.game.ui.doThing()"` / `onclick="ActionMenu.X(window.game)"` now
+uses `data-ui-act` / `data-am-act` attributes routed through a single delegated
+listener in `src/ui/ui.js` (`routeDelegatedClick`), which holds the game
+reference internally. The router is unit-tested (`unit.delegation.test.js`).
 
-That inline-handler pattern is a UI-rendering concern. Retiring it (delegated /
-React event listeners) is tracked as an optional, deferred cleanup and has no
-bearing on domain testability.
+Remaining UI globals (out of scope, deferred): `actionMenu.js` still defines
+~196 `window.<handler> = (…) => {…}` closures used by its other inline-onclick
+buttons. Those close over their own `game`/`player` — they do **not** read a
+game global — so they don't affect the rule below. Converting them to delegation
+is a further optional cleanup.
 
 ## The rule
 
@@ -33,8 +36,8 @@ on the result.
 
 `eslint.config.js` applies `no-restricted-globals` (bare `game`) and
 `no-restricted-syntax` (`window.game.*`) to `src/{core,world,systems,player}/**`
-as an **error**. `src/ui/**` and `src/components/**` are exempt — that is where
-the sanctioned binding and its consumers live.
+as an **error**. `src/ui/**` and `src/components/**` are exempt (they legitimately
+hold the game reference and wire the delegated UI listeners).
 
 Determinism companion: all randomness in the domain layer flows through the
 seedable RNG in `src/core/utils.js` (`Utils.setSeed` / `Utils.random`), never

@@ -5264,7 +5264,7 @@ export const ActionMenu = {
                     border-radius: 6px; cursor: pointer; color: white; font-family: var(--font-body); font-size: 13px;">
                     Retreat
                 </button>
-                <button onclick="ActionMenu.performSiege(window.game)" style="
+                <button data-am-act="performSiege" style="
                     flex: 1; padding: 10px; background: rgba(231,76,60,0.3); border: 1px solid rgba(231,76,60,0.6);
                     border-radius: 6px; cursor: pointer; color: #ff6666; font-weight: bold; font-family: var(--font-body); font-size: 13px;">
                     ⚔️ ATTACK
@@ -5392,7 +5392,7 @@ export const ActionMenu = {
 
         for (const unit of unitsOnTile) {
             const dangerColor = unit.strength > PlayerMilitary.getArmyStrength(game.player) ? '#ff6666' : '#66ff66';
-            html += `<button onclick="ActionMenu.performAttack(window.game, '${unit.id}')" style="
+            html += `<button data-am-act="performAttack" data-am-args='["${unit.id}"]' style="
                 display:flex; align-items:center; gap:10px; width:100%; padding:10px;
                 margin-bottom:8px; background:#2a2a2a; border:1px solid #555;
                 border-radius:6px; cursor:pointer; color:#eee; text-align:left;

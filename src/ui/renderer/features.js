@@ -2,6 +2,11 @@
 import { Renderer } from './core.js';
 import { Hex, Religion, Economy, Infrastructure } from './_imports.js';
 
+// Vertical nudge (as a fraction of a hex's on-screen size) applied to building
+// sprites so their base sits down on the hex tile instead of floating above it.
+// Increase to push buildings lower, decrease to raise them. Scales with zoom.
+const BUILDING_BASE_NUDGE = 0.14;
+
 Object.assign(Renderer.prototype, {
     /**
      * Render territory border lines between different kingdoms
@@ -161,7 +166,7 @@ Object.assign(Renderer.prototype, {
                     const imgW = renderSize * 2.3;
                     const imgH = imgW * (sprite.height / sprite.width);
                     ctx.globalAlpha = 1.0;
-                    ctx.drawImage(sprite, screen.x - imgW / 2, screen.y - imgH / 2, imgW, imgH);
+                    ctx.drawImage(sprite, screen.x - imgW / 2, screen.y - imgH / 2 + renderSize * BUILDING_BASE_NUDGE, imgW, imgH);
                 } else {
                     // Fallback to icon if image failed to load
                     const icon = settlement.type === 'capital' ? '🏰' : (settlement.type === 'town' ? '🏘️' : '🏠');
@@ -580,7 +585,7 @@ Object.assign(Renderer.prototype, {
                     const imgW = renderSize * 1.9;
                     const imgH = imgW * (sprite.height / sprite.width);
                     ctx.globalAlpha = 1.0;
-                    ctx.drawImage(sprite, screen.x - imgW / 2, screen.y - imgH * 0.7, imgW, imgH);
+                    ctx.drawImage(sprite, screen.x - imgW / 2, screen.y - imgH * 0.7 + renderSize * BUILDING_BASE_NUDGE, imgW, imgH);
                 } else {
                     // Fallback Icon
                     ctx.font = `${Math.max(14, renderSize * 0.8)}px serif`;

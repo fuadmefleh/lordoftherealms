@@ -156,7 +156,7 @@ Object.assign(AudioManager.prototype, {
     // ── Sound Effects ───────────────────────────
     /**
      * Play a short UI sound effect.
-     * @param {'click'|'success'|'error'|'notify'|'turn'|'gold'|'combat_hit'|'level_up'|'build'|'sail'} type
+     * @param {'click'|'success'|'error'|'notify'|'turn'|'gold'|'combat_hit'|'level_up'|'build'|'sail'|'forge_perfect'|'forge_charge'} type
      */
     playSFX(type) {
         if (!this.initialized) this.init();
@@ -164,16 +164,18 @@ Object.assign(AudioManager.prototype, {
         this._resume();
 
         switch (type) {
-            case 'click':      this._sfxClick(); break;
-            case 'success':    this._sfxSuccess(); break;
-            case 'error':      this._sfxError(); break;
-            case 'notify':     this._sfxNotify(); break;
-            case 'turn':       this._sfxTurn(); break;
-            case 'gold':       this._sfxGold(); break;
-            case 'combat_hit': this._sfxCombatHit(); break;
-            case 'level_up':   this._sfxLevelUp(); break;
-            case 'build':      this._sfxBuild(); break;
-            case 'sail':       this._sfxSail(); break;
+            case 'click':         this._sfxClick(); break;
+            case 'success':       this._sfxSuccess(); break;
+            case 'error':         this._sfxError(); break;
+            case 'notify':        this._sfxNotify(); break;
+            case 'turn':          this._sfxTurn(); break;
+            case 'gold':          this._sfxGold(); break;
+            case 'combat_hit':    this._sfxCombatHit(); break;
+            case 'level_up':      this._sfxLevelUp(); break;
+            case 'build':         this._sfxBuild(); break;
+            case 'sail':          this._sfxSail(); break;
+            case 'forge_perfect': this._sfxForgePerfect(); break;
+            case 'forge_charge':  this._sfxForgeCharge(); break;
         }
     },
 
@@ -328,6 +330,46 @@ Object.assign(AudioManager.prototype, {
             osc.start(now + t);
             osc.stop(now + t + 0.12);
         });
+    },
+
+    _sfxForgePerfect() {
+        const now = this.ctx.currentTime;
+        // Bright rising two-note chime with a shimmer tail — a "perfect strike".
+        [[1046, 0], [1568, 0.07]].forEach(([freq, t]) => {
+            const osc = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + t);
+            osc.frequency.linearRampToValueAtTime(freq * 1.03, now + t + 0.18);
+            g.gain.setValueAtTime(0.14, now + t);
+            g.gain.exponentialRampToValueAtTime(0.001, now + t + 0.32);
+            osc.connect(g);
+            g.connect(this.sfxGain);
+            osc.start(now + t);
+            osc.stop(now + t + 0.36);
+        });
+    },
+
+    _sfxForgeCharge() {
+        const now = this.ctx.currentTime;
+        // Rising riser to telegraph an armed charged swing.
+        const osc = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(160, now);
+        osc.frequency.exponentialRampToValueAtTime(520, now + 0.4);
+        g.gain.setValueAtTime(0.0001, now);
+        g.gain.linearRampToValueAtTime(0.08, now + 0.3);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(500, now);
+        filter.frequency.linearRampToValueAtTime(1400, now + 0.4);
+        osc.connect(filter);
+        filter.connect(g);
+        g.connect(this.sfxGain);
+        osc.start(now);
+        osc.stop(now + 0.55);
     },
 
     _sfxSail() {

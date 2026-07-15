@@ -1,6 +1,7 @@
 // ActionMenu — jobs methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader } from './_imports.js';
+import { MinigameHost, startForge } from '../minigames/index.js';
 
 Object.assign(ActionMenu, {
     // ============================================================
@@ -150,105 +151,20 @@ Object.assign(ActionMenu, {
         game.endDay();
     },
 
-    // ── Labor Minigame: Strength — Power bar timing strikes ──
+    // ── Labor Minigame: Strength — "The Forge" (canvas smithing game) ──
+    // Thin delegate: runs the polished Forge game on a MinigameHost and feeds its
+    // 0–100 score into the unchanged reward pipeline. The old inline power-bar was
+    // replaced by src/ui/minigames/forge/ (see the design spec).
     _laborStrength(game, tile, job) {
-        const str = ActionMenu._getPlayerStat(game.player, 'strength');
-        const totalRounds = 6;
-        let round = 0;
-        let score = 0;
-        let position = 0;
-        let direction = 1;
-        let intervalId = null;
-        let locked = false;
-
-        // Green zone size scales with strength
-        const greenSize = Math.min(38, 16 + str * 2);
-        const greenStart = 50 - greenSize / 2;
-        const greenEnd = 50 + greenSize / 2;
-
-        const workActions = ['⛏️ Swing!', '🪓 Chop!', '🔨 Hammer!', '💪 Lift!', '⚒️ Strike!', '🏗️ Heave!'];
-
-        const startRound = () => {
-            position = 0;
-            direction = 1;
-            locked = false;
-            const speed = 1.0 + round * 0.3 + (job.difficulty || 3) * 0.15;
-
-            let html = '<div style="max-width: 450px; text-align: center;">';
-            html += `<h4 style="margin: 0 0 4px;">${job.icon} ${job.name}</h4>`;
-            html += `<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">Hit the power bar in the <span style="color: #2ecc71;">green zone</span>!</p>`;
-            html += `<p style="font-size: 11px; color: var(--text-muted);">Round ${round + 1}/${totalRounds} · Score: ${score}/${round * 10}</p>`;
-
-            // Work animation
-            html += `<div style="font-size: 48px; margin: 10px 0; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">${job.icon}</div>`;
-
-            // Power bar
-            html += `<div style="position: relative; height: 28px; background: rgba(255,255,255,0.06); border-radius: 14px; margin: 14px 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">`;
-            // Red zones on edges
-            html += `<div style="position: absolute; left: 0; width: ${greenStart}%; height: 100%; background: rgba(231,76,60,0.15);"></div>`;
-            html += `<div style="position: absolute; right: 0; width: ${100 - greenEnd}%; height: 100%; background: rgba(231,76,60,0.15);"></div>`;
-            // Green zone
-            html += `<div style="position: absolute; left: ${greenStart}%; width: ${greenSize}%; height: 100%; background: rgba(46,204,113,0.25); border-left: 2px solid #2ecc71; border-right: 2px solid #2ecc71;"></div>`;
-            // Perfect center line
-            html += `<div style="position: absolute; left: 50%; width: 2px; height: 100%; background: rgba(241,196,15,0.5); transform: translateX(-50%);"></div>`;
-            // Cursor
-            html += `<div id="laborCursor" style="position: absolute; left: 0%; top: 0; width: 4px; height: 100%; background: var(--gold); box-shadow: 0 0 10px rgba(245,197,66,0.6);"></div>`;
-            html += `</div>`;
-
-            html += `<button onclick="window._laborStrike()"
-                style="padding: 14px 52px; background: linear-gradient(135deg, rgba(245,197,66,0.3), rgba(245,197,66,0.15));
-                       border: 2px solid var(--gold); border-radius: 8px; cursor: pointer; color: var(--gold);
-                       font-size: 16px; font-weight: bold; letter-spacing: 1px; transition: all 0.1s;"
-                onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">
-                ${workActions[round % workActions.length]}
-            </button>`;
-            html += `<div style="font-size: 10px; color: var(--text-muted); margin-top: 6px;">Gets faster each round!</div>`;
-            html += '</div>';
-            game.ui.showCustomPanel(`🔨 ${job.name}`, html);
-
-            intervalId = setInterval(() => {
-                position += direction * speed;
-                if (position >= 100) { position = 100; direction = -1; }
-                if (position <= 0) { position = 0; direction = 1; }
-                const cursor = document.getElementById('laborCursor');
-                if (cursor) cursor.style.left = position + '%';
-            }, 20);
-        };
-
-        window._laborStrike = () => {
-            if (locked) return;
-            locked = true;
-            clearInterval(intervalId);
-
-            let roundScore = 0, text = '', color = '';
-            if (position >= greenStart && position <= greenEnd) {
-                const dist = Math.abs(position - 50) / (greenSize / 2);
-                if (dist < 0.3) { roundScore = 10; text = '⚡ PERFECT STRIKE!'; color = '#f1c40f'; }
-                else { roundScore = 6; text = '💪 Good effort!'; color = '#2ecc71'; }
-            } else {
-                const dist = Math.min(Math.abs(position - greenStart), Math.abs(position - greenEnd));
-                if (dist < 10) { roundScore = 3; text = '😤 Glancing blow...'; color = '#f39c12'; }
-                else { roundScore = 0; text = '❌ Missed!'; color = '#e74c3c'; }
-            }
-            score += roundScore;
-
-            let html = '<div style="max-width: 450px; text-align: center;">';
-            html += `<div style="font-size: 52px; margin: 24px 0;">${job.icon}</div>`;
-            html += `<div style="font-size: 22px; font-weight: bold; color: ${color}; margin-bottom: 6px;">${text}</div>`;
-            html += `<div style="font-size: 13px; color: var(--text-secondary);">+${roundScore} points</div>`;
-            html += '</div>';
-            game.ui.showCustomPanel(`🔨 ${job.name}`, html);
-
-            round++;
-            if (round < totalRounds) {
-                setTimeout(() => startRound(), 900);
-            } else {
-                const pct = Math.round((score / (totalRounds * 10)) * 100);
-                setTimeout(() => ActionMenu._laborReward(game, tile, job, pct), 1100);
-            }
-        };
-
-        startRound();
+        const strength = ActionMenu._getPlayerStat(game.player, 'strength');
+        const host = new MinigameHost(game, { title: `🔥 ${job.name}`, height: 380 });
+        startForge(host, {
+            strength,
+            onComplete: (scorePercent) => {
+                host.close();
+                ActionMenu._laborReward(game, tile, job, scorePercent);
+            },
+        });
     },
 
     // ── Labor Minigame: Intelligence — Symbol sequence memory ──

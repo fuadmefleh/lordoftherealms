@@ -117,4 +117,26 @@ describe('NpcBrain — Phase B', () => {
         expect(NpcBrain.isMajor({ type: 'farmer' })).toBe(false);
         expect(NpcBrain.isMajor(null)).toBe(false);
     });
+
+    it('applyFromSettings wires the brain into the House seam when enabled', () => {
+        const fakeHouse = { setBrain: vi.fn(), resetBrain: vi.fn() };
+
+        const on = NpcBrain.applyFromSettings(
+            { llmEnabled: true, llmEndpoint: 'http://127.0.0.1:9000', llmModel: 'm', llmTemperature: 0.3 },
+            fakeHouse,
+        );
+        expect(on).toBe(true);
+        expect(NpcBrain.isEnabled()).toBe(true);
+        expect(fakeHouse.setBrain).toHaveBeenCalledTimes(1);
+        expect(fakeHouse.resetBrain).not.toHaveBeenCalled();
+    });
+
+    it('applyFromSettings unwires the brain when disabled', () => {
+        const fakeHouse = { setBrain: vi.fn(), resetBrain: vi.fn() };
+        const on = NpcBrain.applyFromSettings({ llmEnabled: false }, fakeHouse);
+        expect(on).toBe(false);
+        expect(NpcBrain.isEnabled()).toBe(false);
+        expect(fakeHouse.resetBrain).toHaveBeenCalledTimes(1);
+        expect(fakeHouse.setBrain).not.toHaveBeenCalled();
+    });
 });

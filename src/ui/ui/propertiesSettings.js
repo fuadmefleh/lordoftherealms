@@ -1,6 +1,6 @@
 // UI — propertiesSettings methods.
 import { UI } from './core.js';
-import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing } from './_imports.js';
+import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, House, NpcBrain } from './_imports.js';
 
 Object.assign(UI.prototype, {
     // ============================================
@@ -768,6 +768,11 @@ Object.assign(UI.prototype, {
         // Store notification duration for use in showNotification
         this._notifDuration = (settings.notificationDuration || 4) * 1000;
         this._confirmEndDay = settings.confirmEndDay || false;
+
+        // Wire (or unwire) the local LLM NPC brain per settings.
+        if (typeof NpcBrain !== 'undefined') {
+            NpcBrain.applyFromSettings(settings, House);
+        }
     },
 
     /**
@@ -820,6 +825,33 @@ Object.assign(UI.prototype, {
                     <div class="gs-range-group">
                         <input type="range" id="gsNotifDuration" min="1" max="10" value="${s.notificationDuration}">
                         <span class="gs-range-val" id="gsNotifDurationVal">${s.notificationDuration}s</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Brain (Experimental) -->
+            <div class="gs-section">
+                <div class="gs-section-title">AI Brain (Experimental)</div>
+                <div class="gs-row">
+                    <label>Enable Local LLM NPCs<br><span style="font-size:10px;color:var(--text-secondary);">Requires a local llama-server. Falls back safely when off/offline.</span></label>
+                    <label class="gs-toggle">
+                        <input type="checkbox" id="gsLlmEnabled" ${s.llmEnabled ? 'checked' : ''}>
+                        <span class="gs-toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="gs-row">
+                    <label>Server Endpoint</label>
+                    <input type="text" id="gsLlmEndpoint" value="${s.llmEndpoint || 'http://127.0.0.1:8080'}" style="flex:1;min-width:0;padding:4px 6px;">
+                </div>
+                <div class="gs-row">
+                    <label>Model</label>
+                    <input type="text" id="gsLlmModel" value="${s.llmModel || 'local'}" style="flex:1;min-width:0;padding:4px 6px;">
+                </div>
+                <div class="gs-row">
+                    <label>Temperature</label>
+                    <div class="gs-range-group">
+                        <input type="range" id="gsLlmTemperature" min="0" max="1.5" step="0.05" value="${s.llmTemperature != null ? s.llmTemperature : 0.7}">
+                        <span class="gs-range-val" id="gsLlmTemperatureVal">${s.llmTemperature != null ? s.llmTemperature : 0.7}</span>
                     </div>
                 </div>
             </div>
@@ -1094,6 +1126,10 @@ Object.assign(UI.prototype, {
             showDayCounter: getChecked('gsShowDayCounter'),
             showMinimap: getChecked('gsShowMinimap'),
             confirmEndDay: getChecked('gsConfirmEndDay'),
+            llmEnabled: getChecked('gsLlmEnabled'),
+            llmEndpoint: getVal('gsLlmEndpoint') || 'http://127.0.0.1:8080',
+            llmModel: getVal('gsLlmModel') || 'local',
+            llmTemperature: parseFloat(getVal('gsLlmTemperature')) || 0.7,
         };
 
         // Apply audio settings directly to audioManager
@@ -1145,6 +1181,11 @@ Object.assign(UI, {
             showDayCounter: true,
             showMinimap: true,
             confirmEndDay: false,
+            // Local LLM NPC brain (Spec 2) — off by default.
+            llmEnabled: false,
+            llmEndpoint: 'http://127.0.0.1:8080',
+            llmModel: 'local',
+            llmTemperature: 0.7,
         };
     },
 

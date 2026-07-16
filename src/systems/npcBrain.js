@@ -47,6 +47,27 @@ export const NpcBrain = {
         if (Object.keys(clientOpts).length) LlmClient.configure(clientOpts);
     },
 
+    /**
+     * Apply persisted game settings: configure the transport, enable/disable the
+     * brain, and wire it into (or out of) the House seam. `House` is injected so
+     * this module stays decoupled and testable. Returns whether it ended enabled.
+     */
+    applyFromSettings(s = {}, House) {
+        const clientOpts = {};
+        if (s.llmEndpoint) clientOpts.endpoint = s.llmEndpoint;
+        if (s.llmModel) clientOpts.model = s.llmModel;
+        if (s.llmTemperature != null && s.llmTemperature !== '') clientOpts.temperature = Number(s.llmTemperature);
+        if (Object.keys(clientOpts).length) NpcBrain.configure(clientOpts);
+
+        const on = !!s.llmEnabled;
+        NpcBrain.enable(on);
+        if (House && typeof House.setBrain === 'function') {
+            if (on) House.setBrain(NpcBrain.asHouseBrain());
+            else House.resetBrain();
+        }
+        return on;
+    },
+
     // ── Tiering ─────────────────────────────────────────────────
 
     /** Only major characters warrant LLM attention. */

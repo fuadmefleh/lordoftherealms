@@ -19,5 +19,7 @@ export { Hex } from '../../core/hex.js';
 export { SaveLoad } from '../../systems/saveLoad.js';
 export { audioManager } from '../../systems/audio.js';
 export { NpcFamily } from '../../systems/npcFamily.js';
+export { House } from '../../systems/house.js';
+export { NpcBrain } from '../../systems/npcBrain.js';
 export { Relationships } from '../../systems/relationships.js';
 export { Housing } from '../../systems/housing.js';

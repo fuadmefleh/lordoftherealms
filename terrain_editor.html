@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&family=MedievalSharp&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="editor-ui.css">
 <script src="editor-ui.js"></script>
+<script src="editor-core.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 /* Design tokens live in the shared editor-ui.css (:root:root). */
@@ -617,9 +618,13 @@ function scheduleRender() {
     requestAnimationFrame(() => { _renderPending = false; render(); });
 }
 
-// Undo
-let undoStack = [], redoStack = [];
+// Undo — shared stack (EditorCore) with terrain's JSON-string snapshots.
 const MAX_UNDO = 50;
+const _undoStack = EditorCore.createUndoStack({
+    max: MAX_UNDO,
+    snapshot: snapshot,
+    restore: (snap) => restoreSnapshot(JSON.parse(snap)),
+});
 
 // ═══════════════════════════════════════════════
 //  TERRAIN SETS
@@ -948,15 +953,7 @@ function computeDesiredEdgePattern(aq, ar, pq, pr, ti, tset) {
 }
 
 function pickWeightedVariant(variants) {
-    if (variants.length === 1) return variants[0];
-    let total = 0;
-    for (const v of variants) total += (v.probability || 1);
-    let r = Math.random() * total;
-    for (const v of variants) {
-        r -= (v.probability || 1);
-        if (r <= 0) return v;
-    }
-    return variants[0];
+    return EditorCore.pickWeightedVariant(variants);
 }
 
 
@@ -1218,11 +1215,7 @@ function snapshot() {
     return JSON.stringify({ t: tiles, b: brushGroupMap, nl: numLayers, ln: layerNames.slice(), lv: layerVisible.slice(), al: activeLayer, po: placedObjects });
 }
 
-function pushUndo() {
-    undoStack.push(snapshot());
-    if (undoStack.length > MAX_UNDO) undoStack.shift();
-    redoStack = [];
-}
+function pushUndo() { _undoStack.push(); }
 
 function restoreSnapshot(data) {
     if (data.t) { tiles = data.t; brushGroupMap = data.b || []; }
@@ -1239,19 +1232,9 @@ function restoreSnapshot(data) {
     render();
 }
 
-function undo() {
-    if (!undoStack.length) return;
-    redoStack.push(snapshot());
-    restoreSnapshot(JSON.parse(undoStack.pop()));
-    toast('Undo', 'ok');
-}
+function undo() { if (_undoStack.undo()) toast('Undo', 'ok'); }
 
-function redo() {
-    if (!redoStack.length) return;
-    undoStack.push(snapshot());
-    restoreSnapshot(JSON.parse(redoStack.pop()));
-    toast('Redo', 'ok');
-}
+function redo() { if (_undoStack.redo()) toast('Redo', 'ok'); }
 
 
 // ═══════════════════════════════════════════════
@@ -1771,10 +1754,7 @@ function renderSetOverlay(qMin, qMax, rMin, rMax) {
 //  INPUT HANDLING
 // ═══════════════════════════════════════════════
 function screenToTile(sx, sy) {
-    const ds = TILE * zoom;
-    const q = Math.floor((sx - panX) / ds);
-    const r = Math.floor((sy - panY) / ds);
-    return { q, r, valid: q >= 0 && q < mapW && r >= 0 && r < mapH };
+    return EditorCore.screenToCell(sx, sy, { tile: TILE, zoom, panX, panY, gridW: mapW, gridH: mapH });
 }
 
 cvs.addEventListener('mousedown', e => {
@@ -2308,15 +2288,7 @@ async function _loadSavedCustomSheets() {
     } catch (e) { console.warn('Failed to load saved custom sheets:', e); }
 }
 
-function loadImage(path) {
-    if (imgCache.has(path)) return Promise.resolve(imgCache.get(path));
-    return new Promise(resolve => {
-        const img = new Image();
-        img.onload = () => { imgCache.set(path, img); resolve(img); };
-        img.onerror = () => { imgCache.set(path, null); resolve(null); };
-        img.src = path;
-    });
-}
+function loadImage(path) { return EditorCore.loadImage(imgCache, path); }
 
 
 // ═══════════════════════════════════════════════
@@ -2972,7 +2944,7 @@ async function newMap() {
     buildUsageUI();
     panX = 20; panY = 20;
     zoom = Math.min((cvs.width - 40) / (w * TILE), (cvs.height - 40) / (h * TILE));
-    undoStack = []; redoStack = [];
+    _undoStack.clear();
     render();
     toast(`Created ${w}×${h} map`, 'ok');
 }
@@ -3049,7 +3021,7 @@ function handleLoad(ev) {
             document.getElementById('p-size').textContent = `${mapW}×${mapH}`;
             placedObjects = d.placedObjects ? JSON.parse(JSON.stringify(d.placedObjects)) : {};
             panX = 20; panY = 20;
-            undoStack = []; redoStack = [];
+            _undoStack.clear();
 
             // Preload all images
             const paths = new Set();

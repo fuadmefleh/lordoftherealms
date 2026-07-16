@@ -16,13 +16,30 @@
 // flow through Utils.* per the repo's hard rules.
 
 import { Utils } from '../core/utils.js';
+import { DataLoader } from '../core/dataLoader.js';
 
 // The five family-role slots. Each holds a family-member id (or null).
 const ROLE_IDS = ['steward', 'marshal', 'chancellor', 'spymaster', 'heir'];
 
+// Prestige tuning. Source of truth lives here (Housing-style defensive
+// defaults); `DataLoader.house.config` overrides individual keys in-game so the
+// values stay moddable without a hard dependency on the data pipeline in tests.
+const CONFIG = {
+    idleWindow: 90,     // days without a notable deed before Prestige decays
+    decayPerDay: 1,     // Prestige eroded per idle day
+    logCap: 30,         // max recent prestigeLog entries retained
+    historyCap: 200,    // max chronicle entries retained
+};
+
 export const House = {
 
     ROLE_IDS,
+
+    _getConfig() {
+        const override = (typeof DataLoader !== 'undefined' && DataLoader.house && DataLoader.house.config)
+            ? DataLoader.house.config : null;
+        return override ? { ...CONFIG, ...override } : CONFIG;
+    },
 
     // ── Construction ────────────────────────────────────────────
 
@@ -64,20 +81,112 @@ export const House = {
         if (!player) return null;
         if (!player.house) {
             player.house = House._blankHouse(player, world);
+            House._chronicle(player.house, world, `${player.house.name} enters history.`, ['founding']);
         }
         return player.house;
+    },
+
+    /**
+     * Found or re-style the House — set its name, motto, and sigil. Called from
+     * the founding/rename dialog. Ensures the House exists first, so it is safe
+     * to call before or after initialize().
+     */
+    found(player, world, { name, motto, sigil } = {}) {
+        const house = House.initialize(player, world);
+        if (name) {
+            const trimmed = String(name).trim();
+            house.name = /^house\s/i.test(trimmed) ? trimmed : `House ${trimmed}`;
+        }
+        if (motto != null) house.motto = String(motto);
+        if (sigil) house.sigil = { ...house.sigil, ...sigil };
+        return house;
+    },
+
+    // ── Prestige — the dynastic currency ────────────────────────
+
+    /**
+     * Award Prestige for a notable deed. Positive amounts only; resets the
+     * idle-decay clock. Returns the new Prestige total.
+     */
+    award(house, amount, reason, day) {
+        if (!house || !(amount > 0)) return house ? house.prestige : 0;
+        house.prestige += amount;
+        House._touch(house, day);
+        House._logPrestige(house, day, amount, reason);
+        return house.prestige;
+    },
+
+    /**
+     * Spend Prestige on something gold cannot buy (claim, prestigious marriage,
+     * secured succession, …). Returns false and changes nothing if the House
+     * cannot afford it. Spending counts as House activity (resets decay clock).
+     */
+    spend(house, amount, reason, day) {
+        if (!house || !(amount > 0)) return false;
+        if (house.prestige < amount) return false;
+        house.prestige -= amount;
+        House._touch(house, day);
+        House._logPrestige(house, day, -amount, reason);
+        return true;
+    },
+
+    /**
+     * Erode Prestige once the House has gone `idleWindow` days without a notable
+     * deed. Returns the amount decayed (0 if not idle or already at zero).
+     */
+    applyDecay(house, day) {
+        if (!house || house.prestige <= 0) return 0;
+        const cfg = House._getConfig();
+        const idle = (day || 0) - (house.lastNotableDay || 0);
+        if (idle <= cfg.idleWindow) return 0;
+        const dec = Math.min(house.prestige, cfg.decayPerDay);
+        house.prestige -= dec;
+        if (dec > 0) House._logPrestige(house, day, -dec, 'decay');
+        return dec;
+    },
+
+    _touch(house, day) {
+        if (day != null) house.lastNotableDay = day;
+    },
+
+    _logPrestige(house, day, delta, reason) {
+        const cfg = House._getConfig();
+        house.prestigeLog = house.prestigeLog || [];
+        house.prestigeLog.push({ day: day != null ? day : 0, delta, reason: reason || '' });
+        if (house.prestigeLog.length > cfg.logCap) {
+            house.prestigeLog = house.prestigeLog.slice(-cfg.logCap);
+        }
+    },
+
+    /** Append an entry to the generational chronicle (also the LLM memory seam). */
+    _chronicle(house, world, text, tags) {
+        const cfg = House._getConfig();
+        house.history = house.history || [];
+        house.history.push({
+            day: (world && world.day) || 0,
+            generation: house.generation || 1,
+            text,
+            tags: tags || [],
+        });
+        if (house.history.length > cfg.historyCap) {
+            house.history = house.history.slice(-cfg.historyCap);
+        }
     },
 
     // ── Daily tick ──────────────────────────────────────────────
 
     /**
-     * Advance the House one day. Phase 0: no-op. Later phases apply Prestige
-     * decay, evaluate ambitions, drift role loyalty, and accrue rival feuds.
-     * @returns {object} a results bag for the UI layer (empty for now).
+     * Advance the House one day. Applies Prestige decay. Later phases add
+     * ambition evaluation, role-loyalty drift, and rival-feud accrual.
+     * @returns {object} a results bag for the UI layer.
      */
     processDaily(player, world) {
         if (!player || !player.house) return {};
-        return {};
+        const day = (world && world.day) || 0;
+        const results = {};
+        const decayed = House.applyDecay(player.house, day);
+        if (decayed > 0) results.prestigeDecayed = decayed;
+        return results;
     },
 
     // ── Persistence ─────────────────────────────────────────────
@@ -89,23 +198,10 @@ export const House = {
      */
     serialize(house) {
         if (!house) return null;
-        return {
-            id: house.id,
-            name: house.name,
-            motto: house.motto,
-            sigil: house.sigil,
-            foundedDay: house.foundedDay,
-            prestige: house.prestige,
-            prestigeLog: house.prestigeLog || [],
-            lastNotableDay: house.lastNotableDay,
-            headId: house.headId,
-            generation: house.generation,
-            ambition: house.ambition,
-            roles: house.roles,
-            holdings: house.holdings || {},
-            rivals: house.rivals || {},
-            history: house.history || [],
-        };
+        // House state is plain JSON-safe data (no Sets/Maps yet), so a deep
+        // structured clone is both correct and robust as fields are added in
+        // later phases. When Sets/Maps arrive, convert them here.
+        return JSON.parse(JSON.stringify(house));
     },
 
     /**

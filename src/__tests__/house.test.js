@@ -21,7 +21,9 @@ describe('House — Phase 0 scaffolding', () => {
         expect(house.generation).toBe(1);
         expect(house.foundedDay).toBe(5);
         expect(house.ambition).toBeNull();
-        expect(house.history).toEqual([]);
+        // A founding entry is chronicled at creation.
+        expect(house.history).toHaveLength(1);
+        expect(house.history[0].tags).toContain('founding');
         // Every role slot exists and starts empty.
         for (const roleId of House.ROLE_IDS) {
             expect(house.roles[roleId]).toBeNull();
@@ -80,7 +82,8 @@ describe('House — Phase 0 scaffolding', () => {
         expect(restored.prestige).toBe(120);
         expect(restored.motto).toBe('We Endure');
         expect(restored.roles.steward).toBe('child_7');
-        expect(restored.history).toHaveLength(1);
+        // Founding entry (from initialize) + the one pushed above.
+        expect(restored.history).toHaveLength(2);
     });
 
     it('deserialize(null) backfills a blank House for legacy saves', () => {
@@ -99,5 +102,87 @@ describe('House — Phase 0 scaffolding', () => {
         for (const roleId of House.ROLE_IDS) {
             expect(restored.roles[roleId]).toBeNull();
         }
+    });
+});
+
+describe('House — Phase 1: founding & Prestige', () => {
+    it('found() sets name (prefixing "House"), motto, and sigil', () => {
+        const player = makePlayer({ lastName: '' });
+        const house = House.found(player, { day: 2 }, {
+            name: 'Blackwood', motto: 'Rooted and Rising', sigil: { icon: '🌳' },
+        });
+        expect(house.name).toBe('House Blackwood');
+        expect(house.motto).toBe('Rooted and Rising');
+        expect(house.sigil.icon).toBe('🌳');
+        expect(house.sigil.color).toBe('#c9a227'); // untouched default preserved
+    });
+
+    it('found() does not double-prefix an already-"House" name', () => {
+        const house = House.found(makePlayer(), { day: 0 }, { name: 'House Vale' });
+        expect(house.name).toBe('House Vale');
+    });
+
+    it('award() adds Prestige, logs it, and resets the decay clock', () => {
+        const house = House.initialize(makePlayer(), { day: 10 });
+        const total = House.award(house, 25, 'won a battle', 12);
+        expect(total).toBe(25);
+        expect(house.prestige).toBe(25);
+        expect(house.lastNotableDay).toBe(12);
+        const last = house.prestigeLog[house.prestigeLog.length - 1];
+        expect(last).toMatchObject({ delta: 25, reason: 'won a battle', day: 12 });
+    });
+
+    it('award() ignores non-positive amounts', () => {
+        const house = House.initialize(makePlayer(), { day: 0 });
+        House.award(house, 0, 'noop', 1);
+        House.award(house, -5, 'noop', 1);
+        expect(house.prestige).toBe(0);
+    });
+
+    it('spend() debits when affordable and refuses when not', () => {
+        const house = House.initialize(makePlayer(), { day: 0 });
+        House.award(house, 30, 'deeds', 1);
+        expect(House.spend(house, 20, 'press claim', 5)).toBe(true);
+        expect(house.prestige).toBe(10);
+        expect(House.spend(house, 50, 'too costly', 6)).toBe(false);
+        expect(house.prestige).toBe(10); // unchanged on refusal
+    });
+
+    it('applyDecay() only erodes after the idle window elapses', () => {
+        const house = House.initialize(makePlayer(), { day: 0 });
+        House.award(house, 10, 'deed', 0);
+        const cfg = House._getConfig();
+        // Within the window: no decay.
+        expect(House.applyDecay(house, cfg.idleWindow)).toBe(0);
+        expect(house.prestige).toBe(10);
+        // One day past the window: erode by decayPerDay.
+        const decayed = House.applyDecay(house, cfg.idleWindow + 1);
+        expect(decayed).toBe(cfg.decayPerDay);
+        expect(house.prestige).toBe(10 - cfg.decayPerDay);
+    });
+
+    it('applyDecay() never drives Prestige below zero', () => {
+        const house = House.initialize(makePlayer(), { day: 0 });
+        House.award(house, 1, 'deed', 0);
+        const cfg = House._getConfig();
+        House.applyDecay(house, cfg.idleWindow + 1); // 1 -> 0
+        expect(house.prestige).toBe(0);
+        expect(House.applyDecay(house, cfg.idleWindow + 2)).toBe(0); // stays 0
+    });
+
+    it('processDaily() applies decay and reports it', () => {
+        const player = makePlayer();
+        House.initialize(player, { day: 0 });
+        House.award(player.house, 5, 'deed', 0);
+        const cfg = House._getConfig();
+        const res = House.processDaily(player, { day: cfg.idleWindow + 1 });
+        expect(res.prestigeDecayed).toBe(cfg.decayPerDay);
+    });
+
+    it('prestigeLog is capped at config.logCap entries', () => {
+        const house = House.initialize(makePlayer(), { day: 0 });
+        const cfg = House._getConfig();
+        for (let i = 0; i < cfg.logCap + 15; i++) House.award(house, 1, `deed ${i}`, i);
+        expect(house.prestigeLog.length).toBe(cfg.logCap);
     });
 });

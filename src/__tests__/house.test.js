@@ -249,4 +249,75 @@ describe('House — Phase 2: sources & sinks', () => {
         expect(res.success).toBe(false);
         expect(res.reason).toBe('No House');
     });
+
+    it('recordDeed() increments a durable stats counter', () => {
+        const house = House.initialize(makePlayer(), { day: 1 });
+        House.recordDeed(house, { day: 1 }, 'settlementHeld');
+        House.recordDeed(house, { day: 2 }, 'settlementHeld');
+        expect(house.stats.settlementHeld).toBe(2);
+    });
+});
+
+describe('House — Phase 3: ambitions', () => {
+    it('ambitions() lists the catalog and chooseAmbition() sets progress', () => {
+        const list = House.ambitions();
+        expect(list.length).toBeGreaterThanOrEqual(5);
+        const house = House.initialize(makePlayer(), { day: 1 });
+        const prog = House.chooseAmbition(house, 'merchant_dynasty', 1);
+        expect(prog.id).toBe('merchant_dynasty');
+        expect(prog.capstoneDone).toBe(false);
+        expect(prog.milestones.every(ms => ms.done === false)).toBe(true);
+    });
+
+    it('chooseAmbition() rejects an unknown ambition', () => {
+        const house = House.initialize(makePlayer(), { day: 1 });
+        expect(House.chooseAmbition(house, 'nonsense', 1)).toBeNull();
+        expect(house.ambition).toBeNull();
+    });
+
+    it('evaluateAmbition() marks milestones met and awards Prestige', () => {
+        const player = makePlayer({ properties: [{}, {}, {}, {}, {}], tradeRoutes: [] });
+        House.initialize(player, { day: 1 });
+        House.chooseAmbition(player.house, 'merchant_dynasty', 1);
+        const before = player.house.prestige;
+
+        const res = House.evaluateAmbition(player, { day: 5 });
+        expect(res.milestonesCompleted).toContain('estates'); // 5 properties
+        expect(res.milestonesCompleted).not.toContain('routes'); // 0 routes
+        expect(player.house.prestige).toBeGreaterThan(before);
+
+        // Idempotent: a completed milestone is not re-awarded.
+        const p2 = player.house.prestige;
+        const res2 = House.evaluateAmbition(player, { day: 6 });
+        expect(res2.milestonesCompleted).not.toContain('estates');
+        expect(player.house.prestige).toBe(p2);
+    });
+
+    it('evaluateAmbition() detects the capstone exactly once', () => {
+        const player = makePlayer({ gold: 60000, tradeRoutes: [{}, {}, {}, {}, {}] });
+        House.initialize(player, { day: 1 });
+        House.chooseAmbition(player.house, 'merchant_dynasty', 1);
+
+        const res = House.evaluateAmbition(player, { day: 10 });
+        expect(res.capstoneCompleted).toBe(true);
+        expect(player.house.ambition.capstoneDone).toBe(true);
+
+        const res2 = House.evaluateAmbition(player, { day: 11 });
+        expect(res2.capstoneCompleted).toBe(false); // not re-fired
+    });
+
+    it('evaluateAmbition() returns null with no active ambition', () => {
+        const player = makePlayer();
+        House.initialize(player, { day: 1 });
+        expect(House.evaluateAmbition(player, { day: 2 })).toBeNull();
+    });
+
+    it('processDaily() surfaces ambition progress in its results', () => {
+        const player = makePlayer({ properties: [{}, {}, {}, {}, {}] });
+        House.initialize(player, { day: 1 });
+        House.chooseAmbition(player.house, 'merchant_dynasty', 1);
+        const res = House.processDaily(player, { day: 3 });
+        expect(res.ambition).toBeTruthy();
+        expect(res.ambition.milestonesCompleted).toContain('estates');
+    });
 });

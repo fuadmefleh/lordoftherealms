@@ -54,6 +54,68 @@ const SINKS = {
     secureSuccession: 20,    // used from Phase 4
 };
 
+// Multi-generational Ambitions. Predicates are code (they read live game
+// state), so the catalog lives here rather than in data. Each milestone/
+// capstone predicate receives a flat `metrics` object (see House._metrics).
+// Descriptive text can still be overridden via DataLoader.house.ambitionText.
+const AMBITIONS = [
+    {
+        id: 'seat_of_power',
+        name: 'Seat of Power',
+        blurb: 'Carve out a realm of your own.',
+        milestones: [
+            { id: 'title', label: 'Hold a royal office', test: m => m.hasTitle },
+            { id: 'army', label: 'Field an army of strength 100', test: m => m.armyStrength >= 100 },
+            { id: 'first_hold', label: 'Seize your first settlement', test: m => m.settlementsHeld >= 1 },
+        ],
+        capstone: { id: 'realm', label: 'Hold three settlements', test: m => m.settlementsHeld >= 3 },
+    },
+    {
+        id: 'faith_eternal',
+        name: 'Faith Eternal',
+        blurb: 'Spread a faith that outlives you.',
+        milestones: [
+            { id: 'found', label: 'Found a religion', test: m => m.hasReligion },
+            { id: 'flock', label: 'Gather 1,000 followers', test: m => m.followers >= 1000 },
+            { id: 'temples', label: 'Raise 3 temples', test: m => m.temples >= 3 },
+        ],
+        capstone: { id: 'eternal', label: '5,000 followers and 5 temples', test: m => m.followers >= 5000 && m.temples >= 5 },
+    },
+    {
+        id: 'merchant_dynasty',
+        name: 'Merchant Dynasty',
+        blurb: 'Dominate the flow of coin.',
+        milestones: [
+            { id: 'estates', label: 'Own 5 properties', test: m => m.properties >= 5 },
+            { id: 'routes', label: 'Run 3 trade routes', test: m => m.tradeRoutes >= 3 },
+            { id: 'coffers', label: 'Amass 25,000 gold', test: m => m.gold >= 25000 },
+        ],
+        capstone: { id: 'monopoly', label: '50,000 gold and 5 trade routes', test: m => m.gold >= 50000 && m.tradeRoutes >= 5 },
+    },
+    {
+        id: 'bloodline_of_kings',
+        name: 'Bloodline of Kings',
+        blurb: 'Weave your blood through the realms.',
+        milestones: [
+            { id: 'wed', label: 'Marry', test: m => m.married },
+            { id: 'heirs2', label: 'Raise 2 children', test: m => m.children >= 2 },
+            { id: 'heirs4', label: 'Raise 4 children', test: m => m.children >= 4 },
+        ],
+        capstone: { id: 'dynasty', label: '4 children across 2 generations', test: m => m.children >= 4 && m.generation >= 2 },
+    },
+    {
+        id: 'the_great_house',
+        name: 'The Great House',
+        blurb: 'Build a name that endures the ages.',
+        milestones: [
+            { id: 'prestige50', label: 'Reach 50 Prestige', test: m => m.prestige >= 50 },
+            { id: 'holdings8', label: 'Own 8 properties', test: m => m.properties >= 8 },
+            { id: 'gen2', label: 'Survive into a 2nd generation', test: m => m.generation >= 2 },
+        ],
+        capstone: { id: 'great', label: '150 Prestige across 3 generations', test: m => m.prestige >= 150 && m.generation >= 3 },
+    },
+];
+
 export const House = {
 
     ROLE_IDS,
@@ -105,6 +167,7 @@ export const House = {
             holdings: {},           // derived snapshot for scoring/fragmentation
             rivals: {},             // { houseKey: { feud, lastActedDay } }
             history: [],            // { day, generation, text, tags[] } chronicle
+            stats: {},              // durable deed counters (ambition predicates read these)
         };
     },
 
@@ -225,6 +288,9 @@ export const House = {
         if (amount <= 0) return 0;
         const day = world && world.day;
         House.award(house, amount, opts.reason || deedId, day);
+        // Durable counter for ambition predicates and scoring.
+        house.stats = house.stats || {};
+        house.stats[deedId] = (house.stats[deedId] || 0) + count;
         if (opts.chronicle) House._chronicle(house, world, opts.chronicle, opts.tags || [deedId]);
         return amount;
     },
@@ -265,6 +331,104 @@ export const House = {
         return House._paySink(player, world, 'secureSuccession', opts);
     },
 
+    // ── Ambitions (multi-generational goals) ────────────────────
+
+    /** The catalog, for the ambition-choice UI. */
+    ambitions() {
+        return AMBITIONS.map(a => ({ id: a.id, name: a.name, blurb: a.blurb }));
+    },
+
+    _getAmbitionDef(id) {
+        return AMBITIONS.find(a => a.id === id) || null;
+    },
+
+    /** Set the House's single active ambition. Returns the progress object or null. */
+    chooseAmbition(house, id, day) {
+        if (!house) return null;
+        const def = House._getAmbitionDef(id);
+        if (!def) return null;
+        house.ambition = {
+            id: def.id,
+            chosenDay: day != null ? day : (house.foundedDay || 0),
+            milestones: def.milestones.map(m => ({ id: m.id, done: false, day: null })),
+            capstoneDone: false,
+        };
+        return house.ambition;
+    },
+
+    _countTemples(player) {
+        const b = player && player.religion && player.religion.buildings;
+        if (!Array.isArray(b)) return 0;
+        return b.filter(x => {
+            const t = (x.typeId || x.type || x.id || '').toString().toLowerCase();
+            return t.includes('temple') || t.includes('cathedral');
+        }).length;
+    },
+
+    /** Flatten the game state an ambition predicate needs into one object. */
+    _metrics(player, world) {
+        const house = player.house || {};
+        const army = player.army || [];
+        return {
+            prestige: house.prestige || 0,
+            generation: house.generation || 1,
+            gold: player.gold || 0,
+            renown: player.renown || 0,
+            properties: (player.properties || []).length,
+            tradeRoutes: (player.tradeRoutes || []).length,
+            armyStrength: army.reduce((s, u) => s + (u.strength || 0), 0),
+            hasTitle: !!player.currentTitle,
+            hasReligion: !!player.religion,
+            followers: (player.religion && player.religion.followers) || 0,
+            temples: House._countTemples(player),
+            children: (player.children || []).length,
+            married: !!player.marriageDay,
+            settlementsHeld: ((house.stats && house.stats.settlementHeld) || 0)
+                + (house.holdings && house.holdings.settlements || 0),
+        };
+    },
+
+    /**
+     * Evaluate the active ambition against live state. Marks newly-completed
+     * milestones (awarding Prestige + a chronicle entry) and detects the
+     * capstone. Returns { milestonesCompleted:[ids], capstoneCompleted:bool,
+     * ambitionId } or null if there is no active ambition.
+     */
+    evaluateAmbition(player, world) {
+        const house = player && player.house;
+        if (!house || !house.ambition) return null;
+        const def = House._getAmbitionDef(house.ambition.id);
+        if (!def) return null;
+
+        const m = House._metrics(player, world);
+        const out = { ambitionId: def.id, milestonesCompleted: [], capstoneCompleted: false };
+        const day = world && world.day;
+
+        for (const ms of house.ambition.milestones) {
+            if (ms.done) continue;
+            const msDef = def.milestones.find(x => x.id === ms.id);
+            if (msDef && msDef.test(m)) {
+                ms.done = true;
+                ms.day = day != null ? day : 0;
+                House.recordDeed(house, world, 'ambitionMilestone', {
+                    reason: `${def.name}: ${msDef.label}`,
+                    chronicle: `${house.name} advances "${def.name}" — ${msDef.label}.`,
+                    tags: ['ambition', def.id],
+                });
+                out.milestonesCompleted.push(ms.id);
+            }
+        }
+
+        if (!house.ambition.capstoneDone && def.capstone.test(m)) {
+            house.ambition.capstoneDone = true;
+            out.capstoneCompleted = true;
+            House._chronicle(house, world,
+                `${house.name} fulfils its great ambition: ${def.name}!`, ['ambition', 'capstone', def.id]);
+        }
+
+        return out;
+    },
+
     // ── Daily tick ──────────────────────────────────────────────
 
     /**
@@ -278,6 +442,10 @@ export const House = {
         const results = {};
         const decayed = House.applyDecay(player.house, day);
         if (decayed > 0) results.prestigeDecayed = decayed;
+        const ambition = House.evaluateAmbition(player, world);
+        if (ambition && (ambition.milestonesCompleted.length || ambition.capstoneCompleted)) {
+            results.ambition = ambition;
+        }
         return results;
     },
 

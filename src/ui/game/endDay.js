@@ -288,9 +288,22 @@ export function endDay() {
                 Relationships.prepareForSave(this.player);
             }
 
-            // Process the House (dynasty spine) — Phase 0: no-op tick
+            // Process the House (dynasty spine) — Prestige decay + ambitions
             if (typeof House !== 'undefined') {
-                House.processDaily(this.player, this.world);
+                const houseResult = House.processDaily(this.player, this.world);
+                if (houseResult.ambition) {
+                    const def = House._getAmbitionDef(houseResult.ambition.ambitionId);
+                    const aName = def ? def.name : 'your ambition';
+                    for (const msId of houseResult.ambition.milestonesCompleted) {
+                        const msDef = def && def.milestones.find(x => x.id === msId);
+                        this.ui.showNotification('🏛️ Ambition Advanced',
+                            `${aName}: ${msDef ? msDef.label : 'milestone reached'} (+Prestige)`, 'success');
+                    }
+                    if (houseResult.ambition.capstoneCompleted) {
+                        this.ui.showNotification('👑 Ambition Fulfilled!',
+                            `${this.player.house.name} has achieved "${aName}"! Choose a new ambition.`, 'success');
+                    }
+                }
             }
 
             // Update market prices

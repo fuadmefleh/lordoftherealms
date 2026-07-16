@@ -3,7 +3,7 @@
 // and round-trips through serialize/deserialize. No Prestige/ambition/
 // succession behaviour exists yet — those arrive in later phases.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { House } from '../systems/house.js';
 import { Utils } from '../core/utils.js';
 
@@ -559,5 +559,67 @@ describe('House — Phase 6: rival Houses', () => {
         }
         expect(threatened).toBe(true);
         expect(player.house._pendingClaim).toBe(true);
+    });
+});
+
+describe('House — Phase 8: the brain seam (Spec 2 readiness)', () => {
+    afterEach(() => House.resetBrain());
+
+    function hotRival() {
+        const player = makePlayer();
+        House.initialize(player, { day: 0 });
+        House.seedRivals(player, {
+            day: 0, kingdoms: [{ id: 'k2', name: 'Durheim', isAlive: true, military: 500, characterData: { dynasty: { name: 'Stone' } } }],
+        }, 1);
+        return player;
+    }
+
+    it('a swapped-in brain overrides the rival-action decision', () => {
+        const player = hotRival(); // feud 0 → default brain would never act
+        House.setBrain({ decideRivalAction: () => ({ act: true, type: 'claim_threat' }) });
+        const cadence = House._getConfig().rivalActionCadence;
+        const action = House._processRivals(player, { day: cadence });
+        expect(action).toBeTruthy();
+        expect(action.type).toBe('claim_threat');
+        expect(player.house._pendingClaim).toBe(true);
+    });
+
+    it('a brain that declines suppresses the action even at max feud', () => {
+        const player = hotRival();
+        House.accrueRivalFeud(player, { day: 1 }, 'k2', 100);
+        House.setBrain({ decideRivalAction: () => ({ act: false }) });
+        const cadence = House._getConfig().rivalActionCadence;
+        expect(House._processRivals(player, { day: cadence })).toBeNull();
+    });
+
+    it('the narrate seam overrides chronicle text for a rival threat', () => {
+        const player = hotRival();
+        House.setBrain({
+            decideRivalAction: () => ({ act: true, type: 'claim_threat' }),
+            narrate: () => 'The Stones whisper of your grandfather\'s broken oath.',
+        });
+        const cadence = House._getConfig().rivalActionCadence;
+        House._processRivals(player, { day: cadence });
+        const last = player.house.history.at(-1);
+        expect(last.text).toContain('broken oath');
+    });
+
+    it('resetBrain restores the deterministic default (default path unchanged)', () => {
+        const player = hotRival(); // feud 0
+        House.setBrain({ decideRivalAction: () => ({ act: true }) });
+        House.resetBrain();
+        const cadence = House._getConfig().rivalActionCadence;
+        // With feud 0 and the default brain, no action fires.
+        expect(House._processRivals(player, { day: cadence })).toBeNull();
+    });
+
+    it('House state is plain JSON-serializable end to end (LLM data seam)', () => {
+        const player = makePlayer();
+        House.initialize(player, { day: 1 });
+        House.chooseAmbition(player.house, 'the_great_house', 1);
+        House.recordDeed(player.house, { day: 2 }, 'quest');
+        House.seedRivals(player, { day: 2, kingdoms: [{ id: 'k1', name: 'V', isAlive: true, military: 1 }] }, 1);
+        const clone = JSON.parse(JSON.stringify(player.house));
+        expect(clone).toEqual(player.house); // no Sets/Maps/functions leaked in
     });
 });

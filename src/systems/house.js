@@ -133,9 +133,41 @@ const AMBITIONS = [
     },
 ];
 
+// ── The "brain" seam (Spec 2 readiness) ─────────────────────────
+// Rival/claim decisions and narration route through a swappable provider whose
+// default is this deterministic rule engine. Spec 2 replaces it via
+// House.setBrain(llmProvider) to give rivals a voice and propose actions from a
+// fixed menu — without touching any call site. The engine stays authoritative:
+// it draws the RNG and validates, the brain only *decides/narrates*.
+const DEFAULT_BRAIN = {
+    // ctx: { rival, config, roll, house, world } → { act: boolean, type }
+    decideRivalAction(ctx) {
+        const feud = (ctx.rival && ctx.rival.feud) || 0;
+        const act = feud >= ctx.config.rivalClaimFeud && ctx.roll < feud / 200;
+        return { act, type: 'claim_threat' };
+    },
+    // Voice seam. Return a string to override built-in text, or null to keep it.
+    narrate() { return null; },
+};
+
 export const House = {
 
     ROLE_IDS,
+
+    // The active decision/narration provider (deterministic by default).
+    _brain: DEFAULT_BRAIN,
+
+    /** Inject a provider (Spec 2's LLM brain). Missing methods fall back to the
+     *  deterministic defaults, so a partial provider is safe. */
+    setBrain(provider) {
+        House._brain = { ...DEFAULT_BRAIN, ...(provider || {}) };
+        return House._brain;
+    },
+
+    /** Restore the deterministic default provider. */
+    resetBrain() {
+        House._brain = DEFAULT_BRAIN;
+    },
 
     _getConfig() {
         const override = (typeof DataLoader !== 'undefined' && DataLoader.house && DataLoader.house.config)
@@ -623,11 +655,17 @@ export const House = {
 
         if (cfg.rivalActionCadence > 0 && day % cfg.rivalActionCadence === 0) {
             const hottest = Object.values(house.rivals).sort((a, b) => (b.feud || 0) - (a.feud || 0))[0];
-            if (hottest && hottest.feud >= cfg.rivalClaimFeud && Utils.random() < (hottest.feud / 200)) {
-                house._pendingClaim = true;
-                House._chronicle(house, world,
-                    `${hottest.name} eyes your holdings, waiting for weakness.`, ['rival', 'threat']);
-                return { kingdomId: hottest.kingdomId, name: hottest.name, type: 'claim_threat', feud: hottest.feud };
+            if (hottest) {
+                // Engine draws the RNG; the (swappable) brain decides.
+                const roll = Utils.random();
+                const decision = House._brain.decideRivalAction({ rival: hottest, config: cfg, roll, house, world });
+                if (decision && decision.act) {
+                    house._pendingClaim = true;
+                    const text = House._brain.narrate('rival_threat', { rival: hottest, house, world })
+                        || `${hottest.name} eyes your holdings, waiting for weakness.`;
+                    House._chronicle(house, world, text, ['rival', 'threat']);
+                    return { kingdomId: hottest.kingdomId, name: hottest.name, type: decision.type || 'claim_threat', feud: hottest.feud };
+                }
             }
         }
         return null;

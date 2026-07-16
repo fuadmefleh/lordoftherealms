@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&family=MedievalSharp&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="editor-ui.css">
 <script src="editor-ui.js"></script>
+<script src="editor-core.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 /* Design tokens live in the shared editor-ui.css (:root:root). */
@@ -1082,8 +1083,8 @@ function getTileStore() {
     return editorMode === 'building' ? layers[activeLayer] : objLayers[activeObjLayer];
 }
 
-function slugify(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,''); }
-function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function slugify(s) { return EditorCore.slugify(s); }
+function escHtml(s) { return EditorCore.escHtml(s); }
 
 // ═══════════════════════════════════════════════════════════════
 //  INIT
@@ -1794,15 +1795,12 @@ function fitCanvas() {
 }
 
 function zoomCanvas(dir) {
-    const steps = [0.25,0.5,0.75,1,1.5,2,3,4,6,8];
-    let idx = steps.findIndex(s => s >= canvasZoom - 0.01);
-    if (idx < 0) idx = steps.length-1;
-    idx = Math.max(0, Math.min(steps.length-1, idx + dir));
+    const prev = canvasZoom;
+    canvasZoom = EditorCore.zoomStep(canvasZoom, dir);
     const wrap = document.getElementById('canvas-wrap'), r = wrap.getBoundingClientRect();
-    const cx = r.width/2, cy = r.height/2, prev = canvasZoom;
-    canvasZoom = steps[idx];
-    panX = Math.round(cx - (cx-panX)*(canvasZoom/prev));
-    panY = Math.round(cy - (cy-panY)*(canvasZoom/prev));
+    const cx = r.width/2, cy = r.height/2;
+    const p = EditorCore.zoomAtCursor(cx, cy, prev, canvasZoom, panX, panY);
+    panX = p.panX; panY = p.panY;
     document.getElementById('zoom-badge').textContent = Math.round(canvasZoom*100)+'%';
     renderBuildCanvas();
 }
@@ -2001,13 +1999,10 @@ function renderBuildCanvas() {
 //  BUILD CANVAS — events
 // ═══════════════════════════════════════════════════════════════
 function screenToTile(sx, sy) {
-    const ds = TILE*canvasZoom;
-    const q = Math.floor((sx-panX)/ds), r = Math.floor((sy-panY)/ds);
-    return { q, r, valid: q>=0 && q<gridW && r>=0 && r<gridH };
+    return EditorCore.screenToCell(sx, sy, { tile: TILE, zoom: canvasZoom, panX, panY, gridW, gridH });
 }
 function screenToTileRaw(sx, sy) {
-    const ds = TILE*canvasZoom;
-    return { q: Math.floor((sx-panX)/ds), r: Math.floor((sy-panY)/ds) };
+    return EditorCore.screenToCellRaw(sx, sy, { tile: TILE, zoom: canvasZoom, panX, panY });
 }
 function canvasRect() { return document.getElementById('build-canvas').getBoundingClientRect(); }
 
@@ -2266,19 +2261,15 @@ function floodFill(startQ, startR) {
     const sameCell = c => { if (!c && !target) return true; if (!c || !target) return false; return c.sheetPath===target.sheetPath && c.sx===target.sx && c.sy===target.sy; };
     const anchorTile = activeStamp.tiles[0];
     if (target && target.sheetPath===activeStamp.sheetPath && target.sx===anchorTile.sx && target.sy===anchorTile.sy) return;
-    const visited = new Set(), queue = [[startQ,startR]];
-    while (queue.length) {
-        const [q, r] = queue.shift();
-        if (q<0||q>=gridW||r<0||r>=gridH) continue;
-        const k = `${q},${r}`;
-        if (visited.has(k)) continue;
-        visited.add(k);
-        if (!sameCell(store[k])) continue;
-        const dc = ((q-startQ)%sW+sW)%sW, dr = ((r-startR)%sH+sH)%sH;
-        const t = activeStamp.tiles[dr*sW+dc];
-        store[k] = { sheetPath: activeStamp.sheetPath, sx: t.sx, sy: t.sy, sw: TILE, sh: TILE };
-        for (const [dq, drr] of [[1,0],[-1,0],[0,1],[0,-1]]) queue.push([q+dq, r+drr]);
-    }
+    EditorCore.floodFillRegion({
+        startQ, startR, gridW, gridH,
+        match: (q, r) => sameCell(store[`${q},${r}`]),
+        visit: (q, r) => {
+            const dc = ((q-startQ)%sW+sW)%sW, dr = ((r-startR)%sH+sH)%sH;
+            const t = activeStamp.tiles[dr*sW+dc];
+            store[`${q},${r}`] = { sheetPath: activeStamp.sheetPath, sx: t.sx, sy: t.sy, sw: TILE, sh: TILE };
+        },
+    });
     if (!imgCache.has(activeStamp.sheetPath)) loadImage(activeStamp.sheetPath).then(() => renderBuildCanvas());
     else renderBuildCanvas();
 }
@@ -2286,15 +2277,7 @@ function floodFill(startQ, startR) {
 // ═══════════════════════════════════════════════════════════════
 //  IMAGE CACHE
 // ═══════════════════════════════════════════════════════════════
-function loadImage(path) {
-    if (imgCache.has(path)) return Promise.resolve(imgCache.get(path));
-    return new Promise(resolve => {
-        const img = new Image();
-        img.onload  = () => { imgCache.set(path, img); resolve(img); };
-        img.onerror = () => { imgCache.set(path, null); resolve(null); };
-        img.src = path;
-    });
-}
+function loadImage(path) { return EditorCore.loadImage(imgCache, path); }
 
 // ═══════════════════════════════════════════════════════════════
 //  BUILDING MANAGEMENT
@@ -3326,21 +3309,7 @@ function getObjectLayersForPreview(obj) {
 }
 
 function getLayersOccupiedBounds(layerStores) {
-    let minCol = Infinity, minRow = Infinity, maxCol = -Infinity, maxRow = -Infinity;
-    for (const store of layerStores) {
-        for (const key of Object.keys(store || {})) {
-            const [q, r] = key.split(',').map(Number);
-            if (!Number.isFinite(q) || !Number.isFinite(r)) continue;
-            if (q < minCol) minCol = q;
-            if (r < minRow) minRow = r;
-            if (q > maxCol) maxCol = q;
-            if (r > maxRow) maxRow = r;
-        }
-    }
-    if (!Number.isFinite(minCol) || !Number.isFinite(minRow) || !Number.isFinite(maxCol) || !Number.isFinite(maxRow)) {
-        return null;
-    }
-    return { minCol, minRow, maxCol, maxRow };
+    return EditorCore.computeBounds(layerStores);
 }
 
 function getObjectPreviewBounds(obj, layers) {

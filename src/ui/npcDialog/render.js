@@ -2,6 +2,7 @@
 import { InnerMap } from '../../world/innerMap.js';
 import { ActionMenu } from '../actionMenu.js';
 import { NpcFamily } from '../../systems/npcFamily.js';
+import { NpcBrain } from '../../systems/npcBrain.js';
 import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS, RUMORS, FAREWELLS, THREAT_RESPONSES, THREAT_SUCCESS, FLATTER_RESPONSES, FLATTER_SUCCESS, TIME_COMMENTS, WEATHER_COMMENTS, NPC_QUEST_HOOKS, LOCATION_INFO, KINGDOM_INFO } from '../npcDialog.data.js';
 import { dialogState } from './shared.js';
 import { NpcDialog } from './index.js'; // call-time facade ref (ESM cycle-safe)
@@ -13,13 +14,36 @@ export function _buildConversation(npc) {
     mem.timesSpoken++;
     mem.playerTitle = _getPlayerTitle();
 
+    const greeting = _getGreeting(npc);
     dialogState._lines = [{
         speaker: npc.name,
         icon: npc.icon,
-        text: _getGreeting(npc),
+        text: greeting,
         isNpc: true,
     }];
     dialogState._lineIndex = 0;
+
+    // LLM voice (Spec 2): for major NPCs, when the brain is enabled, request a
+    // bespoke greeting and swap it in when it arrives. The template shows
+    // immediately and stays if the model is off, slow, or offline.
+    if (typeof NpcBrain !== 'undefined' && NpcBrain.isEnabled() && NpcBrain.isMajor(npc)) {
+        const disposition = _dispositionLabel(mem.disposition || 0);
+        NpcBrain.generateNpcLine(npc, { topic: 'a fitting greeting', disposition, fallback: greeting })
+            .then((line) => {
+                // Only swap if the dialog is still open on the greeting line.
+                if (!line || line === greeting) return;
+                if (dialogState._lineIndex !== 0 || !dialogState._lines[0]) return;
+                dialogState._lines[0].text = line;
+                const box = dialogState._overlay && dialogState._overlay.querySelector('.npc-dialog-box');
+                const textEl = box && box.querySelector('.npc-dialog-text');
+                if (textEl) {
+                    textEl.textContent = '';
+                    dialogState._typewriteComplete = false;
+                    _typewrite(textEl, line, 0);
+                }
+            })
+            .catch(() => { /* keep the template greeting */ });
+    }
 }
 
 export function _render() {

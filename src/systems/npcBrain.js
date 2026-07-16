@@ -68,6 +68,32 @@ export const NpcBrain = {
         return on;
     },
 
+    /**
+     * Probe the server and send a one-word test query using the given (or
+     * current) transport settings. Configures the client as a side effect so a
+     * successful test leaves it ready. Never throws. Returns:
+     *   { ok:true,  detail:<model reply> }
+     *   { ok:false, stage:'health'|'query', detail:<reason> }
+     */
+    async testConnection(opts = {}) {
+        const clientOpts = {};
+        if (opts.endpoint) clientOpts.endpoint = opts.endpoint;
+        if (opts.model) clientOpts.model = opts.model;
+        if (opts.temperature != null && opts.temperature !== '') clientOpts.temperature = Number(opts.temperature);
+        if (Object.keys(clientOpts).length) LlmClient.configure(clientOpts);
+
+        const available = await LlmClient.isAvailable(true);
+        if (!available) {
+            return { ok: false, stage: 'health', detail: `no response from ${LlmClient.getConfig().endpoint}` };
+        }
+        const res = await LlmClient.chat(
+            [{ role: 'user', content: 'Reply with exactly one short word to confirm you are working.' }],
+            { maxTokens: 16, temperature: 0 },
+        );
+        if (!res.ok) return { ok: false, stage: 'query', detail: res.reason };
+        return { ok: true, detail: res.text };
+    },
+
     // ── Tiering ─────────────────────────────────────────────────
 
     /** Only major characters warrant LLM attention. */

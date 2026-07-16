@@ -854,6 +854,12 @@ Object.assign(UI.prototype, {
                         <span class="gs-range-val" id="gsLlmTemperatureVal">${s.llmTemperature != null ? s.llmTemperature : 0.7}</span>
                     </div>
                 </div>
+                <div class="gs-row">
+                    <button class="gs-btn" id="gsLlmTest" style="flex:1;">🔌 Test Connection</button>
+                </div>
+                <div class="gs-row">
+                    <div id="gsLlmTestResult" style="font-size:11px;color:var(--text-secondary);min-height:14px;flex:1;word-break:break-word;"></div>
+                </div>
             </div>
 
             <!-- Display -->
@@ -1014,6 +1020,7 @@ Object.assign(UI.prototype, {
             { id: 'gsAudioMusic', valId: 'gsAudioMusicVal', suffix: '%' },
             { id: 'gsAudioAmbience', valId: 'gsAudioAmbienceVal', suffix: '%' },
             { id: 'gsAudioSfx', valId: 'gsAudioSfxVal', suffix: '%' },
+            { id: 'gsLlmTemperature', valId: 'gsLlmTemperatureVal', suffix: '' },
         ];
         for (const rb of rangeBindings) {
             const el = document.getElementById(rb.id);
@@ -1032,6 +1039,42 @@ Object.assign(UI.prototype, {
             autoSaveCheck.addEventListener('change', () => {
                 intervalRow.style.opacity = autoSaveCheck.checked ? '1' : '0.4';
                 intervalRow.style.pointerEvents = autoSaveCheck.checked ? '' : 'none';
+            });
+        }
+
+        // LLM — Test Connection (uses the values currently in the inputs)
+        const llmTestBtn = document.getElementById('gsLlmTest');
+        if (llmTestBtn) {
+            llmTestBtn.addEventListener('click', async () => {
+                const resultEl = document.getElementById('gsLlmTestResult');
+                const getVal = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
+                const endpoint = getVal('gsLlmEndpoint') || 'http://127.0.0.1:8080';
+                const model = getVal('gsLlmModel') || 'local';
+                const temperature = parseFloat(getVal('gsLlmTemperature')) || 0.7;
+                if (resultEl) {
+                    resultEl.style.color = 'var(--text-secondary)';
+                    resultEl.textContent = `⏳ Testing ${endpoint} …`;
+                }
+                llmTestBtn.disabled = true;
+                try {
+                    const r = await NpcBrain.testConnection({ endpoint, model, temperature });
+                    if (resultEl) {
+                        if (r.ok) {
+                            resultEl.style.color = '#7fd07f';
+                            resultEl.textContent = `✓ Connected — model replied: "${r.detail}"`;
+                        } else {
+                            resultEl.style.color = '#e08080';
+                            resultEl.textContent = `✗ ${r.stage === 'health' ? 'Unreachable' : 'Query failed'}: ${r.detail}`;
+                        }
+                    }
+                } catch (e) {
+                    if (resultEl) {
+                        resultEl.style.color = '#e08080';
+                        resultEl.textContent = `✗ Error: ${(e && e.message) || 'unknown'}`;
+                    }
+                } finally {
+                    llmTestBtn.disabled = false;
+                }
             });
         }
 

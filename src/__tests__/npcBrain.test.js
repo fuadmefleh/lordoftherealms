@@ -139,4 +139,27 @@ describe('NpcBrain — Phase B', () => {
         expect(fakeHouse.resetBrain).toHaveBeenCalledTimes(1);
         expect(fakeHouse.setBrain).not.toHaveBeenCalled();
     });
+
+    it('testConnection returns the model reply on success', async () => {
+        vi.spyOn(LlmClient, 'isAvailable').mockResolvedValue(true);
+        vi.spyOn(LlmClient, 'chat').mockResolvedValue({ ok: true, text: 'Working' });
+        const r = await NpcBrain.testConnection({ endpoint: 'http://127.0.0.1:8080', model: 'm' });
+        expect(r).toEqual({ ok: true, detail: 'Working' });
+    });
+
+    it('testConnection reports an unreachable server (health stage)', async () => {
+        vi.spyOn(LlmClient, 'isAvailable').mockResolvedValue(false);
+        const chat = vi.spyOn(LlmClient, 'chat');
+        const r = await NpcBrain.testConnection({ endpoint: 'http://127.0.0.1:1234' });
+        expect(r.ok).toBe(false);
+        expect(r.stage).toBe('health');
+        expect(chat).not.toHaveBeenCalled();
+    });
+
+    it('testConnection reports a failed query (query stage)', async () => {
+        vi.spyOn(LlmClient, 'isAvailable').mockResolvedValue(true);
+        vi.spyOn(LlmClient, 'chat').mockResolvedValue({ ok: false, reason: 'timeout' });
+        const r = await NpcBrain.testConnection({});
+        expect(r).toEqual({ ok: false, stage: 'query', detail: 'timeout' });
+    });
 });

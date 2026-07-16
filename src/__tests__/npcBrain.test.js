@@ -162,4 +162,36 @@ describe('NpcBrain — Phase B', () => {
         const r = await NpcBrain.testConnection({});
         expect(r).toEqual({ ok: false, stage: 'query', detail: 'timeout' });
     });
+
+    it('parses a proposal even when wrapped in a Qwen3 <think> block', async () => {
+        NpcBrain.enable(true);
+        vi.spyOn(LlmClient, 'isAvailable').mockResolvedValue(true);
+        vi.spyOn(LlmClient, 'chat').mockResolvedValue({
+            ok: true,
+            text: '<think>The feud is at 100, they raided us. I should strike.</think>\n{"act": true, "type": "claim_threat"}',
+        });
+        const brain = NpcBrain.asHouseBrain();
+        brain.decideRivalAction(RIVAL_CTX);
+        await NpcBrain._flush();
+        expect(brain.decideRivalAction(RIVAL_CTX)).toEqual({ act: true, type: 'claim_threat' });
+    });
+
+    it('strips a <think> block from a dialogue line', async () => {
+        NpcBrain.enable(true);
+        vi.spyOn(LlmClient, 'isAvailable').mockResolvedValue(true);
+        vi.spyOn(LlmClient, 'chat').mockResolvedValue({
+            ok: true,
+            text: '<think>gruff, distrustful, keep it short</think>\nWhat do you want, stranger?',
+        });
+        const line = await NpcBrain.generateNpcLine({ id: 'n1', firstName: 'Bram' }, { topic: 'greeting', fallback: 'Hi.' });
+        expect(line).toBe('What do you want, stranger?');
+    });
+
+    it('appends /no_think to prompts by default and honors the config toggle', () => {
+        const withThink = NpcBrain._buildLinePrompt({ firstName: 'Ada' }, { topic: 'greeting' });
+        expect(withThink[1].content).toContain('/no_think');
+        NpcBrain.configure({ noThink: false });
+        const noSwitch = NpcBrain._buildLinePrompt({ firstName: 'Ada' }, { topic: 'greeting' });
+        expect(noSwitch[1].content).not.toContain('/no_think');
+    });
 });

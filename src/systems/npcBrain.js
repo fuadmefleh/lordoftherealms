@@ -21,7 +21,10 @@ const ALLOWED_RIVAL_TYPES = ['claim_threat'];
 let enabled = false;
 const cache = new Map();      // key -> { kind, value }
 const pending = new Map();    // key -> Promise (in-flight async jobs)
-const settings = { maxConcurrent: 3, maxCache: 200 };
+// noThink: append Qwen3's `/no_think` soft-switch to prompts. These tasks are
+// format-constrained (JSON / one line) and don't need chain-of-thought, and
+// leaving thinking on can consume the whole token budget before the answer.
+const settings = { maxConcurrent: 3, maxCache: 200, noThink: true };
 
 function cacheSet(key, entry) {
     cache.set(key, entry);
@@ -41,10 +44,26 @@ export const NpcBrain = {
 
     /** Configure the transport + brain tuning. */
     configure(opts = {}) {
-        const { maxConcurrent, maxCache, ...clientOpts } = opts;
+        const { maxConcurrent, maxCache, noThink, ...clientOpts } = opts;
         if (maxConcurrent != null) settings.maxConcurrent = maxConcurrent;
         if (maxCache != null) settings.maxCache = maxCache;
+        if (noThink != null) settings.noThink = !!noThink;
         if (Object.keys(clientOpts).length) LlmClient.configure(clientOpts);
+    },
+
+    /** Append Qwen3's /no_think switch to a prompt when enabled. */
+    _noThink(content) {
+        return settings.noThink ? `${content}\n/no_think` : content;
+    },
+
+    /** Strip reasoning blocks (e.g. Qwen3 <think>…</think>) some models emit
+     *  before their answer, including an unclosed trailing block. */
+    _stripReasoning(text) {
+        if (typeof text !== 'string') return text;
+        return text
+            .replace(/<think>[\s\S]*?<\/think>/gi, '')
+            .replace(/<think>[\s\S]*$/i, '')
+            .trim();
     },
 
     /**
@@ -87,11 +106,11 @@ export const NpcBrain = {
             return { ok: false, stage: 'health', detail: `no response from ${LlmClient.getConfig().endpoint}` };
         }
         const res = await LlmClient.chat(
-            [{ role: 'user', content: 'Reply with exactly one short word to confirm you are working.' }],
-            { maxTokens: 16, temperature: 0 },
+            [{ role: 'user', content: NpcBrain._noThink('Reply with exactly one short word to confirm you are working.') }],
+            { maxTokens: 64, temperature: 0 },
         );
         if (!res.ok) return { ok: false, stage: 'query', detail: res.reason };
-        return { ok: true, detail: res.text };
+        return { ok: true, detail: NpcBrain._sanitizeLine(res.text) || res.text };
     },
 
     // ── Tiering ─────────────────────────────────────────────────
@@ -197,11 +216,11 @@ export const NpcBrain = {
         const rival = ctx.rival || {};
         return [
             { role: 'system', content: 'You role-play a rival noble House in a medieval strategy game. Reply with ONLY a JSON object, no prose.' },
-            { role: 'user', content:
+            { role: 'user', content: NpcBrain._noThink(
                 `Your House feuds with ${house.name || 'the player\'s House'} (feud ${rival.feud || 0}/100).\n`
                 + `Recent events:\n${NpcBrain._recentChronicle(house)}\n\n`
                 + `Decide whether to threaten a claim on their holdings now. Respond as JSON: `
-                + `{"act": true|false, "type": "claim_threat"}.` },
+                + `{"act": true|false, "type": "claim_threat"}.`) },
         ];
     },
 
@@ -210,9 +229,9 @@ export const NpcBrain = {
         const rival = ctx.rival || {};
         return [
             { role: 'system', content: 'You are a terse medieval chronicler. Reply with ONE vivid sentence, no quotes, no preamble.' },
-            { role: 'user', content:
+            { role: 'user', content: NpcBrain._noThink(
                 `Event: ${kind}. Rival House ${rival.name || 'a rival'} menaces ${house.name || 'the House'}.\n`
-                + `Recent events:\n${NpcBrain._recentChronicle(house)}\n\nWrite the chronicle line.` },
+                + `Recent events:\n${NpcBrain._recentChronicle(house)}\n\nWrite the chronicle line.`) },
         ];
     },
 
@@ -223,18 +242,19 @@ export const NpcBrain = {
         const traits = (npc && npc.traits ? npc.traits.map(t => t.name || t).join(', ') : '') || 'unremarkable';
         return [
             { role: 'system', content: 'You voice a medieval townsperson. Reply with ONE short line of in-character dialogue, no quotes, no narration.' },
-            { role: 'user', content: `You are ${name} (${traits}), feeling ${disposition} toward the player. Say ${topic}.` },
+            { role: 'user', content: NpcBrain._noThink(`You are ${name} (${traits}), feeling ${disposition} toward the player. Say ${topic}.`) },
         ];
     },
 
     // ── Validation & sanitizing ─────────────────────────────────
 
     _extractJson(text) {
-        if (typeof text !== 'string') return null;
-        const s = text.indexOf('{');
-        const e = text.lastIndexOf('}');
+        const cleaned = NpcBrain._stripReasoning(text);
+        if (typeof cleaned !== 'string') return null;
+        const s = cleaned.indexOf('{');
+        const e = cleaned.lastIndexOf('}');
         if (s < 0 || e <= s) return null;
-        try { return JSON.parse(text.slice(s, e + 1)); } catch { return null; }
+        try { return JSON.parse(cleaned.slice(s, e + 1)); } catch { return null; }
     },
 
     /** Validate a rival proposal against the fixed menu. Returns null if off-menu. */
@@ -248,8 +268,9 @@ export const NpcBrain = {
     },
 
     _sanitizeLine(text) {
-        if (typeof text !== 'string') return null;
-        let s = text.trim().replace(/^["'“”]+|["'“”]+$/g, '').split('\n')[0].trim();
+        const cleaned = NpcBrain._stripReasoning(text);
+        if (typeof cleaned !== 'string') return null;
+        let s = cleaned.trim().replace(/^["'“”]+|["'“”]+$/g, '').split('\n')[0].trim();
         if (!s) return null;
         if (s.length > 240) s = s.slice(0, 240);
         return s;

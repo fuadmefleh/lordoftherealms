@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&family=MedievalSharp&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="editor-ui.css">
 <script src="editor-ui.js"></script>
+<script src="editor-core.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 /* Design tokens live in the shared editor-ui.css (:root:root). */
@@ -451,9 +452,21 @@ const imageCache = {};
 const palHighlightDivs = new Map();
 let palDragging = false, palDragMeta = null, palDragStart = null, palDragLive = null;
 
-// Undo
-let undoStack = [], redoStack = [];
+// Undo — shared stack (EditorCore) with the interior snapshot shape.
 const MAX_UNDO = 40;
+const _undoStack = EditorCore.createUndoStack({
+  max: MAX_UNDO,
+  snapshot: () => ({
+    layers: JSON.parse(JSON.stringify(layers)),
+    meta: JSON.parse(JSON.stringify(meta)),
+    placedObjects: JSON.parse(JSON.stringify(placedObjects)),
+    brushGroupMap: JSON.parse(JSON.stringify(brushGroupMap)),
+  }),
+  restore: (state) => {
+    layers = state.layers; meta = state.meta;
+    placedObjects = state.placedObjects || {}; brushGroupMap = state.brushGroupMap || {};
+  },
+});
 let _impassDragSet = null; // true = painting blocked, false = painting passable, null = not set
 
 // Canvas refs
@@ -1217,9 +1230,7 @@ function setLayer(l) {
 // ═══════════════════════════════════════════════════════
 
 function screenToTile(sx, sy) {
-  const ds = TILE * canvasZoom;
-  const q = Math.floor((sx - panX) / ds), r = Math.floor((sy - panY) / ds);
-  return { q, r, valid: q >= 0 && q < gridW && r >= 0 && r < gridH };
+  return EditorCore.screenToCell(sx, sy, { tile: TILE, zoom: canvasZoom, panX, panY, gridW, gridH });
 }
 
 function renderCanvas() {
@@ -1421,33 +1432,14 @@ function renderCanvas() {
 let _painting = false, _panning = false, _panStartX = 0, _panStartY = 0;
 let _hoverTile = null;
 
-function pushUndo() {
-  undoStack.push({
-    layers: JSON.parse(JSON.stringify(layers)),
-    meta: JSON.parse(JSON.stringify(meta)),
-    placedObjects: JSON.parse(JSON.stringify(placedObjects)),
-    brushGroupMap: JSON.parse(JSON.stringify(brushGroupMap)),
-  });
-  if (undoStack.length > MAX_UNDO) undoStack.shift();
-  redoStack = [];
-}
+function pushUndo() { _undoStack.push(); }
 
 function undo() {
-  if (!undoStack.length) return;
-  redoStack.push({ layers: JSON.parse(JSON.stringify(layers)), meta: JSON.parse(JSON.stringify(meta)), placedObjects: JSON.parse(JSON.stringify(placedObjects)), brushGroupMap: JSON.parse(JSON.stringify(brushGroupMap)) });
-  const state = undoStack.pop();
-  layers = state.layers; meta = state.meta; placedObjects = state.placedObjects || {}; brushGroupMap = state.brushGroupMap || {};
-  renderCanvas();
-  scheduleAutoSave();
+  if (_undoStack.undo()) { renderCanvas(); scheduleAutoSave(); }
 }
 
 function redo() {
-  if (!redoStack.length) return;
-  undoStack.push({ layers: JSON.parse(JSON.stringify(layers)), meta: JSON.parse(JSON.stringify(meta)), placedObjects: JSON.parse(JSON.stringify(placedObjects)), brushGroupMap: JSON.parse(JSON.stringify(brushGroupMap)) });
-  const state = redoStack.pop();
-  layers = state.layers; meta = state.meta; placedObjects = state.placedObjects || {}; brushGroupMap = state.brushGroupMap || {};
-  renderCanvas();
-  scheduleAutoSave();
+  if (_undoStack.redo()) { renderCanvas(); scheduleAutoSave(); }
 }
 
 // ── Debounced auto-save ──
@@ -1629,23 +1621,21 @@ function floodFill(startQ, startR) {
   const newStr = JSON.stringify({ sheetPath: activeStamp.sheetPath, sx: t0.sx, sy: t0.sy, sw: TILE, sh: TILE });
   if (targetStr === newStr) return;
 
-  const visited = new Set();
-  const queue = [{ q: startQ, r: startR }];
-  while (queue.length) {
-    const { q, r } = queue.shift();
-    const key = `${q},${r}`;
-    if (visited.has(key)) continue;
-    if (q < 0 || q >= gridW || r < 0 || r >= gridH) continue;
-    const cellStr = store[key] ? JSON.stringify(store[key]) : '__empty__';
-    if (cellStr !== targetStr) continue;
-    visited.add(key);
-    // Paint with tiled stamp
-    const tq = ((q - startQ) % activeStamp.stampCols + activeStamp.stampCols) % activeStamp.stampCols;
-    const tr = ((r - startR) % activeStamp.stampRows + activeStamp.stampRows) % activeStamp.stampRows;
-    const tile = activeStamp.tiles.find(t => t.localCol === tq && t.localRow === tr) || activeStamp.tiles[0];
-    store[key] = { sheetPath: activeStamp.sheetPath, sx: tile.sx, sy: tile.sy, sw: TILE, sh: TILE };
-    queue.push({ q: q - 1, r }, { q: q + 1, r }, { q, r: r - 1 }, { q, r: r + 1 });
-  }
+  EditorCore.floodFillRegion({
+    startQ, startR, gridW, gridH,
+    match: (q, r) => {
+      const cell = store[`${q},${r}`];
+      const cellStr = cell ? JSON.stringify(cell) : '__empty__';
+      return cellStr === targetStr;
+    },
+    visit: (q, r) => {
+      // Paint with tiled stamp
+      const tq = ((q - startQ) % activeStamp.stampCols + activeStamp.stampCols) % activeStamp.stampCols;
+      const tr = ((r - startR) % activeStamp.stampRows + activeStamp.stampRows) % activeStamp.stampRows;
+      const tile = activeStamp.tiles.find(t => t.localCol === tq && t.localRow === tr) || activeStamp.tiles[0];
+      store[`${q},${r}`] = { sheetPath: activeStamp.sheetPath, sx: tile.sx, sy: tile.sy, sw: TILE, sh: TILE };
+    },
+  });
 }
 
 function initCanvas() {
@@ -3199,7 +3189,7 @@ function _igenApply() {
   meta = {};
   placedObjects = {};
   brushGroupMap = {};
-  undoStack = []; redoStack = [];
+  _undoStack.clear();
   editIdx = -1;
 
   // Set grid size
@@ -3236,7 +3226,7 @@ function _igenApply() {
 //  SAVE / LOAD / EXPORT
 // ═══════════════════════════════════════════════════════
 
-function slugify(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''); }
+function slugify(s) { return EditorCore.slugify(s); }
 
 function newInterior() {
   editIdx = -1;

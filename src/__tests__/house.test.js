@@ -481,3 +481,83 @@ describe('House — Phase 5: family roles', () => {
         });
     });
 });
+
+describe('House — Phase 6: rival Houses', () => {
+    function worldWithKingdoms() {
+        return {
+            day: 0,
+            kingdoms: [
+                { id: 'k1', name: 'Valdoria', isAlive: true, military: 300, characterData: { dynasty: { name: 'Vale' } } },
+                { id: 'k2', name: 'Durheim', isAlive: true, military: 500, characterData: { dynasty: { name: 'Stone' } } },
+                { id: 'k3', name: 'Sylvaris', isAlive: true, military: 100 },
+                { id: 'k4', name: 'Dead', isAlive: false, military: 999 },
+            ],
+        };
+    }
+
+    it('seedRivals picks the strongest living kingdoms (deterministic)', () => {
+        const player = makePlayer();
+        House.initialize(player, { day: 0 });
+        const keys = House.seedRivals(player, worldWithKingdoms(), 2);
+        expect(keys).toEqual(['k2', 'k1']); // by military desc, excludes the dead one
+        expect(player.house.rivals.k2.name).toBe('House Stone');
+        expect(player.house.rivals.k1.name).toBe('House Vale');
+    });
+
+    it('seedRivals is idempotent and excludes the player\'s own kingdom', () => {
+        const player = makePlayer({ allegiance: 'k2' });
+        House.initialize(player, { day: 0 });
+        const keys = House.seedRivals(player, worldWithKingdoms(), 3);
+        expect(keys).not.toContain('k2');
+        const again = House.seedRivals(player, worldWithKingdoms(), 3);
+        expect(again).toEqual(keys); // not re-seeded
+    });
+
+    it('accrueRivalFeud raises feud for a rival and ignores non-rivals', () => {
+        const player = makePlayer();
+        House.initialize(player, { day: 0 });
+        House.seedRivals(player, worldWithKingdoms(), 2);
+        expect(House.accrueRivalFeud(player, { day: 5 }, 'k1', 25)).toBe(25);
+        expect(House.accrueRivalFeud(player, { day: 5 }, 'k1', 200)).toBe(100); // clamped
+        expect(House.accrueRivalFeud(player, { day: 5 }, 'k3', 40)).toBe(0);   // k3 not a rival
+    });
+
+    it('crossing a hostility threshold is chronicled', () => {
+        const player = makePlayer();
+        House.initialize(player, { day: 0 });
+        House.seedRivals(player, worldWithKingdoms(), 1);
+        const before = player.house.history.length;
+        House.accrueRivalFeud(player, { day: 1 }, 'k2', 35); // crosses 30
+        expect(player.house.history.length).toBe(before + 1);
+        expect(player.house.history.at(-1).tags).toContain('feud');
+    });
+
+    it('rival feud feeds the succession dispute chance', () => {
+        const calm = makePlayer();
+        House.initialize(calm, { day: 0 });
+        House.seedRivals(calm, worldWithKingdoms(), 1);
+        const base = House._disputeChance(calm.house);
+
+        const angry = makePlayer({ id: 'p2' });
+        House.initialize(angry, { day: 0 });
+        House.seedRivals(angry, worldWithKingdoms(), 1);
+        House.accrueRivalFeud(angry, { day: 1 }, 'k2', 100);
+        expect(House._disputeChance(angry.house)).toBeGreaterThan(base);
+    });
+
+    it('a hot rival can threaten a claim, setting a pending claim', () => {
+        Utils.setSeed(3);
+        const player = makePlayer();
+        House.initialize(player, { day: 0 });
+        House.seedRivals(player, worldWithKingdoms(), 1);
+        House.accrueRivalFeud(player, { day: 1 }, 'k2', 100); // max feud
+        const cadence = House._getConfig().rivalActionCadence;
+        let threatened = false;
+        for (let i = 1; i <= 20 && !threatened; i++) {
+            const action = House._processRivals(player, { day: cadence * i });
+            if (action && action.type === 'claim_threat') threatened = true;
+        }
+        expect(threatened).toBe(true);
+        expect(player.house._pendingClaim).toBe(true);
+    });
+});

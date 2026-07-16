@@ -304,6 +304,10 @@ export function endDay() {
                             `${this.player.house.name} has achieved "${aName}"! Choose a new ambition.`, 'success');
                     }
                 }
+                if (houseResult.rival) {
+                    this.ui.showNotification('⚔️ Rival House',
+                        `${houseResult.rival.name} covets your holdings, biding its time.`, 'warning');
+                }
             }
 
             // Update market prices

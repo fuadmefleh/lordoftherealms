@@ -438,6 +438,8 @@ Object.assign(PlayerMilitary, {
                 chronicle: `${player.house ? player.house.name : 'The House'} conquers ${settlement.name}.`,
                 tags: ['conquest', 'war'],
             });
+            // Taking a kingdom's settlement inflames its rival House.
+            House.accrueRivalFeud(player, world, previousKingdom, 25, `conquered ${settlement.name}`);
 
             world.events.push({
                 text: `⚔️ ${player.name} has conquered ${settlement.name}!`,

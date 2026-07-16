@@ -466,6 +466,7 @@ export async function _doStartNewGame(settingsOverride) {
     // Initialize the House (dynasty spine) — after relationships so family exists
     if (typeof House !== 'undefined') {
         House.initialize(this.player, this.world);
+        House.seedRivals(this.player, this.world);
     }
 
     // Initialize player's tax rate

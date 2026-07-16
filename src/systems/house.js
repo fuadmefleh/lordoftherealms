@@ -32,6 +32,10 @@ const CONFIG = {
     roleBaseLoyalty: 60,          // starting loyalty for a newly-appointed relative
     roleLoyaltyDriftDays: 60,     // cadence of loyalty drift
     roleDisloyaltyThreshold: 25,  // below this, a passed-over relative may press a claim
+    rivalFeudDecayDays: 30,       // cadence at which feuds cool
+    rivalFeudDecay: 1,            // feud shed per decay tick
+    rivalActionCadence: 45,       // cadence at which a rival may move
+    rivalClaimFeud: 60,           // feud at/above which a rival may threaten a claim
 };
 
 // Family-role definitions: which member skill each office scales off, plus
@@ -554,6 +558,81 @@ export const House = {
         return { claimant };
     },
 
+    // ── Rival Houses (the antagonist) ───────────────────────────
+
+    /** Seed persistent rivals from the strongest kingdom dynasties. Deterministic
+     *  (sorted by military, no RNG) and idempotent. Called once at game setup. */
+    seedRivals(player, world, count = 3) {
+        const house = player && player.house;
+        if (!house) return [];
+        house.rivals = house.rivals || {};
+        if (Object.keys(house.rivals).length > 0) return Object.keys(house.rivals);
+
+        const kingdoms = ((world && world.kingdoms) || [])
+            .filter(k => k && k.isAlive && k.id !== player.allegiance)
+            .slice()
+            .sort((a, b) => (b.military || 0) - (a.military || 0))
+            .slice(0, count);
+
+        for (const k of kingdoms) {
+            const dyn = k.characterData && k.characterData.dynasty;
+            house.rivals[k.id] = {
+                kingdomId: k.id,
+                name: (dyn && dyn.name) ? `House ${dyn.name}` : (k.name || k.id),
+                feud: 0,
+                lastActedDay: (world && world.day) || 0,
+            };
+        }
+        return Object.keys(house.rivals);
+    },
+
+    /** Increase a seeded rival's feud (0–100). No-op for non-rival kingdoms. */
+    accrueRivalFeud(player, world, kingdomId, amount, reason) {
+        const house = player && player.house;
+        if (!house || !house.rivals || !kingdomId) return 0;
+        const rival = house.rivals[kingdomId];
+        if (!rival) return 0;
+        const before = rival.feud || 0;
+        rival.feud = Utils.clamp(before + amount, 0, 100);
+        rival.lastActedDay = (world && world.day) || rival.lastActedDay;
+        for (const t of [30, 60, 90]) {
+            if (before < t && rival.feud >= t) {
+                House._chronicle(house, world,
+                    `${rival.name} grows openly hostile to ${house.name}${reason ? ` (${reason})` : ''}.`,
+                    ['rival', 'feud']);
+            }
+        }
+        return rival.feud;
+    },
+
+    /** Daily rival processing: feuds cool over time; a sufficiently aggrieved
+     *  rival may threaten a claim on the House's holdings (inflaming the next
+     *  succession). Returns an action descriptor or null. */
+    _processRivals(player, world) {
+        const house = player && player.house;
+        if (!house || !house.rivals || Object.keys(house.rivals).length === 0) return null;
+        const cfg = House._getConfig();
+        const day = (world && world.day) || 0;
+
+        if (cfg.rivalFeudDecayDays > 0 && day % cfg.rivalFeudDecayDays === 0) {
+            for (const key of Object.keys(house.rivals)) {
+                const r = house.rivals[key];
+                r.feud = Utils.clamp((r.feud || 0) - cfg.rivalFeudDecay, 0, 100);
+            }
+        }
+
+        if (cfg.rivalActionCadence > 0 && day % cfg.rivalActionCadence === 0) {
+            const hottest = Object.values(house.rivals).sort((a, b) => (b.feud || 0) - (a.feud || 0))[0];
+            if (hottest && hottest.feud >= cfg.rivalClaimFeud && Utils.random() < (hottest.feud / 200)) {
+                house._pendingClaim = true;
+                House._chronicle(house, world,
+                    `${hottest.name} eyes your holdings, waiting for weakness.`, ['rival', 'threat']);
+                return { kingdomId: hottest.kingdomId, name: hottest.name, type: 'claim_threat', feud: hottest.feud };
+            }
+        }
+        return null;
+    },
+
     // ── Succession with stakes ──────────────────────────────────
 
     /** Classify a player's heirs so the death screen can branch. */
@@ -680,6 +759,8 @@ export const House = {
         }
         const roleDrift = House._driftRoleLoyalty(player, world);
         if (roleDrift.claimant) results.claimant = roleDrift.claimant;
+        const rivalAction = House._processRivals(player, world);
+        if (rivalAction) results.rival = rivalAction;
         return results;
     },
 

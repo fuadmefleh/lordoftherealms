@@ -429,6 +429,113 @@ export const House = {
         return out;
     },
 
+    // ── Succession with stakes ──────────────────────────────────
+
+    /** Classify a player's heirs so the death screen can branch. */
+    assessSuccession(player, minAge = 16) {
+        const children = (player && player.children || []).filter(c => c.isAlive);
+        const adults = children.filter(c => (c.age || 0) >= minAge);
+        const minors = children.filter(c => (c.age || 0) < minAge);
+        return {
+            hasAdultHeir: adults.length > 0,
+            hasMinorHeir: minors.length > 0,
+            adults,
+            minors,
+            // Eldest minor — the candidate for a regency.
+            regent: minors.slice().sort((a, b) => (b.age || 0) - (a.age || 0))[0] || null,
+        };
+    },
+
+    _maxRivalFeud(house) {
+        const rivals = house.rivals || {};
+        let max = 0;
+        for (const k of Object.keys(rivals)) {
+            const f = (rivals[k] && rivals[k].feud) || 0;
+            if (f > max) max = f;
+        }
+        return max;
+    },
+
+    /** Chance the succession is contested. High Prestige smooths it; rival feuds
+     *  and a pending claim inflame it. Phases 5/6 feed the claimant/feud signals. */
+    _disputeChance(house, opts = {}) {
+        let c = 0.25;
+        c -= Math.min(0.2, (house.prestige || 0) / 500);
+        c += Math.min(0.3, House._maxRivalFeud(house) / 200);
+        if (house._pendingClaim || opts.claimant) c += 0.25;
+        return Utils.clamp(c, 0.02, 0.9);
+    },
+
+    /** Shed holdings on a bad succession: strip the held title and skim gold.
+     *  Deliberately does NOT delete world properties (avoids orphaning tiles);
+     *  it models fragmentation via titles + coin. */
+    _fragmentHoldings(player, severity = 1) {
+        const lost = [];
+        if (player.currentTitle) {
+            lost.push({ type: 'title', id: player.currentTitle });
+            player.currentTitle = null;
+            player.kingdomTitle = null;
+            player.title = 'Nobody';
+        }
+        const goldLoss = Math.floor((player.gold || 0) * 0.1 * severity);
+        if (goldLoss > 0) {
+            player.gold -= goldLoss;
+            lost.push({ type: 'gold', amount: goldLoss });
+        }
+        return lost;
+    },
+
+    /**
+     * Apply House-level succession stakes. Called from Relationships.succeedAsHeir
+     * after the heir has taken over. Advances the generation, may contest the
+     * succession (securable by spending Prestige, else holdings fragment), and
+     * chronicles it. Returns a descriptor for the UI.
+     * opts: { headId, secure (spend Prestige to avoid a dispute), regency,
+     *         disputeChance (override), claimant }.
+     */
+    processSuccession(player, world, opts = {}) {
+        const house = player && player.house;
+        if (!house) return { generation: 1, disputed: false, secured: false, fragmented: [], regency: false };
+
+        house.generation = (house.generation || 1) + 1;
+        house.headId = opts.headId != null ? opts.headId : (player.id || house.headId);
+        const day = world && world.day;
+
+        const result = {
+            generation: house.generation,
+            disputed: false,
+            secured: false,
+            fragmented: [],
+            regency: !!opts.regency,
+        };
+
+        const disputeChance = opts.disputeChance != null
+            ? opts.disputeChance : House._disputeChance(house, opts);
+        if (Utils.random() < disputeChance) {
+            result.disputed = true;
+            const cost = House._getSinks().secureSuccession;
+            if (opts.secure && house.prestige >= cost) {
+                House.spend(house, cost, 'secured succession', day);
+                result.secured = true;
+            } else {
+                result.fragmented.push(...House._fragmentHoldings(player, opts.regency ? 2 : 1));
+            }
+        }
+
+        // A regency always leaves the House weaker even without a dispute.
+        if (opts.regency && !result.disputed) {
+            result.fragmented.push(...House._fragmentHoldings(player, 1));
+        }
+
+        house._pendingClaim = false; // consumed
+        House._chronicle(house, world,
+            `Generation ${house.generation}: ${player.name} succeeds`
+            + `${result.disputed ? (result.secured ? ' (dispute quelled)' : ' amid a disputed succession') : ''}`
+            + `${result.regency ? ' under a regency' : ''}.`,
+            ['succession']);
+        return result;
+    },
+
     // ── Daily tick ──────────────────────────────────────────────
 
     /**

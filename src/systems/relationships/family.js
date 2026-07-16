@@ -1,6 +1,6 @@
 // Relationships — family members (split from the original monolith).
 import { Relationships } from './_ref.js';
-import { DataLoader, Utils, Characters } from './_imports.js';
+import { DataLoader, Utils, Characters, House } from './_imports.js';
 
 Object.assign(Relationships, {
     // ────────────────────────────────────────────────────────────────────
@@ -287,12 +287,17 @@ Object.assign(Relationships, {
      * Take over as an heir — creates a new player from the child's stats
      * Returns the transformed player data
      */
-    succeedAsHeir(player, childId, world) {
+    succeedAsHeir(player, childId, world, opts = {}) {
         const settings = Relationships._getHeirSettings();
         const child = (player.children || []).find(c => c.id === childId);
 
         if (!child || !child.isAlive) {
             return { success: false, reason: 'Invalid heir' };
+        }
+        // A regency raises an under-age heir to playable age at a stiff cost
+        // (applied by House.processSuccession below).
+        if (opts.regency && child.age < settings.minAgeToPlay) {
+            child.age = settings.minAgeToPlay;
         }
         if (child.age < settings.minAgeToPlay) {
             return { success: false, reason: `Heir must be at least ${settings.minAgeToPlay} years old` };
@@ -369,12 +374,24 @@ Object.assign(Relationships, {
         // Clear old relationships (new character doesn't know the same people personally)
         player.relationships = {};
 
+        // House-level succession stakes: advance the generation, possibly a
+        // disputed succession (securable with Prestige, else holdings fragment).
+        let houseResult = null;
+        if (typeof House !== 'undefined' && player.house) {
+            houseResult = House.processSuccession(player, world, {
+                headId: player.id,
+                secure: !!opts.secure,
+                regency: !!opts.regency,
+            });
+        }
+
         return {
             success: true,
             oldName,
             oldAge,
             newName: player.name,
             heir: child,
+            house: houseResult,
         };
     },
 

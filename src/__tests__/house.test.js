@@ -5,6 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { House } from '../systems/house.js';
+import { Utils } from '../core/utils.js';
 
 function makePlayer(overrides = {}) {
     return { id: 'p1', lastName: 'Ashborne', ...overrides };
@@ -319,5 +320,71 @@ describe('House — Phase 3: ambitions', () => {
         const res = House.processDaily(player, { day: 3 });
         expect(res.ambition).toBeTruthy();
         expect(res.ambition.milestonesCompleted).toContain('estates');
+    });
+});
+
+describe('House — Phase 4: succession with stakes', () => {
+    it('assessSuccession classifies adult and minor heirs', () => {
+        const player = makePlayer({
+            children: [
+                { id: 'a', isAlive: true, age: 20, firstName: 'Ada' },
+                { id: 'b', isAlive: true, age: 8, firstName: 'Bram' },
+                { id: 'c', isAlive: false, age: 30, firstName: 'Ghost' },
+            ],
+        });
+        const s = House.assessSuccession(player, 16);
+        expect(s.hasAdultHeir).toBe(true);
+        expect(s.hasMinorHeir).toBe(true);
+        expect(s.regent.id).toBe('b');
+    });
+
+    it('processSuccession advances the generation and chronicles it', () => {
+        Utils.setSeed(1);
+        const player = makePlayer({ gold: 1000, name: 'Ada Ashborne' });
+        House.initialize(player, { day: 100 });
+        const g0 = player.house.generation;
+        const res = House.processSuccession(player, { day: 200 }, { disputeChance: 0 });
+        expect(res.generation).toBe(g0 + 1);
+        expect(res.disputed).toBe(false);
+        expect(player.house.history.some(h => h.tags.includes('succession'))).toBe(true);
+    });
+
+    it('a disputed succession fragments holdings when not secured', () => {
+        const player = makePlayer({ gold: 1000, currentTitle: 'tax_collector', name: 'Ada' });
+        House.initialize(player, { day: 0 });
+        const res = House.processSuccession(player, { day: 1 }, { disputeChance: 1, secure: false });
+        expect(res.disputed).toBe(true);
+        expect(res.secured).toBe(false);
+        expect(res.fragmented.length).toBeGreaterThan(0);
+        expect(player.currentTitle).toBeNull(); // office lost
+        expect(player.gold).toBeLessThan(1000);  // gold skimmed
+    });
+
+    it('a disputed succession can be secured by spending Prestige', () => {
+        const player = makePlayer({ gold: 1000, currentTitle: 'tax_collector', name: 'Ada' });
+        House.initialize(player, { day: 0 });
+        const cost = House._getSinks().secureSuccession;
+        House.award(player.house, cost, 'deeds', 0);
+        const res = House.processSuccession(player, { day: 1 }, { disputeChance: 1, secure: true });
+        expect(res.disputed).toBe(true);
+        expect(res.secured).toBe(true);
+        expect(res.fragmented.length).toBe(0);
+        expect(player.currentTitle).toBe('tax_collector'); // office kept
+        expect(player.house.prestige).toBe(0);              // paid for it
+    });
+
+    it('a regency always costs holdings even without a dispute', () => {
+        const player = makePlayer({ gold: 1000, currentTitle: 'jailer', name: 'Bram' });
+        House.initialize(player, { day: 0 });
+        const res = House.processSuccession(player, { day: 1 }, { disputeChance: 0, regency: true });
+        expect(res.regency).toBe(true);
+        expect(res.fragmented.length).toBeGreaterThan(0);
+    });
+
+    it('higher Prestige lowers the dispute chance', () => {
+        const poor = House.initialize(makePlayer(), { day: 0 });
+        const rich = House.initialize(makePlayer({ id: 'p2' }), { day: 0 });
+        rich.prestige = 400;
+        expect(House._disputeChance(rich)).toBeLessThan(House._disputeChance(poor));
     });
 });

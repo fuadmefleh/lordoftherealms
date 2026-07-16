@@ -1,6 +1,6 @@
 // ActionMenu — social methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader } from './_imports.js';
+import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, House, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader } from './_imports.js';
 
 Object.assign(ActionMenu, {
     // ============================================
@@ -938,8 +938,21 @@ Object.assign(ActionMenu, {
             html += `<p style="font-size: 14px;">${player.name} has died at the age of ${player.age}.</p>`;
         }
 
-        if (player.dynasty) {
+        const house = player.house || null;
+        if (house) {
+            html += `<p style="font-size: 12px; color: var(--gold);">${house.name} · Prestige: ${house.prestige || 0} · Generation ${house.generation || 1}</p>`;
+        } else if (player.dynasty) {
             html += `<p style="font-size: 12px; color: var(--gold);">House ${player.dynasty.name} · Prestige: ${player.dynasty.prestige || 0}</p>`;
+        }
+
+        // Offer to spend Prestige to secure a smooth succession (avoid disputes).
+        const secureCost = (typeof House !== 'undefined') ? House._getSinks().secureSuccession : 20;
+        const canSecure = house && (house.prestige || 0) >= secureCost && eligibleHeirs.length > 0;
+        if (canSecure) {
+            html += `<label style="display:flex; align-items:center; justify-content:center; gap:6px; font-size:12px; color:#ddd; margin:8px 0;">
+                <input type="checkbox" id="secureSuccessionChk" />
+                Spend ${secureCost} Prestige to secure the succession
+            </label>`;
         }
 
         if (eligibleHeirs.length > 0) {
@@ -964,19 +977,30 @@ Object.assign(ActionMenu, {
 
             html += '</div>';
         } else {
-            // No heirs — game over
+            // No adult heir — offer a regency if an under-age child exists.
+            const assess = (typeof House !== 'undefined') ? House.assessSuccession(player) : { hasMinorHeir: false, regent: null };
             html += '<div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0; padding-top: 10px;">';
-            html += '<h4 style="color: #a33;">No Eligible Heirs</h4>';
-            html += '<p style="font-size: 12px; color: #aaa;">Without an heir of age, your dynasty ends here.</p>';
-            html += `<button onclick="location.reload();" style="width: 100%; padding: 12px; background: #a33; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: #fff; margin-top: 10px;">Start New Game</button>`;
+            if (assess.hasMinorHeir && assess.regent) {
+                const r = assess.regent;
+                html += '<h4 style="color: var(--gold);">A Regency?</h4>';
+                html += `<p style="font-size: 12px; color: #aaa;">No heir has come of age. You may install a regency to raise <strong>${r.firstName}</strong> (age ${r.age}) to the throne — but the House will emerge weaker, shedding holdings.</p>`;
+                html += `<button onclick="window._succeedViaRegency('${r.id}')" style="width: 100%; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color:#000; margin-top: 6px;">Install Regency for ${r.firstName}</button>`;
+                html += `<button onclick="location.reload();" style="width: 100%; padding: 8px; background: #a33; border: none; border-radius: 4px; cursor: pointer; color: #fff; margin-top: 6px;">Let the Dynasty End</button>`;
+            } else {
+                html += '<h4 style="color: #a33;">No Eligible Heirs</h4>';
+                html += '<p style="font-size: 12px; color: #aaa;">Without an heir, your dynasty ends here.</p>';
+                html += `<button onclick="location.reload();" style="width: 100%; padding: 12px; background: #a33; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: #fff; margin-top: 10px;">Start New Game</button>`;
+            }
             html += '</div>';
         }
 
         html += '</div>';
         game.ui.showCustomPanel('Death', html);
 
-        window._succeedAsHeir = (childId) => {
-            const result = Relationships.succeedAsHeir(player, childId, game.world);
+        const finishSuccession = (childId, extraOpts) => {
+            const chk = document.getElementById('secureSuccessionChk');
+            const opts = { secure: !!(chk && chk.checked), ...(extraOpts || {}) };
+            const result = Relationships.succeedAsHeir(player, childId, game.world, opts);
             if (result.success) {
                 // Clear death animation state
                 InnerMapRenderer.clearDeathAnimation();
@@ -984,13 +1008,24 @@ Object.assign(ActionMenu, {
 
                 game.ui.hideCustomPanel();
 
+                const hr = result.house || {};
                 let successHtml = '<div style="text-align: center;">';
                 successHtml += '<h3 style="color: var(--gold); margin-top: 0;">👑 A New Chapter</h3>';
                 successHtml += `<p style="font-size: 14px;">You are now <strong>${result.newName}</strong>, heir of ${result.oldName}.</p>`;
                 successHtml += '<div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin: 10px 0; font-size: 12px; text-align: left;">';
                 successHtml += `<div>Age: ${result.heir.age}</div>`;
                 successHtml += `<div>Inherited ${player.gold} gold (${Math.round(Relationships._getHeirSettings().inheritanceGoldPercent * 100)}%)</div>`;
-                successHtml += `<div>Dynasty prestige: ${player.dynasty?.prestige || 0}</div>`;
+                if (player.house) successHtml += `<div>${player.house.name} · Prestige ${player.house.prestige || 0} · Generation ${hr.generation || player.house.generation || 1}</div>`;
+                if (hr.regency) successHtml += `<div style="color:#e0a030;">Ascended under a regency — a weaker start.</div>`;
+                if (hr.disputed) {
+                    successHtml += hr.secured
+                        ? `<div style="color:#7fd07f;">A rival pressed a claim — quelled by spending Prestige.</div>`
+                        : `<div style="color:#e08080;">A disputed succession fragmented the House's holdings.</div>`;
+                }
+                for (const loss of (hr.fragmented || [])) {
+                    if (loss.type === 'title') successHtml += `<div style="color:#e08080;">Lost your office in the turmoil.</div>`;
+                    if (loss.type === 'gold') successHtml += `<div style="color:#e08080;">Lost ${loss.amount} gold to rival claimants.</div>`;
+                }
                 successHtml += '</div>';
                 successHtml += `<button onclick="game.ui.hideCustomPanel(); game.ui.updateStats(game.player, game.world);" style="width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;">Begin Your Story</button>`;
                 successHtml += '</div>';
@@ -1001,5 +1036,8 @@ Object.assign(ActionMenu, {
                 game.ui.showNotification('Error', result.reason, 'error');
             }
         };
+
+        window._succeedAsHeir = (childId) => finishSuccession(childId, {});
+        window._succeedViaRegency = (childId) => finishSuccession(childId, { regency: true });
     },
 });

@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&family=MedievalSharp&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="editor-ui.css">
 <script src="editor-ui.js"></script>
+<script src="editor-core.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 /* Design tokens live in the shared editor-ui.css (:root:root). */
@@ -408,8 +409,7 @@ function getSpriteForTile(terrainId, q, r) {
     const paths = TERRAIN_SPRITES[terrainId];
     if (!paths || paths.length === 0) return null;
     // Deterministic variant selection (same hash as game renderer)
-    const hash = Math.abs((q * 73856093) ^ (r * 19349663));
-    const idx = hash % paths.length;
+    const idx = EditorCore.variantHash(q, r, paths.length);
     return spriteCache[paths[idx]] || null;
 }
 
@@ -981,8 +981,7 @@ function getRoadSprite(q, r) {
     const variants = ROAD_SPRITE_VARIANTS[key];
     if (!variants || variants.length === 0) return null;
     // Deterministic variant selection
-    const hash = Math.abs((q * 73856093) ^ (r * 19349663));
-    const idx = hash % variants.length;
+    const idx = EditorCore.variantHash(q, r, variants.length);
     return spriteCache[variants[idx]] || null;
 }
 

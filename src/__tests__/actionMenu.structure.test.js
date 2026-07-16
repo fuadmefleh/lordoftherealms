@@ -10,7 +10,8 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { DataLoader } from '../core/dataLoader.js';
 
-// The 196 members present in the original single-file ActionMenu.
+// The original 196 single-file ActionMenu members, plus showHousePanel
+// (added by the House dynasty-spine feature) = 197.
 const EXPECTED_KEYS = [
     'AP_COSTS', 'DEFERRED_AP_ACTIONS', '_appointTitle', '_buskFortuneTelling', '_buskJuggling',
     '_buskPreaching', '_buskSinging', '_buskStorytelling', '_buskingReward', '_categorizeActions',
@@ -48,7 +49,7 @@ const EXPECTED_KEYS = [
     'showBuyHouseMenu', 'showCartographyMenu', 'showCharacterDataModal', 'showContractMenu',
     'showCouncilMenu', 'showDeathScreen', 'showDonateMenu', 'showDynastyMenu', 'showEspionageMenu',
     'showFestivalMenu', 'showFleetMenu', 'showFormKingdomMenu', 'showFoundColonyMenu',
-    'showGamblingMenu', 'showHostFeastMenu', 'showIntelJournal', 'showLordMeetingMenu',
+    'showGamblingMenu', 'showHostFeastMenu', 'showHousePanel', 'showIntelJournal', 'showLordMeetingMenu',
     'showManageColonyMenu', 'showManageHouseMenu', 'showManagePropertyMenu', 'showManageSpiesMenu',
     'showMapCollection', 'showMapTradeMenu', 'showMeetPeopleMenu', 'showMiracleMenu',
     'showNegotiateIndigenousMenu', 'showNpcTradeMenu', 'showOddJobsMenu', 'showQuantityInput',
@@ -75,8 +76,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 196 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(196);
+    it('has 197 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(197);
     });
 
     it('every member except the known data props is a function', () => {

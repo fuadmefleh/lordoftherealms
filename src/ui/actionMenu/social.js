@@ -818,9 +818,14 @@ Object.assign(ActionMenu, {
         html += '<h4 style="margin-top: 0;">👑 Dynasty & Heirs</h4>';
 
         // Dynasty info
+        const house = player.house || null;
         html += '<div style="background: rgba(255,215,0,0.1); padding: 10px; border-radius: 6px; margin-bottom: 10px; border: 1px solid rgba(255,215,0,0.2);">';
-        html += `<div style="font-weight: bold; color: var(--gold);">House ${player.dynasty?.name || player.name}</div>`;
-        html += `<div style="font-size: 11px; color: #aaa;">Founded day ${player.dynasty?.founded || 1} · Prestige: ${player.dynasty?.prestige || 0}</div>`;
+        html += `<div style="font-weight: bold; color: var(--gold);">${house ? house.name : 'House ' + (player.dynasty?.name || player.name)}</div>`;
+        if (house) {
+            html += `<div style="font-size: 11px; color: #aaa;">Founded day ${house.foundedDay} · ⭐ Prestige: ${house.prestige || 0} · Generation ${house.generation || 1}</div>`;
+        } else {
+            html += `<div style="font-size: 11px; color: #aaa;">Founded day ${player.dynasty?.founded || 1} · Prestige: ${player.dynasty?.prestige || 0}</div>`;
+        }
         html += `<div style="font-size: 11px; color: #aaa;">You: ${player.name}, age ${player.age} (max ~${player.maxLifespan})</div>`;
         if (player.spouse) {
             const spouse = Relationships.getNPC(player.spouse);
@@ -829,6 +834,10 @@ Object.assign(ActionMenu, {
             }
         }
         html += '</div>';
+
+        if (house) {
+            html += `<button onclick="game.ui.hideCustomPanel(); ActionMenu.showHousePanel(game, tile);" style="width:100%; padding:8px; margin-bottom:10px; background: var(--gold); border:none; border-radius:4px; cursor:pointer; font-weight:bold; color:#000;">🛡️ Manage ${house.name}</button>`;
+        }
 
         // Children
         if (!player.children || player.children.length === 0) {
@@ -916,6 +925,154 @@ Object.assign(ActionMenu, {
             }
             game.ui.hideCustomPanel();
             ActionMenu.showDynastyMenu(game, tile);
+        };
+    },
+
+    /**
+     * The House panel — identity, Prestige, Ambition, offices, rivals, chronicle.
+     */
+    showHousePanel(game, tile) {
+        const player = game.player;
+        const house = player.house;
+        if (!house) {
+            game.ui.showNotification('House', 'Your House has not yet been founded.', 'info');
+            return;
+        }
+        const roleDefs = House.roleDefs();
+
+        let html = '<div>';
+        html += `<div style="text-align:center; margin-bottom:8px;">
+            <div style="font-size:28px;">${house.sigil?.icon || '🛡️'}</div>
+            <div style="font-weight:bold; color:var(--gold); font-size:16px;">${house.name}</div>
+            ${house.motto ? `<div style="font-style:italic; color:#bbb; font-size:12px;">&ldquo;${house.motto}&rdquo;</div>` : ''}
+            <div style="font-size:11px; color:#aaa;">Generation ${house.generation} · Founded day ${house.foundedDay}</div>
+            <div style="font-size:13px; color:var(--gold); margin-top:4px;">⭐ Prestige: ${house.prestige}</div>
+        </div>`;
+        html += `<button onclick="window._houseRename()" style="width:100%; padding:6px; margin-bottom:10px; background:#444; border:none; border-radius:4px; cursor:pointer; color:#ddd; font-size:12px;">✎ Rename &amp; Motto</button>`;
+
+        // Ambition
+        html += '<h5 style="margin:6px 0;">🏛️ Ambition</h5>';
+        if (house.ambition) {
+            const def = House._getAmbitionDef(house.ambition.id);
+            html += '<div style="background:rgba(0,0,0,0.3); padding:8px; border-radius:6px; font-size:12px;">';
+            html += `<div style="color:var(--gold); font-weight:bold;">${def.name}</div>`;
+            for (const ms of house.ambition.milestones) {
+                const md = def.milestones.find(x => x.id === ms.id);
+                html += `<div style="color:${ms.done ? '#7fd07f' : '#aaa'};">${ms.done ? '✓' : '○'} ${md ? md.label : ms.id}</div>`;
+            }
+            html += `<div style="color:${house.ambition.capstoneDone ? '#7fd07f' : '#e0b040'}; margin-top:2px;">${house.ambition.capstoneDone ? '★' : '☆'} ${def.capstone.label}</div>`;
+            html += '</div>';
+            if (house.ambition.capstoneDone) {
+                html += `<button onclick="window._houseChooseAmbition()" style="width:100%; padding:6px; margin-top:6px; background:var(--gold); border:none; border-radius:4px; cursor:pointer; color:#000; font-weight:bold; font-size:12px;">Choose a New Ambition</button>`;
+            }
+        } else {
+            html += `<button onclick="window._houseChooseAmbition()" style="width:100%; padding:8px; background:var(--gold); border:none; border-radius:4px; cursor:pointer; font-weight:bold; color:#000;">Choose an Ambition</button>`;
+        }
+
+        // Offices / roles
+        html += '<h5 style="margin:10px 0 6px;">🏰 Offices</h5>';
+        for (const roleId of House.ROLE_IDS) {
+            const def = roleDefs[roleId];
+            const memberId = house.roles[roleId];
+            const member = memberId ? House._findMember(player, memberId) : null;
+            const loyalty = memberId && house.roleLoyalty[memberId] != null ? house.roleLoyalty[memberId] : '?';
+            html += '<div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.25); padding:6px 8px; border-radius:4px; margin-bottom:4px; font-size:12px;">';
+            html += `<div><strong>${def.label}</strong> <span style="color:#888;">${def.blurb}</span><br>`;
+            html += member
+                ? `<span style="color:var(--gold);">${member.firstName}</span> <span style="color:#888;">(loyalty ${loyalty})</span>`
+                : '<span style="color:#888;">Vacant</span>';
+            html += '</div>';
+            html += `<button onclick="window._houseAssignRole('${roleId}')" style="padding:4px 8px; background:#555; border:none; border-radius:3px; cursor:pointer; color:#ddd; font-size:11px;">Assign</button>`;
+            html += '</div>';
+        }
+
+        // Rivals
+        const rivalKeys = Object.keys(house.rivals || {});
+        if (rivalKeys.length) {
+            html += '<h5 style="margin:10px 0 6px;">⚔️ Rival Houses</h5>';
+            for (const k of rivalKeys) {
+                const r = house.rivals[k];
+                const feud = r.feud || 0;
+                const label = feud >= 60 ? 'Hostile' : feud >= 30 ? 'Wary' : 'Cool';
+                const color = feud >= 60 ? '#e08080' : feud >= 30 ? '#e0b040' : '#88aabb';
+                html += `<div style="display:flex; justify-content:space-between; font-size:12px; padding:3px 0;"><span>${r.name}</span><span style="color:${color};">${label} (${feud})</span></div>`;
+            }
+        }
+
+        // Chronicle
+        html += '<h5 style="margin:10px 0 6px;">📜 Chronicle</h5>';
+        const recent = (house.history || []).slice(-6).reverse();
+        html += '<div style="font-size:11px; color:#bbb; max-height:120px; overflow-y:auto;">';
+        for (const h of recent) {
+            html += `<div style="padding:2px 0; border-bottom:1px solid rgba(255,255,255,0.05);">Day ${h.day}: ${h.text}</div>`;
+        }
+        html += '</div>';
+
+        html += `<button onclick="game.ui.hideCustomPanel(); ActionMenu.showDynastyMenu(game, tile);" style="width:100%; padding:8px; margin-top:10px; background:#555; border:none; border-radius:4px; cursor:pointer; color:#ccc;">← Back to Dynasty</button>`;
+        html += '</div>';
+        game.ui.showCustomPanel('House', html);
+
+        // ── Handlers ──
+        window._houseRename = () => {
+            const cur = house.name.replace(/^House\s+/i, '');
+            let h = `<div><h4 style="margin-top:0;">Name Your House</h4>
+                <input id="houseNameInput" value="${cur.replace(/"/g, '&quot;')}" style="width:100%; padding:8px; margin-bottom:8px; background:#222; border:1px solid #555; border-radius:4px; color:#fff;" />
+                <input id="houseMottoInput" value="${(house.motto || '').replace(/"/g, '&quot;')}" placeholder="Motto (optional)" style="width:100%; padding:8px; margin-bottom:8px; background:#222; border:1px solid #555; border-radius:4px; color:#fff;" />
+                <button onclick="window._houseSaveName()" style="width:100%; padding:8px; background:var(--gold); border:none; border-radius:4px; cursor:pointer; color:#000; font-weight:bold;">Save</button></div>`;
+            game.ui.showCustomPanel('House Name', h);
+        };
+        window._houseSaveName = () => {
+            const nameEl = document.getElementById('houseNameInput');
+            const mottoEl = document.getElementById('houseMottoInput');
+            House.found(player, game.world, {
+                name: nameEl && nameEl.value ? nameEl.value : house.name,
+                motto: mottoEl ? mottoEl.value : '',
+            });
+            game.ui.hideCustomPanel();
+            ActionMenu.showHousePanel(game, tile);
+        };
+        window._houseChooseAmbition = () => {
+            let h = '<div><h4 style="margin-top:0;">Choose an Ambition</h4>';
+            for (const a of House.ambitions()) {
+                h += `<div style="background:rgba(0,0,0,0.3); padding:8px; border-radius:6px; margin-bottom:6px;">
+                    <div style="color:var(--gold); font-weight:bold;">${a.name}</div>
+                    <div style="font-size:12px; color:#aaa;">${a.blurb}</div>
+                    <button onclick="window._houseSetAmbition('${a.id}')" style="width:100%; padding:6px; margin-top:4px; background:var(--gold); border:none; border-radius:4px; cursor:pointer; color:#000; font-weight:bold;">Pursue</button></div>`;
+            }
+            h += '</div>';
+            game.ui.showCustomPanel('Ambition', h);
+        };
+        window._houseSetAmbition = (id) => {
+            House.chooseAmbition(house, id, game.world.day);
+            const def = House._getAmbitionDef(id);
+            game.ui.showNotification('🏛️ Ambition Set', `Your House now pursues ${def ? def.name : id}.`, 'success');
+            game.ui.hideCustomPanel();
+            ActionMenu.showHousePanel(game, tile);
+        };
+        window._houseAssignRole = (roleId) => {
+            const kids = (player.children || []).filter(c => c.isAlive);
+            if (!kids.length) {
+                game.ui.showNotification('Offices', 'You have no family of age to appoint.', 'info');
+                return;
+            }
+            let h = `<div><h4 style="margin-top:0;">Appoint ${roleDefs[roleId].label}</h4>`;
+            for (const c of kids) {
+                const skill = roleDefs[roleId].skill;
+                h += `<button onclick="window._houseDoAssign('${roleId}','${c.id}')" style="display:block; width:100%; text-align:left; padding:8px; margin-bottom:4px; background:#444; border:none; border-radius:4px; cursor:pointer; color:#ddd;">${c.firstName} <span style="color:#888;">(${skill} ${(c.skills && c.skills[skill]) || 0})</span></button>`;
+            }
+            h += `<button onclick="window._houseDoClear('${roleId}')" style="width:100%; padding:6px; margin-top:4px; background:#633; border:none; border-radius:4px; cursor:pointer; color:#ecc;">Leave Vacant</button></div>`;
+            game.ui.showCustomPanel('Appoint', h);
+        };
+        window._houseDoAssign = (roleId, childId) => {
+            const res = House.assignRole(player, roleId, childId);
+            if (!res.success) game.ui.showNotification('Error', res.reason, 'error');
+            game.ui.hideCustomPanel();
+            ActionMenu.showHousePanel(game, tile);
+        };
+        window._houseDoClear = (roleId) => {
+            House.clearRole(player, roleId);
+            game.ui.hideCustomPanel();
+            ActionMenu.showHousePanel(game, tile);
         };
     },
 

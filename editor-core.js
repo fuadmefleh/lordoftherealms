@@ -238,6 +238,14 @@
             clear: function () { undoStack = []; redoStack = []; },
             canUndo: function () { return undoStack.length > 0; },
             canRedo: function () { return redoStack.length > 0; },
+            // Export/import the raw history — for editors (e.g. sprite) that
+            // persist separate undo timelines across a mode switch. The
+            // returned copies are safe to stash; setState replaces both stacks.
+            getState: function () { return { undo: undoStack.slice(), redo: redoStack.slice() }; },
+            setState: function (s) {
+                undoStack = s && s.undo ? s.undo.slice() : [];
+                redoStack = s && s.redo ? s.redo.slice() : [];
+            },
         };
     }
 

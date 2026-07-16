@@ -993,7 +993,7 @@ let activeTool    = 'paint';
 let gridW = 12, gridH = 12;
 let canvasZoom = 2, panX = 20, panY = 20;
 let meta = {};
-let undoStack = [], redoStack = [];
+const _undoStack = EditorCore.createUndoStack({ max: 50, snapshot: snapshotState, restore: applySnapshot });
 
 // ── Building-mode data (always alive) ──
 let layers = { floor:{}, walls:{}, roof:{}, overlay:{} };
@@ -1190,7 +1190,7 @@ function setEditorMode(mode) {
     // Save current canvas state
     const saved = {
         gridW, gridH, meta: JSON.parse(JSON.stringify(meta)),
-        undoStack: undoStack.slice(), redoStack: redoStack.slice(),
+        undoHistory: _undoStack.getState(),
         zoom: canvasZoom, panX, panY,
     };
     if (editorMode === 'building') {
@@ -1229,7 +1229,7 @@ function setEditorMode(mode) {
     if (restore) {
         gridW = restore.gridW; gridH = restore.gridH;
         meta  = restore.meta;
-        undoStack = restore.undoStack; redoStack = restore.redoStack;
+        _undoStack.setState(restore.undoHistory);
         canvasZoom = restore.zoom; panX = restore.panX; panY = restore.panY;
         if (mode === 'building') {
             layers = restore.layers; activeLayer = restore.activeLayer;
@@ -1270,7 +1270,7 @@ function setEditorMode(mode) {
             visibleObjLayers = new Set(['base','detail','top']);
             meta = {}; objEditIdx = -1;
         }
-        undoStack = []; redoStack = [];
+        _undoStack.clear();
         canvasZoom = 2; panX = 20; panY = 20;
     }
 
@@ -2013,7 +2013,7 @@ function snapshotState() {
     if (editorMode === 'building') return JSON.stringify({ m:'b', layers, meta, gridW, gridH });
     return JSON.stringify({ m:'o', objLayers, meta, gridW, gridH });
 }
-function pushUndo() { undoStack.push(snapshotState()); if (undoStack.length>50) undoStack.shift(); redoStack = []; }
+function pushUndo() { _undoStack.push(); }
 function applySnapshot(snap) {
     selFloat=null; selRect=null; selOffset={dq:0,dr:0}; selDrawing=selMoving=false; selMoveAnchor=null;
     const s = JSON.parse(snap);
@@ -2025,8 +2025,8 @@ function applySnapshot(snap) {
     document.getElementById('grid-h').value = gridH;
     renderBuildCanvas();
 }
-function undo() { if (!undoStack.length) return; redoStack.push(snapshotState()); applySnapshot(undoStack.pop()); }
-function redo() { if (!redoStack.length) return; undoStack.push(snapshotState()); applySnapshot(redoStack.pop()); }
+function undo() { _undoStack.undo(); }
+function redo() { _undoStack.redo(); }
 
 function getNormalizedSelRect() {
     if (!selRect) return null;
@@ -6371,7 +6371,7 @@ function _pbgApply() {
   // Clear layers
   layers = { floor:{}, walls:{}, roof:{}, overlay:{} };
   meta = {};
-  undoStack = []; redoStack = [];
+  _undoStack.clear();
   buildingEditIdx = -1;
 
   // Copy tiles with margin offset

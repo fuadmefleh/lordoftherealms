@@ -192,6 +192,29 @@ describe('EditorCore — undo/redo stack', () => {
         expect(stack.undo()).toBe(false);
         expect(state.v).toBe(1);
     });
+
+    it('getState/setState round-trip a history (persist across contexts)', () => {
+        const { state, stack } = makeStack();
+        stack.push(); state.v = 1;
+        stack.push(); state.v = 2;
+        const saved = stack.getState();
+        expect(saved.undo.length).toBe(2);
+
+        stack.clear();
+        expect(stack.canUndo()).toBe(false);
+
+        stack.setState(saved);
+        expect(stack.canUndo()).toBe(true);
+        stack.undo();
+        expect(state.v).toBe(1); // restored the saved timeline
+    });
+
+    it('setState tolerates a missing payload', () => {
+        const { stack } = makeStack();
+        stack.setState(undefined);
+        expect(stack.canUndo()).toBe(false);
+        expect(stack.canRedo()).toBe(false);
+    });
 });
 
 describe('EditorCore — image cache', () => {

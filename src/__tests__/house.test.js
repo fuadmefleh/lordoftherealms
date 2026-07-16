@@ -186,3 +186,67 @@ describe('House — Phase 1: founding & Prestige', () => {
         expect(house.prestigeLog.length).toBe(cfg.logCap);
     });
 });
+
+describe('House — Phase 2: sources & sinks', () => {
+    it('recordDeed() awards the SOURCES value for a known deed', () => {
+        const house = House.initialize(makePlayer(), { day: 1 });
+        const src = House._getSources();
+        const awarded = House.recordDeed(house, { day: 2 }, 'titleGained');
+        expect(awarded).toBe(src.titleGained);
+        expect(house.prestige).toBe(src.titleGained);
+    });
+
+    it('recordDeed() scales by count and ignores unknown deeds', () => {
+        const house = House.initialize(makePlayer(), { day: 1 });
+        const src = House._getSources();
+        expect(House.recordDeed(house, { day: 1 }, 'quest', { count: 3 })).toBe(src.quest * 3);
+        expect(House.recordDeed(house, { day: 1 }, 'not_a_deed')).toBe(0);
+    });
+
+    it('recordDeed() chronicles only when given chronicle text', () => {
+        const house = House.initialize(makePlayer(), { day: 1 });
+        const before = house.history.length;
+        House.recordDeed(house, { day: 1 }, 'quest'); // no chronicle
+        expect(house.history.length).toBe(before);
+        House.recordDeed(house, { day: 1 }, 'settlementHeld', { chronicle: 'Took the city.' });
+        expect(house.history.length).toBe(before + 1);
+    });
+
+    it('recordPlayerDeed() is a no-op when the player has no House', () => {
+        expect(House.recordPlayerDeed({ id: 'x' }, { day: 1 }, 'quest')).toBe(0);
+    });
+
+    it('sink: pressClaim spends when affordable, refuses when not', () => {
+        const player = makePlayer();
+        House.initialize(player, { day: 0 });
+        const sinks = House._getSinks();
+        House.award(player.house, sinks.pressClaim, 'deeds', 1);
+
+        const ok = House.pressClaim(player, { day: 5 });
+        expect(ok.success).toBe(true);
+        expect(ok.cost).toBe(sinks.pressClaim);
+        expect(player.house.prestige).toBe(0);
+
+        const no = House.pressClaim(player, { day: 6 });
+        expect(no.success).toBe(false);
+        expect(no.reason).toBe('Not enough Prestige');
+    });
+
+    it('sink: accepts a cost override and chronicles when asked', () => {
+        const player = makePlayer();
+        House.initialize(player, { day: 0 });
+        House.award(player.house, 100, 'deeds', 1);
+        const before = player.house.history.length;
+        const res = House.callInFavor(player, { day: 3 }, { cost: 40, chronicle: 'Called in a favor.' });
+        expect(res.success).toBe(true);
+        expect(res.cost).toBe(40);
+        expect(res.remaining).toBe(60);
+        expect(player.house.history.length).toBe(before + 1);
+    });
+
+    it('sink: refuses without a House', () => {
+        const res = House.secureSuccession({ id: 'x' }, { day: 1 });
+        expect(res.success).toBe(false);
+        expect(res.reason).toBe('No House');
+    });
+});

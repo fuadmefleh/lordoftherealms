@@ -31,6 +31,29 @@ const CONFIG = {
     historyCap: 200,    // max chronicle entries retained
 };
 
+// Prestige awarded per notable deed. Every hooked system feeds this table, so
+// unrelated systems (war, faith, titles, quests) all contribute to one
+// dynastic score — the mechanism that makes them relate. Moddable via
+// DataLoader.house.sources.
+const SOURCES = {
+    quest: 3,
+    contract: 2,
+    battleWon: 4,
+    titleGained: 6,
+    settlementHeld: 12,
+    religionFounded: 15,
+    artifactReforged: 10,
+    ambitionMilestone: 10,  // used from Phase 3
+};
+
+// Prestige costs for things gold cannot buy. Moddable via DataLoader.house.sinks.
+const SINKS = {
+    pressClaim: 15,
+    prestigiousMarriage: 10,
+    callInFavor: 8,
+    secureSuccession: 20,    // used from Phase 4
+};
+
 export const House = {
 
     ROLE_IDS,
@@ -39,6 +62,18 @@ export const House = {
         const override = (typeof DataLoader !== 'undefined' && DataLoader.house && DataLoader.house.config)
             ? DataLoader.house.config : null;
         return override ? { ...CONFIG, ...override } : CONFIG;
+    },
+
+    _getSources() {
+        const override = (typeof DataLoader !== 'undefined' && DataLoader.house && DataLoader.house.sources)
+            ? DataLoader.house.sources : null;
+        return override ? { ...SOURCES, ...override } : SOURCES;
+    },
+
+    _getSinks() {
+        const override = (typeof DataLoader !== 'undefined' && DataLoader.house && DataLoader.house.sinks)
+            ? DataLoader.house.sinks : null;
+        return override ? { ...SINKS, ...override } : SINKS;
     },
 
     // ── Construction ────────────────────────────────────────────
@@ -171,6 +206,63 @@ export const House = {
         if (house.history.length > cfg.historyCap) {
             house.history = house.history.slice(-cfg.historyCap);
         }
+    },
+
+    // ── Prestige sources & sinks ────────────────────────────────
+
+    /**
+     * Record a notable deed and award its Prestige. `deedId` keys the SOURCES
+     * table; unknown deeds award nothing. opts: { count, scale, reason,
+     * chronicle, tags }. Returns the Prestige awarded.
+     */
+    recordDeed(house, world, deedId, opts = {}) {
+        if (!house) return 0;
+        const base = House._getSources()[deedId];
+        if (!(base > 0)) return 0;
+        const count = opts.count != null ? opts.count : 1;
+        const scale = opts.scale != null ? opts.scale : 1;
+        const amount = Math.round(base * count * scale);
+        if (amount <= 0) return 0;
+        const day = world && world.day;
+        House.award(house, amount, opts.reason || deedId, day);
+        if (opts.chronicle) House._chronicle(house, world, opts.chronicle, opts.tags || [deedId]);
+        return amount;
+    },
+
+    /** Convenience: record a deed straight from a player (no-op without a House). */
+    recordPlayerDeed(player, world, deedId, opts = {}) {
+        if (!player || !player.house) return 0;
+        return House.recordDeed(player.house, world, deedId, opts);
+    },
+
+    /**
+     * Pay a Prestige sink. Returns { success, cost, remaining } or
+     * { success:false, reason }. opts: { cost (override), chronicle, tags }.
+     */
+    _paySink(player, world, sinkId, opts = {}) {
+        const house = player && player.house;
+        if (!house) return { success: false, reason: 'No House' };
+        const cost = opts.cost != null ? opts.cost : House._getSinks()[sinkId];
+        if (!(cost >= 0)) return { success: false, reason: 'Unknown sink' };
+        const day = world && world.day;
+        if (!House.spend(house, cost, sinkId, day)) {
+            return { success: false, reason: 'Not enough Prestige', cost, have: house.prestige };
+        }
+        if (opts.chronicle) House._chronicle(house, world, opts.chronicle, opts.tags || [sinkId]);
+        return { success: true, cost, remaining: house.prestige };
+    },
+
+    pressClaim(player, world, opts = {}) {
+        return House._paySink(player, world, 'pressClaim', opts);
+    },
+    arrangePrestigiousMarriage(player, world, opts = {}) {
+        return House._paySink(player, world, 'prestigiousMarriage', opts);
+    },
+    callInFavor(player, world, opts = {}) {
+        return House._paySink(player, world, 'callInFavor', opts);
+    },
+    secureSuccession(player, world, opts = {}) {
+        return House._paySink(player, world, 'secureSuccession', opts);
     },
 
     // ── Daily tick ──────────────────────────────────────────────

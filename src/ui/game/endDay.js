@@ -463,6 +463,10 @@ export function endDay() {
             // Contract updates
             if (playerResults.contractUpdate && playerResults.contractUpdate.completed) {
                 const c = playerResults.contractUpdate;
+                // House Prestige for fulfilling a contract.
+                if (typeof House !== 'undefined') {
+                    House.recordPlayerDeed(this.player, this.world, 'contract', { reason: `contract: ${c.contract.name}` });
+                }
                 if (c.casualties > 0) {
                     this.ui.showNotification('Contract Complete', `${c.contract.name} finished. Lost ${c.casualties} units. +${c.payment} gold`, 'default');
                 } else {
@@ -554,6 +558,10 @@ export function endDay() {
             const completedQuests = Quests.updateProgress(this.player, this.world);
             for (const quest of completedQuests) {
                 this.ui.showNotification('Quest Complete!', `${quest.title} - Rewards: ${JSON.stringify(quest.rewards)}`, 'success');
+                // House Prestige for finishing a quest.
+                if (typeof House !== 'undefined') {
+                    House.recordPlayerDeed(this.player, this.world, 'quest', { reason: `quest: ${quest.title}` });
+                }
             }
 
             // Check for new achievements

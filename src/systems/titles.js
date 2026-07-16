@@ -125,6 +125,13 @@ export const Titles = {
         player.titleProgress = Titles._resetProgress(titleId);
         player.activeFugitive = null;
 
+        // House Prestige — earning an office is a notable dynastic deed.
+        House.recordPlayerDeed(player, world, 'titleGained', {
+            reason: `appointed ${title.name}`,
+            chronicle: `${player.house ? player.house.name : 'The House'} gains the office of ${title.name}.`,
+            tags: ['title'],
+        });
+
         return { success: true, title };
     },
 

@@ -1,6 +1,6 @@
 // PlayerMilitary — combat members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
-import { Utils, Technology } from './_imports.js';
+import { Utils, Technology, House } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -431,6 +431,13 @@ Object.assign(PlayerMilitary, {
                                settlement.type === 'town' ? 15 : 5;
             player.renown += renownGain;
             result.renownChange = renownGain;
+
+            // House Prestige — taking a settlement is a major dynastic deed.
+            House.recordPlayerDeed(player, world, 'settlementHeld', {
+                reason: `conquered ${settlement.name}`,
+                chronicle: `${player.house ? player.house.name : 'The House'} conquers ${settlement.name}.`,
+                tags: ['conquest', 'war'],
+            });
 
             world.events.push({
                 text: `⚔️ ${player.name} has conquered ${settlement.name}!`,

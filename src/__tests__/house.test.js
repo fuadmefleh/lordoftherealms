@@ -388,3 +388,96 @@ describe('House — Phase 4: succession with stakes', () => {
         expect(House._disputeChance(rich)).toBeLessThan(House._disputeChance(poor));
     });
 });
+
+describe('House — Phase 5: family roles', () => {
+    function playerWithKids() {
+        return makePlayer({
+            children: [
+                { id: 'k1', firstName: 'Mara', isAlive: true, age: 22, skills: { commerce: 8, combat: 2 }, traits: [] },
+                { id: 'k2', firstName: 'Rulf', isAlive: true, age: 19, skills: { combat: 10, commerce: 1 }, traits: [{ id: 'ambitious' }] },
+            ],
+        });
+    }
+
+    it('assignRole appoints a living child and seeds loyalty', () => {
+        const player = playerWithKids();
+        House.initialize(player, { day: 0 });
+        const res = House.assignRole(player, 'steward', 'k1');
+        expect(res.success).toBe(true);
+        expect(player.house.roles.steward).toBe('k1');
+        expect(player.house.roleLoyalty.k1).toBe(House._getConfig().roleBaseLoyalty);
+    });
+
+    it('assignRole rejects non-family and unknown roles', () => {
+        const player = playerWithKids();
+        House.initialize(player, { day: 0 });
+        expect(House.assignRole(player, 'steward', 'nope').success).toBe(false);
+        expect(House.assignRole(player, 'wizard', 'k1').success).toBe(false);
+    });
+
+    it('a member holds at most one role', () => {
+        const player = playerWithKids();
+        House.initialize(player, { day: 0 });
+        House.assignRole(player, 'steward', 'k1');
+        House.assignRole(player, 'marshal', 'k1');
+        expect(player.house.roles.steward).toBeNull();
+        expect(player.house.roles.marshal).toBe('k1');
+    });
+
+    it('assigning the heir role syncs player.heir', () => {
+        const player = playerWithKids();
+        House.initialize(player, { day: 0 });
+        House.assignRole(player, 'heir', 'k2');
+        expect(player.heir).toBe('k2');
+        House.clearRole(player, 'heir');
+        expect(player.heir).toBeNull();
+    });
+
+    it('getRoleBonuses scales with skill and reduces upkeep for a Marshal', () => {
+        const player = playerWithKids();
+        House.initialize(player, { day: 0 });
+        House.assignRole(player, 'steward', 'k1');  // commerce 8
+        House.assignRole(player, 'marshal', 'k2');  // combat 10
+        // Full loyalty isolates the skill scaling (base loyalty 60 = 0.6 factor).
+        player.house.roleLoyalty.k1 = 100;
+        player.house.roleLoyalty.k2 = 100;
+        const b = House.getRoleBonuses(player);
+        expect(b.propertyIncomeMult).toBeCloseTo(1 + 8 * 0.03, 5);
+        expect(b.armyUpkeepMult).toBeCloseTo(1 - 10 * 0.03, 5);
+    });
+
+    it('low loyalty weakens the bonus', () => {
+        const player = playerWithKids();
+        House.initialize(player, { day: 0 });
+        House.assignRole(player, 'marshal', 'k2');
+        player.house.roleLoyalty.k2 = 50; // half strength
+        const b = House.getRoleBonuses(player);
+        expect(b.armyUpkeepMult).toBeCloseTo(1 - (10 * 0.5) * 0.03, 5);
+    });
+
+    it('loyalty drift can produce a claimant and set a pending claim', () => {
+        Utils.setSeed(7);
+        const player = playerWithKids();
+        House.initialize(player, { day: 0 });
+        House.assignRole(player, 'heir', 'k1');
+        House.assignRole(player, 'marshal', 'k2'); // ambitious, not the heir
+        // Drive k2 to the brink, then drift on a cadence day.
+        player.house.roleLoyalty.k2 = House._getConfig().roleDisloyaltyThreshold;
+        const driftDay = House._getConfig().roleLoyaltyDriftDays;
+        let sawClaimant = false;
+        for (let i = 1; i <= 10 && !sawClaimant; i++) {
+            const res = House._driftRoleLoyalty(player, { day: driftDay * i });
+            if (res.claimant === 'k2') sawClaimant = true;
+        }
+        expect(sawClaimant).toBe(true);
+        expect(player.house._pendingClaim).toBe(true);
+    });
+
+    it('getRoleBonuses is identity when no roles are filled', () => {
+        const player = playerWithKids();
+        House.initialize(player, { day: 0 });
+        expect(House.getRoleBonuses(player)).toEqual({
+            propertyIncomeMult: 1, armyUpkeepMult: 1, diplomacyBonus: 0, espionageBonus: 0,
+        });
+    });
+});

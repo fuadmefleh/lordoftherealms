@@ -29,6 +29,19 @@ const CONFIG = {
     decayPerDay: 1,     // Prestige eroded per idle day
     logCap: 30,         // max recent prestigeLog entries retained
     historyCap: 200,    // max chronicle entries retained
+    roleBaseLoyalty: 60,          // starting loyalty for a newly-appointed relative
+    roleLoyaltyDriftDays: 60,     // cadence of loyalty drift
+    roleDisloyaltyThreshold: 25,  // below this, a passed-over relative may press a claim
+};
+
+// Family-role definitions: which member skill each office scales off, plus
+// display text for the assignment UI.
+const ROLE_DEFS = {
+    steward:    { label: 'Steward',    skill: 'commerce',   blurb: 'Runs the estates — raises property income.' },
+    marshal:    { label: 'Marshal',    skill: 'combat',     blurb: 'Commands the host — lowers army upkeep.' },
+    chancellor: { label: 'Chancellor', skill: 'diplomacy',  blurb: 'Holds the court — improves diplomacy.' },
+    spymaster:  { label: 'Spymaster',  skill: 'stealth',    blurb: 'Runs the shadows — aids espionage.' },
+    heir:       { label: 'Heir',       skill: 'leadership', blurb: 'Groomed to inherit the House.' },
 };
 
 // Prestige awarded per notable deed. Every hooked system feeds this table, so
@@ -168,6 +181,7 @@ export const House = {
             rivals: {},             // { houseKey: { feud, lastActedDay } }
             history: [],            // { day, generation, text, tags[] } chronicle
             stats: {},              // durable deed counters (ambition predicates read these)
+            roleLoyalty: {},        // { memberId: loyalty } for appointed relatives
         };
     },
 
@@ -429,6 +443,117 @@ export const House = {
         return out;
     },
 
+    // ── Family roles ────────────────────────────────────────────
+
+    /** Role metadata for the assignment UI. */
+    roleDefs() {
+        return ROLE_DEFS;
+    },
+
+    /** Find an assignable family member (a living child) by id. */
+    _findMember(player, memberId) {
+        if (!memberId) return null;
+        for (const c of (player.children || [])) {
+            if (c.id === memberId) return c;
+        }
+        return null;
+    },
+
+    /** Assign a living child to a role. A member holds at most one role. */
+    assignRole(player, roleId, memberId) {
+        const house = player && player.house;
+        if (!house || !ROLE_DEFS[roleId]) return { success: false, reason: 'Invalid role' };
+        const member = House._findMember(player, memberId);
+        if (!member) return { success: false, reason: 'Not a family member' };
+        if (member.isAlive === false) return { success: false, reason: 'They have passed away' };
+
+        // One role per member — vacate any prior appointment.
+        for (const rid of ROLE_IDS) {
+            if (house.roles[rid] === memberId) house.roles[rid] = null;
+        }
+        house.roles[roleId] = memberId;
+        house.roleLoyalty = house.roleLoyalty || {};
+        if (house.roleLoyalty[memberId] == null) {
+            house.roleLoyalty[memberId] = House._getConfig().roleBaseLoyalty;
+        }
+        // Keep the legacy heir field in sync so the death screen still works.
+        if (roleId === 'heir') player.heir = memberId;
+        return { success: true, role: roleId, memberId };
+    },
+
+    clearRole(player, roleId) {
+        const house = player && player.house;
+        if (!house || !ROLE_DEFS[roleId]) return false;
+        house.roles[roleId] = null;
+        if (roleId === 'heir') player.heir = null;
+        return true;
+    },
+
+    /** Compute the modifiers granted by currently-appointed relatives. Bonuses
+     *  scale with the member's relevant skill and their loyalty. */
+    getRoleBonuses(player) {
+        const bonuses = { propertyIncomeMult: 1, armyUpkeepMult: 1, diplomacyBonus: 0, espionageBonus: 0 };
+        const house = player && player.house;
+        if (!house || !house.roles) return bonuses;
+
+        const effSkill = (memberId, skill) => {
+            const m = House._findMember(player, memberId);
+            if (!m) return 0;
+            const raw = (m.skills && m.skills[skill]) || 0;
+            const loyalty = (house.roleLoyalty && house.roleLoyalty[memberId]);
+            const factor = loyalty == null ? 1 : Utils.clamp(loyalty / 100, 0, 1);
+            return raw * factor;
+        };
+
+        if (house.roles.steward) {
+            bonuses.propertyIncomeMult = 1 + Math.min(0.5, effSkill(house.roles.steward, 'commerce') * 0.03);
+        }
+        if (house.roles.marshal) {
+            bonuses.armyUpkeepMult = Math.max(0.5, 1 - Math.min(0.4, effSkill(house.roles.marshal, 'combat') * 0.03));
+        }
+        if (house.roles.chancellor) {
+            bonuses.diplomacyBonus = Math.round(effSkill(house.roles.chancellor, 'diplomacy') * 0.5);
+        }
+        if (house.roles.spymaster) {
+            bonuses.espionageBonus = Math.round(effSkill(house.roles.spymaster, 'stealth') * 0.5);
+        }
+        return bonuses;
+    },
+
+    /** Periodically drift appointed relatives' loyalty. A passed-over,
+     *  disloyal role-holder sets a pending claim (feeds succession disputes).
+     *  Returns { claimant: memberId|null }. */
+    _driftRoleLoyalty(player, world) {
+        const house = player && player.house;
+        if (!house || !house.roleLoyalty) return { claimant: null };
+        const cfg = House._getConfig();
+        const day = (world && world.day) || 0;
+        if (day % cfg.roleLoyaltyDriftDays !== 0) return { claimant: null };
+
+        let claimant = null;
+        for (const memberId of Object.keys(house.roleLoyalty)) {
+            const stillAssigned = ROLE_IDS.some(rid => house.roles[rid] === memberId);
+            const m = House._findMember(player, memberId);
+            if (!m || m.isAlive === false || !stillAssigned) continue;
+
+            let drift = Utils.randInt(-4, 5);
+            const traits = m.traits || [];
+            const hasTrait = id => traits.some(t => (t.id || t) === id);
+            if (hasTrait('ambitious')) drift -= 3;
+            if (hasTrait('loyal') || hasTrait('content')) drift += 3;
+            // Serving in a non-heir office while another is the heir breeds resentment.
+            const inNonHeirOffice = ROLE_IDS.some(rid => rid !== 'heir' && house.roles[rid] === memberId);
+            if (house.roles.heir && house.roles.heir !== memberId && inNonHeirOffice) drift -= 1;
+
+            house.roleLoyalty[memberId] = Utils.clamp((house.roleLoyalty[memberId] || cfg.roleBaseLoyalty) + drift, 0, 100);
+            if (house.roles.heir !== memberId && house.roleLoyalty[memberId] < cfg.roleDisloyaltyThreshold) {
+                claimant = memberId;
+            }
+        }
+        if (claimant) house._pendingClaim = true;
+        return { claimant };
+    },
+
     // ── Succession with stakes ──────────────────────────────────
 
     /** Classify a player's heirs so the death screen can branch. */
@@ -553,6 +678,8 @@ export const House = {
         if (ambition && (ambition.milestonesCompleted.length || ambition.capstoneCompleted)) {
             results.ambition = ambition;
         }
+        const roleDrift = House._driftRoleLoyalty(player, world);
+        if (roleDrift.claimant) results.claimant = roleDrift.claimant;
         return results;
     },
 

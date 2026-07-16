@@ -1,6 +1,6 @@
 // PlayerMilitary — recruitment members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
-import { Utils, Technology } from './_imports.js';
+import { Utils, Technology, House } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -343,6 +343,11 @@ Object.assign(PlayerMilitary, {
         let total = 0;
         for (const unit of player.army) {
             total += unit.upkeep;
+        }
+        // A House Marshal lowers upkeep (multiplier is 1 when no Marshal serves).
+        if (typeof House !== 'undefined' && player.house) {
+            const mult = House.getRoleBonuses(player).armyUpkeepMult;
+            if (mult != null) total = Math.round(total * mult);
         }
         return total;
     },

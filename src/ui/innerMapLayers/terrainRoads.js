@@ -207,8 +207,9 @@ Object.assign(InnerMapRenderer, {
                         const sy = Number.isFinite(ov.sy) ? ov.sy : 0;
                         ctx.drawImage(ovImg, sx, sy, sw, sh, dx, dy, sz, sz);
                     }
-                } else if (ov.fillCategory === 'grass') {
-                    const fills = this._terrainFills && this._terrainFills.grass;
+                } else if (ov.fillCategory) {
+                    // _terrainFills is keyed by category (grass, water, dirt, …)
+                    const fills = this._terrainFills && this._terrainFills[ov.fillCategory];
                     if (terrainSheet && fills && fills.length > 0) {
                         const hash = (Math.abs((q * 83492791 ^ r * 29765729))) >>> 0;
                         const pick = fills[hash % fills.length];

@@ -322,13 +322,14 @@ Object.assign(InnerMap, {
     // Sub-terrain IDs that override the parent's base terrain.
     // Only listed for sub-terrains whose ground fill differs from their parent.
     SUB_TO_BASE_TERRAIN: {
-        dirt:      'dirt',
-        mud:       'dirt',
-        rocks:     'stone',
-        cliff:     'stone',
-        ice:       'stone',
-        sand:      'sand',
-        dry_grass: 'dry_dirt',
-        bog:       'dark_stone',
+        dirt:       'dirt',
+        mud:        'dirt',
+        rocks:      'stone',
+        cliff:      'stone',
+        ice:        'stone',
+        sand:       'sand',
+        dry_grass:  'dry_dirt',
+        bog:        'dark_stone',
+        pond_water: 'water',   // procedural water features (InnerMap._paintWaterFeatures)
     },
 });

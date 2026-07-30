@@ -158,12 +158,16 @@ input[type="color"]{padding:2px;width:28px;height:24px;cursor:pointer;background
 .ntb-left{width:400px;flex-shrink:0;padding:12px;overflow-y:auto;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:12px}
 .ntb-right{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--panel2)}
 .ntb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-width:300px}
-.ntb-cell{border:2px solid var(--border2);border-radius:6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px;background:var(--bg);transition:border-color .12s,background .12s;aspect-ratio:1;min-height:80px}
+.ntb-cell{position:relative;border:2px solid var(--border2);border-radius:6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px;background:var(--bg);transition:border-color .12s,background .12s;aspect-ratio:1;min-height:80px}
 .ntb-cell:hover{background:var(--hover);border-color:var(--blue)}
 .ntb-cell.ntb-selected{background:#0b2a4a !important;border-color:var(--blue);outline:2px solid var(--blue)}
 .ntb-cell.ntb-filled{border-color:var(--green)}
 .ntb-cell canvas{image-rendering:pixelated;width:56px;height:56px;display:block}
 .ntb-cell-lbl{font-size:9px;color:var(--text-dim);margin-top:3px;font-weight:600;text-transform:uppercase}
+.ntb-cell.ntb-blocked{border-color:var(--red)}
+.ntb-block-badge{position:absolute;top:2px;right:2px;font-size:11px;line-height:1;padding:2px;border-radius:4px;cursor:pointer;opacity:.25;filter:grayscale(1);transition:opacity .12s,filter .12s;user-select:none}
+.ntb-block-badge:hover{opacity:.8;filter:none}
+.ntb-block-badge.on{opacity:1;filter:none}
 .ntb-brush-card{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:6px 8px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:border-color .12s}
 .ntb-brush-card:hover{border-color:var(--blue)}
 .ntb-brush-card.selected{border-color:var(--gold);background:#1a1500}
@@ -405,6 +409,10 @@ input[type="color"]{padding:2px;width:28px;height:24px;cursor:pointer;background
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <span style="font-size:15px;font-weight:700;color:var(--purple)">🖼 Nine-Tile Brush Editor</span>
       <input type="text" id="ntb-name" value="New Brush" placeholder="Brush name..." style="width:160px">
+      <select id="ntb-brush-type" title="Brush type — the game uses Water brushes to generate ponds in inner maps">
+        <option value="terrain">🌿 Terrain</option>
+        <option value="water">💧 Water</option>
+      </select>
       <button class="green" onclick="ntbSave()">💾 Save Brush</button>
       <button class="danger" onclick="ntbDelete()" id="ntb-del-btn" disabled>🗑 Delete</button>
       <span id="ntb-hint" style="font-size:11px;color:var(--blue);font-style:italic">Drag 3×6 (LPC format) to fill all 13 slots at once — or 3×3 outer, 2×2 corners, or click a slot then a tile</span>
@@ -422,7 +430,8 @@ input[type="color"]{padding:2px;width:28px;height:24px;cursor:pointer;background
           <b>Inside corners</b> handle concave (inward) diagonal boundaries.<br>
           <b style="color:var(--green)">Quick:</b> Drag a 3×3 on the tileset for outer tiles, or 2×2 for inside corners.<br>
           Or click a slot below, then click a tile from the tileset. Right-click a slot to clear it.<br>
-          <b>Seasons:</b> Use the season tabs to assign different tiles per season.
+          <b>Seasons:</b> Use the season tabs to assign different tiles per season.<br>
+          <b>⛔ Blocked:</b> Click a slot's ⛔ badge to mark it impassable in-game (all seasons). E.g. block a water brush's Center so NPCs walk the shore but not the deep water.
         </div>
         <div class="ntb-season-tabs" id="ntb-season-tabs"></div>
         <div class="ntb-copy-row" id="ntb-copy-row"></div>
@@ -3126,10 +3135,37 @@ let ntbTiles = [[null,null,null],[null,null,null],[null,null,null]];
 let ntbCorners = [null, null, null, null];
 let ntbAltFills = []; // flat array of extra center tiles for active season
 let ntbAltSelIdx = -1; // which alt fill slot is selected (-1 = none, -2 = add-pending)
+// Per-slot impassable flags — season-independent (keyed by slot position, not tile).
+// grid: 3×3 booleans matching ntbTiles; corners: [4] matching ntbCorners.
+// Alt center fills inherit the Center slot's flag (they're variants of that slot).
+let ntbImpassable = ntbEmptyImpassable();
 
 function ntbEmptyGrid() { return [[null,null,null],[null,null,null],[null,null,null]]; }
 function ntbEmptyCorners() { return [null, null, null, null]; }
 function ntbEmptyAltFills() { return []; }
+function ntbEmptyImpassable() { return { grid: [[false,false,false],[false,false,false],[false,false,false]], corners: [false,false,false,false] }; }
+
+// Read per-slot impassable flags out of a saved brush (flags are stored on the
+// cell objects — Format A, like object footprint tiles). A slot counts as
+// blocked if ANY grid carrying it (default or any season) has the flag.
+function ntbLoadImpassable(brush) {
+    const flags = ntbEmptyImpassable();
+    const grids = [brush.tiles];
+    const cornerSets = [brush.insideCorners];
+    if (brush.seasonTiles) for (const s of SEASONS) grids.push(brush.seasonTiles[s]);
+    if (brush.seasonInsideCorners) for (const s of SEASONS) cornerSets.push(brush.seasonInsideCorners[s]);
+    for (const g of grids) {
+        if (!Array.isArray(g)) continue;
+        for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+            if (g[r] && g[r][c] && g[r][c].impassable) flags.grid[r][c] = true;
+        }
+    }
+    for (const cs of cornerSets) {
+        if (!Array.isArray(cs)) continue;
+        for (let i = 0; i < 4; i++) if (cs[i] && cs[i].impassable) flags.corners[i] = true;
+    }
+    return flags;
+}
 
 function ntbInitSeasonTiles() {
     ntbSeasonTiles = {};
@@ -3439,6 +3475,8 @@ function openNtbEditor(editIdx) {
     if (ntbEditIdx >= 0 && nineTileBrushes[ntbEditIdx]) {
         const brush = nineTileBrushes[ntbEditIdx];
         document.getElementById('ntb-name').value = brush.name;
+        document.getElementById('ntb-brush-type').value = brush.category === 'water' ? 'water' : 'terrain';
+        ntbImpassable = ntbLoadImpassable(brush);
         // Load season tiles
         if (brush.seasonTiles) {
             ntbSeasonTiles = {};
@@ -3485,6 +3523,8 @@ function openNtbEditor(editIdx) {
     } else {
         ntbEditIdx = -1;
         document.getElementById('ntb-name').value = 'New Brush';
+        document.getElementById('ntb-brush-type').value = 'terrain';
+        ntbImpassable = ntbEmptyImpassable();
         ntbInitSeasonTiles();
         document.getElementById('ntb-del-btn').disabled = true;
     }
@@ -3512,6 +3552,21 @@ function closeNtbEditor() {
     buildNtbListPanel();
 }
 
+// Append a slot's ⛔ toggle. `flags` is the array holding the slot's flag and
+// `idx` its position, so the badge can flip it in place for both grids.
+function ntbAppendBlockBadge(cell, flags, idx) {
+    const blocked = flags[idx];
+    if (blocked) cell.classList.add('ntb-blocked');
+    const badge = document.createElement('div');
+    badge.className = 'ntb-block-badge' + (blocked ? ' on' : '');
+    badge.textContent = '⛔';
+    badge.title = blocked
+        ? 'Blocked — NPCs/players cannot walk tiles painted with this slot (click to unblock)'
+        : 'Click to mark this slot impassable in-game (all seasons)';
+    badge.onclick = ev => { ev.stopPropagation(); flags[idx] = !blocked; ntbBuildGrid(); };
+    cell.appendChild(badge);
+}
+
 function ntbBuildGrid() {
     const grid = document.getElementById('ntb-grid');
     grid.innerHTML = '';
@@ -3526,6 +3581,7 @@ function ntbBuildGrid() {
             cell.className = 'ntb-cell' + (isSel ? ' ntb-selected' : '') + (tileRef ? ' ntb-filled' : '');
             cell.onclick = () => { ntbSelSlot = {row: r, col: c}; ntbAltSelIdx = -1; ntbBuildGrid(); ntbBuildAltFills(); };
             cell.oncontextmenu = ev => { ev.preventDefault(); ntbTiles[r][c] = null; ntbBuildSeasonTabs(); ntbBuildGrid(); };
+            ntbAppendBlockBadge(cell, ntbImpassable.grid[r], c);
             if (tileRef || fallbackRef) {
                 const tc = document.createElement('canvas');
                 tc.width = 32; tc.height = 32;
@@ -3558,6 +3614,7 @@ function ntbBuildGrid() {
         cell.className = 'ntb-cell' + (isSel ? ' ntb-selected' : '') + (tileRef ? ' ntb-filled' : '');
         cell.onclick = () => { ntbSelSlot = {row: 3, col: i}; ntbAltSelIdx = -1; ntbBuildGrid(); ntbBuildAltFills(); };
         cell.oncontextmenu = ev => { ev.preventDefault(); ntbCorners[i] = null; ntbBuildSeasonTabs(); ntbBuildGrid(); };
+        ntbAppendBlockBadge(cell, ntbImpassable.corners, i);
         if (tileRef || fallbackRef) {
             const tc = document.createElement('canvas');
             tc.width = 32; tc.height = 32;
@@ -3711,19 +3768,34 @@ function ntbSave() {
             }
         }
     }
+    // Copy a cell, applying the slot's impassable flag (Format A — flag lives
+    // on the cell object). Flags are season-independent: the same slot flag is
+    // stamped onto every season's copy of that slot.
+    const copyCell = (t, blocked) => {
+        if (!t) return null;
+        const c = {...t};
+        if (blocked) c.impassable = true;
+        else delete c.impassable;
+        return c;
+    };
+    const copyGrid = grid => grid.map((row, r) => row.map((t, c) => copyCell(t, ntbImpassable.grid[r][c])));
+    const copyCorners = arr => arr.map((t, i) => copyCell(t, ntbImpassable.corners[i]));
+    // Alt center fills are variants of the Center slot — they inherit its flag.
+    const copyAltFills = arr => (arr || []).map(t => copyCell(t, ntbImpassable.grid[1][1]));
     const brushData = {
         id: (ntbEditIdx >= 0 && nineTileBrushes[ntbEditIdx]) ? nineTileBrushes[ntbEditIdx].id : 'ntb_' + Date.now(),
         name: name,
-        tiles: defaultTiles.map(row => row.map(t => t ? {...t} : null)),
-        insideCorners: defaultCorners.map(t => t ? {...t} : null),
+        category: document.getElementById('ntb-brush-type').value,
+        tiles: copyGrid(defaultTiles),
+        insideCorners: copyCorners(defaultCorners),
         seasonTiles: {},
         seasonInsideCorners: {},
         seasonAltFills: {}
     };
     for (const s of SEASONS) {
-        brushData.seasonTiles[s] = ntbSeasonTiles[s].map(row => row.map(t => t ? {...t} : null));
-        brushData.seasonInsideCorners[s] = ntbSeasonCorners[s].map(t => t ? {...t} : null);
-        brushData.seasonAltFills[s] = (ntbSeasonAltFills[s] || []).map(t => t ? {...t} : null);
+        brushData.seasonTiles[s] = copyGrid(ntbSeasonTiles[s]);
+        brushData.seasonInsideCorners[s] = copyCorners(ntbSeasonCorners[s]);
+        brushData.seasonAltFills[s] = copyAltFills(ntbSeasonAltFills[s]);
     }
     if (ntbEditIdx >= 0 && nineTileBrushes[ntbEditIdx]) {
         nineTileBrushes[ntbEditIdx] = brushData;

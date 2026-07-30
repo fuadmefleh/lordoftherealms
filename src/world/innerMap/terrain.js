@@ -2,6 +2,12 @@
 import { InnerMap } from './_ref.js';
 import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily } from './_imports.js';
 
+// Cardinal steps a water blob can grow along, as [dq, dr].
+const WATER_GROWTH_DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+// Used only if innerMap.json is missing waterSubTerrain (e.g. stale modded gamedata).
+const DEFAULT_WATER_SUB_TERRAIN = { id: 'pond_water', name: 'Water', icon: '💧', color: '#3a6ea5', passable: false };
+
 Object.assign(InnerMap, {
     /**
      * Get the base terrain fill category for a tile.
@@ -16,22 +22,27 @@ Object.assign(InnerMap, {
         return this.PARENT_TO_BASE_TERRAIN[terrainId] || 'grass';
     },
 
-    _getGrassNineTileBrush() {
+    /**
+     * Usable terrain-editor brushes of one category. Brushes saved before the
+     * category field existed count as 'terrain', so the default layer keeps
+     * working on legacy data.
+     * (Terrain editor brushes live in terrainNineTileBrushes — NOT
+     * nineTileBrushes, which is building brushes.)
+     */
+    _getNineTileBrushesByCategory(category) {
         const gd = (typeof DataLoader !== 'undefined') ? DataLoader._gamedata : null;
-        // Terrain editor brushes live in terrainNineTileBrushes (NOT nineTileBrushes which is building brushes)
         const brushes = Array.isArray(gd && gd.terrainNineTileBrushes) ? gd.terrainNineTileBrushes : [];
+        return brushes.filter(b => b && Array.isArray(b.tiles) && (b.category || 'terrain') === category);
+    },
 
-        if (brushes.length) {
-            const valid = brushes.filter(b => b && b.tiles && typeof b.tiles === 'object');
-            if (valid.length) {
-                const byName = valid.find(b => /grass|meadow|lawn|turf/i.test(String(b.name || '')));
-                if (byName) return byName;
-                const hasCenter = valid.find(b => {
-                    return Array.isArray(b.tiles) && b.tiles[1] && b.tiles[1][1] && b.tiles[1][1].sheetPath;
-                });
-                if (hasCenter) return hasCenter;
-                return valid[0];
-            }
+    _getGrassNineTileBrush() {
+        const valid = this._getNineTileBrushesByCategory('terrain');
+        if (valid.length) {
+            const byName = valid.find(b => /grass|meadow|lawn|turf/i.test(String(b.name || '')));
+            if (byName) return byName;
+            const hasCenter = valid.find(b => b.tiles[1] && b.tiles[1][1] && b.tiles[1][1].sheetPath);
+            if (hasCenter) return hasCenter;
+            return valid[0];
         }
 
         // ── Hardcoded fallback: build a brush from the LPC terrain sheet ──
@@ -87,6 +98,33 @@ Object.assign(InnerMap, {
         return this._fallbackGrassBrush;
     },
 
+    _getWaterNineTileBrush() {
+        // Prefer an explicit category (set in the terrain editor's Type dropdown),
+        // fall back to name matching for brushes saved before the field existed.
+        const byCategory = this._getNineTileBrushesByCategory('water');
+        if (byCategory.length) return byCategory[0];
+        return this._getNineTileBrushesByCategory('terrain')
+            .find(b => /water|pond|lake|river/i.test(String(b.name || ''))) || null;
+    },
+
+    /**
+     * Is the given brush slot flagged impassable? Flags live on the cell
+     * objects (Format A, like object footprint tiles) and are
+     * season-independent — a slot counts as blocked if ANY grid carrying it
+     * (default or any season) has the flag.
+     * @param {Object} brush - nine-tile brush
+     * @param {Object} info - {row, col} for the 3×3 grid or {ic} for an inside corner
+     */
+    _isBrushSlotImpassable(brush, info) {
+        const isIC = info.ic !== undefined;
+        // Every array that could carry this slot: the default grid plus one per season.
+        const rows = isIC
+            ? [brush.insideCorners, ...Object.values(brush.seasonInsideCorners || {})]
+            : [brush.tiles, ...Object.values(brush.seasonTiles || {})].map(g => g && g[info.row]);
+        const idx = isIC ? info.ic : info.col;
+        return rows.some(row => !!(row && row[idx] && row[idx].impassable));
+    },
+
     /**
      * Pick the correct tile from a 9-tile brush for a given position in a
      * boolean mask, using the same auto-tiling logic as the terrain editor:
@@ -133,6 +171,106 @@ Object.assign(InnerMap, {
         return { row, col };
     },
 
+    /**
+     * Remove mask cells that have no valid 9-tile representation — a cell whose
+     * neighbours don't span a full axis (e.g. a single-tile protrusion with mask
+     * only below it) makes _pickNineTileInfo return null, and the caller then
+     * falls back to the opaque centre fill, which renders as a hard-edged square
+     * floating in the surrounding terrain. Iterates because each removal can
+     * expose a new stub, so thin peninsulas peel back to the solid patch.
+     * @param {Array<Array<boolean>>} mask - mutated in place
+     */
+    _erodeUntileableStubs(mask) {
+        const H = mask.length;
+        const W = H > 0 ? mask[0].length : 0;
+        let eroded = true;
+        while (eroded) {
+            eroded = false;
+            const toClear = [];
+            for (let r = 0; r < H; r++) {
+                for (let q = 0; q < W; q++) {
+                    if (mask[r][q] && !this._pickNineTileInfo(mask, q, r)) toClear.push([r, q]);
+                }
+            }
+            for (const [r, q] of toClear) {
+                mask[r][q] = false;
+                eroded = true;
+            }
+        }
+    },
+
+    /**
+     * Resolve which of a brush's grids apply for a season. A brush authored in
+     * one season still has (empty) grids saved for the others, so a season grid
+     * only wins if it actually has a centre tile — otherwise the default grid does.
+     * @returns {{tilesGrid: Array, cornersArr: Array|null, altFills: Array|null}}
+     */
+    _resolveBrushSeason(brush, season) {
+        const seasonGrid = brush.seasonTiles && brush.seasonTiles[season];
+        const seasonAlts = brush.seasonAltFills && brush.seasonAltFills[season];
+        return {
+            tilesGrid: (seasonGrid && seasonGrid[1] && seasonGrid[1][1]) ? seasonGrid : brush.tiles,
+            cornersArr: (brush.seasonInsideCorners && brush.seasonInsideCorners[season])
+                || brush.insideCorners || null,
+            altFills: (seasonAlts && seasonAlts.length) ? seasonAlts : null,
+        };
+    },
+
+    /**
+     * Auto-tile a boolean mask with a 9-tile brush, writing tile.terrainDetail
+     * for every masked tile. Cells with no usable brush tile fall back to
+     * `fallbackCategory` fill. `onCell(tile, info)` — if given — is called with
+     * the slot actually used, so callers can attach per-slot behaviour.
+     */
+    _stampNineTileMask(tiles, mask, brush, fallbackCategory, onCell) {
+        const H = mask.length;
+        const W = H > 0 ? mask[0].length : 0;
+        const season = (this.season || 'spring').toLowerCase();
+        const { tilesGrid, cornersArr, altFills } = this._resolveBrushSeason(brush, season);
+
+        for (let r = 0; r < H; r++) {
+            for (let q = 0; q < W; q++) {
+                if (!mask[r][q]) continue;
+                const tile = tiles[r][q];
+                if (!tile) continue;
+
+                // Degenerate cells (no neighbours on one axis) use the centre fill
+                // rather than being skipped — a real brush centre fills them nicely.
+                let info = this._pickNineTileInfo(mask, q, r) || { row: 1, col: 1 };
+                // An inside corner with no IC tile defined also falls back to the
+                // centre fill — so passability follows the slot actually used.
+                if (info.ic !== undefined && !(cornersArr && cornersArr[info.ic] && cornersArr[info.ic].sheetPath)) {
+                    info = { row: 1, col: 1 };
+                }
+
+                let tileRef;
+                if (info.ic !== undefined) {
+                    tileRef = cornersArr[info.ic];
+                } else {
+                    tileRef = tilesGrid && tilesGrid[info.row] ? tilesGrid[info.row][info.col] : null;
+                    // Centre slot: hash-pick from the alt fills pool for variety
+                    if (info.row === 1 && info.col === 1 && altFills) {
+                        const pool = tileRef ? [tileRef, ...altFills] : altFills;
+                        const hash = Math.abs((q * 73856093 ^ r * 19349663)) >>> 0;
+                        tileRef = pool[hash % pool.length];
+                    }
+                }
+
+                tile.terrainDetail = (tileRef && tileRef.sheetPath)
+                    ? {
+                        sheetPath: tileRef.sheetPath,
+                        sx: Number.isFinite(tileRef.sx) ? tileRef.sx : 0,
+                        sy: Number.isFinite(tileRef.sy) ? tileRef.sy : 0,
+                        sw: 32,
+                        sh: 32,
+                    }
+                    : { fillCategory: fallbackCategory };
+
+                if (onCell) onCell(tile, info);
+            }
+        }
+    },
+
     _paintGrassSecondLayer(tiles, worldQ, worldR) {
         const brush = this._getGrassNineTileBrush();
         const H = this.height;
@@ -169,116 +307,108 @@ Object.assign(InnerMap, {
             }
         }
 
-        // ── Erode un-tileable stubs ──
-        // A grass tile whose neighbours don't span a full axis — e.g. a single-tile
-        // protrusion with grass only below it — has no valid 9-tile representation, so
-        // _pickNineTileInfo returns null and the caller falls back to the opaque centre
-        // fill. That renders as a hard-edged grass square floating in the dirt (the very
-        // artifact we're fixing). Remove such degenerate tiles from the mask, iterating
-        // because each removal can expose a new stub (thin peninsulas peel back to the
-        // solid patch), so every remaining grass tile auto-tiles with blended edges.
-        const inMask = (nq, nr) => (nr >= 0 && nr < H && nq >= 0 && nq < W) ? mask[nr][nq] : false;
-        let eroded = true;
-        while (eroded) {
-            eroded = false;
-            const toClear = [];
-            for (let r = 0; r < H; r++) {
-                for (let q = 0; q < W; q++) {
-                    if (!mask[r][q]) continue;
-                    const hasTop = inMask(q, r - 1);
-                    const hasBottom = inMask(q, r + 1);
-                    const hasLeft = inMask(q - 1, r);
-                    const hasRight = inMask(q + 1, r);
-                    if ((!hasTop && !hasBottom) || (!hasLeft && !hasRight)) toClear.push(r, q);
+        this._erodeUntileableStubs(mask);
+        this._stampNineTileMask(tiles, mask, brush, 'grass');
+    },
+
+    /**
+     * Procedurally place water features (ponds) on an inner map using a
+     * water 9-tile brush. Per-parent-terrain config comes from innerMap.json:
+     *   "waterFeatures": { "chance": 0.5, "count": [1, 2], "size": [5, 12] }
+     * No config → no water. Brush cells flagged impassable (via the terrain
+     * editor's ⛔ toggle) become blocked water tiles tagged as pond_water;
+     * unflagged shore-edge cells keep their sub-terrain and stay walkable.
+     * Blobs never touch the map border, roads, buildings, objects, or the
+     * player-start area, so bounded ponds can't disconnect the walkable map.
+     */
+    _paintWaterFeatures(tiles, terrainId, rng) {
+        const terrainCfg = this.CONFIG && this.CONFIG.subTerrains ? this.CONFIG.subTerrains[terrainId] : null;
+        const cfg = terrainCfg ? terrainCfg.waterFeatures : null;
+        if (!cfg) return;
+        const brush = this._getWaterNineTileBrush();
+        if (!brush) return;
+        const { chance = 0.5, count: countRange = [1, 1], size: sizeRange = [4, 10] } = cfg;
+        if (rng() > chance) return;
+
+        const H = this.height;
+        const W = this.width;
+        const count = countRange[0] + Math.floor(rng() * (countRange[1] - countRange[0] + 1));
+
+        const centerQ = Math.floor(W / 2);
+        const centerR = Math.floor(H / 2);
+        const MARGIN = 2;      // keep off the map border (clean edge, can't disconnect the map)
+        const START_CLEAR = 4; // keep clear of the player-start tile
+
+        const canHold = (q, r) => {
+            if (q < MARGIN || q >= W - MARGIN || r < MARGIN || r >= H - MARGIN) return false;
+            if (Math.abs(q - centerQ) + Math.abs(r - centerR) <= START_CLEAR) return false;
+            const t = tiles[r][q];
+            if (!t || t.isRoad || t.building || t.customBuilding || t.customObject || t.customObjectPart) return false;
+            return true;
+        };
+
+        const mask = Array.from({ length: H }, () => Array(W).fill(false));
+
+        for (let p = 0; p < count; p++) {
+            // A pond needs at least one interior (all-4-cardinals) cell to get
+            // a blocked center tile — the smallest such blob is 3×3, so clamp
+            // the target size to 9 and seed from a full 3×3 core. The core
+            // survives stub erosion and guarantees real water, not just shore.
+            const target = Math.max(9, sizeRange[0] + Math.floor(rng() * (sizeRange[1] - sizeRange[0] + 1)));
+
+            // Find a seed spot with a clear 3×3 core (seed = top-left corner)
+            let seedQ = -1, seedR = -1;
+            for (let tries = 0; tries < 40; tries++) {
+                const q = MARGIN + Math.floor(rng() * (W - MARGIN * 2 - 2));
+                const r = MARGIN + Math.floor(rng() * (H - MARGIN * 2 - 2));
+                let clear = !mask[r][q];
+                for (let dr = 0; clear && dr < 3; dr++) {
+                    for (let dq = 0; clear && dq < 3; dq++) {
+                        if (!canHold(q + dq, r + dr) || mask[r + dr][q + dq]) clear = false;
+                    }
+                }
+                if (clear) {
+                    seedQ = q; seedR = r;
+                    break;
                 }
             }
-            for (let i = 0; i < toClear.length; i += 2) {
-                mask[toClear[i]][toClear[i + 1]] = false;
-                eroded = true;
+            if (seedQ < 0) continue;
+
+            // Grow a compact blob from the 3×3 core by annexing random cells
+            // adjacent to cells already in the blob. Cells join the mask as they
+            // are pushed, so the mask test below covers both this blob and earlier ones.
+            const blob = [];
+            const push = (q, r) => { blob.push([q, r]); mask[r][q] = true; };
+            for (let dr = 0; dr < 3; dr++) {
+                for (let dq = 0; dq < 3; dq++) push(seedQ + dq, seedR + dr);
+            }
+            // The blob can run out of room to grow, so cap the attempts.
+            for (let attempt = 0; attempt < target * 20 && blob.length < target; attempt++) {
+                const [bq, br] = blob[Math.floor(rng() * blob.length)];
+                const [dq, dr] = WATER_GROWTH_DIRS[Math.floor(rng() * 4)];
+                const nq = bq + dq, nr = br + dr;
+                if (mask[nr][nq] || !canHold(nq, nr)) continue;
+                push(nq, nr);
             }
         }
 
-        // Get season-specific tiles if available
-        const season = (this.season || 'spring').toLowerCase();
-        const tilesGrid = (brush && brush.seasonTiles && brush.seasonTiles[season])
-            ? brush.seasonTiles[season]
-            : (brush ? brush.tiles : null);
-        const cornersArr = (brush && brush.seasonInsideCorners && brush.seasonInsideCorners[season])
-            ? brush.seasonInsideCorners[season]
-            : (brush ? brush.insideCorners || null : null);
-        // Alternate center fill tiles — picked by hash for variety
-        const altFills = (brush && brush.seasonAltFills && brush.seasonAltFills[season] && brush.seasonAltFills[season].length)
-            ? brush.seasonAltFills[season]
-            : null;
+        this._erodeUntileableStubs(mask);
 
-        // Assign terrain detail for each grass tile
-        for (let r = 0; r < H; r++) {
-            for (let q = 0; q < W; q++) {
-                if (!mask[r][q]) continue;
-                const tile = tiles[r][q];
-                if (!tile) continue;
+        // ── Stamp visuals + passability ──
+        // Slot impassability depends only on (brush, slot), so resolve all 13
+        // slots once instead of re-walking the season grids per tile.
+        const blockedGrid = [0, 1, 2].map(row => [0, 1, 2].map(col => this._isBrushSlotImpassable(brush, { row, col })));
+        const blockedIC = [0, 1, 2, 3].map(ic => this._isBrushSlotImpassable(brush, { ic }));
+        const waterDef = this.CONFIG.waterSubTerrain || DEFAULT_WATER_SUB_TERRAIN;
 
-                if (tilesGrid) {
-                    // Degenerate tiles (thin/isolated, no neighbors on one axis) use center fill
-                    // rather than being skipped — custom brushes have a real center tile that fills nicely.
-                    const info = this._pickNineTileInfo(mask, q, r) || { row: 1, col: 1 };
-
-                    // Inside corner
-                    if (info.ic !== undefined && cornersArr && cornersArr[info.ic]) {
-                        const ic = cornersArr[info.ic];
-                        if (ic && ic.sheetPath) {
-                            tile.terrainDetail = {
-                                sheetPath: ic.sheetPath,
-                                sx: Number.isFinite(ic.sx) ? ic.sx : 0,
-                                sy: Number.isFinite(ic.sy) ? ic.sy : 0,
-                                sw: 32,
-                                sh: 32,
-                            };
-                            continue;
-                        }
-                    }
-
-                    // Fallback for inside corners w/o defined IC tiles: use center fill
-                    if (info.ic !== undefined) {
-                        const center = tilesGrid[1] && tilesGrid[1][1];
-                        if (center && center.sheetPath) {
-                            tile.terrainDetail = {
-                                sheetPath: center.sheetPath,
-                                sx: Number.isFinite(center.sx) ? center.sx : 0,
-                                sy: Number.isFinite(center.sy) ? center.sy : 0,
-                                sw: 32,
-                                sh: 32,
-                            };
-                            continue;
-                        }
-                    }
-
-                    // Normal 3×3 grid tile
-                    if (info.row !== undefined) {
-                        let tileRef = tilesGrid[info.row] && tilesGrid[info.row][info.col];
-                        // For the center slot (row 1, col 1), hash-pick from alt fills pool if available
-                        if (info.row === 1 && info.col === 1 && altFills && altFills.length) {
-                            const pool = tileRef ? [tileRef, ...altFills] : altFills;
-                            const hash = Math.abs((q * 73856093 ^ r * 19349663)) >>> 0;
-                            tileRef = pool[hash % pool.length];
-                        }
-                        if (tileRef && tileRef.sheetPath) {
-                            tile.terrainDetail = {
-                                sheetPath: tileRef.sheetPath,
-                                sx: Number.isFinite(tileRef.sx) ? tileRef.sx : 0,
-                                sy: Number.isFinite(tileRef.sy) ? tileRef.sy : 0,
-                                sw: 32,
-                                sh: 32,
-                            };
-                            continue;
-                        }
-                    }
-                }
-
-                // Fallback: use terrain fill tile for grass
-                tile.terrainDetail = { fillCategory: 'grass' };
-            }
-        }
+        this._stampNineTileMask(tiles, mask, brush, 'water', (tile, info) => {
+            // Blocked slots become tagged, impassable water; unflagged
+            // shore-edge slots keep their sub-terrain and stay walkable.
+            const blocked = info.ic !== undefined ? blockedIC[info.ic] : blockedGrid[info.row][info.col];
+            if (!blocked) return;
+            tile.subTerrain = { ...waterDef, passable: false };
+            tile.baseTerrain = this._getBaseTerrain(terrainId, waterDef.id);
+        });
     },
 
     /**
@@ -481,6 +611,11 @@ Object.assign(InnerMap, {
         if (this._getBaseTerrain(terrainId, null) === 'grass') {
             this._paintGrassSecondLayer(tiles, worldQ, worldR);
         }
+
+        // --- Procedural water features (ponds) ---
+        // After the grass layer so pond visuals stamp over it, and before
+        // player properties / object scatter so those avoid the blocked water.
+        this._paintWaterFeatures(tiles, terrainId, rng);
 
         // --- Player property placement ---
         this._placePlayerProperties(tiles, worldTile, rng);

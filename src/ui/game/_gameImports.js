@@ -20,6 +20,7 @@ export { Ships } from '../../systems/ships.js';
 export { Titles } from '../../systems/titles.js';
 export { Councils } from '../../systems/councils.js';
 export { InnerMap } from '../../world/innerMap.js';
+export { WorldEvents } from '../../world/worldEvents.js';
 export { InnerMapRenderer } from '../innerMapRenderer.js';
 export { InnerMapCharacters } from '../innerMapCharacters.js';
 export { InnerMapCombat } from '../innerMapCombat.js';

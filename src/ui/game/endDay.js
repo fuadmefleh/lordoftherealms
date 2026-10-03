@@ -2,7 +2,7 @@
 // END DAY � onPlayerArrived, endDay turn processing
 // ============================================
 
-import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog } from './_gameImports.js';
+import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents } from './_gameImports.js';
 
 export function onPlayerArrived() {
     const tile = this.world.getTile(this.player.q, this.player.r);
@@ -114,7 +114,8 @@ export function endDay() {
             // Process world turn
             const result = this.world.advanceDay(this.player);
             this.player.endDay();
-            this.player.updateVisibility(this.world, 4);
+            // Watchtower-style house upgrades extend sight
+            this.player.updateVisibility(this.world, 4 + Housing.getTotalBonuses(this.player).visibility);
 
             // ── Check for hostile unit encounters (raiders/pirates) ──
             this._checkHostileEncounters();
@@ -556,7 +557,9 @@ export function endDay() {
             // Show day events
             if (result.events.length > 0) {
                 for (const event of result.events) {
-                    this.ui.showNotification('World Event', event.text, 'info');
+                    // Allies' fortune and enemies' misfortune can reach the player
+                    const effect = WorldEvents.applyPlayerEffects(event, this.player, this.world);
+                    this.ui.showNotification('World Event', effect ? `${event.text} ${effect}` : event.text, effect ? 'success' : 'info');
                 }
             }
 

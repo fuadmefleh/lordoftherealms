@@ -6,6 +6,7 @@
 
 import { Hex } from '../../core/hex.js';
 import { Technology } from '../../systems/technology.js';
+import { Housing } from '../../systems/housing.js';
 import { Religion } from '../../systems/religion.js';
 
 export const PlayerLifecycleMethods = {
@@ -48,6 +49,8 @@ export const PlayerLifecycleMethods = {
         if (typeof Technology !== 'undefined') {
             staminaBonus = Technology.getMovementBonus(this);
         }
+        // Housing: stable/road upgrades always help; a night at home restores extra
+        staminaBonus += Housing.getTotalBonuses(this).movement + Housing.getHomeStaminaBonus(this);
         this.movementRemaining = this.stamina + staminaBonus;
 
         // Only regenerate health if not starving

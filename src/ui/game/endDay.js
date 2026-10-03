@@ -2,7 +2,7 @@
 // END DAY � onPlayerArrived, endDay turn processing
 // ============================================
 
-import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents } from './_gameImports.js';
+import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, RealmWars, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents } from './_gameImports.js';
 
 export function onPlayerArrived() {
     const tile = this.world.getTile(this.player.q, this.player.r);
@@ -329,6 +329,27 @@ export function endDay() {
                         this.ui.showNotification('🛡️ Plot Foiled', r.text, 'success');
                     }
                 }
+            }
+
+            // Kingdoms at war with the player — ultimatums, war hosts, sieges
+            const war = RealmWars.processDaily(this.player, this.world);
+            for (const u of war.ultimatums) {
+                this.ui.showNotification('📜 Ultimatum',
+                    `${u.name} demands ${u.tribute} gold within ${u.dueDay - this.world.day} days, or it means war. Respond from Dynasty → House.`, 'warning');
+            }
+            for (const w of war.declared) {
+                this.ui.showNotification('⚔️ War Declared!', `${w.name} has declared war on you! Its armies will march on your holdings.`, 'error');
+            }
+            for (const m of war.marching) {
+                const t = m.host.target;
+                this.ui.showNotification('🚩 War Host Marching',
+                    `${m.host.name} (strength ${m.host.strength}) marches on your ${t.kind === 'colony' ? `colony ${t.name}` : `${t.type}`} at (${t.q}, ${t.r}). Meet it in the field to stop it.`, 'warning');
+            }
+            for (const s of war.struck) {
+                this.ui.showNotification('🔥 Holding Attacked', s.text, 'error');
+            }
+            for (const e of war.ended) {
+                if (e) this.ui.showNotification('🕊️ Peace', `The war with ${e.war.name} is over.`, 'info');
             }
 
             // Update market prices

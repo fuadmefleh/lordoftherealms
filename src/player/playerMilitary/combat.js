@@ -1,6 +1,6 @@
 // PlayerMilitary — combat members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
-import { Utils, Technology, House, Quests } from './_imports.js';
+import { Utils, Technology, House, Quests, RealmWars } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -546,6 +546,7 @@ Object.assign(PlayerMilitary, {
 
             // Destroy the unit
             worldUnit.destroyed = true;
+            if (worldUnit.type === 'war_host') RealmWars.onHostDefeated(player, world, worldUnit);
 
             Quests.track(player, 'battles_won');
             if (worldUnit.type === 'raider' || worldUnit.type === 'pirate') Quests.track(player, 'raiders_defeated');

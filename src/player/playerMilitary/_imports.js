@@ -2,4 +2,5 @@
 export { Utils } from '../../core/utils.js';
 export { Technology } from '../../systems/technology.js';
 export { House } from '../../systems/house.js';
+export { RealmWars } from '../../systems/realmWars.js';
 export { Quests } from '../../systems/quests.js';

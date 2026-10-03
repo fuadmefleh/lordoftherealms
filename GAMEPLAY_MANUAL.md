@@ -916,6 +916,28 @@ Your reputation with each kingdom ranges from very hostile to allied. It changes
 
 You can **Pledge Allegiance** to any kingdom at their capital, becoming a citizen. This opens access to titles, tax collection, and royal offices. You can only be allegiant to one kingdom at a time. **Renounce Allegiance** to become a free agent again (costs reputation).
 
+### Wars Against You
+
+Kingdoms don't only fight each other. A kingdom's **hostility** toward you is your reputation with it, negated (a −50 reputation counts as +50), plus its rival House's feud if it has one. Your liege kingdom is never hostile.
+
+Every 10 days, if you own at least one property or colony, a kingdom with hostility of 80 or more may issue an **ultimatum**: pay tribute (300 + half its military) within 10 days, or it declares war. Paying earns you +20 reputation and a 60-day truce.
+
+**At war**, the enemy sends **war hosts** (🚩 on the map) every 12 days, at most two at a time. Each host's strength is 20 plus 4% of the kingdom's military, between 25 and 180. Hosts march on whichever of your holdings lies closest to one of the enemy's settlements:
+
+- A **property** at level 2 or higher is sacked: it loses a level and its stored goods, and stops producing for 20 days. A level-1 property is burned to the ground.
+- A **colony** is besieged. If the host is stronger than the garrison, the colony is stormed and joins the enemy kingdom. If the garrison holds, the colony loses 10 loyalty.
+
+A war host attacks you when you're next to it, and you can attack it yourself. Breaking a host gives +30 war score and Prestige. Each holding you lose costs −20 war score, and a colony that holds out gives +10.
+
+**Ending the war**, from Dynasty → House → Wars & Ultimatums:
+
+- **Buy peace.** 200 + 40% of the enemy's military, minus 10 gold per point of war score (at least 100).
+- **Demand peace.** Needs a war score of 50 or more. The enemy pays you reparations (100 + 20% of its military), and you gain Prestige.
+- **Exhaustion.** After 150 days with no host in the field, the war ends by itself.
+- **The enemy falls.** If its kingdom is destroyed, the war ends.
+
+A 120-day truce follows any peace.
+
 ### Kingdom AI
 
 Kingdoms are run by AI with distinct personalities. They:

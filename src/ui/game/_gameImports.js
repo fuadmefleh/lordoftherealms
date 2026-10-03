@@ -39,6 +39,7 @@ export { ActionMenu } from '../actionMenu.js';
 export { Housing } from '../../systems/housing.js';
 export { House } from '../../systems/house.js';
 export { Schemes } from '../../systems/schemes.js';
+export { RealmWars } from '../../systems/realmWars.js';
 export { Espionage } from '../../systems/espionage.js';
 export { Gossip } from '../../systems/gossip.js';
 export { Tavern } from '../../player/tavern.js';

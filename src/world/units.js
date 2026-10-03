@@ -115,7 +115,7 @@ export class WorldUnit {
     static THEMES = {};
 
     /** Units that attack the player when adjacent. */
-    static HOSTILE_TYPES = ['raider', 'pirate', 'beast', 'monster'];
+    static HOSTILE_TYPES = ['raider', 'pirate', 'beast', 'monster', 'war_host'];
 
     /** Land units that travel between settlements, like caravans. */
     static TRAVELER_TYPES = ['mercenary_band', 'pilgrim_group', 'smuggler', 'refugee', 'diplomatic_envoy'];
@@ -196,8 +196,24 @@ export class WorldUnit {
             case 'monster':
                 this.updateRaider(world, player);
                 break;
+            case 'war_host':
+                this.updateWarHost(world);
+                break;
             default:
                 if (WorldUnit.TRAVELER_TYPES.includes(this.type)) this.updateCaravan(world);
+        }
+    }
+
+    /** A kingdom's war host marches on a player holding (see systems/realmWars.js,
+     *  which resolves the strike on arrival). Encounters may clear its target, so
+     *  it re-reads its standing objective every day. */
+    updateWarHost(world) {
+        if (this.objectiveQ == null) return;
+        this.targetQ = this.objectiveQ;
+        this.targetR = this.objectiveR;
+        for (let i = 0; i < this.speed; i++) {
+            if (this.q === this.targetQ && this.r === this.targetR) break;
+            this.moveTowardsTarget(world);
         }
     }
 

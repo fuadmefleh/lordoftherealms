@@ -239,6 +239,7 @@ export const SaveLoad = {
             travelParty: player.travelParty || [],
             heir: player.heir || null,
             house: (typeof House !== 'undefined') ? House.serialize(player.house) : (player.house || null),
+            realmWars: player.realmWars ? JSON.parse(JSON.stringify(player.realmWars)) : null,
             maxLifespan: player.maxLifespan || 70,
             birthDay: player.birthDay || 0,
             marriageDay: player.marriageDay || null,

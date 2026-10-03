@@ -23,6 +23,7 @@ export { Ships } from '../../systems/ships.js';
 export { Housing } from '../../systems/housing.js';
 export { House } from '../../systems/house.js';
 export { Schemes } from '../../systems/schemes.js';
+export { RealmWars } from '../../systems/realmWars.js';
 export { Cartography } from '../../systems/cartography.js';
 export { Colonization } from '../../world/colonization.js';
 export { Relationships } from '../../systems/relationships.js';

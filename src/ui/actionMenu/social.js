@@ -1,6 +1,6 @@
 // ActionMenu — social methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, House, Schemes, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMapRenderer } from './_imports.js';
+import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, House, Schemes, RealmWars, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMapRenderer } from './_imports.js';
 
 Object.assign(ActionMenu, {
     // ============================================
@@ -999,6 +999,38 @@ Object.assign(ActionMenu, {
             }
         }
 
+        // Wars and ultimatums from kingdoms
+        const wars = RealmWars.wars(player);
+        const ultimatums = RealmWars.ultimatums(player);
+        if (wars.length || ultimatums.length) {
+            html += '<h5 style="margin:10px 0 6px;">⚔️ Wars &amp; Ultimatums</h5>';
+            const warBtn = (label, handler, enabled) => `<button ${enabled ? `onclick="${handler}"` : 'disabled'} style="flex:1; padding:4px 6px; background:${enabled ? '#7a3b3b' : '#444'}; border:none; border-radius:3px; cursor:${enabled ? 'pointer' : 'default'}; color:#eee; font-size:11px;">${label}</button>`;
+            for (const u of ultimatums) {
+                html += '<div style="background:rgba(160,110,20,0.25); padding:8px; border-radius:6px; margin-bottom:6px; font-size:12px;">';
+                html += `<div style="display:flex; justify-content:space-between;"><strong>📜 ${u.name}</strong><span style="color:#e0b040;">${Math.max(0, u.dueDay - game.world.day)} day(s)</span></div>`;
+                html += `<div style="color:#bbb; margin:2px 0 6px;">Demands ${u.tribute} gold, or it declares war.</div>`;
+                html += `<div style="display:flex; gap:4px;">${warBtn(`💰 Pay tribute (${u.tribute}g)`, `window._warAct('tribute', '${u.kingdomId}')`, player.gold >= u.tribute)}</div>`;
+                html += '</div>';
+            }
+            for (const w of wars) {
+                const k = game.world.getKingdom(w.kingdomId);
+                if (!k) continue;
+                const price = RealmWars.peacePrice(player, k);
+                const canDemand = w.score >= RealmWars.CONFIG.enforcePeaceScore;
+                html += '<div style="background:rgba(120,30,30,0.35); padding:8px; border-radius:6px; margin-bottom:6px; font-size:12px;">';
+                html += `<div style="display:flex; justify-content:space-between;"><strong>⚔️ War with ${w.name}</strong><span style="color:${w.score >= 0 ? '#7fd07f' : '#e08080'};">Score ${w.score}</span></div>`;
+                html += `<div style="color:#bbb; margin:2px 0 4px;">Day ${game.world.day - w.startDay} · hosts broken ${w.hostsDefeated} · holdings lost ${w.holdingsLost}</div>`;
+                for (const h of w.hosts) {
+                    const t = h.target;
+                    html += `<div style="color:#e08080; font-size:11px;">🚩 ${h.name} (str ${h.strength}) at (${h.q}, ${h.r}) → ${t.kind === 'colony' ? t.name : t.type} (${t.q}, ${t.r})</div>`;
+                }
+                html += '<div style="display:flex; gap:4px; margin-top:6px;">';
+                html += warBtn(`🕊️ Buy peace (${price}g)`, `window._warAct('peace', '${w.kingdomId}')`, player.gold >= price);
+                html += warBtn(`👑 Demand peace (+${RealmWars.reparations(k)}g)`, `window._warAct('demand', '${w.kingdomId}')`, canDemand);
+                html += '</div></div>';
+            }
+        }
+
         // Plots against the House — only revealed schemes are shown
         const plots = Schemes.known(player);
         html += '<h5 style="margin:10px 0 6px;">🗡️ Plots Against You</h5>';
@@ -1076,6 +1108,18 @@ Object.assign(ActionMenu, {
         const afterSink = (title, result, okText) => {
             if (result.success) game.ui.showNotification(title, okText, 'success');
             else game.ui.showNotification(title, result.reason || 'Not possible right now.', 'error');
+            game.ui.updateStats(player, game.world);
+            ActionMenu.showHousePanel(game, tile);
+        };
+        window._warAct = (kind, kingdomId) => {
+            let res;
+            if (kind === 'tribute') res = RealmWars.payTribute(player, game.world, kingdomId);
+            else if (kind === 'peace') res = RealmWars.sueForPeace(player, game.world, kingdomId);
+            else res = RealmWars.demandPeace(player, game.world, kingdomId);
+            if (!res.success) game.ui.showNotification('⚔️ War', res.reason || 'Not possible.', 'error');
+            else if (kind === 'tribute') game.ui.showNotification('📜 Tribute Paid', `War is averted, for now. −${res.cost} gold.`, 'success');
+            else if (kind === 'peace') game.ui.showNotification('🕊️ Peace Bought', `The war is over. −${res.cost} gold.`, 'success');
+            else game.ui.showNotification('👑 Victory', `The enemy sues for peace and pays ${res.gold} gold.`, 'success');
             game.ui.updateStats(player, game.world);
             ActionMenu.showHousePanel(game, tile);
         };

@@ -265,6 +265,9 @@ Object.assign(InnerMap, {
                         sh: 32,
                     }
                     : { fillCategory: fallbackCategory };
+                // Tag which layer stamped this cell so later passes (e.g.
+                // _refreshGrassLayer) can tell grass cells from water cells.
+                tile.terrainDetail.layer = fallbackCategory;
 
                 if (onCell) onCell(tile, info);
             }
@@ -309,6 +312,36 @@ Object.assign(InnerMap, {
 
         this._erodeUntileableStubs(mask);
         this._stampNineTileMask(tiles, mask, brush, 'grass');
+    },
+
+    /**
+     * Re-auto-tile the grass layer after road tiles were added on top of it
+     * (e.g. roads generated at enter() time, after the map was stamped). Road
+     * cells drop out of the grass mask, cells left as untileable stubs are
+     * cleared, and the remaining grass is re-stamped so its edges meet the
+     * new dirt cleanly instead of showing hard-edged squares.
+     * Details saved before the layer tag existed count as grass.
+     * @returns {boolean} true if the layer was re-stamped
+     */
+    _refreshGrassLayer(tiles) {
+        const isGrass = (t) => !!(t && t.terrainDetail && (t.terrainDetail.layer || 'grass') === 'grass');
+        let stale = false;
+        const mask = tiles.map(row => row.map(t => {
+            const grass = isGrass(t);
+            if (grass && t.isRoad) stale = true;
+            return grass && !t.isRoad;
+        }));
+        if (!stale) return false;
+
+        this._erodeUntileableStubs(mask);
+        for (let r = 0; r < tiles.length; r++) {
+            for (let q = 0; q < tiles[r].length; q++) {
+                const tile = tiles[r][q];
+                if (!mask[r][q] && isGrass(tile)) tile.terrainDetail = null;
+            }
+        }
+        this._stampNineTileMask(tiles, mask, this._getGrassNineTileBrush(), 'grass');
+        return true;
     },
 
     /**

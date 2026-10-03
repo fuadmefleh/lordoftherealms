@@ -19,6 +19,10 @@ Object.assign(InnerMap, {
         this.width = this.INNER_MAP_SIZE;
         this.height = this.INNER_MAP_SIZE;
 
+        // Season must be set before generation — the 9-tile brushes pick
+        // their seasonal tiles from it while stamping.
+        this.season = game.world ? game.world.season : 'Spring';
+
         // Generate/retrieve inner map
         this.tiles = this.getOrGenerate(worldTile, worldQ, worldR, game);
         this.currentWorldTile = { q: worldQ, r: worldR };
@@ -53,7 +57,6 @@ Object.assign(InnerMap, {
             this.weather = { type: 'clear', intensity: 0 };
             this.temperature = { value: 0.5, celsius: 10, fahrenheit: 50 };
         }
-        this.season = game.world ? game.world.season : 'Spring';
         this.worldDay = game.world ? (game.world.day || 0) : 0;
 
         // ── Generate buildings list for settlement tiles ──
@@ -73,9 +76,22 @@ Object.assign(InnerMap, {
                         if (tile) tile.isRoad = true;
                     }
                 }
+            } else if (this.tiles.some(row => row.some(t => t && t.isRoad))) {
+                // The layout is a property on the tiles array, which JSON
+                // save/load drops — but the per-tile road flags survive, so
+                // rebuild the list from them instead of carving a fresh
+                // network through the already-stamped grass.
+                for (let r = 0; r < this.height; r++) {
+                    for (let q = 0; q < this.width; q++) {
+                        if (this.tiles[r][q].isRoad) this.roads.push({ q, r });
+                    }
+                }
             } else {
                 this._generateRoads();
             }
+            // Roads added after generation cut through the grass layer —
+            // re-auto-tile it so grass edges meet the dirt cleanly.
+            this._refreshGrassLayer(this.tiles);
         }
 
         // ── Add player property buildings (works for settlement and wilderness tiles) ──

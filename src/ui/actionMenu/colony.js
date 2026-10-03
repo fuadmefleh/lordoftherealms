@@ -380,7 +380,7 @@ Object.assign(ActionMenu, {
                 <input type="hidden" id="selectedPolicy" value="manifest_destiny">
                 <div class="colony-policy-opt">${policyHtml}</div>
                 <hr style="border-color:#555;">
-                <button onclick="ActionMenu.executeFoundColony(game, ${q}, ${r})" 
+                <button data-am-act="executeFoundColony" data-am-args='[${q}, ${r}]' 
                         style="width:100%; padding:8px; background:#4CAF50; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:14px;">
                     🏴 Found Colony (${Colonization.COLONY_COST}g)
                 </button>
@@ -450,7 +450,7 @@ Object.assign(ActionMenu, {
             const hasIndigenous = Colonization.getNearbyIndigenous(world, target.q, target.r, 2).length > 0;
             html += `
                 <div style="padding:8px; margin:4px 0; border:1px solid #555; border-radius:4px; cursor:pointer;"
-                     onclick="ActionMenu.executeSendPioneers(game, ${target.q}, ${target.r})"
+                     data-am-act="executeSendPioneers" data-am-args='[${target.q}, ${target.r}]'
                      onmouseover="this.style.borderColor='#4CAF50'" onmouseout="this.style.borderColor='#555'">
                     <b>${target.terrain}</b> — Distance: ${target.dist} hexes
                     ${hasIndigenous ? '<span style="color:#e8a040;"> ⚠️ Indigenous nearby</span>' : ''}
@@ -544,7 +544,7 @@ Object.assign(ActionMenu, {
                         <span>🪧 Signboard:</span>
                         ${rec.signboard
                             ? '<span style="color:#4CAF50;">✓ Posted</span>'
-                            : `<button onclick="ActionMenu.doPostSignboard(game, game.world.getTile(${tile.q}, ${tile.r})); setTimeout(() => ActionMenu.showManageColonyMenu(game, game.world.getTile(${tile.q}, ${tile.r})), 200);"
+                            : `<button data-am-act="postSignboardAndManageColony" data-am-args='[${tile.q}, ${tile.r}]'
                                 style="padding:3px 10px; background:rgba(245,197,66,0.15); border:1px solid var(--gold); border-radius:4px; cursor:pointer; color:var(--text-primary); font-size:11px;">
                                 Post (20g)</button>`}
                     </div>
@@ -560,14 +560,14 @@ Object.assign(ActionMenu, {
                 const setupCost = Number(inc.setupCost || 0);
                 const dailyCost = Number(inc.dailyCost || 0);
                 const attractionBonusPct = Number((inc.attractionBonus || 0) * 100).toFixed(0);
-                html += `<button onclick="ActionMenu._setIncentiveFromManage(game, ${tile.q}, ${tile.r}, '${id}')"
+                html += `<button data-am-act="_setIncentiveFromManage" data-am-args='[${tile.q}, ${tile.r}, "${id}"]'
                     style="padding:4px 8px; font-size:11px; background:${active ? 'rgba(245,197,66,0.2)' : 'rgba(255,255,255,0.05)'}; border:1px solid ${active ? 'var(--gold)' : 'rgba(255,255,255,0.1)'}; border-radius:4px; cursor:pointer; color:var(--text-primary);"
                     title="${inc.desc || ''} (Setup: ${setupCost}g, Daily: ${dailyCost}g, +${attractionBonusPct}% attraction)">
                     ${inc.icon} ${inc.name}
                 </button>`;
             }
 
-            html += `<button onclick="ActionMenu._setIncentiveFromManage(game, ${tile.q}, ${tile.r}, 'none')"
+            html += `<button data-am-act="_setIncentiveFromManage" data-am-args='[${tile.q}, ${tile.r}, "none"]'
                     style="padding:4px 8px; font-size:11px; background:${rec.incentive === 'none' || !rec.incentive ? 'rgba(245,197,66,0.2)' : 'rgba(255,255,255,0.05)'}; border:1px solid ${rec.incentive === 'none' || !rec.incentive ? 'var(--gold)' : 'rgba(255,255,255,0.1)'}; border-radius:4px; cursor:pointer; color:var(--text-primary);"
                     title="Remove incentives">
                     — None
@@ -603,17 +603,17 @@ Object.assign(ActionMenu, {
                 <hr style="border-color:#555;">
                 <p><b>Colony Actions:</b></p>
 
-                <button onclick="ActionMenu.reinforceColony(game, ${tile.q}, ${tile.r})" 
+                <button data-am-act="reinforceColony" data-am-args='[${tile.q}, ${tile.r}]' 
                         style="width:100%; padding:6px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer;">
                     🛡️ Reinforce Garrison (+10, costs 100g)
                 </button>
 
-                <button onclick="ActionMenu.sendGoldToColony(game, ${tile.q}, ${tile.r})" 
+                <button data-am-act="sendGoldToColony" data-am-args='[${tile.q}, ${tile.r}]' 
                         style="width:100%; padding:6px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer;">
                     💰 Send Gold Aid (+15 loyalty, costs 150g)
                 </button>
 
-                <button onclick="ActionMenu.changeColonyPolicy(game, ${tile.q}, ${tile.r})" 
+                <button data-am-act="changeColonyPolicy" data-am-args='[${tile.q}, ${tile.r}]' 
                         style="width:100%; padding:6px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer;">
                     📜 Change Policy
                 </button>
@@ -697,7 +697,7 @@ Object.assign(ActionMenu, {
             const isCurrent = tile.settlement.colony.policy === id;
             html += `
                 <div style="padding:8px; margin:4px 0; border:1px solid ${isCurrent ? '#4CAF50' : '#555'}; border-radius:4px; cursor:pointer; ${isCurrent ? 'background:#2a3a2a;' : ''}"
-                     onclick="ActionMenu.executeChangePolicy(game, ${q}, ${r}, '${id}')">
+                     data-am-act="executeChangePolicy" data-am-args='[${q}, ${r}, "${id}"]'>
                     <b>${policy.name}</b> ${isCurrent ? '(current)' : ''}<br>
                     <small style="color:#aaa;">${policy.desc}</small><br>
                     <small>Expansion: +${(policy.expansionBonus * 100).toFixed(0)}% | Indigenous: ${policy.indigenousRelation > 0 ? '+' : ''}${policy.indigenousRelation} | Loyalty: +${policy.loyaltyBonus}</small>
@@ -757,17 +757,17 @@ Object.assign(ActionMenu, {
                 <hr style="border-color:#555;">
                 <p><b>Diplomatic Options:</b></p>
 
-                <button onclick="ActionMenu.tradeWithIndigenous(game, ${tile.q}, ${tile.r})" 
+                <button data-am-act="tradeWithIndigenous" data-am-args='[${tile.q}, ${tile.r}]' 
                         style="width:100%; padding:6px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer;">
                     🤝 Trade Goods (costs 50g, reduces hostility)
                 </button>
 
-                <button onclick="ActionMenu.giftToIndigenous(game, ${tile.q}, ${tile.r})" 
+                <button data-am-act="giftToIndigenous" data-am-args='[${tile.q}, ${tile.r}]' 
                         style="width:100%; padding:6px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer;">
                     🎁 Offer Tribute (costs 100g, greatly reduces hostility)
                 </button>
 
-                <button onclick="ActionMenu.learnFromIndigenous(game, ${tile.q}, ${tile.r})" 
+                <button data-am-act="learnFromIndigenous" data-am-args='[${tile.q}, ${tile.r}]' 
                         style="width:100%; padding:6px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer;">
                     📖 Learn Local Knowledge (${indigenous.hostility < 40 ? 'Available' : 'Need friendly relations'})
                 </button>
@@ -913,20 +913,20 @@ Object.assign(ActionMenu, {
                 <hr style="border-color:#555;">
                 <p><b>Create a Map:</b></p>
 
-                <button onclick="ActionMenu.createMap(game, 'regional')" 
+                <button data-am-act="createMap" data-am-args='["regional"]' 
                         style="width:100%; padding:8px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer; text-align:left;">
                     🗺️ <b>Regional Map</b> — Chart the surrounding area (radius 8)<br>
                     <small style="color:#aaa;">Cost: ${Cartography.MAP_TYPES.regional.cost}g | Quality: ${qualityData.label}</small>
                 </button>
 
-                <button onclick="ActionMenu.createMap(game, 'survey')" 
+                <button data-am-act="createMap" data-am-args='["survey"]' 
                         style="width:100%; padding:8px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer; text-align:left;">
                     📐 <b>Survey Map</b> — Detailed survey showing resources (radius 5)<br>
                     <small style="color:#aaa;">Cost: ${Cartography.MAP_TYPES.survey.cost}g | Shows resources</small>
                 </button>
 
                 ${player.allegiance ? `
-                <button onclick="ActionMenu.createMap(game, 'kingdom')" 
+                <button data-am-act="createMap" data-am-args='["kingdom"]' 
                         style="width:100%; padding:8px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer; text-align:left;">
                     👑 <b>Kingdom Map</b> — Map your kingdom's territory<br>
                     <small style="color:#aaa;">Cost: ${Cartography.MAP_TYPES.kingdom.cost}g | Shows borders</small>
@@ -935,7 +935,7 @@ Object.assign(ActionMenu, {
                 ${mapCount > 0 ? `
                 <hr style="border-color:#555;">
                 <p><b>Your Maps:</b></p>
-                <button onclick="ActionMenu.showMapCollection(game)" 
+                <button data-am-act="showMapCollection" 
                         style="width:100%; padding:8px; margin:3px 0; background:#3a5a3a; color:#fff; border:none; border-radius:4px; cursor:pointer;">
                     📚 View Map Collection (${mapCount} maps)
                 </button>` : ''}
@@ -943,7 +943,7 @@ Object.assign(ActionMenu, {
                 ${skill >= 3 ? `
                 <hr style="border-color:#555;">
                 <p><b>Advanced:</b></p>
-                <button onclick="ActionMenu.showAddErrorsMenu(game)" 
+                <button data-am-act="showAddErrorsMenu" 
                         style="width:100%; padding:8px; margin:3px 0; background:#5a3a3a; color:#fff; border:none; border-radius:4px; cursor:pointer; text-align:left;">
                     ✏️ <b>Add Deliberate Errors</b> — Alter a map for deception/security<br>
                     <small style="color:#aaa;">Requires cartography skill 3+</small>
@@ -1045,11 +1045,11 @@ Object.assign(ActionMenu, {
                     </div>
                     ${map.notes ? `<p style="font-style:italic; color:#aaa; margin:4px 0; font-size:12px;">${map.notes}</p>` : ''}
                     <div style="margin-top:6px; display:flex; gap:4px;">
-                        <button onclick="ActionMenu.readMap(game, ${i})" 
+                        <button data-am-act="readMap" data-am-args='[${i}]' 
                                 style="flex:1; padding:4px 8px; background:#3a5a3a; color:#fff; border:none; border-radius:3px; cursor:pointer; font-size:12px;">
                             📖 Read
                         </button>
-                        <button onclick="ActionMenu.sellPlayerMap(game, ${i})" 
+                        <button data-am-act="sellPlayerMap" data-am-args='[${i}]' 
                                 style="flex:1; padding:4px 8px; background:#5a5a3a; color:#fff; border:none; border-radius:3px; cursor:pointer; font-size:12px;">
                             💰 Sell (${Math.floor(map.value * 0.7)}g)
                         </button>
@@ -1136,7 +1136,7 @@ Object.assign(ActionMenu, {
 
             html += `
                 <div style="padding:8px; margin:4px 0; border:1px solid #555; border-radius:4px; cursor:pointer;"
-                     onclick="ActionMenu.executeAddErrors(game, ${i})"
+                     data-am-act="executeAddErrors" data-am-args='[${i}]'
                      onmouseover="this.style.borderColor='#e8a040'" onmouseout="this.style.borderColor='#555'">
                     <b>${map.icon || '📜'} ${map.name}</b><br>
                     <small style="color:#aaa;">Current errors: ${map.deliberateErrors.length} / ${Cartography.MAX_DELIBERATE_ERRORS}</small>
@@ -1209,7 +1209,7 @@ Object.assign(ActionMenu, {
                                 <b>${map.icon || '📜'} ${map.name}</b>${tags}<br>
                                 <small style="color:#aaa;">${qualityData.label} | Accuracy: ${(map.accuracy * 100).toFixed(0)}% | Radius: ${map.radius}</small>
                             </div>
-                            <button onclick="ActionMenu.buyMapFromTrade(game, ${i}, ${tileQ}, ${tileR})" 
+                            <button data-am-act="buyMapFromTrade" data-am-args='[${i}, ${tileQ}, ${tileR}]' 
                                     style="padding:4px 12px; background:${canAfford ? '#3a5a3a' : '#444'}; color:#fff; border:none; border-radius:3px; cursor:${canAfford ? 'pointer' : 'default'}; white-space:nowrap;"
                                     ${canAfford ? '' : 'disabled'}>
                                 Buy (${price}g)
@@ -1230,7 +1230,7 @@ Object.assign(ActionMenu, {
                 html += `
                     <div style="padding:6px; margin:3px 0; border:1px solid #555; border-radius:4px; display:flex; justify-content:space-between; align-items:center;">
                         <span>${map.icon || '📜'} ${map.name}</span>
-                        <button onclick="ActionMenu.sellMapFromTrade(game, ${i}, ${tileQ}, ${tileR})" 
+                        <button data-am-act="sellMapFromTrade" data-am-args='[${i}, ${tileQ}, ${tileR}]' 
                                 style="padding:3px 10px; background:#5a5a3a; color:#fff; border:none; border-radius:3px; cursor:pointer; font-size:12px;">
                             Sell (${sellPrice}g)
                         </button>

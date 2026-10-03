@@ -236,7 +236,7 @@ Object.assign(ActionMenu, {
                     </button>`;
                 }
 
-                html += `<button onclick="game.ui.hideCustomPanel();"
+                html += `<button data-am-act="closePanel"
                     style="margin-top: 6px; padding: 8px 20px; background: none; border: 1px solid rgba(255,255,255,0.1);
                            border-radius: 6px; cursor: pointer; color: var(--text-secondary); font-size: 12px;">
                     Nevermind
@@ -359,7 +359,7 @@ Object.assign(ActionMenu, {
                     }
                 }
 
-                html += `<button onclick="game.ui.hideCustomPanel();"
+                html += `<button data-am-act="closePanel"
                             style="padding: 10px 32px; margin-top: 12px; background: linear-gradient(135deg, var(--gold), #d4a030); color: #1a1a2e; border: none;
                                    border-radius: 6px; cursor: pointer; font-family: var(--font-display); font-size: 14px; font-weight: bold; letter-spacing: 1px;">
                             Continue
@@ -1151,7 +1151,7 @@ Object.assign(ActionMenu, {
 
                 if (statusMsg) html += `<div style="font-size: 12px; color: var(--text-secondary); white-space: pre-line; margin-bottom: 8px;">${statusMsg}</div>`;
 
-                html += `<button onclick="game.ui.hideCustomPanel(); game.endDay();"
+                html += `<button data-am-act="closePanelAndEndDay"
                     style="width: 100%; margin-top: 8px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
             }
 
@@ -1428,7 +1428,7 @@ Object.assign(ActionMenu, {
                 if (isHolySite) html += `<div style="color: #9b59b6; margin-top: 4px;">✨ Holy site amplified your meditation!</div>`;
                 html += `</div>`;
 
-                html += `<button onclick="game.ui.hideCustomPanel(); game.endDay();"
+                html += `<button data-am-act="closePanelAndEndDay"
                     style="width: 100%; margin-top: 8px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
             }
 
@@ -1618,7 +1618,7 @@ Object.assign(ActionMenu, {
                         <div style="font-size: 12px; color: ${d.color}; font-weight: 600;">▶</div>
                     </button>`;
                 }
-                html += `<button onclick="game.ui.hideCustomPanel();"
+                html += `<button data-am-act="closePanel"
                     style="margin-top: 6px; padding: 8px 20px; background: none; border: 1px solid rgba(255,255,255,0.1);
                            border-radius: 6px; cursor: pointer; color: var(--text-secondary); font-size: 12px;">Cancel</button>`;
                 html += '</div>';
@@ -2039,7 +2039,7 @@ Object.assign(ActionMenu, {
             html += '<div style="color: #88f; margin-top: 8px; text-align: center; font-size: 12px;">🍀 Your patience improved your luck!</div>';
         }
 
-        html += `<button onclick="game.ui.hideCustomPanel(); game.endDay();"
+        html += `<button data-am-act="closePanelAndEndDay"
                     style="width: 100%; margin-top: 14px; padding: 12px; background: linear-gradient(135deg, var(--gold), #d4a030); color: #1a1a2e; border: none; border-radius: 6px; cursor: pointer;
                            font-family: var(--font-display); font-size: 14px; font-weight: bold; letter-spacing: 1px;">
                     Done Fishing
@@ -2281,7 +2281,7 @@ Object.assign(ActionMenu, {
                 html += `<div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Reached depth: ${currentDepth}m</div>`;
                 if (healthCost > 0) html += `<div style="color: #f88; margin-top: 4px;">Hard work cost ${healthCost} HP.</div>`;
                 if (statusMsg) html += `<div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">${statusMsg}</div>`;
-                html += `<button onclick="game.ui.hideCustomPanel(); game.endDay();"
+                html += `<button data-am-act="closePanelAndEndDay"
                     style="width: 100%; margin-top: 12px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
             }
 
@@ -2505,7 +2505,7 @@ Object.assign(ActionMenu, {
                     html += `<div style="font-size: 18px; color: #e74c3c; font-weight: bold; margin-bottom: 8px;">Kicked!</div>`;
                     html += `<div style="font-size: 13px; color: var(--text-secondary);">${statusMsg}</div>`;
                 }
-                html += `<button onclick="game.ui.hideCustomPanel(); game.endDay();"
+                html += `<button data-am-act="closePanelAndEndDay"
                     style="width: 100%; margin-top: 12px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
             }
 

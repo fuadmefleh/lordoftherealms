@@ -302,7 +302,7 @@ Object.assign(ActionMenu, {
                         style="width:160px;accent-color:#e74c3c;">
                     <span id="pokerAnteLabel" style="color:var(--gold);font-weight:bold;min-width:38px;">${Math.min(20,anteMax)}</span>g
                 </div>`;
-                html += `<button onclick="ActionMenu._pokerDeal(parseInt(document.getElementById('pokerAnte').value))"
+                html += `<button onclick="window._pokerDeal(parseInt(document.getElementById('pokerAnte').value))"
                     style="display:block;width:100%;padding:12px;background:linear-gradient(135deg,#c0392b,#e74c3c);color:white;border:none;
                            border-radius:8px;cursor:pointer;font-family:var(--font-display);font-size:15px;letter-spacing:1px;font-weight:bold;">
                     🂡 Deal Cards
@@ -362,33 +362,33 @@ Object.assign(ActionMenu, {
                         <span id="pokerBetLabel" style="color:var(--gold);font-weight:bold;min-width:32px;">${currentAnte}</span>g
                     </div>`;
                     html += `<div style="display:flex;gap:8px;justify-content:center;">
-                        <button onclick="ActionMenu._pokerAction('check')"
+                        <button onclick="window._pokerAction('check')"
                             style="padding:10px 20px;background:rgba(52,152,219,0.15);border:2px solid #3498db;border-radius:8px;
                                    cursor:pointer;color:#3498db;font-size:13px;font-weight:bold;">✔ Check</button>
-                        <button onclick="ActionMenu._pokerAction('bet')"
+                        <button onclick="window._pokerAction('bet')"
                             style="padding:10px 20px;background:rgba(231,76,60,0.15);border:2px solid #e74c3c;border-radius:8px;
                                    cursor:pointer;color:#e74c3c;font-size:13px;font-weight:bold;">💰 Bet</button>
-                        <button onclick="ActionMenu._pokerAction('fold')"
+                        <button onclick="window._pokerAction('fold')"
                             style="padding:10px 18px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:8px;
                                    cursor:pointer;color:var(--text-secondary);font-size:13px;">✖ Fold</button>
                     </div>`;
                 } else if (!gameOver && isFacingBet) {
                     html += `<div style="display:flex;gap:8px;justify-content:center;">
-                        <button onclick="ActionMenu._pokerCall()"
+                        <button onclick="window._pokerCall()"
                             style="padding:10px 24px;background:rgba(46,204,113,0.15);border:2px solid #2ecc71;border-radius:8px;
                                    cursor:pointer;color:#2ecc71;font-size:13px;font-weight:bold;">📲 Call</button>
-                        <button onclick="ActionMenu._pokerAction('fold')"
+                        <button onclick="window._pokerAction('fold')"
                             style="padding:10px 18px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:8px;
                                    cursor:pointer;color:var(--text-secondary);font-size:13px;">✖ Fold</button>
                     </div>`;
                 } else if (gameOver) {
-                    html += `<button onclick="ActionMenu._pokerNewHand()"
+                    html += `<button onclick="window._pokerNewHand()"
                         style="display:block;width:100%;padding:11px;margin-top:4px;background:linear-gradient(135deg,#c0392b,#e74c3c);color:white;border:none;
                                border-radius:8px;cursor:pointer;font-family:var(--font-display);font-size:14px;letter-spacing:1px;"
                         ${gold < 10 ? 'disabled style="opacity:0.4;"' : ''}>
                         ${gold >= 10 ? '🂡 New Hand' : 'Out of gold!'}
                     </button>`;
-                    html += `<button onclick="game.ui.hideCustomPanel();"
+                    html += `<button data-am-act="closePanel"
                         style="display:block;width:100%;padding:9px;margin-top:6px;background:none;border:1px solid rgba(255,255,255,0.1);
                                border-radius:8px;cursor:pointer;color:var(--text-secondary);font-size:12px;">Leave Table</button>`;
                 }
@@ -1078,7 +1078,7 @@ Object.assign(ActionMenu, {
             `;
         }
 
-        html += `<button onclick="game.ui.hideCustomPanel();"
+        html += `<button data-am-act="closePanel"
             style="margin-top: 6px; padding: 8px 20px; background: none; border: 1px solid rgba(255,255,255,0.1);
                    border-radius: 6px; cursor: pointer; color: var(--text-secondary); font-size: 12px;">
             Cancel
@@ -1163,7 +1163,7 @@ Object.assign(ActionMenu, {
         if (scorePercent >= 40) html += `<div style="font-size: 12px; color: #9b59b6;">+1 Renown</div>`;
         if (perf.bonusKarma && scorePercent >= 25) html += `<div style="font-size: 12px; color: #2ecc71;">+1 Karma</div>`;
 
-        html += `<button onclick="game.ui.hideCustomPanel();"
+        html += `<button data-am-act="closePanel"
             style="padding: 10px 32px; margin-top: 16px; background: linear-gradient(135deg, var(--gold), #d4a030); color: #1a1a2e; border: none;
                    border-radius: 6px; cursor: pointer; font-family: var(--font-display); font-size: 14px; font-weight: bold; letter-spacing: 1px;">
             Continue
@@ -2224,7 +2224,7 @@ Object.assign(ActionMenu, {
         }
 
         if (opts.cancelable) {
-            html += `<button onclick="game.ui.hideCustomPanel();"
+            html += `<button data-am-act="closePanel"
                 style="margin-top: 8px; padding: 6px 16px; background: none; border: 1px solid rgba(255,255,255,0.08);
                        border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: 11px;">Cancel</button>`;
         }

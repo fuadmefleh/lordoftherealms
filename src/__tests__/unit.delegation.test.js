@@ -8,6 +8,11 @@
  */
 import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { DataLoader } from '../core/dataLoader.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 let routeDelegatedClick;
 
@@ -75,5 +80,44 @@ describe('routeDelegatedClick', () => {
             routeDelegatedClick(ui, fakeEl({ uiAct: 'openActionMenu', uiArgs: 'not-json' }))
         ).not.toThrow();
         expect(ui.openActionMenu).toHaveBeenCalledWith();
+    });
+});
+
+describe('inline handlers — static guards', () => {
+    // There is no global `game` (see GameView.jsx), so inline onclick code that
+    // names it throws on click. Panel buttons must route via data-am-act /
+    // data-ui-act, and each routed name must be a real method.
+    const files = [];
+    const walk = (dir) => {
+        for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+            const full = path.join(dir, ent.name);
+            if (ent.isDirectory()) walk(full);
+            else if (ent.name.endsWith('.js')) files.push(full);
+        }
+    };
+    walk(path.resolve(__dirname, '../ui'));
+
+    it('no inline onclick references the removed `game` global', () => {
+        const offenders = [];
+        for (const f of files) {
+            const src = fs.readFileSync(f, 'utf-8');
+            for (const m of src.matchAll(/onclick="([^"]*)"/g)) {
+                if (/(^|[^\w.$])game\b/.test(m[1])) offenders.push(`${path.basename(f)}: ${m[1].slice(0, 80)}`);
+            }
+        }
+        expect(offenders).toEqual([]);
+    });
+
+    it('every data-am-act and inline ActionMenu call names an existing method', async () => {
+        const { ActionMenu } = await import('../ui/actionMenu.js');
+        const missing = new Set();
+        for (const f of files) {
+            const src = fs.readFileSync(f, 'utf-8');
+            for (const m of src.matchAll(/data-am-act="(\w+)"|onclick="[^"]*?ActionMenu\.(\w+)\(/g)) {
+                const name = m[1] || m[2];
+                if (typeof ActionMenu[name] !== 'function') missing.add(name);
+            }
+        }
+        expect([...missing]).toEqual([]);
     });
 });

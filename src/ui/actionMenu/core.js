@@ -3,6 +3,42 @@ import { ActionMenu } from './_ref.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader } from './_imports.js';
 
 Object.assign(ActionMenu, {
+    // ── Delegated-click helpers ──
+    // Panel buttons use data-am-act="<method>" (routed by routeDelegatedClick
+    // with the live game) because there is no global `game` for inline onclick.
+
+    /** Close the custom panel. */
+    closePanel(game) {
+        game.ui.hideCustomPanel();
+    },
+
+    /** Close the custom panel and refresh the HUD. */
+    closePanelAndRefresh(game) {
+        game.ui.hideCustomPanel();
+        game.ui.updateStats(game.player, game.world);
+    },
+
+    /** Close the custom panel and end the day. */
+    closePanelAndEndDay(game) {
+        game.ui.hideCustomPanel();
+        game.endDay();
+    },
+
+    /**
+     * Open a tile-based ActionMenu panel (`method(game, tile)`) for hex (q, r),
+     * or the player's own hex when no coordinates are given.
+     */
+    openTileMenu(game, method, q = game.player.q, r = game.player.r) {
+        game.ui.hideCustomPanel();
+        if (typeof ActionMenu[method] === 'function') ActionMenu[method](game, game.world.getTile(q, r));
+    },
+
+    /** Post a colony signboard, then reopen the colony panel. */
+    postSignboardAndManageColony(game, q, r) {
+        ActionMenu.doPostSignboard(game, game.world.getTile(q, r));
+        setTimeout(() => ActionMenu.showManageColonyMenu(game, game.world.getTile(q, r)), 200);
+    },
+
     /**
      * Show action menu at a location
      */
@@ -520,9 +556,6 @@ Object.assign(ActionMenu, {
                 break;
             case 'collect_goods':
                 ActionMenu.collectGoods(game, tile);
-                break;
-            case 'start_caravan':
-                ActionMenu.showCaravanMenu(game, tile);
                 break;
             case 'rest':
                 game.endDay();

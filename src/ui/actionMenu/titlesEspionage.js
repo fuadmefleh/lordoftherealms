@@ -47,7 +47,7 @@ Object.assign(ActionMenu, {
                     </div>`;
 
                 if (t.meetsRequirements) {
-                    html += `<button onclick="ActionMenu._appointTitle(game, '${t.id}')" style="
+                    html += `<button data-am-act="_appointTitle" data-am-args='["${t.id}"]' style="
                         width:100%; padding:6px; margin-top:4px;
                         background:#2a4a2a; border:1px solid #4a6a4a; border-radius:4px;
                         color:#4caf50; cursor:pointer; font-size:12px;
@@ -67,7 +67,7 @@ Object.assign(ActionMenu, {
             }
         }
 
-        html += `<button onclick="game.ui.hideCustomPanel();" style="
+        html += `<button data-am-act="closePanel" style="
             width:100%; padding:8px; margin-top:6px;
             background:#444; border:1px solid #666; border-radius:6px;
             color:#eee; cursor:pointer; font-size:13px;
@@ -106,7 +106,7 @@ Object.assign(ActionMenu, {
                 <div style="color:#4fc3f7; margin-top:4px;">📋 Duty: ${title.duties.type.replace(/_/g, ' ')}</div>
                 <div style="color:#aaa; margin-top:4px; font-size:12px;">Complete your duties within ${title.duties.deadlineDays} days or face penalties!</div>
             </div>
-            <button onclick="game.ui.hideCustomPanel(); game.ui.updateStats(game.player, game.world);" style="
+            <button data-am-act="closePanelAndRefresh" style="
                 width:100%; padding:10px; margin-top:8px;
                 background:#444; border:1px solid #666; border-radius:6px;
                 color:#eee; cursor:pointer; font-size:14px;
@@ -186,12 +186,12 @@ Object.assign(ActionMenu, {
 
         // Resign button
         html += `<div style="margin-top:12px; display:flex; gap:8px;">
-            <button onclick="game.ui.hideCustomPanel();" style="
+            <button data-am-act="closePanel" style="
                 flex:1; padding:8px;
                 background:#444; border:1px solid #666; border-radius:6px;
                 color:#eee; cursor:pointer; font-size:13px;
             ">Close</button>
-            <button onclick="ActionMenu._resignTitle(game);" style="
+            <button data-am-act="_resignTitle" style="
                 flex:1; padding:8px;
                 background:#4a2a2a; border:1px solid #6a3a3a; border-radius:6px;
                 color:#ff6666; cursor:pointer; font-size:13px;
@@ -240,7 +240,7 @@ Object.assign(ActionMenu, {
             <div style="background:#1a2a1a; padding:8px; border-radius:4px; margin:10px 0;">
                 <div style="color:#4caf50;">Settlements this month: ${result.count}</div>
             </div>
-            <button onclick="game.ui.hideCustomPanel(); game.ui.updateStats(game.player, game.world);" style="
+            <button data-am-act="closePanelAndRefresh" style="
                 width:100%; padding:10px; margin-top:8px;
                 background:#444; border:1px solid #666; border-radius:6px;
                 color:#eee; cursor:pointer; font-size:14px;
@@ -278,7 +278,7 @@ Object.assign(ActionMenu, {
                 </div>
             </div>
             <p style="color:#aaa; font-size:12px;">Travel to the fugitive's location and capture them before time runs out!</p>
-            <button onclick="game.ui.hideCustomPanel(); game.ui.updateStats(game.player, game.world);" style="
+            <button data-am-act="closePanelAndRefresh" style="
                 width:100%; padding:10px; margin-top:8px;
                 background:#444; border:1px solid #666; border-radius:6px;
                 color:#eee; cursor:pointer; font-size:14px;
@@ -307,7 +307,7 @@ Object.assign(ActionMenu, {
                     <div style="color:#ffd700;">💰 Bounty: ${result.gold} gold</div>
                     <div style="color:#4caf50;">Total captures: ${result.captureCount}</div>
                 </div>
-                <button onclick="game.ui.hideCustomPanel(); game.ui.updateStats(game.player, game.world);" style="
+                <button data-am-act="closePanelAndRefresh" style="
                     width:100%; padding:10px; margin-top:8px;
                     background:#444; border:1px solid #666; border-radius:6px;
                     color:#eee; cursor:pointer; font-size:14px;
@@ -318,7 +318,7 @@ Object.assign(ActionMenu, {
                 <span style="font-size:42px;">💨</span>
                 <h3 style="color:#ff9800;">Fugitive Escaped!</h3>
                 <p style="color:#aaa;">${result.reason}</p>
-                <button onclick="game.ui.hideCustomPanel();" style="
+                <button data-am-act="closePanel" style="
                     width:100%; padding:10px; margin-top:8px;
                     background:#444; border:1px solid #666; border-radius:6px;
                     color:#eee; cursor:pointer; font-size:14px;
@@ -354,7 +354,7 @@ Object.assign(ActionMenu, {
                 <div style="color:#4fc3f7;">⭐ Renown +1</div>
                 <div style="color:#4caf50;">Settlements blessed: ${result.count}</div>
             </div>
-            <button onclick="game.ui.hideCustomPanel(); game.ui.updateStats(game.player, game.world);" style="
+            <button data-am-act="closePanelAndRefresh" style="
                 width:100%; padding:10px; margin-top:8px;
                 background:#444; border:1px solid #666; border-radius:6px;
                 color:#eee; cursor:pointer; font-size:14px;
@@ -396,12 +396,12 @@ Object.assign(ActionMenu, {
                 ${councilResult && councilResult.success ? `<div style="color:#4fc3f7;">🗳️ Session active until day ${councilResult.sessionUntilDay}</div>` : ''}
             </div>
             <p style="color:#888; font-size:12px; font-style:italic;">The lords and ladies of the realm attended your council. Your authority is recognized.</p>
-            ${typeof Councils !== 'undefined' ? `<button onclick="ActionMenu.showCouncilMenu(game, game.world.getTile(game.player.q, game.player.r))" style="
+            ${typeof Councils !== 'undefined' ? `<button data-am-act="openTileMenu" data-am-args='["showCouncilMenu"]' style="
                 width:100%; padding:10px; margin-top:8px;
                 background:#1f4d7a; border:1px solid #357ab8; border-radius:6px;
                 color:#fff; cursor:pointer; font-size:14px;
             ">Open Council Chamber</button>` : ''}
-            <button onclick="game.ui.hideCustomPanel(); game.ui.updateStats(game.player, game.world);" style="
+            <button data-am-act="closePanelAndRefresh" style="
                 width:100%; padding:10px; margin-top:8px;
                 background:#444; border:1px solid #666; border-radius:6px;
                 color:#eee; cursor:pointer; font-size:14px;
@@ -458,7 +458,7 @@ Object.assign(ActionMenu, {
             </div>
         </div>`;
 
-        html += `<button onclick="ActionMenu.councilConvene(game)" style="width:100%; margin-bottom:10px; padding:10px; border-radius:6px; border:1px solid #3f6ca5; background:#244b78; color:#fff; cursor:pointer;">
+        html += `<button data-am-act="councilConvene" style="width:100%; margin-bottom:10px; padding:10px; border-radius:6px; border:1px solid #3f6ca5; background:#244b78; color:#fff; cursor:pointer;">
             🏛️ Convene Council ${canConveneIn > 0 ? `(available in ${canConveneIn}d)` : ''}
         </button>`;
 
@@ -473,8 +473,8 @@ Object.assign(ActionMenu, {
                     <div style="height:100%; width:${Math.max(0, Math.min(100, faction.support))}%; background:${faction.support >= 55 ? '#4caf50' : faction.support >= 40 ? '#ffb74d' : '#ef5350'};"></div>
                 </div>
                 <div style="display:flex; gap:6px;">
-                    <button onclick="ActionMenu.councilManageFaction(game, '${faction.id}', 'manage')" style="flex:1; padding:7px; border-radius:4px; border:1px solid #456a4a; background:#1e3a22; color:#dcedc8; cursor:pointer;">🤝 Manage (80g)</button>
-                    <button onclick="ActionMenu.councilManageFaction(game, '${faction.id}', 'suppress')" style="flex:1; padding:7px; border-radius:4px; border:1px solid #7a3b3b; background:#3a1f1f; color:#ffcdd2; cursor:pointer;">🛡️ Suppress</button>
+                    <button data-am-act="councilManageFaction" data-am-args='["${faction.id}", "manage"]' style="flex:1; padding:7px; border-radius:4px; border:1px solid #456a4a; background:#1e3a22; color:#dcedc8; cursor:pointer;">🤝 Manage (80g)</button>
+                    <button data-am-act="councilManageFaction" data-am-args='["${faction.id}", "suppress"]' style="flex:1; padding:7px; border-radius:4px; border:1px solid #7a3b3b; background:#3a1f1f; color:#ffcdd2; cursor:pointer;">🛡️ Suppress</button>
                 </div>
                 ${faction.suppressed ? `<div style="margin-top:5px; font-size:11px; color:#ffb3b3;">Suppressed until day ${faction.suppressedUntilDay}</div>` : ''}
             </div>`;
@@ -490,7 +490,7 @@ Object.assign(ActionMenu, {
                 html += '<div style="font-size:11px; color:#999; margin-bottom:8px;">Tax rate is already at maximum.</div>';
             } else {
                 for (const rate of higherRates) {
-                    html += `<button onclick="ActionMenu.councilVoteTax(game, '${rate.id}')" style="width:100%; margin-bottom:6px; padding:8px; border-radius:4px; border:1px solid #755b2a; background:#3a2e18; color:#ffe0b2; cursor:pointer;">🗳️ Vote for ${rate.name}</button>`;
+                    html += `<button data-am-act="councilVoteTax" data-am-args='["${rate.id}"]' style="width:100%; margin-bottom:6px; padding:8px; border-radius:4px; border:1px solid #755b2a; background:#3a2e18; color:#ffe0b2; cursor:pointer;">🗳️ Vote for ${rate.name}</button>`;
                 }
             }
             if (summary.taxIncreaseApproval && summary.taxIncreaseApproval.expiresDay >= day) {
@@ -508,8 +508,8 @@ Object.assign(ActionMenu, {
             for (const target of targets) {
                 const hasMandate = Councils.hasWarMandate(player, game.world, target.id);
                 html += `<div style="display:flex; gap:6px; margin-bottom:6px;">
-                    <button onclick="ActionMenu.councilVoteWar(game, '${target.id}')" style="flex:1; padding:8px; border-radius:4px; border:1px solid #7d4f2b; background:#3d2618; color:#ffccbc; cursor:pointer;">🗳️ Vote War: ${target.name}</button>
-                    <button onclick="ActionMenu.councilDeclareWar(game, '${target.id}')" style="padding:8px 10px; border-radius:4px; border:1px solid ${hasMandate ? '#8b2d2d' : '#555'}; background:${hasMandate ? '#4a1e1e' : '#222'}; color:${hasMandate ? '#ffcdd2' : '#888'}; cursor:${hasMandate ? 'pointer' : 'not-allowed'};" ${hasMandate ? '' : 'disabled'}>⚔️ Declare</button>
+                    <button data-am-act="councilVoteWar" data-am-args='["${target.id}"]' style="flex:1; padding:8px; border-radius:4px; border:1px solid #7d4f2b; background:#3d2618; color:#ffccbc; cursor:pointer;">🗳️ Vote War: ${target.name}</button>
+                    <button data-am-act="councilDeclareWar" data-am-args='["${target.id}"]' style="padding:8px 10px; border-radius:4px; border:1px solid ${hasMandate ? '#8b2d2d' : '#555'}; background:${hasMandate ? '#4a1e1e' : '#222'}; color:${hasMandate ? '#ffcdd2' : '#888'}; cursor:${hasMandate ? 'pointer' : 'not-allowed'};" ${hasMandate ? '' : 'disabled'}>⚔️ Declare</button>
                 </div>`;
             }
         }

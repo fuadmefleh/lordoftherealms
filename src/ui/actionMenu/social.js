@@ -548,7 +548,7 @@ Object.assign(ActionMenu, {
             `;
         }
 
-        html += `<button onclick="game.ui.hideCustomPanel(); ActionMenu.showMeetPeopleMenu(game, game.world.getTile(${tile.q}, ${tile.r}));" 
+        html += `<button data-am-act="openTileMenu" data-am-args='["showMeetPeopleMenu", ${tile.q}, ${tile.r}]' 
                     style="width: 100%; margin-top: 8px; padding: 10px; background: rgba(255,255,255,0.08); 
                     border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; color: var(--text-secondary); 
                     font-family: var(--font-body);">Back to People</button>`;
@@ -572,7 +572,7 @@ Object.assign(ActionMenu, {
         if (spouse.kingdomId) html += '<div>+5 reputation with spouse\'s kingdom</div>';
         html += '<div style="margin-top: 6px; color: #ff69b4;">You may now have children as time passes!</div>';
         html += '</div>';
-        html += `<button onclick="game.ui.hideCustomPanel();" style="width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;">Begin Your New Life Together</button>`;
+        html += `<button data-am-act="closePanel" style="width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;">Begin Your New Life Together</button>`;
         html += '</div>';
 
         game.ui.showCustomPanel('Wedding', html);
@@ -721,7 +721,7 @@ Object.assign(ActionMenu, {
             confirmHtml += '<h4 style="margin-top: 0; color: #f66;">💔 Divorce</h4>';
             confirmHtml += '<p style="font-size: 12px;">Are you sure you want to end your marriage? This will cost you karma and renown.</p>';
             confirmHtml += `<button onclick="window._doDivorce()" style="width: 100%; padding: 10px; background: #a33; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: #fff; margin-bottom: 6px;">Yes, Divorce</button>`;
-            confirmHtml += `<button onclick="game.ui.hideCustomPanel(); ActionMenu.showRelationshipsMenu(game, game.world.getTile(game.player.q, game.player.r));" style="width: 100%; padding: 8px; background: #555; border: none; border-radius: 4px; cursor: pointer; color: #ccc;">Cancel</button>`;
+            confirmHtml += `<button data-am-act="openTileMenu" data-am-args='["showRelationshipsMenu"]' style="width: 100%; padding: 8px; background: #555; border: none; border-radius: 4px; cursor: pointer; color: #ccc;">Cancel</button>`;
             confirmHtml += '</div>';
             game.ui.showCustomPanel('Confirm Divorce', confirmHtml);
         };
@@ -836,7 +836,7 @@ Object.assign(ActionMenu, {
         html += '</div>';
 
         if (house) {
-            html += `<button onclick="game.ui.hideCustomPanel(); ActionMenu.showHousePanel(game, tile);" style="width:100%; padding:8px; margin-bottom:10px; background: var(--gold); border:none; border-radius:4px; cursor:pointer; font-weight:bold; color:#000;">🛡️ Manage ${house.name}</button>`;
+            html += `<button data-am-act="openTileMenu" data-am-args='["showHousePanel"${tile ? `, ${tile.q}, ${tile.r}` : ''}]' style="width:100%; padding:8px; margin-bottom:10px; background: var(--gold); border:none; border-radius:4px; cursor:pointer; font-weight:bold; color:#000;">🛡️ Manage ${house.name}</button>`;
         }
 
         // Children
@@ -1008,7 +1008,7 @@ Object.assign(ActionMenu, {
         }
         html += '</div>';
 
-        html += `<button onclick="game.ui.hideCustomPanel(); ActionMenu.showDynastyMenu(game, tile);" style="width:100%; padding:8px; margin-top:10px; background:#555; border:none; border-radius:4px; cursor:pointer; color:#ccc;">← Back to Dynasty</button>`;
+        html += `<button data-am-act="openTileMenu" data-am-args='["showDynastyMenu"${tile ? `, ${tile.q}, ${tile.r}` : ''}]' style="width:100%; padding:8px; margin-top:10px; background:#555; border:none; border-radius:4px; cursor:pointer; color:#ccc;">← Back to Dynasty</button>`;
         html += '</div>';
         game.ui.showCustomPanel('House', html);
 
@@ -1184,7 +1184,7 @@ Object.assign(ActionMenu, {
                     if (loss.type === 'gold') successHtml += `<div style="color:#e08080;">Lost ${loss.amount} gold to rival claimants.</div>`;
                 }
                 successHtml += '</div>';
-                successHtml += `<button onclick="game.ui.hideCustomPanel(); game.ui.updateStats(game.player, game.world);" style="width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;">Begin Your Story</button>`;
+                successHtml += `<button data-am-act="closePanelAndRefresh" style="width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;">Begin Your Story</button>`;
                 successHtml += '</div>';
 
                 game.ui.showCustomPanel('New Heir', successHtml);

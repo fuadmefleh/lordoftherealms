@@ -348,7 +348,7 @@ Object.assign(ActionMenu, {
                     <div style="font-size: 36px; margin-bottom: 8px;">🙏</div>
                     <div style="font-size: 14px; color: #e74c3c;">You need at least 10 karma to found a religion.</div>
                     <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Current karma: ${karma}</div>
-                    <button onclick="game.ui.hideCustomPanel();"
+                    <button data-am-act="closePanel"
                         style="margin-top: 16px; padding: 8px 24px; background: none; border: 1px solid rgba(255,255,255,0.1);
                                border-radius: 6px; cursor: pointer; color: var(--text-secondary); font-size: 12px;">Close</button>
                 </div></div>`;
@@ -407,7 +407,7 @@ Object.assign(ActionMenu, {
             // Action buttons
             const canFound = religionName.trim().length > 0 && selectedTenets.length === 3;
             html += `<div style="display: flex; gap: 10px; justify-content: center;">
-                <button onclick="game.ui.hideCustomPanel();"
+                <button data-am-act="closePanel"
                     style="padding: 10px 24px; background: none; border: 1px solid rgba(255,255,255,0.1);
                            border-radius: 6px; cursor: pointer; color: var(--text-secondary); font-size: 13px;">
                     Cancel
@@ -785,7 +785,7 @@ Object.assign(ActionMenu, {
             html += `</div>`;
         }
 
-        html += `<button onclick="game.ui.hideCustomPanel()" style="width: 100%; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: var(--font-body); color: #1a1a2e;">Continue</button>`;
+        html += `<button data-am-act="closePanel" style="width: 100%; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: var(--font-body); color: #1a1a2e;">Continue</button>`;
         html += '</div>';
 
         game.ui.showCustomPanel(`🔍 Exploring ${poi.name}`, html);
@@ -1238,7 +1238,7 @@ Object.assign(ActionMenu, {
 
         html += `
             <div style="margin-top: 12px; display: flex; gap: 8px;">
-                <button onclick="game.ui.hideCustomPanel()"
+                <button data-am-act="closePanel"
                     style="flex: 1; padding: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
                     border-radius: 4px; cursor: pointer; color: white; font-family: var(--font-body);">
                     Done
@@ -1353,7 +1353,7 @@ Object.assign(ActionMenu, {
 
         html += `
             <div style="margin-top: 8px;">
-                <button onclick="game.ui.hideCustomPanel()"
+                <button data-am-act="closePanel"
                     style="width: 100%; padding: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
                     border-radius: 4px; cursor: pointer; color: white; font-family: var(--font-body);">
                     Close

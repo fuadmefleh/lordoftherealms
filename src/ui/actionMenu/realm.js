@@ -190,7 +190,7 @@ Object.assign(ActionMenu, {
                         style="flex:1; padding: 10px; background: #c89b3c; border: none; border-radius: 6px; color: #111; font-weight: 700; cursor: pointer;">
                         Found Kingdom
                     </button>
-                    <button onclick="game.ui.hideCustomPanel();"
+                    <button data-am-act="closePanel"
                         style="padding: 10px 12px; background: #444; border: none; border-radius: 6px; color: #ddd; cursor: pointer;">
                         Cancel
                     </button>
@@ -557,7 +557,7 @@ Object.assign(ActionMenu, {
                 }
             }
 
-            resultHtml += `<button onclick="game.ui.hideCustomPanel(); game.endDay();" style="width: 100%; margin-top: 10px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
+            resultHtml += `<button data-am-act="closePanelAndEndDay" style="width: 100%; margin-top: 10px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
             resultHtml += '</div>';
 
             game.ui.showCustomPanel('Tournament Results', resultHtml);
@@ -688,7 +688,7 @@ Object.assign(ActionMenu, {
                 }
             }
 
-            summary += '<button onclick="game.ui.hideCustomPanel(); game.endDay();" style="width: 100%; margin-top: 10px; padding: 10px; background: var(--gold); border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Continue</button>';
+            summary += '<button data-am-act="closePanelAndEndDay" style="width: 100%; margin-top: 10px; padding: 10px; background: var(--gold); border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Continue</button>';
             summary += '</div>';
 
             game.ui.showCustomPanel('Festival Results', summary);

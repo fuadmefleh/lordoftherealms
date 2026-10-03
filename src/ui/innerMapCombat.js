@@ -285,6 +285,8 @@ export const InnerMapCombat = {
                 victim: { name: npc.name, type: npc.type, icon: npc.icon },
                 q: worldTile.q,
                 r: worldTile.r,
+                // Bystanders on the inner map around the player see the crime
+                scene: { npcs: InnerMap.npcs || [], q: InnerMap.playerInnerQ, r: InnerMap.playerInnerR },
             });
             if (result.witnessed && game.ui) {
                 game.ui.showNotification(

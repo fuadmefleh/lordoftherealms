@@ -82,7 +82,7 @@ Object.assign(ActionMenu, {
         // Buttons
         html += `
             <div style="display: flex; gap: 8px;">
-                <button onclick="game.ui.hideCustomPanel()" style="
+                <button data-am-act="closePanel" style="
                     flex: 1; padding: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
                     border-radius: 6px; cursor: pointer; color: white; font-family: var(--font-body); font-size: 13px;">
                     Retreat
@@ -188,7 +188,7 @@ Object.assign(ActionMenu, {
             }
         }
 
-        html += `<button onclick="game.ui.hideCustomPanel(); game.ui.updateStats(game.player, game.world);" style="
+        html += `<button data-am-act="closePanelAndRefresh" style="
             width: 100%; padding: 10px; margin-top: 10px;
             background: #444; border: 1px solid #666; border-radius: 6px;
             color: #eee; cursor: pointer; font-size: 14px;
@@ -312,7 +312,7 @@ Object.assign(ActionMenu, {
             }
         }
 
-        html += `<button onclick="game.ui.hideCustomPanel(); game.ui.updateStats(game.player, game.world);" style="
+        html += `<button data-am-act="closePanelAndRefresh" style="
             width:100%; padding:10px; margin-top:10px;
             background:#444; border:1px solid #666; border-radius:6px;
             color:#eee; cursor:pointer; font-size:14px;
@@ -466,7 +466,7 @@ Object.assign(ActionMenu, {
         }
 
         // Close button
-        html += `<button onclick="game.ui.hideCustomPanel();" style="
+        html += `<button data-am-act="closePanel" style="
             width:100%; padding:10px; margin-top:12px;
             background:#333; border:1px solid #555; border-radius:6px;
             color:#aaa; cursor:pointer; font-size:14px;
@@ -537,7 +537,7 @@ Object.assign(ActionMenu, {
             html += `<p style="color:#aaa; font-style:italic;">"Thank you, traveler. You are welcome in our lands."</p>`;
         }
 
-        html += `<button onclick="game.ui.hideCustomPanel(); game.ui.updateStats(game.player, game.world);" style="
+        html += `<button data-am-act="closePanelAndRefresh" style="
             width:100%; padding:10px; margin-top:10px;
             background:#444; border:1px solid #666; border-radius:6px;
             color:#eee; cursor:pointer; font-size:14px;
@@ -598,7 +598,7 @@ Object.assign(ActionMenu, {
             }
         }
 
-        html += `<button onclick="game.ui.hideCustomPanel();" style="
+        html += `<button data-am-act="closePanel" style="
             width:100%; padding:10px; margin-top:10px;
             background:#444; border:1px solid #666; border-radius:6px;
             color:#eee; cursor:pointer; font-size:14px;
@@ -664,7 +664,7 @@ Object.assign(ActionMenu, {
             html += `<p style="color:#aaa; font-style:italic;">"Welcome to our cause. Serve loyally and you will be rewarded."</p>`;
         }
 
-        html += `<button onclick="game.ui.hideCustomPanel(); game.ui.updateStats(game.player, game.world);" style="
+        html += `<button data-am-act="closePanelAndRefresh" style="
             width:100%; padding:10px; margin-top:10px;
             background:#444; border:1px solid #666; border-radius:6px;
             color:#eee; cursor:pointer; font-size:14px;
@@ -715,7 +715,7 @@ Object.assign(ActionMenu, {
             html += `<p style="color:#ff9800; font-style:italic;">"So be it. Leave, and do not expect our welcome again."</p>`;
         }
 
-        html += `<button onclick="game.ui.hideCustomPanel(); game.ui.updateStats(game.player, game.world);" style="
+        html += `<button data-am-act="closePanelAndRefresh" style="
             width:100%; padding:10px; margin-top:10px;
             background:#444; border:1px solid #666; border-radius:6px;
             color:#eee; cursor:pointer; font-size:14px;
@@ -774,7 +774,7 @@ Object.assign(ActionMenu, {
                         <span style="font-size:11px; color:#888;">💰 ${t.salary} gold/day</span>
                     </div>
                     <div style="font-size:12px; color:#aaa; margin:4px 0;">${t.description}</div>
-                    <button onclick="ActionMenu._appointTitle(game, '${t.id}')" style="
+                    <button data-am-act="_appointTitle" data-am-args='["${t.id}"]' style="
                         width:100%; padding:6px; margin-top:4px;
                         background:#2a4a2a; border:1px solid #4a6a4a; border-radius:4px;
                         color:#4caf50; cursor:pointer; font-size:12px;
@@ -783,7 +783,7 @@ Object.assign(ActionMenu, {
             }
         }
 
-        html += `<button onclick="game.ui.hideCustomPanel();" style="
+        html += `<button data-am-act="closePanel" style="
             width:100%; padding:8px; margin-top:6px;
             background:#444; border:1px solid #666; border-radius:6px;
             color:#eee; cursor:pointer; font-size:13px;
@@ -850,7 +850,7 @@ Object.assign(ActionMenu, {
             }
         }
 
-        html += `<button onclick="game.ui.hideCustomPanel(); game.ui.updateStats(game.player, game.world);" style="
+        html += `<button data-am-act="closePanelAndRefresh" style="
             width:100%; padding:10px; margin-top:10px;
             background:#444; border:1px solid #666; border-radius:6px;
             color:#eee; cursor:pointer; font-size:14px;
@@ -926,7 +926,7 @@ Object.assign(ActionMenu, {
             }
         }
 
-        html += `<button onclick="game.ui.hideCustomPanel(); game.ui.updateStats(game.player, game.world);" style="
+        html += `<button data-am-act="closePanelAndRefresh" style="
             width:100%; padding:10px; margin-top:10px;
             background:#444; border:1px solid #666; border-radius:6px;
             color:#eee; cursor:pointer; font-size:14px;
@@ -1118,7 +1118,7 @@ Object.assign(ActionMenu, {
         html += `</div>`;
 
         html += `<div style="display:flex; gap:8px;">`;
-        html += `<button onclick="game.ui.hideCustomPanel(); game.ui.updateStats(game.player, game.world);" style="
+        html += `<button data-am-act="closePanelAndRefresh" style="
             flex:1; padding:10px;
             background:#444; border:1px solid #666; border-radius:6px;
             color:#eee; cursor:pointer; font-size:14px;

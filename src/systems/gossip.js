@@ -16,7 +16,6 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
-// import { InnerMap } from '../world/innerMap.js';  // DISABLED: Inner map feature disabled
 import { Hex } from '../core/hex.js';
 
 export const Gossip = {
@@ -122,7 +121,7 @@ export const Gossip = {
 
         // Detect witnesses within radius
         const witnessRadius = data.witnessRadius || 5;
-        const witnesses = this._detectWitnesses(victim, witnessRadius);
+        const witnesses = this._detectWitnesses(victim, witnessRadius, opts.scene);
 
         // Track kill stats
         if (crimeType === 'murder' || rumorTypeId.includes('murder')) {
@@ -195,32 +194,24 @@ export const Gossip = {
     // ══════════════════════════════════════════════
 
     /**
-     * Find NPCs within radius of the crime on the inner map.
-     * DISABLED: Inner map feature disabled - returns empty array
+     * Find NPCs within radius of the crime scene.
+     * @param {Object} victim - { name, type }
+     * @param {number} radius - tiles (Chebyshev distance)
+     * @param {Object} [scene] - { npcs, q, r }: bystanders and the crime's
+     *   inner-map position, passed in by the caller. No scene → no witnesses.
      */
-    _detectWitnesses(victim, radius) {
-        // return [];  // Inner map disabled
-        // const npcs = InnerMap.npcs || [];
-        // const pq = InnerMap.playerInnerQ;
-        // const pr = InnerMap.playerInnerR;
-        // const witnesses = [];
-        //
-        // for (const npc of npcs) {
-        //     // Skip the victim
-        //     if (npc.name === victim.name && npc.type === victim.type) continue;
-        //     // Check tile distance from the player (crime scene)
-        //     const dist = Math.max(Math.abs(npc.q - pq), Math.abs(npc.r - pr));
-        //     if (dist <= radius) {
-        //         witnesses.push({
-        //             name: npc.name,
-        //             type: npc.type,
-        //             id: npc.id,
-        //             distance: dist,
-        //         });
-        //     }
-        // }
-        //
-        // return witnesses;
+    _detectWitnesses(victim, radius, scene) {
+        if (!scene || !Array.isArray(scene.npcs)) return [];
+        const witnesses = [];
+        for (const npc of scene.npcs) {
+            // Skip the victim
+            if (npc.name === victim.name && npc.type === victim.type) continue;
+            const dist = Math.max(Math.abs(npc.q - scene.q), Math.abs(npc.r - scene.r));
+            if (dist <= radius) {
+                witnesses.push({ name: npc.name, type: npc.type, id: npc.id, distance: dist });
+            }
+        }
+        return witnesses;
     },
 
     /**

@@ -559,7 +559,7 @@ Object.assign(ActionMenu, {
                 ActionMenu.showShipPassageMenu(game, tile);
                 break;
             case 'manage_property':
-                ActionMenu.showManagePropertyMenu(game, tile);
+                ActionMenu.showPropertyPicker(game, tile);
                 break;
             case 'build_infrastructure':
                 ActionMenu.showBuildInfrastructureMenu(game, tile);

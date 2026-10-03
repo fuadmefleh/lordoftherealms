@@ -5,6 +5,36 @@ import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructu
 
 Object.assign(PlayerEconomy, {
     /**
+     * Definition for a property type id — base property types first, then
+     * tech-unlocked buildings (whose ids differ from their keys).
+     */
+    getPropertyDef(type) {
+        if (!type) return null;
+        const key = String(type).toUpperCase();
+        if (PlayerEconomy.PROPERTY_TYPES[key]) return PlayerEconomy.PROPERTY_TYPES[key];
+        const tech = (typeof Technology !== 'undefined' && Technology.TECH_BUILDINGS) || {};
+        return tech[key] || Object.values(tech).find(b => b.id === type) || null;
+    },
+
+    /** Does this property type turn inputs into outputs via recipes? */
+    isRecipeBuilding(type) {
+        const def = PlayerEconomy.getPropertyDef(type);
+        return !!(def && (def.recipeBased || Array.isArray(def.allowedRecipes)));
+    },
+
+    /** Every player property on a tile (a tile can hold one of each type). */
+    getPropertiesAt(tile) {
+        if (!tile) return [];
+        if (tile.playerProperties && tile.playerProperties.length > 0) return tile.playerProperties;
+        return tile.playerProperty ? [tile.playerProperty] : [];
+    },
+
+    /** The player's property of a given type on a tile, or null. */
+    findPropertyAt(tile, type) {
+        return PlayerEconomy.getPropertiesAt(tile).find(p => p.type === type) || null;
+    },
+
+    /**
      * Check if player can build a property at a location
      */
     canBuildProperty(player, propertyType, tile, world) {
@@ -68,15 +98,9 @@ Object.assign(PlayerEconomy, {
         if (prop.requiredSettlement) {
             let hasSettlement = tile.settlement != null;
 
-            // Allow settlement-requiring buildings to be built on tiles adjacent to settlements
-            const ADJACENT_OK_TYPES = [
-                'workshop', 'brewery', 'grain_mill', 'bakery', 'forge', 'tannery', 'sawmill',
-                'smokehouse', 'butcher', 'rope_walk', 'pottery_kiln', 'weaver', 'winery',
-                'apothecary', 'fletcher', 'jeweler', 'dye_works', 'chandlery',
-                'glassworks', 'scriptorium', 'blacksmith', 'perfumery',
-                'clay_pit',
-            ];
-            if (!hasSettlement && ADJACENT_OK_TYPES.includes(prop.id)) {
+            // Production buildings may sit on a tile adjacent to a settlement
+            const adjacentOk = PlayerEconomy.isRecipeBuilding(prop.id) || prop.allowAdjacentSettlement;
+            if (!hasSettlement && adjacentOk) {
                 const neighbors = Hex.neighbors(tile.q, tile.r);
                 for (const n of neighbors) {
                     const nTile = world.getTile(n.q, n.r);
@@ -178,12 +202,18 @@ Object.assign(PlayerEconomy, {
 
         const production = {};
 
-        for (const prop of player.properties) {
-            const tile = world.getTile(prop.q, prop.r);
-            if (!tile || !tile.playerProperty) continue;
+        // Raw producers run first so a recipe building on the same tile can
+        // draw on today's harvest (e.g. a Mill beside a Farm).
+        const refs = [...player.properties].sort((a, b) =>
+            PlayerEconomy.isRecipeBuilding(a.type) - PlayerEconomy.isRecipeBuilding(b.type));
 
-            const property = tile.playerProperty;
+        for (const prop of refs) {
+            const tile = world.getTile(prop.q, prop.r);
+            // A tile can hold several property types — match this entry's own
+            const property = PlayerEconomy.findPropertyAt(tile, prop.type);
+            if (!property) continue;
             if (property.underConstruction) continue; // Still building
+            const def = PlayerEconomy.getPropertyDef(property.type);
 
             // Handle retooling countdown (workshop/brewery recipe change)
             if (property.retooling) {
@@ -265,20 +295,24 @@ Object.assign(PlayerEconomy, {
                 if (irrigBonus > 0) amount *= (1 + irrigBonus);
             }
 
+            // Water-wheel bonus for mills built on a river
+            if (def && def.riverBonus && tile.hasRiver) amount *= (1 + def.riverBonus);
+
             amount = Math.floor(amount);
+
+            // Pay upkeep first — an unpaid property idles and keeps its inputs
+            const upkeepCost = (property.upkeep || 0) * property.level;
+            if (player.gold < upkeepCost) {
+                property.daysOwned++;
+                continue;
+            }
+            player.gold -= upkeepCost;
 
             let producedAmount = amount;
             let producedGood = property.produces;
-            let consumedInput = false;
 
-            // Workshop & Brewery & Specialized Buildings Specific Logic (recipe-based production)
-            const RECIPE_BUILDINGS = [
-                'workshop', 'brewery', 'grain_mill', 'bakery', 'forge', 'tannery', 'sawmill',
-                'smokehouse', 'butcher', 'rope_walk', 'pottery_kiln', 'weaver', 'winery',
-                'apothecary', 'fletcher', 'jeweler', 'dye_works', 'chandlery',
-                'glassworks', 'scriptorium', 'blacksmith', 'perfumery',
-            ];
-            if (RECIPE_BUILDINGS.includes(property.type)) {
+            // Recipe-based production (workshops, mills, bakeries, ...)
+            if (PlayerEconomy.isRecipeBuilding(property.type)) {
                 if (!property.activeRecipe) {
                     producedAmount = 0; // No recipe, no production
                 } else {
@@ -287,9 +321,6 @@ Object.assign(PlayerEconomy, {
                         // Check input storage
                         const inputNeeded = recipe.inputQty;
                         const outputQty = recipe.outputQty;
-
-                        // Calculate max runs based on input
-                        const maxRuns = Math.floor((property.inputStorage || 0) / inputNeeded);
 
                         // Calculate desired runs based on production rate (which we treat as number of runs or output? Let's treat rate as raw output capacity)
                         // But for simplicity, let's say rate = number of recipe runs per day?
@@ -300,13 +331,18 @@ Object.assign(PlayerEconomy, {
                         let runs = Math.floor(amount / outputQty);
                         if (runs < 1) runs = 1; // Minimum 1 run if rate allows at least something? Or maybe strict.
 
+                        // Draw missing input straight from sibling properties on
+                        // this tile that produce it (Farm -> Mill -> Bakery chains)
+                        PlayerEconomy._pullInputFromNeighbours(tile, property, recipe.input,
+                            runs * inputNeeded - (property.inputStorage || 0));
+
+                        const maxRuns = Math.floor((property.inputStorage || 0) / inputNeeded);
                         const actualRuns = Math.min(runs, maxRuns);
 
                         if (actualRuns > 0) {
                             property.inputStorage -= actualRuns * inputNeeded;
                             producedAmount = actualRuns * outputQty;
                             producedGood = recipe.output;
-                            consumedInput = true;
                         } else {
                             producedAmount = 0; // Not enough input
                         }
@@ -314,20 +350,9 @@ Object.assign(PlayerEconomy, {
                 }
             }
 
-            // Pay upkeep
-            const upkeepCost = (property.upkeep || 0) * property.level;
-
-            // Only produce if upkeep paid (and inputs valid for workshop)
-            if (player.gold >= upkeepCost) {
-                player.gold -= upkeepCost;
-
-                if (producedAmount > 0) {
-                    // Add to property storage if upkeep paid
-                    property.storage = (property.storage || 0) + producedAmount;
-
-                    // Track production
-                    production[producedGood] = (production[producedGood] || 0) + producedAmount;
-                }
+            if (producedAmount > 0) {
+                property.storage = (property.storage || 0) + producedAmount;
+                production[producedGood] = (production[producedGood] || 0) + producedAmount;
             }
 
             // Increment days owned
@@ -351,6 +376,22 @@ Object.assign(PlayerEconomy, {
     },
 
     /**
+     * Move up to `need` units of `goodId` from the storage of other
+     * properties on the same tile into a recipe building's input storage.
+     */
+    _pullInputFromNeighbours(tile, property, goodId, need) {
+        if (need <= 0) return;
+        for (const sib of PlayerEconomy.getPropertiesAt(tile)) {
+            if (need <= 0) break;
+            if (sib === property || sib.underConstruction || sib.produces !== goodId || !(sib.storage > 0)) continue;
+            const take = Math.min(need, sib.storage);
+            sib.storage -= take;
+            property.inputStorage = (property.inputStorage || 0) + take;
+            need -= take;
+        }
+    },
+
+    /**
      * Collect goods from properties into player inventory
      */
     collectGoods(player, world) {
@@ -361,10 +402,10 @@ Object.assign(PlayerEconomy, {
 
         for (const prop of player.properties) {
             const tile = world.getTile(prop.q, prop.r);
-            if (!tile || !tile.playerProperty) continue;
-
-            const property = tile.playerProperty;
-            if (!property.produces || property.storage <= 0) continue;
+            const property = PlayerEconomy.findPropertyAt(tile, prop.type);
+            if (!property) continue;
+            // Taverns pay out gold directly — their storage only tallies earnings
+            if (!property.produces || property.produces === 'gold' || property.storage <= 0) continue;
 
             // Move from property storage to player inventory
             const goodType = property.produces;

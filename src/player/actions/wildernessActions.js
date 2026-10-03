@@ -11,6 +11,7 @@ import { Religion } from '../../systems/religion.js';
 import { Infrastructure } from '../../systems/infrastructure.js';
 import { Technology } from '../../systems/technology.js';
 import { Culture } from '../../systems/culture.js';
+import { PlayerEconomy } from '../playerEconomy.js';
 
 export function addWildernessActions(actions, player, tile, world) {
     // Meditate / Pray (anywhere on passable terrain)
@@ -178,12 +179,13 @@ export function addWildernessActions(actions, player, tile, world) {
             description: 'Collect goods, upgrade, or send caravans'
         });
 
-        if (tile.playerProperty.produces && tile.playerProperty.storage && tile.playerProperty.storage > 0) {
+        const collectable = PlayerEconomy.getPropertiesAt(tile).find(p => p.produces && p.produces !== 'gold' && p.storage > 0);
+        if (collectable) {
             actions.push({
                 type: 'collect_goods',
                 label: 'Collect Goods',
                 icon: '📦',
-                description: `Collect stored ${tile.playerProperty.produces}`
+                description: `Collect stored ${collectable.produces}`
             });
         }
     }

@@ -21,10 +21,27 @@ Object.assign(ActionMenu, {
      */
     showBuildPropertyMenu(game, tile) {
         let html = '<div>';
-        html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">';
 
-        for (const [key, prop] of Object.entries(PlayerEconomy.PROPERTY_TYPES)) {
-            const check = PlayerEconomy.canBuildProperty(game.player, key, tile, game.world);
+        // Buildable here first; everything else goes in a collapsed section so
+        // the long property list stays scannable on any given tile
+        const entries = Object.entries(PlayerEconomy.PROPERTY_TYPES).map(([key, prop]) =>
+            ({ key, prop, check: PlayerEconomy.canBuildProperty(game.player, key, tile, game.world) }));
+        const buildable = entries.filter(e => e.check.canBuild);
+        const elsewhere = entries.filter(e => !e.check.canBuild);
+        const grid = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">';
+
+        html += `<div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Can build here (${buildable.length})</div>`;
+        if (buildable.length === 0) {
+            html += '<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">Nothing can be built on this tile right now.</div>';
+        }
+        html += grid;
+
+        for (const [idx, { key, prop, check }] of [...buildable, ...elsewhere].entries()) {
+            if (idx === buildable.length && elsewhere.length > 0) {
+                html += '</div>';
+                html += `<details style="margin-top: 10px;"><summary style="cursor: pointer; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Needs another location or more gold (${elsewhere.length})</summary>`;
+                html += `<div style="margin-top: 6px;">${grid}`;
+            }
 
             // Determine resource display
             let productionText = '';
@@ -57,6 +74,7 @@ Object.assign(ActionMenu, {
         }
 
         html += '</div>'; // close grid
+        if (elsewhere.length > 0) html += '</div></details>';
 
         // Show tech-unlocked buildings
         if (typeof Technology !== 'undefined') {

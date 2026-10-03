@@ -791,11 +791,14 @@
             "cost": 900,
             "constructionDays": 10,
             "produces": null,
-            "productionRate": 10,
+            "productionRate": 14,
             "upkeep": 8,
             "requiredTerrain": ["plains", "grassland", "woodland"],
             "requiredTech": "water_mill",
-            "description": "Water-powered mill for automated processing. +30% workshop output. Upkeep: 8g/day"
+            "allowedRecipes": ["FLOUR", "FIREWOOD"],
+            "recipeChangeCost": 50,
+            "riverBonus": 0.5,
+            "description": "Water-powered mill that grinds flour or saws firewood. +50% output on a river. Upkeep: 8g/day"
         },
         "QUARRY": {
             "id": "quarry",
@@ -907,11 +910,13 @@
             "cost": 700,
             "constructionDays": 6,
             "produces": null,
-            "productionRate": 0,
+            "productionRate": 12,
             "upkeep": 5,
             "requiredTerrain": ["plains", "grassland", "hills"],
             "requiredTech": "windmill",
-            "description": "Wind-powered mill for grain processing and water pumping. Upkeep: 5g/day"
+            "allowedRecipes": ["FLOUR"],
+            "recipeChangeCost": 0,
+            "description": "A tall wind-powered mill that grinds grain into flour faster than a basic Mill. Upkeep: 5g/day"
         }
     },
 

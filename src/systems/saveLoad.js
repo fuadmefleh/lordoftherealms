@@ -309,7 +309,9 @@ export const SaveLoad = {
                 tile.improvement = savedTile.improvement;
                 tile.infrastructure = savedTile.infrastructure || null;
                 tile.playerProperties = savedTile.playerProperties || null;
-                tile.playerProperty = savedTile.playerProperty || null;
+                // JSON turns the shared reference into a separate copy — re-link it
+                tile.playerProperty = (tile.playerProperties && tile.playerProperties[0])
+                    || savedTile.playerProperty || null;
                 tile.indigenous = savedTile.indigenous || null;
             }
         }

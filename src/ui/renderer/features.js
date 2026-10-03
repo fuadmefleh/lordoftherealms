@@ -567,10 +567,25 @@ Object.assign(Renderer.prototype, {
                             const loggingVars = ['forester_hut00.png', 'forester_hut01.png', 'forester_hut02.png'];
                             imageName = loggingVars[(q + r) % loggingVars.length];
                             break;
-                        case 'pasture':
-                            const pastureVars = ['corral00.png', 'corral01.png', 'corral02.png'];
-                            imageName = pastureVars[(q + r) % pastureVars.length];
-                            break;
+                        case 'pasture': imageName = 'buildings/pasture00_sheep.png'; break;
+                        case 'grain_mill':
+                        case 'windmill_building':
+                        case 'water_mill_building': imageName = 'buildings/windmill00.png'; break;
+                        case 'cattle_ranch': imageName = 'buildings/corral00_cows.png'; break;
+                        case 'horse_ranch': imageName = 'buildings/corral01.png'; break;
+                        case 'hunting_lodge':
+                        case 'forager_hut': imageName = `buildings/foresterHut0${(q + r) % 3}.png`; break;
+                        case 'clay_pit': imageName = 'buildings/clayPit00.png'; break;
+                        case 'scriptorium': imageName = 'buildings/scriptorium00.png'; break;
+                        case 'apothecary': imageName = 'buildings/alchemistsLab00.png'; break;
+                        case 'fletcher': imageName = 'buildings/archeryRange00.png'; break;
+                        case 'bakery':
+                        case 'smokehouse':
+                        case 'butcher': imageName = 'buildings/cookhouse00.png'; break;
+                        case 'forge':
+                        case 'blacksmith': imageName = 'smithy.png'; break;
+                        case 'brewery':
+                        case 'tavern': imageName = 'inn.png'; break;
                     }
                 } else if (tile.religiousBuilding) {
                     switch (tile.religiousBuilding.type) {

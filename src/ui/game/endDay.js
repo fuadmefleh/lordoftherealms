@@ -173,30 +173,15 @@ export function endDay() {
                     const pTile = this.world.getTile(propRef.q, propRef.r);
                     if (!pTile) continue;
 
-                    // Check playerProperties array
-                    if (pTile.playerProperties) {
-                        for (const prop of pTile.playerProperties) {
-                            if (prop.underConstruction && prop.constructionDaysLeft > 0) {
-                                prop.constructionDaysLeft--;
-                                if (prop.constructionDaysLeft <= 0) {
-                                    prop.underConstruction = false;
-                                    this.ui.showNotification('🏗️ Construction Complete!',
-                                        `Your ${prop.name} is now operational!`, 'success');
-                                }
-                            }
-                        }
-                    }
-
-                    // Also sync playerProperty (backwards compat reference)
-                    if (pTile.playerProperty && pTile.playerProperty.underConstruction && pTile.playerProperty.constructionDaysLeft > 0) {
-                        // Already handled above if in playerProperties array
-                        if (!pTile.playerProperties || !pTile.playerProperties.includes(pTile.playerProperty)) {
-                            pTile.playerProperty.constructionDaysLeft--;
-                            if (pTile.playerProperty.constructionDaysLeft <= 0) {
-                                pTile.playerProperty.underConstruction = false;
-                                this.ui.showNotification('🏗️ Construction Complete!',
-                                    `Your ${pTile.playerProperty.name} is now operational!`, 'success');
-                            }
+                    // Each ref is one property — tick only that one, not every
+                    // property sharing the tile
+                    const prop = PlayerEconomy.findPropertyAt(pTile, propRef.type);
+                    if (prop && prop.underConstruction && prop.constructionDaysLeft > 0) {
+                        prop.constructionDaysLeft--;
+                        if (prop.constructionDaysLeft <= 0) {
+                            prop.underConstruction = false;
+                            this.ui.showNotification('🏗️ Construction Complete!',
+                                `Your ${prop.name} is now operational!`, 'success');
                         }
                     }
                 }

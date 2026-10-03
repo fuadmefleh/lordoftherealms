@@ -119,7 +119,7 @@ Object.assign(PlayerEconomy, {
         let isInternalTransfer = false;
 
         // Internal Transfer Logic: If destination is a Workshop owned by player
-        if (toSettlement.isPlayerProperty && (toSettlement.type === 'workshop' || toSettlement.type === 'brewery')) {
+        if (toSettlement.isPlayerProperty && PlayerEconomy.isRecipeBuilding(toSettlement.type)) {
             isInternalTransfer = true;
             expectedProfit = 0; // No gold profit, materials transfer
         } else {
@@ -274,9 +274,22 @@ Object.assign(PlayerEconomy, {
                 if (caravan.isInternalTransfer) {
                     // ... (existing logic)
                     const targetTile = world.getTile(caravan.toPos.q, caravan.toPos.r);
-                    if (targetTile && targetTile.playerProperty && (targetTile.playerProperty.type === 'workshop' || targetTile.playerProperty.type === 'brewery')) {
-                        for (const qty of Object.values(caravan.goods)) {
-                            targetTile.playerProperty.inputStorage = (targetTile.playerProperty.inputStorage || 0) + qty;
+                    for (const [goodId, qty] of Object.entries(caravan.goods)) {
+                        // Deliver to the building the caravan was sent to, else any
+                        // processor on that tile whose recipe uses the good
+                        const props = PlayerEconomy.getPropertiesAt(targetTile);
+                        const needsGood = (p) => {
+                            const recipe = p.activeRecipe && PlayerEconomy.RECIPES[p.activeRecipe];
+                            return PlayerEconomy.isRecipeBuilding(p.type) && recipe && recipe.input === goodId;
+                        };
+                        const dest = props.find(p => p.type === caravan.targetPropertyType && needsGood(p))
+                            || props.find(needsGood);
+                        if (dest) {
+                            dest.inputStorage = (dest.inputStorage || 0) + qty;
+                        } else {
+                            // Recipe changed en route — hand the goods to the player rather than lose them
+                            if (!player.inventory) player.inventory = {};
+                            player.inventory[goodId] = (player.inventory[goodId] || 0) + qty;
                         }
                     }
                     completed.push({ ...caravan, finalProfit: 0 });
@@ -413,14 +426,14 @@ Object.assign(PlayerEconomy, {
      * Set active recipe for a workshop
      */
     setWorkshopRecipe(tile, recipeId, player) {
-        if (!tile.playerProperty || (tile.playerProperty.type !== 'workshop' && tile.playerProperty.type !== 'brewery')) return { success: false, reason: 'Not a workshop or brewery' };
+        if (!tile.playerProperty || !PlayerEconomy.isRecipeBuilding(tile.playerProperty.type)) return { success: false, reason: 'This property does not process goods' };
 
         const prop = tile.playerProperty;
         const isChange = prop.activeRecipe && prop.activeRecipe !== recipeId;
 
         // If changing recipe (not first selection), charge retooling cost
         if (isChange && player) {
-            const propType = PlayerEconomy.PROPERTY_TYPES[prop.type.toUpperCase()] || {};
+            const propType = PlayerEconomy.getPropertyDef(prop.type) || {};
             const baseCost = propType.recipeChangeCost || 150;
             const retoolingCost = Math.floor(baseCost * prop.level);
 
@@ -457,7 +470,7 @@ Object.assign(PlayerEconomy, {
      * Deposit goods into workshop input storage
      */
     depositToWorkshop(player, tile, goodId, amount) {
-        if (!tile.playerProperty || (tile.playerProperty.type !== 'workshop' && tile.playerProperty.type !== 'brewery')) return { success: false, reason: 'Not a workshop or brewery' };
+        if (!tile.playerProperty || !PlayerEconomy.isRecipeBuilding(tile.playerProperty.type)) return { success: false, reason: 'This property does not process goods' };
 
         if (!player.inventory[goodId] || player.inventory[goodId] < amount) {
             return { success: false, reason: 'Not enough goods' };

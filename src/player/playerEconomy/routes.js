@@ -66,6 +66,7 @@ Object.assign(PlayerEconomy, {
             productionRate: 5, // Process rate
             upkeep: 10,
             requiredSettlement: true,
+            recipeBased: true,
             description: 'Processes raw materials into goods. Upkeep: 10g/day'
         },
         TRADING_POST: {
@@ -102,6 +103,8 @@ Object.assign(PlayerEconomy, {
             productionRate: 6,
             upkeep: 8,
             requiredSettlement: true,
+            recipeBased: true,
+            allowedRecipes: ['BEER', 'LIQUOR'],
             description: 'Brews beer from grain or distills liquor. Sells well at taverns. Upkeep: 8g/day'
         },
         TAVERN: {

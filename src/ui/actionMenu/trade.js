@@ -121,20 +121,42 @@ Object.assign(ActionMenu, {
     },
 
     /**
+     * Pick which of the player's properties on this tile to manage. A tile can
+     * hold one of each property type; the chosen one becomes the tile's
+     * focused `playerProperty`, which the manage menu (and its refreshes) use.
+     */
+    showPropertyPicker(game, tile) {
+        const props = PlayerEconomy.getPropertiesAt(tile);
+        if (props.length <= 1) {
+            ActionMenu.showManagePropertyMenu(game, tile);
+            return;
+        }
+        let html = '<div style="display:flex;flex-direction:column;gap:6px;">';
+        props.forEach((p, i) => {
+            const status = p.underConstruction
+                ? `🏗️ ${p.constructionDaysLeft} day(s) left`
+                : `Lv ${p.level} · ${p.storage > 0 && p.produces !== 'gold' ? `${p.storage} ${p.produces} stored` : 'running'}`;
+            html += `<button onclick="window._pickProperty(${i})" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border-color);border-radius:8px;background:rgba(255,255,255,0.03);color:var(--text-primary);cursor:pointer;text-align:left;">`;
+            html += `<span style="font-size:13px;font-weight:600;">${p.icon || '🏠'} ${p.name}</span>`;
+            html += `<span style="font-size:11px;color:var(--text-muted);">${status}</span></button>`;
+        });
+        html += '</div>';
+        game.ui.showCustomPanel('🛠️ Your Properties Here', html);
+        window._pickProperty = (i) => {
+            tile.playerProperty = props[i];
+            ActionMenu.showManagePropertyMenu(game, tile);
+        };
+    },
+
+    /**
      * Show Manage Property Menu
      */
     showManagePropertyMenu(game, tile) {
         if (!tile.playerProperty) return;
 
         const prop = tile.playerProperty;
-        const propType = PlayerEconomy.PROPERTY_TYPES[prop.type.toUpperCase()];
-        const RECIPE_BUILDING_TYPES = [
-            'workshop', 'brewery', 'grain_mill', 'bakery', 'forge', 'tannery', 'sawmill',
-            'smokehouse', 'butcher', 'rope_walk', 'pottery_kiln', 'weaver', 'winery',
-            'apothecary', 'fletcher', 'jeweler', 'dye_works', 'chandlery',
-            'glassworks', 'scriptorium', 'blacksmith', 'perfumery',
-        ];
-        const isWorkshop = RECIPE_BUILDING_TYPES.includes(prop.type);
+        const propType = PlayerEconomy.getPropertyDef(prop.type);
+        const isWorkshop = PlayerEconomy.isRecipeBuilding(prop.type);
 
         // Calculate upgrade info
         const isMaxLevel = prop.level >= 5;
@@ -255,7 +277,7 @@ Object.assign(ActionMenu, {
 
         // Workshop Specific Section: Recipe Selector & Input
         if (isWorkshop) {
-            const propType = PlayerEconomy.PROPERTY_TYPES[prop.type.toUpperCase()] || {};
+            const propType = PlayerEconomy.getPropertyDef(prop.type) || {};
             const retoolingBaseCost = propType.recipeChangeCost || 150;
             const retoolingCost = Math.floor(retoolingBaseCost * prop.level);
             const isRetooling = prop.retooling && prop.retoolingDaysLeft > 0;
@@ -582,21 +604,24 @@ Object.assign(ActionMenu, {
             }
         };
 
-        window.sendStorageCaravan = (q, r) => {
+        window.sendStorageCaravan = (q, r, propertyType = null) => {
             const targetTile = game.world.getTile(q, r);
             if (!targetTile) return;
 
+            // A named property type means an internal transfer to that building,
+            // even when it stands inside a settlement
+            const targetProp = propertyType ? PlayerEconomy.findPropertyAt(targetTile, propertyType) : null;
             let toObject = null;
-            if (targetTile.settlement) {
-                toObject = { ...targetTile.settlement, q: targetTile.q, r: targetTile.r, isPlayerProperty: false };
-            } else if (targetTile.playerProperty) {
+            if (targetProp) {
                 toObject = {
-                    type: targetTile.playerProperty.type,
-                    name: targetTile.playerProperty.name,
+                    type: targetProp.type,
+                    name: targetProp.name,
                     q: targetTile.q,
                     r: targetTile.r,
                     isPlayerProperty: true
                 };
+            } else if (targetTile.settlement) {
+                toObject = { ...targetTile.settlement, q: targetTile.q, r: targetTile.r, isPlayerProperty: false };
             }
 
             if (!toObject) return;
@@ -618,7 +643,7 @@ Object.assign(ActionMenu, {
             const isChange = prop && prop.activeRecipe && prop.activeRecipe !== recipeId;
 
             if (isChange) {
-                const propType = PlayerEconomy.PROPERTY_TYPES[prop.type.toUpperCase()] || {};
+                const propType = PlayerEconomy.getPropertyDef(prop.type) || {};
                 const baseCost = propType.recipeChangeCost || 150;
                 const retoolingCost = Math.floor(baseCost * prop.level);
                 const retoolingDays = propType.retoolingDays || 2;
@@ -791,10 +816,10 @@ Object.assign(ActionMenu, {
             }
         }
 
-        // Add Player Workshops to destinations
+        // Add the player's processing buildings (workshops, mills, bakeries, ...)
         const playerWorkshops = game.player.properties.filter(p => {
             const t = game.world.getTile(p.q, p.r);
-            return t && t.playerProperty && t.playerProperty.type === 'workshop';
+            return PlayerEconomy.isRecipeBuilding(p.type) && PlayerEconomy.findPropertyAt(t, p.type);
         });
 
         const producedGood = tile.playerProperty.produces;
@@ -804,7 +829,7 @@ Object.assign(ActionMenu, {
             if (ws.q === tile.q && ws.r === tile.r) continue;
 
             const wsTile = game.world.getTile(ws.q, ws.r);
-            const wsProp = wsTile.playerProperty;
+            const wsProp = PlayerEconomy.findPropertyAt(wsTile, ws.type);
 
             // Check if workshop needs this good
             let needsGood = false;
@@ -821,13 +846,13 @@ Object.assign(ActionMenu, {
                     html += `
                     <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:rgba(255,255,255,0.03); border:1px dashed rgba(100,200,255,0.3); border-radius:4px; transition:background 0.2s;">
                         <div style="flex-grow:1;">
-                            <div style="font-weight:bold; color:#aaddff;">${ws.name} <span style="font-size:10px; opacity:0.6; font-weight:normal;">(Workshop)</span></div>
+                            <div style="font-weight:bold; color:#aaddff;">${wsProp.icon || ''} ${wsProp.name}</div>
                             <div style="display:flex; gap:12px; margin-top:2px;">
                                 <div style="font-size:10px; color:var(--text-secondary);">📏 ${dist} hexes</div>
                                 <div style="font-size:10px; color:#aaddff;">📦 Internal Transfer</div>
                             </div>
                         </div>
-                        <button onclick="window.sendStorageCaravan(${ws.q}, ${ws.r})" style="padding:6px 12px; font-size:11px; background:#3498db; color:white; border:none; border-radius:3px; cursor:pointer; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                        <button onclick="window.sendStorageCaravan(${ws.q}, ${ws.r}, '${ws.type}')" style="padding:6px 12px; font-size:11px; background:#3498db; color:white; border:none; border-radius:3px; cursor:pointer; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                             Transfer
                         </button>
                     </div>

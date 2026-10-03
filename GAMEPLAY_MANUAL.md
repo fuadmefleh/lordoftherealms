@@ -255,17 +255,73 @@ Properties are the backbone of your economy. Build them on appropriate terrain t
 
 ### Property Types
 
-| Property | Cost | Build Time | Produces | Upkeep | Required Terrain |
-|----------|------|-----------|----------|--------|-----------------|
-| Farm | 500g | 5 days | Grain (10/day) | 5g/day | Plains, Grassland |
-| Pasture | 500g | 4 days | Wool (8/day) | 5g/day | Plains, Grassland, Hills |
-| Logging Camp | 400g | 3 days | Wood (6/day) | 5g/day | Any forest terrain |
-| Mine | 1,000g | 10 days | Tile resource (5/day) | 15g/day | Must have iron/gold/gems/stone |
-| Workshop | 800g | 7 days | Crafted goods | 10g/day | Settlement required |
-| Trading Post | 600g | 6 days | Attracts merchants | 5g/day | Settlement required |
-| Fishing Wharf | 800g | 8 days | Fish | 10g/day | Coast or Beach |
-| Brewery | 700g | 6 days | Beer / Liquor | 8g/day | Settlement required |
-| Tavern | 900g | 8 days | Gold income | 12g/day | Settlement required |
+#### Raw producers
+
+| Property | Cost | Build Time | Produces | Upkeep | Where |
+|----------|------|-----------|----------|--------|-------|
+| 🌾 Farm | 500g | 5 days | Grain (10/day) | 5g/day | Plains, Grassland |
+| 🐑 Pasture | 500g | 4 days | Wool (8/day) | 5g/day | Plains, Grassland, Hills |
+| 🪓 Logging Camp | 400g | 3 days | Wood (6/day) | 5g/day | Forests |
+| ⛏️ Mine | 1000g | 10 days | Iron (5/day) | 15g/day | Resource: Iron/Gold Ore/Gems/Stone |
+| ⚓ Fishing Wharf | 800g | 8 days | Raw Fish | 10g/day | Coast, Beach |
+| ⛰️ Quarry | 700g | 8 days | Stone (8/day) | 10g/day | Resource: Stone |
+| 🧂 Salt Pans | 350g | 4 days | Salt (6/day) | 5g/day | Coast, Beach |
+| 🐝 Apiary | 300g | 3 days | Honey (5/day) | 4g/day | Plains, Grassland, Forest, Woodland, Hills |
+| 🍎 Orchard | 400g | 5 days | Fresh Fruit (8/day) | 5g/day | Plains, Grassland, Hills, Woodland |
+| 🌿 Hemp Farm | 350g | 4 days | Hemp Fiber (8/day) | 4g/day | Plains, Grassland |
+| 🟫 Clay Pit | 300g | 3 days | Raw Clay (8/day) | 4g/day | In or next to a settlement |
+| 🧀 Dairy | 450g | 4 days | Aged Cheese (4/day) | 6g/day | Plains, Grassland |
+| 🏹 Hunting Lodge | 450g | 4 days | Hide (5/day) | 5g/day | Forests |
+| 🐄 Cattle Ranch | 550g | 5 days | Meat (8/day) | 6g/day | Plains, Grassland, Savanna |
+| 🌱 Herb Garden | 350g | 3 days | Herbs (7/day) | 4g/day | Forests, plains & hills |
+| 🐎 Horse Ranch | 1100g | 10 days | Horses (1/day) | 12g/day | Plains, Grassland, Savanna |
+| 🫐 Forager's Hut | 250g | 2 days | Berries (8/day) | 3g/day | Forests |
+
+#### Processing buildings (recipe-based)
+
+| Property | Cost | Build Time | Produces | Upkeep | Where |
+|----------|------|-----------|----------|--------|-------|
+| 🔨 Workshop | 800g | 7 days | Any recipe | 10g/day | In or next to a settlement |
+| 🍺 Brewery | 700g | 6 days | Beer / Liquor | 8g/day | In or next to a settlement |
+| 🌬️ Mill | 600g | 6 days | Flour | 6g/day | Plains, Grassland, Hills, Woodland, Savanna |
+| 🍞 Bakery | 700g | 7 days | Bread | 8g/day | In or next to a settlement |
+| 🔥 Forge | 1000g | 9 days | Tools / Weapons | 12g/day | In or next to a settlement |
+| 🦺 Tannery | 650g | 6 days | Leather Armor / Parchment | 8g/day | In or next to a settlement |
+| 🪚 Sawmill | 500g | 5 days | Firewood | 7g/day | Forests, plains & hills |
+| 🍖 Smokehouse | 500g | 5 days | Smoked Fish / Dried Meat | 6g/day | In or next to a settlement |
+| 🥩 Butcher | 400g | 3 days | Dried Meat | 5g/day | In or next to a settlement |
+| 🪢 Rope Walk | 350g | 3 days | Rope | 5g/day | In or next to a settlement |
+| 🏺 Pottery Kiln | 400g | 4 days | Pottery | 5g/day | In or next to a settlement |
+| 🧵 Weaver | 500g | 5 days | Textiles / Clothes | 6g/day | In or next to a settlement |
+| 🍷 Winery | 700g | 7 days | Fine Wine / Mead | 8g/day | In or next to a settlement |
+| ⚗️ Apothecary | 600g | 6 days | Healing Salve / Strange Potion | 8g/day | In or next to a settlement |
+| 🏹 Fletcher | 450g | 4 days | Arrows / Bow | 6g/day | In or next to a settlement |
+| 💍 Jeweler | 900g | 8 days | Amulet / Luxuries | 10g/day | In or next to a settlement |
+| 🎨 Dye Works | 450g | 4 days | Dyes | 6g/day | In or next to a settlement |
+| 🕯️ Chandlery | 350g | 3 days | Candles | 5g/day | In or next to a settlement |
+| 🔮 Glassworks | 750g | 7 days | Glass / Lantern | 10g/day | In or next to a settlement |
+| 📖 Scriptorium | 600g | 5 days | Parchment / Rare Book | 8g/day | In or next to a settlement |
+| ⚔️ Blacksmith | 800g | 7 days | Shield / Tools / Weapons | 10g/day | In or next to a settlement |
+| 🌸 Perfumery | 650g | 6 days | Perfume / Incense | 8g/day | In or next to a settlement |
+
+#### Commerce
+
+| Property | Cost | Build Time | Produces | Upkeep | Where |
+|----------|------|-----------|----------|--------|-------|
+| 🏪 Trading Post | 600g | 6 days | Attracts merchants | 5g/day | Settlement |
+| 🍻 Tavern | 900g | 8 days | Gold from patrons | 12g/day | Settlement |
+
+A tile can hold **one of each property type** — a Farm, a Mill and a Bakery can all share a hex. When you manage a tile with several properties, pick which one from the list.
+
+### The Mill
+
+The **Mill** (🌬️) grinds grain into flour. Unlike most processing buildings it belongs out in the fields, not in town: build it on plains, grassland, hills, woodland or savanna. A Mill **on a river** turns a water wheel for **+50% output**. Research unlocks two stronger mills: the **Windmill** (12 flour/day) and the **Water Mill** (14/day, can also saw firewood, +50% on a river).
+
+### Same-Tile Supply Chains
+
+A processing building automatically draws its input from the other properties on the **same tile** each day, so no hauling is needed. Build a **Mill beside a Farm** and the harvest is milled straight away; add a **Bakery** and flour turns into bread. Raw producers run first each day, then processing buildings. Anything left over stays in storage to collect. For buildings on other tiles, deposit inputs by hand or send an internal-transfer caravan from the producing property.
+
+A property whose upkeep you can't pay sits idle for the day and keeps its stored inputs.
 
 ### Production Bonuses
 
@@ -290,7 +346,7 @@ Upgrade cost = base cost × 0.5 × (current level + 1). Each level adds +10% pro
 
 ## 6. Crafting
 
-Workshops and Breweries transform raw materials into higher-value processed goods.
+Workshops, Mills, Bakeries and the other processing buildings transform raw materials into higher-value goods. Each specialised building offers only its own recipes; a Workshop can run any of them.
 
 ### Crafting Recipes
 

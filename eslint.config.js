@@ -61,7 +61,6 @@ export default [
             globals: {
                 ...globals.browser,
                 ...globals.node,
-                game: 'readonly',
             },
         },
         rules: {
@@ -75,7 +74,9 @@ export default [
             'no-control-regex': 'off',
             'no-case-declarations': 'off',
             'no-inner-declarations': 'off',
-            'no-undef': 'off',
+            // Catches missing imports (several features threw ReferenceErrors
+            // on use) and stray reads of the removed `game` global.
+            'no-undef': 'error',
             // Pre-existing smells in legacy UI code — surfaced as warnings so the
             // scaffold lands green. Worth cleaning up later (Phase 5), not now.
             'no-unreachable': 'warn',

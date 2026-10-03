@@ -1,6 +1,6 @@
 // UI — hexinfo methods.
 import { UI } from './core.js';
-import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, WorldEvents } from './_imports.js';
+import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, WorldEvents, InnerMap, InnerMapRenderer } from './_imports.js';
 
 Object.assign(UI.prototype, {
     /**

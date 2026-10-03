@@ -794,6 +794,7 @@ Object.assign(ActionMenu, {
 
     _doForageMinigame(game, tile, player, lootTable, intStat, luckStat) {
         const terrainId = tile.terrain.id;
+        const category = (ActionMenu._getForageData().terrain_mapping || {})[terrainId] || terrainId;
 
         // ── Foraging Minigame: Search patches ──
         const GRID_SIZE = 4;
@@ -1050,6 +1051,7 @@ Object.assign(ActionMenu, {
     },
 
     _doHuntMinigame(game, tile, player, combatSkill, strStat, luckStat, lootTable, prey, preyName, preyIcon) {
+        const category = (ActionMenu._getForageData().terrain_mapping || {})[tile.terrain.id] || tile.terrain.id;
         // ── Hunt minigame: 3 phases — Track → Stalk → Strike ──
         let phase = 'track';   // track → stalk → strike → result
         let trackProgress = 0; // 0-100

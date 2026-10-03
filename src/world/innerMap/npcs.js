@@ -308,11 +308,9 @@ Object.assign(InnerMap, {
 
                 const name = firstNames[Math.floor(rng() * firstNames.length)];
 
-                // Assign LPC character preset (deterministic by NPC id + type)
-                const npcSeed = npcId;
-                const preset = (typeof InnerMapCharacters !== 'undefined')
-                    ? InnerMapCharacters.getPresetForNPC(npcType, npcSeed)
-                    : null;
+                // Character presets live in the UI layer (InnerMapCharacters), which
+                // world code can't import — the renderer falls back by NPC type.
+                const preset = null;
 
                 this.npcs.push({
                     id: npcId++,

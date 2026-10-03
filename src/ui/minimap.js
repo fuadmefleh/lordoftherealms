@@ -2,9 +2,8 @@
 // MINIMAP — Minimap rendering
 // ============================================
 
-// DISABLED: Inner map feature disabled
-// import { InnerMap } from '../world/innerMap.js';
-// import { InnerMapRenderer } from './innerMapRenderer.js';
+import { InnerMap } from '../world/innerMap.js';
+import { InnerMapRenderer } from './innerMapRenderer.js';
 
 
 export class Minimap {

@@ -962,8 +962,8 @@ Object.assign(ActionMenu, {
             window._smuggleAbort = () => {
                 if (smuggleTimer) { clearInterval(smuggleTimer); smuggleTimer = null; }
                 game.ui.hideCustomPanel();
-                // Refund AP since they didn't complete
-                player.actionPoints += apCost;
+                // Refund the 2 AP the run cost, since they didn't complete it
+                player.actionPoints += 2;
                 game.ui.updateStats(player, game.world);
                 ActionMenu.showSmuggleMenu(game, tile);
             };

@@ -1057,6 +1057,10 @@ Object.assign(ActionMenu, {
             game.player._lastTavernVisit = visitKey;
             Quests.track(game.player, 'taverns_visited');
         }
+        // Distinct taverns, for the Tavern Crawler achievement
+        const tavernKey = `${tile.q},${tile.r}`;
+        if (!game.player.visitedTaverns) game.player.visitedTaverns = [];
+        if (!game.player.visitedTaverns.includes(tavernKey)) game.player.visitedTaverns.push(tavernKey);
         const options = Tavern.getTavernOptions(game.player, tile, game.world);
 
         let html = '<div style="max-height: 450px; overflow-y: auto;">';

@@ -538,6 +538,9 @@ Object.assign(PlayerMilitary, {
 
             Quests.track(player, 'battles_won');
             if (worldUnit.type === 'raider' || worldUnit.type === 'pirate') Quests.track(player, 'raiders_defeated');
+            if (worldUnit.type === 'pirate') Quests.track(player, 'pirates_defeated');
+            // A win while badly hurt counts as a close call
+            if (player.health < (player.maxHealth || 100) * 0.2) Quests.track(player, 'close_calls');
 
             // Karma/reputation effects by unit type
             switch (worldUnit.type) {

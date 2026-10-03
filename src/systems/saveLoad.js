@@ -183,6 +183,8 @@ export const SaveLoad = {
             quests: SaveLoad.serializeQuests(player.quests),
             achievements: player.achievements,
             miraclesPerformed: player.miraclesPerformed,
+            visitedTaverns: player.visitedTaverns || [],
+            kingdomsVisited: player.kingdomsVisited || [],
             intel: player.intel || null,
             soulSoldCount: player.soulSoldCount || 0,
             lastSoulSoldDay: player.lastSoulSoldDay || 0,

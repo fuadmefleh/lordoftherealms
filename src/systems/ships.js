@@ -693,7 +693,10 @@ export const Ships = {
                     resultType = 'success';
                     Quests.track(player, 'battles_won');
                     if (event.id === 'sea_monster') Quests.track(player, 'special_creatures_defeated');
-                    if (event.id === 'pirate_ambush') Quests.track(player, 'raiders_defeated');
+                    if (event.id === 'pirate_ambush') {
+                        Quests.track(player, 'raiders_defeated');
+                        Quests.track(player, 'pirates_defeated');
+                    }
                     // Give rewards
                     if (event.reward) this._applyReward(player, event.reward);
                 } else {
@@ -752,6 +755,7 @@ export const Ships = {
         if (playerPower > enemyPower) {
             Quests.track(player, 'battles_won');
             Quests.track(player, 'raiders_defeated');
+            Quests.track(player, 'pirates_defeated');
             const loot = enemyStrength * (2 + Math.floor(Utils.random() * 4));
             player.gold += loot;
             player.karma = (player.karma || 0) + 2;

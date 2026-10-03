@@ -231,6 +231,174 @@ export const Achievements = {
             },
             tier: 'gold',
         },
+        // ── Deeds tracked by quest counters (Quests.track) and player records ──
+        FIRST_KILL: {
+            id: 'first_kill',
+            name: 'First Kill',
+            description: 'Win your first battle',
+            icon: '🗡️',
+            check: (player) => Achievements._stat(player, 'battles_won') >= 1,
+            tier: 'bronze',
+        },
+        DRAGON_SLAYER: {
+            id: 'dragon_slayer',
+            name: 'Dragon Slayer',
+            description: 'Defeat a legendary creature',
+            icon: '🐉',
+            check: (player) => Achievements._stat(player, 'special_creatures_defeated') >= 1,
+            tier: 'gold',
+        },
+        MERCHANT_PRINCE: {
+            id: 'merchant_prince',
+            name: 'Merchant Prince',
+            description: 'Complete 25 caravans',
+            icon: '🐫',
+            check: (player) => ((player.quests && player.quests.caravansCompleted) || 0) >= 25,
+            tier: 'silver',
+        },
+        ROAD_WARRIOR: {
+            id: 'road_warrior',
+            name: 'Road Warrior',
+            description: 'Build 50 road segments',
+            icon: '🛤️',
+            check: (player) => Achievements._stat(player, 'roads_built') >= 50,
+            tier: 'silver',
+        },
+        MASTER_BUILDER: {
+            id: 'master_builder',
+            name: 'Master Builder',
+            description: 'Construct 20 buildings',
+            icon: '🏗️',
+            check: (player) => Achievements._stat(player, 'buildings_constructed') >= 20,
+            tier: 'silver',
+        },
+        SCHOLAR_SUPREME: {
+            id: 'scholar_supreme',
+            name: 'Scholar Supreme',
+            description: 'Research 15 technologies',
+            icon: '📚',
+            check: (player) => ((player.technology && player.technology.implemented) || []).length >= 15,
+            tier: 'gold',
+        },
+        BOUNTY_HUNTER: {
+            id: 'bounty_hunter',
+            name: 'Bounty Hunter',
+            description: 'Complete 10 military contracts',
+            icon: '💀',
+            check: (player) => ((player.quests && player.quests.contractsCompleted) || 0) >= 10,
+            tier: 'silver',
+        },
+        WARLORD_SUPREME: {
+            id: 'warlord_supreme',
+            name: 'Warlord Supreme',
+            description: 'Win 50 battles',
+            icon: '⚔️',
+            check: (player) => Achievements._stat(player, 'battles_won') >= 50,
+            tier: 'gold',
+        },
+        TREASURE_SEEKER: {
+            id: 'treasure_seeker',
+            name: 'Treasure Seeker',
+            description: 'Find 5 hidden treasures',
+            icon: '🗝️',
+            check: (player) => Achievements._stat(player, 'treasures_found') >= 5,
+            tier: 'bronze',
+        },
+        RUIN_DELVER: {
+            id: 'ruin_delver',
+            name: 'Ruin Delver',
+            description: 'Explore 10 ancient ruins',
+            icon: '🏚️',
+            check: (player) => Achievements._stat(player, 'ruins_explored') >= 10,
+            tier: 'silver',
+        },
+        TAVERN_CRAWLER: {
+            id: 'tavern_crawler',
+            name: 'Tavern Crawler',
+            description: 'Visit 20 different taverns',
+            icon: '🍺',
+            check: (player) => (player.visitedTaverns || []).length >= 20,
+            tier: 'bronze',
+        },
+        SPYMASTER: {
+            id: 'spymaster',
+            name: 'Spymaster',
+            description: 'Hire 10 informants',
+            icon: '🕵️',
+            check: (player) => Achievements._stat(player, 'informants_hired') >= 10,
+            tier: 'silver',
+        },
+        QUEST_MASTER: {
+            id: 'quest_master',
+            name: 'Quest Master',
+            description: 'Complete 20 quests',
+            icon: '📋',
+            check: (player) => ((player.quests && player.quests.completed) || []).length >= 20,
+            tier: 'gold',
+        },
+        GLOBE_TROTTER: {
+            id: 'globe_trotter',
+            name: 'Globe Trotter',
+            description: 'Visit every kingdom in the realm',
+            icon: '🌍',
+            check: (player, world) => {
+                const living = ((world && world.kingdoms) || []).filter(k => k.isAlive !== false);
+                const visited = player.kingdomsVisited || [];
+                return living.length > 0 && living.every(k => visited.includes(k.id));
+            },
+            tier: 'gold',
+        },
+        PIRATE_HUNTER: {
+            id: 'pirate_hunter',
+            name: 'Pirate Hunter',
+            description: 'Defeat 5 pirate ships',
+            icon: '🏴‍☠️',
+            check: (player) => Achievements._stat(player, 'pirates_defeated') >= 5,
+            tier: 'silver',
+        },
+        CATHEDRAL_BUILDER: {
+            id: 'cathedral_builder',
+            name: 'Cathedral Builder',
+            description: 'Build a cathedral',
+            icon: '⛪',
+            check: (player) => ((player.religion && player.religion.buildings) || []).some(b => b.type === 'cathedral'),
+            tier: 'gold',
+        },
+        MOUNTAIN_KING: {
+            id: 'mountain_king',
+            name: 'Mountain King',
+            description: 'Own properties in a mountain settlement',
+            icon: '⛰️',
+            check: (player, world) => !!world && (player.properties || []).some(p => {
+                const t = world.getTile(p.q, p.r);
+                return t && t.settlement && Achievements.MOUNTAIN_TERRAINS.includes(t.terrain.id);
+            }),
+            tier: 'bronze',
+        },
+        PATRON_OF_ARTS: {
+            id: 'patron_of_arts',
+            name: 'Patron of the Arts',
+            description: 'Build a theater and a university',
+            icon: '🎭',
+            check: (player) => ['theater', 'university'].every(type => (player.culturalBuildings || []).some(b => b.type === type)),
+            tier: 'silver',
+        },
+        UNDYING: {
+            id: 'undying',
+            name: 'Undying',
+            description: 'Survive 5 battles at below 20% health',
+            icon: '💪',
+            check: (player) => Achievements._stat(player, 'close_calls') >= 5,
+            tier: 'gold',
+        },
+    },
+
+    /** Terrain that counts as a mountain settlement. */
+    MOUNTAIN_TERRAINS: ['mountain', 'hills', 'highlands', 'snow_peak'],
+
+    /** An event counter recorded via Quests.track(). */
+    _stat(player, stat) {
+        return (player.quests && player.quests.stats && player.quests.stats[stat]) || 0;
     },
 
     /**

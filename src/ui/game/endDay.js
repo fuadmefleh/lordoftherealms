@@ -17,6 +17,12 @@ export function onPlayerArrived() {
     // If arrived at a settlement
     if (tile.settlement) {
         Quests.trackSettlementVisited(this.player, tile.settlement.name);
+        // Kingdoms visited, for the Globe Trotter achievement
+        const kId = tile.settlement.kingdom;
+        if (kId) {
+            if (!this.player.kingdomsVisited) this.player.kingdomsVisited = [];
+            if (!this.player.kingdomsVisited.includes(kId)) this.player.kingdomsVisited.push(kId);
+        }
         const sType = tile.settlement.type;
         this.ui.showNotification(
             `Arrived at ${tile.settlement.name}`,

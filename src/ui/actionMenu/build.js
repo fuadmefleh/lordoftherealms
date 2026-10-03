@@ -68,7 +68,7 @@ Object.assign(ActionMenu, {
                         <div style="font-size: 11px; color: var(--gold);">🏗️ ${prop.constructionDays || 0} days</div>
                         ${!check.canBuild ? `<div style="font-size: 10px; color: #e74c3c; margin-top: 2px;">${check.reason}</div>` : ''}
                     </div>
-                    <button onclick="window.buildProperty('${key}')" ${!check.canBuild ? 'disabled' : ''} style="margin-top: 5px; width: 100%; padding: 4px 0; background: ${check.canBuild ? 'linear-gradient(135deg, var(--gold-dark), var(--gold))' : 'rgba(255,255,255,0.06)'}; border: ${check.canBuild ? 'none' : '1px solid rgba(255,255,255,0.1)'}; border-radius: 3px; cursor: ${check.canBuild ? 'pointer' : 'not-allowed'}; font-size: 12px; font-weight: bold; color: ${check.canBuild ? '#1a1207' : 'var(--text-muted)'};">Build · ${prop.cost}g</button>
+                    <button onclick="window.buildProperty('${key}')" ${!check.canBuild ? 'disabled' : ''} style="margin-top: 5px; width: 100%; padding: 4px 0; background: ${check.canBuild ? 'linear-gradient(135deg, var(--gold-dark), var(--gold))' : 'rgba(255,255,255,0.06)'}; border: ${check.canBuild ? 'none' : '1px solid rgba(255,255,255,0.1)'}; border-radius: 3px; cursor: ${check.canBuild ? 'pointer' : 'not-allowed'}; font-size: 12px; font-weight: bold; color: ${check.canBuild ? '#1a1207' : 'var(--text-muted)'};">Build · ${PlayerEconomy.getBuildCost(game.player, prop)}g</button>
                 </div>
             `;
         }
@@ -87,11 +87,12 @@ Object.assign(ActionMenu, {
                 hasTechSection = true;
 
                 // Simple build check for tech buildings
-                const canAfford = game.player.gold >= prop.cost;
+                const techCost = PlayerEconomy.getBuildCost(game.player, prop);
+                const canAfford = game.player.gold >= techCost;
                 const alreadyBuilt = tile.playerProperties && tile.playerProperties.find(p => p.type === prop.id);
                 let canBuild = canAfford && !alreadyBuilt;
                 let reason = '';
-                if (!canAfford) reason = `Need ${prop.cost} gold`;
+                if (!canAfford) reason = `Need ${techCost} gold`;
                 if (alreadyBuilt) reason = 'Already built here';
                 if (prop.requiredTerrain && !prop.requiredTerrain.includes(tile.terrain.id)) {
                     canBuild = false;
@@ -123,7 +124,7 @@ Object.assign(ActionMenu, {
                             <div style="font-size: 11px; color: var(--gold);">🏗️ ${prop.constructionDays || 0} days</div>
                             ${!canBuild && reason ? `<div style="font-size: 10px; color: #e74c3c; margin-top: 2px;">${reason}</div>` : ''}
                         </div>
-                        <button onclick="window.buildTechBuilding('${key}')" ${!canBuild ? 'disabled' : ''} style="margin-top: 5px; width: 100%; padding: 4px 0; background: ${canBuild ? 'linear-gradient(135deg, var(--gold-dark), var(--gold))' : 'rgba(255,255,255,0.06)'}; border: ${canBuild ? 'none' : '1px solid rgba(255,255,255,0.1)'}; border-radius: 3px; cursor: ${canBuild ? 'pointer' : 'not-allowed'}; font-size: 12px; font-weight: bold; color: ${canBuild ? '#1a1207' : 'var(--text-muted)'};">Build · ${prop.cost}g</button>
+                        <button onclick="window.buildTechBuilding('${key}')" ${!canBuild ? 'disabled' : ''} style="margin-top: 5px; width: 100%; padding: 4px 0; background: ${canBuild ? 'linear-gradient(135deg, var(--gold-dark), var(--gold))' : 'rgba(255,255,255,0.06)'}; border: ${canBuild ? 'none' : '1px solid rgba(255,255,255,0.1)'}; border-radius: 3px; cursor: ${canBuild ? 'pointer' : 'not-allowed'}; font-size: 12px; font-weight: bold; color: ${canBuild ? '#1a1207' : 'var(--text-muted)'};">Build · ${techCost}g</button>
                     </div>
                 `;
             }
@@ -160,12 +161,13 @@ Object.assign(ActionMenu, {
             const building = Technology.TECH_BUILDINGS[buildingKey];
             if (!building) return;
             if (!ActionMenu.commitPendingAP(game)) return;
-            if (game.player.gold < building.cost) {
-                game.ui.showNotification('Cannot Build', `Need ${building.cost} gold`, 'error');
+            const buildCost = PlayerEconomy.getBuildCost(game.player, building);
+            if (game.player.gold < buildCost) {
+                game.ui.showNotification('Cannot Build', `Need ${buildCost} gold`, 'error');
                 return;
             }
 
-            game.player.gold -= building.cost;
+            game.player.gold -= buildCost;
 
             const newProperty = {
                 type: building.id,

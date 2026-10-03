@@ -3,6 +3,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
 import { Utils } from '../core/utils.js';
 import { Quests } from './quests.js';
+import { Technology } from './technology.js';
 
 /**
  * Ships System
@@ -924,7 +925,7 @@ export const Ships = {
         if (!entry) return { success: false, message: 'Nobody here buys that.' };
         const n = Math.min(qty, (ship.cargo && ship.cargo[goodId]) || 0);
         if (n <= 0) return { success: false, message: 'None of that in the hold.' };
-        const revenue = n * entry.sell;
+        const revenue = Math.floor(n * entry.sell * (1 + Technology.getTradeProfitBonus(player)));
         ship.cargo[goodId] -= n;
         if (ship.cargo[goodId] <= 0) delete ship.cargo[goodId];
         player.gold = (player.gold || 0) + revenue;

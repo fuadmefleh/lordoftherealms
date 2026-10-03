@@ -89,7 +89,7 @@ export function resolveHostileEncounter(player, attacker, world) {
     }
 
     // --- Player has army: full combat ---
-    const result = PlayerMilitary.attackUnit(player, attacker, world);
+    const result = PlayerMilitary.attackUnit(player, attacker, world, { defending: true });
 
     if (result.victory) {
         let lootMsg = `Victory! You defeated the ${attacker.name}!`;

@@ -16,6 +16,12 @@ Object.assign(PlayerEconomy, {
         return tech[key] || Object.values(tech).find(b => b.id === type) || null;
     },
 
+    /** What a property costs this player to build (stonecutting cuts it). */
+    getBuildCost(player, def) {
+        const reduction = (typeof Technology !== 'undefined') ? Technology.getBuildingCostReduction(player) : 0;
+        return Math.round(def.cost * (1 - reduction));
+    },
+
     /** Does this property type turn inputs into outputs via recipes? */
     isRecipeBuilding(type) {
         const def = PlayerEconomy.getPropertyDef(type);
@@ -42,8 +48,9 @@ Object.assign(PlayerEconomy, {
         if (!prop) return { canBuild: false, reason: 'Invalid property type' };
 
         // Check gold
-        if (player.gold < prop.cost) {
-            return { canBuild: false, reason: `Need ${prop.cost} gold (have ${player.gold})` };
+        const cost = PlayerEconomy.getBuildCost(player, prop);
+        if (player.gold < cost) {
+            return { canBuild: false, reason: `Need ${cost} gold (have ${player.gold})` };
         }
 
         // Check if already has THIS TYPE of property here (allow multiple different types)
@@ -129,7 +136,7 @@ Object.assign(PlayerEconomy, {
         const prop = check.property;
 
         // Deduct cost
-        player.gold -= prop.cost;
+        player.gold -= PlayerEconomy.getBuildCost(player, prop);
 
         // Determine what this property produces
         let produces = prop.produces;

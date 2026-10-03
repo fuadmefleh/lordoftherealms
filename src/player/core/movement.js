@@ -8,6 +8,8 @@ import { Hex } from '../../core/hex.js';
 import { Utils } from '../../core/utils.js';
 import { Infrastructure } from '../../systems/infrastructure.js';
 import { Titles } from '../../systems/titles.js';
+import { Technology } from '../../systems/technology.js';
+import { Housing } from '../../systems/housing.js';
 
 export const PlayerMovementMethods = {
     /**
@@ -34,6 +36,8 @@ export const PlayerMovementMethods = {
      * Set visibility (fog of war update)
      */
     updateVisibility(world, viewRadius = 3) {
+        // Cartography/espionage techs and watchtower-style house upgrades see further
+        viewRadius += Technology.getVisionBonus(this) + Housing.getTotalBonuses(this).visibility;
         // First, set all tiles to not visible
         for (let r = 0; r < world.height; r++) {
             for (let q = 0; q < world.width; q++) {

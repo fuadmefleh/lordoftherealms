@@ -31,6 +31,8 @@ Object.assign(PlayerMilitary, {
 
         // Combat calculation
         let playerPower = playerStrength * Utils.randFloat(0.8, 1.2) * playerCounterMult * playerTerrainMult * playerMorale;
+        // Fortification techs help when the player is the one attacked
+        if (context.defending) playerPower *= 1 + Technology.getDefenseBonus(player);
         let enemyPower = enemyStrength * Utils.randFloat(0.8, 1.2) * enemyCounterMult * enemyTerrainMult * enemyMorale;
 
         let moraleBreak = null;
@@ -495,11 +497,12 @@ Object.assign(PlayerMilitary, {
     /**
      * Attack a world unit on the player's tile
      */
-    attackUnit(player, worldUnit, world) {
+    attackUnit(player, worldUnit, world, opts = {}) {
         const unitTile = world.getTile(worldUnit.q, worldUnit.r);
         const combatResult = PlayerMilitary.combat(player, worldUnit.strength, worldUnit.name, {
             terrainId: unitTile?.terrain?.id,
             enemyComposition: PlayerMilitary._getWorldUnitComposition(worldUnit),
+            defending: !!opts.defending,
         });
 
         // Handle no-army edge case

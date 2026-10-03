@@ -114,8 +114,7 @@ export function endDay() {
             // Process world turn
             const result = this.world.advanceDay(this.player);
             this.player.endDay();
-            // Watchtower-style house upgrades extend sight
-            this.player.updateVisibility(this.world, 4 + Housing.getTotalBonuses(this.player).visibility);
+            this.player.updateVisibility(this.world, 4);
 
             // ── Check for hostile unit encounters (raiders/pirates) ──
             this._checkHostileEncounters();

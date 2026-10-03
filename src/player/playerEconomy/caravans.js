@@ -356,6 +356,10 @@ Object.assign(PlayerEconomy, {
                         }
                     }
 
+                    // Commerce techs (trade networks, guilds, ...) raise caravan returns
+                    if (finalProfit > 0 && typeof Technology !== 'undefined') {
+                        finalProfit = Math.floor(finalProfit * (1 + Technology.getTradeProfitBonus(player)));
+                    }
                     player.gold += finalProfit;
                     if (finalProfit > 0) Quests.track(player, 'trade_profit', finalProfit);
                     completed.push({

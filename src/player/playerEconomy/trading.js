@@ -164,7 +164,9 @@ export const Trading = {
 
         // Sell for 70% of base price
         const sellPrice = Math.floor(good.basePrice * 0.7);
-        const totalEarned = sellPrice * quantity;
+        // Commerce techs (accounting, guilds, ...) improve every sale
+        const tradeBonus = (typeof Technology !== 'undefined') ? Technology.getTradeProfitBonus(player) : 0;
+        const totalEarned = Math.floor(sellPrice * quantity * (1 + tradeBonus));
 
         player.inventory[goodId] -= quantity;
         player.gold += totalEarned;

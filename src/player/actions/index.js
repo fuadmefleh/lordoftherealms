@@ -128,6 +128,26 @@ export const PlayerActions = {
             });
         }
 
+        // Port market: trade goods by the shipload with a ship docked here
+        if (!player.boardedShip && Ships.isPortTile(world, player.q, player.r)
+            && Ships.getShipsWithHoldAccess(player).some(s => s.status === 'docked')) {
+            actions.push({
+                type: 'port_market',
+                label: 'Port Market',
+                icon: '⚓',
+                description: 'Buy goods into your hold here, sell them where they fetch more'
+            });
+        }
+
+        // Activities on the open sea
+        if (player.boardedShip && Ships.isWaterTile(tile)) {
+            actions.push(
+                { type: 'explore_ocean', label: 'Explore the Waters', icon: '🧭', description: 'Search for wrecks, islands and trouble' },
+                { type: 'hunt_pirates', label: 'Hunt Pirates', icon: '⚔️', description: 'Patrol for pirates — bounty, renown and karma if you win' },
+                { type: 'commit_piracy', label: 'Turn Pirate', icon: '🏴‍☠️', description: 'Raid a merchant ship — gold, but karma and reputation suffer' }
+            );
+        }
+
         // Row back out to a ship anchored offshore
         if (!player.boardedShip && Ships.getAnchoredShipsNear(player, player.q, player.r).length > 0) {
             actions.push({

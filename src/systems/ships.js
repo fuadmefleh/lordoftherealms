@@ -835,69 +835,100 @@ export const Ships = {
         }
     },
 
-    doSeaTrade(player, shipId, world) {
-        const ship = this.getShipById(player, shipId);
-        if (!ship) return { success: false, message: 'Ship not found.' };
+    /* ── Port markets ────────────────────────────────────────── */
 
-        const goods = this._getTradeGoods();
-        if (goods.length === 0) {
-            return { success: true, icon: '💰', title: 'No trade opportunities available.', type: 'info' };
+    /** Days a port's prices hold before they drift. */
+    PORT_PRICE_PERIOD: 7,
+
+    /**
+     * Deterministic 32-bit hash of integers — port prices must be stable for
+     * a given port/good/week without drawing from the game RNG.
+     */
+    _hash(...nums) {
+        let h = 2166136261;
+        for (const n of nums) {
+            h ^= (n | 0);
+            h = Math.imul(h, 16777619);
+            h ^= h >>> 13;
         }
+        return h >>> 0;
+    },
 
-        const stats = this.getShipEffectiveStats(ship);
-        const cargoSpace = stats.cargoCapacity;
+    /**
+     * What a port trades in. Each port is an exporter (cheap to buy, pays
+     * little), importer (pays well, sells none) or local market for each
+     * good; roles are fixed per port, prices drift every PORT_PRICE_PERIOD
+     * days. Buy low at an exporter, sail, sell high at an importer.
+     * @returns {Array<{id, name, icon, role, buy: number|null, sell: number}>}
+     */
+    getPortMarket(world, q, r) {
+        const period = Math.floor((world.day || 0) / this.PORT_PRICE_PERIOD);
+        const lerp = ([lo, hi], t) => Math.round(lo + (hi - lo) * t);
+        return this._getTradeGoods().filter(g => g.id).map((g, i) => {
+            const roleRoll = this._hash(q, r, i) % 3;
+            const t = (this._hash(q, r, i, period) % 1000) / 1000;
+            const base = { id: g.id, name: g.name, icon: g.icon || '📦' };
+            if (roleRoll === 0) {
+                const buy = Math.max(2, lerp(g.buyPrice, t));
+                return { ...base, role: 'export', buy, sell: Math.max(1, Math.min(buy - 1, Math.round(buy * 0.75))) };
+            }
+            if (roleRoll === 1) {
+                return { ...base, role: 'import', buy: null, sell: lerp(g.sellPrice, t) };
+            }
+            // Local market: priced between the two ranges, with a spread
+            // (a port always charges more than it pays, so there's no same-port loop)
+            const mid = lerp([g.buyPrice[1], g.sellPrice[0]], t);
+            const buy = Math.max(2, Math.ceil(mid * 1.1));
+            return { ...base, role: 'local', buy, sell: Math.max(1, Math.min(buy - 1, Math.floor(mid * 0.9))) };
+        });
+    },
 
-        // Simulate a quick trade run
-        const good = goods[Math.floor(Utils.random() * goods.length)];
-        const buyPrice = good.buyPrice[0] + Math.floor(Utils.random() * (good.buyPrice[1] - good.buyPrice[0]));
-        const sellPrice = good.sellPrice[0] + Math.floor(Utils.random() * (good.sellPrice[1] - good.sellPrice[0]));
+    /** The player's ship docked at a port on the player's hex, if any. */
+    _getShipAtPort(player, world, shipId) {
+        if (!this.isPortTile(world, player.q, player.r)) return null;
+        return this.getShipsWithHoldAccess(player)
+            .find(s => s.id === shipId && s.status === 'docked') || null;
+    },
 
-        const maxUnits = Math.min(cargoSpace, Math.floor(player.gold / buyPrice));
-        if (maxUnits <= 0) {
-            return { success: true, icon: '💰', title: `Cannot afford ${good.name} at ${buyPrice}g each.`, type: 'warning' };
+    /** Buy a trade good at this port straight into a docked ship's hold. */
+    buyTradeGood(player, world, shipId, goodId, qty) {
+        const ship = this._getShipAtPort(player, world, shipId);
+        if (!ship) return { success: false, message: 'Your ship must be docked at this port.' };
+        const entry = this.getPortMarket(world, player.q, player.r).find(e => e.id === goodId);
+        if (!entry || entry.buy === null) return { success: false, message: 'This port does not sell that.' };
+        const n = Math.min(qty, this.getCargoFree(ship), Math.floor((player.gold || 0) / entry.buy));
+        if (n <= 0) {
+            return { success: false, message: this.getCargoFree(ship) <= 0 ? 'The hold is full.' : 'You cannot afford any.' };
         }
-
-        const units = Math.max(1, Math.floor(maxUnits * (0.3 + Utils.random() * 0.7)));
-        const cost = units * buyPrice;
-        const revenue = units * sellPrice;
-        const profit = revenue - cost;
-
+        const cost = n * entry.buy;
         player.gold -= cost;
-        player.gold += revenue;
-
-        // Commerce skill gain
-        if (player.skills) {
-            const skillGain = Utils.random() < 0.3 ? 0.1 : 0;
-            if (skillGain > 0) {
-                player.skills.commerce = Math.min(10, (player.skills.commerce || 1) + skillGain);
-            }
-        }
-
-        ship.condition = Math.max(5, ship.condition - 1);
-
+        if (!ship.cargo) ship.cargo = {};
+        ship.cargo[goodId] = (ship.cargo[goodId] || 0) + n;
         if (player.financeToday) {
-            if (profit > 0) {
-                player.financeToday.income.seaTrade = (player.financeToday.income.seaTrade || 0) + profit;
-            } else {
-                player.financeToday.expenses.seaTrade = (player.financeToday.expenses.seaTrade || 0) + Math.abs(profit);
-            }
+            player.financeToday.expenses.seaTrade = (player.financeToday.expenses.seaTrade || 0) + cost;
         }
+        return { success: true, ship, bought: n, cost };
+    },
 
-        if (profit > 0) {
-            return {
-                success: true,
-                icon: '💰',
-                title: `Traded ${units} ${good.name}: bought at ${buyPrice}g, sold at ${sellPrice}g each. Profit: ${profit}g!`,
-                type: 'success'
-            };
-        } else {
-            return {
-                success: true,
-                icon: '📉',
-                title: `Traded ${units} ${good.name} but the market was bad. Lost ${Math.abs(profit)}g.`,
-                type: 'warning'
-            };
+    /** Sell a trade good from a docked ship's hold to this port. */
+    sellTradeGood(player, world, shipId, goodId, qty) {
+        const ship = this._getShipAtPort(player, world, shipId);
+        if (!ship) return { success: false, message: 'Your ship must be docked at this port.' };
+        const entry = this.getPortMarket(world, player.q, player.r).find(e => e.id === goodId);
+        if (!entry) return { success: false, message: 'Nobody here buys that.' };
+        const n = Math.min(qty, (ship.cargo && ship.cargo[goodId]) || 0);
+        if (n <= 0) return { success: false, message: 'None of that in the hold.' };
+        const revenue = n * entry.sell;
+        ship.cargo[goodId] -= n;
+        if (ship.cargo[goodId] <= 0) delete ship.cargo[goodId];
+        player.gold = (player.gold || 0) + revenue;
+        if (player.skills && Utils.random() < 0.2) {
+            player.skills.commerce = Math.min(10, (player.skills.commerce || 1) + 0.1);
         }
+        if (player.financeToday) {
+            player.financeToday.income.seaTrade = (player.financeToday.income.seaTrade || 0) + revenue;
+        }
+        return { success: true, ship, sold: n, revenue };
     },
 
     /* ── Daily processing ────────────────────────────────────── */

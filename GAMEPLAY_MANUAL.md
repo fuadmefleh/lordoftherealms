@@ -840,6 +840,23 @@ Use **Ship's Hold** (free) to load goods from your pack into a ship, or unload t
 
 A used ship market exists at settlements with variable condition (40–85%) and discounted prices.
 
+### Port Markets
+
+With a ship docked at a port, **Port Market** (free) buys trade goods — spices, silk, wine, iron, ivory, gems, timber, fish — straight into its hold, and sells them out of it. Every port has a role for each good:
+
+- **Exports** — cheap to buy, but the port pays little for it.
+- **Imports** — the port doesn't sell it but pays a premium.
+- **Local market** — buys and sells in between.
+
+Roles are fixed per port; prices drift every 7 days. Buy where a good is exported, sail, and sell where it's imported — the hold's cargo capacity caps how much each run carries.
+
+### At Sea
+
+While aboard on open water you can:
+- **Explore the Waters** (6 AP) — wrecks, uncharted islands, storms and sea monsters.
+- **Hunt Pirates** (10 AP) — win for a gold bounty, +3 renown and +2 karma; lose and the ship and crew take damage.
+- **Turn Pirate** (10 AP) — plunder merchant ships for gold at the cost of karma, renown and reputation with every kingdom.
+
 ---
 
 ## 16. Kingdoms & Diplomacy

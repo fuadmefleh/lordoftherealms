@@ -338,14 +338,14 @@
     "piracyGoldRange": [50, 300],
 
     "tradeGoods": [
-        { "name": "Spices", "buyPrice": [10, 25], "sellPrice": [20, 50] },
-        { "name": "Silk", "buyPrice": [15, 30], "sellPrice": [25, 60] },
-        { "name": "Wine", "buyPrice": [5, 15], "sellPrice": [10, 30] },
-        { "name": "Iron", "buyPrice": [8, 20], "sellPrice": [15, 40] },
-        { "name": "Ivory", "buyPrice": [20, 40], "sellPrice": [35, 80] },
-        { "name": "Gems", "buyPrice": [30, 60], "sellPrice": [50, 120] },
-        { "name": "Timber", "buyPrice": [3, 10], "sellPrice": [6, 20] },
-        { "name": "Fish", "buyPrice": [2, 5], "sellPrice": [4, 12] }
+        { "id": "spices", "icon": "🧂", "name": "Spices", "buyPrice": [10, 25], "sellPrice": [20, 50] },
+        { "id": "silk", "icon": "🧣", "name": "Silk", "buyPrice": [15, 30], "sellPrice": [25, 60] },
+        { "id": "wine", "icon": "🍷", "name": "Wine", "buyPrice": [5, 15], "sellPrice": [10, 30] },
+        { "id": "iron", "icon": "⚒️", "name": "Iron", "buyPrice": [8, 20], "sellPrice": [15, 40] },
+        { "id": "ivory", "icon": "🦷", "name": "Ivory", "buyPrice": [20, 40], "sellPrice": [35, 80] },
+        { "id": "gems", "icon": "💎", "name": "Gems", "buyPrice": [30, 60], "sellPrice": [50, 120] },
+        { "id": "wood", "icon": "🌲", "name": "Timber", "buyPrice": [3, 10], "sellPrice": [6, 20] },
+        { "id": "fish", "icon": "🐟", "name": "Fish", "buyPrice": [2, 5], "sellPrice": [4, 12] }
     ],
 
     "settings": {

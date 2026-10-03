@@ -14,7 +14,7 @@ import { DataLoader } from '../core/dataLoader.js';
 // (added by the House dynasty-spine feature) = 197, plus the four
 // row-ashore members (showRowAshoreMenu, rowToShip, _landingCargoText,
 // _centerCameraOnPlayer) = 201, plus showShipHoldMenu = 202, plus
-// showPropertyPicker = 203.
+// showPropertyPicker = 203, plus doSeaActivity and showPortMarketMenu = 205.
 const EXPECTED_KEYS = [
     'AP_COSTS', 'DEFERRED_AP_ACTIONS', '_appointTitle', '_buskFortuneTelling', '_buskJuggling',
     '_buskPreaching', '_buskSinging', '_buskStorytelling', '_buskingReward', '_categorizeActions',
@@ -37,7 +37,7 @@ const EXPECTED_KEYS = [
     'collectGoods', 'commitPendingAP', 'councilConvene', 'councilDeclareWar', 'councilManageFaction',
     'councilVoteTax', 'councilVoteWar', 'countFishingBoats', 'createMap', 'createMenu',
     'demolishInfrastructure', 'digTreasure', 'disembarkShip', 'doBlessSettlement', 'doCaptureCriminal',
-    'doCaptureFugitive', 'doCollectTax', 'doCraftCampfire', 'doFish', 'doForage', 'doFormKingdom',
+    'doCaptureFugitive', 'doCollectTax', 'doCraftCampfire', 'doSeaActivity', 'doFish', 'doForage', 'doFormKingdom',
     'doHoldCouncil', 'doHunt', 'doMeditate', 'doPickpocket', 'doPledgeAllegiance', 'doPostSignboard',
     'doProspect', 'doRenounceAllegiance', 'doRequestBounty', 'doTameHorse', 'doTrainCombat',
     'executeAddErrors', 'executeChangePolicy', 'executeFoundColony', 'executeSendPioneers',
@@ -47,7 +47,7 @@ const EXPECTED_KEYS = [
     'meetingRenounceAllegiance', 'meetingRequestAid', 'meetingRequestTitle', 'meetingRequestTrade',
     'performAttack', 'performSiege', 'postBail', 'preach', 'readMap', 'reinforceColony',
     'sellMapFromTrade', 'sellPlayerMap', 'sendGoldToColony', 'show', 'showAddErrorsMenu',
-    'rowToShip', 'showAttackConfirm', 'showBoardShipMenu', 'showPropertyPicker', 'showRowAshoreMenu', 'showShipHoldMenu', 'showBountyBoardMenu', 'showBuildCulturalMenu',
+    'rowToShip', 'showAttackConfirm', 'showBoardShipMenu', 'showPortMarketMenu', 'showPropertyPicker', 'showRowAshoreMenu', 'showShipHoldMenu', 'showBountyBoardMenu', 'showBuildCulturalMenu',
     'showBuildInfrastructureMenu', 'showBuildPropertyMenu', 'showBuildTempleMenu', 'showBuskingMenu',
     'showBuyHouseMenu', 'showCartographyMenu', 'showCharacterDataModal', 'showContractMenu',
     'showCouncilMenu', 'showDeathScreen', 'showDonateMenu', 'showDynastyMenu', 'showEspionageMenu',
@@ -79,8 +79,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 203 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(203);
+    it('has 205 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(205);
     });
 
     it('every member except the known data props is a function', () => {

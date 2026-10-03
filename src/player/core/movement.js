@@ -58,6 +58,34 @@ export const PlayerMovementMethods = {
         }
     },
 
+    /** Terrain a boarded ship can sail on (beaches count, so you can wade ashore). */
+    SHIP_TERRAINS: ['ocean', 'deep_ocean', 'coast', 'lake', 'sea', 'beach'],
+
+    /**
+     * Can the player enter hex (q, r) in their current mode? On land that's
+     * plain terrain passability; aboard a ship it's water, beaches, coastal
+     * settlements (to dock) and the hex they're already on.
+     */
+    _canEnterHex(q, r, world) {
+        const tile = world.getTile(q, r);
+        if (!tile) return false;
+        if (!this.boardedShip) return !!tile.terrain.passable;
+        if (q === this.q && r === this.r) return true;
+        if (this.SHIP_TERRAINS.includes(tile.terrain.id)) return true;
+        if (!tile.settlement) return false;
+        return Hex.neighbors(q, r).some(n => {
+            if (n.r < 0 || n.r >= world.height) return false;
+            const nTile = world.getTile(Hex.wrapQ(n.q, world.width), n.r);
+            return !!nTile && this.SHIP_TERRAINS.includes(nTile.terrain.id);
+        });
+    },
+
+    /** Stamina cost to enter a tile — sailing is a flat 2 per hex. */
+    _hexMoveCost(tile) {
+        if (this.boardedShip) return 2;
+        return (typeof Infrastructure !== 'undefined') ? Infrastructure.getEffectiveMoveCost(tile) : tile.terrain.moveCost;
+    },
+
     /**
      * Request to move to target hex
      */
@@ -66,58 +94,12 @@ export const PlayerMovementMethods = {
         if (this.jailState) return false;
         if (this.indenturedServitude) return false;
 
-        // Define passability based on whether player is on a ship
-        const isPassable = (q, r) => {
-            const tile = world.getTile(q, r);
-            if (!tile) return false;
-
-            if (this.boardedShip) {
-                // On a ship: can move on water tiles and beaches/coasts
-                const waterTiles = ['ocean', 'deep_ocean', 'coast', 'lake', 'sea', 'beach'];
-                if (waterTiles.includes(tile.terrain.id)) return true;
-
-                // Allow starting position
-                const isCurrentPos = (q === this.q && r === this.r);
-                if (isCurrentPos) return true;
-
-                // Allow coastal settlements (settlements adjacent to water) for docking
-                if (tile.settlement) {
-                    const neighbors = Hex.neighbors(q, r);
-                    for (const n of neighbors) {
-                        const nq = Hex.wrapQ(n.q, world.width);
-                        if (n.r < 0 || n.r >= world.height) continue;
-                        const nTile = world.getTile(nq, n.r);
-                        if (nTile && waterTiles.includes(nTile.terrain.id)) {
-                            return true; // Settlement is adjacent to water
-                        }
-                    }
-                }
-
-                return false;
-            } else {
-                // On land: use normal passability
-                return tile.terrain.passable;
-            }
-        };
-
         const path = Hex.findPath(
             this.q, this.r,
             targetQ, targetR,
             world.width, world.height,
-            isPassable,
-            (q, r) => {
-                const tile = world.getTile(q, r);
-                if (this.boardedShip) {
-                    // On a ship: water tiles have uniform movement cost
-                    const waterTiles = ['ocean', 'deep_ocean', 'coast', 'lake', 'sea', 'beach'];
-                    if (waterTiles.includes(tile.terrain.id)) {
-                        return 2; // Standard water movement cost
-                    }
-                    // Coastal settlements and starting position also cost 2
-                    return 2;
-                }
-                return Infrastructure.getEffectiveMoveCost(tile);
-            }
+            (q, r) => this._canEnterHex(q, r, world),
+            (q, r) => this._hexMoveCost(world.getTile(q, r))
         );
 
         if (path && path.length > 1) {
@@ -185,44 +167,14 @@ export const PlayerMovementMethods = {
             const nextHex = this.path[this.pathIndex];
             const tile = world.getTile(nextHex.q, nextHex.r);
 
-            // Check if tile is accessible based on current mode (ship vs land)
-            let isAccessible = false;
-            if (this.boardedShip) {
-                const waterTiles = ['ocean', 'deep_ocean', 'coast', 'lake', 'sea', 'beach'];
-                // Allow water tiles
-                if (waterTiles.includes(tile.terrain.id)) {
-                    isAccessible = true;
-                }
-                // Allow coastal settlements (for docking)
-                else if (tile.settlement) {
-                    const neighbors = Hex.neighbors(nextHex.q, nextHex.r);
-                    for (const n of neighbors) {
-                        const nq = Hex.wrapQ(n.q, world.width);
-                        if (n.r < 0 || n.r >= world.height) continue;
-                        const nTile = world.getTile(nq, n.r);
-                        if (nTile && waterTiles.includes(nTile.terrain.id)) {
-                            isAccessible = true;
-                            break;
-                        }
-                    }
-                }
-            } else {
-                isAccessible = tile.terrain.passable;
-            }
-
-            if (!tile || !isAccessible) {
+            if (!this._canEnterHex(nextHex.q, nextHex.r, world)) {
                 this.isMoving = false;
                 this.path = null;
                 return false;
             }
 
             // Check stamina
-            let moveCost;
-            if (this.boardedShip) {
-                moveCost = 2; // Water movement cost
-            } else {
-                moveCost = (typeof Infrastructure !== 'undefined') ? Infrastructure.getEffectiveMoveCost(tile) : tile.terrain.moveCost;
-            }
+            const moveCost = this._hexMoveCost(tile);
             if (this.movementRemaining < moveCost) {
                 this.isMoving = false;
                 this.path = null;
@@ -336,10 +288,10 @@ export const PlayerMovementMethods = {
                 const wr = n.r;
                 if (wr < 0 || wr >= world.height) continue;
 
-                const tile = world.getTile(wq, wr);
-                if (!tile || !tile.terrain.passable) continue;
+                // Same rules as actual movement, so the overlay shows water while sailing
+                if (!this._canEnterHex(wq, wr, world)) continue;
 
-                const newCost = current.cost + ((typeof Infrastructure !== 'undefined') ? Infrastructure.getEffectiveMoveCost(tile) : tile.terrain.moveCost);
+                const newCost = current.cost + this._hexMoveCost(world.getTile(wq, wr));
                 const key = `${wq},${wr}`;
 
                 if (newCost <= this.movementRemaining && (!reachable.has(key) || reachable.get(key) > newCost)) {

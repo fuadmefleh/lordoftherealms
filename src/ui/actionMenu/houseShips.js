@@ -862,14 +862,83 @@ Object.assign(ActionMenu, {
             game.ui.showNotification('⛵', `You board the ${ship.name}. You can now sail across water tiles!`, 'success');
             game.ui.updateStats(player, game.world);
         };
+    },
 
-        window._seaTrade = (shipId) => {
-            const result = Ships.doSeaTrade(player, shipId, game.world);
-            game.ui.hideCustomPanel();
-            game.ui.showNotification(result.icon || '💰', result.title || 'Sea Trade', result.type || 'info');
-            game.ui.updateStats(player, game.world);
-            game.endDay();
+    /** Explore, hunt pirates or turn pirate from the boarded ship. */
+    doSeaActivity(game, activity) {
+        const player = game.player;
+        const run = { explore_ocean: 'exploreOcean', hunt_pirates: 'huntPirates', commit_piracy: 'commitPiracy' }[activity];
+        if (!run || !player.boardedShip) {
+            game.ui.showNotification('Not at Sea', 'You need to be aboard your ship on open water.', 'error');
+            return;
+        }
+        const result = Ships[run](player, player.boardedShip, game.world);
+        if (!result.success) {
+            game.ui.showNotification('At Sea', result.message, 'error');
+            return;
+        }
+        game.ui.showNotification(result.icon || '🌊', result.title, result.type || 'info');
+        game.ui.updateStats(player, game.world);
+    },
+
+    /**
+     * Port market: buy trade goods into a docked ship's hold and sell them.
+     * Ports export some goods cheaply and import others at a premium.
+     */
+    showPortMarketMenu(game, shipId = null) {
+        const player = game.player;
+        const world = game.world;
+        const ships = Ships.getShipsWithHoldAccess(player).filter(s => s.status === 'docked');
+        if (ships.length === 0 || !Ships.isPortTile(world, player.q, player.r)) {
+            game.ui.showNotification('No Ship in Port', 'Dock one of your ships at this port to trade by sea.', 'error');
+            return;
+        }
+        const ship = ships.find(s => s.id === shipId) || ships[0];
+        const stats = Ships.getShipEffectiveStats(ship);
+        const market = Ships.getPortMarket(world, player.q, player.r);
+        const daysToDrift = Ships.PORT_PRICE_PERIOD - ((world.day || 0) % Ships.PORT_PRICE_PERIOD);
+        const esc = (id) => String(id).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const btn = 'padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);';
+        const roleTag = {
+            export: '<span style="color:#7bd88f;">exports — cheap</span>',
+            import: '<span style="color:#f5c542;">imports — pays well</span>',
+            local: '<span style="color:var(--text-secondary);">local market</span>',
         };
+
+        let html = '<div style="max-height:460px;overflow-y:auto;">';
+        if (ships.length > 1) {
+            html += '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">';
+            for (const s of ships) {
+                const active = s.id === ship.id ? 'border-color:rgba(245,197,66,0.7);' : '';
+                html += `<button onclick="ActionMenu.showPortMarketMenu(window._game, '${esc(s.id)}')" style="${btn}${active}">⛵ ${s.name}</button>`;
+            }
+            html += '</div>';
+        }
+        html += `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">💰 ${player.gold}g · Hold: ${Ships.getCargoUsed(ship)} / ${stats.cargoCapacity} · Prices change in ${daysToDrift} day(s). Buy where a good is exported, sell where it is imported.</div>`;
+        for (const e of market) {
+            const held = (ship.cargo && ship.cargo[e.id]) || 0;
+            html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:4px;">';
+            html += `<div><div style="font-size:12px;font-weight:600;">${e.icon} ${e.name} <span style="font-size:10px;font-weight:400;">${roleTag[e.role]}</span></div>`;
+            html += `<div style="font-size:10px;color:var(--text-secondary);">${e.buy !== null ? `Buy ${e.buy}g · ` : ''}Sell ${e.sell}g · In hold: ${held}</div></div>`;
+            html += '<div style="display:flex;gap:4px;">';
+            if (e.buy !== null) {
+                html += `<button onclick="window._portBuy('${esc(e.id)}', 1)" style="${btn}">Buy 1</button>`;
+                html += `<button onclick="window._portBuy('${esc(e.id)}', 9999)" style="${btn}">Fill</button>`;
+            }
+            if (held > 0) html += `<button onclick="window._portSell('${esc(e.id)}', ${held})" style="${btn}">Sell all</button>`;
+            html += '</div></div>';
+        }
+        html += '</div>';
+        game.ui.showCustomPanel('⚓ Port Market', html);
+        window._game = game;
+
+        const after = (result) => {
+            if (!result.success) game.ui.showNotification('Port Market', result.message, 'error');
+            game.ui.updateStats(player, world);
+            ActionMenu.showPortMarketMenu(game, ship.id);
+        };
+        window._portBuy = (id, qty) => after(Ships.buyTradeGood(player, world, ship.id, id, qty));
+        window._portSell = (id, qty) => after(Ships.sellTradeGood(player, world, ship.id, id, qty));
     },
 
     disembarkShip(game) {

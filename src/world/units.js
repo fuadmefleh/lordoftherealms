@@ -706,10 +706,13 @@ export class WorldUnit {
 
                 // Deposit fish
                 const tile = world.getTile(this.q, this.r);
-                if (tile && tile.playerProperty && tile.playerProperty.type === 'fishing_wharf') {
-                    tile.playerProperty.storage = (tile.playerProperty.storage || 0) + (this.inventory['fish'] || 0);
+                // The wharf may share its tile with other properties
+                const wharf = tile && (tile.playerProperties || [tile.playerProperty])
+                    .find(p => p && p.type === 'fishing_wharf');
+                if (wharf) {
+                    wharf.storage = (wharf.storage || 0) + (this.inventory['fish'] || 0);
                     this.inventory['fish'] = 0;
-                    console.log(`Deposited fish. Storage now: ${tile.playerProperty.storage}`);
+                    console.log(`Deposited fish. Storage now: ${wharf.storage}`);
 
                     // Go back out to same spot
                     if (this.fishingSpotQ !== undefined) {

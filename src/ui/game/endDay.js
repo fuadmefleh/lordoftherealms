@@ -620,9 +620,9 @@ export function endDay() {
             let propertyUpkeep = 0;
             if (this.player.properties) {
                 for (const prop of this.player.properties) {
-                    const tile = this.world.getTile(prop.q, prop.r);
-                    if (tile && tile.playerProperty) {
-                        propertyUpkeep += (tile.playerProperty.upkeep || 0) * (tile.playerProperty.level || 1);
+                    const owned = PlayerEconomy.findPropertyAt(this.world.getTile(prop.q, prop.r), prop.type);
+                    if (owned) {
+                        propertyUpkeep += (owned.upkeep || 0) * (owned.level || 1);
                     }
                 }
             }

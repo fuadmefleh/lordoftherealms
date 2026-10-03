@@ -99,24 +99,23 @@ Object.assign(ActionMenu, {
     },
 
     /**
-     * Collect goods from property
+     * Collect stored goods from every property on this tile
      */
     collectGoods(game, tile) {
-        if (!tile.playerProperty || !tile.playerProperty.storage) return;
-
-        const prop = tile.playerProperty;
-        const amount = prop.storage;
-        const good = prop.produces;
-
         if (!game.player.inventory) game.player.inventory = {};
-        game.player.inventory[good] = (game.player.inventory[good] || 0) + amount;
+        const parts = [];
+        for (const prop of PlayerEconomy.getPropertiesAt(tile)) {
+            // Taverns pay out directly; their storage only tallies earnings
+            if (!prop.produces || prop.produces === 'gold' || !(prop.storage > 0)) continue;
+            const good = prop.produces;
+            game.player.inventory[good] = (game.player.inventory[good] || 0) + prop.storage;
+            const goodDef = PlayerEconomy.GOODS[good.toUpperCase()];
+            parts.push(`${prop.storage} ${goodDef ? goodDef.name : good}`);
+            prop.storage = 0;
+        }
+        if (parts.length === 0) return;
 
-        prop.storage = 0;
-
-        const goodDef = PlayerEconomy.GOODS[good.toUpperCase()];
-        const goodName = goodDef ? goodDef.name : good;
-
-        game.ui.showNotification('Goods Collected', `Collected ${amount} ${goodName}`, 'success');
+        game.ui.showNotification('Goods Collected', `Collected ${parts.join(', ')}`, 'success');
         game.ui.updateStats(game.player, game.world);
     },
 

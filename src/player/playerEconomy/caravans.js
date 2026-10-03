@@ -492,7 +492,8 @@ Object.assign(PlayerEconomy, {
      * Send a fishing boat to a resource
      */
     sendFishingBoat(player, tile, targetQ, targetR, world) {
-        if (!tile.playerProperty || tile.playerProperty.type !== 'fishing_wharf') return { success: false, reason: 'Not a fishing wharf' };
+        const wharf = PlayerEconomy.findPropertyAt(tile, 'fishing_wharf');
+        if (!wharf) return { success: false, reason: 'Not a fishing wharf' };
 
         const cost = 50;
         if (player.gold < cost) return { success: false, reason: `Need ${cost} gold` };
@@ -505,7 +506,7 @@ Object.assign(PlayerEconomy, {
             !u.destroyed
         );
 
-        if (activeBoats.length >= tile.playerProperty.level) {
+        if (activeBoats.length >= wharf.level) {
             return { success: false, reason: `Max boats dispatched (Upgrade for more)` };
         }
 

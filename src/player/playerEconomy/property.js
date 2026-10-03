@@ -191,7 +191,7 @@ Object.assign(PlayerEconomy, {
         //     InnerMap.placePropertyOnInnerMap(tile, newProperty, tile.q, tile.r);
         // }
 
-        return { success: true, property: tile.playerProperty, underConstruction: constructionDays > 0, constructionDays };
+        return { success: true, property: newProperty, underConstruction: constructionDays > 0, constructionDays };
     },
 
     /**

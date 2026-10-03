@@ -315,9 +315,10 @@ Object.assign(InnerMap, {
     },
 
     /**
-     * Re-auto-tile the grass layer after road tiles were added on top of it
-     * (e.g. roads generated at enter() time, after the map was stamped). Road
-     * cells drop out of the grass mask, cells left as untileable stubs are
+     * Re-auto-tile the grass layer after bare-ground tiles were added on top
+     * of it (roads generated at enter() time, after the map was stamped, or
+     * land the player tilled). Road and tilled cells drop out of the grass
+     * mask, cells left as untileable stubs are
      * cleared, and the remaining grass is re-stamped so its edges meet the
      * new dirt cleanly instead of showing hard-edged squares.
      * Details saved before the layer tag existed count as grass.
@@ -328,8 +329,9 @@ Object.assign(InnerMap, {
         let stale = false;
         const mask = tiles.map(row => row.map(t => {
             const grass = isGrass(t);
-            if (grass && t.isRoad) stale = true;
-            return grass && !t.isRoad;
+            const bare = !!(t && (t.isRoad || t._tilled));
+            if (grass && bare) stale = true;
+            return grass && !bare;
         }));
         if (!stale) return false;
 

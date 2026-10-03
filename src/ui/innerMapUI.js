@@ -651,6 +651,9 @@ Object.assign(InnerMapRenderer, {
                     tile.baseTerrain = 'dirt';
                     tile.subTerrain = { id: 'tilled_soil', name: 'Tilled Soil', icon: '🌾', color: '#8b7355', passable: true };
                     tile._tilled = true;
+                    tile._cachedFill = null;
+                    // Strip the grass off this tile and re-auto-tile its neighbours
+                    InnerMap._refreshGrassLayer(InnerMap.tiles);
                     game.ui.showNotification('🌾 Till Land', 'You till the land, preparing it for planting.', 'success');
                 } else {
                     game.ui.showNotification('❌ Cannot Till', 'This terrain cannot be tilled.', 'error');

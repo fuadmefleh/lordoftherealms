@@ -95,6 +95,20 @@ describe('InnerMap grass layer vs. roads', () => {
         expect(slotMismatches(tiles, slots)).toBe(0);
     });
 
+    it('strips grass from tilled land and re-auto-tiles around it', () => {
+        const tiles = InnerMap.generate(makeWorldTile(), 5, 6, null);
+        const tilled = [];
+        for (let q = 4; q < 7; q++) {
+            for (let r = 4; r < 7; r++) {
+                if (isGrass(tiles[r][q])) { tiles[r][q]._tilled = true; tilled.push(tiles[r][q]); }
+            }
+        }
+        expect(tilled.length).toBeGreaterThan(0);
+        expect(InnerMap._refreshGrassLayer(tiles)).toBe(true);
+        for (const t of tilled) expect(isGrass(t)).toBe(false);
+        expect(slotMismatches(tiles, slots)).toBe(0);
+    });
+
     it('leaves water cells alone when refreshing grass', () => {
         const tiles = InnerMap.generate(makeWorldTile(), 5, 6, null);
         const cell = tiles.flat().find(t => isGrass(t) && !t.isRoad);

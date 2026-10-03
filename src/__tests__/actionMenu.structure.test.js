@@ -15,7 +15,8 @@ import { DataLoader } from '../core/dataLoader.js';
 // row-ashore members (showRowAshoreMenu, rowToShip, _landingCargoText,
 // _centerCameraOnPlayer) = 201, plus showShipHoldMenu = 202, plus
 // showPropertyPicker = 203, plus doSeaActivity and showPortMarketMenu = 205, plus the five
-// delegated-click helpers (closePanel*, openTileMenu, postSignboardAndManageColony) = 210.
+// delegated-click helpers (closePanel*, openTileMenu, postSignboardAndManageColony) = 210, plus
+// the build-menu helpers (BUILD_CATEGORIES, _buildOutputText, _canBuildTechBuilding) = 213.
 const EXPECTED_KEYS = [
     'AP_COSTS', 'DEFERRED_AP_ACTIONS', '_appointTitle', '_buskFortuneTelling', '_buskJuggling',
     '_buskPreaching', '_buskSinging', '_buskStorytelling', '_buskingReward', '_categorizeActions',
@@ -26,7 +27,7 @@ const EXPECTED_KEYS = [
     '_getRelationshipProgress', '_getTavernLuckBonus', '_handleTellStories', '_laborCharisma',
     '_laborCombat', '_laborIntelligence', '_laborReward', '_laborStamina', '_laborStealth',
     '_laborStrength', '_meetingOptionButton', '_minigameCrownAnchor', '_minigameDragonsFlip',
-    '_centerCameraOnPlayer', 'closePanel', 'closePanelAndEndDay', 'closePanelAndRefresh', '_landingCargoText', '_minigameHighLow', '_minigamePoker', '_pendingAP', '_ppDoCaught', '_renderActionButton',
+    'BUILD_CATEGORIES', '_buildOutputText', '_canBuildTechBuilding', '_centerCameraOnPlayer', 'closePanel', 'closePanelAndEndDay', 'closePanelAndRefresh', '_landingCargoText', '_minigameHighLow', '_minigamePoker', '_pendingAP', '_ppDoCaught', '_renderActionButton',
     '_renderActionTile', '_renderAffectionBar', '_renderFishingResults', '_renderRelationshipXPBar',
     '_resignTitle', '_runArcheryFestivalMinigame', '_runJoustingFestivalMinigame',
     '_setIncentiveFromManage', '_showActiveMissionsMenu', '_showAssignMissionForSpy',
@@ -80,12 +81,12 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 210 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(210);
+    it('has 213 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(213);
     });
 
     it('every member except the known data props is a function', () => {
-        const dataProps = new Set(['AP_COSTS', 'DEFERRED_AP_ACTIONS', '_pendingAP']);
+        const dataProps = new Set(['AP_COSTS', 'BUILD_CATEGORIES', 'DEFERRED_AP_ACTIONS', '_pendingAP']);
         for (const key of Object.keys(ActionMenu)) {
             if (dataProps.has(key)) continue;
             expect(typeof ActionMenu[key], `${key} should be a function`).toBe('function');

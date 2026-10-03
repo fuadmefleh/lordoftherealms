@@ -320,7 +320,7 @@ Object.assign(ActionMenu, {
     doPostSignboard(game, tile) {
         const result = Colonization.postSignboard(game.player, tile);
         if (result.success) {
-            game.ui.showNotification('🪧 Signboard Posted', `A signboard now advertises ${tile.settlement.name} to passing travelers.`, 'success');
+            game.ui.showNotification('📋 Signboard Posted', `A signboard now advertises ${tile.settlement.name} to passing travelers.`, 'success');
         } else {
             game.ui.showNotification('Cannot Post', result.reason, 'error');
         }
@@ -541,7 +541,7 @@ Object.assign(ActionMenu, {
                         <div><small style="color:#aaa;">Reputation</small><br><b>${(rec.reputation || 0).toFixed(0)}</b></div>
                     </div>
                     <div style="margin-top:8px; display:flex; gap:6px; align-items:center; font-size:12px;">
-                        <span>🪧 Signboard:</span>
+                        <span>📋 Signboard:</span>
                         ${rec.signboard
                             ? '<span style="color:#4CAF50;">✓ Posted</span>'
                             : `<button data-am-act="postSignboardAndManageColony" data-am-args='[${tile.q}, ${tile.r}]'

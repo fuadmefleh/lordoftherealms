@@ -198,7 +198,7 @@ Object.assign(InnerMap, {
                 { type: 'barrel', icon: '🛢️', name: 'Ale Barrel', q: 1, r: 1, passable: false },
                 { type: 'barrel', icon: '🛢️', name: 'Wine Barrel', q: 1, r: 2, passable: false },
                 { type: 'fireplace', icon: '🔥', name: 'Fireplace', q: 10, r: 1, passable: false },
-                { type: 'stairs', icon: '🪜', name: 'Stairs Up', q: 10, r: 8, passable: true },
+                { type: 'stairs', icon: '🧗', name: 'Stairs Up', q: 10, r: 8, passable: true },
             ]
         },
         blacksmith: {
@@ -280,7 +280,7 @@ Object.assign(InnerMap, {
                 { type: 'fireplace', icon: '🔥', name: 'Grand Fireplace', q: 12, r: 1, passable: false },
                 { type: 'chest', icon: '📦', name: 'Treasury Chest', q: 12, r: 10, passable: false },
                 { type: 'banner', icon: '🚩', name: 'Family Banner', q: 6, r: 1, passable: true },
-                { type: 'stairs', icon: '🪜', name: 'Staircase', q: 1, r: 10, passable: true },
+                { type: 'stairs', icon: '🧗', name: 'Staircase', q: 1, r: 10, passable: true },
             ]
         },
         granary: {
@@ -323,7 +323,7 @@ Object.assign(InnerMap, {
             width: 6, height: 6, floor: 'stone_floor', wallColor: '#7a7a7a',
             furniture: [
                 { type: 'well', icon: '💧', name: 'Well', q: 2, r: 2, passable: false },
-                { type: 'bucket', icon: '🪣', name: 'Bucket', q: 3, r: 3, passable: true },
+                { type: 'bucket', icon: '🧺', name: 'Bucket', q: 3, r: 3, passable: true },
             ]
         },
         barn: {
@@ -342,7 +342,7 @@ Object.assign(InnerMap, {
                 { type: 'rack', icon: '⚔️', name: 'Weapon Rack', q: 1, r: 1, passable: false },
                 { type: 'rack', icon: '🛡️', name: 'Shield Rack', q: 4, r: 1, passable: false },
                 { type: 'table', icon: '🪑', name: 'Watch Table', q: 2, r: 3, passable: false },
-                { type: 'stairs', icon: '🪜', name: 'Stairs Up', q: 4, r: 6, passable: true },
+                { type: 'stairs', icon: '🧗', name: 'Stairs Up', q: 4, r: 6, passable: true },
             ]
         },
         farm: {

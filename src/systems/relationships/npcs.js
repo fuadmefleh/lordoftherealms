@@ -66,7 +66,7 @@ Object.assign(Relationships, {
         if (data && data.npcPersonalities) return data.npcPersonalities;
         return {
             kind: { id: 'kind', label: 'Kind', icon: '😇', courtModifier: 1.2, friendModifier: 1.3, rivalModifier: 0.5 },
-            shy: { id: 'shy', label: 'Shy', icon: '🫣', courtModifier: 0.7, friendModifier: 0.8, rivalModifier: 0.6 },
+            shy: { id: 'shy', label: 'Shy', icon: '🙈', courtModifier: 0.7, friendModifier: 0.8, rivalModifier: 0.6 },
             bold: { id: 'bold', label: 'Bold', icon: '🦁', courtModifier: 1.1, friendModifier: 1.0, rivalModifier: 1.3 },
             witty: { id: 'witty', label: 'Witty', icon: '🎭', courtModifier: 1.3, friendModifier: 1.1, rivalModifier: 0.8 },
         };

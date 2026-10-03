@@ -379,7 +379,7 @@ export function _showGiftSubmenu() {
         if (playerGold >= amount) {
             const btn = document.createElement('button');
             btn.className = 'npc-dialog-choice npc-dialog-gift';
-            btn.innerHTML = `<span class="npc-dialog-choice-icon">🪙</span> Give ${amount} gold`;
+            btn.innerHTML = `<span class="npc-dialog-choice-icon">💰</span> Give ${amount} gold`;
             btn.addEventListener('click', () => _giveGoldGift(amount));
             choicesEl.appendChild(btn);
         }

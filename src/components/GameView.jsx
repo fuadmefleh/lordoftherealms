@@ -283,7 +283,7 @@ export default function GameView() {
         {/* Resources */}
         <div className="hud-bb-resources">
           <div className="hud-bb-res" title="Gold">
-            <span className="hud-bb-res-icon">🪙</span>
+            <span className="hud-bb-res-icon">💰</span>
             <span className="hud-bb-res-val" id="simsGold">0</span>
             <span className="hud-bb-res-sub" id="incomePerDay">+0/d</span>
           </div>

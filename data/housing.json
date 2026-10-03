@@ -3,7 +3,7 @@
         {
             "id": "shack",
             "name": "Humble Shack",
-            "icon": "🛖",
+            "icon": "🏚️",
             "description": "A ramshackle shelter on the edge of town. Better than sleeping outdoors.",
             "baseCost": 150,
             "maintenanceCost": 2,

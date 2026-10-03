@@ -16,129 +16,162 @@ Object.assign(ActionMenu, {
         }
     },
 
+    /** Build-menu category tabs, in display order. */
+    BUILD_CATEGORIES: [
+        { id: 'all', label: 'All', icon: '📋' },
+        { id: 'farming', label: 'Farming', icon: '🌾' },
+        { id: 'resources', label: 'Resources', icon: '⛏️' },
+        { id: 'food', label: 'Food & Drink', icon: '🍞' },
+        { id: 'crafts', label: 'Crafts', icon: '🔨' },
+        { id: 'commerce', label: 'Commerce', icon: '💰' },
+        { id: 'tech', label: 'Tech', icon: '🔬' },
+    ],
+
     /**
-     * Show build property menu
+     * Can a tech-unlocked building go on this tile? Same shape as
+     * PlayerEconomy.canBuildProperty: { canBuild, reason }.
+     */
+    _canBuildTechBuilding(game, tile, prop) {
+        if (!(prop.requiredTech && Technology.isImplemented(game.player, prop.requiredTech))) {
+            return { canBuild: false, reason: 'Not researched' };
+        }
+        if (tile.playerProperties && tile.playerProperties.find(p => p.type === prop.id)) {
+            return { canBuild: false, reason: 'Already built here' };
+        }
+        if (prop.requiredTerrain && !prop.requiredTerrain.includes(tile.terrain.id)) {
+            return { canBuild: false, reason: `Requires ${prop.requiredTerrain.join(' or ')}` };
+        }
+        if (prop.requiredResource && (!tile.resource || !prop.requiredResource.includes(tile.resource.id))) {
+            return { canBuild: false, reason: `Requires ${prop.requiredResource.join(' or ')}` };
+        }
+        if (prop.requiredSettlement && !tile.settlement) {
+            return { canBuild: false, reason: 'Requires settlement' };
+        }
+        const cost = PlayerEconomy.getBuildCost(game.player, prop);
+        if (game.player.gold < cost) return { canBuild: false, reason: `Need ${cost} gold (have ${game.player.gold})` };
+        return { canBuild: true };
+    },
+
+    /** One-line "what it makes" text for a build-menu row. */
+    _buildOutputText(prop, tile) {
+        const goodName = (id) => {
+            const g = PlayerEconomy.GOODS[String(id).toUpperCase()];
+            return g ? `${g.icon || ''} ${g.name}` : id;
+        };
+        if (prop.allowedRecipes || prop.recipeBased) {
+            if (!prop.allowedRecipes) return 'Any recipe';
+            return prop.allowedRecipes.map(r => {
+                const recipe = PlayerEconomy.RECIPES[r];
+                return recipe ? `${goodName(recipe.input)} → ${goodName(recipe.output)}` : r;
+            }).join(' · ');
+        }
+        if (prop.id === 'mine') return tile.resource ? goodName(tile.resource.id) : 'Tile resource';
+        if (prop.id === 'tavern') return '💰 Gold from patrons';
+        if (prop.id === 'trading_post') return '🐪 Attracts merchants';
+        if (!prop.produces) return 'Special';
+        return `${goodName(prop.produces)}${prop.productionRate ? ` · ${prop.productionRate}/day` : ''}`;
+    },
+
+    /**
+     * Show build property menu: search, category tabs, and a compact list
+     * with what this tile can take first.
      */
     showBuildPropertyMenu(game, tile) {
-        let html = '<div>';
+        const player = game.player;
+        const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
-        // Buildable here first; everything else goes in a collapsed section so
-        // the long property list stays scannable on any given tile
-        const entries = Object.entries(PlayerEconomy.PROPERTY_TYPES).map(([key, prop]) =>
-            ({ key, prop, check: PlayerEconomy.canBuildProperty(game.player, key, tile, game.world) }));
-        const buildable = entries.filter(e => e.check.canBuild);
-        const elsewhere = entries.filter(e => !e.check.canBuild);
-        const grid = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">';
-
-        html += `<div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Can build here (${buildable.length})</div>`;
-        if (buildable.length === 0) {
-            html += '<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">Nothing can be built on this tile right now.</div>';
+        const rows = Object.entries(PlayerEconomy.PROPERTY_TYPES).map(([key, prop]) => ({
+            key, prop, tech: false,
+            category: prop.category || (PlayerEconomy.isRecipeBuilding(prop.id) ? 'crafts' : 'resources'),
+            check: PlayerEconomy.canBuildProperty(player, key, tile, game.world),
+        }));
+        for (const [key, prop] of Object.entries(Technology.TECH_BUILDINGS || {})) {
+            if (!(prop.requiredTech && Technology.isImplemented(player, prop.requiredTech))) continue;
+            rows.push({ key, prop, tech: true, category: 'tech', check: ActionMenu._canBuildTechBuilding(game, tile, prop) });
         }
-        html += grid;
+        // Buildable first, then cheapest
+        rows.sort((a, b) => (b.check.canBuild - a.check.canBuild)
+            || (PlayerEconomy.getBuildCost(player, a.prop) - PlayerEconomy.getBuildCost(player, b.prop)));
 
-        for (const [idx, { key, prop, check }] of [...buildable, ...elsewhere].entries()) {
-            if (idx === buildable.length && elsewhere.length > 0) {
-                html += '</div>';
-                html += `<details style="margin-top: 10px;"><summary style="cursor: pointer; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Needs another location or more gold (${elsewhere.length})</summary>`;
-                html += `<div style="margin-top: 6px;">${grid}`;
-            }
+        const state = window._buildMenuState || (window._buildMenuState = { cat: 'all', onlyBuildable: true, query: '' });
+        const buildableCount = rows.filter(r => r.check.canBuild).length;
 
-            // Determine resource display
-            let productionText = '';
-            if (prop.id === 'mine') {
-                productionText = tile.resource ? (PlayerEconomy.GOODS[tile.resource.id.toUpperCase()]?.name || tile.resource.id) : 'Tile resource';
-            } else if (prop.id === 'trading_post') {
-                productionText = 'Merchants';
-            } else if (prop.id === 'tavern') {
-                productionText = 'Gold (patrons)';
-            } else {
-                const good = PlayerEconomy.GOODS[prop.produces ? prop.produces.toUpperCase() : 'GOODS'];
-                productionText = good ? good.name : (prop.produces || 'Recipes');
-            }
-
-            html += `
-                <div style="padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; ${!check.canBuild ? 'opacity: 0.5;' : ''} display: flex; flex-direction: column; justify-content: space-between;">
-                    <div>
-                        <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
-                            <span style="font-size: 18px;">${prop.icon}</span>
-                            <strong style="font-size: 13px;">${prop.name}</strong>
-                        </div>
-                        <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 3px;">${prop.description}</div>
-                        <div style="font-size: 11px;">📦 ${productionText}${prop.id === 'tavern' ? ' · ~15-35g' : prop.id === 'trading_post' ? '' : ` · ${prop.productionRate}/day`}</div>
-                        <div style="font-size: 11px; color: var(--gold);">🏗️ ${prop.constructionDays || 0} days</div>
-                        ${!check.canBuild ? `<div style="font-size: 10px; color: #e74c3c; margin-top: 2px;">${check.reason}</div>` : ''}
-                    </div>
-                    <button onclick="window.buildProperty('${key}')" ${!check.canBuild ? 'disabled' : ''} style="margin-top: 5px; width: 100%; padding: 4px 0; background: ${check.canBuild ? 'linear-gradient(135deg, var(--gold-dark), var(--gold))' : 'rgba(255,255,255,0.06)'}; border: ${check.canBuild ? 'none' : '1px solid rgba(255,255,255,0.1)'}; border-radius: 3px; cursor: ${check.canBuild ? 'pointer' : 'not-allowed'}; font-size: 12px; font-weight: bold; color: ${check.canBuild ? '#1a1207' : 'var(--text-muted)'};">Build · ${PlayerEconomy.getBuildCost(game.player, prop)}g</button>
-                </div>
-            `;
+        let html = '<div class="bp-menu">';
+        // Search, tabs and filter stay pinned while the list scrolls with the panel
+        html += '<div style="position: sticky; top: 0; z-index: 2; background: rgb(20, 24, 32); padding-bottom: 4px;">';
+        html += `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">💰 ${player.gold}g · ${buildableCount} of ${rows.length} can be built here${tile.hasRiver ? ' · 🌊 river tile (mills +50%)' : ''}</div>`;
+        html += `<input id="bpSearch" type="text" placeholder="Search by name or product… (e.g. flour, wool, forest)" value="${esc(state.query)}" oninput="window._bpFilter()" style="width: 100%; box-sizing: border-box; padding: 7px 10px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color, rgba(255,255,255,0.15)); border-radius: 6px; color: var(--text-primary); font-size: 13px;">`;
+        html += '<div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;">';
+        for (const c of ActionMenu.BUILD_CATEGORIES) {
+            const n = c.id === 'all' ? rows.length : rows.filter(r => r.category === c.id).length;
+            if (n === 0) continue;
+            html += `<button class="bp-tab" data-cat="${c.id}" onclick="window._bpTab('${c.id}')" style="padding: 4px 9px; border-radius: 999px; font-size: 11px; cursor: pointer; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.04); color: var(--text-primary);">${c.icon} ${c.label} <span style="opacity: 0.6;">${n}</span></button>`;
         }
-
-        html += '</div>'; // close grid
-        if (elsewhere.length > 0) html += '</div></details>';
-
-        // Show tech-unlocked buildings
-        if (typeof Technology !== 'undefined') {
-            const techBuildings = Technology.TECH_BUILDINGS;
-            let techCards = '';
-            let hasTechSection = false;
-            for (const [key, prop] of Object.entries(techBuildings)) {
-                const isUnlocked = prop.requiredTech && Technology.isImplemented(game.player, prop.requiredTech);
-                if (!isUnlocked) continue;
-                hasTechSection = true;
-
-                // Simple build check for tech buildings
-                const techCost = PlayerEconomy.getBuildCost(game.player, prop);
-                const canAfford = game.player.gold >= techCost;
-                const alreadyBuilt = tile.playerProperties && tile.playerProperties.find(p => p.type === prop.id);
-                let canBuild = canAfford && !alreadyBuilt;
-                let reason = '';
-                if (!canAfford) reason = `Need ${techCost} gold`;
-                if (alreadyBuilt) reason = 'Already built here';
-                if (prop.requiredTerrain && !prop.requiredTerrain.includes(tile.terrain.id)) {
-                    canBuild = false;
-                    reason = `Requires ${prop.requiredTerrain.join(' or ')}`;
-                }
-                if (prop.requiredResource) {
-                    if (!tile.resource || !prop.requiredResource.includes(tile.resource.id)) {
-                        canBuild = false;
-                        reason = `Requires ${prop.requiredResource.join(' or ')}`;
-                    }
-                }
-                if (prop.requiredSettlement && !tile.settlement) {
-                    canBuild = false;
-                    reason = 'Requires settlement';
-                }
-
-                const productionText = prop.produces ? prop.produces : 'Special';
-
-                techCards += `
-                    <div style="padding: 8px; background: rgba(156, 39, 176, 0.06); border: 1px solid rgba(156, 39, 176, 0.2); border-radius: 4px; ${!canBuild ? 'opacity: 0.5;' : ''} display: flex; flex-direction: column; justify-content: space-between;">
-                        <div>
-                            <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
-                                <span style="font-size: 18px;">${prop.icon}</span>
-                                <strong style="font-size: 13px;">${prop.name}</strong>
-                                <span style="font-size: 9px; color: #ce93d8; margin-left: auto;">TECH</span>
-                            </div>
-                            <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 3px;">${prop.description}</div>
-                            <div style="font-size: 11px;">📦 ${productionText} · ${prop.productionRate}/day</div>
-                            <div style="font-size: 11px; color: var(--gold);">🏗️ ${prop.constructionDays || 0} days</div>
-                            ${!canBuild && reason ? `<div style="font-size: 10px; color: #e74c3c; margin-top: 2px;">${reason}</div>` : ''}
-                        </div>
-                        <button onclick="window.buildTechBuilding('${key}')" ${!canBuild ? 'disabled' : ''} style="margin-top: 5px; width: 100%; padding: 4px 0; background: ${canBuild ? 'linear-gradient(135deg, var(--gold-dark), var(--gold))' : 'rgba(255,255,255,0.06)'}; border: ${canBuild ? 'none' : '1px solid rgba(255,255,255,0.1)'}; border-radius: 3px; cursor: ${canBuild ? 'pointer' : 'not-allowed'}; font-size: 12px; font-weight: bold; color: ${canBuild ? '#1a1207' : 'var(--text-muted)'};">Build · ${techCost}g</button>
-                    </div>
-                `;
-            }
-            if (hasTechSection) {
-                html += '<div style="margin-top: 10px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1);">';
-                html += '<div style="font-size: 10px; color: var(--gold); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px;">🔬 Tech-Unlocked</div>';
-                html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">';
-                html += techCards;
-                html += '</div></div>';
-            }
-        }
-
         html += '</div>';
+        html += `<label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; cursor: pointer;"><input id="bpOnlyBuildable" type="checkbox" ${state.onlyBuildable ? 'checked' : ''} onchange="window._bpFilter()"> Only show what I can build here</label>`;
+        html += '</div>';
+
+        html += '<div id="bpList" style="display: flex; flex-direction: column; gap: 4px;">';
+        for (const r of rows) {
+            const { prop, check } = r;
+            const cost = PlayerEconomy.getBuildCost(player, prop);
+            const output = ActionMenu._buildOutputText(prop, tile);
+            const haystack = `${prop.name} ${output} ${prop.description || ''} ${(prop.requiredTerrain || []).join(' ')}`.toLowerCase();
+            const action = r.tech ? `window.buildTechBuilding('${r.key}')` : `window.buildProperty('${r.key}')`;
+            const riverHint = prop.riverBonus && tile.hasRiver ? ' <span style="color: #6ec6ff;">🌊 +50% here</span>' : '';
+            html += `<div class="bp-row" data-cat="${r.category}" data-ok="${check.canBuild ? 1 : 0}" data-text="${esc(haystack)}" title="${esc(prop.description || '')}" style="display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; background: rgba(255,255,255,${check.canBuild ? '0.05' : '0.02'}); ${check.canBuild ? '' : 'opacity: 0.55;'}">`;
+            html += `<span style="font-size: 20px; width: 26px; text-align: center; flex-shrink: 0;">${prop.icon}</span>`;
+            html += '<div style="flex: 1; min-width: 0;">';
+            html += `<div style="font-size: 13px; font-weight: 600;">${prop.name}${r.tech ? ' <span style="font-size: 9px; color: #ce93d8;">TECH</span>' : ''}${riverHint}</div>`;
+            html += `<div style="font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${output}</div>`;
+            if (!check.canBuild) html += `<div style="font-size: 10px; color: #e57373;">${esc(check.reason || '')}</div>`;
+            html += '</div>';
+            html += `<div style="text-align: right; font-size: 10px; color: var(--text-muted); flex-shrink: 0;">🏗️ ${prop.constructionDays || 0}d<br>🔧 ${prop.upkeep || 0}g/d</div>`;
+            html += `<button onclick="${action}" ${check.canBuild ? '' : 'disabled'} style="flex-shrink: 0; min-width: 64px; padding: 5px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; cursor: ${check.canBuild ? 'pointer' : 'not-allowed'}; border: ${check.canBuild ? 'none' : '1px solid rgba(255,255,255,0.1)'}; background: ${check.canBuild ? 'linear-gradient(135deg, var(--gold-dark), var(--gold))' : 'rgba(255,255,255,0.06)'}; color: ${check.canBuild ? '#1a1207' : 'var(--text-muted)'};">${cost}g</button>`;
+            html += '</div>';
+        }
+        html += '<div id="bpEmpty" style="display: none; padding: 16px; text-align: center; font-size: 12px; color: var(--text-secondary);"></div>';
+        html += '</div></div>';
         game.ui.showCustomPanel('Build Property', html);
+
+        // Filtering happens in place (no re-render) so typing stays smooth
+        window._bpFilter = () => {
+            const search = document.getElementById('bpSearch');
+            const only = document.getElementById('bpOnlyBuildable');
+            state.query = search ? search.value : '';
+            state.onlyBuildable = !!(only && only.checked);
+            const q = state.query.trim().toLowerCase();
+            let shown = 0;
+            let hiddenUnbuildable = 0;
+            for (const row of document.querySelectorAll('#bpList .bp-row')) {
+                const catOk = state.cat === 'all' || row.dataset.cat === state.cat;
+                const textOk = !q || row.dataset.text.includes(q);
+                const okHere = row.dataset.ok === '1';
+                // A search shows every match (with why it can't be built here)
+                const hideUnbuildable = state.onlyBuildable && !q;
+                const visible = catOk && textOk && (okHere || !hideUnbuildable);
+                if (catOk && textOk && !okHere && hideUnbuildable) hiddenUnbuildable++;
+                row.style.display = visible ? 'flex' : 'none';
+                if (visible) shown++;
+            }
+            for (const tab of document.querySelectorAll('.bp-menu .bp-tab')) {
+                const active = tab.dataset.cat === state.cat;
+                tab.style.background = active ? 'rgba(245,197,66,0.2)' : 'rgba(255,255,255,0.04)';
+                tab.style.borderColor = active ? 'rgba(245,197,66,0.7)' : 'rgba(255,255,255,0.15)';
+            }
+            const empty = document.getElementById('bpEmpty');
+            if (empty) {
+                empty.style.display = shown === 0 ? 'block' : 'none';
+                empty.textContent = hiddenUnbuildable > 0
+                    ? `Nothing here can be built on this tile — untick "Only show what I can build here" to see ${hiddenUnbuildable} more.`
+                    : 'No properties match.';
+            }
+        };
+        window._bpTab = (cat) => {
+            state.cat = cat;
+            window._bpFilter();
+        };
+        window._bpFilter();
 
         window.currentBuildTile = tile;
         window.buildProperty = (propType) => {
@@ -160,12 +193,13 @@ Object.assign(ActionMenu, {
         window.buildTechBuilding = (buildingKey) => {
             const building = Technology.TECH_BUILDINGS[buildingKey];
             if (!building) return;
-            if (!ActionMenu.commitPendingAP(game)) return;
-            const buildCost = PlayerEconomy.getBuildCost(game.player, building);
-            if (game.player.gold < buildCost) {
-                game.ui.showNotification('Cannot Build', `Need ${buildCost} gold`, 'error');
+            const techCheck = ActionMenu._canBuildTechBuilding(game, tile, building);
+            if (!techCheck.canBuild) {
+                game.ui.showNotification('Cannot Build', techCheck.reason, 'error');
                 return;
             }
+            if (!ActionMenu.commitPendingAP(game)) return;
+            const buildCost = PlayerEconomy.getBuildCost(game.player, building);
 
             game.player.gold -= buildCost;
 

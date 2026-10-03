@@ -52,7 +52,7 @@ Object.assign(Peoples, {
             const chiefName = Utils.randPick([t1.name, t2.name]);
             world.tribalHistory.push({
                 year: chiefYear,
-                text: `🪶 A great leader from the ${chiefName} unites the villages into a chiefdom. ${Utils.randPick([
+                text: `🦅 A great leader from the ${chiefName} unites the villages into a chiefdom. ${Utils.randPick([
                     'Skeptics are won over by promises of protection and shared prosperity.',
                     'The other peoples accept on the condition that their customs be forever honored.',
                     'A great feast is held where leaders of all peoples break bread together.',

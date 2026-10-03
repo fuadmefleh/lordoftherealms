@@ -2,6 +2,7 @@
     "PROPERTY_TYPES": {
         "FARM": {
             "id": "farm",
+            "category": "farming",
             "name": "Farm",
             "icon": "🌾",
             "cost": 500,
@@ -14,6 +15,7 @@
         },
         "PASTURE": {
             "id": "pasture",
+            "category": "farming",
             "name": "Pasture",
             "icon": "🐑",
             "cost": 500,
@@ -26,6 +28,7 @@
         },
         "LOGGING_CAMP": {
             "id": "logging_camp",
+            "category": "resources",
             "name": "Logging Camp",
             "icon": "🪓",
             "cost": 400,
@@ -38,6 +41,7 @@
         },
         "MINE": {
             "id": "mine",
+            "category": "resources",
             "name": "Mine",
             "icon": "⛏️",
             "cost": 1000,
@@ -50,6 +54,7 @@
         },
         "WORKSHOP": {
             "id": "workshop",
+            "category": "crafts",
             "name": "Workshop",
             "icon": "🔨",
             "cost": 800,
@@ -65,6 +70,7 @@
         },
         "TRADING_POST": {
             "id": "trading_post",
+            "category": "commerce",
             "name": "Trading Post",
             "icon": "🏪",
             "cost": 600,
@@ -77,6 +83,7 @@
         },
         "FISHING_WHARF": {
             "id": "fishing_wharf",
+            "category": "resources",
             "name": "Fishing Wharf",
             "icon": "⚓",
             "cost": 800,
@@ -89,6 +96,7 @@
         },
         "BREWERY": {
             "id": "brewery",
+            "category": "food",
             "name": "Brewery",
             "icon": "🍺",
             "cost": 700,
@@ -105,6 +113,7 @@
         },
         "TAVERN": {
             "id": "tavern",
+            "category": "commerce",
             "name": "Tavern",
             "icon": "🍻",
             "cost": 900,
@@ -117,6 +126,7 @@
         },
         "GRAIN_MILL": {
             "id": "grain_mill",
+            "category": "food",
             "name": "Mill",
             "icon": "🌬️",
             "cost": 600,
@@ -132,6 +142,7 @@
         },
         "BAKERY": {
             "id": "bakery",
+            "category": "food",
             "name": "Bakery",
             "icon": "🍞",
             "cost": 700,
@@ -146,6 +157,7 @@
         },
         "FORGE": {
             "id": "forge",
+            "category": "crafts",
             "name": "Forge",
             "icon": "🔥",
             "cost": 1000,
@@ -160,6 +172,7 @@
         },
         "TANNERY": {
             "id": "tannery",
+            "category": "crafts",
             "name": "Tannery",
             "icon": "🦺",
             "cost": 650,
@@ -174,8 +187,9 @@
         },
         "SAWMILL": {
             "id": "sawmill",
+            "category": "crafts",
             "name": "Sawmill",
-            "icon": "🪚",
+            "icon": "⚙️",
             "cost": 500,
             "constructionDays": 5,
             "produces": null,
@@ -188,6 +202,7 @@
         },
         "QUARRY": {
             "id": "quarry",
+            "category": "resources",
             "name": "Quarry",
             "icon": "⛰️",
             "cost": 700,
@@ -200,6 +215,7 @@
         },
         "SALT_PANS": {
             "id": "salt_pans",
+            "category": "resources",
             "name": "Salt Pans",
             "icon": "🧂",
             "cost": 350,
@@ -212,6 +228,7 @@
         },
         "APIARY": {
             "id": "apiary",
+            "category": "farming",
             "name": "Apiary",
             "icon": "🐝",
             "cost": 300,
@@ -224,6 +241,7 @@
         },
         "ORCHARD": {
             "id": "orchard",
+            "category": "farming",
             "name": "Orchard",
             "icon": "🍎",
             "cost": 400,
@@ -236,6 +254,7 @@
         },
         "HEMP_FARM": {
             "id": "hemp_farm",
+            "category": "farming",
             "name": "Hemp Farm",
             "icon": "🌿",
             "cost": 350,
@@ -248,6 +267,7 @@
         },
         "CLAY_PIT": {
             "id": "clay_pit",
+            "category": "resources",
             "name": "Clay Pit",
             "icon": "🟫",
             "cost": 300,
@@ -261,6 +281,7 @@
         },
         "DAIRY": {
             "id": "dairy",
+            "category": "farming",
             "name": "Dairy",
             "icon": "🧀",
             "cost": 450,
@@ -273,6 +294,7 @@
         },
         "SMOKEHOUSE": {
             "id": "smokehouse",
+            "category": "food",
             "name": "Smokehouse",
             "icon": "🍖",
             "cost": 500,
@@ -287,6 +309,7 @@
         },
         "BUTCHER": {
             "id": "butcher",
+            "category": "food",
             "name": "Butcher",
             "icon": "🥩",
             "cost": 400,
@@ -301,8 +324,9 @@
         },
         "ROPE_WALK": {
             "id": "rope_walk",
+            "category": "crafts",
             "name": "Rope Walk",
-            "icon": "🪢",
+            "icon": "🧶",
             "cost": 350,
             "constructionDays": 3,
             "produces": null,
@@ -315,6 +339,7 @@
         },
         "POTTERY_KILN": {
             "id": "pottery_kiln",
+            "category": "crafts",
             "name": "Pottery Kiln",
             "icon": "🏺",
             "cost": 400,
@@ -329,6 +354,7 @@
         },
         "WEAVER": {
             "id": "weaver",
+            "category": "crafts",
             "name": "Weaver",
             "icon": "🧵",
             "cost": 500,
@@ -343,6 +369,7 @@
         },
         "WINERY": {
             "id": "winery",
+            "category": "food",
             "name": "Winery",
             "icon": "🍷",
             "cost": 700,
@@ -357,6 +384,7 @@
         },
         "APOTHECARY": {
             "id": "apothecary",
+            "category": "crafts",
             "name": "Apothecary",
             "icon": "⚗️",
             "cost": 600,
@@ -371,6 +399,7 @@
         },
         "FLETCHER": {
             "id": "fletcher",
+            "category": "crafts",
             "name": "Fletcher",
             "icon": "🏹",
             "cost": 450,
@@ -385,6 +414,7 @@
         },
         "JEWELER": {
             "id": "jeweler",
+            "category": "crafts",
             "name": "Jeweler",
             "icon": "💍",
             "cost": 900,
@@ -399,6 +429,7 @@
         },
         "DYE_WORKS": {
             "id": "dye_works",
+            "category": "crafts",
             "name": "Dye Works",
             "icon": "🎨",
             "cost": 450,
@@ -413,6 +444,7 @@
         },
         "CHANDLERY": {
             "id": "chandlery",
+            "category": "crafts",
             "name": "Chandlery",
             "icon": "🕯️",
             "cost": 350,
@@ -427,6 +459,7 @@
         },
         "GLASSWORKS": {
             "id": "glassworks",
+            "category": "crafts",
             "name": "Glassworks",
             "icon": "🔮",
             "cost": 750,
@@ -441,6 +474,7 @@
         },
         "SCRIPTORIUM": {
             "id": "scriptorium",
+            "category": "crafts",
             "name": "Scriptorium",
             "icon": "📖",
             "cost": 600,
@@ -455,6 +489,7 @@
         },
         "BLACKSMITH": {
             "id": "blacksmith",
+            "category": "crafts",
             "name": "Blacksmith",
             "icon": "⚔️",
             "cost": 800,
@@ -469,6 +504,7 @@
         },
         "PERFUMERY": {
             "id": "perfumery",
+            "category": "crafts",
             "name": "Perfumery",
             "icon": "🌸",
             "cost": 650,
@@ -483,6 +519,7 @@
         },
         "HUNTING_LODGE": {
             "id": "hunting_lodge",
+            "category": "resources",
             "name": "Hunting Lodge",
             "icon": "🏹",
             "cost": 450,
@@ -495,6 +532,7 @@
         },
         "CATTLE_RANCH": {
             "id": "cattle_ranch",
+            "category": "farming",
             "name": "Cattle Ranch",
             "icon": "🐄",
             "cost": 550,
@@ -507,6 +545,7 @@
         },
         "HERB_GARDEN": {
             "id": "herb_garden",
+            "category": "farming",
             "name": "Herb Garden",
             "icon": "🌱",
             "cost": 350,
@@ -519,6 +558,7 @@
         },
         "HORSE_RANCH": {
             "id": "horse_ranch",
+            "category": "farming",
             "name": "Horse Ranch",
             "icon": "🐎",
             "cost": 1100,
@@ -531,8 +571,9 @@
         },
         "FORAGER_HUT": {
             "id": "forager_hut",
+            "category": "resources",
             "name": "Forager's Hut",
-            "icon": "🫐",
+            "icon": "🍇",
             "cost": 250,
             "constructionDays": 2,
             "produces": "berries",
@@ -576,12 +617,12 @@
         "ORE": { "id": "ore", "name": "Iron Ore", "icon": "⛏️", "basePrice": 25 },
         "HERBS": { "id": "herbs", "name": "Herbs", "icon": "🌿", "basePrice": 5 },
         "PELTS": { "id": "pelts", "name": "Pelts", "icon": "🦊", "basePrice": 12 },
-        "BERRIES": { "id": "berries", "name": "Berries", "icon": "🫐", "basePrice": 3 },
+        "BERRIES": { "id": "berries", "name": "Berries", "icon": "🍇", "basePrice": 3 },
         "MUSHROOMS": { "id": "mushrooms", "name": "Mushrooms", "icon": "🍄", "basePrice": 4 },
         "MEAT": { "id": "meat", "name": "Meat", "icon": "🥩", "basePrice": 6 },
         "HIDE": { "id": "hide", "name": "Hide", "icon": "🟤", "basePrice": 8 },
         "ANTLER": { "id": "antler", "name": "Antler", "icon": "🦌", "basePrice": 15 },
-        "FEATHER": { "id": "feather", "name": "Feather", "icon": "🪶", "basePrice": 4 },
+        "FEATHER": { "id": "feather", "name": "Feather", "icon": "🦅", "basePrice": 4 },
         "HORSE": { "id": "horse", "name": "Horse", "icon": "🐴", "basePrice": 120 },
         "AGRI_PARTS": { "id": "agri_parts", "name": "Agricultural Implements", "icon": "🌱", "basePrice": 50 },
         "INDUSTRY_PARTS": { "id": "industry_parts", "name": "Industrial Components", "icon": "⚙️", "basePrice": 75 },
@@ -597,7 +638,7 @@
         "DRIED_MEAT": { "id": "dried_meat", "name": "Dried Meat", "icon": "🥓", "basePrice": 14 },
         "HONEY": { "id": "honey", "name": "Honey", "icon": "🍯", "basePrice": 20 },
         "SALT": { "id": "salt", "name": "Salt", "icon": "🧊", "basePrice": 15 },
-        "ROPE": { "id": "rope", "name": "Rope", "icon": "🪢", "basePrice": 10 },
+        "ROPE": { "id": "rope", "name": "Rope", "icon": "🧶", "basePrice": 10 },
         "CANDLES": { "id": "candles", "name": "Candles", "icon": "🕯️", "basePrice": 8 },
         "POTTERY": { "id": "pottery", "name": "Pottery", "icon": "🏺", "basePrice": 22 },
         "LEATHER_ARMOR": { "id": "leather_armor", "name": "Leather Armor", "icon": "🦺", "basePrice": 70 },
@@ -608,7 +649,7 @@
         "POTION": { "id": "potion", "name": "Strange Potion", "icon": "🧪", "basePrice": 40 },
         "ELIXIR": { "id": "elixir", "name": "Elixir of Vigor", "icon": "⚗️", "basePrice": 90 },
         "TREASURE_MAP": { "id": "treasure_map", "name": "Treasure Map", "icon": "🗺️", "basePrice": 120 },
-        "ANCIENT_COIN": { "id": "ancient_coin", "name": "Ancient Coin", "icon": "🪙", "basePrice": 35 },
+        "ANCIENT_COIN": { "id": "ancient_coin", "name": "Ancient Coin", "icon": "💰", "basePrice": 35 },
         "RARE_BOOK": { "id": "rare_book", "name": "Rare Book", "icon": "📕", "basePrice": 50 },
         "COMPASS": { "id": "compass", "name": "Compass", "icon": "🧭", "basePrice": 30 },
         "LANTERN": { "id": "lantern", "name": "Lantern", "icon": "🏮", "basePrice": 18 },
@@ -619,8 +660,8 @@
         "HEMP": { "id": "hemp", "name": "Hemp Fiber", "icon": "🌿", "basePrice": 6 },
         "CLAY": { "id": "clay", "name": "Raw Clay", "icon": "🟫", "basePrice": 4 },
         "FRUIT": { "id": "fruit", "name": "Fresh Fruit", "icon": "🍎", "basePrice": 5 },
-        "GLASS": { "id": "glass", "name": "Glass", "icon": "🪟", "basePrice": 18 },
-        "MEAD": { "id": "mead", "name": "Mead", "icon": "🫗", "basePrice": 25 },
+        "GLASS": { "id": "glass", "name": "Glass", "icon": "💠", "basePrice": 18 },
+        "MEAD": { "id": "mead", "name": "Mead", "icon": "🍶", "basePrice": 25 },
         "PARCHMENT": { "id": "parchment", "name": "Parchment", "icon": "📄", "basePrice": 14 }
     },
     "RECIPES": {

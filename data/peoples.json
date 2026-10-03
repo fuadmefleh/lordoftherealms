@@ -436,7 +436,7 @@
       "id": "reefbuilders",
       "name": "Reefbuilders",
       "parentCulture": "Maritime",
-      "icon": "🪸",
+      "icon": "🐚",
       "color": "#e17055",
       "origin": "coral atolls",
       "homeland": "coast",
@@ -484,7 +484,7 @@
   "evolutionStages": [
     { "id": "nomadic_band", "name": "Nomadic Band", "population": [10, 50], "icon": "🏕️", "description": "Small kinship groups wandering the land" },
     { "id": "tribal_camp", "name": "Tribal Camp", "population": [50, 200], "icon": "⛺", "description": "Seasonal camps where tribes gather for trade and marriage" },
-    { "id": "chiefdom", "name": "Chiefdom", "population": [200, 500], "icon": "🪶", "description": "A powerful chief unites several bands under one rule" },
+    { "id": "chiefdom", "name": "Chiefdom", "population": [200, 500], "icon": "🦅", "description": "A powerful chief unites several bands under one rule" },
     { "id": "village", "name": "Village", "population": [500, 2000], "icon": "🏘️", "description": "Settled communities with shared governance and craft specialization" },
     { "id": "town", "name": "Town", "population": [2000, 5000], "icon": "🏙️", "description": "A thriving hub where multiple peoples have intermingled for generations" },
     { "id": "city", "name": "City", "population": [5000, 15000], "icon": "🏰", "description": "A great city where diverse subcultures form distinct quarters and guilds" },

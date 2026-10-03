@@ -90,7 +90,7 @@ export const DEFAULT_COSTS = {
 };
 
 export const FALLBACK_RESOURCE_DEFS = [
-    { id: 'wood', name: 'Wood', icon: '🪵', color: '#8b5a2b' },
+    { id: 'wood', name: 'Wood', icon: '🌲', color: '#8b5a2b' },
     { id: 'timber', name: 'Timber', icon: '🌲', color: '#8b5a2b' },
     { id: 'stone', name: 'Stone', icon: '⛰️', color: '#808080' },
     { id: 'iron', name: 'Iron', icon: '⛏️', color: '#8a7a7a' },

@@ -212,7 +212,7 @@ export const PlayerActions = {
                     actions.push({
                         type: 'post_signboard',
                         label: 'Post Signboard',
-                        icon: '🪧',
+                        icon: '📋',
                         description: 'Erect a signboard to attract passing travelers (20g)'
                     });
                 }

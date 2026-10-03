@@ -173,7 +173,7 @@ Object.assign(ActionMenu, {
     // ── Labor Minigame: Intelligence — Symbol sequence memory ──
     _laborIntelligence(game, tile, job) {
         const intel = ActionMenu._getPlayerStat(game.player, 'intelligence');
-        const symbols = ['📜', '📕', '🔑', '💎', '⚗️', '🪶', '📐', '🧪'];
+        const symbols = ['📜', '📕', '🔑', '💎', '⚗️', '🦅', '📐', '🧪'];
         let round = 0;
         const maxRounds = 4;
         let sequence = [];
@@ -1077,7 +1077,7 @@ Object.assign(ActionMenu, {
             { icon: '💩', label: 'Droppings (recent)', correct: true },
             { icon: '🌿', label: 'Broken branches', correct: true },
             { icon: '🍃', label: 'Disturbed foliage', correct: true },
-            { icon: '🪶', label: 'Shed fur/feathers', correct: true },
+            { icon: '🦅', label: 'Shed fur/feathers', correct: true },
             { icon: '❌', label: 'Old tracks (cold)', correct: false },
             { icon: '🌫️', label: 'Wind-blown trail', correct: false },
             { icon: '💧', label: 'Rain-washed prints', correct: false },

@@ -874,7 +874,7 @@ Object.assign(ActionMenu, {
                 html += `</div>`;
 
                 // Skills
-                const skillLabels = { combat: '⚔️', commerce: '💰', leadership: '👑', diplomacy: '🤝', stealth: '🥷', cartography: '🗺️' };
+                const skillLabels = { combat: '⚔️', commerce: '💰', leadership: '👑', diplomacy: '🤝', stealth: '🕵️', cartography: '🗺️' };
                 const childSkills = child.skills || {};
                 const hasSkills = Object.values(childSkills).some(v => v > 0);
                 if (hasSkills) {

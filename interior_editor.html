@@ -150,7 +150,7 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;bo
   <div id="tool-btns">
     <button id="tool-paint"   class="active" onclick="setTool('paint')">🖌 Paint</button>
     <button id="tool-erase"   onclick="setTool('erase')">🗑 Erase</button>
-    <button id="tool-fill"    onclick="setTool('fill')">🪣 Fill</button>
+    <button id="tool-fill"    onclick="setTool('fill')">🧺 Fill</button>
     <button id="tool-eyedrop" onclick="setTool('eyedrop')">💉 Pick</button>
     <button id="tool-impass"  onclick="setTool('impass')" title="Block/Unblock tiles — activates green/red passability overlay. Click or drag to block (red ✕). Click an already-blocked tile to unblock it (green ✓).">⛔ Block</button>
     <button id="tool-door"    onclick="setTool('door')">🚪 Door</button>
@@ -270,7 +270,7 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;bo
           <option value="crate">📦 Crate</option>
           <option value="banner">🏴 Banner</option>
           <option value="well">💧 Well</option>
-          <option value="stairs">🪜 Stairs</option>
+          <option value="stairs">🧗 Stairs</option>
           <option value="scales">⚖️ Scales</option>
         </select>
       </div>
@@ -1382,7 +1382,7 @@ function renderCanvas() {
         table:'🪑',chair:'🪑',bed:'🛏️',chest:'📦',barrel:'🛢️',bookshelf:'📚',
         fireplace:'🔥',candle:'🕯️',bar:'🍺',forge:'🔥',anvil:'⚒️',altar:'⛪',
         pew:'🪑',throne:'👑',statue:'🗿',stall:'🏪',rack:'⚔️',crate:'📦',
-        banner:'🏴',well:'💧',stairs:'🪜',scales:'⚖️',
+        banner:'🏴',well:'💧',stairs:'🧗',scales:'⚖️',
       };
       ctx.font = `${ds * 0.45}px sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -1582,7 +1582,7 @@ function applyTool(sx, sy) {
         table:'🪑',chair:'🪑',bed:'🛏️',chest:'📦',barrel:'🛢️',bookshelf:'📚',
         fireplace:'🔥',candle:'🕯️',bar:'🍺',forge:'🔥',anvil:'⚒️',altar:'⛪',
         pew:'🪑',throne:'👑',statue:'🗿',stall:'🏪',rack:'⚔️',crate:'📦',
-        banner:'🏴',well:'💧',stairs:'🪜',scales:'⚖️',
+        banner:'🏴',well:'💧',stairs:'🧗',scales:'⚖️',
       };
       if (!meta[key]) meta[key] = {};
       // Toggle: if clicking same furniture, remove it

@@ -284,7 +284,7 @@ canvas.pal-terrain-overlay{position:absolute;top:0;left:0;pointer-events:none;im
     <button class="tool-btn active" id="tool-paint"   onclick="setTool('paint')"   title="Paint tile (P)">🖌 Paint</button>
     <button class="tool-btn"        id="tool-select"  onclick="setTool('select')"  title="Select &amp; move tiles (S)">⬜ Select</button>
     <button class="tool-btn"        id="tool-erase"   onclick="setTool('erase')"   title="Erase (E)">🗑 Erase</button>
-    <button class="tool-btn"        id="tool-fill"    onclick="setTool('fill')"    title="Flood-fill with stamp (F)">🪣 Fill</button>
+    <button class="tool-btn"        id="tool-fill"    onclick="setTool('fill')"    title="Flood-fill with stamp (F)">🧺 Fill</button>
     <button class="tool-btn"        id="tool-eyedrop" onclick="setTool('eyedrop')" title="Pick tile from canvas (I)">💉 Pick</button>
     <button class="tool-btn"        id="tool-impass"  onclick="setTool('impass')"  title="Toggle impassable (X)">⛔ Block</button>
     <button class="tool-btn"        id="tool-marker"  onclick="setTool('marker')"  title="Toggle marker (D/N)">🚪 Door</button>
@@ -375,7 +375,7 @@ canvas.pal-terrain-overlay{position:absolute;top:0;left:0;pointer-events:none;im
     <!-- Window Catalog panel (building mode) -->
     <div id="wcat-panel" class="wcat-panel rp-section" style="display:none">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-        <h3><span class="collapse-chevron" onclick="toggleSection('wcat-panel')" title="Collapse/Expand">▾</span>🪟 Window Catalog</h3>
+        <h3><span class="collapse-chevron" onclick="toggleSection('wcat-panel')" title="Collapse/Expand">▾</span>💠 Window Catalog</h3>
         <div style="display:flex;gap:3px">
           <button onclick="wcat_add()" style="font-size:10px;padding:1px 6px" class="green">＋ New</button>
         </div>
@@ -513,7 +513,7 @@ canvas.pal-terrain-overlay{position:absolute;top:0;left:0;pointer-events:none;im
       <div class="field-row"><label>Type</label>
         <select id="obj-type">
           <option value="tree">🌳 Tree</option>
-          <option value="rock">🪨 Rock</option>
+          <option value="rock">⛰️ Rock</option>
           <option value="plant">🌿 Plant</option>
           <option value="decoration">✨ Decoration</option>
           <option value="furniture">🪑 Furniture</option>
@@ -546,8 +546,8 @@ canvas.pal-terrain-overlay{position:absolute;top:0;left:0;pointer-events:none;im
         <div class="res-row">
           <select id="obj-resource">
             <option value="">— None</option>
-            <option value="wood">🪵 Wood</option>
-            <option value="stone">🪨 Stone</option>
+            <option value="wood">🌲 Wood</option>
+            <option value="stone">⛰️ Stone</option>
             <option value="iron">⛏️ Iron</option>
             <option value="gold_ore">🥇 Gold Ore</option>
             <option value="gems">💎 Gems</option>
@@ -559,11 +559,11 @@ canvas.pal-terrain-overlay{position:absolute;top:0;left:0;pointer-events:none;im
             <option value="wool">🧶 Wool</option>
             <option value="clay">🏺 Clay</option>
             <option value="leather">🟫 Leather</option>
-            <option value="berries">🫐 Berries</option>
+            <option value="berries">🍇 Berries</option>
             <option value="flowers">🌸 Flowers</option>
             <option value="resin">🟠 Resin</option>
             <option value="honey">🍯 Honey</option>
-            <option value="feathers">🪶 Feathers</option>
+            <option value="feathers">🦅 Feathers</option>
           </select>
           <input type="number" id="obj-resource-amount" value="1" min="1" max="99" step="1" title="Amount per harvest">
         </div>
@@ -2938,7 +2938,7 @@ const _ALL_OBJ_ACTIONS = {
     tan:             { label: 'Tan Leather',   icon: '🟫', category: 'Crafting & Production', desc: 'Tan hides into leather' },
     // Gathering
     fish:            { label: 'Fish',          icon: '🎣', category: 'Gathering',           desc: 'Cast a line and catch fish' },
-    draw_water:      { label: 'Draw Water',   icon: '🪣', category: 'Gathering',           desc: 'Draw water from a well' },
+    draw_water:      { label: 'Draw Water',   icon: '🧺', category: 'Gathering',           desc: 'Draw water from a well' },
     // Storage & Healing
     store:           { label: 'Store Items',   icon: '📦', category: 'Storage & Healing',   desc: 'Store or retrieve items' },
     heal:            { label: 'Heal',          icon: '💊', category: 'Storage & Healing',   desc: 'Use healing items' },

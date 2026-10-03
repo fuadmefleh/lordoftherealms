@@ -246,7 +246,7 @@ export const OBJECT_ACTIONS = {
     },
     draw_water: {
         label: 'Draw Water',
-        icon: '🪣',
+        icon: '🧺',
         desc: 'Draw water from the well',
         category: 'gathering',
         modal: null,

@@ -410,7 +410,7 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             actions.push({
                 type: 'smuggle',
                 label: 'Smuggle Goods',
-                icon: '🥷',
+                icon: '🕵️',
                 description: 'Sell goods on the black market for higher prices (risky)'
             });
         }

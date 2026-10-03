@@ -158,7 +158,7 @@
         {
             "id": "boarding_planks",
             "name": "Boarding Planks",
-            "icon": "🪜",
+            "icon": "🧗",
             "description": "Drop-bridges for boarding enemy vessels. Improves capture chances.",
             "cost": 200,
             "effects": { "combatBonus": 3, "captureBonus": 0.15 }

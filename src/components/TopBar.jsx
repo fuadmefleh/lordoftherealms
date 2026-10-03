@@ -174,7 +174,7 @@ export default function TopBar() {
         {/* Resource counters */}
         <div className="tb-resources">
           <div className="tb-res tb-res-gold" title="Gold">
-            <span className="tb-res-icon">🪙</span>
+            <span className="tb-res-icon">💰</span>
             <span className="tb-res-col">
               <span className="tb-res-val" id="tbGold">0</span>
               <span className="tb-res-sub" id="tbIncome">+0/d</span>

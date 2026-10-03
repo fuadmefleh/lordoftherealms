@@ -230,7 +230,7 @@ Object.assign(InnerMapRenderer, {
         // ── Custom object actions ──
         if (customObjDef && !building) {
             if (menuItems.length > 0) menuItems.push({ type: 'separator' });
-            const typeIcons = { rock: '🪨', tree: '🌲', plant: '🌿', decoration: '✨', furniture: '🪑', building: '🏠', other: '📦' };
+            const typeIcons = { rock: '⛰️', tree: '🌲', plant: '🌿', decoration: '✨', furniture: '🪑', building: '🏠', other: '📦' };
             const objIcon = typeIcons[customObjDef.objectType] || '📦';
             menuItems.push({ type: 'header', label: `${objIcon} ${customObjDef.name || customObjDef.id}` });
             menuItems.push({ type: 'action', action: 'interact_object', label: 'Interact', icon: '🤚', desc: `Interact with ${customObjDef.name || 'this object'}`, customObjDef, objAnchorQ, objAnchorR });

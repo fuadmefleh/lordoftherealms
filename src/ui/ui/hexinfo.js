@@ -421,7 +421,7 @@ Object.assign(UI.prototype, {
         // Helper: object overlay info table
         const _OBJECT_INFO = {
             tree:     { icon: '🌲', label: 'Tree',          yields: 'Wood, Bark',          desc: 'A harvestable tree. Yields lumber and bark.' },
-            rock:     { icon: '🪨', label: 'Rock Formation', yields: 'Stone, Flint',        desc: 'Loose rocks or a stone outcrop. Yields stone and flint.' },
+            rock:     { icon: '⛰️', label: 'Rock Formation', yields: 'Stone, Flint',        desc: 'Loose rocks or a stone outcrop. Yields stone and flint.' },
             plant:    { icon: '🌿', label: 'Wild Plant',     yields: 'Herbs, Fiber',         desc: 'Wild vegetation useful for medicine or rope.' },
             flower:   { icon: '🌸', label: 'Wildflowers',    yields: 'Dye, Reagents',        desc: 'Colourful flora with alchemical and dye uses.' },
             mushroom: { icon: '🍄', label: 'Mushrooms',      yields: 'Food, Alchemical Base', desc: 'Edible or toxic fungi used in potions.' },
@@ -452,7 +452,7 @@ Object.assign(UI.prototype, {
                     title.textContent = panelTitle;
                     title.style.color = 'var(--gold)';
 
-                    const _TYPE_ICONS = { rock: '🪨', tree: '🌲', plant: '🌿', decoration: '✨', furniture: '🪑', building: '🏠', other: '📌' };
+                    const _TYPE_ICONS = { rock: '⛰️', tree: '🌲', plant: '🌿', decoration: '✨', furniture: '🪑', building: '🏠', other: '📌' };
                     const typeIcon = _TYPE_ICONS[def.objectType] || '📦';
                     const bw = def.bounds ? (def.bounds.maxCol - def.bounds.minCol + 1) : 1;
                     const bh = def.bounds ? (def.bounds.maxRow - def.bounds.minRow + 1) : 1;

@@ -162,7 +162,7 @@ input:focus, select:focus { outline: none; border-color: var(--blue); }
     <label class="tb-lbl">Mode</label>
     <button class="mode-tab active" id="mode-select" onclick="setMode('select')">⬜ Select</button>
     <button class="mode-tab" id="mode-crop" onclick="setMode('crop')">✂️ Crop</button>
-    <button class="mode-tab" id="mode-wand" onclick="setMode('wand')">🪄 Wand</button>
+    <button class="mode-tab" id="mode-wand" onclick="setMode('wand')">✨ Wand</button>
   </div>
 
   <div class="tb-sep"></div>
@@ -291,7 +291,7 @@ input:focus, select:focus { outline: none; border-color: var(--blue); }
 <!-- Background removal progress overlay -->
 <div id="bg-remove-overlay">
   <div class="progress-box">
-    <div class="progress-title" id="bgr-title">🪄 Removing Background…</div>
+    <div class="progress-title" id="bgr-title">✨ Removing Background…</div>
     <div class="progress-sub" id="bgr-sub">Loading AI model (first run downloads ~80MB, cached afterwards)</div>
     <div class="progress-bar-wrap"><div class="progress-bar" id="bgr-bar"></div></div>
   </div>
@@ -1242,7 +1242,7 @@ function renderExtractions() {
             <button onclick="downloadExtraction(${ext.id})" class="green">⬇ Download</button>
             <button onclick="copyExtraction(${ext.id})">📋 Copy</button>
             <button onclick="trimExtraction(${ext.id})" class="gold" title="Remove empty space that saves whole tiles">✂ Trim</button>
-            <button onclick="removeExtractionBackground(${ext.id})" title="Remove background using AI">🪄 Remove BG</button>
+            <button onclick="removeExtractionBackground(${ext.id})" title="Remove background using AI">✨ Remove BG</button>
             <button onclick="removeCheckerBackground(${ext.id})" title="Remove opaque checkerboard background (white/grey squares) — no AI needed">♟ Checker BG</button>
             ${ext.retargetCanvas ? `<button onclick="clearRetarget(${ext.id})" title="Remove retarget canvas, pack will use base canvas">✖ Retarget</button>` : ''}
             <button onclick="removeExtraction(${ext.id})" class="danger">🗑</button>
@@ -1770,7 +1770,7 @@ async function removeExtractionBackground(id) {
 
   overlay.classList.add('show');
   bar.style.width = '0%';
-  title.textContent = '🪄 Removing Background…';
+  title.textContent = '✨ Removing Background…';
   sub.textContent = 'Loading AI model (first run downloads model, cached afterwards)';
 
   try {

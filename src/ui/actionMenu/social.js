@@ -1,6 +1,6 @@
 // ActionMenu — social methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, House, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader } from './_imports.js';
+import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, House, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMapRenderer } from './_imports.js';
 
 Object.assign(ActionMenu, {
     // ============================================
@@ -999,6 +999,39 @@ Object.assign(ActionMenu, {
             }
         }
 
+        // Spend Prestige — what the House's standing can buy that gold can't
+        const sinks = House._getSinks();
+        const claim = Titles.getClaimableTitle(player, game.world);
+        const here = tile && tile.settlement ? tile : game.world.getTile(player.q, player.r);
+        const swayKingdomId = (here && here.settlement && here.settlement.kingdom) || player.allegiance || null;
+        const swayKingdom = swayKingdomId ? game.world.getKingdom(swayKingdomId) : null;
+        const sinkRow = (icon, title, cost, blurb, buttons, blocked) => {
+            const affordable = house.prestige >= cost && !blocked;
+            let row = `<div style="background:rgba(0,0,0,0.25); padding:8px; border-radius:6px; margin-bottom:6px; font-size:12px; ${affordable ? '' : 'opacity:0.65;'}">`;
+            row += `<div style="display:flex; justify-content:space-between;"><strong>${icon} ${title}</strong><span style="color:var(--gold);">⭐ ${cost}</span></div>`;
+            row += `<div style="color:#aaa; margin:2px 0 6px;">${blurb}</div>`;
+            row += blocked ? `<div style="color:#e08080;">${blocked}</div>` : `<div style="display:flex; gap:6px;">${buttons}</div>`;
+            return row + '</div>';
+        };
+        const sinkBtn = (label, handler) => `<button onclick="${handler}" style="flex:1; padding:5px 8px; background:var(--gold); border:none; border-radius:4px; cursor:pointer; color:#000; font-weight:bold; font-size:11px;">${label}</button>`;
+
+        html += '<h5 style="margin:10px 0 6px;">⭐ Spend Prestige</h5>';
+        html += sinkRow('📜', 'Press a Claim', sinks.pressClaim,
+            claim.titleId
+                ? `Take the office of <strong>${claim.title.name}</strong> — the House's name sets aside its reputation and renown requirements.`
+                : 'Claim the next office up, setting aside its reputation and renown requirements.',
+            sinkBtn(claim.titleId ? `Claim ${claim.title.name}` : 'Press Claim', 'window._housePressClaim()'),
+            claim.titleId ? null : claim.reason);
+        html += sinkRow('💍', 'Arrange a Prestigious Marriage', sinks.prestigiousMarriage,
+            'A noble of this settlement, already fond of you, joins those you can court. Marrying a noble brings renown, standing with their kingdom and Prestige.',
+            sinkBtn('Arrange a Match', 'window._houseNobleMatch()'),
+            player.spouse ? 'You are already married.' : (!(here && here.settlement) ? 'Visit a settlement to arrange a match.' : null));
+        html += sinkRow('🤝', 'Call in a Favor', sinks.callInFavor,
+            'An allied House repays old debts.',
+            sinkBtn(`💰 Gold (${House.FAVOR_GOLD_BASE + House.FAVOR_GOLD_PER_GENERATION * (house.generation || 1)}g)`, "window._houseFavor('gold')")
+            + (swayKingdom ? sinkBtn(`👑 +${House.FAVOR_REPUTATION} rep · ${swayKingdom.name}`, "window._houseFavor('influence')") : ''),
+            null);
+
         // Chronicle
         html += '<h5 style="margin:10px 0 6px;">📜 Chronicle</h5>';
         const recent = (house.history || []).slice(-6).reverse();
@@ -1013,6 +1046,26 @@ Object.assign(ActionMenu, {
         game.ui.showCustomPanel('House', html);
 
         // ── Handlers ──
+        const afterSink = (title, result, okText) => {
+            if (result.success) game.ui.showNotification(title, okText, 'success');
+            else game.ui.showNotification(title, result.reason || 'Not possible right now.', 'error');
+            game.ui.updateStats(player, game.world);
+            ActionMenu.showHousePanel(game, tile);
+        };
+        window._housePressClaim = () => {
+            const res = Titles.pressClaim(player, game.world);
+            afterSink('📜 Claim Pressed', res, res.title ? `You are now ${res.title.name}.` : '');
+        };
+        window._houseNobleMatch = () => {
+            const res = Relationships.arrangeNobleMatch(player, here, game.world);
+            afterSink('💍 A Noble Match', res, res.npc ? `${res.npc.firstName} ${res.npc.dynasty} awaits your courtship in ${here.settlement.name}.` : '');
+        };
+        window._houseFavor = (kind) => {
+            const res = House.callInFavor(player, game.world, { kind, kingdomId: swayKingdomId,
+                chronicle: `${house.name} calls in a favor from an allied House.`, tags: ['favor'] });
+            const text = res.gold ? `An allied House sends ${res.gold} gold.` : res.reputation ? `Your standing with ${swayKingdom ? swayKingdom.name : 'the kingdom'} rises by ${res.reputation}.` : '';
+            afterSink('🤝 Favor Called In', res, text);
+        };
         window._houseRename = () => {
             const cur = house.name.replace(/^House\s+/i, '');
             let h = `<div><h4 style="margin-top:0;">Name Your House</h4>

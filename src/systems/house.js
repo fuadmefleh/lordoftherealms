@@ -60,6 +60,7 @@ const SOURCES = {
     settlementHeld: 12,
     religionFounded: 15,
     artifactReforged: 10,
+    nobleMarriage: 8,
     ambitionMilestone: 10,  // used from Phase 3
 };
 
@@ -374,9 +375,31 @@ export const House = {
     arrangePrestigiousMarriage(player, world, opts = {}) {
         return House._paySink(player, world, 'prestigiousMarriage', opts);
     },
+    /**
+     * Call in a favor from an allied House. opts.kind picks what it brings:
+     *   'gold'      — a purse that grows with the House's generation
+     *   'influence' — +15 reputation with opts.kingdomId
+     * Without a kind it only pays the Prestige (legacy callers).
+     */
     callInFavor(player, world, opts = {}) {
-        return House._paySink(player, world, 'callInFavor', opts);
+        if (opts.kind === 'influence' && !opts.kingdomId) return { success: false, reason: 'Choose a kingdom to sway.' };
+        const res = House._paySink(player, world, 'callInFavor', opts);
+        if (!res.success || !opts.kind) return res;
+        if (opts.kind === 'gold') {
+            const gold = House.FAVOR_GOLD_BASE + House.FAVOR_GOLD_PER_GENERATION * (player.house.generation || 1);
+            player.gold = (player.gold || 0) + gold;
+            res.gold = gold;
+        } else if (opts.kind === 'influence') {
+            if (!player.reputation) player.reputation = {};
+            player.reputation[opts.kingdomId] = (player.reputation[opts.kingdomId] || 0) + House.FAVOR_REPUTATION;
+            res.reputation = House.FAVOR_REPUTATION;
+        }
+        return res;
     },
+
+    FAVOR_GOLD_BASE: 150,
+    FAVOR_GOLD_PER_GENERATION: 75,
+    FAVOR_REPUTATION: 15,
     secureSuccession(player, world, opts = {}) {
         return House._paySink(player, world, 'secureSuccession', opts);
     },

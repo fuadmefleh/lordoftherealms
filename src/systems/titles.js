@@ -4,6 +4,7 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
+import { House } from './house.js';
 
 
 export const Titles = {
@@ -49,7 +50,8 @@ export const Titles = {
     /**
      * Check if a player qualifies for a specific title
      */
-    meetsRequirements(player, titleId, world) {
+    meetsRequirements(player, titleId, world, opts = {}) {
+        const waive = opts.waive || [];
         const titles = Titles.getTitleDefinitions();
         const title = titles[titleId];
         if (!title) return { meets: false, reason: 'Unknown title.' };
@@ -60,10 +62,10 @@ export const Titles = {
         const reqs = title.requirements;
         const kingdomRep = (player.reputation && player.reputation[player.allegiance]) || 0;
 
-        if (reqs.reputation && kingdomRep < reqs.reputation) {
+        if (reqs.reputation && !waive.includes('reputation') && kingdomRep < reqs.reputation) {
             return { meets: false, reason: `Need ${reqs.reputation} reputation (have ${kingdomRep}).` };
         }
-        if (reqs.renown && (player.renown || 0) < reqs.renown) {
+        if (reqs.renown && !waive.includes('renown') && (player.renown || 0) < reqs.renown) {
             return { meets: false, reason: `Need ${reqs.renown} renown (have ${player.renown || 0}).` };
         }
         if (reqs.skills) {
@@ -97,12 +99,12 @@ export const Titles = {
     /**
      * Appoint player to a title
      */
-    appoint(player, titleId, world) {
+    appoint(player, titleId, world, opts = {}) {
         const titles = Titles.getTitleDefinitions();
         const title = titles[titleId];
         if (!title) return { success: false, reason: 'Unknown title.' };
 
-        const check = Titles.meetsRequirements(player, titleId, world);
+        const check = Titles.meetsRequirements(player, titleId, world, opts);
         if (!check.meets) return { success: false, reason: check.reason };
 
         // If upgrading from lower title, archive old
@@ -133,6 +135,47 @@ export const Titles = {
         });
 
         return { success: true, title };
+    },
+
+    /** Requirements a House Prestige claim can set aside (skills still count). */
+    CLAIM_WAIVES: ['reputation', 'renown'],
+
+    /**
+     * The next office up that a Prestige claim could secure: the lowest-ranked
+     * title above the current one that the player fails only on reputation
+     * or renown. Returns { titleId, title } or { reason }.
+     */
+    getClaimableTitle(player, world) {
+        if (!player.allegiance) return { reason: 'You must be pledged to a kingdom to press a claim.' };
+        const titles = Titles.getTitleDefinitions();
+        const currentRank = player.currentTitle && titles[player.currentTitle] ? titles[player.currentTitle].rank : 0;
+        const ranks = [...new Set(Object.values(titles).map(t => t.rank).filter(r => r > currentRank))].sort((a, b) => a - b);
+        if (ranks.length === 0) return { reason: 'You already hold the highest office.' };
+        const nextRank = Object.entries(titles).filter(([, t]) => t.rank === ranks[0]);
+        for (const [id, t] of nextRank) {
+            if (Titles.meetsRequirements(player, id, world).meets) {
+                return { reason: `You already qualify for ${t.name} — seek the appointment directly.` };
+            }
+        }
+        for (const [id, t] of nextRank) {
+            if (Titles.meetsRequirements(player, id, world, { waive: Titles.CLAIM_WAIVES }).meets) return { titleId: id, title: t };
+        }
+        return { reason: 'No office is within reach of a claim — you lack the skills for the next rank.' };
+    },
+
+    /**
+     * Spend House Prestige to press a claim to the next office, waiving its
+     * reputation and renown requirements.
+     */
+    pressClaim(player, world) {
+        const claim = Titles.getClaimableTitle(player, world);
+        if (!claim.titleId) return { success: false, reason: claim.reason };
+        const paid = House.pressClaim(player, world, {
+            chronicle: `${player.house ? player.house.name : 'The House'} presses its claim to the office of ${claim.title.name}.`,
+            tags: ['claim', 'title'],
+        });
+        if (!paid.success) return { success: false, reason: paid.reason === 'Not enough Prestige' ? `Need ${paid.cost} Prestige (have ${paid.have}).` : paid.reason };
+        return Titles.appoint(player, claim.titleId, world, { waive: Titles.CLAIM_WAIVES });
     },
 
     /**

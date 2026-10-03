@@ -6,6 +6,32 @@ Object.assign(Relationships, {
     // ────────────────────────────────────────────────────────────────────
     //  Marriage
     // ────────────────────────────────────────────────────────────────────
+    /**
+     * Spend House Prestige to arrange a prestigious match: a noble of this
+     * settlement, already well-disposed toward you, joins the people you can
+     * court. Marrying them later brings extra renown and standing.
+     */
+    arrangeNobleMatch(player, tile, world) {
+        if (player.spouse) return { success: false, reason: 'You are already married.' };
+        if (!tile || !tile.settlement) return { success: false, reason: 'Matches are arranged in a settlement.' };
+        const paid = House.arrangePrestigiousMarriage(player, world, {
+            chronicle: `${player.house ? player.house.name : 'The House'} arranges a noble match in ${tile.settlement.name}.`,
+            tags: ['marriage'],
+        });
+        if (!paid.success) {
+            return { success: false, reason: paid.reason === 'Not enough Prestige' ? `Need ${paid.cost} Prestige (have ${paid.have}).` : paid.reason };
+        }
+        const npc = Relationships.generateNPC(tile.settlement, world);
+        npc.occupation = 'noble';
+        npc.noble = true;
+        npc.attraction = Math.max(npc.attraction || 0, 90);
+        npc.metDay = world ? world.day : 0;
+        const rel = Relationships.getRelationship(player, npc.id);
+        rel.affection = Math.max(rel.affection || 0, 60);
+        rel.score = Math.max(rel.score || 0, 40);
+        return { success: true, npc };
+    },
+
     marry(player, npcId, world) {
         const npc = Relationships.getNPC(npcId);
         if (!npc) return { success: false, reason: 'NPC not found' };
@@ -27,6 +53,19 @@ Object.assign(Relationships, {
         // Reputation with spouse's kingdom
         if (npc.kingdomId && player.reputation) {
             player.reputation[npc.kingdomId] = (player.reputation[npc.kingdomId] || 0) + 5;
+        }
+
+        // A noble match (arranged with Prestige) raises the House's standing
+        if (npc.noble) {
+            player.renown = (player.renown || 0) + 10;
+            if (npc.kingdomId && player.reputation) {
+                player.reputation[npc.kingdomId] = (player.reputation[npc.kingdomId] || 0) + 15;
+            }
+            House.recordPlayerDeed(player, world, 'nobleMarriage', {
+                reason: `married ${npc.firstName} ${npc.dynasty}`,
+                chronicle: `${npc.firstName} of House ${npc.dynasty} marries into the family.`,
+                tags: ['marriage'],
+            });
         }
 
         return { success: true, npc, spouse: npc };

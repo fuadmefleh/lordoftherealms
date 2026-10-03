@@ -1,6 +1,7 @@
 // Renderer — world methods.
 import { Renderer } from './core.js';
 import { Hex, Religion, Economy, Infrastructure } from './_imports.js';
+import { drawHoverCoords } from '../hoverCoords.js';
 
 Object.assign(Renderer.prototype, {
     /**
@@ -87,6 +88,11 @@ Object.assign(Renderer.prototype, {
 
         // Render all labels (with collision detection)
         this.renderLabels(ctx);
+
+        // Hovered tile coordinates next to the cursor
+        if (this.hoveredHex) {
+            drawHoverCoords(ctx, this.canvas, this.mouseX, this.mouseY, this.hoveredHex.q, this.hoveredHex.r);
+        }
 
         ctx.restore();
     },

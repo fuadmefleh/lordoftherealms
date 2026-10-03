@@ -22,8 +22,12 @@ export function gameLoop(timestamp) {
         const simDelta = deltaTime * (innerSpeed === 3 ? 4 : innerSpeed);
 
         // Update inner map hover
-        InnerMapRenderer._hoveredInnerHex = InnerMapRenderer.getInnerHexAtScreen(
-            this.mouseX, this.mouseY, this.innerMapCamera);
+        const hasMouse = this.mouseX !== null && this.mouseY !== null;
+        InnerMapRenderer._hoveredInnerHex = hasMouse
+            ? InnerMapRenderer.getInnerHexAtScreen(this.mouseX, this.mouseY, this.innerMapCamera)
+            : null;
+        InnerMapRenderer._mouseX = this.mouseX;
+        InnerMapRenderer._mouseY = this.mouseY;
 
         // Update time system (1 hour per real minute)
         const prevHour = InnerMap.timeOfDay;
@@ -350,6 +354,12 @@ export function setupInputHandlers() {
         this.mouseY = p.y;
     });
 
+    // Clear hover when the cursor leaves the canvas so no stale highlight sticks
+    this.canvas.addEventListener('mouseleave', () => {
+        this.mouseX = null;
+        this.mouseY = null;
+    });
+
     this.canvas.addEventListener('mousedown', (e) => {
         if (e.button === 0 || e.button === 2) {
             this.mouseDown = true;
@@ -475,8 +485,10 @@ export function setupInputHandlers() {
  */
 export function updateHoveredHex() {
     if (!this.world) return;
-    const hex = this.renderer.getHexAtScreen(this.mouseX, this.mouseY);
-    this.renderer.hoveredHex = hex;
+    const hasMouse = this.mouseX !== null && this.mouseY !== null;
+    this.renderer.hoveredHex = hasMouse ? this.renderer.getHexAtScreen(this.mouseX, this.mouseY) : null;
+    this.renderer.mouseX = this.mouseX;
+    this.renderer.mouseY = this.mouseY;
 }
 
 /**

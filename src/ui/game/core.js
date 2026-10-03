@@ -73,8 +73,9 @@ export class Game {
         this._timeAccumulator = 0;
 
         // Mouse state
-        this.mouseX = 0;
-        this.mouseY = 0;
+        // null until the cursor is over the canvas (and again after it leaves)
+        this.mouseX = null;
+        this.mouseY = null;
         this.mouseDown = false;
         this.mouseDownTime = 0;
         this.mouseDownPos = { x: 0, y: 0 };

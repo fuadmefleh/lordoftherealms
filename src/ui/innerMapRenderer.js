@@ -7,8 +7,9 @@ import { CustomBuildings } from '../world/customBuildings.js';
 import { CustomInteriors } from '../world/customInteriors.js';
 import { LightSystem } from './lightSystem.js';
 import { InnerMapCombat } from './innerMapCombat.js';
+import { drawHoverCoords } from './hoverCoords.js';
 
-﻿// ============================================
+// ============================================
 // INNER MAP RENDERER — LPC (Liberated Pixel Cup) Style
 // Multi-layer orthographic renderer using ONLY LPC sprite assets.
 // Inspired by C# IsoMapRenderer: clear layer separation,
@@ -44,6 +45,8 @@ export const InnerMapRenderer = {
 
     // ── UI state ─────────────────────────────────────────
     _hoveredInnerHex: null,
+    _mouseX: null,
+    _mouseY: null,
     _selectedInnerHex: null,
     _selectedObject: null,   // { anchorQ, anchorR, defId } — currently left-clicked custom object
 
@@ -724,6 +727,12 @@ export const InnerMapRenderer = {
 
         // ── Layer 11: HUD ──
         this._renderHUD(ctx, canvas);
+
+        // ── Layer 12: Hovered tile coordinates next to the cursor ──
+        if (this._hoveredInnerHex) {
+            drawHoverCoords(ctx, canvas, this._mouseX, this._mouseY,
+                this._hoveredInnerHex.q, this._hoveredInnerHex.r);
+        }
     },
 
     // Render layers are defined in innerMapLayers.js

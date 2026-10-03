@@ -95,5 +95,8 @@ export default defineConfig({
     setupFiles: ['src/__tests__/setup.js'],
     include: ['src/__tests__/**/*.test.js'],
     testTimeout: 30000,
+    // Most suites load gamedata.json in beforeAll; under a busy CPU that can
+    // exceed the 10s default and skip the whole file.
+    hookTimeout: 30000,
   },
 });

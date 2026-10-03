@@ -89,6 +89,7 @@ export const SaveLoad = {
             tiles: SaveLoad.serializeTiles(world.tiles),
             kingdoms: SaveLoad.serializeKingdoms(world.kingdoms),
             events: world.events,
+            activeEvents: world.activeEvents || [],
         };
     },
 
@@ -299,6 +300,7 @@ export const SaveLoad = {
         world.season = saveData.season;
         world.year = saveData.year;
         world.events = saveData.events || [];
+        world.activeEvents = saveData.activeEvents || [];
 
         // Restore tile data
         for (let r = 0; r < world.tiles.length; r++) {

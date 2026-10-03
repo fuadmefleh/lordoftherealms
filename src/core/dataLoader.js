@@ -367,6 +367,7 @@ export const DataLoader = {
         // ── World Events ──
         const eventData = data['worldEvents.json'];
         WorldEvents.CATEGORIES = eventData.categories;
+        WorldEvents.TEMPLATES = eventData.eventTemplates || {};
 
         // ── Technology ──
         const techData = data['technology.json'];

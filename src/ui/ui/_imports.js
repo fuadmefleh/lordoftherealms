@@ -23,4 +23,5 @@ export { House } from '../../systems/house.js';
 export { NpcBrain } from '../../systems/npcBrain.js';
 export { Relationships } from '../../systems/relationships.js';
 export { Housing } from '../../systems/housing.js';
+export { WorldEvents } from '../../world/worldEvents.js';
 export { InnerMapCharacters } from '../innerMapCharacters.js';

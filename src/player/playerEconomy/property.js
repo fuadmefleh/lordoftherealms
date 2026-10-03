@@ -1,7 +1,7 @@
 // PlayerEconomy — property members.
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
-import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure } from './_imports.js';
+import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
     /**
@@ -301,6 +301,10 @@ Object.assign(PlayerEconomy, {
                 const irrigBonus = Infrastructure.getIrrigationBonus(tile);
                 if (irrigBonus > 0) amount *= (1 + irrigBonus);
             }
+
+            // Timed world events: droughts/harvests hit farms, gold rushes boost mines
+            if (def && def.category === 'farming') amount *= Math.max(0, 1 + WorldEvents.getModifier(world, 'farmProduction', tile));
+            if (property.type === 'mine' || property.type === 'quarry') amount *= Math.max(0, 1 + WorldEvents.getModifier(world, 'mineProduction', tile));
 
             // Water-wheel bonus for mills built on a river
             if (def && def.riverBonus && tile.hasRiver) amount *= (1 + def.riverBonus);

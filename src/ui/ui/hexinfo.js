@@ -1,6 +1,6 @@
 // UI — hexinfo methods.
 import { UI } from './core.js';
-import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing } from './_imports.js';
+import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, WorldEvents } from './_imports.js';
 
 Object.assign(UI.prototype, {
     /**
@@ -93,6 +93,18 @@ Object.assign(UI.prototype, {
                 <span class="info-value">${tile.terrain.moveCost === Infinity ? '∞' : tile.terrain.moveCost}${tile.infrastructure ? ` → ${typeof Infrastructure !== 'undefined' ? Infrastructure.getEffectiveMoveCost(tile) : tile.terrain.moveCost} (${tile.infrastructure.name})` : ''}</span>
             </div>
         `;
+
+        // Timed world events reaching this tile (droughts, plagues, booms, ...)
+        const tileEvents = WorldEvents.getEventsAt(this.game.world, tile);
+        if (tileEvents.length > 0) {
+            html += '<div class="info-row" style="flex-direction: column; align-items: flex-start; gap: 2px;">';
+            html += '<span class="info-label">Active events</span>';
+            for (const ev of tileEvents) {
+                const where = ev.kingdomId ? ev.regionName : 'Realm-wide';
+                html += `<span class="info-value" style="font-size: 12px;" title="${(ev.text || '').replace(/"/g, '&quot;')}">${ev.icon} ${ev.name} · ${where} · ${ev.daysLeft}d left</span>`;
+            }
+            html += '</div>';
+        }
 
         // Show infrastructure info
         if (tile.infrastructure) {

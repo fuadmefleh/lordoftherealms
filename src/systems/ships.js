@@ -4,6 +4,7 @@ import { Hex } from '../core/hex.js';
 import { Utils } from '../core/utils.js';
 import { Quests } from './quests.js';
 import { Technology } from './technology.js';
+import { WorldEvents } from '../world/worldEvents.js';
 
 /**
  * Ships System
@@ -929,7 +930,9 @@ export const Ships = {
         if (!entry) return { success: false, message: 'Nobody here buys that.' };
         const n = Math.min(qty, (ship.cargo && ship.cargo[goodId]) || 0);
         if (n <= 0) return { success: false, message: 'None of that in the hold.' };
-        const revenue = Math.floor(n * entry.sell * (1 + Technology.getTradeProfitBonus(player)));
+        const portTile = world.getTile(player.q, player.r);
+        const eventMod = WorldEvents.getModifier(world, 'tradeIncome', portTile) + WorldEvents.getModifier(world, 'seaTradeIncome', portTile);
+        const revenue = Math.max(0, Math.floor(n * entry.sell * (1 + Technology.getTradeProfitBonus(player)) * (1 + eventMod)));
         ship.cargo[goodId] -= n;
         if (ship.cargo[goodId] <= 0) delete ship.cargo[goodId];
         player.gold = (player.gold || 0) + revenue;

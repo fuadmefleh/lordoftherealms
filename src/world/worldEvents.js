@@ -507,6 +507,118 @@ export const WorldEvents = {
         return null;
     },
 
+    // ── Timed events (data/worldEvents.json eventTemplates) ─────────────
+
+    /** Timed event templates, installed by DataLoader. */
+    TEMPLATES: {},
+
+    /** At most this many timed events run at once. */
+    MAX_ACTIVE_EVENTS: 4,
+
+    /** Daily chance that a new timed event starts (when there's room). */
+    DAILY_EVENT_CHANCE: 0.08,
+
+    /** Goods whose price follows `foodPrices` effects. */
+    FOOD_GOODS: ['grain', 'flour', 'bread', 'fish', 'preserved_fish', 'meat', 'dried_meat', 'cheese', 'fruit', 'berries', 'honey'],
+
+    /**
+     * Advance timed events one day: count down and expire running ones, and
+     * maybe start a new one (one roll for whether, one weighted pick for
+     * which). Events in a region affect that kingdom; events whose text names
+     * no place are realm-wide. Returns { started, ended } for notifications.
+     */
+    processTimedEvents(world) {
+        if (!Array.isArray(world.activeEvents)) world.activeEvents = [];
+        const ended = [];
+        world.activeEvents = world.activeEvents.filter(ev => {
+            ev.daysLeft--;
+            if (ev.daysLeft <= 0) {
+                ended.push(ev);
+                return false;
+            }
+            return true;
+        });
+
+        const started = [];
+        const templates = Object.values(WorldEvents.TEMPLATES || {})
+            .filter(t => !world.activeEvents.some(ev => ev.id === t.id));
+        if (world.activeEvents.length < WorldEvents.MAX_ACTIVE_EVENTS && templates.length > 0
+            && Utils.random() < WorldEvents.DAILY_EVENT_CHANCE) {
+            const total = templates.reduce((s, t) => s + (t.chance || 0.01), 0);
+            let roll = Utils.random() * total;
+            let template = templates[templates.length - 1];
+            for (const t of templates) {
+                roll -= (t.chance || 0.01);
+                if (roll <= 0) { template = t; break; }
+            }
+            const ev = WorldEvents._startTimedEvent(world, template);
+            if (ev) started.push(ev);
+        }
+        return { started, ended };
+    },
+
+    /** Create and register one timed event from a template. */
+    _startTimedEvent(world, template) {
+        const regional = /\{(settlement|region|kingdom)\}/.test(template.text || '');
+        let settlement = null;
+        let kingdom = null;
+        if (regional) {
+            const settlements = (world.getAllSettlements ? world.getAllSettlements() : []).filter(s => s.kingdom);
+            if (settlements.length === 0) return null;
+            settlement = settlements[Utils.randInt(0, settlements.length - 1)];
+            kingdom = world.getKingdom ? world.getKingdom(settlement.kingdom) : null;
+        }
+        const dur = template.duration || { min: 5, max: 10 };
+        const regionName = kingdom ? kingdom.name : (settlement ? settlement.name : 'the realm');
+        const text = (template.text || template.description || template.name)
+            .replace(/\{settlement\}/g, settlement ? settlement.name : 'the realm')
+            .replace(/\{region\}/g, regionName)
+            .replace(/\{kingdom\}/g, regionName);
+        const ev = {
+            id: template.id,
+            name: template.name,
+            icon: template.icon || '📜',
+            severity: template.severity,
+            effects: { ...(template.effects || {}) },
+            kingdomId: settlement ? settlement.kingdom : null,
+            regionName,
+            settlementName: settlement ? settlement.name : null,
+            daysLeft: Utils.randInt(dur.min, dur.max),
+            text,
+        };
+        // One-off losses land when the event strikes
+        if (settlement && ev.effects.population < 0) {
+            settlement.population = Math.max(10, Math.floor(settlement.population * (1 + ev.effects.population)));
+        }
+        world.activeEvents.push(ev);
+        return ev;
+    },
+
+    /** Does a running event reach this tile? (null tile → realm-wide only) */
+    _eventReaches(ev, tile) {
+        if (!ev.kingdomId) return true;
+        if (!tile) return false;
+        const kingdomId = tile.kingdom || (tile.settlement && tile.settlement.kingdom);
+        return kingdomId === ev.kingdomId;
+    },
+
+    /**
+     * Summed modifier for an effect key from running events that reach the
+     * tile, e.g. -0.4 for a drought's farmProduction. 0 when none apply.
+     */
+    getModifier(world, key, tile = null) {
+        let total = 0;
+        for (const ev of (world && world.activeEvents) || []) {
+            if (typeof ev.effects[key] === 'number' && WorldEvents._eventReaches(ev, tile)) total += ev.effects[key];
+        }
+        return total;
+    },
+
+    /** Running events that reach a tile, for UI. */
+    getEventsAt(world, tile) {
+        return ((world && world.activeEvents) || []).filter(ev => WorldEvents._eventReaches(ev, tile));
+    },
+
     /**
      * Apply event effects to player if relevant
      */

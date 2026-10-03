@@ -4,6 +4,7 @@
 
 import { PlayerEconomy } from '../player/playerEconomy.js';
 import { Economy } from '../world/economy.js';
+import { WorldEvents } from '../world/worldEvents.js';
 import { Hex } from '../core/hex.js';
 import { Councils } from './councils.js';
 import { Utils } from '../core/utils.js';
@@ -144,7 +145,12 @@ export const MarketDynamics = {
         
         const settlementId = `${nearestSettlement.q}-${nearestSettlement.r}`;
         const market = this.getOrCreateSettlementMarket(settlementId);
-        return market.prices[goodId] || PlayerEconomy.GOODS[goodId.toUpperCase()]?.basePrice || 10;
+        const price = market.prices[goodId] || PlayerEconomy.GOODS[goodId.toUpperCase()]?.basePrice || 10;
+        // Timed world events (market crash, drought food prices, ...) near this market
+        const tile = world && world.getTile ? world.getTile(nearestSettlement.q, nearestSettlement.r) : null;
+        let mod = WorldEvents.getModifier(world, 'prices', tile);
+        if (WorldEvents.FOOD_GOODS.includes(goodId)) mod += WorldEvents.getModifier(world, 'foodPrices', tile);
+        return Math.max(1, Math.round(price * (1 + mod)));
     },
 
     /**

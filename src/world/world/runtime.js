@@ -60,6 +60,15 @@ Object.assign(World.prototype, {
         const worldEvents = WorldEvents.generateEvents(this);
         this.events.push(...worldEvents);
 
+        // Timed events (droughts, plagues, gold rushes, ...)
+        const timed = WorldEvents.processTimedEvents(this);
+        for (const ev of timed.started) {
+            this.events.push({ text: `${ev.icon} ${ev.text} (${ev.daysLeft} days)`, type: 'timed', timedEvent: ev });
+        }
+        for (const ev of timed.ended) {
+            this.events.push({ text: `${ev.icon} ${ev.name} in ${ev.regionName} has passed.`, type: 'timed' });
+        }
+
         // Process world religion (pilgrim income, heresies, holy site contestation)
         if (typeof Religion !== 'undefined') {
             Religion.processTurn(this);
@@ -334,7 +343,8 @@ Object.assign(World.prototype, {
         if (this.units.filter(u => u.type === 'raider').length < 8) {
             // Only spawn raiders if zoomed in enough to see them, or if camera is not defined (e.g., headless mode)
             if (!this.camera || this.camera.zoom > 0.4) {
-                if (Utils.random() < 0.2) {
+                // Bandit uprisings and the like raise the spawn rate
+                if (Utils.random() < 0.2 * (1 + WorldEvents.getModifier(this, 'raiderSpawnRate'))) {
                     const q = Utils.randInt(0, this.width - 1);
                     const r = Utils.randInt(0, this.height - 1);
                     if (this.isPassable(q, r)) {
@@ -346,7 +356,7 @@ Object.assign(World.prototype, {
 
         // Spawn pirate
         if (this.units.filter(u => u.type === 'pirate').length < 6) {
-            if (Utils.random() < 0.1) {
+            if (Utils.random() < 0.1 * (1 + WorldEvents.getModifier(this, 'pirateSpawnRate'))) {
                 const q = Utils.randInt(0, this.width - 1);
                 const r = Utils.randInt(0, this.height - 1);
                 const tile = this.getTile(q, r);

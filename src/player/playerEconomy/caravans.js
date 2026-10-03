@@ -1,7 +1,7 @@
 // PlayerEconomy — caravans members.
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
-import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure } from './_imports.js';
+import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
     /**
@@ -359,6 +359,13 @@ Object.assign(PlayerEconomy, {
                     // Commerce techs (trade networks, guilds, ...) raise caravan returns
                     if (finalProfit > 0 && typeof Technology !== 'undefined') {
                         finalProfit = Math.floor(finalProfit * (1 + Technology.getTradeProfitBonus(player)));
+                    }
+                    // Trade booms, market crashes, banditry at the destination
+                    if (finalProfit > 0) {
+                        const destTile = world.getTile(caravan.toPos.q, caravan.toPos.r);
+                        const eventMod = WorldEvents.getModifier(world, 'tradeIncome', destTile)
+                            + WorldEvents.getModifier(world, 'landTradeIncome', destTile);
+                        finalProfit = Math.max(0, Math.floor(finalProfit * (1 + eventMod)));
                     }
                     player.gold += finalProfit;
                     if (finalProfit > 0) Quests.track(player, 'trade_profit', finalProfit);

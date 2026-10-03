@@ -1,6 +1,6 @@
 // PlayerMilitary — mercenaries members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
-import { Utils, Technology } from './_imports.js';
+import { Utils, Technology, Quests } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -445,6 +445,7 @@ Object.assign(PlayerMilitary, {
                 payment: contract.payment,
             };
 
+            Quests.trackContractCompleted(player);
             player.activeContract = null;
             return result;
         }

@@ -4,6 +4,7 @@
 
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
+import { Quests } from './quests.js';
 
 
 export const Religion = {
@@ -553,6 +554,8 @@ export const Religion = {
         if (site.bonusType === 'healing') {
             player.health = Math.min(player.maxHealth, player.health + 30);
         }
+
+        Quests.track(player, 'holy_sites_visited');
 
         return {
             success: true,

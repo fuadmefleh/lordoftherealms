@@ -2,6 +2,7 @@
 // QUESTS — Quest and objective system
 // ============================================
 
+import { Utils } from '../core/utils.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 
 
@@ -227,8 +228,10 @@ export const Quests = {
                 contractsCompleted: 0,
                 templesBuilt: 0,
                 settlementsVisited: new Set(),
+                stats: {},
             };
         }
+        if (!player.quests.stats) player.quests.stats = {};
 
         // Generate initial available quests
         Quests.generateAvailableQuests(player);
@@ -237,59 +240,71 @@ export const Quests = {
     /**
      * Generate available quests based on player progress
      */
+    /** The artifact a template is about (its objectives name it), or null. */
+    _artifactOf(template) {
+        const obj = (template.objectives || []).find(o => o.artifactId);
+        return obj ? obj.artifactId : null;
+    },
+
+    /**
+     * Objective types no game mechanic can advance yet (the player can't
+     * suppress heresy or form alliances). Quests needing them aren't offered.
+     */
+    UNTRACKABLE_OBJECTIVES: ['heresies_suppressed', 'alliances_formed'],
+
+    /** How many quests the journal offers at once. */
+    MAX_AVAILABLE: 5,
+
+    /**
+     * Difficulty tiers unlock as the player proves themselves: easy always,
+     * medium after 2 completed quests or 25 renown, hard after 5 or 100,
+     * legendary after 10 or 300.
+     */
+    _unlockedDifficulties(player) {
+        const done = player.quests.completed.length;
+        const renown = player.renown || 0;
+        const tiers = ['easy'];
+        if (done >= 2 || renown >= 25) tiers.push('medium');
+        if (done >= 5 || renown >= 100) tiers.push('hard');
+        if (done >= 10 || renown >= 300) tiers.push('legendary');
+        return tiers;
+    },
+
+    /**
+     * Refill the journal's offers from the whole template catalogue. Offers
+     * already on the board stay; new ones are drawn (seeded RNG) from
+     * templates the player hasn't taken, in difficulty tiers they've unlocked.
+     * Artifact quests are offered as soon as a matching fragment is found.
+     */
     generateAvailableQuests(player) {
         if (!player.quests) return;
+        const offered = (player.quests.available || []).filter(Boolean);
+        const taken = (id) => Quests.hasQuest(player, id);
 
-        const available = [];
-
-        // Add starter quests if player has few active quests
-        if (player.quests.active.length < 3) {
-            // Economic starter
-            if (!Quests.hasQuest(player, 'merchant_apprentice')) {
-                available.push(Quests.createQuest('MERCHANT_APPRENTICE', player));
-            }
-
-            // Military starter
-            if (!Quests.hasQuest(player, 'first_blood')) {
-                available.push(Quests.createQuest('FIRST_BLOOD', player));
-            }
-
-            // Religious starter
-            if (!Quests.hasQuest(player, 'faithful_servant')) {
-                available.push(Quests.createQuest('FAITHFUL_SERVANT', player));
-            }
-
-            // Exploration starter
-            if (!Quests.hasQuest(player, 'wanderer')) {
-                available.push(Quests.createQuest('WANDERER', player));
-            }
+        // Artifact quests: only once the player holds a fragment
+        const fragments = player.artifacts && player.artifacts.fragments ? player.artifacts.fragments : {};
+        for (const [key, t] of Object.entries(Quests.QUEST_TEMPLATES)) {
+            const artifactId = Quests._artifactOf(t);
+            if (!artifactId || taken(t.id) || !(fragments[artifactId] > 0)) continue;
+            const q = Quests.createQuest(key, player);
+            if (q) offered.push(q);
         }
 
-        // Add advanced quests based on progress
-        if (player.gold >= 500 && !Quests.hasQuest(player, 'trade_empire')) {
-            available.push(Quests.createQuest('TRADE_EMPIRE', player));
+        const tiers = Quests._unlockedDifficulties(player);
+        const pool = Object.entries(Quests.QUEST_TEMPLATES).filter(([, t]) =>
+            !Quests._artifactOf(t) && !t.starter && tiers.includes(t.difficulty || 'easy')
+            && !(t.objectives || []).some(o => Quests.UNTRACKABLE_OBJECTIVES.includes(o.type))
+            && !taken(t.id) && !offered.some(o => o.id === t.id));
+        // Fisher-Yates with the seeded RNG so offers are reproducible per seed
+        for (let i = pool.length - 1; i > 0; i--) {
+            const j = Utils.randInt(0, i);
+            [pool[i], pool[j]] = [pool[j], pool[i]];
         }
-
-        if (player.army && player.army.length > 0 && !Quests.hasQuest(player, 'mercenary_captain')) {
-            available.push(Quests.createQuest('MERCENARY_CAPTAIN', player));
+        while (offered.length < Quests.MAX_AVAILABLE && pool.length > 0) {
+            const q = Quests.createQuest(pool.shift()[0], player);
+            if (q) offered.push(q);
         }
-
-        if (player.religion && !Quests.hasQuest(player, 'prophet')) {
-            available.push(Quests.createQuest('PROPHET', player));
-        }
-
-        const artifactFragments = player.artifacts && player.artifacts.fragments ? player.artifacts.fragments : {};
-        if ((artifactFragments.sword_first_king || 0) > 0 && !Quests.hasQuest(player, 'artifact_sword_first_king')) {
-            available.push(Quests.createQuest('ARTIFACT_SWORD_FIRST_KING', player));
-        }
-        if ((artifactFragments.crown_embers || 0) > 0 && !Quests.hasQuest(player, 'artifact_crown_embers')) {
-            available.push(Quests.createQuest('ARTIFACT_CROWN_EMBERS', player));
-        }
-        if ((artifactFragments.astrolabe_tides || 0) > 0 && !Quests.hasQuest(player, 'artifact_astrolabe_tides')) {
-            available.push(Quests.createQuest('ARTIFACT_ASTROLABE_TIDES', player));
-        }
-
-        player.quests.available = available;
+        player.quests.available = offered;
     },
 
     /**
@@ -339,6 +354,7 @@ export const Quests = {
 
         player.quests.active.push(quest);
         player.quests.available.splice(questIndex, 1);
+        Quests.generateAvailableQuests(player);
 
         return { success: true, quest };
     },
@@ -431,6 +447,26 @@ export const Quests = {
                         objective.current = forged.includes(objective.artifactId) ? 1 : 0;
                         break;
                     }
+                    case 'technologies_researched':
+                        objective.current = (player.technology && player.technology.implemented || []).length;
+                        break;
+                    case 'quests_completed':
+                        objective.current = player.quests.completed.length;
+                        break;
+                    case 'mountain_tiles_explored': {
+                        let mountains = 0;
+                        for (let r = 0; r < world.height; r++) {
+                            for (let q = 0; q < world.width; q++) {
+                                const t = world.tiles[r][q];
+                                if (t.explored && Quests.MOUNTAIN_TERRAINS.includes(t.terrain.id)) mountains++;
+                            }
+                        }
+                        objective.current = mountains;
+                        break;
+                    }
+                    default:
+                        // Event counters recorded via Quests.track()
+                        objective.current = player.quests.stats[objective.type] || 0;
                 }
 
                 objective.completed = objective.current >= objective.target;
@@ -483,6 +519,19 @@ export const Quests = {
         }
 
         return rewards;
+    },
+
+    /** Terrain that counts for "explore mountain tiles" objectives. */
+    MOUNTAIN_TERRAINS: ['mountain', 'snow_peak', 'highlands'],
+
+    /**
+     * Record a game event for quest objectives whose type is the stat name
+     * (e.g. 'battles_won', 'ruins_explored', 'trade_profit').
+     */
+    track(player, stat, amount = 1) {
+        if (!player || !player.quests) return;
+        if (!player.quests.stats) player.quests.stats = {};
+        player.quests.stats[stat] = (player.quests.stats[stat] || 0) + amount;
     },
 
     /**

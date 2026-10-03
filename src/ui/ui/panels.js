@@ -629,6 +629,17 @@ Object.assign(UI.prototype, {
     /**
      * Show quests panel
      */
+    /** Accept an offered quest from the journal (max 5 active). */
+    acceptQuest(questId) {
+        const result = Quests.acceptQuest(this.game.player, questId);
+        if (result.success) {
+            this.showNotification('📜 Quest Accepted', result.quest.title, 'success');
+        } else {
+            this.showNotification('Cannot Accept', result.reason, 'error');
+        }
+        this.showQuestsPanel();
+    },
+
     showQuestsPanel() {
         const player = this.game.player;
         const world = this.game.world;
@@ -812,8 +823,10 @@ Object.assign(UI.prototype, {
                     <div style="margin-bottom: 12px; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px;">
                         <div style="font-weight: 600; margin-bottom: 4px; color: var(--text-primary);">${quest.title}</div>
                         <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">${quest.description}</div>
-                        <div style="display: flex; gap: 8px; font-size: 11px;">
+                        <div style="display: flex; gap: 8px; align-items: center; font-size: 11px;">
                             <span style="background: rgba(255,215,0,0.1); padding: 2px 6px; border-radius: 4px; color: var(--gold);">Rewards: ${rewards}</span>
+                            ${quest.difficulty ? `<span style="color: var(--text-muted); text-transform: capitalize;">${quest.difficulty}</span>` : ''}
+                            <button data-ui-act="acceptQuest" data-ui-args='["${quest.id}"]' style="margin-left: auto; padding: 4px 12px; border: none; border-radius: 4px; background: linear-gradient(135deg, var(--gold-dark), var(--gold)); color: #1a1207; font-weight: 700; cursor: pointer;">Accept</button>
                         </div>
                     </div>
                 `;

@@ -357,6 +357,7 @@ Object.assign(PlayerEconomy, {
                     }
 
                     player.gold += finalProfit;
+                    if (finalProfit > 0) Quests.track(player, 'trade_profit', finalProfit);
                     completed.push({
                         ...caravan,
                         finalProfit,

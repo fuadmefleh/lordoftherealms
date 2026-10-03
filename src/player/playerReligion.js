@@ -3,6 +3,8 @@
 // ============================================
 
 import { Hex } from '../core/hex.js';
+import { Quests } from '../systems/quests.js';
+import { Achievements } from '../systems/achievements.js';
 
 export const PlayerReligion = {
     /**
@@ -122,6 +124,8 @@ export const PlayerReligion = {
 
         // Increase faith
         player.faith = Math.min(10, player.faith + 0.5);
+
+        if (building.id === 'temple') Quests.trackTempleBuilt(player);
 
         return { success: true, building: tile.religiousBuilding, underConstruction: constructionDays > 0, constructionDays };
     },
@@ -251,6 +255,9 @@ export const PlayerReligion = {
 
         // Increase faith
         player.faith = Math.min(10, player.faith + 0.3);
+
+        Quests.track(player, 'miracles_performed');
+        Achievements.trackMiracle(player);
 
         return result;
     },

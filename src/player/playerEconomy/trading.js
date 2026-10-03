@@ -168,6 +168,7 @@ export const Trading = {
 
         player.inventory[goodId] -= quantity;
         player.gold += totalEarned;
+        Quests.track(player, 'trade_profit', totalEarned);
 
         // Increase commerce skill
         player.skills.commerce = Math.min(10, player.skills.commerce + 0.1);

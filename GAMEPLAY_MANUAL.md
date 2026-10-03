@@ -1087,7 +1087,20 @@ A dark, repeatable tavern action: earn a small amount of gold (5–10g) at the c
 
 ## 22. Quests
 
-The game features **37 quest templates** across 5 categories with 4 difficulty tiers (Easy, Medium, Hard, Legendary).
+The game features **42 quest templates** (plus artifact quests) across 5 categories with 4 difficulty tiers (Easy, Medium, Hard, Legendary).
+
+### The Quest Board
+
+Open the **Quest Journal** to see up to **5 offered quests** and press **Accept** to take one on (at most 5 active at once). Accepting refills the board. Offers are drawn from the whole catalogue, and harder tiers unlock as you prove yourself:
+
+| Tier | Unlocks after |
+|------|---------------|
+| Easy | Always |
+| Medium | 2 completed quests or 25 renown |
+| Hard | 5 completed quests or 100 renown |
+| Legendary | 10 completed quests or 300 renown |
+
+Artifact quests appear as soon as you find a fragment of that artifact. Progress counts everything you've done since the start of the game — battles won, ruins explored, treasure dug up, roads built, taverns visited, trade revenue and so on — so a quest may complete the moment you accept it. Quests that need heresy suppression or forming alliances aren't offered, since there's no way to do those yet.
 
 ### Economic Quests (10)
 

@@ -16,6 +16,7 @@ export function onPlayerArrived() {
 
     // If arrived at a settlement
     if (tile.settlement) {
+        Quests.trackSettlementVisited(this.player, tile.settlement.name);
         const sType = tile.settlement.type;
         this.ui.showNotification(
             `Arrived at ${tile.settlement.name}`,
@@ -180,6 +181,7 @@ export function endDay() {
                         prop.constructionDaysLeft--;
                         if (prop.constructionDaysLeft <= 0) {
                             prop.underConstruction = false;
+                            Quests.track(this.player, 'buildings_constructed');
                             this.ui.showNotification('🏗️ Construction Complete!',
                                 `Your ${prop.name} is now operational!`, 'success');
                         }
@@ -197,6 +199,7 @@ export function endDay() {
                         rb.constructionDaysLeft--;
                         if (rb.constructionDaysLeft <= 0) {
                             rb.underConstruction = false;
+                            Quests.track(this.player, 'buildings_constructed');
                             this.ui.showNotification('🏗️ Construction Complete!',
                                 `Your ${rb.name} is now complete and will spread your faith!`, 'success');
                         }
@@ -235,6 +238,7 @@ export function endDay() {
                         cb.constructionDaysLeft--;
                         if (cb.constructionDaysLeft <= 0) {
                             cb.underConstruction = false;
+                            Quests.track(this.player, 'buildings_constructed');
                             this.ui.showNotification('🏗️ Construction Complete!',
                                 `Your ${cb.name} is now operational!`, 'success');
                         }

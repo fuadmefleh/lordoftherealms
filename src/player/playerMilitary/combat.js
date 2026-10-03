@@ -1,6 +1,6 @@
 // PlayerMilitary — combat members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
-import { Utils, Technology, House } from './_imports.js';
+import { Utils, Technology, House, Quests } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -343,6 +343,7 @@ Object.assign(PlayerMilitary, {
         if (result.victory) {
             // --- CONQUEST ---
             result.conquered = true;
+            Quests.track(player, 'settlements_captured');
 
             // Plunder gold from the settlement
             const plunder = Math.floor(settlement.population * Utils.randFloat(1, 3));
@@ -531,6 +532,9 @@ Object.assign(PlayerMilitary, {
 
             // Destroy the unit
             worldUnit.destroyed = true;
+
+            Quests.track(player, 'battles_won');
+            if (worldUnit.type === 'raider' || worldUnit.type === 'pirate') Quests.track(player, 'raiders_defeated');
 
             // Karma/reputation effects by unit type
             switch (worldUnit.type) {

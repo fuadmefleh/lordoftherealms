@@ -285,6 +285,7 @@ export const SaveLoad = {
             contractsCompleted: quests.contractsCompleted,
             templesBuilt: quests.templesBuilt,
             settlementsVisited: Array.from(quests.settlementsVisited || []),
+            stats: quests.stats || {},
         };
     },
 

@@ -102,6 +102,7 @@
     },
     "A_NEW_BEGINNING": {
       "id": "a_new_beginning",
+      "starter": true,
       "title": "A New Beginning",
       "description": "Explore nearby lands, discover settlements, and grow your influence.",
       "type": "exploration",

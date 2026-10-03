@@ -1,6 +1,6 @@
 // Tavern — actions members (split from the original monolith).
 import { Tavern } from './_ref.js';
-import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Religion, Gossip } from './_imports.js';
+import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Religion, Gossip, Quests } from './_imports.js';
 
 Object.assign(Tavern, {
     // ── Cost & Configuration ───────────────────────────────────────────
@@ -567,6 +567,7 @@ Object.assign(Tavern, {
             hiredDay: world.day,
             upkeep: 10, // gold per day
         });
+        Quests.track(player, 'informants_hired');
 
         return [{
             category: Tavern.CATEGORIES.RUMORS_GOSSIP,

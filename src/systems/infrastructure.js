@@ -4,6 +4,7 @@
 
 import { Technology } from './technology.js';
 import { Hex } from '../core/hex.js';
+import { Quests } from './quests.js';
 
 
 export const Infrastructure = {
@@ -170,6 +171,8 @@ export const Infrastructure = {
         // Track tile coordinates for construction tick
         tile.infrastructure._tileQ = tile.q;
         tile.infrastructure._tileR = tile.r;
+
+        if (infra.id === 'dirt_road' || infra.id === 'stone_road') Quests.track(player, 'roads_built');
 
         return { success: true, infrastructure: tile.infrastructure, cost, buildDays };
     },

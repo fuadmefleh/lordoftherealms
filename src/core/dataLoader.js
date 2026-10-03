@@ -273,7 +273,9 @@ export const DataLoader = {
 
         // ── Quests ──
         const questData = data['quests.json'];
-        Quests.QUEST_TEMPLATES = questData.questTemplates || questData;
+        // Merge: code-defined templates (e.g. artifact quests) survive unless
+        // the data overrides them
+        Quests.QUEST_TEMPLATES = { ...Quests.QUEST_TEMPLATES, ...(questData.questTemplates || questData) };
 
         // ── Achievements ──
         const achieveData = data['achievements.json'];

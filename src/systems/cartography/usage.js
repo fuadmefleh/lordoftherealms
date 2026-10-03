@@ -1,6 +1,7 @@
 // Cartography — usage members (split from the original monolith).
 import { Cartography } from './_ref.js';
 import { Utils, Hex } from './_imports.js';
+import { Quests } from '../quests.js';
 
 Object.assign(Cartography, {
     // ── Map Reading / Applying ─────────────────
@@ -117,6 +118,7 @@ Object.assign(Cartography, {
             }
 
             player.skills.cartography = Math.min(10, (player.skills.cartography || 0) + 0.3);
+            Quests.track(player, 'treasures_found');
             return { success: true, gold, bonusText };
         }
 

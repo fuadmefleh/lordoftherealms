@@ -2,6 +2,7 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
 import { Utils } from '../core/utils.js';
+import { Quests } from './quests.js';
 
 /**
  * Ships System
@@ -689,6 +690,9 @@ export const Ships = {
                 if (shipStr * (0.8 + Utils.random() * 0.4) > enemyStr * (0.8 + Utils.random() * 0.4)) {
                     resultText += ' You fought and won!';
                     resultType = 'success';
+                    Quests.track(player, 'battles_won');
+                    if (event.id === 'sea_monster') Quests.track(player, 'special_creatures_defeated');
+                    if (event.id === 'pirate_ambush') Quests.track(player, 'raiders_defeated');
                     // Give rewards
                     if (event.reward) this._applyReward(player, event.reward);
                 } else {
@@ -745,6 +749,8 @@ export const Ships = {
         const enemyPower = enemyStrength * (0.8 + Utils.random() * 0.4);
 
         if (playerPower > enemyPower) {
+            Quests.track(player, 'battles_won');
+            Quests.track(player, 'raiders_defeated');
             const loot = enemyStrength * (2 + Math.floor(Utils.random() * 4));
             player.gold += loot;
             player.karma = (player.karma || 0) + 2;
@@ -922,6 +928,7 @@ export const Ships = {
         ship.cargo[goodId] -= n;
         if (ship.cargo[goodId] <= 0) delete ship.cargo[goodId];
         player.gold = (player.gold || 0) + revenue;
+        Quests.track(player, 'trade_profit', revenue);
         if (player.skills && Utils.random() < 0.2) {
             player.skills.commerce = Math.min(10, (player.skills.commerce || 1) + 0.1);
         }

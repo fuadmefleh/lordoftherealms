@@ -666,6 +666,7 @@ Object.assign(ActionMenu, {
         poi.explored = true;
         const player = game.player;
         if (!player.inventory) player.inventory = {};
+        if (poi.type === 'ruins') Quests.track(player, 'ruins_explored');
 
         // Reward tables per POI type
         const explorationResults = ActionMenu._generatePOIRewards(poi, player);
@@ -1048,6 +1049,12 @@ Object.assign(ActionMenu, {
      * Show tavern menu — full options in a city tavern
      */
     showTavernMenu(game, tile) {
+        // One visit per tavern per day counts toward tavern quests
+        const visitKey = `${game.world.day}:${tile.q},${tile.r}`;
+        if (game.player._lastTavernVisit !== visitKey) {
+            game.player._lastTavernVisit = visitKey;
+            Quests.track(game.player, 'taverns_visited');
+        }
         const options = Tavern.getTavernOptions(game.player, tile, game.world);
 
         let html = '<div style="max-height: 450px; overflow-y: auto;">';

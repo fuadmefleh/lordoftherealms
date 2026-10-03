@@ -5,3 +5,5 @@ export { Technology } from '../technology.js';
 export { Hex } from '../../core/hex.js';
 export { Tavern } from '../../player/tavern.js';
 export { Characters } from '../../world/characters.js';
+export { House } from '../house.js';
+export { Schemes } from '../schemes.js';

@@ -2,7 +2,7 @@
 // END DAY � onPlayerArrived, endDay turn processing
 // ============================================
 
-import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents } from './_gameImports.js';
+import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents } from './_gameImports.js';
 
 export function onPlayerArrived() {
     const tile = this.world.getTile(this.player.q, this.player.r);
@@ -310,6 +310,24 @@ export function endDay() {
                 if (houseResult.rival) {
                     this.ui.showNotification('⚔️ Rival House',
                         `${houseResult.rival.name} covets your holdings, biding its time.`, 'warning');
+                }
+
+                // Rival schemes — plots revealed, plots striking
+                const plots = Schemes.processDaily(this.player, this.world);
+                for (const name of plots.replaced) {
+                    this.ui.showNotification('⚔️ Rival Fallen', `${name} has fallen — a new House rises to rival yours.`, 'info');
+                }
+                for (const s of plots.revealed) {
+                    this.ui.showNotification('🕵️ Plot Uncovered',
+                        `${Schemes.describe(s)} in ${s.dueDay - this.world.day} day(s)! Respond from Dynasty → House.`, 'warning');
+                }
+                for (const r of plots.resolved) {
+                    if (r.outcome === 'struck') {
+                        this.ui.showNotification(r.revealed ? '🗡️ Scheme Strikes' : '🗡️ Struck Without Warning',
+                            `${r.scheme.rivalName}: ${r.text}`, 'error');
+                    } else if (r.outcome === 'foiled') {
+                        this.ui.showNotification('🛡️ Plot Foiled', r.text, 'success');
+                    }
                 }
             }
 

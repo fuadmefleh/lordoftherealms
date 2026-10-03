@@ -965,6 +965,38 @@ Prestige is your House's standing — gold can't buy what it does. From the Hous
 | Call in a Favor | 8 | An allied House sends gold (150 + 75 per generation) or +15 reputation with a kingdom |
 | Secure Succession | 20 | Bypass a succession crisis and install your chosen heir |
 
+### Rival Houses and Their Schemes
+
+Three powerful Houses are your rivals from the start. If one of their kingdoms falls, another House rises to take its place. Each rival holds a **feud** with you (0–100), and the feud grows when you:
+
+- conquer one of their settlements (+25)
+- raid one of their settlements (+10, or +5 if the raid fails)
+- get caught spying on them (+10 if your spy is captured, +4 for a successful mission they notice)
+- simply rise (every 30 days): 1, plus 1 per 30 Prestige, plus 1 per 4 working properties, plus 1 per colony, plus 1 if you hold an office, up to 6
+
+Feud cools by 1 every 30 days.
+
+Every 20 days, the angriest rival without a plot already running may hatch a **scheme**. The chance is its feud ÷ 120, and no more than two schemes run at once. A scheme strikes 8–15 days after it is hatched:
+
+| Scheme | Feud | Target | Effect if it lands | Guard (cost, odds) |
+|--------|------|--------|--------------------|--------------------|
+| 🗣️ Slander | 10 | Your name | −8 reputation with every kingdom, −5 renown | Cannot be guarded |
+| 💰 Treasury Theft | 20 | Your gold (200+) | Lose 8–15% of your gold (max 2,000) | Vault guards, 40g, 80% |
+| 🔥 Sabotage | 20 | A property | No production for 12 days | Watchmen, 30g, 75% |
+| ⚔️ Raid | 40 | Your best property | Stored goods taken, −1 level, no production for 20 days | Garrison, 80g, 70% |
+| 🔥 Incite Unrest | 35 | A colony | −20 colony loyalty | Garrison, 60g, 80% |
+| 🗡️ Assassination | 65 | Your heir or a child | 50% they die, otherwise they are wounded | Bodyguards, 100g, 85% |
+
+Schemes are **hidden** until uncovered. Each day there is a chance to expose each one: 6% base, +12% with a Spymaster appointed, +3% per idle spy and +25% while a counter-espionage mission is running. A successful counter-espionage mission exposes every plot at once. A plot you never uncover strikes without warning.
+
+Once a plot is uncovered, open **Dynasty → House → Plots Against You** to respond:
+
+- **Guard the target.** Pay gold. The guards stop the scheme on its strike day at the odds in the table.
+- **Send a spy.** An idle spy tries to break the plot, succeeding 35% of the time plus 10% per spy level. You get one try per plot, and a failure costs the spy 10 loyalty.
+- **Buy them off.** Pay 150 gold + 10 per feud point, or 10 Prestige + 1 per 10 feud. The plot is cancelled and the feud drops by 15.
+
+When a scheme lands, the rival's feud drops by 10 (their grudge is partly satisfied). When you foil one, it rises by 5.
+
 ### Social Interactions
 
 You can build relationships with NPCs through social actions:

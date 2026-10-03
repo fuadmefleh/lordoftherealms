@@ -1,6 +1,6 @@
 // Espionage — missions members (split from the original monolith).
 import { Espionage } from './_ref.js';
-import { DataLoader, Utils, Technology, Hex, Tavern, Characters } from './_imports.js';
+import { DataLoader, Utils, Technology, Hex, Tavern, Characters, House, Schemes } from './_imports.js';
 
 Object.assign(Espionage, {
     // ═══════════════════════════════════════
@@ -268,6 +268,13 @@ Object.assign(Espionage, {
 
             case 'counter_espionage':
                 result.text = this._resolveCounterEspionage(player, spy, isSuccess, isPartial, outcome);
+                if (isSuccess || isPartial) {
+                    const exposed = Schemes.revealAll(player);
+                    if (exposed.length) {
+                        result.text += ` ${spy.name} exposed ${exposed.length} plot(s) against your House — see the House panel.`;
+                        result.exposedSchemes = exposed;
+                    }
+                }
                 break;
 
             case 'assassinate':
@@ -281,6 +288,8 @@ Object.assign(Espionage, {
         // Apply diplomatic consequences on failure/capture
         if (outcome === 'captured' || (isSuccess && missionDef.consequences)) {
             this._applyDiplomaticConsequences(player, kingdom, missionDef, outcome);
+            // A rival House does not forget being spied on.
+            if (kingdom) House.accrueRivalFeud(player, world, kingdom.id, outcome === 'captured' ? 10 : 4, 'caught spying');
         }
 
         // Renown reward

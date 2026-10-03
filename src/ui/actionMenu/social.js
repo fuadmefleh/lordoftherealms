@@ -1,6 +1,6 @@
 // ActionMenu — social methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, House, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMapRenderer } from './_imports.js';
+import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, House, Schemes, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMapRenderer } from './_imports.js';
 
 Object.assign(ActionMenu, {
     // ============================================
@@ -999,6 +999,33 @@ Object.assign(ActionMenu, {
             }
         }
 
+        // Plots against the House — only revealed schemes are shown
+        const plots = Schemes.known(player);
+        html += '<h5 style="margin:10px 0 6px;">🗡️ Plots Against You</h5>';
+        if (!plots.length) {
+            html += '<div style="font-size:11px; color:#888;">No known plots. Spies, a Spymaster and counter-espionage missions help uncover schemes before they strike.</div>';
+        }
+        const plotBtn = (label, handler, enabled = true) => `<button ${enabled ? `onclick="${handler}"` : 'disabled'} style="flex:1; padding:4px 6px; background:${enabled ? '#7a3b3b' : '#444'}; border:none; border-radius:3px; cursor:${enabled ? 'pointer' : 'default'}; color:#eee; font-size:11px;">${label}</button>`;
+        for (const s of plots) {
+            const def = Schemes.TYPES[s.type];
+            const days = Math.max(0, s.dueDay - game.world.day);
+            const idleSpies = ((player.espionage && player.espionage.spies) || []).filter(sp => sp.status === 'idle').length;
+            const goldCost = Schemes.bribeGoldCost(player, s);
+            const presCost = Schemes.bribePrestigeCost(player, s);
+            html += '<div style="background:rgba(120,30,30,0.25); padding:8px; border-radius:6px; margin-bottom:6px; font-size:12px;">';
+            html += `<div style="display:flex; justify-content:space-between;"><strong>${def ? def.icon : '🗡️'} ${def ? def.name : s.type}</strong><span style="color:#e08080;">${days} day(s)</span></div>`;
+            html += `<div style="color:#bbb; margin:2px 0 6px;">${Schemes.describe(s)}.${s.guarded ? ' <span style="color:#7fd07f;">Guarded.</span>' : ''}</div>`;
+            html += '<div style="display:flex; gap:4px; flex-wrap:wrap;">';
+            if (def && def.guard) {
+                html += plotBtn(s.guarded ? 'Guarded' : `${def.guard.label} (${def.guard.cost}g, ${Math.round(def.guard.success * 100)}%)`,
+                    `window._schemeAct('guard', ${s.id})`, !s.guarded && player.gold >= def.guard.cost);
+            }
+            html += plotBtn(s.spyTried ? 'Spy failed' : `🕵️ Send spy${idleSpies ? '' : ' (none idle)'}`, `window._schemeAct('spy', ${s.id})`, !s.spyTried && idleSpies > 0);
+            html += plotBtn(`💰 Buy off (${goldCost}g)`, `window._schemeAct('gold', ${s.id})`, player.gold >= goldCost);
+            html += plotBtn(`⭐ Buy off (${presCost})`, `window._schemeAct('prestige', ${s.id})`, house.prestige >= presCost);
+            html += '</div></div>';
+        }
+
         // Spend Prestige — what the House's standing can buy that gold can't
         const sinks = House._getSinks();
         const claim = Titles.getClaimableTitle(player, game.world);
@@ -1049,6 +1076,19 @@ Object.assign(ActionMenu, {
         const afterSink = (title, result, okText) => {
             if (result.success) game.ui.showNotification(title, okText, 'success');
             else game.ui.showNotification(title, result.reason || 'Not possible right now.', 'error');
+            game.ui.updateStats(player, game.world);
+            ActionMenu.showHousePanel(game, tile);
+        };
+        window._schemeAct = (kind, id) => {
+            let res;
+            if (kind === 'guard') res = Schemes.guard(player, game.world, id);
+            else if (kind === 'spy') res = Schemes.sendSpy(player, game.world, id);
+            else res = Schemes.bribe(player, game.world, id, kind);
+            if (!res.success) game.ui.showNotification('🗡️ Plot', res.reason || 'Not possible.', 'error');
+            else if (kind === 'guard') game.ui.showNotification('🛡️ Guards Posted', `They hold with ${Math.round(res.chance * 100)}% odds.`, 'success');
+            else if (kind === 'spy') game.ui.showNotification(res.foiled ? '🕵️ Plot Foiled' : '🕵️ Spy Failed',
+                res.foiled ? `${res.spy} broke the scheme.` : `${res.spy} could not stop the plotters.`, res.foiled ? 'success' : 'error');
+            else game.ui.showNotification('💰 Bought Off', 'The rival abandons the plot, and the feud cools.', 'success');
             game.ui.updateStats(player, game.world);
             ActionMenu.showHousePanel(game, tile);
         };

@@ -147,6 +147,12 @@ const DEFAULT_BRAIN = {
         const act = feud >= ctx.config.rivalClaimFeud && ctx.roll < feud / 200;
         return { act, type: 'claim_threat' };
     },
+    // ctx: { rival, options: schemeTypeId[] (mildest first), roll, house, world }
+    // → one of ctx.options. The engine validates the pick (see Schemes._plot).
+    chooseScheme(ctx) {
+        const opts = ctx.options || [];
+        return opts[Math.min(opts.length - 1, Math.floor((ctx.roll || 0) * opts.length))];
+    },
     // Voice seam. Return a string to override built-in text, or null to keep it.
     narrate() { return null; },
 };
@@ -216,6 +222,7 @@ export const House = {
             roles: ROLE_IDS.reduce((acc, id) => { acc[id] = null; return acc; }, {}),
             holdings: {},           // derived snapshot for scoring/fragmentation
             rivals: {},             // { houseKey: { feud, lastActedDay } }
+            schemes: [],            // rival plots in flight (see systems/schemes.js)
             history: [],            // { day, generation, text, tags[] } chronicle
             stats: {},              // durable deed counters (ambition predicates read these)
             roleLoyalty: {},        // { memberId: loyalty } for appointed relatives

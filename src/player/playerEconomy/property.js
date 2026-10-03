@@ -220,6 +220,12 @@ Object.assign(PlayerEconomy, {
             const property = PlayerEconomy.findPropertyAt(tile, prop.type);
             if (!property) continue;
             if (property.underConstruction) continue; // Still building
+            // Sabotaged or raided by a rival House (systems/schemes.js)
+            if (property.sabotagedDays > 0) {
+                property.sabotagedDays--;
+                property.daysOwned = (property.daysOwned || 0) + 1;
+                continue;
+            }
             const def = PlayerEconomy.getPropertyDef(property.type);
 
             // Handle retooling countdown (workshop/brewery recipe change)

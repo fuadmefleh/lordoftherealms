@@ -286,6 +286,7 @@ Object.assign(PlayerMilitary, {
 
             // Reduce settlement population
             settlement.population = Math.floor(settlement.population * 0.9);
+            House.accrueRivalFeud(player, world, settlement.kingdom, 10, `raided ${settlement.name}`);
         } else {
             // Failed raid - even worse reputation
             if (settlement.kingdom) {
@@ -293,6 +294,7 @@ Object.assign(PlayerMilitary, {
                     (player.reputation[settlement.kingdom] || 0) - 30;
             }
             player.karma -= 3;
+            House.accrueRivalFeud(player, world, settlement.kingdom, 5, `attempted raid on ${settlement.name}`);
         }
 
         return result;

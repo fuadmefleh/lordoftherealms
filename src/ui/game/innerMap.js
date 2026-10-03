@@ -215,8 +215,7 @@ export function _showEncounterNotification(encounter) {
  * Check for low-need warnings and show notifications
  */
 export function _checkNeedWarnings() {
-    return; // needs system disabled
-    if (!this.player || !this.player.needs) return;
+    if (!this.player || !this.player.needsEnabled || !this.player.needs) return;
     const warnings = this.player._needWarnings || (this.player._needWarnings = {});
 
     const needNames = {

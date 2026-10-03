@@ -1,6 +1,6 @@
 // UI — hud methods.
 import { UI } from './core.js';
-import { Utils, ActionMenu, Religion, Economy, Terrain, PlayerEconomy, PlayerMilitary, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing } from './_imports.js';
+import { Utils, ActionMenu, Religion, Economy, Terrain, PlayerEconomy, PlayerMilitary, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, InnerMapCharacters } from './_imports.js';
 
 Object.assign(UI.prototype, {
     setupEventListeners() {
@@ -397,8 +397,8 @@ Object.assign(UI.prototype, {
         if (simsRenown) simsRenown.textContent = player.renown;
         if (simsKarma) simsKarma.textContent = player.karma;
 
-        // ── Sims-style 6 Needs Bars (disabled) ──
-        if (false && player.needs) {
+        // ── Sims-style 6 Needs Bars (hidden while the needs system is off) ──
+        if (player.needsEnabled && player.needs) {
             const needBars = {
                 hunger:  'simsHungerBar',
                 energy:  'simsEnergyBar',
@@ -692,8 +692,7 @@ Object.assign(UI.prototype, {
         tile += `>`;
 
         // Face — try sprite canvas first, fall back to emoji icon
-        // DISABLED: InnerMapCharacters disabled
-        if (false && preset && InnerMapCharacters.isReady()) {
+        if (preset && InnerMapCharacters.isReady()) {
             tile += `<canvas class="srel-tile-face" data-preset="${preset}" width="48" height="48" style="width:42px;height:42px;"></canvas>`;
         } else {
             tile += `<span class="srel-tile-face">${icon}</span>`;
@@ -708,11 +707,9 @@ Object.assign(UI.prototype, {
 
     /**
      * Draw sprite portraits onto tile canvases that have a data-preset attribute.
-     * DISABLED: InnerMapCharacters disabled
      */
     _drawTilePortraits(container) {
-        if (true) return;  // DISABLED: Inner map feature disabled
-        // if (!InnerMapCharacters.isReady()) return;
+        if (!InnerMapCharacters.isReady()) return;
         const canvases = container.querySelectorAll('canvas[data-preset]');
         for (const cvs of canvases) {
             const presetId = cvs.dataset.preset;
@@ -724,7 +721,7 @@ Object.assign(UI.prototype, {
             // Draw frame 0, direction 2 (facing down/towards camera)
             const fw = InnerMapCharacters.FRAME_W;
             const fh = InnerMapCharacters.FRAME_H;
-            const dir = InnerMapCharacters.DIR_DOWN;
+            const dir = 2; // LPC direction rows: up=0, left=1, down=2, right=3
             ctx.clearRect(0, 0, cvs.width, cvs.height);
             ctx.drawImage(sheet, 0, dir * fh, fw, fh, 0, 0, cvs.width, cvs.height);
         }

@@ -6,13 +6,18 @@
 
 export const PlayerNeedsMethods = {
     /**
+     * Master switch for the needs system. While false, needs don't decay,
+     * low-need warnings don't fire, and the HUD needs bars stay hidden.
+     */
+    needsEnabled: false,
+
+    /**
      * Decay needs over one inner-map hour.
      * Called from the game loop each time innerMap.timeOfDay advances.
      * Rates are per-hour; 16 waking hours × rate is about one day's drain.
      */
     decayNeedsPerHour(context = {}) {
-        return; // needs system disabled
-        if (!this.needs) return;
+        if (!this.needsEnabled || !this.needs) return;
 
         // Base hourly decay rates (per hour, so ~16 hrs drains the amount)
         // At default rates a full night's sleep + decent day refills most bars.

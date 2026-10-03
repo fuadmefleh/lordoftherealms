@@ -612,38 +612,6 @@ Object.assign(InnerMapRenderer, {
                         ctx.fillText(gIcon, cx, dy + cs * 0.45);
                     }});
                 }
-
-                // Never render built-in object overlays (editor-authored objects only)
-                continue;
-
-                const sheet = this._sheets.get(o.sheet);
-                if (!sheet) continue;
-
-                const screen = camera.worldToScreen(q * T, r * T);
-                const dx = Math.floor(screen.x), dy = Math.floor(screen.y);
-                if (dx + ds * 3 < 0 || dx > ctx.canvas.width + ds) continue;
-                if (dy + ds * 3 < 0 || dy > ctx.canvas.height + ds) continue;
-
-                const tileSpan = o.type === 'rock' ? 2 : 1;
-                const sortY = (r + tileSpan) * T;
-
-                items.push({ sortY, zLayer: 1, draw() {
-                    if (o.type === 'tree') {
-                        const scale = ds / o.sw;
-                        const ow = ds, oh = o.sh * scale;
-                        ctx.drawImage(sheet, o.sx, o.sy, o.sw, o.sh, dx, dy + ds - oh, ow, oh);
-                    } else if (o.type === 'plant' || o.type === 'flower' || o.type === 'mushroom') {
-                        const ratio = 0.6;
-                        const ow = ds * ratio, oh = ds * ratio;
-                        ctx.drawImage(sheet, o.sx, o.sy, o.sw, o.sh, dx + (ds - ow) / 2, dy + (ds - oh) / 2, ow, oh);
-                    } else if (o.type === 'rock') {
-                        const tilesW = o.sw / 32, tilesH = o.sh / 32;
-                        const ow = ds * tilesW, oh = ds * tilesH;
-                        ctx.drawImage(sheet, o.sx, o.sy, o.sw, o.sh, dx + (ds - ow) / 2, dy + ds - oh, ow, oh);
-                    } else {
-                        ctx.drawImage(sheet, o.sx, o.sy, o.sw, o.sh, dx, dy, ds, ds);
-                    }
-                }});
             }
         }
 

@@ -874,32 +874,99 @@ Object.assign(ActionMenu, {
 
     disembarkShip(game) {
         const player = game.player;
-        
         if (!player.boardedShip) {
             game.ui.showNotification('Error', 'You are not on a ship.', 'error');
             return;
         }
-        
+        const result = Ships.disembark(player, game.world);
+        if (!result.success) {
+            game.ui.showNotification('Cannot Disembark', result.message, 'error');
+            return;
+        }
+        game.ui.showNotification('🚶', `You disembark from the ${result.ship.name} and return to dry land.` +
+            ActionMenu._landingCargoText(result), 'success');
+        game.ui.updateStats(player, game.world);
+    },
+
+    /** Recentre the world camera on the player (camera works in pixels, not hexes). */
+    _centerCameraOnPlayer(game) {
+        const pos = game.renderer.getHexPixelPos(game.player.q, game.player.r);
+        game.camera.centerOn(pos.x, pos.y);
+    },
+
+    /** Describe what cargo came ashore and what had to stay aboard. */
+    _landingCargoText(result) {
+        const { cargo, isPort } = result;
+        let text = '';
+        if (cargo.total > 0) {
+            const items = Object.entries(cargo.moved).map(([id, n]) => `${n} ${id.replace(/_/g, ' ')}`).join(', ');
+            text += ` Brought ashore: ${items}.`;
+        }
+        if (cargo.remaining > 0 && !isPort) {
+            text += ` ${cargo.remaining} cargo stays aboard — only a boat-load fits ashore without a dock or port.`;
+        }
+        return text;
+    },
+
+    /** Pick an adjacent land hex to row the ship's boat to. */
+    showRowAshoreMenu(game) {
+        const player = game.player;
         const ship = Ships.getShipById(player, player.boardedShip);
         if (!ship) {
-            game.ui.showNotification('Error', 'Ship not found.', 'error');
+            game.ui.showNotification('Error', 'You are not on a ship.', 'error');
             return;
         }
-        
-        // Check if we're on land
-        const tile = game.world.getTile(player.q, player.r);
-        if (!tile.terrain.passable) {
-            game.ui.showNotification('Cannot Disembark', 'You must be on land or a beach to disembark.', 'error');
+        const targets = Ships.getRowAshoreTargets(game.world, player.q, player.r);
+        if (targets.length === 0) {
+            game.ui.showNotification('No Shore', 'There is no walkable land next to your ship.', 'error');
             return;
         }
-        
-        // Disembark
-        player.boardedShip = null;
-        ship.status = 'docked';
-        ship.q = player.q;
-        ship.r = player.r;
-        
-        game.ui.showNotification('🚶', `You disembark from the ${ship.name} and return to dry land.`, 'success');
+        const btn = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid rgba(245,197,66,0.55);background:linear-gradient(180deg,#f6cf57,#d9a92a);color:#1a1a1a;';
+
+        let html = '<div style="max-height:430px;overflow-y:auto;">';
+        html += `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">The ${ship.name} drops anchor here while you row ashore. ` +
+            `Without a dock or port, only ${Ships.LANDING_BOAT_CAPACITY} cargo fits in the boat.</div>`;
+        for (const t of targets) {
+            const isPort = Ships.isPortTile(game.world, t.q, t.r);
+            const name = t.settlement ? t.settlement.name : (t.terrain.name || t.terrain.id);
+            html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:6px;">';
+            html += `<div><div style="font-size:12px;font-weight:bold;">${t.terrain.icon || ''} ${name}</div>`;
+            html += `<div style="font-size:10px;color:var(--text-secondary);">(${t.q}, ${t.r}) · ${isPort ? '⚓ Port — unload everything' : 'Open shore — boat-load only'}</div></div>`;
+            html += `<button onclick="window._rowAshore(${t.q}, ${t.r})" style="${btn}">Row</button>`;
+            html += '</div>';
+        }
+        html += '</div>';
+        game.ui.showCustomPanel('🚣 Row Ashore', html);
+
+        window._rowAshore = (q, r) => {
+            const result = Ships.rowAshore(player, game.world, q, r);
+            if (!result.success) {
+                game.ui.showNotification('Cannot Row Ashore', result.message, 'error');
+                return;
+            }
+            game.ui.hideCustomPanel();
+            game.ui.showNotification('🚣 Ashore', `You row ashore. The ${result.ship.name} waits at anchor.` +
+                ActionMenu._landingCargoText(result), 'success');
+            ActionMenu._centerCameraOnPlayer(game);
+            game.ui.updateStats(player, game.world);
+        };
+    },
+
+    /** Row back out to an anchored ship next to the player. */
+    rowToShip(game) {
+        const player = game.player;
+        const ship = Ships.getAnchoredShipsNear(player, player.q, player.r)[0];
+        if (!ship) {
+            game.ui.showNotification('No Ship', 'None of your ships is anchored nearby.', 'error');
+            return;
+        }
+        const result = Ships.rowToShip(player, ship.id);
+        if (!result.success) {
+            game.ui.showNotification('Cannot Board', result.message, 'error');
+            return;
+        }
+        game.ui.showNotification('⛵', `You row out and climb aboard the ${ship.name}.`, 'success');
+        ActionMenu._centerCameraOnPlayer(game);
         game.ui.updateStats(player, game.world);
     },
 
@@ -955,7 +1022,7 @@ Object.assign(ActionMenu, {
             if (result.success) {
                 game.ui.hideCustomPanel();
                 game.ui.showNotification('⛵ Arrived!', result.message, 'success');
-                game.camera.centerOn(player.q, player.r);
+                ActionMenu._centerCameraOnPlayer(game);
                 game.ui.updateStats(player, game.world);
                 game.endDay();
             } else {

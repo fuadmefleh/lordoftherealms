@@ -38,7 +38,7 @@ Object.assign(ActionMenu, {
             rest: 'general', explore_poi: 'general', clear_trees: 'general', dig_treasure: 'general',
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general',
             prospect: 'general', tame_horse: 'general', craft_campfire: 'general',
-            disembark: 'general', explore_inner_map: 'general',
+            disembark: 'general', row_ashore: 'general', row_to_ship: 'general', explore_inner_map: 'general',
             trade: 'commerce', contract: 'commerce', ship_passage: 'commerce',
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
             odd_jobs: 'commerce', bounty_board: 'commerce', busking: 'commerce', gambling: 'commerce',
@@ -365,7 +365,7 @@ Object.assign(ActionMenu, {
 
         // Combat / Major ship operations (8 AP)
         attack_unit: 8, attack_settlement: 8,
-        board_ship: 8, visit_shipyard: 1,
+        board_ship: 8, visit_shipyard: 1, row_ashore: 4, row_to_ship: 4,
 
         // Title actions
         seek_title: 1, view_title_status: 0, resign_title: 1,
@@ -542,6 +542,12 @@ Object.assign(ActionMenu, {
                 break;
             case 'disembark':
                 ActionMenu.disembarkShip(game);
+                break;
+            case 'row_ashore':
+                ActionMenu.showRowAshoreMenu(game);
+                break;
+            case 'row_to_ship':
+                ActionMenu.rowToShip(game);
                 break;
             case 'miracle':
                 ActionMenu.showMiracleMenu(game);

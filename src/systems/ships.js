@@ -438,6 +438,124 @@ export const Ships = {
         return { success: true, message: `Sailed to ${destName} in ${travelDays} days for ${travelCost}g.` };
     },
 
+    /* ── Landing ashore / ports ──────────────────────────────── */
+
+    /** Terrain ids a ship can float on (beach is land you can wade onto). */
+    WATER_TERRAINS: ['ocean', 'deep_ocean', 'coast', 'lake', 'sea'],
+
+    /** Cargo units a ship's boat can carry ashore where there is no port. */
+    LANDING_BOAT_CAPACITY: 5,
+
+    isWaterTile(tile) {
+        return !!(tile && tile.terrain && this.WATER_TERRAINS.includes(tile.terrain.id));
+    },
+
+    /** A port is a settlement on the water — the only place cargo unloads freely. */
+    isPortTile(world, q, r) {
+        const tile = world.getTile(q, r);
+        if (!tile || !tile.settlement) return false;
+        return Hex.neighbors(q, r).some(n => this.isWaterTile(world.getTile(n.q, n.r)));
+    },
+
+    /** Walkable land hexes next to (q, r) that the ship's boat can row to. */
+    getRowAshoreTargets(world, q, r) {
+        return Hex.neighbors(q, r)
+            .map(n => world.getTile(n.q, n.r))
+            .filter(t => t && t.terrain && t.terrain.passable && !this.isWaterTile(t));
+    },
+
+    /** Ships anchored offshore on, or next to, hex (q, r). */
+    getAnchoredShipsNear(player, q, r) {
+        return (player.ships || []).filter(s => s.status === 'anchored' && Hex.distance(s.q, s.r, q, r) <= 1);
+    },
+
+    /**
+     * Move up to maxUnits of cargo from the ship's hold into the player's
+     * inventory. Returns what moved and how much is left aboard.
+     */
+    unloadCargo(ship, player, maxUnits = Infinity) {
+        const moved = {};
+        let budget = maxUnits;
+        let total = 0;
+        if (!player.inventory) player.inventory = {};
+        for (const [item, qty] of Object.entries(ship.cargo || {})) {
+            if (budget <= 0) break;
+            const take = Math.min(qty, budget);
+            if (take <= 0) continue;
+            ship.cargo[item] = qty - take;
+            if (ship.cargo[item] <= 0) delete ship.cargo[item];
+            player.inventory[item] = (player.inventory[item] || 0) + take;
+            moved[item] = take;
+            budget -= take;
+            total += take;
+        }
+        const remaining = Object.values(ship.cargo || {}).reduce((s, n) => s + n, 0);
+        return { moved, total, remaining };
+    },
+
+    /**
+     * Leave the boarded ship where the player is standing (a beach or a
+     * port). Ports unload the whole hold; anywhere else only a boat-load.
+     */
+    disembark(player, world) {
+        const ship = this.getShipById(player, player.boardedShip);
+        if (!ship) return { success: false, message: 'Ship not found.' };
+        const tile = world.getTile(player.q, player.r);
+        if (!tile || !tile.terrain.passable) {
+            return { success: false, message: 'You must be on land or a beach to disembark.' };
+        }
+        const isPort = this.isPortTile(world, player.q, player.r);
+        player.boardedShip = null;
+        ship.status = 'docked';
+        ship.q = player.q;
+        ship.r = player.r;
+        ship.dockedAt = isPort && tile.settlement ? tile.settlement.name : null;
+        const cargo = this.unloadCargo(ship, player, isPort ? Infinity : this.LANDING_BOAT_CAPACITY);
+        return { success: true, ship, isPort, cargo };
+    },
+
+    /**
+     * Row the ship's boat from the boarded ship onto an adjacent land hex.
+     * The ship drops anchor where it is and waits offshore; without a port
+     * only a boat-load of cargo comes ashore.
+     */
+    rowAshore(player, world, destQ, destR) {
+        const ship = this.getShipById(player, player.boardedShip);
+        if (!ship) return { success: false, message: 'You are not aboard a ship.' };
+        const dest = world.getTile(destQ, destR);
+        const isTarget = !!dest && this.getRowAshoreTargets(world, player.q, player.r)
+            .some(t => t.q === dest.q && t.r === dest.r);
+        if (!isTarget) return { success: false, message: 'You can only row to walkable land next to your ship.' };
+
+        ship.status = 'anchored';
+        ship.q = player.q;
+        ship.r = player.r;
+        ship.dockedAt = null;
+        player.boardedShip = null;
+        player.q = dest.q;
+        player.r = dest.r;
+        player.path = null;
+
+        const isPort = this.isPortTile(world, dest.q, dest.r);
+        const cargo = this.unloadCargo(ship, player, isPort ? Infinity : this.LANDING_BOAT_CAPACITY);
+        return { success: true, ship, isPort, cargo };
+    },
+
+    /** Row back out to an anchored ship next to the player and board it. */
+    rowToShip(player, shipId) {
+        const ship = this.getShipById(player, shipId);
+        if (!ship || ship.status !== 'anchored') return { success: false, message: 'No anchored ship there.' };
+        if (Hex.distance(ship.q, ship.r, player.q, player.r) > 1) {
+            return { success: false, message: 'Your ship is too far offshore.' };
+        }
+        player.q = ship.q;
+        player.r = ship.r;
+        player.path = null;
+        player.boardedShip = ship.id;
+        ship.status = 'at_sea';
+        return { success: true, ship };
+    },
+
     /* ── Sea activities ──────────────────────────────────────── */
 
     exploreOcean(player, shipId, world) {

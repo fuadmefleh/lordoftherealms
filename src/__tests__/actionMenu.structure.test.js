@@ -11,7 +11,9 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { DataLoader } from '../core/dataLoader.js';
 
 // The original 196 single-file ActionMenu members, plus showHousePanel
-// (added by the House dynasty-spine feature) = 197.
+// (added by the House dynasty-spine feature) = 197, plus the four
+// row-ashore members (showRowAshoreMenu, rowToShip, _landingCargoText,
+// _centerCameraOnPlayer) = 201.
 const EXPECTED_KEYS = [
     'AP_COSTS', 'DEFERRED_AP_ACTIONS', '_appointTitle', '_buskFortuneTelling', '_buskJuggling',
     '_buskPreaching', '_buskSinging', '_buskStorytelling', '_buskingReward', '_categorizeActions',
@@ -22,7 +24,7 @@ const EXPECTED_KEYS = [
     '_getRelationshipProgress', '_getTavernLuckBonus', '_handleTellStories', '_laborCharisma',
     '_laborCombat', '_laborIntelligence', '_laborReward', '_laborStamina', '_laborStealth',
     '_laborStrength', '_meetingOptionButton', '_minigameCrownAnchor', '_minigameDragonsFlip',
-    '_minigameHighLow', '_minigamePoker', '_pendingAP', '_ppDoCaught', '_renderActionButton',
+    '_centerCameraOnPlayer', '_landingCargoText', '_minigameHighLow', '_minigamePoker', '_pendingAP', '_ppDoCaught', '_renderActionButton',
     '_renderActionTile', '_renderAffectionBar', '_renderFishingResults', '_renderRelationshipXPBar',
     '_resignTitle', '_runArcheryFestivalMinigame', '_runJoustingFestivalMinigame',
     '_setIncentiveFromManage', '_showActiveMissionsMenu', '_showAssignMissionForSpy',
@@ -44,7 +46,7 @@ const EXPECTED_KEYS = [
     'meetingRenounceAllegiance', 'meetingRequestAid', 'meetingRequestTitle', 'meetingRequestTrade',
     'performAttack', 'performSiege', 'postBail', 'preach', 'readMap', 'reinforceColony',
     'sellMapFromTrade', 'sellPlayerMap', 'sendGoldToColony', 'show', 'showAddErrorsMenu',
-    'showAttackConfirm', 'showBoardShipMenu', 'showBountyBoardMenu', 'showBuildCulturalMenu',
+    'rowToShip', 'showAttackConfirm', 'showBoardShipMenu', 'showRowAshoreMenu', 'showBountyBoardMenu', 'showBuildCulturalMenu',
     'showBuildInfrastructureMenu', 'showBuildPropertyMenu', 'showBuildTempleMenu', 'showBuskingMenu',
     'showBuyHouseMenu', 'showCartographyMenu', 'showCharacterDataModal', 'showContractMenu',
     'showCouncilMenu', 'showDeathScreen', 'showDonateMenu', 'showDynastyMenu', 'showEspionageMenu',
@@ -76,8 +78,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 197 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(197);
+    it('has 201 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(201);
     });
 
     it('every member except the known data props is a function', () => {

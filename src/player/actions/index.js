@@ -108,6 +108,26 @@ export const PlayerActions = {
             });
         }
 
+        // Row ashore from the ship onto undeveloped coast (no port needed)
+        if (player.boardedShip && !tile.terrain.passable && Ships.getRowAshoreTargets(world, player.q, player.r).length > 0) {
+            actions.push({
+                type: 'row_ashore',
+                label: 'Row Ashore',
+                icon: '🚣',
+                description: `Anchor here and row to shore — without a port only ${Ships.LANDING_BOAT_CAPACITY} cargo comes ashore`
+            });
+        }
+
+        // Row back out to a ship anchored offshore
+        if (!player.boardedShip && Ships.getAnchoredShipsNear(player, player.q, player.r).length > 0) {
+            actions.push({
+                type: 'row_to_ship',
+                label: 'Row Out to Ship',
+                icon: '🚣',
+                description: 'Row back out to your anchored ship and go aboard'
+            });
+        }
+
         // Bounty hunting
         const pendingCapturedBounty = (player.activeBounties || []).find(b =>
             b.type === 'criminal_hunt' && b.status === 'captured_pending_decision'

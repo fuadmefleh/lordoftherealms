@@ -770,6 +770,12 @@ Spy loyalty starts at 45–90 and decays at 0.1/day. Below 20 loyalty, there is 
 
 Board your ship at coastal settlements to traverse oceans. Sea movement costs 2 stamina per tile. Random exploration events can occur at sea: floating cargo, uncharted islands, sea monsters, pirate ambushes, and more.
 
+### Landing Ashore
+
+You don't need a port to go ashore. While aboard, **Row Ashore** (4 AP) lets you row the ship's boat to any walkable land hex next to the ship; the ship drops anchor and waits offshore. Stand next to it and choose **Row Out to Ship** (4 AP) to go back aboard. You can also **Disembark** directly onto a beach or a coastal settlement.
+
+Cargo is limited by where you land. A **port** — a settlement on the water — unloads the whole hold into your inventory. Anywhere else (open shore or a beach) only a boat-load of **5 cargo** comes ashore; the rest stays in the hold until you reach a port.
+
 ### Ship Trading
 
 A used ship market exists at settlements with variable condition (40–85%) and discounted prices.

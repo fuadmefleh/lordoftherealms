@@ -251,6 +251,7 @@ export const SaveLoad = {
             // Housing & Ships
             houses: player.houses || [],
             ships: player.ships || [],
+            boardedShip: player.boardedShip || null,
 
             // Needs (Sims-style)
             needs: player.needs || { hunger: 100, energy: 100, social: 100, fun: 100, hygiene: 100, comfort: 100 },

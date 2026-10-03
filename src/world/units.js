@@ -92,15 +92,33 @@ export class WorldUnit {
                 this.daysAtLocation = 0;      // How long they've stayed
                 this.stayDuration = 0;        // How long they plan to stay
                 break;
-            default:
-                this.icon = '❓';
-                this.name = 'Unknown Unit';
-                this.speed = 1;
-                this.population = 1;
-                this.strength = 1;
-                this.inventory = {};
+            default: {
+                // Types defined only in data/units.json (mercenaries, pilgrims,
+                // beasts, ...) take their stats from there
+                const def = WorldUnit.TYPES[type];
+                const roll = (v) => (v && typeof v === 'object') ? Utils.randInt(v.min, v.max) : (v || 1);
+                this.icon = def ? def.icon : '❓';
+                this.name = def ? def.name : 'Unknown Unit';
+                this.speed = def ? def.speed : 1;
+                this.population = def ? roll(def.population) : 1;
+                this.strength = def ? roll(def.strength) : 1;
+                this.inventory = def && def.inventoryTheme ? this.generateInitialInventory(def.inventoryTheme) : {};
+                if (def && def.extraFields) Object.assign(this, JSON.parse(JSON.stringify(def.extraFields)));
+            }
         }
     }
+
+    /** Unit types from data/units.json, installed by DataLoader. */
+    static TYPES = {};
+
+    /** Inventory themes from data/units.json, installed by DataLoader. */
+    static THEMES = {};
+
+    /** Units that attack the player when adjacent. */
+    static HOSTILE_TYPES = ['raider', 'pirate', 'beast', 'monster'];
+
+    /** Land units that travel between settlements, like caravans. */
+    static TRAVELER_TYPES = ['mercenary_band', 'pilgrim_group', 'smuggler', 'refugee', 'diplomatic_envoy'];
 
     /**
      * Generate initial inventory for unit
@@ -124,6 +142,16 @@ export class WorldUnit {
                 inv['gold'] = Utils.randInt(50, 300);
                 inv['rum'] = Utils.randInt(5, 15);
                 break;
+            default: {
+                // Data-defined themes: { gold: {min,max}, randomItem: { choices, quantity } }
+                const t = WorldUnit.THEMES[theme];
+                if (!t) break;
+                if (t.gold) inv['gold'] = Utils.randInt(t.gold.min, t.gold.max);
+                if (t.randomItem && t.randomItem.choices && t.randomItem.choices.length) {
+                    const q = t.randomItem.quantity || { min: 1, max: 1 };
+                    inv[Utils.randPick(t.randomItem.choices)] = Utils.randInt(q.min, q.max);
+                }
+            }
         }
         return inv;
     }
@@ -160,6 +188,38 @@ export class WorldUnit {
             case 'lord_party':
                 this.updateLordParty(world);
                 break;
+            case 'war_fleet':
+                this.updateCaravan(world);
+                this._sinkNearbyPirates(world);
+                break;
+            case 'beast':
+            case 'monster':
+                this.updateRaider(world, player);
+                break;
+            default:
+                if (WorldUnit.TRAVELER_TYPES.includes(this.type)) this.updateCaravan(world);
+        }
+    }
+
+    /** War fleets sink any pirate ship that comes within a hex. */
+    _sinkNearbyPirates(world) {
+        for (const u of world.units) {
+            if (u.type !== 'pirate' || u.destroyed) continue;
+            if (Hex.wrappingDistance(this.q, this.r, u.q, u.r, world.width) <= 1) {
+                u.destroyed = true;
+                world.events.push({ text: `${this.name} sank a ${u.name}!`, type: 'military' });
+            }
+        }
+    }
+
+    /** What a traveler does on reaching its destination settlement. */
+    _onArrive(world) {
+        if (this.type !== 'refugee') return;
+        const tile = world.getTile(this.q, this.r);
+        if (tile && tile.settlement) {
+            const settlers = Math.floor(this.population / 2);
+            tile.settlement.population += settlers;
+            world.events.push({ text: `${settlers} refugees settle in ${tile.settlement.name}.`, type: 'social' });
         }
     }
 
@@ -173,7 +233,7 @@ export class WorldUnit {
             if (!currentTile) return;
 
             let regionId = null;
-            const isShip = this.type === 'ship' || this.type === 'pirate';
+            const isShip = this.type === 'ship' || this.type === 'pirate' || this.type === 'war_fleet';
 
             if (isShip) {
                 // If on water, use that region. If on land, find adjacent water region.
@@ -236,6 +296,7 @@ export class WorldUnit {
         if (this.targetQ !== null && this.targetR !== null &&
             this.q === this.targetQ && this.r === this.targetR) {
             this.arrived = true;
+            this._onArrive(world);
 
             // If not player owned, just disappear (NPC trade specific logic elsewhere?)
             if (!this.playerOwned) {

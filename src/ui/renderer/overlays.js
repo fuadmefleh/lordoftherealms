@@ -1,6 +1,6 @@
 // Renderer — overlays methods.
 import { Renderer } from './core.js';
-import { Hex, Religion, Economy, Infrastructure } from './_imports.js';
+import { Hex, Religion, Economy, Infrastructure, WorldUnit } from './_imports.js';
 
 Object.assign(Renderer.prototype, {
     /**
@@ -290,7 +290,7 @@ Object.assign(Renderer.prototype, {
                 const font = `500 ${fsize}px 'Inter', sans-serif`;
 
                 let color = '#ffffff';
-                if (unit.type === 'raider' || unit.type === 'pirate') color = '#ff6666';
+                if (WorldUnit.HOSTILE_TYPES.includes(unit.type)) color = '#ff6666';
                 if (unit.type === 'patrol') color = '#66ccff';
                 if (unit.type === 'settler') color = '#ccff66';
 

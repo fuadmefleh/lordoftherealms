@@ -548,6 +548,7 @@ Object.assign(PlayerMilitary, {
             Quests.track(player, 'battles_won');
             if (worldUnit.type === 'raider' || worldUnit.type === 'pirate') Quests.track(player, 'raiders_defeated');
             if (worldUnit.type === 'pirate') Quests.track(player, 'pirates_defeated');
+            if (worldUnit.type === 'monster') Quests.track(player, 'special_creatures_defeated');
             // A win while badly hurt counts as a close call
             if (player.health < (player.maxHealth || 100) * 0.2) Quests.track(player, 'close_calls');
 
@@ -578,6 +579,27 @@ Object.assign(PlayerMilitary, {
                         player.reputation[worldUnit.kingdom] =
                             (player.reputation[worldUnit.kingdom] || 0) - 25;
                     }
+                    break;
+                case 'pilgrim_group':
+                case 'refugee':
+                case 'diplomatic_envoy':
+                    // Preying on the defenceless or on envoys is dishonourable
+                    karmaChange = -8;
+                    player.karma += karmaChange;
+                    break;
+                case 'smuggler':
+                    karmaChange = 1;
+                    player.karma += karmaChange;
+                    break;
+                case 'beast':
+                    renownChange = Math.floor(worldUnit.strength / 6) + 1;
+                    player.renown += renownChange;
+                    break;
+                case 'monster':
+                    karmaChange = 3;
+                    renownChange = 40;
+                    player.karma += karmaChange;
+                    player.renown += renownChange;
                     break;
             }
 

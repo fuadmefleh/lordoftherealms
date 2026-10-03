@@ -22,6 +22,7 @@ import { Tavern } from '../player/tavern.js';
 import { NPCLords } from '../world/npcLords.js';
 import { KingdomAI } from '../world/kingdomAI.js';
 import { WorldEvents } from '../world/worldEvents.js';
+import { WorldUnit } from '../world/units.js';
 import { Technology } from '../systems/technology.js';
 import { PlayerEconomy } from '../player/playerEconomy.js';
 import { Espionage } from '../systems/espionage.js';
@@ -249,6 +250,13 @@ export const DataLoader = {
         Terrain.RESOURCES = terrainData.resources;
         Terrain.RESOURCE_CHANCES = terrainData.resourceChances;
         Terrain.BIOME_TABLE = terrainData.biomeTable;
+
+        // ── World units (types beyond the hand-written ones) ──
+        const unitData = data['units.json'];
+        if (unitData) {
+            WorldUnit.TYPES = unitData.unitTypes || {};
+            WorldUnit.THEMES = unitData.inventoryThemes || {};
+        }
 
         // ── Kingdoms ──
         const kingdomData = data['kingdoms.json'];

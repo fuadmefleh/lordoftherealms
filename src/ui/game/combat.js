@@ -2,7 +2,7 @@
 // COMBAT & MISC � playerPray, food purchase modal, death, hostile encounters, endDayConfirm
 // ============================================
 
-import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, Trading } from './_gameImports.js';
+import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, Trading, WorldUnit } from './_gameImports.js';
 import { resolveHostileEncounter } from './combat.logic.js';
 
 export function playerPray() {
@@ -250,7 +250,7 @@ export function _checkHostileEncounters() {
 
     const hostiles = this.world.units.filter(u =>
         !u.destroyed &&
-        (u.type === 'raider' || u.type === 'pirate') &&
+        WorldUnit.HOSTILE_TYPES.includes(u.type) &&
         Hex.wrappingDistance(u.q, u.r, this.player.q, this.player.r, this.world.width) <= 1
     );
 

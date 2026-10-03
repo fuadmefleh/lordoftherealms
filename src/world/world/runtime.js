@@ -279,6 +279,52 @@ Object.assign(World.prototype, {
     /**
      * Spawn dynamic units
      */
+    /**
+     * Rarer travelers and creatures from data/units.json. One roll per day
+     * picks at most one to spawn; timed events (crusades, refugee waves,
+     * monster sightings) make their kind far more likely.
+     */
+    _spawnSpecialUnits() {
+        const active = (id) => (this.activeEvents || []).some(ev => ev.id === id);
+        const count = (type) => this.units.filter(u => u.type === type && !u.destroyed).length;
+        const settlements = this.getAllSettlements();
+        const randomTile = (test) => {
+            for (let i = 0; i < 20; i++) {
+                const q = Utils.randInt(0, this.width - 1);
+                const r = Utils.randInt(0, this.height - 1);
+                const t = this.getTile(q, r);
+                if (t && test(t)) return t;
+            }
+            return null;
+        };
+        const atSettlement = (filter = () => true) => {
+            const pool = settlements.filter(filter);
+            return pool.length ? Utils.randPick(pool) : null;
+        };
+        // [type, cap, weight, where]
+        const options = [
+            ['mercenary_band', 2, 3, () => atSettlement()],
+            ['pilgrim_group', 3, active('holy_crusade') ? 20 : 4, () => atSettlement()],
+            ['smuggler', 2, 3, () => atSettlement()],
+            ['refugee', 3, active('refugee_wave') ? 25 : 1, () => atSettlement()],
+            ['diplomatic_envoy', 2, 2, () => atSettlement(s => s.type === 'capital')],
+            ['beast', 4, 5, () => randomTile(t => t.terrain.passable && !t.settlement
+                && /forest|woodland|hills|rainforest/.test(t.terrain.id))],
+            ['monster', 1, active('monster_sighting') ? 15 : 0.5, () => randomTile(t => t.terrain.passable && !t.settlement
+                && ['mountain', 'highlands', 'hills'].includes(t.terrain.id))],
+            ['war_fleet', 2, active('pirate_surge') ? 10 : 2, () => randomTile(t => t.terrain.id === 'ocean' || t.terrain.id === 'deep_ocean')],
+        ].filter(([type, cap]) => count(type) < cap);
+        if (options.length === 0) return;
+
+        // Weights are % chances per day; roll once, then pick by weight
+        const total = options.reduce((s, o) => s + o[2], 0);
+        let roll = Utils.random() * 100;
+        if (roll >= total) return;
+        const pick = options.find(o => (roll -= o[2]) < 0) || options[options.length - 1];
+        const where = pick[3]();
+        if (where) this.units.push(new WorldUnit(pick[0], where.q, where.r));
+    },
+
     spawnUnits() {
         const settlements = this.getAllSettlements();
         if (settlements.length < 2) return;
@@ -344,6 +390,8 @@ Object.assign(World.prototype, {
                 }
             }
         }
+
+        this._spawnSpecialUnits();
 
         // Spawn raider
         if (this.units.filter(u => u.type === 'raider').length < 8) {

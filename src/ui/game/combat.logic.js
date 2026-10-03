@@ -24,6 +24,25 @@ import { PlayerMilitary } from '../../player/playerMilitary.js';
 export function resolveHostileEncounter(player, attacker, world) {
     const playerArmySize = player.army ? player.army.length : 0;
 
+    if (playerArmySize === 0 && (attacker.type === 'beast' || attacker.type === 'monster')) {
+        // --- No army vs. a creature: mauled, nothing stolen ---
+        const healthLost = attacker.type === 'monster' ? Utils.randInt(25, 45) : Utils.randInt(8, 18);
+        player.health = Math.max(1, player.health - healthLost);
+        attacker.targetQ = null;
+        attacker.targetR = null;
+        return {
+            kind: 'robbed',
+            goldStolen: 0,
+            healthLost,
+            stolenItems: {},
+            notification: {
+                title: `${attacker.icon || '🐺'} ${attacker.name} Attack!`,
+                body: `A ${attacker.name} fell on you! Without an army you barely escaped. You lost ${healthLost} health.`,
+                type: 'error',
+            },
+        };
+    }
+
     if (playerArmySize === 0) {
         // --- No army: player is robbed / roughed up ---
         const goldStolen = Math.min(player.gold, Math.floor(player.gold * Utils.randFloat(0.15, 0.4)));

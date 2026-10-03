@@ -51,6 +51,18 @@ export const PlayerMovementMethods = {
             currentTile.visible = true;
         }
 
+        // Watchtowers you own keep watch around themselves
+        for (const p of this.properties || []) {
+            if (p.type !== 'watchtower') continue;
+            const t = world.getTile(p.q, p.r);
+            const tower = t && (t.playerProperties || [t.playerProperty]).find(x => x && x.type === 'watchtower');
+            if (!tower || tower.underConstruction) continue;
+            for (const hex of Hex.hexesInRange(p.q, p.r, 4)) {
+                const wt = world.getTile(hex.q, hex.r);
+                if (wt) { wt.explored = true; wt.visible = true; }
+            }
+        }
+
         // Then reveal around player
         const hexes = Hex.hexesInRange(this.q, this.r, viewRadius);
         for (const hex of hexes) {

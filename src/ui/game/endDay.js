@@ -118,7 +118,15 @@ export function endDay() {
             }
 
             // Process world turn
-            const result = this.world.advanceDay(this.player);
+            // Aqueducts/herbalism/plague prevention grow your colonies;
+            // philosophy/printing press steady them
+            const result = this.world.advanceDay(this.player, {
+                playerBonuses: {
+                    colonyGrowth: Technology.getEffectTotal(this.player, 'settlementGrowthBonus')
+                        + Technology.getEffectTotal(this.player, 'populationGrowthBonus'),
+                    colonyLoyalty: 0.1 * Technology.getEffectTotal(this.player, 'stabilityBonus'),
+                },
+            });
             this.player.endDay();
             this.player.updateVisibility(this.world, 4);
 

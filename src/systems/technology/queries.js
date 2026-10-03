@@ -1,8 +1,70 @@
 // Technology — queries members (split from the original monolith).
 import { Technology } from './_ref.js';
 import { PlayerEconomy, PlayerMilitary } from './_imports.js';
+import { Hex } from '../../core/hex.js';
 
 Object.assign(Technology, {
+    /** Sum of one effect key across the player's implemented techs. */
+    getEffectTotal(player, key) {
+        Technology.initPlayer(player);
+        let total = 0;
+        for (const techId of player.technology.implemented) {
+            const tech = Technology.getTechByID(techId);
+            if (tech && tech.effects && typeof tech.effects[key] === 'number') total += tech.effects[key];
+        }
+        return total;
+    },
+
+    /** How many finished properties of a type the player owns. */
+    countOwnedBuildings(player, type, world = null) {
+        return (player.properties || []).filter(p => {
+            if (p.type !== type) return false;
+            if (!world) return true;
+            const t = world.getTile(p.q, p.r);
+            const prop = t && (t.playerProperties || [t.playerProperty]).find(x => x && x.type === type);
+            return !!prop && !prop.underConstruction;
+        }).length;
+    },
+
+    /** Is a finished property of this type owned within `range` hexes of (q, r)? */
+    hasBuildingNear(player, world, type, q, r, range) {
+        return (player.properties || []).some(p => {
+            if (p.type !== type || Hex.distance(p.q, p.r, q, r) > range) return false;
+            const t = world.getTile(p.q, p.r);
+            const prop = t && (t.playerProperties || [t.playerProperty]).find(x => x && x.type === type);
+            return !!prop && !prop.underConstruction;
+        });
+    },
+
+    /**
+     * Research speed-up as a fraction: writing/printing press techs plus
+     * +25% per finished University (max 2 count).
+     */
+    getResearchBonus(player, world = null) {
+        const universities = Math.min(2, Technology.countOwnedBuildings(player, 'university_building', world));
+        return Technology.getEffectTotal(player, 'researchBonus') + 0.25 * universities;
+    },
+
+    /**
+     * Daily effects that aren't tied to a single action: bank interest on
+     * gold (banking systems) and healing near a Hospital you own.
+     * Returns { interest, healed }.
+     */
+    applyDailyEffects(player, world) {
+        const out = { interest: 0, healed: 0 };
+        const rate = Technology.getEffectTotal(player, 'dailyInterestIncome');
+        if (rate > 0 && player.gold > 0) {
+            out.interest = Math.min(250, Math.floor(player.gold * rate));
+            player.gold += out.interest;
+        }
+        if (Technology.hasBuildingNear(player, world, 'hospital_building', player.q, player.r, 2)) {
+            const before = player.health;
+            player.health = Math.min(player.maxHealth || 100, player.health + 15);
+            out.healed = player.health - before;
+        }
+        return out;
+    },
+
     // ═══════════════════════════════════════
     //  UTILITY HELPERS
     // ═══════════════════════════════════════
@@ -142,6 +204,8 @@ Object.assign(Technology, {
             if (tech.effects.tradeProfitBonus) bonus += tech.effects.tradeProfitBonus;
             if (tech.effects.caravanProfitBonus) bonus += tech.effects.caravanProfitBonus;
         }
+        // Each Merchant Guild hall you own adds +10% (up to 3)
+        bonus += 0.1 * Math.min(3, Technology.countOwnedBuildings(player, 'merchant_guild_building'));
         return bonus;
     },
 

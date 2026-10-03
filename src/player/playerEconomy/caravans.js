@@ -70,7 +70,7 @@ Object.assign(PlayerEconomy, {
             distance: dist,
             goods: { ...goods },
             expectedProfit,
-            daysRemaining: Math.ceil(dist / 2), // Travels 2 tiles per day
+            daysRemaining: Math.ceil(dist / (2 * (1 + Technology.getEffectTotal(player, 'caravanSpeedBonus')))), // ~2 tiles/day
             status: 'traveling',
         };
 
@@ -162,6 +162,8 @@ Object.assign(PlayerEconomy, {
         // Spawn physical unit
         const caravanUnit = new WorldUnit('caravan', tile.q, tile.r, toSettlement.q, toSettlement.r);
         caravanUnit.playerOwned = true; // Mark as player's
+        // Trade networks speed caravans up
+        caravanUnit.speed = (caravanUnit.speed || 1) * (1 + Technology.getEffectTotal(player, 'caravanSpeedBonus'));
         caravanUnit.goods = { ...goods }; // Give it the goods
         world.units.push(caravanUnit);
         caravan.unitId = caravanUnit.id;

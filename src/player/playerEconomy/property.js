@@ -253,6 +253,8 @@ Object.assign(PlayerEconomy, {
                     // Beer/liquor stock bonus (if player has stocked the tavern)
                     const beerStock = property.beerStock || 0;
                     const liquorStock = property.liquorStock || 0;
+                    // Currency minting: steadier coin, better takings
+                    baseIncome = Math.floor(baseIncome * (1 + Technology.getEffectTotal(player, 'propertyIncomeBonus')));
                     if (beerStock > 0) {
                         baseIncome = Math.floor(baseIncome * 1.3);
                         property.beerStock = Math.max(0, beerStock - 2); // Consume 2 beer/day
@@ -302,8 +304,14 @@ Object.assign(PlayerEconomy, {
                 if (irrigBonus > 0) amount *= (1 + irrigBonus);
             }
 
-            // Timed world events: droughts/harvests hit farms, gold rushes boost mines
-            if (def && def.category === 'farming') amount *= Math.max(0, 1 + WorldEvents.getModifier(world, 'farmProduction', tile));
+            // Timed world events: droughts/harvests hit farms, gold rushes boost mines.
+            // A Granary within a hex adds +20% and halves bad-harvest losses.
+            if (def && def.category === 'farming') {
+                const granary = Technology.hasBuildingNear(player, world, 'granary', tile.q, tile.r, 1);
+                let farmMod = WorldEvents.getModifier(world, 'farmProduction', tile);
+                if (granary && farmMod < 0) farmMod /= 2;
+                amount *= Math.max(0, 1 + farmMod + (granary ? 0.2 : 0));
+            }
             if (property.type === 'mine' || property.type === 'quarry') amount *= Math.max(0, 1 + WorldEvents.getModifier(world, 'mineProduction', tile));
 
             // Water-wheel bonus for mills built on a river

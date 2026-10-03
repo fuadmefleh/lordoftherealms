@@ -22,7 +22,13 @@ Object.assign(World.prototype, {
     /**
      * Advance one day
      */
-    advanceDay(player = null) {
+    /**
+     * @param {Object} [player]
+     * @param {Object} [opts] - { playerBonuses: { colonyGrowth, colonyLoyalty } }
+     *   computed by the caller from the player's techs (world code can't
+     *   import the tech system)
+     */
+    advanceDay(player = null, opts = {}) {
         this.day++;
 
         // Season tracking (30 days per season)
@@ -86,7 +92,7 @@ Object.assign(World.prototype, {
 
         // Process colonization (colony loyalty, indigenous, AI expansion)
         if (typeof Colonization !== 'undefined') {
-            Colonization.processTurn(this);
+            Colonization.processTurn(this, opts.playerBonuses || {});
         }
 
         // Process cartography (propaganda maps, kingdom cartography)

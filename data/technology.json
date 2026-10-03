@@ -769,7 +769,7 @@
             "upkeep": 3,
             "requiredSettlement": true,
             "requiredTech": "granary_construction",
-            "description": "Stores surplus grain and prevents spoilage. Doubles property storage. Upkeep: 3g/day"
+            "description": "Stores the harvest safely: your farms within 1 hex produce +20% and lose only half as much to droughts and floods. Upkeep: 3g/day"
         },
         "FOUNDRY": {
             "id": "foundry",
@@ -823,7 +823,7 @@
             "productionRate": 0,
             "upkeep": 5,
             "requiredTech": "fortification",
-            "description": "Guards the surrounding area and extends vision. Upkeep: 5g/day"
+            "description": "Keeps watch over everything within 4 hexes, wherever you are. Upkeep: 5g/day"
         },
         "MERCHANT_GUILD": {
             "id": "merchant_guild_building",
@@ -836,7 +836,7 @@
             "upkeep": 15,
             "requiredSettlement": true,
             "requiredTech": "merchant_guild",
-            "description": "A guild hall that boosts all trade profits. Upkeep: 15g/day"
+            "description": "A guild hall that adds +10% to all your trade profits (up to 3 halls). Upkeep: 15g/day"
         },
         "SHIPYARD": {
             "id": "shipyard",
@@ -849,7 +849,7 @@
             "upkeep": 12,
             "requiredTerrain": ["coast"],
             "requiredTech": "shipbuilding",
-            "description": "Builds and repairs ships for trade and war. Upkeep: 12g/day"
+            "description": "Repairs your ships docked beside it by 5% a day, free. Upkeep: 12g/day"
         },
         "FISHING_FLEET": {
             "id": "fishing_fleet",
@@ -875,7 +875,7 @@
             "upkeep": 5,
             "requiredTerrain": ["coast"],
             "requiredTech": "lighthouse",
-            "description": "Guides ships safely and boosts port trade revenue. Upkeep: 5g/day"
+            "description": "Guides ships in safely: +15% on cargo you sell at a port beside it. Upkeep: 5g/day"
         },
         "HOSPITAL": {
             "id": "hospital_building",
@@ -888,7 +888,7 @@
             "upkeep": 10,
             "requiredSettlement": true,
             "requiredTech": "hospital",
-            "description": "Treats the sick and wounded, boosting population growth. Upkeep: 10g/day"
+            "description": "Treats the sick and wounded: you heal 15 health a day while within 2 hexes. Upkeep: 10g/day"
         },
         "UNIVERSITY": {
             "id": "university_building",
@@ -901,7 +901,7 @@
             "upkeep": 18,
             "requiredSettlement": true,
             "requiredTech": "university",
-            "description": "A center of higher learning that accelerates all research. Upkeep: 18g/day"
+            "description": "A center of higher learning: research takes 25% less time (up to 2 universities). Upkeep: 18g/day"
         },
         "WINDMILL": {
             "id": "windmill_building",

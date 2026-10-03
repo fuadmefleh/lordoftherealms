@@ -117,7 +117,9 @@ export const Trading = {
      * Buy goods from a settlement
      */
     buyGoods(player, good, quantity, settlement) {
-        const totalCost = good.price * quantity;
+        // Currency minting trims purchase prices
+        const discount = (typeof Technology !== 'undefined') ? Technology.getEffectTotal(player, 'tradePriceDiscount') : 0;
+        const totalCost = Math.ceil(good.price * quantity * Math.max(0.5, 1 - discount));
 
         if (player.gold < totalCost) {
             return { success: false, reason: 'Not enough gold' };

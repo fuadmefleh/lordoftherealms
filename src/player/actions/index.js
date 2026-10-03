@@ -326,6 +326,7 @@ export const PlayerActions = {
         // Process technology research
         if (typeof Technology !== 'undefined') {
             results.researchUpdate = Technology.processResearch(player);
+        results.techDaily = Technology.applyDailyEffects(player, world);
             results.craftingUpdate = Technology.processCrafting(player);
         }
 

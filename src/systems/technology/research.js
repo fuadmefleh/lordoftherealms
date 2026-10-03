@@ -233,7 +233,9 @@ Object.assign(Technology, {
         // Calculate research days (intelligence bonus)
         let totalDays = info.days;
         const intBonus = (player.intelligence || 0) * 0.03; // 3% per INT point
-        totalDays = Math.max(3, Math.ceil(totalDays * (1 - intBonus)));
+        // Writing / printing press techs and Universities speed research up
+        const researchBonus = Technology.getResearchBonus(player, world);
+        totalDays = Math.max(3, Math.ceil(totalDays * Math.max(0.3, 1 - intBonus - researchBonus)));
 
         // Set current research
         player.technology.currentResearch = {

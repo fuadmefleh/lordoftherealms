@@ -931,7 +931,9 @@ export const Ships = {
         const n = Math.min(qty, (ship.cargo && ship.cargo[goodId]) || 0);
         if (n <= 0) return { success: false, message: 'None of that in the hold.' };
         const portTile = world.getTile(player.q, player.r);
-        const eventMod = WorldEvents.getModifier(world, 'tradeIncome', portTile) + WorldEvents.getModifier(world, 'seaTradeIncome', portTile);
+        const eventMod = WorldEvents.getModifier(world, 'tradeIncome', portTile) + WorldEvents.getModifier(world, 'seaTradeIncome', portTile)
+            // A Lighthouse you own beside the port brings ships in safely
+            + (Technology.hasBuildingNear(player, world, 'lighthouse_building', player.q, player.r, 1) ? 0.15 : 0);
         const revenue = Math.max(0, Math.floor(n * entry.sell * (1 + Technology.getTradeProfitBonus(player)) * (1 + eventMod)));
         ship.cargo[goodId] -= n;
         if (ship.cargo[goodId] <= 0) delete ship.cargo[goodId];
@@ -956,6 +958,11 @@ export const Ships = {
         let totalUpkeep = 0;
 
         for (const ship of ships) {
+            // A Shipyard you own repairs docked ships beside it for free
+            if (ship.status === 'docked' && world && ship.condition < 100
+                && Technology.hasBuildingNear(player, world, 'shipyard', ship.q, ship.r, 1)) {
+                ship.condition = Math.min(100, ship.condition + 5);
+            }
             const st = this.getShipType(ship.typeId);
             if (!st) continue;
 
@@ -1017,9 +1024,11 @@ export const Ships = {
 
     _applyReward(player, reward) {
         if (reward.gold) {
-            const amt = Array.isArray(reward.gold)
+            const rolled = Array.isArray(reward.gold)
                 ? reward.gold[0] + Math.floor(Utils.random() * (reward.gold[1] - reward.gold[0]))
                 : reward.gold;
+            // Navigation makes the most of what the sea offers
+            const amt = Math.floor(rolled * (1 + Technology.getEffectTotal(player, 'explorationBonus')));
             player.gold += amt;
             if (player.financeToday) {
                 player.financeToday.income.exploration = (player.financeToday.income.exploration || 0) + amt;

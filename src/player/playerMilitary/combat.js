@@ -54,6 +54,8 @@ Object.assign(PlayerMilitary, {
             Utils.randFloat(0.2, 0.4);
 
         if (moraleBreak === 'enemy' && victory) casualtyRate *= 0.65;
+        // Surgery saves soldiers who would otherwise be lost
+        casualtyRate *= Math.max(0, 1 - Technology.getEffectTotal(player, 'battleCasualtyReduction'));
         if (moraleBreak === 'player' && !victory) casualtyRate *= 1.25;
 
         const casualties = Math.ceil(player.army.length * casualtyRate);

@@ -143,7 +143,9 @@ Object.assign(Espionage, {
         const skillBonus = primarySkill * 0.04;
         const levelBonus = (spy.level - 1) * 0.05;
         const loyaltyFactor = spy.loyalty / 100;
-        let successChance = Math.min(0.95, baseSuccess + skillBonus + levelBonus) * loyaltyFactor;
+        // Espionage tech sharpens every operation
+        const intrigue = Technology.getEffectTotal(player, 'intrigueBonus');
+        let successChance = Math.min(0.95, baseSuccess + skillBonus + levelBonus + intrigue) * loyaltyFactor;
 
         // Player intelligence bonus
         if (player.intelligence) {

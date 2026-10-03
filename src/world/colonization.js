@@ -169,11 +169,11 @@ export const Colonization = {
     /**
      * Called each day from World.advanceDay()
      */
-    processTurn(world) {
+    processTurn(world, playerBonuses = {}) {
         // 1. Process all colonies for every kingdom
         for (const kingdom of world.kingdoms) {
             if (!kingdom.isAlive || !kingdom.colonization) continue;
-            Colonization.processKingdomColonies(kingdom, world);
+            Colonization.processKingdomColonies(kingdom, world, playerBonuses);
         }
 
         // 2. Process indigenous population dynamics
@@ -186,7 +186,11 @@ export const Colonization = {
     /**
      * Process colony loyalty, growth, and independence for one kingdom
      */
-    processKingdomColonies(kingdom, world) {
+    /**
+     * @param {Object} [playerBonuses] - { colonyGrowth, colonyLoyalty } from the
+     *   player's techs, applied to the player's own colonies only
+     */
+    processKingdomColonies(kingdom, world, playerBonuses = {}) {
         if (!kingdom.colonization || !kingdom.colonization.colonies) return;
 
         const policy = Colonization.POLICIES[kingdom.colonization.policy] || Colonization.POLICIES.coexistence;
@@ -247,6 +251,7 @@ export const Colonization = {
                 if (ind.relation < -30) loyaltyChange -= 0.05;
             }
 
+            if (colonyData.isPlayerColony && playerBonuses.colonyLoyalty) loyaltyChange += playerBonuses.colonyLoyalty;
             colonyData.loyalty = Utils.clamp(colonyData.loyalty + loyaltyChange, 0, 100);
 
             // ── Colony growth ──
@@ -257,7 +262,8 @@ export const Colonization = {
                     // Process settler arrivals from recruitment
                     Colonization._processSettlerArrivals(tile, world);
                 } else {
-                    const growthRate = 1 + (policy.expansionBonus - 1) * 0.5;
+                    let growthRate = 1 + (policy.expansionBonus - 1) * 0.5;
+                    if (colonyData.isPlayerColony && playerBonuses.colonyGrowth) growthRate *= 1 + playerBonuses.colonyGrowth;
                     const growth = Utils.randInt(1, Math.ceil(5 * growthRate));
                     tile.settlement.population += growth;
                 }

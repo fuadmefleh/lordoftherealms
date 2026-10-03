@@ -3,6 +3,7 @@
 // ============================================
 
 import { Utils } from '../core/utils.js';
+import { Technology } from './technology.js';
 
 
 export const Culture = {
@@ -326,6 +327,8 @@ export const Culture = {
 
         let totalIncome = 0;
         let totalRenown = 0;
+        // Philosophy and the printing press amplify your cultural buildings
+        const cultureMult = 1 + Technology.getEffectTotal(player, 'cultureBonus');
         let totalResearchBonus = 0;
 
         for (const bRef of player.culturalBuildings) {
@@ -346,6 +349,8 @@ export const Culture = {
         }
 
         totalIncome = Math.floor(totalIncome);
+        totalIncome *= cultureMult;
+        totalRenown *= cultureMult;
         player.gold += totalIncome;
         player.renown += totalRenown;
 

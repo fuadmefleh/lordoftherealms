@@ -5,6 +5,7 @@
 import { PlayerEconomy } from '../player/playerEconomy.js';
 import { Economy } from '../world/economy.js';
 import { WorldEvents } from '../world/worldEvents.js';
+import { Technology } from './technology.js';
 import { Hex } from '../core/hex.js';
 import { Councils } from './councils.js';
 import { Utils } from '../core/utils.js';
@@ -322,6 +323,8 @@ export const Banking = {
 
         // Give player the money
         player.gold += loan.amount;
+        // Banking techs cut the interest on new loans
+        const interestRate = loan.interestRate * Math.max(0, 1 - Technology.getEffectTotal(player, 'loanInterestReduction'));
 
         // Add loan to player's debts for this kingdom
         player.loans[kingdomId].push({
@@ -329,10 +332,10 @@ export const Banking = {
             type: loanType,
             kingdomId,
             principal: loan.amount,
-            interestRate: loan.interestRate,
-            totalOwed: Math.floor(loan.amount * (1 + loan.interestRate)),
+            interestRate,
+            totalOwed: Math.floor(loan.amount * (1 + interestRate)),
             remainingDays: loan.duration,
-            dailyPayment: Math.floor(loan.amount * (1 + loan.interestRate) / loan.duration),
+            dailyPayment: Math.floor(loan.amount * (1 + interestRate) / loan.duration),
             daysTaken: 0
         });
 

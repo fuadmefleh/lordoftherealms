@@ -118,6 +118,16 @@ export const PlayerActions = {
             });
         }
 
+        // Move goods between your pack and a ship's hold (docked here or anchored offshore)
+        if (Ships.getShipsWithHoldAccess(player).length > 0) {
+            actions.push({
+                type: 'ship_hold',
+                label: "Ship's Hold",
+                icon: '📦',
+                description: 'Load goods into your ship or unload them — unlimited at a port, a boat-load a day elsewhere'
+            });
+        }
+
         // Row back out to a ship anchored offshore
         if (!player.boardedShip && Ships.getAnchoredShipsNear(player, player.q, player.r).length > 0) {
             actions.push({

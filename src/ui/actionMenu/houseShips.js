@@ -903,7 +903,7 @@ Object.assign(ActionMenu, {
             text += ` Brought ashore: ${items}.`;
         }
         if (cargo.remaining > 0 && !isPort) {
-            text += ` ${cargo.remaining} cargo stays aboard — only a boat-load fits ashore without a dock or port.`;
+            text += ` ${cargo.remaining} cargo stays aboard — without a dock the boat ferries only ${Ships.LANDING_BOAT_CAPACITY} a day (use Ship's Hold).`;
         }
         return text;
     },
@@ -968,6 +968,73 @@ Object.assign(ActionMenu, {
         game.ui.showNotification('⛵', `You row out and climb aboard the ${ship.name}.`, 'success');
         ActionMenu._centerCameraOnPlayer(game);
         game.ui.updateStats(player, game.world);
+    },
+
+    /**
+     * Move goods between the player's pack and the hold of a ship docked on
+     * their hex or anchored next to them.
+     */
+    showShipHoldMenu(game, shipId = null) {
+        const player = game.player;
+        const world = game.world;
+        const ships = Ships.getShipsWithHoldAccess(player);
+        if (ships.length === 0) {
+            game.ui.showNotification('No Ship', 'None of your ships is docked here or anchored nearby.', 'error');
+            return;
+        }
+        const ship = ships.find(s => s.id === shipId) || ships[0];
+        const stats = Ships.getShipEffectiveStats(ship);
+        const allowance = Ships.getFerryAllowance(ship, world, player.q, player.r);
+        const goodName = (id) => {
+            const g = (PlayerEconomy.GOODS || {})[id.toUpperCase()];
+            return g ? `${g.icon || ''} ${g.name}` : id.replace(/_/g, ' ');
+        };
+        const esc = (id) => String(id).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const btn = 'padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);';
+        const row = (label, qty, buttons) =>
+            '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:4px;">' +
+            `<div style="font-size:12px;">${label} <span style="color:var(--text-secondary);">×${qty}</span></div><div style="display:flex;gap:4px;">${buttons}</div></div>`;
+
+        let html = '<div style="max-height:460px;overflow-y:auto;">';
+        if (ships.length > 1) {
+            html += '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">';
+            for (const s of ships) {
+                const active = s.id === ship.id ? 'border-color:rgba(245,197,66,0.7);' : '';
+                html += `<button onclick="ActionMenu.showShipHoldMenu(window._game, '${esc(s.id)}')" style="${btn}${active}">⛵ ${s.name}</button>`;
+            }
+            html += '</div>';
+        }
+        html += `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">Hold: ${Ships.getCargoUsed(ship)} / ${stats.cargoCapacity} · ` +
+            (allowance === Infinity ? '⚓ Port — no limit on transfers.' : `🚣 Boat trips left today: ${allowance} cargo (no dock here).`) + '</div>';
+
+        html += `<h4 style="margin:6px 0;">⛵ In the ${ship.name}'s hold</h4>`;
+        const hold = Object.entries(ship.cargo || {}).filter(([, n]) => n > 0);
+        if (hold.length === 0) html += '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">The hold is empty.</div>';
+        for (const [id, n] of hold) {
+            html += row(goodName(id), n,
+                `<button onclick="window._shipHoldUnload('${esc(id)}', 1)" style="${btn}">Unload 1</button>` +
+                `<button onclick="window._shipHoldUnload('${esc(id)}', ${n})" style="${btn}">Unload all</button>`);
+        }
+
+        html += '<h4 style="margin:10px 0 6px;">🎒 Your pack</h4>';
+        const pack = Object.entries(player.inventory || {}).filter(([, n]) => n > 0);
+        if (pack.length === 0) html += '<div style="font-size:11px;color:var(--text-secondary);">You carry nothing to load.</div>';
+        for (const [id, n] of pack) {
+            html += row(goodName(id), n,
+                `<button onclick="window._shipHoldLoad('${esc(id)}', 1)" style="${btn}">Load 1</button>` +
+                `<button onclick="window._shipHoldLoad('${esc(id)}', ${n})" style="${btn}">Load all</button>`);
+        }
+        html += '</div>';
+        game.ui.showCustomPanel("📦 Ship's Hold", html);
+        window._game = game;
+
+        const after = (result) => {
+            if (!result.success) game.ui.showNotification("Ship's Hold", result.message, 'error');
+            game.ui.updateStats(player, world);
+            ActionMenu.showShipHoldMenu(game, ship.id);
+        };
+        window._shipHoldLoad = (id, qty) => after(Ships.loadCargo(player, world, ship.id, id, qty));
+        window._shipHoldUnload = (id, qty) => after(Ships.unloadToPlayer(player, world, ship.id, id, qty));
     },
 
     _showSailToMenu(game, tile, shipId) {

@@ -73,6 +73,55 @@ Object.assign(Renderer.prototype, {
     },
 
     /**
+     * Render the player's ships that are waiting somewhere — anchored offshore
+     * after rowing ashore, or docked. The boarded ship is drawn as the player
+     * icon itself, and ships under construction or sailing alone are skipped.
+     */
+    renderPlayerShips(ctx) {
+        const ships = this.player.ships || [];
+        const renderSize = this.hexSize * this.camera.zoom;
+        for (const ship of ships) {
+            if (ship.id === this.player.boardedShip) continue;
+            if (ship.status !== 'anchored' && ship.status !== 'docked') continue;
+
+            const pos = this.getHexPixelPos(ship.q, ship.r);
+            const screen = this.camera.worldToScreen(pos.x, pos.y);
+            // Docked ships sit beside the settlement icon; anchored ones own their hex
+            const anchored = ship.status === 'anchored';
+            const x = anchored ? screen.x : screen.x + renderSize * 0.42;
+            const y = anchored ? screen.y : screen.y + renderSize * 0.3;
+            const r = renderSize * (anchored ? 0.34 : 0.24);
+
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(16, 32, 56, 0.85)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(245,197,66,0.8)';
+            ctx.lineWidth = 1.5 * this.camera.zoom;
+            ctx.stroke();
+
+            ctx.font = `${Math.max(10, r * 1.4)}px serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('⛵', x, y);
+            if (anchored) {
+                ctx.font = `${Math.max(8, r * 0.8)}px serif`;
+                ctx.fillText('⚓', x + r * 0.8, y + r * 0.7);
+            }
+
+            if (anchored && this.camera.zoom > 0.7) {
+                this.addLabel(ship.name, x, y + r + 2, 5, {
+                    font: `600 ${Math.max(8, 10 * this.camera.zoom)}px 'Inter', sans-serif`,
+                    fillStyle: '#f5c542',
+                    shadowColor: 'rgba(0,0,0,0.6)',
+                    textAlign: 'center',
+                    textBaseline: 'top',
+                });
+            }
+        }
+    },
+
+    /**
      * Draw a Sims plumbob (green diamond) above the player on the world map
      */
     _drawWorldPlumbob(ctx, x, topY, renderSize) {

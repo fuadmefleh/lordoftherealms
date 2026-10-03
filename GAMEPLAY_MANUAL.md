@@ -774,7 +774,11 @@ Board your ship at coastal settlements to traverse oceans. Sea movement costs 2 
 
 You don't need a port to go ashore. While aboard, **Row Ashore** (4 AP) lets you row the ship's boat to any walkable land hex next to the ship; the ship drops anchor and waits offshore. Stand next to it and choose **Row Out to Ship** (4 AP) to go back aboard. You can also **Disembark** directly onto a beach or a coastal settlement.
 
-Cargo is limited by where you land. A **port** — a settlement on the water — unloads the whole hold into your inventory. Anywhere else (open shore or a beach) only a boat-load of **5 cargo** comes ashore; the rest stays in the hold until you reach a port.
+Cargo is limited by where you land. A **port** — a settlement on the water — unloads the whole hold into your inventory. Anywhere else (open shore or a beach) the ship's boat ferries only **5 cargo per day**; whatever doesn't fit stays in the hold.
+
+### Ship's Hold
+
+Use **Ship's Hold** (free) to load goods from your pack into a ship, or unload them, while the ship is docked on your hex or anchored next to you. You can't shift goods between pack and hold while aboard. Each ship's hold is capped by its cargo capacity (plus Cargo Hold upgrades). At a port transfers are unlimited; elsewhere they share the boat's 5-per-day allowance with whatever came ashore when you landed. Anchored and docked ships are shown on the world map (⛵, with ⚓ when anchored).
 
 ### Ship Trading
 

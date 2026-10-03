@@ -13,7 +13,7 @@ import { DataLoader } from '../core/dataLoader.js';
 // The original 196 single-file ActionMenu members, plus showHousePanel
 // (added by the House dynasty-spine feature) = 197, plus the four
 // row-ashore members (showRowAshoreMenu, rowToShip, _landingCargoText,
-// _centerCameraOnPlayer) = 201.
+// _centerCameraOnPlayer) = 201, plus showShipHoldMenu = 202.
 const EXPECTED_KEYS = [
     'AP_COSTS', 'DEFERRED_AP_ACTIONS', '_appointTitle', '_buskFortuneTelling', '_buskJuggling',
     '_buskPreaching', '_buskSinging', '_buskStorytelling', '_buskingReward', '_categorizeActions',
@@ -46,7 +46,7 @@ const EXPECTED_KEYS = [
     'meetingRenounceAllegiance', 'meetingRequestAid', 'meetingRequestTitle', 'meetingRequestTrade',
     'performAttack', 'performSiege', 'postBail', 'preach', 'readMap', 'reinforceColony',
     'sellMapFromTrade', 'sellPlayerMap', 'sendGoldToColony', 'show', 'showAddErrorsMenu',
-    'rowToShip', 'showAttackConfirm', 'showBoardShipMenu', 'showRowAshoreMenu', 'showBountyBoardMenu', 'showBuildCulturalMenu',
+    'rowToShip', 'showAttackConfirm', 'showBoardShipMenu', 'showRowAshoreMenu', 'showShipHoldMenu', 'showBountyBoardMenu', 'showBuildCulturalMenu',
     'showBuildInfrastructureMenu', 'showBuildPropertyMenu', 'showBuildTempleMenu', 'showBuskingMenu',
     'showBuyHouseMenu', 'showCartographyMenu', 'showCharacterDataModal', 'showContractMenu',
     'showCouncilMenu', 'showDeathScreen', 'showDonateMenu', 'showDynastyMenu', 'showEspionageMenu',
@@ -78,8 +78,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 201 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(201);
+    it('has 202 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(202);
     });
 
     it('every member except the known data props is a function', () => {

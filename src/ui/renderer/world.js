@@ -62,8 +62,9 @@ Object.assign(Renderer.prototype, {
             this.renderReachableHexes(ctx);
         }
 
-        // Render player
+        // Render player (and their waiting ships, beneath the player icon)
         if (this.player) {
+            this.renderPlayerShips(ctx);
             this.renderPlayer(ctx);
         }
 

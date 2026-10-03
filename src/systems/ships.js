@@ -443,7 +443,7 @@ export const Ships = {
     /** Terrain ids a ship can float on (beach is land you can wade onto). */
     WATER_TERRAINS: ['ocean', 'deep_ocean', 'coast', 'lake', 'sea'],
 
-    /** Cargo units a ship's boat can carry ashore where there is no port. */
+    /** Cargo units a ship's boat can ferry per day where there is no port. */
     LANDING_BOAT_CAPACITY: 5,
 
     isWaterTile(tile) {
@@ -469,17 +469,104 @@ export const Ships = {
         return (player.ships || []).filter(s => s.status === 'anchored' && Hex.distance(s.q, s.r, q, r) <= 1);
     },
 
+    /** Total units currently in the ship's hold. */
+    getCargoUsed(ship) {
+        return Object.values(ship.cargo || {}).reduce((s, n) => s + n, 0);
+    },
+
+    /** Free space left in the ship's hold. */
+    getCargoFree(ship) {
+        return Math.max(0, this.getShipEffectiveStats(ship).cargoCapacity - this.getCargoUsed(ship));
+    },
+
     /**
-     * Move up to maxUnits of cargo from the ship's hold into the player's
-     * inventory. Returns what moved and how much is left aboard.
+     * Units the ship's boat can still ferry today between the hold and
+     * shore at (q, r). Unlimited at a port; elsewhere the boat moves
+     * LANDING_BOAT_CAPACITY units per ship per day, in either direction.
      */
-    unloadCargo(ship, player, maxUnits = Infinity) {
+    getFerryAllowance(ship, world, q, r) {
+        if (this.isPortTile(world, q, r)) return Infinity;
+        const used = ship.ferryDay === (world.day || 0) ? (ship.ferryUnits || 0) : 0;
+        return Math.max(0, this.LANDING_BOAT_CAPACITY - used);
+    },
+
+    /** Record boat trips against today's ferry allowance. */
+    _useFerry(ship, world, units) {
+        const day = world.day || 0;
+        if (ship.ferryDay !== day) {
+            ship.ferryDay = day;
+            ship.ferryUnits = 0;
+        }
+        ship.ferryUnits += units;
+    },
+
+    /**
+     * Ships whose hold the player can reach from where they stand: docked on
+     * the player's hex, or anchored next to it while the player is ashore.
+     * Never while aboard — goods only cross between hold and shore by dock
+     * or boat, which is what keeps the boat-load limit meaningful.
+     */
+    getShipsWithHoldAccess(player) {
+        if (player.boardedShip) return [];
+        return (player.ships || []).filter(s =>
+            (s.status === 'docked' && s.q === player.q && s.r === player.r) ||
+            (s.status === 'anchored' && Hex.distance(s.q, s.r, player.q, player.r) <= 1));
+    },
+
+    /**
+     * Load `qty` of an inventory item into a ship the player has hold access
+     * to, limited by free hold space and (off-port) the day's boat allowance.
+     */
+    loadCargo(player, world, shipId, itemId, qty) {
+        const ship = this.getShipsWithHoldAccess(player).find(s => s.id === shipId);
+        if (!ship) return { success: false, message: "You cannot reach that ship's hold from here." };
+        const have = (player.inventory && player.inventory[itemId]) || 0;
+        const allowance = this.getFerryAllowance(ship, world, player.q, player.r);
+        const n = Math.min(qty, have, this.getCargoFree(ship), allowance);
+        if (n <= 0) {
+            const why = have <= 0 ? 'You have none of that.'
+                : this.getCargoFree(ship) <= 0 ? 'The hold is full.'
+                    : 'The boat has made all its trips today — a port has no such limit.';
+            return { success: false, message: why };
+        }
+        player.inventory[itemId] = have - n;
+        if (player.inventory[itemId] <= 0) delete player.inventory[itemId];
+        if (!ship.cargo) ship.cargo = {};
+        ship.cargo[itemId] = (ship.cargo[itemId] || 0) + n;
+        if (allowance !== Infinity) this._useFerry(ship, world, n);
+        return { success: true, ship, loaded: n };
+    },
+
+    /**
+     * Unload cargo from a ship the player has hold access to into their
+     * inventory — `itemId` alone, or the whole hold when omitted — limited
+     * off-port by the day's boat allowance.
+     */
+    unloadToPlayer(player, world, shipId, itemId = null, qty = Infinity) {
+        const ship = this.getShipsWithHoldAccess(player).find(s => s.id === shipId);
+        if (!ship) return { success: false, message: "You cannot reach that ship's hold from here." };
+        const allowance = this.getFerryAllowance(ship, world, player.q, player.r);
+        if (allowance <= 0) {
+            return { success: false, message: 'The boat has made all its trips today — a port has no such limit.' };
+        }
+        const cargo = this.unloadCargo(ship, player, Math.min(qty, allowance), itemId);
+        if (allowance !== Infinity) this._useFerry(ship, world, cargo.total);
+        return { success: true, ship, cargo };
+    },
+
+    /**
+     * Move up to maxUnits of cargo (optionally one item only) from the ship's
+     * hold into the player's inventory. Returns what moved and how much is
+     * left aboard.
+     */
+    unloadCargo(ship, player, maxUnits = Infinity, itemId = null) {
         const moved = {};
         let budget = maxUnits;
         let total = 0;
         if (!player.inventory) player.inventory = {};
         for (const [item, qty] of Object.entries(ship.cargo || {})) {
             if (budget <= 0) break;
+            if (itemId && item !== itemId) continue;
             const take = Math.min(qty, budget);
             if (take <= 0) continue;
             ship.cargo[item] = qty - take;
@@ -489,8 +576,7 @@ export const Ships = {
             budget -= take;
             total += take;
         }
-        const remaining = Object.values(ship.cargo || {}).reduce((s, n) => s + n, 0);
-        return { moved, total, remaining };
+        return { moved, total, remaining: this.getCargoUsed(ship) };
     },
 
     /**
@@ -510,7 +596,7 @@ export const Ships = {
         ship.q = player.q;
         ship.r = player.r;
         ship.dockedAt = isPort && tile.settlement ? tile.settlement.name : null;
-        const cargo = this.unloadCargo(ship, player, isPort ? Infinity : this.LANDING_BOAT_CAPACITY);
+        const cargo = this._landCargo(ship, player, world, player.q, player.r);
         return { success: true, ship, isPort, cargo };
     },
 
@@ -537,8 +623,16 @@ export const Ships = {
         player.path = null;
 
         const isPort = this.isPortTile(world, dest.q, dest.r);
-        const cargo = this.unloadCargo(ship, player, isPort ? Infinity : this.LANDING_BOAT_CAPACITY);
+        const cargo = this._landCargo(ship, player, world, dest.q, dest.r);
         return { success: true, ship, isPort, cargo };
+    },
+
+    /** Bring cargo ashore on landing, within the day's boat allowance. */
+    _landCargo(ship, player, world, q, r) {
+        const allowance = this.getFerryAllowance(ship, world, q, r);
+        const cargo = this.unloadCargo(ship, player, allowance);
+        if (allowance !== Infinity) this._useFerry(ship, world, cargo.total);
+        return cargo;
     },
 
     /** Row back out to an anchored ship next to the player and board it. */

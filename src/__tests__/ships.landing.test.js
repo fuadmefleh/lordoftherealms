@@ -112,3 +112,53 @@ describe('Ships — landing ashore', () => {
         expect(player.boardedShip).toBeNull();
     });
 });
+
+describe("Ships — ship's hold", () => {
+    // Player standing on a beach with their ship docked on the same hex
+    const BEACH = { id: 'beach', name: 'Beach', passable: true };
+    function dockedOnBeach(day = 1, settlement = null) {
+        const world = makeWorld({ '5,5': { terrain: BEACH, settlement } });
+        world.day = day;
+        const player = makePlayer();
+        Object.assign(player.ships[0], { status: 'docked', q: 5, r: 5 });
+        player.boardedShip = null;
+        player.inventory = { timber: 20 };
+        return { world, player, ship: player.ships[0] };
+    }
+
+    it('has no hold access while aboard — goods only move by dock or boat', () => {
+        const player = makePlayer();
+        expect(Ships.getShipsWithHoldAccess(player)).toEqual([]);
+    });
+
+    it('limits off-port loading to a boat-load per day, resetting the next day', () => {
+        const { world, player, ship } = dockedOnBeach(1);
+        expect(Ships.loadCargo(player, world, ship.id, 'timber', 20).loaded).toBe(Ships.LANDING_BOAT_CAPACITY);
+        expect(Ships.loadCargo(player, world, ship.id, 'timber', 1).success).toBe(false);
+        world.day = 2;
+        expect(Ships.loadCargo(player, world, ship.id, 'timber', 1).loaded).toBe(1);
+        expect(ship.cargo.timber).toBe(Ships.LANDING_BOAT_CAPACITY + 1);
+        expect(player.inventory.timber).toBe(20 - Ships.LANDING_BOAT_CAPACITY - 1);
+    });
+
+    it('loads freely at a port, up to the hold capacity', () => {
+        const { world, player, ship } = dockedOnBeach(1, { name: 'Saltmere' });
+        const capacity = Ships.getShipEffectiveStats(ship).cargoCapacity;
+        const result = Ships.loadCargo(player, world, ship.id, 'timber', 20);
+        expect(result.loaded).toBe(Math.min(20, capacity));
+        expect(Ships.getCargoFree(ship)).toBe(Math.max(0, capacity - 20));
+    });
+
+    it('shares the daily boat allowance between landing and later unloading', () => {
+        const world = makeWorld({ [keyOf(shore)]: { terrain: GRASS } });
+        world.day = 3;
+        const player = makePlayer({ fish: 12 });
+        Ships.rowAshore(player, world, shore.q, shore.r);
+        expect(player.inventory.fish).toBe(Ships.LANDING_BOAT_CAPACITY);
+        expect(Ships.unloadToPlayer(player, world, 'ship_1', 'fish').success).toBe(false);
+        world.day = 4;
+        const result = Ships.unloadToPlayer(player, world, 'ship_1', 'fish');
+        expect(result.cargo.total).toBe(Ships.LANDING_BOAT_CAPACITY);
+        expect(player.inventory.fish).toBe(Ships.LANDING_BOAT_CAPACITY * 2);
+    });
+});

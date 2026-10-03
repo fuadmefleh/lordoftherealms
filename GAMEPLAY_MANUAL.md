@@ -506,6 +506,17 @@ $$\text{Power} = \text{Strength} \times \text{random}(0.8, 1.2) \times \text{cou
 
 Units gain XP through combat (+5 XP per battle, +10 XP per contract). At 100 XP, units level up (max level 5), gaining a ×1.2 strength multiplier per level.
 
+### Sieges and Raids
+
+Choosing **Attack** on a settlement opens the siege panel with two options:
+
+- **Siege** — fight the full garrison to conquer the settlement. Heavy karma and reputation penalties with every kingdom.
+- **Raid** — fight only half the garrison, plunder its gold and withdraw. No conquest; karma -5, reputation -20 with the owning kingdom (-30 if the raid fails), population -10%. A raided settlement has nothing worth taking for **30 days**.
+
+### Creatures and Travelers
+
+Besides caravans, raiders and patrols, the world holds **mercenary companies, pilgrims, smugglers, envoys and refugee columns** travelling between settlements (refugees add to the population where they arrive), **war fleets** that sink pirate ships, and **wild beasts** and **legendary creatures** that hunt travellers like raiders do. Unarmed, a creature mauls you rather than robbing you. Attacking pilgrims, refugees or envoys costs karma; slaying beasts and legendary creatures earns renown. Timed events (crusades, refugee waves, monster sightings, pirate surges) make their kind far more common.
+
 ### Army Upkeep
 
 Your army costs gold every day. If you can't afford upkeep, 10% of your non-mercenary units desert.
@@ -668,6 +679,23 @@ Heresies can emerge within faiths, reducing unity and stability. There are 11 he
 | Naval Dockyard | Harbor | 1,800g | 12g/day | Naval |
 | Academy of Learning | Library | 1,200g | 8g/day | Culture & Learning |
 | Apothecary Laboratory | Apothecary | 1,000g | 7g/day | Medicine |
+
+### What Techs Do
+
+Beyond production and military bonuses, techs now affect: research speed (Writing, Printing Press), daily interest on your gold and cheaper loans (Banking Systems), battle casualties (Surgery), caravan speed and profit (Trade Networks), exploration finds at sea (Navigation), tavern income and purchase prices (Currency Minting), spy mission success and sight (Espionage), building costs (Stonecutting), defense when ambushed (Fortification), sight radius (Cartography), your colonies' growth (Aqueducts, Herbalism, Plague Prevention) and cultural building output and colony loyalty (Philosophy, Printing Press).
+
+### Tech Buildings
+
+| Building | Effect |
+|----------|--------|
+| Granary | Your farms within 1 hex +20%; half the losses from droughts and floods |
+| Watchtower | Keeps everything within 4 hexes visible |
+| Merchant Guild | +10% to all trade profits (up to 3 halls) |
+| Shipyard | Ships docked beside it repair 5% a day, free |
+| Lighthouse | +15% on cargo sold at a port beside it |
+| Hospital | Heal 15 health a day within 2 hexes |
+| University | Research 25% faster (up to 2) |
+| Windmill / Water Mill | Grind grain into flour (Water Mill also saws firewood) |
 
 ### Technology Tree Overview
 
@@ -925,6 +953,17 @@ Failing to fulfill your duties risks demotion.
 ---
 
 ## 18. Relationships & Dynasty
+
+### Spending Prestige
+
+Prestige is your House's standing — gold can't buy what it does. From the House panel:
+
+| Action | Cost | Effect |
+|--------|------|--------|
+| Press a Claim | 15 | Take the next office in your kingdom when only reputation or renown stands in the way (skills still count) |
+| Arrange a Prestigious Marriage | 10 | A noble of the settlement, already fond of you, joins those you can court. Marrying a noble: +10 renown, +15 reputation with their kingdom, and Prestige |
+| Call in a Favor | 8 | An allied House sends gold (150 + 75 per generation) or +15 reputation with a kingdom |
+| Secure Succession | 20 | Bypass a succession crisis and install your chosen heir |
 
 ### Social Interactions
 
@@ -1209,6 +1248,10 @@ The game tracks **41 achievements** across multiple categories with Bronze, Silv
 ## 24. World Events
 
 The world is alive with dynamic events that affect all kingdoms:
+
+### Timed Events
+
+Some events last for days or weeks — droughts, plagues, floods, gold rushes, trade booms, market crashes, pirate surges, bandit uprisings, blizzards and more (23 in all). Each day there's a chance one begins, either in a kingdom or across the whole realm; at most four run at once. While active they change, in their region: farm and mine output, market prices (food especially), caravan and port trade income, and how often raiders and pirates appear. Plagues and earthquakes strike a settlement's population when they begin. The tile info panel lists the events affecting a tile and how long they have left.
 
 ### Natural Events
 | Event | Severity | Effect |

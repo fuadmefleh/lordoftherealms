@@ -10,6 +10,8 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { resolveHostileEncounter } from '../ui/game/combat.logic.js';
 import { Utils } from '../core/utils.js';
+import { PlayerMilitary } from '../player/playerMilitary.js';
+import { Quests } from '../systems/quests.js';
 import { DataLoader } from '../core/dataLoader.js';
 
 beforeAll(async () => {
@@ -67,5 +69,30 @@ describe('resolveHostileEncounter — robbery (no army)', () => {
             return { gold: player.gold, health: player.health, out };
         };
         expect(run()).toEqual(run());
+    });
+});
+
+describe('raiding settlements', () => {
+    function raider() {
+        const p = { gold: 0, karma: 0, renown: 0, reputation: {}, skills: { leadership: 5, combat: 5 }, health: 100, maxHealth: 100,
+            army: Array.from({ length: 40 }, () => ({ type: 'knight', strength: 30, level: 1 })) };
+        Quests.initialize(p);
+        return p;
+    }
+    const village = () => ({ name: 'Ashby', type: 'village', population: 200, kingdom: 'k1' });
+    const world = (day) => ({ day, getTile: () => null, getKingdom: () => null, kingdoms: [], settlements: [] });
+
+    it('a strong army plunders a village, which then cannot be raided again for a while', () => {
+        Utils.setSeed(7);
+        const player = raider();
+        const s = village();
+        const first = PlayerMilitary.raidSettlement(player, s, { terrain: { id: 'plains' } }, world(10));
+        expect(first.victory).toBe(true);
+        expect(player.gold).toBeGreaterThanOrEqual(first.plunder);
+        expect(s.lastRaidedDay).toBe(10);
+        const again = PlayerMilitary.raidSettlement(player, s, { terrain: { id: 'plains' } }, world(20));
+        expect(again.success).toBe(false);
+        const later = PlayerMilitary.raidSettlement(player, s, { terrain: { id: 'plains' } }, world(10 + PlayerMilitary.RAID_COOLDOWN_DAYS));
+        expect(later.success).not.toBe(false);
     });
 });

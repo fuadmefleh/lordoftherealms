@@ -234,8 +234,16 @@ Object.assign(PlayerMilitary, {
         };
     },
 
+    /** Days a raided settlement needs before it has anything worth taking again. */
+    RAID_COOLDOWN_DAYS: 30,
+
+    /** Share of the garrison that turns out to fight off a raid (vs. a full siege). */
+    RAID_DEFENSE_SHARE: 0.5,
+
     /**
-     * Raid a settlement (aggressive action)
+     * Raid a settlement: fight part of its garrison, plunder, and withdraw.
+     * Cheaper in karma/reputation than a siege but takes no territory, and a
+     * settlement can only be raided once per RAID_COOLDOWN_DAYS.
      */
     raidSettlement(player, settlement, tile, world) {
         const playerStrength = PlayerMilitary.getArmyStrength(player);
@@ -243,18 +251,14 @@ Object.assign(PlayerMilitary, {
         if (playerStrength < 30) {
             return { success: false, reason: 'Army too weak to raid (need 30+ strength)' };
         }
+        const day = (world && world.day) || 0;
+        if (settlement.lastRaidedDay != null && day - settlement.lastRaidedDay < PlayerMilitary.RAID_COOLDOWN_DAYS) {
+            const wait = PlayerMilitary.RAID_COOLDOWN_DAYS - (day - settlement.lastRaidedDay);
+            return { success: false, reason: `${settlement.name} was raided recently — nothing left to take for ${wait} more day(s)` };
+        }
 
-        // Settlement defense based on population and type
-        const defenseMultiplier = {
-            village: 0.5,
-            town: 1.0,
-            city: 2.0,
-            capital: 3.0,
-        };
-
-        const defenseStrength = Math.floor(
-            settlement.population * 0.02 * (defenseMultiplier[settlement.type] || 1)
-        );
+        const defenseStrength = Math.max(1, Math.floor(
+            PlayerMilitary.getSettlementDefense(settlement, world) * PlayerMilitary.RAID_DEFENSE_SHARE));
 
         // Combat
         const result = PlayerMilitary.combat(player, defenseStrength, settlement.name, {
@@ -262,11 +266,14 @@ Object.assign(PlayerMilitary, {
             enemyComposition: PlayerMilitary._getSettlementComposition(settlement, tile),
         });
 
+        result.defenseStrength = defenseStrength;
         if (result.victory) {
             // Successful raid
             const plunder = Math.floor(settlement.population * Utils.randFloat(0.5, 2));
             player.gold += plunder;
             result.plunder = plunder;
+            settlement.lastRaidedDay = day;
+            Quests.track(player, 'battles_won');
 
             // Negative karma and reputation
             player.karma -= 5;

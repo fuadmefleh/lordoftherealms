@@ -332,7 +332,7 @@ export function addWildernessActions(actions, player, tile, world) {
                 type: 'attack_settlement',
                 label: `Attack ${tile.settlement.name}`,
                 icon: '🏰',
-                description: `Lay siege to ${tile.settlement.name} and attempt to conquer it`,
+                description: `Lay siege to ${tile.settlement.name} to conquer it, or raid it for plunder`,
             });
         }
     }

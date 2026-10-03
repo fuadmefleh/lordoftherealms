@@ -79,6 +79,17 @@ Object.assign(ActionMenu, {
         }
         html += `</div></div>`;
 
+        // Raid option: hit and run instead of a full siege
+        const raidStrength = Math.max(1, Math.floor(garrisonStrength * PlayerMilitary.RAID_DEFENSE_SHARE));
+        const raidedAgo = settlement.lastRaidedDay != null ? (game.world.day || 0) - settlement.lastRaidedDay : null;
+        const raidReady = raidedAgo === null || raidedAgo >= PlayerMilitary.RAID_COOLDOWN_DAYS;
+        html += `<div style="padding: 10px; background: rgba(230,126,34,0.1); border-left: 3px solid #e67e22; border-radius: 0 4px 4px 0; margin-bottom: 12px; font-size: 12px;">`;
+        html += `<div style="color: #e67e22; font-weight: bold; margin-bottom: 4px;">🔥 Or raid it</div>`;
+        html += `<div style="color: var(--text-secondary); line-height: 1.5;">Plunder and withdraw — only part of the garrison (${raidStrength}) turns out. `;
+        html += `No conquest. Karma -5, reputation with ${kingdom ? kingdom.name : 'the defenders'} -20 (-30 if it fails), population -10%.`;
+        if (!raidReady) html += `<br><span style="color: #e57373;">Raided ${raidedAgo} day(s) ago — nothing worth taking for ${PlayerMilitary.RAID_COOLDOWN_DAYS - raidedAgo} more.</span>`;
+        html += `</div></div>`;
+
         // Buttons
         html += `
             <div style="display: flex; gap: 8px;">
@@ -87,16 +98,60 @@ Object.assign(ActionMenu, {
                     border-radius: 6px; cursor: pointer; color: white; font-family: var(--font-body); font-size: 13px;">
                     Retreat
                 </button>
+                <button data-am-act="performRaid" ${raidReady ? '' : 'disabled'} style="
+                    flex: 1; padding: 10px; background: rgba(230,126,34,0.25); border: 1px solid rgba(230,126,34,0.6);
+                    border-radius: 6px; cursor: ${raidReady ? 'pointer' : 'not-allowed'}; color: #ffb74d; font-weight: bold; font-family: var(--font-body); font-size: 13px; ${raidReady ? '' : 'opacity: 0.5;'}">
+                    🔥 RAID
+                </button>
                 <button data-am-act="performSiege" style="
                     flex: 1; padding: 10px; background: rgba(231,76,60,0.3); border: 1px solid rgba(231,76,60,0.6);
                     border-radius: 6px; cursor: pointer; color: #ff6666; font-weight: bold; font-family: var(--font-body); font-size: 13px;">
-                    ⚔️ ATTACK
+                    ⚔️ SIEGE
                 </button>
             </div>
         `;
 
         html += '</div>';
         game.ui.showCustomPanel(`🏰 Siege — ${settlement.name}`, html);
+    },
+
+    /**
+     * Raid the settlement on the player's tile: plunder and withdraw.
+     */
+    performRaid(game) {
+        game.ui.hideCustomPanel();
+        const tile = game.world.getTile(game.player.q, game.player.r);
+        if (!tile || !tile.settlement) {
+            game.ui.showNotification('Error', 'No settlement here to raid.', 'error');
+            return;
+        }
+        if (!ActionMenu.commitPendingAP(game)) return;
+
+        const settlement = tile.settlement;
+        const result = PlayerMilitary.raidSettlement(game.player, settlement, tile, game.world);
+        if (result.success === false && result.reason) {
+            game.ui.showNotification('Cannot Raid', result.reason, 'error');
+            return;
+        }
+
+        let html = '<div style="padding: 10px; text-align: center;">';
+        if (result.victory) {
+            html += `<span style="font-size: 48px;">🔥</span><h3 style="color: #ffb74d; margin: 5px 0;">Raid Successful</h3>`;
+            html += `<p style="color: #aaa;">Your soldiers sack ${settlement.name} and ride off before help arrives.</p>`;
+            html += `<div style="font-size: 13px; line-height: 1.6; text-align: left; background: rgba(230,126,34,0.1); padding: 10px; border-radius: 6px;">`;
+            html += `<div>💰 Plunder: <strong style="color: #ffd700;">${result.plunder}</strong></div>`;
+        } else {
+            html += `<span style="font-size: 48px;">💀</span><h3 style="color: #ff6666; margin: 5px 0;">Raid Repelled</h3>`;
+            html += `<p style="color: #aaa;">The defenders of ${settlement.name} drive you off.</p>`;
+            html += `<div style="font-size: 13px; line-height: 1.6; text-align: left; background: rgba(231,76,60,0.1); padding: 10px; border-radius: 6px;">`;
+        }
+        if (result.casualties > 0) html += `<div style="color: #ff9800;">⚠️ Soldiers lost: ${result.casualties}</div>`;
+        html += `<div style="color: #ff6666;">😈 Karma and reputation with ${settlement.name}'s kingdom suffer.</div>`;
+        html += `</div><button data-am-act="closePanelAndRefresh" style="width: 100%; padding: 10px; margin-top: 10px; background: #444; border: 1px solid #666; border-radius: 6px; color: #eee; cursor: pointer; font-size: 14px;">Continue</button></div>`;
+
+        game.ui.showCustomPanel(result.victory ? '🔥 Raid' : '⚔️ Defeat', html);
+        game.ui.updateStats(game.player, game.world);
+        game.endDay();
     },
 
     /**

@@ -19,7 +19,7 @@ export const PlayerLifecycleMethods = {
     consumeFood() {
         if (!this.inventory) return false;
         // Same list (and order) as Player.FOOD_TYPES — cooked food goes first
-        for (const food of ['cooked_meat', 'cooked_fish', 'bread', 'preserved_fish', 'fish', 'grain']) {
+        for (const food of ['cooked_meat', 'cooked_fish', 'bread', 'preserved_fish', 'fish', 'grain', 'food']) {
             if (this.inventory[food] && this.inventory[food] > 0) {
                 this.inventory[food]--;
                 if (this.inventory[food] <= 0) delete this.inventory[food];

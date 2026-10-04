@@ -1,7 +1,7 @@
 // PlayerEconomy — caravans members.
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
-import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerInventory } from './_imports.js';
+import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerInventory, Economy } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
     /**
@@ -53,6 +53,8 @@ Object.assign(PlayerEconomy, {
                 expectedProfit += Math.floor(price * quantity);
             }
         }
+        // Markets near gems, spices, salt, horses or oil draw more buyers
+        expectedProfit = Math.floor(expectedProfit * Economy.caravanProfitMultiplier(world, toSettlement));
 
         // Deduct cost and goods
         player.gold -= cost;
@@ -136,6 +138,7 @@ Object.assign(PlayerEconomy, {
                     village: 0.8, town: 1.0, city: 1.2, capital: 1.5
                 };
                 price *= sizeMultiplier[toSettlement.type] || 1.0;
+                price *= Economy.caravanProfitMultiplier(world, toSettlement);
                 expectedProfit = Math.floor(price * property.storage);
             }
         }

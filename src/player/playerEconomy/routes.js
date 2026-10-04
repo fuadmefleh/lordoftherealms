@@ -1,7 +1,7 @@
 // PlayerEconomy — routes members.
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
-import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure } from './_imports.js';
+import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, Economy } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
     /**
@@ -191,6 +191,8 @@ Object.assign(PlayerEconomy, {
             let unitPrice = good.basePrice * (1 + dist * 0.05);
             const sizeMultiplier = { village: 0.8, town: 1.0, city: 1.2, capital: 1.5 };
             unitPrice *= sizeMultiplier[toTile.settlement.type] || 1.0;
+            // Markets near gems, spices, salt, horses or oil draw more buyers
+            unitPrice *= Economy.caravanProfitMultiplier(world, toTile.settlement);
             expectedProfit = Math.floor(unitPrice * route.quantity);
         }
 

@@ -60,9 +60,29 @@ Object.assign(ActionMenu, {
         if (prop.requiredSettlement && !tile.settlement) {
             return { canBuild: false, reason: 'Requires settlement' };
         }
-        const cost = PlayerEconomy.getBuildCost(game.player, prop);
+        const cost = PlayerEconomy.getBuildCost(game.player, prop, tile, game.world);
         if (game.player.gold < cost) return { canBuild: false, reason: `Need ${cost} gold (have ${game.player.gold})` };
         return { canBuild: true };
+    },
+
+    /** "stone, timber" — the resources near a hex that supply a bonus kind. */
+    _resourceSourceNames(world, q, r, kind) {
+        const ids = [];
+        for (const s of Economy.resourceBonuses(world, q, r).sources) {
+            const b = Economy.RESOURCE_BONUSES[s.id] || {};
+            if (b[kind] > 1 && !ids.includes(s.id)) ids.push(s.id);
+        }
+        const res = Terrain.RESOURCES || {};
+        return ids.map(id => (res[id.toUpperCase()] ? res[id.toUpperCase()].name : id).toLowerCase()).join(', ') || 'resources';
+    },
+
+    /** One-line note on the local construction discount, or ''. */
+    _constructionHint(world, tile) {
+        const mods = Economy.constructionModifiers(world, tile.q, tile.r);
+        if (!(mods.bonus > 0)) return '';
+        const costPct = Math.round((1 - mods.cost) * 100);
+        const timePct = Math.round((1 - mods.time) * 100);
+        return `🧱 ${ActionMenu._resourceSourceNames(world, tile.q, tile.r, 'construction')} at hand: −${costPct}% build cost, −${timePct}% build time`;
     },
 
     /** One-line "what it makes" text for a build-menu row. */
@@ -104,7 +124,8 @@ Object.assign(ActionMenu, {
         }
         // Buildable first, then cheapest
         rows.sort((a, b) => (b.check.canBuild - a.check.canBuild)
-            || (PlayerEconomy.getBuildCost(player, a.prop) - PlayerEconomy.getBuildCost(player, b.prop)));
+            || (PlayerEconomy.getBuildCost(player, a.prop, tile, game.world) - PlayerEconomy.getBuildCost(player, b.prop, tile, game.world)));
+        const constructionHint = ActionMenu._constructionHint(game.world, tile);
 
         const state = window._buildMenuState || (window._buildMenuState = { cat: 'all', onlyBuildable: true, query: '' });
         const buildableCount = rows.filter(r => r.check.canBuild).length;
@@ -113,6 +134,7 @@ Object.assign(ActionMenu, {
         // Search, tabs and filter stay pinned while the list scrolls with the panel
         html += '<div style="position: sticky; top: 0; z-index: 2; background: rgb(20, 24, 32); padding-bottom: 4px;">';
         html += `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">💰 ${player.gold}g · ${buildableCount} of ${rows.length} can be built here${tile.hasRiver ? ' · 🌊 river tile (mills +50%)' : ''}</div>`;
+        if (constructionHint) html += `<div style="font-size: 11px; color: #81c784; margin: -4px 0 8px;" title="Stone and timber within 2 hexes">${constructionHint}</div>`;
         html += `<input id="bpSearch" type="text" placeholder="Search by name or product… (e.g. flour, wool, forest)" value="${esc(state.query)}" oninput="window._bpFilter()" style="width: 100%; box-sizing: border-box; padding: 7px 10px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color, rgba(255,255,255,0.15)); border-radius: 6px; color: var(--text-primary); font-size: 13px;">`;
         html += '<div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;">';
         for (const c of ActionMenu.BUILD_CATEGORIES) {
@@ -127,11 +149,15 @@ Object.assign(ActionMenu, {
         html += '<div id="bpList" style="display: flex; flex-direction: column; gap: 4px;">';
         for (const r of rows) {
             const { prop, check } = r;
-            const cost = PlayerEconomy.getBuildCost(player, prop);
+            const cost = PlayerEconomy.getBuildCost(player, prop, tile, game.world);
+            const buildDays = PlayerEconomy.getConstructionDays(prop, tile, game.world);
             const output = ActionMenu._buildOutputText(prop, tile);
             const haystack = `${prop.name} ${output} ${prop.description || ''} ${(prop.requiredTerrain || []).join(' ')}`.toLowerCase();
             const action = r.tech ? `window.buildTechBuilding('${r.key}')` : `window.buildProperty('${r.key}')`;
-            const riverHint = prop.riverBonus && tile.hasRiver ? ' <span style="color: #6ec6ff;">🌊 +50% here</span>' : '';
+            let riverHint = prop.riverBonus && tile.hasRiver ? ' <span style="color: #6ec6ff;">🌊 +50% here</span>' : '';
+            // Coal-fired forges, herds for ranches, oil for chandlers
+            const resBonus = Economy.propertyResourceBonus(game.world, tile, prop.id);
+            if (resBonus.bonus > 0) riverHint += ` <span style="color: #81c784;" title="${esc(resBonus.label)}">${(Terrain.RESOURCES[resBonus.resource.toUpperCase()] || {}).icon || ''} +${Math.round(resBonus.bonus * 100)}% here</span>`;
             html += `<div class="bp-row" data-cat="${r.category}" data-ok="${check.canBuild ? 1 : 0}" data-text="${esc(haystack)}" title="${esc(prop.description || '')}" style="display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; background: rgba(255,255,255,${check.canBuild ? '0.05' : '0.02'}); ${check.canBuild ? '' : 'opacity: 0.55;'}">`;
             html += `<span style="font-size: 20px; width: 26px; text-align: center; flex-shrink: 0;">${prop.icon}</span>`;
             html += '<div style="flex: 1; min-width: 0;">';
@@ -139,7 +165,7 @@ Object.assign(ActionMenu, {
             html += `<div style="font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${output}</div>`;
             if (!check.canBuild) html += `<div style="font-size: 10px; color: #e57373;">${esc(check.reason || '')}</div>`;
             html += '</div>';
-            html += `<div style="text-align: right; font-size: 10px; color: var(--text-muted); flex-shrink: 0;">🏗️ ${prop.constructionDays || 0}d<br>🔧 ${prop.upkeep || 0}g/d</div>`;
+            html += `<div style="text-align: right; font-size: 10px; color: var(--text-muted); flex-shrink: 0;">🏗️ ${buildDays}d<br>🔧 ${prop.upkeep || 0}g/d</div>`;
             html += `<button onclick="${action}" ${check.canBuild ? '' : 'disabled'} style="flex-shrink: 0; min-width: 64px; padding: 5px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; cursor: ${check.canBuild ? 'pointer' : 'not-allowed'}; border: ${check.canBuild ? 'none' : '1px solid rgba(255,255,255,0.1)'}; background: ${check.canBuild ? 'linear-gradient(135deg, var(--gold-dark), var(--gold))' : 'rgba(255,255,255,0.06)'}; color: ${check.canBuild ? '#1a1207' : 'var(--text-muted)'};">${cost}g</button>`;
             html += '</div>';
         }
@@ -212,7 +238,8 @@ Object.assign(ActionMenu, {
                 return;
             }
             if (!ActionMenu.commitPendingAP(game)) return;
-            const buildCost = PlayerEconomy.getBuildCost(game.player, building);
+            const buildCost = PlayerEconomy.getBuildCost(game.player, building, tile, game.world);
+            const techBuildDays = PlayerEconomy.getConstructionDays(building, tile, game.world);
 
             game.player.gold -= buildCost;
 
@@ -229,9 +256,9 @@ Object.assign(ActionMenu, {
                 inputStorage: 0,
                 activeRecipe: null,
                 autoSell: false,
-                underConstruction: (building.constructionDays || 0) > 0,
-                constructionDaysLeft: building.constructionDays || 0,
-                constructionDaysTotal: building.constructionDays || 0,
+                underConstruction: techBuildDays > 0,
+                constructionDaysLeft: techBuildDays,
+                constructionDaysTotal: techBuildDays,
             };
 
             if (!tile.playerProperties) tile.playerProperties = [];
@@ -250,7 +277,7 @@ Object.assign(ActionMenu, {
                 InnerMap.placePropertyOnInnerMap(tile, newProperty, tile.q, tile.r);
             }
 
-            game.ui.showNotification('🏗️ Construction Started!', `${building.name} is under construction — ${building.constructionDays || 0} days to completion.`, 'info');
+            game.ui.showNotification('🏗️ Construction Started!', `${building.name} is under construction — ${techBuildDays} days to completion.`, 'info');
             game.ui.updateStats(game.player, game.world);
             game.ui.hideCustomPanel();
         };
@@ -270,6 +297,8 @@ Object.assign(ActionMenu, {
         let html = '<div>';
         html += '<h4 style="margin-top: 0;">Build Infrastructure</h4>';
         html += '<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Improve the land with roads, bridges, irrigation and jetties.</p>';
+        const infraHint = ActionMenu._constructionHint(game.world, tile);
+        if (infraHint) html += `<div style="font-size: 11px; color: #81c784; margin: -6px 0 10px;" title="Stone and timber within 2 hexes">${infraHint}</div>`;
 
         if (tile.infrastructure) {
             const constructionNote = tile.infrastructure.underConstruction
@@ -286,7 +315,7 @@ Object.assign(ActionMenu, {
 
         for (const infra of available) {
             const isUpgrade = infra.upgradesFrom && tile.infrastructure && tile.infrastructure.id === infra.upgradesFrom;
-            const buildDays = infra.buildTime || 0;
+            const buildDays = infra.actualDays != null ? infra.actualDays : (infra.buildTime || 0);
             const buildTimeLabel = buildDays > 0 ? `<span style="font-size: 11px; color: #e0a040;">⏱ ${buildDays} day${buildDays > 1 ? 's' : ''}</span>` : '<span style="font-size: 11px; color: #4CAF50;">⚡ Instant</span>';
             html += `
                 <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">

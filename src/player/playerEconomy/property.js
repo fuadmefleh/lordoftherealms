@@ -1,7 +1,7 @@
 // PlayerEconomy — property members.
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
-import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerEffects, PlayerInventory, WEATHER_EFFECTS } from './_imports.js';
+import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerEffects, PlayerInventory, WEATHER_EFFECTS, Economy } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
     /**
@@ -16,10 +16,21 @@ Object.assign(PlayerEconomy, {
         return tech[key] || Object.values(tech).find(b => b.id === type) || null;
     },
 
-    /** What a property costs this player to build (stonecutting cuts it). */
-    getBuildCost(player, def) {
+    /**
+     * What a property costs this player to build (stonecutting cuts it).
+     * With a tile and world, stone and timber nearby cut it further
+     * (resourceBonuses.construction).
+     */
+    getBuildCost(player, def, tile = null, world = null) {
         const reduction = (typeof Technology !== 'undefined') ? Technology.getBuildingCostReduction(player) : 0;
-        return Math.round(def.cost * (1 - reduction));
+        const local = tile && world ? Economy.constructionModifiers(world, tile.q, tile.r).cost : 1;
+        return Math.round(def.cost * (1 - reduction) * local);
+    },
+
+    /** Days to build `def` here: stone and timber nearby speed the work. */
+    getConstructionDays(def, tile = null, world = null) {
+        const days = (def && def.constructionDays) || 0;
+        return tile && world ? Economy.scaleBuildDays(days, world, tile.q, tile.r) : days;
     },
 
     /** Does this property type turn inputs into outputs via recipes? */
@@ -48,7 +59,7 @@ Object.assign(PlayerEconomy, {
         if (!prop) return { canBuild: false, reason: 'Invalid property type' };
 
         // Check gold
-        const cost = PlayerEconomy.getBuildCost(player, prop);
+        const cost = PlayerEconomy.getBuildCost(player, prop, tile, world);
         if (player.gold < cost) {
             return { canBuild: false, reason: `Need ${cost} gold (have ${player.gold})` };
         }
@@ -136,7 +147,7 @@ Object.assign(PlayerEconomy, {
         const prop = check.property;
 
         // Deduct cost
-        player.gold -= PlayerEconomy.getBuildCost(player, prop);
+        player.gold -= PlayerEconomy.getBuildCost(player, prop, tile, world);
 
         // Determine what this property produces
         let produces = prop.produces;
@@ -145,7 +156,7 @@ Object.assign(PlayerEconomy, {
         }
 
         // Create property object
-        const constructionDays = prop.constructionDays || 0;
+        const constructionDays = PlayerEconomy.getConstructionDays(prop, tile, world);
         const newProperty = {
             type: prop.id,
             name: prop.name,
@@ -333,6 +344,13 @@ Object.assign(PlayerEconomy, {
                 amount *= 1.5; // 50% bonus for timber resource
             }
 
+            // Coal-fired forges, herds beside ranches and dairies, oil for
+            // chandlers (data/economy.json propertyResourceBonuses). Recipe
+            // buildings get it on their output below.
+            const resBonus = Economy.propertyResourceBonus(world, tile, property.type).bonus;
+            const isRecipe = PlayerEconomy.isRecipeBuilding(property.type);
+            if (resBonus > 0 && !isRecipe) amount *= 1 + resBonus;
+
             // Level bonus (10% per level)
             amount *= (1 + (property.level - 1) * 0.1);
 
@@ -427,6 +445,13 @@ Object.assign(PlayerEconomy, {
                             if (weaponsBonus > 0) {
                                 const boosted = producedAmount * (1 + weaponsBonus);
                                 producedAmount = Math.floor(boosted) + (Utils.random() < boosted % 1 ? 1 : 0);
+                            }
+                            // A local resource (coal for the forge, ...) stretches the
+                            // same inputs further; fractions carry over to the next day
+                            if (resBonus > 0) {
+                                const boosted = producedAmount * (1 + resBonus) + (property.resourceCarry || 0);
+                                producedAmount = Math.floor(boosted);
+                                property.resourceCarry = boosted - producedAmount;
                             }
                         } else {
                             producedAmount = 0; // Not enough input

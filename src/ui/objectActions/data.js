@@ -54,6 +54,7 @@ export const CRAFT_RECIPES = [
 export const SMELT_RECIPES = [
     { id: 'iron_ingot', label: 'Iron Ingot', icon: '🔩', ingredients: { iron: 3 }, result: { iron_ingot: 1 }, desc: 'A refined iron ingot' },
     { id: 'gold_bar', label: 'Gold Bar', icon: '🥇', ingredients: { gold_ore: 3 }, result: { gold_bar: 1 }, desc: 'A gleaming gold bar' },
+    { id: 'coal_iron_ingot', label: 'Iron Ingot (coal-fired)', icon: '⚫', ingredients: { iron: 2, coal: 1 }, result: { iron_ingot: 1 }, desc: 'Coal burns hotter: an ingot from less iron' },
 ];
 
 export const BREW_RECIPES = [

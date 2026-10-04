@@ -15,6 +15,45 @@
         "horses": { "military": 1.4, "trade": 1.1 },
         "spices": { "gold": 1.3, "trade": 1.4 },
         "stone": { "construction": 1.5, "goods": 1.1 },
-        "salt": { "food": 1.2, "trade": 1.2 }
+        "salt": { "food": 1.2, "trade": 1.2 },
+        "coal": { "goods": 1.25, "military": 1.1 },
+        "oil": { "trade": 1.3, "gold": 1.1 },
+        "cattle": { "food": 1.3, "goods": 1.1 }
+    },
+    "resourceGoods": {
+        "iron": ["iron"],
+        "gold_ore": ["gold_ore"],
+        "gems": ["gems"],
+        "timber": ["wood"],
+        "wheat": ["food"],
+        "fish": ["food"],
+        "stone": ["stone"],
+        "spices": ["spices"],
+        "horses": ["horses"],
+        "coal": ["coal"],
+        "oil": ["oil"],
+        "cattle": ["food", "hide"]
+    },
+    "resourceEffects": {
+        "_doc": "How the goods/military/trade/construction resource bonuses are applied. A resource on the tile counts in full, one within `radius` hexes at `nearbyWeight`; the summed fraction is capped at `cap`. Each scale turns that fraction into the effect: settlement goods output x(1+f*goods), recruit cost x(1-f*recruitCost), kingdom army regrowth x(1+f*armyRegen), settlement trade-route income x(1+f*routeIncome), player caravan profit x(1+f*caravanProfit), sale prices +f*salePrice, build cost x(1-f*buildCost), build time x(1-f*buildTime), settlement repairs x(1+f*repair).",
+        "radius": 2,
+        "nearbyWeight": 0.5,
+        "cap": 0.5,
+        "scales": {
+            "goods": 1,
+            "recruitCost": 0.5,
+            "armyRegen": 1,
+            "routeIncome": 1,
+            "caravanProfit": 0.5,
+            "salePrice": 0.25,
+            "buildCost": 0.5,
+            "buildTime": 0.5,
+            "repair": 1
+        }
+    },
+    "propertyResourceBonuses": {
+        "coal": { "properties": ["forge", "blacksmith", "glassworks"], "bonus": 0.25, "radius": 1, "label": "coal-fired" },
+        "cattle": { "properties": ["cattle_ranch", "dairy", "tannery"], "bonus": 0.3, "radius": 1, "label": "local herds" },
+        "oil": { "properties": ["chandlery"], "bonus": 0.2, "radius": 1, "label": "oil seep" }
     }
 }

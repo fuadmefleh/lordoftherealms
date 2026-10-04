@@ -22,8 +22,11 @@ import { DataLoader } from '../core/dataLoader.js';
 // refuseIfOutlawed) = 223, plus the realm-politics panels (REALM_POLITICS_AP,
 // showRealmWarsMenu, showRestorationMenu, _realmResult) = 227, plus showUpgradeCulturalMenu = 228,
 // plus sellMapToArchive (royal archives buy your maps) = 229, plus the data-driven gambling
-// config (DEFAULT_GAMBLING, _getGamblingSettings, _getGamblingGame) = 232, plus denounceHeresy = 233.
+// config (DEFAULT_GAMBLING, _getGamblingSettings, _getGamblingGame) = 232, plus denounceHeresy = 233,
+// plus the resource-bonus build hints (_resourceSourceNames, _constructionHint) and
+// meetingPresentTreasure = 236.
 const EXPECTED_KEYS = [
+    '_resourceSourceNames', '_constructionHint', 'meetingPresentTreasure',
     '_serviceResult', 'showBlacksmithMenu', 'showBlessingMenu', 'showStableMenu', 'showGuardMenu',
     'showTributeMenu', 'showAudienceMenu', 'OUTLAW_REFUSED_ACTIONS', 'refuseIfOutlawed',
     'REALM_POLITICS_AP', 'showRealmWarsMenu', 'showRestorationMenu', '_realmResult',
@@ -90,8 +93,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 233 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(233);
+    it('has 236 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(236);
     });
 
     it('every member except the known data props is a function', () => {

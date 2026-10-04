@@ -241,6 +241,21 @@ The game features 26+ tradeable goods:
 | Gems | 60g | Mines (gem deposits) |
 | Spices | 45g | Trade / tropical regions |
 | Horses | 55g | Plains trade |
+| Coal | 10g | Mines (coal seams) |
+| Rock Oil | 22g | Pitch Works (oil seeps) |
+
+### Map Resources and Settlements
+
+Resources on or within 2 hexes of a settlement shape what it produces and how it works (a resource on the settlement's own hex counts in full, a nearby one at half; each effect is capped at +50%). Open a settlement's **Economic Breakdown** to see its "Resource Advantages".
+
+| Bonus | From | Effect |
+|-------|------|--------|
+| Goods | iron, timber, stone, coal, cattle | More of every good the settlement makes |
+| Military | iron, horses, coal | Cheaper recruits for you (half the bonus); the realm's armies regrow faster |
+| Trade | gems, spices, salt, horses, oil | More trade-route income; caravans you send there earn half the bonus; sales there a quarter |
+| Construction | timber, stone | Your properties, tech buildings and infrastructure cost less and build faster (half the bonus each); damaged towns repair faster |
+
+Coal yields coal, oil yields rock oil, and cattle yield food and hides. Coal also fires forges, blacksmiths and glassworks on or beside it (+25% output), herds help cattle ranches, dairies and tanneries (+30%), and an oil seep helps a chandlery (+20%). Markets on coal, oil or cattle sell them cheaply.
 
 **Processed Goods:**
 
@@ -647,7 +662,19 @@ Choosing **Attack** on a settlement opens the siege panel with two options:
 
 ### Creatures and Travelers
 
-Besides caravans, raiders and patrols, the world holds **mercenary companies, pilgrims, smugglers, envoys and refugee columns** travelling between settlements (refugees add to the population where they arrive), **war fleets** that sink pirate ships, and **wild beasts** and **legendary creatures** that hunt travellers like raiders do. Unarmed, a creature mauls you rather than robbing you. Attacking pilgrims, refugees or envoys costs karma; slaying beasts and legendary creatures earns renown. Timed events (crusades, refugee waves, monster sightings, pirate surges) make their kind far more common.
+Besides caravans, raiders and patrols, the world holds **mercenary companies, pilgrims, smugglers, envoys and refugee columns** travelling between settlements (refugees add to the population where they arrive), **war fleets** that sink pirate ships, and **wild beasts** and **legendary creatures** that hunt travellers like raiders do. Unarmed, a creature mauls you rather than robbing you. Attacking pilgrims, refugees or envoys costs karma; slaying beasts and legendary creatures earns renown. Their coin goes to your purse and their goods into your packs (if there is room).
+
+**Treasures.** Everything a unit carries is a real, sellable good. The rarer pieces also do something. Look in the Inventory panel for the details:
+
+| Treasure | Carried | Gift to a lord | Enshrine (House Prestige) |
+|----------|---------|----------------|---------------------------|
+| Enchanted Weapon | +5% battle power | +15 reputation | +3 |
+| Dragon Scale | −10% harm taken (a Blacksmith forges 3 into Dragonscale Armour, −25%) | +12 | +4 |
+| Ancient Artifact | — | +20 | +6 |
+| Royal Seal / Sealed Treaty | +5% / +3% negotiation | +18 / +12 | +3 / — |
+| Gift Chest, Fine Wine, Holy Relics, Scriptures | — | +20, +5, +8, +4 | Relics +2 |
+
+Present gifts at a royal audience. Greedy lords value them 25% more, honourable ones 10% more. Holy Water heals 10 health, Rum gives +1 movement for the day, and Rare Herbs brew into an Elixir of Vigor at an Apothecary. Carried bonuses count once for each kind of item and are capped. Timed events (crusades, refugee waves, monster sightings, pirate surges) make their kind far more common.
 
 ### Personal Protection
 

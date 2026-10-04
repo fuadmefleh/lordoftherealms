@@ -1,6 +1,6 @@
 // Trading — split from playerEconomy.js; references PlayerEconomy (GOODS etc.).
 import { PlayerEconomy } from './_ref.js';
-import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, PlayerEffects, PlayerInventory } from './_imports.js';
+import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, PlayerEffects, PlayerInventory, Economy } from './_imports.js';
 
 export const Trading = {
     /**
@@ -57,6 +57,13 @@ export const Trading = {
             addGood('HORSE', 0.003);   // Quality riding horses at cities/capitals
         }
 
+        // Local resources stock the market: coal from the pits, rock oil
+        // from the seeps, beef and hides from the herds
+        const resId = tile && tile.resource && tile.resource.id;
+        if (resId === 'coal') addGood('COAL', 0.03);
+        if (resId === 'oil') { addGood('OIL', 0.01); addGood('LAMP_OIL', 0.01); }
+        if (resId === 'cattle') { addGood('MEAT', 0.04); addGood('HIDE', 0.02); }
+
         return goods;
     },
 
@@ -109,6 +116,10 @@ export const Trading = {
             if (good.id === 'luxuries' && ['gems', 'spices'].includes(tile.resource.id)) price *= 0.85;
             if (good.id === 'stone' && tile.resource.id === 'stone') price *= 0.7;
             if (good.id === 'gold_ore' && tile.resource.id === 'gold_ore') price *= 0.7;
+            // Coal-fired smithies turn out cheaper metalwork
+            if (['weapons', 'tools', 'iron_ingot', 'coal'].includes(good.id) && tile.resource.id === 'coal') price *= good.id === 'coal' ? 0.7 : 0.9;
+            if (['oil', 'lamp_oil'].includes(good.id) && tile.resource.id === 'oil') price *= 0.7;
+            if (['meat', 'hide', 'cheese', 'leather_armor'].includes(good.id) && tile.resource.id === 'cattle') price *= 0.75;
         }
 
         return Math.floor(price);
@@ -177,7 +188,8 @@ export const Trading = {
         const sellPrice = Math.floor(good.basePrice * 0.7);
         // Commerce techs (accounting, guilds, ...) improve every sale
         const tradeBonus = ((typeof Technology !== 'undefined') ? Technology.getTradeProfitBonus(player) : 0)
-            + PlayerEffects.tradeBonus(player, settlement);
+            + PlayerEffects.tradeBonus(player, settlement)
+            + Economy.saleBonus(settlement); // a market town near gems, spices, oil...
         const totalEarned = Math.floor(sellPrice * quantity * (1 + tradeBonus));
 
         player.inventory[goodId] -= quantity;

@@ -240,7 +240,7 @@ export class Player {
     /**
      * Food types that can sustain travel (best consumed first for efficiency)
      */
-    static FOOD_TYPES = ['cooked_meat', 'cooked_fish', 'bread', 'preserved_fish', 'fish', 'grain'];
+    static FOOD_TYPES = ['cooked_meat', 'cooked_fish', 'bread', 'preserved_fish', 'fish', 'grain', 'food'];
 
     /**
      * Get total food count across all food types

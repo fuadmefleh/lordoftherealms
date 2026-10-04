@@ -5,6 +5,7 @@
 import { Technology } from './technology.js';
 import { Hex } from '../core/hex.js';
 import { Quests } from './quests.js';
+import { Economy } from '../world/economy.js';
 
 
 export const Infrastructure = {
@@ -94,6 +95,10 @@ export const Infrastructure = {
         if (infra.upgradesFrom && tile.infrastructure && tile.infrastructure.id === infra.upgradesFrom) {
             cost = Math.floor(cost * 0.6); // 40% discount for upgrade
         }
+        // Stone and timber close at hand cut the cost and the time
+        const local = world ? Economy.constructionModifiers(world, tile.q, tile.r) : { cost: 1 };
+        cost = Math.round(cost * local.cost);
+        const buildDays = world ? Economy.scaleBuildDays(infra.buildTime || 0, world, tile.q, tile.r) : (infra.buildTime || 0);
         if (player.gold < cost) {
             return { can: false, reason: `Need ${cost} gold (have ${Math.floor(player.gold)})` };
         }
@@ -146,7 +151,7 @@ export const Infrastructure = {
             // OK on required terrain (already checked)
         }
 
-        return { can: true, cost };
+        return { can: true, cost, buildDays };
     },
 
     /**
@@ -161,7 +166,7 @@ export const Infrastructure = {
 
         player.gold -= cost;
 
-        const buildDays = infra.buildTime || 0;
+        const buildDays = check.buildDays != null ? check.buildDays : (infra.buildTime || 0);
 
         // Place infrastructure on tile
         tile.infrastructure = {
@@ -383,7 +388,7 @@ export const Infrastructure = {
         for (const [key, infra] of Object.entries(Infrastructure.TYPES)) {
             const check = Infrastructure.canBuild(player, key, tile, world);
             if (check.can) {
-                available.push({ ...infra, actualCost: check.cost });
+                available.push({ ...infra, actualCost: check.cost, actualDays: check.buildDays });
             }
         }
         return available;

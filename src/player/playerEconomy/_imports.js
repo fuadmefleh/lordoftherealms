@@ -10,3 +10,4 @@ export { Infrastructure } from '../../systems/infrastructure.js';
 export { PlayerEffects } from '../playerEffects.js';
 export { PlayerInventory } from '../inventory.js';
 export { WEATHER_EFFECTS } from '../../world/weather.js';
+export { Economy } from '../../world/economy.js';

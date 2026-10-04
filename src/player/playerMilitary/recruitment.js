@@ -1,6 +1,6 @@
 // PlayerMilitary — recruitment members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
-import { Utils, Technology, House, SettlementServices, PlayerEffects, Peoples, Ships } from './_imports.js';
+import { Utils, Technology, House, SettlementServices, PlayerEffects, Peoples, Ships, Economy } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -490,15 +490,19 @@ Object.assign(PlayerMilitary, {
      * Gold to recruit `unit`, after the Marshal's military discount and —
      * when recruiting at `settlement` — its martial peoples' discount.
      */
-    getRecruitCost(player, unit, settlement = null) {
+    getRecruitCost(player, unit, settlement = null, world = null) {
         const peoples = settlement ? Peoples.recruitModifiers(settlement).costMult : 1;
-        return Math.round(unit.cost * PlayerEffects.recruitCostMultiplier(player) * peoples);
+        // Iron, horses and coal near the settlement arm recruits cheaply
+        // (resourceBonuses.military; read from the daily cache without a world)
+        const resources = Economy.recruitCostMultiplier(world, settlement);
+        return Math.round(unit.cost * PlayerEffects.recruitCostMultiplier(player) * peoples * resources);
     },
 
     recruitUnit(player, unitType, settlement, context = {}) {
+        const world = context.world || null;
         const unit = PlayerMilitary.UNIT_TYPES[unitType.toUpperCase()];
         if (!unit) return { success: false, reason: 'Invalid unit type' };
-        const cost = PlayerMilitary.getRecruitCost(player, unit, settlement);
+        const cost = PlayerMilitary.getRecruitCost(player, unit, settlement, world);
 
         // Check gold
         if (player.gold < cost) {

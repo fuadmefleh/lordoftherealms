@@ -1,6 +1,6 @@
 // UI — hud methods.
 import { UI } from './core.js';
-import { Utils, ActionMenu, Religion, Economy, Terrain, PlayerEconomy, PlayerMilitary, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, InnerMapCharacters, WEATHER_TYPES } from './_imports.js';
+import { Utils, ActionMenu, Religion, Economy, Terrain, PlayerEconomy, PlayerMilitary, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, InnerMapCharacters, WEATHER_TYPES, Treasures } from './_imports.js';
 
 Object.assign(UI.prototype, {
     setupEventListeners() {
@@ -843,7 +843,9 @@ Object.assign(UI.prototype, {
             const fallbackName = itemId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
             const icon = (item && item.icon) ? item.icon : '📦';
             const name = (item && item.name) ? item.name : fallbackName;
-            html += `<div class="sinv-tile" title="${name} ×${quantity}">`;
+            const fx = Treasures.describe(itemId);
+            const tip = `${name} ×${quantity}${item && item.basePrice ? ` (~${item.basePrice}g each)` : ''}${fx.length ? ' — ' + fx.join('; ') : ''}`.replace(/"/g, '&quot;');
+            html += `<div class="sinv-tile" title="${tip}">`;
             html += `<span class="sinv-tile-icon">${icon}</span>`;
             if (quantity > 1) html += `<span class="sinv-tile-qty">${quantity}</span>`;
             html += `<span class="sinv-tile-name">${name}</span>`;

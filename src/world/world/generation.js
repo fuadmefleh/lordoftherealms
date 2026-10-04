@@ -25,15 +25,23 @@ Object.assign(World.prototype, {
             const extraCultures = ['Imperial', 'Woodland', 'Nomadic', 'Religious', 'Maritime', 'Mountain', 'Nordic', 'Desert', 'Arcane', 'Swamp'];
             const terrainPrefs = {
                 Imperial: ['plains', 'grassland', 'hills'],
-                Woodland: ['forest', 'dense_forest', 'grassland'],
+                Woodland: ['woodland', 'seasonal_forest', 'temperate_rainforest', 'grassland'],
                 Nomadic: ['plains', 'savanna', 'desert'],
                 Religious: ['desert', 'hills', 'plains'],
                 Maritime: ['coast', 'beach', 'grassland'],
-                Mountain: ['mountains', 'hills', 'tundra'],
-                Nordic: ['tundra', 'mountains', 'coast'],
+                Mountain: ['mountain', 'hills', 'highlands', 'tundra'],
+                Nordic: ['tundra', 'mountain', 'boreal_forest', 'coast'],
                 Desert: ['desert', 'savanna', 'plains'],
                 Arcane: ['hills', 'plains', 'desert'],
-                Swamp: ['swamp', 'wetland', 'forest']
+                Swamp: ['swamp', 'tropical_rainforest', 'woodland']
+            };
+            // Capital siting keeps the ids the old lists actually matched
+            // (see Kingdom.placementTerrain) so seeded worlds don't change
+            const placementPrefs = {
+                Woodland: ['grassland'],
+                Mountain: ['hills', 'tundra'],
+                Nordic: ['tundra', 'coast'],
+                Swamp: ['swamp'],
             };
             const traitsList = [['militaristic', 'orderly'], ['peaceful', 'nature-loving'], ['aggressive', 'mobile'],
                                ['religious', 'scholarly'], ['mercantile', 'naval'], ['defensive', 'industrious'],
@@ -59,6 +67,7 @@ Object.assign(World.prototype, {
                     culture: culture,
                     description: 'A realm born of the world\'s creation.',
                     preferredTerrain: terrainPrefs[culture] || ['plains', 'grassland'],
+                    ...(placementPrefs[culture] ? { placementTerrain: placementPrefs[culture] } : {}),
                     traits: traitsList[i % traitsList.length],
                 });
             }

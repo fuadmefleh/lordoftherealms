@@ -47,7 +47,17 @@
       "expansionBonus": 1.0,
       "indigenousRelation": 0.1,
       "loyaltyBonus": 0.1,
-      "productionBonus": 0.05
+      "productionBonus": 0.05,
+      "missionaryWork": {
+        "radius": 4,
+        "tribeRelation": 0.05,
+        "tribeConversion": 0.01,
+        "tribeFollowers": 0.02,
+        "settlementShare": 0.002,
+        "kingdomInfluence": 0.01,
+        "kingdomPiety": 0.01,
+        "maxKingdomGain": 0.05
+      }
     }
   }
 }

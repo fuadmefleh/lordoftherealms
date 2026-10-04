@@ -19,7 +19,8 @@
             "colorLight": "rgba(39, 174, 96, 0.2)",
             "culture": "Woodland",
             "description": "Forest dwellers who live in harmony with nature, masters of archery and herbal lore.",
-            "preferredTerrain": ["forest", "dense_forest", "grassland"],
+            "preferredTerrain": ["woodland", "seasonal_forest", "temperate_rainforest", "grassland"],
+            "placementTerrain": ["grassland"],
             "traits": ["peaceful", "nature-loving"]
         },
         {
@@ -63,7 +64,8 @@
             "colorLight": "rgba(121, 85, 72, 0.2)",
             "culture": "Mountain",
             "description": "Dwarven-built strongholds carved into mountain peaks. Masters of siege craft and mineral wealth.",
-            "preferredTerrain": ["mountains", "hills", "tundra"],
+            "preferredTerrain": ["mountain", "hills", "highlands", "tundra"],
+            "placementTerrain": ["hills", "tundra"],
             "traits": ["defensive", "industrious"]
         },
         {
@@ -74,7 +76,8 @@
             "colorLight": "rgba(45, 106, 79, 0.2)",
             "culture": "Swamp",
             "description": "Reclusive marsh-dwellers who command dark alchemy and know poisons no healer can cure.",
-            "preferredTerrain": ["swamp", "wetland", "forest"],
+            "preferredTerrain": ["swamp", "tropical_rainforest", "woodland"],
+            "placementTerrain": ["swamp"],
             "traits": ["secretive", "alchemical"]
         },
         {
@@ -96,7 +99,8 @@
             "colorLight": "rgba(144, 202, 249, 0.2)",
             "culture": "Nordic",
             "description": "Hardy northern clans who worship the storm and raid southern shores each thaw season.",
-            "preferredTerrain": ["tundra", "mountains", "coast"],
+            "preferredTerrain": ["tundra", "mountain", "boreal_forest", "coast"],
+            "placementTerrain": ["tundra", "coast"],
             "traits": ["aggressive", "seafaring"]
         },
         {
@@ -111,6 +115,25 @@
             "traits": ["mercantile", "resilient"]
         }
     ],
+    "traitEffects": {
+        "militaristic":  { "label": "Militaristic",  "summary": "+10% army size, +5% in battle",               "bonuses": { "military": 0.10, "warBonus": 0.05 } },
+        "orderly":       { "label": "Orderly",       "summary": "+6 stability, roots out plotters",            "bonuses": { "stability": 0.06, "intrigue": 0.10 } },
+        "peaceful":      { "label": "Peaceful",      "summary": "+25% diplomacy, +3 stability, -5% army size", "bonuses": { "diplomacy": 0.25, "stability": 0.03, "military": -0.05 } },
+        "nature-loving": { "label": "Nature-loving", "summary": "+10% growth, +10% faith",                     "bonuses": { "population": 0.10, "faith": 0.10 } },
+        "aggressive":    { "label": "Aggressive",    "summary": "+8% in battle, -15% diplomacy",               "bonuses": { "warBonus": 0.08, "diplomacy": -0.15 } },
+        "mobile":        { "label": "Mobile",        "summary": "+20% expansion, +15% endurance, more cavalry", "bonuses": { "expansion": 0.20, "endurance": 0.15 } },
+        "religious":     { "label": "Religious",     "summary": "+30% faith, +6% loyalty",                     "bonuses": { "faith": 0.30, "loyalty": 0.06 } },
+        "scholarly":     { "label": "Scholarly",     "summary": "+25% research, +10% culture",                 "bonuses": { "research": 0.25, "culture": 0.10 } },
+        "mercantile":    { "label": "Mercantile",    "summary": "+20% trade, +5% treasury",                    "bonuses": { "tradeBonus": 0.20, "treasury": 0.05 } },
+        "naval":         { "label": "Naval",         "summary": "+10% trade, +5% defense, more archers",       "bonuses": { "tradeBonus": 0.10, "defense": 0.05 } },
+        "defensive":     { "label": "Defensive",     "summary": "+15% defense, -10% war upkeep",               "bonuses": { "defense": 0.15, "upkeep": -0.10 } },
+        "industrious":   { "label": "Industrious",   "summary": "+25% construction, +5% treasury",             "bonuses": { "construction": 0.25, "treasury": 0.05 } },
+        "secretive":     { "label": "Secretive",     "summary": "+25% intrigue, -5% diplomacy",                "bonuses": { "intrigue": 0.25, "diplomacy": -0.05 } },
+        "alchemical":    { "label": "Alchemical",    "summary": "+5% growth, +10% research",                   "bonuses": { "population": 0.05, "research": 0.10 } },
+        "arcane":        { "label": "Arcane",        "summary": "+20% research, +4% in battle",                "bonuses": { "research": 0.20, "warBonus": 0.04 } },
+        "seafaring":     { "label": "Seafaring",     "summary": "+10% expansion, +8% trade, more archers",     "bonuses": { "expansion": 0.10, "tradeBonus": 0.08 } },
+        "resilient":     { "label": "Resilient",     "summary": "+30% endurance, +4 stability",                "bonuses": { "endurance": 0.30, "stability": 0.04 } }
+    },
     "cityNames": {
         "Imperial": ["Crownhaven", "Irongate", "Stonewall", "Highkeep", "Kingsbridge", "Whitehall", "Greywatch", "Northhold", "Eastmere", "Dragonspire", "Goldcrest", "Silverford", "Hammerfell", "Thornwall", "Embervale"],
         "Woodland": ["Greenhollow", "Mosswood", "Ferndale", "Willowmere", "Birchroot", "Dewglen", "Oakshade", "Starbloom", "Moongrove", "Leafveil", "Blossomreach", "Thornheart", "Misthaven", "Elderwood", "Sunpetal"],

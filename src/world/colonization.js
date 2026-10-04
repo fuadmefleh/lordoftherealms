@@ -11,6 +11,7 @@ import { Kingdom } from './kingdom.js';
 import { Infrastructure } from '../systems/infrastructure.js';
 import { WorldUnit } from './units.js';
 import { KingdomBonuses } from './kingdomState.js';
+import { Religion } from '../systems/religion.js';
 
 export const Colonization = {
 
@@ -101,6 +102,11 @@ export const Colonization = {
             indigenousRelation: 0.1,
             loyaltyBonus: 0.1,
             productionBonus: 0.05,
+            // Read by Colonization.applyMissionaryWork
+            missionaryWork: {
+                radius: 4, tribeRelation: 0.05, tribeConversion: 0.01, tribeFollowers: 0.02,
+                settlementShare: 0.002, kingdomInfluence: 0.01, kingdomPiety: 0.01, maxKingdomGain: 0.05,
+            },
         },
     },
 
@@ -116,7 +122,7 @@ export const Colonization = {
         for (const kingdom of world.kingdoms) {
             if (!kingdom.colonization) {
                 kingdom.colonization = {
-                    policy: 'coexistence',
+                    policy: Colonization.defaultPolicy(kingdom),
                     colonies: [],          // [{q, r, name}]
                     pioneersActive: 0,
                 };
@@ -170,11 +176,11 @@ export const Colonization = {
     /**
      * Called each day from World.advanceDay()
      */
-    processTurn(world, playerBonuses = {}) {
+    processTurn(world, playerBonuses = {}, player = null) {
         // 1. Process all colonies for every kingdom
         for (const kingdom of world.kingdoms) {
             if (!kingdom.isAlive || !kingdom.colonization) continue;
-            Colonization.processKingdomColonies(kingdom, world, playerBonuses);
+            Colonization.processKingdomColonies(kingdom, world, playerBonuses, player);
         }
 
         // 2. Process indigenous population dynamics
@@ -190,14 +196,18 @@ export const Colonization = {
     /**
      * @param {Object} [playerBonuses] - { colonyGrowth, colonyLoyalty } from the
      *   player's techs, applied to the player's own colonies only
+     * @param {Object} [player] - the player, whose faith the player's own
+     *   Missionary colonies spread
      */
-    processKingdomColonies(kingdom, world, playerBonuses = {}) {
+    processKingdomColonies(kingdom, world, playerBonuses = {}, player = null) {
         if (!kingdom.colonization || !kingdom.colonization.colonies) return;
 
         const capitalQ = kingdom.capital ? kingdom.capital.q : 0;
         const capitalR = kingdom.capital ? kingdom.capital.r : 0;
 
         const toRemove = [];
+        // Culture/piety the mother kingdom has gained from missions today
+        const missionBudget = { gained: 0 };
 
         for (const colony of kingdom.colonization.colonies) {
             const tile = world.getTile(colony.q, colony.r);
@@ -260,6 +270,13 @@ export const Colonization = {
 
             if (colonyData.isPlayerColony && playerBonuses.colonyLoyalty) loyaltyChange += playerBonuses.colonyLoyalty;
             colonyData.loyalty = Utils.clamp(colonyData.loyalty + loyaltyChange, 0, 100);
+
+            // ── Missionary work (the Missionary policy's cultural influence) ──
+            if (colonyPolicy.missionaryWork) {
+                Colonization.applyMissionaryWork(tile, colony, colonyPolicy, kingdom, world, player, missionBudget);
+            } else if (colonyData.missionary) {
+                delete colonyData.missionary;
+            }
 
             // ── Colony growth ──
             if (colonyData.loyalty > 40) {
@@ -430,9 +447,15 @@ export const Colonization = {
 
     _ensureKingdomColonization(kingdom) {
         if (!kingdom.colonization) {
-            kingdom.colonization = { policy: 'coexistence', colonies: [], pioneersActive: 0 };
+            kingdom.colonization = { policy: Colonization.defaultPolicy(kingdom), colonies: [], pioneersActive: 0 };
         }
         return kingdom.colonization;
+    },
+
+    /** A realm's colonial policy by temperament: religious realms send missions. */
+    defaultPolicy(kingdom) {
+        const traits = (kingdom && kingdom.traits) || [];
+        return traits.includes('religious') && Colonization.POLICIES.missionary ? 'missionary' : 'coexistence';
     },
 
     /**
@@ -932,6 +955,84 @@ export const Colonization = {
     /**
      * Get indigenous populations near a hex
      */
+    /**
+     * A Missionary colony's daily cultural influence (policy.missionaryWork):
+     *  - tribes within `radius` warm to the newcomers (+tribeRelation/day) and
+     *    gradually take up their faith (ind.converted, ind.faith);
+     *  - the player's own missionary colonies spread the player's religion:
+     *    nearby settlements' share of the faith grows (Religion.addPresence)
+     *    and converted tribesfolk join as followers;
+     *  - the mother kingdom gains cultural influence and piety (at most
+     *    maxKingdomGain a day from all its missions).
+     * The summary lands in colony.missionary for the colony panel.
+     */
+    applyMissionaryWork(tile, colony, policy, kingdom, world, player = null, budget = null) {
+        const mw = policy && policy.missionaryWork;
+        const colonyData = tile && tile.settlement && tile.settlement.colony;
+        if (!mw || !colonyData) return null;
+        const religion = colonyData.isPlayerColony && player && player.religion ? player.religion : null;
+        const faithName = religion ? religion.name : (kingdom && kingdom.religion ? kingdom.religion.name : null);
+        const out = { tribes: 0, settlements: 0, followers: 0, faith: faithName };
+
+        for (const h of Hex.hexesInRange(colony.q, colony.r, mw.radius || 0)) {
+            const t = world.getTile(h.q, h.r);
+            if (!t) continue;
+            const ind = t.indigenous;
+            if (ind) {
+                out.tribes++;
+                ind.relation = Utils.clamp((ind.relation || 0) + (mw.tribeRelation || 0), -100, 100);
+                if (faithName) {
+                    if (!ind.faith || (ind.converted || 0) < 0.25) ind.faith = faithName;
+                    if (ind.faith === faithName) {
+                        ind.converted = Math.min(1, (ind.converted || 0) + (mw.tribeConversion || 0) * (1 - (ind.converted || 0)));
+                        ind.converted = Math.round(ind.converted * 10000) / 10000;
+                        if (religion) out.followers += (ind.population || 0) * (mw.tribeFollowers || 0);
+                    }
+                }
+            }
+            if (religion && t.settlement && t.settlement.population > 0) {
+                Religion.addPresence(religion, t.q, t.r, mw.settlementShare || 0);
+                out.settlements++;
+            }
+        }
+
+        // Converted tribesfolk join the player's faith (fractions carry over)
+        let joined = 0;
+        if (religion && out.followers > 0) {
+            colonyData.missionaryCarry = (colonyData.missionaryCarry || 0) + out.followers;
+            joined = Math.floor(colonyData.missionaryCarry);
+            if (joined > 0) {
+                religion.followers = (religion.followers || 0) + joined;
+                colonyData.missionaryCarry -= joined;
+            }
+        }
+
+        // The mother kingdom's culture and faith carry further
+        if (kingdom) {
+            const cap = typeof mw.maxKingdomGain === 'number' ? mw.maxKingdomGain : Infinity;
+            const used = budget ? budget.gained : 0;
+            const room = Math.max(0, cap - used);
+            const inf = Math.min(room, mw.kingdomInfluence || 0);
+            if (inf > 0 && kingdom.cultureData && typeof kingdom.cultureData.influence === 'number') {
+                kingdom.cultureData.influence = Math.min(100, kingdom.cultureData.influence + inf);
+            }
+            const piety = Math.min(room, mw.kingdomPiety || 0);
+            if (piety > 0 && kingdom.religion && typeof kingdom.religion.piety === 'number') {
+                kingdom.religion.piety = Math.min(100, kingdom.religion.piety + piety);
+            }
+            if (budget) budget.gained += Math.max(inf, piety);
+        }
+
+        colonyData.missionary = {
+            tribes: out.tribes,
+            settlements: out.settlements,
+            faith: faithName,
+            converts: ((colonyData.missionary && colonyData.missionary.converts) || 0) + joined,
+        };
+        out.followers = joined;
+        return out;
+    },
+
     /** The policy a colony follows: its own (player colonies) or its mother kingdom's. */
     getColonyPolicy(colonyData, kingdom) {
         const P = Colonization.POLICIES;

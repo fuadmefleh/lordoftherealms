@@ -80,10 +80,39 @@ export const KingdomBonuses = {
     TRADITION_KEYS,
     LABELS: BONUS_LABELS,
 
-    /** Fractional bonus for a key from ruler/advisors, NPC lord and tradition. */
+    /**
+     * What each kingdom trait (kingdom.traits: 'militaristic', 'orderly', ...)
+     * does: { label, summary, bonuses: { key: fraction } }. Loaded from
+     * data/kingdoms.json → traitEffects.
+     */
+    TRAITS: {},
+
+    /** Sum of one bonus key over the kingdom's traits. */
+    traitBonus(kingdom, key) {
+        const traits = kingdom && kingdom.traits;
+        if (!Array.isArray(traits) || !traits.length) return 0;
+        let total = 0;
+        for (const id of traits) {
+            const def = KingdomBonuses.TRAITS[id];
+            const v = def && def.bonuses ? def.bonuses[key] : undefined;
+            if (typeof v === 'number') total += v;
+        }
+        return total;
+    },
+
+    /** The kingdom's traits with what they do, for UI. [{ id, label, summary }] */
+    describeTraits(kingdom) {
+        return ((kingdom && kingdom.traits) || []).map(id => {
+            const def = KingdomBonuses.TRAITS[id] || {};
+            return { id, label: def.label || id, summary: def.summary || '' };
+        });
+    },
+
+    /** Fractional bonus for a key from traits, ruler/advisors, NPC lord and tradition. */
     get(kingdom, key) {
         if (!kingdom) return 0;
-        let total = 0;
+        // The realm's own character (data/kingdoms.json → traitEffects)
+        let total = KingdomBonuses.traitBonus(kingdom, key);
         const cb = kingdom.characterBonuses;
         if (cb && typeof cb[key] === 'number') total += cb[key];
 
@@ -366,6 +395,11 @@ export const KingdomStability = {
         if ((kingdom.treasury || 0) <= 0) t += add('Empty treasury', -15);
         if (kingdom.religion && typeof kingdom.religion.unity === 'number') {
             t += add('Faith unity', (kingdom.religion.unity - 50) * 0.1);
+        }
+        // Towns devoted to the player's faith (Justice tenet), set daily by
+        // PlayerReligion.processDaily
+        if (kingdom.playerFaith && typeof kingdom.playerFaith.stability === 'number') {
+            t += add('Faithful towns', kingdom.playerFaith.stability);
         }
         return { value: Utils.clamp(t, 0, 100), parts };
     },

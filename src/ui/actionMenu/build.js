@@ -355,18 +355,8 @@ Object.assign(ActionMenu, {
         const player = game.player;
         const karma = player.karma || 0;
 
-        const allTenets = [
-            { id: 'Peace',       icon: '☮️', desc: 'Seek harmony, avoid violence' },
-            { id: 'Charity',     icon: '🤲', desc: 'Give to the poor and needy' },
-            { id: 'Wisdom',      icon: '📖', desc: 'Pursue knowledge and truth' },
-            { id: 'Justice',     icon: '⚖️', desc: 'Uphold law and punish the wicked' },
-            { id: 'Valor',       icon: '⚔️', desc: 'Fight bravely for the righteous' },
-            { id: 'Humility',    icon: '🙇', desc: 'Live simply, reject vanity' },
-            { id: 'Prosperity',  icon: '🌾', desc: 'Bless the industrious with abundance' },
-            { id: 'Nature',      icon: '🌿', desc: 'Revere the natural world' },
-            { id: 'Sovereignty', icon: '👑', desc: 'Divine right of the faithful to rule' },
-            { id: 'Mysticism',   icon: '🔮', desc: 'Seek the hidden mysteries of the cosmos' },
-        ];
+        // Tenets and what they do come from data/religion.json → playerTenets
+        const allTenets = PlayerReligion.getTenetOptions();
 
         let selectedTenets = ['Peace', 'Charity', 'Wisdom']; // defaults
         let religionName = '';
@@ -415,7 +405,7 @@ Object.assign(ActionMenu, {
                 const borderCol = isSelected ? 'var(--gold)' : 'rgba(255,255,255,0.08)';
                 const bgCol = isSelected ? 'rgba(245,197,66,0.1)' : 'rgba(255,255,255,0.03)';
                 const checkmark = isSelected ? '✓ ' : '';
-                html += `<button onclick="window._frToggleTenet('${tenet.id}')"
+                html += `<button onclick="window._frToggleTenet('${tenet.id}')" title="${tenet.desc}${tenet.summary ? ` — ${tenet.summary}` : ''}"
                     style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; text-align: left;
                            background: ${bgCol}; border: 1px solid ${borderCol}; border-radius: 8px;
                            cursor: pointer; color: var(--text-primary); transition: all 0.15s;"
@@ -424,6 +414,7 @@ Object.assign(ActionMenu, {
                     <div style="flex: 1; min-width: 0;">
                         <div style="font-size: 12px; font-weight: 600; color: ${isSelected ? 'var(--gold)' : 'var(--text-primary)'};">${checkmark}${tenet.id}</div>
                         <div style="font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${tenet.desc}</div>
+                        ${tenet.summary ? `<div style="font-size: 10px; color: #8fd18f;">${tenet.summary}</div>` : ''}
                     </div>
                 </button>`;
             }
@@ -573,7 +564,8 @@ Object.assign(ActionMenu, {
         for (const [key, miracle] of Object.entries(PlayerReligion.MIRACLES)) {
             // Targeted miracles say what they would strike, or why they can't
             const check = PlayerReligion.checkMiracleTarget(game.player, miracle.id, game.world);
-            const canPerform = game.player.karma >= miracle.karmaCost && check.ok;
+            const cost = PlayerReligion.miracleCost(game.player, miracle); // Mysticism tenet
+            const canPerform = game.player.karma >= cost && check.ok;
             let targetLine = '';
             if (!check.ok) {
                 targetLine = `<div style="font-size: 12px; color: #ff9800;">${check.reason}</div>`;
@@ -595,7 +587,7 @@ Object.assign(ActionMenu, {
                             <div style="font-size: 12px;">Effect: ${miracle.effect}</div>
                             ${targetLine}
                         </div>
-                        <button onclick="window.performMiracle('${key}')" ${!canPerform ? 'disabled' : ''} style="padding: 8px 16px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer;">${miracle.karmaCost} karma</button>
+                        <button onclick="window.performMiracle('${key}')" ${!canPerform ? 'disabled' : ''} style="padding: 8px 16px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer;">${cost} karma${cost !== miracle.karmaCost ? ` <s style="opacity:0.6;">${miracle.karmaCost}</s>` : ''}</button>
                     </div>
                 </div>
             `;

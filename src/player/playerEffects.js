@@ -14,6 +14,12 @@ import { Technology } from '../systems/technology.js';
 import { LegendaryArtifacts } from '../systems/legendaryArtifacts.js';
 import { Peoples } from '../systems/peoples.js';
 import { Housing } from '../systems/housing.js';
+import { Religion } from '../systems/religion.js';
+
+/** Tenet effect of the player's own religion (0 without one). */
+function _tenet(player, key) {
+    return Religion.tenetBonus(player && player.religion, key);
+}
 
 /** Personal damage reduction from gear in the inventory (multiplicative). */
 const ARMOR_REDUCTION = { leather_armor: 0.2, shield: 0.15, amulet: 0.1 };
@@ -86,12 +92,40 @@ export const PlayerEffects = {
         }
         // Ledger of the Coin-Kings
         mult *= 1 + this.artifactBonus(player, 'propertyIncome');
+        // Prosperity tenet
+        mult *= 1 + _tenet(player, 'propertyIncome');
         return mult;
     },
 
-    /** "Bountiful Harvest" miracle: farms produce triple. */
+    /** "Bountiful Harvest" miracle: farms produce triple; Nature tenet +15%. */
     farmProductionMultiplier(player) {
-        return (player.blessings && player.blessings.harvest > 0) ? 3 : 1;
+        const harvest = (player.blessings && player.blessings.harvest > 0) ? 3 : 1;
+        return harvest * (1 + _tenet(player, 'farmYield'));
+    },
+
+    // ──────────── THE PLAYER'S FAITH ────────────
+
+    /** Battle power multiplier from the faith's tenets (Valor). */
+    faithBattleMultiplier(player) {
+        return 1 + _tenet(player, 'battlePower');
+    },
+
+    /** Army upkeep multiplier from the faith's tenets (Humility). */
+    faithUpkeepMultiplier(player) {
+        return Math.max(0.5, 1 + _tenet(player, 'upkeep'));
+    },
+
+    /**
+     * Better prices in a town devoted to the player's faith (the faithful
+     * deal kindly with their prophet).
+     */
+    faithTradeBonus(player, settlement) {
+        if (!player || !player.religion || !settlement) return 0;
+        // Live settlement objects don't carry coordinates; the player trades where they stand
+        const q = settlement.q != null ? settlement.q : player.q;
+        const r = settlement.r != null ? settlement.r : player.r;
+        if (q == null || r == null) return 0;
+        return Religion.isDevoted(player.religion, q, r) ? Religion.PLAYER_INFLUENCE.devotedTradeBonus : 0;
     },
 
     // ──────────── COMPANIONS ────────────
@@ -146,7 +180,8 @@ export const PlayerEffects = {
     /** Multiplier on reputation you earn: +5% per point of effective diplomacy, × mood. */
     reputationGainMultiplier(player) {
         return (1 + 0.05 * this.effectiveDiplomacy(player)) * this.moodReputationMultiplier(player)
-            * (1 + this.artifactBonus(player, 'reputationGain')); // Crown of Embers
+            * (1 + this.artifactBonus(player, 'reputationGain')) // Crown of Embers
+            * (1 + _tenet(player, 'reputationGain')); // Peace tenet
     },
 
     /** Scale a positive reputation gain by diplomacy (losses are untouched). */
@@ -157,7 +192,8 @@ export const PlayerEffects = {
     /** Added chance when negotiating with a lord: +2% per point of effective diplomacy. */
     negotiationBonus(player) {
         // Houses give standing: housing influence helps everywhere
-        return 0.02 * this.effectiveDiplomacy(player) + Housing.getNegotiationBonus(player);
+        return 0.02 * this.effectiveDiplomacy(player) + Housing.getNegotiationBonus(player)
+            + _tenet(player, 'negotiation'); // Sovereignty tenet
     },
 
     // ──────────── TRADE ────────────
@@ -175,6 +211,8 @@ export const PlayerEffects = {
         }
         // Mercantile peoples here, and peoples whose origin lore you know
         bonus += Peoples.playerTradeBonus(player, settlement);
+        // A town devoted to your faith
+        bonus += this.faithTradeBonus(player, settlement);
         return bonus;
     },
 
@@ -210,8 +248,8 @@ export const PlayerEffects = {
     /** Multiplier on battle casualties: none under Divine Protection. */
     casualtyMultiplier(player) {
         if (this.isProtected(player)) return 0;
-        // Banner of the Iron Host
-        return Math.max(0, 1 - this.artifactBonus(player, 'casualtyReduction'));
+        // Banner of the Iron Host, and the Valor tenet
+        return Math.max(0, 1 - this.artifactBonus(player, 'casualtyReduction') - _tenet(player, 'casualties'));
     },
 
     /** Multiplier on health the player personally loses (protection, then armour). */

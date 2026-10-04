@@ -1,6 +1,6 @@
 // UI — panels methods.
 import { UI } from './core.js';
-import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability } from './_imports.js';
+import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability, KingdomAI } from './_imports.js';
 
 Object.assign(UI.prototype, {
     /**
@@ -207,6 +207,16 @@ Object.assign(UI.prototype, {
             // Combined bonuses (ruler, advisors, NPC lord, culture tradition)
             // and the realm's stability — all of these feed the kingdom AI
             let bonusHtml = '';
+            // The realm's own traits and the temperament they give its AI
+            const traits = KingdomBonuses.describeTraits(kingdom);
+            if (traits.length > 0) {
+                const pid = KingdomAI.personalityId(kingdom);
+                const pers = KingdomAI.PERSONALITIES[pid] || {};
+                const traitBadges = traits.map(t => `<span style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;" title="${t.summary}">${t.label}</span>`).join(' ');
+                bonusHtml += `<div style="font-size:10px;color:var(--text-secondary);margin-top:4px;">🏰 Realm: ${traitBadges}
+                    · <span title="${pers.summary || ''}">temperament: ${pers.label || pid}</span></div>`;
+                bonusHtml += `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${traits.filter(t => t.summary).map(t => `${t.label}: ${t.summary}`).join(' · ')}</div>`;
+            }
             const bonusList = KingdomBonuses.summary(kingdom)
                 .map(b => `${b.label} ${b.value > 0 ? '+' : ''}${(b.value * 100).toFixed(0)}%`);
             if (bonusList.length > 0) {

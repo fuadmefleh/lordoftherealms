@@ -24,15 +24,27 @@ Object.assign(UI.prototype, {
         // ── PLAYER RELIGION ──
         html += '<div class="info-section-title">🙏 Your Religion</div>';
         if (player.religion) {
+            // What each tenet does (data/religion.json → playerTenets)
+            const tenetLines = (player.religion.tenets || []).map(id => {
+                const t = Religion.PLAYER_TENETS[id] || {};
+                return `<div style="font-size: 11px; margin-top: 2px;">${t.icon || '•'} <strong>${id}</strong>${t.summary ? ` <span style="color: #8fd18f;">— ${t.summary}</span>` : ''}</div>`;
+            }).join('');
+            const inf = PlayerReligion.influenceSummary(player);
             html += `
                 <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
                     <div style="font-size: 18px; color: var(--gold); font-family: var(--font-display);">${player.religion.name}</div>
-                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Tenets: ${player.religion.tenets.join(', ')}</div>
-                    <div style="display: flex; gap: 16px; margin-top: 8px; font-size: 13px;">
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Tenets:</div>
+                    ${tenetLines}
+                    <div style="display: flex; gap: 16px; margin-top: 8px; font-size: 13px; flex-wrap: wrap;">
                         <span>👥 ${Utils.formatNumber(player.religion.followers)} followers</span>
                         <span>📿 ${player.religion.influence} influence</span>
                         <span>🏛️ ${player.religion.buildings.length} buildings</span>
                         <span>💰 +${PlayerReligion.getFaithIncome(player)}/day</span>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px;" title="Influence = followers / 100, with diminishing returns">
+                        Influence: +${Math.round(inf.conversionBonus * 100)}% conversion · +${Math.round(inf.incomeBonus * 100)}% tithes ·
+                        reaches ${inf.reached} settlement${inf.reached === 1 ? '' : 's'}, ${inf.devoted} devoted
+                        (devoted towns give you better prices, spread the faith to neighbours and warm their realm toward you — zealous faiths resent it)
                     </div>
                 </div>
             `;

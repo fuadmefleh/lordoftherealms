@@ -22,6 +22,7 @@ import { Tavern } from '../player/tavern.js';
 import { NPCLords } from '../world/npcLords.js';
 import { KingdomAI } from '../world/kingdomAI.js';
 import { KingdomAtlas } from '../world/kingdomAtlas.js';
+import { KingdomBonuses } from '../world/kingdomState.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { WorldUnit } from '../world/units.js';
 import { Technology } from '../systems/technology.js';
@@ -266,6 +267,8 @@ export const DataLoader = {
         Kingdom._rulerTitles = kingdomData.rulerTitles;
         Kingdom._rulerNames = kingdomData.rulerNames;
         Kingdom._epithets = kingdomData.epithets;
+        // What each kingdom trait does (read by KingdomBonuses.get)
+        if (kingdomData.traitEffects) KingdomBonuses.TRAITS = kingdomData.traitEffects;
 
         // ── Characters ──
         const charData = data['characters.json'];
@@ -310,6 +313,9 @@ export const DataLoader = {
         Religion.KINGDOM_FAITHS = relData.kingdomFaiths;
         Religion.HOLY_SITE_TYPES = relData.holySiteTypes;
         Religion.HERESIES = relData.heresies;
+        // The player's own faith: what each tenet does and how influence pays off
+        if (relData.playerTenets) Religion.PLAYER_TENETS = relData.playerTenets;
+        if (relData.playerInfluence) Religion.PLAYER_INFLUENCE = relData.playerInfluence;
         if (relData.buildingTypes) {
             PlayerReligion.BUILDING_TYPES = relData.buildingTypes;
         }

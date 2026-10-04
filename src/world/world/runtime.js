@@ -94,7 +94,7 @@ Object.assign(World.prototype, {
 
         // Process colonization (colony loyalty, indigenous, AI expansion)
         if (typeof Colonization !== 'undefined') {
-            Colonization.processTurn(this, opts.playerBonuses || {});
+            Colonization.processTurn(this, opts.playerBonuses || {}, player);
         }
 
         // Process cartography (propaganda maps, kingdom cartography)

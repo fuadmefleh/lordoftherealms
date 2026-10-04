@@ -501,6 +501,9 @@ Object.assign(PlayerMilitary, {
             const mult = House.getRoleBonuses(player).armyUpkeepMult;
             if (mult != null) total = Math.round(total * mult);
         }
+        // The Humility tenet: soldiers of a humble faith ask for little
+        const faithMult = PlayerEffects.faithUpkeepMultiplier(player);
+        if (faithMult !== 1) total = Math.round(total * faithMult);
         return total;
     },
 

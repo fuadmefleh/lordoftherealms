@@ -206,6 +206,35 @@
     "frostmark": "stormfather",
     "ashkari": "dunewalkers"
   },
+  "playerTenets": {
+    "Peace":       { "icon": "☮️", "desc": "Seek harmony, avoid violence",            "summary": "+10% reputation gains; faithful realms warm to you 50% faster", "effects": { "reputationGain": 0.10, "kingdomRelations": 0.5 } },
+    "Charity":     { "icon": "🤲", "desc": "Give to the poor and needy",              "summary": "+20% conversion and +0.5 karma a day, but -25% tithes",       "effects": { "conversion": 0.20, "karmaPerDay": 0.5, "faithIncome": -0.25 } },
+    "Wisdom":      { "icon": "📖", "desc": "Pursue knowledge and truth",              "summary": "+10% research speed",                                         "effects": { "research": 0.10 } },
+    "Justice":     { "icon": "⚖️", "desc": "Uphold law and punish the wicked",        "summary": "Each devoted town steadies its realm (+1 stability, up to +3)", "effects": { "kingdomStability": 1 } },
+    "Valor":       { "icon": "⚔️", "desc": "Fight bravely for the righteous",         "summary": "+5% battle power and -10% casualties",                        "effects": { "battlePower": 0.05, "casualties": 0.10 } },
+    "Humility":    { "icon": "🙇", "desc": "Live simply, reject vanity",              "summary": "-10% army upkeep and +0.3 karma a day",                       "effects": { "upkeep": -0.10, "karmaPerDay": 0.3 } },
+    "Prosperity":  { "icon": "🌾", "desc": "Bless the industrious with abundance",    "summary": "+25% tithes and +5% property income",                         "effects": { "faithIncome": 0.25, "propertyIncome": 0.05 } },
+    "Nature":      { "icon": "🌿", "desc": "Revere the natural world",                "summary": "+15% farm yields",                                            "effects": { "farmYield": 0.15 } },
+    "Sovereignty": { "icon": "👑", "desc": "Divine right of the faithful to rule",    "summary": "+5% negotiation with lords; faithful realms warm to you twice as fast", "effects": { "negotiation": 0.05, "kingdomRelations": 1.0 } },
+    "Mysticism":   { "icon": "🔮", "desc": "Seek the hidden mysteries of the cosmos", "summary": "Miracles cost 20% less karma",                               "effects": { "miracleCost": -0.20 } }
+  },
+  "playerInfluence": {
+    "scale": 100,
+    "conversionBonus": 0.5,
+    "incomeBonus": 0.5,
+    "settlementGain": 0.003,
+    "organicSpread": 0.0005,
+    "organicRadius": 3,
+    "devotedShare": 0.25,
+    "devotedTradeBonus": 0.05,
+    "reputationPerDevoted": 0.1,
+    "maxReputationPerDay": 0.5,
+    "reputationCeiling": 50,
+    "militantPenaltyPerDevoted": 0.05,
+    "militantFloor": -30,
+    "militantMilitancy": 3,
+    "maxKingdomStability": 3
+  },
   "holySiteTypes": [
     { "id": "sacred_spring", "name": "Sacred Spring", "icon": "⛲", "bonusType": "healing", "faithBonus": 8, "incomeBonus": 50, "description": "Blessed waters said to cure ailments" },
     { "id": "ancient_altar", "name": "Ancient Altar", "icon": "🗿", "bonusType": "unity", "faithBonus": 12, "incomeBonus": 30, "description": "Stone altar predating written history" },

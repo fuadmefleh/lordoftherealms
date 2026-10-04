@@ -1,9 +1,14 @@
 {
   "personalities": {
-    "militaristic": { "expansionChance": 0.3, "warChance": 0.4, "tradeChance": 0.2 },
-    "peaceful": { "expansionChance": 0.1, "warChance": 0.05, "tradeChance": 0.5 },
-    "mercantile": { "expansionChance": 0.15, "warChance": 0.1, "tradeChance": 0.6 },
-    "aggressive": { "expansionChance": 0.4, "warChance": 0.5, "tradeChance": 0.1 },
-    "balanced": { "expansionChance": 0.2, "warChance": 0.2, "tradeChance": 0.3 }
+    "militaristic": {
+      "label": "Militaristic",
+      "summary": "Keeps a 15% larger standing army that rebuilds 50% faster; marches only when at least as strong as the foe, and rarely sues for peace",
+      "expansionChance": 0.3, "warChance": 0.4, "tradeChance": 0.2,
+      "armySize": 1.15, "regen": 1.5, "warRatio": 1.0, "recklessChance": 0.02, "sueChance": 0.5
+    },
+    "peaceful": { "label": "Peaceful", "summary": "Rarely expands or fights; trades widely", "expansionChance": 0.1, "warChance": 0.05, "tradeChance": 0.5 },
+    "mercantile": { "label": "Mercantile", "summary": "Trade first, war seldom", "expansionChance": 0.15, "warChance": 0.1, "tradeChance": 0.6 },
+    "aggressive": { "label": "Aggressive", "summary": "Expands and declares war often, sometimes recklessly", "expansionChance": 0.4, "warChance": 0.5, "tradeChance": 0.1 },
+    "balanced": { "label": "Balanced", "summary": "A little of everything", "expansionChance": 0.2, "warChance": 0.2, "tradeChance": 0.3 }
   }
 }

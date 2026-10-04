@@ -155,6 +155,7 @@ export const SaveLoad = {
             conqueredBy: k.conqueredBy || null,
             conqueredDay: k.conqueredDay != null ? k.conqueredDay : null,
             lord: k.lord,
+            temples: k.temples || [], // funded by pious lords (KingdomAI.fundTemple)
             characterData: typeof Characters !== 'undefined' ? Characters.serialize(k) : (k.characterData || null),
             colonization: k.colonization || null,
             cartography: k.cartography || null,

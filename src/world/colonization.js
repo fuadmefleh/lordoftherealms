@@ -410,74 +410,90 @@ export const Colonization = {
 
     /**
      * AI kingdoms may send pioneer parties to colonize distant unclaimed land
+     * (every ~15 days, 20% chance each).
      */
     processKingdomColonization(world) {
         for (const kingdom of world.kingdoms) {
             if (!kingdom.isAlive || !kingdom.capital) continue;
-            if (!kingdom.colonization) {
-                kingdom.colonization = { policy: 'coexistence', colonies: [], pioneersActive: 0 };
-            }
-
-            // Chance to launch a pioneer party (every ~15 days, 20% chance)
+            Colonization._ensureKingdomColonization(kingdom);
             if (world.day % 15 !== 0 || Utils.random() > 0.20) continue;
-
-            // Only if kingdom is stable enough
-            if (kingdom.treasury < 300 || kingdom.military < 100) continue;
-            if (kingdom.colonization.colonies.length >= 5) continue; // max 5 AI colonies
-            if (kingdom.colonization.pioneersActive >= 2) continue;
-
-            // Find a target: unclaimed passable tile far from capital but reachable.
-            // Explorer rulers (visionRadius) scout further and survey more sites.
-            const vision = Math.max(0, KingdomBonuses.get(kingdom, 'visionRadius'));
-            const targetDist = Utils.randInt(10, Math.round(20 * (1 + vision)));
-            const attempts = Math.round(40 * (1 + vision));
-            let bestTarget = null;
-            let bestScore = -Infinity;
-
-            for (let attempt = 0; attempt < attempts; attempt++) {
-                const angle = Utils.random() * Math.PI * 2;
-                const tq = Math.round(kingdom.capital.q + Math.cos(angle) * targetDist);
-                const tr = Math.round(kingdom.capital.r + Math.sin(angle) * targetDist * 0.75);
-                const wq = Hex.wrapQ(tq, world.width);
-                if (tr < 3 || tr >= world.height - 3) continue;
-
-                const tile = world.getTile(wq, tr);
-                if (!tile || !tile.terrain.passable || tile.settlement || tile.kingdom) continue;
-
-                // Score by resources, distance from others
-                const settlements = world.getAllSettlements();
-                const minDist = settlements.reduce((min, s) => Math.min(min, Hex.wrappingDistance(wq, tr, s.q, s.r, world.width)), Infinity);
-                if (minDist < Colonization.MIN_SETTLEMENT_DISTANCE) continue;
-
-                let score = minDist * 2;
-                if (tile.resource) score += 30;
-                const nearbyRes = Economy.getNearbyResources(wq, tr, world, 3);
-                score += nearbyRes.length * 10;
-
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestTarget = { q: wq, r: tr };
-                }
-            }
-
-            if (!bestTarget) continue;
-
-            // Spawn a pioneer settler unit
-            const settler = new WorldUnit('settler', kingdom.capital.q, kingdom.capital.r, bestTarget.q, bestTarget.r);
-            settler.name = `${kingdom.name.split(' ').pop()} Pioneers`;
-            settler.kingdomId = kingdom.id;
-            settler.isPioneer = true;
-            world.units.push(settler);
-
-            kingdom.colonization.pioneersActive++;
-            kingdom.treasury -= 200;
-
-            world.events.push({
-                text: `🚩 ${kingdom.name} has sent pioneers to colonize distant lands!`,
-                type: 'colonization',
-                category: 'POLITICAL',
-            });
+            Colonization.launchKingdomPioneers(kingdom, world);
         }
+    },
+
+    _ensureKingdomColonization(kingdom) {
+        if (!kingdom.colonization) {
+            kingdom.colonization = { policy: 'coexistence', colonies: [], pioneersActive: 0 };
+        }
+        return kingdom.colonization;
+    },
+
+    /**
+     * One kingdom tries to send a pioneer party now (no schedule roll) — the
+     * daily sweep above and an NPC lord's 'colonize' goal both use it.
+     * Returns the settler unit, or null when the realm can't or finds no site.
+     */
+    launchKingdomPioneers(kingdom, world) {
+        if (!kingdom || !kingdom.isAlive || !kingdom.capital) return null;
+        Colonization._ensureKingdomColonization(kingdom);
+
+        // Only if kingdom is stable enough
+        if (kingdom.treasury < 300 || kingdom.military < 100) return null;
+        if (kingdom.colonization.colonies.length >= 5) return null; // max 5 AI colonies
+        if (kingdom.colonization.pioneersActive >= 2) return null;
+
+        // Find a target: unclaimed passable tile far from capital but reachable.
+        // Explorer rulers (visionRadius) scout further and survey more sites.
+        const vision = Math.max(0, KingdomBonuses.get(kingdom, 'visionRadius'));
+        const targetDist = Utils.randInt(10, Math.round(20 * (1 + vision)));
+        const attempts = Math.round(40 * (1 + vision));
+        let bestTarget = null;
+        let bestScore = -Infinity;
+
+        for (let attempt = 0; attempt < attempts; attempt++) {
+            const angle = Utils.random() * Math.PI * 2;
+            const tq = Math.round(kingdom.capital.q + Math.cos(angle) * targetDist);
+            const tr = Math.round(kingdom.capital.r + Math.sin(angle) * targetDist * 0.75);
+            const wq = Hex.wrapQ(tq, world.width);
+            if (tr < 3 || tr >= world.height - 3) continue;
+
+            const tile = world.getTile(wq, tr);
+            if (!tile || !tile.terrain.passable || tile.settlement || tile.kingdom) continue;
+
+            // Score by resources, distance from others
+            const settlements = world.getAllSettlements();
+            const minDist = settlements.reduce((min, s) => Math.min(min, Hex.wrappingDistance(wq, tr, s.q, s.r, world.width)), Infinity);
+            if (minDist < Colonization.MIN_SETTLEMENT_DISTANCE) continue;
+
+            let score = minDist * 2;
+            if (tile.resource) score += 30;
+            const nearbyRes = Economy.getNearbyResources(wq, tr, world, 3);
+            score += nearbyRes.length * 10;
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestTarget = { q: wq, r: tr };
+            }
+        }
+
+        if (!bestTarget) return null;
+
+        // Spawn a pioneer settler unit
+        const settler = new WorldUnit('settler', kingdom.capital.q, kingdom.capital.r, bestTarget.q, bestTarget.r);
+        settler.name = `${kingdom.name.split(' ').pop()} Pioneers`;
+        settler.kingdomId = kingdom.id;
+        settler.isPioneer = true;
+        world.units.push(settler);
+
+        kingdom.colonization.pioneersActive++;
+        kingdom.treasury -= 200;
+
+        world.events.push({
+            text: `🚩 ${kingdom.name} has sent pioneers to colonize distant lands!`,
+            type: 'colonization',
+            category: 'POLITICAL',
+        });
+        return settler;
     },
 
 

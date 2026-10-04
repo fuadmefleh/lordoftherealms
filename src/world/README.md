@@ -15,8 +15,8 @@ The world model: terrain generation, kingdoms, settlements, economy, NPCs, and e
 | `innerMap/` | ~2000 | Inner-map model: tile generation, object/building placement, pathfinding |
 | `kingdom.js` | ~440 | Kingdom templates, placement, initial relations |
 | `kingdomAI.js` | ~700 | Kingdom decision-making, expansion, diplomacy AI |
-| `kingdomState.js` | ~200 | `KingdomBonuses` (ruler/advisor + NPC lord + tradition bonuses combined) and `KingdomStability` (0-100 stat, drift, rebellion risk) |
-| `npcLords.js` | ~600 | Noble lords: generation, titles, fiefs, court events |
+| `kingdomState.js` | ~300 | `KingdomBonuses` (ruler/advisor + NPC lord + tradition bonuses combined), `LordInfluence` (lord stats and goal modifiers read by the kingdom AI) and `KingdomStability` (0-100 stat, drift, rebellion risk) |
+| `npcLords.js` | ~600 | Kingdom lords: generation, traits → goals, daily goal actions (trade, faith, justice, domination, fear, survive, …), succession |
 | `settlementGenerator.js` | ~800 | Settlement generation: size, buildings, population |
 | `terrain/` | ~1680 | Terrain types, world map generation (noise-based), rivers |
 | `units.js` | ~500 | Military unit definitions, combat formulas |

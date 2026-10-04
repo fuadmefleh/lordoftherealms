@@ -692,6 +692,10 @@ Object.assign(ActionMenu, {
             summary += `<div style="margin-bottom: 8px;">${result.contestResult.text}</div>`;
             summary += `<div style="font-size: 12px; color: #ddd; margin-bottom: 8px;">+${result.renownGain} renown · Morale boost ${Math.round(result.moraleBoost * 100)}% for ${result.moraleDays} days</div>`;
             summary += `<div style="font-size: 11px; color: #aaa; margin-bottom: 10px;">Contest prize: ${result.contestPrize}g</div>`;
+            const lc = result.localCustoms;
+            if (lc && (lc.custom || lc.sentimentGain)) {
+                summary += `<div style="font-size: 12px; color: #c5e1a5; margin-bottom: 10px;">🎊 ${lc.custom ? `The locals fold in their ${lc.custom}` : 'The local peoples join in'}${lc.renownBonus ? ` (+${lc.renownBonus} renown)` : ''} · every people here +${lc.sentimentGain} mood</div>`;
+            }
 
             if (result.reputations.length > 0) {
                 summary += '<div style="font-size: 11px; text-transform: uppercase; color: #3498db; letter-spacing: 1px; margin-bottom: 4px;">Diplomatic Outcomes</div>';

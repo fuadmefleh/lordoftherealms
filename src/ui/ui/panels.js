@@ -212,6 +212,15 @@ Object.assign(UI.prototype, {
             if (bonusList.length > 0) {
                 bonusHtml = `<div style="font-size:10px;color:var(--text-secondary);margin-top:4px;">${bonusList.join(' · ')}</div>`;
             }
+            // The share of those bonuses that comes from the realm's peoples
+            if (kingdom.peoples && kingdom.peoples.bonuses) {
+                const fromPeoples = Object.entries(kingdom.peoples.bonuses)
+                    .filter(([, v]) => Math.abs(v) >= 0.005)
+                    .map(([k, v]) => `${KingdomBonuses.LABELS[k] || k} ${v > 0 ? '+' : ''}${(v * 100).toFixed(0)}%`);
+                if (fromPeoples.length > 0) {
+                    bonusHtml += `<div style="font-size:10px;color:var(--text-secondary);margin-top:2px;" title="Population-weighted values and traits of the peoples in this realm's settlements (included above)">🏘️ From its peoples: ${fromPeoples.join(' · ')} · harmony ${kingdom.peoples.harmony}</div>`;
+                }
+            }
             if (typeof kingdom.stability === 'number') {
                 const st = kingdom.stability;
                 const target = KingdomStability.target(kingdom, this.game.world);

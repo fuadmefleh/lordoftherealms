@@ -488,7 +488,7 @@ Object.assign(UI.prototype, {
             const h = st.happiness;
             const face = h >= 70 ? '😊' : h >= 40 ? '😐' : '😠';
             return `<div style="display:flex; justify-content:space-between; font-size:12px; padding:3px 0;">
-                <span>${st.name}</span><span>${face} ${h}/100 · ~${st.collected}g/wk</span></div>`;
+                <span>${st.name}${st.peoplesMood ? ` <span style="font-size:10px; color:${st.peoplesMood > 0 ? '#81c784' : '#e57373'};" title="Mood target shift from the peoples living there (their values, traits and harmony)">🏘️ ${st.peoplesMood > 0 ? '+' : ''}${st.peoplesMood}</span>` : ''}</span><span>${face} ${h}/100 · ~${st.collected}g/wk</span></div>`;
         }).join('');
         const canSet = Taxation.canSetTaxes(player);
 

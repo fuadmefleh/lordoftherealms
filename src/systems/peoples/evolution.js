@@ -147,6 +147,7 @@ Object.assign(Peoples, {
      */
     processTurn(world) {
         const allSettlements = world.getAllSettlements();
+        const kingdomTotals = {};
 
         for (const s of allSettlements) {
             const tile = world.getTile(s.q, s.r);
@@ -157,13 +158,18 @@ Object.assign(Peoples, {
             // 1. Organic population shifts between demographics
             Peoples.processPopulationDrift(settlement);
 
-            // 2. Cultural interactions (rare events)
-            if (Utils.random() < 0.005) { // 0.5% per day per settlement
+            // 1b. Peoples living on their homeland terrain slowly grow content
+            Peoples.applyHomeland(settlement, s.q, s.r, world);
+
+            // 2. Cultural interactions (rare events) — ~0.5% a day, more often
+            // in later evolution stages (towns and cities mingle more)
+            if (Utils.random() < Peoples.interactionChance(settlement)) {
                 Peoples.generateCulturalInteraction(settlement, world);
             }
 
-            // 3. Slow harmony drift
-            settlement.culturalHarmony = Peoples.calculateHarmony(settlement.demographics);
+            // 3. Slow harmony drift; hybrid traditions bind the peoples together
+            settlement.culturalHarmony = Math.min(100,
+                Peoples.calculateHarmony(settlement.demographics) + Peoples.hybridHarmonyBonus(settlement));
 
             // 4. Cultural harmony effects on settlement
             if (settlement.culturalHarmony > 80) {
@@ -175,7 +181,14 @@ Object.assign(Peoples, {
                     settlement.population = Math.max(10, settlement.population - Utils.randInt(1, 5));
                 }
             }
+
+            // 5. What the peoples do: production, trade, growth, mood,
+            // recruitment and the realm bonuses (systems/peoples/effects.js)
+            Peoples.refreshEffects(settlement);
+            Peoples.accumulateKingdom(kingdomTotals, settlement);
         }
+
+        Peoples.applyKingdomTotals(world, kingdomTotals);
     },
 
     /**
@@ -292,6 +305,7 @@ Object.assign(Peoples, {
                 influence: d.influence,
                 parentCulture: d.tribe.parentCulture,
                 proverb: d.tribe.proverb,
+                homeland: Peoples.homelandLabel(d),
             }));
     },
 
@@ -385,13 +399,16 @@ Object.assign(Peoples, {
             candidates.splice(idx, 1);
         }
 
+        // Origin lore earns a people's trust (heritage trade bonus)
+        Peoples.syncHeritage(player, world, allHistory);
+
         return discovered;
     },
 
     /**
      * Build HTML for displaying a settlement's demographics in the UI.
      */
-    buildDemographicsHTML(settlement) {
+    buildDemographicsHTML(settlement, player = null) {
         if (!settlement || !settlement.demographics) return '';
 
         const demos = Peoples.getDemographicsSummary(settlement);
@@ -443,9 +460,28 @@ Object.assign(Peoples, {
             }
         }
 
+        const { stage } = Peoples.getEvolutionStage(settlement.population);
+        if (stage) {
+            html += `<div style="color: var(--text-secondary); font-size: 11px; margin-top: 6px;" title="Bigger, more mixed places see cultural exchanges more often">${stage.icon} ${stage.name} — ${stage.description}</div>`;
+        }
+
         html += `</div>`;
 
+        // What the peoples actually do here (systems/peoples/effects.js)
+        const effects = Peoples.describeEffects(settlement, player);
+        if (effects.length > 0) {
+            html += `<div class="info-section-title" style="font-size: 12px;">What the Peoples Bring</div>`;
+            html += `<div style="background: rgba(0,0,0,0.2); padding: 8px; border-radius: 6px; margin-bottom: 8px;">`;
+            for (const e of effects) {
+                const tip = e.why ? ` title="From: ${String(e.why).replace(/"/g, '&quot;')}"` : '';
+                html += `<div style="font-size: 11px; padding: 2px 0; color: var(--text-secondary);"${tip}>${e.icon} <strong style="color: #fff;">${e.label}</strong> ${e.text}</div>`;
+            }
+            html += `</div>`;
+        }
+
         // Population breakdown
+        const hl = (Peoples.EFFECTS && Peoples.EFFECTS.homeland) || { sentimentGain: 1, everyDays: 10, sentimentCap: 85 };
+        const homelandTip = `Living on their homeland: +${hl.sentimentGain} mood every ${hl.everyDays} days (up to ${hl.sentimentCap})`;
         html += `<div style="margin-bottom: 8px;">`;
         for (const demo of demos) {
             const barWidth = Math.max(5, demo.share);
@@ -459,7 +495,7 @@ Object.assign(Peoples, {
                         <span style="color: var(--text-secondary); font-size: 11px;">${Utils.formatNumber(demo.population)} (${demo.share}%)</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary);">
-                        <span>${statusLabel} • ${demo.parentCulture}</span>
+                        <span>${statusLabel} • ${demo.parentCulture}${demo.homeland ? ` • <span style="color:#8bc34a;" title="${homelandTip}">🏞️ ${demo.homeland}</span>` : ''}</span>
                         <span style="color: ${sentimentColor};">Mood: ${demo.sentiment > 70 ? '😊' : demo.sentiment > 40 ? '😐' : '😠'} ${demo.sentiment}/100</span>
                     </div>
                     <div style="background: rgba(255,255,255,0.1); border-radius: 2px; height: 3px; margin-top: 4px; overflow: hidden;">

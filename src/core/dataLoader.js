@@ -331,6 +331,10 @@ export const DataLoader = {
         if (peopleData.quarterNames) {
             Peoples._quarterNames = peopleData.quarterNames;
         }
+        // What the peoples actually do (systems/peoples/effects.js)
+        if (peopleData.effects) {
+            Peoples.EFFECTS = peopleData.effects;
+        }
 
         // ── Colonization ──
         const colData = data['colonization.json'];

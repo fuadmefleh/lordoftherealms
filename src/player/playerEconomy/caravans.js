@@ -1,6 +1,7 @@
 // PlayerEconomy — caravans members.
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
+import { Underworld } from '../../systems/underworld.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerInventory, Economy } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
@@ -354,7 +355,8 @@ Object.assign(PlayerEconomy, {
                             grossRevenue = Math.floor(grossRevenue * prosperityBonus * roadBonus);
 
                             if (caravan.isSmugglingRoute) {
-                                const smuggleMultiplier = 1.35 + (routeRef.prosperity || 0) * 0.05;
+                                // A blockaded realm or the lean season pays more for what slips through
+                                const smuggleMultiplier = (1.35 + (routeRef.prosperity || 0) * 0.05) * Underworld.smugglingProfitMultiplier(world, targetTile);
                                 grossRevenue = Math.floor(grossRevenue * smuggleMultiplier);
                             }
                         }
@@ -368,6 +370,7 @@ Object.assign(PlayerEconomy, {
                         const stealth = player.skills?.stealth || 1;
                         const caughtChance = Math.max(0.06, Math.min(0.62,
                             0.28 + dist * 0.01 - stealth * 0.02 - (routeRef.protection || 0) * 0.03
+                                + Underworld.smugglingCatchBonus(world, targetTile)
                         ));
 
                         if (Utils.random() < caughtChance) {
@@ -385,6 +388,11 @@ Object.assign(PlayerEconomy, {
                                 player.reputation[targetTile.settlement.kingdom] = (player.reputation[targetTile.settlement.kingdom] || 0) - 4;
                             }
                         }
+                    }
+
+                    // Every run feeds heat with the destination's crown — more if intercepted
+                    if (caravan.isSmugglingRoute && targetTile && targetTile.settlement && targetTile.settlement.kingdom) {
+                        Underworld.recordCrime(player, world, 'smuggling_route', { kingdom: targetTile.settlement.kingdom, caught: smuggleCaught });
                     }
 
                     // Commerce techs (trade networks, guilds, ...) raise caravan returns

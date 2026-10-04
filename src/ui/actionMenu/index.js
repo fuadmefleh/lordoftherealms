@@ -18,6 +18,7 @@ import './services.js';
 import './realmPolitics.js';
 import './court.js';
 import './delves.js';
+import './underworld.js';
 
 // Expose ActionMenu globally so inline onclick handlers in dynamic HTML can access it
 window.ActionMenu = ActionMenu;

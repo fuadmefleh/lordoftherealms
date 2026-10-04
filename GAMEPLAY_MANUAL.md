@@ -22,6 +22,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 12. [Technology & Research](#12-technology--research)
 13. [Infrastructure](#13-infrastructure)
 14. [Espionage](#14-espionage)
+    - [The Underworld](#the-underworld) — heat, the thieves' guild, contraband, fences
 15. [Ships & Naval](#15-ships--naval)
 16. [Kingdoms & Diplomacy](#16-kingdoms--diplomacy)
 17. [Titles & Royal Office](#17-titles--royal-office)
@@ -691,6 +692,8 @@ Routes auto-dispatch when goods are available, based on a configurable frequency
 
 **Smuggling Risk**: Chance of being caught depends on distance, stealth skill, and protection level. Getting caught means confiscation of 35–55% of profits, fines, −2 karma, and −4 reputation.
 
+Every smuggling run raises **heat** with the destination's crown (more if intercepted — see [The Underworld](#the-underworld)). Running goods into a **blockaded** realm pays half again as much (more if its port is sealed by enemy fleets) but adds 15% to the catch chance; the **lean season** adds another 15% to the take.
+
 ---
 
 ## 8. Housing
@@ -1204,6 +1207,83 @@ Spy loyalty starts at 45–90 and decays at 0.1/day. Below 20 loyalty, there is 
 - **Incite Rebellion** knocks 20 points off the realm's stability (30 on a critical success), and keeps draining it each day the rising lasts.
 - **Traits:** an Alchemist adds +15% success on assassinations; a Court Insider adds +10% when stealing technology.
 - **Critical successes** earn half again the renown and raise the spy's loyalty by 5.
+
+## The Underworld
+
+A criminal path through the realms, alongside the honest one. Everything here is driven by `data/underworld.json`.
+
+### Heat
+
+**Heat** is your notoriety with one kingdom's watch, from 0 to 100, shown per realm in the **Underworld** panel (and on the action itself: *Underworld (heat 34)*).
+
+- **Raised by crimes:** pickpocketing (+3), burglary (+8), protection rackets (+6, then +3 a week), heists (+25), black-market deals (+2, scaled by how illegal the goods are), smuggling — by hand or by route (+2 to +4), piracy (+12 with the realm whose waters it was) and robbing caravans. Being caught raises it far more (+10 to +35).
+- **Cools** by 1 a day everywhere. **Lie low** in a realm (from the panel) and it cools by 4 a day there for 3 days — but you take no jobs in that realm meanwhile.
+- **Bribe the watch** (1 AP): pay to knock up to 30 heat off. The price scales with the heat and the town's guard strength; guild rank discounts it (5% per rank). About 1 in 10 sergeants takes the gold and reports you anyway (more in *orderly* realms, fewer if you are charming).
+- Answering to the guards at the guard tower (settling your bounties) also cools heat to 20.
+
+| Heat | Level | What happens |
+|------|-------|--------------|
+| 25+ | **Watched** | A warning as you enter its settlements; guards may **search** you at the gate |
+| 50+ | **Wanted posters** | A bounty is posted on you (through the gossip system) |
+| 60+ | **Arrest risk** | A search can end in arrest |
+| 80+ | **Warrant** | A kingdom-wide warrant: merchants, taverns and recruiters there refuse you until you settle with the guards |
+
+**Guard searches.** Entering a settlement in a realm where you are watched, guards may search you — the higher the heat and the bigger the garrison, the likelier. They **confiscate** goods banned there and any **hot** goods, fine you (more for what they find), and may **arrest** you into the town jail (2+ days, bail available). A clean search cools your heat by 3.
+
+**Guard strength** is village 1, town 2, city 3, capital 4, adjusted by the realm's character (*orderly* +0.75, *militaristic* and *defensive* +0.5, *secretive* −0.5, *mercantile* −0.25…).
+
+### The Thieves' Guild
+
+In any **town, city or capital** tavern, *ask the barkeep about "special work"* (30g) to meet a guild contact. The contact opens the **fence** and the **black market** to you; swearing the oath (100g) makes you a member.
+
+**Ranks** rise with guild standing earned from jobs:
+
+| Rank | Standing | Unlocks |
+|------|----------|---------|
+| Footpad | 0 | Working the crowd, the fence |
+| Cutpurse | 20 | Burglary |
+| Prowler | 55 | Protection rackets; you are now **known** as a guild man |
+| Shadow | 110 | Heists |
+| Master Thief | 190 | — |
+| Guildmaster | 300 | A **weekly cut**: 150g + 25g per racket you run |
+
+**Jobs** (from the Underworld panel, in towns and cities):
+
+| Job | AP | Reward |
+|-----|----|--------|
+| Work the Crowd | 2 | 6–28g, more in well-guarded towns |
+| Burgle a Merchant's House | 4 | 20–70g plus goods — **hot** |
+| Protection Racket | 3 | A weekly payment from the town (4% of its population, 20–160g); one racket per rank. Heat 70+ in that realm risks the watch breaking it up |
+| Heist | 6 | Hundreds of gold and rare loot (hot) — see below |
+
+**Odds** = the job's base + 4% per Stealth point + the job's stat (Luck, Intelligence or Strength) + 2% per guild rank + **traits** (Cunning +8%, Deceitful +6%, Brave +2%, Honest −5%, Craven −3%) − 6% per point of guard strength − local heat. A failed job either comes away empty-handed or gets you **caught**: a fine, heat, a theft rumour that spreads like any other, and possibly jail.
+
+**Heists** are planned before they are struck. Pick a mark — the Counting House or a Noble's Manor (towns), the Temple Vault (cities; costs karma), the Royal Treasury (capitals) — then take planning steps in that town within 14 days: **case the target** (+12%), **lockpicks & rope** (80g, +8%), **a crew** (140g, +14%), **an inside man** (180g, +16%), **the getaway** (60g, +5%, halves the arrest chance if it goes wrong). Then strike.
+
+### Contraband & the Black Market
+
+Each kingdom bans or tariffs goods according to its **culture and faith**:
+
+- Everywhere: poison, forged documents and stolen goods are banned.
+- *Religious* realms ban liquor and rum and tariff ale, mead and perfume; any realm whose faith runs deep (**piety 65+**) bans spirits too.
+- *Desert* realms ban wine; *Woodland* realms ban ivory and tariff pelts; *Arcane* realms ban enchanted weapons; *Swamp* realms ban holy water; *Imperial* realms tariff weapons; *Mountain* realms tariff gems and gold; and so on.
+- Faiths add their own: the Solar Covenant and the Starseers ban the **relic trade**; the Dunewalkers ban spirits; the Earthroot bans ivory.
+
+The legal market **refuses** banned goods and pays **25% less** for tariffed ones (the crown's cut). The panel lists what is banned and tariffed in the realm you are in.
+
+The **black market** (open once you have a guild contact) buys anything you carry that isn't hot, at a premium: ×1.05 for legal goods, ×1.35 tariffed, ×1.9 banned. A **blockaded** realm pays +0.5 more (+0.75 more again where its port is sealed by enemy fleets); in the **lean season** food fetches +0.35 and contraband +0.15. Each deal costs 1 AP and risks a raid — likelier with bigger garrisons, higher heat and under blockade, less likely with Stealth and a cunning character. Under blockade, deals raise twice the heat.
+
+### Hot Goods & Fences
+
+Goods you steal are **hot** for 10 days. The legal market and the black market won't touch them; only a **fence** will — at 50% of their worth (+4% per guild rank), no questions asked. Guards who search you seize hot goods. Loot still respects your carrying capacity: what doesn't fit is left behind.
+
+### Consequences
+
+- Crimes feed your **character traits**: Deceit and Cunning (toward *Deceitful* and *Cunning*), Greed, and for rackets Cruelty and Dread. Most cost a little **karma**.
+- Being caught spreads **gossip** about you like any witnessed theft.
+- A **known guild member** (rank Prowler or above, or caught at Cutpurse or above) is treated differently: guards, priests and nobles warm to you more slowly, beggars and travellers faster; *cunning*, *greedy* and *cruel* lords think better of you, *honorable*, *pious* and *cautious* ones worse.
+
+---
 
 ## 15. Ships & Naval
 

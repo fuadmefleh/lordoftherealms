@@ -108,6 +108,7 @@ Object.assign(ActionMenu, {
             bless_settlement: 'social', hold_council: 'social',
             espionage_menu: 'social', manage_spies: 'social',
             hold_court: 'social',
+            underworld: 'commerce',
         };
 
         for (const action of actions) {
@@ -373,6 +374,7 @@ Object.assign(ActionMenu, {
         view_relationships: 0, manage_dynasty: 0,
         manage_fleet: 0, manage_house: 0, manage_property: 0, manage_colony: 0,
         hold_court: 0,
+        underworld: 0, // jobs inside the panel cost their own AP
 
         // Light actions (1 AP)
         trade: 1, collect_goods: 1, donate: 1,
@@ -879,6 +881,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'hold_council':
                 ActionMenu.doHoldCouncil(game, tile);
+                break;
+            case 'underworld':
+                ActionMenu.showUnderworldPanel(game, tile);
                 break;
             case 'hold_court':
                 ActionMenu.showCourtPanel(game, tile);

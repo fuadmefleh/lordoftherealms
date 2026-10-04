@@ -1222,6 +1222,11 @@ Object.assign(ActionMenu, {
                 ActionMenu.showMapTradeMenu(game, tile);
                 return;
             }
+            // The guild contact opens the underworld panel
+            if (rumors.some(r => r.openUnderworld)) {
+                ActionMenu.showUnderworldPanel(game, tile);
+                return;
+            }
 
             // Discover kingdom knowledge from tavern — wider range of categories
             const tavernKingdomId = tile.kingdom || (tile.settlement && tile.settlement.kingdom);

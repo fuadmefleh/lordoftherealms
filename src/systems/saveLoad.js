@@ -15,6 +15,7 @@ import { Traits } from './traits.js';
 import { Petitions } from './petitions.js';
 import { Companions } from './companions.js';
 import { Delves } from './delves.js';
+import { Underworld } from './underworld.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 
 
@@ -326,6 +327,8 @@ export const SaveLoad = {
 
             // Earned character traits
             traits: Traits.serialize(player),
+            // The underworld: heat per realm, guild rank, hot goods, rackets, heist plans
+            underworld: Underworld.serialize(player),
             // Court petitions (pending, follow-ups, rulings history, court reputation)
             petitions: player.petitions ? JSON.parse(JSON.stringify(player.petitions)) : null,
             // Travelling companions: deed snapshot, bonds, mourning, notices (per-companion
@@ -490,6 +493,8 @@ export const SaveLoad = {
 
         // Earned traits (backfills a blank record for saves from before them)
         Traits.loadState(player);
+        // The underworld (backfills a blank record for saves from before it)
+        Underworld.loadState(player);
         // Court petitions — older saves have none (backfilled lazily once there is state)
         if (player.petitions) Petitions.loadState(player);
         else player.petitions = null;

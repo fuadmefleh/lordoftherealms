@@ -2,6 +2,7 @@
 import { PlayerMilitary } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
 import { Companions } from '../../systems/companions.js';
+import { Underworld } from '../../systems/underworld.js';
 import { Utils, Technology, House, Quests, RealmWars, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
@@ -654,6 +655,9 @@ Object.assign(PlayerMilitary, {
                     karmaChange = -3;
                     Traits.recordDeeds(player, { greed: 2, cruelty: 1, seafaring: worldUnit.type === 'caravan' ? 0 : 2 }); // piracy
                     Quests.track(player, 'piracy_committed'); // companions with values notice
+                    // Banditry and piracy against a realm's traders: underworld heat
+                    if (worldUnit.type === 'caravan') Underworld.recordCrime(player, world, 'theft', { kingdom: worldUnit.kingdom || worldUnit.kingdomId || Underworld._nearestKingdom(world, worldUnit.q, worldUnit.r), scale: 2 });
+                    else Underworld.recordPiracy(player, world, worldUnit.q, worldUnit.r);
                     player.karma += karmaChange;
                     break;
                 case 'settler':

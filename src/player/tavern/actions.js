@@ -1,6 +1,7 @@
 // Tavern — actions members (split from the original monolith).
 import { Tavern } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
+import { Underworld } from '../../systems/underworld.js';
 import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Religion, Gossip, Quests, Peoples } from './_imports.js';
 
 Object.assign(Tavern, {
@@ -218,6 +219,23 @@ Object.assign(Tavern, {
             });
         }
 
+        // 11. A quiet word with the barkeep: the thieves' guild contact
+        if (Underworld.hasGuildPresence(settlement)) {
+            const uw = Underworld.ensure(player);
+            const known = uw.guild.contactMet || uw.guild.member;
+            const cost = known ? 0 : Underworld.cfg('guild').contactCost;
+            options.push({
+                id: 'underworld_contact',
+                label: known ? 'Slip into the back room' : 'Ask the barkeep about "special work"',
+                icon: '🗝️',
+                cost,
+                description: known
+                    ? 'Your guild contact waits: jobs, the fence and the black market'
+                    : `Find a contact of the thieves' guild (${cost}g)`,
+                available: known || (player.gold || 0) >= cost,
+            });
+        }
+
         return options;
     },
 
@@ -269,6 +287,17 @@ Object.assign(Tavern, {
                 return Tavern._askReligiousLore(player, tile, world);
             case 'listen_gossip':
                 return Tavern._listenForGossip(player, tile, world);
+            case 'underworld_contact': {
+                const res = Underworld.meetContact(player, world, tile);
+                return [{
+                    category: Tavern.CATEGORIES.RUMORS_GOSSIP,
+                    icon: '🗝️',
+                    title: 'The Back Room',
+                    text: res.success ? res.text : res.reason,
+                    reliability: Tavern.RELIABILITY.TAVERN_GOSSIP,
+                    openUnderworld: !!res.success,
+                }];
+            }
             default:
                 return [];
         }

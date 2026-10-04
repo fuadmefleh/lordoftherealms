@@ -1,5 +1,6 @@
 // ActionMenu — skills methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
+import { Underworld } from '../../systems/underworld.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -388,6 +389,7 @@ Object.assign(ActionMenu, {
                     if (Math.random() < successChance) {
                         const stolen = selectedTarget.goldAmount;
                         player.gold += stolen;
+                        Underworld.recordCrime(player, game.world, 'theft', { kingdom: settlement.kingdom });
                         player.karma = (player.karma || 0) - 1;
                         if (Math.random() < 0.2 && player.skills) {
                             player.skills.stealth = Math.min(10, (player.skills.stealth || 1) + 1);
@@ -480,6 +482,7 @@ Object.assign(ActionMenu, {
                     foundPurse = true;
                     stolenGold = selectedTarget.goldAmount;
                     player.gold += stolenGold + bonusGold;
+                    Underworld.recordCrime(player, game.world, 'theft', { kingdom: settlement.kingdom });
                     if (player.financeToday) {
                         player.financeToday.income.theft = (player.financeToday.income.theft || 0) + stolenGold + bonusGold;
                     }
@@ -580,6 +583,7 @@ Object.assign(ActionMenu, {
 
         if (!player.criminalRecord) player.criminalRecord = { pickpocket: 0, smuggling: 0 };
         player.criminalRecord.pickpocket = (player.criminalRecord.pickpocket || 0) + 1;
+        Underworld.recordCrime(player, game.world, 'theft', { kingdom: settlement.kingdom, caught: true, q: tile.q, r: tile.r });
         const offenses = player.criminalRecord.pickpocket;
         const jailDays = offenses === 1 ? 2 : offenses === 2 ? 4 : offenses === 3 ? 7 : 10 + (offenses - 4) * 3;
         const bailCost = jailDays * 25;
@@ -673,6 +677,7 @@ Object.assign(ActionMenu, {
                         player.inventory[itemName]--;
                         if (player.inventory[itemName] <= 0) delete player.inventory[itemName];
                         player.gold += price;
+                        Underworld.recordCrime(player, game.world, 'smuggling', { kingdom: settlement.kingdom });
                         if (player.financeToday) {
                             player.financeToday.income.smuggling = (player.financeToday.income.smuggling || 0) + price;
                         }
@@ -698,6 +703,7 @@ Object.assign(ActionMenu, {
                         }
                         if (!player.criminalRecord) player.criminalRecord = { pickpocket: 0, smuggling: 0 };
                         player.criminalRecord.smuggling = (player.criminalRecord.smuggling || 0) + 1;
+                        Underworld.recordCrime(player, game.world, 'smuggling', { kingdom: settlement.kingdom, caught: true, q: tile.q, r: tile.r });
                         const offenses = player.criminalRecord.smuggling;
                         const jailDays = offenses === 1 ? 3 : offenses === 2 ? 6 : offenses === 3 ? 10 : 14 + (offenses - 4) * 4;
                         const bailCost = jailDays * 30;
@@ -898,6 +904,7 @@ Object.assign(ActionMenu, {
                         player.inventory[itemName]--;
                         if (player.inventory[itemName] <= 0) delete player.inventory[itemName];
                         player.gold += price;
+                        Underworld.recordCrime(player, game.world, 'smuggling', { kingdom: settlement.kingdom });
                         if (player.financeToday) {
                             player.financeToday.income.smuggling = (player.financeToday.income.smuggling || 0) + price;
                         }
@@ -937,6 +944,7 @@ Object.assign(ActionMenu, {
 
                         if (!player.criminalRecord) player.criminalRecord = { pickpocket: 0, smuggling: 0 };
                         player.criminalRecord.smuggling = (player.criminalRecord.smuggling || 0) + 1;
+                        Underworld.recordCrime(player, game.world, 'smuggling', { kingdom: settlement.kingdom, caught: true, q: tile.q, r: tile.r });
                         const offenses = player.criminalRecord.smuggling;
                         const jailDays = offenses === 1 ? 3 : offenses === 2 ? 6 : offenses === 3 ? 10 : 14 + (offenses - 4) * 4;
                         const bailCost = jailDays * 30;

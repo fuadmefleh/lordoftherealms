@@ -1,6 +1,6 @@
 // UI — hexinfo methods.
 import { UI } from './core.js';
-import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, WorldEvents, InnerMap, InnerMapRenderer, KingdomBonuses, KingdomStability } from './_imports.js';
+import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, WorldEvents, InnerMap, InnerMapRenderer, KingdomBonuses, KingdomStability, WEATHER_TYPES } from './_imports.js';
 
 Object.assign(UI.prototype, {
     /**
@@ -45,17 +45,12 @@ Object.assign(UI.prototype, {
         const weather = this.game.world.weather.getWeather(q, r);
         const tempColor = temp.celsius > 30 ? '#e74c3c' : temp.celsius < 0 ? '#3498db' : '#f1c40f';
 
-        // Weather Icon mapping
-        const weatherIcons = {
-            'clear': '☀️',
-            'cloudy': '☁️',
-            'rain': '🌧️',
-            'storm': '⛈️',
-            'snow': '❄️',
-            'none': '❓'
-        };
-        const weatherLabel = weather.type.charAt(0).toUpperCase() + weather.type.slice(1);
-        const weatherIcon = weatherIcons[weather.type] || '❓';
+        const wxInfo = WEATHER_TYPES[weather.type] || { name: 'Unknown', icon: '❓' };
+        const weatherLabel = wxInfo.name;
+        const weatherIcon = wxInfo.icon;
+        const weatherEffects = this.game.world.weather.describeEffects(weather.type);
+        const forecast = this.game.world.weather.getForecast(q, r, 3)
+            .map(t => (WEATHER_TYPES[t] || { icon: '❓' }).icon).join(' ');
 
         // Calculate Elevation String
         let elevStr = 'Sea Level';
@@ -86,6 +81,14 @@ Object.assign(UI.prototype, {
                 <span class="info-value" style="color:${tempColor}">
                     ${weatherIcon} ${weatherLabel} (${temp.celsius}°C / ${temp.fahrenheit}°F)
                 </span>
+            </div>
+            ${weatherEffects ? `<div class="info-row">
+                <span class="info-label">Weather</span>
+                <span class="info-value" style="color:#e6b35c">${weatherEffects}</span>
+            </div>` : ''}
+            <div class="info-row">
+                <span class="info-label">Forecast</span>
+                <span class="info-value">${forecast}</span>
             </div>
             <div class="info-row">
                 <span class="info-label">Elevation</span>

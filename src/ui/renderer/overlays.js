@@ -354,7 +354,7 @@ Object.assign(Renderer.prototype, {
                 const wq = Hex.wrapQ(q, width);
                 const weather = this.world.weather.getWeather(wq, r);
 
-                if (weather.type === 'clear') continue;
+                if (weather.type === 'clear' || weather.type === 'heatwave') continue;
 
                 const pos = this.getHexPixelPos(q, r);
                 const screen = this.camera.worldToScreen(pos.x, pos.y);
@@ -371,7 +371,7 @@ Object.assign(Renderer.prototype, {
                         ctx.lineTo(screen.x + rx - 5 * zoom, screen.y + ry + 10 * zoom);
                     }
                     if (weather.type === 'storm') hasStorm = true;
-                } else if (weather.type === 'snow') {
+                } else if (weather.type === 'snow' || weather.type === 'blizzard') {
                     // Collect snow
                     for (let i = 0; i < 3; i++) {
                         const rx = (seed * (i + 1) % 40) - 20;

@@ -24,6 +24,7 @@ export { NpcBrain } from '../../systems/npcBrain.js';
 export { Relationships } from '../../systems/relationships.js';
 export { Housing } from '../../systems/housing.js';
 export { WorldEvents } from '../../world/worldEvents.js';
+export { WEATHER_TYPES } from '../../world/weather.js';
 export { Titles } from '../../systems/titles.js';
 export { InnerMap } from '../../world/innerMap.js';
 export { InnerMapRenderer } from '../innerMapRenderer.js';

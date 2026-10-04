@@ -1,6 +1,6 @@
 // PlayerMilitary — combat members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
-import { Utils, Technology, House, Quests, RealmWars, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents } from './_imports.js';
+import { Utils, Technology, House, Quests, RealmWars, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -21,6 +21,10 @@ Object.assign(PlayerMilitary, {
         const enemyCounterMult = PlayerMilitary._counterMultiplier(enemyComp, playerComp);
         const playerTerrainMult = PlayerMilitary._terrainMultiplier(terrainId, playerComp);
         const enemyTerrainMult = PlayerMilitary._terrainMultiplier(terrainId, enemyComp);
+        // Rain spoils bowstrings, snow bogs down horses — for both sides
+        const weatherType = PlayerMilitary._battleWeather(player, context);
+        const playerWeatherMult = PlayerMilitary._weatherMultiplier(weatherType, playerComp);
+        const enemyWeatherMult = PlayerMilitary._weatherMultiplier(weatherType, enemyComp);
 
         const festivalMoraleBonus = (player.festivals?.moraleBoostDays > 0)
             ? (player.festivals?.moraleBoostValue || 0)
@@ -33,7 +37,7 @@ Object.assign(PlayerMilitary, {
         const enemyMorale = PlayerMilitary._moraleValue(enemyStrength, playerStrength, context.enemyMoraleBonus || 0);
 
         // Combat calculation
-        let playerPower = playerStrength * Utils.randFloat(0.8, 1.2) * playerCounterMult * playerTerrainMult * playerMorale;
+        let playerPower = playerStrength * Utils.randFloat(0.8, 1.2) * playerCounterMult * playerTerrainMult * playerWeatherMult * playerMorale;
         // Fighting companions in the travel party
         playerPower *= 1 + PlayerEffects.companionBonus(player, 'power');
         // A commander in high spirits leads better; a miserable one worse
@@ -42,7 +46,7 @@ Object.assign(PlayerMilitary, {
         if (context.defending) playerPower *= 1 + Technology.getDefenseBonus(player);
         // A fortified house (watchtower, fortification upgrades) adds +1% per point of defense
         if (context.defending) playerPower *= 1 + Housing.getTotalBonuses(player).defense / 100;
-        let enemyPower = enemyStrength * Utils.randFloat(0.8, 1.2) * enemyCounterMult * enemyTerrainMult * enemyMorale;
+        let enemyPower = enemyStrength * Utils.randFloat(0.8, 1.2) * enemyCounterMult * enemyTerrainMult * enemyWeatherMult * enemyMorale;
 
         // ── Unit specials & military techs ──
         // Siege engines, shield walls, longbow volleys, crossbow piercing,
@@ -159,6 +163,7 @@ Object.assign(PlayerMilitary, {
             commanderSlain: specials.commanderSlain,
             tactics: {
                 terrainId,
+                weather: weatherType,
                 moraleBreak,
                 playerMorale: Number(playerMorale.toFixed(2)),
                 enemyMorale: Number(enemyMorale.toFixed(2)),
@@ -669,6 +674,24 @@ Object.assign(PlayerMilitary, {
             inventoryLoot,
             lootLeftBehind,
         };
+    },
+
+    // ── Weather on the battlefield ─────────────────────────────────────
+    /** Weather type at the player's position (context.weather overrides). */
+    _battleWeather(player, context = {}) {
+        if (context.weather) return context.weather;
+        const world = context.world;
+        if (!world || !world.weather || typeof player.q !== 'number') return 'clear';
+        return world.weather.getWeather(player.q, player.r).type;
+    },
+
+    /** Power multiplier for an army's composition fighting in this weather. */
+    _weatherMultiplier(weatherType, composition) {
+        const fx = WEATHER_EFFECTS[weatherType];
+        if (!fx || !composition) return 1;
+        const mult = 1 + (fx.archerPower || 0) * (composition.archer || 0)
+            + (fx.cavalryPower || 0) * (composition.cavalry || 0);
+        return Math.max(0.5, mult);
     },
 
     // ── World-event effects on battle (data/worldEvents.json) ──────────

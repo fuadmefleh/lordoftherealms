@@ -157,6 +157,24 @@ Roads reduce movement costs (see [Infrastructure](#13-infrastructure)).
 
 Click any visible hex to set a destination. The game uses A* pathfinding to calculate the optimal route. If you run out of stamina mid-journey, movement continues automatically the next day.
 
+### Weather
+
+Weather fronts drift east across the map and change every day; the season decides where snow falls and where heat waves bake the land. Hover a hex to see today's weather, what it does, and a three-day forecast.
+
+| Weather | Travel | Farms | Battle | Other |
+|---------|--------|-------|--------|-------|
+| 🌧️ Rain | −10% | +10% | Archers −15% | |
+| ⛈️ Storm | −30% | −10% | Archers −30%, cavalry −10% | Exposure; dangerous seas |
+| 🌨️ Snow | −25% | −30% | Cavalry −20% | Exposure |
+| ❄️ Blizzard | −50% | −50% | Archers −20%, cavalry −35% | Severe exposure; rough seas |
+| 🔥 Heat Wave | −15% | −25% (not on irrigated land) | | Mild exposure |
+
+- **Roads** halve the travel penalty. Sailing is unaffected.
+- **Exposure:** ending the day in the open in a storm, blizzard or heat wave costs health and comfort. A settlement, an inn or your own house protects you completely; a deliberate camp halves the loss.
+- **Battles** apply the weather to both armies by their makeup, so an archer-heavy host should avoid fighting in the rain.
+- **Storms at sea** damage the hulls of ships under way or at anchor, may hold a voyage back a day, and can wash cargo overboard. Docked ships ride it out in harbour.
+- A Granary halves bad-weather losses at nearby farms, just as it does for droughts.
+
 ### Fog of War
 
 You can see 4 hexes in every direction. Tiles you've visited remain "explored" (showing terrain) but only tiles within your current visibility range are "visible" (showing units, settlements, and changes). Spies and technologies can extend your vision.

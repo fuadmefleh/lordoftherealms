@@ -92,6 +92,7 @@ export const SaveLoad = {
             activeEvents: world.activeEvents || [],
             warHistory: world.warHistory || [],
             warHistorySeq: world.warHistorySeq || 0,
+            weather: world.weather && world.weather.serialize ? world.weather.serialize() : null,
         };
     },
 
@@ -322,6 +323,7 @@ export const SaveLoad = {
         world.activeEvents = saveData.activeEvents || [];
         world.warHistory = saveData.warHistory || [];
         world.warHistorySeq = saveData.warHistorySeq || 0;
+        if (saveData.weather && world.weather && world.weather.deserialize) world.weather.deserialize(saveData.weather);
 
         // Restore tile data
         for (let r = 0; r < world.tiles.length; r++) {

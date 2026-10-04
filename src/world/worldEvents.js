@@ -4,6 +4,7 @@
 
 import { Utils } from '../core/utils.js';
 import { Kingdom } from './kingdom.js';
+import { WEATHER_EFFECTS } from './weather.js';
 
 export const WorldEvents = {
     /**
@@ -820,7 +821,41 @@ export const WorldEvents = {
             for (let i = 0; i < lost; i++) army.pop();
             result.unitsLost = lost;
         }
+
+        WorldEvents._applyPlayerWeather(world, player, tile, result);
         return result;
+    },
+
+    /**
+     * The weather where the player woke up: storms and snow cost stamina
+     * (a road halves the penalty), and a night in the open in a storm,
+     * blizzard or heat wave costs health and comfort. Shelter — a settlement,
+     * your own house, a ship's cabin — protects you; a deliberate camp halves it.
+     */
+    _applyPlayerWeather(world, player, tile, result) {
+        if (!world.weather || !tile) return;
+        const weather = world.weather.getWeather(player.q, player.r);
+        const fx = WEATHER_EFFECTS[weather.type] || {};
+        result.weather = weather.type;
+        result.weatherHealthLost = 0;
+
+        if (fx.travelSpeed && !player.boardedShip && player.movementRemaining > 0) {
+            const slow = tile.hasRoad ? fx.travelSpeed / 2 : fx.travelSpeed;
+            const before = player.movementRemaining;
+            player.movementRemaining = Math.max(1, Math.round(before * (1 + slow)));
+            result.movementChange += player.movementRemaining - before;
+        }
+
+        if (fx.exposure && !player.boardedShip && !tile.settlement) {
+            const rest = player._lastRestType || 'outdoors';
+            const sheltered = rest === 'inn' || rest === 'ownHouse';
+            if (!sheltered) {
+                const lost = rest === 'camp' ? Math.ceil(fx.exposure / 2) : fx.exposure;
+                player.health = Math.max(1, (player.health || 0) - lost);
+                if (typeof player.modifyNeed === 'function' && player.needs) player.modifyNeed('comfort', -lost * 3);
+                result.weatherHealthLost = lost;
+            }
+        }
     },
 
     /**

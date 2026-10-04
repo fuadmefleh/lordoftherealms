@@ -1,7 +1,7 @@
 // PlayerEconomy — property members.
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
-import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerEffects, PlayerInventory } from './_imports.js';
+import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerEffects, PlayerInventory, WEATHER_EFFECTS } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
     /**
@@ -356,6 +356,13 @@ Object.assign(PlayerEconomy, {
             if (def && def.category === 'farming') {
                 const granary = Technology.hasBuildingNear(player, world, 'granary', tile.q, tile.r, 1);
                 let farmMod = WorldEvents.getModifier(world, 'farmProduction', tile);
+                // Today's weather: rain waters the fields, snow and heat wither them
+                // (irrigation shields crops from heat waves)
+                if (world.weather) {
+                    const wx = world.weather.getWeather(tile.q, tile.r);
+                    const irrigated = wx.type === 'heatwave' && Infrastructure.getIrrigationBonus(tile) > 0;
+                    if (!irrigated) farmMod += WEATHER_EFFECTS[wx.type]?.farmProduction || 0;
+                }
                 if (granary && farmMod < 0) farmMod /= 2;
                 amount *= Math.max(0, 1 + farmMod + (granary ? 0.2 : 0));
             }

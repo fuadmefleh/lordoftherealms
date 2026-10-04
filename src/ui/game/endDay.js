@@ -2,7 +2,7 @@
 // END DAY � onPlayerArrived, endDay turn processing
 // ============================================
 
-import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, RealmWars, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents } from './_gameImports.js';
+import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, RealmWars, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents, WEATHER_TYPES } from './_gameImports.js';
 
 export function onPlayerArrived() {
     const tile = this.world.getTile(this.player.q, this.player.r);
@@ -137,6 +137,7 @@ export function endDay() {
             if (eventEffects.unitsLost > 0) {
                 this.ui.showNotification('❄️ Attrition', `The harsh conditions claimed ${eventEffects.unitsLost} of your soldiers. Shelter in a settlement to stop the losses.`, 'warning');
             }
+            this._reportWeather(eventEffects);
             this.player.updateVisibility(this.world, 4);
 
             // ── Check for hostile unit encounters (raiders/pirates) ──
@@ -178,7 +179,14 @@ export function endDay() {
             if (typeof Ships !== 'undefined') {
                 // Capture ship statuses before processing
                 const shipsBefore = (this.player.ships || []).map(s => ({ id: s.id, status: s.status, name: s.name, buildDaysLeft: s.buildDaysLeft, travelDaysLeft: s.travelDaysLeft }));
-                Ships.processDaily(this.player, this.world);
+                const shipDay = Ships.processDaily(this.player, this.world);
+                for (const rep of (shipDay && shipDay.stormReports) || []) {
+                    const wx = WEATHER_TYPES[rep.weather] || { icon: '⛈️', name: 'Storm' };
+                    let text = `${rep.name} was caught in a ${wx.name.toLowerCase()} at sea (hull −${rep.damage}%).`;
+                    if (rep.delayed) text += ' The voyage is held back a day.';
+                    if (rep.cargoLost) text += ` ${rep.cargoLost.qty} ${rep.cargoLost.good} washed overboard.`;
+                    this.ui.showNotification(`${wx.icon} Storm at Sea`, text, 'warning');
+                }
                 // Check for completed builds or arrived ships
                 for (const before of shipsBefore) {
                     const after = Ships.getShipById(this.player, before.id);
@@ -777,3 +785,23 @@ export function endDay() {
  * Player prays (gain karma)
  */
 
+
+/**
+ * Tell the player when the weather turns where they are, and what it costs.
+ * Quiet on fair days and while the weather holds.
+ */
+export function _reportWeather(fx) {
+    if (!fx || !fx.weather || !this.world.weather) return;
+    const prev = this._lastReportedWeather;
+    this._lastReportedWeather = fx.weather;
+    const info = WEATHER_TYPES[fx.weather];
+    if (!info) return;
+    if (fx.weather !== prev && !['clear', 'cloudy'].includes(fx.weather)) {
+        const effects = this.world.weather.describeEffects(fx.weather);
+        this.ui.showNotification(`${info.icon} ${info.name}`, effects || 'The weather has turned.', 'info');
+    }
+    if (fx.weatherHealthLost > 0) {
+        this.ui.showNotification(`${info.icon} Exposure`,
+            `A night in the open in the ${info.name.toLowerCase()} cost you ${fx.weatherHealthLost} health. Shelter in a settlement, an inn or your own house.`, 'warning');
+    }
+}

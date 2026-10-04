@@ -6,6 +6,7 @@ import { PlayerInventory } from '../core/inventory.js';
 import { Quests } from './quests.js';
 import { Technology } from './technology.js';
 import { WorldEvents } from '../world/worldEvents.js';
+import { WEATHER_EFFECTS } from '../world/weather.js';
 
 /**
  * Ships System
@@ -987,6 +988,7 @@ export const Ships = {
 
         const settings = this._getSettings();
         let totalUpkeep = 0;
+        const stormReports = [];
 
         for (const ship of ships) {
             // A Shipyard you own repairs docked ships beside it for free
@@ -994,6 +996,28 @@ export const Ships = {
                 && Technology.hasBuildingNear(player, world, 'shipyard', ship.q, ship.r, 1)) {
                 ship.condition = Math.min(100, ship.condition + 5);
             }
+            // Storms at sea batter hulls and hold ships back a day
+            const storm = this._stormAtSea(ship, world);
+            if (storm) {
+                const damage = Math.round(Utils.randInt(3, 8) * storm.danger);
+                ship.condition = Math.max(10, (ship.condition || 100) - damage);
+                const report = { shipId: ship.id, name: ship.name, weather: storm.type, damage, delayed: false, cargoLost: null };
+                if (ship.status === 'moving' && Utils.random() < 0.5 * storm.danger) {
+                    ship.travelDaysLeft = (ship.travelDaysLeft || 0) + 1;
+                    report.delayed = true;
+                }
+                // Heavy seas can wash part of the cargo overboard
+                const goods = Object.keys(ship.cargo || {}).filter(g => ship.cargo[g] > 0);
+                if (goods.length > 0 && Utils.random() < 0.2 * storm.danger) {
+                    const good = Utils.randPick(goods);
+                    const lost = Math.max(1, Math.floor(ship.cargo[good] * 0.2));
+                    ship.cargo[good] -= lost;
+                    if (ship.cargo[good] <= 0) delete ship.cargo[good];
+                    report.cargoLost = { good, qty: lost };
+                }
+                stormReports.push(report);
+            }
+
             const st = this.getShipType(ship.typeId);
             if (!st) continue;
 
@@ -1040,6 +1064,26 @@ export const Ships = {
                 player.financeToday.expenses.ships = (player.financeToday.expenses.ships || 0) + totalUpkeep;
             }
         }
+        return { stormReports };
+    },
+
+    /**
+     * A storm or blizzard on the open sea around a sailing or anchored ship.
+     * Ships under way are checked at both ends of the voyage; a docked ship
+     * rides it out in harbour. Returns { type, danger } or null.
+     */
+    _stormAtSea(ship, world) {
+        if (!world || !world.weather || !['moving', 'at_sea', 'anchored'].includes(ship.status)) return null;
+        const spots = [[ship.q, ship.r]];
+        if (ship.status === 'moving' && typeof ship.destQ === 'number') spots.push([ship.destQ, ship.destR]);
+        let worst = null;
+        for (const [q, r] of spots) {
+            if (typeof q !== 'number') continue;
+            const w = world.weather.getWeather(q, r);
+            const danger = WEATHER_EFFECTS[w.type]?.seaDanger || 0;
+            if (danger > 0 && (!worst || danger > worst.danger)) worst = { type: w.type, danger };
+        }
+        return worst;
     },
 
     /* ── Combat helpers ──────────────────────────────────────── */

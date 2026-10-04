@@ -482,6 +482,38 @@ export const Taxation = {
     },
 
     /**
+     * The settlements the player rules and taxes, as { q, r, settlement }:
+     * colonies they founded or conquered (player.colonies) that are still
+     * theirs, plus any explicit player.settlements refs. A colony counts while
+     * it is marked as the player's, is independent, or sits in the player's
+     * own realm; once another crown takes it, it no longer pays you.
+     */
+    getPlayerSettlements(player, world) {
+        const out = [];
+        if (!player || !world || typeof world.getTile !== 'function') return out;
+        const seen = new Set();
+        const add = (ref, requireOwnership) => {
+            if (!ref || typeof ref.q !== 'number') return;
+            const key = `${ref.q},${ref.r}`;
+            if (seen.has(key)) return;
+            const tile = world.getTile(ref.q, ref.r);
+            const settlement = tile && tile.settlement;
+            if (!settlement) return;
+            if (requireOwnership) {
+                const mine = (settlement.colony && settlement.colony.isPlayerColony)
+                    || !settlement.kingdom
+                    || (player.allegiance && settlement.kingdom === player.allegiance);
+                if (!mine) return;
+            }
+            seen.add(key);
+            out.push({ q: ref.q, r: ref.r, settlement });
+        };
+        for (const ref of player.settlements || []) add(ref, false);
+        for (const ref of player.colonies || []) add(ref, true);
+        return out;
+    },
+
+    /**
      * Collect taxes from the player's settlements (weekly).
      *
      * The rate sets each settlement's mood: happiness drifts toward
@@ -501,31 +533,27 @@ export const Taxation = {
         let totalCollected = 0;
         const settlements = [];
 
-        // Collect from player's settlements (if they own any)
-        if (player.settlements) {
-            for (const settlementRef of player.settlements) {
-                const tile = world.getTile(settlementRef.q, settlementRef.r);
-                if (!tile || !tile.settlement) continue;
+        // Collect from the player's settlements (founded/conquered colonies)
+        for (const ref of Taxation.getPlayerSettlements(player, world)) {
+            const tile = world.getTile(ref.q, ref.r);
+            const settlement = ref.settlement;
+            const happiness = Taxation.getHappiness(settlement);
+            const taxBase = Math.floor(settlement.population * 0.1); // 0.1 gold per person base
+            const landBonus = 1 + (player.landTaxBonus || 0);
+            // Rebellions and crises cut collections; gold rushes swell them
+            const eventMult = Math.max(0, 1 + WorldEvents.getModifier(world, 'taxIncome', tile));
+            const moodMult = 0.75 + happiness / 200;
+            const taxCollected = Math.floor(taxBase * taxPolicy.rate * landBonus * Taxation.officeTaxMultiplier(player) * eventMult * moodMult);
 
-                const settlement = tile.settlement;
-                const happiness = Taxation.getHappiness(settlement);
-                const taxBase = Math.floor(settlement.population * 0.1); // 0.1 gold per person base
-                const landBonus = 1 + (player.landTaxBonus || 0);
-                // Rebellions and crises cut collections; gold rushes swell them
-                const eventMult = Math.max(0, 1 + WorldEvents.getModifier(world, 'taxIncome', tile));
-                const moodMult = 0.75 + happiness / 200;
-                const taxCollected = Math.floor(taxBase * taxPolicy.rate * landBonus * Taxation.officeTaxMultiplier(player) * eventMult * moodMult);
-
-                totalCollected += taxCollected;
-                const entry = {
-                    name: settlement.name,
-                    collected: taxCollected,
-                    population: settlement.population,
-                    happiness: Math.round(happiness),
-                };
-                settlements.push(entry);
-                if (!dryRun) Taxation._applyTaxMood(settlement, taxPolicy, entry);
-            }
+            totalCollected += taxCollected;
+            const entry = {
+                name: settlement.name,
+                collected: taxCollected,
+                population: settlement.population,
+                happiness: Math.round(happiness),
+            };
+            settlements.push(entry);
+            if (!dryRun) Taxation._applyTaxMood(settlement, taxPolicy, entry);
         }
 
         if (!dryRun) player.gold += totalCollected;
@@ -566,6 +594,7 @@ export const Taxation = {
     canSetTaxes(player) {
         if (!player) return false;
         if (player.settlements && player.settlements.length > 0) return true;
+        if ((player.colonies || []).length > 0) return true;
         return !!(player.allegiance && ['king', 'chancellor', 'tax_collector', 'treasurer'].includes(player.kingdomTitle));
     },
 

@@ -1,6 +1,6 @@
 // UI — panels methods.
 import { UI } from './core.js';
-import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability, Treasures, KingdomAI } from './_imports.js';
+import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability, Treasures, KingdomAI, KingdomNavy } from './_imports.js';
 
 Object.assign(UI.prototype, {
     /**
@@ -236,6 +236,12 @@ Object.assign(UI.prototype, {
                 const target = KingdomStability.target(kingdom, this.game.world);
                 const why = target.parts.map(p => `${p.label} ${p.value > 0 ? '+' : ''}${p.value}`).join(', ');
                 bonusHtml += `<div style="font-size:11px;margin-top:4px;" title="Heading toward ${Math.round(target.value)}: ${why}">🏛️ Stability: <span style="color:${KingdomStability.color(st)}">${Math.round(st)}/100 (${KingdomStability.label(st)})</span> · income ×${KingdomStability.incomeMultiplier(kingdom).toFixed(2)}</div>`;
+            }
+            // The royal fleet and any blockade of its ports
+            if (kingdom.navy && (kingdom.navy.ports || kingdom.navy.strength)) {
+                const n = kingdom.navy;
+                const by = KingdomNavy.blockaders(kingdom).map(id => (this.game.world.getKingdom(id) || {}).name || id);
+                bonusHtml += `<div style="font-size:11px;margin-top:2px;" title="Fleet strength / what its ports and treasury keep afloat">⚓ Fleet: ${n.strength}/${n.cap} · ${n.ports} port${n.ports === 1 ? '' : 's'}${by.length ? ` · <span style="color:#e67e22;">blockaded by ${by.join(', ')} (income ×${KingdomNavy.incomeFactor(kingdom).toFixed(2)})</span>` : ''}</div>`;
             }
 
             html += `

@@ -22,6 +22,7 @@ import { Tavern } from '../player/tavern.js';
 import { NPCLords } from '../world/npcLords.js';
 import { KingdomAI } from '../world/kingdomAI.js';
 import { KingdomAtlas } from '../world/kingdomAtlas.js';
+import { KingdomNavy } from '../world/kingdomNavy.js';
 import { KingdomBonuses } from '../world/kingdomState.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { WorldUnit } from '../world/units.js';
@@ -310,6 +311,15 @@ export const DataLoader = {
         // ── Military ──
         const milData = data['military.json'];
         DataLoader.military = milData; // navalRules + unit domains, read by Ships
+        // Royal fleets: nested blocks merge key by key so a partial override keeps the rest
+        if (milData.kingdomNavy) {
+            for (const [key, value] of Object.entries(milData.kingdomNavy)) {
+                if (key.startsWith('_')) continue;
+                const cur = KingdomNavy.CONFIG[key];
+                if (cur && typeof cur === 'object' && value && typeof value === 'object') Object.assign(cur, value);
+                else KingdomNavy.CONFIG[key] = value;
+            }
+        }
         PlayerMilitary.UNIT_TYPES = milData.unitTypes;
         PlayerMilitary.CONTRACT_TYPES = milData.contractTypes;
 

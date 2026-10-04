@@ -696,7 +696,7 @@ Five named mercenary companies roam the world:
 | Wolfguard Free Spears | Balanced | ~640g | ~95g/day | 6 days |
 | Iron Oath Wardens | Elite Defenders | ~710g | ~105g/day | 12 days |
 
-Mercenaries have a **loyalty** system (45–90 base). If you fail to pay them or their loyalty drops too low, they may switch sides and join a rival kingdom. Pay bonuses to keep loyalty high.
+Mercenaries have a **loyalty** system (45–90 base). If you fail to pay them or their loyalty drops too low, they may switch sides and join a rival kingdom, whose army takes on as many of them as it can feed (up to its cap). Pay bonuses to keep loyalty high.
 
 ### Attacking Settlements
 
@@ -1096,12 +1096,23 @@ With a ship docked at a port, **Port Market** (free) buys trade goods — spices
 
 Roles are fixed per port; prices drift every 7 days. Buy where a good is exported, sail, and sell where it's imported — the hold's cargo capacity caps how much each run carries.
 
+**Blockaded ports.** While an enemy fleet blockades a realm's ports (see [Royal Fleets](#royal-fleets)), its port markets charge 25% more and pay 20% less. If the blockading fleet is at least three times the realm's own, the harbour is **closed**: nobody buys or sells until the blockade is broken.
+
 ### At Sea
 
 While aboard on open water you can:
 - **Explore the Waters** (6 AP) — wrecks, uncharted islands, storms and sea monsters.
 - **Hunt Pirates** (10 AP) — win for a gold bounty, +3 renown and +2 karma; lose and the ship and crew take damage.
 - **Turn Pirate** (10 AP) — plunder merchant ships for gold at the cost of karma, renown and reputation with every kingdom.
+
+### Royal Fleets at Sea
+
+Kingdoms keep fleets (see [Royal Fleets](#royal-fleets)), and a hostile one guards its waters. A ship of yours that is at sea, sailing or at anchor within **3 hexes of a port** of a hostile realm may be stopped by a squadron of its fleet. A realm is hostile if it's at war with you or with your liege (12% chance a day), or if your reputation with it is −50 or worse (4% a day). Ships docked in a harbour are safe. Your liege's fleet never stops you.
+
+The squadron is about 30% of the realm's fleet (6–60 strength). Your ship fights with its own strength, which counts hull condition, crew and morale, plus your **war-galley escort**. A short-handed ship with no galleys rarely gets away.
+
+- **Win:** +2 renown, a few sailors may be lost, and the realm's fleet loses half the squadron. Against a realm at war with you, you also gain +10 war score.
+- **Lose:** the hull takes 8–20% damage, 10–25% of the crew is lost, and the squadron seizes 30% of every good in the hold.
 
 ---
 
@@ -1127,6 +1138,21 @@ The game features **10 kingdoms**, each with unique culture, traits, and territo
 A realm expands into its preferred terrain first and fights 8% better on it.
 
 **Traits** (data/kingdoms.json → `traitEffects`) add to the realm's bonuses: Militaristic +10% army, +5% battle · Orderly +6 stability, +10% intrigue · Peaceful +25% diplomacy, +3 stability, −5% army · Nature-loving +10% growth, +10% faith · Aggressive +8% battle, −15% diplomacy · Mobile +20% expansion, +15% endurance · Religious +30% faith, +6% loyalty (and sends Missionary colonies) · Scholarly +25% research, +10% culture · Mercantile +20% trade, +5% treasury · Naval +10% trade, +5% defense · Defensive +15% defense, −10% war upkeep · Industrious +25% construction, +5% treasury · Secretive +25% intrigue, −5% diplomacy · Alchemical +5% growth, +10% research · Arcane +20% research, +4% battle · Seafaring +10% expansion, +8% trade · Resilient +30% endurance, +4 stability. Mobile realms field more cavalry; naval, seafaring and nature-loving ones more archers; orderly, defensive, religious and militaristic ones more pikemen.
+
+### Royal Fleets
+
+Every kingdom with **ports** (settlements next to water) keeps a royal fleet:
+
+- **Size.** A realm can keep 10 fleet strength afloat per port, plus 5 if its capital is a port. Naval realms get ×1.5, seafaring ones ×1.4 and mercantile ones ×1.15. A realm never keeps more than its treasury can back (1 point per 120 gold). A realm without ports has no fleet.
+- **Cost.** New ships cost 25 gold per point of strength, and the fleet grows by about 5% of the gap each day. Upkeep is 0.3 gold per point a day, paid from the treasury. A fleet the realm can't pay loses 5% a day, and ships beyond the cap (when ports are lost) are laid up.
+- **Battles at sea.** In a war between kingdoms, the two fleets meet on about one day in seven. The loser loses 20% of its fleet and the winner 8%.
+- **Blockade.** A fleet of 8+ strength that is at least 1.25 times the enemy's blockades the enemy's ports for as long as it keeps that edge. While blockaded:
+  - The realm's income falls by up to 25%, scaled by the share of its settlements that are ports.
+  - Attackers storming one of its ports fight 12% harder.
+  - Its port markets trade at worse prices, or close entirely (see [Port Markets](#port-markets)).
+  - The blockade lifts when the blockading side's edge is gone or the war ends.
+
+A realm's fleet strength, cap, ports and any blockade show in its kingdom panel, in the Dynasties panel, and for each war in **Wars of the Realm**. Tunables live in `data/military.json` → `kingdomNavy`.
 
 ### Reputation
 
@@ -1196,6 +1222,8 @@ Kingdom wars are fought for **goals**, not to the last man:
 - **Broker peace** (50g, 2 AP) at a town of either side. The chance rises with your diplomacy and renown, and falls if a side is close to its goal. Success earns +8 renown and reputation with both crowns; failure means both courts refuse your envoys for 10 days.
 - **Broker an alliance** (100g, 2 AP) at a town of either crown, for two kingdoms at peace, not yet allied, with mutual relations of 30+. The chance rises with your diplomacy, renown and how warm the two crowns already are. Success makes them allies (relations to at least 75), earns +10 renown and +5 reputation with both, and counts toward the Alliance Broker quest; failure means a 15-day wait.
 - **Join the campaign** (2 AP) while your liege is at war: you fight an enemy vanguard of about 6% of its army. Each victory pays 30g, raises your standing with your liege, weakens the enemy and pushes your liege toward its war goal. When your liege wins, you get a share of the tribute (10% per victory, up to half) plus gold and renown.
+
+- **Send your galleys to the fleet** (free) while your liege is at war and you have war galleys. Half of your squadron's strength sails with your liege's fleet and counts in its sea battles and blockades. Each galley earns 4g a day from your liege, and each sea battle the fleet wins counts as a campaign victory toward your share of the tribute. When the fleet loses a battle, one of your galleys is damaged for 5 days. While they serve, the galleys don't escort your own ships. They return when you recall them, when your liege makes peace, or when you leave its service.
 
 **Your liege's wars follow you to market:** in towns of a realm at war with your liege, prices are 15% worse; in towns of its allies, 5% better.
 
@@ -1686,6 +1714,8 @@ What the effects do:
 | Bandit Uprising | Moderate | +50% bandits, −30% land trade, −15 stability |
 | Kingdom War | Severe | Two hostile kingdoms go to war (truce when it ends); +50% war spending, −10% population, −30% trade |
 | Monster Sighting | Moderate | −15% travel speed, −10 morale, +50% renown from victories |
+
+Smaller military news is reported too. **Training exercises** add up to 10% to a realm's army, but never more than the realm can feed (its cap). **Desertions** cost 10% of the army. **Recruitment drives** add 1% of the population, up to the cap. **Parades** raise stability a little.
 
 ### Political Events
 | Event | Severity | Effect |

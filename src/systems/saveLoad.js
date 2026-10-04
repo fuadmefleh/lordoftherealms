@@ -11,6 +11,7 @@ import { Councils } from './councils.js';
 import { BountyHunting } from './bountyHunting.js';
 import { Gossip } from './gossip.js';
 import { Ships } from './ships.js';
+import { KingdomNavy } from '../world/kingdomNavy.js';
 
 
 export const SaveLoad = {
@@ -160,6 +161,7 @@ export const SaveLoad = {
             characterData: typeof Characters !== 'undefined' ? Characters.serialize(k) : (k.characterData || null),
             colonization: k.colonization || null,
             cartography: k.cartography || null,
+            navy: k.navy || null, // royal fleet and blockades (KingdomNavy)
         }));
     },
 
@@ -375,6 +377,8 @@ export const SaveLoad = {
             const kingdom = world.kingdoms[i];
 
             Object.assign(kingdom, savedKingdom);
+            // Saves from before royal fleets: counted afresh (half the cap) on the next day
+            KingdomNavy.ensure(kingdom);
 
             // Restore character data
             if (typeof Characters !== 'undefined' && savedKingdom.characterData) {

@@ -166,6 +166,23 @@
     },
     "escortShare": 0.5
   },
+  "kingdomNavy": {
+    "_doc": "Royal fleets of the AI kingdoms (src/world/kingdomNavy.js). A realm keeps perPort strength per port settlement (+capitalPort if its capital is a port), x the best traitMultiplier, and never more than treasury / reservePerStrength. It builds buildRate of the gap a day at buildCost gold per point and pays upkeep gold per point a day. In a war fleets meet (battle.chance a day); a fleet with blockade.superiority over the enemy's blockades its ports: income falls by incomeLoss x the realm's port share, the attacker storms its ports with +siegeBonus, and its port markets pay marketSell / charge marketBuy, or close when the blockader is tightRatio times stronger. Hostile fleets intercept the player's ships within intercept.radius of their ports. liegeService: galleys a sworn player lends the liege's fleet in war.",
+    "perPort": 10,
+    "capitalPort": 5,
+    "traitMultiplier": { "naval": 1.5, "seafaring": 1.4, "mercantile": 1.15 },
+    "reservePerStrength": 120,
+    "buildCost": 25,
+    "buildRate": 0.05,
+    "upkeep": 0.3,
+    "unpaidDecay": 0.05,
+    "overCapDecay": 0.1,
+    "startShare": 0.5,
+    "blockade": { "minStrength": 8, "superiority": 1.25, "incomeLoss": 0.25, "siegeBonus": 0.12, "tightRatio": 3, "marketBuy": 1.25, "marketSell": 0.8 },
+    "battle": { "chance": 0.15, "minStrength": 4, "loserLoss": 0.2, "winnerLoss": 0.08 },
+    "intercept": { "radius": 3, "peaceChance": 0.04, "warChance": 0.12, "hostileReputation": -50, "detachmentShare": 0.3, "minDetachment": 6, "maxDetachment": 60, "fleetLoss": 0.5, "cargoSeized": 0.3, "renown": 2, "warScore": 10 },
+    "liegeService": { "share": 0.5, "wagePerGalley": 4, "woundDays": 5 }
+  },
   "contractTypes": {
     "GUARD_DUTY": {
       "id": "guard_duty",

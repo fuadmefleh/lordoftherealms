@@ -9,6 +9,7 @@ import { WorldEvents } from '../world/worldEvents.js';
 import { WEATHER_EFFECTS } from '../world/weather.js';
 import { LegendaryArtifacts } from './legendaryArtifacts.js';
 import { Infrastructure } from './infrastructure.js';
+import { KingdomNavy } from '../world/kingdomNavy.js';
 
 /**
  * Ships System
@@ -481,6 +482,8 @@ export const Ships = {
 
     /** Strength the squadron adds to each of the player's own ship fights. */
     getEscortStrength(player) {
+        // Galleys lent to the liege's fleet are away at war, not escorting
+        if (player && player.politics && player.politics.fleetService) return 0;
         return Math.floor(this.getSquadronStrength(player) * this.getNavalRules().escortShare);
     },
 
@@ -1258,7 +1261,10 @@ export const Ships = {
     getPortMarket(world, q, r) {
         const period = Math.floor((world.day || 0) / this.PORT_PRICE_PERIOD);
         const lerp = ([lo, hi], t) => Math.round(lo + (hi - lo) * t);
-        return this._getTradeGoods().filter(g => g.id).map((g, i) => {
+        // An enemy fleet off the harbour: prices suffer, or the port is shut
+        const blockade = this.getPortBlockade(world, q, r);
+        if (blockade && blockade.closed) return [];
+        const market = this._getTradeGoods().filter(g => g.id).map((g, i) => {
             const roleRoll = this._hash(q, r, i) % 3;
             const t = (this._hash(q, r, i, period) % 1000) / 1000;
             const base = { id: g.id, name: g.name, icon: g.icon || '📦' };
@@ -1275,6 +1281,28 @@ export const Ships = {
             const buy = Math.max(2, Math.ceil(mid * 1.1));
             return { ...base, role: 'local', buy, sell: Math.max(1, Math.min(buy - 1, Math.floor(mid * 0.9))) };
         });
+        if (!blockade) return market;
+        const B = KingdomNavy.CONFIG.blockade;
+        return market.map(e => {
+            const buy = e.buy === null ? null : Math.max(2, Math.ceil(e.buy * B.marketBuy));
+            const sell = Math.max(1, Math.floor(e.sell * B.marketSell));
+            return { ...e, buy, sell: buy === null ? sell : Math.min(sell, buy - 1), blockaded: true };
+        });
+    },
+
+    /**
+     * The blockade over this port, if its realm's harbours are held by an
+     * enemy fleet: { kingdom, blockaders, closed } or null.
+     */
+    getPortBlockade(world, q, r) {
+        if (!world || typeof world.getTile !== 'function' || typeof world.getKingdom !== 'function') return null;
+        return KingdomNavy.portBlockade(world, q, r);
+    },
+
+    _closedPortMessage(world, q, r) {
+        const b = this.getPortBlockade(world, q, r);
+        if (!b || !b.closed) return null;
+        return `The harbour is closed: ${b.blockaders.map(k => k.name).join(' and ')} blockades the ports of ${b.kingdom.name}.`;
     },
 
     /** The player's ship docked at a port on the player's hex, if any. */
@@ -1288,6 +1316,8 @@ export const Ships = {
     buyTradeGood(player, world, shipId, goodId, qty) {
         const ship = this._getShipAtPort(player, world, shipId);
         if (!ship) return { success: false, message: 'Your ship must be docked at this port.' };
+        const closedBuy = this._closedPortMessage(world, player.q, player.r);
+        if (closedBuy) return { success: false, message: closedBuy };
         const entry = this.getPortMarket(world, player.q, player.r).find(e => e.id === goodId);
         if (!entry || entry.buy === null) return { success: false, message: 'This port does not sell that.' };
         const n = Math.min(qty, this.getCargoFree(ship), Math.floor((player.gold || 0) / entry.buy));
@@ -1308,6 +1338,8 @@ export const Ships = {
     sellTradeGood(player, world, shipId, goodId, qty) {
         const ship = this._getShipAtPort(player, world, shipId);
         if (!ship) return { success: false, message: 'Your ship must be docked at this port.' };
+        const closedSell = this._closedPortMessage(world, player.q, player.r);
+        if (closedSell) return { success: false, message: closedSell };
         const entry = this.getPortMarket(world, player.q, player.r).find(e => e.id === goodId);
         if (!entry) return { success: false, message: 'Nobody here buys that.' };
         const n = Math.min(qty, (ship.cargo && ship.cargo[goodId]) || 0);
@@ -1426,8 +1458,88 @@ export const Ships = {
             }
         }
 
+        // Hostile royal fleets stop ships sailing near their ports
+        const interceptions = this._interceptShips(player, world);
+
         const crew = this._payCrews(player, ships);
-        return { stormReports, crew };
+        return { stormReports, crew, interceptions };
+    },
+
+    /* ── Royal fleets at sea ─────────────────────────────────── */
+
+    /**
+     * How a realm's fleet regards the player's ships: 'war' (at war with the
+     * player or the player's liege), 'hostile' (reputation at or below
+     * intercept.hostileReputation) or null.
+     */
+    fleetHostility(player, world, kingdom) {
+        if (!player || !kingdom || kingdom.id === player.allegiance) return null;
+        if (player.realmWars && player.realmWars.wars && player.realmWars.wars[kingdom.id]) return 'war';
+        const liege = player.allegiance && world && world.getKingdom ? world.getKingdom(player.allegiance) : null;
+        if (liege && liege.isAlive && (liege.wars || []).includes(kingdom.id)) return 'war';
+        const rep = (player.reputation && player.reputation[kingdom.id]) || 0;
+        return rep <= KingdomNavy.CONFIG.intercept.hostileReputation ? 'hostile' : null;
+    },
+
+    /** Where a ship is on the map: the player's hex while aboard her. */
+    _shipPosition(player, ship) {
+        if (player && player.boardedShip === ship.id && typeof player.q === 'number') return { q: player.q, r: player.r };
+        return { q: ship.q, r: ship.r };
+    },
+
+    /**
+     * Each ship under way or at anchor within intercept.radius of a hostile
+     * realm's port may be stopped by a detachment of its fleet. The ship's own
+     * strength (hull, crew and the galley escort) decides the fight.
+     * @returns {object[]} one report per interception
+     */
+    _interceptShips(player, world) {
+        const reports = [];
+        if (!world || !Array.isArray(world.kingdoms) || typeof world.getKingdom !== 'function') return reports;
+        const I = KingdomNavy.CONFIG.intercept;
+        for (const ship of player.ships || []) {
+            if (!['at_sea', 'anchored', 'moving'].includes(ship.status)) continue;
+            const pos = this._shipPosition(player, ship);
+            if (typeof pos.q !== 'number') continue;
+            const hostile = KingdomNavy.fleetsNear(world, pos.q, pos.r)
+                .map(f => ({ ...f, stance: this.fleetHostility(player, world, f.kingdom) }))
+                .find(f => f.stance);
+            if (!hostile) continue;
+            if (Utils.random() >= (hostile.stance === 'war' ? I.warChance : I.peaceChance)) continue;
+            reports.push(this._fightInterception(player, world, ship, hostile.kingdom, hostile.stance));
+        }
+        return reports;
+    },
+
+    _fightInterception(player, world, ship, kingdom, stance) {
+        const I = KingdomNavy.CONFIG.intercept;
+        const detachment = KingdomNavy.detachment(kingdom);
+        const own = this._getShipCombatStrength(ship, player);
+        const won = own * Utils.randFloat(0.8, 1.2) > detachment * Utils.randFloat(0.8, 1.2);
+        const toll = this._crewAfterBattle(ship, won);
+        const report = { shipId: ship.id, name: ship.name, kingdomId: kingdom.id, kingdomName: kingdom.name, stance, won, detachment, strength: own, damage: 0, seized: {} };
+        if (won) {
+            kingdom.navy.strength = Math.max(0, (kingdom.navy.strength || 0) - Math.ceil(detachment * I.fleetLoss));
+            report.damage = this.mitigateHullDamage(ship, Utils.randInt(1, 4));
+            ship.condition = Math.max(5, (ship.condition || 100) - report.damage);
+            player.renown = (player.renown || 0) + I.renown;
+            const war = player.realmWars && player.realmWars.wars && player.realmWars.wars[kingdom.id];
+            if (war) war.score = (war.score || 0) + I.warScore;
+            report.text = `${ship.name} beat off a ${kingdom.name} squadron (strength ${detachment}) near their waters. +${I.renown} renown${war ? `, +${I.warScore} war score` : ''}.${toll.text}`;
+        } else {
+            report.damage = this.mitigateHullDamage(ship, Utils.randInt(8, 20));
+            ship.condition = Math.max(5, (ship.condition || 100) - report.damage);
+            for (const [good, qty] of Object.entries(ship.cargo || {})) {
+                const taken = Math.floor(qty * I.cargoSeized);
+                if (taken <= 0) continue;
+                ship.cargo[good] -= taken;
+                if (ship.cargo[good] <= 0) delete ship.cargo[good];
+                report.seized[good] = taken;
+            }
+            const seized = Object.entries(report.seized).map(([g, n]) => `${n} ${g}`).join(', ');
+            report.text = `A ${kingdom.name} squadron (strength ${detachment}) ran down ${ship.name}: hull -${report.damage}%${seized ? `, seized ${seized}` : ''}.${toll.text}`;
+        }
+        return report;
     },
 
     /**

@@ -1,5 +1,6 @@
 // ActionMenu — social methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
+import { Traits } from '../../systems/traits.js';
 import { PlayerActions, PlayerEconomy, PlayerEffects, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, House, Schemes, RealmWars, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMapRenderer } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -1321,6 +1322,9 @@ Object.assign(ActionMenu, {
                     if (loss.type === 'title') successHtml += `<div style="color:#e08080;">Lost your office in the turmoil.</div>`;
                     if (loss.type === 'gold') successHtml += `<div style="color:#e08080;">Lost ${loss.amount} gold to rival claimants.</div>`;
                 }
+                // Traits aren't inherited — but the realm remembers the late ruler
+                const echoNames = (result.traitEcho || []).map(e => Traits.TRAITS[e.id]).filter(Boolean).map(d => `${d.icon} ${d.name}`);
+                if (echoNames.length) successHtml += `<div style="color:#c9b27a;">The realm still remembers ${result.oldName} as ${echoNames.join(' and ')}. That reputation clings to your House for a while.</div>`;
                 successHtml += '</div>';
                 successHtml += `<button data-am-act="closePanelAndRefresh" style="width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;">Begin Your Story</button>`;
                 successHtml += '</div>';

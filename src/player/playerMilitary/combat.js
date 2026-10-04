@@ -1,5 +1,6 @@
 // PlayerMilitary — combat members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
+import { Traits } from '../../systems/traits.js';
 import { Utils, Technology, House, Quests, RealmWars, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
@@ -58,6 +59,8 @@ Object.assign(PlayerMilitary, {
         playerPower *= PlayerEffects.moodCombatMultiplier(player);
         // The Valor tenet of the player's own faith
         playerPower *= PlayerEffects.faithBattleMultiplier(player);
+        // Earned traits (Brave, Craven, Sea Wolf, Champion…)
+        playerPower *= PlayerEffects.traitBattleMultiplier(player);
         // Fortification techs help when the player is the one attacked
         if (context.defending) playerPower *= 1 + Technology.getDefenseBonus(player);
         // A fortified house (watchtower, fortification upgrades) adds +1% per point of defense
@@ -74,6 +77,7 @@ Object.assign(PlayerMilitary, {
         let moraleBreak = null;
         if (PlayerMilitary._checkMoraleBreak(playerStrength, enemyStrength, playerMorale)) {
             moraleBreak = 'player';
+            Traits.recordDeed(player, 'cowardice', 2); // the army broke and ran
             playerPower *= 0.55;
             enemyPower *= 1.12;
         } else if (specials.commanderSlain || PlayerMilitary._checkMoraleBreak(enemyStrength, playerStrength, enemyMorale)) {
@@ -262,6 +266,7 @@ Object.assign(PlayerMilitary, {
             player.stamina = player.maxStamina;
             player.movementRemaining = player.maxStamina;
             player.karma -= 1; // Minor karma hit for breaking contract
+            Traits.recordDeed(player, 'deceit', 2);
             player.skills.stealth = Math.min(10, (player.skills.stealth || 1) + 0.5);
             return result;
         } else {
@@ -288,6 +293,7 @@ Object.assign(PlayerMilitary, {
         if (player.gold < cost) return { success: false, reason: `Need ${cost} gold (have ${player.gold})` };
 
         player.gold -= cost;
+        Traits.recordDeed(player, 'honesty', 1); // paid the debt rather than fled
         const captor = player.indenturedServitude.captor;
         player.indenturedServitude = null;
         player.stamina = player.maxStamina;
@@ -348,6 +354,7 @@ Object.assign(PlayerMilitary, {
 
             // Negative karma and reputation
             player.karma -= 5;
+            Traits.recordAggression(player, settlement.kingdom, { cruelty: 3, greed: 2, dread: 2 });
             if (settlement.kingdom) {
                 player.reputation[settlement.kingdom] =
                     (player.reputation[settlement.kingdom] || 0) - 20;
@@ -504,6 +511,7 @@ Object.assign(PlayerMilitary, {
 
             // Massive karma and reputation hit
             player.karma -= 10;
+            Traits.recordAggression(player, previousKingdom, { cruelty: 2 });
             result.karmaChange = -10;
 
             // Reputation with ALL kingdoms drops
@@ -641,10 +649,12 @@ Object.assign(PlayerMilitary, {
                 case 'ship':
                 case 'fishing_boat':
                     karmaChange = -3;
+                    Traits.recordDeeds(player, { greed: 2, cruelty: 1, seafaring: worldUnit.type === 'caravan' ? 0 : 2 }); // piracy
                     player.karma += karmaChange;
                     break;
                 case 'settler':
                     karmaChange = -5;
+                    Traits.recordDeed(player, 'cruelty', 2);
                     player.karma += karmaChange;
                     break;
                 case 'raider':
@@ -656,6 +666,7 @@ Object.assign(PlayerMilitary, {
                     break;
                 case 'patrol':
                     karmaChange = -2;
+                    Traits.recordAggression(player, worldUnit.kingdom, { dread: 1 });
                     player.karma += karmaChange;
                     // Anger the patrol's kingdom
                     if (worldUnit.kingdom) {
@@ -668,6 +679,7 @@ Object.assign(PlayerMilitary, {
                 case 'diplomatic_envoy':
                     // Preying on the defenceless or on envoys is dishonourable
                     karmaChange = -8;
+                    Traits.recordDeeds(player, { cruelty: 4, dread: 1 });
                     player.karma += karmaChange;
                     break;
                 case 'smuggler':

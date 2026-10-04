@@ -229,8 +229,8 @@ export function _renderChoices(box) {
     if (!threatened) {
         const combatTotal = _getSkillTotal('combat');
         const baseDifficulty = npcType === 'guard' || npcType === 'blacksmith_npc' ? 5 : npcType === 'noble' ? 4 : 2;
-        const difficulty = dialogState._npc ? NpcDisposition.threatDifficulty(dialogState._npc, baseDifficulty) : baseDifficulty;
-        const cowed = difficulty < baseDifficulty ? ' | 😨 Already afraid of you — easier to cow' : '';
+        const difficulty = dialogState._npc ? NpcDisposition.threatDifficulty(dialogState._npc, baseDifficulty, dialogState._game?.player) : baseDifficulty;
+        const cowed = difficulty < baseDifficulty ? ' | 😨 Afraid of you — easier to cow' : '';
         const chance = Math.min(100, Math.round((combatTotal / difficulty) * 100));
         choices.push({
             icon: '😠',

@@ -30,6 +30,7 @@ import { PlayerEconomy } from '../player/playerEconomy.js';
 import { Espionage } from '../systems/espionage.js';
 import { InnerMap } from '../world/innerMap.js';
 import { LegendaryArtifacts } from '../systems/legendaryArtifacts.js';
+import { Traits } from '../systems/traits.js';
 
 
 export const DataLoader = {
@@ -465,6 +466,13 @@ export const DataLoader = {
         const gossipData = data['gossip.json'];
         if (gossipData) {
             DataLoader.gossip = gossipData;
+        }
+
+        // ── Earned character traits ──
+        const traitsData = data['traits.json'];
+        if (traitsData) {
+            DataLoader.traits = traitsData;
+            Traits.load(traitsData);
         }
 
         // ── Legendary Artifacts ──

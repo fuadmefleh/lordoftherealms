@@ -1,6 +1,7 @@
 // UI — hud methods.
 import { UI } from './core.js';
 import { Utils, ActionMenu, Religion, Economy, Terrain, PlayerEconomy, PlayerMilitary, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, InnerMapCharacters, WEATHER_TYPES, Treasures } from './_imports.js';
+import { Traits } from '../../systems/traits.js';
 
 Object.assign(UI.prototype, {
     setupEventListeners() {
@@ -277,6 +278,10 @@ Object.assign(UI.prototype, {
      * Update top bar stats display and bottom HUD needs bars
      */
     updateStats(player, world) {
+        // Character traits gained or lost since the last refresh
+        for (const n of Traits.drainNotices(player)) {
+            this.showNotification(n.title, n.text, n.kind === 'gained' ? 'success' : 'warning');
+        }
         document.getElementById('goldValue').textContent = Utils.formatNumber(player.gold);
         document.getElementById('karmaValue').textContent = player.karma;
         document.getElementById('renownValue').textContent = player.renown;

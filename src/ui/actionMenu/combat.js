@@ -1,5 +1,6 @@
 // ActionMenu — combat methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
+import { Traits } from '../../systems/traits.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerEffects, Treasures } from './_imports.js';
 
 /** Battle-report lines for soldiers saved by surgeons and a slain enemy commander. */
@@ -439,7 +440,7 @@ Object.assign(ActionMenu, {
         }
 
         const lord = kingdom.lord;
-        const opinion = NPCLords.getLordOpinion(lord, player);
+        const opinion = (NPCLords.getLordOpinion(lord, player) + PlayerEffects.lordOpinionBonus(player, lord));
         const reputation = player.reputation ? (player.reputation[kingdom.id] || 0) : 0;
         const totalDisposition = opinion + reputation;
         const isAllegianceKingdom = player.allegiance === kingdom.id;
@@ -624,7 +625,7 @@ Object.assign(ActionMenu, {
         player.reputation[kingdom.id] = (player.reputation[kingdom.id] || 0) + repBoost;
 
         const lord = kingdom.lord;
-        const newOpinion = NPCLords.getLordOpinion(lord, player) + (player.reputation[kingdom.id] || 0);
+        const newOpinion = (NPCLords.getLordOpinion(lord, player) + PlayerEffects.lordOpinionBonus(player, lord)) + (player.reputation[kingdom.id] || 0);
 
         let html = `<div style="padding:15px; text-align:center;">
             <span style="font-size:42px;">🤝</span>
@@ -706,7 +707,7 @@ Object.assign(ActionMenu, {
         if (!ActionMenu.commitPendingAP(game)) return;
 
         const lord = kingdom.lord;
-        const opinion = NPCLords.getLordOpinion(lord, player);
+        const opinion = (NPCLords.getLordOpinion(lord, player) + PlayerEffects.lordOpinionBonus(player, lord));
         const reputation = player.reputation ? (player.reputation[kingdom.id] || 0) : 0;
         const totalDisposition = opinion + reputation;
 
@@ -845,6 +846,7 @@ Object.assign(ActionMenu, {
         player.allegiance = null;
         player.kingdomTitle = null;
         player.title = 'Wanderer';
+        Traits.recordDeed(player, 'deceit', 3); // an oath broken
 
         // Reputation hit
         if (!player.reputation) player.reputation = {};
@@ -955,7 +957,7 @@ Object.assign(ActionMenu, {
 
         const lord = kingdom.lord;
         const reputation = player.reputation ? (player.reputation[kingdom.id] || 0) : 0;
-        const totalDisp = NPCLords.getLordOpinion(lord, player) + reputation;
+        const totalDisp = (NPCLords.getLordOpinion(lord, player) + PlayerEffects.lordOpinionBonus(player, lord)) + reputation;
 
         // Success chance scales with disposition and lord's martial
         const baseChance = 0.2 + (totalDisp / 150) + (lord.martial / 50) + PlayerEffects.negotiationBonus(player);
@@ -1103,7 +1105,7 @@ Object.assign(ActionMenu, {
         }
 
         const lord = kingdom.lord;
-        const opinion = NPCLords.getLordOpinion(lord, player);
+        const opinion = (NPCLords.getLordOpinion(lord, player) + PlayerEffects.lordOpinionBonus(player, lord));
         const reputation = player.reputation ? (player.reputation[kingdom.id] || 0) : 0;
         const totalDisposition = opinion + reputation;
 

@@ -19,6 +19,7 @@ import { Hex } from '../core/hex.js';
 import { NpcFamily } from './npcFamily.js';
 import { Cartography } from './cartography.js';
 import { PlayerInventory } from '../core/inventory.js';
+import { Traits } from './traits.js';
 
 /**
  * What a flattered NPC actually hands over — aligned index-for-index with the
@@ -85,11 +86,14 @@ export const NpcDisposition = {
     /**
      * Multiplier on future positive disposition gains: gifts build a habit of
      * goodwill (+10% per gift, up to +50%); a threatened NPC warms at half speed.
+     * The player's earned traits colour it too: the Generous and the Beloved
+     * are warmed to quickly, a Dread Lord is loved by none.
      */
-    gainMultiplier(npc) {
+    gainMultiplier(npc, player = null) {
         const mem = NpcDisposition.getMemory(npc);
         let mult = 1 + Math.min(0.5, (mem.giftsReceived || 0) * 0.1);
         if (mem.threatened) mult *= 0.5;
+        if (player) mult *= Traits.npcWarmthMultiplier(player);
         return mult;
     },
 
@@ -97,19 +101,24 @@ export const NpcDisposition = {
      * Change an NPC's disposition, applying the gift/threat multiplier to
      * positive changes. Returns the change actually applied.
      */
-    adjustDisposition(npc, delta) {
+    adjustDisposition(npc, delta, player = null) {
         const mem = NpcDisposition.getMemory(npc);
-        let applied = delta > 0 ? Math.max(1, Math.round(delta * NpcDisposition.gainMultiplier(npc))) : Math.round(delta);
+        let applied = delta > 0 ? Math.max(1, Math.round(delta * NpcDisposition.gainMultiplier(npc, player))) : Math.round(delta);
         const before = mem.disposition;
         mem.disposition = clamp(before + applied, 0, 100);
         applied = mem.disposition - before;
         return applied;
     },
 
-    /** Record a gift; three gifts after a threat make amends. */
-    recordGift(npc) {
+    /**
+     * Record a gift; three gifts after a threat make amends. With the giver
+     * passed in, the gift counts toward Generous (and Merciful for the poor).
+     */
+    recordGift(npc, player = null) {
         const mem = NpcDisposition.getMemory(npc);
         mem.giftsReceived = (mem.giftsReceived || 0) + 1;
+        const needy = npc.type === 'beggar' || npc.type === 'child';
+        Traits.recordDeeds(player, { generosity: 1, mercy: needy ? 1 : 0, popularity: 0.5 });
         if (mem.threatened) {
             mem.amends = (mem.amends || 0) + 1;
             if (mem.amends >= 3) {
@@ -203,14 +212,16 @@ export const NpcDisposition = {
      * already cowed (`fearful`) folds faster: −2 to the threat difficulty.
      * Returns a non-positive modifier to add to the base difficulty.
      */
-    intimidationModifier(npc) {
+    intimidationModifier(npc, player = null) {
         const mem = NpcDisposition.getMemory(npc);
-        return mem.fearful ? -2 : 0;
+        // A Dread Lord's (or Cruel, Cunning) reputation does half the work
+        const traitMod = player ? Math.round(Traits.effect(player, 'intimidation')) : 0;
+        return (mem.fearful ? -2 : 0) + traitMod;
     },
 
-    /** Threat difficulty after the NPC's fear is taken into account (min 1). */
-    threatDifficulty(npc, baseDifficulty) {
-        return Math.max(1, baseDifficulty + NpcDisposition.intimidationModifier(npc));
+    /** Threat difficulty after the NPC's fear and the player's traits (min 1). */
+    threatDifficulty(npc, baseDifficulty, player = null) {
+        return Math.max(1, baseDifficulty + NpcDisposition.intimidationModifier(npc, player));
     },
 
     /**
@@ -242,6 +253,7 @@ export const NpcDisposition = {
         const out = { gold: 0, reported: false, alreadyExtorted: false };
         mem.threatened = true;
         mem.amends = 0;
+        Traits.recordDeeds(player, { dread: 2, cruelty: 1 }); // intimidation shapes a reputation
         if (success) {
             mem.fearful = true;
             if (mem.extorted) {
@@ -251,6 +263,7 @@ export const NpcDisposition = {
                 out.gold = hi > 0 ? Utils.randInt(lo, hi) : 0;
                 mem.extorted = true;
                 if (player && out.gold > 0) player.gold = (player.gold || 0) + out.gold;
+                if (out.gold > 0) Traits.recordDeed(player, 'greed', 2); // extortion
             }
         }
         // Guards don't report themselves; the bold and the angry report more often

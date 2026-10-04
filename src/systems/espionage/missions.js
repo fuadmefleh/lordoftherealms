@@ -1,5 +1,6 @@
 // Espionage — missions members (split from the original monolith).
 import { Espionage } from './_ref.js';
+import { Traits } from '../traits.js';
 import { DataLoader, Utils, Technology, Hex, Tavern, Characters, House, Schemes, RealmWars } from './_imports.js';
 
 Object.assign(Espionage, {
@@ -208,6 +209,7 @@ Object.assign(Espionage, {
 
         // Apply outcome
         const result = this._applyMissionOutcome(player, spy, mission, missionDef, outcome, world);
+        if (outcome === 'success' || outcome === 'criticalSuccess') Traits.recordAggression(player, mission.targetKingdom, mission.type === 'assassinate' ? { cunning: 2, cruelty: 2, dread: 1 } : { cunning: 2, deceit: 1 });
 
         // Update spy state
         spy.status = outcome === 'captured' ? 'captured' : 'idle';

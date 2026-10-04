@@ -1,6 +1,6 @@
 // Relationships — family members (split from the original monolith).
 import { Relationships } from './_ref.js';
-import { DataLoader, Utils, Characters, House } from './_imports.js';
+import { DataLoader, Utils, Characters, House, Traits } from './_imports.js';
 
 Object.assign(Relationships, {
     // ────────────────────────────────────────────────────────────────────
@@ -482,6 +482,9 @@ Object.assign(Relationships, {
             });
         }
 
+        // Traits are not inherited; the House remembers the strongest two
+        const traitEcho = Traits.onSuccession(player, world, oldName);
+
         return {
             success: true,
             oldName,
@@ -489,6 +492,7 @@ Object.assign(Relationships, {
             newName: player.name,
             heir: child,
             house: houseResult,
+            traitEcho,
         };
     },
 

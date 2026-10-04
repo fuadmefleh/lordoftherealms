@@ -5,6 +5,7 @@
 import { Utils } from '../core/utils.js';
 import { Taxation } from './marketDynamics.js';
 import { Titles } from './titles.js';
+import { Traits } from './traits.js';
 
 
 export const Councils = {
@@ -354,12 +355,14 @@ export const Councils = {
         const clamp = (v) => Math.max(0, Math.min(100, v));
         const base = (id) => this.FACTIONS.find(f => f.id === id).baseSupport;
 
+        // Earned traits (and the dynasty's echo): a Pious ruler has the clergy's ear
+        const t = (key) => Traits.effect(player, key);
         return {
-            nobility: clamp(base('nobility') + Math.min(12, (player.renown || 0) / 40)),
-            military: clamp(base('military') + Math.min(12, army / 3) + (atWar ? 8 : -4)),
-            merchants: clamp(base('merchants') + Math.min(12, routes * 3) - taxPenalty),
-            clergy: clamp(base('clergy') + Math.max(-15, Math.min(15, (player.karma || 0) / 20))),
-            commons: clamp(base('commons') + (happiness - 50) / 2.5 - taxPenalty),
+            nobility: clamp(base('nobility') + Math.min(12, (player.renown || 0) / 40) + t('nobility')),
+            military: clamp(base('military') + Math.min(12, army / 3) + (atWar ? 8 : -4) + t('military')),
+            merchants: clamp(base('merchants') + Math.min(12, routes * 3) - taxPenalty + t('merchants')),
+            clergy: clamp(base('clergy') + Math.max(-15, Math.min(15, (player.karma || 0) / 20)) + t('clergy')),
+            commons: clamp(base('commons') + (happiness - 50) / 2.5 - taxPenalty + t('commons')),
         };
     },
 

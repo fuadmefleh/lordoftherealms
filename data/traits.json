@@ -1,0 +1,268 @@
+{
+    "config": {
+        "loseFraction": 0.5,
+        "maxFraction": 2,
+        "echoCount": 2,
+        "echoStrength": 0.5,
+        "echoDecayPerDay": 0.0025,
+        "echoMinStrength": 0.05,
+        "greetingChance": 0.3,
+        "highTaxGreedPerDay": 0.2,
+        "lowTaxGoodwillPerDay": 0.15,
+        "echoKeys": ["npcWarmth", "lordOpinion", "intimidation", "reputationGain", "negotiation", "clergy", "commons", "nobility", "merchants", "military"]
+    },
+    "deeds": {
+        "valor":       { "name": "Valor",        "icon": "⚔️" },
+        "cowardice":   { "name": "Cowardice",    "icon": "🏳️" },
+        "cruelty":     { "name": "Cruelty",      "icon": "🩸" },
+        "mercy":       { "name": "Mercy",        "icon": "🕊️" },
+        "greed":       { "name": "Greed",        "icon": "💰" },
+        "generosity":  { "name": "Generosity",   "icon": "🎁" },
+        "piety":       { "name": "Piety",        "icon": "🙏" },
+        "zeal":        { "name": "Zeal",         "icon": "🔥" },
+        "cunning":     { "name": "Cunning",      "icon": "🦊" },
+        "honesty":     { "name": "Honesty",      "icon": "🤝" },
+        "deceit":      { "name": "Deceit",       "icon": "🎭" },
+        "trade":       { "name": "Trade profit", "icon": "⚖️" },
+        "seafaring":   { "name": "Seafaring",    "icon": "⚓" },
+        "learning":    { "name": "Learning",     "icon": "📜" },
+        "gambling":    { "name": "Gambling",     "icon": "🎲" },
+        "drinking":    { "name": "Drinking",     "icon": "🍺" },
+        "popularity":  { "name": "Popularity",   "icon": "🎉" },
+        "dread":       { "name": "Dread",        "icon": "💀" },
+        "travel":      { "name": "Travel",       "icon": "🧭" },
+        "kinslaying":  { "name": "Kinslaying",   "icon": "🗡️" },
+        "tournament":  { "name": "Tournaments",  "icon": "🏆" }
+    },
+    "statDeeds": {
+        "battles_won":                { "valor": 1 },
+        "special_creatures_defeated": { "valor": 3 },
+        "close_calls":                { "valor": 2 },
+        "raiders_defeated":           { "mercy": 0.5 },
+        "pirates_defeated":           { "seafaring": 3 },
+        "trade_profit":               { "trade": 1 },
+        "miracles_performed":         { "piety": 3 },
+        "holy_sites_visited":         { "piety": 2 },
+        "heresies_suppressed":        { "zeal": 4 },
+        "informants_hired":           { "cunning": 2 },
+        "treasures_found":            { "travel": 2 },
+        "ruins_explored":             { "travel": 1, "learning": 0.5 },
+        "taverns_visited":            { "drinking": 0.5 },
+        "alliances_formed":           { "honesty": 2 },
+        "settlements_captured":       { "dread": 3 }
+    },
+    "traits": {
+        "brave": {
+            "name": "Brave", "icon": "🦁", "opposite": "craven",
+            "description": "Charges first and fights to the last. Soldiers follow you gladly.",
+            "threshold": 12,
+            "deeds": { "valor": 1 },
+            "erodedBy": { "cowardice": 2 },
+            "effects": { "battlePower": 0.05, "military": 6, "reputationGain": 0.03 },
+            "lordAffinity": { "brave": 10, "ambitious": 5 },
+            "greetings": ["*straightens up* They say you never take a step back in battle.", "The bards already sing of your courage, friend."]
+        },
+        "craven": {
+            "name": "Craven", "icon": "🐇", "opposite": "brave",
+            "description": "Your army has broken and run too often. Men whisper that you flee first.",
+            "threshold": 10,
+            "deeds": { "cowardice": 1 },
+            "erodedBy": { "valor": 1.5 },
+            "effects": { "battlePower": -0.05, "military": -8, "lordOpinion": -5 },
+            "lordAffinity": { "brave": -10, "cautious": 5 },
+            "greetings": ["*smirks* Off to run from another fight?"]
+        },
+        "cruel": {
+            "name": "Cruel", "icon": "🩸", "opposite": "merciful",
+            "description": "You hurt the weak and enjoy it. Fear opens doors; affection closes them.",
+            "threshold": 15,
+            "deeds": { "cruelty": 1 },
+            "erodedBy": { "mercy": 1.5 },
+            "effects": { "intimidation": -1, "npcWarmth": -0.25, "commons": -6, "clergy": -4 },
+            "lordAffinity": { "cruel": 10, "honorable": -10, "pious": -5 },
+            "greetings": ["*keeps a careful distance* I've heard what you did to those people."]
+        },
+        "merciful": {
+            "name": "Merciful", "icon": "🕊️", "opposite": "cruel",
+            "description": "You spare the beaten and feed the hungry. The common folk remember kindness.",
+            "threshold": 12,
+            "deeds": { "mercy": 1 },
+            "erodedBy": { "cruelty": 1.5 },
+            "effects": { "npcWarmth": 0.2, "commons": 5, "clergy": 3, "intimidation": 1 },
+            "lordAffinity": { "honorable": 10, "pious": 5, "cruel": -5 },
+            "greetings": ["*smiles warmly* You're the one who helped the poor folk, aren't you?"]
+        },
+        "greedy": {
+            "name": "Greedy", "icon": "💰", "opposite": "generous",
+            "description": "Every coin is yours to take. Merchants haggle hard with you, and everyone counts their purse.",
+            "threshold": 15,
+            "deeds": { "greed": 1 },
+            "erodedBy": { "generosity": 1 },
+            "effects": { "tradeBonus": 0.03, "npcWarmth": -0.15, "commons": -5, "merchants": 3 },
+            "lordAffinity": { "greedy": 10, "honorable": -5 },
+            "greetings": ["*clutches purse* What do you want this time?"]
+        },
+        "generous": {
+            "name": "Generous", "icon": "🎁", "opposite": "greedy",
+            "description": "Open-handed with coin and drink. People are glad to see you coming.",
+            "threshold": 15,
+            "deeds": { "generosity": 1 },
+            "erodedBy": { "greed": 1 },
+            "effects": { "npcWarmth": 0.25, "reputationGain": 0.05, "commons": 5, "tradeBonus": -0.02 },
+            "lordAffinity": { "honorable": 5, "greedy": 5 },
+            "greetings": ["Ah, the open-handed one! Drinks are on you again, I hope?"]
+        },
+        "pious": {
+            "name": "Pious", "icon": "🙏",
+            "description": "Prayer, pilgrimage and miracles have marked you as devout. The clergy count you among their own.",
+            "threshold": 14,
+            "deeds": { "piety": 1 },
+            "erodedBy": { "cruelty": 0.5, "kinslaying": 5 },
+            "effects": { "clergy": 10, "negotiation": 0.02, "npcWarmth": 0.05 },
+            "lordAffinity": { "pious": 15 },
+            "greetings": ["*bows head* Blessings upon you, faithful one."]
+        },
+        "zealous": {
+            "name": "Zealous", "icon": "🔥",
+            "description": "You burn heresy and preach without rest. The devout adore you; everyone else is wary.",
+            "threshold": 14,
+            "deeds": { "zeal": 1 },
+            "erodedBy": { "deceit": 0.5 },
+            "effects": { "clergy": 8, "battlePower": 0.03, "npcWarmth": -0.1, "merchants": -3 },
+            "lordAffinity": { "pious": 10, "cunning": -5 },
+            "greetings": ["*glances nervously* No heretics here, I swear it."]
+        },
+        "cunning": {
+            "name": "Cunning", "icon": "🦊",
+            "description": "Spies, informants and schemes. You know things others don't.",
+            "threshold": 12,
+            "deeds": { "cunning": 1 },
+            "erodedBy": {},
+            "effects": { "negotiation": 0.04, "diplomacy": 1, "intimidation": -1 },
+            "lordAffinity": { "cunning": 10, "honorable": -5 },
+            "greetings": ["*lowers voice* I hear you always know more than you let on."]
+        },
+        "honest": {
+            "name": "Honest", "icon": "🤝", "opposite": "deceitful",
+            "description": "You keep your word: quests finished, contracts honoured, alliances kept.",
+            "threshold": 15,
+            "deeds": { "honesty": 1 },
+            "erodedBy": { "deceit": 2 },
+            "effects": { "negotiation": 0.05, "nobility": 4, "merchants": 4, "lordOpinion": 5 },
+            "lordAffinity": { "honorable": 15, "cunning": -5 },
+            "greetings": ["Your word is good, they say. That's rare these days."]
+        },
+        "deceitful": {
+            "name": "Deceitful", "icon": "🎭", "opposite": "honest",
+            "description": "Broken oaths and slipped bonds. Nobody quite trusts what you say.",
+            "threshold": 10,
+            "deeds": { "deceit": 1 },
+            "erodedBy": { "honesty": 1 },
+            "effects": { "negotiation": -0.05, "lordOpinion": -8, "nobility": -5, "tradeBonus": 0.02 },
+            "lordAffinity": { "honorable": -15, "cunning": 5 },
+            "greetings": ["*narrows eyes* I'll count my change twice, thank you."]
+        },
+        "merchant_prince": {
+            "name": "Merchant Prince", "icon": "⚖️",
+            "description": "Your trade fortune is the talk of every market. Guilds deal with you as an equal.",
+            "threshold": 5000,
+            "deeds": { "trade": 1 },
+            "erodedBy": {},
+            "effects": { "tradeBonus": 0.05, "merchants": 10, "negotiation": 0.02 },
+            "lordAffinity": { "greedy": 10, "cunning": 5 },
+            "greetings": ["A pleasure! Every merchant from here to the coast knows your name."]
+        },
+        "sea_wolf": {
+            "name": "Sea Wolf", "icon": "⚓",
+            "description": "Pirates hunted and sea battles won. Sailors fear and admire you.",
+            "threshold": 12,
+            "deeds": { "seafaring": 1 },
+            "erodedBy": {},
+            "effects": { "battlePower": 0.03, "reputationGain": 0.03, "military": 3 },
+            "lordAffinity": { "ambitious": 5, "brave": 5 },
+            "greetings": ["*eyes your weathered hands* You've the salt of the sea on you, captain."]
+        },
+        "scholar": {
+            "name": "Scholar", "icon": "📜",
+            "description": "Research, lore and ancient ruins. Learned folk seek your opinion.",
+            "threshold": 12,
+            "deeds": { "learning": 1 },
+            "erodedBy": {},
+            "effects": { "diplomacy": 1, "negotiation": 0.02, "clergy": 2 },
+            "lordAffinity": { "cautious": 5, "cunning": 5 },
+            "greetings": ["Ah, the scholar! Is it true you read every tome you find?"]
+        },
+        "gambler": {
+            "name": "Gambler", "icon": "🎲",
+            "description": "Dice at every tavern. Fortune favours you a little — and debt follows you a lot.",
+            "threshold": 10,
+            "deeds": { "gambling": 1 },
+            "erodedBy": {},
+            "decayPerDay": 0.05,
+            "effects": { "gamblingLuck": 0.05, "nobility": -3 },
+            "lordAffinity": {},
+            "greetings": ["*rattles dice* Fancy a round, friend? I hear you never refuse."]
+        },
+        "drunkard": {
+            "name": "Drunkard", "icon": "🍺",
+            "description": "More nights in the tavern than out of it. Good company, poor counsel.",
+            "threshold": 12,
+            "deeds": { "drinking": 1 },
+            "erodedBy": {},
+            "decayPerDay": 0.08,
+            "effects": { "npcWarmth": 0.1, "negotiation": -0.03, "battlePower": -0.02, "nobility": -4 },
+            "lordAffinity": { "pious": -5 },
+            "greetings": ["*grins* Back for another round, are we?"]
+        },
+        "beloved": {
+            "name": "Beloved of the People", "icon": "💖", "opposite": "dread_lord",
+            "description": "Festivals, fair taxes and open hands. The commons would follow you anywhere.",
+            "threshold": 18,
+            "deeds": { "popularity": 1 },
+            "erodedBy": { "dread": 1.5, "cruelty": 1 },
+            "effects": { "npcWarmth": 0.3, "commons": 12, "reputationGain": 0.05, "intimidation": 1 },
+            "lordAffinity": { "honorable": 5, "ambitious": -5 },
+            "greetings": ["*beams* It's an honour! My mother still talks about your festival."]
+        },
+        "dread_lord": {
+            "name": "Dread Lord", "icon": "💀", "opposite": "beloved",
+            "description": "Conquest, raids and threats. People do what you say — and love you not at all.",
+            "threshold": 18,
+            "deeds": { "dread": 1 },
+            "erodedBy": { "popularity": 1.5, "mercy": 1 },
+            "effects": { "intimidation": -2, "npcWarmth": -0.5, "commons": -10, "military": 5, "lordOpinion": -5 },
+            "lordAffinity": { "cruel": 15, "ambitious": 5, "cautious": -10 },
+            "greetings": ["*trembles* W-whatever you need, my lord. Please.", "*won't meet your eye* I've done nothing wrong, I swear it."]
+        },
+        "wanderer": {
+            "name": "Wanderer", "icon": "🧭",
+            "description": "You've seen more of the world than most kings. Strangers warm to a well-travelled face.",
+            "threshold": 20,
+            "deeds": { "travel": 1 },
+            "erodedBy": {},
+            "effects": { "tradeBonus": 0.02, "npcWarmth": 0.1, "diplomacy": 0.5 },
+            "lordAffinity": {},
+            "greetings": ["A traveller! Where have your roads taken you lately?"]
+        },
+        "kinslayer": {
+            "name": "Kinslayer", "icon": "🗡️",
+            "description": "You raised your sword against the realm you married into. Such a stain never washes out.",
+            "threshold": 3,
+            "deeds": { "kinslaying": 1 },
+            "erodedBy": {},
+            "effects": { "npcWarmth": -0.2, "lordOpinion": -15, "clergy": -10, "nobility": -10, "intimidation": -1 },
+            "lordAffinity": { "honorable": -10, "pious": -10 },
+            "greetings": ["*spits* Kinslayer. The gods see what you did."]
+        },
+        "champion": {
+            "name": "Champion of Tournaments", "icon": "🏆",
+            "description": "Lists and archery butts: you win them. Nobles want you at their feasts.",
+            "threshold": 6,
+            "deeds": { "tournament": 1 },
+            "erodedBy": {},
+            "effects": { "battlePower": 0.03, "nobility": 6, "reputationGain": 0.05 },
+            "lordAffinity": { "brave": 10, "ambitious": 5 },
+            "greetings": ["*gasps* The champion of the lists! May I shake your hand?"]
+        }
+    }
+}

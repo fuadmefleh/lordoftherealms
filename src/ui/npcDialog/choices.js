@@ -273,7 +273,7 @@ export function _handleChoice(action) {
             case 'threat': {
                 const baseDifficulty = npcType === 'guard' || npcType === 'blacksmith_npc' ? 5 : npcType === 'noble' ? 4 : 2;
                 // Someone you've already cowed folds more easily
-                const difficulty = dialogState._npc ? NpcDisposition.threatDifficulty(dialogState._npc, baseDifficulty) : baseDifficulty;
+                const difficulty = dialogState._npc ? NpcDisposition.threatDifficulty(dialogState._npc, baseDifficulty, dialogState._game?.player) : baseDifficulty;
                 const success = _skillCheck('combat', difficulty);
                 if (success) {
                     const pool = THREAT_SUCCESS[npcType] || THREAT_SUCCESS.villager;
@@ -368,7 +368,7 @@ export function _handleChoice(action) {
         // Apply disposition change
         if (dispositionChange !== 0) {
             // Past gifts make goodwill grow faster; threats make it grow slower
-            dispositionChange = NpcDisposition.adjustDisposition(dialogState._npc, dispositionChange);
+            dispositionChange = NpcDisposition.adjustDisposition(dialogState._npc, dispositionChange, dialogState._game?.player);
             mem.lastAction = action;
             _animateDispositionChange(dispositionChange);
 
@@ -476,8 +476,8 @@ export function _giveGoldGift(amount) {
     if (npcType === 'noble' && amount < 25) boost = Math.ceil(boost / 2);
 
     // Earlier gifts make each new one count for more; then record this one
-    boost = NpcDisposition.adjustDisposition(dialogState._npc, boost);
-    const giftResult = NpcDisposition.recordGift(dialogState._npc);
+    boost = NpcDisposition.adjustDisposition(dialogState._npc, boost, dialogState._game?.player);
+    const giftResult = NpcDisposition.recordGift(dialogState._npc, dialogState._game?.player);
 
     // Karma boost
     if (dialogState._game.player) dialogState._game.player.karma = (dialogState._game.player.karma || 0) + 1;
@@ -525,8 +525,8 @@ export function _giveItemGift(itemId) {
     if (itemId === 'bread' || itemId === 'food') boost = npcType === 'beggar' ? 15 : 6;
     if (itemId === 'ale' || itemId === 'wine') boost = npcType === 'traveler' ? 10 : 6;
 
-    boost = NpcDisposition.adjustDisposition(dialogState._npc, boost);
-    const giftResult = NpcDisposition.recordGift(dialogState._npc);
+    boost = NpcDisposition.adjustDisposition(dialogState._npc, boost, dialogState._game?.player);
+    const giftResult = NpcDisposition.recordGift(dialogState._npc, dialogState._game?.player);
     if (dialogState._game.player) dialogState._game.player.karma = (dialogState._game.player.karma || 0) + 1;
 
     const responses = {

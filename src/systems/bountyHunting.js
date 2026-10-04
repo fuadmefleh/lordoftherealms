@@ -3,6 +3,7 @@
 // ============================================
 
 import { Utils } from '../core/utils.js';
+import { Traits } from './traits.js';
 
 
 export const BountyHunting = {
@@ -242,6 +243,7 @@ export const BountyHunting = {
             player.gold += pay;
             player.renown = (player.renown || 0) + Math.max(3, Math.floor(bounty.difficulty / 2));
             state.capturesTurnedIn += 1;
+            Traits.recordDeeds(player, { mercy: 2, honesty: 1 }); // taken alive to face justice
             player.bountiesCompleted = (player.bountiesCompleted || 0) + 1;
             bounty.status = 'completed';
             this._removeBounty(player, bounty.id);
@@ -267,6 +269,7 @@ export const BountyHunting = {
             player.karma = (player.karma || 0) - Math.max(1, Math.floor(bounty.difficulty / 4));
             player.renown = (player.renown || 0) + 2;
             state.capturesRecruited += 1;
+            Traits.recordDeeds(player, { cunning: 2, deceit: 1 }); // the bounty never reaches the magistrate
             player.bountiesCompleted = (player.bountiesCompleted || 0) + 1;
             bounty.status = 'completed';
             this._removeBounty(player, bounty.id);

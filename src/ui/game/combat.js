@@ -5,11 +5,13 @@
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, Trading, WorldUnit } from './_gameImports.js';
 import { resolveHostileEncounter } from './combat.logic.js';
 import { PlayerReligion } from '../../player/playerReligion.js';
+import { Traits } from '../../systems/traits.js';
 
 export function playerPray() {
     if (!this.player) return;
 
     this.player.karma += 1;
+    Traits.recordDeed(this.player, 'piety');
     this.ui.updateStats(this.player, this.world);
     this.ui.showNotification('Prayer', 'You take a moment to pray. ☯ +1 Karma', 'success');
 

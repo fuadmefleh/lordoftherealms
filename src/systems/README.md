@@ -31,6 +31,7 @@ World simulation systems. Each system manages a distinct aspect of the game worl
 | `technology/` | ~1200 | Research tree, labs, parts crafting, tech bonuses |
 | `tiledExport.js` | — | Export maps to Tiled-compatible format |
 | `titles.js` | ~620 | Nobility titles, duties, rank requirements |
+| `traits.js` | ~430 | Earned character traits: deed counters → traits (data/traits.json), opposites, erosion, effects, dynasty echo on succession |
 
 ## Turn Processing
 

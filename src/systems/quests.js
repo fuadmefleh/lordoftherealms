@@ -5,6 +5,7 @@
 import { Utils } from '../core/utils.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 import { PlayerInventory } from '../core/inventory.js';
+import { Traits } from './traits.js';
 
 
 export const Quests = {
@@ -617,6 +618,7 @@ export const Quests = {
 
                 // Grant rewards
                 Quests.grantRewards(player, quest);
+                Traits.recordDeed(player, 'honesty', 2); // a promise kept
             }
         }
 
@@ -666,6 +668,7 @@ export const Quests = {
         if (!player || !player.quests) return;
         if (!player.quests.stats) player.quests.stats = {};
         player.quests.stats[stat] = (player.quests.stats[stat] || 0) + amount;
+        Traits.recordStat(player, stat, amount); // deeds shape character traits
     },
 
     /**
@@ -682,6 +685,7 @@ export const Quests = {
     trackContractCompleted(player) {
         if (!player.quests) return;
         player.quests.contractsCompleted = (player.quests.contractsCompleted || 0) + 1;
+        Traits.recordDeed(player, 'honesty', 2);
     },
 
     /**
@@ -690,6 +694,7 @@ export const Quests = {
     trackTempleBuilt(player) {
         if (!player.quests) return;
         player.quests.templesBuilt = (player.quests.templesBuilt || 0) + 1;
+        Traits.recordDeed(player, 'piety', 3);
     },
 
     /**
@@ -698,6 +703,7 @@ export const Quests = {
     trackSettlementVisited(player, settlementName) {
         if (!player.quests) return;
         if (!player.quests.settlementsVisited) player.quests.settlementsVisited = new Set();
+        if (!player.quests.settlementsVisited.has(settlementName)) Traits.recordDeed(player, 'travel');
         player.quests.settlementsVisited.add(settlementName);
     },
 

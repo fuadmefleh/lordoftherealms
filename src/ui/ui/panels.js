@@ -1,5 +1,6 @@
 // UI — panels methods.
 import { UI } from './core.js';
+import { Traits } from '../../systems/traits.js';
 import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability, Treasures, KingdomAI } from './_imports.js';
 
 Object.assign(UI.prototype, {
@@ -138,11 +139,58 @@ Object.assign(UI.prototype, {
                 <span class="info-value">${player.criminalRecord.pickpocket > 0 ? 'Pickpocket ×' + player.criminalRecord.pickpocket : ''}${player.criminalRecord.pickpocket > 0 && player.criminalRecord.smuggling > 0 ? ', ' : ''}${player.criminalRecord.smuggling > 0 ? 'Smuggling ×' + player.criminalRecord.smuggling : ''}</span>
             </div>` : ''}
 
+            ${this._traitsSectionHtml(player)}
+
             <div class="info-section-title">Skills</div>
             ${skillsHtml}
         `;
 
         this.showPanel('characterPanel');
+    },
+
+    /** Character-panel section: earned traits, progress toward the next, dynasty echo. */
+    _traitsSectionHtml(player) {
+        const info = Traits.describe(player);
+        let html = '<div class="info-section-title">Traits</div>';
+        if (!info.earned.length) {
+            html += '<div style="font-size:11px; color:var(--text-secondary); padding:2px 0 6px;">You have not yet made a name for yourself. Your deeds will.</div>';
+        }
+        for (const t of info.earned) {
+            const fx = Traits.effectText(t.effects);
+            html += `
+                <div class="info-row" title="${t.description}">
+                    <span class="info-label">${t.icon} ${t.name}</span>
+                    <span class="info-value" style="font-size:11px; color:var(--text-secondary);">${fx}</span>
+                </div>`;
+        }
+        if (info.progress.length) {
+            html += '<div style="font-size:11px; color:var(--text-secondary); margin-top:6px;">Becoming…</div>';
+            for (const p of info.progress) {
+                html += `
+                <div class="info-row">
+                    <span class="info-label">${p.icon} ${p.name}</span>
+                    <span class="info-value">
+                        <div style="display:flex; align-items:center; gap:6px;" title="${p.displaces ? `Earning it will cost you ${p.displaces}` : ''}">
+                            <div style="width:60px; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
+                                <div style="width:${p.pct}%; height:100%; background:#9b7fd0; border-radius:3px;"></div>
+                            </div>
+                            <span>${p.pct}%</span>
+                        </div>
+                    </span>
+                </div>`;
+            }
+        }
+        if (info.echo.length) {
+            html += '<div style="font-size:11px; color:var(--text-secondary); margin-top:6px;">Reputation of the dynasty</div>';
+            for (const e of info.echo) {
+                html += `
+                <div class="info-row" title="Remembered from ${e.from || 'a past ruler'} — fades with time">
+                    <span class="info-label">${e.icon} ${e.name}</span>
+                    <span class="info-value" style="font-size:11px;">${Math.round(e.strength * 100)}% remembered</span>
+                </div>`;
+            }
+        }
+        return html;
     },
 
     /**

@@ -127,9 +127,38 @@ Six needs (0–100) sit under the mood meter in the bottom bar: **hunger, energy
 
 If you eat every day and sleep under a roof, hunger, energy and comfort stay high. Social, fun and hygiene drift down over about a week unless you visit taverns, talk to people or bathe.
 
+### Character Traits
+
+Your character becomes someone through what they do. Every notable deed is counted, and once a deed tally passes a trait's threshold you **earn that trait**. A notification announces each trait you gain or lose, and the **Character Sheet** lists your traits, their effects, your progress toward the next ones ("Becoming…"), and your dynasty's reputation.
+
+**What counts.** Battles won and monsters slain (Valor); your army breaking and running (Cowardice); raids, attacks on pilgrims, refugees, envoys and settlers, threats and assassinations (Cruelty, Dread); taking bounties alive, alms for beggars and children (Mercy); extortion, raids, piracy and selling your soul (Greed); gifts, rounds of drinks and festivals (Generosity); prayer, miracles, holy sites, temples and sermons (Piety, Zeal); informants and spy missions (Cunning); finished quests, contracts and alliances (Honesty); escaping servitude, renouncing allegiance and recruiting a bounty instead of turning it in (Deceit); trade profit; pirates beaten and sea battles won (Seafaring); research, ruins and religious lore (Learning); dice (Gambling); drinking in taverns; festivals and light taxes (Popularity); conquest and threats (Dread); new settlements, ruins and treasures (Travel); tournament placings at your festivals. While you rule lands (a colony or royal office), heavy taxes count as greed each day and light taxes as generosity and popularity. Violence against the realm you married into is **kinslaying**.
+
+| Trait | Earned by | Effects |
+|---|---|---|
+| 🦁 Brave / 🐇 Craven | Valor / Cowardice | +5% / −5% battle power; military faction and lords react |
+| 🩸 Cruel / 🕊️ Merciful | Cruelty / Mercy | Cruel: intimidate 1 easier, townsfolk warm 25% slower, commons and clergy dislike you. Merciful: the reverse, +20% goodwill |
+| 💰 Greedy / 🎁 Generous | Greed / Generosity | Greedy: +3% prices, −15% goodwill. Generous: +25% goodwill, +5% reputation gains, −2% prices |
+| 🙏 Pious | Piety | +10 clergy support, +2% negotiation; pious lords like you (+15) |
+| 🔥 Zealous | Zeal | +8 clergy, +3% battle power, but merchants and townsfolk are wary |
+| 🦊 Cunning | Cunning | +4% negotiation, +1 diplomacy, intimidate 1 easier |
+| 🤝 Honest / 🎭 Deceitful | Honesty / Deceit | Honest: +5% negotiation, +5 lord opinion, nobles and merchants trust you. Deceitful: −5% negotiation, −8 lord opinion (honourable lords −15) |
+| ⚖️ Merchant Prince | 5,000 gold trade profit | +5% prices, +10 merchants faction |
+| ⚓ Sea Wolf | Seafaring | +3% battle power, +3% reputation gains |
+| 📜 Scholar | Learning | +1 diplomacy, +2% negotiation |
+| 🎲 Gambler | Gambling | Better odds at dice; fades if you stop playing |
+| 🍺 Drunkard | Drinking | +10% goodwill, −3% negotiation, −2% battle power; fades if you stop drinking |
+| 💖 Beloved of the People / 💀 Dread Lord | Popularity / Dread | Beloved: +30% goodwill, +12 commons, +5% reputation. Dread Lord: intimidate 2 easier, but townsfolk warm at half speed and the commons hate you |
+| 🧭 Wanderer | Travel | +2% prices, +10% goodwill, +0.5 diplomacy |
+| 🗡️ Kinslayer | Kinslaying | A permanent stain: −15 lord opinion, clergy and nobles shun you |
+| 🏆 Champion of Tournaments | Tournament placings | +3% battle power, +6 nobility, +5% reputation |
+
+- **Opposites** (Brave/Craven, Cruel/Merciful, Greedy/Generous, Honest/Deceitful, Beloved/Dread Lord) cannot coexist: earning one replaces the other.
+- **Erosion.** Deeds against a trait wear it down (lies erode Honest, greed erodes Generous, mercy and festivals erode Dread Lord, and so on). A trait is lost once its progress falls below half its threshold. Progress caps at twice the threshold, so a deeply held trait takes a long run of contrary deeds to undo.
+- **Who notices.** "Goodwill" scales how fast inner-map townsfolk warm to you. Lords add your traits to their opinion of you, and their own traits matter: a Pious lord likes a Pious player, a Cruel lord respects a Dread Lord, and an Honourable lord despises a Deceitful one. Traits also shift the council factions, the reputation you earn with kingdoms, and negotiation chances. Townsfolk sometimes greet you by your reputation.
+
 ### Death & Succession
 
-Your character has a natural lifespan of 55–85 years (randomized). After your maximum age, there is a 15% chance of death per year that increases over time. If you die with an heir aged 16+, you continue playing as your heir, who inherits 75% of your gold, 50% of your renown, and 30% of your reputation. Without an heir, the game ends.
+Your character has a natural lifespan of 55–85 years (randomized). After your maximum age, there is a 15% chance of death per year that increases over time. If you die with an heir aged 16+, you continue playing as your heir, who inherits 75% of your gold, 50% of your renown, and 30% of your reputation. Without an heir, the game ends. Traits are **not** inherited. Instead your House keeps a *reputation of the dynasty*: the late ruler's two strongest traits at half strength. This echo only affects how others react to you (goodwill, lords, intimidation, reputation, council factions), and it fades by about a quarter of a percent a day until it is gone.
 
 You can also die in combat (health reduced to 0) or from starvation.
 

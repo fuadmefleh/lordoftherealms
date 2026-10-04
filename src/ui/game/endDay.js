@@ -3,6 +3,7 @@
 // ============================================
 
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, RealmWars, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents, WEATHER_TYPES, LegendaryArtifacts, Cartography } from './_gameImports.js';
+import { Traits } from '../../systems/traits.js';
 
 export function onPlayerArrived() {
     const tile = this.world.getTile(this.player.q, this.player.r);
@@ -712,6 +713,10 @@ export function endDay() {
                     House.recordPlayerDeed(this.player, this.world, 'quest', { reason: `quest: ${quest.title}` });
                 }
             }
+
+            // Earned traits: habits fade, tax policy reads as greed or goodwill,
+            // the dynasty echo fades (gain/loss notices are shown by updateStats)
+            Traits.processDay(this.player, this.world);
 
             // Check for new achievements
             const newAchievements = Achievements.checkAchievements(this.player, this.world);

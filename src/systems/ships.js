@@ -4,6 +4,7 @@ import { Hex } from '../core/hex.js';
 import { Utils } from '../core/utils.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Quests } from './quests.js';
+import { Traits } from './traits.js';
 import { Technology } from './technology.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { WEATHER_EFFECTS } from '../world/weather.js';
@@ -1057,6 +1058,7 @@ export const Ships = {
                     resultText += ' You fought and won!' + crewToll.text;
                     resultType = 'success';
                     Quests.track(player, 'battles_won');
+                    Traits.recordDeed(player, 'seafaring', 2);
                     if (event.id === 'sea_monster') Quests.track(player, 'special_creatures_defeated');
                     if (event.id === 'pirate_ambush') {
                         Quests.track(player, 'raiders_defeated');

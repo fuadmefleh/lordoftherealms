@@ -8,6 +8,7 @@ import { Quests } from '../systems/quests.js';
 import { Achievements } from '../systems/achievements.js';
 import { Titles } from '../systems/titles.js';
 import { Religion } from '../systems/religion.js';
+import { Traits } from '../systems/traits.js';
 
 export const PlayerReligion = {
     // ──────────── TENETS & INFLUENCE ────────────
@@ -825,6 +826,7 @@ export const PlayerReligion = {
         // Gain karma
         const karmaGained = Math.floor(followersGained / 50);
         player.karma += karmaGained;
+        Traits.recordDeeds(player, { zeal: 2, piety: 1 });
 
         // Increase faith and charisma
         player.faith = Math.min(10, player.faith + 0.2);

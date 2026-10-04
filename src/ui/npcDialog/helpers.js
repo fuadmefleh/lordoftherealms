@@ -7,6 +7,7 @@ import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS
 import { dialogState } from './shared.js';
 import { _buildConversation, _render, _typewrite, _skipTypewrite, _renderChoices, _hasGiftableInventory } from './render.js';
 import { _handleChoice, _showGiftSubmenu, _giveGoldGift, _giveItemGift, _showAskAboutSubmenu, _showSkillCheckResult, _animateDispositionChange, _updateDispositionBar, _createOverlay } from './choices.js';
+import { Traits } from '../../systems/traits.js';
 
 export function _mem(npc) {
     return NpcDisposition.getMemory(npc);
@@ -98,6 +99,10 @@ export function _getGreeting(npc) {
     // A threatened NPC is afraid of you (or refuses to talk at all)
     const fear = NpcDisposition.threatReaction(npc);
     if (fear) return fear.text;
+
+    // Word of who you have become travels ahead of you (earned traits)
+    const traitLine = Traits.greetingLine(dialogState._game?.player, Math.random(), Math.random());
+    if (traitLine) return traitLine;
 
     // Check for family reaction first — if player treated a relative well/poorly
     const familyReaction = NpcFamily.getFamilyReactionLine(npc, InnerMap.npcs || []);

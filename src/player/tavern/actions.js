@@ -1,5 +1,6 @@
 // Tavern — actions members (split from the original monolith).
 import { Tavern } from './_ref.js';
+import { Traits } from '../../systems/traits.js';
 import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Religion, Gossip, Quests, Peoples } from './_imports.js';
 
 Object.assign(Tavern, {
@@ -357,8 +358,9 @@ Object.assign(Tavern, {
         const bet = 10;
         player.gold -= bet;
 
-        // 45% win, 55% lose (house edge)
-        const roll = Utils.random();
+        // 45% win, 55% lose (house edge); a seasoned Gambler reads the table better
+        const roll = Utils.random() - Traits.effect(player, 'gamblingLuck');
+        Traits.recordDeed(player, 'gambling');
         let winnings = 0;
         let resultText = '';
 
@@ -408,6 +410,7 @@ Object.assign(Tavern, {
      */
     _buyDrinks(player, tile, world) {
         player.gold -= Tavern.DRINK_COST;
+        Traits.recordDeeds(player, { drinking: 1.5, generosity: 0.5 }); // a round for the house
         const rumors = [];
         const numRumors = Utils.randInt(1, 3);
 
@@ -669,6 +672,7 @@ Object.assign(Tavern, {
      */
     _askReligiousLore(player, tile, world) {
         player.gold -= Tavern.BRIBE_COST;
+        Traits.recordDeed(player, 'learning');
         const rumors = [];
 
         if (!player.discoveredHolySites) player.discoveredHolySites = new Set();
@@ -836,6 +840,7 @@ Object.assign(Tavern, {
         player.gold += goldReward;
         player.karma -= karmaPenalty;
         player.renown = Math.max(0, (player.renown || 0) - renownPenalty);
+        Traits.recordDeed(player, 'greed', 2); // a soul for a handful of coin
 
         // Flavor text varies with how many times you've sold
         const count = player.soulSoldCount;

@@ -16,6 +16,7 @@ import { Peoples } from '../systems/peoples.js';
 import { Housing } from '../systems/housing.js';
 import { Treasures } from './treasures.js';
 import { Religion } from '../systems/religion.js';
+import { Traits } from '../systems/traits.js';
 
 /** Tenet effect of the player's own religion (0 without one). */
 function _tenet(player, key) {
@@ -180,6 +181,7 @@ export const PlayerEffects = {
         if (player.house) value += House.getRoleBonuses(player).diplomacyBonus || 0;
         value += this.companionBonus(player, 'diplomacy');
         value += this.moodCharisma(player); // see MOOD section
+        value += Traits.effect(player, 'diplomacy'); // Cunning, Scholar, Wanderer
         // Diplomacy Mastery tech: +30% effective diplomacy
         if (player.technology) value *= 1 + Technology.getEffectTotal(player, 'diplomacyBonus');
         return value;
@@ -189,7 +191,8 @@ export const PlayerEffects = {
     reputationGainMultiplier(player) {
         return (1 + 0.05 * this.effectiveDiplomacy(player)) * this.moodReputationMultiplier(player)
             * (1 + this.artifactBonus(player, 'reputationGain')) // Crown of Embers
-            * (1 + _tenet(player, 'reputationGain')); // Peace tenet
+            * (1 + _tenet(player, 'reputationGain')) // Peace tenet
+            * Math.max(0.5, 1 + Traits.effect(player, 'reputationGain')); // earned traits + dynasty echo
     },
 
     /** Scale a positive reputation gain by diplomacy (losses are untouched). */
@@ -202,7 +205,8 @@ export const PlayerEffects = {
         // Houses give standing: housing influence helps everywhere
         return 0.02 * this.effectiveDiplomacy(player) + Housing.getNegotiationBonus(player)
             + this.treasureBonus(player, 'negotiation') // a royal seal or treaty in hand
-            + _tenet(player, 'negotiation'); // Sovereignty tenet
+            + _tenet(player, 'negotiation') // Sovereignty tenet
+            + Traits.effect(player, 'negotiation'); // Honest, Cunning, Deceitful…
     },
 
     // ──────────── TRADE ────────────
@@ -222,6 +226,8 @@ export const PlayerEffects = {
         bonus += Peoples.playerTradeBonus(player, settlement);
         // A town devoted to your faith
         bonus += this.faithTradeBonus(player, settlement);
+        // Earned traits: Merchant Prince, Greedy, Generous…
+        bonus += Traits.effect(player, 'tradeBonus');
         return bonus;
     },
 
@@ -278,6 +284,18 @@ export const PlayerEffects = {
     scaleDamage(player, raw) {
         const mult = this.personalDamageMultiplier(player);
         return mult === 0 ? 0 : Math.max(1, Math.round(raw * mult));
+    },
+
+    // ──────────── EARNED TRAITS ────────────
+
+    /** Battle power multiplier from earned traits (Brave, Craven, Sea Wolf, …). */
+    traitBattleMultiplier(player) {
+        return Math.max(0.5, 1 + Traits.effect(player, 'battlePower'));
+    },
+
+    /** A lord's opinion adjustment from the player's traits and the dynasty echo. */
+    lordOpinionBonus(player, lord) {
+        return Traits.lordOpinion(player, lord);
     },
 
     // ──────────── MOOD (needs system) ────────────

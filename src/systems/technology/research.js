@@ -2,6 +2,7 @@
 import { Technology } from './_ref.js';
 import { PlayerEconomy, PlayerMilitary } from './_imports.js';
 import { PlayerInventory } from '../../core/inventory.js';
+import { Traits } from '../traits.js';
 
 Object.assign(Technology, {
     // ═══════════════════════════════════════
@@ -224,6 +225,7 @@ Object.assign(Technology, {
 
         // Deduct gold
         player.gold -= info.gold;
+        Traits.recordDeed(player, 'learning', 2);
 
         // Deduct materials
         if (!player.inventory) player.inventory = {};

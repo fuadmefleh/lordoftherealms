@@ -11,6 +11,7 @@ import { Councils } from './councils.js';
 import { BountyHunting } from './bountyHunting.js';
 import { Gossip } from './gossip.js';
 import { Ships } from './ships.js';
+import { Traits } from './traits.js';
 
 
 export const SaveLoad = {
@@ -316,6 +317,9 @@ export const SaveLoad = {
 
             // Gossip / Rumors
             gossip: player.gossip || null,
+
+            // Earned character traits
+            traits: Traits.serialize(player),
         };
     },
 
@@ -468,6 +472,9 @@ export const SaveLoad = {
 
         // Restore gossip system state
         Gossip.loadState(player);
+
+        // Earned traits (backfills a blank record for saves from before them)
+        Traits.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

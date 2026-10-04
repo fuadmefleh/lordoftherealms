@@ -163,7 +163,7 @@ Object.assign(ActionMenu, {
         const canAffordUpgrade = game.player.gold >= upgradeCost;
 
         // Calculate upkeep
-        const upkeep = (prop.upkeep || 0) * prop.level;
+        const upkeep = PlayerEconomy.getPropertyUpkeep(game.player, prop);
 
         // Determine what is being produced and rate
         let productionText = 'Nothing selected';
@@ -256,11 +256,12 @@ Object.assign(ActionMenu, {
                 <div style="background:rgba(231,76,60,0.06); padding:12px; border-radius:6px; border:1px solid rgba(231,76,60,0.15);">
                     <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px; letter-spacing:1px; text-transform:uppercase;">Upkeep</div>
                     <div style="font-size:20px; font-weight:bold; color:#e74c3c;">-${upkeep}g<span style="font-size:12px; color:var(--text-secondary);">/day</span></div>
+                    ${PlayerEconomy.getAdministrationMultiplier(game.player) > 1 ? `<div style="font-size:10px; color:var(--text-muted);">incl. +${Math.round((PlayerEconomy.getAdministrationMultiplier(game.player) - 1) * 100)}% admin overhead (${(game.player.properties || []).length} properties)</div>` : ''}
                 </div>
                 <div style="background:rgba(255,255,255,0.04); padding:12px; border-radius:6px; border:1px solid rgba(255,255,255,0.08);">
                     <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px; letter-spacing:1px; text-transform:uppercase;">${prop.type === 'tavern' ? 'Total Earnings' : 'Storage (Output)'}</div>
                      <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div style="font-size:20px; font-weight:bold; color:var(--text-primary);">${prop.type === 'tavern' ? (prop.storage || 0) + 'g' : prop.storage}</div>
+                        <div style="font-size:20px; font-weight:bold; color:var(--text-primary);">${prop.type === 'tavern' ? (prop.storage || 0) + 'g' : `${prop.storage}<span style="font-size:12px; color:var(--text-secondary);"> / ${PlayerEconomy.getStorageCapacity(game.player, prop)}</span>`}${prop.type !== 'tavern' && prop.wastedToday > 0 ? `<div style="font-size:10px; color:#e74c3c;">Full — ${prop.wastedToday} lost today</div>` : ''}</div>
                         ${prop.type !== 'tavern' ? `<button onclick="window.collectPropertyGoods()" ${prop.storage <= 0 ? 'disabled' : ''} style="padding:5px 14px; background:${prop.storage > 0 ? 'var(--accent-green)' : 'rgba(255,255,255,0.08)'}; border:none; border-radius:4px; cursor:pointer; font-weight:600; font-size:12px; color:${prop.storage > 0 ? 'white' : 'var(--text-muted)'}; transition:all 0.15s;">Collect</button>` : ''}
                     </div>
                 </div>
@@ -1069,7 +1070,7 @@ Object.assign(ActionMenu, {
         window._tradeSell = (goodId, price, maxQty) => {
             ActionMenu.showQuantityInput(`Sell ${PlayerEconomy.GOODS[goodId.toUpperCase()]?.name || goodId}`, maxQty, (qty) => {
                 if (!ActionMenu.commitPendingAP(game)) return;
-                const result = Trading.sellGoods(game.player, goodId, qty);
+                const result = Trading.sellGoods(game.player, goodId, qty, tile.settlement);
                 if (result.success) {
                     const good = PlayerEconomy.GOODS[goodId.toUpperCase()];
                     game.ui.showNotification('Sale Complete', `Sold ${qty}x ${good.name} for ${result.earned} gold`, 'success');
@@ -1403,7 +1404,7 @@ Object.assign(ActionMenu, {
                                 <div style="font-size: 12px; color: var(--text-secondary);">${unit.description}</div>
                                 <div style="font-size: 12px;">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>
                             </div>
-                            <button onclick="window.recruitUnit('${key}')" ${remaining <= 0 ? 'disabled' : ''} style="padding: 8px 16px; background: ${remaining > 0 ? 'var(--gold)' : '#555'}; border: none; border-radius: 4px; cursor: ${remaining > 0 ? 'pointer' : 'not-allowed'};">${unit.cost} gold</button>
+                            <button onclick="window.recruitUnit('${key}')" ${remaining <= 0 ? 'disabled' : ''} style="padding: 8px 16px; background: ${remaining > 0 ? 'var(--gold)' : '#555'}; border: none; border-radius: 4px; cursor: ${remaining > 0 ? 'pointer' : 'not-allowed'};">${PlayerMilitary.getRecruitCost(game.player, unit)} gold</button>
                         </div>
                     </div>
                 `;
@@ -1416,7 +1417,7 @@ Object.assign(ActionMenu, {
                                 <div style="font-size: 11px; color: #e74c3c;">${avail.reason}</div>
                                 <div style="font-size: 12px; color: var(--text-secondary);">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>
                             </div>
-                            <span style="color: var(--text-secondary); font-size: 12px;">${unit.cost} gold</span>
+                            <span style="color: var(--text-secondary); font-size: 12px;">${PlayerMilitary.getRecruitCost(game.player, unit)} gold</span>
                         </div>
                     </div>
                 `;
@@ -1438,7 +1439,7 @@ Object.assign(ActionMenu, {
                                     <div style="font-size: 12px; color: var(--text-secondary);">${unit.description}</div>
                                     <div style="font-size: 12px;">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>
                                 </div>
-                                <button onclick="window.recruitTechUnit('${key}')" ${remaining <= 0 ? 'disabled' : ''} style="padding: 8px 16px; background: ${remaining > 0 ? 'var(--gold)' : '#555'}; border: none; border-radius: 4px; cursor: ${remaining > 0 ? 'pointer' : 'not-allowed'};">${unit.cost} gold</button>
+                                <button onclick="window.recruitTechUnit('${key}')" ${remaining <= 0 ? 'disabled' : ''} style="padding: 8px 16px; background: ${remaining > 0 ? 'var(--gold)' : '#555'}; border: none; border-radius: 4px; cursor: ${remaining > 0 ? 'pointer' : 'not-allowed'};">${PlayerMilitary.getRecruitCost(game.player, unit)} gold</button>
                             </div>
                         </div>
                     `;
@@ -1451,7 +1452,7 @@ Object.assign(ActionMenu, {
                                     <div style="font-size: 11px; color: #e74c3c;">${techAvail.reason}</div>
                                     <div style="font-size: 12px; color: var(--text-secondary);">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>
                                 </div>
-                                <span style="color: var(--text-secondary); font-size: 12px;">${unit.cost} gold</span>
+                                <span style="color: var(--text-secondary); font-size: 12px;">${PlayerMilitary.getRecruitCost(game.player, unit)} gold</span>
                             </div>
                         </div>
                     `;
@@ -1494,12 +1495,13 @@ Object.assign(ActionMenu, {
                 return;
             }
 
-            if (game.player.gold < unit.cost) {
-                game.ui.showNotification('Cannot Recruit', `Need ${unit.cost} gold`, 'error');
+            const techCost = PlayerMilitary.getRecruitCost(game.player, unit);
+            if (game.player.gold < techCost) {
+                game.ui.showNotification('Cannot Recruit', `Need ${techCost} gold`, 'error');
                 return;
             }
 
-            game.player.gold -= unit.cost;
+            game.player.gold -= techCost;
             game.player._recruitedThisTurn = (game.player._recruitedThisTurn || 0) + 1;
             if (!game.player.army) game.player.army = [];
             game.player.army.push({

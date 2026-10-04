@@ -39,13 +39,13 @@ export const KingdomAI = {
     /**
      * Process AI turn for a kingdom
      */
-    processTurn(kingdom, world) {
+    processTurn(kingdom, world, playerBonuses = {}) {
         if (!kingdom.isAlive) return;
 
         const personality = KingdomAI.getPersonality(kingdom);
 
         // Update kingdom economy
-        KingdomAI.updateEconomy(kingdom, world);
+        KingdomAI.updateEconomy(kingdom, world, playerBonuses);
 
         // Consider expansion
         if (Utils.random() < personality.expansionChance) {
@@ -74,7 +74,7 @@ export const KingdomAI = {
     /**
      * Update kingdom economy from all settlements
      */
-    updateEconomy(kingdom, world) {
+    updateEconomy(kingdom, world, playerBonuses = {}) {
         let totalGold = 0;
         let totalFood = 0;
         let totalGoods = 0;
@@ -87,7 +87,7 @@ export const KingdomAI = {
             if (!tile) continue;
 
             // Process daily production
-            Economy.produceDaily(settlement, tile, world);
+            Economy.produceDaily(settlement, tile, world, playerBonuses);
 
             // Process trade
             Economy.processTrade(settlement);

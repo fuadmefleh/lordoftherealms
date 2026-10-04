@@ -18,6 +18,7 @@ import { Titles } from '../../systems/titles.js';
 import { Festivals } from '../../systems/festivals.js';
 import { Infrastructure } from '../../systems/infrastructure.js';
 import { Technology } from '../../systems/technology.js';
+import { PlayerEffects } from '../playerEffects.js';
 import { Culture } from '../../systems/culture.js';
 import { PlayerEconomy } from '../playerEconomy.js';
 import { PlayerMilitary } from '../playerMilitary.js';
@@ -322,6 +323,9 @@ export const PlayerActions = {
 
         // Update blessings
         results.blessingsExpired = PlayerReligion.updateBlessings(player);
+
+        // Lord trade agreements run for a fixed term
+        results.tradeAgreementsExpired = PlayerEffects.expireTradeAgreements(player, world.day || 0);
 
         // Process technology research
         if (typeof Technology !== 'undefined') {

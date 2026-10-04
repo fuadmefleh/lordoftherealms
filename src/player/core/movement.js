@@ -38,6 +38,9 @@ export const PlayerMovementMethods = {
     updateVisibility(world, viewRadius = 3) {
         // Cartography/espionage techs and watchtower-style house upgrades see further
         viewRadius += Technology.getVisionBonus(this) + Housing.getTotalBonuses(this).visibility;
+        // A Royal Cartographer's trained eye charts further afield
+        const title = Titles.getActiveTitle(this);
+        viewRadius += (title && title.perks && title.perks.explorationBonus) || 0;
         // First, set all tiles to not visible
         for (let r = 0; r < world.height; r++) {
             for (let q = 0; q < world.width; q++) {
@@ -96,10 +99,13 @@ export const PlayerMovementMethods = {
         });
     },
 
-    /** Stamina cost to enter a tile — sailing is a flat 2 per hex. */
+    /**
+     * Stamina cost to enter a tile — sailing is a flat 2 per hex. On foot it's
+     * terrain/roads plus the river-fording penalty (unless bridged).
+     */
     _hexMoveCost(tile) {
         if (this.boardedShip) return 2;
-        return (typeof Infrastructure !== 'undefined') ? Infrastructure.getEffectiveMoveCost(tile) : tile.terrain.moveCost;
+        return (typeof Infrastructure !== 'undefined') ? Infrastructure.getPlayerMoveCost(tile, this) : tile.terrain.moveCost;
     },
 
     /**

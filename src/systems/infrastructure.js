@@ -107,7 +107,7 @@ export const Infrastructure = {
         if (infra.requiredTerrain) {
             let terrainOk = infra.requiredTerrain.includes(tile.terrain.id);
             // Bridge: allow on tiles with rivers too
-            if (!terrainOk && infra.allowRiverTiles && tile.river) {
+            if (!terrainOk && infra.allowRiverTiles && (tile.hasRiver || tile.river)) {
                 terrainOk = true;
             }
             if (!terrainOk) {
@@ -221,6 +221,49 @@ export const Infrastructure = {
         }
 
         return baseCost;
+    },
+
+    /** Extra stamina the player pays to ford a river tile with no crossing. */
+    RIVER_CROSSING_PENALTY: 2,
+
+    /**
+     * Does a finished road or bridge on this tile already carry travellers
+     * over its river? World-generated roads are drawn with a bridge where
+     * they meet a river, so they count too. Irrigation channels don't.
+     */
+    hasRiverCrossing(tile) {
+        const infra = tile.infrastructure;
+        if (infra && !infra.underConstruction) {
+            // Roads and bridges are the infrastructure that touches movement
+            const isRoute = (infra.moveCostOverride !== null && infra.moveCostOverride !== undefined) ||
+                !!infra.moveCostReduction;
+            if (isRoute) return true;
+        }
+        return !!tile.hasRoad;
+    },
+
+    /**
+     * Extra movement the player pays to enter a river tile: +2 by default,
+     * 0 where a road/bridge spans it, reduced by riverCrossReduction techs
+     * (Bridge Construction halves it to +1). Always an integer.
+     */
+    getRiverPenalty(tile, player) {
+        if (!tile || !tile.hasRiver || !tile.terrain || !tile.terrain.passable) return 0;
+        if (Infrastructure.hasRiverCrossing(tile)) return 0;
+        const reduction = player ? Technology.getEffectTotal(player, 'riverCrossReduction') : 0;
+        const factor = Math.max(0, 1 - Math.min(1, reduction));
+        return Math.round(Infrastructure.RIVER_CROSSING_PENALTY * factor);
+    },
+
+    /**
+     * Movement cost for the player specifically: the shared terrain/infra cost
+     * plus the river-fording penalty. Kept separate from getEffectiveMoveCost
+     * so world units and NPCs are unaffected.
+     */
+    getPlayerMoveCost(tile, player) {
+        const base = Infrastructure.getEffectiveMoveCost(tile);
+        if (base === Infinity) return base;
+        return base + Infrastructure.getRiverPenalty(tile, player);
     },
 
     /**

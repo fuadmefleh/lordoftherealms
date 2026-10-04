@@ -1,6 +1,6 @@
 // Trading — split from playerEconomy.js; references PlayerEconomy (GOODS etc.).
 import { PlayerEconomy } from './_ref.js';
-import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure } from './_imports.js';
+import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, PlayerEffects } from './_imports.js';
 
 export const Trading = {
     /**
@@ -118,7 +118,9 @@ export const Trading = {
      */
     buyGoods(player, good, quantity, settlement) {
         // Currency minting trims purchase prices
-        const discount = (typeof Technology !== 'undefined') ? Technology.getEffectTotal(player, 'tradePriceDiscount') : 0;
+        // Trade agreements and the Trade Envoy's office shave more off
+        const discount = ((typeof Technology !== 'undefined') ? Technology.getEffectTotal(player, 'tradePriceDiscount') : 0)
+            + PlayerEffects.tradeBonus(player, settlement);
         const totalCost = Math.ceil(good.price * quantity * Math.max(0.5, 1 - discount));
 
         if (player.gold < totalCost) {
@@ -148,7 +150,7 @@ export const Trading = {
     /**
      * Sell goods to a settlement
      */
-    sellGoods(player, goodId, quantity) {
+    sellGoods(player, goodId, quantity, settlement = null) {
         if (!player.inventory || !player.inventory[goodId] || player.inventory[goodId] < quantity) {
             return { success: false, reason: 'Not enough in inventory' };
         }
@@ -167,7 +169,8 @@ export const Trading = {
         // Sell for 70% of base price
         const sellPrice = Math.floor(good.basePrice * 0.7);
         // Commerce techs (accounting, guilds, ...) improve every sale
-        const tradeBonus = (typeof Technology !== 'undefined') ? Technology.getTradeProfitBonus(player) : 0;
+        const tradeBonus = ((typeof Technology !== 'undefined') ? Technology.getTradeProfitBonus(player) : 0)
+            + PlayerEffects.tradeBonus(player, settlement);
         const totalEarned = Math.floor(sellPrice * quantity * (1 + tradeBonus));
 
         player.inventory[goodId] -= quantity;

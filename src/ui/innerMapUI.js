@@ -235,7 +235,17 @@ Object.assign(InnerMapRenderer, {
             menuItems.push({ type: 'header', label: `${objIcon} ${customObjDef.name || customObjDef.id}` });
             menuItems.push({ type: 'action', action: 'interact_object', label: 'Interact', icon: '🤚', desc: `Interact with ${customObjDef.name || 'this object'}`, customObjDef, objAnchorQ, objAnchorR });
             // ── Editor-defined object actions (sleep, cook, craft, etc.) ──
-            const objActionItems = ObjectActions.buildMenuItems(game, customObjDef, objAnchorQ, objAnchorR);
+            let objActionItems = ObjectActions.buildMenuItems(game, customObjDef, objAnchorQ, objAnchorR);
+            // Objects without editor-assigned actions are still usable when
+            // their name says what they are (a sprite "Oak Bed", "Anvil", …).
+            if (objActionItems.length === 0) {
+                const furnType = ObjectActions.inferFurnitureType(customObjDef.name || customObjDef.id);
+                if (furnType) {
+                    objActionItems = ObjectActions.buildFurnitureMenuItems(game,
+                        { type: furnType, name: customObjDef.name || customObjDef.id },
+                        InnerMap._insideBuilding, objAnchorQ, objAnchorR);
+                }
+            }
             if (objActionItems.length > 0) {
                 menuItems.push({ type: 'separator' });
                 for (const ai of objActionItems) menuItems.push(ai);
@@ -290,7 +300,10 @@ Object.assign(InnerMapRenderer, {
 
                 // Furniture interaction
                 if (tile._furniture) {
-                    menuItems.push({ type: 'action', action: 'interact_furniture', label: `Inspect ${tile._furniture.name}`, icon: tile._furniture.icon, desc: `Examine the ${tile._furniture.name}`, _furniture: tile._furniture });
+                    for (const ai of ObjectActions.buildFurnitureMenuItems(game, tile._furniture, InnerMap._insideBuilding, q, r)) {
+                        menuItems.push(ai);
+                    }
+                    menuItems.push({ type: 'action', action: 'interact_furniture', label: `Inspect ${tile._furniture.name}`, icon: '🔍', desc: `Examine the ${tile._furniture.name}`, _furniture: tile._furniture });
                 }
 
                 if (!isPlayerHere && tile.subTerrain.passable) {
@@ -532,18 +545,32 @@ Object.assign(InnerMapRenderer, {
                 if (worldTile && typeof ActionMenu !== 'undefined') ActionMenu.handleAction(game, worldTile, 'train_combat');
                 break;
             }
-            case 'repair': { game.ui.showNotification('🔧 Repair', 'The blacksmith can repair your equipment.', 'info'); break; }
-            case 'view_notices': { game.ui.showNotification('📜 Notice Board', 'Check back later for quests and bounties.', 'info'); break; }
-            case 'pay_taxes': { game.ui.showNotification('💰 Tax Office', 'Tax collection is handled automatically each week.', 'info'); break; }
-            case 'seek_blessing': { game.ui.showNotification('✨ Blessing', 'The priest offers a blessing for your journey.', 'info'); break; }
-            case 'seek_audience': { game.ui.showNotification('🏛️ Audience', 'The lord is not currently receiving visitors.', 'info'); break; }
+            case 'repair': case 'view_notices': case 'pay_taxes': case 'seek_blessing': case 'seek_audience':
+            case 'buy_horse': case 'stable_horse': case 'report_crime': {
+                // Building services — real menus backed by player/settlementServices.js
+                const worldTile = game.world.getTile(game.player.q, game.player.r);
+                if (!worldTile || !worldTile.settlement) {
+                    game.ui.showNotification('ℹ️ Closed', 'There is no one here to serve you.', 'info');
+                    break;
+                }
+                const open = {
+                    repair: () => ActionMenu.showBlacksmithMenu(game, worldTile),
+                    view_notices: () => ActionMenu.handleAction(game, worldTile, 'bounty_board'),
+                    pay_taxes: () => ActionMenu.showTributeMenu(game, worldTile),
+                    seek_blessing: () => ActionMenu.showBlessingMenu(game, worldTile),
+                    seek_audience: () => ActionMenu.showAudienceMenu(game, worldTile),
+                    buy_horse: () => ActionMenu.showStableMenu(game, worldTile),
+                    stable_horse: () => ActionMenu.showStableMenu(game, worldTile),
+                    report_crime: () => ActionMenu.showGuardMenu(game, worldTile),
+                };
+                open[action]();
+                break;
+            }
             case 'store_goods': case 'collect_goods': {
                 const worldTile = game.world.getTile(game.player.q, game.player.r);
                 if (worldTile && typeof ActionMenu !== 'undefined') ActionMenu.handleAction(game, worldTile, 'collect_goods');
                 break;
             }
-            case 'buy_horse': case 'stable_horse': { game.ui.showNotification('🐴 Stable', 'Horse trading is not yet available.', 'info'); break; }
-            case 'report_crime': { game.ui.showNotification('🗼 Guards', 'The guards note your report. They\'ll look into it.', 'info'); break; }
             case 'examine': {
                 const tile = InnerMap.getTile(q, r);
                 if (tile && tile.encounter) game.ui.showNotification(`${tile.encounter.icon} ${tile.encounter.name}`, tile.encounter.description, 'info');
@@ -813,19 +840,6 @@ Object.assign(InnerMapRenderer, {
                 const msg = furnitureMessages[furn.type] || `You examine the ${furn.name}.`;
                 game.ui.showNotification(`${furn.icon} ${furn.name}`, msg, 'info');
 
-                // Furniture-specific need effects
-                if (game.player.modifyNeed) {
-                    const furnType = furn.type;
-                    if (furnType === 'bed') { game.player.modifyNeed('energy', 10); game.player.modifyNeed('comfort', 12); }
-                    else if (furnType === 'fireplace') { game.player.modifyNeed('comfort', 10); game.player.modifyNeed('fun', 3); }
-                    else if (furnType === 'table' || furnType === 'pew') { game.player.modifyNeed('comfort', 6); }
-                    else if (furnType === 'bookshelf') { game.player.modifyNeed('fun', 8); game.player.modifyNeed('comfort', 3); }
-                    else if (furnType === 'altar') { game.player.modifyNeed('comfort', 10); }
-                    else if (furnType === 'well' || furnType === 'bucket') { game.player.modifyNeed('hygiene', 8); }
-                    else if (furnType === 'bar') { game.player.modifyNeed('social', 5); game.player.modifyNeed('fun', 3); }
-                    else if (furnType === 'throne') { game.player.modifyNeed('fun', 5); }
-                    else if (furnType === 'statue') { game.player.modifyNeed('fun', 3); }
-                }
                 break;
             }
             case 'pickup_ground_item': {

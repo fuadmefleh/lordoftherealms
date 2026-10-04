@@ -125,6 +125,7 @@ export function endDay() {
                     colonyGrowth: Technology.getEffectTotal(this.player, 'settlementGrowthBonus')
                         + Technology.getEffectTotal(this.player, 'populationGrowthBonus'),
                     colonyLoyalty: 0.1 * Technology.getEffectTotal(this.player, 'stabilityBonus'),
+                    colonyFood: Technology.getEffectTotal(this.player, 'settlementFoodBonus'),
                 },
             });
             this.player.endDay();
@@ -539,8 +540,19 @@ export function endDay() {
             }
 
             // Blessings expired
-            for (const blessing of playerResults.blessingsExpired) {
-                this.ui.showNotification('Blessing Faded', `${blessing} blessing has expired`, 'default');
+            const blessingNames = {
+                prosperity: 'Your Blessing of Prosperity has faded.',
+                protection: 'Divine Protection no longer shields you.',
+                honed_arms: "Your army's honed edges have dulled.",
+                temple_blessing: "The priest's blessing for the road has worn off.",
+                harvest: 'The Bountiful Harvest has run its course.',
+                sanctuary: 'Your Holy Sanctuary is no longer consecrated ground.',
+            };
+            for (const blessing of (playerResults.blessingsExpired || [])) {
+                this.ui.showNotification('Blessing Faded', blessingNames[blessing] || `${blessing} blessing has expired`, 'default');
+            }
+            for (const kingdomName of (playerResults.tradeAgreementsExpired || [])) {
+                this.ui.showNotification('Trade Agreement Ended', `Your trade agreement with ${kingdomName} has expired.`, 'default');
             }
 
             // Technology research progress

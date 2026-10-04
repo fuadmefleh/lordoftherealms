@@ -1,7 +1,8 @@
 // ObjectActions — assembled from ./objectActions/*.js
 import { InnerMap } from '../../world/innerMap.js';
 import { Hotbar } from '../hotbar.js';
-import { FOOD_ITEMS, COOK_RECIPES, CRAFT_RECIPES, SMELT_RECIPES, BREW_RECIPES, HEAL_ITEMS, MODAL_STYLE, MODAL_HEADER_STYLE, MODAL_BODY_STYLE, MODAL_FOOTER_STYLE } from './data.js';
+import { FOOD_ITEMS, COOK_RECIPES, CRAFT_RECIPES, SMELT_RECIPES, BREW_RECIPES, HEAL_ITEMS, MODAL_STYLE, MODAL_HEADER_STYLE, MODAL_BODY_STYLE, MODAL_FOOTER_STYLE, FURNITURE_ACTIONS, BUILDING_FURNITURE_ACTIONS, PRIVATE_FURNITURE, FURNITURE_NAME_PATTERNS } from './data.js';
+import { ActionMenu } from '../actionMenu.js';
 import {
     _getPlayerFoods,
     _getCookableItems,
@@ -22,6 +23,7 @@ import {
     _showFishModal,
     _showStoreModal,
     _showHealModal,
+    _settlementTile,
 } from './logic.js';
 import { OBJECT_ACTIONS } from './actions.js';
 
@@ -43,6 +45,37 @@ export const ObjectActions = {
                 return { key, ...def };
             })
             .filter(Boolean);
+    },
+
+    /** Guess a furniture type from an object's name (e.g. "Oak Bed" → 'bed'), or null. */
+    inferFurnitureType(name) {
+        if (!name) return null;
+        for (const [pattern, type] of FURNITURE_NAME_PATTERNS) {
+            if (pattern.test(name)) return type;
+        }
+        return null;
+    },
+
+    /**
+     * Action keys usable on a piece of furniture inside `building`
+     * (null when outdoors). Private furniture — beds, chests — in a home the
+     * player doesn't own offers nothing beyond inspection.
+     */
+    getFurnitureActionKeys(furnitureType, building) {
+        if (!furnitureType) return [];
+        const bType = building ? String(building.type || '').replace(/^player_/, '') : null;
+        const override = bType && BUILDING_FURNITURE_ACTIONS[bType] && BUILDING_FURNITURE_ACTIONS[bType][furnitureType];
+        if (override) return override;
+        const owned = !building || building.isPlayerOwned || building.isPlayerProperty;
+        if (PRIVATE_FURNITURE.has(furnitureType) && !owned) return [];
+        return FURNITURE_ACTIONS[furnitureType] || [];
+    },
+
+    /** Context menu items for a piece of furniture at (q, r). */
+    buildFurnitureMenuItems(game, furniture, building, q, r) {
+        const actions = this.getFurnitureActionKeys(furniture.type, building);
+        if (!actions.length) return [];
+        return this.buildMenuItems(game, { name: furniture.name, actions }, q, r);
     },
 
     /**
@@ -107,10 +140,20 @@ export const ObjectActions = {
             }
         }
 
+        // Settlement services reuse the world action menu's handlers
+        if (actionDef.service) {
+            ActionMenu.handleAction(game, _settlementTile(game), actionDef.service);
+            return;
+        }
+        if (actionDef.panel) {
+            ActionMenu[actionDef.panel](game, _settlementTile(game));
+            return;
+        }
+
         // Modal actions
         if (actionDef.modal) {
             switch (actionDef.modal) {
-                case 'sleep': _showSleepModal(game, objDef); return;
+                case 'sleep': _showSleepModal(game, objDef, actionDef.sleepCost || 0); return;
                 case 'eat':   _showEatModal(game, objDef); return;
                 case 'cook':  _showRecipeModal(game, objDef, 'Cook', '🍳', COOK_RECIPES); return;
                 case 'craft': _showRecipeModal(game, objDef, 'Craft', '🔨', CRAFT_RECIPES); return;

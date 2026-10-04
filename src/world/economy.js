@@ -163,13 +163,17 @@ export const Economy = {
 
     /**
      * Process one day of production for a settlement
+     * @param {Object} [playerBonuses] - { colonyFood } from the player's techs,
+     *   applied to the player's own colonies only
      */
-    produceDaily(settlement, tile, world) {
+    produceDaily(settlement, tile, world, playerBonuses = {}) {
         Economy.initSettlement(settlement);
         const prod = Economy.calculateProduction(settlement, tile, world);
 
         settlement.economy.gold += prod.gold;
-        settlement.economy.food += prod.food;
+        // Aqueducts feed the player's colonies
+        const foodBonus = settlement.colony && settlement.colony.isPlayerColony ? (playerBonuses.colonyFood || 0) : 0;
+        settlement.economy.food += foodBonus > 0 ? Math.round(prod.food * (1 + foodBonus)) : prod.food;
 
         // Store specific goods in stockpile if settlement handles it
         if (!settlement.economy.stockpile) {

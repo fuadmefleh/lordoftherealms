@@ -9,6 +9,8 @@ export const FOOD_ITEMS = {
     berries:     { label: 'Berries',       icon: '🍇', hunger: 12, energy: 5, fun: 2 },
     mushrooms:   { label: 'Mushrooms',     icon: '🍄', hunger: 15, energy: 3 },
     fish:        { label: 'Fish',          icon: '🐟', hunger: 20, energy: 5 },
+    cooked_fish: { label: 'Cooked Fish',   icon: '🍣', hunger: 30, energy: 8, comfort: 4 },
+    cooked_meat: { label: 'Cooked Meat',   icon: '🍖', hunger: 40, energy: 12, comfort: 5 },
     dried_meat:  { label: 'Dried Meat',    icon: '🥩', hunger: 30, energy: 10 },
     cheese:      { label: 'Cheese',        icon: '🧀', hunger: 22, energy: 5, fun: 5 },
     honey:       { label: 'Honey',         icon: '🍯', hunger: 10, energy: 15, fun: 5 },
@@ -97,3 +99,94 @@ export const MODAL_FOOTER_STYLE = `
     border-top: 1px solid rgba(255,255,255,0.08);
     display: flex; justify-content: flex-end; gap: 8px;
 `;
+
+// ──────────── INTERIOR FURNITURE ────────────
+// What the player can *do* with each furniture type found inside buildings.
+// Values are OBJECT_ACTIONS keys. A building-type entry replaces the default
+// list for that furniture type (e.g. a tavern bed is rented, not slept in free).
+export const FURNITURE_ACTIONS = {
+    table:     ['sit', 'eat', 'play_game'],
+    bookshelf: ['read'],
+    chest:     ['store'],
+    bar:       ['drink'],
+    barrel:    ['drink'],
+    fireplace: ['warm', 'cook'],
+    bed:       ['sleep'],
+    rack:      ['shop'],
+    anvil:     ['craft'],
+    forge:     ['smelt'],
+    stall:     ['shop'],
+    scales:    ['shop'],
+    altar:     ['pray', 'give_alms'],
+    pew:       ['sit', 'meditate'],
+    statue:    ['pray'],
+    well:      ['draw_water', 'wash'],
+    bucket:    ['wash'],
+};
+
+export const BUILDING_FURNITURE_ACTIONS = {
+    tavern: {
+        bar:   ['drink', 'tavern_services', 'gamble'],
+        table: ['sit', 'eat', 'gamble'],
+        bed:   ['rent_room'],
+    },
+    town_hall: {
+        table:  ['notices', 'find_work', 'tribute'],
+        throne: ['audience', 'find_work'],
+    },
+    manor: {
+        throne: ['audience'],
+        table:  ['sit', 'eat'],
+    },
+    stable: {
+        stall:  ['horse_trade'],
+        barrel: ['wash'],
+    },
+    guard_tower: {
+        table: ['settle_record', 'notices'],
+        rack:  ['drill'],
+    },
+    church: { altar: ['pray', 'give_alms', 'blessing'] },
+    barracks: {
+        rack:  ['hire_troops', 'drill'],
+        table: ['sit', 'notices'],
+    },
+    marketplace: { crate: ['shop'] },
+    granary:     { crate: ['shop'] },
+    warehouse:   { crate: ['store'], chest: ['store'] },
+    blacksmith:  { anvil: ['craft', 'hone_arms', 'shop'], rack: ['hone_arms', 'shop'] },
+    temple:      { altar: ['pray', 'give_alms', 'blessing'], statue: ['pray', 'blessing'], chest: ['give_alms'] },
+};
+
+/**
+ * Furniture that belongs to whoever lives there — usable only in buildings the
+ * player owns, unless the building's own entry above says otherwise.
+ */
+export const PRIVATE_FURNITURE = new Set(['bed', 'chest']);
+
+/**
+ * Name patterns used to recognise editor-placed objects that have no actions
+ * of their own, so a sprite bed or anvil is as usable as a procedural one.
+ * Order matters: the first match wins.
+ */
+export const FURNITURE_NAME_PATTERNS = [
+    [/\bbed\b|\bcot\b|bedroll|hammock/i, 'bed'],
+    [/\bchest\b|\btrunk\b|strongbox|coffer/i, 'chest'],
+    [/book|shelf|library|scroll/i, 'bookshelf'],
+    [/throne/i, 'throne'],
+    [/barrel|\bkeg\b|\bcask\b/i, 'barrel'],
+    [/\bbar\b|counter/i, 'bar'],
+    [/fireplace|hearth|stove|oven|cauldron/i, 'fireplace'],
+    [/anvil|workbench|work bench/i, 'anvil'],
+    [/forge|furnace|smelter|kiln/i, 'forge'],
+    [/stall|\bshop\b|market/i, 'stall'],
+    [/weapon|armou?r|\brack\b/i, 'rack'],
+    [/altar|shrine/i, 'altar'],
+    [/statue|idol/i, 'statue'],
+    [/\bpew\b|bench/i, 'pew'],
+    [/table|desk|chair|stool/i, 'table'],
+    [/\bwell\b/i, 'well'],
+    [/bucket|basin|\btub\b|washtub/i, 'bucket'],
+    [/crate|\bsack\b|\bbox\b/i, 'crate'],
+    [/scales?\b/i, 'scales'],
+];

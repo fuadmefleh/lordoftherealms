@@ -11,6 +11,7 @@
 
 import { Utils } from '../../core/utils.js';
 import { PlayerMilitary } from '../../player/playerMilitary.js';
+import { PlayerEffects } from '../../player/playerEffects.js';
 
 /**
  * Resolve a hostile encounter between the player and an adjacent attacker unit.
@@ -26,7 +27,8 @@ export function resolveHostileEncounter(player, attacker, world) {
 
     if (playerArmySize === 0 && (attacker.type === 'beast' || attacker.type === 'monster')) {
         // --- No army vs. a creature: mauled, nothing stolen ---
-        const healthLost = attacker.type === 'monster' ? Utils.randInt(25, 45) : Utils.randInt(8, 18);
+        // Armour and Divine Protection soften the blow
+        const healthLost = PlayerEffects.scaleDamage(player, attacker.type === 'monster' ? Utils.randInt(25, 45) : Utils.randInt(8, 18));
         player.health = Math.max(1, player.health - healthLost);
         attacker.targetQ = null;
         attacker.targetR = null;
@@ -46,7 +48,7 @@ export function resolveHostileEncounter(player, attacker, world) {
     if (playerArmySize === 0) {
         // --- No army: player is robbed / roughed up ---
         const goldStolen = Math.min(player.gold, Math.floor(player.gold * Utils.randFloat(0.15, 0.4)));
-        const healthLost = Utils.randInt(5, 15);
+        const healthLost = PlayerEffects.scaleDamage(player, Utils.randInt(5, 15));
 
         player.gold -= goldStolen;
         player.health = Math.max(1, player.health - healthLost);

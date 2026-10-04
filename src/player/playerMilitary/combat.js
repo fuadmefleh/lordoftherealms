@@ -1,6 +1,6 @@
 // PlayerMilitary — combat members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
-import { Utils, Technology, House, Quests, RealmWars } from './_imports.js';
+import { Utils, Technology, House, Quests, RealmWars, PlayerEffects, Housing, Culture, PlayerReligion } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -25,7 +25,9 @@ Object.assign(PlayerMilitary, {
         const festivalMoraleBonus = (player.festivals?.moraleBoostDays > 0)
             ? (player.festivals?.moraleBoostValue || 0)
             : 0;
-        const leadership = (player.skills?.leadership || 1) * 0.015 + festivalMoraleBonus;
+        // Theaters you own keep the troops' spirits up (needs context.world)
+        const theaterMoraleBonus = Culture.getMoraleBonus(player, context.world);
+        const leadership = (player.skills?.leadership || 1) * 0.015 + festivalMoraleBonus + theaterMoraleBonus;
         const playerMorale = PlayerMilitary._moraleValue(playerStrength, enemyStrength, leadership);
         const enemyMorale = PlayerMilitary._moraleValue(enemyStrength, playerStrength, context.enemyMoraleBonus || 0);
 
@@ -33,6 +35,8 @@ Object.assign(PlayerMilitary, {
         let playerPower = playerStrength * Utils.randFloat(0.8, 1.2) * playerCounterMult * playerTerrainMult * playerMorale;
         // Fortification techs help when the player is the one attacked
         if (context.defending) playerPower *= 1 + Technology.getDefenseBonus(player);
+        // A fortified house (watchtower, fortification upgrades) adds +1% per point of defense
+        if (context.defending) playerPower *= 1 + Housing.getTotalBonuses(player).defense / 100;
         let enemyPower = enemyStrength * Utils.randFloat(0.8, 1.2) * enemyCounterMult * enemyTerrainMult * enemyMorale;
 
         let moraleBreak = null;
@@ -57,11 +61,14 @@ Object.assign(PlayerMilitary, {
         // Surgery saves soldiers who would otherwise be lost
         casualtyRate *= Math.max(0, 1 - Technology.getEffectTotal(player, 'battleCasualtyReduction'));
         if (moraleBreak === 'player' && !victory) casualtyRate *= 1.25;
+        // Divine Protection: no one falls
+        casualtyRate *= PlayerEffects.casualtyMultiplier(player);
 
         const casualties = Math.ceil(player.army.length * casualtyRate);
 
         for (let i = 0; i < casualties && player.army.length > 0; i++) {
-            player.army.pop();
+            // The fallen are remembered — Resurrection can call them back
+            PlayerReligion.recordFallenUnit(player, player.army.pop());
         }
 
         // Rewards for victory
@@ -204,7 +211,7 @@ Object.assign(PlayerMilitary, {
             // Failed escape — punishment
             servitude.daysRemaining += Utils.randInt(2, 5);
             servitude.escapeChance = Math.max(0.05, servitude.escapeChance - 0.02); // Harder next time
-            player.health = Math.max(10, player.health - Utils.randInt(5, 15));
+            player.health = Math.max(10, player.health - PlayerEffects.scaleDamage(player, Utils.randInt(5, 15)));
             return {
                 success: false,
                 message: `Your escape attempt failed! The guards caught you and beat you. +${servitude.daysRemaining - (servitude.totalDays - servitude.daysRemaining)} days added to your sentence.`,
@@ -266,6 +273,7 @@ Object.assign(PlayerMilitary, {
         const result = PlayerMilitary.combat(player, defenseStrength, settlement.name, {
             terrainId: tile?.terrain?.id,
             enemyComposition: PlayerMilitary._getSettlementComposition(settlement, tile),
+            world,
         });
 
         result.defenseStrength = defenseStrength;
@@ -347,6 +355,7 @@ Object.assign(PlayerMilitary, {
         const result = PlayerMilitary.combat(player, garrisonStrength, settlement.name, {
             terrainId: tile?.terrain?.id,
             enemyComposition: PlayerMilitary._getSettlementComposition(settlement, tile),
+            world,
             enemyMoraleBonus: settlement.type === 'capital' ? 0.1 : 0,
         });
         result.garrisonStrength = garrisonStrength;
@@ -513,6 +522,7 @@ Object.assign(PlayerMilitary, {
         const combatResult = PlayerMilitary.combat(player, worldUnit.strength, worldUnit.name, {
             terrainId: unitTile?.terrain?.id,
             enemyComposition: PlayerMilitary._getWorldUnitComposition(worldUnit),
+            world,
             defending: !!opts.defending,
         });
 

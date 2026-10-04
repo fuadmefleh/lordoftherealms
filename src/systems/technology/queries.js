@@ -174,6 +174,10 @@ Object.assign(Technology, {
             if (unitType === 'knight' || unitType === 'cavalry') {
                 if (e.knightStrengthBonus) bonus += e.knightStrengthBonus;
             }
+            // Heavy Cavalry: armoured horse for every mounted unit
+            if (unitType === 'knight' || unitType === 'cavalry' || unitType === 'heavy_cavalry') {
+                if (e.cavalryStrengthBonus) bonus += e.cavalryStrengthBonus;
+            }
         }
         return bonus;
     },

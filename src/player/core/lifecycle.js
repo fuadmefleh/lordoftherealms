@@ -8,6 +8,7 @@ import { Hex } from '../../core/hex.js';
 import { Technology } from '../../systems/technology.js';
 import { Housing } from '../../systems/housing.js';
 import { Religion } from '../../systems/religion.js';
+import { SettlementServices } from '../settlementServices.js';
 
 export const PlayerLifecycleMethods = {
     /**
@@ -15,7 +16,8 @@ export const PlayerLifecycleMethods = {
      */
     consumeFood() {
         if (!this.inventory) return false;
-        for (const food of ['bread', 'preserved_fish', 'fish', 'grain']) {
+        // Same list (and order) as Player.FOOD_TYPES — cooked food goes first
+        for (const food of ['cooked_meat', 'cooked_fish', 'bread', 'preserved_fish', 'fish', 'grain']) {
             if (this.inventory[food] && this.inventory[food] > 0) {
                 this.inventory[food]--;
                 if (this.inventory[food] <= 0) delete this.inventory[food];
@@ -44,6 +46,13 @@ export const PlayerLifecycleMethods = {
             this.health = Math.max(0, this.health - starveDmg);
         }
 
+        // A free night restores full stamina — so permanent maxStamina gains
+        // (tamed horses, ...) actually lengthen the day's travel. Jail and
+        // servitude keep it at zero below.
+        if (!this.jailState && !this.indenturedServitude && this.maxStamina > 0) {
+            this.stamina = this.maxStamina;
+        }
+
         // Apply technology movement bonus
         let staminaBonus = 0;
         if (typeof Technology !== 'undefined') {
@@ -51,11 +60,13 @@ export const PlayerLifecycleMethods = {
         }
         // Housing: stable/road upgrades always help; a night at home restores extra
         staminaBonus += Housing.getTotalBonuses(this).movement + Housing.getHomeStaminaBonus(this);
+        // A riding horse and a temple blessing carry you further
+        staminaBonus += SettlementServices.movementBonus(this);
         this.movementRemaining = this.stamina + staminaBonus;
 
         // Only regenerate health if not starving
         if (this.starvationDays === 0) {
-            this.health = Math.min(this.health + 5, this.maxHealth);
+            this.health = Math.min(this.health + 5 + SettlementServices.healthRegenBonus(this), this.maxHealth);
         }
 
         // Reduce max stamina while starving (weakened)

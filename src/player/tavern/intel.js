@@ -1,6 +1,6 @@
 // Tavern — intel members (split from the original monolith).
 import { Tavern } from './_ref.js';
-import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Religion, Gossip } from './_imports.js';
+import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Religion, Gossip, Titles } from './_imports.js';
 
 Object.assign(Tavern, {
     // ────────────────────────────────────────────────────────────────────
@@ -349,14 +349,18 @@ Object.assign(Tavern, {
         let totalCost = 0;
         const newRumors = [];
         const toRemove = [];
+        // A Spymaster keeps a few informants on the crown's purse
+        const title = Titles.getActiveTitle(player);
+        const freeInformants = (title && title.perks && title.perks.freeInformants) || 0;
 
         for (let i = 0; i < player.intel.informants.length; i++) {
             const informant = player.intel.informants[i];
 
-            // Pay upkeep
-            if (player.gold >= informant.upkeep) {
-                player.gold -= informant.upkeep;
-                totalCost += informant.upkeep;
+            // Pay upkeep (the first few are free for a Spymaster)
+            const upkeep = i < freeInformants ? 0 : informant.upkeep;
+            if (upkeep === 0 || player.gold >= upkeep) {
+                player.gold -= upkeep;
+                totalCost += upkeep;
             } else {
                 // Can't pay — informant leaves
                 toRemove.push(i);

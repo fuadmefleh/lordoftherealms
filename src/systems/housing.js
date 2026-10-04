@@ -142,6 +142,28 @@ export const Housing = {
         return { success: true, message: `Purchased a ${houseType.name} in ${tile.settlement.name} for ${cost}g!`, cost };
     },
 
+    /** Upgrade effect keys that raise a player attribute or skill directly. */
+    UPGRADE_STAT_EFFECTS: {
+        strengthBonus: ['attr', 'strength'], charismaBonus: ['attr', 'charisma'],
+        intelligenceBonus: ['attr', 'intelligence'], faithBonus: ['attr', 'faith'],
+        commerceSkillBonus: ['skill', 'commerce'], combatSkillBonus: ['skill', 'combat'],
+        leadershipSkillBonus: ['skill', 'leadership'], diplomacySkillBonus: ['skill', 'diplomacy'],
+    },
+
+    /** Add (sign 1) or remove (sign -1) an upgrade's attribute/skill bonuses. */
+    _applyUpgradeStats(player, effects, sign) {
+        for (const [key, [kind, stat]] of Object.entries(this.UPGRADE_STAT_EFFECTS)) {
+            const amount = effects[key];
+            if (!amount) continue;
+            if (kind === 'attr') {
+                player[stat] = Math.max(0, (player[stat] || 0) + sign * amount);
+            } else {
+                player.skills = player.skills || {};
+                player.skills[stat] = Math.max(0, (player.skills[stat] || 0) + sign * amount);
+            }
+        }
+    },
+
     /* ── Selling a house ─────────────────────────────────────── */
 
     sellHouse(player, q, r) {
@@ -160,6 +182,11 @@ export const Housing = {
 
         player.gold += salePrice;
         player.houses.splice(idx, 1);
+        // The upgrades' attribute/skill bonuses leave with the house
+        for (const uid of house.upgrades) {
+            const u = this.getUpgrade(uid);
+            if (u && u.effects) this._applyUpgradeStats(player, u.effects, -1);
+        }
 
         // Small renown/rep loss
         if (houseType) {
@@ -210,6 +237,8 @@ export const Housing = {
 
         // Apply one-time renown/reputation from upgrade
         const effects = upgrade.effects || {};
+        // Attribute and skill bonuses last as long as you own the house
+        this._applyUpgradeStats(player, effects, 1);
         if (effects.renownBonus) player.renown = (player.renown || 0) + effects.renownBonus;
         if (effects.reputationBonus && house.kingdomId) {
             player.reputation[house.kingdomId] = (player.reputation[house.kingdomId] || 0) + effects.reputationBonus;

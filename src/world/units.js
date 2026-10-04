@@ -343,7 +343,11 @@ export class WorldUnit {
         // --- Check for player in range (priority target) ---
         // `player` is injected by the caller (World.processUnits ← Game.endDay);
         // null in headless/test contexts, which skips player pursuit.
-        if (player && !player.indenturedServitude) {
+        // A player standing in an active Holy Sanctuary is not hunted
+        const sanctuary = player && player.sanctuary;
+        const inSanctuary = !!(sanctuary && sanctuary.days > 0 &&
+            Hex.wrappingDistance(sanctuary.q, sanctuary.r, player.q, player.r, world.width) <= sanctuary.radius);
+        if (player && !player.indenturedServitude && !inSanctuary) {
             const playerDist = Hex.wrappingDistance(this.q, this.r, player.q, player.r, world.width);
             const detectionRange = isShip ? 6 : 5;
 

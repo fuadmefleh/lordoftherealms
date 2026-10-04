@@ -47,6 +47,12 @@ export function _giveResults(game, results) {
     }
 }
 
+/** The world tile of the settlement the player is visiting, or null. */
+export function _settlementTile(game) {
+    const tile = game.world && game.world.getTile ? game.world.getTile(game.player.q, game.player.r) : null;
+    return tile && tile.settlement ? tile : null;
+}
+
 export function _advanceTime(hours) {
     InnerMap.timeOfDay += hours;
     // Handle day rollover
@@ -79,7 +85,7 @@ export function _removeModal(id) {
     if (el) el.remove();
 }
 
-export function _showSleepModal(game, objDef) {
+export function _showSleepModal(game, objDef, cost = 0) {
     _removeModal('objActionModal');
     const id = 'objActionModal';
     const modal = document.createElement('div');
@@ -95,7 +101,7 @@ export function _showSleepModal(game, objDef) {
             <span style="font-size:28px">🛏️</span>
             <div>
                 <div style="font-family:var(--font-display,'Cinzel',serif);font-size:16px;color:var(--gold,#f5c542)">Sleep</div>
-                <div style="font-size:11px;color:#999">Rest to recover energy and health</div>
+                <div style="font-size:11px;color:#999">${cost > 0 ? `A night's lodging costs ${cost} gold` : 'Rest to recover energy and health'}</div>
             </div>
         </div>
         <div style="${MODAL_BODY_STYLE}">
@@ -116,7 +122,7 @@ export function _showSleepModal(game, objDef) {
         </div>
         <div style="${MODAL_FOOTER_STYLE}">
             ${_btn('Cancel', false, `document.getElementById('${id}').remove()`)}
-            ${_btn('💤 Sleep', true, `window._execSleep()`)}
+            ${_btn(cost > 0 ? `💤 Sleep (${cost}g)` : '💤 Sleep', true, `window._execSleep()`)}
         </div>
     `;
     document.body.appendChild(modal);
@@ -135,6 +141,14 @@ export function _showSleepModal(game, objDef) {
     window._execSleep = () => {
         const hours = parseInt(document.getElementById('sleepHoursRange').value);
         _removeModal(id);
+        if (cost > 0) {
+            if ((game.player.gold || 0) < cost) {
+                game.ui.showNotification('🛏️ Lodging', `You can't afford a room (${cost} gold).`, 'error');
+                delete window._execSleep;
+                return;
+            }
+            game.player.gold -= cost;
+        }
         _advanceTime(hours);
         if (game.player.modifyNeed) {
             game.player.modifyNeed('energy', _calcSleepEnergy(hours));
@@ -390,9 +404,11 @@ export function _showStoreModal(game, objDef, anchorQ, anchorR) {
 
     // Get or create storage for this object
     const tile = InnerMap.getTile(anchorQ, anchorR);
-    if (!tile || !tile.customObject) { game.ui.showNotification('📦 Error', 'Cannot access storage.', 'error'); return; }
-    if (!tile.customObject._storage) tile.customObject._storage = {};
-    const storage = tile.customObject._storage;
+    // Editor objects keep storage on customObject; procedural furniture on _furniture.
+    const holder = tile && (tile.customObject || tile._furniture);
+    if (!holder) { game.ui.showNotification('📦 Error', 'Cannot access storage.', 'error'); return; }
+    if (!holder._storage) holder._storage = {};
+    const storage = holder._storage;
     const inv = game.player.inventory || {};
 
     function renderContent() {

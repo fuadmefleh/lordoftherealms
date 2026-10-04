@@ -3,8 +3,10 @@
 // ============================================
 
 import { Hex } from '../core/hex.js';
+import { Utils } from '../core/utils.js';
 import { Quests } from '../systems/quests.js';
 import { Achievements } from '../systems/achievements.js';
+import { Titles } from '../systems/titles.js';
 
 export const PlayerReligion = {
     /**
@@ -137,6 +139,9 @@ export const PlayerReligion = {
         if (!player.religion || player.religion.buildings.length === 0) return 0;
 
         let totalFollowersGained = 0;
+        // A Court Chaplain's sermons carry further
+        const title = Titles.getActiveTitle(player);
+        const spreadBonus = (title && title.perks && title.perks.faithSpreadBonus) || 0;
 
         for (const buildingRef of player.religion.buildings) {
             const tile = world.getTile(buildingRef.q, buildingRef.r);
@@ -151,7 +156,7 @@ export const PlayerReligion = {
                 if (!nearbyTile || !nearbyTile.settlement) continue;
 
                 // Convert some population to followers
-                const conversionRate = 0.01 * (1 + player.faith * 0.1);
+                const conversionRate = 0.01 * (1 + player.faith * 0.1) * (1 + spreadBonus);
                 const newFollowers = Math.floor(nearbyTile.settlement.population * conversionRate);
 
                 building.followers += newFollowers;
@@ -206,12 +211,80 @@ export const PlayerReligion = {
             effect: 'Gain 1000 followers instantly',
             description: 'Convert many to your faith at once'
         },
+        HARVEST: {
+            id: 'harvest',
+            name: 'Bountiful Harvest',
+            icon: '🌾',
+            karmaCost: 12,
+            effect: 'All farms produce triple for 3 days',
+            description: 'Invoke divine fertility upon the land'
+        },
+        SMITE: {
+            id: 'smite',
+            name: 'Divine Smite',
+            icon: '⚡',
+            karmaCost: 30,
+            effect: 'Deal massive damage to an enemy unit',
+            description: 'Call down divine wrath upon your enemies'
+        },
+        REVELATION: {
+            id: 'revelation',
+            name: 'Revelation',
+            icon: '👁️',
+            karmaCost: 18,
+            effect: 'Reveal all tiles in a large radius',
+            description: 'The divine grants sight beyond mortal ken'
+        },
+        SANCTUARY: {
+            id: 'sanctuary',
+            name: 'Holy Sanctuary',
+            icon: '🕊️',
+            karmaCost: 22,
+            effect: 'Create a safe zone where no combat can occur for 5 days',
+            description: 'Consecrate the ground so no blood may be shed upon it'
+        },
+        RESURRECTION: {
+            id: 'resurrection',
+            name: 'Resurrection',
+            icon: '💫',
+            karmaCost: 40,
+            effect: 'Restore a destroyed unit to full strength',
+            description: 'Call the fallen back from beyond the veil'
+        },
+        PLAGUE: {
+            id: 'plague',
+            name: 'Divine Plague',
+            icon: '☠️',
+            karmaCost: 35,
+            effect: 'Enemy settlement loses 30% population',
+            description: 'Unleash a terrible pestilence upon the unfaithful'
+        },
     },
 
+    /** Tuning for the targeted / area miracles */
+    MIRACLE_CONFIG: {
+        harvestDays: 3,
+        smiteRange: 3,
+        smiteDamage: { min: 35, max: 50 },  // strength removed outright
+        smiteSurvivorShare: 0.4,            // a foe too strong to destroy keeps at most 40%
+        revelationRadius: 10,
+        sanctuaryRadius: 3,
+        sanctuaryDays: 5,
+        maxFallenUnits: 10,
+        plagueLoss: 0.3,
+        plagueReputationLoss: 25,
+        plagueKarmaLoss: 10,
+    },
+
+    /** Unit types Divine Smite may strike (mirrors WorldUnit.HOSTILE_TYPES) */
+    SMITE_TARGET_TYPES: ['raider', 'pirate', 'beast', 'monster', 'war_host'],
+
     /**
-     * Perform a miracle
+     * Perform a miracle. `world` is needed by the targeted / area miracles
+     * (Smite, Revelation, Sanctuary, Plague); targets are validated before
+     * any karma is spent, so a failed miracle costs nothing.
      */
-    performMiracle(player, miracleType) {
+    performMiracle(player, miracleType, world = null) {
         if (!player.religion) {
             return { success: false, reason: 'Must found a religion first' };
         }
@@ -222,6 +295,13 @@ export const PlayerReligion = {
         if (player.karma < miracle.karmaCost) {
             return { success: false, reason: `Need ${miracle.karmaCost} karma (have ${player.karma})` };
         }
+
+        const cfg = PlayerReligion.MIRACLE_CONFIG;
+
+        // Find and validate the target before spending karma
+        const check = PlayerReligion.checkMiracleTarget(player, miracle.id, world);
+        if (!check.ok) return { success: false, reason: check.reason };
+        const target = check.target;
 
         player.karma -= miracle.karmaCost;
 
@@ -251,6 +331,90 @@ export const PlayerReligion = {
                 player.religion.influence = Math.floor(player.religion.followers / 100);
                 result.effect = 'Gained 1000 followers!';
                 break;
+
+            case 'harvest':
+                // Read by PlayerEffects.farmProductionMultiplier
+                player.blessings = player.blessings || {};
+                player.blessings.harvest = cfg.harvestDays;
+                result.effect = `Your farms yield triple for ${cfg.harvestDays} days!`;
+                break;
+
+            case 'smite': {
+                const damage = Utils.randInt(cfg.smiteDamage.min, cfg.smiteDamage.max);
+                result.target = target;
+                if (target.strength <= damage) {
+                    target.destroyed = true;
+                    result.destroyed = true;
+                    result.effect = `Divine wrath obliterates the ${target.name}!`;
+                } else {
+                    // Very strong foes survive, but broken
+                    const before = target.strength;
+                    target.strength = Math.max(1, Math.floor(Math.min(before - damage, before * cfg.smiteSurvivorShare)));
+                    if (target.population) {
+                        target.population = Math.max(1, Math.floor(target.population * cfg.smiteSurvivorShare));
+                    }
+                    result.destroyed = false;
+                    result.effect = `Lightning sears the ${target.name}! Strength ${before} → ${target.strength}.`;
+                }
+                if (world.events) {
+                    world.events.push({ text: `Divine wrath struck the ${target.name}.`, type: 'military' });
+                }
+                break;
+            }
+
+            case 'revelation': {
+                let revealed = 0;
+                for (const hex of Hex.hexesInRange(player.q, player.r, cfg.revelationRadius)) {
+                    const tile = world.getTile(hex.q, hex.r);
+                    if (!tile) continue;
+                    if (!tile.explored) revealed++;
+                    tile.explored = true;
+                    tile.visible = true;
+                }
+                result.revealed = revealed;
+                result.effect = `The veil lifts: ${revealed} new tiles revealed within ${cfg.revelationRadius} hexes!`;
+                break;
+            }
+
+            case 'sanctuary':
+                // Counted down by updateBlessings; honoured by hostile units
+                // (WorldUnit.updateRaider) and the encounter check (Game._checkHostileEncounters)
+                player.sanctuary = { q: player.q, r: player.r, radius: cfg.sanctuaryRadius, days: cfg.sanctuaryDays };
+                result.effect = `Holy ground: no foe may attack you within ${cfg.sanctuaryRadius} hexes of here for ${cfg.sanctuaryDays} days!`;
+                break;
+
+            case 'resurrection': {
+                // Most recent casualty returns whole
+                const unit = player.fallenUnits.pop();
+                if (unit.maxStrength) unit.strength = unit.maxStrength;
+                if (unit.maxHealth) unit.health = unit.maxHealth;
+                if (!player.army) player.army = [];
+                player.army.push(unit);
+                result.unit = unit;
+                result.effect = `${unit.icon || '⚔️'} ${unit.name || 'A fallen unit'} rises again to rejoin your army!`;
+                break;
+            }
+
+            case 'plague': {
+                const { settlement } = target;
+                const lost = Math.floor(settlement.population * cfg.plagueLoss);
+                settlement.population -= lost;
+                // Pestilence is a dark act: the realm remembers, and so do the heavens
+                if (settlement.kingdom) {
+                    player.reputation = player.reputation || {};
+                    player.reputation[settlement.kingdom] = (player.reputation[settlement.kingdom] || 0) - cfg.plagueReputationLoss;
+                }
+                player.karma = Math.max(0, player.karma - cfg.plagueKarmaLoss);
+                if (world.events) {
+                    world.events.push({ text: `A terrible plague swept through ${settlement.name}, claiming ${lost} lives.`, type: 'disaster' });
+                }
+                result.settlement = settlement;
+                result.populationLost = lost;
+                result.effect = `Pestilence ravages ${settlement.name}: ${lost} perish. ` +
+                    (settlement.kingdom ? `(-${cfg.plagueReputationLoss} reputation with its realm, ` : '(') +
+                    `-${cfg.plagueKarmaLoss} karma)`;
+                break;
+            }
         }
 
         // Increase faith
@@ -263,14 +427,114 @@ export const PlayerReligion = {
     },
 
     /**
-     * Update blessings (called daily)
+     * Does this miracle have what it needs (a target, a fallen unit, a world)?
+     * Side-effect free, so the UI can also use it to label / pre-check.
+     * @returns {{ok:boolean, reason?:string, target?:object}}
+     */
+    checkMiracleTarget(player, miracleId, world) {
+        const cfg = PlayerReligion.MIRACLE_CONFIG;
+        switch (miracleId) {
+            case 'smite': {
+                const target = world ? PlayerReligion.findSmiteTarget(player, world) : null;
+                if (!target) return { ok: false, reason: `No enemy unit within ${cfg.smiteRange} hexes to smite` };
+                return { ok: true, target };
+            }
+            case 'revelation':
+            case 'sanctuary':
+                if (!world) return { ok: false, reason: 'The miracle has no land to touch' };
+                return { ok: true };
+            case 'resurrection':
+                if (!player.fallenUnits || player.fallenUnits.length === 0) {
+                    return { ok: false, reason: 'None of your soldiers have fallen in battle' };
+                }
+                return { ok: true, target: player.fallenUnits[player.fallenUnits.length - 1] };
+            case 'plague': {
+                const target = world ? PlayerReligion.findPlagueTarget(player, world) : null;
+                if (!target) return { ok: false, reason: 'No enemy settlement on or next to your tile' };
+                return { ok: true, target };
+            }
+            default:
+                return { ok: true };
+        }
+    },
+
+    /**
+     * Nearest hostile world unit within smite range of the player (ties go to
+     * the stronger unit), or null.
+     */
+    findSmiteTarget(player, world) {
+        const range = PlayerReligion.MIRACLE_CONFIG.smiteRange;
+        let best = null;
+        let bestDist = Infinity;
+        for (const unit of world.units || []) {
+            if (unit.destroyed || !PlayerReligion.SMITE_TARGET_TYPES.includes(unit.type)) continue;
+            const dist = Hex.wrappingDistance(unit.q, unit.r, player.q, player.r, world.width);
+            if (dist > range) continue;
+            if (dist < bestDist || (dist === bestDist && unit.strength > best.strength)) {
+                best = unit;
+                bestDist = dist;
+            }
+        }
+        return best;
+    },
+
+    /**
+     * A populated settlement on or adjacent to the player's tile that is not
+     * of the player's own realm nor one of the player's colonies, or null.
+     * @returns {{settlement:object, tile:object}|null}
+     */
+    findPlagueTarget(player, world) {
+        const hexes = [{ q: player.q, r: player.r }, ...Hex.neighbors(player.q, player.r)];
+        for (const hex of hexes) {
+            const tile = world.getTile(hex.q, hex.r);
+            const settlement = tile && tile.settlement;
+            if (!settlement || !(settlement.population > 0)) continue;
+            if (player.allegiance && settlement.kingdom === player.allegiance) continue;
+            if ((player.colonies || []).some(c => c.q === tile.q && c.r === tile.r)) continue;
+            return { settlement, tile };
+        }
+        return null;
+    },
+
+    /**
+     * Is hex (q, r) inside the player's active Holy Sanctuary?
+     */
+    isInSanctuary(player, q, r, mapWidth) {
+        const s = player && player.sanctuary;
+        if (!s || !(s.days > 0)) return false;
+        return Hex.wrappingDistance(s.q, s.r, q, r, mapWidth) <= s.radius;
+    },
+
+    /**
+     * Remember a unit lost in battle so Resurrection can bring it back
+     * (newest last, oldest dropped past the cap).
+     */
+    recordFallenUnit(player, unit) {
+        if (!unit) return;
+        if (!player.fallenUnits) player.fallenUnits = [];
+        player.fallenUnits.push(unit);
+        const max = PlayerReligion.MIRACLE_CONFIG.maxFallenUnits;
+        if (player.fallenUnits.length > max) player.fallenUnits.splice(0, player.fallenUnits.length - max);
+    },
+
+    /**
+     * Update blessings (called daily). Also counts down the Holy Sanctuary,
+     * reported as an expired 'sanctuary' blessing when it lapses.
      */
     updateBlessings(player) {
-        if (!player.blessings) return;
-
         const expired = [];
 
-        for (const [blessing, days] of Object.entries(player.blessings)) {
+        if (player.sanctuary) {
+            player.sanctuary.days--;
+            if (player.sanctuary.days <= 0) {
+                player.sanctuary = null;
+                expired.push('sanctuary');
+            }
+        }
+
+        if (!player.blessings) return expired;
+
+        for (const [blessing] of Object.entries(player.blessings)) {
             player.blessings[blessing]--;
             if (player.blessings[blessing] <= 0) {
                 delete player.blessings[blessing];

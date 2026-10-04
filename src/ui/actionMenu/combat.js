@@ -1,6 +1,6 @@
 // ActionMenu — combat methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader } from './_imports.js';
+import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerEffects } from './_imports.js';
 
 Object.assign(ActionMenu, {
     /**
@@ -566,7 +566,8 @@ Object.assign(ActionMenu, {
         player.gold -= giftAmount;
 
         // Reputation boost scales with gift
-        const repBoost = Math.floor(giftAmount / 10);
+        // A skilled diplomat (or House Chancellor) makes a gift go further
+        const repBoost = PlayerEffects.scaleReputationGain(player, Math.floor(giftAmount / 10));
         if (!player.reputation) player.reputation = {};
         player.reputation[kingdom.id] = (player.reputation[kingdom.id] || 0) + repBoost;
 
@@ -620,7 +621,7 @@ Object.assign(ActionMenu, {
         const totalDisposition = opinion + reputation;
 
         // Success chance based on disposition + lord diplomacy
-        const baseChance = 0.3 + (totalDisposition / 200) + (lord.diplomacy / 40);
+        const baseChance = 0.3 + (totalDisposition / 200) + (lord.diplomacy / 40) + PlayerEffects.negotiationBonus(player);
         const success = Math.random() < Math.min(0.9, Math.max(0.1, baseChance));
 
         let html = `<div style="padding:15px; text-align:center;">`;
@@ -632,14 +633,15 @@ Object.assign(ActionMenu, {
 
             // Small reputation boost
             if (!player.reputation) player.reputation = {};
-            player.reputation[kingdom.id] = (player.reputation[kingdom.id] || 0) + 5;
+            const tradeRep = PlayerEffects.scaleReputationGain(player, 5);
+            player.reputation[kingdom.id] = (player.reputation[kingdom.id] || 0) + tradeRep;
 
             html += `<span style="font-size:42px;">⚖️</span>
                 <h3 style="color:#4caf50;">Agreement Reached!</h3>
                 <p style="color:#aaa;">${lord.name} agrees to favorable trade terms.</p>
                 <div style="background:#1a2a1a; padding:8px; border-radius:4px; margin:10px 0;">
                     <div style="color:#4caf50;">📈 10% better prices in ${kingdom.name} for 90 days</div>
-                    <div style="color:#4fc3f7;">📈 Reputation +5</div>
+                    <div style="color:#4fc3f7;">📈 Reputation +${tradeRep}</div>
                 </div>`;
         } else {
             html += `<span style="font-size:42px;">❌</span>
@@ -864,7 +866,7 @@ Object.assign(ActionMenu, {
         const totalDisp = NPCLords.getLordOpinion(lord, player) + reputation;
 
         // Success chance scales with disposition and lord's martial
-        const baseChance = 0.2 + (totalDisp / 150) + (lord.martial / 50);
+        const baseChance = 0.2 + (totalDisp / 150) + (lord.martial / 50) + PlayerEffects.negotiationBonus(player);
         const success = Math.random() < Math.min(0.8, Math.max(0.05, baseChance));
 
         let html = `<div style="padding:15px; text-align:center;">`;

@@ -373,6 +373,23 @@ export const Culture = {
     },
 
     /**
+     * Army morale from the player's finished theaters: each adds
+     * moraleBonus / 500 (+0.02 for a Theater), capped at +0.06 — on the
+     * same scale as a festival's morale boost (0.03–0.08).
+     */
+    getMoraleBonus(player, world) {
+        if (!player.culturalBuildings || !world) return 0;
+        let bonus = 0;
+        for (const bRef of player.culturalBuildings) {
+            const tile = world.getTile(bRef.q, bRef.r);
+            if (!tile || !tile.culturalBuilding) continue;
+            if (tile.culturalBuilding.underConstruction) continue;
+            bonus += (tile.culturalBuilding.moraleBonus || 0) / 500;
+        }
+        return Math.min(0.06, bonus);
+    },
+
+    /**
      * Get player's total cultural influence
      */
     getInfluence(player, world) {

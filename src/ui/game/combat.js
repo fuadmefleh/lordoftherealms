@@ -4,6 +4,7 @@
 
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, Trading, WorldUnit } from './_gameImports.js';
 import { resolveHostileEncounter } from './combat.logic.js';
+import { PlayerReligion } from '../../player/playerReligion.js';
 
 export function playerPray() {
     if (!this.player) return;
@@ -247,6 +248,8 @@ export function _triggerDeath(cause) {
 export function _checkHostileEncounters() {
     if (!this.world || !this.player) return;
     if (this.player.indenturedServitude) return; // Already captive
+    // Holy Sanctuary: no blood may be shed on consecrated ground
+    if (PlayerReligion.isInSanctuary(this.player, this.player.q, this.player.r, this.world.width)) return;
 
     const hostiles = this.world.units.filter(u =>
         !u.destroyed &&

@@ -2070,7 +2070,10 @@ Object.assign(ActionMenu, {
                 // Base reward: 1 basic mineral
                 const roll = Math.random();
                 let type, label, icon, value;
-                if (roll < 0.55) { type = 'stone'; label = 'Stone'; icon = '⛰️'; value = 8; }
+                // Deep Mining: a trained eye spots gem seams
+                const gemChance = Technology.getEffectTotal(player, 'gemDiscoveryChance');
+                if (gemChance > 0 && Utils.random() < gemChance) { type = 'gems'; label = 'Gemstones'; icon = '💎'; value = 80; }
+                else if (roll < 0.55) { type = 'stone'; label = 'Stone'; icon = '⛰️'; value = 8; }
                 else if (roll < 0.85) { type = 'ore'; label = 'Iron Ore'; icon = '⛏️'; value = 25; }
                 else if (roll < 0.95) { type = 'fossil'; label = 'Fossil'; icon = '🦴'; value = 35; }
                 else { type = 'crystal'; label = 'Crystal'; icon = '🔮'; value = 50; }
@@ -2110,6 +2113,7 @@ Object.assign(ActionMenu, {
         };
 
         // Generate what's at each depth
+        const gemChance = Technology.getEffectTotal(player, 'gemDiscoveryChance');
         const layers = [];
         for (let d = 0; d < maxDepth; d++) {
             const depthBonus = d * 0.06 * (luckStat / 5);
@@ -2120,6 +2124,8 @@ Object.assign(ActionMenu, {
             else if (roll < 0.22 + depthBonus * 2) type = 'ore';
             else if (roll < 0.35 + depthBonus) type = 'fossil';
             else if (roll < 0.55 + depthBonus) type = 'stone';
+            // Deep Mining: a trained eye spots gem seams in otherwise barren rock
+            if (type === 'rock' && gemChance > 0 && Utils.random() < gemChance) type = 'gems';
             // Add hazards at deeper levels
             const hasHazard = d >= 3 && Math.random() < 0.2 + d * 0.05;
             layers.push({ type, hasHazard, extracted: false });
@@ -2391,7 +2397,7 @@ Object.assign(ActionMenu, {
                 if (Math.random() < chance) {
                     player.inventory = player.inventory || {};
                     player.inventory.horse = (player.inventory.horse || 0) + 1;
-                    player.maxStamina = (player.maxStamina || 20) + 2;
+                    player.maxStamina = (player.maxStamina || 10) + 2;
                     if (Math.random() < 0.2) player.strength = (player.strength || 5) + 1;
                     game.ui.showNotification('🐴 Horse Tamed!', 'You patiently calmed the horse. +1 Horse, +2 Max Stamina.', 'success');
                 } else {

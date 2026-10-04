@@ -7,3 +7,4 @@ export { Quests } from '../../systems/quests.js';
 export { WorldEvents } from '../../world/worldEvents.js';
 export { Technology } from '../../systems/technology.js';
 export { Infrastructure } from '../../systems/infrastructure.js';
+export { PlayerEffects } from '../playerEffects.js';

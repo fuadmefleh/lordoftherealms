@@ -192,6 +192,10 @@ export const SaveLoad = {
             indenturedServitude: player.indenturedServitude || null,
             jailState: player.jailState || null,
             criminalRecord: player.criminalRecord || { pickpocket: 0, smuggling: 0 },
+            sanctuary: player.sanctuary || null,
+            fallenUnits: player.fallenUnits || [],
+            mount: player.mount || null,
+            tradeAgreements: player.tradeAgreements || {},
             inventory: player.inventory || {},
             landTaxBonus: player.landTaxBonus || 0,
             starvationDays: player.starvationDays || 0,
@@ -425,6 +429,7 @@ export const SaveLoad = {
         }
 
         if (player.landTaxBonus == null) player.landTaxBonus = 0;
+        if (player.mount === undefined) player.mount = null;
 
         // Economy 2.0 fallbacks for older saves
         if (!Array.isArray(player.tradeRoutes)) player.tradeRoutes = [];

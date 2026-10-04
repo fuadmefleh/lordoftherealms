@@ -565,7 +565,21 @@ Object.assign(ActionMenu, {
         html += `<p style="color: var(--text-secondary); font-size: 12px;">Your karma: ${game.player.karma}</p>`;
 
         for (const [key, miracle] of Object.entries(PlayerReligion.MIRACLES)) {
-            const canPerform = game.player.karma >= miracle.karmaCost;
+            // Targeted miracles say what they would strike, or why they can't
+            const check = PlayerReligion.checkMiracleTarget(game.player, miracle.id, game.world);
+            const canPerform = game.player.karma >= miracle.karmaCost && check.ok;
+            let targetLine = '';
+            if (!check.ok) {
+                targetLine = `<div style="font-size: 12px; color: #ff9800;">${check.reason}</div>`;
+            } else if (miracle.id === 'smite') {
+                targetLine = `<div style="font-size: 12px; color: var(--gold);">Target: ${check.target.icon || ''} ${check.target.name} (strength ${check.target.strength})</div>`;
+            } else if (miracle.id === 'plague') {
+                targetLine = `<div style="font-size: 12px; color: var(--gold);">Target: ${check.target.settlement.name} (pop. ${check.target.settlement.population})</div>`;
+            } else if (miracle.id === 'resurrection') {
+                targetLine = `<div style="font-size: 12px; color: var(--gold);">Returns: ${check.target.icon || ''} ${check.target.name} (${game.player.fallenUnits.length} fallen remembered)</div>`;
+            } else if (miracle.id === 'sanctuary' && game.player.sanctuary) {
+                targetLine = `<div style="font-size: 12px; color: var(--gold);">Current sanctuary: ${game.player.sanctuary.days} days left (recasting moves it here)</div>`;
+            }
             html += `
                 <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; ${!canPerform ? 'opacity: 0.5;' : ''}">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -573,6 +587,7 @@ Object.assign(ActionMenu, {
                             <div><span style="font-size: 20px;">${miracle.icon}</span> <strong>${miracle.name}</strong></div>
                             <div style="font-size: 12px; color: var(--text-secondary);">${miracle.description}</div>
                             <div style="font-size: 12px;">Effect: ${miracle.effect}</div>
+                            ${targetLine}
                         </div>
                         <button onclick="window.performMiracle('${key}')" ${!canPerform ? 'disabled' : ''} style="padding: 8px 16px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer;">${miracle.karmaCost} karma</button>
                     </div>
@@ -584,10 +599,19 @@ Object.assign(ActionMenu, {
         game.ui.showCustomPanel('Miracles', html);
 
         window.performMiracle = (miracleType) => {
+            // Check the target first so a miracle with nothing to strike costs no AP
+            const miracle = PlayerReligion.MIRACLES[miracleType];
+            const check = miracle ? PlayerReligion.checkMiracleTarget(game.player, miracle.id, game.world) : { ok: true };
+            if (!check.ok) {
+                game.ui.showNotification('Cannot Perform', check.reason, 'error');
+                return;
+            }
             if (!ActionMenu.commitPendingAP(game)) return;
-            const result = PlayerReligion.performMiracle(game.player, miracleType);
+            const result = PlayerReligion.performMiracle(game.player, miracleType, game.world);
             if (result.success) {
                 game.ui.showNotification('Miracle!', result.effect, 'success');
+                // Revelation / Smite change what the map shows
+                game.minimap?.invalidate();
                 game.ui.updateStats(game.player, game.world);
                 ActionMenu.close();
             } else {
@@ -732,7 +756,8 @@ Object.assign(ActionMenu, {
                     rewardLines.push(`<div style="color: ${reward.amount > 0 ? '#27ae60' : '#e74c3c'};">${reward.amount > 0 ? '❤️' : '💔'} ${reward.amount > 0 ? '+' : ''}${reward.amount} Health</div>`);
                     break;
                 case 'stamina':
-                    player.stamina = Math.min(player.maxStamina, player.stamina + reward.amount);
+                    // Extra travel today (stamina itself refills each morning)
+                    player.movementRemaining = (player.movementRemaining || 0) + reward.amount;
                     rewardLines.push(`<div style="color: #2ecc71;">⚡ +${reward.amount} Stamina</div>`);
                     break;
             }

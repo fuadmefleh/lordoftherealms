@@ -19,6 +19,7 @@ import { InnerMapCharacters } from './innerMapCharacters.js';
 import { Relationships } from '../systems/relationships.js';
 import { CustomObjects } from '../world/customObjects.js';
 import { Gossip } from '../systems/gossip.js';
+import { PlayerEffects } from '../player/playerEffects.js';
 
 
 export const InnerMapCombat = {
@@ -421,7 +422,8 @@ export const InnerMapCombat = {
 
             const baseDmg  = this.NPC_DAMAGE_BY_TYPE[npc.type] || 8;
             const variance = 0.75 + Math.random() * 0.5;
-            const dmg      = Math.max(1, Math.round(baseDmg * variance));
+            // Armour and Divine Protection soften the blow
+            const dmg      = PlayerEffects.scaleDamage(player, baseDmg * variance);
 
             // Floor at 1 so the player can’t be outright killed by the trigger
             player.health = Math.max(1, player.health - dmg);

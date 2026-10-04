@@ -593,8 +593,8 @@
             "days": 5,
             "requires": [],
             "tier": 1,
-            "description": "Develop a writing system for record-keeping and knowledge preservation.",
-            "effects": { "researchBonus": 0.10, "administrationBonus": 0.10 },
+            "description": "Develop a writing system for record-keeping and knowledge preservation. +10% research; halves the upkeep overhead of running many properties.",
+            "effects": { "researchBonus": 0.10, "administrationBonus": 0.50 },
             "flavorText": "With marks on clay, we conquered time itself."
         },
         "PHILOSOPHY": {

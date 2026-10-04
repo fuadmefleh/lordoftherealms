@@ -24,7 +24,7 @@ Object.assign(World.prototype, {
      */
     /**
      * @param {Object} [player]
-     * @param {Object} [opts] - { playerBonuses: { colonyGrowth, colonyLoyalty } }
+     * @param {Object} [opts] - { playerBonuses: { colonyGrowth, colonyLoyalty, colonyFood } }
      *   computed by the caller from the player's techs (world code can't
      *   import the tech system)
      */
@@ -50,7 +50,7 @@ Object.assign(World.prototype, {
         // Process kingdom AI turns
         for (const kingdom of this.kingdoms) {
             if (kingdom.isAlive) {
-                KingdomAI.processTurn(kingdom, this);
+                KingdomAI.processTurn(kingdom, this, opts.playerBonuses || {});
             }
         }
 

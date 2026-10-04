@@ -1,6 +1,6 @@
 // ActionMenu — realm methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, Festivals } from './_imports.js';
+import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, Festivals, PlayerEffects } from './_imports.js';
 
 Object.assign(ActionMenu, {
     // ============================================
@@ -52,7 +52,8 @@ Object.assign(ActionMenu, {
 
             // Reputation gain
             if (kingdomId && player.reputation) {
-                player.reputation[kingdomId] = (player.reputation[kingdomId] || 0) + Math.floor(amount / 15) + 1;
+                player.reputation[kingdomId] = (player.reputation[kingdomId] || 0)
+                    + PlayerEffects.scaleReputationGain(player, Math.floor(amount / 15) + 1);
             }
 
             // Renown for large donations

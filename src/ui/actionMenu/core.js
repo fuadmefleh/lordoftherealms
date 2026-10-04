@@ -1,6 +1,6 @@
 // ActionMenu — core methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader } from './_imports.js';
+import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerReligion } from './_imports.js';
 
 Object.assign(ActionMenu, {
     // ── Delegated-click helpers ──
@@ -480,6 +480,13 @@ Object.assign(ActionMenu, {
      */
     handleAction(game, tile, actionType, unitId) {
         ActionMenu.close();
+
+        // Holy Sanctuary is a no-combat zone — for the player too
+        if ((actionType === 'attack_unit' || actionType === 'attack_settlement') &&
+            PlayerReligion.isInSanctuary(game.player, game.player.q, game.player.r, game.world.width)) {
+            game.ui.showNotification('🕊️ Holy Sanctuary', 'You cannot start a fight within your own sanctuary.', 'error');
+            return;
+        }
 
         // For sub-menu actions: validate AP now but defer deduction until confirm
         if (ActionMenu.DEFERRED_AP_ACTIONS.has(actionType)) {

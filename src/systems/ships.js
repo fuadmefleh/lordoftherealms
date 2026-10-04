@@ -687,7 +687,7 @@ export const Ships = {
                 const enemyStr = Array.isArray(event.danger.combatStrength)
                     ? event.danger.combatStrength[0] + Math.floor(Utils.random() * (event.danger.combatStrength[1] - event.danger.combatStrength[0]))
                     : event.danger.combatStrength;
-                const shipStr = this._getShipCombatStrength(ship);
+                const shipStr = this._getShipCombatStrength(ship, player);
 
                 if (shipStr * (0.8 + Utils.random() * 0.4) > enemyStr * (0.8 + Utils.random() * 0.4)) {
                     resultText += ' You fought and won!';
@@ -737,7 +737,7 @@ export const Ships = {
         const data = (typeof DataLoader !== 'undefined' && DataLoader.ships) ? DataLoader.ships : {};
         const pirateStr = data.pirateStrength || { min: 8, max: 30 };
         const enemyStrength = pirateStr.min + Math.floor(Utils.random() * (pirateStr.max - pirateStr.min));
-        const shipStr = this._getShipCombatStrength(ship);
+        const shipStr = this._getShipCombatStrength(ship, player);
 
         // 50% chance to find pirates
         if (Utils.random() < 0.5) {
@@ -808,7 +808,7 @@ export const Ships = {
 
         // Target merchant ship strength
         const targetStr = 3 + Math.floor(Utils.random() * 12);
-        const shipStr = this._getShipCombatStrength(ship);
+        const shipStr = this._getShipCombatStrength(ship, player);
         const playerPower = shipStr * (0.8 + Utils.random() * 0.4);
         const targetPower = targetStr * (0.8 + Utils.random() * 0.4);
 
@@ -933,7 +933,9 @@ export const Ships = {
         const portTile = world.getTile(player.q, player.r);
         const eventMod = WorldEvents.getModifier(world, 'tradeIncome', portTile) + WorldEvents.getModifier(world, 'seaTradeIncome', portTile)
             // A Lighthouse you own beside the port brings ships in safely
-            + (Technology.hasBuildingNear(player, world, 'lighthouse_building', player.q, player.r, 1) ? 0.15 : 0);
+            + (Technology.hasBuildingNear(player, world, 'lighthouse_building', player.q, player.r, 1) ? 0.15 : 0)
+            // Lighthouse tech: charted harbours pay better at every port
+            + Technology.getEffectTotal(player, 'portTradeBonus');
         const revenue = Math.max(0, Math.floor(n * entry.sell * (1 + Technology.getTradeProfitBonus(player)) * (1 + eventMod)));
         ship.cargo[goodId] -= n;
         if (ship.cargo[goodId] <= 0) delete ship.cargo[goodId];
@@ -1011,9 +1013,13 @@ export const Ships = {
 
     /* ── Combat helpers ──────────────────────────────────────── */
 
-    _getShipCombatStrength(ship) {
+    _getShipCombatStrength(ship, player = null) {
         const stats = this.getShipEffectiveStats(ship);
         let strength = stats.combatStrength;
+
+        // Naval Warfare drills your crews for battle at sea
+        const navalBonus = player ? Technology.getEffectTotal(player, 'navalCombatBonus') : 0;
+        if (navalBonus > 0) strength *= 1 + navalBonus;
 
         // Condition penalty
         strength = Math.floor(strength * (ship.condition / 100));
@@ -1036,7 +1042,8 @@ export const Ships = {
         }
         if (reward.renown) player.renown = (player.renown || 0) + reward.renown;
         if (reward.karma) player.karma = (player.karma || 0) + reward.karma;
-        if (reward.stamina) player.stamina = Math.min(player.maxStamina || 10, (player.stamina || 0) + reward.stamina);
+        // Extra travel today (stamina itself refills each morning)
+        if (reward.stamina) player.movementRemaining = (player.movementRemaining || 0) + reward.stamina;
         if (reward.luck) player.luck = (player.luck || 5) + reward.luck;
     },
 

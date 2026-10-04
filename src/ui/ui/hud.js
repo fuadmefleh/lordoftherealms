@@ -1021,8 +1021,8 @@ Object.assign(UI.prototype, {
 
         this._setHudText('regionTerrain', tile.terrain.name);
         this._setHudText('regionTerrainIcon', tile.terrain.icon || '');
-        const moveCost = (Infrastructure && Infrastructure.getEffectiveMoveCost)
-            ? Infrastructure.getEffectiveMoveCost(tile)
+        const moveCost = (Infrastructure && Infrastructure.getPlayerMoveCost)
+            ? Infrastructure.getPlayerMoveCost(tile, player)
             : tile.terrain.moveCost;
         this._setHudText('regionMoveCost', moveCost === Infinity ? '—' : moveCost);
 
@@ -1126,9 +1126,12 @@ Object.assign(UI.prototype, {
             game.camera.targetZoom = Utils.clamp(base + delta, game.camera.minZoom, game.camera.maxZoom);
         };
         const step = () => (game.camera && game.camera.zoomStep ? game.camera.zoomStep * 2 : 0.2);
-        bind('minimapZoomIn', () => zoomBy(step()));
-        bind('minimapZoomOut', () => zoomBy(-step()));
-        bind('minimapZoomReset', recenter);
+        // In the inner map the buttons zoom the minimap itself — the inner
+        // camera is locked to the player and has its own wheel zoom.
+        const innerMinimap = () => (game.innerMapMode && game.minimap) ? game.minimap : null;
+        bind('minimapZoomIn', () => { const m = innerMinimap(); if (m) m.zoomInner(1); else zoomBy(step()); });
+        bind('minimapZoomOut', () => { const m = innerMinimap(); if (m) m.zoomInner(-1); else zoomBy(-step()); });
+        bind('minimapZoomReset', () => { const m = innerMinimap(); if (m) m.resetInnerZoom(); else recenter(); });
     },
 
     /** Lightweight Diplomacy / Factions panel listing the realm's kingdoms. */

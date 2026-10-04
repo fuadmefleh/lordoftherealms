@@ -1,6 +1,6 @@
 // PlayerMilitary — recruitment members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
-import { Utils, Technology, House } from './_imports.js';
+import { Utils, Technology, House, SettlementServices, PlayerEffects } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -265,13 +265,19 @@ Object.assign(PlayerMilitary, {
     /**
      * Recruit a unit at a settlement
      */
+    /** Gold to recruit `unit`, after the Marshal's military discount. */
+    getRecruitCost(player, unit) {
+        return Math.round(unit.cost * PlayerEffects.recruitCostMultiplier(player));
+    },
+
     recruitUnit(player, unitType, settlement) {
         const unit = PlayerMilitary.UNIT_TYPES[unitType.toUpperCase()];
         if (!unit) return { success: false, reason: 'Invalid unit type' };
+        const cost = PlayerMilitary.getRecruitCost(player, unit);
 
         // Check gold
-        if (player.gold < unit.cost) {
-            return { success: false, reason: `Need ${unit.cost} gold (have ${Math.floor(player.gold)})` };
+        if (player.gold < cost) {
+            return { success: false, reason: `Need ${cost} gold (have ${Math.floor(player.gold)})` };
         }
 
         // Check settlement requirements
@@ -287,7 +293,7 @@ Object.assign(PlayerMilitary, {
             return { success: false, reason: `This settlement can only supply ${capacity} recruit${capacity > 1 ? 's' : ''} right now (pop: ${settlement.population})` };
         }
 
-        player.gold -= unit.cost;
+        player.gold -= cost;
 
         // Track recruitment count
         player._recruitedThisTurn = (player._recruitedThisTurn || 0) + 1;
@@ -330,6 +336,8 @@ Object.assign(PlayerMilitary, {
             }
             total += strength;
         }
+        // Arms honed by a blacksmith
+        total *= SettlementServices.armyStrengthMultiplier(player);
 
         return Math.floor(total);
     },

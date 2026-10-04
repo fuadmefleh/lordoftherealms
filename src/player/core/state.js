@@ -122,6 +122,7 @@ export class Player {
         // Religious path
         this.religion = null;       // Founded religion
         this.blessings = {};        // Active divine blessings
+        this.mount = null;          // Riding horse { name, price, acquiredDay } — see settlementServices.js
 
         // Reputation per kingdom
         this.reputation = {};
@@ -238,7 +239,7 @@ export class Player {
     /**
      * Food types that can sustain travel (best consumed first for efficiency)
      */
-    static FOOD_TYPES = ['bread', 'preserved_fish', 'fish', 'grain'];
+    static FOOD_TYPES = ['cooked_meat', 'cooked_fish', 'bread', 'preserved_fish', 'fish', 'grain'];
 
     /**
      * Get total food count across all food types

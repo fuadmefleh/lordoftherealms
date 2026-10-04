@@ -16,8 +16,12 @@ import { DataLoader } from '../core/dataLoader.js';
 // _centerCameraOnPlayer) = 201, plus showShipHoldMenu = 202, plus
 // showPropertyPicker = 203, plus doSeaActivity and showPortMarketMenu = 205, plus the five
 // delegated-click helpers (closePanel*, openTileMenu, postSignboardAndManageColony) = 210, plus
-// the build-menu helpers (BUILD_CATEGORIES, _buildOutputText, _canBuildTechBuilding) = 213, plus performRaid = 214.
+// the build-menu helpers (BUILD_CATEGORIES, _buildOutputText, _canBuildTechBuilding) = 213, plus performRaid = 214, plus the building-service panels
+// (_serviceResult, showBlacksmithMenu, showBlessingMenu, showStableMenu, showGuardMenu,
+// showTributeMenu, showAudienceMenu) = 221.
 const EXPECTED_KEYS = [
+    '_serviceResult', 'showBlacksmithMenu', 'showBlessingMenu', 'showStableMenu', 'showGuardMenu',
+    'showTributeMenu', 'showAudienceMenu',
     'AP_COSTS', 'DEFERRED_AP_ACTIONS', '_appointTitle', '_buskFortuneTelling', '_buskJuggling',
     '_buskPreaching', '_buskSinging', '_buskStorytelling', '_buskingReward', '_categorizeActions',
     '_doForageMinigame', '_doHuntMinigame', '_doMeditateMinigame', '_doProspectMinigame',
@@ -81,8 +85,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 214 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(214);
+    it('has 221 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(221);
     });
 
     it('every member except the known data props is a function', () => {

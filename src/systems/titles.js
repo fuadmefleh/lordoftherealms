@@ -70,7 +70,9 @@ export const Titles = {
         }
         if (reqs.skills) {
             for (const [skill, level] of Object.entries(reqs.skills)) {
-                const playerSkill = (player.skills && player.skills[skill]) || 0;
+                let playerSkill = (player.skills && player.skills[skill]) || 0;
+                // A House Chancellor's counsel counts toward diplomacy requirements
+                if (skill === 'diplomacy' && player.house) playerSkill += House.getRoleBonuses(player).diplomacyBonus || 0;
                 if (playerSkill < level) {
                     return { meets: false, reason: `Need ${skill} ${level} (have ${playerSkill}).` };
                 }
@@ -413,7 +415,8 @@ export const Titles = {
             return { success: false, reason: 'You already blessed this settlement this month.' };
         }
 
-        player.karma = (player.karma || 0) + 2;
+        const perks = (Titles.getActiveTitle(player) || {}).perks || {};
+        player.karma = (player.karma || 0) + (perks.karmaPerBlessing || 2);
         player.renown = (player.renown || 0) + 1;
 
         if (!progress.settlementsBlesssed) progress.settlementsBlesssed = [];
@@ -451,6 +454,19 @@ export const Titles = {
         if (player.currentTitle !== 'royal_cartographer') return;
         const progress = player.titleProgress;
         progress.tilesExplored = (progress.tilesExplored || 0) + count;
+    },
+
+    /**
+     * Royal Cartographer: the crown pays a commission for each survey map drawn.
+     * Returns the gold paid, or 0 when the player holds no such perk.
+     */
+    recordSurvey(player) {
+        const title = Titles.getActiveTitle(player);
+        const pay = title && title.perks && title.perks.goldPerSurvey;
+        if (!pay) return 0;
+        const gold = Utils.randInt(pay.min, pay.max);
+        player.gold += gold;
+        return gold;
     },
 
     /**
@@ -492,7 +508,8 @@ export const Titles = {
         const results = { salary: 0, dutyFailed: false, fugitiveUpdate: null };
 
         // Pay daily salary
-        results.salary = title.salary || 0;
+        // The Chancellor's office raises its own pay ("allSalaryBonus")
+        results.salary = Math.round((title.salary || 0) * (1 + ((title.perks && title.perks.allSalaryBonus) || 0)));
         player.gold += results.salary;
 
         // Check fugitive timer (jailer)

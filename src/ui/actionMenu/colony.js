@@ -1002,9 +1002,11 @@ Object.assign(ActionMenu, {
 
         // Also reveal those tiles for the player
         const result = Cartography.applyMap(player, map, world);
+        // A Royal Cartographer is paid a commission for every survey
+        const commission = type === 'survey' ? Titles.recordSurvey(player) : 0;
 
         game.ui.showNotification('Map Created!', 
-            `${map.name} (${Cartography.QUALITY[map.quality].label} quality). Charted ${result.tilesRevealed} tiles.`, 'success');
+            `${map.name} (${Cartography.QUALITY[map.quality].label} quality). Charted ${result.tilesRevealed} tiles.${commission ? ` The crown pays ${commission}g for the survey.` : ''}`, 'success');
         game.ui.updateStats(game.player, game.world);
         ActionMenu.showCartographyMenu(game, world.getTile(player.q, player.r));
     },

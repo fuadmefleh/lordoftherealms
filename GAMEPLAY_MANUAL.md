@@ -137,6 +137,8 @@ The world features 24 terrain types. Movement cost determines how much stamina e
 
 Roads reduce movement costs (see [Infrastructure](#13-infrastructure)).
 
+**Rivers:** entering a river hex on foot costs **+2** stamina on top of its terrain cost. A road (world-generated or built) or a Bridge on that hex carries you across with no penalty, and researching **Bridge Construction** halves the fording penalty to **+1** everywhere else. The hex info panel and Region Details show the river surcharge, and pathfinding routes around unbridged rivers when it's cheaper.
+
 ### Pathfinding
 
 Click any visible hex to set a destination. The game uses A* pathfinding to calculate the optimal route. If you run out of stamina mid-journey, movement continues automatically the next day.
@@ -160,7 +162,7 @@ While in the wilderness, you can:
 | Meditate / Pray | Any passable tile | Restore health, gain karma (enhanced at holy sites) |
 | Go Fishing | Near water | Catch fish for food or sale |
 | Prospect | Hills, Highlands, Mountains | Search for mineral deposits |
-| Tame Wild Horse | Plains/Grassland with horses | Capture a horse for faster travel |
+| Tame Wild Horse | Plains/Grassland with horses | Capture a horse: +2 max stamina, or saddle it at a stable as your mount |
 | Build Campfire | 2+ wood in inventory | Extra health restoration |
 | Forage | Most wilderness | Gather herbs, berries, materials |
 | Hunt | Forest, Plains, Hills | Obtain meat and pelts |
@@ -247,6 +249,22 @@ If you hold the **Tax Collector** title or govern settlements, you can set tax r
 
 Click your gold display to open a detailed 90-day financial breakdown showing income sources, expense categories, daily logs, and gold-over-time charts.
 
+### Settlement Services
+
+Town buildings sell services with lasting effects. Use them from a building's menu on the local map, or from the furniture inside it. Prices scale with settlement size (village ×0.85 … capital ×1.3).
+
+| Building | Service | Effect |
+|----------|---------|--------|
+| Blacksmith | Hone Arms (8g per soldier, min 25g) | Army strength +15% for 7 days |
+| Temple / Church | Seek Blessing (30g) | +2 movement and +5 healing per day for 5 days, +1 karma |
+| Stable | Buy a Riding Horse (160g) | One mount at a time: +3 movement every day. Resells for half |
+| Stable | Saddle a Tamed Horse (25g) | Turns a tamed horse into your mount. Spare tamed horses sell for 70g |
+| Guard Tower | Settle Your Record | Pay 50g per offense to wipe your criminal record (+3 reputation) |
+| Town Hall | Pay Tribute (50 / 150 / 400g) | +1 reputation with the crown per 25g, up to 100 |
+| Town Hall / Manor | Seek Audience | Court actions available here: pledge allegiance, seek office, feasts, councils… |
+
+Furniture inside buildings is usable too: beds (in your own home), rented tavern rooms (5g), market stalls (trade), bars (drinks, rumors, gambling), anvils and forges (craft, smelt), altars (pray, donate), barracks racks (hire troops, train) and more.
+
 ---
 
 ## 5. Properties & Production
@@ -330,6 +348,11 @@ Base production is modified by several factors:
 - **Commerce Skill**: +5% per skill level.
 - **Technology**: Various techs boost specific properties (e.g., Crop Rotation gives +20% to farms).
 - **Terrain Bonus**: Logging Camps on timber tiles get +50%. Irrigation channels give +50% to farms.
+
+### Storage & Administration
+
+- **Storage:** each producing property holds **100 goods per level**. Output beyond that is lost, so collect, ship, or auto-sell regularly. The **Granary Construction** technology enlarges every store by 50%. The property panel shows `stored / capacity` and warns when goods are being lost.
+- **Administrative overhead:** running up to **6 properties** is free. Each one beyond that adds **+3% upkeep to all properties** (max +60%). The **Writing** technology halves this overhead.
 
 ### Upgrading Properties
 
@@ -445,6 +468,8 @@ Each house tier has a number of upgrade slots (1 for Shacks, up to 5 for Estates
 | Fortified Walls | 800g | +10 Defense, +4 Renown | Estate only |
 | Great Hall | 1,000g | +8 Renown, +5 Reputation, +1 Charisma | Estate only |
 
+Attribute and skill bonuses from upgrades apply for as long as you own the house, and are removed if you sell it. Each point of Defense adds +1% to your army's power when you are attacked.
+
 ---
 
 ## 9. Military & Combat
@@ -516,6 +541,10 @@ Choosing **Attack** on a settlement opens the siege panel with two options:
 ### Creatures and Travelers
 
 Besides caravans, raiders and patrols, the world holds **mercenary companies, pilgrims, smugglers, envoys and refugee columns** travelling between settlements (refugees add to the population where they arrive), **war fleets** that sink pirate ships, and **wild beasts** and **legendary creatures** that hunt travellers like raiders do. Unarmed, a creature mauls you rather than robbing you. Attacking pilgrims, refugees or envoys costs karma; slaying beasts and legendary creatures earns renown. Timed events (crusades, refugee waves, monster sightings, pirate surges) make their kind far more common.
+
+### Personal Protection
+
+When you are attacked without an army, or brawl on the local map, gear in your pack softens the blows: Leather Armor −20%, Shield −15%, Amulet −10% (they stack). Divine Protection blocks all damage.
 
 ### Army Upkeep
 
@@ -641,15 +670,17 @@ Spend karma to perform divine interventions:
 | Miracle | Karma Cost | Effect |
 |---------|-----------|--------|
 | Divine Healing | 10 | Fully restore your health |
-| Blessing of Prosperity | 15 | Double all income for 5 days |
-| Divine Protection | 20 | Invulnerable for 3 days |
+| Blessing of Prosperity | 15 | Double property income (gold and goods) for 5 days |
+| Divine Protection | 20 | 3 days: no battle casualties and no personal damage |
 | Mass Conversion | 25 | Gain 1,000 followers instantly |
 | Bountiful Harvest | 12 | Triple farm production for 3 days |
-| Divine Smite | 30 | Massive damage to an enemy unit |
-| Revelation | 18 | Reveal all tiles in a large radius |
-| Holy Sanctuary | 22 | Create a no-combat zone for 5 days |
-| Resurrection | 40 | Restore a destroyed military unit |
-| Divine Plague | 35 | Enemy settlement loses 30% population |
+| Divine Smite | 30 | Strikes the nearest hostile unit within 3 hexes for 35–50 strength: destroyed outright, or left with at most 40% if too strong |
+| Revelation | 18 | Explore and reveal every tile within 10 hexes |
+| Holy Sanctuary | 22 | 5 days: hostile units will not hunt or attack you within 3 hexes of where it was cast |
+| Resurrection | 40 | Restore your most recently fallen military unit (the last 10 battle casualties are remembered) |
+| Divine Plague | 35 | A settlement on or next to your tile, not of your realm or colonies, loses 30% population; costs −25 reputation with its kingdom and a further −10 karma |
+
+Targeted miracles (Smite, Resurrection, Plague) check for a target first; with none, nothing is spent.
 
 ### Pilgrimages
 
@@ -739,7 +770,7 @@ The game has **40 technologies** across **8 categories**, organized in tiers wit
 |------|------|------|------|--------|
 | Road Building | 1 | 150g | 6 | Unlocks Dirt Roads |
 | Paved Roads | 2 | 300g | 10 | Unlocks Stone Roads |
-| Bridge Construction | 2 | 250g | 8 | Unlocks Bridges |
+| Bridge Construction | 2 | 250g | 8 | Unlocks Bridges; halves the river-fording penalty (+2 → +1) |
 | Cartography | 2 | 200g | 7 | +2 vision, +1 movement |
 | Aqueducts | 3 | 400g | 14 | +30% settlement growth |
 
@@ -911,6 +942,14 @@ The game features **10 kingdoms**, each with unique culture, traits, and territo
 Your reputation with each kingdom ranges from very hostile to allied. It changes based on your actions:
 - **Positive**: Completing contracts, donating to the poor, diplomatic actions, quests.
 - **Negative**: Raiding settlements, conquest, smuggling (if caught), assassination.
+
+### Diplomacy
+
+Your **effective diplomacy** is your Diplomacy skill plus your House Chancellor's bonus. Each point:
+- adds **+5% to every reputation gain**: gifts to lords, tribute, donations, settled fines, trade agreements
+- adds **+2% to the chance of success** when negotiating trade agreements or requesting aid from a lord
+
+A House Chancellor's bonus also counts toward the diplomacy requirements of royal offices.
 
 ### Allegiance
 

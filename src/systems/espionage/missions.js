@@ -156,6 +156,11 @@ Object.assign(Espionage, {
         if (player.currentTitle === 'spymaster') {
             successChance = Math.min(0.95, successChance + 0.10);
         }
+        // A House Spymaster runs the network (+1% per point of espionage bonus)
+        if (player.house) {
+            const houseSpy = House.getRoleBonuses(player).espionageBonus || 0;
+            if (houseSpy > 0) successChance = Math.min(0.95, successChance + houseSpy * 0.01);
+        }
 
         // Roll for outcome
         const roll = Utils.random();

@@ -68,6 +68,9 @@ Object.assign(UI.prototype, {
         else elevStr = 'Peak';
 
         const elevPct = Math.round(tile.elevation * 100);
+        // Fording an unbridged river costs the player extra stamina
+        const riverPenalty = (typeof Infrastructure !== 'undefined' && Infrastructure.getRiverPenalty)
+            ? Infrastructure.getRiverPenalty(tile, this.game?.player) : 0;
 
         let html = `
             <div class="info-row">
@@ -90,7 +93,7 @@ Object.assign(UI.prototype, {
             </div>
             <div class="info-row">
                 <span class="info-label">Movement Cost</span>
-                <span class="info-value">${tile.terrain.moveCost === Infinity ? '∞' : tile.terrain.moveCost}${tile.infrastructure ? ` → ${typeof Infrastructure !== 'undefined' ? Infrastructure.getEffectiveMoveCost(tile) : tile.terrain.moveCost} (${tile.infrastructure.name})` : ''}</span>
+                <span class="info-value">${tile.terrain.moveCost === Infinity ? '∞' : tile.terrain.moveCost}${tile.infrastructure ? ` → ${typeof Infrastructure !== 'undefined' ? Infrastructure.getEffectiveMoveCost(tile) : tile.terrain.moveCost} (${tile.infrastructure.name})` : ''}${riverPenalty > 0 ? ` +${riverPenalty} (river)` : ''}</span>
             </div>
         `;
 
@@ -238,7 +241,7 @@ Object.assign(UI.prototype, {
                         </div>
                         <div class="info-row">
                             <span class="info-label">Storage</span>
-                            <span class="info-value">${prop.storage}</span>
+                            <span class="info-value">${prop.storage}${this.game && this.game.player && prop.type !== 'tavern' ? ` / ${PlayerEconomy.getStorageCapacity(this.game.player, prop)}` : ''}</span>
                         </div>` : ''}
                     </div>
                 `;

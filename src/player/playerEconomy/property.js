@@ -1,7 +1,7 @@
 // PlayerEconomy — property members.
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
-import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents } from './_imports.js';
+import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerEffects } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
     /**
@@ -201,6 +201,45 @@ Object.assign(PlayerEconomy, {
         return { success: true, property: newProperty, underConstruction: constructionDays > 0, constructionDays };
     },
 
+    /** Properties you can run before administrative overhead sets in. */
+    ADMIN_FREE_PROPERTIES: 6,
+    /** Extra upkeep per property beyond that, and the most it can add. */
+    ADMIN_OVERHEAD_PER_PROPERTY: 0.03,
+    ADMIN_OVERHEAD_CAP: 0.60,
+
+    /**
+     * Administration: a sprawling estate costs more to run. Every property
+     * past ADMIN_FREE_PROPERTIES adds 3% to all property upkeep (max +60%);
+     * administration technology (Writing's "administrationBonus") trims it.
+     * Returns the upkeep multiplier (>= 1).
+     */
+    getAdministrationMultiplier(player) {
+        const count = (player.properties || []).length;
+        const excess = Math.max(0, count - PlayerEconomy.ADMIN_FREE_PROPERTIES);
+        const overhead = Math.min(PlayerEconomy.ADMIN_OVERHEAD_CAP, excess * PlayerEconomy.ADMIN_OVERHEAD_PER_PROPERTY);
+        const admin = (typeof Technology !== 'undefined') ? Technology.getEffectTotal(player, 'administrationBonus') : 0;
+        return 1 + overhead * Math.max(0, 1 - admin);
+    },
+
+    /** Daily upkeep of one property, including administrative overhead. */
+    getPropertyUpkeep(player, property) {
+        const base = (property.upkeep || 0) * (property.level || 1);
+        return Math.round(base * PlayerEconomy.getAdministrationMultiplier(player));
+    },
+
+    /** Base goods a property can hold per level, before technology. */
+    STORAGE_PER_LEVEL: 100,
+
+    /**
+     * How many goods a property's storage holds. Collect, ship or auto-sell
+     * before it fills — production beyond this is lost. The Granary technology
+     * ("storageBonus") enlarges every store.
+     */
+    getStorageCapacity(player, property) {
+        const bonus = (typeof Technology !== 'undefined') ? Technology.getStorageBonus(player) : 0;
+        return Math.floor(PlayerEconomy.STORAGE_PER_LEVEL * (property.level || 1) * (1 + bonus));
+    },
+
     /**
      * Produce goods from all properties
      */
@@ -241,7 +280,7 @@ Object.assign(PlayerEconomy, {
 
             // Tavern earns gold directly — handled separately
             if (property.type === 'tavern') {
-                const upkeepCost = (property.upkeep || 0) * property.level;
+                const upkeepCost = PlayerEconomy.getPropertyUpkeep(player, property);
                 if (player.gold >= upkeepCost) {
                     player.gold -= upkeepCost;
                     // Calculate tavern income based on settlement size
@@ -273,6 +312,8 @@ Object.assign(PlayerEconomy, {
                     if (property.gamblingTables) {
                         baseIncome = Math.floor(baseIncome * (1 + property.gamblingTables * 0.15));
                     }
+                    // Prosperity miracle and a House Steward
+                    baseIncome = Math.floor(baseIncome * PlayerEffects.propertyIncomeMultiplier(player));
                     player.gold += baseIncome;
                     property.storage = (property.storage || 0) + baseIncome; // Track total earnings in storage
                     property.todayIncome = baseIncome;
@@ -323,10 +364,15 @@ Object.assign(PlayerEconomy, {
             // Water-wheel bonus for mills built on a river
             if (def && def.riverBonus && tile.hasRiver) amount *= (1 + def.riverBonus);
 
+            // Prosperity miracle and a House Steward
+            amount *= PlayerEffects.propertyIncomeMultiplier(player);
+            // Bountiful Harvest miracle
+            if (def && def.category === 'farming') amount *= PlayerEffects.farmProductionMultiplier(player);
+
             amount = Math.floor(amount);
 
             // Pay upkeep first — an unpaid property idles and keeps its inputs
-            const upkeepCost = (property.upkeep || 0) * property.level;
+            const upkeepCost = PlayerEconomy.getPropertyUpkeep(player, property);
             if (player.gold < upkeepCost) {
                 property.daysOwned++;
                 continue;
@@ -368,6 +414,13 @@ Object.assign(PlayerEconomy, {
                             property.inputStorage -= actualRuns * inputNeeded;
                             producedAmount = actualRuns * outputQty;
                             producedGood = recipe.output;
+                            // Steel Forging: better smithing yields more weapons from the same iron
+                            // (fractional output rounds up by chance)
+                            const weaponsBonus = recipe.output === 'weapons' ? Technology.getEffectTotal(player, 'weaponsCraftBonus') : 0;
+                            if (weaponsBonus > 0) {
+                                const boosted = producedAmount * (1 + weaponsBonus);
+                                producedAmount = Math.floor(boosted) + (Utils.random() < boosted % 1 ? 1 : 0);
+                            }
                         } else {
                             producedAmount = 0; // Not enough input
                         }
@@ -375,6 +428,14 @@ Object.assign(PlayerEconomy, {
                 }
             }
 
+            // Storage is finite: output beyond capacity spoils or is given away
+            property.wastedToday = 0;
+            if (producedAmount > 0) {
+                const room = Math.max(0, PlayerEconomy.getStorageCapacity(player, property) - (property.storage || 0));
+                const stored = Math.min(producedAmount, room);
+                property.wastedToday = producedAmount - stored;
+                producedAmount = stored;
+            }
             if (producedAmount > 0) {
                 property.storage = (property.storage || 0) + producedAmount;
                 production[producedGood] = (production[producedGood] || 0) + producedAmount;

@@ -191,6 +191,43 @@ export const Quests = {
             difficulty: 'hard',
         },
 
+        ARTIFACT_CHALICE_DAWN: {
+            id: 'artifact_chalice_dawn',
+            title: 'The Cup That Held the Sunrise',
+            description: 'Gather the shards of the Chalice of Dawn from forgotten shrines and restore it.',
+            type: 'exploration',
+            objectives: [
+                { type: 'artifact_fragments', artifactId: 'chalice_dawn', target: 3, current: 0, text: 'Collect 3 Chalice fragments' },
+                { type: 'artifact_reforged', artifactId: 'chalice_dawn', target: 1, current: 0, text: 'Reforge the Chalice of Dawn' }
+            ],
+            rewards: { gold: 1000, renown: 30 },
+            difficulty: 'hard',
+        },
+        ARTIFACT_BANNER_IRON_HOST: {
+            id: 'artifact_banner_iron_host',
+            title: 'Raise the Iron Standard',
+            description: 'Recover the torn pieces of the Banner of the Iron Host and raise it once more.',
+            type: 'exploration',
+            objectives: [
+                { type: 'artifact_fragments', artifactId: 'banner_iron_host', target: 4, current: 0, text: 'Collect 4 Banner fragments' },
+                { type: 'artifact_reforged', artifactId: 'banner_iron_host', target: 1, current: 0, text: 'Reforge the Banner of the Iron Host' }
+            ],
+            rewards: { gold: 1400, renown: 40 },
+            difficulty: 'hard',
+        },
+        ARTIFACT_LEDGER_COIN_KINGS: {
+            id: 'artifact_ledger_coin_kings',
+            title: 'Accounts of the Coin-Kings',
+            description: 'Piece together the lost Ledger of the Coin-Kings from ruins and caves.',
+            type: 'exploration',
+            objectives: [
+                { type: 'artifact_fragments', artifactId: 'ledger_coin_kings', target: 3, current: 0, text: 'Collect 3 Ledger fragments' },
+                { type: 'artifact_reforged', artifactId: 'ledger_coin_kings', target: 1, current: 0, text: 'Reforge the Ledger of the Coin-Kings' }
+            ],
+            rewards: { gold: 1100, renown: 30 },
+            difficulty: 'hard',
+        },
+
         // Diplomatic Quests
         PEACEMAKER: {
             id: 'peacemaker',

@@ -32,7 +32,8 @@ Object.assign(PlayerMilitary, {
         // Theaters you own keep the troops' spirits up (needs context.world)
         const theaterMoraleBonus = Culture.getMoraleBonus(player, context.world);
         const leadership = (player.skills?.leadership || 1) * 0.015 + festivalMoraleBonus + theaterMoraleBonus
-            + PlayerMilitary._worldEventMorale(player, context);
+            + PlayerMilitary._worldEventMorale(player, context)
+            + PlayerEffects.artifactBonus(player, 'moraleBonus');
         const playerMorale = PlayerMilitary._moraleValue(playerStrength, enemyStrength, leadership);
         const enemyMorale = PlayerMilitary._moraleValue(enemyStrength, playerStrength, context.enemyMoraleBonus || 0);
 
@@ -40,6 +41,8 @@ Object.assign(PlayerMilitary, {
         let playerPower = playerStrength * Utils.randFloat(0.8, 1.2) * playerCounterMult * playerTerrainMult * playerWeatherMult * playerMorale;
         // Fighting companions in the travel party
         playerPower *= 1 + PlayerEffects.companionBonus(player, 'power');
+        // The Sword of the First King
+        playerPower *= 1 + PlayerEffects.artifactBonus(player, 'battlePower');
         // A commander in high spirits leads better; a miserable one worse
         playerPower *= PlayerEffects.moodCombatMultiplier(player);
         // Fortification techs help when the player is the one attacked

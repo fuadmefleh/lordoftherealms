@@ -1562,6 +1562,7 @@ Object.assign(ActionMenu, {
                             <div>
                                 <div><span style="font-size: 20px;">${artifact.icon}</span> <strong>${artifact.name}</strong></div>
                                 <div style="font-size: 12px; color: var(--text-secondary);">${artifact.description}</div>
+                                ${artifact.passiveText ? `<div style="font-size: 11px; color: #e6b35c; margin-top: 3px;">✦ ${artifact.passiveText}${artifact.isForged ? '' : ' (once reforged)'}</div>` : ''}
                                 <div style="font-size: 11px; color: ${statusColor}; margin-top: 3px;">${status}</div>
                             </div>
                             <button onclick="window.reforgeArtifact('${artifact.id}')" ${(!canReforge || artifact.isForged) ? 'disabled' : ''}

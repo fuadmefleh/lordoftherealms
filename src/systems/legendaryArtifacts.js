@@ -35,6 +35,33 @@ export const LegendaryArtifacts = {
         }
     },
 
+    /**
+     * Sum of one lasting effect across the artifacts the player has reforged
+     * (data/artifacts.json `passive`): battlePower, moraleBonus,
+     * casualtyReduction, reputationGain, propertyIncome, tradeBonus,
+     * shipSpeed, dailyHeal, karmaPerDay.
+     */
+    getPassiveTotal(player, key) {
+        const forged = player && player.artifacts && player.artifacts.forged;
+        if (!Array.isArray(forged) || forged.length === 0) return 0;
+        let total = 0;
+        for (const id of forged) {
+            const def = this.getArtifactById(id);
+            if (def && def.passive && typeof def.passive[key] === 'number') total += def.passive[key];
+        }
+        return total;
+    },
+
+    /** Daily blessings of reforged relics (the Chalice heals and purifies). Returns { healed }. */
+    processDaily(player) {
+        const heal = this.getPassiveTotal(player, 'dailyHeal');
+        const before = player.health || 0;
+        if (heal > 0) player.health = Math.min(player.maxHealth || 100, before + heal);
+        const karma = this.getPassiveTotal(player, 'karmaPerDay');
+        if (karma > 0) player.karma = (player.karma || 0) + karma;
+        return { healed: (player.health || 0) - before };
+    },
+
     getArtifactById(id) {
         return this._getDefinitions().find(artifact => artifact.id === id) || null;
     },

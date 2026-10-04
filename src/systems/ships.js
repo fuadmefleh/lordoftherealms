@@ -7,6 +7,7 @@ import { Quests } from './quests.js';
 import { Technology } from './technology.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { WEATHER_EFFECTS } from '../world/weather.js';
+import { LegendaryArtifacts } from './legendaryArtifacts.js';
 
 /**
  * Ships System
@@ -174,7 +175,9 @@ export const Ships = {
     /** Hexes per day a ship sails, with Navigation's speed bonus. */
     getSailingSpeed(player, ship) {
         const base = this.getShipEffectiveStats(ship).speed;
-        return Math.max(1, Math.round(base * (player ? Technology.getSailingSpeedMultiplier(player) : 1)));
+        // The Astrolabe of Tides reads the currents for you
+        const relic = player ? 1 + LegendaryArtifacts.getPassiveTotal(player, 'shipSpeed') : 1;
+        return Math.max(1, Math.round(base * relic * (player ? Technology.getSailingSpeedMultiplier(player) : 1)));
     },
 
     /* ── Used ships for sale ─────────────────────────────────── */

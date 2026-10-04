@@ -1593,15 +1593,18 @@ Maps can be purchased from wandering cartographers at taverns or found during ex
 
 ## 26. Legendary Artifacts
 
-Three legendary artifacts are scattered across the world as fragments:
+Six legendary artifacts are scattered across the world as fragments. Reforging one pays a one-time reward, and the relic then stays with you for good:
 
-| Artifact | Fragments | Reward |
-|----------|-----------|--------|
-| Sword of the First King | 3 (in ruins, monuments, caves) | 800g, 35 renown, +1 Combat |
-| Crown of Embers | 4 (in monuments, ruins, shrines) | 1,000g, 40 renown, +1 Diplomacy |
-| Astrolabe of Tides | 3 (in caves, oases, ruins) | 700g, 30 renown, +1 Cartography |
+| Artifact | Fragments (found in) | Reforge reward | Lasting effect |
+|----------|----------------------|----------------|----------------|
+| 🗡️ Sword of the First King | 3 (ruins, monuments, caves) | 800g, 35 renown, +1 Combat | +15% battle power |
+| 👑 Crown of Embers | 4 (monuments, ruins, shrines) | 1,000g, 40 renown, +1 Diplomacy | +25% reputation gains |
+| 🧭 Astrolabe of Tides | 3 (caves, oases, ruins) | 700g, 30 renown, +1 Cartography | Ships sail 30% faster |
+| 🏆 Chalice of Dawn | 3 (shrines, oases, monuments) | 600g, 30 renown | Heals 3 health a day; +0.2 karma a day |
+| 🚩 Banner of the Iron Host | 4 (ruins, monuments) | 900g, 40 renown | −25% battle casualties, +10% morale |
+| 📖 Ledger of the Coin-Kings | 3 (ruins, caves) | 1,200g, 25 renown | +15% property income, +5% trade prices |
 
-Find all fragments by exploring POIs, then reforge the artifact at a city or large village (population 200+) to claim your reward.
+Find all fragments by exploring POIs, then reforge the artifact at a city or large village (population 200+). Collecting a first fragment unlocks a quest to complete the relic.
 
 ---
 

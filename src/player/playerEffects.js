@@ -11,6 +11,7 @@ import { Titles } from '../systems/titles.js';
 import { House } from '../systems/house.js';
 import { Relationships } from '../systems/relationships.js';
 import { Technology } from '../systems/technology.js';
+import { LegendaryArtifacts } from '../systems/legendaryArtifacts.js';
 
 /** Personal damage reduction from gear in the inventory (multiplicative). */
 const ARMOR_REDUCTION = { leather_armor: 0.2, shield: 0.15, amulet: 0.1 };
@@ -57,6 +58,13 @@ function _perk(player, key) {
 }
 
 export const PlayerEffects = {
+    // ──────────── LEGENDARY ARTIFACTS ────────────
+
+    /** A reforged relic's lasting effect (see LegendaryArtifacts.getPassiveTotal). */
+    artifactBonus(player, key) {
+        return LegendaryArtifacts.getPassiveTotal(player, key);
+    },
+
     // ──────────── DIVINE BLESSINGS (miracles) ────────────
 
     /** "Divine Protection": the player and their army take no harm. */
@@ -74,6 +82,8 @@ export const PlayerEffects = {
             const steward = House.getRoleBonuses(player).propertyIncomeMult;
             if (steward) mult *= steward;
         }
+        // Ledger of the Coin-Kings
+        mult *= 1 + this.artifactBonus(player, 'propertyIncome');
         return mult;
     },
 
@@ -133,7 +143,8 @@ export const PlayerEffects = {
 
     /** Multiplier on reputation you earn: +5% per point of effective diplomacy, × mood. */
     reputationGainMultiplier(player) {
-        return (1 + 0.05 * this.effectiveDiplomacy(player)) * this.moodReputationMultiplier(player);
+        return (1 + 0.05 * this.effectiveDiplomacy(player)) * this.moodReputationMultiplier(player)
+            * (1 + this.artifactBonus(player, 'reputationGain')); // Crown of Embers
     },
 
     /** Scale a positive reputation gain by diplomacy (losses are untouched). */
@@ -151,7 +162,8 @@ export const PlayerEffects = {
     /** Fractional price advantage when trading at `settlement`. */
     tradeBonus(player, settlement) {
         let bonus = _perk(player, 'tradeBonus') + this.companionBonus(player, 'trade')
-            + this.moodTradeBonus(player); // see MOOD section
+            + this.moodTradeBonus(player) // see MOOD section
+            + this.artifactBonus(player, 'tradeBonus');
         const kingdomId = settlement && settlement.kingdom;
         bonus += this.liegeTradeModifier(player, kingdomId);
         if (kingdomId && player.tradeAgreements && player.tradeAgreements[kingdomId]) {
@@ -191,7 +203,9 @@ export const PlayerEffects = {
 
     /** Multiplier on battle casualties: none under Divine Protection. */
     casualtyMultiplier(player) {
-        return this.isProtected(player) ? 0 : 1;
+        if (this.isProtected(player)) return 0;
+        // Banner of the Iron Host
+        return Math.max(0, 1 - this.artifactBonus(player, 'casualtyReduction'));
     },
 
     /** Multiplier on health the player personally loses (protection, then armour). */

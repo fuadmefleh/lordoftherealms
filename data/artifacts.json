@@ -6,13 +6,21 @@
             "icon": "🗡️",
             "description": "A mythic blade said to have united the first realm.",
             "fragmentsRequired": 3,
-            "poiBias": ["ruins", "monument", "cave"],
+            "poiBias": [
+                "ruins",
+                "monument",
+                "cave"
+            ],
             "questId": "artifact_sword_first_king",
             "reforgeRewards": {
                 "gold": 800,
                 "renown": 35,
                 "combatSkill": 1
-            }
+            },
+            "passive": {
+                "battlePower": 0.15
+            },
+            "passiveText": "+15% battle power"
         },
         {
             "id": "crown_embers",
@@ -20,13 +28,21 @@
             "icon": "👑",
             "description": "A scorched circlet once worn by a ruler who survived a kingdom-ending fire.",
             "fragmentsRequired": 4,
-            "poiBias": ["monument", "ruins", "shrine"],
+            "poiBias": [
+                "monument",
+                "ruins",
+                "shrine"
+            ],
             "questId": "artifact_crown_embers",
             "reforgeRewards": {
                 "gold": 1000,
                 "renown": 40,
                 "diplomacySkill": 1
-            }
+            },
+            "passive": {
+                "reputationGain": 0.25
+            },
+            "passiveText": "+25% reputation gains"
         },
         {
             "id": "astrolabe_tides",
@@ -34,13 +50,85 @@
             "icon": "🧭",
             "description": "An ancient navigation instrument used by vanished ocean explorers.",
             "fragmentsRequired": 3,
-            "poiBias": ["cave", "oasis", "ruins"],
+            "poiBias": [
+                "cave",
+                "oasis",
+                "ruins"
+            ],
             "questId": "artifact_astrolabe_tides",
             "reforgeRewards": {
                 "gold": 700,
                 "renown": 30,
                 "cartographySkill": 1
-            }
+            },
+            "passive": {
+                "shipSpeed": 0.3
+            },
+            "passiveText": "Ships sail 30% faster"
+        },
+        {
+            "id": "chalice_dawn",
+            "name": "Chalice of Dawn",
+            "icon": "🏆",
+            "description": "A golden cup that filled with light at every sunrise in the temple of a forgotten god.",
+            "fragmentsRequired": 3,
+            "poiBias": [
+                "shrine",
+                "oasis",
+                "monument"
+            ],
+            "questId": "artifact_chalice_dawn",
+            "reforgeRewards": {
+                "gold": 600,
+                "renown": 30
+            },
+            "passive": {
+                "dailyHeal": 3,
+                "karmaPerDay": 0.2
+            },
+            "passiveText": "Heals 3 health a day; slowly purifies your karma"
+        },
+        {
+            "id": "banner_iron_host",
+            "name": "Banner of the Iron Host",
+            "icon": "🚩",
+            "description": "The war standard of a legion that never broke. Soldiers who march beneath it fight to the last.",
+            "fragmentsRequired": 4,
+            "poiBias": [
+                "ruins",
+                "monument"
+            ],
+            "questId": "artifact_banner_iron_host",
+            "reforgeRewards": {
+                "gold": 900,
+                "renown": 40
+            },
+            "passive": {
+                "casualtyReduction": 0.25,
+                "moraleBonus": 0.1
+            },
+            "passiveText": "−25% battle casualties, +10% morale"
+        },
+        {
+            "id": "ledger_coin_kings",
+            "name": "Ledger of the Coin-Kings",
+            "icon": "📖",
+            "description": "The account book of a merchant dynasty that once lent gold to emperors.",
+            "fragmentsRequired": 3,
+            "poiBias": [
+                "ruins",
+                "cave"
+            ],
+            "questId": "artifact_ledger_coin_kings",
+            "reforgeRewards": {
+                "gold": 1200,
+                "renown": 25
+            },
+            "passive": {
+                "propertyIncome": 0.15,
+                "tradeBonus": 0.05
+            },
+            "passiveText": "+15% property income, +5% trade prices"
         }
     ]
 }

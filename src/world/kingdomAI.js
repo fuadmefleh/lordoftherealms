@@ -8,7 +8,7 @@ import { Economy, TradeRoutes } from './economy.js';
 import { Kingdom } from './kingdom.js';
 import { Religion } from '../systems/religion.js';
 import { WorldEvents } from './worldEvents.js';
-import { KingdomBonuses, KingdomStability } from './kingdomState.js';
+import { KingdomBonuses, KingdomStability, LordInfluence } from './kingdomState.js';
 
 export const KingdomAI = {
     /**
@@ -173,14 +173,16 @@ export const KingdomAI = {
         const capitalTile = kingdom.capital ? world.getTile(kingdom.capital.q, kingdom.capital.r) : null;
         const eventTax = WorldEvents.getModifier(world, 'taxIncome', capitalTile || { kingdom: kingdom.id });
         const bonus = KingdomBonuses.get(kingdom, 'treasury') + KingdomBonuses.get(kingdom, 'stewardship') * 0.5
-            + KingdomBonuses.get(kingdom, 'tax') + eventTax;
+            + KingdomBonuses.get(kingdom, 'tax') + eventTax
+            + LordInfluence.incomeBonus(kingdom); // the lord's own stewardship
         return Math.max(0.1, 1 + bonus) * KingdomStability.incomeMultiplier(kingdom);
     },
 
     /** Daily gold spent keeping armies in the field while at war. */
     warUpkeep(kingdom, world) {
         const spending = WorldEvents.getModifier(world, 'militarySpending', { kingdom: kingdom.id });
-        const factor = Math.max(0.2, 1 + KingdomBonuses.get(kingdom, 'upkeep') + spending);
+        // A lord bent on survival keeps his armies lean (lordModifiers.upkeep)
+        const factor = Math.max(0.2, 1 + KingdomBonuses.get(kingdom, 'upkeep') + spending + LordInfluence.mod(kingdom, 'upkeep'));
         return Math.floor((kingdom.military || 0) * 0.01 * factor);
     },
 
@@ -192,7 +194,13 @@ export const KingdomAI = {
     updateInstitutions(kingdom, world) {
         const ref = { kingdom: kingdom.id };
         if (kingdom.religion && typeof kingdom.religion.piety === 'number') {
-            const piety = KingdomBonuses.get(kingdom, 'faith') * 0.5 + WorldEvents.getModifier(world, 'piety', ref);
+            // Temples a pious lord funded keep filling the pews and the coffers
+            const temples = KingdomAI.templeEffects(kingdom);
+            if (temples.income) kingdom.treasury = (kingdom.treasury || 0) + temples.income;
+            if (temples.scholarship && kingdom.cultureData && typeof kingdom.cultureData.scholarship === 'number') {
+                kingdom.cultureData.scholarship = Math.min(100, kingdom.cultureData.scholarship + temples.scholarship);
+            }
+            const piety = KingdomBonuses.get(kingdom, 'faith') * 0.5 + WorldEvents.getModifier(world, 'piety', ref) + temples.piety;
             kingdom.religion.piety = Utils.clamp(kingdom.religion.piety + piety, 0, 100);
             const heresy = WorldEvents.getModifier(world, 'heresySpread', ref);
             if (heresy > 0 && Array.isArray(kingdom.religion.heresies) && typeof Religion !== 'undefined'
@@ -214,6 +222,68 @@ export const KingdomAI = {
             kingdom.relations[partner.id] = Utils.clamp((kingdom.relations[partner.id] || 0) + ev.effects.relations, -100, 100);
             partner.relations[kingdom.id] = Utils.clamp((partner.relations[kingdom.id] || 0) + ev.effects.relations, -100, 100);
         }
+    },
+
+    // ══════════════════════════════════════════════
+    // TEMPLES — funded by lords with a 'faith' goal
+    // ══════════════════════════════════════════════
+
+    /** Daily effect per pietyBonus / incomeBonus / scholarshipBonus point. */
+    TEMPLE_RATES: { piety: 0.01, income: 0.1, scholarship: 0.01 },
+
+    /** Daily piety, gold and scholarship from the realm's temples. */
+    templeEffects(kingdom) {
+        const out = { piety: 0, income: 0, scholarship: 0 };
+        const temples = kingdom && kingdom.temples;
+        if (!Array.isArray(temples) || !temples.length) return out;
+        const types = (Religion && Religion.KINGDOM_BUILDING_TYPES) || {};
+        const R = KingdomAI.TEMPLE_RATES;
+        for (const t of temples) {
+            const def = types[t.type];
+            if (!def) continue;
+            out.piety += (def.pietyBonus || 0) * R.piety;
+            out.income += (def.incomeBonus || 0) * R.income;
+            out.scholarship += (def.scholarshipBonus || 0) * R.scholarship;
+        }
+        out.income = Math.floor(out.income);
+        return out;
+    },
+
+    /**
+     * Fund the next temple the realm lacks and can afford: a chapel per
+     * settlement, up to two monasteries, one cathedral. Returns the temple.
+     */
+    fundTemple(kingdom, world) {
+        if (!kingdom.religion) return null;
+        const types = (Religion && Religion.KINGDOM_BUILDING_TYPES) || {};
+        if (!Array.isArray(kingdom.temples)) kingdom.temples = [];
+        const temples = kingdom.temples;
+        const count = (type) => temples.filter(t => t.type === type).length;
+        const towns = KingdomAI._settlementsOf(kingdom, world);
+        const wants = [
+            ['cathedral', count('cathedral') < 1 && towns.length >= 3],
+            ['monastery_npc', count('monastery_npc') < 2],
+            ['chapel', count('chapel') < towns.length],
+        ];
+        for (const [type, wanted] of wants) {
+            const def = types[type];
+            if (!wanted || !def) continue;
+            // Never spend more than a third of the treasury on stone and bells
+            if ((kingdom.treasury || 0) < def.cost * 3) continue;
+            kingdom.treasury -= def.cost;
+            const town = towns.length ? towns[temples.length % towns.length] : null;
+            const temple = { type, day: KingdomAI._day(world), at: town ? town.settlement.name : null };
+            temples.push(temple);
+            if (Array.isArray(world.events)) {
+                world.events.push({
+                    text: `${def.icon} ${kingdom.name} raises a ${def.name.toLowerCase()}${temple.at ? ` in ${temple.at}` : ''}.`,
+                    type: 'religious',
+                    kingdom: kingdom.id,
+                });
+            }
+            return temple;
+        }
+        return null;
     },
 
     /**
@@ -274,7 +344,8 @@ export const KingdomAI = {
         // Diplomacy from ruler, chancellor, lord and tradition; succession
         // crises and crusades sour every envoy
         const diplomacy = KingdomBonuses.get(kingdom, 'diplomacy') + KingdomBonuses.get(kingdom, 'relations')
-            + WorldEvents.getModifier(world, 'diplomacy', { kingdom: kingdom.id });
+            + WorldEvents.getModifier(world, 'diplomacy', { kingdom: kingdom.id })
+            + LordInfluence.diplomacyBonus(kingdom); // a shrewd lord's envoys
         if (diplomacy) change += Math.floor(diplomacy * 10);
         // Religious compatibility: same faith → +5, different militant faiths → penalty
         if (typeof Religion !== 'undefined') {
@@ -293,8 +364,9 @@ export const KingdomAI = {
             });
         }
 
-        // Break alliance if relations deteriorate
-        if (kingdom.relations[target.id] < 30 && kingdom.allies.includes(target.id)) {
+        // Break alliance if relations deteriorate (honorable lords stand by
+        // their allies longer; faithless ones drop them at the first slight)
+        if (kingdom.relations[target.id] < LordInfluence.allianceFloor(kingdom) && kingdom.allies.includes(target.id)) {
             kingdom.allies = kingdom.allies.filter(id => id !== target.id);
             target.allies = target.allies.filter(id => id !== kingdom.id);
 
@@ -327,8 +399,9 @@ export const KingdomAI = {
 
         const target = Utils.randPick(enemies);
 
-        // Only declare war if we're stronger or desperate
-        const ourStrength = kingdom.military + kingdom.population * 0.1;
+        // Only declare war if we're stronger or desperate. The lord's war
+        // appetite (ambition, domination, honor) shifts how strong is enough.
+        const ourStrength = (kingdom.military + kingdom.population * 0.1) * LordInfluence.warAppetite(kingdom);
         const theirStrength = target.military + target.population * 0.1;
 
         if (ourStrength > theirStrength * 0.8 || Utils.random() < 0.1) {
@@ -415,8 +488,11 @@ export const KingdomAI = {
         const until = KingdomAI._day(world) + KingdomAI.WAR.truceDays;
         if (!a.truces) a.truces = {};
         if (!b.truces) b.truces = {};
-        a.truces[b.id] = until;
-        b.truces[a.id] = until;
+        // Each side keeps the truce as long as its lord's honor allows
+        // (never less than half the treaty)
+        const minUntil = KingdomAI._day(world) + Math.floor(KingdomAI.WAR.truceDays / 2);
+        a.truces[b.id] = Math.max(minUntil, until + LordInfluence.truceBonusDays(a));
+        b.truces[a.id] = Math.max(minUntil, until + LordInfluence.truceBonusDays(b));
         if (!a.relations) a.relations = {};
         if (!b.relations) b.relations = {};
         a.relations[b.id] = Math.max(a.relations[b.id] || 0, -40);
@@ -597,6 +673,8 @@ export const KingdomAI = {
 
         // Ruler, generals and martial traditions
         military *= Math.max(0.1, 1 + KingdomBonuses.get(kingdom, 'military'));
+        // A lord bent on domination keeps a larger standing army
+        military *= Math.max(0.1, 1 + LordInfluence.mod(kingdom, 'military'));
 
         // Blizzards and the like thin the ranks (hardy traditions endure)
         const attrition = WorldEvents.getModifier(world, 'unitAttrition', { kingdom: kingdom.id });
@@ -741,7 +819,8 @@ export const KingdomAI = {
         let defensePower = defender.military * Utils.randFloat(0.8, 1.2) * defenderCounterMult * defenderTerrainMult * defenderMorale;
         // Brilliant strategists and ruthless lords win battles; paranoid ones hold walls
         attackPower *= Math.max(0.2, 1 + KingdomBonuses.get(attacker, 'warBonus'));
-        defensePower *= Math.max(0.2, 1 + KingdomBonuses.get(defender, 'warBonus') + KingdomBonuses.get(defender, 'defense'));
+        defensePower *= Math.max(0.2, 1 + KingdomBonuses.get(defender, 'warBonus') + KingdomBonuses.get(defender, 'defense')
+            + LordInfluence.mod(defender, 'defense')); // a wary lord's fortifications
         // Walls: towns, and above all the capital, are hard to take
         if (battleTile && battleTile.settlement && battleTile.settlement.kingdom === defender.id) {
             const isCapital = defender.capital && defender.capital.q === frontline.q && defender.capital.r === frontline.r;

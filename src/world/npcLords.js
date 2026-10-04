@@ -4,6 +4,7 @@
 
 import { Utils } from '../core/utils.js';
 import { KingdomAI } from './kingdomAI.js';
+import { KingdomStability, LordInfluence } from './kingdomState.js';
 import { TradeRoutes } from './economy.js';
 import { Characters } from './characters.js';
 import { Colonization } from './colonization.js';
@@ -18,16 +19,49 @@ export const NPCLords = {
      * expansionBonus, warBonus, diplomacyBonus, tradeBonus, taxBonus,
      * loyaltyBonus, faithBonus, defenseBonus, researchBonus, stabilityBonus,
      * constructionBonus; karmaBonus weighs the player's karma in getLordOpinion.
+     * `goals` lists the goals the trait gives a lord ([type, priority]).
      */
     TRAITS: {
-        AMBITIOUS: { id: 'ambitious', name: 'Ambitious', expansionBonus: 0.3, warBonus: 0.2 },
-        CAUTIOUS: { id: 'cautious', name: 'Cautious', expansionBonus: -0.2, diplomacyBonus: 0.3 },
-        GREEDY: { id: 'greedy', name: 'Greedy', tradeBonus: 0.4, taxBonus: 0.2 },
-        HONORABLE: { id: 'honorable', name: 'Honorable', diplomacyBonus: 0.3, loyaltyBonus: 0.2 },
-        CRUEL: { id: 'cruel', name: 'Cruel', warBonus: 0.3, loyaltyBonus: -0.3 },
-        PIOUS: { id: 'pious', name: 'Pious', faithBonus: 0.4, karmaBonus: 0.2 },
-        CUNNING: { id: 'cunning', name: 'Cunning', diplomacyBonus: 0.2, tradeBonus: 0.2 },
-        BRAVE: { id: 'brave', name: 'Brave', warBonus: 0.3, loyaltyBonus: 0.1 },
+        AMBITIOUS: { id: 'ambitious', name: 'Ambitious', expansionBonus: 0.3, warBonus: 0.2, goals: [['expand', 'high'], ['conquer', 'medium'], ['colonize', 'medium']] },
+        CAUTIOUS: { id: 'cautious', name: 'Cautious', expansionBonus: -0.2, diplomacyBonus: 0.3, goals: [['survive', 'high'], ['alliance', 'medium']] },
+        GREEDY: { id: 'greedy', name: 'Greedy', tradeBonus: 0.4, taxBonus: 0.2, goals: [['wealth', 'high'], ['trade', 'high']] },
+        HONORABLE: { id: 'honorable', name: 'Honorable', diplomacyBonus: 0.3, loyaltyBonus: 0.2, goals: [['alliance', 'high'], ['justice', 'medium']] },
+        CRUEL: { id: 'cruel', name: 'Cruel', warBonus: 0.3, loyaltyBonus: -0.3, goals: [['domination', 'high'], ['fear', 'medium']] },
+        PIOUS: { id: 'pious', name: 'Pious', faithBonus: 0.4, karmaBonus: 0.2, goals: [['faith', 'high'], ['peace', 'medium']] },
+        CUNNING: { id: 'cunning', name: 'Cunning', diplomacyBonus: 0.2, tradeBonus: 0.2, goals: [['trade', 'medium'], ['alliance', 'medium']] },
+        BRAVE: { id: 'brave', name: 'Brave', warBonus: 0.3, loyaltyBonus: 0.1, goals: [['conquer', 'medium'], ['justice', 'low']] },
+    },
+
+    /** Bumped when goal generation changes; older lords get fresh goals. */
+    GOALS_VERSION: 2,
+
+    /**
+     * Standing effects of a goal on the lord's kingdom (kingdom.lordModifiers,
+     * read through LordInfluence in kingdomState.js), scaled by priority.
+     *   stability   — points on the stability target
+     *   military    — share added to the army the realm keeps
+     *   defense     — share added to defensive battle power
+     *   upkeep      — share added to war upkeep (negative = leaner)
+     *   warAppetite — added to LordInfluence.warAppetite
+     *   truceDays   — extra days the lord keeps a truce
+     *   lawful      — chance a bandit band forming on his land is put down
+     */
+    GOAL_EFFECTS: {
+        justice: { stability: 5, truceDays: 45, lawful: 0.5 },
+        fear: { stability: 8 },
+        faith: { stability: 3 },
+        domination: { military: 0.1, warAppetite: 0.1 },
+        survive: { defense: 0.1, upkeep: -0.2 },
+    },
+
+    /** Tuning for the goal actions in pursueGoal. */
+    GOAL_TUNING: {
+        trade: { perTown: 4, perRoute: 1, perRoad: 0.5, maxRoads: 20, partnerRelations: 3 },
+        faith: { piety: 2, templeChance: 0.15 },
+        domination: { weakRatio: 0.7, cowRatio: 0.5, pressure: 3, tributeChance: 0.25, tribute: 0.03, warChance: 0.1 },
+        fear: { relations: -2, crushStability: 3 },
+        survive: { peaceChance: 0.35, wearyDays: 90, savingsPerTown: 3 },
+        colonize: { chance: 0.1 },
     },
 
     /**
@@ -58,40 +92,33 @@ export const NPCLords = {
             stewardship: Utils.randInt(1, 10),
             relationships: {}, // Relationships with other lords
             goals: NPCLords.generateGoals(traits),
+            goalsVersion: NPCLords.GOALS_VERSION,
         };
     },
 
     /**
-     * Generate goals based on traits
+     * Goals from traits (data/npcLords.json `goals`, falling back to the
+     * built-in trait table for older saved trait objects). Duplicates keep
+     * their highest priority; a lord with no goal-bearing trait just survives.
      */
     generateGoals(traits) {
-        const goals = [];
-
-        for (const trait of traits) {
-            switch (trait.id) {
-                case 'ambitious':
-                    goals.push({ type: 'expand', priority: 'high' });
-                    goals.push({ type: 'conquer', priority: 'medium' });
-                    goals.push({ type: 'colonize', priority: 'medium' });
-                    break;
-                case 'greedy':
-                    goals.push({ type: 'wealth', priority: 'high' });
-                    goals.push({ type: 'trade', priority: 'high' });
-                    break;
-                case 'pious':
-                    goals.push({ type: 'faith', priority: 'high' });
-                    goals.push({ type: 'peace', priority: 'medium' });
-                    break;
-                case 'honorable':
-                    goals.push({ type: 'alliance', priority: 'high' });
-                    goals.push({ type: 'justice', priority: 'medium' });
-                    break;
-                case 'cruel':
-                    goals.push({ type: 'domination', priority: 'high' });
-                    goals.push({ type: 'fear', priority: 'medium' });
-                    break;
+        const rank = { high: 3, medium: 2, low: 1 };
+        const byType = new Map();
+        for (const trait of traits || []) {
+            if (!trait) continue;
+            let list = trait.goals;
+            if (!Array.isArray(list)) {
+                const known = Object.values(NPCLords.TRAITS).find(t => t && t.id === trait.id);
+                list = (known && known.goals) || [];
+            }
+            for (const entry of list) {
+                const [type, priority = 'medium'] = Array.isArray(entry) ? entry : [entry.type, entry.priority];
+                if (!type) continue;
+                const prev = byType.get(type);
+                if (!prev || (rank[priority] || 0) > (rank[prev.priority] || 0)) byType.set(type, { type, priority });
             }
         }
+        const goals = [...byType.values()];
 
         // Always have at least one goal
         if (goals.length === 0) {
@@ -99,6 +126,36 @@ export const NPCLords = {
         }
 
         return goals;
+    },
+
+    /**
+     * Recompute the kingdom's standing goal effects (kingdom.lordModifiers)
+     * from the lord's goals. Deterministic — no randomness.
+     */
+    updateModifiers(kingdom) {
+        const mods = {};
+        const lord = kingdom.lord;
+        for (const goal of (lord && lord.goals) || []) {
+            const fx = NPCLords.GOAL_EFFECTS[goal.type];
+            if (!fx) continue;
+            const w = LordInfluence.GOAL_PRIORITY_WEIGHT[goal.priority] || LordInfluence.GOAL_PRIORITY_WEIGHT.medium;
+            for (const [k, v] of Object.entries(fx)) mods[k] = (mods[k] || 0) + v * w;
+        }
+        kingdom.lordModifiers = mods;
+        return mods;
+    },
+
+    /**
+     * Raider spawn hook (World.processUnits): a band forming on the land of a
+     * lord who keeps the law may be put down at once. Returns true when it is.
+     */
+    suppressesRaiders(world, q, r) {
+        const tile = world.getTile(q, r);
+        if (!tile || !tile.kingdom) return false;
+        const kingdom = world.getKingdom(tile.kingdom);
+        if (!kingdom || !kingdom.isAlive) return false;
+        const lawful = Utils.clamp(LordInfluence.mod(kingdom, 'lawful'), 0, 0.9);
+        return lawful > 0 && Utils.random() < lawful;
     },
 
     /**
@@ -120,6 +177,10 @@ export const NPCLords = {
 
         const lord = kingdom.lord;
         if (!lord.kingdomId) lord.kingdomId = kingdom.id; // older saves
+        if (lord.goalsVersion !== NPCLords.GOALS_VERSION) {
+            lord.goals = NPCLords.generateGoals(lord.traits);
+            lord.goalsVersion = NPCLords.GOALS_VERSION;
+        }
 
         // Age the lord
         if (world.day % 120 === 0) { // Once per year
@@ -132,9 +193,12 @@ export const NPCLords = {
             }
         }
 
-        // Pursue goals
+        // Standing effects of the lord's goals (stability, armies, truces, law)
+        NPCLords.updateModifiers(kingdom);
+
+        // Pursue goals — ambition, intelligence and priority set how often
         for (const goal of lord.goals) {
-            if (Utils.random() < 0.3) { // 30% chance to pursue each goal
+            if (Utils.random() < LordInfluence.goalChance(kingdom, goal)) {
                 NPCLords.pursueGoal(kingdom, lord, goal, world);
             }
         }
@@ -161,6 +225,7 @@ export const NPCLords = {
                 kingdom.lord.martial = newRuler.skills.martial;
                 kingdom.lord.diplomacy = newRuler.skills.diplomacy;
                 kingdom.lord.stewardship = newRuler.skills.stewardship;
+                NPCLords.updateModifiers(kingdom);
                 return;
             }
         }
@@ -169,6 +234,7 @@ export const NPCLords = {
         const newLord = NPCLords.generateLord(kingdom);
         kingdom.lord = newLord;
         kingdom.ruler = newLord.name;
+        NPCLords.updateModifiers(kingdom);
 
         world.events.push({
             category: 'political',
@@ -227,12 +293,206 @@ export const NPCLords = {
                 break;
 
             case 'colonize':
-                // Establish colonies in wilderness
-                if (typeof Colonization !== 'undefined' && Utils.random() < 0.3) {
-                    Colonization.processKingdomColonization(world);
+                // Send this realm's pioneers into the wilderness (only this realm's)
+                if (Utils.random() < NPCLords.GOAL_TUNING.colonize.chance) {
+                    Colonization.launchKingdomPioneers(kingdom, world);
                 }
                 break;
+
+            case 'trade':
+                NPCLords.pursueTrade(kingdom, world);
+                break;
+
+            case 'faith':
+                NPCLords.pursueFaith(kingdom, world);
+                break;
+
+            case 'justice':
+                NPCLords.pursueJustice(kingdom, world);
+                break;
+
+            case 'domination':
+                NPCLords.pursueDomination(kingdom, world);
+                break;
+
+            case 'fear':
+                NPCLords.pursueFear(kingdom, world);
+                break;
+
+            case 'survive':
+                NPCLords.pursueSurvival(kingdom, world);
+                break;
         }
+    },
+
+    // ── Goal actions ─────────────────────────────
+
+    /** Settlement tiles flying this kingdom's banner. */
+    _towns(kingdom, world) {
+        const out = [];
+        for (const t of kingdom.territory || []) {
+            const tile = world.getTile(t.q, t.r);
+            if (tile && tile.settlement && tile.settlement.kingdom === kingdom.id) out.push(tile.settlement);
+        }
+        return out;
+    },
+
+    /** Stewardship multiplier on gold a lord's own schemes bring in (0.75-1.25). */
+    _stewardMult(kingdom) {
+        return 1 + LordInfluence.lean(kingdom, 'stewardship') * 0.25;
+    },
+
+    _shiftRelations(a, b, delta) {
+        if (!a.relations) a.relations = {};
+        a.relations[b.id] = Utils.clamp((a.relations[b.id] || 0) + delta, -100, 100);
+    },
+
+    /**
+     * Trade: the lord's factors work the realm's markets and routes — gold
+     * scaled by towns, trade routes and roads — and warm a trading partner.
+     */
+    pursueTrade(kingdom, world) {
+        const T = NPCLords.GOAL_TUNING.trade;
+        const towns = NPCLords._towns(kingdom, world);
+        if (towns.length === 0) return 0;
+        const names = new Map(world.getAllSettlements().map(s => [s.name, s.kingdom]));
+        let routes = 0;
+        const partners = new Set();
+        for (const town of towns) {
+            for (const route of (town.economy && town.economy.tradeRoutes) || []) {
+                routes++;
+                const partnerId = names.get(route.to);
+                if (partnerId && partnerId !== kingdom.id) partners.add(partnerId);
+            }
+        }
+        let roads = 0;
+        for (const t of kingdom.territory || []) {
+            const tile = world.getTile(t.q, t.r);
+            if (tile && (tile.hasRoad || tile.infrastructure)) roads++;
+        }
+        const gold = Math.round((towns.length * T.perTown + routes * T.perRoute + Math.min(roads, T.maxRoads) * T.perRoad)
+            * NPCLords._stewardMult(kingdom));
+        kingdom.treasury = (kingdom.treasury || 0) + gold;
+
+        const friends = [...partners].map(id => world.getKingdom(id))
+            .filter(k => k && k.isAlive && !(kingdom.wars || []).includes(k.id));
+        if (friends.length > 0) {
+            const partner = Utils.randPick(friends);
+            NPCLords._shiftRelations(kingdom, partner, T.partnerRelations);
+            NPCLords._shiftRelations(partner, kingdom, T.partnerRelations);
+        }
+        return gold;
+    },
+
+    /** Faith: the lord leads the realm in devotion and may fund a temple. */
+    pursueFaith(kingdom, world) {
+        const T = NPCLords.GOAL_TUNING.faith;
+        if (kingdom.religion && typeof kingdom.religion.piety === 'number') {
+            kingdom.religion.piety = Utils.clamp(kingdom.religion.piety + T.piety, 0, 100);
+        }
+        if (Utils.random() < T.templeChance) return KingdomAI.fundTemple(kingdom, world);
+        return null;
+    },
+
+    /** Justice: wardens hunt the brigands on the lord's land. */
+    pursueJustice(kingdom, world) {
+        const onOurLand = (u) => {
+            const tile = world.getTile(u.q, u.r);
+            return !!tile && tile.kingdom === kingdom.id;
+        };
+        const raider = (world.units || []).find(u => u.type === 'raider' && !u.destroyed && onOurLand(u));
+        if (!raider) return null;
+        raider.destroyed = true;
+        if (Array.isArray(world.events)) {
+            world.events.push({
+                text: `⚖️ ${kingdom.lord.name}'s wardens hunt down a band of brigands in ${kingdom.name}.`,
+                type: 'political',
+                kingdom: kingdom.id,
+            });
+        }
+        return raider;
+    },
+
+    /**
+     * Domination: lean on the weakest neighbour — threats sour relations
+     * (opening the door to war through KingdomAI.considerWar), and a badly
+     * outmatched realm may be cowed into paying tribute.
+     */
+    pursueDomination(kingdom, world) {
+        const T = NPCLords.GOAL_TUNING.domination;
+        const mine = kingdom.military || 0;
+        const weak = world.kingdoms.filter(k => k.isAlive && k.id !== kingdom.id
+            && !(kingdom.allies || []).includes(k.id) && !(kingdom.wars || []).includes(k.id)
+            && !KingdomAI.hasTruce(kingdom, k, world) && (k.military || 0) < mine * T.weakRatio);
+        if (weak.length === 0) return null;
+        const target = weak.reduce((a, b) => ((b.military || 0) < (a.military || 0) ? b : a));
+        NPCLords._shiftRelations(kingdom, target, -T.pressure);
+        NPCLords._shiftRelations(target, kingdom, -T.pressure);
+
+        let tribute = 0;
+        if ((target.military || 0) < mine * T.cowRatio && Utils.random() < T.tributeChance) {
+            tribute = Math.floor(Math.max(0, target.treasury || 0) * T.tribute);
+            if (tribute > 0) {
+                target.treasury -= tribute;
+                kingdom.treasury = (kingdom.treasury || 0) + tribute;
+                if (Array.isArray(world.events)) {
+                    world.events.push({
+                        text: `👑 ${kingdom.name} cows ${target.name} into paying ${tribute} gold in tribute.`,
+                        type: 'political',
+                        kingdom: kingdom.id,
+                    });
+                }
+            }
+        }
+        if (Utils.random() < T.warChance) KingdomAI.considerWar(kingdom, world);
+        return { target, tribute };
+    },
+
+    /**
+     * Fear: rule by the sword. Dissent is crushed when the realm grows
+     * restless, but neighbours look on the tyrant with growing distrust.
+     */
+    pursueFear(kingdom, world) {
+        const T = NPCLords.GOAL_TUNING.fear;
+        const others = world.kingdoms.filter(k => k.isAlive && k.id !== kingdom.id);
+        if (others.length > 0) NPCLords._shiftRelations(Utils.randPick(others), kingdom, T.relations);
+        const stability = KingdomStability.ensure(kingdom);
+        if (stability < KingdomStability.UNREST_THRESHOLD) {
+            kingdom.stability = Math.min(100, stability + T.crushStability);
+            if (Array.isArray(world.events)) {
+                world.events.push({
+                    text: `🪓 ${kingdom.lord.name}'s soldiers crush dissent in ${kingdom.name}.`,
+                    type: 'political',
+                    kingdom: kingdom.id,
+                });
+            }
+            return true;
+        }
+        return false;
+    },
+
+    /**
+     * Survive: at war, sue for peace when outmatched or the war drags on; at
+     * peace, bank gold against hard times.
+     */
+    pursueSurvival(kingdom, world) {
+        const T = NPCLords.GOAL_TUNING.survive;
+        for (const enemyId of kingdom.wars || []) {
+            const enemy = world.getKingdom(enemyId);
+            if (!enemy || !enemy.isAlive) continue;
+            const state = kingdom.warState && kingdom.warState[enemyId];
+            const days = state ? (world.day || 0) - state.since : 0;
+            const outmatched = (kingdom.military || 0) < (enemy.military || 0);
+            if ((outmatched || days > T.wearyDays) && Utils.random() < T.peaceChance) {
+                KingdomAI.makePeace(kingdom, enemy, world);
+                return 'peace';
+            }
+            return null;
+        }
+        const towns = NPCLords._towns(kingdom, world).length;
+        const saved = Math.round(towns * T.savingsPerTown * NPCLords._stewardMult(kingdom));
+        kingdom.treasury = (kingdom.treasury || 0) + saved;
+        return saved;
     },
 
     /**

@@ -1079,6 +1079,45 @@ Kingdom wars are fought for **goals**, not to the last man:
 
 AI-driven lords roam the world with personality traits (Ambitious, Honorable, Cruel, Cunning) that drive their decisions. You can encounter them on the map and request meetings. Each trait's numbers feed their kingdom: a Builder founds villages and repairs damage faster, a Tyrant taxes harder but erodes stability, a Warmonger wins more battles but makes enemies, a Paranoid lord holds his walls. Pious lords weigh your karma heavily, and a lord counts you as kin while you're married into his realm.
 
+**Goals.** Every trait gives its lord one or two goals (set in `data/npcLords.json`), each with a priority. A lord with several traits pursues all of their goals; a goal that two traits share keeps the higher priority.
+
+| Trait | Goals |
+|-------|-------|
+| Ambitious | Expand, Conquer, Colonize |
+| Expansionist | Expand, Colonize |
+| Greedy / Merchant | Wealth, Trade |
+| Cunning / Scholarly | Trade, plus Alliance (Cunning) or Peace (Scholarly) |
+| Pious | Faith, Peace |
+| Zealous | Faith, Domination |
+| Honorable / Just | Alliance, Justice |
+| Brave | Conquer, Justice |
+| Cruel / Tyrant | Domination, Fear |
+| Ruthless / Warmonger | Domination, Conquer |
+| Diplomat / Generous | Alliance, Peace |
+| Cautious | Survive, Alliance |
+| Paranoid | Survive, Fear |
+| Builder | Expand, Survive |
+| Isolationist | Survive, Colonize |
+| Hedonist | Wealth |
+
+Each day a lord works on each goal with a chance of about 30%. High priority counts in full, medium ×0.75 and low ×0.5. Ambition changes the chance by ±25% and intelligence by ±15%. Some goals also have **standing effects** that apply every day, scaled by priority:
+
+- **Trade:** his factors work the markets. The treasury gains 4 gold per town, 1 per trade route and ½ per road tile (up to 20 roads), scaled by stewardship. Relations with one trading partner rise by 3 on both sides.
+- **Faith:** piety +2. Sometimes he also funds a temple: a chapel for each town, up to two monasteries, and a cathedral once the realm has three towns. He never spends more than a third of the treasury on one. Temples keep adding a little piety, tithes and (monasteries) scholarship every day. *Standing:* +3 stability.
+- **Justice:** his wardens hunt a band of brigands on his land. *Standing:* +5 stability, a 50% chance that a new bandit band forming on his land is put down at once, and he keeps every truce 45 days longer.
+- **Domination:** he leans on the weakest realm that is not an ally, not at war with him and not under a truce, provided its army is under 70% of his. Relations drop by 3 on both sides. If its army is under half of his, he may cow it into paying 3% of its treasury as tribute. Now and then he weighs war through the normal war system. *Standing:* +10% standing army and a larger war appetite.
+- **Fear:** he rules by the sword. When stability falls below 35, his soldiers crush dissent (+3 stability now). Each time, one neighbour trusts him 2 points less. *Standing:* +8 stability.
+- **Survive:** at war, he sues for peace when his army is smaller than the enemy's or the war has lasted more than 90 days (35% each time he tries). At peace, he banks 3 gold per town. *Standing:* +10% defence in battle and 20% lower war upkeep.
+- **Expand / Wealth / Conquer / Alliance / Peace:** claim border land, set up trade routes, weigh war, warm a neighbour, or make peace.
+- **Colonize:** sometimes sends **his own realm's** pioneers to distant wilderness. The usual limits apply: at least 300 gold and 100 soldiers, at most two parties out and five colonies.
+
+**Character.** A lord's 1–10 stats matter too:
+
+- **Honor:** keeps truces up to 45 days longer, or lets them lapse up to 45 days early, which is the commonest betrayal. An honorable lord stands by allies until relations fall below 15; a faithless one drops them below 45 (the usual point is 30). Honor also lowers his appetite for war.
+- **Ambition:** how hard he pushes his goals, and how strong he must feel before declaring war (±15%).
+- **Intelligence:** how well his efforts pay off, and how well his envoys do in diplomacy.
+- **Stewardship:** ±10% on his kingdom's daily income, and ±25% on the gold his trade and savings bring in.
+
 ---
 
 ## 17. Titles & Royal Office

@@ -124,6 +124,93 @@ export const KingdomBonuses = {
     },
 };
 
+/**
+ * How the NPC lord's character shapes the kingdom (world/npcLords.js). Two
+ * inputs:
+ *   • the lord's 1-10 stats — ambition, honor, intelligence, stewardship —
+ *     read here as a lean of -1..+1 around the middle (5.5);
+ *   • kingdom.lordModifiers — standing effects of the lord's goals (justice,
+ *     fear, domination, faith, survive), recomputed daily by
+ *     NPCLords.updateModifiers: { stability, military, defense, upkeep,
+ *     warAppetite, truceDays, lawful }.
+ * Lives here (not in npcLords) so the kingdom AI can read it without an
+ * import cycle.
+ */
+const STAT_MID = 5.5;
+const GOAL_PRIORITY_WEIGHT = { high: 1, medium: 0.75, low: 0.5 };
+
+export const LordInfluence = {
+    GOAL_PRIORITY_WEIGHT,
+    /** Base daily chance that a lord works on one of his goals. */
+    BASE_GOAL_CHANCE: 0.3,
+
+    /** A lord stat (1-10), 5.5 when there is no lord or no such stat. */
+    stat(kingdom, key) {
+        const v = kingdom && kingdom.lord ? kingdom.lord[key] : undefined;
+        return typeof v === 'number' ? v : STAT_MID;
+    },
+
+    /** The stat as a lean: -1 at 1, 0 at 5.5, +1 at 10. */
+    lean(kingdom, key) {
+        return Utils.clamp((LordInfluence.stat(kingdom, key) - STAT_MID) / 4.5, -1, 1);
+    },
+
+    /** A standing goal modifier (0 when absent). */
+    mod(kingdom, key) {
+        const m = kingdom && kingdom.lordModifiers;
+        return m && typeof m[key] === 'number' ? m[key] : 0;
+    },
+
+    hasGoal(kingdom, type) {
+        const goals = kingdom && kingdom.lord && kingdom.lord.goals;
+        return Array.isArray(goals) && goals.some(g => g && g.type === type);
+    },
+
+    /**
+     * Daily chance to pursue a goal: ambition drives intensity (±25%),
+     * intelligence makes the effort count (±15%), priority weights it.
+     */
+    goalChance(kingdom, goal) {
+        const weight = GOAL_PRIORITY_WEIGHT[goal && goal.priority] || GOAL_PRIORITY_WEIGHT.medium;
+        return LordInfluence.BASE_GOAL_CHANCE * weight
+            * (1 + LordInfluence.lean(kingdom, 'ambition') * 0.25)
+            * (1 + LordInfluence.lean(kingdom, 'intelligence') * 0.15);
+    },
+
+    /** Stewardship: ±10% on the kingdom's daily income. */
+    incomeBonus(kingdom) {
+        return LordInfluence.lean(kingdom, 'stewardship') * 0.1;
+    },
+
+    /** Intelligence: a shrewd lord's envoys do better (±0.15 diplomacy). */
+    diplomacyBonus(kingdom) {
+        return LordInfluence.lean(kingdom, 'intelligence') * 0.15;
+    },
+
+    /**
+     * Multiplier on how strong a realm must feel before it declares war:
+     * ambition and domination raise it, honor lowers it.
+     */
+    warAppetite(kingdom) {
+        return Utils.clamp(1 + LordInfluence.lean(kingdom, 'ambition') * 0.15
+            - LordInfluence.lean(kingdom, 'honor') * 0.1
+            + LordInfluence.mod(kingdom, 'warAppetite'), 0.6, 1.5);
+    },
+
+    /**
+     * Extra days this lord keeps a truce (honor ±45, a 'justice' goal +45).
+     * Faithless lords let truces lapse early — the commonest betrayal.
+     */
+    truceBonusDays(kingdom) {
+        return Math.round(LordInfluence.lean(kingdom, 'honor') * 45 + LordInfluence.mod(kingdom, 'truceDays'));
+    },
+
+    /** Relations below which this lord drops an alliance (30; 15 honorable … 45 faithless). */
+    allianceFloor(kingdom) {
+        return Math.round(30 - LordInfluence.lean(kingdom, 'honor') * 15);
+    },
+};
+
 export const KingdomStability = {
     BASE: 60,
     /** Fraction of the gap to the target closed each day. */
@@ -153,6 +240,7 @@ export const KingdomStability = {
         t += add('Rulers & traditions', (KingdomBonuses.get(kingdom, 'stability') + KingdomBonuses.get(kingdom, 'loyalty') * 0.5) * 100);
         t += add('Events', KingdomStability.eventMod(world, kingdom, 'stability'));
         t += add('Mood of the realm', KingdomStability.eventMod(world, kingdom, 'morale') * 0.3);
+        t += add('Lord\'s rule', LordInfluence.mod(kingdom, 'stability'));
         t += add('Wars', -5 * ((kingdom.wars && kingdom.wars.length) || 0));
         if ((kingdom.treasury || 0) <= 0) t += add('Empty treasury', -15);
         if (kingdom.religion && typeof kingdom.religion.unity === 'number') {

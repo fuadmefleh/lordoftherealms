@@ -412,7 +412,8 @@ Object.assign(World.prototype, {
                         q = h.q + Utils.randInt(-3, 3);
                         r = h.r + Utils.randInt(-3, 3);
                     }
-                    if (this.isPassable(q, r)) {
+                    // A law-keeping lord's wardens may put the band down at once
+                    if (this.isPassable(q, r) && !NPCLords.suppressesRaiders(this, q, r)) {
                         this.units.push(new WorldUnit('raider', q, r));
                     }
                 }

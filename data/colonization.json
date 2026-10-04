@@ -1,12 +1,12 @@
 {
   "indigenousTribes": [
-    { "id": "forest_folk", "name": "Forest Folk", "icon": "🌲", "terrains": ["forest", "dense_forest", "woodland", "boreal_forest", "seasonal_forest", "temperate_rainforest", "tropical_rainforest"], "hostility": 0.3, "tradeability": 0.6 },
-    { "id": "steppe_riders", "name": "Steppe Riders", "icon": "🐎", "terrains": ["plains", "savanna", "grassland", "steppe"], "hostility": 0.5, "tradeability": 0.4 },
-    { "id": "mountain_clans", "name": "Mountain Clans", "icon": "⛰️", "terrains": ["mountains", "hills", "highland"], "hostility": 0.4, "tradeability": 0.3 },
-    { "id": "desert_nomads", "name": "Desert Nomads", "icon": "🏜️", "terrains": ["desert", "arid", "mesa", "badlands"], "hostility": 0.2, "tradeability": 0.7 },
-    { "id": "swamp_dwellers", "name": "Swamp Dwellers", "icon": "🐊", "terrains": ["swamp", "wetland", "marsh", "mangrove"], "hostility": 0.6, "tradeability": 0.2 },
+    { "id": "forest_folk", "name": "Forest Folk", "icon": "🌲", "terrains": ["woodland", "boreal_forest", "seasonal_forest", "temperate_rainforest", "tropical_rainforest"], "hostility": 0.3, "tradeability": 0.6 },
+    { "id": "steppe_riders", "name": "Steppe Riders", "icon": "🐎", "terrains": ["plains", "savanna", "grassland"], "hostility": 0.5, "tradeability": 0.4 },
+    { "id": "mountain_clans", "name": "Mountain Clans", "icon": "⛰️", "terrains": ["mountain", "hills", "highlands"], "hostility": 0.4, "tradeability": 0.3 },
+    { "id": "desert_nomads", "name": "Desert Nomads", "icon": "🏜️", "terrains": ["desert"], "hostility": 0.2, "tradeability": 0.7 },
+    { "id": "swamp_dwellers", "name": "Swamp Dwellers", "icon": "🐊", "terrains": ["swamp"], "hostility": 0.6, "tradeability": 0.2 },
     { "id": "coastal_tribes", "name": "Coastal Tribes", "icon": "🐚", "terrains": ["coast", "beach"], "hostility": 0.1, "tradeability": 0.8 },
-    { "id": "tundra_people", "name": "Tundra People", "icon": "❄️", "terrains": ["tundra", "snow", "ice", "cold_desert", "polar"], "hostility": 0.2, "tradeability": 0.3 }
+    { "id": "tundra_people", "name": "Tundra People", "icon": "❄️", "terrains": ["tundra", "snow", "ice"], "hostility": 0.2, "tradeability": 0.3 }
   ],
   "policies": {
     "manifest_destiny": {

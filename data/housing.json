@@ -147,7 +147,7 @@
             "icon": "👑",
             "description": "A magnificent feasting hall for hosting grand events. Dramatically increases influence.",
             "cost": 1000,
-            "effects": { "renownBonus": 8, "reputationBonus": 5, "charismaBonus": 1 },
+            "effects": { "renownBonus": 8, "reputationBonus": 5, "charismaBonus": 1, "influenceBonus": 10 },
             "requiredHouse": ["estate"]
         },
         {
@@ -198,6 +198,8 @@
         "baseInfluencePerHouse": 5,
         "influencePerUpgrade": 2,
         "maxInfluenceFromHousing": 50,
+        "tradeBonusPerLocalInfluence": 0.003,
+        "negotiationPerInfluence": 0.002,
         "renownDecayIfHomeless": 0,
         "homeRestBonus": 2,
         "dailyMaintenanceCheck": true

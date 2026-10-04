@@ -16,7 +16,7 @@ Object.assign(ActionMenu, {
 
         let html = '<div style="max-height:450px;overflow-y:auto;">';
         html += '<h4 style="margin-top:0;">🏠 Buy a House</h4>';
-        html += `<p style="font-size:12px;color:var(--text-secondary);">Purchase a home in ${settlement.name}. Owning property grants renown and local influence.</p>`;
+        html += `<p style="font-size:12px;color:var(--text-secondary);">Purchase a home in ${settlement.name}. Owning property grants renown and local influence: better prices with this town's merchants and a stronger hand when negotiating with lords.</p>`;
 
         // NPC-owned houses (flavor)
         if (npcHouses.length > 0) {
@@ -110,7 +110,7 @@ Object.assign(ActionMenu, {
         html += `<span>🔧 Condition: ${house.condition}%</span>`;
         html += `<span>💰 Value: ~${value}g</span>`;
         html += `<span>💰 Upkeep: ${ht.maintenanceCost}g/day</span>`;
-        html += `<span>👑 Influence: ${influence}</span>`;
+        html += `<span title="Better prices here (+${(Housing.getLocalTradeBonus(player, { q: tile.q, r: tile.r, name: house.settlementName }) * 100).toFixed(1)}%) and +${(Housing.getNegotiationBonus(player) * 100).toFixed(0)}% when negotiating with lords">👑 Influence: ${influence}</span>`;
         html += `<span>📦 Upgrades: ${house.upgrades.length}/${ht.maxUpgradeSlots}</span>`;
         html += '</div>';
 
@@ -144,6 +144,7 @@ Object.assign(ActionMenu, {
                 if (effects.reputationBonus) effectParts.push(`+${effects.reputationBonus} reputation`);
                 if (effects.strengthBonus) effectParts.push(`+${effects.strengthBonus} strength`);
                 if (effects.charismaBonus) effectParts.push(`+${effects.charismaBonus} charisma`);
+                if (effects.influenceBonus) effectParts.push(`+${effects.influenceBonus} influence`);
                 if (effects.intelligenceBonus) effectParts.push(`+${effects.intelligenceBonus} intelligence`);
                 if (effects.faithBonus) effectParts.push(`+${effects.faithBonus} faith`);
                 if (effects.commerceSkillBonus) effectParts.push(`+${effects.commerceSkillBonus} commerce`);

@@ -993,8 +993,10 @@ export const Ships = {
                 }
             }
 
-            // Daily upkeep
-            totalUpkeep += st.dailyUpkeep;
+            // Daily upkeep (pirate surges raise crew pay and escort costs)
+            const shipTile = world && world.getTile && typeof ship.q === 'number' ? world.getTile(ship.q, ship.r) : null;
+            const navalCost = world ? WorldEvents.getModifier(world, 'navalCost', shipTile) : 0;
+            totalUpkeep += navalCost ? Math.round(st.dailyUpkeep * Math.max(0, 1 + navalCost)) : st.dailyUpkeep;
 
             // Condition decay
             if (Utils.random() < (settings.conditionDecayChance || 0.04)) {

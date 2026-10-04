@@ -1,6 +1,6 @@
 // PlayerMilitary — combat members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
-import { Utils, Technology, House, Quests, RealmWars, PlayerEffects, Housing, Culture, PlayerReligion } from './_imports.js';
+import { Utils, Technology, House, Quests, RealmWars, PlayerEffects, Housing, Culture, PlayerReligion, WorldEvents } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -27,7 +27,8 @@ Object.assign(PlayerMilitary, {
             : 0;
         // Theaters you own keep the troops' spirits up (needs context.world)
         const theaterMoraleBonus = Culture.getMoraleBonus(player, context.world);
-        const leadership = (player.skills?.leadership || 1) * 0.015 + festivalMoraleBonus + theaterMoraleBonus;
+        const leadership = (player.skills?.leadership || 1) * 0.015 + festivalMoraleBonus + theaterMoraleBonus
+            + PlayerMilitary._worldEventMorale(player, context);
         const playerMorale = PlayerMilitary._moraleValue(playerStrength, enemyStrength, leadership);
         const enemyMorale = PlayerMilitary._moraleValue(enemyStrength, playerStrength, context.enemyMoraleBonus || 0);
 
@@ -91,7 +92,7 @@ Object.assign(PlayerMilitary, {
 
             // Increase combat skill
             player.skills.combat = Math.min(10, player.skills.combat + 0.3);
-            player.renown += Math.floor(enemyStrength / 10);
+            player.renown += Math.floor(enemyStrength / 10 * (1 + PlayerMilitary._worldEventRenownBonus(player, context)));
         } else {
             // Defeat — chance of capture and indentured servitude
             if (player.army.length === 0 && Utils.random() < 0.4) {
@@ -642,5 +643,18 @@ Object.assign(PlayerMilitary, {
             renownChange,
             inventoryLoot,
         };
+    },
+
+    // ── World-event effects on battle (data/worldEvents.json) ──────────
+    /** Morale from running events at the player's tile (festival +0.2, plague -0.2). */
+    _worldEventMorale(player, context = {}) {
+        return context.world ? WorldEvents.playerMoraleBonus(context.world, player) : 0;
+    },
+
+    /** Extra renown for victories while a monster sighting has the land on edge. */
+    _worldEventRenownBonus(player, context = {}) {
+        const world = context.world;
+        if (!world || !world.getTile) return 0;
+        return Math.max(0, WorldEvents.getModifier(world, 'renownBonus', world.getTile(player.q, player.r)));
     },
 });

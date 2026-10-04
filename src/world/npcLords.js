@@ -9,8 +9,15 @@ import { Characters } from './characters.js';
 import { Colonization } from './colonization.js';
 
 export const NPCLords = {
+    /** Opinion bonus a lord holds for the player married into their realm. */
+    MARRIAGE_KIN_OPINION: 20,
+
     /**
-     * Lord personality traits
+     * Lord personality traits (overridden by data/npcLords.json). The number
+     * fields feed the kingdom through KingdomBonuses (world/kingdomState.js):
+     * expansionBonus, warBonus, diplomacyBonus, tradeBonus, taxBonus,
+     * loyaltyBonus, faithBonus, defenseBonus, researchBonus, stabilityBonus,
+     * constructionBonus; karmaBonus weighs the player's karma in getLordOpinion.
      */
     TRAITS: {
         AMBITIOUS: { id: 'ambitious', name: 'Ambitious', expansionBonus: 0.3, warBonus: 0.2 },
@@ -40,6 +47,7 @@ export const NPCLords = {
 
         return {
             name: kingdom.ruler,
+            kingdomId: kingdom.id,
             age: Utils.randInt(25, 65),
             traits,
             ambition: Utils.randInt(1, 10),
@@ -111,6 +119,7 @@ export const NPCLords = {
         if (!kingdom.lord || !kingdom.isAlive) return;
 
         const lord = kingdom.lord;
+        if (!lord.kingdomId) lord.kingdomId = kingdom.id; // older saves
 
         // Age the lord
         if (world.day % 120 === 0) { // Once per year
@@ -289,9 +298,10 @@ export const NPCLords = {
 
         let opinion = 0;
 
-        // Based on player karma
-        if (lord.traits.some(t => t.id === 'pious')) {
-            opinion += player.karma * 2;
+        // Based on player karma: traits with a karmaBonus (Pious: 0.2 → ×2)
+        const karmaWeight = lord.traits.reduce((s, t) => s + ((t && t.karmaBonus) || 0), 0) * 10;
+        if (karmaWeight) {
+            opinion += (player.karma || 0) * karmaWeight;
         }
 
         // Based on player renown
@@ -302,6 +312,11 @@ export const NPCLords = {
         // Based on player wealth
         if (lord.traits.some(t => t.id === 'greedy')) {
             opinion += Math.floor(player.gold / 1000);
+        }
+
+        // Kin by marriage (relationships.json marriageEffects.allianceWithSpouseKingdom)
+        if (player.spouse && player.marriageAllianceKingdom && player.marriageAllianceKingdom === lord.kingdomId) {
+            opinion += NPCLords.MARRIAGE_KIN_OPINION;
         }
 
         return Utils.clamp(opinion, -100, 100);

@@ -1,6 +1,6 @@
 // UI — panels methods.
 import { UI } from './core.js';
-import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles } from './_imports.js';
+import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability } from './_imports.js';
 
 Object.assign(UI.prototype, {
     /**
@@ -204,17 +204,20 @@ Object.assign(UI.prototype, {
             }
 
             // Kingdom bonuses from characters
+            // Combined bonuses (ruler, advisors, NPC lord, culture tradition)
+            // and the realm's stability — all of these feed the kingdom AI
             let bonusHtml = '';
-            if (kingdom.characterBonuses) {
-                const b = kingdom.characterBonuses;
-                const bonusList = [];
-                if (b.military) bonusList.push(`⚔️ Military ${b.military > 0 ? '+' : ''}${(b.military * 100).toFixed(0)}%`);
-                if (b.treasury) bonusList.push(`💰 Treasury ${b.treasury > 0 ? '+' : ''}${(b.treasury * 100).toFixed(0)}%`);
-                if (b.diplomacy) bonusList.push(`🗣️ Diplomacy ${b.diplomacy > 0 ? '+' : ''}${(b.diplomacy * 100).toFixed(0)}%`);
-                if (b.stability) bonusList.push(`🏛️ Stability ${b.stability > 0 ? '+' : ''}${(b.stability * 100).toFixed(0)}%`);
-                if (bonusList.length > 0) {
-                    bonusHtml = `<div style="font-size:10px;color:var(--text-secondary);margin-top:4px;">${bonusList.join(' · ')}</div>`;
-                }
+            const bonusList = KingdomBonuses.summary(kingdom)
+                .filter(b => b.key !== 'visionRadius')
+                .map(b => `${b.label} ${b.value > 0 ? '+' : ''}${(b.value * 100).toFixed(0)}%`);
+            if (bonusList.length > 0) {
+                bonusHtml = `<div style="font-size:10px;color:var(--text-secondary);margin-top:4px;">${bonusList.join(' · ')}</div>`;
+            }
+            if (typeof kingdom.stability === 'number') {
+                const st = kingdom.stability;
+                const target = KingdomStability.target(kingdom, this.game.world);
+                const why = target.parts.map(p => `${p.label} ${p.value > 0 ? '+' : ''}${p.value}`).join(', ');
+                bonusHtml += `<div style="font-size:11px;margin-top:4px;" title="Heading toward ${Math.round(target.value)}: ${why}">🏛️ Stability: <span style="color:${KingdomStability.color(st)}">${Math.round(st)}/100 (${KingdomStability.label(st)})</span> · income ×${KingdomStability.incomeMultiplier(kingdom).toFixed(2)}</div>`;
             }
 
             html += `

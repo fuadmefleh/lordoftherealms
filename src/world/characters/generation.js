@@ -345,6 +345,15 @@ Object.assign(Characters, {
             intrigue: 0,
             research: 0,
             faith: 0,
+            // Read through KingdomBonuses (world/kingdomState.js) and Characters:
+            stewardship: 0,        // treasury income (half weight)
+            upkeep: 0,             // war upkeep cost
+            heirs: 0,              // heir birth chance
+            culture: 0,            // cultural influence growth
+            relations: 0,          // diplomacy drift
+            caravanProfitBonus: 0, // trade-route founding
+            rulerHealth: 0,        // ruler illness/recovery
+            visionRadius: 0,       // kept for the trait tooltip; kingdoms have no fog of war
         };
 
         if (!kingdom.characterData) return bonuses;

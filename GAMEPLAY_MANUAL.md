@@ -990,9 +990,13 @@ Kingdoms are run by AI with distinct personalities. They:
 - React to your influence and actions.
 - Have rulers with 30+ possible traits affecting their behavior (Brilliant Strategist, Cruel, Ambitious, etc.).
 
+**Kingdom bonuses.** A realm's strengths combine three sources: its ruler's traits and skills plus its advisors (general, treasurer, chancellor, court physician, …), its NPC lord's personality numbers, and its culture tradition. Together they set army size and battle power (military, battle, defense), income (treasury, stewardship, taxes), war upkeep, how often it expands, founds villages and opens trade routes, diplomacy, piety, scholarship and cultural influence, advisor loyalty, heir births, and how often the ruler falls ill. The Dynasties panel lists a kingdom's combined bonuses.
+
+**Stability (0–100).** Every kingdom has a stability score that drifts each day toward a target: 60, plus ruler/lord/tradition stability and loyalty, plus world events (rebellions −25, succession crises −20, royal weddings +10, festivals +5, …) and the realm's mood, minus 5 per war and 15 for an empty treasury, adjusted by faith unity. High stability raises income by up to +20% and steadies troops in battle; low stability cuts income (down to −50%) and saps morale. Below 35 the realm is restless and may erupt in a **Peasant Rebellion** (a cunning spymaster lowers the odds). Stability shows in the kingdom info panel and the Dynasties panel.
+
 ### NPC Lords
 
-AI-driven lords roam the world with personality traits (Ambitious, Honorable, Cruel, Cunning) that drive their decisions. You can encounter them on the map and request meetings.
+AI-driven lords roam the world with personality traits (Ambitious, Honorable, Cruel, Cunning) that drive their decisions. You can encounter them on the map and request meetings. Each trait's numbers feed their kingdom: a Builder founds villages and repairs damage faster, a Tyrant taxes harder but erodes stability, a Warmonger wins more battles but makes enemies, a Paranoid lord holds his walls. Pious lords weigh your karma heavily, and a lord counts you as kin while you're married into his realm.
 
 ---
 
@@ -1098,12 +1102,14 @@ Key romantic actions:
 |--------|---------------|------|----------------|
 | Chat | Strangers | Free | 1–4 |
 | Compliment | Strangers | Free | 2–6 |
-| Gift | Interested | 25g | 5–12 |
+| Gift | Interested | 0–100g | by gift |
 | Serenade | Flirting | Free | 4–10 |
 | Romantic Dinner | Courting | 50g | 8–15 |
 | Propose | Courting (70+ affection) | 100g | 15–25 |
 
-**Marriage benefits**: +1 stamina, +10 happiness, +5 reputation, +3 renown, and an alliance with your spouse's kingdom.
+Gifts come from a list — Wildflowers (5g), Silver Necklace (50g), Gold Ring (100g), Written Poem (free, helped by intelligence), Fine Blade (80g) and Rare Book (40g). Pricier gifts win more affection, and each personality has favourites worth half again as much (bold and stoic types love a blade; witty ones a poem or book).
+
+**Marriage benefits** (from `data/relationships.json`): +1 stamina, +10 social, +5 reputation with your spouse's kingdom, +3 renown, and kinship: that kingdom's lord thinks better of you (+20 opinion) for as long as the marriage lasts.
 
 ### Children & Heirs
 
@@ -1138,6 +1144,8 @@ Each kingdom's culture provides distinct bonuses:
 - **Desert**: +trade, +endurance, +hospitality
 - **Swamp**: +alchemy, +stealth, +poison
 - **Arcane**: +scholarship, +research, +magic
+
+These are real kingdom bonuses (shown in the kingdom info panel and Cultural overview): military/cavalry/archery/naval add army strength (cavalry and archery also shift the army's mix), raiding adds battle power, defense helps defenders, endurance resists attrition, trade/navigation/hospitality open trade routes, scholarship/research/magic raise scholarship, faith raises piety, mining adds treasury income, craftsmanship speeds construction, nature/alchemy help population growth, and stealth/poison add intrigue against rebels.
 
 ### Cultural Events
 
@@ -1352,47 +1360,59 @@ The world is alive with dynamic events that affect all kingdoms:
 
 ### Timed Events
 
-Some events last for days or weeks — droughts, plagues, floods, gold rushes, trade booms, market crashes, pirate surges, bandit uprisings, blizzards and more (23 in all). Each day there's a chance one begins, either in a kingdom or across the whole realm; at most four run at once. While active they change, in their region: farm and mine output, market prices (food especially), caravan and port trade income, and how often raiders and pirates appear. Plagues and earthquakes strike a settlement's population when they begin. The tile info panel lists the events affecting a tile and how long they have left.
+Some events last for days or weeks — droughts, plagues, floods, gold rushes, trade booms, market crashes, pirate surges, bandit uprisings, blizzards and more (23 in all). Each day there's a chance one begins, either in a kingdom (two kingdoms for wars and royal weddings) or across the whole realm; at most four run at once. The tile info panel lists the events affecting a tile, what they do, and how long they have left.
+
+What the effects do:
+- **Farm/mine output, prices, trade income, caravan traffic, raiders, pirates, ship upkeep** — your farms and mines, market prices, caravan and port profits, how many caravans/bandits/pirates appear (bandits gather near a troubled settlement), and your ships' daily upkeep.
+- **Population** — a one-off loss when the event strikes. **Population growth / food consumption** — the region's settlements slowly grow or shrink while it lasts.
+- **Buildings damaged** — the struck settlement produces less gold and goods until builders repair it (about 1% a day; faster with construction bonuses).
+- **Tax income** — both the kingdom's income and the taxes you collect there.
+- **Stability / morale** — move the kingdom's stability target; morale also shifts battle morale for kingdoms and for you (±0.2 at ±20).
+- **Travel speed** — your daily movement while you're in the region. **Army attrition** — your army loses men each day it camps outside a settlement; kingdom armies shrink.
+- **Diplomacy / relations, piety, heresy risk, war spending, renown from victories** — kingdom diplomacy drift, daily relation gains between wedded houses, the kingdom's piety, the daily chance of a new heresy, war upkeep, and extra renown for your victories.
 
 ### Natural Events
 | Event | Severity | Effect |
 |-------|----------|--------|
-| Drought | Moderate | −40% farm production, −20% population growth |
-| Plague | Severe | −15% population, −50% trade, −20 morale |
-| Flood | Moderate | −30% farm production, −40% road condition |
-| Earthquake | Severe | 25% building damage, −5% population |
-| Volcanic Eruption | Catastrophic | −20% population, −60% farming, 30% building damage |
-| Bountiful Harvest | Positive | +50% farm production, −30% food prices |
-| Blizzard | Moderate | −50% travel speed, 10% unit attrition |
+| Drought | Moderate | −40% farm output, −20% growth, +50% food prices, −5 stability |
+| Plague | Severe | −15% population, −50% trade, −50% growth, −20 morale, −10 stability |
+| Flood | Moderate | −30% farm output, −30% travel speed, 10% building damage |
+| Earthquake | Severe | 25% building damage, −5% population, −15 morale, −5 stability |
+| Volcanic Eruption | Catastrophic | −20% population, −60% farming, 30% building damage, −20% travel |
+| Bountiful Harvest | Positive | +50% farm output, −30% food prices, +30% growth, +10 morale |
+| Blizzard | Moderate | −50% travel speed, −20% farming, 10% army attrition |
+| Comet Sighting | Neutral | −5 morale, +1 piety/day, −3 stability (realm-wide) |
+| Solar Eclipse | Neutral | −10 morale, +2 piety/day, −8 stability (realm-wide) |
 
 ### Economic Events
 | Event | Severity | Effect |
 |-------|----------|--------|
-| Gold Rush | Positive | +60% mine output, +30% population growth |
-| Trade Boom | Positive | +40% trade income |
-| Market Crash | Moderate | −40% trade income, −30% property values |
+| Gold Rush | Positive | +60% mine output, +30% growth, +20% bandits, +15% taxes |
+| Trade Boom | Positive | +40% trade income, +30% caravans, −15% prices |
+| Market Crash | Moderate | −40% trade income, −20% taxes, −10 morale |
 
 ### Military Events
 | Event | Severity | Effect |
 |-------|----------|--------|
-| Pirate Surge | Moderate | −50% sea trade, +60% pirates |
-| Bandit Uprising | Moderate | +50% raiders, −30% land trade |
-| Kingdom War | Severe | +50% military spending, −10% population |
-| Monster Sighting | Moderate | +40% travel danger, renown opportunity |
+| Pirate Surge | Moderate | −50% sea trade, +60% pirates, +20% ship upkeep |
+| Bandit Uprising | Moderate | +50% bandits, −30% land trade, −15 stability |
+| Kingdom War | Severe | Two hostile kingdoms go to war (truce when it ends); +50% war spending, −10% population, −30% trade |
+| Monster Sighting | Moderate | −15% travel speed, −10 morale, +50% renown from victories |
 
 ### Political Events
 | Event | Severity | Effect |
 |-------|----------|--------|
-| Rebellion | Moderate | −25 stability, −30% taxes |
-| Succession Crisis | Moderate | −20 stability, +10% civil war chance |
-| Royal Wedding | Positive | +30% relations, +15 morale |
-| Grand Festival | Positive | +20 morale, +20% trade |
+| Peasant Rebellion | Moderate | −25 stability, −30% taxes, +40% bandits, −10 morale (also sparked by low stability) |
+| Succession Crisis | Moderate | −20 stability, −30% diplomacy, −15% taxes, −10 morale |
+| Royal Wedding | Positive | Two kingdoms: +15 relations at once and +3/day, +10 stability, +15 morale |
+| Grand Festival | Positive | +20 morale, +20% trade, +5 stability |
+| Refugee Wave | Moderate | +30% growth, +25% food consumption, −10 stability |
 
 ### Religious Events
 | Event | Severity | Effect |
 |-------|----------|--------|
-| Religious Schism | Moderate | −40% faith unity, +30% heresy spread |
-| Holy Crusade | Severe | +30% military morale, +20% faith |
+| Religious Schism | Moderate | −0.5 piety/day, +30% heresy risk, −10 stability |
+| Holy Crusade | Severe | +15 morale, +0.5 piety/day, −30% diplomacy |
 
 ---
 

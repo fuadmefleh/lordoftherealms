@@ -331,7 +331,8 @@ Object.assign(World.prototype, {
 
         // Spawn caravan
         if (this.units.filter(u => u.type === 'caravan').length < settlements.length) {
-            if (Utils.random() < 0.4) {
+            // Trade booms put more caravans on the road
+            if (Utils.random() < 0.4 * Math.max(0, 1 + WorldEvents.getModifierAnywhere(this, 'caravanFrequency'))) {
                 const s1 = Utils.randPick(settlements);
                 const t1 = this.getTile(s1.q, s1.r);
                 if (t1) {
@@ -398,9 +399,17 @@ Object.assign(World.prototype, {
             // Only spawn raiders if zoomed in enough to see them, or if camera is not defined (e.g., headless mode)
             if (!this.camera || this.camera.zoom > 0.4) {
                 // Bandit uprisings and the like raise the spawn rate
-                if (Utils.random() < 0.2 * (1 + WorldEvents.getModifier(this, 'raiderSpawnRate'))) {
-                    const q = Utils.randInt(0, this.width - 1);
-                    const r = Utils.randInt(0, this.height - 1);
+                // (regional uprisings and rebellions count, and half the time
+                // the new band appears near the troubled settlement)
+                if (Utils.random() < 0.2 * Math.max(0, 1 + WorldEvents.getModifierAnywhere(this, 'raiderSpawnRate'))) {
+                    let q = Utils.randInt(0, this.width - 1);
+                    let r = Utils.randInt(0, this.height - 1);
+                    const hotspots = WorldEvents.hotspots(this, 'raiderSpawnRate');
+                    if (hotspots.length > 0 && Utils.random() < 0.5) {
+                        const h = hotspots[Utils.randInt(0, hotspots.length - 1)];
+                        q = h.q + Utils.randInt(-3, 3);
+                        r = h.r + Utils.randInt(-3, 3);
+                    }
                     if (this.isPassable(q, r)) {
                         this.units.push(new WorldUnit('raider', q, r));
                     }
@@ -410,7 +419,7 @@ Object.assign(World.prototype, {
 
         // Spawn pirate
         if (this.units.filter(u => u.type === 'pirate').length < 6) {
-            if (Utils.random() < 0.1 * (1 + WorldEvents.getModifier(this, 'pirateSpawnRate'))) {
+            if (Utils.random() < 0.1 * Math.max(0, 1 + WorldEvents.getModifierAnywhere(this, 'pirateSpawnRate'))) {
                 const q = Utils.randInt(0, this.width - 1);
                 const r = Utils.randInt(0, this.height - 1);
                 const tile = this.getTile(q, r);

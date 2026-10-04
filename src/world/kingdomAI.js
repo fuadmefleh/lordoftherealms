@@ -7,6 +7,8 @@ import { Hex } from '../core/hex.js';
 import { Economy, TradeRoutes } from './economy.js';
 import { Kingdom } from './kingdom.js';
 import { Religion } from '../systems/religion.js';
+import { WorldEvents } from './worldEvents.js';
+import { KingdomBonuses, KingdomStability } from './kingdomState.js';
 
 export const KingdomAI = {
     /**
@@ -47,13 +49,22 @@ export const KingdomAI = {
         // Update kingdom economy
         KingdomAI.updateEconomy(kingdom, world, playerBonuses);
 
-        // Consider expansion
-        if (Utils.random() < personality.expansionChance) {
+        // Stability drifts toward its target; unrest may spark a rebellion
+        KingdomStability.processDay(kingdom, world);
+
+        // Faith, scholarship and culture from rulers, lords, traditions, events
+        KingdomAI.updateInstitutions(kingdom, world);
+
+        // Consider expansion (ambitious rulers and expansionist lords push out)
+        const expansionChance = personality.expansionChance * Math.max(0, 1 + KingdomBonuses.get(kingdom, 'expansion'));
+        if (Utils.random() < expansionChance) {
             KingdomAI.tryExpand(kingdom, world);
         }
 
-        // Consider establishing trade routes
-        if (Utils.random() < personality.tradeChance) {
+        // Consider establishing trade routes (merchant princes, masters of trade)
+        const tradeChance = personality.tradeChance
+            * Math.max(0, 1 + KingdomBonuses.get(kingdom, 'tradeBonus') + KingdomBonuses.get(kingdom, 'caravanProfitBonus'));
+        if (Utils.random() < tradeChance) {
             TradeRoutes.establishRoutes(kingdom, world);
         }
 
@@ -82,12 +93,43 @@ export const KingdomAI = {
 
         const settlements = world.getAllSettlements().filter(s => s.kingdom === kingdom.id);
 
+        // Growth bonuses from healers/stewards; growth and food modifiers from events
+        const growthBonus = KingdomBonuses.get(kingdom, 'population');
+        const repairRate = 0.01 * Math.max(0.2, 1 + KingdomBonuses.get(kingdom, 'construction'));
+
         for (const settlement of settlements) {
             const tile = world.getTile(settlement.q, settlement.r);
             if (!tile) continue;
+            // getAllSettlements returns copies — share the live economy object
+            if (tile.settlement) {
+                Economy.initSettlement(tile.settlement);
+                settlement.economy = tile.settlement.economy;
+            }
+
+            const eventGrowth = WorldEvents.getModifier(world, 'populationGrowth', tile);
+            const eventConsumption = WorldEvents.getModifier(world, 'foodConsumption', tile);
 
             // Process daily production
-            Economy.produceDaily(settlement, tile, world, playerBonuses);
+            Economy.produceDaily(settlement, tile, world, playerBonuses, {
+                growth: growthBonus + eventGrowth,
+                consumption: eventConsumption,
+                damage: tile.settlement ? (tile.settlement.damage || 0) : 0,
+            });
+
+            if (tile.settlement) {
+                // Lasting drift of the real settlement: gold rushes and refugee
+                // waves swell it, plagues and strained granaries shrink it,
+                // healers and stewards help (0.1%/day per +1.0 of modifier)
+                const drift = (eventGrowth - eventConsumption * 0.5 + growthBonus * 0.5) * 0.001;
+                if (drift !== 0 && tile.settlement.population > 0) {
+                    tile.settlement.population = Math.max(10, Math.round(tile.settlement.population * (1 + drift)));
+                    settlement.population = tile.settlement.population;
+                }
+                // Builders repair storm and quake damage
+                if (tile.settlement.damage > 0) {
+                    tile.settlement.damage = Math.max(0, Math.round((tile.settlement.damage - repairRate) * 1000) / 1000);
+                }
+            }
 
             // Process trade
             Economy.processTrade(settlement);
@@ -102,16 +144,73 @@ export const KingdomAI = {
         }
 
         // Update kingdom totals
-        kingdom.treasury = totalGold;
         kingdom.population = totalPopulation;
         kingdom.food = totalFood;
         kingdom.goods = totalGoods;
 
-        // Apply character bonuses to treasury
-        if (kingdom.characterBonuses) {
-            const b = kingdom.characterBonuses;
-            if (b.treasury) kingdom.treasury = Math.floor(kingdom.treasury * (1 + b.treasury));
-            if (b.population) kingdom.population = Math.floor(kingdom.population * (1 + b.population));
+        // Treasury is a ledger: it gains the day's new settlement gold scaled by
+        // stewardship, tax policy, events and stability, so spending elsewhere
+        // (scandals, war upkeep, colonies, espionage) actually sticks.
+        const mult = KingdomAI.incomeMultiplier(kingdom, world);
+        if (typeof kingdom.treasuryIncomeBase !== 'number') {
+            kingdom.treasury = Math.floor(totalGold * mult);
+        } else {
+            const income = totalGold - kingdom.treasuryIncomeBase;
+            kingdom.treasury = Math.floor((kingdom.treasury || 0) + (income > 0 ? income * mult : income));
+        }
+        kingdom.treasuryIncomeBase = totalGold;
+
+        // Armies in the field cost money (frugal rulers spend less; war events more)
+        if (kingdom.wars && kingdom.wars.length > 0) {
+            kingdom.treasury = Math.max(0, kingdom.treasury - KingdomAI.warUpkeep(kingdom, world));
+        }
+    },
+
+    /** Multiplier on a kingdom's daily income. */
+    incomeMultiplier(kingdom, world) {
+        const capitalTile = kingdom.capital ? world.getTile(kingdom.capital.q, kingdom.capital.r) : null;
+        const eventTax = WorldEvents.getModifier(world, 'taxIncome', capitalTile || { kingdom: kingdom.id });
+        const bonus = KingdomBonuses.get(kingdom, 'treasury') + KingdomBonuses.get(kingdom, 'stewardship') * 0.5
+            + KingdomBonuses.get(kingdom, 'tax') + eventTax;
+        return Math.max(0.1, 1 + bonus) * KingdomStability.incomeMultiplier(kingdom);
+    },
+
+    /** Daily gold spent keeping armies in the field while at war. */
+    warUpkeep(kingdom, world) {
+        const spending = WorldEvents.getModifier(world, 'militarySpending', { kingdom: kingdom.id });
+        const factor = Math.max(0.2, 1 + KingdomBonuses.get(kingdom, 'upkeep') + spending);
+        return Math.floor((kingdom.military || 0) * 0.01 * factor);
+    },
+
+    /**
+     * Piety, scholarship and cultural influence move with the realm's
+     * leadership and with running events (comets fill temples, schisms breed
+     * heresy). Royal weddings also warm relations between the two houses.
+     */
+    updateInstitutions(kingdom, world) {
+        const ref = { kingdom: kingdom.id };
+        if (kingdom.religion && typeof kingdom.religion.piety === 'number') {
+            const piety = KingdomBonuses.get(kingdom, 'faith') * 0.5 + WorldEvents.getModifier(world, 'piety', ref);
+            kingdom.religion.piety = Utils.clamp(kingdom.religion.piety + piety, 0, 100);
+            const heresy = WorldEvents.getModifier(world, 'heresySpread', ref);
+            if (heresy > 0 && Array.isArray(kingdom.religion.heresies) && typeof Religion !== 'undefined'
+                && Utils.random() < heresy * 0.1) {
+                Religion.spawnHeresy(kingdom, world);
+            }
+        }
+        if (kingdom.cultureData) {
+            const cd = kingdom.cultureData;
+            if (typeof cd.scholarship === 'number') cd.scholarship = Math.min(100, cd.scholarship + KingdomBonuses.get(kingdom, 'research') * 0.2);
+            if (typeof cd.influence === 'number') cd.influence = Math.min(100, cd.influence + KingdomBonuses.get(kingdom, 'culture') * 0.2);
+        }
+        for (const ev of world.activeEvents || []) {
+            if (ev.kingdomId !== kingdom.id || !ev.partnerKingdomId || !(ev.effects && ev.effects.relations)) continue;
+            const partner = world.getKingdom(ev.partnerKingdomId);
+            if (!partner) continue;
+            if (!kingdom.relations) kingdom.relations = {};
+            if (!partner.relations) partner.relations = {};
+            kingdom.relations[partner.id] = Utils.clamp((kingdom.relations[partner.id] || 0) + ev.effects.relations, -100, 100);
+            partner.relations[kingdom.id] = Utils.clamp((partner.relations[kingdom.id] || 0) + ev.effects.relations, -100, 100);
         }
     },
 
@@ -145,7 +244,8 @@ export const KingdomAI = {
         kingdom.territory.push({ q: target.q, r: target.r });
 
         // Small chance to found a new settlement
-        if (Utils.random() < 0.1 && !target.tile.settlement) {
+        // Master builders and stewards found more villages
+        if (Utils.random() < 0.1 * Math.max(0.2, 1 + KingdomBonuses.get(kingdom, 'construction')) && !target.tile.settlement) {
             target.tile.settlement = {
                 type: 'village',
                 name: Kingdom.generateCityName(kingdom.culture),
@@ -169,10 +269,11 @@ export const KingdomAI = {
 
         // Improve or worsen relations based on various factors
         let change = Utils.randInt(-5, 10);
-        // Character diplomacy bonus
-        if (kingdom.characterBonuses && kingdom.characterBonuses.diplomacy) {
-            change += Math.floor(kingdom.characterBonuses.diplomacy * 10);
-        }
+        // Diplomacy from ruler, chancellor, lord and tradition; succession
+        // crises and crusades sour every envoy
+        const diplomacy = KingdomBonuses.get(kingdom, 'diplomacy') + KingdomBonuses.get(kingdom, 'relations')
+            + WorldEvents.getModifier(world, 'diplomacy', { kingdom: kingdom.id });
+        if (diplomacy) change += Math.floor(diplomacy * 10);
         // Religious compatibility: same faith → +5, different militant faiths → penalty
         if (typeof Religion !== 'undefined') {
             change += Math.floor(Religion.faithCompatibility(kingdom, target) * 0.3);
@@ -241,6 +342,23 @@ export const KingdomAI = {
     },
 
     /**
+     * End a war between two kingdoms (pious lords sue for peace). Called by
+     * NPCLords' 'peace' goal — it was referenced but never defined.
+     */
+    makePeace(kingdom, enemy, world) {
+        if (!kingdom || !enemy) return false;
+        if (!(kingdom.wars || []).includes(enemy.id)) return false;
+        kingdom.wars = kingdom.wars.filter(id => id !== enemy.id);
+        enemy.wars = (enemy.wars || []).filter(id => id !== kingdom.id);
+        kingdom.relations[enemy.id] = Math.max(kingdom.relations[enemy.id] || 0, -40);
+        enemy.relations[kingdom.id] = Math.max(enemy.relations[kingdom.id] || 0, -40);
+        if (world && Array.isArray(world.events)) {
+            world.events.push({ text: `🕊️ ${kingdom.name} and ${enemy.name} have made peace.`, type: 'diplomatic' });
+        }
+        return true;
+    },
+
+    /**
      * Update military strength based on population and resources
      */
     updateMilitary(kingdom, world) {
@@ -260,11 +378,12 @@ export const KingdomAI = {
             }
         }
 
-        // Apply character bonuses to military
-        if (kingdom.characterBonuses) {
-            const b = kingdom.characterBonuses;
-            if (b.military) military *= (1 + b.military);
-        }
+        // Ruler, generals and martial traditions
+        military *= Math.max(0.1, 1 + KingdomBonuses.get(kingdom, 'military'));
+
+        // Blizzards and the like thin the ranks (hardy traditions endure)
+        const attrition = WorldEvents.getModifier(world, 'unitAttrition', { kingdom: kingdom.id });
+        if (attrition > 0) military *= 1 - Utils.clamp(attrition * (1 - KingdomBonuses.get(kingdom, 'endurance')), 0, 0.9);
 
         kingdom.military = Math.floor(military);
     },
@@ -314,6 +433,10 @@ export const KingdomAI = {
         if (traits.includes('nomadic') || traits.includes('aggressive')) comp.cavalry += 0.12;
         if (traits.includes('woodland') || traits.includes('maritime')) comp.archer += 0.10;
         if (traits.includes('imperial') || traits.includes('religious')) comp.pikeman += 0.10;
+        // Steppe horse epics and sylvan archers shape the levy
+        const tb = (kingdom.cultureData && kingdom.cultureData.tradition && kingdom.cultureData.tradition.bonuses) || {};
+        if (tb.cavalry) comp.cavalry += tb.cavalry / 100;
+        if (tb.archery) comp.archer += tb.archery / 100;
 
         return KingdomAI._normalizeComposition(comp);
     },
@@ -347,6 +470,13 @@ export const KingdomAI = {
         return Math.max(0.48, Math.min(1.18, morale));
     },
 
+    /** Morale bonus: military leadership, stability, and running events (points/100). */
+    _moraleBonus(kingdom, world) {
+        return (kingdom.characterBonuses?.military || 0)
+            + KingdomStability.moraleBonus(kingdom)
+            + WorldEvents.getModifier(world, 'morale', { kingdom: kingdom.id }) / 100;
+    },
+
     _checkMoraleBreak(ownStrength, enemyStrength, moraleValue) {
         const ratio = enemyStrength / Math.max(1, ownStrength);
         if (ratio < 1.8) return false;
@@ -370,11 +500,14 @@ export const KingdomAI = {
         const attackerTerrainMult = KingdomAI._terrainMultiplier(terrainId, attackerComp);
         const defenderTerrainMult = KingdomAI._terrainMultiplier(terrainId, defenderComp);
 
-        const attackerMorale = KingdomAI._moraleValue(attacker.military, defender.military, attacker.characterBonuses?.military || 0);
-        const defenderMorale = KingdomAI._moraleValue(defender.military, attacker.military, defender.characterBonuses?.military || 0);
+        const attackerMorale = KingdomAI._moraleValue(attacker.military, defender.military, KingdomAI._moraleBonus(attacker, world));
+        const defenderMorale = KingdomAI._moraleValue(defender.military, attacker.military, KingdomAI._moraleBonus(defender, world));
 
         let attackPower = attacker.military * Utils.randFloat(0.8, 1.2) * attackerCounterMult * attackerTerrainMult * attackerMorale;
         let defensePower = defender.military * Utils.randFloat(0.8, 1.2) * defenderCounterMult * defenderTerrainMult * defenderMorale;
+        // Brilliant strategists and ruthless lords win battles; paranoid ones hold walls
+        attackPower *= Math.max(0.2, 1 + KingdomBonuses.get(attacker, 'warBonus'));
+        defensePower *= Math.max(0.2, 1 + KingdomBonuses.get(defender, 'warBonus') + KingdomBonuses.get(defender, 'defense'));
 
         let moraleBreak = null;
         if (KingdomAI._checkMoraleBreak(attacker.military, defender.military, attackerMorale)) {

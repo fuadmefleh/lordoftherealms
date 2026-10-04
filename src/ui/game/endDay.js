@@ -129,6 +129,12 @@ export function endDay() {
                 },
             });
             this.player.endDay();
+            // World events on the player's tile: blizzards slow travel and
+            // freeze armies camped in the open
+            const eventEffects = WorldEvents.applyPlayerDailyEffects(this.world, this.player);
+            if (eventEffects.unitsLost > 0) {
+                this.ui.showNotification('❄️ Attrition', `The harsh conditions claimed ${eventEffects.unitsLost} of your soldiers. Shelter in a settlement to stop the losses.`, 'warning');
+            }
             this.player.updateVisibility(this.world, 4);
 
             // ── Check for hostile unit encounters (raiders/pirates) ──

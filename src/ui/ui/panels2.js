@@ -1,6 +1,6 @@
 // UI — panels2 methods.
 import { UI } from './core.js';
-import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing } from './_imports.js';
+import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, KingdomBonuses } from './_imports.js';
 
 Object.assign(UI.prototype, {
     /**
@@ -183,6 +183,7 @@ Object.assign(UI.prototype, {
                             <span class="kingdom-dot" style="color:${kingdom.color}; background:${kingdom.color}"></span>
                             <strong>${kingdom.name}</strong>
                             <span style="font-size: 12px; color: var(--text-secondary);"> – ${kingdom.cultureData.tradition.name}</span>
+                            ${KingdomBonuses.describeTradition(kingdom.cultureData.tradition).length ? `<div style="font-size: 10px; color: var(--text-secondary); margin-top: 2px;">${KingdomBonuses.describeTradition(kingdom.cultureData.tradition).join(' · ')}</div>` : ''}
                         </div>
                         <div style="font-size: 12px;">
                             📖 ${Math.floor(kingdom.cultureData.scholarship)} | 🌐 ${Math.floor(kingdom.cultureData.influence)}

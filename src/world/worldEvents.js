@@ -69,6 +69,12 @@ export const WorldEvents = {
         return { year, text };
     },
 
+    /** Shift a kingdom's stability (KingdomStability) by a one-off amount. */
+    _nudgeStability(kingdom, amount) {
+        const s = typeof kingdom.stability === 'number' ? kingdom.stability : 60;
+        kingdom.stability = Utils.clamp(s + amount, 0, 100);
+    },
+
     /**
      * Event categories
      */
@@ -156,6 +162,7 @@ export const WorldEvents = {
                         const tile = world.getTile(settlement.q, settlement.r);
                         if (tile && tile.settlement) {
                             tile.settlement.population = Math.floor(tile.settlement.population * 0.9);
+                            WorldEvents._nudgeStability(kingdom, -8);
                             return {
                                 category: WorldEvents.CATEGORIES.POLITICAL,
                                 text: `${kingdom.name}: Rebellion in ${settlement.name}! Population reduced.`,
@@ -168,6 +175,7 @@ export const WorldEvents = {
                 break;
 
             case 'coronation':
+                WorldEvents._nudgeStability(kingdom, 5);
                 return {
                     category: WorldEvents.CATEGORIES.POLITICAL,
                     text: `${kingdom.name}: Grand coronation ceremony for ${kingdom.ruler}. Morale boosted!`,
@@ -177,6 +185,7 @@ export const WorldEvents = {
 
             case 'scandal':
                 kingdom.treasury = Math.floor(kingdom.treasury * 0.9);
+                WorldEvents._nudgeStability(kingdom, -5);
                 return {
                     category: WorldEvents.CATEGORIES.POLITICAL,
                     text: `${kingdom.name}: Political scandal rocks the court. Treasury reduced.`,
@@ -326,6 +335,7 @@ export const WorldEvents = {
                 };
 
             case 'military_parade':
+                WorldEvents._nudgeStability(kingdom, 2);
                 return {
                     category: WorldEvents.CATEGORIES.MILITARY,
                     text: `${kingdom.name}: Grand military parade in the capital. Citizens impressed!`,
@@ -454,6 +464,7 @@ export const WorldEvents = {
         switch (type) {
             case 'festival':
                 kingdom.treasury -= 200;
+                WorldEvents._nudgeStability(kingdom, 4);
                 return {
                     category: WorldEvents.CATEGORIES.RELIGIOUS,
                     text: `${kingdom.name}: Grand religious festival celebrated. Morale boosted!`,
@@ -472,6 +483,7 @@ export const WorldEvents = {
 
             case 'heresy':
                 kingdom.population = Math.floor(kingdom.population * 0.98);
+                WorldEvents._nudgeStability(kingdom, -3);
                 return {
                     category: WorldEvents.CATEGORIES.RELIGIOUS,
                     text: `${kingdom.name}: Heretical movement suppressed. Some citizens flee.`,
@@ -522,6 +534,40 @@ export const WorldEvents = {
     FOOD_GOODS: ['grain', 'flour', 'bread', 'fish', 'preserved_fish', 'meat', 'dried_meat', 'cheese', 'fruit', 'berries', 'honey'],
 
     /**
+     * Every effect key a template may use, how it reads in the UI, and what
+     * consumes it. A key missing here is a hollow effect — the data test
+     * fails on it. `pct`: shown as a percentage; otherwise as points.
+     */
+    EFFECT_KEYS: {
+        farmProduction: { label: 'Farm output', pct: true },          // player farms (playerEconomy/property)
+        mineProduction: { label: 'Mine output', pct: true },          // player mines/quarries
+        population: { label: 'Population (on strike)', pct: true },  // one-off loss when the event begins
+        populationGrowth: { label: 'Population growth', pct: true },  // Economy.produceDaily via KingdomAI
+        foodConsumption: { label: 'Food consumption', pct: true },    // Economy.produceDaily via KingdomAI
+        buildingDamage: { label: 'Buildings damaged', pct: true },    // settlement.damage on strike → production
+        foodPrices: { label: 'Food prices', pct: true },              // MarketDynamics
+        prices: { label: 'Prices', pct: true },                       // MarketDynamics
+        tradeIncome: { label: 'Trade income', pct: true },            // caravans, ships
+        landTradeIncome: { label: 'Land trade', pct: true },          // caravans
+        seaTradeIncome: { label: 'Sea trade', pct: true },            // ships
+        caravanFrequency: { label: 'Caravan traffic', pct: true },    // World.spawnUnits
+        raiderSpawnRate: { label: 'Bandit activity', pct: true },     // World.spawnUnits
+        pirateSpawnRate: { label: 'Pirate activity', pct: true },     // World.spawnUnits
+        navalCost: { label: 'Ship upkeep', pct: true },               // Ships.processDaily
+        taxIncome: { label: 'Tax income', pct: true },                // kingdom treasury + player taxes
+        militarySpending: { label: 'War spending', pct: true },       // kingdom war upkeep
+        travelSpeed: { label: 'Travel speed', pct: true },            // player movement (applyPlayerDailyEffects)
+        unitAttrition: { label: 'Army attrition', pct: true },        // player army + kingdom military
+        morale: { label: 'Morale' },                                  // battles (player + kingdom), stability target
+        stability: { label: 'Stability' },                            // KingdomStability target
+        diplomacy: { label: 'Diplomacy', pct: true },                 // KingdomAI.considerDiplomacy
+        relations: { label: 'Relations/day' },                        // partner kingdoms' relations
+        piety: { label: 'Piety/day' },                                // kingdom.religion.piety
+        heresySpread: { label: 'Heresy risk', pct: true },            // Religion.spawnHeresy roll
+        renownBonus: { label: 'Renown from victories', pct: true },   // PlayerMilitary.combat
+    },
+
+    /**
      * Advance timed events one day: count down and expire running ones, and
      * maybe start a new one (one roll for whether, one weighted pick for
      * which). Events in a region affect that kingdom; events whose text names
@@ -538,6 +584,20 @@ export const WorldEvents = {
             }
             return true;
         });
+        // An event-started war ends with the event: the exhausted realms sign a truce
+        for (const ev of ended) {
+            if (ev.startedWar && ev.kingdomId && ev.partnerKingdomId && world.getKingdom) {
+                const a = world.getKingdom(ev.kingdomId);
+                const b = world.getKingdom(ev.partnerKingdomId);
+                if (a && b && (a.wars || []).includes(b.id)) {
+                    a.wars = a.wars.filter(id => id !== b.id);
+                    b.wars = (b.wars || []).filter(id => id !== a.id);
+                    if (a.relations) a.relations[b.id] = Math.max(a.relations[b.id] || 0, -40);
+                    if (b.relations) b.relations[a.id] = Math.max(b.relations[a.id] || 0, -40);
+                    ev.truce = true;
+                }
+            }
+        }
 
         const started = [];
         const templates = Object.values(WorldEvents.TEMPLATES || {})
@@ -557,23 +617,53 @@ export const WorldEvents = {
         return { started, ended };
     },
 
+    /**
+     * Start a specific event now (e.g. a rebellion born of low stability).
+     * opts.kingdomId pins a regional event to that kingdom.
+     */
+    startEvent(world, id, opts = {}) {
+        const template = Object.values(WorldEvents.TEMPLATES || {}).find(t => t.id === id);
+        if (!template) return null;
+        if (!Array.isArray(world.activeEvents)) world.activeEvents = [];
+        return WorldEvents._startTimedEvent(world, template, opts);
+    },
+
     /** Create and register one timed event from a template. */
-    _startTimedEvent(world, template) {
-        const regional = /\{(settlement|region|kingdom)\}/.test(template.text || '');
+    _startTimedEvent(world, template, opts = {}) {
+        const text0 = template.text || '';
+        const regional = /\{(settlement|region|kingdom|kingdom1|faith)\}/.test(text0);
+        const paired = /\{kingdom2\}/.test(text0);
         let settlement = null;
         let kingdom = null;
         if (regional) {
-            const settlements = (world.getAllSettlements ? world.getAllSettlements() : []).filter(s => s.kingdom);
+            let settlements = (world.getAllSettlements ? world.getAllSettlements() : []).filter(s => s.kingdom);
+            if (opts.kingdomId) settlements = settlements.filter(s => s.kingdom === opts.kingdomId);
             if (settlements.length === 0) return null;
             settlement = settlements[Utils.randInt(0, settlements.length - 1)];
             kingdom = world.getKingdom ? world.getKingdom(settlement.kingdom) : null;
         }
+        // Two-kingdom events (wars, royal weddings) pick a partner realm
+        let partner = null;
+        if (paired && kingdom && Array.isArray(world.kingdoms)) {
+            const war = template.onStart === 'declareWar';
+            const pool = world.kingdoms.filter(k => k.isAlive && k.id !== kingdom.id
+                && !(kingdom.wars || []).includes(k.id)
+                // wars break out between realms already on poor terms
+                && (!war || (!(kingdom.allies || []).includes(k.id) && ((kingdom.relations || {})[k.id] || 0) <= 0)));
+            if (pool.length === 0) return null;
+            partner = pool[Utils.randInt(0, pool.length - 1)];
+        }
         const dur = template.duration || { min: 5, max: 10 };
-        const regionName = kingdom ? kingdom.name : (settlement ? settlement.name : 'the realm');
+        const regionName = partner ? `${kingdom.name} & ${partner.name}`
+            : (kingdom ? kingdom.name : (settlement ? settlement.name : 'the realm'));
+        const kingdomName = kingdom ? kingdom.name : regionName;
+        const faithName = (kingdom && kingdom.religion && kingdom.religion.name) || 'faith';
         const text = (template.text || template.description || template.name)
             .replace(/\{settlement\}/g, settlement ? settlement.name : 'the realm')
             .replace(/\{region\}/g, regionName)
-            .replace(/\{kingdom\}/g, regionName);
+            .replace(/\{kingdom1?\}/g, kingdomName)
+            .replace(/\{kingdom2\}/g, partner ? partner.name : 'its rivals')
+            .replace(/\{faith\}/g, faithName);
         const ev = {
             id: template.id,
             name: template.name,
@@ -581,17 +671,51 @@ export const WorldEvents = {
             severity: template.severity,
             effects: { ...(template.effects || {}) },
             kingdomId: settlement ? settlement.kingdom : null,
+            partnerKingdomId: partner ? partner.id : null,
             regionName,
             settlementName: settlement ? settlement.name : null,
+            q: settlement ? settlement.q : null,
+            r: settlement ? settlement.r : null,
             daysLeft: Utils.randInt(dur.min, dur.max),
             text,
         };
-        // One-off losses land when the event strikes
-        if (settlement && ev.effects.population < 0) {
-            settlement.population = Math.max(10, Math.floor(settlement.population * (1 + ev.effects.population)));
-        }
+        WorldEvents._applyStrike(world, ev, settlement, kingdom, partner, template);
         world.activeEvents.push(ev);
         return ev;
+    },
+
+    /** One-off effects that land the moment an event strikes. */
+    _applyStrike(world, ev, settlement, kingdom, partner, template) {
+        // The live settlement on the map (getAllSettlements returns copies)
+        let live = settlement;
+        if (settlement && world.getTile) {
+            const tile = world.getTile(settlement.q, settlement.r);
+            if (tile && tile.settlement) live = tile.settlement;
+        }
+        if (live && ev.effects.population < 0) {
+            live.population = Math.max(10, Math.floor(live.population * (1 + ev.effects.population)));
+            if (live !== settlement) settlement.population = live.population;
+        }
+        // Damaged buildings cut the settlement's output until repaired
+        if (live && ev.effects.buildingDamage > 0) {
+            live.damage = Math.min(0.9, (live.damage || 0) + ev.effects.buildingDamage);
+        }
+        if (kingdom && partner) {
+            if (!kingdom.relations) kingdom.relations = {};
+            if (!partner.relations) partner.relations = {};
+            if (template.onStart === 'declareWar') {
+                ev.startedWar = true;
+                if (!kingdom.wars) kingdom.wars = [];
+                if (!partner.wars) partner.wars = [];
+                if (!kingdom.wars.includes(partner.id)) kingdom.wars.push(partner.id);
+                if (!partner.wars.includes(kingdom.id)) partner.wars.push(kingdom.id);
+                kingdom.relations[partner.id] = -100;
+                partner.relations[kingdom.id] = -100;
+            } else if (template.onStart === 'marriage') {
+                kingdom.relations[partner.id] = Utils.clamp((kingdom.relations[partner.id] || 0) + 15, -100, 100);
+                partner.relations[kingdom.id] = Utils.clamp((partner.relations[kingdom.id] || 0) + 15, -100, 100);
+            }
+        }
     },
 
     /** Does a running event reach this tile? (null tile → realm-wide only) */
@@ -599,7 +723,7 @@ export const WorldEvents = {
         if (!ev.kingdomId) return true;
         if (!tile) return false;
         const kingdomId = tile.kingdom || (tile.settlement && tile.settlement.kingdom);
-        return kingdomId === ev.kingdomId;
+        return kingdomId === ev.kingdomId || (!!ev.partnerKingdomId && kingdomId === ev.partnerKingdomId);
     },
 
     /**
@@ -609,14 +733,86 @@ export const WorldEvents = {
     getModifier(world, key, tile = null) {
         let total = 0;
         for (const ev of (world && world.activeEvents) || []) {
-            if (typeof ev.effects[key] === 'number' && WorldEvents._eventReaches(ev, tile)) total += ev.effects[key];
+            if (ev.effects && typeof ev.effects[key] === 'number' && WorldEvents._eventReaches(ev, tile)) total += ev.effects[key];
         }
         return total;
+    },
+
+    /**
+     * Modifier summed over every running event wherever it is — for
+     * world-wide spawn pressure (a regional bandit uprising still adds
+     * bandits to the world; hotspots() says where to put them).
+     */
+    getModifierAnywhere(world, key) {
+        let total = 0;
+        for (const ev of (world && world.activeEvents) || []) {
+            if (ev.effects && typeof ev.effects[key] === 'number') total += ev.effects[key];
+        }
+        return total;
+    },
+
+    /** Settlement coordinates of regional events with a positive `key`. */
+    hotspots(world, key) {
+        return ((world && world.activeEvents) || [])
+            .filter(ev => ev.effects && ev.effects[key] > 0 && typeof ev.q === 'number')
+            .map(ev => ({ q: ev.q, r: ev.r }));
     },
 
     /** Running events that reach a tile, for UI. */
     getEventsAt(world, tile) {
         return ((world && world.activeEvents) || []).filter(ev => WorldEvents._eventReaches(ev, tile));
+    },
+
+    /** "Stability −25 · Tax income −30%" for tooltips and the hex panel. */
+    describeEffects(ev) {
+        const parts = [];
+        for (const [key, val] of Object.entries((ev && ev.effects) || {})) {
+            const def = WorldEvents.EFFECT_KEYS[key];
+            if (!def || typeof val !== 'number' || val === 0) continue;
+            const sign = val > 0 ? '+' : '−';
+            const mag = def.pct ? `${Math.round(Math.abs(val) * 100)}%` : `${Math.round(Math.abs(val) * 10) / 10}`;
+            parts.push(`${def.label} ${sign}${mag}`);
+        }
+        return parts.join(' · ');
+    },
+
+    /**
+     * Battle morale shift for the player from events at their tile:
+     * morale points / 100 (a festival's +20 → +0.2).
+     */
+    playerMoraleBonus(world, player) {
+        if (!world || !player || !world.getTile) return 0;
+        const tile = world.getTile(player.q, player.r);
+        return WorldEvents.getModifier(world, 'morale', tile) / 100;
+    },
+
+    /**
+     * The day's event effects on the player, applied after their stamina is
+     * restored: blizzards and floods slow travel; armies camped outside a
+     * settlement in a blizzard lose men. Returns { movementChange, unitsLost }.
+     */
+    applyPlayerDailyEffects(world, player) {
+        const result = { movementChange: 0, unitsLost: 0 };
+        if (!world || !player || !world.getTile) return result;
+        const tile = world.getTile(player.q, player.r);
+
+        const speed = WorldEvents.getModifier(world, 'travelSpeed', tile);
+        if (speed !== 0 && player.movementRemaining > 0) {
+            const before = player.movementRemaining;
+            player.movementRemaining = Math.max(1, Math.round(before * Math.max(0.1, 1 + speed)));
+            result.movementChange = player.movementRemaining - before;
+        }
+
+        // Attrition: expected daily losses = army × attrition × 20%, rounded
+        // stochastically; shelter in a settlement protects the troops.
+        const attrition = WorldEvents.getModifier(world, 'unitAttrition', tile);
+        const army = player.army || [];
+        if (attrition > 0 && army.length > 0 && !(tile && tile.settlement)) {
+            const lost = Math.min(army.length, Math.floor(army.length * attrition * 0.2 + Utils.random()));
+            for (let i = 0; i < lost; i++) army.pop();
+            result.unitsLost = lost;
+        }
+        return result;
     },
 
     /**

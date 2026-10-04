@@ -288,7 +288,8 @@ Object.assign(Characters, {
 
         // ── Heir birth chance (every 30 days if married, ruler < 50) ──
         if (world.day % 30 === 0 && data.spouse && data.spouse.isAlive && ruler.age < 50) {
-            const fertilityBonus = ruler.traits.some(t => t.id === 'fertile') ? 0.15 : 0;
+            // The `heirs` bonus (Fertile: +0.3) adds half its value to the chance
+            const fertilityBonus = Math.max(0, (bonuses.heirs || 0) * 0.5);
             if (Utils.random() < 0.08 + fertilityBonus) {
                 Characters._birthChild(kingdom, ruler, data.spouse, world);
             }
@@ -298,10 +299,11 @@ Object.assign(Characters, {
         if (world.day % 60 === 0 && data.advisors) {
             for (const [roleId, advisor] of Object.entries(data.advisors)) {
                 if (!advisor) continue;
-                // Loyalty drifts based on ruler traits
-                let loyaltyChange = Utils.randInt(-5, 5);
-                if (ruler.traits.some(t => t.id === 'just_ruler' || t.id === 'charismatic')) loyaltyChange += 3;
-                if (ruler.traits.some(t => t.id === 'cruel' || t.id === 'paranoid')) loyaltyChange -= 3;
+                // Loyalty drifts with the court's `loyalty` bonus (just and
+                // charismatic rulers inspire it, cruel and tyrannical ones
+                // erode it); paranoid rulers drive advisors away
+                let loyaltyChange = Utils.randInt(-5, 5) + Math.round((bonuses.loyalty || 0) * 12);
+                if (ruler.traits.some(t => t.id === 'paranoid')) loyaltyChange -= 3;
                 advisor.loyalty = Utils.clamp(advisor.loyalty + loyaltyChange, 0, 100);
 
                 // Very disloyal advisor may leave or betray
@@ -366,14 +368,17 @@ Object.assign(Characters, {
                 }
             }
 
+            // A court physician (`rulerHealth`) keeps the ruler well
+            const care = char === data.ruler ? Math.max(0, (kingdom.characterBonuses && kingdom.characterBonuses.rulerHealth) || 0) : 0;
+
             // Illness
-            if (!char.isIll && char.age > 45 && Utils.random() < 0.02) {
+            if (!char.isIll && char.age > 45 && Utils.random() < 0.02 * (1 - Math.min(0.8, care))) {
                 char.isIll = true;
                 char.health = Math.max(20, char.health - Utils.randInt(20, 50));
             }
 
             // Recovery from illness
-            if (char.isIll && Utils.random() < 0.3) {
+            if (char.isIll && Utils.random() < 0.3 * (1 + care)) {
                 char.isIll = false;
                 char.health = Math.min(100, char.health + Utils.randInt(10, 30));
             }

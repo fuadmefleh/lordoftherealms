@@ -13,9 +13,17 @@
       "icon": "☀️",
       "category": "natural",
       "severity": "moderate",
-      "duration": { "min": 10, "max": 30 },
+      "duration": {
+        "min": 10,
+        "max": 30
+      },
       "chance": 0.02,
-      "effects": { "farmProduction": -0.40, "populationGrowth": -0.20, "foodPrices": 0.50 },
+      "effects": {
+        "farmProduction": -0.4,
+        "populationGrowth": -0.2,
+        "foodPrices": 0.5,
+        "stability": -5
+      },
       "description": "A prolonged drought scorches the land, devastating crops and drying rivers.",
       "text": "A terrible drought grips {region}. Crops wither and wells run dry."
     },
@@ -25,9 +33,18 @@
       "icon": "☠️",
       "category": "natural",
       "severity": "severe",
-      "duration": { "min": 15, "max": 45 },
+      "duration": {
+        "min": 15,
+        "max": 45
+      },
       "chance": 0.01,
-      "effects": { "population": -0.15, "tradeVolume": -0.50, "morale": -20 },
+      "effects": {
+        "population": -0.15,
+        "tradeIncome": -0.5,
+        "populationGrowth": -0.5,
+        "morale": -20,
+        "stability": -10
+      },
       "description": "A devastating plague sweeps through settlements, killing thousands.",
       "text": "Plague has broken out in {settlement}! The dead are piling up in the streets."
     },
@@ -37,9 +54,16 @@
       "icon": "🌊",
       "category": "natural",
       "severity": "moderate",
-      "duration": { "min": 5, "max": 15 },
+      "duration": {
+        "min": 5,
+        "max": 15
+      },
       "chance": 0.03,
-      "effects": { "farmProduction": -0.30, "roadCondition": -0.40, "buildingDamage": 0.10 },
+      "effects": {
+        "farmProduction": -0.3,
+        "travelSpeed": -0.3,
+        "buildingDamage": 0.1
+      },
       "description": "Rivers burst their banks, flooding farmland and washing away roads.",
       "text": "Devastating floods ravage the lowlands near {settlement}."
     },
@@ -49,9 +73,17 @@
       "icon": "🌋",
       "category": "natural",
       "severity": "severe",
-      "duration": { "min": 1, "max": 3 },
+      "duration": {
+        "min": 1,
+        "max": 3
+      },
       "chance": 0.008,
-      "effects": { "buildingDamage": 0.25, "population": -0.05, "morale": -15 },
+      "effects": {
+        "buildingDamage": 0.25,
+        "population": -0.05,
+        "morale": -15,
+        "stability": -5
+      },
       "description": "The earth shakes violently, toppling buildings and opening fissures.",
       "text": "A mighty earthquake strikes near {settlement}! Buildings crumble and the earth splits."
     },
@@ -61,9 +93,17 @@
       "icon": "🌾",
       "category": "natural",
       "severity": "positive",
-      "duration": { "min": 10, "max": 20 },
+      "duration": {
+        "min": 10,
+        "max": 20
+      },
       "chance": 0.04,
-      "effects": { "farmProduction": 0.50, "foodPrices": -0.30, "morale": 10 },
+      "effects": {
+        "farmProduction": 0.5,
+        "foodPrices": -0.3,
+        "populationGrowth": 0.3,
+        "morale": 10
+      },
       "description": "Ideal weather conditions produce a bumper harvest across the realm.",
       "text": "The harvest in {region} is the best in living memory! Granaries overflow."
     },
@@ -73,9 +113,17 @@
       "icon": "💰",
       "category": "economic",
       "severity": "positive",
-      "duration": { "min": 15, "max": 40 },
+      "duration": {
+        "min": 15,
+        "max": 40
+      },
       "chance": 0.015,
-      "effects": { "mineProduction": 0.60, "populationGrowth": 0.30, "criminalActivity": 0.20 },
+      "effects": {
+        "mineProduction": 0.6,
+        "populationGrowth": 0.3,
+        "raiderSpawnRate": 0.2,
+        "taxIncome": 0.15
+      },
       "description": "Rich gold deposits are discovered, drawing prospectors from across the realm.",
       "text": "Gold has been discovered near {settlement}! Prospectors flood into the region."
     },
@@ -85,9 +133,16 @@
       "icon": "📈",
       "category": "economic",
       "severity": "positive",
-      "duration": { "min": 10, "max": 25 },
+      "duration": {
+        "min": 10,
+        "max": 25
+      },
       "chance": 0.03,
-      "effects": { "tradeIncome": 0.40, "caravanFrequency": 0.30, "prices": -0.15 },
+      "effects": {
+        "tradeIncome": 0.4,
+        "caravanFrequency": 0.3,
+        "prices": -0.15
+      },
       "description": "A flourishing period of trade enriches merchants and kingdoms alike.",
       "text": "Trade flourishes across {region}. Merchants report record profits."
     },
@@ -97,9 +152,16 @@
       "icon": "📉",
       "category": "economic",
       "severity": "moderate",
-      "duration": { "min": 10, "max": 20 },
+      "duration": {
+        "min": 10,
+        "max": 20
+      },
       "chance": 0.02,
-      "effects": { "tradeIncome": -0.40, "propertyValues": -0.30, "morale": -10 },
+      "effects": {
+        "tradeIncome": -0.4,
+        "taxIncome": -0.2,
+        "morale": -10
+      },
       "description": "A sudden collapse in trade confidence sends markets into freefall.",
       "text": "Markets crash across {region}! Merchants are ruined and prices plummet."
     },
@@ -109,9 +171,16 @@
       "icon": "🏴‍☠️",
       "category": "military",
       "severity": "moderate",
-      "duration": { "min": 15, "max": 35 },
+      "duration": {
+        "min": 15,
+        "max": 35
+      },
       "chance": 0.025,
-      "effects": { "seaTradeIncome": -0.50, "pirateSpawnRate": 0.60, "navalCost": 0.20 },
+      "effects": {
+        "seaTradeIncome": -0.5,
+        "pirateSpawnRate": 0.6,
+        "navalCost": 0.2
+      },
       "description": "Pirates grow bold and numerous, threatening coastal trade.",
       "text": "Pirates terrorize the shipping lanes near {settlement}. Sea trade grinds to a halt."
     },
@@ -121,9 +190,16 @@
       "icon": "🗡️",
       "category": "military",
       "severity": "moderate",
-      "duration": { "min": 10, "max": 25 },
+      "duration": {
+        "min": 10,
+        "max": 25
+      },
       "chance": 0.03,
-      "effects": { "raiderSpawnRate": 0.50, "landTradeIncome": -0.30, "stability": -15 },
+      "effects": {
+        "raiderSpawnRate": 0.5,
+        "landTradeIncome": -0.3,
+        "stability": -15
+      },
       "description": "Organized bandit gangs terrorize the countryside.",
       "text": "Bandits have formed an organized gang near {settlement}. The roads are unsafe."
     },
@@ -133,11 +209,20 @@
       "icon": "⚔️",
       "category": "military",
       "severity": "severe",
-      "duration": { "min": 30, "max": 90 },
+      "duration": {
+        "min": 30,
+        "max": 90
+      },
       "chance": 0.01,
-      "effects": { "militarySpending": 0.50, "population": -0.10, "tradeVolume": -0.30 },
+      "effects": {
+        "militarySpending": 0.5,
+        "population": -0.1,
+        "tradeIncome": -0.3,
+        "morale": -5
+      },
       "description": "Two kingdoms go to war, dragging their neighbors into the conflict.",
-      "text": "{kingdom1} declares war on {kingdom2}! Armies march to battle."
+      "text": "{kingdom1} declares war on {kingdom2}! Armies march to battle.",
+      "onStart": "declareWar"
     },
     "REBELLION": {
       "id": "rebellion",
@@ -145,9 +230,17 @@
       "icon": "🔱",
       "category": "political",
       "severity": "moderate",
-      "duration": { "min": 10, "max": 30 },
+      "duration": {
+        "min": 10,
+        "max": 30
+      },
       "chance": 0.02,
-      "effects": { "stability": -25, "taxIncome": -0.30, "militiaSpawn": true },
+      "effects": {
+        "stability": -25,
+        "taxIncome": -0.3,
+        "raiderSpawnRate": 0.4,
+        "morale": -10
+      },
       "description": "Oppressed peasants rise up against their lords.",
       "text": "The peasants of {settlement} have risen in rebellion against {kingdom}!"
     },
@@ -157,9 +250,17 @@
       "icon": "👑",
       "category": "political",
       "severity": "moderate",
-      "duration": { "min": 15, "max": 40 },
+      "duration": {
+        "min": 15,
+        "max": 40
+      },
       "chance": 0.015,
-      "effects": { "stability": -20, "diplomacy": -0.30, "civilWar": 0.10 },
+      "effects": {
+        "stability": -20,
+        "diplomacy": -0.3,
+        "taxIncome": -0.15,
+        "morale": -10
+      },
       "description": "The death of a ruler without a clear heir throws a kingdom into turmoil.",
       "text": "The ruler of {kingdom} has died without a clear heir. Rival claimants vie for the throne."
     },
@@ -169,11 +270,19 @@
       "icon": "💍",
       "category": "political",
       "severity": "positive",
-      "duration": { "min": 5, "max": 10 },
+      "duration": {
+        "min": 5,
+        "max": 10
+      },
       "chance": 0.03,
-      "effects": { "relations": 0.30, "stability": 10, "morale": 15 },
+      "effects": {
+        "relations": 3,
+        "stability": 10,
+        "morale": 15
+      },
       "description": "A royal marriage unites two houses and eases tensions between kingdoms.",
-      "text": "A grand wedding celebration! {kingdom1} and {kingdom2} forge an alliance through marriage."
+      "text": "A grand wedding celebration! {kingdom1} and {kingdom2} forge an alliance through marriage.",
+      "onStart": "marriage"
     },
     "RELIGIOUS_SCHISM": {
       "id": "religious_schism",
@@ -181,9 +290,16 @@
       "icon": "📿",
       "category": "religious",
       "severity": "moderate",
-      "duration": { "min": 20, "max": 60 },
+      "duration": {
+        "min": 20,
+        "max": 60
+      },
       "chance": 0.015,
-      "effects": { "faithUnity": -0.40, "heresySpread": 0.30, "stability": -10 },
+      "effects": {
+        "piety": -0.5,
+        "heresySpread": 0.3,
+        "stability": -10
+      },
       "description": "A major split within a faith divides believers and sows discord.",
       "text": "A schism erupts within the {faith}! Believers are forced to choose sides."
     },
@@ -193,9 +309,16 @@
       "icon": "✝️",
       "category": "religious",
       "severity": "severe",
-      "duration": { "min": 30, "max": 60 },
+      "duration": {
+        "min": 30,
+        "max": 60
+      },
       "chance": 0.008,
-      "effects": { "militaryMorale": 0.30, "faithBonus": 0.20, "diplomacyPenalty": -0.30 },
+      "effects": {
+        "morale": 15,
+        "piety": 0.5,
+        "diplomacy": -0.3
+      },
       "description": "Religious leaders call for a holy war to reclaim sacred territory.",
       "text": "A crusade is declared! The faithful rally to reclaim the holy lands."
     },
@@ -205,9 +328,16 @@
       "icon": "☄️",
       "category": "natural",
       "severity": "neutral",
-      "duration": { "min": 5, "max": 10 },
+      "duration": {
+        "min": 5,
+        "max": 10
+      },
       "chance": 0.02,
-      "effects": { "morale": -5, "faithActivity": 0.20, "superstition": 0.30 },
+      "effects": {
+        "morale": -5,
+        "piety": 1,
+        "stability": -3
+      },
       "description": "A blazing comet streaks across the sky. Some see it as a blessing, others a curse.",
       "text": "A comet appears in the night sky! Priests debate its meaning while the commoners tremble."
     },
@@ -217,10 +347,17 @@
       "icon": "🌑",
       "category": "natural",
       "severity": "neutral",
-      "duration": { "min": 1, "max": 3 },
+      "duration": {
+        "min": 1,
+        "max": 3
+      },
       "chance": 0.01,
-      "effects": { "morale": -10, "faithActivity": 0.40, "superstition": 0.50 },
-      "description": "The sun goes dark in the middle of the day, spreading fear and awe.",
+      "effects": {
+        "morale": -10,
+        "piety": 2,
+        "stability": -8
+      },
+      "description": "The sun goes dark in the middle of the day, spreading fear and awe — and driving the frightened to the temples.",
       "text": "The sun is swallowed by darkness! An eclipse throws the realm into momentary panic."
     },
     "MONSTER_SIGHTING": {
@@ -229,9 +366,16 @@
       "icon": "🐉",
       "category": "military",
       "severity": "moderate",
-      "duration": { "min": 10, "max": 30 },
+      "duration": {
+        "min": 10,
+        "max": 30
+      },
       "chance": 0.02,
-      "effects": { "travelDanger": 0.40, "morale": -10, "renownOpportunity": true },
+      "effects": {
+        "travelSpeed": -0.15,
+        "morale": -10,
+        "renownBonus": 0.5
+      },
       "description": "A fearsome creature is sighted in the wilds, threatening travelers and settlements.",
       "text": "A terrible beast has been sighted near {settlement}! Brave warriors are needed."
     },
@@ -241,9 +385,16 @@
       "icon": "🎉",
       "category": "political",
       "severity": "positive",
-      "duration": { "min": 3, "max": 7 },
+      "duration": {
+        "min": 3,
+        "max": 7
+      },
       "chance": 0.05,
-      "effects": { "morale": 20, "tradeIncome": 0.20, "stability": 5 },
+      "effects": {
+        "morale": 20,
+        "tradeIncome": 0.2,
+        "stability": 5
+      },
       "description": "A grand celebration brings joy and commerce to the realm.",
       "text": "{kingdom} celebrates a grand festival! Music, food, and merriment fill the streets."
     },
@@ -253,9 +404,16 @@
       "icon": "🏃",
       "category": "political",
       "severity": "moderate",
-      "duration": { "min": 10, "max": 25 },
+      "duration": {
+        "min": 10,
+        "max": 25
+      },
       "chance": 0.02,
-      "effects": { "populationGrowth": 0.30, "foodConsumption": 0.25, "stability": -10 },
+      "effects": {
+        "populationGrowth": 0.3,
+        "foodConsumption": 0.25,
+        "stability": -10
+      },
       "description": "War or disaster drives refugees to seek shelter in neighboring kingdoms.",
       "text": "Refugees pour into {settlement}, fleeing turmoil. They bring labor but strain resources."
     },
@@ -265,9 +423,17 @@
       "icon": "🌋",
       "category": "natural",
       "severity": "catastrophic",
-      "duration": { "min": 5, "max": 15 },
+      "duration": {
+        "min": 5,
+        "max": 15
+      },
       "chance": 0.005,
-      "effects": { "population": -0.20, "farmProduction": -0.60, "buildingDamage": 0.30 },
+      "effects": {
+        "population": -0.2,
+        "farmProduction": -0.6,
+        "buildingDamage": 0.3,
+        "travelSpeed": -0.2
+      },
       "description": "A volcano erupts, raining ash and fire upon the surrounding lands.",
       "text": "A volcano erupts with cataclysmic fury! Ash blots out the sun across {region}."
     },
@@ -277,9 +443,16 @@
       "icon": "❄️",
       "category": "natural",
       "severity": "moderate",
-      "duration": { "min": 5, "max": 15 },
+      "duration": {
+        "min": 5,
+        "max": 15
+      },
       "chance": 0.03,
-      "effects": { "travelSpeed": -0.50, "farmProduction": -0.20, "unitAttrition": 0.10 },
+      "effects": {
+        "travelSpeed": -0.5,
+        "farmProduction": -0.2,
+        "unitAttrition": 0.1
+      },
       "description": "An unseasonably fierce blizzard blankets the land in deep snow.",
       "text": "A terrible blizzard sweeps across {region}. Roads are impassable and livestock freeze."
     }

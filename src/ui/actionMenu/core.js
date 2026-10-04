@@ -73,6 +73,7 @@ Object.assign(ActionMenu, {
         const mapping = {
             rest: 'general', eat_meal: 'general', explore_poi: 'general', clear_trees: 'general', dig_treasure: 'general',
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general',
+            trap_furs: 'general', ice_fish: 'general', planting_contract: 'commerce',
             prospect: 'general', tame_horse: 'general', craft_campfire: 'general',
             disembark: 'general', row_ashore: 'general', row_to_ship: 'general', ship_hold: 'commerce', port_market: 'commerce', explore_ocean: 'general', hunt_pirates: 'military', commit_piracy: 'military', explore_inner_map: 'general',
             trade: 'commerce', contract: 'commerce', ship_passage: 'commerce',
@@ -392,6 +393,7 @@ Object.assign(ActionMenu, {
 
         // Full-day work (4 AP)
         odd_jobs: 4, hunt: 4, train_combat: 4,
+        trap_furs: 4, ice_fish: 3, planting_contract: 4,
         dig_treasure: 4, explore_poi: 4,
 
         // Major activities (5 AP)
@@ -532,6 +534,9 @@ Object.assign(ActionMenu, {
             switch (actionType) {
                 case 'forage':      p.modifyNeed('energy', -8); p.modifyNeed('hygiene', -5); p.modifyNeed('fun', 5); break;
                 case 'hunt':        p.modifyNeed('energy', -12); p.modifyNeed('hygiene', -8); p.modifyNeed('fun', 10); break;
+                case 'trap_furs':   p.modifyNeed('energy', -12); p.modifyNeed('comfort', -8); break;
+                case 'ice_fish':    p.modifyNeed('energy', -6); p.modifyNeed('comfort', -6); p.modifyNeed('fun', 8); break;
+                case 'planting_contract': p.modifyNeed('energy', -10); p.modifyNeed('hygiene', -8); p.modifyNeed('social', 4); break;
                 case 'fish':        p.modifyNeed('energy', -5); p.modifyNeed('fun', 12); p.modifyNeed('comfort', 5); break;
                 case 'meditate':    p.modifyNeed('comfort', 15); p.modifyNeed('energy', 8); p.modifyNeed('fun', 3); break;
                 case 'train_combat': p.modifyNeed('energy', -15); p.modifyNeed('hygiene', -10); p.modifyNeed('fun', 8); break;
@@ -749,6 +754,15 @@ Object.assign(ActionMenu, {
                 break;
             case 'hunt':
                 ActionMenu.doHunt(game, tile);
+                break;
+            case 'trap_furs':
+                ActionMenu.doTrapFurs(game, tile);
+                break;
+            case 'ice_fish':
+                ActionMenu.doIceFish(game, tile);
+                break;
+            case 'planting_contract':
+                ActionMenu.doPlantingContract(game, tile);
                 break;
             case 'donate':
                 ActionMenu.showDonateMenu(game, tile);

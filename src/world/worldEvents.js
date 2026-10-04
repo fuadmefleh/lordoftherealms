@@ -5,6 +5,7 @@
 import { Utils } from '../core/utils.js';
 import { Kingdom } from './kingdom.js';
 import { WEATHER_EFFECTS } from './weather.js';
+import { Seasons } from './seasons.js';
 
 export const WorldEvents = {
     /**
@@ -618,12 +619,15 @@ export const WorldEvents = {
             .filter(t => !world.activeEvents.some(ev => ev.id === t.id));
         if (world.activeEvents.length < WorldEvents.MAX_ACTIVE_EVENTS && templates.length > 0
             && Utils.random() < WorldEvents.DAILY_EVENT_CHANCE) {
-            const total = templates.reduce((s, t) => s + (t.chance || 0.01), 0);
+            // Floods come in spring, droughts in summer, harvests in autumn,
+            // blizzards and famine in the lean months (world/seasons.js)
+            const weight = (t) => (t.chance || 0.01) * Seasons.eventWeight(t.id, Seasons.today(world));
+            const total = templates.reduce((s, t) => s + weight(t), 0);
             let roll = Utils.random() * total;
             let template = templates[templates.length - 1];
             for (const t of templates) {
-                roll -= (t.chance || 0.01);
-                if (roll <= 0) { template = t; break; }
+                roll -= weight(t);
+                if (roll <= 0 && weight(t) > 0) { template = t; break; }
             }
             const ev = WorldEvents._startTimedEvent(world, template);
             if (ev) started.push(ev);

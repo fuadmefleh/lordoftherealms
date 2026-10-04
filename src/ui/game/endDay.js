@@ -658,6 +658,16 @@ export function endDay() {
                 if (fs.ended) this.ui.showNotification('⛵ Fleet Service Ends', fs.ended, 'info');
             }
 
+            // Spring planting contracts come due at the harvest
+            for (const pc of (playerResults.plantingContracts || [])) {
+                if (pc.lost) {
+                    this.ui.showNotification('🌾 Contract Void', `${pc.settlementName} is gone — no harvest share from your planting contract.`, 'warning');
+                } else {
+                    const how = pc.factor > 1.05 ? ' A bountiful crop!' : pc.factor < 0.95 ? ' A poor crop cut your share.' : '';
+                    this.ui.showNotification('🌾 Harvest Share', `${pc.settlementName} pays ${pc.paid} gold for the fields you sowed in spring.${how}`, 'success');
+                }
+            }
+
             // Your liege won a war you fought in
             for (const sp of (playerResults.warSpoils || [])) {
                 this.ui.showNotification('🎖️ Spoils of War', `Your liege has humbled ${sp.enemy}. For your service: ${sp.gold} gold and ${sp.renown} renown.`, 'success');

@@ -28,6 +28,7 @@ import { Achievements } from '../../systems/achievements.js';
 import { Petitions } from '../../systems/petitions.js';
 
 import { RealmPolitics } from '../realmPolitics.js';
+import { SeasonalWork } from '../seasonalWork.js';
 import { addSettlementActions } from './settlementActions.js';
 import { addWildernessActions } from './wildernessActions.js';
 
@@ -365,6 +366,9 @@ export const PlayerActions = {
 
         // A share of the tribute when a liege you fought for wins its war
         results.warSpoils = RealmPolitics.processDaily(player, world);
+
+        // Spring planting contracts pay out at the harvest
+        results.plantingContracts = SeasonalWork.processDaily(player, world);
 
         // Lord trade agreements run for a fixed term
         results.tradeAgreementsExpired = PlayerEffects.expireTradeAgreements(player, world.day || 0);

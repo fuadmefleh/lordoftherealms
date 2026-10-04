@@ -1,6 +1,6 @@
 // ActionMenu — trade methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, NpcDisposition } from './_imports.js';
+import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, NpcDisposition, Seasons } from './_imports.js';
 
 Object.assign(ActionMenu, {
     /**
@@ -788,8 +788,8 @@ Object.assign(ActionMenu, {
                 else if (s.type === 'city') multiplier = 1.2;
 
                 const good = PlayerEconomy.GOODS[tile.playerProperty.produces.toUpperCase()];
-                const basePrice = MarketDynamics.getPrice(good.id);
-                const trend = MarketDynamics.getPriceTrend(good.id);
+                const basePrice = MarketDynamics.getPrice(good.id, s.q, s.r, game.world);
+                const trend = MarketDynamics.getPriceTrend(good.id, s.q, s.r, game.world);
 
                 let trendIcon = '➡️';
                 let trendColor = '#999';
@@ -906,10 +906,31 @@ Object.assign(ActionMenu, {
                 if (quantity <= 0) continue;
                 const good = PlayerEconomy.GOODS[goodId.toUpperCase()];
                 if (!good) continue;
-                const sellPrice = Math.floor(good.basePrice * 0.7);
+                const sellPrice = Trading.getSellPrice(good, game.world);
                 sellItems.push({ ...good, quantity, sellPrice });
             }
         }
+
+        // ── Season outlook and price-trend arrows (world/seasons.js) ──
+        const outlook = Seasons.outlook(game.world.day);
+        const trendBadge = (goodId) => {
+            const st = Trading.getSeasonalTrend(goodId, game.world);
+            if (!Seasons.priceGroup(goodId)) return '';
+            const pct = Math.round(st.modifier * 100);
+            const color = st.trend === 'rising' ? '#e67e22' : st.trend === 'falling' ? '#3498db' : 'rgba(255,255,255,0.45)';
+            const word = st.trend === 'rising' ? 'rising' : st.trend === 'falling' ? 'falling' : 'steady';
+            return `<div class="trade-meta" style="color:${color};" title="Seasonal price ${pct >= 0 ? '+' : ''}${pct}% — ${word} over the next ten days">${Seasons.trendArrow(st.trend)} ${pct >= 0 ? '+' : ''}${pct}% season, ${word}</div>`;
+        };
+        const outlookParts = [];
+        if (outlook.cheap.length) outlookParts.push(`<span style="color:#3498db;">Cheap: ${outlook.cheap.map(c => `${c.label} ${Seasons.trendArrow(c.trend)}`).join(', ')}</span>`);
+        if (outlook.dear.length) outlookParts.push(`<span style="color:#e67e22;">Dear: ${outlook.dear.map(c => `${c.label} ${Seasons.trendArrow(c.trend)}`).join(', ')}</span>`);
+        if (outlook.producing.length) outlookParts.push(`<span style="color:#2ecc71;">Plenty: ${outlook.producing.map(p => p.label).join(', ')}</span>`);
+        if (outlook.lean) outlookParts.push('<span style="color:#e74c3c;">Lean season</span>');
+        const outlookHtml = `<div class="trade-outlook" style="margin-bottom:10px; padding:8px 10px; border-radius:6px; background:rgba(255,255,255,0.04); border-left:3px solid var(--gold); font-size:12px;">
+            <div style="font-weight:700; color:var(--text-primary);">${outlook.icon} ${outlook.season}, day ${outlook.dayInSeason} of 30</div>
+            <div style="color:var(--text-secondary); margin:2px 0 4px;">${outlook.note}</div>
+            ${outlookParts.length ? `<div style="display:flex; flex-wrap:wrap; gap:10px;">${outlookParts.join('')}</div>` : ''}
+        </div>`;
 
         // ── Render HTML ──
         let html = `
@@ -955,6 +976,7 @@ Object.assign(ActionMenu, {
             </div>
             <div class="trade-purse">💰 ${playerGold.toLocaleString()} gold</div>
         </div>
+        ${outlookHtml}
 
         <div class="trade-tabs">
             <button class="trade-tab active" data-trade-tab="buy">🛒 Buy</button>
@@ -980,6 +1002,7 @@ Object.assign(ActionMenu, {
                     <span class="trade-icon">${good.icon}</span>
                     <div>
                         <div class="trade-name">${good.name}</div>
+                        ${trendBadge(good.id)}
                     </div>
                     <div class="trade-price">${isSoldOut ? '' : good.price + ' 💰'}
                         <span class="trade-qty">${isSoldOut ? '' : good.quantity + ' avail.'}</span>
@@ -1008,6 +1031,7 @@ Object.assign(ActionMenu, {
                     <div>
                         <div class="trade-name">${item.name}</div>
                         <div class="trade-meta">You have: ${item.quantity}</div>
+                        ${trendBadge(item.id)}
                     </div>
                     <div class="trade-price" style="color:#2ecc71;">${item.sellPrice} 💰
                         <span class="trade-qty">per unit</span>
@@ -1073,7 +1097,7 @@ Object.assign(ActionMenu, {
         window._tradeSell = (goodId, price, maxQty) => {
             ActionMenu.showQuantityInput(`Sell ${PlayerEconomy.GOODS[goodId.toUpperCase()]?.name || goodId}`, maxQty, (qty) => {
                 if (!ActionMenu.commitPendingAP(game)) return;
-                const result = Trading.sellGoods(game.player, goodId, qty, tile.settlement);
+                const result = Trading.sellGoods(game.player, goodId, qty, tile.settlement, game.world);
                 if (result.success) {
                     const good = PlayerEconomy.GOODS[goodId.toUpperCase()];
                     game.ui.showNotification('Sale Complete', `Sold ${qty}x ${good.name} for ${result.earned} gold`, 'success');

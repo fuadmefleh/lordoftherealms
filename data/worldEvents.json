@@ -455,6 +455,27 @@
       },
       "description": "An unseasonably fierce blizzard blankets the land in deep snow.",
       "text": "A terrible blizzard sweeps across {region}. Roads are impassable and livestock freeze."
+    },
+    "FAMINE": {
+      "id": "famine",
+      "name": "Hungry Months",
+      "icon": "🥀",
+      "category": "natural",
+      "severity": "moderate",
+      "duration": {
+        "min": 10,
+        "max": 20
+      },
+      "chance": 0.012,
+      "effects": {
+        "foodPrices": 0.4,
+        "populationGrowth": -0.3,
+        "farmProduction": -0.15,
+        "stability": -6,
+        "morale": -8
+      },
+      "description": "Last year's stores run out before the new crop is in. Bread is dear and tempers short. Most likely in the lean weeks of late winter and early spring.",
+      "text": "The granaries of {region} are bare. Hunger stalks the lean months."
     }
   }
 }

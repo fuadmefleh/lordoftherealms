@@ -5,6 +5,7 @@
 import { Hex } from '../core/hex.js';
 import { Utils } from '../core/utils.js';
 import { Kingdom } from './kingdom.js';
+import { Seasons } from './seasons.js';
 
 export const Economy = {
     /**
@@ -401,9 +402,13 @@ export const Economy = {
         }
 
         settlement.economy.gold += prod.gold;
+        // The agricultural year: little comes to market at planting time and
+        // in winter, a glut at harvest (yearly mean 1 — world/seasons.js)
+        const seasonal = Seasons.settlementFoodMultiplier(Seasons.today(world));
+        prod.seasonalFood = Math.round(prod.food * seasonal);
         // Aqueducts feed the player's colonies
         const foodBonus = settlement.colony && settlement.colony.isPlayerColony ? (playerBonuses.colonyFood || 0) : 0;
-        settlement.economy.food += foodBonus > 0 ? Math.round(prod.food * (1 + foodBonus)) : prod.food;
+        settlement.economy.food += foodBonus > 0 ? Math.round(prod.seasonalFood * (1 + foodBonus)) : prod.seasonalFood;
 
         // Store specific goods in stockpile if settlement handles it
         if (!settlement.economy.stockpile) {
@@ -422,7 +427,48 @@ export const Economy = {
         const kinship = settlement.peoplesEffects ? (settlement.peoplesEffects.growth || 0) : 0;
         Economy._feedPopulation(settlement, kinship ? { ...mods, growth: (mods.growth || 0) + kinship } : mods);
 
+        // Thin granaries in the lean weeks sour the mood (on the live settlement;
+        // getAllSettlements hands out copies)
+        Economy.applyLeanSeason((tile && tile.settlement) || settlement, Seasons.today(world), settlement.economy);
+
         return settlement.economy;
+    },
+
+    /**
+     * Days of food a settlement has put by, measured against what it must
+     * bring in from outside (its need beyond what its people grow for
+     * themselves — at least 5% of the need, so even villages count).
+     */
+    foodReserveDays(settlement, econ = settlement && settlement.economy) {
+        const F = Economy.FOOD;
+        const pop = Math.max(0, (settlement && settlement.population) || 0);
+        if (pop <= 0 || !econ) return Infinity;
+        const type = F.selfSufficiency[settlement.type] !== undefined ? settlement.type : 'village';
+        const marketNeed = pop * F.perCapita * Math.max(0.05, 1 - F.selfSufficiency[type]);
+        return Math.max(0, econ.food || 0) / marketNeed;
+    },
+
+    /**
+     * The lean season: in late winter and early spring a settlement with
+     * fewer than Seasons.CONFIG.lean.reserveDays of food in store loses
+     * happiness (up to maxPenalty points), moving `step` points a day. The
+     * points come back as the stores recover or the season turns. Tracked in
+     * settlement.leanMood so nothing is lost or gained over a year.
+     */
+    applyLeanSeason(settlement, day, econ = settlement && settlement.economy) {
+        if (!settlement || !econ) return 0;
+        const L = Seasons.CONFIG.lean || {};
+        const step = L.step > 0 ? L.step : 1;
+        const target = Seasons.leanPenalty(day, Economy.foodReserveDays(settlement, econ));
+        const cur = settlement.leanMood || 0;
+        const next = cur < target ? Math.min(target, cur + step) : Math.max(target, cur - step);
+        const delta = next - cur;
+        if (delta === 0) return 0;
+        settlement.leanMood = Math.round(next * 100) / 100;
+        if (settlement.leanMood === 0) delete settlement.leanMood;
+        const happiness = typeof settlement.happiness === 'number' ? settlement.happiness : 50;
+        settlement.happiness = Math.max(0, Math.min(100, happiness - delta));
+        return delta;
     },
 
     /**

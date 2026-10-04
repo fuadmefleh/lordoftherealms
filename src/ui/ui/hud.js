@@ -1,5 +1,6 @@
 // UI — hud methods.
 import { UI } from './core.js';
+import { Seasons } from '../../world/seasons.js';
 import { Utils, ActionMenu, Religion, Economy, Terrain, PlayerEconomy, PlayerMilitary, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, InnerMapCharacters, WEATHER_TYPES, Treasures } from './_imports.js';
 import { Traits } from '../../systems/traits.js';
 
@@ -394,9 +395,15 @@ Object.assign(UI.prototype, {
                 wxTitle = fx ? `${info.name}: ${fx}` : info.name;
             }
         }
+        // Season outlook: what's producing, what's cheap or dear (world/seasons.js)
+        const outlook = Seasons.outlook(world.day);
+        const outlookTitle = [`${outlook.icon} ${world.season}, day ${outlook.dayInSeason} of 30`, outlook.note, outlook.summary]
+            .filter(Boolean).join('\n');
         if (turnEl) {
-            turnEl.textContent = `${wxText}${world.season}, Year ${world.year}`;
-            if (turnEl.title !== wxTitle) turnEl.title = wxTitle;
+            const leanMark = outlook.lean ? ' · Lean' : '';
+            turnEl.textContent = `${wxText}${outlook.icon} ${world.season}${leanMark}, Year ${world.year}`;
+            const title = wxTitle ? `${wxTitle}\n\n${outlookTitle}` : outlookTitle;
+            if (turnEl.title !== title) turnEl.title = title;
         }
         const bottomDate = document.getElementById('hudBottomDate');
         if (bottomDate) {

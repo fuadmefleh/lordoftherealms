@@ -12,6 +12,7 @@ import { Infrastructure } from '../../systems/infrastructure.js';
 import { Technology } from '../../systems/technology.js';
 import { Culture } from '../../systems/culture.js';
 import { PlayerEconomy } from '../playerEconomy.js';
+import { SeasonalWork } from '../seasonalWork.js';
 
 export function addWildernessActions(actions, player, tile, world) {
     // Meditate / Pray (anywhere on passable terrain)
@@ -108,6 +109,24 @@ export function addWildernessActions(actions, player, tile, world) {
                 description: 'Hunt wild game for meat and pelts to sell'
             });
         }
+    }
+
+    // Winter work on cold ground (player/seasonalWork.js)
+    if (SeasonalWork.canTrapFurs(tile, world)) {
+        actions.push({
+            type: 'trap_furs',
+            label: 'Trap Furs',
+            icon: '🦊',
+            description: 'Run a trap line in the snow — winter pelts are thick and fetch a good price'
+        });
+    }
+    if (SeasonalWork.canIceFish(tile, world)) {
+        actions.push({
+            type: 'ice_fish',
+            label: 'Ice Fishing',
+            icon: '🧊',
+            description: 'Cut a hole in the ice and fish the frozen water'
+        });
     }
 
     // Explore Point of Interest

@@ -29,7 +29,18 @@
         { "id": "pit_fighter", "name": "Pit Fighter", "icon": "⚔️", "description": "Bare-knuckle brawling in the underground pits.", "pay": { "min": 35, "max": 75 }, "stat": "combat", "difficulty": 7 },
         { "id": "spy_errand", "name": "Discrete Errand", "icon": "🕵️", "description": "Deliver a sealed letter — no questions asked.", "pay": { "min": 40, "max": 70 }, "stat": "stealth", "difficulty": 6 }
       ]
-    }
+    },
+    "seasonal_jobs": [
+      { "id": "sowing_hand", "name": "Sowing Hand", "icon": "🌱", "description": "Walk the furrows broadcasting seed before the spring rains.", "pay": { "min": 12, "max": 24 }, "stat": "stamina", "difficulty": 3, "seasons": ["Spring"], "tiers": ["village", "town"] },
+      { "id": "flood_bank", "name": "Flood Banks", "icon": "🌊", "description": "Shore up the riverbanks with sandbags against the spring floods.", "pay": { "min": 20, "max": 38 }, "stat": "strength", "difficulty": 5, "seasons": ["Spring"], "tiers": ["village", "town", "capital"] },
+      { "id": "camp_sutler", "name": "Army Sutler", "icon": "⛺", "description": "Haul provisions to the soldiers mustering for the summer campaigns.", "pay": { "min": 22, "max": 42 }, "stat": "stamina", "difficulty": 4, "seasons": ["Summer"], "tiers": ["town", "capital"] },
+      { "id": "haymaker", "name": "Haymaker", "icon": "🌿", "description": "Scythe and stack the summer hay before the weather turns.", "pay": { "min": 14, "max": 28 }, "stat": "strength", "difficulty": 3, "seasons": ["Summer"], "tiers": ["village"] },
+      { "id": "harvest_reaper", "name": "Harvest Reaper", "icon": "🌾", "description": "Bring in the grain with the reaping gangs — every hand is wanted and the pay is good.", "pay": { "min": 35, "max": 65 }, "stat": "strength", "difficulty": 4, "seasons": ["Autumn"], "tiers": ["village", "town"] },
+      { "id": "grape_picker", "name": "Fruit Picker", "icon": "🍎", "description": "Strip the orchards and vines before the first frost.", "pay": { "min": 28, "max": 50 }, "stat": "stamina", "difficulty": 3, "seasons": ["Autumn"], "tiers": ["village", "town"] },
+      { "id": "granary_loader", "name": "Granary Loader", "icon": "🏚️", "description": "Haul sacks of the new harvest up into the city granaries.", "pay": { "min": 40, "max": 70 }, "stat": "strength", "difficulty": 5, "seasons": ["Autumn"], "tiers": ["capital"] },
+      { "id": "snow_clearer", "name": "Snow Clearer", "icon": "❄️", "description": "Dig the roads and market square out of the drifts.", "pay": { "min": 16, "max": 30 }, "stat": "strength", "difficulty": 4, "seasons": ["Winter"], "tiers": ["town", "capital"] },
+      { "id": "woodcutter_winter", "name": "Firewood Hauler", "icon": "🔥", "description": "Cut and carry firewood to keep the hearths burning through the cold.", "pay": { "min": 18, "max": 32 }, "stat": "stamina", "difficulty": 4, "seasons": ["Winter"], "tiers": ["village"] }
+    ]
   },
 
   "foraging": {

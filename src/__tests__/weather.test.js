@@ -8,6 +8,8 @@ import { WeatherSystem, WEATHER_EFFECTS } from '../world/weather.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 import { Ships } from '../systems/ships.js';
+import { WorldUnit } from '../world/units.js';
+import { KingdomAI } from '../world/kingdomAI.js';
 
 const GRASS = { id: 'grassland', name: 'Grassland', passable: true, moveCost: 1 };
 
@@ -183,5 +185,32 @@ describe('Weather — storms at sea', () => {
         const res = Ships.processDaily(player, world);
         expect(res.stormReports).toHaveLength(0);
         expect(player.ships[0].condition).toBeGreaterThanOrEqual(99);
+    });
+});
+
+describe('Weather — world units and kingdom campaigns', () => {
+    it('blizzards halve a marching unit; storms slow ships; fair weather changes nothing', () => {
+        const world = makeWorld();
+        const caravan = new WorldUnit('caravan', 3, 3, 9, 3);
+        caravan.speed = 4;
+        forceWeather(world, 'blizzard');
+        expect(caravan.stepsToday(world)).toBe(2);
+        const ship = new WorldUnit('ship', 3, 3, 9, 3);
+        ship.speed = 6;
+        forceWeather(world, 'storm');
+        expect(ship.stepsToday(world)).toBe(3);
+        forceWeather(world, 'clear');
+        expect(caravan.stepsToday(world)).toBe(4);
+        expect(caravan.stepsToday(null)).toBe(4);
+    });
+
+    it('snow at the front makes pitched battles rarer', () => {
+        const world = makeWorld();
+        const a = { capital: { q: 1, r: 1 } };
+        const b = { capital: { q: 5, r: 5 } };
+        forceWeather(world, 'snow');
+        expect(KingdomAI.campaignWeather(a, b, world)).toBeCloseTo(0.75);
+        forceWeather(world, 'clear');
+        expect(KingdomAI.campaignWeather(a, b, world)).toBe(1);
     });
 });

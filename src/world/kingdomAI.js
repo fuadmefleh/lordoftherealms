@@ -8,6 +8,7 @@ import { Economy, TradeRoutes } from './economy.js';
 import { Kingdom } from './kingdom.js';
 import { Religion } from '../systems/religion.js';
 import { WorldEvents } from './worldEvents.js';
+import { WEATHER_EFFECTS } from './weather.js';
 import { KingdomBonuses, KingdomStability, KingdomCulture, LordInfluence } from './kingdomState.js';
 
 export const KingdomAI = {
@@ -700,6 +701,18 @@ export const KingdomAI = {
     },
 
     /**
+     * How fit the season is for campaigning between two realms: the weather
+     * at the defender's capital scales the day's battle chance by
+     * 1 + travelSpeed (a blizzard halves it; fair skies leave it be).
+     */
+    campaignWeather(kingdom, enemy, world) {
+        const front = enemy.capital || kingdom.capital;
+        if (!world || !world.weather || !front) return 1;
+        const fx = WEATHER_EFFECTS[world.weather.getWeather(front.q, front.r).type] || {};
+        return Math.max(0.2, 1 + (fx.travelSpeed || 0));
+    },
+
+    /**
      * Process warfare between kingdoms
      */
     processWars(world) {
@@ -717,8 +730,9 @@ export const KingdomAI = {
                 if (activeWars.includes(warKey)) continue;
                 activeWars.push(warKey);
 
-                // Pitched battles every few days, not every day
-                if (Utils.random() < KingdomAI.WAR.battleChance) {
+                // Pitched battles every few days, not every day — and fewer
+                // when snow, storms or heat bog down the campaign
+                if (Utils.random() < KingdomAI.WAR.battleChance * KingdomAI.campaignWeather(kingdom, enemy, world)) {
                     KingdomAI.simulateBattle(kingdom, enemy, world);
                 }
                 if (kingdom.isAlive && enemy.isAlive && kingdom.wars.includes(enemy.id)) {

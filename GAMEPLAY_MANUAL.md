@@ -174,6 +174,7 @@ Weather fronts drift east across the map and change every day; the season decide
 - **Battles** apply the weather to both armies by their makeup, so an archer-heavy host should avoid fighting in the rain.
 - **Storms at sea** damage the hulls of ships under way or at anchor, may hold a voyage back a day, and can wash cargo overboard. Docked ships ride it out in harbour.
 - A Granary halves bad-weather losses at nearby farms, just as it does for droughts.
+- **The world feels it too:** caravans, armies, beasts and raiders cover fewer hexes in bad weather, ships at sea slow in storms, and kingdoms fight fewer pitched battles when the front is snowed in (a blizzard halves the chance).
 
 ### Fog of War
 

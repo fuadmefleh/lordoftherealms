@@ -6,6 +6,7 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { Kingdom } from './kingdom.js';
 import { Colonization } from './colonization.js';
+import { WEATHER_EFFECTS } from './weather.js';
 
 export class WorldUnit {
     constructor(type, q, r, targetQ = null, targetR = null) {
@@ -211,7 +212,7 @@ export class WorldUnit {
         if (this.objectiveQ == null) return;
         this.targetQ = this.objectiveQ;
         this.targetR = this.objectiveR;
-        for (let i = 0; i < this.speed; i++) {
+        for (let i = 0, steps = this.stepsToday(world); i < steps; i++) {
             if (this.q === this.targetQ && this.r === this.targetR) break;
             this.moveTowardsTarget(world);
         }
@@ -303,7 +304,7 @@ export class WorldUnit {
         }
 
         // Move multiple times based on speed
-        for (let i = 0; i < this.speed; i++) {
+        for (let i = 0, steps = this.stepsToday(world); i < steps; i++) {
             if (this.q === this.targetQ && this.r === this.targetR) break;
             this.moveTowardsTarget(world);
         }
@@ -434,7 +435,7 @@ export class WorldUnit {
         this._pursuingPlayer = false;
 
         // Move multiple times based on speed
-        for (let i = 0; i < this.speed; i++) {
+        for (let i = 0, steps = this.stepsToday(world); i < steps; i++) {
             if (this.targetQ !== null && this.q === this.targetQ && this.r === this.targetR) break;
             this.moveTowardsTarget(world);
         }
@@ -488,7 +489,7 @@ export class WorldUnit {
         }
 
         // Move multiple times based on speed
-        for (let i = 0; i < this.speed; i++) {
+        for (let i = 0, steps = this.stepsToday(world); i < steps; i++) {
             if (this.targetQ !== null && this.q === this.targetQ && this.r === this.targetR) break;
             this.moveTowardsTarget(world);
         }
@@ -523,7 +524,7 @@ export class WorldUnit {
         }
 
         // Move multiple times based on speed
-        for (let i = 0; i < this.speed; i++) {
+        for (let i = 0, steps = this.stepsToday(world); i < steps; i++) {
             if (this.q === this.targetQ && this.r === this.targetR) break;
             this.moveTowardsTarget(world);
         }
@@ -617,7 +618,7 @@ export class WorldUnit {
         }
 
         // Move towards target (slower than patrols)
-        for (let i = 0; i < this.speed; i++) {
+        for (let i = 0, steps = this.stepsToday(world); i < steps; i++) {
             if (this.targetQ !== null && this.q === this.targetQ && this.r === this.targetR) break;
             this.moveTowardsTarget(world);
         }
@@ -666,6 +667,20 @@ export class WorldUnit {
                 this.path = [];
             }
         }
+    }
+
+    /**
+     * Hexes this unit can cover today: storms, snow and heat slow marchers
+     * (WEATHER_EFFECTS.travelSpeed), and ships heave to in rough seas
+     * (seaDanger). Always at least one hex.
+     */
+    stepsToday(world) {
+        const speed = this.speed || 1;
+        if (!world || !world.weather) return speed;
+        const fx = WEATHER_EFFECTS[world.weather.getWeather(this.q, this.r).type] || {};
+        const isWaterUnit = ['ship', 'pirate', 'fishing_boat', 'war_fleet'].includes(this.type);
+        const slow = isWaterUnit ? -(fx.seaDanger || 0) * 0.5 : (fx.travelSpeed || 0);
+        return slow ? Math.max(1, Math.round(speed * (1 + slow))) : speed;
     }
 
     moveTowardsTarget(world) {
@@ -739,7 +754,7 @@ export class WorldUnit {
                     this.fishingSpotR = this.targetR;
                 } else {
                     // Move multiple times based on speed
-                    for (let i = 0; i < this.speed; i++) {
+                    for (let i = 0, steps = this.stepsToday(world); i < steps; i++) {
                         const currentDist = Hex.wrappingDistance(this.q, this.r, this.targetQ, this.targetR, world.width);
                         if (currentDist <= 0) {
                             this.fishing = true;
@@ -813,7 +828,7 @@ export class WorldUnit {
                 }
             } else {
                 // Move multiple times based on speed
-                for (let i = 0; i < this.speed; i++) {
+                for (let i = 0, steps = this.stepsToday(world); i < steps; i++) {
                     const currentDist = Hex.wrappingDistance(this.q, this.r, this.targetQ, this.targetR, world.width);
                     if (currentDist <= 0) {
                         // Arrived - will be handled on next update

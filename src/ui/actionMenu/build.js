@@ -1,6 +1,6 @@
 // ActionMenu — build methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerReligion, InnerMap } from './_imports.js';
+import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerReligion, InnerMap, PlayerInventory } from './_imports.js';
 
 Object.assign(ActionMenu, {
     /**
@@ -758,10 +758,15 @@ Object.assign(ActionMenu, {
                     player.gold += reward.amount;
                     rewardLines.push(`<div style="color: #f1c40f;">💰 +${reward.amount} Gold</div>`);
                     break;
-                case 'item':
-                    player.inventory[reward.id] = (player.inventory[reward.id] || 0) + reward.amount;
-                    rewardLines.push(`<div style="color: #3498db;">${reward.icon} +${reward.amount} ${reward.name}</div>`);
+                case 'item': {
+                    const added = PlayerInventory.addItem(player, reward.id, reward.amount);
+                    if (added.success) {
+                        rewardLines.push(`<div style="color: #3498db;">${reward.icon} +${reward.amount} ${reward.name}</div>`);
+                    } else {
+                        rewardLines.push(`<div style="color: #e67e22;">${reward.icon} ${reward.amount} ${reward.name} left behind — your packs are full</div>`);
+                    }
                     break;
+                }
                 case 'karma':
                     player.karma += reward.amount;
                     rewardLines.push(`<div style="color: #9b59b6;">🙏 +${reward.amount} Karma</div>`);
@@ -1008,8 +1013,7 @@ Object.assign(ActionMenu, {
         const woodAmount = woodYields[tile.terrain.id] || 8;
 
         // Add wood to player inventory
-        if (!game.player.inventory) game.player.inventory = {};
-        game.player.inventory.wood = (game.player.inventory.wood || 0) + woodAmount;
+        const woodAdd = PlayerInventory.addItem(game.player, 'wood', woodAmount);
 
         // Change terrain to grassland
         tile.terrain = Terrain.TYPES.GRASSLAND;
@@ -1019,7 +1023,11 @@ Object.assign(ActionMenu, {
             tile.resource = null;
         }
 
-        game.ui.showNotification('Trees Cleared', `+${woodAmount} 🌲 Wood — the land is now open grassland.`, 'success');
+        if (woodAdd.success) {
+            game.ui.showNotification('Trees Cleared', `+${woodAmount} 🌲 Wood — the land is now open grassland.`, 'success');
+        } else {
+            game.ui.showNotification('Trees Cleared', `The land is now open grassland, but the wood was left behind. ${woodAdd.reason}`, 'warning');
+        }
         game.ui.updateStats(game.player, game.world);
 
         // Advance the day (it takes effort)
@@ -1104,8 +1112,7 @@ Object.assign(ActionMenu, {
             game.player.actionPoints -= apCost;
 
             // Add stone to inventory
-            if (!game.player.inventory) game.player.inventory = {};
-            game.player.inventory.stone = (game.player.inventory.stone || 0) + stoneAmount;
+            const stoneAdd = PlayerInventory.addItem(game.player, 'stone', stoneAmount);
 
             // Remove resource if present
             if (tile.resource) {
@@ -1118,7 +1125,11 @@ Object.assign(ActionMenu, {
             // Update elevation to match (grassland level)
             tile.elevation = Math.min(tile.elevation, 0.50);
 
-            game.ui.showNotification('⛏️ Land Terraformed!', `The hills have been flattened to grassland. +${stoneAmount} stone recovered.`, 'success');
+            if (stoneAdd.success) {
+                game.ui.showNotification('⛏️ Land Terraformed!', `The hills have been flattened to grassland. +${stoneAmount} stone recovered.`, 'success');
+            } else {
+                game.ui.showNotification('⛏️ Land Terraformed!', `The hills have been flattened to grassland, but the stone was left behind. ${stoneAdd.reason}`, 'warning');
+            }
             game.ui.updateStats(game.player, game.world);
             game.ui.hideCustomPanel();
             game.endDay();

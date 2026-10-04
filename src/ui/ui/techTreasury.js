@@ -487,8 +487,10 @@ Object.assign(UI.prototype, {
         const moodRows = taxEstimate.settlements.map(st => {
             const h = st.happiness;
             const face = h >= 70 ? '😊' : h >= 40 ? '😐' : '😠';
-            return `<div style="display:flex; justify-content:space-between; font-size:12px; padding:3px 0;">
-                <span>${st.name}${st.peoplesMood ? ` <span style="font-size:10px; color:${st.peoplesMood > 0 ? '#81c784' : '#e57373'};" title="Mood target shift from the peoples living there (their values, traits and harmony)">🏘️ ${st.peoplesMood > 0 ? '+' : ''}${st.peoplesMood}</span>` : ''}</span><span>${face} ${h}/100 · ~${st.collected}g/wk</span></div>`;
+            const g = st.growthRate || 0;
+            const growth = `<div style="font-size:10px; color:${g > 0 ? '#81c784' : g < 0 ? '#e57373' : 'var(--text-muted)'}; text-align:right;" title="Yearly growth from the tax policy; projection is 30 days out">📈 ${g > 0 ? '+' : ''}${Math.round(g * 100)}%/yr · pop ${st.population} → ~${st.projectedPopulation} next month · ~${st.projectedCollected}g/wk then</div>`;
+            return `<div style="padding:3px 0;"><div style="display:flex; justify-content:space-between; font-size:12px;">
+                <span>${st.name}${st.peoplesMood ? ` <span style="font-size:10px; color:${st.peoplesMood > 0 ? '#81c784' : '#e57373'};" title="Mood target shift from the peoples living there (their values, traits and harmony)">🏘️ ${st.peoplesMood > 0 ? '+' : ''}${st.peoplesMood}</span>` : ''}</span><span>${face} ${h}/100 · ~${st.collected}g/wk</span></div>${growth}</div>`;
         }).join('');
         const canSet = Taxation.canSetTaxes(player);
 

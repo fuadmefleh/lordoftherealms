@@ -200,6 +200,11 @@ Object.assign(UI.prototype, {
                     <span class="info-label">Population</span>
                     <span class="info-value">${Utils.formatNumber(tile.settlement.population)}</span>
                 </div>
+                ${typeof tile.settlement.growthRate === 'number' ? `
+                <div class="info-row" title="Yearly growth set by your tax policy; projection is 30 days out">
+                    <span class="info-label">Growth</span>
+                    <span class="info-value" style="color:${tile.settlement.growthRate > 0 ? '#81c784' : tile.settlement.growthRate < 0 ? '#e57373' : 'inherit'};">${tile.settlement.growthRate > 0 ? '+' : ''}${Math.round(tile.settlement.growthRate * 100)}%/yr → ~${Utils.formatNumber(Taxation.projectPopulation(tile.settlement, 30))} next month</span>
+                </div>` : ''}
             `;
 
             if (knowsEcon) {
@@ -1000,7 +1005,7 @@ Object.assign(UI.prototype, {
             </div>` : ''}
             ${knows('military') ? `<div class="info-row">
                 <span class="info-label">Military</span>
-                <span class="info-value">⚔️ ${Utils.formatNumber(kingdom.military || 0)}</span>
+                <span class="info-value" title="Standing army / what the realm can support">⚔️ ${Utils.formatNumber(kingdom.military || 0)}${typeof kingdom.militaryCap === 'number' ? ` <span style="opacity:0.6;">/ ${Utils.formatNumber(kingdom.militaryCap)}</span>` : ''}</span>
             </div>` : `<div class="info-row">
                 <span class="info-label">Military</span>
                 <span class="info-value" style="color:#666;">Unknown</span>

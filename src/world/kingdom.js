@@ -239,6 +239,24 @@ export const Kingdom = {
     },
 
     /**
+     * Raise up to `amount` new troops, respecting `kingdom.militaryCap` (what
+     * the realm can support, set daily by KingdomAI.updateMilitary). With no
+     * cap computed yet, all of them join. Never shrinks an over-cap army —
+     * KingdomAI demobilises the excess over time.
+     * @returns {number} troops actually added
+     */
+    recruitTroops(kingdom, amount) {
+        if (!kingdom || !(amount > 0)) return 0;
+        const cur = kingdom.military || 0;
+        let added = Math.floor(amount);
+        if (typeof kingdom.militaryCap === 'number') {
+            added = Math.max(0, Math.min(added, kingdom.militaryCap - cur));
+        }
+        kingdom.military = cur + added;
+        return added;
+    },
+
+    /**
      * Place a town in kingdom territory
      */
     placeTown(kingdom, tiles, mapWidth, mapHeight) {

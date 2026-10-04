@@ -376,9 +376,11 @@ export function _showFishModal(game, objDef) {
             const catchRoll = Math.random() + luck * 0.3;
             if (catchRoll > 0.35) {
                 const catchAmount = 1 + Math.floor(Math.random() * 3);
-                if (!game.player.inventory) game.player.inventory = {};
-                game.player.inventory.fish = (game.player.inventory.fish || 0) + catchAmount;
-                game.ui.showNotification('🐟 Caught!', `You caught ${catchAmount} fish!`, 'success');
+                if (!PlayerInventory.addItem(game.player, 'fish', catchAmount).success) {
+                    game.ui.showNotification('🐟 Released', `You caught ${catchAmount} fish but had no room to keep them. ${PlayerInventory.fullMessage(game.player)}`, 'warning');
+                } else {
+                    game.ui.showNotification('🐟 Caught!', `You caught ${catchAmount} fish!`, 'success');
+                }
                 if (game.player.modifyNeed) {
                     game.player.modifyNeed('fun', 12);
                     game.player.modifyNeed('comfort', -3);

@@ -354,8 +354,9 @@ export const Religion = {
         for (const kingdom of world.kingdoms) {
             if (!kingdom.isAlive || !kingdom.religion) continue;
 
-            // 1. Pilgrim income from holy sites
+            // 1. Pilgrim income from holy sites (contested ones yield less)
             let pilgrimIncome = 0;
+            let contestedSites = 0;
             for (const siteRef of kingdom.religion.holySites) {
                 const tile = world.getTile(siteRef.q, siteRef.r);
                 if (!tile || !tile.holySite) continue;
@@ -368,16 +369,26 @@ export const Religion = {
                 }
                 const pilgrims = Utils.randInt(1, 5) * tile.holySite.level;
                 tile.holySite.pilgrimCount += pilgrims;
-                pilgrimIncome += tile.holySite.incomeBonus * tile.holySite.level * 0.1;
+                const siteIncome = tile.holySite.incomeBonus * tile.holySite.level * 0.1;
+                if (tile.holySite.contested) {
+                    // A freshly seized shrine: pilgrims stay away and the faithful seethe
+                    pilgrimIncome += siteIncome * Religion.CONTESTED_SITE.incomeMult;
+                    contestedSites++;
+                    Religion.tickContestedSite(tile.holySite);
+                } else {
+                    pilgrimIncome += siteIncome;
+                }
             }
             kingdom.religion.pilgrimIncome = Math.floor(pilgrimIncome);
             kingdom.treasury += kingdom.religion.pilgrimIncome;
+            kingdom.religion.contestedSites = contestedSites;
 
-            // 2. Piety drift
+            // 2. Piety drift (each contested holy site breeds unrest)
             const faith = Religion.FAITHS[kingdom.religion.faithId];
             if (faith) {
                 kingdom.religion.piety = Math.max(0, Math.min(100,
                     kingdom.religion.piety + (faith.virtues.unity - 1) * 0.5 + Utils.randFloat(-1, 1)
+                    - contestedSites * Religion.CONTESTED_SITE.pietyDrain
                 ));
             }
 
@@ -507,6 +518,24 @@ export const Religion = {
     // HOLY SITE CONTESTATION
     // ─────────────────────────────────────────────
 
+    /**
+     * A seized holy site stays contested for `days`: it yields
+     * `incomeMult` of its pilgrim income, drains its holder's piety by
+     * `pietyDrain` a day, and pilgrims there get `pilgrimGoldMult` of the gold.
+     */
+    CONTESTED_SITE: { days: 60, incomeMult: 0.5, pietyDrain: 0.1, pilgrimGoldMult: 0.6 },
+
+    /** Count down a contested site's unrest; it settles when the timer runs out. */
+    tickContestedSite(site) {
+        if (!site || !site.contested) return;
+        if (typeof site.contestedDaysLeft !== 'number') site.contestedDaysLeft = Religion.CONTESTED_SITE.days;
+        site.contestedDaysLeft -= 1;
+        if (site.contestedDaysLeft <= 0) {
+            site.contested = false;
+            site.contestedDaysLeft = 0;
+        }
+    },
+
     processHolySiteContestation(kingdom, world) {
         // Check if any of our holy sites are now in enemy territory
         for (const siteRef of [...kingdom.religion.holySites]) {
@@ -519,6 +548,7 @@ export const Religion = {
                 if (newController && newController.religion) {
                     tile.holySite.controller = newController.id;
                     tile.holySite.contested = true;
+                    tile.holySite.contestedDaysLeft = Religion.CONTESTED_SITE.days;
                     newController.religion.holySites.push({ q: siteRef.q, r: siteRef.r });
 
                     kingdom.religion.holySites = kingdom.religion.holySites.filter(
@@ -578,7 +608,9 @@ export const Religion = {
 
         const site = tile.holySite;
         const faithBonus = site.faithBonus || 5;
-        const goldReward = site.incomeBonus + Utils.randInt(20, 100);
+        let goldReward = site.incomeBonus + Utils.randInt(20, 100);
+        // Pilgrims at a contested shrine walk into tension: thinner offerings
+        if (site.contested) goldReward = Math.floor(goldReward * Religion.CONTESTED_SITE.pilgrimGoldMult);
 
         player.karma += Math.floor(faithBonus / 2);
         player.gold += goldReward;
@@ -599,6 +631,7 @@ export const Religion = {
             karmaGained: Math.floor(faithBonus / 2),
             renownGained: 5,
             healed: site.bonusType === 'healing',
+            contested: !!site.contested,
         };
     },
 

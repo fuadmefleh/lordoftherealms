@@ -44,6 +44,7 @@ export { RealmWars } from '../../systems/realmWars.js';
 export { Espionage } from '../../systems/espionage.js';
 export { Gossip } from '../../systems/gossip.js';
 export { Tavern } from '../../player/tavern.js';
+export { PlayerInventory } from '../../player/inventory.js';
 export { Economy } from '../../world/economy.js';
 export { TiledExport } from '../../systems/tiledExport.js';
 export { CustomObjects } from '../../world/customObjects.js';

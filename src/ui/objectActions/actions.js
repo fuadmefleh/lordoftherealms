@@ -1,6 +1,7 @@
 // OBJECT_ACTIONS registry — action defs with condition/onExecute handlers.
 import { InnerMap } from '../../world/innerMap.js';
 import { Hotbar } from '../hotbar.js';
+import { PlayerInventory } from '../../player/inventory.js';
 import { FOOD_ITEMS, COOK_RECIPES, CRAFT_RECIPES, SMELT_RECIPES, BREW_RECIPES, HEAL_ITEMS, MODAL_STYLE, MODAL_HEADER_STYLE, MODAL_BODY_STYLE, MODAL_FOOTER_STYLE } from './data.js';
 import {
     _getPlayerFoods,
@@ -239,7 +240,11 @@ export const OBJECT_ACTIONS = {
         timeSkip: 2,
         onExecute: (game) => {
             game.player.inventory.leather -= 2;
-            game.player.inventory.leather_armor = (game.player.inventory.leather_armor || 0) + 1;
+            if (!PlayerInventory.addItem(game.player, 'leather_armor', 1).success) {
+                // No room for the armor — keep the hides rather than destroy them
+                game.player.inventory.leather += 2;
+                return `You set the hides aside untouched. ${PlayerInventory.fullMessage(game.player)}`;
+            }
             return 'You tan the hides. Gained 1 leather armor piece.';
         },
     },

@@ -614,7 +614,8 @@ Object.assign(ActionMenu, {
                 if (fame.extraEnvoys) perks.push(`+${fame.extraEnvoys} envoy${fame.extraEnvoys > 1 ? 's' : ''}`);
                 if (fame.contestVeteran) perks.push(`+${fame.contestVeteran.toFixed(1)} contest power`);
                 if (fame.vigilance) perks.push(`−${Math.round(fame.vigilance * 100)}% sabotage`);
-                html += `<div style="font-size: 11px; color: #c9b27a; margin-bottom: 10px;">🎪 Record: ${fs.hosted} hosted · ${fs.successfulContests} podiums${perks.length ? ` — ${perks.join(', ')}` : ''}${novelty < 1 ? `<br><span style="color:#e67e22;">${settlement.name} has seen your festivals lately: renown ×${novelty.toFixed(1)}. Try another town.</span>` : ''}</div>`;
+                if (fame.envoyGoodwill) perks.push(`+${fame.envoyGoodwill} envoy goodwill`);
+                html += `<div style="font-size: 11px; color: #c9b27a; margin-bottom: 10px;">🎪 Record: ${fs.hosted} hosted · ${fs.successfulContests} podiums · ${fs.diplomacyEvents} envoys feted${perks.length ? ` — ${perks.join(', ')}` : ''}${novelty < 1 ? `<br><span style="color:#e67e22;">${settlement.name} has seen your festivals lately: renown ×${novelty.toFixed(1)}. Try another town.</span>` : ''}</div>`;
             }
 
             html += '<div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); margin-bottom: 6px;">Festival Scale</div>';
@@ -700,7 +701,7 @@ Object.assign(ActionMenu, {
             if (result.reputations.length > 0) {
                 summary += '<div style="font-size: 11px; text-transform: uppercase; color: #3498db; letter-spacing: 1px; margin-bottom: 4px;">Diplomatic Outcomes</div>';
                 for (const row of result.reputations) {
-                    summary += `<div style="font-size: 12px; color:#b8d9f5;">🤝 ${row.rival}: +${row.repGain} reputation</div>`;
+                    summary += `<div style="font-size: 12px; color:#b8d9f5;">🤝 ${row.rival}: +${row.repGain} reputation${row.relationGain ? `, +${row.relationGain} relations with your realm` : ''}</div>`;
                 }
             }
 

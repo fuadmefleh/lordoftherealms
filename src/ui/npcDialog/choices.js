@@ -240,7 +240,19 @@ export function _handleChoice(action) {
                 const success = _skillCheck('diplomacy', difficulty);
                 if (success) {
                     const pool = FLATTER_SUCCESS[npcType] || FLATTER_SUCCESS.villager;
-                    responseText = _pick(pool);
+                    const lineIndex = Math.floor(Math.random() * pool.length);
+                    responseText = pool[lineIndex];
+                    // Keep the promise in that line (once per NPC)
+                    const game = dialogState._game;
+                    const gift = NpcDisposition.flatterReward(
+                        dialogState._npc, lineIndex,
+                        { player: game?.player, world: game?.world, kingdom: _getKingdom(), type: FLATTER_SUCCESS[npcType] ? npcType : 'villager' });
+                    if (gift && game?.ui?.showNotification) {
+                        setTimeout(() => {
+                            game.ui.showNotification('😊 Flattery Pays', gift.summary, 'success');
+                            if (game.ui.updateStats) game.ui.updateStats(game.player, game.world);
+                        }, 1500);
+                    }
                     dispositionChange = 10;
                     skillGains = { diplomacy: 1 };
                     if (dialogState._game?.player?.modifyNeed) {

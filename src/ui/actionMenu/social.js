@@ -1,6 +1,7 @@
 // ActionMenu — social methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
+import { CompanionsPanel } from '../companionsPanel.js';
 import { PlayerActions, PlayerEconomy, PlayerEffects, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, House, Schemes, RealmWars, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMapRenderer } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -301,24 +302,8 @@ Object.assign(ActionMenu, {
         html += `Active companions: <strong style="color: #def;">${party.length}</strong>`;
         html += `</div>`;
 
-        if (party.length === 0) {
-            html += '<div style="padding: 10px; border-radius: 6px; background: rgba(255,255,255,0.03); color: #aaa; font-size: 12px; margin-bottom: 8px;">No one is currently traveling with you.</div>';
-        } else {
-            html += '<h5 style="margin: 6px 0; color: #6cf;">Current Party</h5>';
-            for (const npc of party) {
-                const rel = Relationships.getRelationship(player, npc.id);
-                const relation = Relationships.getRelationLabel(rel.score || 0);
-                html += `<div style="background: rgba(0,0,0,0.25); padding: 8px; border-radius: 6px; margin-bottom: 6px;">`;
-                html += `<div style="display: flex; justify-content: space-between; align-items: center;">`;
-                html += `<div style="font-size: 12px;">🧭 <strong>${npc.firstName} ${npc.dynasty}</strong> · ${relation.icon} ${relation.label} (${rel.score || 0})</div>`;
-                html += `<div style="display: flex; gap: 6px;">`;
-                html += `<button onclick="window._partyOpenProfile('${npc.id}')" style="padding: 3px 8px; background: #355; border: none; border-radius: 3px; color: #cde; cursor: pointer; font-size: 10px;">Profile</button>`;
-                html += `<button onclick="window._partyRemove('${npc.id}')" style="padding: 3px 8px; background: #533; border: none; border-radius: 3px; color: #ecc; cursor: pointer; font-size: 10px;">Remove</button>`;
-                html += `</div>`;
-                html += `</div>`;
-                html += `</div>`;
-            }
-        }
+        // Roster: approval, mood, values, gripes, quests, talk/gift/dismiss (ui/companionsPanel.js)
+        html += CompanionsPanel.rosterHtml(game);
 
         html += '<h5 style="margin: 8px 0 6px; color: #9ab;">Invite Known People</h5>';
         if (knownCandidates.length === 0) {
@@ -338,6 +323,8 @@ Object.assign(ActionMenu, {
 
         html += '</div>';
         game.ui.showCustomPanel('Travel Party', html);
+
+        CompanionsPanel.bind(game, () => ActionMenu.showTravelPartyMenu(game, tile));
 
         window._partyOpenProfile = (npcId) => {
             ActionMenu.showCharacterDataModal(game, tile, npcId, { returnTo: 'travel_party' });

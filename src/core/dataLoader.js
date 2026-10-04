@@ -481,6 +481,12 @@ export const DataLoader = {
             DataLoader.petitions = petitionsData;
         }
 
+        // ── Travel companions (read lazily by systems/companions.js) ──
+        const companionsData = data['companions.json'];
+        if (companionsData) {
+            DataLoader.companions = companionsData;
+        }
+
         // ── Gossip / Rumor System ──
         const gossipData = data['gossip.json'];
         if (gossipData) {

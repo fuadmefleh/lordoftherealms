@@ -1,6 +1,7 @@
 // PlayerMilitary — combat members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
+import { Companions } from '../../systems/companions.js';
 import { Utils, Technology, House, Quests, RealmWars, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
@@ -87,6 +88,8 @@ Object.assign(PlayerMilitary, {
         }
 
         const victory = playerPower > enemyPower;
+        // Travelling companions react to the outcome; with low odds one may fall
+        Companions.onBattle(player, victory, { enemyName, roleOf: n => PlayerEffects.companionRole(n) }, context.world);
 
         // Calculate casualties
         let casualtyRate = victory ?
@@ -650,6 +653,7 @@ Object.assign(PlayerMilitary, {
                 case 'fishing_boat':
                     karmaChange = -3;
                     Traits.recordDeeds(player, { greed: 2, cruelty: 1, seafaring: worldUnit.type === 'caravan' ? 0 : 2 }); // piracy
+                    Quests.track(player, 'piracy_committed'); // companions with values notice
                     player.karma += karmaChange;
                     break;
                 case 'settler':

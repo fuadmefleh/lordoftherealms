@@ -9,6 +9,7 @@ Rendering and input handling. This layer reads game state and draws it — it do
 | `actionMenu.js` | ~400 | Contextual action menu (renders action panel, handles clicks) |
 | `buildingCreator.js` | ~600 | In-world building placement UI |
 | `camera.js` | ~350 | Camera: pan, zoom, pixel↔hex conversion for the world map |
+| `companionsPanel.js` | ~150 | Travel-party roster (approval, mood, values, gripes, quests; talk/gift/pay/raise/dismiss), rendered inside `ActionMenu.showTravelPartyMenu` |
 | `game.js` | ~1200 | **Main game loop**: `requestAnimationFrame`, input routing, day/turn control |
 | `hotbar.js` | ~280 | Hotbar: quick-access tool buttons |
 | `innerMap/` | ~4100 | Inner-map system: rendering layers, character compositing, combat |

@@ -10,6 +10,7 @@ World simulation systems. Each system manages a distinct aspect of the game worl
 | `audio/` | ~1100 | Procedural Web Audio API music & SFX — no external files |
 | `bountyHunting.js` | ~305 | Criminal tracking, bounty boards, capture mechanics |
 | `cartography/` | ~950 | Map making, map trading, propaganda maps, stolen maps |
+| `companions.js` | ~1050 | Travel companions with values & approval (react to deeds, rulings, piracy, karma, battles, wages), mood-scaled bonuses, raise demands/desertion/betrayal, personal quests (`data/companions.json`), bonds, death in battle |
 | `councils.js` | ~412 | Parliament voting — taxes, war declarations, faction management |
 | `culture.js` | — | Cultural spread, assimilation, hybrid traditions |
 | `espionage.js` | — | Spy networks, sabotage, counterintelligence |

@@ -3,6 +3,7 @@ import { UI } from './core.js';
 import { Seasons } from '../../world/seasons.js';
 import { Utils, ActionMenu, Religion, Economy, Terrain, PlayerEconomy, PlayerMilitary, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, InnerMapCharacters, WEATHER_TYPES, Treasures } from './_imports.js';
 import { Traits } from '../../systems/traits.js';
+import { Companions } from '../../systems/companions.js';
 
 Object.assign(UI.prototype, {
     setupEventListeners() {
@@ -282,6 +283,10 @@ Object.assign(UI.prototype, {
         // Character traits gained or lost since the last refresh
         for (const n of Traits.drainNotices(player)) {
             this.showNotification(n.title, n.text, n.kind === 'gained' ? 'success' : 'warning');
+        }
+        // Travelling companions' comments, gripes, bonds and losses
+        for (const n of Companions.drainNotices(player)) {
+            this.showNotification(n.title, n.text, n.type || 'info');
         }
         document.getElementById('goldValue').textContent = Utils.formatNumber(player.gold);
         document.getElementById('karmaValue').textContent = player.karma;

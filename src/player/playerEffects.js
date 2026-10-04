@@ -17,6 +17,7 @@ import { Housing } from '../systems/housing.js';
 import { Treasures } from './treasures.js';
 import { Religion } from '../systems/religion.js';
 import { Traits } from '../systems/traits.js';
+import { Companions } from '../systems/companions.js';
 
 /** Tenet effect of the player's own religion (0 without one). */
 function _tenet(player, key) {
@@ -144,12 +145,17 @@ export const PlayerEffects = {
         return (npc && COMPANION_ROLES[npc.occupation]) || DEFAULT_COMPANION_ROLE;
     },
 
-    /** Sum of one companion bonus (`power`, `trade`, `diplomacy`, `heal`) across the party. */
+    /**
+     * Sum of one companion bonus (`power`, `trade`, `diplomacy`, `heal`) across
+     * the party — each role scaled by the companion's mood and bonds
+     * (Companions.effectiveness), plus a devoted companion's perk.
+     */
     companionBonus(player, key) {
         if (!Array.isArray(player.travelParty) || player.travelParty.length === 0) return 0;
         let total = 0;
         for (const npc of Relationships.getTravelPartyMembers(player)) {
-            total += this.companionRole(npc)[key] || 0;
+            total += (this.companionRole(npc)[key] || 0) * Companions.effectiveness(player, npc)
+                + Companions.perkBonus(npc, key);
         }
         return total;
     },
@@ -159,8 +165,10 @@ export const PlayerEffects = {
      * deepens. Returns { healed, members }.
      */
     processCompanions(player, world) {
+        // Approval, wages, bonds, personal quests, desertion (systems/companions.js)
+        const life = Companions.processDay(player, world);
         const members = Array.isArray(player.travelParty) ? Relationships.getTravelPartyMembers(player) : [];
-        if (!members.length) return { healed: 0, members: 0 };
+        if (!members.length) return { healed: 0, members: 0, life };
         const heal = this.companionBonus(player, 'heal');
         const maxHp = player.maxHealth || 100;
         const before = player.health || 0;
@@ -170,7 +178,7 @@ export const PlayerEffects = {
             if (rel) rel.score = Math.min(100, (rel.score || 0) + 1);
             npc.lastInteraction = (world && world.day) || npc.lastInteraction || 0;
         }
-        return { healed: player.health - before, members: members.length };
+        return { healed: player.health - before, members: members.length, life };
     },
 
     // ──────────── DIPLOMACY ────────────

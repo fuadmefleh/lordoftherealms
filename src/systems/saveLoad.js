@@ -13,6 +13,7 @@ import { Gossip } from './gossip.js';
 import { Ships } from './ships.js';
 import { Traits } from './traits.js';
 import { Petitions } from './petitions.js';
+import { Companions } from './companions.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 
 
@@ -326,6 +327,9 @@ export const SaveLoad = {
             traits: Traits.serialize(player),
             // Court petitions (pending, follow-ups, rulings history, court reputation)
             petitions: player.petitions ? JSON.parse(JSON.stringify(player.petitions)) : null,
+            // Travelling companions: deed snapshot, bonds, mourning, notices (per-companion
+            // personality/approval lives on the NPC in _relationshipNpcs)
+            companions: Companions.serialize(player),
         };
     },
 
@@ -491,6 +495,9 @@ export const SaveLoad = {
         if (!Array.isArray(player.travelParty)) {
             player.travelParty = [];
         }
+        // Companions: backfill bookkeeping, and a deterministic personality (hash of
+        // the id) for companions recruited before personalities existed
+        Companions.loadState(player);
 
         if (player.landTaxBonus == null) player.landTaxBonus = 0;
         if (player.mount === undefined) player.mount = null;

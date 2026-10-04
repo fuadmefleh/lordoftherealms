@@ -2080,6 +2080,61 @@ Click on your character or nearby hexes to open the **contextual radial action m
 
 Each day on the road together also raises your relationship with every companion by 1.
 
+### Companions With a Life of Their Own
+
+Companions are more than their trade. Each one holds **one or two values** and keeps an **approval** score (0–100) of you. Values are picked when they first join, from their trade and a fixed draw on who they are. A companion keeps the same values for good, and companions from older saves get theirs when the save loads.
+
+| Value | Approves of | Disapproves of |
+|-------|-------------|----------------|
+| 🛡️ Honour | honesty, valour, just rulings, kept alliances; becoming Honest or Brave | lies, cowardice, piracy, kinslaying; becoming Craven or Deceitful |
+| 🙏 Piety | piety, holy sites, miracles, pious rulings | cruelty, drink and dice, piracy |
+| 💰 Greed | profit, plunder, treasure, gambling, being paid on time | generosity, generous rulings |
+| 🕊️ Compassion | mercy, generosity, merciful and generous rulings, good karma | cruelty, dread, piracy, conquest, severe rulings |
+| 👑 Ambition | valour, tournaments, conquest, alliances, victories | cowardice and defeats |
+| 🕊 Freedom | travel, the sea, ruins | dread, zeal, crushing heresies, conquest, severe rulings |
+| 🏰 Loyal to their homeland | your standing with their home realm rising | your standing there falling, deceit |
+| ⛪ Loyal to the faith | zeal, piety, crushing heresies, holy sites | deceit |
+
+Approval reacts each day to what you did: the deeds behind your character traits, any trait you earn, your rulings at Court, piracy, big karma swings (2 or more in a day), battles won or lost, and wages. When something moves a companion by 3 or more in a day, they **say so** in a short notification. One day can move them by at most 12.
+
+**Mood.** Approval sets a mood, and the mood scales the companion's trade bonus:
+
+| Mood | Approval | Bonus |
+|------|----------|-------|
+| 😠 Mutinous | under 25 | ×0.6 |
+| 😒 Disgruntled | 25–39 | ×0.8 |
+| 🙂 Content | 40–74 | ×1.0 |
+| 😊 Loyal | 75+ | ×1.25 |
+| 💛 Devoted | personal quest fulfilled | ×1.5 + a unique perk |
+
+**Wages.** Every companion draws a daily wage (2–6 gold by trade, more for the greedy and ambitious), paid every 7 days. If you can't pay, they lose 8 approval on the first missed payday, 16 on the second and 24 on each one after that. They complain until you clear what you owe from the roster.
+
+**When approval falls.** Below 40, a companion grumbles every few days about their latest grievance. Greedy or ambitious companions below 30 **demand a raise** (50% more). Grant it for +12 approval, or ignore it and lose 8 approval every 10 days. Below 20, a companion may **desert**. A greedy or ambitious companion below 12 is worse. First you get a **warning** that they are acting strangely. If you can't win them back within 3 days, they may **betray** you. They either run off with up to a fifth of your purse (at most 400 gold), or sell your position. Sold to a rival House, the betrayal raises that House's feud by 20, and the House starts a scheme against you if it can. Sold to the realm that likes you least, it costs you 10 reputation there. Betrayals go in the House chronicle.
+
+**Personal quests.** A companion at 70+ approval who has travelled with you for 7 days shares a personal matter. You can **Hear them out** from the roster, and the matter becomes an ordinary quest in your journal (it counts toward the 5-quest limit). There are 11 kinds, picked to fit the companion's trade and values:
+
+| Quest | What it takes | Perk when fulfilled |
+|-------|---------------|---------------------|
+| Blood Owed (avenge their kin) | win 3 battles | ⚔️ Sworn Blade: +8% battle power |
+| The Lost Sibling | visit 2 taverns and 3 new settlements | 🧭 Pathfinder: +3% battle power, +1 heal |
+| A Debt Come Due | pay 300 gold toward it from the roster | 📒 Ledger-Keeper: +3% trade, +0.5 diplomacy |
+| The Long Pilgrimage | visit 2 holy sites | ✨ Pilgrim's Grace: +2 heal, +0.5 diplomacy |
+| The family heirloom | explore 2 ruins | 🛡️ Shield-Sibling: +6% battle power |
+| The Beast of the Hills | slay a great beast | 🛡️ Shield-Sibling |
+| Restore the Family House | earn 600 trade profit | 📦 Quartermaster: +4% trade |
+| Taken at Sea | defeat pirates at sea | ⚓ Sea Legs: +4% battle power, +2% trade |
+| The Stolen Manuscript | hire an informant, explore a ruin | 📜 Lorekeeper: +1.5 diplomacy |
+| A Name Cleared | drive off raiders twice | 🗣️ Silver Tongue: +1 diplomacy |
+| The Healer's Oath | give 150 gold of charity through them | 🩹 Field Surgeon: +3 heal |
+
+Fulfil the quest and the companion becomes **Devoted**. Their approval goes to 100 and they stay Devoted whatever you do after that. They never complain or leave, and their perk lasts. The House chronicle remembers it. If a companion leaves or dies, their quest is dropped.
+
+**Bonds.** Companions who travel together for 20 days become **friends** or **rivals**. Shared values make friends and clashing values make rivals, such as greed against compassion or freedom against loyalty. Each friend in the party makes a companion 5% more effective, and each rival makes them 5% less.
+
+**The fallen.** Companions fight beside you. In every battle each one has a small chance to fall: 1% in a victory and 3% in a defeat, half again more for fighters. The party mourns them, their friends lose approval, and the House chronicle records it. The roster keeps a list of the fallen.
+
+**The roster.** *Travel Party* (top bar or the armies rail) shows each companion's mood, approval, values, bonds, wage, current gripe and quest progress. From there you can **Talk** (once a day, +2 approval, and they tell you what they care about), give a **Gift** (40 gold, +6 approval or +9 for the greedy, once every 3 days), **Pay** wages early, **Grant** a raise, hear out or pay toward a personal quest, or **Dismiss** them.
+
 **Rumours of your crimes.** When gossip about a crime reaches a settlement, its guards may turn hostile and its crown may post a bounty on you. If the rumour is bad enough, the settlement **bans** you. The worst crimes bring a **warrant** that covers the whole kingdom. While you're banned or wanted, merchants, taverns, recruiters and officials turn you away. Only the guard tower will still deal with you, so you can settle your record there. Bounties and warrants lapse after 90 days if you don't pay them.
 
 **Settlement food.** Most townsfolk grow their own food, so only the gap matters: villages run a small surplus and grow slowly towards a size cap (village 1,500 · town 5,000 · city 15,000 · capital 30,000); towns and cities buy their shortfall with their own gold. A settlement that is both short of food and broke starves and shrinks, gradually.

@@ -1202,6 +1202,7 @@ export const Ships = {
             player.gold += loot;
             player.karma = (player.karma || 0) - karmaLoss;
             player.renown = Math.max(0, (player.renown || 0) - renownLoss);
+            Quests.track(player, 'piracy_committed'); // travelling companions take note
             ship.condition = Math.max(5, ship.condition - this.mitigateHullDamage(ship, Math.floor(Utils.random() * 3 + 1)));
 
             // Reputation loss with all kingdoms — a conspicuous ship (Crow's

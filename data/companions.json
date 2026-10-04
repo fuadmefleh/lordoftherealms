@@ -1,0 +1,333 @@
+{
+    "_comment": "Companions with a life of their own (src/systems/companions.js). Values decide how a travel companion's approval reacts to the player's deeds (Traits deed counters and earned traits), court rulings (petition court axes), quest-stat events (piracy, conquest, pilgrimage…), karma swings and battles. Approval tiers scale the companion's bonus; low approval brings gripes, raise demands, desertion and — rarely, after a warning — betrayal. High approval unlocks a personal quest (templates below); finishing it makes the companion devoted with a permanent perk. Personalities are generated deterministically from a hash of the companion's id.",
+    "config": {
+        "startApproval": 55,
+        "valueCountWeights": [0.45, 0.55],
+        "maxDailySwing": 12,
+        "commentThreshold": 3,
+        "karmaSwingMin": 2,
+        "karmaPerApproval": 0.5,
+        "reputationPerApproval": 0.25,
+        "payInterval": 7,
+        "unpaidPenalty": 8,
+        "paidGreedBonus": 1,
+        "talkApproval": 2,
+        "talkCooldown": 1,
+        "giftCost": 40,
+        "giftApproval": 6,
+        "giftGreedBonus": 3,
+        "giftCooldown": 3,
+        "raiseFactor": 1.5,
+        "raiseGrantApproval": 12,
+        "raiseIgnoreDays": 10,
+        "raiseIgnorePenalty": 8,
+        "complainEvery": 6,
+        "questUnlockApproval": 70,
+        "questMinDays": 7,
+        "questApprovalOnAccept": 4,
+        "leaveApproval": 20,
+        "leaveChance": 0.08,
+        "betrayApproval": 12,
+        "betrayWarnDays": 3,
+        "betrayChance": 0.12,
+        "betrayStealFraction": 0.2,
+        "betrayStealMax": 400,
+        "betrayFeud": 20,
+        "betrayReputation": -10,
+        "bondDays": 20,
+        "bondEffect": 0.05,
+        "deathChanceWin": 0.01,
+        "deathChanceLoss": 0.03,
+        "deathFighterMult": 1.5,
+        "mournFriendPenalty": 5,
+        "devotedApproval": 100,
+        "noticeCap": 30,
+        "mournedCap": 12
+    },
+    "tiers": [
+        { "id": "mutinous", "label": "Mutinous", "icon": "😠", "min": 0, "effectiveness": 0.6 },
+        { "id": "disgruntled", "label": "Disgruntled", "icon": "😒", "min": 25, "effectiveness": 0.8 },
+        { "id": "content", "label": "Content", "icon": "🙂", "min": 40, "effectiveness": 1.0 },
+        { "id": "loyal", "label": "Loyal", "icon": "😊", "min": 75, "effectiveness": 1.25 },
+        { "id": "devoted", "label": "Devoted", "icon": "💛", "min": 101, "effectiveness": 1.5 }
+    ],
+    "wages": {
+        "default": 2,
+        "general": 6, "knight": 5, "spymaster": 5, "diplomat": 5, "noble": 4,
+        "guard": 3, "hunter": 3, "merchant": 3, "healer": 4, "herbalist": 3,
+        "priest": 3, "scholar": 3, "artisan": 2, "weaver": 2, "miller": 2, "baker": 2,
+        "blacksmith": 3
+    },
+    "values": {
+        "honour": {
+            "label": "Honour", "icon": "🛡️",
+            "deeds": { "honesty": 2, "valor": 1, "mercy": 0.5, "deceit": -3, "cowardice": -3, "kinslaying": -8, "cunning": -0.5 },
+            "traits": { "honest": 8, "brave": 6, "merciful": 3, "deceitful": -10, "craven": -10, "kinslayer": -15 },
+            "stats": { "piracy_committed": -5, "raiders_defeated": 1, "alliances_formed": 2 },
+            "court": { "justice": 3, "mercy": 1, "severity": 0.5 },
+            "karmaWeight": 0.5,
+            "battle": { "win": 2, "loss": -1 },
+            "wageGreed": 1.0
+        },
+        "piety": {
+            "label": "Piety", "icon": "🙏",
+            "deeds": { "piety": 2, "zeal": 1, "mercy": 0.5, "cruelty": -2, "gambling": -0.5, "drinking": -0.5, "kinslaying": -6 },
+            "traits": { "pious": 10, "zealous": 4, "merciful": 3, "drunkard": -6, "gambler": -4, "cruel": -6, "kinslayer": -12 },
+            "stats": { "holy_sites_visited": 3, "miracles_performed": 4, "heresies_suppressed": 2, "piracy_committed": -3 },
+            "court": { "piety": 3, "mercy": 1 },
+            "karmaWeight": 1.0,
+            "battle": { "win": 0, "loss": -1 },
+            "wageGreed": 0.8
+        },
+        "greed": {
+            "label": "Greed", "icon": "💰",
+            "deeds": { "greed": 1, "trade": 0.02, "gambling": 0.5, "generosity": -1 },
+            "traits": { "greedy": 6, "merchant_prince": 8, "gambler": 3, "generous": -6 },
+            "stats": { "piracy_committed": 3, "treasures_found": 3 },
+            "court": { "generosity": -2, "severity": 1 },
+            "karmaWeight": -0.2,
+            "battle": { "win": 2, "loss": -2 },
+            "wageGreed": 1.6
+        },
+        "compassion": {
+            "label": "Compassion", "icon": "🕊️",
+            "deeds": { "mercy": 2, "generosity": 2, "popularity": 0.5, "cruelty": -3, "dread": -2, "greed": -1, "kinslaying": -8 },
+            "traits": { "merciful": 8, "generous": 8, "beloved": 6, "cruel": -12, "dread_lord": -10, "greedy": -6, "kinslayer": -15 },
+            "stats": { "piracy_committed": -5, "settlements_captured": -3 },
+            "court": { "mercy": 3, "generosity": 3, "severity": -3 },
+            "karmaWeight": 1.0,
+            "battle": { "win": 0, "loss": -1 },
+            "wageGreed": 0.8
+        },
+        "ambition": {
+            "label": "Ambition", "icon": "👑",
+            "deeds": { "valor": 1, "popularity": 0.5, "tournament": 1, "cowardice": -2, "learning": 0.5 },
+            "traits": { "brave": 5, "champion": 8, "beloved": 4, "dread_lord": 3, "craven": -10 },
+            "stats": { "settlements_captured": 4, "alliances_formed": 2, "special_creatures_defeated": 2 },
+            "court": { "severity": 1, "justice": 1 },
+            "karmaWeight": 0,
+            "battle": { "win": 3, "loss": -3 },
+            "wageGreed": 1.3
+        },
+        "freedom": {
+            "label": "Freedom", "icon": "🕊",
+            "deeds": { "travel": 0.5, "seafaring": 1, "dread": -2, "cruelty": -1, "zeal": -1 },
+            "traits": { "wanderer": 8, "sea_wolf": 6, "dread_lord": -10, "zealous": -6 },
+            "stats": { "heresies_suppressed": -3, "settlements_captured": -2, "ruins_explored": 1 },
+            "court": { "severity": -3, "mercy": 2, "piety": -1 },
+            "karmaWeight": 0.3,
+            "battle": { "win": 1, "loss": -1 },
+            "wageGreed": 1.0
+        },
+        "loyalty_kingdom": {
+            "label": "Loyal to their homeland", "icon": "🏰",
+            "deeds": { "valor": 0.5, "deceit": -1, "kinslaying": -4 },
+            "traits": { "honest": 3, "kinslayer": -10 },
+            "stats": { "alliances_formed": 2 },
+            "court": { "justice": 1 },
+            "karmaWeight": 0.2,
+            "homelandReputation": true,
+            "battle": { "win": 1, "loss": -1 },
+            "wageGreed": 0.9
+        },
+        "loyalty_faith": {
+            "label": "Loyal to the faith", "icon": "⛪",
+            "deeds": { "zeal": 2, "piety": 1, "deceit": -1 },
+            "traits": { "zealous": 10, "pious": 6, "deceitful": -4 },
+            "stats": { "heresies_suppressed": 4, "holy_sites_visited": 2, "miracles_performed": 3 },
+            "court": { "piety": 3, "severity": 1 },
+            "karmaWeight": 0.5,
+            "battle": { "win": 1, "loss": -1 },
+            "wageGreed": 0.8
+        }
+    },
+    "valueWeights": {
+        "default": { "honour": 3, "piety": 2, "greed": 2, "compassion": 2, "ambition": 2, "freedom": 2, "loyalty_kingdom": 1, "loyalty_faith": 1 },
+        "knight": { "honour": 6, "ambition": 3, "loyalty_kingdom": 3 },
+        "general": { "ambition": 5, "honour": 3, "loyalty_kingdom": 3 },
+        "guard": { "honour": 3, "loyalty_kingdom": 3, "greed": 2 },
+        "merchant": { "greed": 6, "ambition": 3, "freedom": 2 },
+        "priest": { "piety": 6, "compassion": 3, "loyalty_faith": 4 },
+        "healer": { "compassion": 6, "piety": 2 },
+        "herbalist": { "compassion": 4, "freedom": 3 },
+        "spymaster": { "ambition": 4, "greed": 3, "freedom": 2 },
+        "noble": { "ambition": 5, "honour": 3, "loyalty_kingdom": 3 },
+        "diplomat": { "ambition": 3, "honour": 3, "loyalty_kingdom": 3 },
+        "hunter": { "freedom": 6, "honour": 2 },
+        "scholar": { "freedom": 3, "ambition": 3, "piety": 2 }
+    },
+    "conflicts": [
+        ["greed", "compassion"], ["freedom", "loyalty_kingdom"], ["freedom", "loyalty_faith"],
+        ["ambition", "compassion"], ["greed", "piety"], ["honour", "greed"]
+    ],
+    "lines": {
+        "approve": {
+            "honour": ["\"That was done rightly. I'm proud to ride with you.\"", "\"Honour still means something on this road.\""],
+            "piety": ["\"The gods saw that. They'll remember.\"", "\"A blessed deed. I'll light a candle for it.\""],
+            "greed": ["\"Now that's the kind of business I like.\"", "\"Coin in the purse — a good day.\""],
+            "compassion": ["\"You have a kind heart. Don't let the road harden it.\"", "\"People will sleep easier tonight because of you.\""],
+            "ambition": ["\"Keep this up and they'll sing of us.\"", "\"That's how a name is made.\""],
+            "freedom": ["\"Open roads and free folk — this is living.\"", "\"Nobody's chains today. Good.\""],
+            "loyalty_kingdom": ["\"My homeland would thank you for that.\"", "\"You've been a friend to my people.\""],
+            "loyalty_faith": ["\"The faithful will hear of this.\"", "\"You walk the true path.\""]
+        },
+        "disapprove": {
+            "honour": ["\"I didn't swear to follow a liar and a coward.\"", "\"There's no honour in that, and you know it.\""],
+            "piety": ["\"The gods turn their faces from such things.\"", "\"I'll be praying for your soul tonight.\""],
+            "greed": ["\"Throwing good coin away. Again.\"", "\"Generosity is a fine word for waste.\""],
+            "compassion": ["\"Those were people. Do you even remember their faces?\"", "\"I can't keep looking away from what you do.\""],
+            "ambition": ["\"We ran. We RAN. Do you know what that costs a name?\"", "\"Small deeds make small lords.\""],
+            "freedom": ["\"Chains and tithes and iron rule. I didn't come for this.\"", "\"Every gate you shut is one more cage.\""],
+            "loyalty_kingdom": ["\"You've made enemies of my own people.\"", "\"My homeland won't forget this — and neither will I.\""],
+            "loyalty_faith": ["\"You mock the faith with every step.\"", "\"The temple would be ashamed of you.\""]
+        },
+        "battleWin": ["\"Ha! Did you see them run?\"", "\"Another day we live. Drinks are on you.\"", "\"Not bad. Not bad at all.\""],
+        "battleLoss": ["\"We'll lick our wounds. Next time.\"", "\"That was a slaughter. We need a better plan.\"", "\"I've seen better days — and better commanders.\""],
+        "paid": ["\"Pay day. Much obliged.\""],
+        "unpaid": ["\"Where's my wage? A promise doesn't fill a belly.\"", "\"No coin again. My patience has a bottom, you know.\""],
+        "complain": ["\"We need to talk about how things are going.\"", "\"I'm not happy. Not by half.\"", "\"Don't think I haven't noticed what you've been doing.\""],
+        "talkHappy": ["\"Glad to be on the road with you.\"", "\"Whatever comes, I've got your back.\"", "\"Tell me another story of the old days.\""],
+        "talkContent": ["\"The road's long, but the company's decent.\"", "\"Could be worse. Could be raining.\""],
+        "talkUnhappy": ["\"Talk won't fix this.\"", "\"Save your breath.\""],
+        "gift": ["\"For me? ...Thank you. Truly.\"", "\"You didn't have to. But I'm glad you did.\""],
+        "warning": ["{name} has been counting your purse with an odd look, and was seen talking quietly with strangers at the last inn."]
+    },
+    "perks": {
+        "shield_brother": { "name": "Shield-Sibling", "icon": "🛡️", "text": "+6% battle power", "bonus": { "power": 0.06 } },
+        "silver_tongue": { "name": "Silver Tongue", "icon": "🗣️", "text": "+1 diplomacy", "bonus": { "diplomacy": 1 } },
+        "quartermaster": { "name": "Quartermaster", "icon": "📦", "text": "+4% trade prices", "bonus": { "trade": 0.04 } },
+        "field_surgeon": { "name": "Field Surgeon", "icon": "🩹", "text": "heals 3 more a day", "bonus": { "heal": 3 } },
+        "pilgrims_grace": { "name": "Pilgrim's Grace", "icon": "✨", "text": "heals 2 more a day, +0.5 diplomacy", "bonus": { "heal": 2, "diplomacy": 0.5 } },
+        "pathfinder": { "name": "Pathfinder", "icon": "🧭", "text": "+3% battle power, heals 1 more a day", "bonus": { "power": 0.03, "heal": 1 } },
+        "sworn_blade": { "name": "Sworn Blade", "icon": "⚔️", "text": "+8% battle power", "bonus": { "power": 0.08 } },
+        "ledger_keeper": { "name": "Ledger-Keeper", "icon": "📒", "text": "+3% trade prices, +0.5 diplomacy", "bonus": { "trade": 0.03, "diplomacy": 0.5 } },
+        "sea_legs": { "name": "Sea Legs", "icon": "⚓", "text": "+4% battle power, +2% trade prices", "bonus": { "power": 0.04, "trade": 0.02 } },
+        "lorekeeper": { "name": "Lorekeeper", "icon": "📜", "text": "+1.5 diplomacy", "bonus": { "diplomacy": 1.5 } }
+    },
+    "kin": ["brother", "sister", "father", "mother", "cousin", "daughter", "son", "uncle", "aunt"],
+    "foes": ["Black Hollis", "the Red Reeve", "Gorran One-Eye", "the Widow's Men", "Captain Vesk", "Mad Tobin", "the Ash Riders", "Sir Ulric the Grey"],
+    "heirlooms": ["grandmother's silver torc", "the family sword", "a carved ivory reliquary", "their father's signet ring", "the house banner", "an engraved hunting horn"],
+    "questTemplates": {
+        "avenge_family": {
+            "title": "Blood Owed",
+            "icon": "🩸",
+            "description": "{name}'s {kin} was cut down by {foe}'s band years ago. {name} has never forgotten. Help them bring the killers to the sword.",
+            "occupations": ["knight", "guard", "general", "hunter"],
+            "objectives": [{ "stat": "battles_won", "target": 3, "text": "Hunt down {foe}'s band (win 3 battles)" }],
+            "rewards": { "renown": 15, "karma": 2 },
+            "perk": "sworn_blade",
+            "chronicle": "{name} avenged their {kin} at {player}'s side and swore their blade to the House forever."
+        },
+        "lost_sibling": {
+            "title": "The Lost {kinTitle}",
+            "icon": "🔎",
+            "description": "{name}'s {kin} vanished on the trade roads long ago. Rumour says they were seen in a distant town. Ask in taverns and search the settlements.",
+            "occupations": ["merchant", "weaver", "baker", "miller", "artisan"],
+            "objectives": [
+                { "stat": "taverns_visited", "target": 2, "text": "Ask after {name}'s {kin} in taverns (2)" },
+                { "stat": "settlements_visited", "target": 3, "text": "Search new settlements (3)" }
+            ],
+            "rewards": { "renown": 8, "karma": 4 },
+            "perk": "pathfinder",
+            "chronicle": "{name} found their lost {kin} at last, and named {player} family for it."
+        },
+        "clear_debt": {
+            "title": "A Debt Come Due",
+            "icon": "⚖️",
+            "description": "{name} owes 300 gold to a moneylender who has threatened their family. Help them pay it off (from the companion roster) before the interest swallows them.",
+            "occupations": ["merchant", "artisan", "noble", "spymaster"],
+            "objectives": [{ "stat": "companion_debt", "target": 300, "text": "Pay down {name}'s debt (300 gold)" }],
+            "rewards": { "renown": 5 },
+            "perk": "ledger_keeper",
+            "chronicle": "{player} paid off {name}'s ruinous debt; {name} has kept the House's ledgers faithfully ever since."
+        },
+        "pilgrimage": {
+            "title": "The Long Pilgrimage",
+            "icon": "⛪",
+            "description": "{name} made a vow at their {kin}'s deathbed to walk to the holy places. Walk it with them.",
+            "occupations": ["priest", "healer", "herbalist"],
+            "values": ["piety", "loyalty_faith"],
+            "objectives": [{ "stat": "holy_sites_visited", "target": 2, "text": "Visit holy sites with {name} (2)" }],
+            "rewards": { "karma": 8, "renown": 5 },
+            "perk": "pilgrims_grace",
+            "chronicle": "{name}'s pilgrimage was fulfilled, walked beside {player}."
+        },
+        "heirloom": {
+            "title": "{heirloomTitle}",
+            "icon": "💍",
+            "description": "{name}'s family lost {heirloom} when raiders looted their home; it was last traced to the old ruins. Delve the ruins and recover it.",
+            "occupations": ["noble", "knight", "scholar"],
+            "objectives": [{ "stat": "ruins_explored", "target": 2, "text": "Search ruins and delves for {heirloom} (2)" }],
+            "rewards": { "gold": 150, "renown": 8 },
+            "perk": "shield_brother",
+            "chronicle": "{player} recovered {heirloom} from the ruins and returned it to {name}."
+        },
+        "slay_beast": {
+            "title": "The Beast of the Hills",
+            "icon": "🐉",
+            "description": "A monster savaged {name}'s home village and took their {kin}. {name} wants it dead.",
+            "occupations": ["hunter", "guard", "woodcutter", "shepherd", "farmer"],
+            "objectives": [{ "stat": "special_creatures_defeated", "target": 1, "text": "Slay a great beast" }],
+            "rewards": { "renown": 20 },
+            "perk": "shield_brother",
+            "chronicle": "{name} watched the beast that took their {kin} fall to {player}'s spear."
+        },
+        "family_fortune": {
+            "title": "Restore the Family House",
+            "icon": "🏛️",
+            "description": "{name}'s family trading house was ruined by a rival. Make enough in trade to set them back on their feet.",
+            "occupations": ["merchant", "weaver", "miller", "baker"],
+            "values": ["greed", "ambition"],
+            "objectives": [{ "stat": "trade_profit", "target": 600, "text": "Earn 600 gold in trade profit" }],
+            "rewards": { "gold": 100, "renown": 5 },
+            "perk": "quartermaster",
+            "chronicle": "With {player}'s help, {name} restored their family's trading house."
+        },
+        "taken_at_sea": {
+            "title": "Taken at Sea",
+            "icon": "⚓",
+            "description": "Pirates under {foe} took {name}'s {kin} and their ship. {name} wants the sea-wolves made to pay.",
+            "occupations": ["merchant", "hunter", "guard"],
+            "values": ["freedom"],
+            "objectives": [{ "stat": "pirates_defeated", "target": 1, "text": "Defeat pirates at sea" }],
+            "rewards": { "renown": 12, "karma": 3 },
+            "perk": "sea_legs",
+            "chronicle": "{name} saw {foe}'s pirates broken on the waves, at {player}'s command."
+        },
+        "stolen_manuscript": {
+            "title": "The Stolen Manuscript",
+            "icon": "📜",
+            "description": "{name}'s life's work was stolen by a rival scholar and hidden away. Hire an informant to learn where, then retrieve it from the old ruins.",
+            "occupations": ["scholar", "diplomat", "priest", "spymaster"],
+            "objectives": [
+                { "stat": "informants_hired", "target": 1, "text": "Hire an informant to trace the thief" },
+                { "stat": "ruins_explored", "target": 1, "text": "Recover the manuscript from the ruins" }
+            ],
+            "rewards": { "renown": 10 },
+            "perk": "lorekeeper",
+            "chronicle": "{player} recovered {name}'s stolen manuscript; its pages now carry the House's name."
+        },
+        "clear_name": {
+            "title": "A Name Cleared",
+            "icon": "⚔️",
+            "description": "{name} was branded a raider by {foe}, whose own band burns the borderlands. Drive the real raiders off and clear {name}'s name.",
+            "occupations": ["guard", "hunter", "general", "knight", "diplomat"],
+            "values": ["honour"],
+            "objectives": [{ "stat": "raiders_defeated", "target": 2, "text": "Drive off raiders (2)" }],
+            "rewards": { "renown": 10, "karma": 3 },
+            "perk": "silver_tongue",
+            "chronicle": "{name}'s name was cleared when {player} broke {foe}'s raiders."
+        },
+        "healers_oath": {
+            "title": "The Healer's Oath",
+            "icon": "🌿",
+            "description": "{name} swore to tend the sick of a plague-struck town where their {kin} died. Give generously and help them keep the oath.",
+            "occupations": ["healer", "herbalist", "priest"],
+            "values": ["compassion"],
+            "objectives": [{ "stat": "companion_charity", "target": 150, "text": "Give 150 gold of charity through {name} (companion roster)" }],
+            "rewards": { "karma": 10, "renown": 5 },
+            "perk": "field_surgeon",
+            "chronicle": "{name} kept their healer's oath with {player}'s purse behind them."
+        }
+    }
+}

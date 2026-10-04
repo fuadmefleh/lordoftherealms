@@ -2,7 +2,7 @@
 // GAME LOOP & INPUT � gameLoop, input handlers, handleClick, handleDoubleClick
 // ============================================
 
-import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog } from './_gameImports.js';
+import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, PlayerInventory } from './_gameImports.js';
 
 export function gameLoop(timestamp) {
     if (!this.isRunning) return;
@@ -192,15 +192,19 @@ export function gameLoop(timestamp) {
             } else if (interactionResult.resource) {
                 const resType = interactionResult.resource.type;
                 const resAmt = interactionResult.resource.amount || 1;
+                let gathered = true;
                 if (resType === 'gold') {
                     this.player.gold += resAmt;
                 } else {
-                    if (!this.player.inventory) this.player.inventory = {};
-                    this.player.inventory[resType] = (this.player.inventory[resType] || 0) + resAmt;
+                    gathered = PlayerInventory.addItem(this.player, resType, resAmt).success;
                 }
                 // Format resource name for display
                 const displayName = resType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                this.ui.showNotification('Gathered', `+${resAmt} ${displayName}`, 'success');
+                if (gathered) {
+                    this.ui.showNotification('Gathered', `+${resAmt} ${displayName}`, 'success');
+                } else {
+                    this.ui.showNotification('Packs Full', `${resAmt} ${displayName} left on the ground. ${PlayerInventory.fullMessage(this.player)}`, 'warning');
+                }
             } else {
                 this.ui.showNotification('Cleared', 'Object removed.', 'info');
             }

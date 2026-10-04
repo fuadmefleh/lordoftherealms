@@ -1,6 +1,6 @@
 // ActionMenu — jobs methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader } from './_imports.js';
+import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory } from './_imports.js';
 import { MinigameHost, startForge } from '../minigames/index.js';
 
 Object.assign(ActionMenu, {
@@ -782,9 +782,12 @@ Object.assign(ActionMenu, {
                 }
                 if (!entry) entry = lootTable[0];
                 const sellPrice = entry.sell || 5;
-                player.inventory = player.inventory || {};
-                player.inventory[entry.item] = (player.inventory[entry.item] || 0) + 1;
-                game.ui.showNotification('🌿 Foraging', `Quick search — found ${entry.icon || '🌿'} ${entry.name || entry.item} (~${sellPrice}g).`, 'success');
+                const forageAdd = PlayerInventory.addItem(player, entry.item, 1);
+                if (forageAdd.success) {
+                    game.ui.showNotification('🌿 Foraging', `Quick search — found ${entry.icon || '🌿'} ${entry.name || entry.item} (~${sellPrice}g).`, 'success');
+                } else {
+                    game.ui.showNotification('🌿 Foraging', `You found ${entry.icon || '🌿'} ${entry.name || entry.item} but had to leave it. ${forageAdd.reason}`, 'warning');
+                }
                 game.ui.updateStats(player, game.world);
                 game.endDay();
             },
@@ -1032,10 +1035,13 @@ Object.assign(ActionMenu, {
             onSkip: () => {
                 // Base reward: 1 item from loot table (basic game)
                 const entry = lootTable[0] || { item: 'meat', name: 'Venison', icon: '🥩', sell: 8 };
-                player.inventory = player.inventory || {};
-                player.inventory[entry.item] = (player.inventory[entry.item] || 0) + 1;
+                const huntAdd = PlayerInventory.addItem(player, entry.item, 1);
                 const sellPrice = entry.sell || 8;
-                game.ui.showNotification('🏹 Hunting', `Quick hunt — caught ${entry.icon || '🥩'} ${entry.name || entry.item} (~${sellPrice}g).`, 'success');
+                if (huntAdd.success) {
+                    game.ui.showNotification('🏹 Hunting', `Quick hunt — caught ${entry.icon || '🥩'} ${entry.name || entry.item} (~${sellPrice}g).`, 'success');
+                } else {
+                    game.ui.showNotification('🏹 Hunting', `You caught ${entry.icon || '🥩'} ${entry.name || entry.item} but had no room to carry it. ${huntAdd.reason}`, 'warning');
+                }
                 game.ui.updateStats(player, game.world);
                 game.endDay();
             },
@@ -1502,7 +1508,10 @@ Object.assign(ActionMenu, {
         html += '<h4 style="margin-top: 0;">📋 Notice Board</h4>';
         if (typeof BountyHunting !== 'undefined') {
             const rank = BountyHunting.getRankInfo(game.player);
-            const perks = rank.captureBonus > 0 ? ` · +${rank.captureBonus} capture, +${Math.round(rank.payBonus * 100)}% pay` : '';
+            const payPct = Math.round(rank.payBonus * 100);
+            const perks = (rank.captureBonus > 0 ? ` · +${rank.captureBonus} capture` : '') +
+                (payPct !== 0 ? ` · ${payPct > 0 ? '+' : ''}${payPct}% pay` : '') +
+                (rank.botchPenalty > 0 ? ` <span style="color:#e67e22;">(botched arrests: −${Math.round(rank.botchPenalty * 100)}%)</span>` : '');
             html += `<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">${rank.icon} ${rank.title} (rank ${rank.rank})${perks}</div>`;
         }
 

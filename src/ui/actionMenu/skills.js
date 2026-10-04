@@ -2394,6 +2394,11 @@ Object.assign(ActionMenu, {
         const strengthStat = player.strength || 5;
         const luckStat = player.luck || 5;
 
+        if (!PlayerInventory.canAdd(player, 'horse')) {
+            game.ui.showNotification('🐴 No Room', `You have nowhere to keep a horse. ${PlayerInventory.fullMessage(player)}`, 'warning');
+            return;
+        }
+
         ActionMenu._showMinigamePrompt(game, {
             title: '🐴 Tame Horse',
             icon: '🐴',
@@ -2402,9 +2407,7 @@ Object.assign(ActionMenu, {
             onSkip: () => {
                 // Base reward: simple chance roll
                 const chance = 0.35 + luckStat * 0.02 + strengthStat * 0.01;
-                if (Math.random() < chance) {
-                    player.inventory = player.inventory || {};
-                    player.inventory.horse = (player.inventory.horse || 0) + 1;
+                if (Math.random() < chance && PlayerInventory.addItem(player, 'horse', 1).success) {
                     player.maxStamina = (player.maxStamina || 10) + 2;
                     if (Math.random() < 0.2) player.strength = (player.strength || 5) + 1;
                     game.ui.showNotification('🐴 Horse Tamed!', 'You patiently calmed the horse. +1 Horse, +2 Max Stamina.', 'success');
@@ -2513,7 +2516,7 @@ Object.assign(ActionMenu, {
                 } else if (tameResult === 'bolted') {
                     html += `<div style="font-size: 56px; margin: 12px 0;">🐎💨</div>`;
                     html += `<div style="font-size: 18px; color: #f39c12; font-weight: bold; margin-bottom: 8px;">The Horse Bolted!</div>`;
-                    html += `<div style="font-size: 13px; color: var(--text-secondary);">It broke free and disappeared into the wild.</div>`;
+                    html += `<div style="font-size: 13px; color: var(--text-secondary);">${statusMsg || 'It broke free and disappeared into the wild.'}</div>`;
                 } else if (tameResult === 'kicked') {
                     html += `<div style="font-size: 56px; margin: 12px 0;">🦵💥</div>`;
                     html += `<div style="font-size: 18px; color: #e74c3c; font-weight: bold; margin-bottom: 8px;">Kicked!</div>`;
@@ -2567,13 +2570,16 @@ Object.assign(ActionMenu, {
             if (holdTimer >= holdTarget) {
                 cleanup();
                 phase = 'result';
-                tameResult = 'success';
-                player.inventory = player.inventory || {};
-                player.inventory.horse = (player.inventory.horse || 0) + 1;
-                player.maxStamina = (player.maxStamina || 10) + 2;
-                if (Math.random() < 0.2) {
-                    player.strength = (player.strength || 5) + 1;
-                    statusMsg = '💪 The struggle strengthened you!';
+                if (!PlayerInventory.addItem(player, 'horse', 1).success) {
+                    tameResult = 'bolted';
+                    statusMsg = 'Your packs are full — with nowhere to keep it, the horse wanders off.';
+                } else {
+                    tameResult = 'success';
+                    player.maxStamina = (player.maxStamina || 10) + 2;
+                    if (Math.random() < 0.2) {
+                        player.strength = (player.strength || 5) + 1;
+                        statusMsg = '💪 The struggle strengthened you!';
+                    }
                 }
             }
 
@@ -2658,11 +2664,13 @@ Object.assign(ActionMenu, {
             const fishCount = Math.min(player.inventory.fish, 3); // Cook up to 3
             player.inventory.fish -= fishCount;
             if (player.inventory.fish <= 0) delete player.inventory.fish;
-            player.inventory.cooked_fish = (player.inventory.cooked_fish || 0) + fishCount;
-
             const extraHeal = fishCount * 5;
             player.health = Math.min(player.maxHealth || 100, player.health + extraHeal);
-            resultMsg += ` Cooked ${fishCount} fish (+${extraHeal} HP).`;
+            if (PlayerInventory.addItem(player, 'cooked_fish', fishCount).success) {
+                resultMsg += ` Cooked ${fishCount} fish (+${extraHeal} HP).`;
+            } else {
+                resultMsg += ` Your packs are full, so you ate the ${fishCount} fish on the spot (+${extraHeal} HP).`;
+            }
         }
 
         // Cook raw meat if available
@@ -2670,11 +2678,13 @@ Object.assign(ActionMenu, {
             const meatCount = Math.min(player.inventory.meat, 3);
             player.inventory.meat -= meatCount;
             if (player.inventory.meat <= 0) delete player.inventory.meat;
-            player.inventory.cooked_meat = (player.inventory.cooked_meat || 0) + meatCount;
-
             const extraHeal = meatCount * 7;
             player.health = Math.min(player.maxHealth || 100, player.health + extraHeal);
-            resultMsg += ` Cooked ${meatCount} meat (+${extraHeal} HP).`;
+            if (PlayerInventory.addItem(player, 'cooked_meat', meatCount).success) {
+                resultMsg += ` Cooked ${meatCount} meat (+${extraHeal} HP).`;
+            } else {
+                resultMsg += ` Your packs are full, so you ate the ${meatCount} meat on the spot (+${extraHeal} HP).`;
+            }
         }
 
         // Small intelligence gain from the craft

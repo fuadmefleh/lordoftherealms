@@ -680,10 +680,9 @@ export const Ships = {
             const take = Math.min(qty, budget);
             if (take <= 0) continue;
             // A new kind of good needs a free slot in the packs; otherwise it stays aboard
-            if (!PlayerInventory.canAdd(player, item)) { leftAboard[item] = qty; continue; }
+            if (!PlayerInventory.addItem(player, item, take).success) { leftAboard[item] = qty; continue; }
             ship.cargo[item] = qty - take;
             if (ship.cargo[item] <= 0) delete ship.cargo[item];
-            player.inventory[item] = (player.inventory[item] || 0) + take;
             moved[item] = take;
             budget -= take;
             total += take;

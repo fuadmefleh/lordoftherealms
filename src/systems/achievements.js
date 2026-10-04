@@ -399,6 +399,22 @@ export const Achievements = {
             check: (player) => ((player.bountyHunter && player.bountyHunter.rank) || 0) >= 5,
             tier: 'gold',
         },
+        MASTER_OF_REVELS: {
+            id: 'master_of_revels',
+            name: 'Master of Revels',
+            description: 'Host 10 festivals',
+            icon: '🎪',
+            check: (player) => ((player.festivals && player.festivals.hosted) || 0) >= 10,
+            tier: 'silver',
+        },
+        CHAMPION_OF_THE_LISTS: {
+            id: 'champion_of_the_lists',
+            name: 'Champion of the Lists',
+            description: 'Finish on the podium in 5 festival contests',
+            icon: '🏆',
+            check: (player) => ((player.festivals && player.festivals.successfulContests) || 0) >= 5,
+            tier: 'bronze',
+        },
         UNDYING: {
             id: 'undying',
             name: 'Undying',

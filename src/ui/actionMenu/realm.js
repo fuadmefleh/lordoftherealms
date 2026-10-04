@@ -605,6 +605,17 @@ Object.assign(ActionMenu, {
             let html = '<div style="max-width: 580px;">';
             html += `<h4 style="margin-top: 0;">${theme.icon} ${theme.name}</h4>`;
             html += `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px;">${game.world.season} festival season in ${settlement.name}. Recommended contest: <strong>${Festivals.CONTESTS[theme.recommendedContest].label}</strong>.</div>`;
+            {
+                const fame = Festivals.getReputation(player);
+                const fs = player.festivals;
+                const novelty = Festivals.noveltyMultiplier(player, settlement.name);
+                const perks = [];
+                if (fame.hostBonus) perks.push(`+${fame.hostBonus} renown`);
+                if (fame.extraEnvoys) perks.push(`+${fame.extraEnvoys} envoy${fame.extraEnvoys > 1 ? 's' : ''}`);
+                if (fame.contestVeteran) perks.push(`+${fame.contestVeteran.toFixed(1)} contest power`);
+                if (fame.vigilance) perks.push(`−${Math.round(fame.vigilance * 100)}% sabotage`);
+                html += `<div style="font-size: 11px; color: #c9b27a; margin-bottom: 10px;">🎪 Record: ${fs.hosted} hosted · ${fs.successfulContests} podiums${perks.length ? ` — ${perks.join(', ')}` : ''}${novelty < 1 ? `<br><span style="color:#e67e22;">${settlement.name} has seen your festivals lately: renown ×${novelty.toFixed(1)}. Try another town.</span>` : ''}</div>`;
+            }
 
             html += '<div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); margin-bottom: 6px;">Festival Scale</div>';
             for (const option of options) {

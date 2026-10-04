@@ -59,6 +59,31 @@ export const Festivals = {
         return this.SEASONAL_THEMES[season] || this.SEASONAL_THEMES.Spring;
     },
 
+    /**
+     * What your festival record earns you:
+     *  - hostBonus: +1 renown per 3 festivals hosted (max +5), and one more
+     *    rival envoy attends per 5 hosted (max +2)
+     *  - contestVeteran: +0.3 contest power per past podium finish (max +3)
+     *  - vigilance: −1% rival sabotage chance per past sabotage attempt (max −10%)
+     */
+    getReputation(player) {
+        this.initialize(player);
+        const f = player.festivals;
+        return {
+            hostBonus: Math.min(5, Math.floor(f.hosted / 3)),
+            extraEnvoys: Math.min(2, Math.floor(f.hosted / 5)),
+            contestVeteran: Math.min(3, f.successfulContests * 0.3),
+            vigilance: Math.min(0.1, f.sabotageEvents * 0.01),
+        };
+    },
+
+    /** The same town tires of you: −30% renown per festival there among your last 3. */
+    noveltyMultiplier(player, settlementName) {
+        this.initialize(player);
+        const recent = player.festivals.history.slice(0, 3).filter(h => h.settlement === settlementName).length;
+        return Math.max(0.1, 1 - 0.3 * recent);
+    },
+
     getBudgetOptions() {
         return Object.values(this.BUDGET_TIERS);
     },
@@ -97,7 +122,7 @@ export const Festivals = {
             statPower = combat * 0.9 + intelligence * 0.8 + luck * 0.45;
         }
 
-        const scorePower = score * 2.1;
+        const scorePower = score * 2.1 + this.getReputation(player).contestVeteran;
         const randomness = Utils.randFloat(0.5, 5.5);
         const recommendedBonus = seasonTheme.recommendedContest === contestId ? 1.4 : 0;
         const total = statPower + scorePower + recommendedBonus + randomness;
@@ -137,7 +162,7 @@ export const Festivals = {
         };
     },
 
-    _nearbyRivalKingdoms(player, world, tile) {
+    _nearbyRivalKingdoms(player, world, tile, limit = 3) {
         const rivals = new Map();
         if (!world?.getAllSettlements) return [];
         const allSettlements = world.getAllSettlements();
@@ -162,7 +187,7 @@ export const Festivals = {
             }
         }
 
-        return Array.from(rivals.values()).sort((a, b) => a.distance - b.distance).slice(0, 3);
+        return Array.from(rivals.values()).sort((a, b) => a.distance - b.distance).slice(0, limit);
     },
 
     hostFestival(player, world, tile, options = {}) {
@@ -185,12 +210,13 @@ export const Festivals = {
 
         const reputations = [];
         const sabotage = [];
-        const attendees = this._nearbyRivalKingdoms(player, world, tile);
+        const fame = this.getReputation(player);
+        const attendees = this._nearbyRivalKingdoms(player, world, tile, 3 + fame.extraEnvoys);
 
         for (const rival of attendees) {
             const relation = player.reputation?.[rival.id] || 0;
             const hostileBias = relation < 0 ? 0.1 : 0;
-            const sabotageChance = (stance === 'diplomatic' ? 0.24 : 0.11) + hostileBias;
+            const sabotageChance = Math.max(0.02, (stance === 'diplomatic' ? 0.24 : 0.11) + hostileBias - fame.vigilance);
 
             if (Utils.random() < sabotageChance) {
                 const caught = stance === 'security' && Utils.random() < 0.55;
@@ -216,7 +242,8 @@ export const Festivals = {
             player.festivals.diplomacyEvents += 1;
         }
 
-        const renownGain = tier.renown + contestResult.renown + reputations.length;
+        const novelty = this.noveltyMultiplier(player, tile.settlement?.name || 'Unknown');
+        const renownGain = Math.round((tier.renown + contestResult.renown + reputations.length + fame.hostBonus) * novelty);
         const moraleBoost = tier.morale + contestResult.moraleBonus;
 
         player.renown = (player.renown || 0) + renownGain;
@@ -260,6 +287,7 @@ export const Festivals = {
             reputations,
             sabotage,
             renownGain,
+            novelty,
             moraleBoost,
             moraleDays: tier.moraleDays,
             contestPrize: contestResult.gold,

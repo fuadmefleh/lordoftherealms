@@ -1696,6 +1696,16 @@ At cities, you can spend gold to host celebrations:
 
 Festivals provide morale boosts, diplomatic bonuses (rival kingdoms may attend), and opportunities for renown. Some include minigames like jousting and archery contests.
 
+### Your Festival Record
+
+Your record as a host builds over time (shown in the festival menu):
+
+- **Fame:** +1 renown per 3 festivals hosted (up to +5), and one more rival envoy attends per 5 hosted (up to +2 more).
+- **Contest veteran:** each podium finish adds +0.3 to future contest performance (up to +3).
+- **Vigilance:** each past sabotage attempt cuts the chance of the next by 1% (up to −10%).
+- **Novelty:** a town that has hosted one of your last 3 festivals is less impressed: −30% renown for each.
+- Achievements: **Master of Revels** (host 10 festivals) and **Champion of the Lists** (5 podium finishes).
+
 ---
 
 ## 29. Saving & Loading

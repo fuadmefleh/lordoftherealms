@@ -8,7 +8,7 @@ import { Economy, TradeRoutes } from './economy.js';
 import { Kingdom } from './kingdom.js';
 import { Religion } from '../systems/religion.js';
 import { WorldEvents } from './worldEvents.js';
-import { KingdomBonuses, KingdomStability } from './kingdomState.js';
+import { KingdomBonuses, KingdomStability, KingdomCulture } from './kingdomState.js';
 
 export const KingdomAI = {
     /**
@@ -204,6 +204,8 @@ export const KingdomAI = {
             const cd = kingdom.cultureData;
             if (typeof cd.scholarship === 'number') cd.scholarship = Math.min(100, cd.scholarship + KingdomBonuses.get(kingdom, 'research') * 0.2);
             if (typeof cd.influence === 'number') cd.influence = Math.min(100, cd.influence + KingdomBonuses.get(kingdom, 'culture') * 0.2);
+            // Book fairs, exhibitions, spirit walks, ... while they run
+            KingdomCulture.applyEvents(kingdom);
         }
         for (const ev of world.activeEvents || []) {
             if (ev.kingdomId !== kingdom.id || !ev.partnerKingdomId || !(ev.effects && ev.effects.relations)) continue;
@@ -276,6 +278,8 @@ export const KingdomAI = {
         const diplomacy = KingdomBonuses.get(kingdom, 'diplomacy') + KingdomBonuses.get(kingdom, 'relations')
             + WorldEvents.getModifier(world, 'diplomacy', { kingdom: kingdom.id });
         if (diplomacy) change += Math.floor(diplomacy * 10);
+        // Cultural pull: a far more influential realm is admired
+        change += KingdomCulture.admiration(kingdom, target);
         // Religious compatibility: same faith → +5, different militant faiths → penalty
         if (typeof Religion !== 'undefined') {
             change += Math.floor(Religion.faithCompatibility(kingdom, target) * 0.3);
@@ -708,6 +712,7 @@ export const KingdomAI = {
     _moraleBonus(kingdom, world) {
         return (kingdom.characterBonuses?.military || 0)
             + KingdomStability.moraleBonus(kingdom)
+            + KingdomCulture.moraleBonus(kingdom)
             + WorldEvents.getModifier(world, 'morale', { kingdom: kingdom.id }) / 100;
     },
 

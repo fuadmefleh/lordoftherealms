@@ -223,6 +223,18 @@ export function addWildernessActions(actions, player, tile, world) {
         });
     }
 
+    // Upgrade your own cultural building
+    if (typeof Culture !== 'undefined' && tile.culturalBuilding && tile.culturalBuilding.owner === 'player'
+        && !tile.culturalBuilding.underConstruction && Culture.getUpgradeCost(tile.culturalBuilding) !== null) {
+        const cb = tile.culturalBuilding;
+        actions.push({
+            type: 'upgrade_cultural',
+            label: `Upgrade ${cb.name} (Lv ${cb.level || 1} → ${(cb.level || 1) + 1})`,
+            icon: '📚',
+            description: `${Culture.getUpgradeCost(cb)} gold — more income, influence and research`
+        });
+    }
+
     // Pilgrimage (at holy sites)
     if (typeof Religion !== 'undefined' && tile.holySite) {
         actions.push({

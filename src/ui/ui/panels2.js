@@ -51,17 +51,20 @@ Object.assign(UI.prototype, {
                     <div style="padding: 8px 12px; margin-bottom: 6px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
                         <div>
                             <span style="font-size: 16px;">${b.icon}</span> <strong>${b.name}</strong>
-                            <span style="font-size: 11px; color: var(--text-secondary);"> at (${bRef.q}, ${bRef.r})</span>
+                            <span style="font-size: 11px; color: var(--text-secondary);"> Lv ${b.level || 1}/${Culture.LEVELS.max} at (${bRef.q}, ${bRef.r})${b.underConstruction ? ' · under construction' : ''}</span>
                         </div>
                         <div style="font-size: 12px;">
-                            Influence +${b.influencePerDay} | Scholar +${b.scholarshipBonus}
-                            ${b.researchBonus ? ` | Research +${Math.round(b.researchBonus * 100)}%` : ''}
+                            Influence +${b.influencePerDay * (b.level || 1)} | Scholar +${b.scholarshipBonus}
+                            ${b.researchBonus ? ` | Research +${Math.round(b.researchBonus * Culture.levelMultiplier(b) * 100)}%` : ''}
+                            ${b.incomeBonus ? ` | +${Math.round(Culture.dailyIncome(b) * 10) / 10} gold/day` : ''}
+                            ${Culture.getUpgradeCost(b) !== null ? ` | Upgrade: ${Culture.getUpgradeCost(b)}g (visit it)` : ''}
                         </div>
                     </div>
                 `;
             }
             const totalInfluence = typeof Culture !== 'undefined' ? Culture.getInfluence(player, world) : 0;
-            html += `<div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Total cultural influence: ${totalInfluence}</div>`;
+            const totalResearch = typeof Culture !== 'undefined' ? Culture.getResearchBonus(player, world) : 0;
+            html += `<div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Total cultural influence: ${totalInfluence}${totalResearch > 0 ? ` · Research speed +${Math.round(totalResearch * 100)}%` : ''}</div>`;
         } else {
             html += '<p style="color: var(--text-secondary); font-size: 13px;">No cultural buildings yet. Visit settlements to build libraries, theaters, or universities.</p>';
         }
@@ -188,6 +191,11 @@ Object.assign(UI.prototype, {
                         <div style="font-size: 12px;">
                             📖 ${Math.floor(kingdom.cultureData.scholarship)} | 🌐 ${Math.floor(kingdom.cultureData.influence)}
                             ${kingdom.religion ? ` | ${kingdom.religion.icon} ${Math.floor(kingdom.religion.piety)} piety` : ''}
+                            ${(() => {
+                                const d = Culture.describeKingdom(kingdom);
+                                const extra = [...d.buildings, ...d.events];
+                                return `<div style="font-size: 10px; color: var(--text-secondary); margin-top: 2px;">${d.effects.join(' · ')}${extra.length ? '<br>' + extra.join(' · ') : ''}</div>`;
+                            })()}
                         </div>
                     </div>
                 `;

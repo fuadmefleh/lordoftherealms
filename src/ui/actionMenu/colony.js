@@ -37,6 +37,7 @@ Object.assign(ActionMenu, {
                                 ${building.researchBonus ? ` | Research: +${Math.round(building.researchBonus * 100)}%` : ''}
                                 ${building.moraleBonus ? ` | Morale: +${building.moraleBonus}` : ''}
                                 ${building.renownPerDay ? ` | Renown: +${building.renownPerDay}/day` : ''}
+                                ${building.incomeBonus ? ` | Income: +${Math.round(Culture.dailyIncome(building) * 10) / 10} gold/day` : ''}
                             </div>
                             <div style="font-size: 11px; color: var(--gold);">🏗️ ${building.constructionDays || 0} days</div>
                             ${canBuild ? `<div style="font-size: 11px; color: #e74c3c; margin-top: 4px;">${canBuild}</div>` : ''}
@@ -65,6 +66,44 @@ Object.assign(ActionMenu, {
                 game.ui.hideCustomPanel();
             } else {
                 game.ui.showNotification('Cannot Build', result.reason, 'error');
+            }
+        };
+    },
+
+    /**
+     * Upgrade the player's cultural building on this tile (confirm panel).
+     */
+    showUpgradeCulturalMenu(game, tile) {
+        if (typeof Culture === 'undefined' || !tile.culturalBuilding) return;
+        const b = tile.culturalBuilding;
+        const level = b.level || 1;
+        const check = Culture.canUpgrade(game.player, tile);
+        const next = { ...b, level: level + 1 };
+        const row = (label, now, then) => `<div style="font-size: 12px;">${label}: ${now} → <strong>${then}</strong></div>`;
+
+        let html = '<div>';
+        html += `<h4 style="margin-top: 0;">${b.icon} ${b.name} — Level ${level}/${Culture.LEVELS.max}</h4>`;
+        if (level < Culture.LEVELS.max) {
+            if (b.incomeBonus) html += row('Income', `${Math.round(Culture.dailyIncome(b) * 10) / 10} gold/day`, `${Math.round(Culture.dailyIncome(next) * 10) / 10} gold/day`);
+            html += row('Influence', `+${b.influencePerDay * level}/day`, `+${b.influencePerDay * (level + 1)}/day`);
+            if (b.researchBonus) html += row('Research', `+${Math.round(b.researchBonus * Culture.levelMultiplier(b) * 100)}%`, `+${Math.round(b.researchBonus * Culture.levelMultiplier(next) * 100)}%`);
+            if (b.moraleBonus) html += row('Army morale', `+${Math.round(b.moraleBonus / 5 * Culture.levelMultiplier(b))}%`, `+${Math.round(b.moraleBonus / 5 * Culture.levelMultiplier(next))}%`);
+            if (b.renownPerDay) html += row('Renown', `+${b.renownPerDay * level}/day`, `+${b.renownPerDay * (level + 1)}/day`);
+        }
+        if (!check.can) html += `<div style="font-size: 12px; color: #e74c3c; margin-top: 8px;">${check.reason}</div>`;
+        html += `<button onclick="window._upgradeCultural()" style="margin-top: 12px; padding: 8px 16px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; ${check.can ? '' : 'opacity: 0.5; pointer-events: none;'}" ${check.can ? '' : 'disabled'}>Upgrade${check.cost !== undefined ? ` — ${check.cost} gold` : ''}</button>`;
+        html += '</div>';
+        game.ui.showCustomPanel('📚 Upgrade Cultural Building', html);
+
+        window._upgradeCultural = () => {
+            if (!ActionMenu.commitPendingAP(game)) return;
+            const result = Culture.upgradeCulturalBuilding(game.player, tile);
+            if (result.success) {
+                game.ui.showNotification('📚 Building Upgraded', `${result.building.icon} ${result.building.name} is now level ${result.level}.`, 'success');
+                game.ui.updateStats(game.player, game.world);
+                game.ui.hideCustomPanel();
+            } else {
+                game.ui.showNotification('Cannot Upgrade', result.reason, 'error');
             }
         };
     },

@@ -38,13 +38,38 @@ Object.assign(Technology, {
         });
     },
 
+    /** Cap on the research speed-up from cultural buildings. */
+    CULTURAL_RESEARCH_CAP: 0.5,
+
     /**
-     * Research speed-up as a fraction: writing/printing press techs plus
-     * +25% per finished University (max 2 count).
+     * Research speed-up from the player's finished cultural buildings
+     * (tile.culturalBuilding.researchBonus: Library 0.15, University 0.30,
+     * Scriptorium 0.10), +50% per level above 1 (Culture.LEVELS), capped at
+     * CULTURAL_RESEARCH_CAP. Reads tiles directly so technology/ need not
+     * import culture.js (which imports Technology).
+     */
+    getCulturalResearchBonus(player, world = null) {
+        if (!world || !player || !Array.isArray(player.culturalBuildings)) return 0;
+        let bonus = 0;
+        for (const ref of player.culturalBuildings) {
+            const t = world.getTile(ref.q, ref.r);
+            const b = t && t.culturalBuilding;
+            if (!b || b.owner !== 'player' || b.underConstruction) continue;
+            const level = Math.max(1, b.level || 1);
+            bonus += (b.researchBonus || 0) * (1 + 0.5 * (level - 1));
+        }
+        return Math.min(Technology.CULTURAL_RESEARCH_CAP, bonus);
+    },
+
+    /**
+     * Research speed-up as a fraction: writing/printing press techs,
+     * +25% per finished University property (max 2 count), and the
+     * player's cultural buildings (libraries, universities, scriptoria).
      */
     getResearchBonus(player, world = null) {
         const universities = Math.min(2, Technology.countOwnedBuildings(player, 'university_building', world));
-        return Technology.getEffectTotal(player, 'researchBonus') + 0.25 * universities;
+        return Technology.getEffectTotal(player, 'researchBonus') + 0.25 * universities
+            + Technology.getCulturalResearchBonus(player, world);
     },
 
     /**

@@ -90,7 +90,7 @@ Object.assign(ActionMenu, {
             train_combat: 'military', reforge_artifact: 'military', capture_criminal: 'military',
             request_meeting: 'social',
             build_property: 'building', build_temple: 'building',
-            build_cultural: 'building', build_infrastructure: 'building',
+            build_cultural: 'building', upgrade_cultural: 'building', build_infrastructure: 'building',
             demolish_infrastructure: 'building',
             buy_house: 'building', manage_house: 'building',
             visit_shipyard: 'commerce', board_ship: 'commerce', manage_fleet: 'commerce',
@@ -399,7 +399,7 @@ Object.assign(ActionMenu, {
 
         // Construction / Major operations (6 AP)
         build_property: 6, build_temple: 6, build_infrastructure: 6,
-        build_cultural: 6, found_colony: 6, clear_trees: 6,
+        build_cultural: 6, upgrade_cultural: 3, found_colony: 6, clear_trees: 6,
         demolish_infrastructure: 6, send_pioneers: 6,
 
         // Combat / Major ship operations (8 AP)
@@ -448,7 +448,7 @@ Object.assign(ActionMenu, {
 
     DEFERRED_AP_ACTIONS: new Set([
         'trade', 'recruit', 'contract', 'reforge_artifact',
-        'build_property', 'build_temple', 'build_infrastructure', 'build_cultural',
+        'build_property', 'build_temple', 'build_infrastructure', 'build_cultural', 'upgrade_cultural',
         'start_caravan', 'tavern', 'miracle', 'ship_passage', 'terraform',
         'talk_locals', 'bounty_board', 'odd_jobs', 'busking',
         'donate', 'fund_restoration', 'form_kingdom', 'host_feast', 'hold_tournament', 'host_festival',
@@ -667,6 +667,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'build_cultural':
                 ActionMenu.showBuildCulturalMenu(game, tile);
+                break;
+            case 'upgrade_cultural':
+                ActionMenu.showUpgradeCulturalMenu(game, tile);
                 break;
             case 'pilgrimage':
                 ActionMenu.visitHolySite(game, tile);

@@ -20,7 +20,7 @@ import { DataLoader } from '../core/dataLoader.js';
 // (_serviceResult, showBlacksmithMenu, showBlessingMenu, showStableMenu, showGuardMenu,
 // showTributeMenu, showAudienceMenu) = 221, plus the outlaw gate (OUTLAW_REFUSED_ACTIONS,
 // refuseIfOutlawed) = 223, plus the realm-politics panels (REALM_POLITICS_AP,
-// showRealmWarsMenu, showRestorationMenu, _realmResult) = 227.
+// showRealmWarsMenu, showRestorationMenu, _realmResult) = 227, plus showUpgradeCulturalMenu = 228.
 const EXPECTED_KEYS = [
     '_serviceResult', 'showBlacksmithMenu', 'showBlessingMenu', 'showStableMenu', 'showGuardMenu',
     'showTributeMenu', 'showAudienceMenu', 'OUTLAW_REFUSED_ACTIONS', 'refuseIfOutlawed',
@@ -56,7 +56,7 @@ const EXPECTED_KEYS = [
     'meetingRenounceAllegiance', 'meetingRequestAid', 'meetingRequestTitle', 'meetingRequestTrade',
     'performAttack', 'performRaid', 'performSiege', 'postBail', 'preach', 'readMap', 'reinforceColony',
     'sellMapFromTrade', 'sellPlayerMap', 'sendGoldToColony', 'show', 'showAddErrorsMenu',
-    'rowToShip', 'showAttackConfirm', 'showBoardShipMenu', 'openTileMenu', 'postSignboardAndManageColony', 'showPortMarketMenu', 'showPropertyPicker', 'showRowAshoreMenu', 'showShipHoldMenu', 'showBountyBoardMenu', 'showBuildCulturalMenu',
+    'rowToShip', 'showAttackConfirm', 'showBoardShipMenu', 'openTileMenu', 'postSignboardAndManageColony', 'showPortMarketMenu', 'showPropertyPicker', 'showRowAshoreMenu', 'showShipHoldMenu', 'showBountyBoardMenu', 'showBuildCulturalMenu', 'showUpgradeCulturalMenu',
     'showBuildInfrastructureMenu', 'showBuildPropertyMenu', 'showBuildTempleMenu', 'showBuskingMenu',
     'showBuyHouseMenu', 'showCartographyMenu', 'showCharacterDataModal', 'showContractMenu',
     'showCouncilMenu', 'showDeathScreen', 'showDonateMenu', 'showDynastyMenu', 'showEspionageMenu',
@@ -88,8 +88,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 227 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(227);
+    it('has 228 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(228);
     });
 
     it('every member except the known data props is a function', () => {

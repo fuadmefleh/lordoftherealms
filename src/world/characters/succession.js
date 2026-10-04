@@ -507,8 +507,10 @@ Object.assign(Characters, {
         // Resolve {char1}, {char2} for marriage proposals
         text = text.replace('{char1}', Characters.getFullName(ruler));
         const otherKingdoms = world.kingdoms.filter(k => k.isAlive && k.id !== kingdom.id && k.characterData);
+        let partner = null;
         if (otherKingdoms.length > 0) {
             const otherK = Utils.randPick(otherKingdoms);
+            partner = otherK;
             const otherRuler = otherK.characterData.ruler;
             if (otherRuler) {
                 text = text.replace('{char2}', Characters.getFullName(otherRuler));
@@ -530,6 +532,8 @@ Object.assign(Characters, {
 
         // Handle specific event effects
         Characters._applyEventEffects(chosen, kingdom, world);
+        // Data-driven effects (characters.json characterEvents[].effects)
+        Characters.applyEventDataEffects(chosen.effects, kingdom, world, partner);
 
         world.events.push({
             category: chosen.type || 'political',
@@ -537,6 +541,80 @@ Object.assign(Characters, {
             kingdom: kingdom.id,
             impact: chosen.impact || 'neutral',
         });
+    },
+
+    /**
+     * Apply an event's data-driven `effects` (characters.json) to its kingdom:
+     *   stability     ± points of kingdom stability (drifts back over weeks)
+     *   treasuryPct   ± fraction of the treasury (trade booms, droughts)
+     *   populationPct ± fraction of every settlement's population (plague, harvest)
+     *   militaryPct   ± fraction of the kingdom's military strength
+     *   damage        storm/flood damage added to each settlement (cuts
+     *                 gold and goods until builders repair it)
+     *   relationsAll / relationsRival / relationsPartner
+     *                 ± relations with every realm / one random realm /
+     *                 the realm named in the event text
+     * Returns a summary of what changed (for tests and tooltips).
+     */
+    applyEventDataEffects(effects, kingdom, world, partner = null) {
+        const out = {};
+        if (!effects || !kingdom) return out;
+        const fx = effects;
+        if (fx.stability) {
+            const before = typeof kingdom.stability === 'number' && !Number.isNaN(kingdom.stability) ? kingdom.stability : 60;
+            kingdom.stability = Utils.clamp(before + fx.stability, 0, 100);
+            out.stability = kingdom.stability - before;
+        }
+        if (fx.treasuryPct && typeof kingdom.treasury === 'number') {
+            const delta = Math.round(Math.max(0, kingdom.treasury) * fx.treasuryPct);
+            kingdom.treasury += delta;
+            out.treasury = delta;
+        }
+        if (fx.militaryPct && typeof kingdom.military === 'number') {
+            const before = kingdom.military;
+            kingdom.military = Math.max(0, Math.round(before * (1 + fx.militaryPct)));
+            out.military = kingdom.military - before;
+        }
+        if ((fx.populationPct || fx.damage) && world && typeof world.getTile === 'function') {
+            let popDelta = 0;
+            for (const t of kingdom.territory || []) {
+                const tile = world.getTile(t.q, t.r);
+                const st = tile && tile.settlement;
+                if (!st || st.kingdom !== kingdom.id) continue;
+                if (fx.populationPct && st.population > 0) {
+                    const next = Math.max(10, Math.round(st.population * (1 + fx.populationPct)));
+                    popDelta += next - st.population;
+                    st.population = next;
+                }
+                if (fx.damage) st.damage = Math.min(0.9, Math.round(((st.damage || 0) + fx.damage) * 1000) / 1000);
+            }
+            if (fx.populationPct) out.population = popDelta;
+        }
+        const shift = (otherId, delta) => {
+            if (!kingdom.relations) kingdom.relations = {};
+            kingdom.relations[otherId] = Utils.clamp((kingdom.relations[otherId] || 0) + delta, -100, 100);
+            const other = world && world.kingdoms ? world.kingdoms.find(k => k.id === otherId) : null;
+            if (other) {
+                if (!other.relations) other.relations = {};
+                other.relations[kingdom.id] = Utils.clamp((other.relations[kingdom.id] || 0) + delta, -100, 100);
+            }
+        };
+        if (fx.relationsAll) {
+            for (const k of Object.keys(kingdom.relations || {})) shift(k, fx.relationsAll);
+        }
+        if (fx.relationsRival && world && world.kingdoms) {
+            const others = world.kingdoms.filter(k => k.isAlive && k.id !== kingdom.id);
+            if (others.length) {
+                const rival = Utils.randPick(others);
+                shift(rival.id, fx.relationsRival);
+                out.rival = rival.id;
+            }
+        }
+        if (fx.relationsPartner && partner) {
+            shift(partner.id, fx.relationsPartner);
+            out.partner = partner.id;
+        }
+        return out;
     },
 
     /**

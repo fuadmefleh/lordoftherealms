@@ -241,6 +241,7 @@ export const SaveLoad = {
             maps: player.maps || [],
             artifacts: player.artifacts || { fragments: {}, forged: [], discovered: [] },
             discoveredLore: Array.from(player.discoveredLore || []),
+            peoplesHeritage: player.peoplesHeritage || {},
             discoveredHolySites: Array.from(player.discoveredHolySites || []),
             discoveredExtinctFaiths: Array.from(player.discoveredExtinctFaiths || []),
             kingdomKnowledge: player.kingdomKnowledge || {},

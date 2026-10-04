@@ -252,6 +252,9 @@ Object.assign(Peoples, {
         // 4. Generate cultural landmarks & diaspora events
         Peoples.generateDiasporaHistory(world);
 
+        // 5. Work out what each settlement's peoples do (no randomness)
+        Peoples.refreshAllEffects(world);
+
         console.log('[Peoples] Multicultural society initialized');
     },
 
@@ -529,7 +532,9 @@ Object.assign(Peoples, {
 
         for (const demo of demographics) {
             if (demo.population >= 50 && demo.share >= 0.05) {
-                const names = quarterNames[demo.tribe.id] || [`${demo.tribe.name} Quarter`];
+                // data/peoples.json quarterNames covers every people; the inline table is the fallback
+                const names = (Peoples._quarterNames && Peoples._quarterNames[demo.tribe.id])
+                    || quarterNames[demo.tribe.id] || [`${demo.tribe.name} Quarter`];
                 quarters.push({
                     name: Utils.randPick(names),
                     tribe: demo.tribe.id,

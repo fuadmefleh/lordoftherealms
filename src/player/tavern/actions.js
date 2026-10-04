@@ -1,6 +1,6 @@
 // Tavern — actions members (split from the original monolith).
 import { Tavern } from './_ref.js';
-import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Religion, Gossip, Quests } from './_imports.js';
+import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Religion, Gossip, Quests, Peoples } from './_imports.js';
 
 Object.assign(Tavern, {
     // ── Cost & Configuration ───────────────────────────────────────────
@@ -110,14 +110,17 @@ Object.assign(Tavern, {
 
         // ── Needs-satisfying actions ──────────────────────────
 
-        // Buy a hot meal (hunger)
+        // Buy a hot meal (hunger) — the local peoples' signature dish comforts more
         const mealCost = 8;
+        const localMeal = Peoples.mealBonus(tile.settlement);
         options.push({
             id: 'buy_meal',
-            label: 'Buy a hot meal',
+            label: localMeal.dish ? `Buy a hot meal (${localMeal.dish})` : 'Buy a hot meal',
             icon: '🍖',
             cost: mealCost,
-            description: `A hearty stew and fresh bread (${mealCost}g). Satisfies hunger and comfort.`,
+            description: localMeal.comfort > 0
+                ? `The house serves the local ${localMeal.dish || localMeal.hybridDish} (${mealCost}g). Satisfies hunger; +${localMeal.comfort} extra comfort.`
+                : `A hearty stew and fresh bread (${mealCost}g). Satisfies hunger and comfort.`,
             available: player.gold >= mealCost,
         });
 
@@ -279,16 +282,20 @@ Object.assign(Tavern, {
     _buyMeal(player, tile, world) {
         const cost = 8;
         player.gold -= cost;
+        const meal = Peoples.mealBonus(tile.settlement);
         if (player.modifyNeed) {
             player.modifyNeed('hunger', 35);
-            player.modifyNeed('comfort', 10);
+            player.modifyNeed('comfort', 10 + meal.comfort);
             player.modifyNeed('energy', 5);
         }
+        const dish = meal.dish || meal.hybridDish;
         return [{
             category: Tavern.CATEGORIES.RUMORS_GOSSIP,
             icon: '🍖',
             title: 'Hot Meal',
-            text: `You enjoy a hearty stew with bread and ale at ${tile.settlement.name}. Your belly is full and your spirits lifted.`,
+            text: dish
+                ? `You dine on ${dish}, the local favourite at ${tile.settlement.name}${meal.hybridDish && meal.dish ? `, with a side of ${meal.hybridDish}` : ''}. A taste of home for the folk here — and a comfort to you (+${meal.comfort}).`
+                : `You enjoy a hearty stew with bread and ale at ${tile.settlement.name}. Your belly is full and your spirits lifted.`,
             reliability: Tavern.RELIABILITY.TAVERN_GOSSIP,
             accurate: true,
             day: world.day,

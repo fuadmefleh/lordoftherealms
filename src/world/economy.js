@@ -110,6 +110,17 @@ export const Economy = {
             applyResource(res.id, false);
         }
 
+        // The settlement's peoples: crafts, enterprise and husbandry
+        // (settlement.peoplesEffects, computed daily by systems/peoples)
+        const pe = settlement.peoplesEffects;
+        if (pe) {
+            breakdown.gold *= 1 + (pe.gold || 0);
+            breakdown.food *= 1 + (pe.food || 0);
+            for (const key in breakdown.items) {
+                breakdown.items[key] *= 1 + ((key === 'food' ? pe.food : pe.goods) || 0);
+            }
+        }
+
         // Round all values
         breakdown.gold = Math.round(breakdown.gold);
         breakdown.food = Math.round(breakdown.food);
@@ -256,7 +267,9 @@ export const Economy = {
         // Legacy compatibility
         settlement.economy.goods += prod.goods;
 
-        Economy._feedPopulation(settlement, mods);
+        // Close-knit peoples (kinship) grow faster
+        const kinship = settlement.peoplesEffects ? (settlement.peoplesEffects.growth || 0) : 0;
+        Economy._feedPopulation(settlement, kinship ? { ...mods, growth: (mods.growth || 0) + kinship } : mods);
 
         return settlement.economy;
     },
@@ -294,6 +307,9 @@ export const Economy = {
                 totalProfit += route.profit;
             }
         }
+        // Mercantile peoples and trader diasporas work the routes harder
+        const commerce = settlement.peoplesEffects ? (settlement.peoplesEffects.trade || 0) : 0;
+        if (commerce && totalProfit > 0) totalProfit = Math.round(totalProfit * (1 + commerce));
 
         settlement.economy.gold += totalProfit;
         return totalProfit;

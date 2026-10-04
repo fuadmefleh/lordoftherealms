@@ -4,6 +4,7 @@
 
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
+import { Peoples } from './peoples.js';
 
 
 export const Festivals = {
@@ -242,8 +243,11 @@ export const Festivals = {
             player.festivals.diplomacyEvents += 1;
         }
 
+        // The local peoples' customs are honoured: their signature festival and
+        // festive folk add renown, and every people here warms to the host
+        const localCustoms = Peoples.celebrateFestival(tile.settlement);
         const novelty = this.noveltyMultiplier(player, tile.settlement?.name || 'Unknown');
-        const renownGain = Math.round((tier.renown + contestResult.renown + reputations.length + fame.hostBonus) * novelty);
+        const renownGain = Math.round((tier.renown + contestResult.renown + reputations.length + fame.hostBonus + localCustoms.renownBonus) * novelty);
         const moraleBoost = tier.morale + contestResult.moraleBonus;
 
         player.renown = (player.renown || 0) + renownGain;
@@ -288,6 +292,7 @@ export const Festivals = {
             sabotage,
             renownGain,
             novelty,
+            localCustoms,
             moraleBoost,
             moraleDays: tier.moraleDays,
             contestPrize: contestResult.gold,

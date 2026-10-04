@@ -522,6 +522,7 @@ export const Taxation = {
                     collected: taxCollected,
                     population: settlement.population,
                     happiness: Math.round(happiness),
+                    peoplesMood: Taxation.peoplesMood(settlement),
                 };
                 settlements.push(entry);
                 if (!dryRun) Taxation._applyTaxMood(settlement, taxPolicy, entry);
@@ -533,6 +534,11 @@ export const Taxation = {
         return { collected: totalCollected, settlements, policy: taxPolicy };
     },
 
+    /** Mood points a settlement's peoples add to its happiness target (systems/peoples). */
+    peoplesMood(settlement) {
+        return (settlement && settlement.peoplesEffects && settlement.peoplesEffects.stability) || 0;
+    },
+
     /** A settlement's happiness 0..100 (50 when never taxed). */
     getHappiness(settlement) {
         return typeof settlement.happiness === 'number' ? settlement.happiness : 50;
@@ -540,7 +546,9 @@ export const Taxation = {
 
     /** Weekly mood, growth and loyalty change from the tax policy. */
     _applyTaxMood(settlement, taxPolicy, entry) {
-        const target = Math.max(0, Math.min(100, 50 + taxPolicy.happinessBonus * 1.5));
+        // Orderly, harmonious peoples settle happier; restless ones less so
+        const peoplesMood = Taxation.peoplesMood(settlement);
+        const target = Math.max(0, Math.min(100, 50 + taxPolicy.happinessBonus * 1.5 + peoplesMood));
         const happiness = Taxation.getHappiness(settlement);
         settlement.happiness = Math.max(0, Math.min(100, happiness + (target - happiness) * 0.25));
         entry.happiness = Math.round(settlement.happiness);

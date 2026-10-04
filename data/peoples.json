@@ -537,5 +537,107 @@
     "reefbuilders": ["Coral Quarter", "Reef Row", "The Living Docks"],
     "embersmiths": ["The Crucible", "Ember Quarter", "Flamework Row"],
     "marshborn": ["Bogside", "Lantern Quarter", "Reed Row"]
+  },
+  "effects": {
+    "_doc": "What a settlement's peoples DO. Each group's values, traits, art forms and diaspora status add (share x weight) to an aspect; aspect score x scale is the effect, clamped to +/-max. Read by src/systems/peoples/effects.js.",
+    "aspects": {
+      "goods":     { "label": "Crafts",     "icon": "🔨", "scale": 0.08, "max": 0.10, "pct": true,  "describe": "goods production" },
+      "gold":      { "label": "Enterprise", "icon": "💰", "scale": 0.08, "max": 0.08, "pct": true,  "describe": "gold production" },
+      "food":      { "label": "Husbandry",  "icon": "🌾", "scale": 0.06, "max": 0.08, "pct": true,  "describe": "food production" },
+      "trade":     { "label": "Commerce",   "icon": "⚖️", "scale": 0.10, "max": 0.12, "pct": true,  "describe": "trade-route profit (half that on your market prices here)" },
+      "growth":    { "label": "Kinship",    "icon": "👪", "scale": 0.15, "max": 0.15, "pct": true,  "describe": "population growth" },
+      "stability": { "label": "Order",      "icon": "🏛️", "scale": 6,    "max": 4,    "pct": false, "describe": "mood if you rule it, and the realm's stability" },
+      "martial":   { "label": "Martial",    "icon": "⚔️", "scale": 0.10, "max": 0.12, "pct": true,  "describe": "recruits available (half that off recruit cost); realm military" },
+      "faith":     { "label": "Devotion",   "icon": "🙏", "scale": 0.10, "max": 0.12, "pct": true,  "describe": "realm faith (piety)" },
+      "diplomacy": { "label": "Courtesy",   "icon": "🗣️", "scale": 0.10, "max": 0.12, "pct": true,  "describe": "realm diplomacy" },
+      "learning":  { "label": "Learning",   "icon": "📚", "scale": 0.10, "max": 0.12, "pct": true,  "describe": "realm research" },
+      "secrecy":   { "label": "Secrecy",    "icon": "🕵️", "scale": 0.10, "max": 0.12, "pct": true,  "describe": "realm intrigue (roots out plotters)" },
+      "festive":   { "label": "Revelry",    "icon": "🎉", "scale": 0.10, "max": 0.12, "pct": true,  "describe": "festivals held here (+1 renown at 4% or more)" }
+    },
+    "weights": {
+      "valuePerPoint": 0.1,
+      "trait": 0.5,
+      "artForm": 0.33,
+      "status": 1,
+      "signatureArt": 0.15,
+      "thrivingQuarter": 0.1,
+      "restlessQuarter": -0.3,
+      "cuisinePerPeople": 0.1,
+      "cuisineMax": 0.4
+    },
+    "valueAspects": {
+      "craftsmanship": "goods", "accuracy": "goods", "perseverance": "goods", "precision": "goods", "mastery": "goods", "transformation": "goods",
+      "ambition": "gold", "pragmatism": "gold", "beauty": "gold",
+      "patience": "food", "stewardship": "food", "preservation": "food", "independence": "food", "ecology": "food", "survival": "food", "self-reliance": "food",
+      "commerce": "trade", "wanderlust": "trade", "discovery": "trade", "adventure": "trade",
+      "freedom": "growth", "resilience": "growth", "community": "growth", "hope": "growth", "adaptability": "growth", "adaptation": "growth",
+      "honor": "stability", "tradition": "stability", "harmony": "stability", "ancestry": "stability", "solidarity": "stability", "discipline": "stability", "balance": "stability", "cooperation": "stability",
+      "duty": "martial", "courage": "martial", "sacrifice": "martial", "endurance": "martial", "strength": "martial", "protection": "martial", "ferocity": "martial", "power": "martial", "vigilance": "martial", "daring": "martial",
+      "spirituality": "faith", "faith": "faith", "truth": "faith", "humility": "faith", "intuition": "faith",
+      "diplomacy": "diplomacy", "respect": "diplomacy", "gentleness": "diplomacy", "empathy": "diplomacy",
+      "learning": "learning", "wisdom": "learning", "knowledge": "learning", "wonder": "learning", "vision": "learning", "legacy": "learning", "curiosity": "learning",
+      "secrecy": "secrecy", "cunning": "secrecy", "perception": "secrecy", "mystery": "secrecy",
+      "joy": "festive", "generosity": "festive", "creativity": "festive", "imagination": "festive", "passion": "festive"
+    },
+    "traitAspects": {
+      "industrious": "goods", "inventive": "goods", "meticulous": "goods", "tenacious": "goods", "claustrophilic": "goods", "methodical": "goods", "precise": "goods", "perfectionist": "goods",
+      "ambitious": "gold", "wealthy": "gold",
+      "patient": "food", "resourceful": "food", "respectful of nature": "food", "austere": "food", "ecological": "food", "self-reliant": "food",
+      "mercantile": "trade", "daring": "trade", "swift": "trade", "nomadic": "trade",
+      "resilient": "growth", "adaptable": "growth", "communal": "growth", "hardy": "growth",
+      "loyal": "stability", "quiet": "stability", "authoritative": "stability", "stoic": "stability", "serene": "stability", "collaborative": "stability",
+      "stubborn": ["stability", -1], "restless": ["stability", -1], "haunted": ["stability", -1], "unpredictable": ["stability", -1], "volatile": ["stability", -1],
+      "proud": "martial", "vigilant": "martial", "martial": "martial", "agile": "martial", "fierce": "martial", "fearless": "martial", "brave": "martial", "protective": "martial", "enduring": "martial", "powerful": "martial", "independent": "martial",
+      "mystical": "faith", "spiritual": "faith", "devout": "faith", "contemplative": "faith", "intuitive": "faith", "otherworldly": "faith",
+      "diplomatic": "diplomacy", "gentle": "diplomacy", "empathetic": "diplomacy",
+      "reclusive": ["diplomacy", -1], "blunt": ["diplomacy", -1], "strange": ["diplomacy", -1], "aloof": ["diplomacy", -1], "isolated": ["diplomacy", -1], "distrustful": ["diplomacy", -1],
+      "literate": "learning", "wise": "learning", "intellectual": "learning", "visionary": "learning", "scholarly": "learning", "curious": "learning", "brilliant": "learning",
+      "observant": "secrecy", "secretive": "secrecy", "cunning": "secrecy", "perceptive": "secrecy", "silent": "secrecy", "cryptic": "secrecy", "enigmatic": "secrecy", "watchful": "secrecy",
+      "free-spirited": "festive", "passionate": "festive", "joyful": "festive", "generous": "festive", "social": "festive", "creative": "festive"
+    },
+    "statusAspects": {
+      "trader": "trade",
+      "pilgrim": "faith",
+      "refugee": "martial",
+      "immigrant": "growth",
+      "exile": ["stability", -1]
+    },
+    "artKeywords": [
+      ["learning", ["cartograph", "chart", "manuscript", "calligraph", "predict", "mapping", "prophecy", "epics"]],
+      ["martial", ["siege", "war", "archery"]],
+      ["secrecy", ["poison", "spirit"]],
+      ["food", ["herbalism", "garden", "falconry"]],
+      ["festive", ["bioluminescent", "music", "song", "sing", "chant", "poetry", "ballad", "danc", "choir", "drum", "storytell", "acrobat", "display", "show", "fiddle", "flute", "horn", "shant", "hymn", "whisper", "instrument", "painting"]],
+      ["goods", ["carv", "weav", "jewel", "craft", "cutting", "glass", "metalwork", "sculpt", "textile", "embroider", "mosaic", "tapestr", "dye", "basket", "lantern", "scrimshaw", "enchant", "architect", "engineer", "mask", "fence", "light"]]
+    ],
+    "homelandTerrain": {
+      "highlands": ["highlands"],
+      "plains": ["plains", "grassland"],
+      "hills": ["hills"],
+      "forest": ["woodland", "seasonal_forest", "boreal_forest", "temperate_rainforest"],
+      "dense_forest": ["temperate_rainforest", "tropical_rainforest", "seasonal_forest"],
+      "desert": ["desert"],
+      "savanna": ["savanna"],
+      "mountains": ["mountain", "snow_peak"],
+      "coast": ["coast", "beach", "ocean", "sea", "island"],
+      "tundra": ["tundra", "snow", "ice"],
+      "swamp": ["swamp"]
+    },
+    "homeland": { "everyDays": 10, "sentimentGain": 1, "sentimentCap": 85 },
+    "harmony": { "stabilityPerPoint": 0.06, "hybridBonus": 1, "hybridMax": 5, "stabilityTotalMax": 6 },
+    "evolution": { "interactionBase": 0.6, "interactionPerStage": 0.15 },
+    "kingdomBonuses": {
+      "martial": ["military", 0.5],
+      "faith": ["faith", 1],
+      "diplomacy": ["diplomacy", 1],
+      "learning": ["research", 1],
+      "secrecy": ["intrigue", 1],
+      "trade": ["tradeBonus", 0.5]
+    },
+    "festival": { "signatureRenown": 1, "festiveRenown": 1, "festiveThreshold": 0.04, "sentimentGain": 3 },
+    "tavern": { "signatureComfort": 6, "hybridComfort": 2, "hybridMax": 4 },
+    "heritage": { "tradePerShare": 0.04, "max": 0.04 },
+    "recruit": { "costShare": 0.5 },
+    "playerTradeShare": 0.5
   }
 }

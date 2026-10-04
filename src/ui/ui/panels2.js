@@ -385,7 +385,7 @@ Object.assign(UI.prototype, {
                 html += `
                     <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-top: 16px;">
                 `;
-                html += Peoples.buildDemographicsHTML(settlement);
+                html += Peoples.buildDemographicsHTML(settlement, this.game && this.game.player);
                 html += `</div>`;
             } else {
                 html += `

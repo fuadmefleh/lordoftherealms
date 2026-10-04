@@ -12,3 +12,4 @@ export { PlayerReligion } from '../playerReligion.js';
 export { PlayerInventory } from '../inventory.js';
 export { WorldEvents } from '../../world/worldEvents.js';
 export { WEATHER_EFFECTS } from '../../world/weather.js';
+export { Peoples } from '../../systems/peoples.js';

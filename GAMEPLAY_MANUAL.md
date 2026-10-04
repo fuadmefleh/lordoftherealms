@@ -325,6 +325,24 @@ You use furniture in person: choosing an action walks you up to it first, then y
 
 **Life indoors.** The townsfolk you find inside a building get on with their day. They walk to the furniture that suits them (blacksmiths to the anvil, priests to the altar, travellers to the bar) and use it for a while, with an icon over their heads showing what they're doing. When they're done visiting, they walk out through the door.
 
+### Peoples & Cultures
+
+Every settlement is a mix of peoples (Ironborn, Sailweavers, Frostborn, ...), and who lives there changes how it works. The settlement panel's **What the Peoples Bring** box lists each effect with its number; hover a line to see which peoples cause it. Effects scale with each people's share of the town and are kept small (most stay within a few percent):
+
+| Source | Effect |
+|--------|--------|
+| Values and traits (e.g. craftsmanship, mercantile, devout, martial) | Crafts (goods production), Enterprise (gold), Husbandry (food), Commerce (trade-route profit, and half that on your buy/sell prices there), Kinship (population growth), Order (mood), Martial, Devotion, Courtesy, Learning, Secrecy, Revelry. Restless, volatile or distrustful peoples count against Order or Courtesy |
+| Art forms, the town's signature art and thriving quarters | Craft arts add to goods, songs and dances to Revelry, charts and manuscripts to Learning. A restless quarter costs Order |
+| Diaspora status | Traders add Commerce, pilgrims Devotion, refugees Martial, immigrants Kinship. Exiles cost Order |
+| Cuisine | Each extra people's kitchen (and each hybrid dish) adds a little food production. Taverns serve the signature dish: a hot meal there gives +6 comfort, and +2 for each hybrid dish (up to +4 more) |
+| Customs | A festival you host in a town with a signature festival earns +1 renown (+1 more where the peoples are festive), and every people there gains +3 mood |
+| Harmony and hybrid traditions | Harmony above 50 adds Order and below 50 takes it away. Each hybrid tradition adds +1 harmony (up to +5) |
+| Homeland | A people living on or next to its homeland terrain gains +1 mood every 10 days (up to 85) |
+| Settlement size (evolution stage) | Towns and cities see cultural exchanges more often than villages |
+| Origin lore | Once you discover a people's origin story, you get up to +4% better market prices wherever they live |
+
+Martial peoples also give **more recruits and cheaper ones** (shown in the Recruit menu). Order shifts the mood of settlements you tax (shown in the Treasury's tax tab). Across a whole realm, its peoples add to the kingdom's military, faith, diplomacy, research, intrigue and trade, and a **Peoples & harmony** line feeds its stability. The kingdom panel shows the bonus that comes from its peoples.
+
 ---
 
 ## 5. Properties & Production

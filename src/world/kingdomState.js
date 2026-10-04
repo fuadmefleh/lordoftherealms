@@ -103,6 +103,11 @@ export const KingdomBonuses = {
 
         // Scholarship, influence and running cultural events
         total += KingdomCulture.bonus(kingdom, key);
+
+        // The realm's peoples: martial, devout, courteous, learned, secretive
+        // and mercantile folk (kingdom.peoples, set daily by systems/peoples)
+        const pb = kingdom.peoples && kingdom.peoples.bonuses;
+        if (pb && typeof pb[key] === 'number') total += pb[key];
         return total;
     },
 
@@ -348,6 +353,10 @@ export const KingdomStability = {
         t += add('Culture & learning', KingdomCulture.stabilityMod(kingdom));
         t += add('Mood of the realm', KingdomStability.eventMod(world, kingdom, 'morale') * 0.3);
         t += add('Lord\'s rule', LordInfluence.mod(kingdom, 'stability'));
+        // Orderly or restless peoples, and how well they get along (systems/peoples)
+        if (kingdom.peoples && typeof kingdom.peoples.stability === 'number') {
+            t += add('Peoples & harmony', kingdom.peoples.stability);
+        }
         t += add('Wars', -5 * ((kingdom.wars && kingdom.wars.length) || 0));
         // Wartime propaganda maps (Cartography.processTurn) rally the realm: +2 each, up to +6
         const propaganda = (kingdom.cartography && kingdom.cartography.propagandaMaps) || [];

@@ -1409,6 +1409,12 @@ Object.assign(ActionMenu, {
             <strong>${settlement.type}</strong> (pop: ${settlement.population.toLocaleString()}) — 
             Recruits available: <strong style="color: ${remaining > 0 ? '#4CAF50' : '#e74c3c'};">${remaining}/${capacity}</strong>
         </div>`;
+        const peoplesRecruit = Peoples.recruitModifiers(settlement);
+        if (Math.abs(peoplesRecruit.martial) >= 0.005) {
+            const pct = Math.round(peoplesRecruit.martial * 100);
+            const costPct = Math.round((1 - peoplesRecruit.costMult) * 100);
+            html += `<div style="padding: 4px 10px; margin: -8px 0 12px; font-size: 11px; color: ${pct > 0 ? '#81c784' : '#e57373'};" title="From the values, traits and status of the peoples living here">⚔️ Martial peoples: ${pct > 0 ? '+' : ''}${pct}% recruits, ${costPct >= 0 ? '−' : '+'}${Math.abs(costPct)}% recruit cost</div>`;
+        }
 
         for (const [key, unit] of Object.entries(PlayerMilitary.UNIT_TYPES)) {
             const avail = PlayerMilitary.isUnitAvailable(unit, settlement);
@@ -1421,7 +1427,7 @@ Object.assign(ActionMenu, {
                                 <div style="font-size: 12px; color: var(--text-secondary);">${unit.description}</div>
                                 <div style="font-size: 12px;">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>${PlayerMilitary.describeUnitTraits(unit) ? `<div style="font-size: 11px; color: #ce93d8;">✨ ${PlayerMilitary.describeUnitTraits(unit)}</div>` : ''}
                             </div>
-                            <button onclick="window.recruitUnit('${key}')" ${remaining <= 0 ? 'disabled' : ''} style="padding: 8px 16px; background: ${remaining > 0 ? 'var(--gold)' : '#555'}; border: none; border-radius: 4px; cursor: ${remaining > 0 ? 'pointer' : 'not-allowed'};">${PlayerMilitary.getRecruitCost(game.player, unit)} gold</button>
+                            <button onclick="window.recruitUnit('${key}')" ${remaining <= 0 ? 'disabled' : ''} style="padding: 8px 16px; background: ${remaining > 0 ? 'var(--gold)' : '#555'}; border: none; border-radius: 4px; cursor: ${remaining > 0 ? 'pointer' : 'not-allowed'};">${PlayerMilitary.getRecruitCost(game.player, unit, tile.settlement)} gold</button>
                         </div>
                     </div>
                 `;
@@ -1434,7 +1440,7 @@ Object.assign(ActionMenu, {
                                 <div style="font-size: 11px; color: #e74c3c;">${avail.reason}</div>
                                 <div style="font-size: 12px; color: var(--text-secondary);">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>${PlayerMilitary.describeUnitTraits(unit) ? `<div style="font-size: 11px; color: #ce93d8;">✨ ${PlayerMilitary.describeUnitTraits(unit)}</div>` : ''}
                             </div>
-                            <span style="color: var(--text-secondary); font-size: 12px;">${PlayerMilitary.getRecruitCost(game.player, unit)} gold</span>
+                            <span style="color: var(--text-secondary); font-size: 12px;">${PlayerMilitary.getRecruitCost(game.player, unit, tile.settlement)} gold</span>
                         </div>
                     </div>
                 `;
@@ -1456,7 +1462,7 @@ Object.assign(ActionMenu, {
                                     <div style="font-size: 12px; color: var(--text-secondary);">${unit.description}</div>
                                     <div style="font-size: 12px;">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>${PlayerMilitary.describeUnitTraits(unit) ? `<div style="font-size: 11px; color: #ce93d8;">✨ ${PlayerMilitary.describeUnitTraits(unit)}</div>` : ''}
                                 </div>
-                                <button onclick="window.recruitTechUnit('${key}')" ${remaining <= 0 ? 'disabled' : ''} style="padding: 8px 16px; background: ${remaining > 0 ? 'var(--gold)' : '#555'}; border: none; border-radius: 4px; cursor: ${remaining > 0 ? 'pointer' : 'not-allowed'};">${PlayerMilitary.getRecruitCost(game.player, unit)} gold</button>
+                                <button onclick="window.recruitTechUnit('${key}')" ${remaining <= 0 ? 'disabled' : ''} style="padding: 8px 16px; background: ${remaining > 0 ? 'var(--gold)' : '#555'}; border: none; border-radius: 4px; cursor: ${remaining > 0 ? 'pointer' : 'not-allowed'};">${PlayerMilitary.getRecruitCost(game.player, unit, tile.settlement)} gold</button>
                             </div>
                         </div>
                     `;
@@ -1469,7 +1475,7 @@ Object.assign(ActionMenu, {
                                     <div style="font-size: 11px; color: #e74c3c;">${techAvail.reason}</div>
                                     <div style="font-size: 12px; color: var(--text-secondary);">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>${PlayerMilitary.describeUnitTraits(unit) ? `<div style="font-size: 11px; color: #ce93d8;">✨ ${PlayerMilitary.describeUnitTraits(unit)}</div>` : ''}
                                 </div>
-                                <span style="color: var(--text-secondary); font-size: 12px;">${PlayerMilitary.getRecruitCost(game.player, unit)} gold</span>
+                                <span style="color: var(--text-secondary); font-size: 12px;">${PlayerMilitary.getRecruitCost(game.player, unit, tile.settlement)} gold</span>
                             </div>
                         </div>
                     `;
@@ -1512,7 +1518,7 @@ Object.assign(ActionMenu, {
                 return;
             }
 
-            const techCost = PlayerMilitary.getRecruitCost(game.player, unit);
+            const techCost = PlayerMilitary.getRecruitCost(game.player, unit, tile.settlement);
             if (game.player.gold < techCost) {
                 game.ui.showNotification('Cannot Recruit', `Need ${techCost} gold`, 'error');
                 return;

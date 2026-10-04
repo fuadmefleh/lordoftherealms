@@ -1,6 +1,6 @@
 // PlayerMilitary — recruitment members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
-import { Utils, Technology, House, SettlementServices, PlayerEffects } from './_imports.js';
+import { Utils, Technology, House, SettlementServices, PlayerEffects, Peoples } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -375,8 +375,10 @@ Object.assign(PlayerMilitary, {
      */
     getRecruitmentCapacity(settlement) {
         const pop = settlement.population || 0;
-        // Can recruit roughly 1 per 50 people, minimum 1
-        return Math.max(1, Math.floor(pop / 50));
+        // Can recruit roughly 1 per 50 people, minimum 1; martial peoples
+        // (shieldfolk, refugees, ...) step forward more readily
+        const { capacityMult } = Peoples.recruitModifiers(settlement);
+        return Math.max(1, Math.floor((pop / 50) * capacityMult));
     },
 
     /**
@@ -409,15 +411,19 @@ Object.assign(PlayerMilitary, {
     /**
      * Recruit a unit at a settlement
      */
-    /** Gold to recruit `unit`, after the Marshal's military discount. */
-    getRecruitCost(player, unit) {
-        return Math.round(unit.cost * PlayerEffects.recruitCostMultiplier(player));
+    /**
+     * Gold to recruit `unit`, after the Marshal's military discount and —
+     * when recruiting at `settlement` — its martial peoples' discount.
+     */
+    getRecruitCost(player, unit, settlement = null) {
+        const peoples = settlement ? Peoples.recruitModifiers(settlement).costMult : 1;
+        return Math.round(unit.cost * PlayerEffects.recruitCostMultiplier(player) * peoples);
     },
 
     recruitUnit(player, unitType, settlement) {
         const unit = PlayerMilitary.UNIT_TYPES[unitType.toUpperCase()];
         if (!unit) return { success: false, reason: 'Invalid unit type' };
-        const cost = PlayerMilitary.getRecruitCost(player, unit);
+        const cost = PlayerMilitary.getRecruitCost(player, unit, settlement);
 
         // Check gold
         if (player.gold < cost) {

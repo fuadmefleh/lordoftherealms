@@ -226,7 +226,7 @@ Object.assign(UI.prototype, {
 
             // Cultural demographics
             if (knowsPeoples && typeof Peoples !== 'undefined' && tile.settlement.demographics) {
-                html += Peoples.buildDemographicsHTML(tile.settlement);
+                html += Peoples.buildDemographicsHTML(tile.settlement, this.game && this.game.player);
             }
         }
 

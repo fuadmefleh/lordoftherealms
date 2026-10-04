@@ -12,6 +12,7 @@ import { House } from '../systems/house.js';
 import { Relationships } from '../systems/relationships.js';
 import { Technology } from '../systems/technology.js';
 import { LegendaryArtifacts } from '../systems/legendaryArtifacts.js';
+import { Peoples } from '../systems/peoples.js';
 
 /** Personal damage reduction from gear in the inventory (multiplicative). */
 const ARMOR_REDUCTION = { leather_armor: 0.2, shield: 0.15, amulet: 0.1 };
@@ -169,6 +170,8 @@ export const PlayerEffects = {
         if (kingdomId && player.tradeAgreements && player.tradeAgreements[kingdomId]) {
             bonus += TRADE_AGREEMENT_BONUS;
         }
+        // Mercantile peoples here, and peoples whose origin lore you know
+        bonus += Peoples.playerTradeBonus(player, settlement);
         return bonus;
     },
 

@@ -9,3 +9,4 @@ export { Religion } from '../../systems/religion.js';
 export { Gossip } from '../../systems/gossip.js';
 export { Quests } from '../../systems/quests.js';
 export { Titles } from '../../systems/titles.js';
+export { Peoples } from '../../systems/peoples.js';

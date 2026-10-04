@@ -71,7 +71,7 @@ Object.assign(ActionMenu, {
         };
 
         const mapping = {
-            rest: 'general', eat_meal: 'general', explore_poi: 'general', clear_trees: 'general', dig_treasure: 'general',
+            rest: 'general', eat_meal: 'general', explore_poi: 'general', delve: 'general', delve_resume: 'general', clear_trees: 'general', dig_treasure: 'general',
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general',
             trap_furs: 'general', ice_fish: 'general', planting_contract: 'commerce',
             prospect: 'general', tame_horse: 'general', craft_campfire: 'general',
@@ -394,7 +394,7 @@ Object.assign(ActionMenu, {
         // Full-day work (4 AP)
         odd_jobs: 4, hunt: 4, train_combat: 4,
         trap_furs: 4, ice_fish: 3, planting_contract: 4,
-        dig_treasure: 4, explore_poi: 4,
+        dig_treasure: 4, explore_poi: 4, delve: 4, delve_resume: 0,
 
         // Major activities (5 AP)
         host_feast: 5, hold_tournament: 5, host_festival: 6, contract: 5,
@@ -460,6 +460,7 @@ Object.assign(ActionMenu, {
         'cartography', 'map_trade',
         'attack_unit', 'attack_settlement',
         'request_meeting', 'buy_house', 'seek_title', 'visit_shipyard',
+        'delve',
     ]),
 
     /**
@@ -554,6 +555,7 @@ Object.assign(ActionMenu, {
                 case 'trade':       p.modifyNeed('social', 5); break;
                 case 'tavern':      p.modifyNeed('social', 5); p.modifyNeed('comfort', 5); break;
                 case 'explore_poi': p.modifyNeed('fun', 10); p.modifyNeed('energy', -5); break;
+                case 'delve':       p.modifyNeed('fun', 12); p.modifyNeed('energy', -8); p.modifyNeed('hygiene', -6); break;
                 case 'explore_inner_map': p.modifyNeed('fun', 5); break;
                 case 'clear_trees': p.modifyNeed('energy', -10); p.modifyNeed('hygiene', -5); break;
                 case 'pickpocket':  p.modifyNeed('fun', 5); p.modifyNeed('comfort', -8); break;
@@ -669,6 +671,10 @@ Object.assign(ActionMenu, {
                 break;
             case 'explore_poi':
                 ActionMenu.explorePOI(game, tile);
+                break;
+            case 'delve':
+            case 'delve_resume':
+                ActionMenu.showDelvePanel(game, tile);
                 break;
             case 'tavern':
                 ActionMenu.showTavernMenu(game, tile);

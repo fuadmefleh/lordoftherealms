@@ -13,6 +13,7 @@ import { Technology } from '../../systems/technology.js';
 import { Culture } from '../../systems/culture.js';
 import { PlayerEconomy } from '../playerEconomy.js';
 import { SeasonalWork } from '../seasonalWork.js';
+import { Delves } from '../../systems/delves.js';
 
 export function addWildernessActions(actions, player, tile, world) {
     // Meditate / Pray (anywhere on passable terrain)
@@ -134,7 +135,23 @@ export function addWildernessActions(actions, player, tile, world) {
         if (tile.improvement.explored === undefined) {
             tile.improvement.explored = false;
         }
-        if (!tile.improvement.explored && tile.improvement.type !== 'treasure_cache') {
+        const delving = Delves.active(player);
+        if (delving && delving.q === tile.q && delving.r === tile.r) {
+            actions.push({
+                type: 'delve_resume',
+                label: `Resume Delve: ${delving.name}`,
+                icon: '🕯️',
+                description: 'Go back down into the chamber where you left off'
+            });
+        } else if (Delves.isDelveSite(tile)) {
+            const site = Delves.siteInfo(tile);
+            actions.push({
+                type: 'delve',
+                label: `Delve into ${tile.improvement.name}`,
+                icon: (site && site.icon) || '🕯️',
+                description: `${site ? site.name : 'A deep place'}: descend chamber by chamber — turn back whenever you like with what you've found`
+            });
+        } else if (!tile.improvement.explored && tile.improvement.type !== 'treasure_cache') {
             actions.push({
                 type: 'explore_poi',
                 label: `Explore ${tile.improvement.name}`,

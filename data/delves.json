@@ -1,0 +1,739 @@
+{
+    "config": {
+        "minChambers": 3,
+        "maxChambers": 6,
+        "depthRisk": 0.05,
+        "depthReward": 0.25,
+        "depthHarm": 0.12,
+        "statWeight": 0.05,
+        "skillWeight": 0.04,
+        "minChance": 0.05,
+        "maxChance": 0.95,
+        "collapseHealth": 10,
+        "staminaShortfallHealth": 3,
+        "injuryDays": [6, 12],
+        "guardianDays": 60,
+        "curseItem": "cursed_idol",
+        "curseHealthPerDay": 1,
+        "curseKarmaPerDay": 1,
+        "cursePenalty": 0.05,
+        "clearRenown": 10
+    },
+    "kindOrder": ["sunken", "tomb", "ruins", "mine", "cave"],
+    "kinds": {
+        "sunken": {
+            "name": "Sunken Ruins",
+            "icon": "🌊",
+            "poiTypes": ["ruins"],
+            "terrains": ["swamp", "beach", "coast", "island", "lake"],
+            "lore": "ancient",
+            "artifactBias": "ruins",
+            "intro": "The old city settled into the mire long ago. Stairs vanish into black water, and the halls below breathe a cold, wet air.",
+            "chambers": ["flooded_gallery", "drowned_chapel", "eel_den", "rotting_bridge", "silt_chest", "sunken_market", "inscription_wall", "quiet_alcove", "underground_river"],
+            "finales": ["drowned_throne", "flooded_vault", "bell_below"]
+        },
+        "tomb": {
+            "name": "Buried Tomb",
+            "icon": "⚰️",
+            "poiTypes": ["ruins"],
+            "terrains": ["desert", "savanna", "tundra", "snow", "highlands"],
+            "lore": "origin",
+            "artifactBias": "monument",
+            "intro": "Beneath the broken stones a stair descends into a barrow of the old kings. The air is dry and tastes of dust and resin.",
+            "chambers": ["trapped_corridor", "inscription_wall", "stone_guardian", "bone_pit", "sarcophagus_hall", "embalmers_chamber", "false_tomb", "ancestor_shrine", "sealed_door", "quiet_alcove", "miners_ghost"],
+            "finales": ["barrow_kings_rest", "burial_treasury", "hall_of_judgement"]
+        },
+        "ruins": {
+            "name": "Ancient Ruins",
+            "icon": "🏚️",
+            "poiTypes": ["ruins"],
+            "lore": "ancient",
+            "artifactBias": "ruins",
+            "intro": "Past the fallen gate, the cellars of the old kingdom still run deep beneath the rubble — halls, vaults and stairs no one has walked in centuries.",
+            "chambers": ["collapsed_hall", "trapped_corridor", "inscription_wall", "stone_guardian", "treasury_vault", "armory", "quiet_alcove", "bandit_hideout", "ancestor_shrine", "sealed_door"],
+            "finales": ["throne_of_old_king", "sealed_reliquary", "hall_of_maps"]
+        },
+        "mine": {
+            "name": "Abandoned Mine",
+            "icon": "⛏️",
+            "poiTypes": ["cave"],
+            "terrains": ["mountain", "hills", "highlands", "snow_peak"],
+            "lore": "founding",
+            "artifactBias": "cave",
+            "intro": "Rotten timbers prop the mouth of an old mine. Rails run down into the dark, and somewhere below, water drips onto stone.",
+            "chambers": ["collapsed_hall", "armory", "old_shaft", "firedamp_gallery", "ore_vein", "miners_ghost", "cart_track", "crystal_grotto", "rotting_bridge", "quiet_alcove", "sealed_door"],
+            "finales": ["deepest_seam", "thing_they_woke", "foremans_strongroom"]
+        },
+        "cave": {
+            "name": "Deep Cave",
+            "icon": "🕳️",
+            "poiTypes": ["cave"],
+            "lore": "origin",
+            "artifactBias": "cave",
+            "intro": "The cave mouth narrows, then opens into passages that wind far deeper than any shepherd has dared to go.",
+            "chambers": ["echoing_cavern", "crystal_grotto", "bat_roost", "beast_lair", "underground_river", "bandit_hideout", "fungus_garden", "bone_pit", "quiet_alcove", "eel_den", "rotting_bridge"],
+            "finales": ["wyrm_hoard", "painted_cavern", "underground_lake"]
+        }
+    },
+    "injuries": {
+        "broken_arm": { "name": "Broken Arm", "icon": "🦴", "stat": "strength", "amount": 1 },
+        "concussion": { "name": "Concussion", "icon": "💫", "stat": "intelligence", "amount": 1 },
+        "scarred_face": { "name": "Fresh Scars", "icon": "🩹", "stat": "charisma", "amount": 1 },
+        "dark_dreams": { "name": "Dark Dreams", "icon": "🌑", "stat": "faith", "amount": 1 }
+    },
+    "guardians": {
+        "stone_sentinel": { "name": "Awakened Stone Sentinel", "icon": "🗿", "strength": [50, 90] },
+        "barrow_king": { "name": "The Barrow-King, Risen", "icon": "💀", "strength": [70, 120] },
+        "drowned_warden": { "name": "The Drowned Warden", "icon": "🧜", "strength": [50, 100] },
+        "cave_horror": { "name": "Horror of the Deep Cave", "icon": "🦇", "strength": [40, 80] },
+        "deep_wyrm": { "name": "Wyrm from the Deep Seam", "icon": "🐉", "strength": [90, 160] }
+    },
+    "chambers": {
+        "collapsed_hall": {
+            "name": "Collapsed Hall", "icon": "🧱",
+            "text": "Half the ceiling lies across the floor. Beyond the rubble you glimpse the glint of something left behind.",
+            "choices": [
+                { "id": "clear", "label": "Haul the rubble aside", "hint": "Strength. Slow, honest work.", "cost": { "stamina": 2 },
+                  "check": { "stat": "strength", "base": 0.6, "items": { "tools": 0.1 }, "companions": { "artisan": 0.08, "guard": 0.05 } },
+                  "success": { "text": "Stone by stone you clear a path to a forgotten strongbox.", "gold": [30, 80], "items": { "stone": [3, 6] } },
+                  "failure": { "text": "A slab shifts and pins your leg before you wrench free.", "health": -10, "injury": 0.25 } },
+                { "id": "squeeze", "label": "Squeeze through the gap", "hint": "Stealth. Quick, but tight.", "cost": { "stamina": 1 },
+                  "check": { "skill": "stealth", "stat": "luck", "base": 0.5 },
+                  "success": { "text": "You wriggle through and find a purse in a dead man's hand.", "gold": [20, 50] },
+                  "failure": { "text": "Loose stone rains down as you crawl.", "health": -8 } }
+            ]
+        },
+        "trapped_corridor": {
+            "name": "Trapped Corridor", "icon": "⚠️",
+            "text": "Flagstones in a long corridor sit a hair too proud of the floor. Dark holes line the walls at chest height.",
+            "choices": [
+                { "id": "disarm", "label": "Disarm the trap", "hint": "Intelligence and stealth; tools help.", "cost": { "stamina": 1 },
+                  "check": { "stat": "intelligence", "skill": "stealth", "base": 0.5, "items": { "tools": 0.12, "lantern": 0.05 }, "companions": { "spymaster": 0.1, "artisan": 0.06 }, "traits": { "cunning": 0.08 } },
+                  "success": { "text": "The mechanism clicks dead. Its bronze darts are worth keeping.", "items": { "weapons": [1, 2] }, "deeds": { "cunning": 1 } },
+                  "failure": { "text": "A dart grazes your neck. The poison burns.", "health": -12, "injury": 0.3 } },
+                { "id": "force", "label": "Force your way through", "hint": "Strength. Brave or foolish.", "cost": { "stamina": 2 }, "deeds": { "valor": 0.5 },
+                  "check": { "stat": "strength", "base": 0.45, "items": { "shield": 0.12, "leather_armor": 0.08 }, "effects": { "damageReduction": 0.5 }, "traits": { "brave": 0.06 } },
+                  "success": { "text": "Darts rattle off your guard as you charge the length of the hall.", "renown": [2, 4] },
+                  "failure": { "text": "You run the gauntlet and pay for every step.", "health": -18, "injury": 0.4 } }
+            ]
+        },
+        "inscription_wall": {
+            "name": "The Inscribed Wall", "icon": "📜",
+            "text": "A wall dense with carved script — names, dates, perhaps a warning. Some of the glyphs are the sigils of a forgotten god.",
+            "choices": [
+                { "id": "read", "label": "Read the inscription", "hint": "Intelligence and cartography. Learn what lies ahead.", "cost": { "stamina": 1 },
+                  "check": { "stat": "intelligence", "skill": "cartography", "base": 0.5, "items": { "rare_book": 0.1, "lantern": 0.05 }, "companions": { "scholar": 0.15, "priest": 0.05 }, "traits": { "scholar": 0.1 } },
+                  "success": { "text": "The words map the halls below and name the dead who sleep there.", "lore": "ancient", "insight": 0.15, "deeds": { "learning": 1 }, "skills": { "cartography": 0.1 } },
+                  "failure": { "text": "The script defeats you, and the hours slip away.", "stamina": -1 } },
+                { "id": "burn", "label": "Burn the heathen sigils", "hint": "Faith. The pious are rewarded.", "cost": { "items": { "lamp_oil": 1 } }, "deeds": { "zeal": 1 },
+                  "check": { "stat": "faith", "base": 0.55, "items": { "holy_water": 0.1, "scriptures": 0.08 }, "traits": { "zealous": 0.1, "pious": 0.06 } },
+                  "success": { "text": "The sigils blacken and the air lightens. Something here is grateful.", "karma": [4, 8], "insight": 0.05 },
+                  "failure": { "text": "The smoke chokes you, and the old god's anger lingers.", "health": -6, "karma": -2 } },
+                { "id": "pass", "label": "Leave it be", "hint": "No risk, no reward.",
+                  "success": { "text": "You pass the wall without a second look." } }
+            ]
+        },
+        "stone_guardian": {
+            "name": "The Watching Statue", "icon": "🗿",
+            "text": "A stone warrior stands across the passage, sword grounded. Its eyes are gems, and they seem to follow you.",
+            "choices": [
+                { "id": "sneak", "label": "Sneak past in its shadow", "hint": "Stealth. Leaves it sleeping.", "cost": { "stamina": 1 }, "deeds": { "cunning": 0.5 },
+                  "check": { "skill": "stealth", "base": 0.55, "items": { "lantern": -0.05 }, "companions": { "spymaster": 0.1, "hunter": 0.05 }, "traits": { "cunning": 0.06 } },
+                  "success": { "text": "You slip by. The statue never stirs." },
+                  "failure": { "text": "Grit crunches under your boot. The statue's blade swings down.", "health": -15, "injury": 0.3 } },
+                { "id": "fight", "label": "Topple it and take the gem eyes", "hint": "Strength and combat. Rich, if you win.", "cost": { "stamina": 2 }, "deeds": { "valor": 1 },
+                  "check": { "stat": "strength", "skill": "combat", "base": 0.45, "items": { "weapons": 0.06, "tools": 0.06 }, "companions": { "knight": 0.1, "guard": 0.06, "general": 0.08 }, "traits": { "brave": 0.08, "craven": -0.1 }, "effects": { "battlePower": 1 } },
+                  "success": { "text": "The guardian shatters. You pry out its eyes.", "items": { "gems": [2, 4] }, "renown": [3, 6] },
+                  "failure": { "text": "It does not shatter. It wakes, and it follows you out of the dark.", "health": -20, "injury": 0.4, "guardian": "stone_sentinel", "guardianChance": 0.5 } }
+            ]
+        },
+        "treasury_vault": {
+            "name": "The Old Treasury", "icon": "🔐",
+            "text": "A vault door of black iron, its lock crusted but whole. Coins have spilled out from beneath it.",
+            "choices": [
+                { "id": "pick", "label": "Pick the lock", "hint": "Stealth and intelligence; tools help.", "cost": { "stamina": 1 },
+                  "check": { "skill": "stealth", "stat": "intelligence", "base": 0.45, "items": { "tools": 0.12 }, "companions": { "spymaster": 0.1, "merchant": 0.04 }, "traits": { "cunning": 0.06 } },
+                  "success": { "text": "The lock yields. Inside: coin of a dead kingdom.", "gold": [60, 140], "items": { "ancient_coin": [2, 4] }, "deeds": { "greed": 0.5 } },
+                  "failure": { "text": "The pick snaps off inside the lock. You gather the spilled coins and nothing more.", "gold": [10, 25] } },
+                { "id": "smash", "label": "Batter the hinges", "hint": "Strength. Loud.", "cost": { "stamina": 3 },
+                  "check": { "stat": "strength", "base": 0.5, "items": { "tools": 0.1, "weapons": 0.05 } },
+                  "success": { "text": "The door crashes in. The hoard is yours.", "gold": [50, 120], "items": { "ancient_coin": [1, 3] } },
+                  "failure": { "text": "The racket brings the roof down around you.", "health": -14, "injury": 0.25 } }
+            ]
+        },
+        "armory": {
+            "name": "Forgotten Armory", "icon": "⚔️",
+            "text": "Racks of spears and blades line the walls. Most are rust, but not all.",
+            "choices": [
+                { "id": "salvage", "label": "Haul out the best of it", "hint": "Strength. Heavy work.", "cost": { "stamina": 2 },
+                  "check": { "stat": "strength", "base": 0.6, "companions": { "guard": 0.05, "knight": 0.05 } },
+                  "success": { "text": "Good steel under the grime.", "items": { "weapons": [2, 4], "iron": [2, 5] } },
+                  "failure": { "text": "A rack collapses on you.", "health": -10, "items": { "iron": [1, 2] } } },
+                { "id": "search", "label": "Search the racks with care", "hint": "Intelligence. One fine piece, perhaps.", "cost": { "stamina": 1 },
+                  "check": { "stat": "intelligence", "skill": "combat", "base": 0.35, "companions": { "knight": 0.08, "artisan": 0.08 } },
+                  "success": { "text": "Wrapped in oilcloth: a blade etched with runes that still glow faintly.", "items": { "enchanted_weapon": 1 } },
+                  "failure": { "text": "Nothing but rust and a few usable shields.", "items": { "shield": 1 } } }
+            ]
+        },
+        "quiet_alcove": {
+            "name": "A Quiet Alcove", "icon": "🕯️",
+            "text": "A dry niche off the passage, out of the draught. It would be a good place to catch your breath — if nothing else thinks so too.",
+            "choices": [
+                { "id": "rest", "label": "Rest here a while", "hint": "Recover stamina and health. Something may find you.",
+                  "check": { "stat": "luck", "base": 0.7, "companions": { "guard": 0.1, "hunter": 0.08, "healer": 0.05 } },
+                  "success": { "text": "You rest undisturbed and bind your hurts.", "stamina": 3, "health": 12 },
+                  "failure": { "text": "Something with too many legs finds you dozing.", "stamina": 1, "health": -8 } },
+                { "id": "press", "label": "Press on", "hint": "No time to lose.", "deeds": { "valor": 0.25 },
+                  "success": { "text": "You press on into the dark." } }
+            ]
+        },
+        "bandit_hideout": {
+            "name": "Bandits' Hideout", "icon": "🗡️",
+            "text": "Firelight. A handful of outlaws have made a den of these halls, and their loot is piled in the corner.",
+            "choices": [
+                { "id": "fight", "label": "Fall on them", "hint": "Combat. Their stash is yours if you win.", "cost": { "stamina": 2 }, "deeds": { "valor": 1 },
+                  "check": { "skill": "combat", "stat": "strength", "base": 0.45, "items": { "weapons": 0.06, "shield": 0.05 }, "companions": { "knight": 0.1, "guard": 0.08, "general": 0.1, "hunter": 0.05 }, "traits": { "brave": 0.06 }, "effects": { "battlePower": 1 } },
+                  "success": { "text": "The outlaws flee or fall. Their stash is yours.", "gold": [60, 150], "items": { "stolen_goods": [2, 4] }, "renown": [3, 6] },
+                  "failure": { "text": "They beat you back and you escape bloodied.", "health": -18, "injury": 0.35 } },
+                { "id": "parley", "label": "Talk your way to a share", "hint": "Charisma and diplomacy.", "deeds": { "cunning": 0.5 },
+                  "check": { "stat": "charisma", "skill": "diplomacy", "base": 0.45, "companions": { "diplomat": 0.1, "noble": 0.05 }, "traits": { "dread_lord": 0.1, "beloved": 0.05 }, "effects": { "negotiation": 2 } },
+                  "success": { "text": "They take you for a kindred spirit and share both fire and plunder.", "gold": [30, 70], "insight": 0.1 },
+                  "failure": { "text": "They take your purse and show you the way on with a boot.", "gold": [-60, -30] } },
+                { "id": "sneak", "label": "Steal from the pile while they sleep", "hint": "Stealth.", "cost": { "stamina": 1 }, "deeds": { "deceit": 0.5 },
+                  "check": { "skill": "stealth", "base": 0.5, "companions": { "spymaster": 0.12 } },
+                  "success": { "text": "You lift the best of their loot unseen.", "gold": [40, 90], "items": { "luxuries": [1, 2] } },
+                  "failure": { "text": "A sentry wakes. Knives in the dark.", "health": -14 } }
+            ]
+        },
+        "ancestor_shrine": {
+            "name": "Shrine of the Ancestors", "icon": "🏺",
+            "text": "Votive jars and tarnished offerings crowd a low altar to the honored dead.",
+            "choices": [
+                { "id": "offer", "label": "Leave an offering", "hint": "20 gold. The dead remember.", "cost": { "gold": 20 }, "deeds": { "piety": 1 },
+                  "success": { "text": "A breath of warm air passes over you. The way ahead seems clearer.", "karma": [3, 6], "insight": 0.12, "health": 6 } },
+                { "id": "loot", "label": "Take the offerings", "hint": "Easy coin. The dead may object.", "deeds": { "greed": 1, "cruelty": 0.5 },
+                  "check": { "stat": "faith", "base": 0.55, "items": { "holy_water": 0.15, "amulet": 0.1 } },
+                  "success": { "text": "You sweep the offerings into your pack. Nothing stirs.", "gold": [40, 90], "items": { "relics": 1 }, "karma": -4 },
+                  "failure": { "text": "Something follows you out of the shrine — a weight in your pack that was not there before.", "gold": [40, 90], "karma": -6, "curse": 1 } }
+            ]
+        },
+        "sealed_door": {
+            "name": "The Riddle Door", "icon": "🚪",
+            "text": "A round stone door sealed by a ring of turning dials, each carved with a different star.",
+            "choices": [
+                { "id": "solve", "label": "Work out the dials", "hint": "Intelligence and cartography.", "cost": { "stamina": 1 },
+                  "check": { "stat": "intelligence", "skill": "cartography", "base": 0.45, "items": { "compass": 0.1, "rare_book": 0.08 }, "companions": { "scholar": 0.12 }, "traits": { "scholar": 0.08 } },
+                  "success": { "text": "The stars align and the door rolls aside onto a scholar's cell.", "items": { "rare_book": 1, "parchment": [2, 3] }, "deeds": { "learning": 1 }, "insight": 0.1 },
+                  "failure": { "text": "A wrong turn, and a gout of foul air leaves you retching.", "health": -8 } },
+                { "id": "batter", "label": "Batter the dials loose", "hint": "Strength. Crude.", "cost": { "stamina": 3 },
+                  "check": { "stat": "strength", "base": 0.45, "items": { "tools": 0.12 } },
+                  "success": { "text": "The mechanism gives with a shriek. The cell beyond is half-crushed, but there is something.", "items": { "parchment": [1, 2] }, "gold": [20, 50] },
+                  "failure": { "text": "You exhaust yourself on unmoving stone.", "stamina": -2 } }
+            ]
+        },
+        "bone_pit": {
+            "name": "The Parting of Ways", "icon": "🦴",
+            "text": "The passage splits. From one way comes a cool draught; the other is strewn with old bones that lead downward.",
+            "choices": [
+                { "id": "draught", "label": "Follow the draught", "hint": "Intelligence. Draughts lead somewhere.", "cost": { "stamina": 1 },
+                  "check": { "stat": "intelligence", "skill": "cartography", "base": 0.55, "items": { "compass": 0.1, "lantern": 0.05 }, "companions": { "hunter": 0.08 }, "traits": { "wanderer": 0.08 } },
+                  "success": { "text": "The draught leads to a forgotten side passage and a cache within.", "gold": [20, 60], "insight": 0.1, "deeds": { "travel": 0.5 } },
+                  "failure": { "text": "The draught comes from a crack you can't follow. You lose your way for hours.", "stamina": -2 } },
+                { "id": "bones", "label": "Follow the bones", "hint": "Faith and nerve. The dead went somewhere.", "cost": { "stamina": 1 }, "deeds": { "valor": 0.5 },
+                  "check": { "stat": "faith", "base": 0.5, "items": { "holy_water": 0.08, "lantern": 0.05 }, "traits": { "brave": 0.08, "craven": -0.1, "pious": 0.05 } },
+                  "success": { "text": "The bones lead to an ossuary where the dead were buried with their wealth.", "gold": [40, 90], "items": { "ancient_coin": [1, 3] } },
+                  "failure": { "text": "The bones lead to whatever killed them.", "health": -15, "injury": 0.3 } }
+            ]
+        },
+        "sarcophagus_hall": {
+            "name": "Hall of Sarcophagi", "icon": "⚰️",
+            "text": "A dozen stone coffins rest in a row, their lids carved with the faces of the dead.",
+            "choices": [
+                { "id": "open", "label": "Prise open the sarcophagi", "hint": "Strength. Grave goods — and the risk of a curse.", "cost": { "stamina": 2 }, "deeds": { "greed": 1 },
+                  "check": { "stat": "strength", "base": 0.55, "items": { "tools": 0.1, "holy_water": 0.08 } },
+                  "success": { "text": "Gold rings, a gem-set circlet, and dust.", "gold": [50, 120], "items": { "gems": [1, 3] }, "karma": -2 },
+                  "failure": { "text": "The lid slips and the thing inside is not quite dead enough.", "health": -12, "curse": 0.5, "karma": -3 } },
+                { "id": "pray", "label": "Pray for the dead", "hint": "Faith. Piety has its own rewards.", "deeds": { "piety": 1, "mercy": 0.5 },
+                  "check": { "stat": "faith", "base": 0.6, "items": { "scriptures": 0.08, "incense": 0.08 }, "companions": { "priest": 0.15 }, "traits": { "pious": 0.1 } },
+                  "success": { "text": "A peace settles on the hall. A grave-gift lies uncovered where none was before.", "karma": [5, 10], "items": { "relics": 1 } },
+                  "failure": { "text": "Your prayers echo hollow. You feel watched.", "karma": [1, 2] } }
+            ]
+        },
+        "embalmers_chamber": {
+            "name": "Embalmers' Chamber", "icon": "🏺",
+            "text": "Shelves of sealed jars, bundles of dried herbs, and the sweet reek of old resins.",
+            "choices": [
+                { "id": "search", "label": "Search the jars", "hint": "Intelligence. Rare herbs, or poison.", "cost": { "stamina": 1 },
+                  "check": { "stat": "intelligence", "base": 0.55, "companions": { "herbalist": 0.15, "healer": 0.1, "scholar": 0.05 } },
+                  "success": { "text": "Precious resins and herbs no living garden grows.", "items": { "rare_herbs": [2, 4], "incense": [1, 3] } },
+                  "failure": { "text": "One jar breathes out a choking dust.", "health": -10, "items": { "poison": 1 } } },
+                { "id": "salve", "label": "Mix a salve from what's here", "hint": "Intelligence. Heal yourself.", "cost": { "stamina": 1 },
+                  "check": { "stat": "intelligence", "base": 0.5, "companions": { "healer": 0.2, "herbalist": 0.15 } },
+                  "success": { "text": "The old remedies still work.", "health": 18, "items": { "healing_salve": 1 } },
+                  "failure": { "text": "The mixture stings but does little.", "health": 3 } }
+            ]
+        },
+        "false_tomb": {
+            "name": "The False Tomb", "icon": "🗝️",
+            "text": "A grand tomb, ostentatiously empty. Grave robbers came and went. But the proportions of the room are wrong.",
+            "choices": [
+                { "id": "spot", "label": "Find the hidden wall", "hint": "Intelligence and cartography.", "cost": { "stamina": 1 },
+                  "check": { "stat": "intelligence", "skill": "cartography", "base": 0.45, "items": { "lantern": 0.08, "compass": 0.06 }, "companions": { "scholar": 0.08, "spymaster": 0.08 }, "traits": { "cunning": 0.06 } },
+                  "success": { "text": "Behind a false wall lies the true burial, untouched.", "gold": [60, 120], "items": { "amulet": 1 }, "deeds": { "cunning": 0.5 } },
+                  "failure": { "text": "You tap stone for hours and find only stone.", "stamina": -1 } },
+                { "id": "break", "label": "Break through the far wall", "hint": "Strength.", "cost": { "stamina": 3 },
+                  "check": { "stat": "strength", "base": 0.45, "items": { "tools": 0.12 } },
+                  "success": { "text": "The wall crumbles onto a hidden burial.", "gold": [40, 90], "items": { "gems": [1, 2] } },
+                  "failure": { "text": "The wrong wall. The ceiling sags ominously.", "health": -10 } }
+            ]
+        },
+        "flooded_gallery": {
+            "name": "Flooded Gallery", "icon": "💧",
+            "text": "Black water fills the gallery to the shoulder. Through it, the far arch gleams with something gilded.",
+            "choices": [
+                { "id": "swim", "label": "Wade and swim through", "hint": "Strength. Cold and dark.", "cost": { "stamina": 2 },
+                  "check": { "stat": "strength", "base": 0.55, "items": { "rope": 0.1 }, "traits": { "sea_wolf": 0.1 } },
+                  "success": { "text": "You haul yourself out beside a gilded votive cup.", "items": { "luxuries": [1, 2] }, "gold": [20, 40] },
+                  "failure": { "text": "The cold steals your breath, and something brushes your leg.", "health": -12, "injury": 0.2 } },
+                { "id": "around", "label": "Find a dry way round", "hint": "Cartography. Slower.", "cost": { "stamina": 2 },
+                  "check": { "skill": "cartography", "stat": "intelligence", "base": 0.5, "items": { "compass": 0.1, "lantern": 0.06 }, "traits": { "wanderer": 0.06 } },
+                  "success": { "text": "A crawlway above the waterline leads you around — and past an old offering niche.", "gold": [25, 50], "deeds": { "travel": 0.5 } },
+                  "failure": { "text": "Every way round ends in water.", "stamina": -1 } }
+            ]
+        },
+        "drowned_chapel": {
+            "name": "The Drowned Chapel", "icon": "⛪",
+            "text": "A chapel half-sunk in silt. The altar stands above the water; the reliquary lies beneath it.",
+            "choices": [
+                { "id": "dive", "label": "Dive for the reliquary", "hint": "Strength. Deep and dark.", "cost": { "stamina": 2 },
+                  "check": { "stat": "strength", "base": 0.45, "items": { "rope": 0.1 }, "traits": { "sea_wolf": 0.1 } },
+                  "success": { "text": "Your fingers close on a silver casket.", "items": { "relics": [1, 2] }, "gold": [20, 50] },
+                  "failure": { "text": "The silt grips you and you surface gasping.", "health": -14, "injury": 0.25 } },
+                { "id": "pray", "label": "Kneel at the altar", "hint": "Faith.", "deeds": { "piety": 1 },
+                  "check": { "stat": "faith", "base": 0.55, "items": { "holy_water": 0.08 }, "companions": { "priest": 0.15 }, "traits": { "pious": 0.1 } },
+                  "success": { "text": "The water stills. You feel washed clean.", "karma": [5, 10], "health": 10, "insight": 0.08 },
+                  "failure": { "text": "Only the drip of water answers.", "karma": 1 } }
+            ]
+        },
+        "eel_den": {
+            "name": "The Eel Den", "icon": "🐍",
+            "text": "Something long and slick moves in the pool across your path. Many somethings.",
+            "choices": [
+                { "id": "fight", "label": "Fight your way across", "hint": "Combat.", "cost": { "stamina": 2 }, "deeds": { "valor": 0.5 },
+                  "check": { "skill": "combat", "stat": "strength", "base": 0.5, "items": { "weapons": 0.06 }, "companions": { "hunter": 0.1, "guard": 0.06 }, "effects": { "battlePower": 1 } },
+                  "success": { "text": "You cut them down and wade on with supper.", "items": { "fish": [3, 6] } },
+                  "failure": { "text": "Teeth, and more teeth.", "health": -14, "injury": 0.25 } },
+                { "id": "sneak", "label": "Edge along the wall", "hint": "Stealth.", "cost": { "stamina": 1 },
+                  "check": { "skill": "stealth", "base": 0.55, "companions": { "hunter": 0.08 } },
+                  "success": { "text": "They never notice you." },
+                  "failure": { "text": "You slip into the pool.", "health": -10 } },
+                { "id": "bait", "label": "Throw them meat", "hint": "Costs 1 meat. Safe.", "cost": { "items": { "meat": 1 } }, "deeds": { "cunning": 0.5 },
+                  "success": { "text": "They boil around the offering while you pass." } }
+            ]
+        },
+        "rotting_bridge": {
+            "name": "The Rotting Bridge", "icon": "🌉",
+            "text": "A timber walkway spans a dark drop. Half its planks are gone, and the rest are soft.",
+            "choices": [
+                { "id": "dash", "label": "Dash across", "hint": "Luck and nerve.", "cost": { "stamina": 1 }, "deeds": { "valor": 0.5 },
+                  "check": { "stat": "luck", "skill": "stealth", "base": 0.55, "traits": { "brave": 0.05 } },
+                  "success": { "text": "Planks crack behind you, but you're across." },
+                  "failure": { "text": "A plank gives way and you catch the edge, barely.", "health": -16, "injury": 0.35 } },
+                { "id": "shore", "label": "Shore it up first", "hint": "Intelligence; rope and wood help.", "cost": { "stamina": 2 },
+                  "check": { "stat": "intelligence", "base": 0.55, "items": { "rope": 0.15, "wood": 0.1, "tools": 0.06 }, "companions": { "artisan": 0.1 } },
+                  "success": { "text": "Lashed and braced, the bridge holds. On the far side, an old pack.", "gold": [15, 40], "items": { "rope": 1 } },
+                  "failure": { "text": "Your work holds, mostly.", "health": -6 } }
+            ]
+        },
+        "silt_chest": {
+            "name": "The Silted Chest", "icon": "📦",
+            "text": "The corner of an iron-bound chest juts from the silt, its lock long rusted away.",
+            "choices": [
+                { "id": "pry", "label": "Wrench it free", "hint": "Strength.", "cost": { "stamina": 2 },
+                  "check": { "stat": "strength", "base": 0.55, "items": { "tools": 0.1, "rope": 0.06 } },
+                  "success": { "text": "It comes free with a sucking groan, heavy with coin.", "gold": [50, 110], "items": { "ancient_coin": [1, 3] } },
+                  "failure": { "text": "The lid tears off and the contents spill into the mud. You save a little.", "gold": [10, 30], "health": -5 } },
+                { "id": "dig", "label": "Dig it out carefully", "hint": "Intelligence. Slow.", "cost": { "stamina": 3 },
+                  "check": { "stat": "intelligence", "base": 0.6, "items": { "tools": 0.1 } },
+                  "success": { "text": "Everything inside survives: coins, glass beads, a sealed letter.", "gold": [40, 80], "items": { "glass": [1, 3], "parchment": 1 }, "lore": "ancient" },
+                  "failure": { "text": "The silt slumps back as fast as you dig.", "stamina": -1 } }
+            ]
+        },
+        "sunken_market": {
+            "name": "The Sunken Market", "icon": "🏪",
+            "text": "Stalls stand in rows beneath the mire, their awnings long rotted. Merchants left in a hurry.",
+            "choices": [
+                { "id": "search", "label": "Search the stalls", "hint": "Intelligence and commerce.", "cost": { "stamina": 2 },
+                  "check": { "stat": "intelligence", "skill": "commerce", "base": 0.5, "companions": { "merchant": 0.12, "artisan": 0.06 }, "traits": { "merchant_prince": 0.08 } },
+                  "success": { "text": "Fine glass, spices sealed in wax, a merchant's strongbox.", "items": { "luxuries": [1, 2], "spices": [2, 4] }, "gold": [20, 60], "deeds": { "trade": 0.5 } },
+                  "failure": { "text": "Rot and ruin, but a few coins.", "gold": [10, 25] } },
+                { "id": "ledgers", "label": "Look for the guild ledgers", "hint": "Intelligence. Knowledge, not coin.", "cost": { "stamina": 1 },
+                  "check": { "stat": "intelligence", "skill": "cartography", "base": 0.45, "companions": { "scholar": 0.1, "merchant": 0.06 } },
+                  "success": { "text": "The guild's ledgers name trade routes and caches long forgotten.", "chart": "treasure", "deeds": { "learning": 0.5 } },
+                  "failure": { "text": "The ledgers have turned to pulp." } }
+            ]
+        },
+        "underground_river": {
+            "name": "The Underground River", "icon": "🌊",
+            "text": "A black river roars through the cavern, and a cool draught blows downstream.",
+            "choices": [
+                { "id": "draught", "label": "Follow the draught along the bank", "hint": "Intelligence and cartography.", "cost": { "stamina": 2 },
+                  "check": { "stat": "intelligence", "skill": "cartography", "base": 0.55, "items": { "compass": 0.1, "lantern": 0.06 }, "companions": { "hunter": 0.08 }, "traits": { "wanderer": 0.08 } },
+                  "success": { "text": "The draught leads to a ledge where someone once camped — and charted these tunnels.", "chart": "ancient", "deeds": { "travel": 0.5 } },
+                  "failure": { "text": "The bank peters out into sheer rock.", "stamina": -1 } },
+                { "id": "raft", "label": "Ride the river down", "hint": "Strength. Fast and dangerous.", "cost": { "stamina": 1 }, "deeds": { "valor": 0.5 },
+                  "check": { "stat": "strength", "base": 0.45, "items": { "rope": 0.1, "wood": 0.06 }, "traits": { "sea_wolf": 0.12, "brave": 0.05 } },
+                  "success": { "text": "The river spits you out deep below, beside a glittering shelf.", "items": { "gems": [1, 2] }, "insight": 0.08 },
+                  "failure": { "text": "The river batters you against the rocks.", "health": -18, "injury": 0.35 } }
+            ]
+        },
+        "echoing_cavern": {
+            "name": "The Echoing Cavern", "icon": "🗣️",
+            "text": "A cavern so vast your torchlight finds no ceiling. Every sound returns a hundredfold.",
+            "choices": [
+                { "id": "shout", "label": "Shout, and map it by the echoes", "hint": "Cartography. Loud.", "cost": { "stamina": 1 },
+                  "check": { "skill": "cartography", "stat": "intelligence", "base": 0.5, "companions": { "hunter": 0.06, "scholar": 0.06 } },
+                  "success": { "text": "The echoes trace the cavern's shape, and you mark it carefully.", "chart": "ancient", "skills": { "cartography": 0.15 } },
+                  "failure": { "text": "The echoes wake the bats — and something larger.", "health": -10 } },
+                { "id": "silent", "label": "Cross in silence", "hint": "Stealth.", "cost": { "stamina": 1 },
+                  "check": { "skill": "stealth", "base": 0.6 },
+                  "success": { "text": "You cross unheard and find a shelf of old offerings.", "gold": [20, 50] },
+                  "failure": { "text": "A stumble, and the cavern roars it back.", "health": -6 } }
+            ]
+        },
+        "crystal_grotto": {
+            "name": "Crystal Grotto", "icon": "💎",
+            "text": "The walls glitter with crystal growths, some as long as your arm.",
+            "choices": [
+                { "id": "mine", "label": "Mine the crystals", "hint": "Strength; tools help. The roof may not like it.", "cost": { "stamina": 2 }, "deeds": { "greed": 0.5 },
+                  "check": { "stat": "strength", "base": 0.5, "items": { "tools": 0.15 }, "companions": { "artisan": 0.08 } },
+                  "success": { "text": "You chip free clusters of fine crystal.", "items": { "gems": [2, 5] } },
+                  "failure": { "text": "Crystal and stone come down together.", "health": -14, "items": { "gems": 1 }, "injury": 0.25 } },
+                { "id": "admire", "label": "Take only what has fallen", "hint": "Safe, and humble.", "deeds": { "mercy": 0.25 },
+                  "success": { "text": "A few loose crystals, and a moment of wonder.", "items": { "gems": 1 }, "insight": 0.05 } }
+            ]
+        },
+        "bat_roost": {
+            "name": "The Bat Roost", "icon": "🦇",
+            "text": "The ceiling seethes with bats. The floor beneath is a reeking slope of guano.",
+            "choices": [
+                { "id": "rush", "label": "Rush through", "hint": "Strength. Unpleasant.", "cost": { "stamina": 2 },
+                  "check": { "stat": "strength", "base": 0.6 },
+                  "success": { "text": "A storm of wings, and you're through." },
+                  "failure": { "text": "You fall in the muck amid a thousand bites.", "health": -10, "injury": 0.15 } },
+                { "id": "creep", "label": "Douse your light and creep", "hint": "Stealth. You'll be blind.", "cost": { "stamina": 1 },
+                  "check": { "skill": "stealth", "stat": "luck", "base": 0.5, "companions": { "hunter": 0.1 } },
+                  "success": { "text": "In the dark you find a dead explorer's pack.", "gold": [20, 50], "items": { "lantern": 1 } },
+                  "failure": { "text": "Blind, you stumble into a crevice.", "health": -12 } }
+            ]
+        },
+        "beast_lair": {
+            "name": "The Beast's Lair", "icon": "🐻",
+            "text": "Gnawed bones, a musky stink, and the rumble of something big breathing in the dark.",
+            "choices": [
+                { "id": "fight", "label": "Fight the beast", "hint": "Combat. Hunters help.", "cost": { "stamina": 2 }, "deeds": { "valor": 1 },
+                  "check": { "skill": "combat", "stat": "strength", "base": 0.45, "items": { "weapons": 0.06, "bow": 0.06 }, "companions": { "hunter": 0.15, "knight": 0.08, "guard": 0.06 }, "traits": { "brave": 0.06, "craven": -0.1 }, "effects": { "battlePower": 1 } },
+                  "success": { "text": "The beast falls. Its pelt is magnificent.", "items": { "pelts": [2, 4], "meat": [3, 6] }, "renown": [3, 5] },
+                  "failure": { "text": "Claws open your arm to the bone.", "health": -20, "injury": 0.5 } },
+                { "id": "sneak", "label": "Slip past its sleeping bulk", "hint": "Stealth.", "cost": { "stamina": 1 },
+                  "check": { "skill": "stealth", "base": 0.5, "companions": { "hunter": 0.1 } },
+                  "success": { "text": "It never wakes." },
+                  "failure": { "text": "One eye opens.", "health": -16, "injury": 0.3 } },
+                { "id": "feed", "label": "Leave it meat", "hint": "Costs 2 meat. Safe passage.", "cost": { "items": { "meat": 2 } }, "deeds": { "mercy": 0.5 },
+                  "success": { "text": "It eats, and lets you pass." } }
+            ]
+        },
+        "fungus_garden": {
+            "name": "The Fungus Garden", "icon": "🍄",
+            "text": "Pale fungi grow in tiers from the cavern floor, glowing faintly.",
+            "choices": [
+                { "id": "harvest", "label": "Harvest the fungi", "hint": "Intelligence. Some are precious; some are deadly.", "cost": { "stamina": 1 },
+                  "check": { "stat": "intelligence", "base": 0.5, "companions": { "herbalist": 0.15, "healer": 0.08, "hunter": 0.05 } },
+                  "success": { "text": "Rare caps for any apothecary.", "items": { "mushrooms": [3, 6], "rare_herbs": [1, 2] } },
+                  "failure": { "text": "A puffball bursts in your face.", "health": -10, "injury": 0.2 } },
+                { "id": "burn", "label": "Burn a path through", "hint": "Costs lamp oil. Safe.", "cost": { "items": { "lamp_oil": 1 } },
+                  "success": { "text": "The fungi blacken and you pass." } }
+            ]
+        },
+        "old_shaft": {
+            "name": "The Old Shaft", "icon": "🕳️",
+            "text": "A vertical shaft drops into the dark, its ladder long rotted. Far below, something glints.",
+            "choices": [
+                { "id": "climb", "label": "Climb down", "hint": "Strength; rope helps a great deal.", "cost": { "stamina": 2 },
+                  "check": { "stat": "strength", "base": 0.45, "items": { "rope": 0.2, "tools": 0.05 } },
+                  "success": { "text": "At the bottom: a miner's last bag of nuggets.", "items": { "gold_ore": [2, 4] } },
+                  "failure": { "text": "You fall the last stretch.", "health": -18, "injury": 0.45 } },
+                { "id": "lantern", "label": "Lower a light and look first", "hint": "Intelligence. Learn the way.", "cost": { "stamina": 1 },
+                  "check": { "stat": "intelligence", "base": 0.55, "items": { "lantern": 0.15, "rope": 0.05 } },
+                  "success": { "text": "The light shows a safer gallery beyond the shaft.", "insight": 0.15, "items": { "ore": [1, 3] } },
+                  "failure": { "text": "The light gutters and falls. You learn nothing." } }
+            ]
+        },
+        "firedamp_gallery": {
+            "name": "Firedamp Gallery", "icon": "💨",
+            "text": "The air here smells sweet and wrong. Old miners called it firedamp: one spark and the gallery burns.",
+            "choices": [
+                { "id": "dark", "label": "Douse your light and feel your way", "hint": "Stealth and intelligence. Slow and blind.", "cost": { "stamina": 2 },
+                  "check": { "skill": "stealth", "stat": "intelligence", "base": 0.55, "companions": { "hunter": 0.05, "artisan": 0.05 } },
+                  "success": { "text": "Groping in the dark, you find an abandoned toolbox.", "items": { "tools": [1, 2], "coal": [2, 4] } },
+                  "failure": { "text": "You crack your head on a low beam.", "health": -8, "injury": 0.3 } },
+                { "id": "torch", "label": "Hurry through with the torch", "hint": "Luck. Very fast, or very bad.", "cost": { "stamina": 1 }, "deeds": { "valor": 0.5 },
+                  "check": { "stat": "luck", "base": 0.5, "items": { "lantern": 0.15 } },
+                  "success": { "text": "The flame flickers blue, but holds. You are through." },
+                  "failure": { "text": "A whump of blue fire. You come to, singed and smoking.", "health": -22, "injury": 0.5 } }
+            ]
+        },
+        "ore_vein": {
+            "name": "The Untouched Vein", "icon": "⛏️",
+            "text": "A seam of rich ore, abandoned when the miners fled. Their picks still lie where they dropped them.",
+            "choices": [
+                { "id": "work", "label": "Work the vein", "hint": "Strength; tools help. Hard labor.", "cost": { "stamina": 3 },
+                  "check": { "stat": "strength", "base": 0.6, "items": { "tools": 0.15 }, "companions": { "artisan": 0.06 } },
+                  "success": { "text": "A good day's haul.", "items": { "ore": [4, 8], "gold_ore": [1, 2] } },
+                  "failure": { "text": "Bruising work for a meager pile.", "items": { "ore": [1, 3] }, "health": -5 } },
+                { "id": "sample", "label": "Take samples and move on", "hint": "Safe.",
+                  "success": { "text": "A pocketful of the best pieces.", "items": { "ore": [1, 2] } } }
+            ]
+        },
+        "miners_ghost": {
+            "name": "The Restless Shade", "icon": "👻",
+            "text": "A pale figure stands in the passage, repeating the motions of some task it can never finish.",
+            "choices": [
+                { "id": "speak", "label": "Speak to it", "hint": "Charisma and faith.", "deeds": { "mercy": 0.5 },
+                  "check": { "stat": "charisma", "base": 0.5, "items": { "holy_water": 0.06 }, "companions": { "priest": 0.12 }, "traits": { "merciful": 0.1, "pious": 0.05 } },
+                  "success": { "text": "It tells you where it hid its wages, and fades in peace.", "gold": [40, 90], "karma": [3, 6], "lore": "any" },
+                  "failure": { "text": "It shrieks, and its cold passes through you.", "health": -10, "injury": 0.25 } },
+                { "id": "banish", "label": "Banish it", "hint": "Faith. Holy water helps.", "deeds": { "zeal": 1 },
+                  "check": { "stat": "faith", "base": 0.5, "items": { "holy_water": 0.15, "relics": 0.1, "scriptures": 0.06 }, "companions": { "priest": 0.15 }, "traits": { "zealous": 0.1 } },
+                  "success": { "text": "With a word and a gesture, the shade is gone.", "karma": [2, 5], "renown": [2, 4] },
+                  "failure": { "text": "It does not go. It follows.", "health": -8, "curse": 0.4 } }
+            ]
+        },
+        "cart_track": {
+            "name": "The Ore-Cart Track", "icon": "🛤️",
+            "text": "Rails dive steeply downward. An ore cart sits at the top, its wheels still free.",
+            "choices": [
+                { "id": "ride", "label": "Ride the cart down", "hint": "Luck. Fast — very fast.", "deeds": { "valor": 0.5 },
+                  "check": { "stat": "luck", "base": 0.55, "traits": { "brave": 0.05 } },
+                  "success": { "text": "You rattle down into the depths in moments, laughing.", "stamina": 2 },
+                  "failure": { "text": "The cart jumps the rails.", "health": -16, "injury": 0.4 } },
+                { "id": "walk", "label": "Walk the track", "hint": "Tiring but safe.", "cost": { "stamina": 2 },
+                  "success": { "text": "A long walk down. Along the way, a few dropped lumps of coal.", "items": { "coal": [1, 3] } } }
+            ]
+        },
+        "drowned_throne": {
+            "name": "The Drowned Throne", "icon": "👑",
+            "text": "The deepest hall: a throne room beneath the water's skin. On the throne sits a crowned skeleton, and around it, the treasure of a sunken court.",
+            "choices": [
+                { "id": "claim", "label": "Claim the crown", "hint": "Strength and nerve. The Warden guards it.", "cost": { "stamina": 2 }, "deeds": { "valor": 1 },
+                  "check": { "stat": "strength", "skill": "combat", "base": 0.4, "items": { "rope": 0.06, "weapons": 0.05 }, "companions": { "knight": 0.08, "guard": 0.05 }, "traits": { "brave": 0.06, "sea_wolf": 0.08 }, "effects": { "battlePower": 1 } },
+                  "success": { "text": "The crown comes away in your hands. Beneath it, a relic shard of the old kings.", "gold": [80, 160], "items": { "luxuries": [1, 3] }, "fragment": 0.8, "renown": [6, 10] },
+                  "failure": { "text": "The skeleton's hand closes on your wrist. The water rises — and the Warden rises with it.", "health": -24, "injury": 0.5, "guardian": "drowned_warden" } },
+                { "id": "honor", "label": "Honor the drowned king", "hint": "Faith. Take only what is given.", "deeds": { "piety": 1, "mercy": 0.5 },
+                  "check": { "stat": "faith", "base": 0.55, "companions": { "priest": 0.12 }, "traits": { "pious": 0.08 } },
+                  "success": { "text": "The water stills. At your feet, the king's own gift.", "items": { "relics": 1 }, "karma": [6, 10], "fragment": 0.4, "lore": "ancient" },
+                  "failure": { "text": "Your words go unheeded. You leave with nothing but the memory.", "karma": 2 } }
+            ]
+        },
+        "flooded_vault": {
+            "name": "The Flooded Vault", "icon": "🏦",
+            "text": "Behind a door warped by centuries of water lies the city's vault — and it is still sealed.",
+            "choices": [
+                { "id": "open", "label": "Open the vault", "hint": "Intelligence and stealth; tools help.", "cost": { "stamina": 2 },
+                  "check": { "stat": "intelligence", "skill": "stealth", "base": 0.45, "items": { "tools": 0.12 }, "companions": { "spymaster": 0.1, "merchant": 0.05 }, "traits": { "cunning": 0.06 } },
+                  "success": { "text": "The seal breaks. Bars of gold, and a broken relic among them.", "items": { "gold_bar": [1, 2], "ancient_coin": [3, 6] }, "gold": [60, 140], "fragment": 0.6 },
+                  "failure": { "text": "The door gives way all at once and the vault floods. You save what you can.", "gold": [30, 60], "health": -15, "collapse": true } },
+                { "id": "breach", "label": "Breach the wall beside it", "hint": "Strength. The mire may pour in.", "cost": { "stamina": 3 },
+                  "check": { "stat": "strength", "base": 0.45, "items": { "tools": 0.12 } },
+                  "success": { "text": "You break through into the vault.", "items": { "gold_bar": 1, "ancient_coin": [2, 4] }, "gold": [50, 100] },
+                  "failure": { "text": "Mud and water pour through the breach.", "health": -18, "injury": 0.35, "collapse": true } }
+            ]
+        },
+        "bell_below": {
+            "name": "The Bell Below", "icon": "🔔",
+            "text": "A great bronze bell hangs in a drowned tower, green with age. Legend says it rang to call the city's guardian.",
+            "choices": [
+                { "id": "ring", "label": "Ring the bell", "hint": "Faith and luck. Who answers?", "deeds": { "valor": 0.5 },
+                  "check": { "stat": "faith", "base": 0.45, "items": { "holy_water": 0.08 }, "traits": { "pious": 0.06, "brave": 0.04 } },
+                  "success": { "text": "The note rolls through the water. A hidden niche opens: an offering to whoever dared.", "fragment": 0.7, "karma": [3, 6], "renown": [5, 8] },
+                  "failure": { "text": "Something vast answers the bell.", "health": -15, "guardian": "drowned_warden" } },
+                { "id": "loot", "label": "Strip the bell tower", "hint": "Strength. Bronze, and the bellmaker's offerings.", "cost": { "stamina": 2 }, "deeds": { "greed": 0.5 },
+                  "check": { "stat": "strength", "base": 0.55, "items": { "tools": 0.1, "rope": 0.08 } },
+                  "success": { "text": "You pry away the offerings set in the tower walls.", "gold": [60, 120], "items": { "luxuries": [1, 2] } },
+                  "failure": { "text": "The bell crashes down and nearly takes you with it.", "health": -20, "injury": 0.4 } },
+                { "id": "study", "label": "Study the bell's inscriptions", "hint": "Intelligence.", "cost": { "stamina": 1 },
+                  "check": { "stat": "intelligence", "skill": "cartography", "base": 0.5, "companions": { "scholar": 0.12 }, "traits": { "scholar": 0.08 } },
+                  "success": { "text": "The bell's rim names the city and the roads that once led to it.", "lore": "ancient", "chart": "ancient", "deeds": { "learning": 1 } },
+                  "failure": { "text": "The verdigris has eaten the words." } }
+            ]
+        },
+        "barrow_kings_rest": {
+            "name": "The Barrow-King's Rest", "icon": "👑",
+            "text": "The heart of the barrow: a king laid out in bronze mail on a bier of stone, his grave-goods heaped about him and a broken relic upon his breast.",
+            "choices": [
+                { "id": "take", "label": "Take the relic from his breast", "hint": "Stealth. He may wake.", "cost": { "stamina": 1 }, "deeds": { "greed": 0.5 },
+                  "check": { "skill": "stealth", "base": 0.45, "items": { "holy_water": 0.08, "amulet": 0.06 }, "companions": { "spymaster": 0.08 }, "traits": { "cunning": 0.06 } },
+                  "success": { "text": "Your fingers close on the shard. The king sleeps on.", "fragment": 0.9, "gold": [60, 120], "items": { "ancient_coin": [2, 4] } },
+                  "failure": { "text": "His eyes open. The Barrow-King rises and strides out into the world.", "fragment": 0.5, "health": -22, "injury": 0.4, "guardian": "barrow_king" } },
+                { "id": "lay", "label": "Lay him to rest properly", "hint": "Faith. Earn the dead king's blessing.", "deeds": { "piety": 1, "mercy": 1 },
+                  "check": { "stat": "faith", "base": 0.5, "items": { "holy_water": 0.1, "incense": 0.06, "scriptures": 0.06 }, "companions": { "priest": 0.15 }, "traits": { "pious": 0.1 } },
+                  "success": { "text": "With rites he never received, the king is at peace — and his shade presses a gift into your hand.", "items": { "amulet": 1 }, "karma": [8, 14], "fragment": 0.5, "lore": "origin" },
+                  "failure": { "text": "The rites falter. The dead do not forgive.", "health": -10, "curse": 0.5 } }
+            ]
+        },
+        "burial_treasury": {
+            "name": "The Burial Treasury", "icon": "💰",
+            "text": "Chests, urns and weapons heaped in a sealed chamber — a king's wealth, buried so he would not be poor in death.",
+            "choices": [
+                { "id": "plunder", "label": "Plunder it all", "hint": "Strength. Great riches; a curse is likely.", "cost": { "stamina": 2 }, "deeds": { "greed": 1.5 },
+                  "check": { "stat": "strength", "base": 0.5, "items": { "holy_water": 0.1, "amulet": 0.1 } },
+                  "success": { "text": "Gold, gems, and finery beyond counting.", "gold": [120, 240], "items": { "gems": [2, 4], "luxuries": [1, 3] }, "curse": 0.4 },
+                  "failure": { "text": "You fill your packs — and something fills them back.", "gold": [80, 160], "items": { "gems": [1, 2] }, "curse": 1, "karma": -5 } },
+                { "id": "choose", "label": "Take one worthy treasure", "hint": "Intelligence. Measured greed.", "cost": { "stamina": 1 },
+                  "check": { "stat": "intelligence", "skill": "commerce", "base": 0.5, "companions": { "merchant": 0.1, "scholar": 0.08 } },
+                  "success": { "text": "You pick out the finest piece: an artifact of the old age, and a shard among the urns.", "items": { "ancient_artifact": 1 }, "fragment": 0.5 },
+                  "failure": { "text": "You choose poorly — gilded lead.", "gold": [30, 60] } }
+            ]
+        },
+        "hall_of_judgement": {
+            "name": "The Hall of Judgement", "icon": "⚖️",
+            "text": "Scales of black stone stand before a sealed door. Carvings show the dead weighed against a feather; the unworthy are devoured.",
+            "choices": [
+                { "id": "weigh", "label": "Submit to the scales", "hint": "Faith and karma. The worthy pass.", "deeds": { "piety": 1 },
+                  "check": { "stat": "faith", "base": 0.5, "items": { "relics": 0.08, "holy_water": 0.06 }, "traits": { "pious": 0.1, "merciful": 0.06, "cruel": -0.1, "kinslayer": -0.15 } },
+                  "success": { "text": "The scales balance. The door opens on the sanctum of a forgotten faith.", "fragment": 0.8, "karma": [6, 10], "items": { "relics": 1 }, "lore": "origin" },
+                  "failure": { "text": "The scales tip. The floor opens beneath you.", "health": -22, "injury": 0.45 } },
+                { "id": "trick", "label": "Weight the scales by trickery", "hint": "Intelligence and stealth.", "cost": { "stamina": 1 }, "deeds": { "deceit": 1 },
+                  "check": { "stat": "intelligence", "skill": "stealth", "base": 0.45, "companions": { "spymaster": 0.1 }, "traits": { "cunning": 0.08 } },
+                  "success": { "text": "A coin's weight in the right place, and the door grinds open.", "fragment": 0.6, "gold": [60, 120], "karma": -3 },
+                  "failure": { "text": "The hall knows a cheat.", "health": -16, "curse": 0.6 } }
+            ]
+        },
+        "throne_of_old_king": {
+            "name": "Throne of the Old Kingdom", "icon": "🪑",
+            "text": "A vaulted throne room deep beneath the ruins, the banners rotted to threads. Before the throne stands the last sentinel of the Old Kingdom.",
+            "choices": [
+                { "id": "fight", "label": "Challenge the sentinel", "hint": "Combat. The throne's treasure lies beyond.", "cost": { "stamina": 2 }, "deeds": { "valor": 1.5 },
+                  "check": { "skill": "combat", "stat": "strength", "base": 0.4, "items": { "weapons": 0.05, "shield": 0.05, "enchanted_weapon": 0.1 }, "companions": { "knight": 0.1, "general": 0.1, "guard": 0.06 }, "traits": { "brave": 0.08, "craven": -0.12 }, "effects": { "battlePower": 1 } },
+                  "success": { "text": "The sentinel falls. On the throne lies a shard of the old kings' relic.", "fragment": 0.85, "gold": [100, 200], "renown": [8, 14] },
+                  "failure": { "text": "The sentinel drives you back, then follows you up into the light.", "health": -24, "injury": 0.45, "guardian": "stone_sentinel" } },
+                { "id": "kneel", "label": "Kneel as a subject", "hint": "Charisma. Perhaps it remembers its oaths.", "deeds": { "honesty": 1 },
+                  "check": { "stat": "charisma", "skill": "leadership", "base": 0.45, "companions": { "noble": 0.1, "knight": 0.08 }, "traits": { "honest": 0.08, "champion": 0.06 } },
+                  "success": { "text": "The sentinel lowers its blade and steps aside, as for a rightful heir.", "fragment": 0.6, "renown": [10, 16], "lore": "ancient" },
+                  "failure": { "text": "It does not know you. Its blade says so.", "health": -16, "injury": 0.3 } }
+            ]
+        },
+        "sealed_reliquary": {
+            "name": "The Sealed Reliquary", "icon": "🏛️",
+            "text": "A chapel at the root of the ruins, its reliquary sealed with seven locks. Fragments of a legend lie within.",
+            "choices": [
+                { "id": "locks", "label": "Open the seven locks", "hint": "Intelligence and stealth; tools help.", "cost": { "stamina": 2 },
+                  "check": { "stat": "intelligence", "skill": "stealth", "base": 0.4, "items": { "tools": 0.12 }, "companions": { "spymaster": 0.1, "artisan": 0.06 }, "traits": { "cunning": 0.06 } },
+                  "success": { "text": "One by one the locks give. Inside: a relic shard and the treasure it was buried with.", "fragment": 1, "items": { "relics": 1 }, "gold": [50, 100] },
+                  "failure": { "text": "The seventh lock bites. The reliquary seals itself forever.", "health": -12, "injury": 0.25 } },
+                { "id": "pray", "label": "Ask the saint for leave", "hint": "Faith.", "deeds": { "piety": 1 },
+                  "check": { "stat": "faith", "base": 0.45, "items": { "holy_water": 0.08, "relics": 0.06 }, "companions": { "priest": 0.15 }, "traits": { "pious": 0.1 } },
+                  "success": { "text": "The locks fall open of their own accord.", "fragment": 0.9, "karma": [5, 10] },
+                  "failure": { "text": "Silence. The locks stay shut.", "karma": 1 } }
+            ]
+        },
+        "hall_of_maps": {
+            "name": "The Hall of Maps", "icon": "🗺️",
+            "text": "A domed chamber painted floor to ceiling with a map of the world as the Old Kingdom knew it — roads, cities, and places no living map shows.",
+            "choices": [
+                { "id": "copy", "label": "Copy the map", "hint": "Cartography. Parchment helps.", "cost": { "stamina": 2 }, "deeds": { "learning": 1 },
+                  "check": { "skill": "cartography", "stat": "intelligence", "base": 0.5, "items": { "parchment": 0.1, "compass": 0.06 }, "companions": { "scholar": 0.12 }, "traits": { "scholar": 0.08, "wanderer": 0.06 } },
+                  "success": { "text": "Your copy shows a forgotten site — and a cache the old cartographers marked with a crown.", "chart": "ancient", "skills": { "cartography": 0.3 }, "fragment": 0.5, "lore": "ancient" },
+                  "failure": { "text": "Your copy is crude, but something.", "chart": "ancient" } },
+                { "id": "search", "label": "Search for the cartographers' vault", "hint": "Intelligence and luck.", "cost": { "stamina": 1 },
+                  "check": { "stat": "intelligence", "base": 0.45, "items": { "lantern": 0.06 }, "companions": { "scholar": 0.08, "spymaster": 0.06 } },
+                  "success": { "text": "Behind the painted sea, a vault of instruments and a relic shard.", "items": { "compass": 1, "rare_book": 1 }, "fragment": 0.7 },
+                  "failure": { "text": "A painted door, and nothing behind it.", "stamina": -1 } }
+            ]
+        },
+        "deepest_seam": {
+            "name": "The Deepest Seam", "icon": "✨",
+            "text": "At the very bottom of the mine, the reason it was dug: a seam of gold running bright through the black rock.",
+            "choices": [
+                { "id": "dig", "label": "Dig out the gold", "hint": "Strength; tools help. The roof is old.", "cost": { "stamina": 3 }, "deeds": { "greed": 0.5 },
+                  "check": { "stat": "strength", "base": 0.5, "items": { "tools": 0.15 }, "companions": { "artisan": 0.08 } },
+                  "success": { "text": "Nuggets as big as your thumb.", "items": { "gold_ore": [4, 8] }, "gold": [40, 80], "fragment": 0.35 },
+                  "failure": { "text": "The roof groans and comes down. You scramble out with a handful.", "items": { "gold_ore": [1, 2] }, "health": -20, "injury": 0.4, "collapse": true } },
+                { "id": "survey", "label": "Survey the seam for its owners' marks", "hint": "Intelligence and cartography.", "cost": { "stamina": 1 },
+                  "check": { "stat": "intelligence", "skill": "cartography", "base": 0.5, "companions": { "scholar": 0.08, "merchant": 0.06 } },
+                  "success": { "text": "Chiselled marks name the realm that dug here, and where its other mines lay.", "lore": "founding", "chart": "treasure", "items": { "gold_ore": [1, 3] } },
+                  "failure": { "text": "Just scratches in the rock.", "items": { "ore": [1, 2] } } }
+            ]
+        },
+        "thing_they_woke": {
+            "name": "The Thing They Woke", "icon": "🐉",
+            "text": "The miners dug too deep. In a cavern of fused glass, a wyrm lies coiled on the gold it hoarded — and on their bones.",
+            "choices": [
+                { "id": "slay", "label": "Attack the wyrm", "hint": "Combat. Legendary — or fatal.", "cost": { "stamina": 3 }, "deeds": { "valor": 2 },
+                  "check": { "skill": "combat", "stat": "strength", "base": 0.3, "items": { "enchanted_weapon": 0.12, "shield": 0.06, "dragonscale_armor": 0.1 }, "companions": { "knight": 0.1, "general": 0.1, "hunter": 0.06 }, "traits": { "brave": 0.08, "craven": -0.15 }, "effects": { "battlePower": 1.5, "damageReduction": 0.3 } },
+                  "success": { "text": "The wyrm dies screaming. Its hoard — and its scales — are yours.", "items": { "dragon_scale": [1, 3], "gems": [2, 4] }, "gold": [150, 300], "renown": [15, 25], "fragment": 0.7 },
+                  "failure": { "text": "The wyrm's fire drives you up the shafts, and it follows you out into the world.", "health": -30, "injury": 0.6, "guardian": "deep_wyrm" } },
+                { "id": "steal", "label": "Steal from the edge of the hoard", "hint": "Stealth. Don't wake it.", "cost": { "stamina": 1 }, "deeds": { "cunning": 1 },
+                  "check": { "skill": "stealth", "base": 0.45, "companions": { "spymaster": 0.1 }, "traits": { "cunning": 0.06 } },
+                  "success": { "text": "You fill your pockets and creep away.", "gold": [80, 160], "items": { "gems": [1, 3] }, "fragment": 0.4 },
+                  "failure": { "text": "A coin slides. One great eye opens.", "health": -20, "injury": 0.4, "guardian": "deep_wyrm", "guardianChance": 0.6 } }
+            ]
+        },
+        "foremans_strongroom": {
+            "name": "The Foreman's Strongroom", "icon": "🔒",
+            "text": "An iron door set into the rock: the strongroom where the mine's wages and charters were kept.",
+            "choices": [
+                { "id": "pick", "label": "Pick the lock", "hint": "Stealth; tools help.", "cost": { "stamina": 1 },
+                  "check": { "skill": "stealth", "stat": "intelligence", "base": 0.45, "items": { "tools": 0.12 }, "companions": { "spymaster": 0.1 } },
+                  "success": { "text": "A payroll never paid, the mine's charter — and an odd shard in a velvet box.", "gold": [100, 200], "items": { "gold_bar": 1 }, "fragment": 0.6, "lore": "founding" },
+                  "failure": { "text": "The lock is beyond you. You scrape a few coins from beneath the door.", "gold": [15, 35] } },
+                { "id": "blast", "label": "Blast it with firedamp", "hint": "Luck. Loud and dangerous.", "cost": { "items": { "lamp_oil": 1 } }, "deeds": { "valor": 0.5 },
+                  "check": { "stat": "luck", "base": 0.5, "companions": { "artisan": 0.08 } },
+                  "success": { "text": "The door blows in. The strongroom's contents mostly survive.", "gold": [80, 160], "items": { "gold_bar": 1 }, "fragment": 0.4 },
+                  "failure": { "text": "The blast brings down the gallery.", "health": -22, "injury": 0.45, "collapse": true } }
+            ]
+        },
+        "wyrm_hoard": {
+            "name": "The Wyrm's Hoard", "icon": "🐲",
+            "text": "The cave's last chamber reeks of sulphur. Something huge sleeps on a heap of gold and bones.",
+            "choices": [
+                { "id": "slay", "label": "Slay the sleeper", "hint": "Combat. Strike first.", "cost": { "stamina": 3 }, "deeds": { "valor": 2 },
+                  "check": { "skill": "combat", "stat": "strength", "base": 0.35, "items": { "enchanted_weapon": 0.12, "shield": 0.05, "bow": 0.05 }, "companions": { "knight": 0.1, "hunter": 0.1, "general": 0.08 }, "traits": { "brave": 0.08, "craven": -0.15 }, "effects": { "battlePower": 1.5, "damageReduction": 0.3 } },
+                  "success": { "text": "It never fully wakes. The hoard is yours.", "items": { "dragon_scale": [1, 2], "gems": [2, 4] }, "gold": [120, 240], "renown": [12, 20], "fragment": 0.6 },
+                  "failure": { "text": "It wakes. You flee, and it follows the scent of its stolen gold.", "health": -28, "injury": 0.5, "guardian": "cave_horror" } },
+                { "id": "steal", "label": "Steal what you can carry", "hint": "Stealth.", "cost": { "stamina": 1 }, "deeds": { "cunning": 1 },
+                  "check": { "skill": "stealth", "base": 0.5, "companions": { "spymaster": 0.1, "hunter": 0.06 }, "traits": { "cunning": 0.06 } },
+                  "success": { "text": "Coins and a curious shard, lifted from beneath its very nose.", "gold": [70, 140], "fragment": 0.5 },
+                  "failure": { "text": "Its breath scorches the cave as you run.", "health": -18, "injury": 0.35 } }
+            ]
+        },
+        "painted_cavern": {
+            "name": "The Painted Cavern", "icon": "🎨",
+            "text": "The walls are covered with painted hunts, migrations, and the faces of the first peoples. At the cavern's end, an ancient altar.",
+            "choices": [
+                { "id": "study", "label": "Study the paintings", "hint": "Intelligence. Learn the first peoples' story.", "cost": { "stamina": 1 }, "deeds": { "learning": 1 },
+                  "check": { "stat": "intelligence", "skill": "diplomacy", "base": 0.55, "companions": { "scholar": 0.12, "priest": 0.05 }, "traits": { "scholar": 0.08 } },
+                  "success": { "text": "The paintings tell where a people came from — and where they hid their sacred things.", "lore": "origin", "chart": "ancient", "fragment": 0.5, "renown": [4, 8] },
+                  "failure": { "text": "The story eludes you, but you sketch what you can.", "lore": "any" } },
+                { "id": "altar", "label": "Make an offering at the altar", "hint": "Faith.", "deeds": { "piety": 1 },
+                  "check": { "stat": "faith", "base": 0.5, "items": { "incense": 0.08, "herbs": 0.05 }, "companions": { "priest": 0.1 } },
+                  "success": { "text": "The old spirits accept your offering, and return one of their own.", "fragment": 0.7, "karma": [5, 10] },
+                  "failure": { "text": "The spirits are silent.", "karma": 1 } }
+            ]
+        },
+        "underground_lake": {
+            "name": "The Underground Lake", "icon": "🏝️",
+            "text": "A still black lake fills the cave's heart. On an islet at its centre, something gleams on a stone plinth.",
+            "choices": [
+                { "id": "swim", "label": "Swim to the islet", "hint": "Strength. The water is cold and deep.", "cost": { "stamina": 2 },
+                  "check": { "stat": "strength", "base": 0.45, "items": { "rope": 0.08 }, "traits": { "sea_wolf": 0.12 } },
+                  "success": { "text": "On the plinth: a relic shard in a nest of offerings.", "fragment": 0.9, "gold": [40, 80] },
+                  "failure": { "text": "Something in the lake pulls you under.", "health": -20, "injury": 0.4, "guardian": "cave_horror", "guardianChance": 0.4 } },
+                { "id": "raft", "label": "Build a raft from driftwood", "hint": "Intelligence; wood and rope help.", "cost": { "stamina": 2 },
+                  "check": { "stat": "intelligence", "base": 0.45, "items": { "wood": 0.1, "rope": 0.1, "tools": 0.05 }, "companions": { "artisan": 0.1 } },
+                  "success": { "text": "You pole across dry and calm.", "fragment": 0.8, "items": { "gems": 1 } },
+                  "failure": { "text": "The raft comes apart halfway.", "health": -12, "items": { "gems": 1 } } }
+            ]
+        }
+    }
+}

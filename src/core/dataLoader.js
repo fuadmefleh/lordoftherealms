@@ -33,6 +33,7 @@ import { Espionage } from '../systems/espionage.js';
 import { InnerMap } from '../world/innerMap.js';
 import { LegendaryArtifacts } from '../systems/legendaryArtifacts.js';
 import { Traits } from '../systems/traits.js';
+import { Delves } from '../systems/delves.js';
 
 
 export const DataLoader = {
@@ -492,6 +493,13 @@ export const DataLoader = {
         if (traitsData) {
             DataLoader.traits = traitsData;
             Traits.load(traitsData);
+        }
+
+        // ── Delves (multi-chamber expeditions into ruins and caves) ──
+        const delvesData = data['delves.json'];
+        if (delvesData) {
+            DataLoader.delves = delvesData;
+            Delves.load(delvesData);
         }
 
         // ── Legendary Artifacts ──

@@ -256,7 +256,42 @@ You can see 4 hexes in every direction. Tiles you've visited remain "explored" (
 
 ### Points of Interest
 
-Unexplored tiles may contain points of interest (POIs) — ruins, caves, monuments, oases, and more. Use the **Explore POI** action to investigate them for treasure, knowledge, artifacts, or danger.
+Unexplored tiles may contain points of interest (POIs) — ruins, caves, monuments, shrines and oases. The minor ones (shrines, oases, monuments) are searched with a single **Explore POI** action (4 AP, ends the day) for treasure, knowledge, artifacts, or danger.
+
+### Delves
+
+Ruins and caves are **delves**: expeditions down through 3–6 chambers, the last of which is always a deep finale. What a site turns out to be depends on the land it stands on:
+
+| Delve | Found at | Lore it holds | Deep finales |
+|-------|----------|---------------|--------------|
+| 🌊 Sunken Ruins | Ruins in swamp, beach, coast, island or lake | Ancient history | The Drowned Throne, The Flooded Vault, The Bell Below |
+| ⚰️ Buried Tomb | Ruins in desert, savanna, tundra, snow or highlands | Origins of the peoples (heritage) | The Barrow-King's Rest, The Burial Treasury, The Hall of Judgement |
+| 🏚️ Ancient Ruins | Ruins anywhere else | Ancient history | Throne of the Old Kingdom, The Sealed Reliquary, The Hall of Maps |
+| ⛏️ Abandoned Mine | Caves in mountains, hills, highlands or peaks | Kingdom foundings | The Deepest Seam, The Thing They Woke, The Foreman's Strongroom |
+| 🕳️ Deep Cave | Caves anywhere else | Origins of the peoples (heritage) | The Wyrm's Hoard, The Painted Cavern, The Underground Lake |
+
+**Entering.** Choose **Delve into …** at the site. The entrance screen costs nothing; **Descend** spends 4 AP. If you close the panel mid-delve, **Resume Delve** (free) takes you back to where you were.
+
+**Chambers.** Each chamber (about 30 kinds across the five delves) poses a situation with 2–3 choices — sneak past or fight a guardian, disarm or force a trap, read or burn an inscription, rest or press on, follow the draught or the bones. Each choice shows its **odds** (very likely / likely / even odds / risky / desperate, with a percentage), its cost and a hint at what it tests:
+- **Attributes** — strength, charisma, intelligence, faith or luck (±5% per point from 5).
+- **Skills** — combat, stealth, diplomacy, leadership, commerce, cartography (+4% per point).
+- **Gear** — tools, rope, lantern, compass, weapons, shield, holy water, relics and others you carry. Carried treasures and traits add battle power, damage reduction or negotiation where they apply.
+- **Companions** — a hunter in the travel party helps against beasts, a priest against the restless dead, a scholar with inscriptions, a spymaster with locks and traps, a knight in a fight.
+- **Traits** — Brave helps in a fight and Craven hurts; Cunning, Pious, Zealous, Scholar, Wanderer and Sea Wolf each help where you'd expect.
+- **Depth** — every chamber deeper is 5% harder, and its harm 12% worse. Insight from reading an inscription, honoring a shrine or scouting ahead improves your next roll.
+- **The curse** — carrying a cursed idol costs 5% on every roll.
+
+Choices spend **stamina** (today's movement; if you run out you pay 3 health per missing point) and sometimes gold or an item (meat to distract a beast, lamp oil to burn a path). Failure brings harm, which armour and treasures reduce, and may bring a lingering **injury**: a broken arm (−1 strength), concussion (−1 intelligence), fresh scars (−1 charisma) or dark dreams (−1 faith), each lasting 6–12 days. A delve never kills you, but if your health falls to 10 or below you collapse and stagger out with what you carry.
+
+**Rewards.** Gold, goods and renown grow by 25% for every chamber of depth. Loot goes into your packs and respects the inventory cap; what doesn't fit is left behind and shown in your haul. Delves also give lore (World History and the heritage of peoples), ancient maps and treasure maps for your collection, and **legendary artifact fragments**, which the deep finales are the surest place to find. When the delve ends, the site also gets the old relic roll of an Explore and gives up any ancient map hidden there. Reaching the bottom adds bonus renown.
+
+**Turning back.** Between chambers you choose to **Press deeper** or **Turn back with your haul**. Turning back keeps everything you found. Turning back before the first chamber leaves the site untouched for another day. A delve left unfinished ends at the close of the day. Finishing a delve ends the day as you make camp outside.
+
+**Once only, with consequences.** Each site can be delved only once. Some failures leave something behind you:
+- An **awakened guardian** (the Stone Sentinel, the Barrow-King, the Drowned Warden, the Horror of the Deep Cave, the Wyrm from the Deep Seam) climbs out and roams the world as a legendary creature for 60 days, or until someone slays it.
+- A **Cursed Idol** finds its way into your packs, even when they are full. While you carry it, it saps 1 health and 1 karma a day. Sell it to be rid of it.
+
+**Deeds.** Fighting guardians records valor; sneaking and trickery record cunning or deceit; prayers record piety; looting tombs records greed; reaching the bottom records valor; every delve counts as wandering; and turning back at once from a deep site is noted as cowardice.
 
 ### Wilderness Actions
 

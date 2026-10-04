@@ -12,6 +12,7 @@ World simulation systems. Each system manages a distinct aspect of the game worl
 | `cartography/` | ~950 | Map making, map trading, propaganda maps, stolen maps |
 | `councils.js` | ~412 | Parliament voting — taxes, war declarations, faction management |
 | `culture.js` | — | Cultural spread, assimilation, hybrid traditions |
+| `delves.js` | ~880 | Delves into ruins and caves: 3–6 chambers per kind (sunken/tomb/ruins/mine/cave) from `data/delves.json`, choices tested by stats/skills/gear/companions/traits, depth-scaled loot through the inventory cap, fragments, lore, injuries, a cursed idol and awakened guardians; `processDay(world, player)` |
 | `espionage.js` | — | Spy networks, sabotage, counterintelligence |
 | `festivals.js` | — | Festival hosting, contests, diplomatic events |
 | `gossip.js` | — | Settlement gossip propagation |

@@ -13,6 +13,7 @@ import { Gossip } from './gossip.js';
 import { Ships } from './ships.js';
 import { Traits } from './traits.js';
 import { Petitions } from './petitions.js';
+import { Delves } from './delves.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 
 
@@ -326,6 +327,8 @@ export const SaveLoad = {
             traits: Traits.serialize(player),
             // Court petitions (pending, follow-ups, rulings history, court reputation)
             petitions: player.petitions ? JSON.parse(JSON.stringify(player.petitions)) : null,
+            // Delves (an in-progress delve, delved sites, injuries, awakened guardians)
+            delves: Delves.serialize(player),
         };
     },
 
@@ -486,6 +489,8 @@ export const SaveLoad = {
         // Court petitions — older saves have none (backfilled lazily once there is state)
         if (player.petitions) Petitions.loadState(player);
         else player.petitions = null;
+        // Delves — older saves have none (backfills a blank record)
+        Delves.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

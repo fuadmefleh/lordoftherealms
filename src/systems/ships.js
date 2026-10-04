@@ -8,6 +8,7 @@ import { Technology } from './technology.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { WEATHER_EFFECTS } from '../world/weather.js';
 import { LegendaryArtifacts } from './legendaryArtifacts.js';
+import { Infrastructure } from './infrastructure.js';
 
 /**
  * Ships System
@@ -490,6 +491,17 @@ export const Ships = {
         return Hex.neighbors(q, r).some(n => this.isWaterTile(world.getTile(n.q, n.r)));
     },
 
+    /**
+     * Somewhere ships can berth and cargo moves freely: a port, or a
+     * finished jetty the player has built on open coast. Unlike a port, a
+     * jetty has no market.
+     */
+    hasDock(world, q, r) {
+        if (this.isPortTile(world, q, r)) return true;
+        const tile = world.getTile(q, r);
+        return Infrastructure.hasDock(tile) && Hex.neighbors(q, r).some(n => this.isWaterTile(world.getTile(n.q, n.r)));
+    },
+
     /** Walkable land hexes next to (q, r) that the ship's boat can row to. */
     getRowAshoreTargets(world, q, r) {
         return Hex.neighbors(q, r)
@@ -514,11 +526,11 @@ export const Ships = {
 
     /**
      * Units the ship's boat can still ferry today between the hold and
-     * shore at (q, r). Unlimited at a port; elsewhere the boat moves
-     * LANDING_BOAT_CAPACITY units per ship per day, in either direction.
+     * shore at (q, r). Unlimited at a port or jetty; elsewhere the boat
+     * moves LANDING_BOAT_CAPACITY units per ship per day, in either direction.
      */
     getFerryAllowance(ship, world, q, r) {
-        if (this.isPortTile(world, q, r)) return Infinity;
+        if (this.hasDock(world, q, r)) return Infinity;
         const used = ship.ferryDay === (world.day || 0) ? (ship.ferryUnits || 0) : 0;
         return Math.max(0, this.LANDING_BOAT_CAPACITY - used);
     },
@@ -559,7 +571,7 @@ export const Ships = {
         if (n <= 0) {
             const why = have <= 0 ? 'You have none of that.'
                 : this.getCargoFree(ship) <= 0 ? 'The hold is full.'
-                    : 'The boat has made all its trips today — a port has no such limit.';
+                    : 'The boat has made all its trips today — a port or jetty has no such limit.';
             return { success: false, message: why };
         }
         player.inventory[itemId] = have - n;
@@ -580,7 +592,7 @@ export const Ships = {
         if (!ship) return { success: false, message: "You cannot reach that ship's hold from here." };
         const allowance = this.getFerryAllowance(ship, world, player.q, player.r);
         if (allowance <= 0) {
-            return { success: false, message: 'The boat has made all its trips today — a port has no such limit.' };
+            return { success: false, message: 'The boat has made all its trips today — a port or jetty has no such limit.' };
         }
         const cargo = this.unloadCargo(ship, player, Math.min(qty, allowance), itemId);
         if (allowance !== Infinity) this._useFerry(ship, world, cargo.total);
@@ -626,12 +638,12 @@ export const Ships = {
         if (!tile || !tile.terrain.passable) {
             return { success: false, message: 'You must be on land or a beach to disembark.' };
         }
-        const isPort = this.isPortTile(world, player.q, player.r);
+        const isPort = this.hasDock(world, player.q, player.r);
         player.boardedShip = null;
         ship.status = 'docked';
         ship.q = player.q;
         ship.r = player.r;
-        ship.dockedAt = isPort && tile.settlement ? tile.settlement.name : null;
+        ship.dockedAt = !isPort ? null : tile.settlement ? tile.settlement.name : 'Jetty';
         const cargo = this._landCargo(ship, player, world, player.q, player.r);
         return { success: true, ship, isPort, cargo };
     },
@@ -658,7 +670,7 @@ export const Ships = {
         player.r = dest.r;
         player.path = null;
 
-        const isPort = this.isPortTile(world, dest.q, dest.r);
+        const isPort = this.hasDock(world, dest.q, dest.r);
         const cargo = this._landCargo(ship, player, world, dest.q, dest.r);
         return { success: true, ship, isPort, cargo };
     },

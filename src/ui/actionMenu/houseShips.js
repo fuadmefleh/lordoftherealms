@@ -998,11 +998,12 @@ Object.assign(ActionMenu, {
         html += `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">The ${ship.name} drops anchor here while you row ashore. ` +
             `Without a dock or port, only ${Ships.LANDING_BOAT_CAPACITY} cargo fits in the boat.</div>`;
         for (const t of targets) {
-            const isPort = Ships.isPortTile(game.world, t.q, t.r);
+            const isPort = Ships.hasDock(game.world, t.q, t.r);
+            const dockLabel = t.settlement ? '⚓ Port' : '⚓ Jetty';
             const name = t.settlement ? t.settlement.name : (t.terrain.name || t.terrain.id);
             html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:6px;">';
             html += `<div><div style="font-size:12px;font-weight:bold;">${t.terrain.icon || ''} ${name}</div>`;
-            html += `<div style="font-size:10px;color:var(--text-secondary);">(${t.q}, ${t.r}) · ${isPort ? '⚓ Port — unload everything' : 'Open shore — boat-load only'}</div></div>`;
+            html += `<div style="font-size:10px;color:var(--text-secondary);">(${t.q}, ${t.r}) · ${isPort ? `${dockLabel} — unload everything` : 'Open shore — boat-load only'}</div></div>`;
             html += `<button onclick="window._rowAshore(${t.q}, ${t.r})" style="${btn}">Row</button>`;
             html += '</div>';
         }

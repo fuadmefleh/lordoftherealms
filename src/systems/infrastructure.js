@@ -115,6 +115,17 @@ export const Infrastructure = {
             }
         }
 
+        // Docks (jetties) need open water beside them; settlements on the
+        // water are ports already
+        if (infra.requiresCoast) {
+            if (tile.settlement) {
+                return { can: false, reason: 'Settlements on the water are already ports' };
+            }
+            if (!Infrastructure.isCoastal(tile, world)) {
+                return { can: false, reason: 'Must be built on land next to open water' };
+            }
+        }
+
         // Check if same infrastructure already exists
         if (tile.infrastructure) {
             if (tile.infrastructure.id === infra.id) {
@@ -160,6 +171,7 @@ export const Infrastructure = {
             moveCostOverride: infra.moveCostOverride,
             moveCostReduction: infra.moveCostReduction,
             productivityBonus: infra.productivityBonus || 0,
+            isDock: !!infra.isDock,
             renderColor: infra.renderColor,
             renderWidth: infra.renderWidth,
             builtDay: world ? world.day : 0,
@@ -192,6 +204,24 @@ export const Infrastructure = {
         tile.infrastructure = null;
 
         return { success: true, refund, name };
+    },
+
+    /** Water terrains a jetty can reach out into. */
+    COAST_WATER: ['ocean', 'deep_ocean', 'coast', 'lake', 'sea'],
+
+    /** Is this land tile next to open water? */
+    isCoastal(tile, world) {
+        if (!tile || !world || !world.getTile) return false;
+        return Hex.neighbors(tile.q, tile.r).some(n => {
+            const t = world.getTile(n.q, n.r);
+            return !!(t && t.terrain && Infrastructure.COAST_WATER.includes(t.terrain.id));
+        });
+    },
+
+    /** Does this tile have a finished dock (a jetty) ships can berth at? */
+    hasDock(tile) {
+        const infra = tile && tile.infrastructure;
+        return !!(infra && !infra.underConstruction && (infra.isDock || infra.id === 'jetty'));
     },
 
     // ═══════════════════════════════════════
@@ -333,7 +363,7 @@ export const Infrastructure = {
      * Count total road tiles the player has built
      */
     countInfrastructure(world) {
-        const counts = { dirt_road: 0, stone_road: 0, bridge: 0, irrigation_channel: 0 };
+        const counts = { dirt_road: 0, stone_road: 0, bridge: 0, irrigation_channel: 0, jetty: 0 };
         for (let r = 0; r < world.height; r++) {
             for (let q = 0; q < world.width; q++) {
                 const tile = world.tiles[r][q];

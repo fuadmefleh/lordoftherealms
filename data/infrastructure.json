@@ -58,6 +58,22 @@
       "productivityBonus": 0.50,
       "renderColor": "#4FC3F7",
       "renderWidth": 2
+    },
+    "JETTY": {
+      "id": "jetty",
+      "name": "Jetty",
+      "icon": "⚓",
+      "cost": 180,
+      "buildTime": 5,
+      "moveCostOverride": null,
+      "moveCostReduction": null,
+      "requiredTech": null,
+      "requiredTerrain": null,
+      "requiresCoast": true,
+      "isDock": true,
+      "description": "A timber landing stage on open coast. Your ships can sail in and dock here, and cargo moves between hold and shore without the boat-load limit — like a port, but with no market.",
+      "renderColor": "#C8A165",
+      "renderWidth": 3
     }
   }
 }

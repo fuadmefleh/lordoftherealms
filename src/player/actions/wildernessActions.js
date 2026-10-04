@@ -198,7 +198,7 @@ export function addWildernessActions(actions, player, tile, world) {
                 type: 'build_infrastructure',
                 label: 'Build Infrastructure',
                 icon: '🛤️',
-                description: 'Construct roads, bridges, or irrigation'
+                description: 'Construct roads, bridges, irrigation or a jetty'
             });
         }
     }

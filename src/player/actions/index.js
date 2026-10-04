@@ -128,7 +128,7 @@ export const PlayerActions = {
                 type: 'row_ashore',
                 label: 'Row Ashore',
                 icon: '🚣',
-                description: `Anchor here and row to shore — without a port only ${Ships.LANDING_BOAT_CAPACITY} cargo comes ashore`
+                description: `Anchor here and row to shore — without a port or jetty only ${Ships.LANDING_BOAT_CAPACITY} cargo comes ashore`
             });
         }
 
@@ -138,7 +138,7 @@ export const PlayerActions = {
                 type: 'ship_hold',
                 label: "Ship's Hold",
                 icon: '📦',
-                description: 'Load goods into your ship or unload them — unlimited at a port, a boat-load a day elsewhere'
+                description: 'Load goods into your ship or unload them — unlimited at a port or jetty, a boat-load a day elsewhere'
             });
         }
 

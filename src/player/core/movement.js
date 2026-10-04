@@ -86,7 +86,7 @@ export const PlayerMovementMethods = {
     /**
      * Can the player enter hex (q, r) in their current mode? On land that's
      * plain terrain passability; aboard a ship it's water, beaches, coastal
-     * settlements (to dock) and the hex they're already on.
+     * settlements and jetties (to dock) and the hex they're already on.
      */
     _canEnterHex(q, r, world) {
         const tile = world.getTile(q, r);
@@ -94,7 +94,8 @@ export const PlayerMovementMethods = {
         if (!this.boardedShip) return !!tile.terrain.passable;
         if (q === this.q && r === this.r) return true;
         if (this.SHIP_TERRAINS.includes(tile.terrain.id)) return true;
-        if (!tile.settlement) return false;
+        const jetty = tile.infrastructure && tile.infrastructure.id === 'jetty' && !tile.infrastructure.underConstruction;
+        if (!tile.settlement && !jetty) return false;
         return Hex.neighbors(q, r).some(n => {
             if (n.r < 0 || n.r >= world.height) return false;
             const nTile = world.getTile(Hex.wrapQ(n.q, world.width), n.r);

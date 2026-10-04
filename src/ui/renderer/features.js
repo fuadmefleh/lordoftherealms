@@ -463,6 +463,32 @@ Object.assign(Renderer.prototype, {
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillText('🌉', screen.x, screen.y - renderSize * 0.1);
+                } else if (infra.id === 'jetty') {
+                    // Timber landing stage reaching out toward the water
+                    let water = null;
+                    for (const n of Hex.neighbors(q, r)) {
+                        const wq = Hex.wrapQ(n.q, world.width);
+                        if (n.r < 0 || n.r >= world.height) continue;
+                        const nTile = world.getTile(wq, n.r);
+                        if (nTile && Infrastructure.COAST_WATER.includes(nTile.terrain.id)) { water = { q: wq, r: n.r }; break; }
+                    }
+                    if (water) {
+                        const wPos = this.getHexPixelPos(water.q, water.r);
+                        const wScreen = this.camera.worldToScreen(wPos.x, wPos.y);
+                        const ex = screen.x + (wScreen.x - screen.x) * 0.55;
+                        const ey = screen.y + (wScreen.y - screen.y) * 0.55;
+                        ctx.strokeStyle = infra.renderColor || '#C8A165';
+                        ctx.lineWidth = Math.max(3, renderSize * 0.16);
+                        ctx.lineCap = 'butt';
+                        ctx.beginPath();
+                        ctx.moveTo(screen.x, screen.y);
+                        ctx.lineTo(ex, ey);
+                        ctx.stroke();
+                    }
+                    ctx.font = `${Math.max(12, renderSize * 0.5)}px serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('⚓', screen.x, screen.y);
                 } else if (infra.id === 'irrigation_channel') {
                     // Draw irrigation - blue wavy lines
                     ctx.strokeStyle = infra.renderColor || '#4FC3F7';

@@ -256,7 +256,7 @@ Object.assign(ActionMenu, {
 
         let html = '<div>';
         html += '<h4 style="margin-top: 0;">Build Infrastructure</h4>';
-        html += '<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Improve the land with roads, bridges, and irrigation.</p>';
+        html += '<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Improve the land with roads, bridges, irrigation and jetties.</p>';
 
         if (tile.infrastructure) {
             const constructionNote = tile.infrastructure.underConstruction

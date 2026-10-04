@@ -360,6 +360,9 @@ export const PlayerActions = {
         // Travel companions heal the player and grow closer
         results.companions = PlayerEffects.processCompanions(player, world);
 
+        // Galleys lent to the liege's fleet: wages, merit, wounds
+        results.fleetService = RealmPolitics.processFleetService(player, world);
+
         // A share of the tribute when a liege you fought for wins its war
         results.warSpoils = RealmPolitics.processDaily(player, world);
 

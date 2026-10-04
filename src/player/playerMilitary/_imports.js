@@ -15,3 +15,4 @@ export { WEATHER_EFFECTS } from '../../world/weather.js';
 export { Peoples } from '../../systems/peoples.js';
 export { Ships } from '../../systems/ships.js';
 export { Economy } from '../../world/economy.js';
+export { Kingdom } from '../../world/kingdom.js';

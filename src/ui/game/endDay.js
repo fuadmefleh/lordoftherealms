@@ -208,6 +208,10 @@ export function endDay() {
                     this.ui.showNotification('👥 Wages Unpaid',
                         `You couldn't pay your sailors ${crewDay.wages}g today. Their morale is falling — unpaid crews desert.`, 'warning');
                 }
+                // Royal fleets stop ships near hostile ports
+                for (const ic of (shipDay && shipDay.interceptions) || []) {
+                    this.ui.showNotification(ic.won ? '⚓ Squadron Beaten Off' : '⚓ Ship Intercepted', ic.text, ic.won ? 'success' : 'error');
+                }
                 for (const d of (crewDay && crewDay.deserted) || []) {
                     this.ui.showNotification('👥 Desertion',
                         `${d.count} sailor${d.count === 1 ? '' : 's'} deserted the ${d.name} — morale had collapsed.`, 'error');
@@ -644,6 +648,14 @@ export function endDay() {
                         this.ui.showNotification('Crafting', `Parts almost ready! 1 day remaining`, 'info');
                     }
                 }
+            }
+
+            // Galleys serving with the liege's fleet
+            const fs = playerResults.fleetService;
+            if (fs) {
+                if (fs.victories) this.ui.showNotification('⚓ Victory at Sea', `Your liege's fleet won ${fs.victories} sea battle${fs.victories === 1 ? '' : 's'} with your galleys in the line. Your merit grows.`, 'success');
+                if (fs.defeats) this.ui.showNotification('⚓ Defeat at Sea', `Your liege's fleet was beaten at sea${fs.wounded ? `; ${fs.wounded} of your galleys limp home damaged` : ''}.`, 'warning');
+                if (fs.ended) this.ui.showNotification('⛵ Fleet Service Ends', fs.ended, 'info');
             }
 
             // Your liege won a war you fought in

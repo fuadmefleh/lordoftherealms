@@ -9,11 +9,13 @@
 //   - broker an alliance between two crowns on good terms,
 //   - campaign for their liege — wins count toward the liege's war goal and
 //     earn a share of the tribute when the liege wins,
-//   - fund the restoration of a fallen kingdom in one of its old towns.
+//   - fund the restoration of a fallen kingdom in one of its old towns,
+//   - lend their war galleys to the liege's fleet while it is at war.
 // All randomness comes from Utils; world/player are explicit parameters.
 
 import { Utils } from '../core/utils.js';
 import { KingdomAI } from '../world/kingdomAI.js';
+import { KingdomNavy } from '../world/kingdomNavy.js';
 import { PlayerEffects } from './playerEffects.js';
 import { PlayerMilitary } from './playerMilitary.js';
 import { Quests } from '../systems/quests.js';
@@ -263,6 +265,93 @@ export const RealmPolitics = {
             };
         }
         return { success: true, battle, failed: true, message: `The ${enemy.name} vanguard throws you back.` };
+    },
+
+    // ──────────── GALLEYS FOR THE LIEGE'S FLEET ────────────
+
+    /** Strength the player's galleys add to the liege's fleet. */
+    fleetContribution(player) {
+        return Math.floor(PlayerMilitary.getNavalStrength(player) * KingdomNavy.CONFIG.liegeService.share);
+    },
+
+    /** Can the player lend galleys now? { liege, galleys, contribution } or null. */
+    fleetServiceOptions(player, world) {
+        const opts = RealmPolitics.campaignOptions(player, world);
+        if (!opts) return null;
+        const galleys = (player.army || []).filter(u => PlayerMilitary.isNavalUnit(u)).length;
+        if (!galleys) return null;
+        return { liege: opts.liege, galleys, contribution: RealmPolitics.fleetContribution(player) };
+    },
+
+    /**
+     * Send the war galleys to sail with the liege's fleet. While they serve
+     * they add to its strength in sea battles and blockades, earn a daily
+     * wage and merit for each sea victory, but no longer escort your ships.
+     */
+    lendGalleys(player, world) {
+        const opts = RealmPolitics.fleetServiceOptions(player, world);
+        if (!opts) return { success: false, reason: 'You need war galleys, and a liege at war, to join its fleet.' };
+        const st = RealmPolitics._state(player);
+        st.fleetService = opts.liege.id;
+        const navy = KingdomNavy.ensure(opts.liege);
+        navy.auxiliary = opts.contribution;
+        navy.auxResults = {};
+        return { success: true, message: `Your ${opts.galleys} galley${opts.galleys === 1 ? '' : 's'} join ${opts.liege.name}'s fleet (+${opts.contribution} strength). They will not escort your own ships while they serve.` };
+    },
+
+    /** Bring the galleys home. */
+    recallGalleys(player, world) {
+        const st = RealmPolitics._state(player);
+        if (!st.fleetService) return { success: false, reason: 'Your galleys are not serving with a fleet.' };
+        const liege = world.getKingdom(st.fleetService);
+        if (liege && liege.navy) liege.navy.auxiliary = 0;
+        st.fleetService = null;
+        return { success: true, message: 'Your galleys return to your own command.' };
+    },
+
+    /**
+     * Daily: pay the galleys, turn the liege's sea victories into merit (a
+     * share of the tribute when it wins) and its sea defeats into wounded
+     * galleys, and refresh their weight in the fleet. Service ends with the
+     * liege's wars, the oath, or the last galley.
+     * @returns {{ wage, victories, defeats, wounded, ended } | null}
+     */
+    processFleetService(player, world) {
+        const st = RealmPolitics._state(player);
+        if (!st.fleetService) return null;
+        const liege = world.getKingdom(st.fleetService);
+        const navy = liege ? KingdomNavy.ensure(liege) : null;
+        const L = KingdomNavy.CONFIG.liegeService;
+        const out = { wage: 0, victories: 0, defeats: 0, wounded: 0, ended: null };
+        // Battles fought since yesterday
+        if (navy && navy.auxResults) {
+            for (const [enemyId, r] of Object.entries(navy.auxResults)) {
+                if (r.won) {
+                    const key = `${liege.id}:${enemyId}`;
+                    st.merit[key] = (st.merit[key] || 0) + r.won;
+                    out.victories += r.won;
+                }
+                out.defeats += r.lost || 0;
+            }
+            navy.auxResults = {};
+        }
+        const galleys = (player.army || []).filter(u => PlayerMilitary.isNavalUnit(u));
+        for (let i = 0; i < out.defeats; i++) {
+            const g = galleys.find(u => !(u.woundedDays > 0));
+            if (!g) break;
+            g.woundedDays = Math.max(g.woundedDays || 0, L.woundDays);
+            out.wounded++;
+        }
+        if (!liege || !liege.isAlive || player.allegiance !== liege.id || !(liege.wars || []).length || !galleys.length) {
+            if (navy) navy.auxiliary = 0;
+            st.fleetService = null;
+            out.ended = !galleys.length ? 'Your last galley has left the fleet.' : `${liege ? liege.name : 'Your liege'} is no longer at war; your galleys come home.`;
+            return out;
+        }
+        out.wage = L.wagePerGalley * galleys.length;
+        player.gold = (player.gold || 0) + out.wage;
+        navy.auxiliary = RealmPolitics.fleetContribution(player);
+        return out;
     },
 
     // ──────────── RESTORATION ────────────

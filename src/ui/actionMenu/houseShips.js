@@ -1,6 +1,6 @@
 // ActionMenu — houseShips methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMap } from './_imports.js';
+import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMap, KingdomNavy } from './_imports.js';
 
 Object.assign(ActionMenu, {
     // ══════════════════════════════════════════════════════════
@@ -951,6 +951,7 @@ Object.assign(ActionMenu, {
         const ship = ships.find(s => s.id === shipId) || ships[0];
         const stats = Ships.getShipEffectiveStats(ship);
         const market = Ships.getPortMarket(world, player.q, player.r);
+        const blockade = Ships.getPortBlockade(world, player.q, player.r);
         const daysToDrift = Ships.PORT_PRICE_PERIOD - ((world.day || 0) % Ships.PORT_PRICE_PERIOD);
         const esc = (id) => String(id).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         const btn = 'padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);';
@@ -970,6 +971,12 @@ Object.assign(ActionMenu, {
             html += '</div>';
         }
         html += `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">💰 ${player.gold}g · Hold: ${Ships.getCargoUsed(ship)} / ${stats.cargoCapacity} · Prices change in ${daysToDrift} day(s). Buy where a good is exported, sell where it is imported.</div>`;
+        if (blockade) {
+            const by = blockade.blockaders.map(k => k.name).join(' and ');
+            html += blockade.closed
+                ? `<div style="font-size:12px;color:#e67e22;margin-bottom:8px;">⚓ The harbour is closed: ${by} blockades the ports of ${blockade.kingdom.name}. No merchant will trade until the blockade is broken.</div>`
+                : `<div style="font-size:11px;color:#e67e22;margin-bottom:8px;">⚓ ${by} blockades the ports of ${blockade.kingdom.name}: goods are dear and buyers pay little.</div>`;
+        }
         for (const e of market) {
             const held = (ship.cargo && ship.cargo[e.id]) || 0;
             html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:4px;">';

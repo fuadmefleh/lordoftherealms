@@ -28,7 +28,7 @@ World simulation systems. Each system manages a distinct aspect of the game worl
 | `relationships/` | ~1700 | Courtship, marriage, children, dynasty, heir succession |
 | `religion.js` | ~750 | World religions, holy sites, heresies, pilgrimages |
 | `saveLoad.js` | ~650 | Game state serialization / deserialization (save & load) |
-| `ships.js` | ~1500 | Ship building, crews (hire/wages/morale), naval combat, war-galley escorts, exploration, trade |
+| `ships.js` | ~1650 | Ship building, crews (hire/wages/morale), naval combat, war-galley escorts, exploration, trade, blockaded port markets, interception by hostile royal fleets |
 | `technology/` | ~1200 | Research tree, labs, parts crafting, tech bonuses |
 | `tiledExport.js` | — | Export maps to Tiled-compatible format |
 | `titles.js` | ~620 | Nobility titles, duties, rank requirements |

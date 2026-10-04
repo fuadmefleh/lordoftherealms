@@ -12,6 +12,7 @@ import { Colonization } from './colonization.js';
 import { WEATHER_EFFECTS } from './weather.js';
 import { KingdomBonuses, KingdomStability, KingdomCulture, LordInfluence } from './kingdomState.js';
 import { KingdomAtlas } from './kingdomAtlas.js';
+import { KingdomNavy } from './kingdomNavy.js';
 
 export const KingdomAI = {
     /**
@@ -106,6 +107,9 @@ export const KingdomAI = {
 
         // Update military strength
         KingdomAI.updateMilitary(kingdom, world);
+
+        // Build, pay for and lay up the royal fleet (no RNG draws)
+        KingdomNavy.updateFleet(kingdom, world);
     },
 
     /**
@@ -206,7 +210,8 @@ export const KingdomAI = {
         const bonus = KingdomBonuses.get(kingdom, 'treasury') + KingdomBonuses.get(kingdom, 'stewardship') * 0.5
             + KingdomBonuses.get(kingdom, 'tax') + eventTax
             + LordInfluence.incomeBonus(kingdom); // the lord's own stewardship
-        return Math.max(0.1, 1 + bonus) * KingdomStability.incomeMultiplier(kingdom);
+        return Math.max(0.1, 1 + bonus) * KingdomStability.incomeMultiplier(kingdom)
+            * KingdomNavy.incomeFactor(kingdom); // a blockade strangles the port trade
     },
 
     /** Daily gold spent keeping armies in the field while at war. */
@@ -691,6 +696,7 @@ export const KingdomAI = {
         fallen.treasury = Math.max(fallen.treasury || 0, 200);
         fallen.wars = [];
         fallen.truces = {};
+        fallen.navy = null; // the old fleet is long gone; a new one is counted tomorrow
         KingdomAI.startWar(fallen, occupier, world);
         world.events.push({ text: `🔥 ${tile.settlement.name} throws off ${occupier.name}'s rule — ${fallen.name} rises again!`, type: 'military' });
     },
@@ -790,6 +796,10 @@ export const KingdomAI = {
                 // when snow, storms or heat bog down the campaign
                 if (Utils.random() < KingdomAI.WAR.battleChance * KingdomAI.campaignWeather(kingdom, enemy, world)) {
                     KingdomAI.simulateBattle(kingdom, enemy, world);
+                }
+                // The fleets fight for the sea; the stronger blockades the other's ports
+                if (kingdom.isAlive && enemy.isAlive && kingdom.wars.includes(enemy.id)) {
+                    KingdomNavy.processWar(kingdom, enemy, world);
                 }
                 if (kingdom.isAlive && enemy.isAlive && kingdom.wars.includes(enemy.id)) {
                     KingdomAI._resolveWar(kingdom, enemy, world);
@@ -918,6 +928,8 @@ export const KingdomAI = {
         if (battleTile && battleTile.settlement && battleTile.settlement.kingdom === defender.id) {
             const isCapital = defender.capital && defender.capital.q === frontline.q && defender.capital.r === frontline.r;
             defensePower *= isCapital ? KingdomAI.WAR.capitalDefense : KingdomAI.WAR.settlementDefense;
+            // A port cut off by the attacker's fleet starves faster
+            attackPower *= KingdomNavy.siegeMultiplier(attacker, defender, world, frontline.q, frontline.r);
         }
 
         let moraleBreak = null;

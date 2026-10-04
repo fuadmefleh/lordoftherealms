@@ -307,14 +307,19 @@ export const WorldEvents = {
         const kingdom = Utils.randPick(livingKingdoms);
 
         switch (type) {
-            case 'training':
-                kingdom.military = Math.floor(kingdom.military * 1.1);
+            case 'training': {
+                // Drills bring raw levies into the line: up to +10%, never past
+                // what the realm can feed (kingdom.militaryCap)
+                const drilled = Kingdom.recruitTroops(kingdom, Math.floor((kingdom.military || 0) * 0.1));
                 return {
                     category: WorldEvents.CATEGORIES.MILITARY,
-                    text: `${kingdom.name}: Military training exercises. Army strength increased!`,
+                    text: drilled > 0
+                        ? `${kingdom.name}: Military training exercises. +${drilled} military strength.`
+                        : `${kingdom.name}: Military training exercises keep the full ranks sharp.`,
                     kingdom: kingdom.id,
                     impact: 'positive',
                 };
+            }
 
             case 'desertion':
                 kingdom.military = Math.floor(kingdom.military * 0.9);

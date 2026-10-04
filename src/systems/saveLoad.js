@@ -13,6 +13,7 @@ import { Gossip } from './gossip.js';
 import { Ships } from './ships.js';
 import { Traits } from './traits.js';
 import { Petitions } from './petitions.js';
+import { KingdomNavy } from '../world/kingdomNavy.js';
 
 
 export const SaveLoad = {
@@ -162,6 +163,7 @@ export const SaveLoad = {
             characterData: typeof Characters !== 'undefined' ? Characters.serialize(k) : (k.characterData || null),
             colonization: k.colonization || null,
             cartography: k.cartography || null,
+            navy: k.navy || null, // royal fleet and blockades (KingdomNavy)
         }));
     },
 
@@ -382,6 +384,8 @@ export const SaveLoad = {
             const kingdom = world.kingdoms[i];
 
             Object.assign(kingdom, savedKingdom);
+            // Saves from before royal fleets: counted afresh (half the cap) on the next day
+            KingdomNavy.ensure(kingdom);
 
             // Restore character data
             if (typeof Characters !== 'undefined' && savedKingdom.characterData) {

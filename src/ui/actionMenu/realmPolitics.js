@@ -2,7 +2,7 @@
 // your liege, and fund the restoration of fallen realms. Logic lives in
 // player/realmPolitics.js; these panels present it.
 import { ActionMenu } from './_ref.js';
-import { RealmPolitics, REALM_POLITICS } from './_imports.js';
+import { RealmPolitics, REALM_POLITICS, KingdomNavy } from './_imports.js';
 
 const BTN = 'padding: 6px 10px; margin: 4px 4px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
 const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
@@ -50,6 +50,17 @@ Object.assign(ActionMenu, {
                 .filter(([k]) => k.startsWith(campaign.liege.id + ':'))
                 .reduce((sum, [, v]) => sum + v, 0);
             if (merit) html += `<div style="margin-top:6px;color:#8fd88f;">🎖️ Victories this war: ${merit}</div>`;
+            // Lend the war galleys to the liege's fleet
+            const serving = player.politics && player.politics.fleetService;
+            const fleet = RealmPolitics.fleetServiceOptions(player, world);
+            const liegeNavy = campaign.liege.navy;
+            if (serving) {
+                html += `<div style="margin-top:6px;color:#4fc3f7;">⚓ Your galleys sail with ${campaign.liege.name}'s fleet (+${RealmPolitics.fleetContribution(player)} strength, ${KingdomNavy.CONFIG.liegeService.wagePerGalley}g a day per galley). They do not escort your ships meanwhile.</div>`;
+                html += `<button onclick="window._realm.recallFleet()" style="${BTN_GOLD}">⛵ Recall your galleys</button>`;
+            } else if (fleet && liegeNavy && liegeNavy.ports) {
+                html += `<div style="margin-top:6px;color:var(--text-secondary);">⚓ ${campaign.liege.name}'s fleet: ${liegeNavy.strength}. Your ${fleet.galleys} galley${fleet.galleys === 1 ? '' : 's'} would add ${fleet.contribution}; each sea victory counts as campaign merit.</div>`;
+                html += `<button onclick="window._realm.lendFleet()" style="${BTN_GOLD}">⚓ Send your galleys to the fleet</button>`;
+            }
             html += '</div>';
         }
 
@@ -63,6 +74,14 @@ Object.assign(ActionMenu, {
             html += `<div style="font-weight:bold;">⚔️ ${w.a.name} vs ${w.b.name} <span style="color:var(--text-secondary);font-weight:normal;">· day ${w.days}</span></div>`;
             html += `<div style="margin-top:4px;">${w.a.name} — war goal ${w.aGains}/${w.aGoal} · army ${w.a.military || 0}</div>${_bar(w.aGains, w.aGoal, w.a.color || '#c96')}`;
             html += `<div>${w.b.name} — war goal ${w.bGains}/${w.bGoal} · army ${w.b.military || 0}</div>${_bar(w.bGains, w.bGoal, w.b.color || '#69c')}`;
+            // The war at sea
+            const navyLine = (k, foe) => {
+                const n = k.navy;
+                if (!n || !(n.ports || n.strength)) return `${k.name}: no fleet`;
+                const held = n.blockades && n.blockades[foe.id] != null;
+                return `${k.name}: fleet ${n.strength}${held ? ' <span style="color:#e67e22;">(ports blockaded)</span>' : ''}`;
+            };
+            html += `<div style="color:var(--text-secondary);font-size:11px;">⚓ ${navyLine(w.a, w.b)} · ${navyLine(w.b, w.a)}</div>`;
             if (involvesHere) {
                 html += `<button onclick="window._realm.broker('${w.a.id}','${w.b.id}')" style="${BTN_GOLD}">🕊️ Broker peace (${REALM_POLITICS.broker.fee}g, ${ActionMenu.REALM_POLITICS_AP.broker} AP, ~${chance}%)</button>`;
             } else {
@@ -116,6 +135,8 @@ Object.assign(ActionMenu, {
                 const res = RealmPolitics.brokerAlliance(player, world, aId, bId);
                 ActionMenu._realmResult(game, '🤝 Alliance', res, reopen);
             },
+            lendFleet: () => ActionMenu._realmResult(game, '⚓ Fleet Service', RealmPolitics.lendGalleys(player, world), reopen),
+            recallFleet: () => ActionMenu._realmResult(game, '⚓ Fleet Service', RealmPolitics.recallGalleys(player, world), reopen),
             campaign: (enemyId) => {
                 if (!_spendAP(game, ActionMenu.REALM_POLITICS_AP.campaign)) return;
                 const battleTile = world.getTile(player.q, player.r);

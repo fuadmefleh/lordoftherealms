@@ -1,6 +1,6 @@
 // UI — hexinfo methods.
 import { UI } from './core.js';
-import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, WorldEvents, InnerMap, InnerMapRenderer, KingdomBonuses, KingdomStability, WEATHER_TYPES, Cartography, Terrain } from './_imports.js';
+import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, WorldEvents, InnerMap, InnerMapRenderer, KingdomBonuses, KingdomStability, KingdomNavy, WEATHER_TYPES, Cartography, Terrain } from './_imports.js';
 
 Object.assign(UI.prototype, {
     /**
@@ -1032,6 +1032,10 @@ Object.assign(UI.prototype, {
                 <span class="info-label">Military</span>
                 <span class="info-value" style="color:#666;">Unknown</span>
             </div>`}
+            ${knows('military') && kingdom.navy ? `<div class="info-row">
+                <span class="info-label">Fleet</span>
+                <span class="info-value" title="Royal fleet strength / what its ports and treasury can keep afloat">⚓ ${Utils.formatNumber(kingdom.navy.strength || 0)} <span style="opacity:0.6;">/ ${Utils.formatNumber(kingdom.navy.cap || 0)} · ${kingdom.navy.ports || 0} port${kingdom.navy.ports === 1 ? '' : 's'}</span>${KingdomNavy.isBlockaded(kingdom) ? ` <span style="color:#e67e22;">· blockaded by ${KingdomNavy.blockaders(kingdom).map(id => (this.game.world.getKingdom(id) || {}).name || id).join(', ')}</span>` : ''}</span>
+            </div>` : ''}
             ${knows('economy') ? `<div class="info-row">
                 <span class="info-label">Treasury</span>
                 <span class="info-value">💰 ${Utils.formatNumber(kingdom.treasury)}</span>

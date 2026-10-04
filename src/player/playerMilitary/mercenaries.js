@@ -1,6 +1,6 @@
 // PlayerMilitary — mercenaries members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
-import { Utils, Technology, Quests } from './_imports.js';
+import { Utils, Technology, Quests, Kingdom } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -343,8 +343,9 @@ Object.assign(PlayerMilitary, {
                     const chosen = rivals.length > 0 ? Utils.randPick(rivals) : null;
                     if (chosen) {
                         rivalName = chosen.name;
+                        // The rival can only take on as many as it can feed (militaryCap)
                         const reinforcement = Math.floor(PlayerMilitary._estimateCompanyStrength(company) * 0.45);
-                        chosen.military = (chosen.military || 0) + reinforcement;
+                        Kingdom.recruitTroops(chosen, reinforcement);
                     }
                 }
 

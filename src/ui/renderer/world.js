@@ -78,6 +78,9 @@ Object.assign(Renderer.prototype, {
             this.renderHexHighlight(ctx, this.selectedHex.q, this.selectedHex.r, 'rgba(245,197,66,0.15)', 'rgba(245,197,66,0.6)');
         }
 
+        // What your (possibly doctored) maps claim about unseen land
+        this.renderMapDeceptions(ctx);
+
         // Render units
         this.renderUnits(ctx);
 

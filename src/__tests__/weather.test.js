@@ -25,6 +25,7 @@ function makeWorld({ temperature = 0.5, settlement = null, day = 10 } = {}) {
         },
     };
     world.weather = new WeatherSystem(world);
+    world.weather.seed = 424242; // fixed pattern: tests mustn't depend on the unseeded RNG
     return world;
 }
 
@@ -69,8 +70,10 @@ describe('WeatherSystem', () => {
 
     it('survives a save round-trip with the same pattern', () => {
         const a = makeWorld();
+        a.weather.seed = 777;
         const b = makeWorld();
         b.weather.deserialize(a.weather.serialize());
+        expect(b.weather.seed).toBe(777);
         for (let d = 1; d < 20; d++) {
             expect(b.weather.getWeather(3, 9, d).type).toBe(a.weather.getWeather(3, 9, d).type);
         }

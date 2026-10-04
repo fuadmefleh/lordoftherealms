@@ -1629,6 +1629,16 @@ What the effects do:
 
 Maps can be purchased from wandering cartographers at taverns or found during exploration.
 
+
+### Doctored & Propaganda Maps
+
+Some maps lie. A map with deliberate alterations, or a kingdom's wartime propaganda map, plants its falsehoods in your own picture of the world when you read it: **phantom towns, roads that aren't there, wrong terrain, and borders pushed into neighbours' land**. They're drawn faintly on hexes you can't currently see, and hex info shows "Your Map: Shows …".
+
+- When you see the hex for yourself, the lie is **exposed** (you're told which map lied) and you gain a little cartography skill.
+- Hexes you can already see can't be faked, and your own maps never fool you.
+- If you **detect the alterations** when reading a map, none of its lies take hold. At cartography skill 6 or higher you may also spot individual alterations (15% per point above 5).
+- Cartographers pay for maps by how trustworthy they are: low-accuracy and doctored maps sell for less.
+- Kingdoms at war that publish propaganda maps gain +2 stability per map in circulation (up to +6).
 ---
 
 ## 26. Legendary Artifacts

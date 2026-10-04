@@ -2,7 +2,7 @@
 // END DAY � onPlayerArrived, endDay turn processing
 // ============================================
 
-import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, RealmWars, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents, WEATHER_TYPES, LegendaryArtifacts } from './_gameImports.js';
+import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, RealmWars, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents, WEATHER_TYPES, LegendaryArtifacts, Cartography } from './_gameImports.js';
 
 export function onPlayerArrived() {
     const tile = this.world.getTile(this.player.q, this.player.r);
@@ -13,6 +13,9 @@ export function onPlayerArrived() {
 
     // Show reachable hexes
     this.renderer.reachableHexes = this.player.getReachableHexes(this.world);
+
+    // Seeing land for yourself exposes the lies on your maps
+    this._reportExposedDeceptions();
 
     // If arrived at a settlement
     if (tile.settlement) {
@@ -146,6 +149,7 @@ export function endDay() {
             }
             this._reportWeather(eventEffects);
             this.player.updateVisibility(this.world, 4);
+            this._reportExposedDeceptions();
 
             // ── Check for hostile unit encounters (raiders/pirates) ──
             this._checkHostileEncounters();
@@ -818,4 +822,15 @@ export function _reportWeather(fx) {
         this.ui.showNotification(`${info.icon} Exposure`,
             `A night in the open in the ${info.name.toLowerCase()} cost you ${fx.weatherHealthLost} health. Shelter in a settlement, an inn or your own house.`, 'warning');
     }
+}
+
+/** Tell the player when what they see contradicts a doctored map they trusted. */
+export function _reportExposedDeceptions() {
+    const exposed = Cartography.exposeDeceptions(this.player, this.world);
+    if (exposed.length === 0) return;
+    const first = exposed[0];
+    const what = Cartography.describeDeception(first, this.world);
+    const more = exposed.length > 1 ? ` (and ${exposed.length - 1} other falsehood${exposed.length > 2 ? 's' : ''})` : '';
+    this.ui.showNotification('🗺️ The Map Lied',
+        `Your "${first.mapName}" showed ${what} at (${first.q}, ${first.r}) — there is no such thing${more}.`, 'warning');
 }

@@ -250,6 +250,59 @@ Object.assign(Renderer.prototype, {
     /**
      * Render dynamic world units
      */
+    /**
+     * Falsehoods from doctored or propaganda maps the player has read
+     * (player.mapDeceptions): drawn faintly on hexes the player can't see,
+     * gone once they look for themselves (Cartography.exposeDeceptions).
+     */
+    renderMapDeceptions(ctx) {
+        const decs = this.player && this.player.mapDeceptions;
+        if (!decs || !this.world) return;
+        const z = this.camera.zoom;
+        const size = this.hexSize * z;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (const d of Object.values(decs)) {
+            const tile = this.world.getTile(d.q, d.r);
+            if (!tile || tile.visible) continue;
+            const pos = this.getHexPixelPos(d.q, d.r);
+            const s = this.camera.worldToScreen(pos.x, pos.y);
+            if (s.x < -60 || s.x > this.canvas.width + 60 || s.y < -60 || s.y > this.canvas.height + 60) continue;
+            ctx.globalAlpha = 0.7;
+            if (d.type === 'settlement') {
+                ctx.font = `${Math.max(12, size * 0.8)}px serif`;
+                ctx.fillText('🏘️', s.x, s.y);
+                if (z > 0.6) {
+                    ctx.font = `${Math.max(9, 11 * z)}px serif`;
+                    ctx.fillStyle = 'rgba(240, 220, 170, 0.9)';
+                    ctx.fillText(d.false_settlement, s.x, s.y + size * 0.75);
+                }
+            } else if (d.type === 'path') {
+                ctx.strokeStyle = 'rgba(190, 150, 90, 0.8)';
+                ctx.lineWidth = Math.max(1.5, 3 * z);
+                ctx.setLineDash([4 * z, 3 * z]);
+                ctx.beginPath();
+                ctx.moveTo(s.x - size * 0.6, s.y);
+                ctx.lineTo(s.x + size * 0.6, s.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            } else if (d.type === 'terrain') {
+                const icon = { forest: '🌲', mountains: '⛰️', swamp: '🌿', desert: '🏜️' }[d.false_terrain] || '❔';
+                ctx.font = `${Math.max(10, size * 0.6)}px serif`;
+                ctx.fillText(icon, s.x, s.y);
+            } else if (d.type === 'false_border') {
+                const k = this.world.getKingdom(d.claimedKingdom);
+                ctx.fillStyle = (k && k.color) || 'rgba(200, 60, 60, 1)';
+                ctx.globalAlpha = 0.22;
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, size * 0.8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        ctx.restore();
+    },
+
     renderUnits(ctx) {
         if (!this.world || !this.world.units) return;
 

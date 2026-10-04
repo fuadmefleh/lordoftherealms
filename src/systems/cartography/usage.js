@@ -8,7 +8,8 @@ Object.assign(Cartography, {
     /**
      * Apply a map — reveal tiles to the player based on map data & accuracy
      */
-    applyMap(player, map, world) {
+    /** opts.detected: the reader already saw through the map's alterations. */
+    applyMap(player, map, world, opts = {}) {
         const accuracy = map.accuracy || 0.5;
         let tilesRevealed = 0;
 
@@ -91,7 +92,90 @@ Object.assign(Cartography, {
             player.skills.cartography = Math.min(10, (player.skills.cartography || 0) + 0.05);
         }
 
-        return { tilesRevealed, accuracy, hasErrors: map.deliberateErrors.length > 0 };
+        const deceit = (map.createdBy === player.name || opts.detected)
+            ? { planted: 0, spotted: 0 }
+            : Cartography.plantDeceptions(player, map, world);
+
+        return {
+            tilesRevealed, accuracy,
+            hasErrors: (map.deliberateErrors || []).length > 0,
+            deceptionsPlanted: deceit.planted,
+            deceptionsSpotted: deceit.spotted,
+        };
+    },
+
+    // ── Map Deceptions ─────────────────────────
+    /** Cartography skill at which you notice each alteration on a map you read. */
+    SPOT_ALTERATION_SKILL: 6,
+
+    /**
+     * Reading a doctored or propaganda map plants its falsehoods in your own
+     * picture of the world: phantom towns, roads that aren't there, wrong
+     * terrain, inflated borders. They show on your map until you see the
+     * hex for yourself. A skilled cartographer (SPOT_ALTERATION_SKILL+)
+     * notices each alteration with 15% per skill point above 5.
+     * Returns { planted, spotted }.
+     */
+    plantDeceptions(player, map, world) {
+        const out = { planted: 0, spotted: 0 };
+        const errors = map.deliberateErrors || [];
+        if (errors.length === 0) return out;
+        if (!player.mapDeceptions) player.mapDeceptions = {};
+        const skill = (player.skills && player.skills.cartography) || 0;
+        const spotChance = skill >= Cartography.SPOT_ALTERATION_SKILL ? Math.min(0.9, (skill - 5) * 0.15) : 0;
+
+        for (const err of errors) {
+            const tile = world.getTile(err.q, err.r);
+            if (!tile || tile.visible) continue; // can't fool eyes on the ground
+            if (spotChance > 0 && Utils.random() < spotChance) {
+                out.spotted++;
+                continue;
+            }
+            const key = `${err.q},${err.r}`;
+            player.mapDeceptions[key] = { ...err, mapName: map.name, source: map.createdBy || 'unknown', since: world.day || 0 };
+            tile.explored = true;
+            out.planted++;
+        }
+        return out;
+    },
+
+    /** The falsehood your maps tell about this hex, if any. */
+    getDeception(player, q, r) {
+        return (player && player.mapDeceptions && player.mapDeceptions[`${q},${r}`]) || null;
+    },
+
+    /**
+     * Falsehoods are exposed once you see their hex. Returns the exposed
+     * deceptions (for messages) — seeing through a phantom town or a stolen
+     * border earns a little cartography skill.
+     */
+    exposeDeceptions(player, world) {
+        const exposed = [];
+        if (!player || !player.mapDeceptions) return exposed;
+        for (const [key, d] of Object.entries(player.mapDeceptions)) {
+            const tile = world.getTile(d.q, d.r);
+            if (!tile || !tile.visible) continue;
+            exposed.push(d);
+            delete player.mapDeceptions[key];
+        }
+        if (exposed.length > 0 && player.skills) {
+            player.skills.cartography = Math.min(10, (player.skills.cartography || 0) + 0.02 * exposed.length);
+        }
+        return exposed;
+    },
+
+    /** One line describing a deception, as your map shows it. */
+    describeDeception(d, world) {
+        switch (d.type) {
+            case 'settlement': return `a settlement called "${d.false_settlement}"`;
+            case 'terrain': return `${String(d.false_terrain).replace(/_/g, ' ')}`;
+            case 'path': return 'a road';
+            case 'false_border': {
+                const k = world && world.getKingdom ? world.getKingdom(d.claimedKingdom) : null;
+                return `the lands of ${k ? k.name : 'a rival realm'}`;
+            }
+            default: return 'something that is not there';
+        }
     },
 
     /**
@@ -401,7 +485,9 @@ Object.assign(Cartography, {
         }
 
         const map = player.maps[mapIndex];
-        const sellPrice = Math.floor(map.value * 0.7);
+        // Cartographers pay by how trustworthy the map is
+        const trust = Math.max(0.3, Math.min(1, (map.accuracy || 0.6) + 0.2));
+        const sellPrice = Math.floor(map.value * 0.7 * trust);
         player.gold += sellPrice;
         player.maps.splice(mapIndex, 1);
 

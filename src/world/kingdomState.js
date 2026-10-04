@@ -349,6 +349,11 @@ export const KingdomStability = {
         t += add('Mood of the realm', KingdomStability.eventMod(world, kingdom, 'morale') * 0.3);
         t += add('Lord\'s rule', LordInfluence.mod(kingdom, 'stability'));
         t += add('Wars', -5 * ((kingdom.wars && kingdom.wars.length) || 0));
+        // Wartime propaganda maps (Cartography.processTurn) rally the realm: +2 each, up to +6
+        const propaganda = (kingdom.cartography && kingdom.cartography.propagandaMaps) || [];
+        if (propaganda.length > 0 && kingdom.wars && kingdom.wars.length > 0) {
+            t += add('Propaganda', Math.min(6, 2 * propaganda.length));
+        }
         if ((kingdom.treasury || 0) <= 0) t += add('Empty treasury', -15);
         if (kingdom.religion && typeof kingdom.religion.unity === 'number') {
             t += add('Faith unity', (kingdom.religion.unity - 50) * 0.1);

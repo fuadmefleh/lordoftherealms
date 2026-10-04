@@ -1121,9 +1121,10 @@ Object.assign(ActionMenu, {
                 : ` ⚠️ You notice ${map.deliberateErrors.length} deliberate alteration(s) in this map!`;
         }
 
-        const result = Cartography.applyMap(player, map, world);
+        const result = Cartography.applyMap(player, map, world, { detected: !!warningText });
 
         let msg = `Studied ${map.name}. Revealed ${result.tilesRevealed} tiles.`;
+        if (result.deceptionsSpotted > 0) msg += ` 🔍 You spot ${result.deceptionsSpotted} thing(s) on it that don't look right.`;
         if (warningText) msg += warningText;
         if (map.type === 'treasure' && map.treasureQ !== undefined) {
             msg += ` 💎 Treasure location marked on your map!`;

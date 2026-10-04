@@ -1,6 +1,6 @@
 // UI — hexinfo methods.
 import { UI } from './core.js';
-import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, WorldEvents, InnerMap, InnerMapRenderer, KingdomBonuses, KingdomStability, WEATHER_TYPES } from './_imports.js';
+import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, WorldEvents, InnerMap, InnerMapRenderer, KingdomBonuses, KingdomStability, WEATHER_TYPES, Cartography } from './_imports.js';
 
 Object.assign(UI.prototype, {
     /**
@@ -45,6 +45,10 @@ Object.assign(UI.prototype, {
         const weather = this.game.world.weather.getWeather(q, r);
         const tempColor = temp.celsius > 30 ? '#e74c3c' : temp.celsius < 0 ? '#3498db' : '#f1c40f';
 
+        // A doctored map's claim about a hex you can't currently see
+        const deception = !tile.visible ? Cartography.getDeception(this.game.player, q, r) : null;
+        const mapClaim = deception ? Cartography.describeDeception(deception, this.game.world) : '';
+        const mapClaimSource = deception ? `per ${deception.mapName}` : '';
         const wxInfo = WEATHER_TYPES[weather.type] || { name: 'Unknown', icon: '❓' };
         const weatherLabel = wxInfo.name;
         const weatherIcon = wxInfo.icon;
@@ -90,6 +94,10 @@ Object.assign(UI.prototype, {
                 <span class="info-label">Forecast</span>
                 <span class="info-value">${forecast}</span>
             </div>
+            ${mapClaim ? `<div class="info-row">
+                <span class="info-label">Your Map</span>
+                <span class="info-value" style="color:#d8b878; font-style:italic;">Shows ${mapClaim} <span style="opacity:0.7;">(${mapClaimSource})</span></span>
+            </div>` : ''}
             <div class="info-row">
                 <span class="info-label">Elevation</span>
                 <span class="info-value">${elevStr} (${elevPct}%)</span>

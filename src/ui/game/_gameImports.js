@@ -57,3 +57,4 @@ import '../innerMapUI.js';
 
 
 export { LegendaryArtifacts } from '../../systems/legendaryArtifacts.js';
+export { Cartography } from '../../systems/cartography.js';

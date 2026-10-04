@@ -1,6 +1,6 @@
 // UI — hud methods.
 import { UI } from './core.js';
-import { Utils, ActionMenu, Religion, Economy, Terrain, PlayerEconomy, PlayerMilitary, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, InnerMapCharacters } from './_imports.js';
+import { Utils, ActionMenu, Religion, Economy, Terrain, PlayerEconomy, PlayerMilitary, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, InnerMapCharacters, WEATHER_TYPES } from './_imports.js';
 
 Object.assign(UI.prototype, {
     setupEventListeners() {
@@ -377,7 +377,22 @@ Object.assign(UI.prototype, {
         //     }
         // }
         // Top-bar subtitle: season + year (mockup style). Bottom bar carries the day.
-        if (turnEl) turnEl.textContent = `${world.season}, Year ${world.year}`;
+        // Today's weather where the player stands, with what it does on hover
+        let wxText = '';
+        let wxTitle = '';
+        if (world.weather && this.game && this.game.player) {
+            const wx = world.weather.getWeather(this.game.player.q, this.game.player.r);
+            const info = WEATHER_TYPES[wx.type];
+            if (info) {
+                wxText = `${info.icon} `;
+                const fx = world.weather.describeEffects(wx.type);
+                wxTitle = fx ? `${info.name}: ${fx}` : info.name;
+            }
+        }
+        if (turnEl) {
+            turnEl.textContent = `${wxText}${world.season}, Year ${world.year}`;
+            if (turnEl.title !== wxTitle) turnEl.title = wxTitle;
+        }
         const bottomDate = document.getElementById('hudBottomDate');
         if (bottomDate) {
             const s = `Day ${dayInSeason} of ${world.season}, Year ${world.year}`;

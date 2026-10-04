@@ -20,6 +20,7 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { WorldUnit } from '../world/units.js';
 import { House } from './house.js';
+import { Technology } from './technology.js';
 
 const CONFIG = {
     checkCadence: 10,          // days between hostility checks
@@ -99,15 +100,19 @@ export const RealmWars = {
         return out;
     },
 
-    tribute(kingdom) {
-        return Math.round(CONFIG.tributeBase + (kingdom.military || 0) * CONFIG.tributePerMilitary);
+    /** Tribute demanded; Diplomacy Mastery (allianceCost) talks it down. */
+    tribute(kingdom, player = null) {
+        const base = CONFIG.tributeBase + (kingdom.military || 0) * CONFIG.tributePerMilitary;
+        return Math.round(base * (player ? Technology.getAllianceCostMultiplier(player) : 1));
     },
 
     peacePrice(player, kingdom) {
         const war = RealmWars._state(player).wars[kingdom.id];
         const score = war ? Math.max(0, war.score) : 0;
-        return Math.max(100, Math.round(CONFIG.peaceBase + (kingdom.military || 0) * CONFIG.peacePerMilitary
-            - score * CONFIG.peaceScoreDiscount));
+        const price = Math.max(100, CONFIG.peaceBase + (kingdom.military || 0) * CONFIG.peacePerMilitary
+            - score * CONFIG.peaceScoreDiscount);
+        // Diplomacy Mastery (allianceCost) makes treaties cheaper
+        return Math.round(price * Technology.getAllianceCostMultiplier(player));
     },
 
     reparations(kingdom) {
@@ -123,7 +128,7 @@ export const RealmWars = {
             name: kingdom.name,
             issuedDay: world.day,
             dueDay: world.day + CONFIG.ultimatumDays,
-            tribute: RealmWars.tribute(kingdom),
+            tribute: RealmWars.tribute(kingdom, player),
         };
         s.ultimatums[kingdom.id] = u;
         return u;

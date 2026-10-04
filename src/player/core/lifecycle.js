@@ -10,6 +10,7 @@ import { Housing } from '../../systems/housing.js';
 import { Religion } from '../../systems/religion.js';
 import { SettlementServices } from '../settlementServices.js';
 import { DAILY_RATION_HUNGER } from './needs.js';
+import { PlayerMilitary } from '../playerMilitary.js';
 
 export const PlayerLifecycleMethods = {
     /**
@@ -68,6 +69,8 @@ export const PlayerLifecycleMethods = {
         staminaBonus += Housing.getTotalBonuses(this).movement + Housing.getHomeStaminaBonus(this);
         // A riding horse and a temple blessing carry you further
         staminaBonus += SettlementServices.movementBonus(this);
+        // Scouts in the army find the quick paths
+        staminaBonus += PlayerMilitary.getScoutMovementBonus(this);
         this.movementRemaining = this.stamina + staminaBonus;
 
         // Only regenerate health if not starving

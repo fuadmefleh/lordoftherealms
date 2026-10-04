@@ -1402,7 +1402,7 @@ Object.assign(ActionMenu, {
                             <div>
                                 <div><span style="font-size: 20px;">${unit.icon}</span> <strong>${unit.name}</strong></div>
                                 <div style="font-size: 12px; color: var(--text-secondary);">${unit.description}</div>
-                                <div style="font-size: 12px;">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>
+                                <div style="font-size: 12px;">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>${PlayerMilitary.describeUnitTraits(unit) ? `<div style="font-size: 11px; color: #ce93d8;">✨ ${PlayerMilitary.describeUnitTraits(unit)}</div>` : ''}
                             </div>
                             <button onclick="window.recruitUnit('${key}')" ${remaining <= 0 ? 'disabled' : ''} style="padding: 8px 16px; background: ${remaining > 0 ? 'var(--gold)' : '#555'}; border: none; border-radius: 4px; cursor: ${remaining > 0 ? 'pointer' : 'not-allowed'};">${PlayerMilitary.getRecruitCost(game.player, unit)} gold</button>
                         </div>
@@ -1415,7 +1415,7 @@ Object.assign(ActionMenu, {
                             <div>
                                 <div><span style="font-size: 20px;">${unit.icon}</span> <strong>${unit.name}</strong> \ud83d\udd12</div>
                                 <div style="font-size: 11px; color: #e74c3c;">${avail.reason}</div>
-                                <div style="font-size: 12px; color: var(--text-secondary);">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>
+                                <div style="font-size: 12px; color: var(--text-secondary);">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>${PlayerMilitary.describeUnitTraits(unit) ? `<div style="font-size: 11px; color: #ce93d8;">✨ ${PlayerMilitary.describeUnitTraits(unit)}</div>` : ''}
                             </div>
                             <span style="color: var(--text-secondary); font-size: 12px;">${PlayerMilitary.getRecruitCost(game.player, unit)} gold</span>
                         </div>
@@ -1437,7 +1437,7 @@ Object.assign(ActionMenu, {
                                 <div>
                                     <div><span style="font-size: 20px;">${unit.icon}</span> <strong>${unit.name}</strong> <span style="font-size: 10px; color: #ce93d8;">TECH</span></div>
                                     <div style="font-size: 12px; color: var(--text-secondary);">${unit.description}</div>
-                                    <div style="font-size: 12px;">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>
+                                    <div style="font-size: 12px;">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>${PlayerMilitary.describeUnitTraits(unit) ? `<div style="font-size: 11px; color: #ce93d8;">✨ ${PlayerMilitary.describeUnitTraits(unit)}</div>` : ''}
                                 </div>
                                 <button onclick="window.recruitTechUnit('${key}')" ${remaining <= 0 ? 'disabled' : ''} style="padding: 8px 16px; background: ${remaining > 0 ? 'var(--gold)' : '#555'}; border: none; border-radius: 4px; cursor: ${remaining > 0 ? 'pointer' : 'not-allowed'};">${PlayerMilitary.getRecruitCost(game.player, unit)} gold</button>
                             </div>
@@ -1450,7 +1450,7 @@ Object.assign(ActionMenu, {
                                 <div>
                                     <div><span style="font-size: 20px;">${unit.icon}</span> <strong>${unit.name}</strong> <span style="font-size: 10px; color: #ce93d8;">TECH</span> \ud83d\udd12</div>
                                     <div style="font-size: 11px; color: #e74c3c;">${techAvail.reason}</div>
-                                    <div style="font-size: 12px; color: var(--text-secondary);">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>${PlayerMilitary.describeUnitTraits(unit) ? `<div style="font-size: 11px; color: #ce93d8;">✨ ${PlayerMilitary.describeUnitTraits(unit)}</div>` : ''}
                                 </div>
                                 <span style="color: var(--text-secondary); font-size: 12px;">${PlayerMilitary.getRecruitCost(game.player, unit)} gold</span>
                             </div>
@@ -1504,15 +1504,7 @@ Object.assign(ActionMenu, {
             game.player.gold -= techCost;
             game.player._recruitedThisTurn = (game.player._recruitedThisTurn || 0) + 1;
             if (!game.player.army) game.player.army = [];
-            game.player.army.push({
-                type: unit.id,
-                name: unit.name,
-                icon: unit.icon,
-                strength: unit.strength,
-                upkeep: unit.upkeep,
-                experience: 0,
-                level: 1,
-            });
+            game.player.army.push(PlayerMilitary.makeArmyUnit(unit));
 
             game.player.skills.combat = Math.min(10, game.player.skills.combat + 0.3);
             game.ui.showNotification('Unit Recruited!', `${unit.name} joined your army`, 'success');

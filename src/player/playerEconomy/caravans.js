@@ -532,6 +532,8 @@ Object.assign(PlayerEconomy, {
         boat.sourceQ = tile.q;
         boat.sourceR = tile.r;
         boat.homeWharf = { q: tile.q, r: tile.r }; // Reference to home
+        // Deep Sea Fishing: bigger hauls per trip
+        boat.catchMultiplier = 1 + Technology.getEffectTotal(player, 'fishProductionBonus');
 
         world.units.push(boat);
 

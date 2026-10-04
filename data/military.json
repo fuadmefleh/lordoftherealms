@@ -80,7 +80,7 @@
       "upkeep": 20,
       "strength": 5,
       "siegeBonus": 40,
-      "description": "Catapults and trebuchets for breaching walls"
+      "description": "Catapults and trebuchets for breaching walls: +40% army power when raiding or besieging a settlement (max +100%)"
     },
     "BERSERKER": {
       "id": "berserker",
@@ -99,7 +99,8 @@
       "upkeep": 18,
       "strength": 15,
       "specialAbility": "Can eliminate enemy commanders",
-      "description": "Shadow operatives trained for targeted kills"
+      "commanderKillChance": 0.15,
+      "description": "Shadow operatives: each gives a 15% chance (max 60%) to slay the enemy commander before battle, breaking their morale"
     },
     "BATTLE_MAGE": {
       "id": "battle_mage",
@@ -109,7 +110,8 @@
       "upkeep": 22,
       "strength": 25,
       "specialAbility": "Deals area damage",
-      "description": "Sorcerers trained for warfare, hurling destructive spells"
+      "spellPower": 0.05,
+      "description": "Sorcerers hurling area spells: each weakens the enemy host by 5% (max 30%)"
     },
     "LONGBOWMAN": {
       "id": "longbowman",
@@ -119,7 +121,7 @@
       "upkeep": 6,
       "strength": 11,
       "rangeBonus": 2,
-      "description": "Elite archers with extended range"
+      "description": "Elite archers with extended range: opening volleys add up to +6% power against melee-heavy foes"
     },
     "SHIELD_WALL": {
       "id": "shield_wall",
@@ -129,7 +131,7 @@
       "upkeep": 8,
       "strength": 8,
       "defenseBonus": 25,
-      "description": "Heavily armored defensive formation"
+      "description": "Heavily armored defensive formation: +10% army power when you are attacked (max +50%)"
     },
     "WAR_GALLEY": {
       "id": "war_galley",
@@ -150,7 +152,7 @@
       "strength": 3,
       "speed": 8,
       "sightRange": 4,
-      "description": "Fast reconnaissance unit with extended vision"
+      "description": "Fast reconnaissance: +1 vision radius and +1 movement per day while in your army"
     }
   },
   "contractTypes": {

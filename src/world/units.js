@@ -766,7 +766,7 @@ export class WorldUnit {
                 console.log('Done fishing, returning home');
                 this.fishing = false;
                 this.returning = true;
-                this.inventory['fish'] = (this.inventory['fish'] || 0) + Utils.randInt(5, 15);
+                this.inventory['fish'] = (this.inventory['fish'] || 0) + Math.round(Utils.randInt(5, 15) * (this.catchMultiplier || 1));
 
                 // Set target to home
                 if (this.homeWharf) {

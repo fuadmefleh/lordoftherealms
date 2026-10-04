@@ -169,7 +169,7 @@
             "id": "sabotage",
             "name": "Sabotage Operations",
             "icon": "💥",
-            "description": "Destroy enemy infrastructure, poison supplies, or set fires to weaken their kingdom",
+            "description": "Destroy enemy infrastructure, poison supplies, or set fires: drains 10% of their treasury and cuts their settlements' gold and goods output by 15% for 20 days",
             "primarySkill": "sabotage",
             "baseDuration": 10,
             "baseDifficulty": 0.55,
@@ -185,7 +185,8 @@
             "requiredLevel": 2,
             "effects": {
                 "treasuryDrain": 0.10,
-                "productionPenalty": 0.15
+                "productionPenalty": 0.15,
+                "penaltyDays": 20
             },
             "consequences": {
                 "diplomaticPenalty": -25,
@@ -196,7 +197,7 @@
             "id": "counter_espionage",
             "name": "Counter-Espionage",
             "icon": "🛡️",
-            "description": "Station a spy to protect your settlements from enemy agents",
+            "description": "Station a spy where you stand: +30% daily chance to expose rival plots (doubled for holdings within 3 hexes, which also get a 30% chance to be foiled on the strike day)",
             "primarySkill": "gathering",
             "baseDuration": 20,
             "baseDifficulty": 0.25,

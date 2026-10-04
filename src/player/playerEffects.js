@@ -10,6 +10,7 @@
 import { Titles } from '../systems/titles.js';
 import { House } from '../systems/house.js';
 import { Relationships } from '../systems/relationships.js';
+import { Technology } from '../systems/technology.js';
 
 /** Personal damage reduction from gear in the inventory (multiplicative). */
 const ARMOR_REDUCTION = { leather_armor: 0.2, shield: 0.15, amulet: 0.1 };
@@ -122,6 +123,8 @@ export const PlayerEffects = {
         if (player.house) value += House.getRoleBonuses(player).diplomacyBonus || 0;
         value += this.companionBonus(player, 'diplomacy');
         value += this.moodCharisma(player); // see MOOD section
+        // Diplomacy Mastery tech: +30% effective diplomacy
+        if (player.technology) value *= 1 + Technology.getEffectTotal(player, 'diplomacyBonus');
         return value;
     },
 

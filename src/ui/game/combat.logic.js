@@ -115,6 +115,8 @@ export function resolveHostileEncounter(player, attacker, world) {
     if (result.victory) {
         let lootMsg = `Victory! You defeated the ${attacker.name}!`;
         if (result.casualties > 0) lootMsg += ` Lost ${result.casualties} soldiers.`;
+        if (result.wounded > 0) lootMsg += ` ${result.wounded} wounded saved by surgeons.`;
+        if (result.commanderSlain) lootMsg += ` Your assassins slew their commander!`;
         if (result.loot > 0) lootMsg += ` Gained ${result.loot} gold.`;
         const itemLoot = Object.entries(result.inventoryLoot || {})
             .map(([k, v]) => `${v} ${k}`)

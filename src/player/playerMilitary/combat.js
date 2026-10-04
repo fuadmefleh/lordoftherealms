@@ -43,12 +43,19 @@ Object.assign(PlayerMilitary, {
         if (context.defending) playerPower *= 1 + Housing.getTotalBonuses(player).defense / 100;
         let enemyPower = enemyStrength * Utils.randFloat(0.8, 1.2) * enemyCounterMult * enemyTerrainMult * enemyMorale;
 
+        // ── Unit specials & military techs ──
+        // Siege engines, shield walls, longbow volleys, crossbow piercing,
+        // plate armour, battle mages and assassins (see getBattleSpecials).
+        const specials = PlayerMilitary.getBattleSpecials(player, context, playerComp, enemyComp);
+        playerPower *= specials.playerMult;
+        enemyPower *= specials.enemyMult;
+
         let moraleBreak = null;
         if (PlayerMilitary._checkMoraleBreak(playerStrength, enemyStrength, playerMorale)) {
             moraleBreak = 'player';
             playerPower *= 0.55;
             enemyPower *= 1.12;
-        } else if (PlayerMilitary._checkMoraleBreak(enemyStrength, playerStrength, enemyMorale)) {
+        } else if (specials.commanderSlain || PlayerMilitary._checkMoraleBreak(enemyStrength, playerStrength, enemyMorale)) {
             moraleBreak = 'enemy';
             enemyPower *= 0.55;
             playerPower *= 1.12;
@@ -67,13 +74,27 @@ Object.assign(PlayerMilitary, {
         if (moraleBreak === 'player' && !victory) casualtyRate *= 1.25;
         // Divine Protection: no one falls
         casualtyRate *= PlayerEffects.casualtyMultiplier(player);
+        // Plate armour turns blows that would have killed
+        casualtyRate *= specials.casualtyMult;
 
-        const casualties = Math.ceil(player.army.length * casualtyRate);
+        const casualtyCount = Math.ceil(player.army.length * casualtyRate);
 
-        for (let i = 0; i < casualties && player.army.length > 0; i++) {
+        // Surgery: each would-be casualty may be carried off wounded instead
+        const woundedChance = Technology.getEffectTotal(player, 'woundedRecoveryBonus');
+        const woundedUnits = [];
+        let casualties = 0;
+        for (let i = 0; i < casualtyCount && player.army.length > 0; i++) {
+            const unit = player.army.pop();
+            if (woundedChance > 0 && Utils.random() < woundedChance) {
+                unit.woundedDays = PlayerMilitary.WOUNDED_DAYS;
+                woundedUnits.push(unit);
+                continue;
+            }
+            casualties++;
             // The fallen are remembered — Resurrection can call them back
-            PlayerReligion.recordFallenUnit(player, player.army.pop());
+            PlayerReligion.recordFallenUnit(player, unit);
         }
+        player.army.push(...woundedUnits.reverse());
 
         // Rewards for victory
         let loot = 0;
@@ -129,10 +150,12 @@ Object.assign(PlayerMilitary, {
         return {
             victory,
             casualties,
+            wounded: woundedUnits.length,
             loot,
             enemyName,
             playerStrength,
             enemyStrength,
+            commanderSlain: specials.commanderSlain,
             tactics: {
                 terrainId,
                 moraleBreak,
@@ -278,6 +301,7 @@ Object.assign(PlayerMilitary, {
             terrainId: tile?.terrain?.id,
             enemyComposition: PlayerMilitary._getSettlementComposition(settlement, tile),
             world,
+            siege: true, // siege engines batter the defences
         });
 
         result.defenseStrength = defenseStrength;
@@ -360,6 +384,7 @@ Object.assign(PlayerMilitary, {
             terrainId: tile?.terrain?.id,
             enemyComposition: PlayerMilitary._getSettlementComposition(settlement, tile),
             world,
+            siege: true, // siege engines breach the walls
             enemyMoraleBonus: settlement.type === 'capital' ? 0.1 : 0,
         });
         result.garrisonStrength = garrisonStrength;

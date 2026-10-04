@@ -96,6 +96,14 @@ Object.assign(Espionage, {
             }
         }
 
+        // ── Sabotaged kingdoms produce less ──
+        for (let i = player.espionage.sabotaged.length - 1; i >= 0; i--) {
+            const s = player.espionage.sabotaged[i];
+            this._applySabotageDailyEffect(s, world);
+            s.daysRemaining--;
+            if (s.daysRemaining <= 0) player.espionage.sabotaged.splice(i, 1);
+        }
+
         // ── Expire fog-of-war reveals ──
         if (player.espionage.revealedTiles.length > 0) {
             const before = player.espionage.revealedTiles.length;
@@ -553,7 +561,20 @@ Object.assign(Espionage, {
                 kingdom.treasury = Math.max(0, (kingdom.treasury || 0) - treasuryDrain);
 
                 result.rewards.treasuryDrained = treasuryDrain;
-                return `${spy.name} successfully sabotaged ${kingdomName}! Treasury: -${treasuryDrain}g. Infrastructure damage will slow their progress.`;
+                // Wrecked workshops and granaries: the kingdom's settlements produce less for a while
+                const penalty = missionDef.effects?.productionPenalty || 0;
+                const days = missionDef.effects?.penaltyDays || 20;
+                if (penalty > 0) {
+                    const existing = player.espionage.sabotaged.find(s => s.kingdomId === kingdom.id);
+                    if (existing) {
+                        existing.penalty = Math.max(existing.penalty, penalty);
+                        existing.daysRemaining = Math.max(existing.daysRemaining, days);
+                    } else {
+                        player.espionage.sabotaged.push({ kingdomId: kingdom.id, penalty, daysRemaining: days });
+                    }
+                    result.rewards.productionPenalty = penalty;
+                }
+                return `${spy.name} successfully sabotaged ${kingdomName}! Treasury: -${treasuryDrain}g. Its settlements produce ${Math.round(penalty * 100)}% less gold and goods for ${days} days.`;
             }
             return `${spy.name} completed sabotage operations against ${kingdomName}.`;
         }
@@ -660,6 +681,22 @@ Object.assign(Espionage, {
                 ? (missionDef.consequences.diplomaticPenalty || 0) * 1.5
                 : missionDef.consequences.diplomaticPenalty || 0;
             player.reputation[kingdom.id] = (player.reputation[kingdom.id] || 0) + penalty;
+        }
+    },
+
+    /**
+     * Sabotage's productionPenalty: each of the kingdom's settlements loses
+     * that share of the gold and goods it produced on its last day.
+     */
+    _applySabotageDailyEffect(sabotage, world) {
+        if (!world || !world.getAllSettlements) return;
+        for (const settlement of world.getAllSettlements()) {
+            if (settlement.kingdom !== sabotage.kingdomId) continue;
+            const eco = settlement.economy;
+            const prod = eco && eco.production;
+            if (!prod) continue;
+            eco.gold = Math.max(0, (eco.gold || 0) - Math.floor((prod.gold || 0) * sabotage.penalty));
+            eco.goods = Math.max(0, (eco.goods || 0) - Math.floor((prod.goods || 0) * sabotage.penalty));
         }
     },
 

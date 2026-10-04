@@ -2,6 +2,18 @@
 import { ActionMenu } from './_ref.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerEffects } from './_imports.js';
 
+/** Battle-report lines for soldiers saved by surgeons and a slain enemy commander. */
+function battleExtrasHtml(result) {
+    let html = '';
+    if (result.wounded > 0) {
+        html += `<div style="color: #81c784;">🩹 Wounded but saved by your surgeons: ${result.wounded} (half strength for ${PlayerMilitary.WOUNDED_DAYS} days)</div>`;
+    }
+    if (result.commanderSlain) {
+        html += `<div style="color: #ce93d8;">🗡️ Your assassins slew the enemy commander — their ranks broke!</div>`;
+    }
+    return html;
+}
+
 Object.assign(ActionMenu, {
     /**
      * Show siege confirmation panel for attacking a settlement
@@ -146,6 +158,7 @@ Object.assign(ActionMenu, {
             html += `<div style="font-size: 13px; line-height: 1.6; text-align: left; background: rgba(231,76,60,0.1); padding: 10px; border-radius: 6px;">`;
         }
         if (result.casualties > 0) html += `<div style="color: #ff9800;">⚠️ Soldiers lost: ${result.casualties}</div>`;
+        html += battleExtrasHtml(result);
         html += `<div style="color: #ff6666;">😈 Karma and reputation with ${settlement.name}'s kingdom suffer.</div>`;
         html += `</div><button data-am-act="closePanelAndRefresh" style="width: 100%; padding: 10px; margin-top: 10px; background: #444; border: 1px solid #666; border-radius: 6px; color: #eee; cursor: pointer; font-size: 14px;">Continue</button></div>`;
 
@@ -196,6 +209,7 @@ Object.assign(ActionMenu, {
             if (result.casualties > 0) {
                 html += `<div style="color: #ff9800;">⚠️ Soldiers lost: ${result.casualties}</div>`;
             }
+            html += battleExtrasHtml(result);
             html += `</div></div>`;
 
             if (result.capitalCaptured) {
@@ -227,6 +241,7 @@ Object.assign(ActionMenu, {
             html += `<div style="background: rgba(231,76,60,0.1); padding: 10px; border-radius: 6px; margin-bottom: 10px;">`;
             html += `<div style="font-size: 13px; line-height: 1.6;">`;
             html += `<div style="color: #ff9800;">⚠️ Soldiers lost: ${result.casualties}</div>`;
+            html += battleExtrasHtml(result);
             html += `<div style="color: #ff6666;">😈 Karma: ${result.karmaChange}</div>`;
             if (result.captured) {
                 html += `<div style="color: #ff6666; margin-top: 4px;">⛓️ You have been captured into indentured servitude for ${result.servitudeDays} days!</div>`;
@@ -330,6 +345,7 @@ Object.assign(ActionMenu, {
             if (result.casualties > 0) {
                 html += `<div style="color:#ff9800;">⚠️ You lost ${result.casualties} soldier${result.casualties > 1 ? 's' : ''} in the battle.</div>`;
             }
+            html += battleExtrasHtml(result);
             if (result.karmaChange < 0) {
                 html += `<div style="color:#ff6666;">😈 Karma: ${result.karmaChange}</div>`;
             }

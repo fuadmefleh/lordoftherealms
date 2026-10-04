@@ -1,6 +1,6 @@
 // ActionMenu — social methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, House, Schemes, RealmWars, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMapRenderer } from './_imports.js';
+import { PlayerActions, PlayerEconomy, PlayerEffects, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, House, Schemes, RealmWars, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMapRenderer } from './_imports.js';
 
 Object.assign(ActionMenu, {
     // ============================================
@@ -641,7 +641,8 @@ Object.assign(ActionMenu, {
             for (const member of travelParty) {
                 const rel = Relationships.getRelationship(player, member.id);
                 html += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 5px 8px; font-size: 12px; background: rgba(90,140,200,0.10); border-radius: 4px; margin-bottom: 3px;">`;
-                html += `<span>🧭 <strong>${member.firstName}</strong> (${rel.score || 0})</span>`;
+                const role = PlayerEffects.companionRole(member);
+                html += `<span>🧭 <strong>${member.firstName}</strong> (${rel.score || 0}) <span style="color:#9bc;font-size:11px">· ${member.occupation || 'traveller'}: ${role.text}</span></span>`;
                 html += `<button onclick="window._openKnownCharacter('${member.id}')" style="padding: 3px 8px; background: #355; border: none; border-radius: 3px; cursor: pointer; color: #cde; font-size: 10px;">Profile</button>`;
                 html += `</div>`;
             }

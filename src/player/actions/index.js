@@ -324,6 +324,9 @@ export const PlayerActions = {
         // Update blessings
         results.blessingsExpired = PlayerReligion.updateBlessings(player);
 
+        // Travel companions heal the player and grow closer
+        results.companions = PlayerEffects.processCompanions(player, world);
+
         // Lord trade agreements run for a fixed term
         results.tradeAgreementsExpired = PlayerEffects.expireTradeAgreements(player, world.day || 0);
 

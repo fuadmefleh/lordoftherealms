@@ -81,6 +81,7 @@ Object.assign(InnerMap, {
      * Cancel the current player walk (e.g. on new right-click).
      */
     cancelPlayerWalk() {
+        this._pendingAction = null;
         this._playerPath = null;
         this._playerPathIndex = 0;
         this._playerMoveProgress = 0;

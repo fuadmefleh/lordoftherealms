@@ -75,7 +75,7 @@ export const ObjectActions = {
     buildFurnitureMenuItems(game, furniture, building, q, r) {
         const actions = this.getFurnitureActionKeys(furniture.type, building);
         if (!actions.length) return [];
-        return this.buildMenuItems(game, { name: furniture.name, actions }, q, r);
+        return this.buildMenuItems(game, { name: furniture.name, actions, furnitureType: furniture.type }, q, r);
     },
 
     /**
@@ -146,6 +146,8 @@ export const ObjectActions = {
             return;
         }
         if (actionDef.panel) {
+            // The guard tower is how an outlaw clears their name; everything else turns them away.
+            if (actionDef.panel !== 'showGuardMenu' && ActionMenu.refuseIfOutlawed(game, _settlementTile(game))) return;
             ActionMenu[actionDef.panel](game, _settlementTile(game));
             return;
         }

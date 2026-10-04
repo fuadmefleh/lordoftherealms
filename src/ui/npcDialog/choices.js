@@ -2,6 +2,7 @@
 import { InnerMap } from '../../world/innerMap.js';
 import { ActionMenu } from '../actionMenu.js';
 import { NpcFamily } from '../../systems/npcFamily.js';
+import { Quests } from '../../systems/quests.js';
 import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS, RUMORS, FAREWELLS, THREAT_RESPONSES, THREAT_SUCCESS, FLATTER_RESPONSES, FLATTER_SUCCESS, TIME_COMMENTS, WEATHER_COMMENTS, NPC_QUEST_HOOKS, LOCATION_INFO, KINGDOM_INFO } from '../npcDialog.data.js';
 import { dialogState } from './shared.js';
 import { NpcDialog } from './index.js'; // call-time facade ref (ESM cycle-safe)
@@ -199,14 +200,22 @@ export function _handleChoice(action) {
 
             case 'accept_quest': {
                 const hook = mem.pendingHook;
+                const game = dialogState._game;
+                const npc = dialogState._npc;
+                const result = game && game.player ? Quests.createNpcTask(game.player, hook, npc) : { success: false };
+                if (!result.success && result.reason && result.reason.startsWith('Too many')) {
+                    // Keep the offer open — the player can come back once they've room.
+                    responseText = "You look stretched thin already. Come back when you've time for me.";
+                    break;
+                }
                 mem.pendingHook = null;
                 mem.questAccepted = true;
                 responseText = 'Thank you! I knew I could count on someone like you.';
                 dispositionChange = 10;
-                const rewardHint = hook?.reward === 'gold' ? 'gold' : hook?.reward === 'equipment' ? 'a forged reward' : hook?.reward === 'blessing' ? 'a blessing' : 'renown';
-                if (dialogState._game?.ui?.showNotification) {
+                if (result.success && game?.ui?.showNotification) {
+                    const q = result.quest;
                     setTimeout(() => {
-                        dialogState._game.ui.showNotification('📜 Task Accepted', `You agreed to help ${dialogState._npc?.name || 'them'}. Complete the task for ${rewardHint}.`, 'success');
+                        game.ui.showNotification('📜 Task Accepted', `${q.title}: ${q.objectives[0].text}. Reward: ${Quests.describeRewards(q.rewards)}.`, 'success');
                     }, 800);
                 }
                 break;

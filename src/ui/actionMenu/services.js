@@ -138,22 +138,26 @@ Object.assign(ActionMenu, {
         const player = game.player;
         const settlement = tile.settlement;
         const offenses = SettlementServices.offenseCount(player);
-        const fine = SettlementServices.fineAmount(player, settlement);
+        const bounty = SettlementServices.bountyOwed(player, settlement);
+        const warrant = SettlementServices.hasWarrant(player, settlement);
+        const fine = SettlementServices.fineAmount(player, settlement) + bounty + (warrant ? SERVICE_CONFIG.fines.warrantFee : 0);
 
         let html = '<div>';
-        if (offenses === 0) {
+        if (offenses === 0 && bounty === 0 && !warrant) {
             html += `<p style="font-size: 12px; color: var(--text-secondary); margin-top: 0;">The guard captain checks the ledger and grunts. "Nothing on you. Keep it that way."</p>`;
             html += _button('📜 Check the bounty board', 'bounties');
         } else {
             const rec = player.criminalRecord || {};
             const lines = Object.entries(rec).filter(([, n]) => n > 0)
                 .map(([crime, n]) => `${crime.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase())} ×${n}`);
-            html += `<p style="font-size: 12px; color: var(--text-secondary); margin-top: 0;">The captain taps the ledger. "You've a record, friend."</p>`;
+            if (bounty) lines.push(`Bounty on your head: ${bounty}g`);
+            if (warrant) lines.push(`Royal warrant for your arrest (+${SERVICE_CONFIG.fines.warrantFee}g)`);
+            html += `<p style="font-size: 12px; color: var(--text-secondary); margin-top: 0;">The captain taps the ledger. "${warrant ? "There's a warrant out for you. Pay up, or hang." : "You've a record, friend."}"</p>`;
             html += `<div style="${CARD}">`;
             html += `<div style="font-weight: bold;">🗂️ Your record</div>`;
             html += `<div style="font-size: 12px; color: #e86a6a; margin: 4px 0;">${lines.join(', ')}</div>`;
-            html += `<div style="font-size: 12px; color: var(--text-secondary);">Paying your fines wipes the record, so the next offense is punished as a first one, and earns a little goodwill with the crown.</div>`;
-            html += _button(`Pay fines (${fine}g)`, 'pay', player.gold >= fine);
+            html += `<div style="font-size: 12px; color: var(--text-secondary);">Settling wipes your record, pays off this crown's bounties and lifts its warrant, so merchants will deal with you again and the guards stand down.</div>`;
+            html += _button(`Settle everything (${fine}g)`, 'pay', player.gold >= fine);
             html += '</div>';
         }
         html += '</div>';

@@ -272,7 +272,7 @@ Object.assign(InnerMapRenderer, {
                 const npcDef = InnerMap.NPC_TYPES[npc.type] || {};
                 const npcHealth = (typeof InnerMapCombat !== 'undefined') ? InnerMapCombat.getNPCHealth(npc.id) : null;
                 const hpDesc = npcHealth ? `⚔️ ${Math.ceil(npcHealth.current)}/${npcHealth.max} HP` : `${npcDef.name || npc.type}`;
-                menuItems.push({ type: 'action', action: 'talk_npc', label: `Talk to ${npc.name}`, icon: npc.icon, desc: `${npcDef.name || npc.type}`, npc });
+                menuItems.push({ type: 'action', action: 'talk_npc', label: `Talk to ${npc.name}`, icon: npc.icon, desc: `${npcDef.name || npc.type}${npc.activity ? ` · ${npc.activity.icon} ${npc.activity.label}` : ''}`, npc });
                 menuItems.push({ type: 'action', action: 'attack_npc', label: `Attack ${npc.name}`, icon: '⚔️', desc: hpDesc, npc });
             }
         }
@@ -424,6 +424,40 @@ Object.assign(InnerMapRenderer, {
     // CONTEXT MENU ACTION HANDLERS
     // ══════════════════════════════════════════════
 
+    /** Furniture / object uses happen in person: these actions walk over first. */
+    _needsApproach(item) {
+        return item.action === 'interact_furniture' || item.action.startsWith('obj_action_');
+    },
+
+    /**
+     * Walk to the furniture or object an action targets, then perform it
+     * facing the thing (with a short use animation). Anyone using it steps aside.
+     */
+    _approachThenAct(game, item, q, r) {
+        const tq = item.objAnchorQ != null ? item.objAnchorQ : q;
+        const tr = item.objAnchorR != null ? item.objAnchorR : r;
+        const furnType = item._furniture ? item._furniture.type
+            : (item.customObjDef && item.customObjDef.furnitureType)
+            || ObjectActions.inferFurnitureType(item.customObjDef && (item.customObjDef.name || item.customObjDef.id));
+        const label = (item._furniture && item._furniture.name) || (item.customObjDef && item.customObjDef.name) || 'that';
+
+        const result = InnerMap.approachAndThen(tq, tr, () => {
+            InnerMapRenderer._playerFacing = InnerMap.getDirectionToward(tq, tr);
+            const occupant = InnerMap.getFurnitureOccupant(tq, tr);
+            if (occupant) InnerMap.yieldFurniture(occupant);
+            const activity = furnType && InnerMap.FURNITURE_ACTIVITIES[furnType];
+            if (activity && item.action !== 'interact_furniture') {
+                // Hammering at an anvil must not damage it — swap in a harmless emote.
+                const anim = activity.anim === 'slash' ? 'emotes' : activity.anim;
+                InnerMap.startInteraction(tq, tr, null, 0, anim);
+            }
+            this._handleContextAction(game, { ...item, _approached: true }, q, r);
+        });
+        if (result === 'unreachable') {
+            game.ui.showNotification('Blocked', `You can't reach the ${label}.`, 'error');
+        }
+    },
+
     _handleContextAction(game, item, q, r) {
         const action = item.action;
         const playerQ = InnerMap.playerInnerQ;
@@ -436,7 +470,12 @@ Object.assign(InnerMapRenderer, {
             return;
         }
 
-        if (dist > 1) {
+        if (!item._approached && this._needsApproach(item)) {
+            this._approachThenAct(game, item, q, r);
+            return;
+        }
+
+        if (dist > 1 && !item._approached) {
             InnerMap.cancelPlayerWalk();
             InnerMap.movePlayerTo(q, r);
         }
@@ -444,7 +483,7 @@ Object.assign(InnerMapRenderer, {
         switch (action) {
             case 'trade': case 'browse_goods': case 'buy_weapons': case 'buy_tools': case 'buy_food': case 'buy_drink': {
                 const worldTile = game.world.getTile(game.player.q, game.player.r);
-                if (worldTile && typeof ActionMenu !== 'undefined') ActionMenu.showTradeMenu(game, worldTile);
+                if (worldTile && typeof ActionMenu !== 'undefined' && !ActionMenu.refuseIfOutlawed(game, worldTile)) ActionMenu.showTradeMenu(game, worldTile);
                 break;
             }
             case 'talk_merchant': case 'talk_locals': case 'talk_priest': case 'talk_captain':
@@ -563,6 +602,8 @@ Object.assign(InnerMapRenderer, {
                     stable_horse: () => ActionMenu.showStableMenu(game, worldTile),
                     report_crime: () => ActionMenu.showGuardMenu(game, worldTile),
                 };
+                // Outlaws are turned away everywhere but the guard tower, where they can settle up
+                if (action !== 'report_crime' && ActionMenu.refuseIfOutlawed(game, worldTile)) break;
                 open[action]();
                 break;
             }

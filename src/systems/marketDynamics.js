@@ -8,6 +8,7 @@ import { WorldEvents } from '../world/worldEvents.js';
 import { Technology } from './technology.js';
 import { Hex } from '../core/hex.js';
 import { Councils } from './councils.js';
+import { Titles } from './titles.js';
 import { Utils } from '../core/utils.js';
 
 
@@ -473,6 +474,13 @@ export const Taxation = {
         VERY_HIGH: { id: 'very_high', name: 'Very High (40%)', rate: 0.40, happinessBonus: -20, growthBonus: -0.10 }
     },
 
+    /** Office perk (e.g. the Chancellor's +10%) on taxes from the player's settlements. */
+    officeTaxMultiplier(player) {
+        const title = Titles.getActiveTitle(player);
+        const pct = (title && title.perks && title.perks.taxBonusPercent) || 0;
+        return 1 + pct / 100;
+    },
+
     /**
      * Collect taxes from settlements
      */
@@ -494,7 +502,7 @@ export const Taxation = {
                 const settlement = tile.settlement;
                 const taxBase = Math.floor(settlement.population * 0.1); // 0.1 gold per person base
                 const landBonus = 1 + (player.landTaxBonus || 0);
-                const taxCollected = Math.floor(taxBase * taxPolicy.rate * landBonus);
+                const taxCollected = Math.floor(taxBase * taxPolicy.rate * landBonus * Taxation.officeTaxMultiplier(player));
 
                 totalCollected += taxCollected;
                 settlements.push({

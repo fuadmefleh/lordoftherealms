@@ -145,6 +145,7 @@ Object.assign(InnerMap, {
         this.roads = [];
         this.dayEnded = false;
         this._pendingInteraction = null;
+        this._pendingAction = null;
         this._activeInteraction = null;
         this._pendingDialog = null;
         this._insideBuilding = null;
@@ -437,6 +438,7 @@ Object.assign(InnerMap, {
         // Cancel any walk/interaction state
         this.cancelPlayerWalk();
         this._pendingInteraction = null;
+        this._pendingAction = null;
         this._activeInteraction = null;
 
         return true;
@@ -450,6 +452,14 @@ Object.assign(InnerMap, {
         if (!this._insideBuilding || !this._outerMapState) return;
 
         const building = this._insideBuilding;
+
+        // Interior NPCs drop whatever they were doing in here
+        for (const npc of this.npcs) {
+            npc._act = null;
+            npc.activity = null;
+            npc.path = null;
+            npc.moveProgress = 0;
+        }
 
         // Restore outer map state
         this.tiles = this._outerMapState.tiles;
@@ -479,6 +489,7 @@ Object.assign(InnerMap, {
         // Cancel any walk/interaction state
         this.cancelPlayerWalk();
         this._pendingInteraction = null;
+        this._pendingAction = null;
         this._activeInteraction = null;
     },
 
@@ -507,6 +518,10 @@ Object.assign(InnerMap, {
         npc.prevR = pos.r;
         npc.path = null;
         npc.moveProgress = 0;
+        npc._act = null;
+        npc.activity = null;
+        // Linger long enough to be seen using the place
+        npc.idleTimer = Math.max(npc.idleTimer || 0, 30 + Utils.random() * 45);
         // Keep them idle inside the interior (state stays inside_building
         // but the renderer will show them because _insideBuilding is set)
         return true;

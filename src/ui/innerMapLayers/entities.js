@@ -8,6 +8,22 @@ import { InnerMapCharacters } from '../innerMapCharacters.js';
 import { InnerMapCombat } from '../innerMapCombat.js';
 
 Object.assign(InnerMapRenderer, {
+    /** Small bobbing icon over an NPC using furniture (🍺 drinking, 🔨 hammering…). */
+    _drawNpcActivity(ctx, npc, sx, sy, ds, now) {
+        const charScale = npc.type === 'child' ? 0.7 : 1.0;
+        const bob = Math.sin(now * 2.5 + npc.id) * ds * 0.05;
+        const y = sy - ds * 1.55 * charScale + bob;
+        const size = Math.max(10, ds * 0.32);
+        ctx.beginPath();
+        ctx.arc(sx, y, size * 0.75, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(20,18,28,0.65)';
+        ctx.fill();
+        ctx.font = `${size}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(npc.activity.icon, sx, y + size * 0.05);
+    },
+
     // ══════════════════════════════════════════════
     // LAYER 6 — NPCs
     // ══════════════════════════════════════════════
@@ -30,7 +46,7 @@ Object.assign(InnerMapRenderer, {
             let anim = 'idle';
             let direction = npc.facing != null ? npc.facing : InnerMapCharacters.DIR_DOWN;
 
-            if (npc.state === 'walking' && npc.path && npc.pathIndex < npc.path.length) {
+            if ((npc.state === 'walking' || npc.state === 'inside_building') && npc.path && npc.pathIndex < npc.path.length) {
                 const target = npc.path[npc.pathIndex];
                 const progress = npc.moveProgress;
                 const fx = npc.q * T + T / 2, fy = npc.r * T + T / 2;
@@ -47,6 +63,7 @@ Object.assign(InnerMapRenderer, {
             } else {
                 worldX = npc.q * T + T / 2;
                 worldY = npc.r * T + T / 2;
+                if (npc.activity) anim = npc.activity.anim || 'idle';
             }
 
             const screen = camera.worldToScreenFast(worldX, worldY);
@@ -103,6 +120,7 @@ Object.assign(InnerMapRenderer, {
                 ctx.fillText(npc.name, screenX, screenY + ds * 0.3);
                 ctx.shadowBlur = 0;
             }
+            if (npc.activity) this._drawNpcActivity(ctx, npc, screenX, screenY, ds, now);
         }
     },
 
@@ -682,7 +700,7 @@ Object.assign(InnerMapRenderer, {
                 let anim = 'idle';
                 let direction = npc.facing != null ? npc.facing : InnerMapCharacters.DIR_DOWN;
 
-                if (npc.state === 'walking' && npc.path && npc.pathIndex < npc.path.length) {
+                if ((npc.state === 'walking' || npc.state === 'inside_building') && npc.path && npc.pathIndex < npc.path.length) {
                     const target = npc.path[npc.pathIndex];
                     const progress = npc.moveProgress;
                     const fx = npc.q * T + T / 2, fy = npc.r * T + T / 2;
@@ -697,6 +715,7 @@ Object.assign(InnerMapRenderer, {
                 } else {
                     worldX = npc.q * T + T / 2;
                     worldY = npc.r * T + T / 2;
+                    if (npc.activity) anim = npc.activity.anim || 'idle';
                 }
 
                 const screen = camera.worldToScreenFast(worldX, worldY);
@@ -742,6 +761,7 @@ Object.assign(InnerMapRenderer, {
                         ctx.fillText(nRef.name, sx, sy + ds * 0.3);
                         ctx.shadowBlur = 0;
                     }
+                    if (nRef.activity) self._drawNpcActivity(ctx, nRef, sx, sy, ds, now);
                     // ── Health bar (only shown when NPC has taken damage) ──
                     if (typeof InnerMapCombat !== 'undefined') {
                         const nHealth = InnerMapCombat.getNPCHealth(nRef.id);

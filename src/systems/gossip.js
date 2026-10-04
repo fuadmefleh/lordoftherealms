@@ -304,6 +304,13 @@ export const Gossip = {
             }
         }
 
+        // The crown forgets in time: old bounties and warrants lapse
+        const forgiveness = data.forgivenessDays || 90;
+        player.gossip.bounties = player.gossip.bounties.filter(b => day - (b.issuedDay || 0) < forgiveness);
+        for (const [kingdomId, w] of Object.entries(player.gossip.warrants || {})) {
+            if (day - (w.issuedDay || 0) >= forgiveness) delete player.gossip.warrants[kingdomId];
+        }
+
         // Clean up fully expired rumors (keep last 20 for history)
         const active = player.gossip.rumors.filter(r => !r.expired);
         const expiredList = player.gossip.rumors.filter(r => r.expired);
@@ -402,9 +409,13 @@ export const Gossip = {
             }
         }
 
-        // Kingdom-level warrant (very severe)
+        // Kingdom-level warrant (very severe) — every settlement of the crown refuses you
         if (severity >= (thresholds.kingdomWarrant || 90)) {
             result.consequence = 'warrant';
+            if (!player.gossip.warrants) player.gossip.warrants = {};
+            if (!player.gossip.warrants[kingdomId]) {
+                player.gossip.warrants[kingdomId] = { issuedDay: day, rumorId: rumor.id };
+            }
         }
 
         return result;
@@ -438,6 +449,8 @@ export const Gossip = {
         for (const rumor of player.gossip.rumors) {
             if (rumor.expired) continue;
             if (!rumor.spreadTo.includes(settlementKey)) continue;
+            // Settled with this crown's guards — no longer held against you here
+            if (rumor.pardonedIn && rumor.pardonedIn.includes(kingdom)) continue;
 
             if (rumor.severity > maxSeverity) {
                 maxSeverity = rumor.severity;
@@ -457,7 +470,48 @@ export const Gossip = {
         }
 
         const hostile = maxSeverity >= (thresholds.guardHostile || 60);
-        return { hostile, reason, bountyTotal };
+        const banned = maxSeverity >= (thresholds.settlementBanned || 80);
+        const warrant = !!(kingdom && player.gossip.warrants && player.gossip.warrants[kingdom]);
+        return { hostile, banned, warrant, reason, bountyTotal };
+    },
+
+    /**
+     * Whether merchants and officials here turn the player away: the rumours
+     * are bad enough to ban them, or the crown has a warrant out.
+     * @returns {{ refused: boolean, reason: string|null }}
+     */
+    refusesService(player, worldQ, worldR, world) {
+        const st = this.checkGuardHostility(player, worldQ, worldR, world);
+        if (st.warrant) return { refused: true, reason: 'There is a warrant out for you across this realm. Settle it with the guards first.' };
+        if (st.banned) return { refused: true, reason: `Word of ${st.reason || 'your crimes'} has reached this place. No one here will deal with you until you answer to the guards.` };
+        return { refused: false, reason: null };
+    },
+
+    /** Gold owed in gossip bounties to one kingdom. */
+    bountyTotalForKingdom(player, kingdomId) {
+        this.initializePlayer(player);
+        return player.gossip.bounties
+            .filter(b => b.kingdom === kingdomId)
+            .reduce((sum, b) => sum + (b.gold || 0), 0);
+    },
+
+    /**
+     * Answer for your crimes in a kingdom: its bounties and warrant are
+     * dropped and the rumours there no longer turn its guards against you.
+     */
+    settleWithKingdom(player, kingdomId) {
+        this.initializePlayer(player);
+        const owed = player.gossip.bounties.filter(b => b.kingdom === kingdomId);
+        for (const b of owed) {
+            const rumor = player.gossip.rumors.find(r => r.id === b.rumorId);
+            if (rumor) {
+                if (!rumor.pardonedIn) rumor.pardonedIn = [];
+                if (!rumor.pardonedIn.includes(kingdomId)) rumor.pardonedIn.push(kingdomId);
+            }
+        }
+        player.gossip.bounties = player.gossip.bounties.filter(b => b.kingdom !== kingdomId);
+        if (player.gossip.warrants) delete player.gossip.warrants[kingdomId];
+        return owed.length;
     },
 
     // ══════════════════════════════════════════════

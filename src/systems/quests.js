@@ -216,6 +216,92 @@ export const Quests = {
     },
 
     /**
+     * What each NPC request actually asks of the player — a counter that must
+     * rise by `target` after the task is accepted.
+     */
+    NPC_TASK_OBJECTIVES: {
+        escort_trade_caravan: { stat: 'caravans_completed', target: 1, text: 'See a trade caravan safely through' },
+        merchant_delivery:    { stat: 'trade_profit', target: 300, text: 'Earn 300 gold in trade profit' },
+        clear_bandits:        { stat: 'battles_won', target: 2, text: 'Win 2 battles against the bandits' },
+        fetch_item:           { stat: 'taverns_visited', target: 1, text: 'Search a tavern for the lost report' },
+        investigate_threat:   { stat: 'battles_won', target: 1, text: 'Hunt down whatever is killing the livestock' },
+        rescue_person:        { stat: 'ruins_explored', target: 1, text: 'Search the wilds for the missing son' },
+        retrieve_relic:       { stat: 'ruins_explored', target: 1, text: 'Recover the relic from the ruins' },
+        clear_undead:         { stat: 'battles_won', target: 1, text: 'Drive off the restless dead' },
+        gather_resource:      { stat: 'ruins_explored', target: 1, text: 'Bring back rare ore from the deep places' },
+        retrieve_item:        { stat: 'battles_won', target: 1, text: 'Track down the thief' },
+        delivery:             { stat: 'settlements_visited', target: 2, text: 'Carry the delivery to 2 other settlements' },
+        espionage:            { stat: 'informants_hired', target: 1, text: 'Hire an informant to steal the documents' },
+        explore_ruins:        { stat: 'ruins_explored', target: 1, text: 'Explore the ancient ruins' },
+        bounty:               { stat: 'battles_won', target: 1, text: 'Bring the bounty target to heel' },
+    },
+
+    /** Reward package per NPC reward kind. */
+    NPC_TASK_REWARDS: {
+        gold:       { gold: 200, renown: 3 },
+        reputation: { renown: 15, gold: 50 },
+        favor:      { gold: 100, renown: 5 },
+        blessing:   { karma: 5, renown: 5 },
+        equipment:  { gold: 120, renown: 5, items: { weapons: 1 } },
+        gratitude:  { karma: 4, renown: 8 },
+        treasure:   { gold: 320 },
+    },
+
+    /** Current value of a progress counter, wherever it is kept. */
+    _counter(player, stat) {
+        const qs = player.quests;
+        if (stat === 'caravans_completed') return qs.caravansCompleted || 0;
+        if (stat === 'contracts_completed') return qs.contractsCompleted || 0;
+        if (stat === 'settlements_visited') return qs.settlementsVisited ? qs.settlementsVisited.size : 0;
+        return (qs.stats && qs.stats[stat]) || 0;
+    },
+
+    /**
+     * Turn a request an NPC made in conversation into a tracked quest.
+     * @param {Object} hook  An NPC_QUEST_HOOKS entry ({ text, type, reward })
+     * @param {Object} npc   The NPC who asked ({ id, name })
+     * @returns {{ success: boolean, quest?: Object, reason?: string }}
+     */
+    createNpcTask(player, hook, npc) {
+        if (!player.quests) Quests.initialize(player);
+        const objDef = hook && Quests.NPC_TASK_OBJECTIVES[hook.type];
+        if (!objDef) return { success: false, reason: 'Nothing concrete to do' };
+        if (player.quests.active.length >= 5) return { success: false, reason: 'Too many active quests (max 5)' };
+        const id = `npc_task_${npc && npc.id != null ? npc.id : 'x'}_${hook.type}`;
+        if (player.quests.active.some(q => q.id === id)) return { success: false, reason: 'Already working on it' };
+        const who = (npc && npc.name) || 'a local';
+        const rewards = { ...(Quests.NPC_TASK_REWARDS[hook.reward] || Quests.NPC_TASK_REWARDS.gold) };
+        const quest = {
+            id,
+            title: `A Favour for ${who}`,
+            description: hook.text,
+            type: 'npc_task',
+            giver: { id: npc ? npc.id : null, name: who },
+            objectives: [{
+                type: 'counter_since', stat: objDef.stat, baseline: Quests._counter(player, objDef.stat),
+                target: objDef.target, current: 0, text: objDef.text,
+            }],
+            rewards,
+            difficulty: 'easy',
+            status: 'active',
+            startedAt: Date.now(),
+        };
+        player.quests.active.push(quest);
+        return { success: true, quest };
+    },
+
+    /** "200 gold, 3 renown" — rewards as words. */
+    describeRewards(rewards) {
+        if (!rewards) return '';
+        const parts = [];
+        if (rewards.gold) parts.push(`${rewards.gold} gold`);
+        if (rewards.renown) parts.push(`${rewards.renown} renown`);
+        if (rewards.karma) parts.push(`${rewards.karma} karma`);
+        for (const [item, n] of Object.entries(rewards.items || {})) parts.push(`${n} ${item.replace(/_/g, ' ')}`);
+        return parts.join(', ');
+    },
+
+    /**
      * Initialize quest system for player
      */
     initialize(player) {
@@ -450,6 +536,9 @@ export const Quests = {
                     case 'technologies_researched':
                         objective.current = (player.technology && player.technology.implemented || []).length;
                         break;
+                    case 'counter_since':
+                        objective.current = Math.max(0, Quests._counter(player, objective.stat) - (objective.baseline || 0));
+                        break;
                     case 'quests_completed':
                         objective.current = player.quests.completed.length;
                         break;
@@ -516,6 +605,13 @@ export const Quests = {
 
         if (rewards.renown) {
             player.renown += rewards.renown;
+        }
+
+        if (rewards.items) {
+            if (!player.inventory) player.inventory = {};
+            for (const [item, n] of Object.entries(rewards.items)) {
+                player.inventory[item] = (player.inventory[item] || 0) + n;
+            }
         }
 
         return rewards;

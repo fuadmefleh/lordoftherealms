@@ -105,9 +105,12 @@ export async function enterInnerMap(worldQ, worldR) {
 
             // Check guard hostility from gossip/rumors
             const hostility = Gossip.checkGuardHostility(this.player, worldQ, worldR, this.world);
-            if (hostility.hostile) {
+            if (hostility.warrant || hostility.banned) {
+                this.ui.showNotification(hostility.warrant ? '⚖️ Wanted!' : '🚫 Unwelcome',
+                    `${hostility.warrant ? 'The crown has a warrant out for you.' : 'Word of your crimes has reached this place.'} Merchants and officials will turn you away until you settle with the guard tower${hostility.bountyTotal ? ` (bounty ${hostility.bountyTotal}g)` : ''}.`, 'error');
+            } else if (hostility.hostile) {
                 this.ui.showNotification('⚠️ Hostile Guards!',
-                    `The guards here know about your crimes! Bounty: ${hostility.bountyTotal}g.`, 'error');
+                    `The guards here know about your crimes! Bounty: ${hostility.bountyTotal}g. Settle it at the guard tower.`, 'error');
             }
         } else {
             this.ui.showNotification('🗺️ Entering Inner Map',

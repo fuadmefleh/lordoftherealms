@@ -464,6 +464,8 @@ Object.assign(InnerMap, {
                     break;
 
                 case 'inside_building':
+                    // The player is in here too — go about their business on the furniture
+                    if (this._insideBuilding) { this._updateInteriorNpc(npc, deltaTime); break; }
                     npc.idleTimer -= deltaTime;
                     if (npc.idleTimer <= 0) {
                         if (this._insideBuilding) {

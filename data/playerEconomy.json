@@ -599,6 +599,8 @@
         "TOOLS": { "id": "tools", "name": "Tools", "icon": "🔧", "basePrice": 35 },
         "WEAPONS": { "id": "weapons", "name": "Weapons", "icon": "⚔️", "basePrice": 60 },
         "GOLD_ORE": { "id": "gold_ore", "name": "Gold Ore", "icon": "💰", "basePrice": 40 },
+        "IRON_INGOT": { "id": "iron_ingot", "name": "Iron Ingot", "icon": "🔩", "basePrice": 75 },
+        "GOLD_BAR": { "id": "gold_bar", "name": "Gold Bar", "icon": "🥇", "basePrice": 150 },
         "GEMS": { "id": "gems", "name": "Gems", "icon": "💎", "basePrice": 60 },
         "IVORY": { "id": "ivory", "name": "Ivory", "icon": "🦷", "basePrice": 45 },
         "SPICES": { "id": "spices", "name": "Spices", "icon": "🧂", "basePrice": 45 },

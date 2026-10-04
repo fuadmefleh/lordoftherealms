@@ -9,12 +9,37 @@
 
 import { Titles } from '../systems/titles.js';
 import { House } from '../systems/house.js';
+import { Relationships } from '../systems/relationships.js';
 
 /** Personal damage reduction from gear in the inventory (multiplicative). */
 const ARMOR_REDUCTION = { leather_armor: 0.2, shield: 0.15, amulet: 0.1 };
 
 /** Better buy/sell prices in a kingdom the player has a trade agreement with. */
 const TRADE_AGREEMENT_BONUS = 0.10;
+
+/**
+ * What a travel-party companion brings, by occupation: battle power, better
+ * prices, diplomacy points, or daily healing on the road.
+ */
+const COMPANION_ROLES = {
+    general:    { power: 0.12, text: '+12% battle power' },
+    knight:     { power: 0.10, text: '+10% battle power' },
+    guard:      { power: 0.06, text: '+6% battle power' },
+    hunter:     { power: 0.05, heal: 1, text: '+5% battle power, forages' },
+    spymaster:  { power: 0.04, diplomacy: 0.5, text: 'scouts ahead, whispers to envoys' },
+    merchant:   { trade: 0.05, text: '+5% trade prices' },
+    artisan:    { trade: 0.03, text: '+3% trade prices' },
+    weaver:     { trade: 0.03, text: '+3% trade prices' },
+    miller:     { trade: 0.02, heal: 1, text: '+2% trade prices, feeds the camp' },
+    baker:      { trade: 0.02, heal: 1, text: '+2% trade prices, feeds the camp' },
+    diplomat:   { diplomacy: 1.5, text: '+1.5 diplomacy' },
+    noble:      { diplomacy: 1, text: '+1 diplomacy' },
+    scholar:    { diplomacy: 0.5, text: '+0.5 diplomacy' },
+    healer:     { heal: 5, text: 'heals 5 health a day' },
+    herbalist:  { heal: 3, text: 'heals 3 health a day' },
+    priest:     { heal: 2, diplomacy: 0.5, text: 'heals 2 a day, +0.5 diplomacy' },
+};
+const DEFAULT_COMPANION_ROLE = { heal: 1, text: 'keeps camp (heals 1 a day)' };
 
 function _perk(player, key) {
     const title = Titles.getActiveTitle(player);
@@ -47,12 +72,49 @@ export const PlayerEffects = {
         return (player.blessings && player.blessings.harvest > 0) ? 3 : 1;
     },
 
+    // ──────────── COMPANIONS ────────────
+
+    /** The role a companion fills in the travel party. */
+    companionRole(npc) {
+        return (npc && COMPANION_ROLES[npc.occupation]) || DEFAULT_COMPANION_ROLE;
+    },
+
+    /** Sum of one companion bonus (`power`, `trade`, `diplomacy`, `heal`) across the party. */
+    companionBonus(player, key) {
+        if (!Array.isArray(player.travelParty) || player.travelParty.length === 0) return 0;
+        let total = 0;
+        for (const npc of Relationships.getTravelPartyMembers(player)) {
+            total += this.companionRole(npc)[key] || 0;
+        }
+        return total;
+    },
+
+    /**
+     * A day on the road together: companions patch the player up and the bond
+     * deepens. Returns { healed, members }.
+     */
+    processCompanions(player, world) {
+        const members = Array.isArray(player.travelParty) ? Relationships.getTravelPartyMembers(player) : [];
+        if (!members.length) return { healed: 0, members: 0 };
+        const heal = this.companionBonus(player, 'heal');
+        const maxHp = player.maxHealth || 100;
+        const before = player.health || 0;
+        player.health = Math.min(maxHp, before + heal);
+        for (const npc of members) {
+            const rel = Relationships.getRelationship(player, npc.id);
+            if (rel) rel.score = Math.min(100, (rel.score || 0) + 1);
+            npc.lastInteraction = (world && world.day) || npc.lastInteraction || 0;
+        }
+        return { healed: player.health - before, members: members.length };
+    },
+
     // ──────────── DIPLOMACY ────────────
 
-    /** Diplomacy skill plus a House Chancellor's bonus. */
+    /** Diplomacy skill plus a House Chancellor's bonus and diplomatic companions. */
     effectiveDiplomacy(player) {
         let value = (player.skills && player.skills.diplomacy) || 0;
         if (player.house) value += House.getRoleBonuses(player).diplomacyBonus || 0;
+        value += this.companionBonus(player, 'diplomacy');
         return value;
     },
 
@@ -75,7 +137,7 @@ export const PlayerEffects = {
 
     /** Fractional price advantage when trading at `settlement`. */
     tradeBonus(player, settlement) {
-        let bonus = _perk(player, 'tradeBonus');
+        let bonus = _perk(player, 'tradeBonus') + this.companionBonus(player, 'trade');
         const kingdomId = settlement && settlement.kingdom;
         if (kingdomId && player.tradeAgreements && player.tradeAgreements[kingdomId]) {
             bonus += TRADE_AGREEMENT_BONUS;

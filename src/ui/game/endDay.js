@@ -630,7 +630,7 @@ export function endDay() {
             // Check for completed quests
             const completedQuests = Quests.updateProgress(this.player, this.world);
             for (const quest of completedQuests) {
-                this.ui.showNotification('Quest Complete!', `${quest.title} - Rewards: ${JSON.stringify(quest.rewards)}`, 'success');
+                this.ui.showNotification('Quest Complete!', `${quest.title} — Rewards: ${Quests.describeRewards(quest.rewards)}`, 'success');
                 // House Prestige for finishing a quest.
                 if (typeof House !== 'undefined') {
                     House.recordPlayerDeed(this.player, this.world, 'quest', { reason: `quest: ${quest.title}` });

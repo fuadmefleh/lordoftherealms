@@ -1,6 +1,6 @@
 // ActionMenu — core methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerReligion } from './_imports.js';
+import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerReligion, Gossip } from './_imports.js';
 
 Object.assign(ActionMenu, {
     // ── Delegated-click helpers ──
@@ -478,8 +478,25 @@ Object.assign(ActionMenu, {
     /**
      * Handle action selection
      */
+    /** Services an outlaw is refused where they're banned or wanted. */
+    OUTLAW_REFUSED_ACTIONS: new Set(['trade', 'tavern', 'gambling', 'bounty_board', 'odd_jobs', 'recruit', 'train_combat', 'contract', 'port_market']),
+
+    /**
+     * Tell the player they're turned away when gossip of their crimes has got
+     * them banned here or the crown wants them. Returns true when refused.
+     */
+    refuseIfOutlawed(game, tile) {
+        if (!tile || !tile.settlement) return false;
+        const verdict = Gossip.refusesService(game.player, tile.q, tile.r, game.world);
+        if (!verdict.refused) return false;
+        game.ui.showNotification('🚫 Turned Away', `${verdict.reason} Visit the guard tower to settle your record.`, 'error');
+        return true;
+    },
+
     handleAction(game, tile, actionType, unitId) {
         ActionMenu.close();
+
+        if (ActionMenu.OUTLAW_REFUSED_ACTIONS.has(actionType) && ActionMenu.refuseIfOutlawed(game, tile)) return;
 
         // Holy Sanctuary is a no-combat zone — for the player too
         if ((actionType === 'attack_unit' || actionType === 'attack_settlement') &&

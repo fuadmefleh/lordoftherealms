@@ -259,11 +259,15 @@ Town buildings sell services with lasting effects. Use them from a building's me
 | Temple / Church | Seek Blessing (30g) | +2 movement and +5 healing per day for 5 days, +1 karma |
 | Stable | Buy a Riding Horse (160g) | One mount at a time: +3 movement every day. Resells for half |
 | Stable | Saddle a Tamed Horse (25g) | Turns a tamed horse into your mount. Spare tamed horses sell for 70g |
-| Guard Tower | Settle Your Record | Pay 50g per offense to wipe your criminal record (+3 reputation) |
+| Guard Tower | Settle Your Record | Pay 50g per offense, plus any gossip bounty this crown has posted on you (and 250g if it has a warrant out), to wipe your record, lift the warrant and calm the guards (+3 reputation) |
 | Town Hall | Pay Tribute (50 / 150 / 400g) | +1 reputation with the crown per 25g, up to 100 |
 | Town Hall / Manor | Seek Audience | Court actions available here: pledge allegiance, seek office, feasts, councils… |
 
 Furniture inside buildings is usable too: beds (in your own home), rented tavern rooms (5g), market stalls (trade), bars (drinks, rumors, gambling), anvils and forges (craft, smelt), altars (pray, donate), barracks racks (hire troops, train) and more.
+
+You use furniture in person: choosing an action walks you up to it first, then you turn to face it and the action happens (with a short sitting, praying or working animation). If you can't reach it, you're told so. Anyone already using it steps aside. Smelted **iron ingots** (75g) and **gold bars** (150g) sell for more than their ore, and they go into forge recipes: weapons, tools and gold rings. **Reading** at a bookshelf trains a real skill (commerce, combat, leadership, diplomacy, stealth or cartography) by +0.2, up to 10.
+
+**Life indoors.** The townsfolk you find inside a building get on with their day. They walk to the furniture that suits them (blacksmiths to the anvil, priests to the altar, travellers to the bar) and use it for a while, with an icon over their heads showing what they're doing. When they're done visiting, they walk out through the door.
 
 ---
 
@@ -1007,7 +1011,7 @@ After pledging allegiance to a kingdom, you can seek appointment to royal office
 | Spymaster | Lord | 30g/day | Stealth 5, Diplomacy 3, INT 6 | 2 intel reports/month |
 | Chancellor | Chancellor | 60g/day | Diplomacy 6, Leadership 5, 30 renown | Hold court monthly |
 
-Each title comes with unique perks — the Tax Collector earns 15–40g per collection, the Marshal gets −15% military costs, and the Chancellor receives +25% salary bonuses on all other titles.
+Each title comes with unique perks — the Tax Collector earns 15–40g per collection, the Marshal gets −15% military costs, and the Chancellor receives +25% salary bonuses on all other titles and +10% on taxes from settlements you rule.
 
 Failing to fulfill your duties risks demotion.
 
@@ -1233,6 +1237,10 @@ Open the **Quest Journal** to see up to **5 offered quests** and press **Accept*
 | Legendary | 10 completed quests or 300 renown |
 
 Artifact quests appear as soon as you find a fragment of that artifact. Progress counts everything you've done since the start of the game — battles won, ruins explored, treasure dug up, roads built, taverns visited, trade revenue and so on — so a quest may complete the moment you accept it. Quests that need heresy suppression or forming alliances aren't offered, since there's no way to do those yet.
+
+### Favours for Townsfolk
+
+Ask an NPC whether they need help and they may make a request. If you accept, it becomes a real quest in your journal (it counts toward the 5-quest limit). Only what you do **after** accepting counts: explore ruins, win battles, see a caravan through, hire an informant, visit settlements and so on, depending on the request. The reward depends on what they promised: gold, renown, karma, or forged weapons from a blacksmith.
 
 ### Economic Quests (10)
 
@@ -1535,3 +1543,22 @@ Click on your character or nearby hexes to open the **contextual radial action m
 ---
 
 *This manual covers version 0.3.0 of Lord of the Realms. Game mechanics are subject to change as development continues.*
+
+---
+
+## Travel Companions & Notoriety
+
+**Travel party.** Friends who join your travel party pull their weight according to their trade:
+
+| Companion | Benefit |
+|-----------|---------|
+| General / Knight / Guard / Hunter | +12% / +10% / +6% / +5% battle power |
+| Merchant / Artisan / Weaver / Miller / Baker | +5% / +3% / +3% / +2% / +2% trade prices |
+| Diplomat / Noble / Scholar | +1.5 / +1 / +0.5 effective diplomacy |
+| Healer / Herbalist / Priest | heal you 5 / 3 / 2 health a day |
+| Anyone else | keeps camp (heals 1 a day) |
+
+Each day on the road together also raises your relationship with every companion by 1.
+
+**Rumours of your crimes.** When gossip about a crime reaches a settlement, its guards may turn hostile and its crown may post a bounty on you. If the rumour is bad enough, the settlement **bans** you. The worst crimes bring a **warrant** that covers the whole kingdom. While you're banned or wanted, merchants, taverns, recruiters and officials turn you away. Only the guard tower will still deal with you, so you can settle your record there. Bounties and warrants lapse after 90 days if you don't pay them.
+

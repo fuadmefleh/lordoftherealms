@@ -9,6 +9,7 @@
 
 import { Utils } from '../core/utils.js';
 import { PlayerEffects } from './playerEffects.js';
+import { Gossip } from '../systems/gossip.js';
 
 /** Price multiplier by settlement size — bigger towns charge more. */
 const SIZE_PRICE = { village: 0.85, town: 1.0, city: 1.15, capital: 1.3 };
@@ -17,7 +18,7 @@ export const SERVICE_CONFIG = {
     honedArms:  { key: 'honed_arms', days: 7, strengthBonus: 0.15, costPerUnit: 8, minCost: 25 },
     blessing:   { key: 'temple_blessing', days: 5, movementBonus: 2, healthRegen: 5, cost: 30 },
     mount:      { price: 160, movementBonus: 3, saddleCost: 25, resaleRate: 0.5, tamedHorseSale: 70 },
-    fines:      { perOffense: 50, reputationGain: 3 },
+    fines:      { perOffense: 50, reputationGain: 3, warrantFee: 250 },
     tribute:    { tiers: [50, 150, 400], goldPerReputation: 25, maxReputation: 100 },
 };
 
@@ -166,22 +167,46 @@ export const SettlementServices = {
         return Math.round(this.offenseCount(player) * SERVICE_CONFIG.fines.perOffense * _priceFactor(settlement));
     },
 
-    /** Settle every outstanding fine: clears the criminal record and mends standing. */
+    /** Bounty gold the local crown has posted on the player over gossip of their crimes. */
+    bountyOwed(player, settlement) {
+        const kingdomId = settlement && settlement.kingdom;
+        return kingdomId ? Gossip.bountyTotalForKingdom(player, kingdomId) : 0;
+    },
+
+    /** True when the local crown has a warrant out for the player. */
+    hasWarrant(player, settlement) {
+        const kingdomId = settlement && settlement.kingdom;
+        return !!(kingdomId && player.gossip && player.gossip.warrants && player.gossip.warrants[kingdomId]);
+    },
+
+    /**
+     * Settle every outstanding fine and bounty: clears the criminal record,
+     * pays off this crown's bounties, lifts its warrant and mends standing.
+     */
     payFines(player, settlement) {
         const offenses = this.offenseCount(player);
-        if (offenses === 0) return { success: false, reason: 'Your record is clean. The guards have nothing against you.' };
-        const fine = this.fineAmount(player, settlement);
-        if (player.gold < fine) return { success: false, reason: `Your fines come to ${fine} gold.` };
+        const bounty = this.bountyOwed(player, settlement);
+        const warrant = this.hasWarrant(player, settlement);
+        if (offenses === 0 && bounty === 0 && !warrant) {
+            return { success: false, reason: 'Your record is clean. The guards have nothing against you.' };
+        }
+        const fine = this.fineAmount(player, settlement) + bounty + (warrant ? SERVICE_CONFIG.fines.warrantFee : 0);
+        if (player.gold < fine) return { success: false, reason: `Your fines and bounties come to ${fine} gold.` };
         _spend(player, fine, 'fines');
         player.criminalRecord = {};
         const kingdomId = settlement && settlement.kingdom;
+        const bountiesCleared = kingdomId ? Gossip.settleWithKingdom(player, kingdomId) : 0;
         if (kingdomId && player.reputation) {
             player.reputation[kingdomId] = Math.min(100, (player.reputation[kingdomId] || 0)
                 + PlayerEffects.scaleReputationGain(player, SERVICE_CONFIG.fines.reputationGain));
         }
+        const parts = [];
+        if (offenses) parts.push(`${offenses} offense${offenses > 1 ? 's' : ''}`);
+        if (bountiesCleared) parts.push(`${bountiesCleared} bount${bountiesCleared > 1 ? 'ies' : 'y'}`);
+        if (warrant) parts.push('the warrant for your arrest');
         return {
-            success: true, cost: fine, offenses,
-            message: `You pay ${fine} gold to settle ${offenses} offense${offenses > 1 ? 's' : ''}. Your record is wiped clean.`,
+            success: true, cost: fine, offenses, bountiesCleared, warrantLifted: warrant,
+            message: `You pay ${fine} gold to settle ${parts.join(', ')}. Your name is clear here.`,
         };
     },
 

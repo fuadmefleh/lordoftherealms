@@ -33,6 +33,8 @@ Object.assign(PlayerMilitary, {
 
         // Combat calculation
         let playerPower = playerStrength * Utils.randFloat(0.8, 1.2) * playerCounterMult * playerTerrainMult * playerMorale;
+        // Fighting companions in the travel party
+        playerPower *= 1 + PlayerEffects.companionBonus(player, 'power');
         // Fortification techs help when the player is the one attacked
         if (context.defending) playerPower *= 1 + Technology.getDefenseBonus(player);
         // A fortified house (watchtower, fortification upgrades) adds +1% per point of defense

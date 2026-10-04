@@ -34,6 +34,9 @@ export const COOK_RECIPES = [
 ];
 
 export const CRAFT_RECIPES = [
+    { id: 'weapons_forge', label: 'Forge Weapons', icon: '⚔️', ingredients: { iron_ingot: 1, wood: 1 }, result: { weapons: 2 }, desc: 'Ingot-forged blades, fit for an army' },
+    { id: 'tools_forge', label: 'Forge Tools', icon: '🔧', ingredients: { iron_ingot: 1 }, result: { tools: 3 }, desc: 'Hammers, saws and ploughshares' },
+    { id: 'ring_craft', label: 'Gold Ring', icon: '💍', ingredients: { gold_bar: 1, gems: 1 }, result: { luxuries: 3 }, desc: 'Fine jewellery for the luxury trade' },
     { id: 'arrows_craft', label: 'Arrows (×10)', icon: '🏹', ingredients: { wood: 2, iron: 1 }, result: { arrows: 10 }, desc: 'A bundle of iron-tipped arrows' },
     { id: 'shield_craft', label: 'Wooden Shield', icon: '🛡️', ingredients: { wood: 5, iron: 2 }, result: { shield: 1 }, desc: 'A sturdy wooden shield' },
     { id: 'bow_craft', label: 'Hunting Bow', icon: '🏹', ingredients: { wood: 4 }, result: { bow: 1 }, desc: 'A simple hunting bow' },
@@ -164,29 +167,5 @@ export const BUILDING_FURNITURE_ACTIONS = {
  */
 export const PRIVATE_FURNITURE = new Set(['bed', 'chest']);
 
-/**
- * Name patterns used to recognise editor-placed objects that have no actions
- * of their own, so a sprite bed or anvil is as usable as a procedural one.
- * Order matters: the first match wins.
- */
-export const FURNITURE_NAME_PATTERNS = [
-    [/\bbed\b|\bcot\b|bedroll|hammock/i, 'bed'],
-    [/\bchest\b|\btrunk\b|strongbox|coffer/i, 'chest'],
-    [/book|shelf|library|scroll/i, 'bookshelf'],
-    [/throne/i, 'throne'],
-    [/barrel|\bkeg\b|\bcask\b/i, 'barrel'],
-    [/\bbar\b|counter/i, 'bar'],
-    [/fireplace|hearth|stove|oven|cauldron/i, 'fireplace'],
-    [/anvil|workbench|work bench/i, 'anvil'],
-    [/forge|furnace|smelter|kiln/i, 'forge'],
-    [/stall|\bshop\b|market/i, 'stall'],
-    [/weapon|armou?r|\brack\b/i, 'rack'],
-    [/altar|shrine/i, 'altar'],
-    [/statue|idol/i, 'statue'],
-    [/\bpew\b|bench/i, 'pew'],
-    [/table|desk|chair|stool/i, 'table'],
-    [/\bwell\b/i, 'well'],
-    [/bucket|basin|\btub\b|washtub/i, 'bucket'],
-    [/crate|\bsack\b|\bbox\b/i, 'crate'],
-    [/scales?\b/i, 'scales'],
-];
+/** Name patterns for recognising editor-placed furniture (shared with interior NPCs). */
+export const FURNITURE_NAME_PATTERNS = InnerMap.FURNITURE_NAME_PATTERNS;

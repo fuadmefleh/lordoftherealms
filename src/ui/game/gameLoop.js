@@ -96,6 +96,7 @@ export function gameLoop(timestamp) {
                     if (autoEnterBuilding && typeof InnerMap.enterBuilding === 'function') {
                         InnerMap.cancelPlayerWalk();
                         InnerMap._pendingInteraction = null;
+                        InnerMap._pendingAction = null;
                         InnerMap._pendingCombat = null;
                         InnerMap._pendingDialog = null;
                         const success = InnerMap.enterBuilding(autoEnterBuilding, this);
@@ -134,6 +135,10 @@ export function gameLoop(timestamp) {
                     const dir = InnerMap.getDirectionToward(pi.anchorQ, pi.anchorR);
                     InnerMapRenderer._playerFacing = dir;
                 }
+                // ── Use the furniture / object the player walked over to ──
+                if (playerStepResult.arrived && InnerMap._pendingAction) {
+                    InnerMap.runPendingAction();
+                }
                 // ── Trigger pending NPC combat on arrival ──
                 if (playerStepResult.arrived && InnerMap._pendingCombat) {
                     const pc = InnerMap._pendingCombat;
@@ -156,6 +161,7 @@ export function gameLoop(timestamp) {
                 }
             } else if (playerStepResult.blocked) {
                 InnerMap._pendingInteraction = null;
+                InnerMap._pendingAction = null;
                 InnerMap._pendingCombat = null;
                 // Unfreeze NPC if dialog walk was blocked
                 if (InnerMap._pendingDialog) {
@@ -547,6 +553,7 @@ export function handleClick(screenX, screenY, button = 'left') {
             // Cancel any current walk / interaction
             InnerMap.cancelPlayerWalk();
             InnerMap._pendingInteraction = null;
+            InnerMap._pendingAction = null;
             InnerMap._activeInteraction = null;
 
             // Unfreeze NPC if we were walking to talk

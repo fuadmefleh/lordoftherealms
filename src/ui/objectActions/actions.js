@@ -125,19 +125,25 @@ export const OBJECT_ACTIONS = {
         message: null, // dynamic message
         timeSkip: 2,
         onExecute: (game) => {
+            // Each topic trains a skill the game actually checks (all capped at 10).
             const topics = [
-                { text: 'You read about ancient battle tactics.', skill: 'strategy', xp: 5 },
-                { text: 'You study a treatise on trade routes.', skill: 'trade', xp: 5 },
+                { text: 'You read about ancient battle tactics.', skill: 'leadership', xp: 0.2 },
+                { text: 'You study a treatise on trade routes.', skill: 'commerce', xp: 0.2 },
                 { text: 'You read thrilling tales of adventure.', skill: null, xp: 0 },
-                { text: 'You find notes on local flora and their medicinal uses.', skill: 'herbalism', xp: 5 },
-                { text: 'You read about the history of these lands.', skill: 'lore', xp: 5 },
-                { text: 'You study architectural diagrams.', skill: 'construction', xp: 5 },
+                { text: 'You read a chronicle of duels and sieges.', skill: 'combat', xp: 0.2 },
+                { text: 'You read the letters of a famous envoy.', skill: 'diplomacy', xp: 0.2 },
+                { text: "You find a primer on thieves' cant tucked between the pages.", skill: 'stealth', xp: 0.2 },
                 { text: 'You read poetry and feel inspired.', skill: null, xp: 0 },
-                { text: 'You study a map and learn about nearby regions.', skill: 'cartography', xp: 5 },
+                { text: 'You study a map and learn about nearby regions.', skill: 'cartography', xp: 0.2 },
             ];
             const topic = topics[Math.floor(Math.random() * topics.length)];
             if (topic.skill && topic.xp && game.player.skills) {
-                game.player.skills[topic.skill] = (game.player.skills[topic.skill] || 0) + topic.xp;
+                const before = game.player.skills[topic.skill] || 0;
+                game.player.skills[topic.skill] = Math.min(10, Math.round((before + topic.xp) * 100) / 100);
+                if (game.player.skills[topic.skill] > before) {
+                    const name = topic.skill.charAt(0).toUpperCase() + topic.skill.slice(1);
+                    return `${topic.text} (${name} +${topic.xp})`;
+                }
             }
             return topic.text;
         },

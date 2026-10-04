@@ -38,3 +38,4 @@ export { InnerMap } from '../../world/innerMap.js';
 export { InnerMapRenderer } from '../innerMapRenderer.js';
 export { SettlementServices, SERVICE_CONFIG } from '../../player/settlementServices.js';
 export { PlayerEffects } from '../../player/playerEffects.js';
+export { Gossip } from '../../systems/gossip.js';

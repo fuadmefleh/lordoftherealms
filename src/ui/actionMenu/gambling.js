@@ -1049,13 +1049,15 @@ Object.assign(ActionMenu, {
         if (!settlement) return;
 
         const performances = ActionMenu._getBuskingData();
-        const tier = settlement.type === 'capital' ? 'capital' : (settlement.type === 'town' ? 'town' : 'village');
-        const crowdMultiplier = { village: 0.5, town: 1.0, capital: 1.8 }[tier] || 1.0;
+        // Bigger places draw bigger crowds (data/earlyJobs.json busking.crowdSizeMultiplier)
+        const crowdTable = (DataLoader.earlyJobs && DataLoader.earlyJobs.busking && DataLoader.earlyJobs.busking.crowdSizeMultiplier)
+            || { village: 0.5, town: 1.0, city: 1.4, capital: 1.8 };
+        const crowdMultiplier = crowdTable[settlement.type] ?? crowdTable.town ?? 1.0;
 
         let html = '<div>';
         html += '<h4 style="margin-top: 0;">🎭 Street Performance</h4>';
         html += `<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Pick a performance to entertain the crowd in ${settlement.name}.</p>`;
-        html += `<p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">Crowd size: <span style="color: var(--gold);">${tier === 'capital' ? 'Large' : tier === 'town' ? 'Moderate' : 'Small'}</span> (${crowdMultiplier}x)</p>`;
+        html += `<p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">Crowd size: <span style="color: var(--gold);">${crowdMultiplier >= 1.4 ? 'Large' : crowdMultiplier >= 1 ? 'Moderate' : 'Small'}</span> (${crowdMultiplier}x)</p>`;
 
         for (const perf of performances) {
             const statVal = ActionMenu._getPlayerStat(game.player, perf.stat);

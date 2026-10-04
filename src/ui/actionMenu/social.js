@@ -91,7 +91,7 @@ Object.assign(ActionMenu, {
         const inParty = Relationships.isInTravelParty(player, npcId);
 
         const socialActions = Relationships.getSocialActionAvailability(player, npcId);
-        const courtActions = Relationships.getCourtActionAvailability(player, npcId);
+        const courtActions = Relationships.getCourtActionAvailability(player, npcId, { world: game.world });
 
         const renderRelationshipActionButton = (action, kind) => {
             const unlocked = !!action.unlocked;
@@ -240,7 +240,7 @@ Object.assign(ActionMenu, {
         window._characterCourtAction = (targetNpcId, actionId) => {
             const courtDefs = Relationships._getCourtActions();
             const actionDef = courtDefs[actionId] || {};
-            const availability = Relationships.getCourtActionAvailability(player, targetNpcId)
+            const availability = Relationships.getCourtActionAvailability(player, targetNpcId, { world: game.world })
                 .find(item => item.id === actionId);
             if (availability && !availability.unlocked) {
                 game.ui.showNotification('🔒 Action Locked', availability.lockReason || 'This romantic interaction is not unlocked yet.', 'warning');
@@ -254,7 +254,7 @@ Object.assign(ActionMenu, {
             }
             player.actionPoints -= apCost;
 
-            const courtResult = Relationships.performCourtAction(player, targetNpcId, actionId);
+            const courtResult = Relationships.performCourtAction(player, targetNpcId, actionId, { world: game.world });
             const targetNpc = Relationships.getNPC(targetNpcId);
             if (targetNpc) targetNpc.lastInteraction = game.world?.day || 0;
 

@@ -134,3 +134,24 @@ describe('Explorer rulers', () => {
         expect(KingdomBonuses.summary(kingdom).some(b => b.key === 'visionRadius')).toBe(true);
     });
 });
+
+describe('Romantic dinner needs a settlement', () => {
+    it('is locked in the wilderness and open in town', async () => {
+        const { Relationships } = await import('../systems/relationships.js');
+        const npc = { id: 'npc_x', firstName: 'Ana', personality: 'kind', attraction: 50 };
+        const orig = Relationships.getNPC;
+        Relationships.getNPC = () => npc;
+        try {
+            const player = { q: 1, r: 1, relationships: {} };
+            const wild = { getTile: () => ({ settlement: null }) };
+            const town = { getTile: () => ({ settlement: { name: 'Holt' } }) };
+            const find = (w) => Relationships.getCourtActionAvailability(player, 'npc_x', { world: w }).find(a => a.id === 'romantic_dinner');
+            const inWild = find(wild);
+            expect(inWild).toBeTruthy();
+            expect(inWild.lockReason).toBe('Only possible in a settlement');
+            expect(find(town).lockReason).not.toBe('Only possible in a settlement');
+        } finally {
+            Relationships.getNPC = orig;
+        }
+    });
+});

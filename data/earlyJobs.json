@@ -246,6 +246,7 @@
     "crowdSizeMultiplier": {
       "village": 0.5,
       "town": 1.0,
+      "city": 1.4,
       "capital": 1.8
     }
   }

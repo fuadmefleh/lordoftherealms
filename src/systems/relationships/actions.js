@@ -85,7 +85,11 @@ Object.assign(Relationships, {
         });
     },
 
-    getCourtActionAvailability(player, npcId) {
+    /**
+     * @param {Object} [opts] - { world } lets location rules apply
+     *   (requiresSettlement: the player must be standing in a settlement)
+     */
+    getCourtActionAvailability(player, npcId, opts = {}) {
         const npc = Relationships.getNPC(npcId);
         if (!npc) return [];
 
@@ -112,6 +116,13 @@ Object.assign(Relationships, {
                     unlocked: false,
                     lockReason: 'Only available with your spouse',
                 };
+            }
+
+            if (action.requiresSettlement && opts.world && typeof opts.world.getTile === 'function') {
+                const here = opts.world.getTile(player.q, player.r);
+                if (!here || !here.settlement) {
+                    return { ...action, unlocked: false, lockReason: 'Only possible in a settlement' };
+                }
             }
 
             const minStageId = action.minStage || 'strangers';
@@ -232,7 +243,7 @@ Object.assign(Relationships, {
     // ────────────────────────────────────────────────────────────────────
     //  Romantic Interactions (Courting)
     // ────────────────────────────────────────────────────────────────────
-    performCourtAction(player, npcId, actionId) {
+    performCourtAction(player, npcId, actionId, opts = {}) {
         const npc = Relationships.getNPC(npcId);
         if (!npc) return { success: false, reason: 'NPC not found' };
 
@@ -245,7 +256,7 @@ Object.assign(Relationships, {
         if (!action) return { success: false, reason: 'Unknown action' };
         const baseId = action.gift ? 'gift' : actionId;
 
-        const availability = Relationships.getCourtActionAvailability(player, npcId)
+        const availability = Relationships.getCourtActionAvailability(player, npcId, opts)
             .find(item => item.id === actionId || item.id === baseId);
         if (availability && !availability.unlocked) {
             return { success: false, reason: availability.lockReason || 'This action is locked' };

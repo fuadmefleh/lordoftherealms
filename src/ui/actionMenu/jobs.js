@@ -1,6 +1,6 @@
 // ActionMenu — jobs methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory } from './_imports.js';
+import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, Seasons, SeasonalWork } from './_imports.js';
 import { MinigameHost, startForge } from '../minigames/index.js';
 
 Object.assign(ActionMenu, {
@@ -21,9 +21,12 @@ Object.assign(ActionMenu, {
         const jobData = ActionMenu._getJobData();
         const allJobs = jobData[tier] || jobData['village'];
 
-        // Pick 3 random jobs for today
+        // Pick 3 random jobs for today, after the season's own work
+        // (harvest hands in autumn, sowing in spring — data/earlyJobs.json)
+        const oddJobs = (DataLoader && DataLoader.earlyJobs && DataLoader.earlyJobs.oddJobs) || null;
+        const seasonalJobs = SeasonalWork.jobsFor(tier, game.world.day, oddJobs);
         const shuffled = [...allJobs].sort(() => Math.random() - 0.5);
-        const todayJobs = shuffled.slice(0, 3);
+        const todayJobs = [...seasonalJobs, ...shuffled.slice(0, 3)];
 
         const diffColors = { 2: '#2ecc71', 3: '#2ecc71', 4: '#f39c12', 5: '#e67e22', 6: '#e74c3c', 7: '#e74c3c' };
 
@@ -45,7 +48,7 @@ Object.assign(ActionMenu, {
                     onmouseenter="this.style.background='rgba(255,255,255,0.08)'" onmouseleave="this.style.background='rgba(255,255,255,0.04)'">
                     <span style="font-size: 28px;">${job.icon}</span>
                     <div style="flex: 1;">
-                        <div style="font-weight: 600; font-size: 13px;">${job.name}</div>
+                        <div style="font-weight: 600; font-size: 13px;">${job.name}${job.seasonal ? ` <span style="font-size:10px; color:#2ecc71; font-weight:400;">${Seasons.ICONS[Seasons.seasonOf(game.world.day)] || ''} seasonal</span>` : ''}</div>
                         <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${job.description}</div>
                         <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">${statLabel}: ${statVal} · Pay: ${job.pay.min}-${job.pay.max}g</div>
                     </div>
@@ -741,6 +744,47 @@ Object.assign(ActionMenu, {
         };
 
         showRound();
+    },
+
+    // ── Seasonal work (player/seasonalWork.js) ──
+
+    /** Winter: run a trap line on cold ground. Takes the day. */
+    doTrapFurs(game, tile) {
+        const res = SeasonalWork.trapFurs(game.player, tile, game.world);
+        if (!res.success) {
+            game.ui.showNotification('🦊 Trapping', res.reason, 'default');
+            return;
+        }
+        game.ui.showNotification('🦊 Trap Line', res.message, Object.keys(res.lost || {}).length ? 'warning' : 'success');
+        game.ui.updateStats(game.player, game.world);
+        game.endDay();
+    },
+
+    /** Winter: fish through the ice. Takes the day. */
+    doIceFish(game, tile) {
+        const res = SeasonalWork.iceFish(game.player, tile, game.world);
+        if (!res.success) {
+            game.ui.showNotification('🧊 Ice Fishing', res.reason, 'default');
+            return;
+        }
+        game.ui.showNotification('🧊 Ice Fishing', res.message, Object.keys(res.lost || {}).length ? 'warning' : 'success');
+        game.ui.updateStats(game.player, game.world);
+        game.endDay();
+    },
+
+    /** Spring: sow a settlement's fields for a share of the harvest. Takes the day. */
+    doPlantingContract(game, tile) {
+        const res = SeasonalWork.signPlantingContract(game.player, tile.settlement, game.world);
+        if (!res.success) {
+            game.ui.showNotification('🌱 Planting', res.reason, 'default');
+            return;
+        }
+        if (game.player.financeToday) {
+            game.player.financeToday.income.jobs = (game.player.financeToday.income.jobs || 0) + res.advance;
+        }
+        game.ui.showNotification('🌱 Planting Contract', res.message, 'success');
+        game.ui.updateStats(game.player, game.world);
+        game.endDay();
     },
 
     /**

@@ -29,7 +29,7 @@ function makeWorld() {
 
 describe('Timed world events', () => {
     it('loads every event template from data', () => {
-        expect(Object.keys(WorldEvents.TEMPLATES).length).toBe(23);
+        expect(Object.keys(WorldEvents.TEMPLATES).length).toBe(24);
     });
 
     it('starts an event, which then expires after its duration', () => {

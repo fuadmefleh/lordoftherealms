@@ -14,6 +14,7 @@ import { Titles } from '../../systems/titles.js';
 import { Festivals } from '../../systems/festivals.js';
 import { RealmPolitics } from '../realmPolitics.js';
 import { PlayerReligion } from '../playerReligion.js';
+import { SeasonalWork } from '../seasonalWork.js';
 
 export function addSettlementActions(actions, player, tile, world, ctx) {
     const { isCity, isVillage, isPlayerSettlement, playerSettlementCount, playerKingdom, hasPlayerFoundedKingdom } = ctx;
@@ -201,6 +202,16 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
         icon: '🔨',
         description: 'Take on a day job for modest pay'
     });
+
+    // Spring: sow a village's fields for a share of the harvest
+    if (SeasonalWork.canSignPlantingContract(player, tile.settlement, world).ok) {
+        actions.push({
+            type: 'planting_contract',
+            label: 'Planting Contract',
+            icon: '🌱',
+            description: 'Help sow the fields: a small advance now, a share of the harvest in autumn'
+        });
+    }
 
     // Bounty Board (settlements post small tasks)
     actions.push({

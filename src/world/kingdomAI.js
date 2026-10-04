@@ -10,6 +10,7 @@ import { Religion } from '../systems/religion.js';
 import { WorldEvents } from './worldEvents.js';
 import { Colonization } from './colonization.js';
 import { WEATHER_EFFECTS } from './weather.js';
+import { Seasons } from './seasons.js';
 import { KingdomBonuses, KingdomStability, KingdomCulture, LordInfluence } from './kingdomState.js';
 import { KingdomAtlas } from './kingdomAtlas.js';
 
@@ -99,8 +100,9 @@ export const KingdomAI = {
             KingdomAI.considerDiplomacy(kingdom, world);
         }
 
-        // Consider war
-        if (Utils.random() < personality.warChance) {
+        // Consider war — summer and autumn are campaign season (the same one
+        // draw either way, so the season never shifts the RNG stream here)
+        if (Utils.random() < personality.warChance * Seasons.campaignFactor(Seasons.today(world))) {
             KingdomAI.considerWar(kingdom, world);
         }
 
@@ -447,8 +449,12 @@ export const KingdomAI = {
         // A militaristic realm marches only when it is at least as strong
         // and seldom gambles; others accept 80% and take a 10% gamble
         const warRatio = KingdomAI.personalityValue(kingdom, 'warRatio');
-        const reckless = KingdomAI.personalityValue(kingdom, 'recklessChance');
-        if (ourStrength > theirStrength * warRatio || Utils.random() < reckless) {
+        // Campaign season: dry roads and full granaries embolden a realm in
+        // summer and autumn; few march into the winter mud and snow
+        const season = Seasons.campaignFactor(Seasons.today(world));
+        const confidence = 1 + (season - 1) * 0.5;
+        const reckless = KingdomAI.personalityValue(kingdom, 'recklessChance') * season;
+        if (ourStrength * confidence > theirStrength * warRatio || Utils.random() < reckless) {
             KingdomAI.startWar(kingdom, target, world);
             world.events.push({
                 text: `⚔️ ${kingdom.name} has declared war on ${target.name}!`,

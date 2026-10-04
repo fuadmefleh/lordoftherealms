@@ -1,6 +1,6 @@
 // Trading — split from playerEconomy.js; references PlayerEconomy (GOODS etc.).
 import { PlayerEconomy } from './_ref.js';
-import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, PlayerEffects, PlayerInventory, Economy } from './_imports.js';
+import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, PlayerEffects, PlayerInventory, Economy, Seasons } from './_imports.js';
 
 export const Trading = {
     /**
@@ -122,7 +122,30 @@ export const Trading = {
             if (['meat', 'hide', 'cheese', 'leather_armor'].includes(good.id) && tile.resource.id === 'cattle') price *= 0.75;
         }
 
+        // The agricultural year: food is cheap after the harvest and dear in
+        // the lean months, furs dear in winter (world/seasons.js)
+        price *= Seasons.priceMultiplier(good.id, Seasons.today(world));
+
         return Math.floor(price);
+    },
+
+    /** Share of the base price a settlement pays for goods you sell it. */
+    SELL_SHARE: 0.7,
+
+    /**
+     * What a settlement pays per unit for a good you sell, before trade
+     * bonuses: 70% of base, moved by the season (sell food in the lean
+     * months, not into the harvest glut).
+     */
+    getSellPrice(good, world = null) {
+        if (!good) return 0;
+        return Math.floor(good.basePrice * Trading.SELL_SHARE * Seasons.priceMultiplier(good.id, Seasons.today(world)));
+    },
+
+    /** Seasonal price outlook for a good: { trend: 'rising'|'falling'|'stable', modifier }. */
+    getSeasonalTrend(goodId, world = null) {
+        const day = Seasons.today(world);
+        return { trend: Seasons.priceTrend(goodId, day), modifier: Seasons.priceModifier(goodId, day) };
     },
 
     // Moved to PlayerEconomy object
@@ -168,7 +191,7 @@ export const Trading = {
     /**
      * Sell goods to a settlement
      */
-    sellGoods(player, goodId, quantity, settlement = null) {
+    sellGoods(player, goodId, quantity, settlement = null, world = null) {
         if (!player.inventory || !player.inventory[goodId] || player.inventory[goodId] < quantity) {
             return { success: false, reason: 'Not enough in inventory' };
         }
@@ -184,8 +207,8 @@ export const Trading = {
 
         if (!good) return { success: false, reason: 'Invalid good' };
 
-        // Sell for 70% of base price
-        const sellPrice = Math.floor(good.basePrice * 0.7);
+        // Sell for 70% of base price, moved by the season
+        const sellPrice = Trading.getSellPrice(good, world);
         // Commerce techs (accounting, guilds, ...) improve every sale
         const tradeBonus = ((typeof Technology !== 'undefined') ? Technology.getTradeProfitBonus(player) : 0)
             + PlayerEffects.tradeBonus(player, settlement)
@@ -195,6 +218,13 @@ export const Trading = {
         player.inventory[goodId] -= quantity;
         player.gold += totalEarned;
         Quests.track(player, 'trade_profit', totalEarned);
+
+        // Food sold to a settlement goes into its granary — a town short of
+        // stores in the lean season is glad of it (Economy.applyLeanSeason)
+        if (settlement && Seasons.priceGroup(goodId) === 'food') {
+            if (!settlement.economy) Economy.initSettlement(settlement);
+            settlement.economy.food = (settlement.economy.food || 0) + quantity;
+        }
 
         // Increase commerce skill
         player.skills.commerce = Math.min(10, player.skills.commerce + 0.1);

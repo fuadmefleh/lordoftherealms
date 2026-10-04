@@ -103,6 +103,51 @@ At the end of each day:
 7. Contracts, blessings, research, and other timers tick down.
 8. Faith spreads from religious buildings.
 
+### Seasons & the Agricultural Year
+
+A year is **120 days**: Spring, Summer, Autumn and Winter, 30 days each. The seasons drive the weather, and they also shape the economy. Food is plentiful and cheap at harvest and scarce and dear in the lean months, so it pays to plan ahead.
+
+The top bar shows the season (🌱 ☀️ 🍂 ❄️) and **Lean** during the lean weeks. Hover it to see the **season outlook**: what's producing, what's cheap or dear, and which way prices are heading. The settlement trade panel opens with the same outlook.
+
+**Harvest cycle.** Farms and food producers follow a seasonal curve. Each curve averages exactly 1 over the year, so **yearly totals don't change**. Only the timing does.
+
+| Producer | Spring | Summer | Autumn | Winter |
+|---|---|---|---|---|
+| Crops (Farm, Irrigated Farm, Hemp Farm) | ×0.4 sowing | ×1.0 growing | **×2.2 harvest** | ×0.4 fallow |
+| Orchards & gathering (Orchard, Forager's Hut, Apiary, Herb Garden) | ×0.5 | ×1.5 | ×1.7 | ×0.3 |
+| Herds (Pasture, Dairy, Cattle Ranch) | ×1.3 lambing | ×1.1 | ×0.9 | ×0.7 |
+| Fishing (Fishing Fleet, fishing boats) | ×1.1 | ×1.3 | ×1.0 | ×0.6 |
+| Hunting (Hunting Lodge) | ×0.8 | ×0.9 | ×1.4 | ×0.9 |
+| Settlement food brought to market | ×0.6 | ×1.0 | ×1.8 | ×0.6 |
+
+Workshops, mines, quarries and other non-food properties produce the same amount all year. **Storage matters at harvest.** A farm turns out twice its usual grain in autumn, so its store (100 per level; +50% with Granary Construction) fills fast. Collect regularly or the surplus is lost.
+
+**Seasonal prices.** Food (grain, flour, bread, fish, meat, cheese, fruit, berries, honey and preserved foods) follows the year:
+
+| Time of year | Food prices |
+|---|---|
+| End of autumn (after the harvest) | **about −30%**, the cheapest |
+| Early winter | about −15%, starting to rise |
+| Late winter | about +15% to +28% |
+| Early spring (before the new crop) | **about +30%**, the dearest |
+| Summer | about normal |
+
+Furs and hides are dearest in early winter (about +25%) and cheapest in summer (about −20%). The seasonal swing applies to both buying and selling at settlement markets, to auto-sell, and to regional market prices. In the trade panel, each seasonal good shows **▲ rising / ▼ falling / ▬ steady** with its current seasonal markup. **Buy low, sell high:** grain bought in a capital after the harvest (0.8 × 0.7 of base) sells for about 0.7 × 1.3 of base in the lean weeks. Hold it in your packs or in your properties' stores.
+
+**The lean season** runs from **day 16 of Winter to day 25 of Spring**. A settlement with fewer than **5 days of food in store** loses up to **8 happiness** during these weeks, at 1 point a day. Stores are measured against the food a settlement can't grow for itself. The mood comes back as the stores refill or the season turns. Happiness raises your tax take and colony loyalty. **Selling food to a settlement fills its granary**, so you can relieve a hungry town of your own.
+
+**Seasonal events.** Timed world events favour their season. **Floods** strike mostly in spring (×2.5), **droughts** in summer (×2.5), **bountiful harvests** in autumn (×3, never in winter), and **blizzards** in winter (×3, never in summer). **Hungry Months** (famine: food prices +40%, growth −30%, farm output −15%, −6 stability, −8 morale) strikes in the lean months and never at harvest time.
+
+**Campaign season.** Kingdoms declare war more readily in summer (×1.5) and autumn (×1.2), when the roads are dry and the granaries full. They do so less in spring (×0.8) and least in winter (×0.5), when snow also slows the fighting.
+
+**Seasonal work:**
+- **Spring: Planting Contract** (villages and towns, 4 AP, takes the day). Help sow the fields for an advance of 8–15g now plus a **share of the harvest (45–80g, ×1.25 in towns)**, paid a few days into autumn wherever you are. A drought or flood there at harvest time cuts the share; a bountiful harvest raises it. You can hold up to 3 at once, one per settlement per year. If the settlement is destroyed, the contract is void.
+- **Seasonal day labour** (Look for Work): each season adds its own jobs alongside the usual three. Spring has Sowing Hand and Flood Banks; Summer has Army Sutler and Haymaker; **Autumn has Harvest Reaper (35–65g), Fruit Picker and Granary Loader (40–70g)**, the best-paid labour of the year; Winter has Snow Clearer and Firewood Hauler.
+- **Winter: Trap Furs** (4 AP, takes the day) on cold wild ground: forest, hills, highlands, tundra or snow. You catch 1–3 pelts (+1 per 4 combat skill, up to +2), sometimes meat, and now and then a prize fur (+3 pelts).
+- **Winter: Ice Fishing** (3 AP, takes the day) on a frozen river or beside a frozen lake. You catch 2–5 fish and sometimes a large fish.
+
+"Cold ground" means tundra, snow or ice, or any tile whose winter temperature falls below freezing (cold northern and highland regions). Warm southern lands never freeze.
+
 ### Food & Starvation
 
 You consume 1 food per day. If you have no food:
@@ -199,6 +244,8 @@ While in the wilderness, you can:
 | Build Campfire | 2+ wood in inventory | Extra health restoration |
 | Forage | Most wilderness | Gather herbs, berries, materials |
 | Hunt | Forest, Plains, Hills | Obtain meat and pelts |
+| Trap Furs | Winter, cold forest/hills/tundra/snow | Pelts, sometimes meat or a prize fur (see Seasons) |
+| Ice Fishing | Winter, frozen river or lakeside | Fish, sometimes a large fish |
 | Clear Trees | Forest terrain | Gain wood, clear land for building |
 | Terraform | Hills (no structures) | Flatten to grassland (costs gold + AP) |
 
@@ -217,7 +264,7 @@ Every settlement has a market where you can buy and sell goods. Prices vary by s
 | City | 0.9× base price | 70% of base |
 | Capital | 0.8× base price | 70% of base |
 
-Prices are also affected by local supply and demand, terrain resources, and world events. Each trade earns +0.1 Commerce skill.
+Prices are also affected by local supply and demand, terrain resources, world events and **the season**: food is cheap after the harvest and dear in the lean months, furs dear in winter (see [Seasons & the Agricultural Year](#seasons--the-agricultural-year)). Both buy and sell prices move with the season. Each trade earns +0.1 Commerce skill.
 
 **Carrying capacity.** Your packs hold **20 kinds of goods** (stacks are unlimited — 300 grain is one slot). A mount adds +5 slots and each house you own adds +3. When full, you can still add to goods you already carry, but new goods are refused (purchases fail without charging you; battle loot, gathered finds and ground items that don't fit are left behind; crafting is cancelled with ingredients returned). The Inventory panel shows `Packs: used/capacity`. Goods you're owed are never silently lost: quest rewards and stock returned from caravans or retooled workshops are sold on the spot at base price if they don't fit; an auction you win without room is refunded; collected property goods and ship cargo stay where they are; finished tech parts wait at the workshop until you make room.
 
@@ -444,6 +491,7 @@ Base production is modified by several factors:
 
 ### Storage & Administration
 
+- **Seasons:** farms, orchards, herds, hunting lodges and fishing fleets follow the seasonal curve (autumn harvest ×2.2 for crops, see [Seasons](#seasons--the-agricultural-year)). Yearly totals are unchanged. Auto-sell gets the season's price, so selling into the harvest glut fetches less.
 - **Storage:** each producing property holds **100 goods per level**. Output beyond that is lost, so collect, ship, or auto-sell regularly. The **Granary Construction** technology enlarges every store by 50%. The property panel shows `stored / capacity` and warns when goods are being lost.
 - **Administrative overhead:** running up to **6 properties** is free. Each one beyond that adds **+3% upkeep to all properties** (max +60%). The **Writing** technology halves this overhead.
 
@@ -1185,6 +1233,7 @@ Kingdoms are run by AI with distinct personalities, set by their traits: **Aggre
 
 Kingdom wars are fought for **goals**, not to the last man:
 
+- **Campaign season.** Realms declare war most in summer (×1.5) and autumn (×1.2), less in spring (×0.8) and least in winter (×0.5). Bold and reckless rulers are bolder in summer.
 - **Pace.** A war sees a pitched battle about one day in three, fought over a border tile. Towns are defended at +25% and the capital at +50%. Taking a town counts triple toward the war goal.
 - **Armies persist.** Losses stick; a realm's army rebuilds about 4% of the way back to what its land can support each day, and sheds men quickly when land is lost.
 - **How wars end.** When an aggressor reaches its war goal (3–8 tiles), the loser sues for peace and pays **20% of its treasury in tribute**. A badly outmatched side may sue early, and long wars end in a truce from sheer weariness.
@@ -1648,7 +1697,7 @@ The world is alive with dynamic events that affect all kingdoms:
 
 ### Timed Events
 
-Some events last for days or weeks — droughts, plagues, floods, gold rushes, trade booms, market crashes, pirate surges, bandit uprisings, blizzards and more (23 in all). Each day there's a chance one begins, either in a kingdom (two kingdoms for wars and royal weddings) or across the whole realm; at most four run at once. The tile info panel lists the events affecting a tile, what they do, and how long they have left.
+Some events last for days or weeks — droughts, plagues, floods, gold rushes, trade booms, market crashes, pirate surges, bandit uprisings, blizzards, hungry months and more (24 in all). Natural events follow the seasons: floods in spring, droughts in summer, bountiful harvests in autumn, blizzards and famine in the lean months. Each day there's a chance one begins, either in a kingdom (two kingdoms for wars and royal weddings) or across the whole realm; at most four run at once. The tile info panel lists the events affecting a tile, what they do, and how long they have left.
 
 What the effects do:
 - **Farm/mine output, prices, trade income, caravan traffic, raiders, pirates, ship upkeep** — your farms and mines, market prices, caravan and port profits, how many caravans/bandits/pirates appear (bandits gather near a troubled settlement), and your ships' daily upkeep.
@@ -1669,6 +1718,7 @@ What the effects do:
 | Volcanic Eruption | Catastrophic | −20% population, −60% farming, 30% building damage, −20% travel |
 | Bountiful Harvest | Positive | +50% farm output, −30% food prices, +30% growth, +10 morale |
 | Blizzard | Moderate | −50% travel speed, −20% farming, 10% army attrition |
+| Hungry Months | Moderate | +40% food prices, −30% growth, −15% farming, −6 stability, −8 morale (lean months only) |
 | Comet Sighting | Neutral | −5 morale, +1 piety/day, −3 stability (realm-wide) |
 | Solar Eclipse | Neutral | −10 morale, +2 piety/day, −8 stability (realm-wide) |
 

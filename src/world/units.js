@@ -7,6 +7,7 @@ import { Hex } from '../core/hex.js';
 import { Kingdom } from './kingdom.js';
 import { Colonization } from './colonization.js';
 import { WEATHER_EFFECTS } from './weather.js';
+import { Seasons } from './seasons.js';
 
 export class WorldUnit {
     constructor(type, q, r, targetQ = null, targetR = null) {
@@ -755,7 +756,9 @@ export class WorldUnit {
                 console.log('Done fishing, returning home');
                 this.fishing = false;
                 this.returning = true;
-                this.inventory['fish'] = (this.inventory['fish'] || 0) + Math.round(Utils.randInt(5, 15) * (this.catchMultiplier || 1));
+                // Shoals run thick in summer and thin in winter (world/seasons.js)
+                this.inventory['fish'] = (this.inventory['fish'] || 0) + Math.round(Utils.randInt(5, 15) * (this.catchMultiplier || 1)
+                    * Seasons.productionMultiplier('fishing', Seasons.today(world)));
 
                 // Set target to home
                 if (this.homeWharf) {

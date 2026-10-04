@@ -5,6 +5,7 @@
 import { PlayerEconomy } from '../player/playerEconomy.js';
 import { Economy } from '../world/economy.js';
 import { WorldEvents } from '../world/worldEvents.js';
+import { Seasons } from '../world/seasons.js';
 import { Technology } from './technology.js';
 import { Hex } from '../core/hex.js';
 import { Councils } from './councils.js';
@@ -152,6 +153,8 @@ export const MarketDynamics = {
         const tile = world && world.getTile ? world.getTile(nearestSettlement.q, nearestSettlement.r) : null;
         let mod = WorldEvents.getModifier(world, 'prices', tile);
         if (WorldEvents.FOOD_GOODS.includes(goodId)) mod += WorldEvents.getModifier(world, 'foodPrices', tile);
+        // The agricultural year (cheap after the harvest, dear in the lean months)
+        mod += Seasons.priceModifier(goodId, Seasons.today(world));
         return Math.max(1, Math.round(price * (1 + mod)));
     },
 

@@ -20,6 +20,7 @@ The world model: terrain generation, kingdoms, settlements, economy, NPCs, and e
 | `npcLords.js` | ~600 | Kingdom lords: generation, traits → goals, daily goal actions (trade, faith, justice, domination, fear, survive, …), succession |
 | `settlementGenerator.js` | ~800 | Settlement generation: size, buildings, population |
 | `terrain/` | ~1680 | Terrain types, world map generation (noise-based), rivers |
+| `seasons.js` | ~330 | `Seasons`: the agricultural year — production curves (yearly mean 1), seasonal food/fur prices and trend arrows, the lean season, campaign season, seasonal event weights, the season outlook. Pure, draws no RNG; tuned in `data/economy.json` "seasons" |
 | `units.js` | ~500 | Military unit definitions, combat formulas |
 | `weather.js` | ~650 | Weather simulation, seasonal effects on movement/production |
 | `world.js` | ~900 | `World` class: tile grid, kingdom list, turn processing orchestration |

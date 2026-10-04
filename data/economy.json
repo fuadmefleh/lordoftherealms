@@ -55,5 +55,55 @@
         "coal": { "properties": ["forge", "blacksmith", "glassworks"], "bonus": 0.25, "radius": 1, "label": "coal-fired" },
         "cattle": { "properties": ["cattle_ranch", "dairy", "tannery"], "bonus": 0.3, "radius": 1, "label": "local herds" },
         "oil": { "properties": ["chandlery"], "bonus": 0.2, "radius": 1, "label": "oil seep" }
+        },
+    "seasons": {
+        "_doc": "The agricultural year (src/world/seasons.js). curves: output multiplier per season, normalised to a yearly mean of 1 so totals hold. propertyCurves: which curve each player property follows. priceCurves: [dayOfYear 1-120, price modifier] anchors, interpolated and wrapping. lean: late-winter/early-spring windows when settlements with under reserveDays of food lose up to maxPenalty happiness (step points a day). campaign: x kingdom war-declaration chance. eventSeasons: x a timed world event's pick weight.",
+        "curves": {
+            "crops": { "Spring": 0.4, "Summer": 1.0, "Autumn": 2.2, "Winter": 0.4 },
+            "orchard": { "Spring": 0.5, "Summer": 1.5, "Autumn": 1.7, "Winter": 0.3 },
+            "livestock": { "Spring": 1.3, "Summer": 1.1, "Autumn": 0.9, "Winter": 0.7 },
+            "fishing": { "Spring": 1.1, "Summer": 1.3, "Autumn": 1.0, "Winter": 0.6 },
+            "hunting": { "Spring": 0.8, "Summer": 0.9, "Autumn": 1.4, "Winter": 0.9 },
+            "settlementFood": { "Spring": 0.6, "Summer": 1.0, "Autumn": 1.8, "Winter": 0.6 }
+        },
+        "propertyCurves": {
+            "farm": "crops", "irrigated_farm": "crops", "hemp_farm": "crops",
+            "orchard": "orchard", "forager_hut": "orchard", "apiary": "orchard", "herb_garden": "orchard",
+            "pasture": "livestock", "dairy": "livestock", "cattle_ranch": "livestock",
+            "hunting_lodge": "hunting", "fishing_fleet": "fishing"
+        },
+        "priceCurves": {
+            "food": {
+                "label": "Food",
+                "goods": ["grain", "flour", "bread", "fish", "preserved_fish", "meat", "dried_meat", "cheese", "fruit", "berries", "honey", "food"],
+                "points": [[1, 0.30], [25, 0.20], [50, 0.0], [70, -0.20], [88, -0.30], [100, -0.15], [112, 0.15], [120, 0.28]]
+            },
+            "furs": {
+                "label": "Furs & hides",
+                "goods": ["pelts", "hide"],
+                "points": [[1, 0.0], [30, -0.15], [50, -0.20], [75, 0.05], [95, 0.25], [110, 0.20], [120, 0.05]]
+            }
+        },
+        "lean": { "windows": [[106, 120], [1, 25]], "reserveDays": 5, "maxPenalty": 8, "step": 1 },
+        "campaign": { "Spring": 0.8, "Summer": 1.5, "Autumn": 1.2, "Winter": 0.5 },
+        "eventSeasons": {
+            "flood": { "Spring": 2.5, "Summer": 0.6, "Autumn": 0.6, "Winter": 0.3 },
+            "drought": { "Spring": 0.4, "Summer": 2.5, "Autumn": 0.8, "Winter": 0.3 },
+            "bountiful_harvest": { "Spring": 0.2, "Summer": 0.8, "Autumn": 3.0, "Winter": 0.0 },
+            "blizzard": { "Spring": 0.3, "Summer": 0.0, "Autumn": 0.7, "Winter": 3.0 },
+            "famine": { "Spring": 2.0, "Summer": 0.3, "Autumn": 0.0, "Winter": 1.7 }
+        },
+        "notes": {
+            "Spring": "Planting season: fields are bare and rivers flood. Sign planting contracts; they pay at harvest.",
+            "Summer": "Campaign season: crops grow, roads are dry and kingdoms march to war.",
+            "Autumn": "Harvest: farms pour out grain, food is cheap and harvest hands are well paid. Fill your stores.",
+            "Winter": "The lean months: fields lie fallow and food prices climb. Trap furs and fish through the ice."
+        },
+        "coldThreshold": 0.35,
+        "plantingContract": { "advance": [8, 15], "payout": [45, 80], "maxActive": 3 },
+        "winterWork": {
+            "trapping": { "terrains": ["woodland", "boreal_forest", "seasonal_forest", "temperate_rainforest", "tundra", "snow", "hills", "highlands"], "pelts": [1, 3], "meatChance": 0.4, "rareChance": 0.08 },
+            "iceFishing": { "fish": [2, 5], "bigChance": 0.15 }
+        }
     }
 }

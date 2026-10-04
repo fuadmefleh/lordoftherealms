@@ -24,9 +24,11 @@ import { DataLoader } from '../core/dataLoader.js';
 // plus sellMapToArchive (royal archives buy your maps) = 229, plus the data-driven gambling
 // config (DEFAULT_GAMBLING, _getGamblingSettings, _getGamblingGame) = 232, plus denounceHeresy = 233,
 // plus the resource-bonus build hints (_resourceSourceNames, _constructionHint) and
-// meetingPresentTreasure = 236.
+// meetingPresentTreasure = 236, plus the seasonal work handlers (doTrapFurs, doIceFish,
+// doPlantingContract) = 239.
 const EXPECTED_KEYS = [
     '_resourceSourceNames', '_constructionHint', 'meetingPresentTreasure',
+    'doTrapFurs', 'doIceFish', 'doPlantingContract',
     '_serviceResult', 'showBlacksmithMenu', 'showBlessingMenu', 'showStableMenu', 'showGuardMenu',
     'showTributeMenu', 'showAudienceMenu', 'OUTLAW_REFUSED_ACTIONS', 'refuseIfOutlawed',
     'REALM_POLITICS_AP', 'showRealmWarsMenu', 'showRestorationMenu', '_realmResult',
@@ -93,8 +95,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 236 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(236);
+    it('has 239 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(239);
     });
 
     it('every member except the known data props is a function', () => {

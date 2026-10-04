@@ -246,6 +246,7 @@ describe('coal, oil and cattle', () => {
     it('a cattle ranch beside a herd yields 30% more', () => {
         const produce = (resources) => {
             const world = makeWorld(resources);
+            delete world.day; // outside the calendar: no seasonal herd curve (see seasons.test.js)
             const player = makePlayer();
             const r = PlayerEconomy.buildProperty(player, 'CATTLE_RANCH', world.getTile(3, 3), world);
             expect(r.success, r.reason).toBe(true);

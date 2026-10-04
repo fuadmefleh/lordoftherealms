@@ -1,7 +1,7 @@
 // PlayerEconomy — property members.
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
-import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerEffects, PlayerInventory, WEATHER_EFFECTS, Economy } from './_imports.js';
+import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerEffects, PlayerInventory, WEATHER_EFFECTS, Economy, Seasons } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
     /**
@@ -394,6 +394,16 @@ Object.assign(PlayerEconomy, {
             // Bountiful Harvest miracle
             if (def && def.category === 'farming') amount *= PlayerEffects.farmProductionMultiplier(player);
 
+            // The agricultural year (world/seasons.js): farms sow in spring and
+            // reap in autumn, herds, orchards, lodges and fleets have their own
+            // curves. Yearly mean 1; fractions carry over so totals hold.
+            if (Seasons.propertyCurve(property.type)) {
+                amount = amount * Seasons.propertyMultiplier(property.type, Seasons.today(world)) + (property.seasonCarry || 0);
+                const whole = Math.floor(amount);
+                property.seasonCarry = Math.round((amount - whole) * 1000) / 1000;
+                amount = whole;
+            }
+
             amount = Math.floor(amount);
 
             // Pay upkeep first — an unpaid property idles and keeps its inputs
@@ -483,7 +493,9 @@ Object.assign(PlayerEconomy, {
                 const goodType = producedGood.toUpperCase();
                 const good = PlayerEconomy.GOODS[goodType];
                 if (good) {
-                    const income = Math.floor(sellAmount * good.basePrice * 0.5);
+                    // Auto-selling into the harvest glut fetches harvest prices
+                    const income = Math.floor(sellAmount * good.basePrice * 0.5
+                        * Seasons.priceMultiplier(good.id, Seasons.today(world)));
                     player.gold += income;
                     property.storage = 0;
                 }

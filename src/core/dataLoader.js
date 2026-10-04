@@ -7,6 +7,7 @@ import { Terrain } from '../world/terrain.js';
 import { Kingdom } from '../world/kingdom.js';
 import { Characters } from '../world/characters.js';
 import { Economy } from '../world/economy.js';
+import { Seasons } from '../world/seasons.js';
 import { Quests } from '../systems/quests.js';
 import { Achievements } from '../systems/achievements.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
@@ -287,6 +288,8 @@ export const DataLoader = {
         if (econData.resourceGoods) Economy.RESOURCE_GOODS = econData.resourceGoods;
         if (econData.resourceEffects) Economy.RESOURCE_EFFECTS = econData.resourceEffects;
         if (econData.propertyResourceBonuses) Economy.PROPERTY_RESOURCE_BONUSES = econData.propertyResourceBonuses;
+        // The agricultural year: harvest curves, seasonal prices, lean season
+        if (econData.seasons) Seasons.configure(econData.seasons);
 
         // ── Quests ──
         const questData = data['quests.json'];

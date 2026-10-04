@@ -174,6 +174,7 @@ export const SaveLoad = {
         'loans', 'taxRate', 'activeContract',
         'mapDeceptions', 'marriageAllianceKingdom', 'cultureIncomeCarry',
         'foragingTrips', 'huntingTrips', 'jobsCompleted', 'performancesGiven',
+        'plantingContracts',
     ],
 
     _pickDefined(obj, keys) {

@@ -474,7 +474,7 @@
             "days": 8,
             "requires": [],
             "tier": 1,
-            "description": "Construct seaworthy vessels for trade and exploration.",
+            "description": "Construct seaworthy vessels for trade and exploration. Fleet limit +3 ships.",
             "effects": { "unlockBuilding": "SHIPYARD", "navalCapacity": 3 },
             "flavorText": "The first plank laid is a promise to the sea."
         },
@@ -487,7 +487,7 @@
             "days": 10,
             "requires": ["shipbuilding"],
             "tier": 2,
-            "description": "Star charts and compass enable long-distance sea voyages.",
+            "description": "Star charts and compass enable long-distance sea voyages. Ships sail 30% faster; +25% exploration finds.",
             "effects": { "navalRange": 3, "explorationBonus": 0.25 },
             "flavorText": "By star and compass, the unknown becomes a road."
         },
@@ -500,7 +500,7 @@
             "days": 6,
             "requires": ["shipbuilding"],
             "tier": 2,
-            "description": "Venture into deep waters for bountiful catches.",
+            "description": "Venture into deep waters for bountiful catches. +40% fish from wharf boats and fishing fleets.",
             "effects": { "fishProductionBonus": 0.40, "unlockBuilding": "FISHING_FLEET" },
             "flavorText": "The deep waters teem with silver bounty."
         },
@@ -540,7 +540,7 @@
             "days": 5,
             "requires": [],
             "tier": 1,
-            "description": "Identify and cultivate medicinal plants for basic remedies.",
+            "description": "Identify and cultivate medicinal plants for basic remedies. +15% plague resistance.",
             "effects": { "populationGrowthBonus": 0.10, "plagueResistance": 0.15 },
             "flavorText": "The forest is the oldest apothecary."
         },
@@ -553,7 +553,7 @@
             "days": 10,
             "requires": ["herbalism"],
             "tier": 2,
-            "description": "Skilled surgeons can save wounded soldiers and treat injuries.",
+            "description": "Skilled surgeons save wounded soldiers: -20% battle deaths, and 30% of the fallen are carried off wounded instead (half strength for 5 days).",
             "effects": { "battleCasualtyReduction": 0.20, "woundedRecoveryBonus": 0.30 },
             "flavorText": "A steady hand and a sharp blade — the surgeon's arts."
         },
@@ -566,7 +566,7 @@
             "days": 10,
             "requires": ["herbalism"],
             "tier": 2,
-            "description": "Quarantine protocols and sanitation reduce disease spread.",
+            "description": "Quarantine protocols and sanitation reduce disease spread. +40% plague resistance.",
             "effects": { "plagueResistance": 0.40, "populationGrowthBonus": 0.15 },
             "flavorText": "Cleanliness wards off death more surely than any sword."
         },
@@ -619,7 +619,7 @@
             "days": 10,
             "requires": ["philosophy"],
             "tier": 3,
-            "description": "Advanced diplomatic techniques for treaties and alliances.",
+            "description": "Advanced diplomatic techniques for treaties and alliances. +30% effective diplomacy; tribute and peace treaties cost 20% less.",
             "effects": { "diplomacyBonus": 0.30, "allianceCost": -0.20 },
             "flavorText": "Words, well placed, can accomplish what armies cannot."
         },
@@ -685,7 +685,7 @@
             "days": 14,
             "requires": ["steel_forging"],
             "tier": 3,
-            "description": "Full plate armor provides extraordinary protection.",
+            "description": "Full plate armor provides extraordinary protection: enemies strike 15% weaker and 15% fewer of your soldiers die.",
             "effects": { "unitDefenseBonus": 0.30, "unlockRecipe": "PLATE_ARMOR_SET" },
             "flavorText": "Encased in steel, a single knight becomes a fortress."
         },
@@ -698,7 +698,7 @@
             "days": 8,
             "requires": ["archery_mastery", "improved_tools"],
             "tier": 2,
-            "description": "Mechanical bows that penetrate heavy armor.",
+            "description": "Mechanical bows that penetrate heavy armor: ranged units hit 25% harder (scaled by their share of your army).",
             "effects": { "unlockUnit": "CROSSBOWMAN", "rangedPiercing": 0.25 },
             "flavorText": "Even a peasant with a crossbow can fell a knight."
         },
@@ -929,7 +929,8 @@
             "upkeep": 7,
             "strength": 14,
             "requiredTech": "archery_mastery",
-            "description": "Elite ranged unit with devastating volleys"
+            "rangeBonus": 2,
+            "description": "Elite ranged unit with devastating volleys: up to +6% power against melee-heavy foes"
         },
         "CAVALRY": {
             "id": "cavalry",
@@ -949,7 +950,8 @@
             "upkeep": 25,
             "strength": 50,
             "requiredTech": "siege_engineering",
-            "description": "Devastating siege weapons for assaulting fortifications"
+            "siegeBonus": 40,
+            "description": "Devastating siege weapons: +40% army power when raiding or besieging a settlement (max +100%)"
         },
         "WARSHIP": {
             "id": "warship",

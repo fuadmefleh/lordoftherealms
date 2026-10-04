@@ -65,9 +65,153 @@ Object.assign(PlayerMilitary, {
     },
 
     FORMATION_ROLES: {
-        cavalry: ['knight'],
-        archer: ['archer'],
+        cavalry: ['knight', 'cavalry', 'heavy_cavalry', 'war_elephant'],
+        archer: ['archer', 'longbowman', 'crossbowman'],
         pikeman: ['pikeman', 'soldier', 'militia'],
+    },
+
+    // ──────────── UNIT SPECIAL STATS ────────────
+
+    /** Per-type stats beyond strength/upkeep that a recruited unit carries. */
+    UNIT_TRAIT_KEYS: ['siegeBonus', 'defenseBonus', 'rangeBonus', 'speed', 'sightRange',
+        'specialAbility', 'commanderKillChance', 'spellPower'],
+
+    /** Base sight radius and march speed a Scout's sightRange/speed improve on. */
+    BASE_SIGHT_RANGE: 3,
+    BASE_UNIT_SPEED: 4,
+
+    /** Days a soldier saved by Surgery fights at half strength. */
+    WOUNDED_DAYS: 5,
+
+    /** Look up a unit type definition by id (recruitable or tech-unlocked). */
+    getUnitDef(unitType) {
+        if (!unitType) return null;
+        const id = String(unitType).toLowerCase();
+        for (const pool of [PlayerMilitary.UNIT_TYPES, Technology.TECH_UNITS]) {
+            for (const def of Object.values(pool || {})) {
+                if (def && def.id === id) return def;
+            }
+        }
+        return null;
+    },
+
+    /** Build the army entry for a freshly recruited unit of type `def`. */
+    makeArmyUnit(def) {
+        const unit = {
+            type: def.id,
+            name: def.name,
+            icon: def.icon,
+            strength: def.strength,
+            upkeep: def.upkeep,
+            experience: 0,
+            level: 1,
+        };
+        for (const key of PlayerMilitary.UNIT_TRAIT_KEYS) {
+            if (def[key] !== undefined) unit[key] = def[key];
+        }
+        return unit;
+    },
+
+    /**
+     * A unit's special stat. Units from older saves lack the copied fields,
+     * so fall back to their type definition.
+     */
+    unitTrait(unit, key) {
+        if (!unit) return undefined;
+        if (unit[key] !== undefined) return unit[key];
+        const def = PlayerMilitary.getUnitDef(unit.type);
+        return def ? def[key] : undefined;
+    },
+
+    /** Summed special stats of the player's army (sight/speed: best unit). */
+    getArmySpecials(player) {
+        const out = { siegeBonus: 0, defenseBonus: 0, rangeBonus: 0, commanderKillChance: 0,
+            spellPower: 0, sightRange: 0, speed: 0 };
+        for (const unit of player.army || []) {
+            for (const key of ['siegeBonus', 'defenseBonus', 'rangeBonus', 'commanderKillChance', 'spellPower']) {
+                const v = PlayerMilitary.unitTrait(unit, key);
+                if (typeof v === 'number') out[key] += v;
+            }
+            const sight = PlayerMilitary.unitTrait(unit, 'sightRange');
+            if (typeof sight === 'number') out.sightRange = Math.max(out.sightRange, sight);
+            const speed = PlayerMilitary.unitTrait(unit, 'speed');
+            if (typeof speed === 'number') out.speed = Math.max(out.speed, speed);
+        }
+        return out;
+    },
+
+    /** Extra fog-of-war radius from Scouts riding with the army. */
+    getScoutVisionBonus(player) {
+        const sight = PlayerMilitary.getArmySpecials(player).sightRange;
+        return Math.max(0, sight - PlayerMilitary.BASE_SIGHT_RANGE);
+    },
+
+    /** Extra daily movement from Scouts finding quick paths (+1 per 4 speed above base, max 2). */
+    getScoutMovementBonus(player) {
+        const speed = PlayerMilitary.getArmySpecials(player).speed;
+        return Math.min(2, Math.max(0, Math.floor((speed - PlayerMilitary.BASE_UNIT_SPEED) / 4)));
+    },
+
+    /** Short summary of a unit type's specials, for recruit screens. */
+    describeUnitTraits(def) {
+        if (!def) return '';
+        const parts = [];
+        if (def.siegeBonus) parts.push(`Siege: +${def.siegeBonus}% army power vs settlements`);
+        if (def.defenseBonus) parts.push(`Defending: +${def.defenseBonus / 2.5}% army power`);
+        if (def.rangeBonus) parts.push(`Volleys: up to +${def.rangeBonus * 3}% vs melee`);
+        if (def.sightRange) parts.push(`Vision +${Math.max(0, def.sightRange - PlayerMilitary.BASE_SIGHT_RANGE)}`);
+        if (def.speed && def.speed > PlayerMilitary.BASE_UNIT_SPEED) {
+            parts.push(`+${Math.min(2, Math.floor((def.speed - PlayerMilitary.BASE_UNIT_SPEED) / 4))} movement/day`);
+        }
+        if (def.commanderKillChance) parts.push(`${Math.round(def.commanderKillChance * 100)}% chance to slay the enemy commander`);
+        if (def.spellPower) parts.push(`Spells: −${Math.round(def.spellPower * 100)}% enemy power`);
+        return parts.join(' · ');
+    },
+
+    /**
+     * Battle multipliers from unit specials and military techs:
+     * siege engines (attacking settlements), shield walls (defending),
+     * longbow volleys (vs melee), crossbow piercing (ranged share),
+     * plate armour (enemy power and casualties), battle mages (area spells)
+     * and assassins (chance to slay the enemy commander, breaking their morale).
+     * Draws randomness only when the army has assassins.
+     */
+    getBattleSpecials(player, context, playerComp, enemyComp) {
+        const sp = PlayerMilitary.getArmySpecials(player);
+        let playerMult = 1;
+        let enemyMult = 1;
+        let casualtyMult = 1;
+        if (context.siege && sp.siegeBonus > 0) playerMult *= 1 + Math.min(1, sp.siegeBonus / 100);
+        if (context.defending && sp.defenseBonus > 0) playerMult *= 1 + Math.min(0.5, sp.defenseBonus / 250);
+        if (sp.rangeBonus > 0) {
+            const melee = (enemyComp.cavalry || 0) + (enemyComp.pikeman || 0);
+            playerMult *= 1 + Math.min(0.3, sp.rangeBonus * 0.03) * melee;
+        }
+        const piercing = Technology.getEffectTotal(player, 'rangedPiercing');
+        if (piercing > 0) playerMult *= 1 + piercing * (playerComp.archer || 0);
+        const armour = Technology.getEffectTotal(player, 'unitDefenseBonus');
+        if (armour > 0) {
+            enemyMult *= Math.max(0.5, 1 - armour / 2);
+            casualtyMult *= Math.max(0.5, 1 - armour / 2);
+        }
+        if (sp.spellPower > 0) enemyMult *= 1 - Math.min(0.3, sp.spellPower);
+        let commanderSlain = false;
+        if (sp.commanderKillChance > 0) {
+            commanderSlain = Utils.random() < Math.min(0.6, sp.commanderKillChance);
+        }
+        return { playerMult, enemyMult, casualtyMult, commanderSlain };
+    },
+
+    /** Wounded soldiers heal a day at a time; returns how many recovered today. */
+    tickWounded(player) {
+        let healed = 0;
+        for (const unit of player.army || []) {
+            if (unit.woundedDays > 0) {
+                unit.woundedDays--;
+                if (unit.woundedDays === 0) { delete unit.woundedDays; healed++; }
+            }
+        }
+        return healed;
     },
 
     _normalizeComposition(comp) {
@@ -298,17 +442,9 @@ Object.assign(PlayerMilitary, {
         // Track recruitment count
         player._recruitedThisTurn = (player._recruitedThisTurn || 0) + 1;
 
-        // Add to player's army
+        // Add to player's army (special stats travel with the unit)
         if (!player.army) player.army = [];
-        player.army.push({
-            type: unit.id,
-            name: unit.name,
-            icon: unit.icon,
-            strength: unit.strength,
-            upkeep: unit.upkeep,
-            experience: 0,
-            level: 1,
-        });
+        player.army.push(PlayerMilitary.makeArmyUnit(unit));
 
         // Increase combat skill
         player.skills.combat = Math.min(10, player.skills.combat + 0.3);
@@ -327,6 +463,8 @@ Object.assign(PlayerMilitary, {
             let strength = unit.strength;
             // Level bonus
             strength *= (1 + (unit.level - 1) * 0.2);
+            // Wounded soldiers (saved by Surgery) fight at half strength
+            if (unit.woundedDays > 0) strength *= 0.5;
             // Combat skill bonus
             strength *= (1 + player.skills.combat * 0.1);
             // Technology strength bonus
@@ -365,8 +503,10 @@ Object.assign(PlayerMilitary, {
      */
     payUpkeep(player, world = null) {
         PlayerMilitary._ensureMercenaryState(player);
+        const woundedHealed = PlayerMilitary.tickWounded(player);
         const cost = PlayerMilitary.getUpkeepCost(player);
         const result = {
+            woundedHealed,
             paid: true,
             cost: 0,
             unitsLost: 0,

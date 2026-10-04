@@ -10,6 +10,7 @@ import { Infrastructure } from '../../systems/infrastructure.js';
 import { Titles } from '../../systems/titles.js';
 import { Technology } from '../../systems/technology.js';
 import { Housing } from '../../systems/housing.js';
+import { PlayerMilitary } from '../playerMilitary.js';
 
 export const PlayerMovementMethods = {
     /**
@@ -38,6 +39,8 @@ export const PlayerMovementMethods = {
     updateVisibility(world, viewRadius = 3) {
         // Cartography/espionage techs and watchtower-style house upgrades see further
         viewRadius += Technology.getVisionBonus(this) + Housing.getTotalBonuses(this).visibility;
+        // Scouts riding with the army see further
+        viewRadius += PlayerMilitary.getScoutVisionBonus(this);
         // A Royal Cartographer's trained eye charts further afield
         const title = Titles.getActiveTitle(this);
         viewRadius += (title && title.perks && title.perks.explorationBonus) || 0;

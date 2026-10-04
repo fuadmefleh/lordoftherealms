@@ -123,6 +123,7 @@ Object.assign(Espionage, {
         if (!player.espionage.revealedTiles) player.espionage.revealedTiles = [];
         if (!player.espionage.rebellions) player.espionage.rebellions = [];
         if (!player.espionage.activeMissions) player.espionage.activeMissions = [];
+        if (!player.espionage.sabotaged) player.espionage.sabotaged = []; // { kingdomId, penalty, daysRemaining }
     },
 
     /**
@@ -385,6 +386,11 @@ Object.assign(Espionage, {
             difficulty,
             captureChance: mission.captureChance || config.spyCaptureBaseChance,
         };
+        // Counter-espionage guards the holdings within counterRadius of where the spy is posted
+        if (missionType === 'counter_espionage') {
+            activeMission.stationQ = player.q;
+            activeMission.stationR = player.r;
+        }
 
         spy.status = 'on_mission';
         spy.currentMission = activeMission.id;

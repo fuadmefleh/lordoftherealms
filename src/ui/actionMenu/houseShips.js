@@ -738,7 +738,7 @@ Object.assign(ActionMenu, {
         const ship = Ships.getShipById(player, shipId);
         if (!ship) return;
         const st = Ships.getShipType(ship.typeId);
-        const eff = Ships.getShipEffectiveStats(ship);
+        const sailSpeed = Ships.getSailingSpeed(game.player, ship);
         const btnBase = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;';
         const btnPrimary = `${btnBase}border:1px solid rgba(245,197,66,0.55);background:linear-gradient(180deg,#f6cf57,#d9a92a);color:#1a1a1a;`;
         const btnSecondary = `${btnBase}border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);`;
@@ -756,7 +756,7 @@ Object.assign(ActionMenu, {
         let html = '<div style="max-height:430px;overflow-y:auto;">';
         html += `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">`;
         html += `<div><h4 style="margin:0;">🧭 Move ${ship.name}</h4><div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">Choose a destination port; travel time depends on ship speed.</div></div>`;
-        html += `<div style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,0.03);">⚓ Speed ${eff.speed}</div>`;
+        html += `<div style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,0.03);">⚓ Speed ${sailSpeed}</div>`;
         html += '</div>';
 
         if (coastalDests.length === 0) {
@@ -764,7 +764,7 @@ Object.assign(ActionMenu, {
         }
         for (const dest of coastalDests) {
             const dist = Hex.distance(tile.q, tile.r, dest.q, dest.r);
-            const travelDays = Math.max(1, Math.ceil(dist / eff.speed));
+            const travelDays = Math.max(1, Math.ceil(dist / sailSpeed));
             html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:6px;">`;
             html += `<div><div style="font-size:12px;font-weight:bold;">${dest.name} (${dest.type})</div>`;
             html += `<div style="font-size:10px;color:var(--text-secondary);">${dist} hexes · ~${travelDays} days</div></div>`;

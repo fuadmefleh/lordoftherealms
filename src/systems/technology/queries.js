@@ -2,6 +2,8 @@
 import { Technology } from './_ref.js';
 import { PlayerEconomy, PlayerMilitary } from './_imports.js';
 import { Hex } from '../../core/hex.js';
+import { Utils } from '../../core/utils.js';
+import { WorldEvents } from '../../world/worldEvents.js';
 
 Object.assign(Technology, {
     /** Sum of one effect key across the player's implemented techs. */
@@ -62,7 +64,69 @@ Object.assign(Technology, {
             player.health = Math.min(player.maxHealth || 100, player.health + 15);
             out.healed = player.health - before;
         }
+        const plague = Technology.applyPlagueExposure(player, world);
+        if (plague) out.plague = plague;
         return out;
+    },
+
+    // ═══════════════════════════════════════
+    //  NAVAL / MEDICINE / DIPLOMACY EFFECT READERS
+    // ═══════════════════════════════════════
+
+    /** Ships a player may own without any naval tech. */
+    BASE_FLEET_CAPACITY: 3,
+
+    /** Ships the player may own: base + Shipbuilding's navalCapacity. */
+    getFleetCapacity(player) {
+        return Technology.BASE_FLEET_CAPACITY + Technology.getEffectTotal(player, 'navalCapacity');
+    },
+
+    /** Sailing speed multiplier: +10% per point of navalRange (Navigation: +30%). */
+    getSailingSpeedMultiplier(player) {
+        return 1 + 0.1 * Technology.getEffectTotal(player, 'navalRange');
+    },
+
+    /** Fraction of plague harm avoided (Herbalism + Plague Prevention), capped at 90%. */
+    getPlagueResistance(player) {
+        return Math.min(0.9, Math.max(0, Technology.getEffectTotal(player, 'plagueResistance')));
+    },
+
+    /** Multiplier on gold paid for tribute and peace treaties (Diplomacy Mastery: ×0.8). */
+    getAllianceCostMultiplier(player) {
+        return Math.min(1.5, Math.max(0.5, 1 + Technology.getEffectTotal(player, 'allianceCost')));
+    },
+
+    /** Daily harm while standing where a plague is raging, before resistance. */
+    PLAGUE_EXPOSURE: { healthLoss: 6, unitDeathChance: 0.04 },
+
+    /**
+     * A plague event raging over the player's tile sickens the player and
+     * their soldiers each day; plague resistance techs cut both. Returns
+     * { healthLost, unitsLost, resistance } or null when no plague reaches.
+     */
+    applyPlagueExposure(player, world) {
+        if (!world || !world.activeEvents || !world.activeEvents.length || !world.getTile) return null;
+        const tile = world.getTile(player.q, player.r);
+        const plague = WorldEvents.getEventsAt(world, tile).find(ev => ev.id === 'plague');
+        if (!plague) return null;
+        const resistance = Technology.getPlagueResistance(player);
+        const exposure = 1 - resistance;
+        const healthLost = Math.round(Technology.PLAGUE_EXPOSURE.healthLoss * exposure);
+        player.health = Math.max(1, (player.health || 0) - healthLost);
+        let unitsLost = 0;
+        const deathChance = Technology.PLAGUE_EXPOSURE.unitDeathChance * exposure;
+        if (deathChance > 0 && Array.isArray(player.army)) {
+            const survivors = [];
+            for (const unit of player.army) {
+                if (Utils.random() < deathChance) unitsLost++;
+                else survivors.push(unit);
+            }
+            player.army = survivors;
+        }
+        if (unitsLost > 0 && world.events) {
+            world.events.push({ text: `☠️ The plague in ${plague.regionName || 'the region'} claims ${unitsLost} of your soldiers.`, type: 'disaster' });
+        }
+        return { healthLost, unitsLost, resistance };
     },
 
     // ═══════════════════════════════════════
@@ -151,6 +215,10 @@ Object.assign(Technology, {
                 case 'foundry':
                 case 'water_mill_building':
                     if (e.workshopProductionBonus) bonus += e.workshopProductionBonus;
+                    break;
+                case 'fishing_wharf':
+                case 'fishing_fleet':
+                    if (e.fishProductionBonus) bonus += e.fishProductionBonus;
                     break;
             }
         }

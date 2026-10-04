@@ -152,6 +152,29 @@ export const Ships = {
         return player.ships || [];
     },
 
+    /* ── Naval techs ─────────────────────────────────────────── */
+
+    /** Max ships the player may own (Shipbuilding raises it). */
+    getFleetCapacity(player) {
+        return Technology.getFleetCapacity(player);
+    },
+
+    /** Why the player can't add another ship, or null if they can. */
+    fleetLimitReason(player) {
+        const cap = this.getFleetCapacity(player);
+        if ((player.ships || []).length < cap) return null;
+        const hint = Technology.getEffectTotal(player, 'navalCapacity') > 0
+            ? 'Sell a ship to make room.'
+            : 'Implement Shipbuilding to command more.';
+        return `Your fleet is at its limit of ${cap} ships. ${hint}`;
+    },
+
+    /** Hexes per day a ship sails, with Navigation's speed bonus. */
+    getSailingSpeed(player, ship) {
+        const base = this.getShipEffectiveStats(ship).speed;
+        return Math.max(1, Math.round(base * (player ? Technology.getSailingSpeedMultiplier(player) : 1)));
+    },
+
     /* ── Used ships for sale ─────────────────────────────────── */
 
     getUsedShipsForSale(tile) {
@@ -199,6 +222,8 @@ export const Ships = {
         }
 
         const used = usedShips[usedIndex];
+        const fleetFull = this.fleetLimitReason(player);
+        if (fleetFull) return { success: false, message: fleetFull };
         if (player.gold < used.price) {
             return { success: false, message: `Not enough gold. Need ${used.price}g.` };
         }
@@ -239,6 +264,8 @@ export const Ships = {
 
         const tile = world.getTile(q, r);
         if (!tile || !tile.settlement) return { success: false, message: 'Must be at a settlement.' };
+        const fleetFull = this.fleetLimitReason(player);
+        if (fleetFull) return { success: false, message: fleetFull };
 
         const baseCost = this._getSettlementBuildCost(st.baseCost, tile.settlement);
         let totalCost = baseCost;
@@ -390,9 +417,8 @@ export const Ships = {
         if (!ship) return { success: false, message: 'Ship not found.' };
         if (ship.status !== 'docked') return { success: false, message: 'Ship must be docked to move.' };
 
-        const stats = this.getShipEffectiveStats(ship);
         const dist = Hex.distance(ship.q, ship.r, destQ, destR);
-        const speed = stats.speed;
+        const speed = this.getSailingSpeed(player, ship);
         const travelDays = Math.max(1, Math.ceil(dist / speed));
 
         ship.status = 'moving';
@@ -412,9 +438,8 @@ export const Ships = {
         if (ship.status !== 'docked') return { success: false, message: 'Ship must be docked.' };
 
         const st = this.getShipType(ship.typeId);
-        const stats = this.getShipEffectiveStats(ship);
         const dist = Hex.distance(ship.q, ship.r, destQ, destR);
-        const speed = stats.speed;
+        const speed = this.getSailingSpeed(player, ship);
         const travelDays = Math.max(1, Math.ceil(dist / speed));
         const travelCost = travelDays * (st ? st.dailyUpkeep : 5);
 

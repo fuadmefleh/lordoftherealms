@@ -502,6 +502,21 @@ Additional unit types unlock through technology research:
 
 Recruitment capacity is limited to 1 unit per 50 population per day.
 
+#### Unit Specials
+
+Some unit types carry special stats that ride with every recruit (the recruit screen lists them; units from older saves pick them up from their type):
+
+| Unit | Special | Effect in play |
+|------|---------|----------------|
+| Siege Engine | Siege +40 | +40% army power when raiding or besieging a settlement (all engines combined max +100%) |
+| Shield Wall | Defense +25 | +10% army power each when you are the one attacked (max +50%) |
+| Longbowman | Range +2 | Opening volleys: up to +6% power each, scaled by how melee-heavy (cavalry + pikemen) the enemy is (max +30%) |
+| Scout | Sight 4, Speed 8 | +1 fog-of-war radius and +1 movement per day while in your army |
+| Assassin | Eliminate commanders | 15% chance each (max 60%) to slay the enemy commander before battle — the enemy's morale breaks |
+| Battle Mage | Area damage | Each mage weakens the enemy host by 5% (max 30%) |
+
+Light/Heavy Cavalry and War Elephants fight as cavalry; Longbowmen and Crossbowmen as archers.
+
 ### Combat System
 
 #### Formation & Counters
@@ -530,6 +545,8 @@ $$\text{Power} = \text{Strength} \times \text{random}(0.8, 1.2) \times \text{cou
 
 - **Victory**: 5–15% casualties, loot (enemy strength × 2–5 gold), +5 XP per unit, +0.3 combat skill, renown gains.
 - **Defeat**: 20–40% casualties. If your army is wiped out, 40% chance of **capture** leading to indentured servitude.
+- **Wounded**: with Surgery, each would-be casualty has a 30% chance to be carried off wounded instead — it stays in the army at half strength for 5 days, then heals.
+- **Armour & bows**: Plate Armor makes the enemy strike 15% weaker and cuts casualties 15%; Crossbow piercing adds +25% power scaled by your archers' share of the army.
 
 ### Unit Progression
 
@@ -763,11 +780,11 @@ The game has **40 technologies** across **8 categories**, organized in tiers wit
 | Basic Training | 1 | 100g | 5 | +10% unit strength |
 | Archery Mastery | 2 | 200g | 8 | +30% archer strength, unlocks Longbowman |
 | Cavalry Tactics | 2 | 250g | 10 | +25% knight strength, unlocks Light Cavalry |
-| Crossbow | 2 | 250g | 8 | +25% ranged piercing, unlocks Crossbowman |
+| Crossbow | 2 | 250g | 8 | +25% ranged piercing (× archer share of your army), unlocks Crossbowman |
 | Siege Engineering | 3 | 350g | 12 | Unlocks Siege Engine |
 | Fortification | 3 | 300g | 10 | +30% defense, unlocks Watchtower |
 | Heavy Cavalry | 3 | 350g | 12 | +35% cavalry strength, unlocks Heavy Cavalry |
-| Plate Armor | 3 | 400g | 14 | +30% unit defense |
+| Plate Armor | 3 | 400g | 14 | Enemies strike 15% weaker; 15% fewer battle deaths |
 
 #### Infrastructure 🛤️
 | Tech | Tier | Cost | Days | Effect |
@@ -790,19 +807,21 @@ The game has **40 technologies** across **8 categories**, organized in tiers wit
 #### Naval ⚓
 | Tech | Tier | Cost | Days | Effect |
 |------|------|------|------|--------|
-| Shipbuilding | 1 | 200g | 8 | Unlocks Shipyard |
-| Navigation | 2 | 250g | 10 | +3 naval range |
-| Deep Sea Fishing | 2 | 150g | 6 | +40% fish production |
+| Shipbuilding | 1 | 200g | 8 | Unlocks Shipyard; fleet limit 3 → 6 ships |
+| Navigation | 2 | 250g | 10 | Ships sail 30% faster; +25% exploration finds |
+| Deep Sea Fishing | 2 | 150g | 6 | +40% fish from wharf boats and Fishing Fleets |
 | Lighthouse | 2 | 250g | 8 | +20% port trade |
 | Naval Warfare | 3 | 350g | 12 | +30% naval combat, unlocks Warship |
 
 #### Medicine 💊
 | Tech | Tier | Cost | Days | Effect |
 |------|------|------|------|--------|
-| Herbalism | 1 | 100g | 5 | +10% population growth |
-| Surgery | 2 | 250g | 10 | −20% battle casualties |
+| Herbalism | 1 | 100g | 5 | +10% population growth, +15% plague resistance |
+| Surgery | 2 | 250g | 10 | −20% battle casualties; 30% of the fallen survive wounded |
 | Plague Prevention | 2 | 300g | 10 | +40% plague resistance |
 | Hospital | 3 | 400g | 14 | +25% population growth, unlocks Hospital |
+
+While a **Plague Outbreak** rages over the realm you stand in, you lose 6 health a day and each soldier has a 4% daily chance to die. Plague resistance (Herbalism + Plague Prevention = 55%, max 90%) cuts both by that share.
 
 #### Culture & Learning 📚
 | Tech | Tier | Cost | Days | Effect |
@@ -810,7 +829,7 @@ The game has **40 technologies** across **8 categories**, organized in tiers wit
 | Writing | 1 | 100g | 5 | +10% research speed |
 | Philosophy | 2 | 200g | 8 | +15% stability, +20% culture |
 | Espionage | 2 | 250g | 10 | +25% intrigue, unlocks spy recruitment |
-| Diplomacy Mastery | 3 | 300g | 10 | +30% diplomacy |
+| Diplomacy Mastery | 3 | 300g | 10 | +30% effective diplomacy; tribute and peace cost 20% less |
 | University | 3 | 400g | 14 | +30% research, unlocks University |
 | Printing Press | 4 | 500g | 16 | +25% research, +30% culture |
 
@@ -853,9 +872,9 @@ Spies gain XP from missions and level up (max level 5):
 |---------|------|-----------|----------|--------|-----------|
 | Gather Intel | 50g | 1 | 5 days | 15% | 3 rumors + kingdom knowledge |
 | Infiltrate Territory | 100g | 1 | 7 days | 20% | Reveal fog of war (radius 4, 30 days) |
-| Counter-Espionage | 75g | 1 | 20 days | 10% | +30% detection against enemy spies |
+| Counter-Espionage | 75g | 1 | 20 days | 10% | +30% daily chance to expose rival plots; doubled for holdings within 3 hexes of where the spy is posted, which also get a 30% chance to foil the plot on its strike day |
 | Steal Technology | 200g | 2 | 12 days | 30% | Copy a tech from another kingdom |
-| Sabotage Operations | 250g | 2 | 10 days | 25% | 10% treasury drain + 15% production penalty |
+| Sabotage Operations | 250g | 2 | 10 days | 25% | 10% treasury drain; the kingdom's settlements lose 15% of their gold and goods output for 20 days |
 | Incite Rebellion | 350g | 3 | 15 days | 35% | 15% treasury, uprising in target kingdom |
 | Assassination | 500g | 4 | 8 days | 40% | Kill a key figure; −75 diplomacy, −25 karma |
 
@@ -1052,7 +1071,7 @@ Every 20 days, the angriest rival without a plot already running may hatch a **s
 | 🔥 Incite Unrest | 35 | A colony | −20 colony loyalty | Garrison, 60g, 80% |
 | 🗡️ Assassination | 65 | Your heir or a child | 50% they die, otherwise they are wounded | Bodyguards, 100g, 85% |
 
-Schemes are **hidden** until uncovered. Each day there is a chance to expose each one: 6% base, +12% with a Spymaster appointed, +3% per idle spy and +25% while a counter-espionage mission is running. A successful counter-espionage mission exposes every plot at once. A plot you never uncover strikes without warning.
+Schemes are **hidden** until uncovered. Each day there is a chance to expose each one: 6% base, +12% with a Spymaster appointed, +3% per idle spy and +30% while a counter-espionage mission is running (+60% for a plot aimed at a holding or colony within 3 hexes of the posted spy, which may also be foiled on the strike day). A successful counter-espionage mission exposes every plot at once. A plot you never uncover strikes without warning.
 
 Once a plot is uncovered, open **Dynasty → House → Plots Against You** to respond:
 

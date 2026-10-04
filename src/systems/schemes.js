@@ -20,6 +20,8 @@
 
 import { Utils } from '../core/utils.js';
 import { House } from './house.js';
+import { DataLoader } from '../core/dataLoader.js';
+import { Hex } from '../core/hex.js';
 
 const CONFIG = {
     plotCadence: 20,          // days between rival plotting rolls
@@ -32,7 +34,8 @@ const CONFIG = {
     revealBase: 0.06,         // daily chance a hidden scheme is exposed
     revealSpymaster: 0.12,
     revealPerIdleSpy: 0.03,
-    revealCounterEspionage: 0.25,
+    revealCounterEspionage: 0.30, // fallback for data/espionage.json counter_espionage.detectionBonus
+    counterRadius: 3,          // fallback for counter_espionage.counterRadius
     feudOnSuccess: -10,       // a landed scheme partly sates the grudge
     feudOnFoiled: 5,          // a foiled one inflames it
     feudOnBribe: -15,
@@ -249,8 +252,12 @@ export const Schemes = {
         return scheme;
     },
 
-    /** Daily chance a hidden scheme is exposed. */
-    revealChance(player) {
+    /**
+     * Daily chance a hidden scheme is exposed. Any counter-espionage mission
+     * adds its detectionBonus; a scheme aimed at a holding within the
+     * station's counterRadius is watched twice over.
+     */
+    revealChance(player, scheme = null) {
         let c = CONFIG.revealBase;
         const house = player.house;
         if (house && house.roles && house.roles.spymaster) c += CONFIG.revealSpymaster;
@@ -258,9 +265,40 @@ export const Schemes = {
         if (esp) {
             const idle = (esp.spies || []).filter(s => s.status === 'idle').length;
             c += idle * CONFIG.revealPerIdleSpy;
-            if ((esp.activeMissions || []).some(m => m.type === 'counter_espionage')) c += CONFIG.revealCounterEspionage;
+            if (Schemes.counterStations(player).length) {
+                const { detectionBonus } = Schemes.counterEspionageEffects();
+                c += detectionBonus;
+                if (scheme && Schemes.isCovered(player, scheme)) c += detectionBonus;
+            }
         }
         return Math.min(0.9, c);
+    },
+
+    /** detectionBonus / counterRadius of the counter_espionage mission (data/espionage.json). */
+    counterEspionageEffects() {
+        const def = DataLoader.espionage && DataLoader.espionage.missions && DataLoader.espionage.missions.counter_espionage;
+        const fx = (def && def.effects) || {};
+        return {
+            detectionBonus: typeof fx.detectionBonus === 'number' ? fx.detectionBonus : CONFIG.revealCounterEspionage,
+            counterRadius: typeof fx.counterRadius === 'number' ? fx.counterRadius : CONFIG.counterRadius,
+        };
+    },
+
+    /** Where counter-espionage spies are posted (missions from older saves: the player's position). */
+    counterStations(player) {
+        const missions = (player.espionage && player.espionage.activeMissions) || [];
+        return missions.filter(m => m.type === 'counter_espionage').map(m => ({
+            q: m.stationQ != null ? m.stationQ : player.q,
+            r: m.stationR != null ? m.stationR : player.r,
+        }));
+    },
+
+    /** Is the scheme's target a place inside a counter-espionage station's radius? */
+    isCovered(player, scheme) {
+        const t = scheme && scheme.target;
+        if (!t || t.q == null || t.r == null) return false;
+        const { counterRadius } = Schemes.counterEspionageEffects();
+        return Schemes.counterStations(player).some(s => Hex.distance(s.q, s.r, t.q, t.r) <= counterRadius);
     },
 
     /** Expose every hidden scheme (a successful counter-espionage sweep). */
@@ -367,6 +405,10 @@ export const Schemes = {
         if (scheme.guarded && def.guard && Utils.random() < def.guard.success) {
             return Schemes._settle(player, world, scheme, 'foiled', `Your guards turned back the ${def.name.toLowerCase()} on ${scheme.target.label}.`);
         }
+        // Counter-espionage agents posted nearby may catch the plotters in the act
+        if (Schemes.isCovered(player, scheme) && Utils.random() < Schemes.counterEspionageEffects().detectionBonus) {
+            return Schemes._settle(player, world, scheme, 'foiled', `Your counter-espionage agents caught the plotters before they struck ${scheme.target.label}.`);
+        }
         const text = def.resolve(player, world, scheme);
         if (!text) return Schemes._settle(player, world, scheme, 'fizzled', null);
         return Schemes._settle(player, world, scheme, 'struck', text);
@@ -455,7 +497,7 @@ export const Schemes = {
         for (const scheme of house.schemes.slice()) {
             if (day >= scheme.dueDay) {
                 out.resolved.push(Schemes._resolve(player, world, scheme));
-            } else if (!scheme.revealed && Utils.random() < Schemes.revealChance(player)) {
+            } else if (!scheme.revealed && Utils.random() < Schemes.revealChance(player, scheme)) {
                 scheme.revealed = true;
                 out.revealed.push(scheme);
             }

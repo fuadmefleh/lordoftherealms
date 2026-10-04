@@ -10,6 +10,156 @@ import { Titles } from '../systems/titles.js';
 import { Religion } from '../systems/religion.js';
 
 export const PlayerReligion = {
+    // ──────────── TENETS & INFLUENCE ────────────
+    // Tenet effect tables and influence tuning live in Religion
+    // (data/religion.json → playerTenets / playerInfluence).
+
+    /** The tenets a founder can choose from: [{ id, icon, desc, summary }]. */
+    getTenetOptions() {
+        return Object.entries(Religion.PLAYER_TENETS || {}).map(([id, t]) => ({
+            id, icon: t.icon || '', desc: t.desc || '', summary: t.summary || '',
+        }));
+    },
+
+    /** Sum of one tenet effect key over the player's religion (0 without one). */
+    tenetBonus(player, key) {
+        return Religion.tenetBonus(player && player.religion, key);
+    },
+
+    /**
+     * Influence as a 0..1 factor with diminishing returns:
+     * influence / (influence + scale) — 100 influence is half the maximum.
+     */
+    influenceFactor(player) {
+        const inf = (player && player.religion && player.religion.influence) || 0;
+        if (inf <= 0) return 0;
+        const scale = Religion.PLAYER_INFLUENCE.scale || 100;
+        return inf / (inf + scale);
+    },
+
+    /** Multiplier on converting people (buildings, preaching): tenets × influence. */
+    conversionMultiplier(player) {
+        return Math.max(0, 1 + PlayerReligion.tenetBonus(player, 'conversion'))
+            * (1 + Religion.PLAYER_INFLUENCE.conversionBonus * PlayerReligion.influenceFactor(player));
+    },
+
+    /** Settlements devoted to the player's faith (share ≥ devotedShare). [{ q, r, share }] */
+    getDevotedSettlements(player) {
+        const presence = player && player.religion && player.religion.presence;
+        if (!presence) return [];
+        const min = Religion.PLAYER_INFLUENCE.devotedShare;
+        const out = [];
+        for (const [key, share] of Object.entries(presence)) {
+            if (share < min) continue;
+            const [q, r] = key.split(',').map(Number);
+            out.push({ q, r, share });
+        }
+        return out;
+    },
+
+    /** What the faith's influence currently does, for the religion panel. */
+    influenceSummary(player) {
+        const cfg = Religion.PLAYER_INFLUENCE;
+        const f = PlayerReligion.influenceFactor(player);
+        const presence = (player && player.religion && player.religion.presence) || {};
+        return {
+            factor: f,
+            conversionBonus: cfg.conversionBonus * f,
+            incomeBonus: cfg.incomeBonus * f,
+            reached: Object.keys(presence).length,
+            devoted: PlayerReligion.getDevotedSettlements(player).length,
+        };
+    },
+
+    /**
+     * Daily upkeep of the player's faith (call once a day, after spreadFaith):
+     *  - tenet karma (Charity, Humility);
+     *  - influence recomputed from followers (miracles and missions add them too);
+     *  - organic spread: devoted settlements win over their neighbours, faster
+     *    with more influence;
+     *  - realms holding devoted towns warm to the player (Peace/Sovereignty
+     *    speed it), except zealous faiths (militancy ≥ 3), who resent it;
+     *  - with Justice, devoted towns steady their realm (kingdom.playerFaith,
+     *    read by KingdomStability.target).
+     * Returns { karma, spread, reputation: {kingdomId: delta} }.
+     */
+    processDaily(player, world) {
+        const out = { karma: 0, spread: 0, reputation: {} };
+        const religion = player && player.religion;
+        if (!religion || !world) return out;
+        const cfg = Religion.PLAYER_INFLUENCE;
+
+        const karma = PlayerReligion.tenetBonus(player, 'karmaPerDay');
+        if (karma > 0) {
+            religion.karmaCarry = (religion.karmaCarry || 0) + karma;
+            const whole = Math.floor(religion.karmaCarry + 1e-9);
+            if (whole > 0) {
+                player.karma = (player.karma || 0) + whole;
+                religion.karmaCarry -= whole;
+                out.karma = whole;
+            }
+        }
+
+        religion.influence = Math.floor((religion.followers || 0) / 100);
+        const factor = PlayerReligion.influenceFactor(player);
+
+        // Organic spread from devoted towns to their neighbours
+        const devoted = PlayerReligion.getDevotedSettlements(player);
+        if (devoted.length && typeof world.getTile === 'function') {
+            const amount = cfg.organicSpread * (1 + factor);
+            for (const d of devoted) {
+                for (const h of Hex.hexesInRange(d.q, d.r, cfg.organicRadius)) {
+                    const t = world.getTile(h.q, h.r);
+                    if (!t || !t.settlement || !(t.settlement.population > 0)) continue;
+                    if (t.q === d.q && t.r === d.r) continue;
+                    out.spread += Religion.addPresence(religion, t.q, t.r, amount);
+                }
+            }
+        }
+
+        // Realms that hold devoted towns
+        const perKingdom = {};
+        for (const d of PlayerReligion.getDevotedSettlements(player)) {
+            const t = typeof world.getTile === 'function' ? world.getTile(d.q, d.r) : null;
+            const kid = t && t.settlement && t.settlement.kingdom;
+            if (kid) perKingdom[kid] = (perKingdom[kid] || 0) + 1;
+        }
+        const stabilityPer = PlayerReligion.tenetBonus(player, 'kingdomStability');
+        const warmth = 1 + PlayerReligion.tenetBonus(player, 'kingdomRelations');
+        for (const kingdom of world.kingdoms || []) {
+            const n = perKingdom[kingdom.id] || 0;
+            if (!n) {
+                if (kingdom.playerFaith) delete kingdom.playerFaith;
+                continue;
+            }
+            kingdom.playerFaith = {
+                devoted: n,
+                stability: Math.min(cfg.maxKingdomStability, n * stabilityPer),
+            };
+            if (!kingdom.isAlive) continue;
+            const faith = Religion.getKingdomFaith(kingdom);
+            const zealous = faith && faith.virtues && faith.virtues.militancy >= cfg.militantMilitancy;
+            const delta = zealous
+                ? -n * cfg.militantPenaltyPerDevoted
+                : Math.min(cfg.maxReputationPerDay, n * cfg.reputationPerDevoted * warmth);
+            if (!religion.reputationCarry) religion.reputationCarry = {};
+            const carry = (religion.reputationCarry[kingdom.id] || 0) + delta;
+            const whole = carry > 0 ? Math.floor(carry + 1e-9) : Math.ceil(carry - 1e-9);
+            religion.reputationCarry[kingdom.id] = carry - whole;
+            if (!whole) continue;
+            if (!player.reputation) player.reputation = {};
+            const before = player.reputation[kingdom.id] || 0;
+            const after = whole > 0
+                ? Math.max(before, Math.min(cfg.reputationCeiling, before + whole))
+                : Math.min(before, Math.max(cfg.militantFloor, before + whole));
+            if (after !== before) {
+                player.reputation[kingdom.id] = after;
+                out.reputation[kingdom.id] = after - before;
+            }
+        }
+        return out;
+    },
+
     /**
      * Religious building types
      */
@@ -66,6 +216,7 @@ export const PlayerReligion = {
             buildings: [],
             influence: 0,
             founded: true,
+            presence: {},        // "q,r" → share of that settlement following the faith
         };
 
         // Increase faith attribute
@@ -183,6 +334,9 @@ export const PlayerReligion = {
         // A Court Chaplain's sermons carry further
         const title = Titles.getActiveTitle(player);
         const spreadBonus = (title && title.perks && title.perks.faithSpreadBonus) || 0;
+        // Tenets (Charity) and the faith's influence speed conversion
+        const faithMult = PlayerReligion.conversionMultiplier(player);
+        const presenceGain = Religion.PLAYER_INFLUENCE.settlementGain * faithMult;
 
         for (const buildingRef of player.religion.buildings) {
             const tile = world.getTile(buildingRef.q, buildingRef.r);
@@ -201,8 +355,11 @@ export const PlayerReligion = {
                 if (!nearbyTile || !nearbyTile.settlement) continue;
 
                 // Convert some population to followers
-                const conversionRate = 0.01 * (1 + player.faith * 0.1) * (1 + spreadBonus) * mult;
+                const conversionRate = 0.01 * (1 + player.faith * 0.1) * (1 + spreadBonus) * mult * faithMult;
                 gained += Math.floor(nearbyTile.settlement.population * conversionRate);
+                // ...and the town's share of the faithful grows
+                Religion.addPresence(player.religion, nearbyTile.q != null ? nearbyTile.q : hex.q,
+                    nearbyTile.r != null ? nearbyTile.r : hex.r, presenceGain * mult);
             }
 
             building.followers += gained;
@@ -354,6 +511,13 @@ export const PlayerReligion = {
         },
     },
 
+    /** Karma a miracle costs this player (Mysticism makes miracles cheaper). */
+    miracleCost(player, miracle) {
+        const base = (miracle && miracle.karmaCost) || 0;
+        const mult = Math.max(0.5, 1 + PlayerReligion.tenetBonus(player, 'miracleCost'));
+        return Math.max(1, Math.round(base * mult));
+    },
+
     /** Tuning for the targeted / area miracles */
     MIRACLE_CONFIG: {
         harvestDays: 3,
@@ -385,8 +549,9 @@ export const PlayerReligion = {
         const miracle = PlayerReligion.MIRACLES[miracleType.toUpperCase()];
         if (!miracle) return { success: false, reason: 'Invalid miracle' };
 
-        if (player.karma < miracle.karmaCost) {
-            return { success: false, reason: `Need ${miracle.karmaCost} karma (have ${player.karma})` };
+        const karmaCost = PlayerReligion.miracleCost(player, miracle);
+        if (player.karma < karmaCost) {
+            return { success: false, reason: `Need ${karmaCost} karma (have ${player.karma})` };
         }
 
         const cfg = PlayerReligion.MIRACLE_CONFIG;
@@ -396,10 +561,10 @@ export const PlayerReligion = {
         if (!check.ok) return { success: false, reason: check.reason };
         const target = check.target;
 
-        player.karma -= miracle.karmaCost;
+        player.karma -= karmaCost;
 
         // Apply miracle effect
-        let result = { success: true, miracle };
+        let result = { success: true, miracle, karmaCost };
 
         switch (miracle.id) {
             case 'healing':
@@ -647,10 +812,14 @@ export const PlayerReligion = {
         }
 
         // Charisma affects preaching effectiveness
-        const effectiveness = 1 + player.charisma * 0.1 + player.faith * 0.1;
+        const effectiveness = (1 + player.charisma * 0.1 + player.faith * 0.1) * PlayerReligion.conversionMultiplier(player);
         const followersGained = Math.floor(settlement.population * 0.05 * effectiveness);
 
         player.religion.followers += followersGained;
+        // A sermon wins over a share of the town itself
+        if (tile && tile.q != null) {
+            Religion.addPresence(player.religion, tile.q, tile.r, Religion.PLAYER_INFLUENCE.settlementGain * 5 * effectiveness);
+        }
         player.religion.influence = Math.floor(player.religion.followers / 100);
 
         // Gain karma
@@ -720,8 +889,11 @@ export const PlayerReligion = {
     getFaithIncome(player) {
         if (!player.religion) return 0;
 
-        // Followers donate to the faith
-        const income = Math.floor(player.religion.followers * 0.01);
+        // Followers donate to the faith — more when the faith is influential;
+        // Prosperity raises the tithe, Charity gives part of it away
+        const mult = Math.max(0, 1 + PlayerReligion.tenetBonus(player, 'faithIncome'))
+            * (1 + Religion.PLAYER_INFLUENCE.incomeBonus * PlayerReligion.influenceFactor(player));
+        const income = Math.floor(player.religion.followers * 0.01 * mult);
         return income;
     },
 

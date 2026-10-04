@@ -4,6 +4,7 @@ import { PlayerEconomy, PlayerMilitary } from './_imports.js';
 import { Hex } from '../../core/hex.js';
 import { Utils } from '../../core/utils.js';
 import { WorldEvents } from '../../world/worldEvents.js';
+import { Religion } from '../religion.js';
 
 Object.assign(Technology, {
     /** Sum of one effect key across the player's implemented techs. */
@@ -69,7 +70,8 @@ Object.assign(Technology, {
     getResearchBonus(player, world = null) {
         const universities = Math.min(2, Technology.countOwnedBuildings(player, 'university_building', world));
         return Technology.getEffectTotal(player, 'researchBonus') + 0.25 * universities
-            + Technology.getCulturalResearchBonus(player, world);
+            + Technology.getCulturalResearchBonus(player, world)
+            + Religion.tenetBonus(player.religion, 'research'); // the Wisdom tenet
     },
 
     /**

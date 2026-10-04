@@ -27,7 +27,8 @@ export const Kingdom = {
             colorLight: 'rgba(39, 174, 96, 0.2)',
             culture: 'Woodland',
             description: 'Forest dwellers who live in harmony with nature, masters of archery and herbal lore.',
-            preferredTerrain: ['forest', 'dense_forest', 'grassland'],
+            preferredTerrain: ['woodland', 'seasonal_forest', 'temperate_rainforest', 'grassland'],
+            placementTerrain: ['grassland'],
             traits: ['peaceful', 'nature-loving'],
         },
         {
@@ -94,6 +95,22 @@ export const Kingdom = {
     },
 
     /**
+     * Terrain ids that score a capital site at world generation.
+     * `placementTerrain` freezes the ids the old (partly misspelt)
+     * preferredTerrain lists actually matched, so seeded worlds generate
+     * exactly as before; the corrected preferredTerrain drives runtime
+     * behaviour (expansion, home-ground battles).
+     */
+    placementTerrain(kingdom) {
+        return kingdom.placementTerrain || kingdom.preferredTerrain || [];
+    },
+
+    /** Does this kingdom favour this terrain (runtime: expansion, battles)? */
+    prefersTerrain(kingdom, terrainId) {
+        return !!terrainId && Array.isArray(kingdom && kingdom.preferredTerrain) && kingdom.preferredTerrain.includes(terrainId);
+    },
+
+    /**
      * Place kingdoms on the map — find suitable capital locations
      */
     placeKingdoms(kingdoms, tiles, mapWidth, mapHeight) {
@@ -125,7 +142,7 @@ export const Kingdom = {
                     if (tile.terrain.id === 'coast' || tile.terrain.id === 'beach') continue;
 
                     // Preferred terrain bonus
-                    const terrainBonus = kingdom.preferredTerrain.includes(tile.terrain.id) ? 50 : 0;
+                    const terrainBonus = Kingdom.placementTerrain(kingdom).includes(tile.terrain.id) ? 50 : 0;
 
                     // Distance from other capitals
                     let tooClose = false;

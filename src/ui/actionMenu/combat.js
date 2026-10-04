@@ -1160,6 +1160,13 @@ Object.assign(ActionMenu, {
             if (detailLevel !== 'basic') {
                 const holySiteCount = kingdom.religion.holySites ? kingdom.religion.holySites.length : 0;
                 html += `<div style="color:#888; font-size:11px; margin-top:4px;">⛪ ${holySiteCount} holy site${holySiteCount !== 1 ? 's' : ''} under our protection.</div>`;
+                const templeUnity = Religion.templeUnity(kingdom);
+                if (templeUnity > 0) {
+                    html += `<div style="color:#888; font-size:11px; margin-top:2px;">🛕 Our ${kingdom.temples.length} temple${kingdom.temples.length !== 1 ? 's' : ''} bind the faithful together (+${Math.round(templeUnity * 10) / 10} unity).</div>`;
+                }
+                if (kingdom.playerFaith && kingdom.playerFaith.devoted > 0 && game.player.religion) {
+                    html += `<div style="color:#b39ddb; font-size:11px; margin-top:2px;">🙏 ${kingdom.playerFaith.devoted} of our towns follow your ${game.player.religion.name}${kingdom.playerFaith.stability > 0 ? ` (+${kingdom.playerFaith.stability} stability)` : ''}.</div>`;
+                }
             }
             if (detailLevel === 'full' && kingdom.religion.heresies && kingdom.religion.heresies.length > 0) {
                 html += `<div style="color:#e74c3c; font-size:11px; margin-top:4px;">⚠️ Heresies trouble the realm: ${kingdom.religion.heresies.map(h => h.name).join(', ')}</div>`;

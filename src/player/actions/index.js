@@ -334,6 +334,9 @@ export const PlayerActions = {
         // Spread faith
         results.followersGained = PlayerReligion.spreadFaith(player, world);
 
+        // Tenet karma, influence, faith spreading town to town, realms' regard
+        results.faithDaily = PlayerReligion.processDaily(player, world);
+
         // Religious building yields (pilgrim gold, relic renown, oracle scholarship)
         results.religiousYields = PlayerReligion.applyBuildingYields(player, world);
 

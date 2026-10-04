@@ -34,3 +34,4 @@ export { KingdomBonuses, KingdomStability } from '../../world/kingdomState.js';
 export { Cartography } from '../../systems/cartography.js';
 export { KingdomAtlas } from '../../world/kingdomAtlas.js';
 export { Treasures } from '../../player/treasures.js';
+export { KingdomAI } from '../../world/kingdomAI.js';

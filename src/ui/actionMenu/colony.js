@@ -570,6 +570,21 @@ Object.assign(ActionMenu, {
                     </div>
                 </div>`;
 
+        // ── Missionary work (Missionary policy) ──
+        if (policy.missionaryWork) {
+            const m = colony.missionary || {};
+            const mw = policy.missionaryWork;
+            const faith = m.faith || (player.religion ? player.religion.name : null);
+            html += `
+                <div style="padding:8px 10px; background:rgba(155,89,182,0.08); border:1px solid rgba(155,89,182,0.3); border-radius:6px; margin-bottom:10px; font-size:12px;">
+                    <div style="font-weight:600; margin-bottom:4px;">⛪ Missionary Work</div>
+                    ${faith
+                        ? `Spreading <b>${faith}</b> within ${mw.radius} hexes: ${m.settlements || 0} settlement${m.settlements === 1 ? '' : 's'}, ${m.tribes || 0} tribe${m.tribes === 1 ? '' : 's'} reached · ${m.converts || 0} tribal converts so far.`
+                        : `Found a religion to have this colony's missionaries spread it. Until then they still befriend nearby tribes.`}
+                    <div style="color:#aaa; margin-top:3px;">Nearby tribes warm to the colony each day; the mother kingdom gains cultural influence and piety.</div>
+                </div>`;
+        }
+
         // ── Recruitment Status (shown when colony is young / small) ──
         if (isEmptyColony || rec.recruited > 0) {
             html += `

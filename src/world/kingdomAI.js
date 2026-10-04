@@ -17,28 +17,51 @@ export const KingdomAI = {
     /**
      * AI personalities that affect behavior
      */
+    // Optional behaviour fields (defaults in PERSONALITY_DEFAULTS):
+    //   armySize       × the standing army the realm supports
+    //   regen          × how fast that army rebuilds
+    //   warRatio       how strong (vs the target) it must feel to declare war
+    //   recklessChance chance to declare war anyway
+    //   sueChance      × the chance it sues for peace when outmatched
     PERSONALITIES: {
-        militaristic: { expansionChance: 0.3, warChance: 0.4, tradeChance: 0.2 },
+        militaristic: {
+            expansionChance: 0.3, warChance: 0.4, tradeChance: 0.2,
+            armySize: 1.15, regen: 1.5, warRatio: 1.0, recklessChance: 0.02, sueChance: 0.5,
+        },
         peaceful: { expansionChance: 0.1, warChance: 0.05, tradeChance: 0.5 },
         mercantile: { expansionChance: 0.15, warChance: 0.1, tradeChance: 0.6 },
         aggressive: { expansionChance: 0.4, warChance: 0.5, tradeChance: 0.1 },
         balanced: { expansionChance: 0.2, warChance: 0.2, tradeChance: 0.3 },
     },
 
+    PERSONALITY_DEFAULTS: { armySize: 1, regen: 1, warRatio: 0.8, recklessChance: 0.1, sueChance: 1 },
+
+    /**
+     * Personality id from kingdom traits — pure, no RNG. An 'aggressive'
+     * realm stays aggressive; a 'militaristic' one (and no 'aggressive')
+     * is militaristic.
+     */
+    personalityId(kingdom) {
+        const traits = (kingdom && kingdom.traits) || [];
+        if (traits.includes('aggressive')) return 'aggressive';
+        if (traits.includes('militaristic')) return 'militaristic';
+        if (traits.includes('peaceful')) return 'peaceful';
+        if (traits.includes('mercantile') || traits.includes('naval')) return 'mercantile';
+        return 'balanced';
+    },
+
     /**
      * Get AI personality from kingdom traits
      */
     getPersonality(kingdom) {
-        if (kingdom.traits.includes('militaristic') || kingdom.traits.includes('aggressive')) {
-            return KingdomAI.PERSONALITIES.aggressive;
-        }
-        if (kingdom.traits.includes('peaceful')) {
-            return KingdomAI.PERSONALITIES.peaceful;
-        }
-        if (kingdom.traits.includes('mercantile') || kingdom.traits.includes('naval')) {
-            return KingdomAI.PERSONALITIES.mercantile;
-        }
-        return KingdomAI.PERSONALITIES.balanced;
+        const P = KingdomAI.PERSONALITIES;
+        return P[KingdomAI.personalityId(kingdom)] || P.balanced;
+    },
+
+    /** One behaviour field of the kingdom's personality (with defaults). */
+    personalityValue(kingdom, key) {
+        const v = KingdomAI.getPersonality(kingdom)[key];
+        return typeof v === 'number' ? v : KingdomAI.PERSONALITY_DEFAULTS[key];
     },
 
     /**
@@ -243,7 +266,7 @@ export const KingdomAI = {
 
     /** Daily piety, gold and scholarship from the realm's temples. */
     templeEffects(kingdom) {
-        const out = { piety: 0, income: 0, scholarship: 0 };
+        const out = { piety: 0, income: 0, scholarship: 0, unity: 0 };
         const temples = kingdom && kingdom.temples;
         if (!Array.isArray(temples) || !temples.length) return out;
         const types = (Religion && Religion.KINGDOM_BUILDING_TYPES) || {};
@@ -256,6 +279,8 @@ export const KingdomAI = {
             out.scholarship += (def.scholarshipBonus || 0) * R.scholarship;
         }
         out.income = Math.floor(out.income);
+        // unityBonus raises the faith's unity (applied by Religion.processTurn)
+        out.unity = Religion.templeUnity(kingdom);
         return out;
     },
 
@@ -320,8 +345,10 @@ export const KingdomAI = {
 
         if (borderTiles.length === 0) return;
 
-        // Claim a random border tile
-        const target = Utils.randPick(borderTiles);
+        // Claim a border tile — of the realm's favoured terrain when it can
+        // (still one pick, so expansion draws no extra randomness)
+        const favoured = borderTiles.filter(t => Kingdom.prefersTerrain(kingdom, t.tile.terrain && t.tile.terrain.id));
+        const target = Utils.randPick(favoured.length ? favoured : borderTiles);
         target.tile.kingdom = kingdom.id;
         kingdom.territory.push({ q: target.q, r: target.r });
 
@@ -417,7 +444,11 @@ export const KingdomAI = {
         const ourStrength = (kingdom.military + kingdom.population * 0.1) * LordInfluence.warAppetite(kingdom);
         const theirStrength = target.military + target.population * 0.1;
 
-        if (ourStrength > theirStrength * 0.8 || Utils.random() < 0.1) {
+        // A militaristic realm marches only when it is at least as strong
+        // and seldom gambles; others accept 80% and take a 10% gamble
+        const warRatio = KingdomAI.personalityValue(kingdom, 'warRatio');
+        const reckless = KingdomAI.personalityValue(kingdom, 'recklessChance');
+        if (ourStrength > theirStrength * warRatio || Utils.random() < reckless) {
             KingdomAI.startWar(kingdom, target, world);
             world.events.push({
                 text: `⚔️ ${kingdom.name} has declared war on ${target.name}!`,
@@ -546,7 +577,9 @@ export const KingdomAI = {
         if (sb.gains >= sb.goal) return KingdomAI.endWar(a, b, world, { victor: b });
         // A badly outmatched side sues for peace
         for (const [weak, strong] of [[a, b], [b, a]]) {
-            if ((weak.military || 0) < (strong.military || 0) * W.sueRatio && Utils.random() < W.sueChance) {
+            // Militaristic realms are slow to sue
+            if ((weak.military || 0) < (strong.military || 0) * W.sueRatio
+                && Utils.random() < W.sueChance * KingdomAI.personalityValue(weak, 'sueChance')) {
                 return KingdomAI.endWar(a, b, world, { victor: strong });
             }
         }
@@ -692,6 +725,8 @@ export const KingdomAI = {
         military *= Math.max(0.1, 1 + KingdomBonuses.get(kingdom, 'military'));
         // A lord bent on domination keeps a larger standing army
         military *= Math.max(0.1, 1 + LordInfluence.mod(kingdom, 'military'));
+        // So does a militaristic realm
+        military *= KingdomAI.personalityValue(kingdom, 'armySize');
 
         // Blizzards and the like thin the ranks (hardy traditions endure)
         const attrition = WorldEvents.getModifier(world, 'unitAttrition', { kingdom: kingdom.id });
@@ -708,8 +743,10 @@ export const KingdomAI = {
             const cur = Math.floor(kingdom.military || 0);
             if (cap > cur) {
                 // Recruitment refills the ranks, never past what the realm
-                // supports; good recruiting ground refills them faster
-                const regen = Math.min(1, KingdomAI.WAR.regen * (1 + recruiting * Economy.effectScale('armyRegen')));
+                // supports; good recruiting ground and drilled militaristic
+                // realms refill them faster
+                const regen = Math.min(1, KingdomAI.WAR.regen * KingdomAI.personalityValue(kingdom, 'regen')
+                    * (1 + recruiting * Economy.effectScale('armyRegen')));
                 kingdom.military = cur;
                 Kingdom.recruitTroops(kingdom, (cap - cur) * regen);
             } else {
@@ -775,13 +812,24 @@ export const KingdomAI = {
         return c;
     },
 
+    /** Battle power on a kingdom's favoured terrain (preferredTerrain). */
+    HOME_GROUND: 1.08,
+
+    homeGroundMultiplier(kingdom, terrainId) {
+        return Kingdom.prefersTerrain(kingdom, terrainId) ? KingdomAI.HOME_GROUND : 1;
+    },
+
     _getKingdomComposition(kingdom) {
         const comp = { cavalry: 0.30, archer: 0.28, pikeman: 0.42 };
         const traits = kingdom.traits || [];
+        // Cultures used to be checked against the trait list (where they
+        // never appear); check both
+        const culture = String(kingdom.culture || '').toLowerCase();
+        const has = (...ids) => ids.some(id => traits.includes(id) || culture === id);
 
-        if (traits.includes('nomadic') || traits.includes('aggressive')) comp.cavalry += 0.12;
-        if (traits.includes('woodland') || traits.includes('maritime')) comp.archer += 0.10;
-        if (traits.includes('imperial') || traits.includes('religious')) comp.pikeman += 0.10;
+        if (has('nomadic', 'aggressive', 'mobile')) comp.cavalry += 0.12;
+        if (has('woodland', 'maritime', 'naval', 'seafaring', 'nature-loving')) comp.archer += 0.10;
+        if (has('imperial', 'religious', 'orderly', 'defensive', 'militaristic')) comp.pikeman += 0.10;
         // Steppe horse epics and sylvan archers shape the levy
         const tb = (kingdom.cultureData && kingdom.cultureData.tradition && kingdom.cultureData.tradition.bonuses) || {};
         if (tb.cavalry) comp.cavalry += tb.cavalry / 100;
@@ -859,6 +907,9 @@ export const KingdomAI = {
         attackPower *= Math.max(0.2, 1 + KingdomBonuses.get(attacker, 'warBonus'));
         defensePower *= Math.max(0.2, 1 + KingdomBonuses.get(defender, 'warBonus') + KingdomBonuses.get(defender, 'defense')
             + LordInfluence.mod(defender, 'defense')); // a wary lord's fortifications
+        // Home ground: each side fights better on terrain it favours
+        attackPower *= KingdomAI.homeGroundMultiplier(attacker, terrainId);
+        defensePower *= KingdomAI.homeGroundMultiplier(defender, terrainId);
         // Knowing the enemy's land (the royal archive's chart of it) wins
         // battles — and a doctored chart loses them
         attackPower *= KingdomAtlas.campaignMultiplier(attacker, defender.id);

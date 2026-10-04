@@ -768,6 +768,23 @@ There are also **6 extinct faiths** that can be discovered through scholarly res
 - Grants +2 Faith attribute (capped at 10).
 - You can only found one religion per game.
 
+**Tenets** (data/religion.json → `playerTenets`) each have a lasting effect:
+
+| Tenet | Effect |
+|-------|--------|
+| Peace | +10% reputation gains; realms holding devoted towns warm to you 50% faster |
+| Charity | +20% conversion, +0.5 karma/day, but −25% tithes |
+| Wisdom | +10% research speed |
+| Justice | each devoted town gives its realm +1 stability (up to +3) |
+| Valor | +5% battle power, −10% casualties |
+| Humility | −10% army upkeep, +0.3 karma/day |
+| Prosperity | +25% tithes, +5% property income |
+| Nature | +15% farm yields |
+| Sovereignty | +5% negotiation with lords; devoted realms warm to you twice as fast |
+| Mysticism | miracles cost 20% less karma |
+
+**Influence** (followers ÷ 100) has diminishing returns — 100 influence is half its full effect. It adds up to +50% conversion and +50% tithes. Buildings, sermons and Missionary colonies also win over a **share of each town** (shown as "reached" and "devoted" in the Religion panel). A town where at least 25% follow you is **devoted**: you get 5% better prices there, it spreads the faith to settlements within 3 hexes (faster with more influence), and its realm's regard for you rises by 0.1 a day per devoted town (at most +0.5 a day, up to 50). Realms with a zealous faith (militancy 3, e.g. the Iron Creed or the Stormfather) resent it instead: −0.05 a day per devoted town, down to −30.
+
 ### Religious Buildings
 
 | Building | Cost | Build Time | Faith/Day | Influence Radius | Special |
@@ -830,6 +847,10 @@ Travel to holy sites scattered across the world to receive gold, karma, and reno
 Heresies can emerge within faiths, reducing unity and stability. There are 11 heresy types that spread at varying rates — some benefit scholarship at the cost of faith unity.
 
 **Denounce Heresy** (2 AP) appears in any town whose kingdom has an active heresy. Your sermon knocks 6 + 1.5×faith + 0.5×charisma (+0–4) off the strongest heresy's strength. Drive it to zero and the heresy is suppressed: the kingdom regains 5 piety and you earn +5 reputation there, +5 karma and +5 renown. Suppressions count toward the Heresy Hunter quest and achievement.
+
+### Kingdom Temples
+
+Pious lords fund chapels, monasteries and cathedrals. Besides piety, gold and scholarship, each adds half its unity bonus to the realm's faith unity (chapel +1.5, monastery +2.5, cathedral +5; at most +15). Unity feeds kingdom stability.
 
 ---
 
@@ -1093,15 +1114,19 @@ The game features **10 kingdoms**, each with unique culture, traits, and territo
 | Kingdom | Culture | Traits | Preferred Terrain |
 |---------|---------|--------|------------------|
 | Kingdom of Valdoria | Imperial | Militaristic, Orderly | Plains, Grassland |
-| Kingdom of Sylvaris | Woodland | Peaceful, Nature-loving | Forests |
+| Kingdom of Sylvaris | Woodland | Peaceful, Nature-loving | Woodland, Seasonal & Temperate Rainforest, Grassland |
 | Khanate of Kharzun | Nomadic | Aggressive, Mobile | Plains, Desert |
 | Theocracy of Azurath | Religious | Religious, Scholarly | Desert, Hills |
 | Republic of Merathis | Maritime | Mercantile, Naval | Coast |
-| Holds of Durheim | Mountain | Defensive, Industrious | Mountains, Hills |
-| Dominion of Miregloom | Swamp | Secretive, Alchemical | Swamp, Wetland |
+| Holds of Durheim | Mountain | Defensive, Industrious | Mountain, Hills, Highlands, Tundra |
+| Dominion of Miregloom | Swamp | Secretive, Alchemical | Swamp, Tropical Rainforest, Woodland |
 | Conclave of Luminara | Arcane | Scholarly, Arcane | Hills, Plains |
-| Jarldom of Frostmark | Nordic | Aggressive, Seafaring | Tundra, Coast |
+| Jarldom of Frostmark | Nordic | Aggressive, Seafaring | Tundra, Mountain, Boreal Forest, Coast |
 | Sultanate of Ashkari | Desert | Mercantile, Resilient | Desert, Savanna |
+
+A realm expands into its preferred terrain first and fights 8% better on it.
+
+**Traits** (data/kingdoms.json → `traitEffects`) add to the realm's bonuses: Militaristic +10% army, +5% battle · Orderly +6 stability, +10% intrigue · Peaceful +25% diplomacy, +3 stability, −5% army · Nature-loving +10% growth, +10% faith · Aggressive +8% battle, −15% diplomacy · Mobile +20% expansion, +15% endurance · Religious +30% faith, +6% loyalty (and sends Missionary colonies) · Scholarly +25% research, +10% culture · Mercantile +20% trade, +5% treasury · Naval +10% trade, +5% defense · Defensive +15% defense, −10% war upkeep · Industrious +25% construction, +5% treasury · Secretive +25% intrigue, −5% diplomacy · Alchemical +5% growth, +10% research · Arcane +20% research, +4% battle · Seafaring +10% expansion, +8% trade · Resilient +30% endurance, +4 stability. Mobile realms field more cavalry; naval, seafaring and nature-loving ones more archers; orderly, defensive, religious and militaristic ones more pikemen.
 
 ### Reputation
 
@@ -1145,7 +1170,7 @@ A 120-day truce follows any peace.
 
 ### Kingdom AI
 
-Kingdoms are run by AI with distinct personalities. They:
+Kingdoms are run by AI with distinct personalities, set by their traits: **Aggressive** (expands and declares war most, sometimes recklessly), **Militaristic** (a 15% larger standing army that rebuilds 50% faster; declares war only when at least as strong as the target, and is half as quick to sue for peace), **Peaceful**, **Mercantile** and **Balanced**. The Dynasties panel shows each realm's traits and temperament. They:
 - Expand territory and found new settlements.
 - Wage wars against rivals.
 - Form and break alliances.
@@ -1442,6 +1467,8 @@ You can found colonies on unclaimed wilderness (costs gold). Recruit settlers fr
 | Coexistence | 0.8× | Very Positive | +15% | No bonus |
 | Exploitation | 1.0× | Very Negative | −10% | +30% |
 | Missionary | 1.0× | Slightly Positive | +10% | +5% |
+
+**Missionary work.** A Missionary colony befriends tribes within 4 hexes (+0.05 relation a day) and converts them to its faith. If it is your colony and you have founded a religion, it spreads *your* faith: every settlement within 4 hexes gains a share of followers each day, and converted tribesfolk join your faith (2% of a tribe's people a day). The mother kingdom gains cultural influence and piety (+0.01 a day per colony, at most +0.05). The colony panel shows how far its missionaries reach. Religious kingdoms send Missionary colonies of their own.
 
 ---
 

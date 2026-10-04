@@ -56,6 +56,8 @@ Object.assign(PlayerMilitary, {
         playerPower *= 1 + PlayerEffects.treasureBonus(player, 'battlePower');
         // A commander in high spirits leads better; a miserable one worse
         playerPower *= PlayerEffects.moodCombatMultiplier(player);
+        // The Valor tenet of the player's own faith
+        playerPower *= PlayerEffects.faithBattleMultiplier(player);
         // Fortification techs help when the player is the one attacked
         if (context.defending) playerPower *= 1 + Technology.getDefenseBonus(player);
         // A fortified house (watchtower, fortification upgrades) adds +1% per point of defense

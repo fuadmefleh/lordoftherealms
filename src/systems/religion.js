@@ -392,9 +392,10 @@ export const Religion = {
                 ));
             }
 
-            // 3. Unity from piety
+            // 3. Unity from piety, the faith's own virtue and the realm's temples
             kingdom.religion.unity = Math.max(0, Math.min(100,
                 50 + kingdom.religion.piety * 0.3 + (faith ? faith.virtues.unity * 5 : 0)
+                + Religion.templeUnity(kingdom)
             ));
 
             // 4. Heresy spread chance
@@ -656,6 +657,90 @@ export const Religion = {
             scholarshipBonus: 5,
             description: 'Scholarly retreat producing manuscripts and beer',
         },
+    },
+
+    /** Unity per point of a temple's unityBonus, and the most temples can add. */
+    TEMPLE_UNITY: { rate: 0.5, max: 15 },
+
+    /**
+     * Unity the realm's temples (kingdom.temples, funded by pious lords via
+     * KingdomAI.fundTemple) add to its faith: half of each temple's
+     * unityBonus (chapel 1.5, monastery 2.5, cathedral 5), at most +15.
+     * Unity feeds kingdom stability (KingdomStability.target).
+     */
+    templeUnity(kingdom) {
+        const temples = kingdom && kingdom.temples;
+        if (!Array.isArray(temples) || !temples.length) return 0;
+        let total = 0;
+        for (const t of temples) {
+            const def = Religion.KINGDOM_BUILDING_TYPES[t && t.type];
+            if (def && def.unityBonus) total += def.unityBonus * Religion.TEMPLE_UNITY.rate;
+        }
+        return Math.min(Religion.TEMPLE_UNITY.max, total);
+    },
+
+    // ─────────────────────────────────────────────
+    // THE PLAYER'S OWN FAITH — tenets and influence
+    // ─────────────────────────────────────────────
+
+    /**
+     * What each tenet a player-founded religion can hold does. Effects are
+     * fractions unless noted; readers ask tenetBonus(religion, key):
+     *   conversion, faithIncome, karmaPerDay (karma/day), reputationGain,
+     *   kingdomRelations (× faith reputation drift), research,
+     *   kingdomStability (stability per devoted town), battlePower,
+     *   casualties (reduction), upkeep, propertyIncome, farmYield,
+     *   negotiation, miracleCost.
+     * Loaded from data/religion.json → playerTenets.
+     */
+    PLAYER_TENETS: {},
+
+    /** Tuning for player-faith influence (data/religion.json → playerInfluence). */
+    PLAYER_INFLUENCE: {
+        scale: 100, conversionBonus: 0.5, incomeBonus: 0.5,
+        settlementGain: 0.003, organicSpread: 0.0005, organicRadius: 3,
+        devotedShare: 0.25, devotedTradeBonus: 0.05,
+        reputationPerDevoted: 0.1, maxReputationPerDay: 0.5, reputationCeiling: 50,
+        militantPenaltyPerDevoted: 0.05, militantFloor: -30, militantMilitancy: 3,
+        maxKingdomStability: 3,
+    },
+
+    /** Sum of one effect key over a player religion's tenets (0 with no religion). */
+    tenetBonus(religion, key) {
+        const tenets = religion && religion.tenets;
+        if (!Array.isArray(tenets) || !tenets.length) return 0;
+        let total = 0;
+        for (const id of tenets) {
+            const def = Religion.PLAYER_TENETS[id];
+            const v = def && def.effects ? def.effects[key] : undefined;
+            if (typeof v === 'number') total += v;
+        }
+        return total;
+    },
+
+    /** Share (0..1) of the settlement at (q, r) that follows the player's faith. */
+    getPresence(religion, q, r) {
+        const p = religion && religion.presence;
+        return (p && p[`${q},${r}`]) || 0;
+    },
+
+    /**
+     * Win `amount` (0..1) of the settlement's remaining unbelievers over to
+     * the player's faith: share += amount × (1 − share). Returns the gain.
+     */
+    addPresence(religion, q, r, amount) {
+        if (!religion || !(amount > 0)) return 0;
+        if (!religion.presence) religion.presence = {};
+        const key = `${q},${r}`;
+        const before = religion.presence[key] || 0;
+        const after = Math.min(1, before + amount * (1 - before));
+        religion.presence[key] = Math.round(after * 100000) / 100000;
+        return religion.presence[key] - before;
+    },
+
+    /** Is the settlement at (q, r) devoted to the player's faith? */
+    isDevoted(religion, q, r) {
+        return Religion.getPresence(religion, q, r) >= Religion.PLAYER_INFLUENCE.devotedShare;
     },
 
     // ─────────────────────────────────────────────

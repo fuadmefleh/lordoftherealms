@@ -286,6 +286,20 @@ Each settlement's **happiness** (0–100) drifts a quarter of the way toward the
 - **Conquered towns** gain or lose loyalty each week by (happiness − 50) / 25, and low-loyalty colonies rebel.
 - The Treasury's Tax tab lists each settlement's mood and weekly yield.
 
+### The Council
+
+As King, Chancellor or Tax Collector you answer to a council of five factions. Convene it to hold votes (tax increases, war mandates) and to negotiate with or suppress factions. Between sessions the factions' support drifts (▲/▼ in the panel) toward how you govern:
+
+| Faction | Likes |
+|---------|-------|
+| 👑 Nobility | Your renown |
+| ⚔️ War Hawks | A large army, and a war (peace makes them restless) |
+| 💰 Guilds | Trade routes and low taxes |
+| ⛪ Clergy | Good karma |
+| 🧑‍🌾 Commons | Happy settlements and low taxes |
+
+Council **approval** follows the factions' influence-weighted support. Above 70 it raises your standing with your liege every 5 days; below 30 it lowers it. If approval falls below 15 the council is in uproar, and after 10 days of that it passes a **vote of no confidence** and you lose your office. A suppressed faction can't organise against you until the crackdown ends.
+
 ### Finance Tracking
 
 Click your gold display to open a detailed 90-day financial breakdown showing income sources, expense categories, daily logs, and gold-over-time charts.

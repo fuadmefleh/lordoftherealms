@@ -117,6 +117,13 @@ export function endDay() {
                 }
             }
 
+            // The council's factions drift with how you govern
+            if (typeof Councils !== 'undefined') {
+                const council = Councils.processDaily(this.player, this.world);
+                if (council.warning) this.ui.showNotification('🏛️ Council in Uproar', council.warning, 'warning');
+                if (council.removed) this.ui.showNotification('🏛️ No Confidence', 'The council has voted you out of office.', 'error');
+            }
+
             // Process world turn
             // Aqueducts/herbalism/plague prevention grow your colonies;
             // philosophy/printing press steady them

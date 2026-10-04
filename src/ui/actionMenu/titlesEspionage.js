@@ -467,7 +467,7 @@ Object.assign(ActionMenu, {
             html += `<div style="background:#1a1a1a; border:1px solid #333; border-radius:6px; padding:8px; margin-bottom:6px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                     <div style="color:#eee;">${faction.icon} ${faction.name}</div>
-                    <div style="font-size:11px; color:#aaa;">Support ${faction.support}% • Influence ${faction.influence}</div>
+                    <div style="font-size:11px; color:#aaa;">Support ${faction.support}% ${faction.trend === 'rising' ? '▲' : faction.trend === 'falling' ? '▼' : '•'} • Influence ${faction.influence}</div>
                 </div>
                 <div style="height:6px; background:#333; border-radius:3px; overflow:hidden; margin-bottom:6px;">
                     <div style="height:100%; width:${Math.max(0, Math.min(100, faction.support))}%; background:${faction.support >= 55 ? '#4caf50' : faction.support >= 40 ? '#ffb74d' : '#ef5350'};"></div>

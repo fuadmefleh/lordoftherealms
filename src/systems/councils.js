@@ -4,6 +4,7 @@
 
 import { Utils } from '../core/utils.js';
 import { Taxation } from './marketDynamics.js';
+import { Titles } from './titles.js';
 
 
 export const Councils = {
@@ -88,7 +89,7 @@ export const Councils = {
 
     conveneCouncil(player, world) {
         if (!this._hasGoverningRole(player)) {
-            return { success: false, reason: 'Only the King, Chancellor, or Treasurer can convene the council.' };
+            return { success: false, reason: 'Only the King, Chancellor, or Tax Collector can convene the council.' };
         }
 
         const state = this._ensureState(player);
@@ -325,6 +326,99 @@ export const Councils = {
         return { success: false, reason: 'Invalid faction action.' };
     },
 
+    // ── Daily life of the council ─────────────────────────────────────
+    /** Days of collapsed approval (below NO_CONFIDENCE_APPROVAL) before the council has you removed. */
+    NO_CONFIDENCE_DAYS: 10,
+    NO_CONFIDENCE_APPROVAL: 15,
+
+    /**
+     * Where each faction's support is heading, given how you govern:
+     * merchants like trade and low taxes, the commons like contented towns,
+     * the war hawks like a strong army and a war, the clergy like a clean
+     * conscience, and the nobility respect renown.
+     */
+    factionTargets(player, world) {
+        const taxPenalty = { very_low: -8, low: -4, moderate: 0, high: 8, very_high: 18 }[player.taxRate || 'moderate'] || 0;
+        const routes = (player.tradeRoutes || []).length;
+        const army = (player.army || []).length;
+        const atWar = !!(player.allegiance && world && world.getKingdom
+            && (world.getKingdom(player.allegiance)?.wars || []).length > 0);
+
+        let happinessSum = 0;
+        let towns = 0;
+        for (const ref of player.settlements || []) {
+            const t = world && world.getTile ? world.getTile(ref.q, ref.r) : null;
+            if (t && t.settlement) {
+                happinessSum += Taxation.getHappiness(t.settlement);
+                towns++;
+            }
+        }
+        const happiness = towns > 0 ? happinessSum / towns : 50;
+        const clamp = (v) => Math.max(0, Math.min(100, v));
+        const base = (id) => this.FACTIONS.find(f => f.id === id).baseSupport;
+
+        return {
+            nobility: clamp(base('nobility') + Math.min(12, (player.renown || 0) / 40)),
+            military: clamp(base('military') + Math.min(12, army / 3) + (atWar ? 8 : -4)),
+            merchants: clamp(base('merchants') + Math.min(12, routes * 3) - taxPenalty),
+            clergy: clamp(base('clergy') + Math.max(-15, Math.min(15, (player.karma || 0) / 20))),
+            commons: clamp(base('commons') + (happiness - 50) / 2.5 - taxPenalty),
+        };
+    },
+
+    /**
+     * Daily drift: faction support moves toward how you govern, approval
+     * toward the influence-weighted mood of the factions. A popular council
+     * raises your standing with your liege; a hostile one lowers it, and a
+     * council in open revolt for NO_CONFIDENCE_DAYS has you stripped of office.
+     * Only runs while you hold a council office. Returns { removed, warning }.
+     */
+    processDaily(player, world) {
+        const result = { removed: false, warning: null };
+        if (!this._hasGoverningRole(player)) return result;
+        const state = this._ensureState(player);
+        const day = world?.day || 0;
+        const targets = this.factionTargets(player, world);
+
+        let weighted = 0;
+        let totalInfluence = 0;
+        for (const template of this.FACTIONS) {
+            const faction = state.factions[template.id];
+            // A suppressed faction can't organise until the crackdown ends
+            if ((faction.suppressedUntilDay || 0) < day) {
+                faction.support += (targets[template.id] - faction.support) * 0.03;
+                faction.support = Math.max(0, Math.min(100, faction.support));
+            }
+            weighted += faction.support * faction.influence;
+            totalInfluence += faction.influence;
+        }
+        const mood = totalInfluence > 0 ? weighted / totalInfluence : 50;
+        state.approval = Math.max(0, Math.min(100, state.approval + (mood - state.approval) * 0.04));
+
+        // Standing with your liege follows the council's mood, every 5 days
+        if (player.allegiance && player.reputation && day % 5 === 0) {
+            if (state.approval >= 70) player.reputation[player.allegiance] = (player.reputation[player.allegiance] || 0) + 1;
+            else if (state.approval < 30) player.reputation[player.allegiance] = (player.reputation[player.allegiance] || 0) - 1;
+        }
+
+        // Vote of no confidence
+        if (state.approval < this.NO_CONFIDENCE_APPROVAL && player.kingdomTitle !== 'king') {
+            state.noConfidenceDays = (state.noConfidenceDays || 0) + 1;
+            if (state.noConfidenceDays === 1) {
+                result.warning = `The council is in uproar (approval ${Math.round(state.approval)}). Win back the factions within ${this.NO_CONFIDENCE_DAYS} days or lose your office.`;
+            }
+            if (state.noConfidenceDays >= this.NO_CONFIDENCE_DAYS) {
+                state.noConfidenceDays = 0;
+                this._addHistory(state, { day, type: 'no_confidence', passed: true, text: 'The council passed a vote of no confidence. You were removed from office.' });
+                if (player.currentTitle && world) Titles.resign(player, world);
+                result.removed = true;
+            }
+        } else {
+            state.noConfidenceDays = 0;
+        }
+        return result;
+    },
+
     canRaiseTaxes(player, newRate, world) {
         const state = this._ensureState(player);
         const currentRateValue = this._getTaxRateValue(player.taxRate || 'moderate');
@@ -427,13 +521,16 @@ export const Councils = {
     getSummary(player, world) {
         const state = this._ensureState(player);
         const day = world?.day || 0;
+        const targets = this.factionTargets(player, world);
         const factions = this.FACTIONS.map(template => {
             const f = state.factions[template.id];
+            const gap = targets[template.id] - f.support;
             return {
                 id: template.id,
                 name: template.name,
                 icon: template.icon,
-                support: f.support,
+                support: Math.round(f.support),
+                trend: gap > 2 ? 'rising' : gap < -2 ? 'falling' : 'steady',
                 influence: f.influence,
                 suppressed: day <= (f.suppressedUntilDay || 0),
                 suppressedUntilDay: f.suppressedUntilDay || 0,

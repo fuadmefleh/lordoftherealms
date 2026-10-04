@@ -468,8 +468,12 @@ Object.assign(ActionMenu, {
                 if (c.effects.combatBonus) efParts.push(`+${c.effects.combatBonus} combat`);
                 if (c.effects.armorBonus) efParts.push(`+${c.effects.armorBonus} armor`);
                 if (c.effects.crewBonus) efParts.push(`+${c.effects.crewBonus} crew`);
-                if (c.effects.stealthBonus) efParts.push(`stealth +${c.effects.stealthBonus}`);
+                if (c.effects.stealthBonus) efParts.push(`stealth ${c.effects.stealthBonus >= 0 ? '+' : ''}${c.effects.stealthBonus}`);
                 if (c.effects.explorationBonus) efParts.push(`exploration +${c.effects.explorationBonus}`);
+                if (c.effects.captureBonus) efParts.push(`${Math.round(c.effects.captureBonus * 100)}% prize capture`);
+                if (c.effects.fishingBonus) efParts.push(`+${c.effects.fishingBonus} fishing casts`);
+                if (c.effects.renownBonus) efParts.push(`+${c.effects.renownBonus} renown`);
+                if (c.effects.charismaBonus) efParts.push(`+${c.effects.charismaBonus} charisma`);
                 if (efParts.length) html += `<div style="font-size:10px;color:#5cb85c;margin-left:22px;margin-top:2px;">${efParts.join(' · ')}</div>`;
                 html += '</div>';
             }
@@ -692,6 +696,10 @@ Object.assign(ActionMenu, {
                 if (c.effects.crewBonus) efParts.push(`+${c.effects.crewBonus} crew`);
                 if (c.effects.stealthBonus) efParts.push(`stealth ${c.effects.stealthBonus >= 0 ? '+' : ''}${c.effects.stealthBonus}`);
                 if (c.effects.explorationBonus) efParts.push(`explore +${c.effects.explorationBonus}`);
+                if (c.effects.captureBonus) efParts.push(`${Math.round(c.effects.captureBonus * 100)}% prize capture`);
+                if (c.effects.fishingBonus) efParts.push(`+${c.effects.fishingBonus} fishing casts`);
+                if (c.effects.renownBonus) efParts.push(`+${c.effects.renownBonus} renown`);
+                if (c.effects.charismaBonus) efParts.push(`+${c.effects.charismaBonus} charisma`);
                 if (efParts.length) html += `<div style="font-size:10px;color:#5cb85c;margin-left:22px;margin-top:2px;">${efParts.join(' · ')}</div>`;
                 html += '</div>';
             }

@@ -70,5 +70,26 @@
       "radius": 0,
       "cost": 5000
     }
+  },
+  "kingdomAtlas": {
+    "_comment": "Court cartographers of NPC realms (src/world/kingdomAtlas.js): hiring, map-drawing pace, chart accuracy, war bonus from charts, spotting doctored maps",
+    "hireTreasury": 5000,
+    "hireCost": 300,
+    "upkeep": 2,
+    "drawInterval": 45,
+    "minInterval": 8,
+    "maxCharts": 8,
+    "baseSkill": 1,
+    "skillGrowth": 0.9,
+    "scoutingSkill": 10,
+    "baseAccuracy": 0.45,
+    "accuracyPerSkill": 0.05,
+    "maxAccuracy": 0.95,
+    "campaignBonus": 0.12,
+    "liePenalty": 0.05,
+    "maxLiePenalty": 0.2,
+    "spotPerSkill": 0.06,
+    "maxSpot": 0.9,
+    "distrustLimit": 3
   }
 }

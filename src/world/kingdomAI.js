@@ -10,6 +10,7 @@ import { Religion } from '../systems/religion.js';
 import { WorldEvents } from './worldEvents.js';
 import { WEATHER_EFFECTS } from './weather.js';
 import { KingdomBonuses, KingdomStability, KingdomCulture, LordInfluence } from './kingdomState.js';
+import { KingdomAtlas } from './kingdomAtlas.js';
 
 export const KingdomAI = {
     /**
@@ -402,7 +403,8 @@ export const KingdomAI = {
         const enemies = otherKingdoms.filter(k => (kingdom.relations[k.id] || 0) < -30);
         if (enemies.length === 0) return;
 
-        const target = Utils.randPick(enemies);
+        // A realm whose cartographers have charted a rival marches on it first
+        const target = Utils.randPick(KingdomAtlas.preferCharted(kingdom, enemies));
 
         // Only declare war if we're stronger or desperate. The lord's war
         // appetite (ambition, domination, honor) shifts how strong is enough.
@@ -840,6 +842,10 @@ export const KingdomAI = {
         attackPower *= Math.max(0.2, 1 + KingdomBonuses.get(attacker, 'warBonus'));
         defensePower *= Math.max(0.2, 1 + KingdomBonuses.get(defender, 'warBonus') + KingdomBonuses.get(defender, 'defense')
             + LordInfluence.mod(defender, 'defense')); // a wary lord's fortifications
+        // Knowing the enemy's land (the royal archive's chart of it) wins
+        // battles — and a doctored chart loses them
+        attackPower *= KingdomAtlas.campaignMultiplier(attacker, defender.id);
+        defensePower *= KingdomAtlas.campaignMultiplier(defender, attacker.id);
         // Walls: towns, and above all the capital, are hard to take
         if (battleTile && battleTile.settlement && battleTile.settlement.kingdom === defender.id) {
             const isCapital = defender.capital && defender.capital.q === frontline.q && defender.capital.r === frontline.r;

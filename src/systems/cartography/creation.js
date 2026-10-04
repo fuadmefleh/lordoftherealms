@@ -1,6 +1,6 @@
 // Cartography — creation members (split from the original monolith).
 import { Cartography } from './_ref.js';
-import { Utils, Hex } from './_imports.js';
+import { Utils, Hex, KingdomAtlas } from './_imports.js';
 
 Object.assign(Cartography, {
     // ── Configuration ──────────────────────────
@@ -134,12 +134,8 @@ Object.assign(Cartography, {
         // Give kingdoms initial cartographic knowledge
         for (const kingdom of world.kingdoms) {
             if (!kingdom.isAlive) continue;
-            kingdom.cartography = {
-                mapsOwned: [],
-                mapsMade: 0,
-                propagandaMaps: [],
-                cartographerHired: false,
-            };
+            kingdom.cartography = null;
+            KingdomAtlas.ensure(kingdom); // royal archive (world/kingdomAtlas.js)
         }
     },
 

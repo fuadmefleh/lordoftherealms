@@ -1639,6 +1639,17 @@ Some maps lie. A map with deliberate alterations, or a kingdom's wartime propaga
 - If you **detect the alterations** when reading a map, none of its lies take hold. At cartography skill 6 or higher you may also spot individual alterations (15% per point above 5).
 - Cartographers pay for maps by how trustworthy they are: low-accuracy and doctored maps sell for less.
 - Kingdoms at war that publish propaganda maps gain +2 stability per map in circulation (up to +6).
+
+### Royal Cartography (Kingdom Atlases)
+
+Every realm keeps a royal archive (tuning in `data/cartography.json` → `kingdomAtlas`):
+
+- A realm with 5,000+ gold in its treasury **appoints a court cartographer** (300g, then 2g/day; an empty treasury dismisses him). He draws a chart of a rival realm about every 45 days (faster under explorer rulers and scholarly courts), choosing enemies at war and uncharted or long-unvisited realms first. Propaganda maps count as maps drawn too.
+- **Atlas skill** grows with the square root of maps drawn (+2 for an explorer ruler). It sets how accurate the realm's charts are (45% → 95%).
+- **Charts win wars.** A realm fights up to +12% better against a realm it has an accurate chart of, and picks charted rivals as war targets.
+- **Map Trader → Royal Archive** (towns and cities): sell your maps of *other* realms to the archive. It pays the map's full value if it beats their chart (×1.5 against a realm they're at war with), 30% if it doesn't. The Kingdom Details panel shows each realm's cartographer, maps drawn and charted realms.
+- **Sell them a doctored map** and the archive may spot it (6% per atlas-skill point per alteration): you're turned away, lose 15 reputation and they trust you less (–25% on prices; after 3 frauds they won't deal with you). If it slips past, its lies sit in their war maps: –5% battle power per lie against that realm (max –20%) until their own cartographer redraws it — and then they know who sold it.
+- A capital's archive sells **copies of its charts** of other realms, and the official map of the realm is only as accurate as its cartographers.
 ---
 
 ## 26. Legendary Artifacts

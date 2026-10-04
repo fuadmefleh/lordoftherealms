@@ -1,6 +1,6 @@
 // Cartography — usage members (split from the original monolith).
 import { Cartography } from './_ref.js';
-import { Utils, Hex } from './_imports.js';
+import { Utils, Hex, KingdomAtlas } from './_imports.js';
 import { Quests } from '../quests.js';
 
 Object.assign(Cartography, {
@@ -363,34 +363,42 @@ Object.assign(Cartography, {
             price: isCity ? 60 : 35,
         });
 
-        // Kingdom map (in aligned settlements)
+        // Kingdom map (in aligned settlements) — drawn as well as the realm's
+        // own cartographers can draw (KingdomAtlas skill)
         if (tile.kingdom && isCity) {
             const kingdom = world.getKingdom(tile.kingdom);
             if (kingdom && kingdom.capital) {
+                const acc = Math.round(KingdomAtlas.chartAccuracy(kingdom) * 100) / 100;
+                const scale = acc / 0.75;
                 maps.push({
                     map: {
                         id: `sale_kingdom_${tile.kingdom}`,
                         type: 'kingdom',
                         name: `Official Map of ${kingdom.name}`,
                         icon: '👑',
-                        quality: 'detailed',
-                        accuracy: 0.75,
+                        quality: Cartography.getQualityForSkill(KingdomAtlas.skill(kingdom)),
+                        accuracy: acc,
                         kingdomId: tile.kingdom,
                         centerQ: kingdom.capital.q,
                         centerR: kingdom.capital.r,
                         radius: 0,
                         createdDay: world.day,
                         createdBy: `Royal Cartographer of ${kingdom.name}`,
-                        value: 100,
-                        tiles: Cartography._chartKingdomTiles(kingdom, world, 0.75),
+                        value: Math.round(100 * scale),
+                        tiles: Cartography._chartKingdomTiles(kingdom, world, acc),
                         deliberateErrors: [],
                         isPropaganda: false,
                         isStolen: false,
                         isAncient: false,
                         notes: `Official cartographic record of ${kingdom.name}.`,
                     },
-                    price: 120,
+                    price: Math.round(120 * scale),
                 });
+
+                // The royal archive in the capital sells copies of its charts of other realms
+                if (settlement.type === 'capital') {
+                    for (const offer of Cartography.getArchiveCopiesForSale(kingdom, world)) maps.push(offer);
+                }
             }
         }
 
@@ -476,6 +484,119 @@ Object.assign(Cartography, {
         return maps;
     },
 
+    // ── Royal Archives (kingdom cartography) ──
+    /** Copies of a realm's archive charts of other realms, newest first (max 2). */
+    getArchiveCopiesForSale(kingdom, world) {
+        const out = [];
+        const charts = ((kingdom.cartography && kingdom.cartography.mapsOwned) || [])
+            .filter(c => !c.lies)
+            .slice()
+            .sort((a, b) => (b.day || 0) - (a.day || 0));
+        for (const chart of charts) {
+            if (out.length >= 2) break;
+            const subject = world.getKingdom(chart.kingdomId);
+            if (!subject || !subject.isAlive || !subject.capital) continue;
+            const acc = chart.accuracy || 0.5;
+            out.push({
+                map: {
+                    id: `archive_${kingdom.id}_${subject.id}_${chart.day || 0}`,
+                    type: 'kingdom',
+                    name: `Archive Map of ${subject.name}`,
+                    icon: '🏛️',
+                    quality: Cartography.getQualityForSkill((acc - 0.45) / 0.05),
+                    accuracy: acc,
+                    kingdomId: subject.id,
+                    centerQ: subject.capital.q,
+                    centerR: subject.capital.r,
+                    radius: 0,
+                    createdDay: chart.day || 0,
+                    createdBy: `Royal Archive of ${kingdom.name}`,
+                    value: Math.round(60 + acc * 100),
+                    tiles: Cartography._chartKingdomTiles(subject, world, acc),
+                    deliberateErrors: [],
+                    isPropaganda: false,
+                    isStolen: false,
+                    isAncient: false,
+                    fromArchive: true,
+                    notes: `Copied from ${kingdom.name}'s chart of ${subject.name}, drawn on day ${chart.day || 0}.`,
+                },
+                price: Math.round(80 + acc * 120),
+            });
+        }
+        return out;
+    },
+
+    /** The foreign realm a map charts: its kingdomId, or whoever holds its centre. */
+    _mapSubject(map, world) {
+        if (map.kingdomId) return map.kingdomId;
+        const t = map.centerQ !== undefined ? world.getTile(map.centerQ, map.centerR) : null;
+        return (t && t.kingdom) || null;
+    },
+
+    /**
+     * What a realm's royal archive will pay for one of your maps. Only maps of
+     * other realms interest it; it pays well for a better chart than it holds
+     * (more in wartime against that realm) and little for one it has already.
+     * Each doctored map it caught you selling cuts the price, and after
+     * KingdomAtlas.CONFIG.distrustLimit it buys nothing from you.
+     * Returns { price, subjectId, improves } or { price: 0, reason }.
+     */
+    archiveOffer(map, kingdom, world) {
+        const subjectId = Cartography._mapSubject(map, world);
+        const subject = subjectId ? world.getKingdom(subjectId) : null;
+        if (!subject || !subject.isAlive) return { price: 0, reason: 'It charts no realm the archive cares about.' };
+        if (subject.id === kingdom.id) return { price: 0, reason: 'They know their own lands.' };
+        const distrust = (kingdom.cartography && kingdom.cartography.distrust) || 0;
+        if (distrust >= KingdomAtlas.CONFIG.distrustLimit) return { price: 0, reason: 'The archivists will not deal with you.' };
+        const chart = KingdomAtlas.getChart(kingdom, subject.id);
+        const improves = !chart || (map.accuracy || 0) > (chart.accuracy || 0);
+        const atWar = (kingdom.wars || []).includes(subject.id);
+        const price = Math.max(5, Math.floor((map.value || 0) * (improves ? 1.0 : 0.3) * (atWar ? 1.5 : 1)
+            * Math.max(0.25, 1 - 0.25 * distrust)));
+        return { price, subjectId: subject.id, improves };
+    },
+
+    /**
+     * Sell a map to a realm's royal archive. A doctored map may be spotted
+     * (KingdomAtlas.spotChance — better atlases spot more): the sale fails,
+     * you lose reputation and the archive trusts you less. Otherwise you are
+     * paid and, if it improves their knowledge, the map becomes their chart —
+     * lies and all, weakening their campaigns against that realm until their
+     * own cartographer redraws it.
+     */
+    sellMapToArchive(player, mapIndex, kingdom, world) {
+        if (!player.maps || mapIndex < 0 || mapIndex >= player.maps.length) {
+            return { success: false, reason: 'Invalid map.' };
+        }
+        const map = player.maps[mapIndex];
+        const offer = Cartography.archiveOffer(map, kingdom, world);
+        if (!offer.price) return { success: false, reason: offer.reason };
+
+        const lies = (map.deliberateErrors || []).length;
+        KingdomAtlas.ensure(kingdom);
+        if (lies > 0 && Utils.random() < KingdomAtlas.spotChance(kingdom, lies)) {
+            kingdom.cartography.distrust += 1;
+            if (player.reputation) {
+                player.reputation[kingdom.id] = Math.max(-100, (player.reputation[kingdom.id] || 0) - 15);
+            }
+            return { success: false, caught: true, reason: `${kingdom.name}'s archivists spot the alterations and turn you away.` };
+        }
+
+        player.gold += offer.price;
+        player.maps.splice(mapIndex, 1);
+        if (offer.improves || lies > 0) {
+            KingdomAtlas.recordChart(kingdom, {
+                kingdomId: offer.subjectId,
+                accuracy: Math.round((map.accuracy || 0.5) * 100) / 100,
+                day: world.day || 0,
+                source: 'player',
+                lies,
+            });
+        }
+        if (player.skills) player.skills.commerce = Math.min(10, (player.skills.commerce || 1) + 0.05);
+        return { success: true, gold: offer.price, mapName: map.name, planted: lies };
+    },
+
     /**
      * Sell a player's map
      */
@@ -519,15 +640,14 @@ Object.assign(Cartography, {
         // Kingdoms may commission propaganda maps
         for (const kingdom of world.kingdoms) {
             if (!kingdom.isAlive || !kingdom.capital) continue;
-            if (!kingdom.cartography) {
-                kingdom.cartography = { mapsOwned: [], mapsMade: 0, propagandaMaps: [], cartographerHired: false };
-            }
+            KingdomAtlas.ensure(kingdom);
 
             // Small chance to generate propaganda during wartime
             if (kingdom.wars && kingdom.wars.length > 0 && Utils.random() < Cartography.PROPAGANDA_CHANCE) {
                 const propMap = Cartography.generatePropagandaMap(kingdom, world);
                 if (propMap) {
                     kingdom.cartography.propagandaMaps.push(propMap);
+                    kingdom.cartography.mapsMade += 1; // propaganda is cartography too
                     if (kingdom.cartography.propagandaMaps.length > 3) {
                         kingdom.cartography.propagandaMaps.shift();
                     }
@@ -538,6 +658,9 @@ Object.assign(Cartography, {
                     });
                 }
             }
+
+            // Court cartographer: hiring, upkeep, charting rival realms
+            KingdomAtlas.processDay(kingdom, world);
         }
     },
 

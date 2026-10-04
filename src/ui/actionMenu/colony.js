@@ -1,6 +1,6 @@
 // ActionMenu — colony methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, Culture } from './_imports.js';
+import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, Culture, KingdomAtlas } from './_imports.js';
 
 Object.assign(ActionMenu, {
     // ─────────────────────────────────────────────
@@ -1280,6 +1280,37 @@ Object.assign(ActionMenu, {
             }
         }
 
+        // Royal archive of the realm that holds this town: buys maps of other realms
+        const realm = tile.kingdom ? world.getKingdom(tile.kingdom) : null;
+        const sType = tile.settlement && tile.settlement.type;
+        if (realm && realm.isAlive && ['capital', 'city', 'town'].includes(sType)) {
+            const atlas = KingdomAtlas.summary(realm, world);
+            html += `<h4 style="color:#f5c542; margin:12px 0 4px;">🏛️ Royal Archive of ${realm.name}</h4>`;
+            html += `<small style="color:#aaa;">${atlas.hired ? '🧭 Court cartographer employed' : 'No court cartographer'}`
+                + ` · ${atlas.mapsMade} maps drawn · Charts ${(atlas.accuracy * 100).toFixed(0)}% accurate`
+                + ` · Holds charts of: ${atlas.charts.length ? atlas.charts.map(c => c.name).join(', ') : 'none'}</small>`;
+            if (atlas.distrust > 0) {
+                html += `<br><small style="color:#ff8866;">The archivists have caught you selling ${atlas.distrust} doctored map(s).</small>`;
+            }
+            let any = false;
+            for (let i = 0; i < playerMaps.length; i++) {
+                const map = playerMaps[i];
+                const offer = Cartography.archiveOffer(map, realm, world);
+                if (!offer.price) continue;
+                any = true;
+                const note = offer.improves ? 'better than their chart' : 'they have a better chart';
+                html += `
+                    <div style="padding:6px; margin:3px 0; border:1px solid #555; border-radius:4px; display:flex; justify-content:space-between; align-items:center;">
+                        <span>${map.icon || '📜'} ${map.name} <small style="color:#888;">(${note})</small></span>
+                        <button data-am-act="sellMapToArchive" data-am-args='[${i}, ${tileQ}, ${tileR}]'
+                                style="padding:3px 10px; background:#3a4a6a; color:#fff; border:none; border-radius:3px; cursor:pointer; font-size:12px;">
+                            Offer (${offer.price}g)
+                        </button>
+                    </div>`;
+            }
+            if (!any) html += '<p style="color:#888; margin:4px 0;">You carry no maps of other realms they would buy.</p>';
+        }
+
         html += '</div>';
         game.ui.showCustomPanel('📜 Map Trader', html);
     },
@@ -1323,6 +1354,25 @@ Object.assign(ActionMenu, {
         } else {
             game.ui.showNotification('Cannot Sell', result.reason, 'error');
         }
+    },
+
+    /**
+     * Sell a map to the royal archive of the realm holding (tileQ, tileR)
+     */
+    sellMapToArchive(game, mapIndex, tileQ, tileR) {
+        const tile = game.world.getTile(tileQ, tileR);
+        const realm = tile && tile.kingdom ? game.world.getKingdom(tile.kingdom) : null;
+        if (!realm) return;
+        if (!ActionMenu.commitPendingAP(game)) return;
+        const result = Cartography.sellMapToArchive(game.player, mapIndex, realm, game.world);
+        if (result.success) {
+            const extra = result.planted > 0 ? ` Its ${result.planted} alteration(s) now sit in ${realm.name}'s war maps.` : '';
+            game.ui.showNotification('Map Sold', `${realm.name}'s archive bought ${result.mapName} for ${result.gold} gold.${extra}`, 'success');
+        } else {
+            game.ui.showNotification(result.caught ? 'Forgery Spotted!' : 'Not Interested', result.reason, 'error');
+        }
+        game.ui.updateStats(game.player, game.world);
+        if (tile) ActionMenu.showMapTradeMenu(game, tile);
     },
 
     /**

@@ -1,6 +1,6 @@
 // UI — panels2 methods.
 import { UI } from './core.js';
-import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, KingdomBonuses } from './_imports.js';
+import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, KingdomBonuses, KingdomAtlas } from './_imports.js';
 
 Object.assign(UI.prototype, {
     /**
@@ -513,6 +513,29 @@ Object.assign(UI.prototype, {
                 </div>
             </div>
         `;
+
+        // Royal cartography (world/kingdomAtlas.js)
+        if (knows('diplomacy') && kingdom.cartography) {
+            const atlas = KingdomAtlas.summary(kingdom, this.game.world);
+            html += `
+            <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                <div class="info-section-title">🧭 Royal Cartography</div>
+                <div class="info-row">
+                    <span class="info-label">Court Cartographer</span>
+                    <span class="info-value">${atlas.hired ? 'Employed' : 'None'}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Maps Drawn</span>
+                    <span class="info-value">${atlas.mapsMade} (charts ${(atlas.accuracy * 100).toFixed(0)}% accurate)</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Charted Realms</span>
+                    <span class="info-value">${atlas.charts.length ? atlas.charts.map(c => c.name).join(', ') : 'None'}</span>
+                </div>
+                <div style="color:#888; font-size:11px; margin-top:6px;">Realms fight better against lands they have charted, and prefer them as war targets.</div>
+            </div>
+            `;
+        }
 
         // Diplomacy
         if (knows('diplomacy')) {

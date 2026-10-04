@@ -21,6 +21,7 @@ import { Banking, Taxation } from '../systems/marketDynamics.js';
 import { Tavern } from '../player/tavern.js';
 import { NPCLords } from '../world/npcLords.js';
 import { KingdomAI } from '../world/kingdomAI.js';
+import { KingdomAtlas } from '../world/kingdomAtlas.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { WorldUnit } from '../world/units.js';
 import { Technology } from '../systems/technology.js';
@@ -340,6 +341,7 @@ export const DataLoader = {
         const cartoData = data['cartography.json'];
         Cartography.QUALITY = cartoData.quality;
         Cartography.MAP_TYPES = cartoData.mapTypes;
+        if (cartoData.kingdomAtlas) Object.assign(KingdomAtlas.CONFIG, cartoData.kingdomAtlas);
 
         // ── Infrastructure ──
         const infraData = data['infrastructure.json'];

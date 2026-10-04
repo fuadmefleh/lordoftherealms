@@ -356,6 +356,23 @@
         "repairCostPerPercent": 0.005,
         "conditionDecayChance": 0.04,
         "shipMovementPerDay": 3,
-        "npcShipBuyChance": 0.02
+        "npcShipBuyChance": 0.02,
+        "crew": {
+            "_doc": "Sailors are hired at ports and paid daily. A ship below its crewRequired sails slower, fights worse and nets fewer fish; below minCrewShare it cannot leave port. Morale rests at restingMorale; storms, defeats and missed wages lower it, victories raise it, and sailors desert when it falls below desertionMorale.",
+            "hireCostPerSailor": 12,
+            "wagePerSailorPerDay": 1,
+            "startingMorale": 70,
+            "restingMorale": 70,
+            "minCrewShare": 0.25,
+            "unpaidMoraleLoss": 15,
+            "desertionMorale": 25,
+            "desertionShare": 0.1,
+            "stormMoraleLoss": 6,
+            "stormOverboardChance": 0.3,
+            "victoryMorale": 6,
+            "victoryLossChance": 0.4,
+            "defeatMoraleLoss": 12,
+            "defeatLossShare": [0.1, 0.25]
+        }
     }
 }

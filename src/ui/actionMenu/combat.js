@@ -8,6 +8,14 @@ function battleExtrasHtml(result) {
     if (result.wounded > 0) {
         html += `<div style="color: #81c784;">🩹 Wounded but saved by your surgeons: ${result.wounded} (half strength for ${PlayerMilitary.WOUNDED_DAYS} days)</div>`;
     }
+    if (result.navalSupport > 0) {
+        html += result.theatre === 'sea'
+            ? `<div style="color: #4fc3f7;">⛵ Your war galleys fought at sea (+${result.navalSupport} strength)</div>`
+            : `<div style="color: #4fc3f7;">⛵ Your war galleys blockaded the harbour (+${result.navalSupport} strength)</div>`;
+    }
+    if (result.shipSupport > 0) {
+        html += `<div style="color: #4fc3f7;">🚢 Your ship joined the fight (+${result.shipSupport} strength)</div>`;
+    }
     if (result.commanderSlain) {
         html += `<div style="color: #ce93d8;">🗡️ Your assassins slew the enemy commander — their ranks broke!</div>`;
     }
@@ -25,7 +33,10 @@ Object.assign(ActionMenu, {
             return;
         }
 
-        const playerStrength = PlayerMilitary.getArmyStrength(game.player);
+        // At a port your war galleys blockade the harbour and add to the assault
+        const theatre = PlayerMilitary.settlementTheatre(game.world, tile);
+        const strengthParts = PlayerMilitary.getTheatreStrengthBreakdown(game.player, theatre);
+        const playerStrength = strengthParts.total;
         const garrisonStrength = PlayerMilitary.getSettlementDefense(settlement, game.world);
         const ratio = playerStrength / Math.max(1, garrisonStrength);
 
@@ -62,6 +73,8 @@ Object.assign(ActionMenu, {
                         <div style="color: #4fc3f7; font-size: 11px; margin-bottom: 4px;">YOUR ARMY</div>
                         <div style="font-size: 24px; font-weight: bold; color: #4fc3f7;">${playerStrength}</div>
                         <div style="font-size: 11px; color: var(--text-secondary);">${game.player.army.length} units</div>
+                        ${strengthParts.naval > 0 ? `<div style="font-size: 11px; color: #4fc3f7;">⛵ incl. ${strengthParts.naval} from galleys blockading the harbour</div>` : ''}
+                        ${theatre === 'land' && PlayerMilitary.getNavalStrength(game.player) > 0 ? '<div style="font-size: 11px; color: var(--text-secondary);">⛵ Inland — your galleys cannot join</div>' : ''}
                     </div>
                     <div style="display: flex; align-items: center; color: var(--text-secondary); font-size: 24px;">⚔️</div>
                     <div style="text-align: center; flex: 1;">
@@ -283,8 +296,12 @@ Object.assign(ActionMenu, {
         let html = '<div style="padding:10px;">';
         html += '<p style="margin-bottom:10px;color:#ccc;">Choose a target to engage in combat:</p>';
 
+        // On the water your galleys (and the ship you're aboard) fight; ashore only soldiers
+        const hereTile = game.world.getTile(game.player.q, game.player.r);
+        const theatre = PlayerMilitary.tileTheatre(hereTile);
+        const playerStr = PlayerMilitary.getTheatreStrength(game.player, theatre);
         for (const unit of unitsOnTile) {
-            const dangerColor = unit.strength > PlayerMilitary.getArmyStrength(game.player) ? '#ff6666' : '#66ff66';
+            const dangerColor = unit.strength > playerStr ? '#ff6666' : '#66ff66';
             html += `<button data-am-act="performAttack" data-am-args='["${unit.id}"]' style="
                 display:flex; align-items:center; gap:10px; width:100%; padding:10px;
                 margin-bottom:8px; background:#2a2a2a; border:1px solid #555;
@@ -299,9 +316,10 @@ Object.assign(ActionMenu, {
             </button>`;
         }
 
-        const playerStr = PlayerMilitary.getArmyStrength(game.player);
         html += `<div style="margin-top:8px; padding:8px; background:#1a1a2e; border-radius:4px; font-size:12px; color:#aaa;">
-            Your army strength: <strong style="color:#4fc3f7;">${playerStr}</strong> (${game.player.army.length} units)
+            Your ${theatre === 'sea' ? 'strength at sea' : 'army strength'}: <strong style="color:#4fc3f7;">${playerStr}</strong> (${game.player.army.length} units)
+            ${theatre === 'land' && PlayerMilitary.getNavalStrength(game.player) > 0 ? '<br>⛵ Your war galleys cannot fight on land.' : ''}
+            ${theatre === 'sea' ? '<br>⛵ At sea your galleys fight at full strength, soldiers from the decks at half.' : ''}
         </div>`;
         html += '</div>';
 
@@ -326,7 +344,7 @@ Object.assign(ActionMenu, {
         let html = '<div style="padding:10px;">';
 
         if (result.noArmy) {
-            html += '<p style="color:#ff6666;">You have no army to fight with! Recruit soldiers first.</p>';
+            html += `<p style="color:#ff6666;">${result.reason || 'You have no army to fight with! Recruit soldiers first.'}</p>`;
         } else if (result.victory) {
             html += `<div style="text-align:center; margin-bottom:10px;">
                 <span style="font-size:48px;">🏆</span>

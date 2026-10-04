@@ -1,6 +1,6 @@
 // PlayerMilitary — recruitment members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
-import { Utils, Technology, House, SettlementServices, PlayerEffects, Peoples } from './_imports.js';
+import { Utils, Technology, House, SettlementServices, PlayerEffects, Peoples, Ships } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -73,7 +73,7 @@ Object.assign(PlayerMilitary, {
     // ──────────── UNIT SPECIAL STATS ────────────
 
     /** Per-type stats beyond strength/upkeep that a recruited unit carries. */
-    UNIT_TRAIT_KEYS: ['siegeBonus', 'defenseBonus', 'rangeBonus', 'speed', 'sightRange',
+    UNIT_TRAIT_KEYS: ['domain', 'siegeBonus', 'defenseBonus', 'rangeBonus', 'speed', 'sightRange',
         'specialAbility', 'commanderKillChance', 'spellPower'],
 
     /** Base sight radius and march speed a Scout's sightRange/speed improve on. */
@@ -152,10 +152,81 @@ Object.assign(PlayerMilitary, {
         return Math.min(2, Math.max(0, Math.floor((speed - PlayerMilitary.BASE_UNIT_SPEED) / 4)));
     },
 
+    // ──────────── NAVAL UNITS & BATTLE THEATRES ────────────
+    // Units with domain "sea" (War Galleys) never fight inland. How much of
+    // each domain fights depends on the theatre (data/military.json →
+    // navalRules.theatreWeights):
+    //   land    — inland battles: soldiers only
+    //   coastal — raids and sieges on a port settlement: galleys blockade
+    //   sea     — fights on the water: galleys at full strength, soldiers
+    //             fight from the decks, and the ship you're aboard joins in
+    // Galleys also escort the player's own ships (Ships.getEscortStrength).
+
+    /** Is this army unit a warship? */
+    isNavalUnit(unit) {
+        return Ships.isNavalUnit(unit);
+    },
+
+    /** Fighting strength of the army's war galleys. */
+    getNavalStrength(player) {
+        return Ships.getSquadronStrength(player);
+    },
+
+    /** The battle theatre for fighting at a settlement: coastal if it's a port. */
+    settlementTheatre(world, tile) {
+        if (!world || typeof world.getTile !== 'function' || !tile || typeof tile.q !== 'number') return 'land';
+        return Ships.isPortTile(world, tile.q, tile.r) ? 'coastal' : 'land';
+    },
+
+    /** The battle theatre for a fight on this tile: sea on water or aboard ship, else land. */
+    tileTheatre(tile, player = null) {
+        if (player && player.boardedShip) return 'sea';
+        return Ships.isWaterTile(tile) ? 'sea' : 'land';
+    },
+
+    /** { land, sea } weights for a theatre. */
+    theatreWeights(theatre = 'land') {
+        const weights = Ships.getNavalRules().theatreWeights;
+        return weights[theatre] || weights.land;
+    },
+
+    /**
+     * Strength the player brings to a battle in `theatre`, split by source.
+     * `ship` is the boarded ship's own fighting strength (sea only).
+     */
+    getTheatreStrengthBreakdown(player, theatre = 'land') {
+        const w = PlayerMilitary.theatreWeights(theatre);
+        const land = Math.floor(PlayerMilitary.getArmyStrength(player) * (w.land || 0));
+        const naval = Math.floor(PlayerMilitary.getNavalStrength(player) * (w.sea || 0));
+        let ship = 0;
+        if (theatre === 'sea' && player.boardedShip) {
+            const boarded = Ships.getShipById(player, player.boardedShip);
+            if (boarded) ship = Ships._getShipCombatStrength(boarded, null);
+        }
+        return { land, naval, ship, total: land + naval + ship };
+    },
+
+    getTheatreStrength(player, theatre = 'land') {
+        return PlayerMilitary.getTheatreStrengthBreakdown(player, theatre).total;
+    },
+
+    /** Army units that take part (and can fall) in a battle in `theatre`. */
+    _theatreParticipant(unit, theatre = 'land') {
+        const w = PlayerMilitary.theatreWeights(theatre);
+        return PlayerMilitary.isNavalUnit(unit) ? (w.sea || 0) > 0 : (w.land || 0) > 0;
+    },
+
     /** Short summary of a unit type's specials, for recruit screens. */
     describeUnitTraits(def) {
         if (!def) return '';
         const parts = [];
+        if (def.domain === 'sea') {
+            const rules = Ships.getNavalRules();
+            parts.push('Sea unit: never fights on land');
+            parts.push(`escorts your ships (+${Math.round(rules.escortShare * 100)}% of its strength in sea fights)`);
+            parts.push(`blockades ports you raid or besiege (+${Math.round((rules.theatreWeights.coastal.sea || 0) * 100)}%)`);
+        }
+        if (def.requiresPort) parts.push('Recruited only at ports');
         if (def.siegeBonus) parts.push(`Siege: +${def.siegeBonus}% army power vs settlements`);
         if (def.defenseBonus) parts.push(`Defending: +${def.defenseBonus / 2.5}% army power`);
         if (def.rangeBonus) parts.push(`Volleys: up to +${def.rangeBonus * 3}% vs melee`);
@@ -242,6 +313,8 @@ Object.assign(PlayerMilitary, {
 
         const comp = { cavalry: 0, archer: 0, pikeman: 0 };
         for (const unit of player.army) {
+            // Warships have no place in a land formation
+            if (PlayerMilitary.isNavalUnit(unit)) continue;
             const role = PlayerMilitary._roleForUnitType(unit.type);
             const levelBonus = 1 + ((unit.level || 1) - 1) * 0.1;
             comp[role] += (unit.strength || 1) * levelBonus;
@@ -384,11 +457,13 @@ Object.assign(PlayerMilitary, {
     /**
      * Check if a unit type is available at a given settlement
      */
-    isUnitAvailable(unit, settlement) {
+    isUnitAvailable(unit, settlement, context = {}) {
         const tierMap = PlayerMilitary.SETTLEMENT_TIER;
         const settTier = tierMap[settlement.type] || 0;
         const reqTier = tierMap[unit.minSettlement || 'village'] || 1;
         if (settTier < reqTier) return { available: false, reason: `Requires ${unit.minSettlement || 'town'} or larger` };
+        // Warships are built and manned at ports (context.isPort, from the caller's world)
+        if (unit.requiresPort && !context.isPort) return { available: false, reason: 'Requires a port (a settlement on the water)' };
         if (unit.minPopulation && (settlement.population || 0) < unit.minPopulation) {
             return { available: false, reason: `Requires population ≥ ${unit.minPopulation}` };
         }
@@ -420,7 +495,7 @@ Object.assign(PlayerMilitary, {
         return Math.round(unit.cost * PlayerEffects.recruitCostMultiplier(player) * peoples);
     },
 
-    recruitUnit(player, unitType, settlement) {
+    recruitUnit(player, unitType, settlement, context = {}) {
         const unit = PlayerMilitary.UNIT_TYPES[unitType.toUpperCase()];
         if (!unit) return { success: false, reason: 'Invalid unit type' };
         const cost = PlayerMilitary.getRecruitCost(player, unit, settlement);
@@ -430,8 +505,8 @@ Object.assign(PlayerMilitary, {
             return { success: false, reason: `Need ${cost} gold (have ${Math.floor(player.gold)})` };
         }
 
-        // Check settlement requirements
-        const avail = PlayerMilitary.isUnitAvailable(unit, settlement);
+        // Check settlement requirements (context.isPort for warships)
+        const avail = PlayerMilitary.isUnitAvailable(unit, settlement, context);
         if (!avail.available) {
             return { success: false, reason: avail.reason };
         }
@@ -459,13 +534,15 @@ Object.assign(PlayerMilitary, {
     },
 
     /**
-     * Calculate total army strength
+     * Calculate total land army strength. War galleys (domain "sea") are
+     * left out — see getNavalStrength / getTheatreStrength.
      */
     getArmyStrength(player) {
         if (!player.army || player.army.length === 0) return 0;
 
         let total = 0;
         for (const unit of player.army) {
+            if (PlayerMilitary.isNavalUnit(unit)) continue;
             let strength = unit.strength;
             // Level bonus
             strength *= (1 + (unit.level - 1) * 0.2);

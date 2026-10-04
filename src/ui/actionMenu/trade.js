@@ -1400,10 +1400,14 @@ Object.assign(ActionMenu, {
         const capacity = PlayerMilitary.getRecruitmentCapacity(settlement);
         const recruited = game.player._recruitedThisTurn || 0;
         const remaining = Math.max(0, capacity - recruited);
+        // Warships are only raised at ports
+        const recruitContext = { isPort: Ships.isPortTile(game.world, tile.q, tile.r) };
+        const navalStrength = PlayerMilitary.getNavalStrength(game.player);
 
         let html = '<div>';
         html += '<h4 style="margin-top: 0;">Recruit Units</h4>';
-        html += `<p style="color: var(--text-secondary); font-size: 12px;">Your army strength: ${PlayerMilitary.getArmyStrength(game.player)}</p>`;
+        html += `<p style="color: var(--text-secondary); font-size: 12px;">Your army strength: ${PlayerMilitary.getArmyStrength(game.player)}`
+            + (navalStrength > 0 ? ` · ⛵ Squadron at sea: ${navalStrength} (escorts your ships, blockades ports)` : '') + '</p>';
         html += `<div style="padding: 6px 10px; margin-bottom: 12px; background: rgba(255,255,255,0.06); border-radius: 4px; font-size: 12px;">
             <span style="color: var(--text-secondary);">${settlement.name}</span> — 
             <strong>${settlement.type}</strong> (pop: ${settlement.population.toLocaleString()}) — 
@@ -1417,7 +1421,7 @@ Object.assign(ActionMenu, {
         }
 
         for (const [key, unit] of Object.entries(PlayerMilitary.UNIT_TYPES)) {
-            const avail = PlayerMilitary.isUnitAvailable(unit, settlement);
+            const avail = PlayerMilitary.isUnitAvailable(unit, settlement, recruitContext);
             if (avail.available) {
                 html += `
                     <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
@@ -1488,9 +1492,11 @@ Object.assign(ActionMenu, {
 
         window.recruitUnit = (unitType) => {
             if (!ActionMenu.commitPendingAP(game)) return;
-            const result = PlayerMilitary.recruitUnit(game.player, unitType, tile.settlement);
+            const result = PlayerMilitary.recruitUnit(game.player, unitType, tile.settlement, recruitContext);
             if (result.success) {
-                game.ui.showNotification('Unit Recruited!', `${result.unit.name} joined your army`, 'success');
+                game.ui.showNotification('Unit Recruited!', result.unit.domain === 'sea'
+                    ? `${result.unit.name} joined your squadron — it escorts your ships and blockades ports, but never fights on land`
+                    : `${result.unit.name} joined your army`, 'success');
                 game.ui.updateStats(game.player, game.world);
                 ActionMenu.showRecruitMenu(game, tile); // Refresh
             } else {

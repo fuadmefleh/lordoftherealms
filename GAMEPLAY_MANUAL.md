@@ -591,6 +591,18 @@ Some unit types carry special stats that ride with every recruit (the recruit sc
 
 Light/Heavy Cavalry and War Elephants fight as cavalry; Longbowmen and Crossbowmen as archers.
 
+#### War Galleys (sea units)
+
+The **War Galley** (350g, 15g/day, strength 20) is a warship, not a soldier. It is recruited only at a **port** (a town or larger on the water) and **never fights on land**: it adds nothing to your land army strength, takes no place in your formation and cannot fall in an inland battle. Where it matters:
+
+| Theatre | When | Who fights |
+|---------|------|-----------|
+| Land | Battles inland, campaigns, raids/sieges of inland settlements | Soldiers only |
+| Coastal | Raiding or besieging a **port** settlement | Soldiers + galleys at 50% (blockading the harbour) |
+| Sea | Fights while you're aboard ship or on the water (pirates, sea raiders) | Galleys at 100%, soldiers at 50% fighting from the decks, plus the ship you're aboard |
+
+Galleys also **escort your ships**: half of the squadron's strength is added to every fight your own ships take on (Hunt Pirates, Turn Pirate, pirate ambushes while exploring). A siege still needs a land army — galleys alone cannot take a town. Weights live in `data/military.json` → `navalRules`.
+
 ### Combat System
 
 #### Formation & Counters
@@ -994,9 +1006,21 @@ Spy loyalty starts at 45–90 and decays at 0.1/day. Below 20 loyalty, there is 
 
 12 upgrades available including Reinforced Hull (+3 armor), Extra Sails (+2 speed), Expanded Cargo (+15 cargo), Deck Ballista (+8 combat), Greek Fire Siphon (+12 combat), and Navigator's Quarters (+3 exploration). Costs range from 50g to 800g.
 
+### Crew
+
+Every ship needs sailors (its **crew** stat). New and used ships come **without a crew** — hire sailors at a port from the ship's management panel (12g each to sign on) and pay them **1g per sailor per day** on top of the ship's upkeep.
+
+- **Short-handed ships** sail slower (50% speed with no crew → 100% fully crewed; at sea each hex costs 2–4 stamina), fight worse (40% → 100% of combat strength) and haul fewer fish with Deep-Sea Nets.
+- Below a **skeleton crew** (a quarter of the crew stat) a ship cannot leave port.
+- **Morale** rests at 70 and scales combat strength (+15% at 100, −35% at 0). Storms at sea shake it and can wash a sailor overboard; a sea fight won lifts it (and may cost a sailor), a defeat costs 10–25% of the crew and a big morale hit. Paid crews recover toward 70, faster in harbour.
+- **Missed wages** (not enough gold) cost 15 morale a day; below 25 morale, 10% of the crew deserts each day.
+- Ships from older saves keep a full crew at morale 70.
+
+Tunables live in `data/ships.json` → `settings.crew`.
+
 ### Naval Travel
 
-Board your ship at coastal settlements to traverse oceans. Sea movement costs 2 stamina per tile. Random exploration events can occur at sea: floating cargo, uncharted islands, sea monsters, pirate ambushes, and more.
+Board your ship at coastal settlements to traverse oceans. Sea movement costs 2 stamina per tile with a full crew (more when short-handed). Random exploration events can occur at sea: floating cargo, uncharted islands, sea monsters, pirate ambushes, and more.
 
 ### Landing Ashore
 

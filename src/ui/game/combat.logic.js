@@ -23,7 +23,12 @@ import { PlayerEffects } from '../../player/playerEffects.js';
  *            result?:object}}
  */
 export function resolveHostileEncounter(player, attacker, world) {
-    const playerArmySize = player.army ? player.army.length : 0;
+    // Can anything of the player's fight here? Galleys can't defend you on
+    // land; aboard ship your vessel and squadron can
+    const here = world && typeof world.getTile === 'function' && typeof player.q === 'number'
+        ? world.getTile(player.q, player.r) : null;
+    const theatre = PlayerMilitary.tileTheatre(here, player);
+    const playerArmySize = PlayerMilitary.getTheatreStrength(player, theatre) > 0 ? (player.army || []).length || 1 : 0;
 
     if (playerArmySize === 0 && (attacker.type === 'beast' || attacker.type === 'monster')) {
         // --- No army vs. a creature: mauled, nothing stolen ---

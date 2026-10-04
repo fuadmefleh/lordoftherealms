@@ -10,6 +10,7 @@ import { Infrastructure } from '../../systems/infrastructure.js';
 import { Titles } from '../../systems/titles.js';
 import { Technology } from '../../systems/technology.js';
 import { Housing } from '../../systems/housing.js';
+import { Ships } from '../../systems/ships.js';
 import { PlayerMilitary } from '../playerMilitary.js';
 
 export const PlayerMovementMethods = {
@@ -104,11 +105,15 @@ export const PlayerMovementMethods = {
     },
 
     /**
-     * Stamina cost to enter a tile — sailing is a flat 2 per hex. On foot it's
+     * Stamina cost to enter a tile — sailing is 2 per hex (up to 4 when short-handed). On foot it's
      * terrain/roads plus the river-fording penalty (unless bridged).
      */
     _hexMoveCost(tile) {
-        if (this.boardedShip) return 2;
+        if (this.boardedShip) {
+            // 2 per hex fully crewed; a short-handed ship is slower going
+            const ship = Ships.getShipById(this, this.boardedShip);
+            return ship ? Ships.getSailHexCost(ship) : 2;
+        }
         return (typeof Infrastructure !== 'undefined') ? Infrastructure.getPlayerMoveCost(tile, this) : tile.terrain.moveCost;
     },
 

@@ -199,7 +199,17 @@ export function endDay() {
                     let text = `${rep.name} was caught in a ${wx.name.toLowerCase()} at sea (hull −${rep.damage}%).`;
                     if (rep.delayed) text += ' The voyage is held back a day.';
                     if (rep.cargoLost) text += ` ${rep.cargoLost.qty} ${rep.cargoLost.good} washed overboard.`;
+                    if (rep.crewLost) text += ' A sailor was lost overboard.';
                     this.ui.showNotification(`${wx.icon} Storm at Sea`, text, 'warning');
+                }
+                const crewDay = shipDay && shipDay.crew;
+                if (crewDay && !crewDay.paid) {
+                    this.ui.showNotification('👥 Wages Unpaid',
+                        `You couldn't pay your sailors ${crewDay.wages}g today. Their morale is falling — unpaid crews desert.`, 'warning');
+                }
+                for (const d of (crewDay && crewDay.deserted) || []) {
+                    this.ui.showNotification('👥 Desertion',
+                        `${d.count} sailor${d.count === 1 ? '' : 's'} deserted the ${d.name} — morale had collapsed.`, 'error');
                 }
                 // Check for completed builds or arrived ships
                 for (const before of shipsBefore) {

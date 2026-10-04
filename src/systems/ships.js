@@ -152,7 +152,9 @@ export const Ships = {
                 ? Hex.wrappingDistance(q, r, ship.q, ship.r, world.width)
                 : Hex.distance(q, r, ship.q, ship.r);
             if (dist > 1) continue;
-            best = Math.max(best, this.getShipEffectiveStats(ship).effects.fishingBonus || 0);
+            // Nets need hands to haul them: a short-handed ship nets fewer fish
+            const nets = this.getShipEffectiveStats(ship).effects.fishingBonus || 0;
+            best = Math.max(best, Math.floor(nets * this.getCrewRatio(ship)));
         }
         return best;
     },
@@ -238,7 +240,248 @@ export const Ships = {
         const base = this.getShipEffectiveStats(ship).speed;
         // The Astrolabe of Tides reads the currents for you
         const relic = player ? 1 + LegendaryArtifacts.getPassiveTotal(player, 'shipSpeed') : 1;
-        return Math.max(1, Math.round(base * relic * (player ? Technology.getSailingSpeedMultiplier(player) : 1)));
+        // Too few hands on the oars and sheets: an undercrewed ship is slower
+        const crew = this.getCrewSpeedFactor(ship);
+        return Math.max(1, Math.round(base * relic * crew * (player ? Technology.getSailingSpeedMultiplier(player) : 1)));
+    },
+
+    /* ── Crew ────────────────────────────────────────────────── */
+    // Ships need sailors (crewRequired). They are hired at ports and paid a
+    // daily wage. A short-handed ship sails slower, fights worse and nets
+    // fewer fish; below a skeleton crew it cannot leave port. Morale rests
+    // at restingMorale; storms, defeats and missed wages lower it, victories
+    // raise it, and sailors desert a ship whose morale falls too low.
+    // Ships from older saves have no crew fields — they count as fully
+    // crewed at resting morale (and restoreFromSave writes that in).
+
+    _getCrewSettings() {
+        const c = this._getSettings().crew || {};
+        return {
+            hireCostPerSailor: 12,
+            wagePerSailorPerDay: 1,
+            startingMorale: 70,
+            restingMorale: 70,
+            minCrewShare: 0.25,
+            unpaidMoraleLoss: 15,
+            desertionMorale: 25,
+            desertionShare: 0.1,
+            stormMoraleLoss: 6,
+            stormOverboardChance: 0.3,
+            victoryMorale: 6,
+            victoryLossChance: 0.4,
+            defeatMoraleLoss: 12,
+            defeatLossShare: [0.1, 0.25],
+            ...c,
+        };
+    },
+
+    /** Sailors aboard (legacy ships without the field are fully crewed). */
+    getCrew(ship) {
+        if (ship && Number.isFinite(ship.crew)) return ship.crew;
+        return this.getShipEffectiveStats(ship || {}).crewRequired;
+    },
+
+    getMorale(ship) {
+        if (ship && Number.isFinite(ship.morale)) return ship.morale;
+        return this._getCrewSettings().restingMorale;
+    },
+
+    /** Share of the required crew aboard, 0..1. */
+    getCrewRatio(ship) {
+        const need = this.getShipEffectiveStats(ship).crewRequired;
+        return Math.max(0, Math.min(1, this.getCrew(ship) / need));
+    },
+
+    /** Skeleton crew needed to leave port at all. */
+    getMinCrew(ship) {
+        const need = this.getShipEffectiveStats(ship).crewRequired;
+        return Math.max(1, Math.ceil(need * this._getCrewSettings().minCrewShare));
+    },
+
+    /** Why this ship cannot sail, or null if it can. */
+    crewSailReason(ship) {
+        const min = this.getMinCrew(ship);
+        if (this.getCrew(ship) >= min) return null;
+        return `${ship.name} needs at least ${min} sailors to leave port (has ${this.getCrew(ship)}). Hire crew at a port.`;
+    },
+
+    /** Speed multiplier: half speed with no crew, full speed fully crewed. */
+    getCrewSpeedFactor(ship) {
+        return 0.5 + 0.5 * this.getCrewRatio(ship);
+    },
+
+    /**
+     * Fighting multiplier: 40% with no crew, 100% fully crewed, scaled by
+     * morale around its resting value (100 morale: +15%, 0 morale: −35%).
+     */
+    getCrewCombatFactor(ship) {
+        const s = this._getCrewSettings();
+        const moraleMult = Math.max(0.5, 1 + (this.getMorale(ship) - s.restingMorale) / 200);
+        return (0.4 + 0.6 * this.getCrewRatio(ship)) * moraleMult;
+    },
+
+    /** Stamina per hex while the player sails the ship: 2 fully crewed, up to 4 short-handed. */
+    getSailHexCost(ship) {
+        return Math.round(2 / this.getCrewSpeedFactor(ship));
+    },
+
+    /** Daily wages for the sailors aboard. */
+    getDailyWages(ship) {
+        return Math.round(this.getCrew(ship) * this._getCrewSettings().wagePerSailorPerDay);
+    },
+
+    /** Gold to sign on `count` sailors. */
+    getHireCost(count) {
+        return Math.max(0, Math.floor(count)) * this._getCrewSettings().hireCostPerSailor;
+    },
+
+    /** Write explicit crew fields onto a ship (backfill for older saves). */
+    _ensureCrew(ship) {
+        if (!Number.isFinite(ship.crew)) ship.crew = this.getCrew(ship);
+        if (!Number.isFinite(ship.morale)) ship.morale = this.getMorale(ship);
+    },
+
+    _setMorale(ship, value) {
+        ship.morale = Math.max(0, Math.min(100, Math.round(value)));
+    },
+
+    /**
+     * Hire sailors for a ship docked at a port on the player's hex. `count`
+     * defaults to filling every empty berth. New hands join at starting
+     * morale, which blends into the ship's morale.
+     */
+    hireCrew(player, world, shipId, count = Infinity) {
+        const ship = this.getShipById(player, shipId);
+        if (!ship) return { success: false, message: 'Ship not found.' };
+        if (ship.status !== 'docked' || ship.q !== player.q || ship.r !== player.r) {
+            return { success: false, message: 'Your ship must be docked where you stand.' };
+        }
+        if (!world || !this.isPortTile(world, ship.q, ship.r)) {
+            return { success: false, message: 'Sailors sign on at ports, not on open coast.' };
+        }
+        this._ensureCrew(ship);
+        const open = this.getShipEffectiveStats(ship).crewRequired - ship.crew;
+        if (open <= 0) return { success: false, message: `${ship.name} is fully crewed.` };
+        let n = Math.min(open, Math.max(0, Math.floor(count)));
+        const each = this._getCrewSettings().hireCostPerSailor;
+        n = Math.min(n, Math.floor((player.gold || 0) / each));
+        if (n <= 0) return { success: false, message: `Not enough gold. Each sailor costs ${each}g to sign on.` };
+
+        const cost = this.getHireCost(n);
+        player.gold -= cost;
+        const s = this._getCrewSettings();
+        this._setMorale(ship, (ship.morale * ship.crew + s.startingMorale * n) / (ship.crew + n));
+        ship.crew += n;
+        if (player.financeToday) {
+            player.financeToday.expenses.crewWages = (player.financeToday.expenses.crewWages || 0) + cost;
+        }
+        return { success: true, hired: n, cost, message: `Signed on ${n} sailor${n === 1 ? '' : 's'} for ${ship.name} (${cost}g).` };
+    },
+
+    /** Pay off sailors from a docked ship to save on wages. */
+    dismissCrew(player, shipId, count = 1) {
+        const ship = this.getShipById(player, shipId);
+        if (!ship) return { success: false, message: 'Ship not found.' };
+        if (ship.status !== 'docked') return { success: false, message: 'Ship must be docked to pay off crew.' };
+        this._ensureCrew(ship);
+        const n = Math.min(ship.crew, Math.max(0, Math.floor(count)));
+        if (n <= 0) return { success: false, message: 'No crew to dismiss.' };
+        ship.crew -= n;
+        return { success: true, dismissed: n, message: `Paid off ${n} sailor${n === 1 ? '' : 's'} from ${ship.name}.` };
+    },
+
+    /**
+     * Board a docked ship to sail it yourself. Needs a skeleton crew.
+     */
+    boardShip(player, shipId) {
+        const ship = this.getShipById(player, shipId);
+        if (!ship) return { success: false, message: 'Ship not found.' };
+        if (ship.status !== 'docked') return { success: false, message: 'Ship must be docked to board.' };
+        const noCrew = this.crewSailReason(ship);
+        if (noCrew) return { success: false, message: noCrew };
+        player.boardedShip = shipId;
+        ship.status = 'at_sea';
+        return { success: true, ship };
+    },
+
+    /**
+     * Crew after a sea fight: a win lifts morale and may cost a sailor; a
+     * defeat costs 10–25% of the crew and a big morale hit.
+     * Returns { lost, moraleChange } and a short text for the battle report.
+     */
+    _crewAfterBattle(ship, won) {
+        this._ensureCrew(ship);
+        const s = this._getCrewSettings();
+        const before = ship.morale;
+        let lost = 0;
+        if (won) {
+            if (ship.crew > 1 && Utils.random() < s.victoryLossChance) lost = 1;
+            this._setMorale(ship, ship.morale + s.victoryMorale);
+        } else {
+            const [lo, hi] = s.defeatLossShare;
+            lost = Math.min(ship.crew, Math.ceil(ship.crew * Utils.randFloat(lo, hi)));
+            this._setMorale(ship, ship.morale - s.defeatMoraleLoss);
+        }
+        ship.crew -= lost;
+        const moraleChange = ship.morale - before;
+        const text = lost > 0 ? ` ${lost} sailor${lost === 1 ? '' : 's'} lost.` : '';
+        return { lost, moraleChange, text };
+    },
+
+    /* ── Naval squadron (War Galleys in the army) ────────────── */
+    // Army units whose domain is "sea" (data/military.json → War Galley) never
+    // fight inland. They escort the player's own ships (escortShare of their
+    // strength joins every sea fight) and, through PlayerMilitary, blockade
+    // coastal settlements and fight at full strength on the water.
+
+    getNavalRules() {
+        const rules = (typeof DataLoader !== 'undefined' && DataLoader.military && DataLoader.military.navalRules) || {};
+        return {
+            theatreWeights: {
+                land: { land: 1, sea: 0 },
+                coastal: { land: 1, sea: 0.5 },
+                sea: { land: 0.5, sea: 1 },
+                ...(rules.theatreWeights || {}),
+            },
+            escortShare: Number.isFinite(rules.escortShare) ? rules.escortShare : 0.5,
+        };
+    },
+
+    /** Is this army unit a warship (domain "sea")? Older saves fall back to the unit type's data. */
+    isNavalUnit(unit) {
+        if (!unit) return false;
+        if (unit.domain) return unit.domain === 'sea';
+        const defs = (typeof DataLoader !== 'undefined' && DataLoader.military && DataLoader.military.unitTypes) || {};
+        const def = Object.values(defs).find(d => d && d.id === unit.type);
+        return !!(def && def.domain === 'sea');
+    },
+
+    /** The army's warships. */
+    getSquadron(player) {
+        return ((player && player.army) || []).filter(u => this.isNavalUnit(u));
+    },
+
+    /**
+     * Fighting strength of the war-galley squadron: level, wounds, the
+     * commander's combat skill and Naval Warfare drill all count.
+     */
+    getSquadronStrength(player) {
+        const squadron = this.getSquadron(player);
+        if (squadron.length === 0) return 0;
+        const skill = 1 + ((player.skills && player.skills.combat) || 0) * 0.1;
+        const drill = 1 + Technology.getEffectTotal(player, 'navalCombatBonus');
+        let total = 0;
+        for (const unit of squadron) {
+            let s = (unit.strength || 0) * (1 + ((unit.level || 1) - 1) * 0.2);
+            if (unit.woundedDays > 0) s *= 0.5;
+            total += s;
+        }
+        return Math.floor(total * skill * drill);
+    },
+
+    /** Strength the squadron adds to each of the player's own ship fights. */
+    getEscortStrength(player) {
+        return Math.floor(this.getSquadronStrength(player) * this.getNavalRules().escortShare);
     },
 
     /* ── Used ships for sale ─────────────────────────────────── */
@@ -306,6 +549,8 @@ export const Ships = {
             condition: used.condition,
             customizations: [],
             cargo: {},
+            crew: 0, // the old crew is long gone — hire sailors at a port
+            morale: this._getCrewSettings().startingMorale,
             dockedAt: tile && tile.settlement ? tile.settlement.name : 'Unknown',
             purchaseDay: world ? world.day : 0,
         };
@@ -319,7 +564,10 @@ export const Ships = {
         }
 
         const st = this.getShipType(used.typeId);
-        return { success: true, message: `Purchased ${used.name} (${st ? st.name : 'ship'}) for ${used.price}g!` };
+        return {
+            success: true,
+            message: `Purchased ${used.name} (${st ? st.name : 'ship'}) for ${used.price}g! She has no crew — hire sailors here before you sail.`,
+        };
     },
 
     /* ── Commissioning a new ship ────────────────────────────── */
@@ -362,6 +610,8 @@ export const Ships = {
             condition: 100,
             customizations: validCustoms,
             cargo: {},
+            crew: 0, // hire sailors at a port before she can sail
+            morale: this._getCrewSettings().startingMorale,
             dockedAt: tile.settlement.name,
             buildDaysLeft: st.buildDays,
             purchaseDay: world.day || 0,
@@ -375,7 +625,7 @@ export const Ships = {
 
         return {
             success: true,
-            message: `Commissioned ${st.icon} ${ship.name} for ${totalCost}g. Ready in ${st.buildDays} days.`
+            message: `Commissioned ${st.icon} ${ship.name} for ${totalCost}g. Ready in ${st.buildDays} days — hire ${this.getShipEffectiveStats(ship).crewRequired} sailors at a port to crew her.`
         };
     },
 
@@ -486,6 +736,8 @@ export const Ships = {
         const ship = this.getShipById(player, shipId);
         if (!ship) return { success: false, message: 'Ship not found.' };
         if (ship.status !== 'docked') return { success: false, message: 'Ship must be docked to move.' };
+        const noCrewMove = this.crewSailReason(ship);
+        if (noCrewMove) return { success: false, message: noCrewMove };
 
         const dist = Hex.distance(ship.q, ship.r, destQ, destR);
         const speed = this.getSailingSpeed(player, ship);
@@ -506,6 +758,8 @@ export const Ships = {
         const ship = this.getShipById(player, shipId);
         if (!ship) return { success: false, message: 'Ship not found.' };
         if (ship.status !== 'docked') return { success: false, message: 'Ship must be docked.' };
+        const noCrew = this.crewSailReason(ship);
+        if (noCrew) return { success: false, message: noCrew };
 
         const st = this.getShipType(ship.typeId);
         const dist = Hex.distance(ship.q, ship.r, destQ, destR);
@@ -798,8 +1052,10 @@ export const Ships = {
                     : event.danger.combatStrength;
                 const shipStr = this._getShipCombatStrength(ship, player);
 
-                if (shipStr * (0.8 + Utils.random() * 0.4) > enemyStr * (0.8 + Utils.random() * 0.4)) {
-                    resultText += ' You fought and won!';
+                const won = shipStr * (0.8 + Utils.random() * 0.4) > enemyStr * (0.8 + Utils.random() * 0.4);
+                const crewToll = this._crewAfterBattle(ship, won);
+                if (won) {
+                    resultText += ' You fought and won!' + crewToll.text;
                     resultType = 'success';
                     Quests.track(player, 'battles_won');
                     if (event.id === 'sea_monster') Quests.track(player, 'special_creatures_defeated');
@@ -810,7 +1066,7 @@ export const Ships = {
                     // Give rewards
                     if (event.reward) this._applyReward(player, event.reward, ship);
                 } else {
-                    resultText += ' You were overwhelmed!';
+                    resultText += ' You were overwhelmed!' + crewToll.text;
                     resultType = 'error';
                     const dmg = event.danger.damage
                         ? (Array.isArray(event.danger.damage)
@@ -864,6 +1120,7 @@ export const Ships = {
         const playerPower = shipStr * (0.8 + Utils.random() * 0.4);
         const enemyPower = enemyStrength * (0.8 + Utils.random() * 0.4);
 
+        const crewToll = this._crewAfterBattle(ship, playerPower > enemyPower);
         if (playerPower > enemyPower) {
             Quests.track(player, 'battles_won');
             Quests.track(player, 'raiders_defeated');
@@ -889,7 +1146,7 @@ export const Ships = {
                 success: true,
                 icon: '⚔️',
                 title: `Victory! Defeated pirates (str ${enemyStrength}) and claimed ${loot}g bounty! +3 renown, +2 karma.` +
-                    (prize ? ` Your boarders seized their ship — sold as a prize for ${prize}g!` : ''),
+                    (prize ? ` Your boarders seized their ship — sold as a prize for ${prize}g!` : '') + crewToll.text,
                 type: 'success',
                 prize,
             };
@@ -900,7 +1157,7 @@ export const Ships = {
             return {
                 success: true,
                 icon: '💀',
-                title: `Defeated! The pirates were too strong (str ${enemyStrength}). Ship took ${dmg}% damage.`,
+                title: `Defeated! The pirates were too strong (str ${enemyStrength}). Ship took ${dmg}% damage.${crewToll.text}`,
                 type: 'error'
             };
         }
@@ -934,6 +1191,7 @@ export const Ships = {
         const playerPower = shipStr * (0.8 + Utils.random() * 0.4);
         const targetPower = targetStr * (0.8 + Utils.random() * 0.4);
 
+        const crewToll = this._crewAfterBattle(ship, playerPower > targetPower);
         if (playerPower > targetPower) {
             // Boarding planks strip the prize more thoroughly
             const loot = Math.floor((goldRange[0] + Math.floor(Utils.random() * (goldRange[1] - goldRange[0]))) * (1 + (fx.captureBonus || 0)));
@@ -956,7 +1214,7 @@ export const Ships = {
             return {
                 success: true,
                 icon: '🏴‍☠️',
-                title: `Plundered a merchant vessel for ${loot}g! -${karmaLoss} karma, -${renownLoss} renown. Your reputation suffers.`,
+                title: `Plundered a merchant vessel for ${loot}g! -${karmaLoss} karma, -${renownLoss} renown. Your reputation suffers.${crewToll.text}`,
                 type: 'warning'
             };
         } else {
@@ -966,7 +1224,7 @@ export const Ships = {
             return {
                 success: true,
                 icon: '💀',
-                title: `The merchant fought back hard! Failed to board. Ship took ${dmg}% damage.`,
+                title: `The merchant fought back hard! Failed to board. Ship took ${dmg}% damage.${crewToll.text}`,
                 type: 'error'
             };
         }
@@ -1110,6 +1368,15 @@ export const Ships = {
                     if (ship.cargo[good] <= 0) delete ship.cargo[good];
                     report.cargoLost = { good, qty: lost };
                 }
+                // The crew is shaken, and a sailor may go over the side
+                this._ensureCrew(ship);
+                const crewCfg = this._getCrewSettings();
+                this._setMorale(ship, ship.morale - Math.round(crewCfg.stormMoraleLoss * storm.danger));
+                report.crewLost = 0;
+                if (ship.crew > 0 && Utils.random() < crewCfg.stormOverboardChance * storm.danger) {
+                    ship.crew -= 1;
+                    report.crewLost = 1;
+                }
                 stormReports.push(report);
             }
 
@@ -1159,7 +1426,50 @@ export const Ships = {
                 player.financeToday.expenses.ships = (player.financeToday.expenses.ships || 0) + totalUpkeep;
             }
         }
-        return { stormReports };
+
+        const crew = this._payCrews(player, ships);
+        return { stormReports, crew };
+    },
+
+    /**
+     * Pay every crew its daily wage, then settle morale: paid crews drift
+     * back toward resting morale (faster in harbour), unpaid crews sour, and
+     * a share of any crew whose morale has collapsed deserts.
+     * Returns { wages, paid, deserted: [{ shipId, name, count }] }.
+     */
+    _payCrews(player, ships) {
+        const cfg = this._getCrewSettings();
+        let wages = 0;
+        for (const ship of ships) {
+            this._ensureCrew(ship);
+            wages += this.getDailyWages(ship);
+        }
+        const paid = wages <= 0 || (player.gold || 0) >= wages;
+        if (paid && wages > 0) {
+            player.gold -= wages;
+            if (player.financeToday) {
+                player.financeToday.expenses.crewWages = (player.financeToday.expenses.crewWages || 0) + wages;
+            }
+        }
+
+        const deserted = [];
+        for (const ship of ships) {
+            if (ship.crew <= 0) continue;
+            if (!paid) {
+                this._setMorale(ship, ship.morale - cfg.unpaidMoraleLoss);
+            } else if (ship.morale < cfg.restingMorale) {
+                // Shore leave in a harbour mends spirits faster than the open sea
+                this._setMorale(ship, Math.min(cfg.restingMorale, ship.morale + (ship.status === 'docked' ? 3 : 1)));
+            } else if (ship.morale > cfg.restingMorale) {
+                this._setMorale(ship, ship.morale - 1);
+            }
+            if (ship.morale < cfg.desertionMorale) {
+                const count = Math.min(ship.crew, Math.max(1, Math.ceil(ship.crew * cfg.desertionShare)));
+                ship.crew -= count;
+                deserted.push({ shipId: ship.id, name: ship.name, count });
+            }
+        }
+        return { wages, paid, deserted };
     },
 
     /**
@@ -1192,7 +1502,11 @@ export const Ships = {
         if (navalBonus > 0) strength *= 1 + navalBonus;
 
         // Condition penalty
-        strength = Math.floor(strength * (ship.condition / 100));
+        strength *= ship.condition / 100;
+        // Short-handed or demoralised crews fight worse
+        strength = Math.floor(strength * this.getCrewCombatFactor(ship));
+        // War galleys in the army sail alongside as escorts
+        if (player) strength += this.getEscortStrength(player);
         return Math.max(1, strength);
     },
 
@@ -1253,6 +1567,13 @@ export const Ships = {
     },
 
     restoreFromSave(player) {
+        // Saves from before crews existed: those ships sailed fully manned,
+        // so they keep a full crew at resting morale
+        for (const ship of player.ships || []) this._ensureCrew(ship);
+        // ...and their war galleys learn they belong at sea
+        for (const unit of player.army || []) {
+            if (!unit.domain && this.isNavalUnit(unit)) unit.domain = 'sea';
+        }
         if (player.ships && player.ships.length > 0) {
             let maxId = 0;
             for (const s of player.ships) {

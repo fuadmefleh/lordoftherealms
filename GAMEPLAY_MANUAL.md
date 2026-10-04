@@ -26,6 +26,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 15. [Ships & Naval](#15-ships--naval)
 16. [Kingdoms & Diplomacy](#16-kingdoms--diplomacy)
 17. [Titles & Royal Office](#17-titles--royal-office)
+    - [Claims & Crowns: the Path to the Throne](#claims--crowns-the-path-to-the-throne)
 18. [Relationships & Dynasty](#18-relationships--dynasty)
 19. [Culture](#19-culture)
 20. [Colonization](#20-colonization)
@@ -1540,6 +1541,90 @@ After pledging allegiance to a kingdom, you can seek appointment to royal office
 Each title comes with unique perks — the Tax Collector earns 15–40g per collection, the Marshal gets −15% military costs, and the Chancellor receives +25% salary bonuses on all other titles and +10% on taxes from settlements you rule.
 
 Failing to fulfill your duties risks demotion.
+
+### Claims & Crowns: the Path to the Throne
+
+Serving a crown is not the end of the road. Open **Dynasty → 👑 Claims & Crowns** (or the **Claims & Crowns** action at any settlement once you have business there) to see your claims, the succession crises in the world, your war for a throne, and the realm you rule. Tunables live in `data/throne.json`.
+
+#### Earning a claim
+
+A claim on a kingdom's throne has a **strength** from 0 to 100, the sum of its sources: **Weak** (under 25), **Fair** (25+), **Strong** (50+), **Ironclad** (75+).
+
+| Source | Strength | How |
+|--------|----------|-----|
+| 💍 Royal marriage | 30, +8 per child (up to +24) | **Royal match** (20 Prestige + 500g dowry, 20+ reputation with the realm): the eldest unwed prince or princess (16+) of the ruling house is promised to you and waits at the capital, already fond of you (70 affection). Court and wed them there as usual. |
+| 📜 Forged documents | +15 each, up to 30 | 300g and an idle spy. The chance is 40%, +10% per spy level above 1, +2% per point of Stealth (5–90%). A caught forgery costs −15 reputation with the realm, −10 spy loyalty and +5 rival feud. |
+| 🏛️ Royal office | 10 / 20 / 30 | Hold an office in your liege's realm long enough: an Official office 360 days (10), a Lord's office 240 days (20), Chancellor 180 days (30). |
+| ⚔️ Conquest | 35 | Storm a living kingdom's capital (the court flees to another town). |
+| 🛡️ Heralds and genealogists | +15 each, up to 30 | 30 Prestige. |
+
+Claims on a realm that falls lapse.
+
+#### Succession crises
+
+When an AI ruler dies, the succession may be contested. The chance depends on who inherits: a **regent** (spouse) 60%, a **distant relative** 80%, a **young heir** (under 20) 35%, an already **disputed** succession 100%, an ordinary heir 8%. A restless realm is likelier to split: ×(1 + (50 − stability) ÷ 100). A crisis lasts **60 days** and costs the realm −10 stability while it runs.
+
+Two claimants contend: the incumbent (support 35–60, by how the throne passed) and a rival of the blood (25–45). You may back **one** of them:
+
+- **Gold:** 200g or more, +1 support per 50g.
+- **Prestige:** 10 Prestige for +12 support.
+- **Fight for them** (2 AP): battle a vanguard of about 8% of the realm's army (20–400). A win adds +15 support.
+
+When the crisis ends, the winner is drawn by support. If your claimant wins you get your gold back ×1.5 plus 200g, +30 reputation and +15 Prestige; if not, −20 reputation. A victorious rival takes the throne. If you hold a claim on that throne yourself, you may **press it** during the crisis instead, and the realm leans your way (+15 appeal).
+
+#### Pressing a claim: civil war
+
+With a claim of **25+**, a land army of **40+** strength and **300g**, you can **raise your banners**. If you were sworn to that crown, your oath is broken and you resign any office.
+
+Every town and every great lord of the royal council chooses a side, by your **appeal**:
+
+- claim strength ×0.5, reputation with the realm ×0.25, Prestige ÷ 5 (up to +15),
+- the ruler's opinion of you ×0.3 (±15; it includes your court rulings and marriage ties) and your earned traits (±10),
+- unrest: (60 − stability) ×0.3, a succession crisis +15, your army ÷ 20 (up to +15),
+- minus 35 for loyalty to the crown.
+
+A town adds its own local temper (±12), +0.5 per hex from the capital (up to +10) and +8 if you own a property or house there. The capital stands 25 firmer, and the court holds it at the outset whatever its mood: it falls last. A great lord adds his own temper (±10), minus half his loyalty above 50. Anyone above zero rises for you. Each claim card shows today's forecast, town by town and lord by lord.
+
+The civil war:
+
+- **Levies.** The rebel towns bring 80% of their share of the royal army, taken from the crown. Starting **momentum** is (rebel share − 50%) × 60, +3 per great lord who joins you.
+- **Loyalist war hosts** march on your holdings, as in any war against you (§16). Each host you break adds half its war score to your momentum (+15); a holding lost costs −10.
+- **Field battles** about one day in three. Your odds are (levies + your army) against 60% of the loyalist army, ± momentum ÷ 400 (10–90%). A win gives +6 momentum, costs the loyalists 5% of their army, and 35% of the time a loyalist town declares for you (the capital last). A loss gives −6 momentum, costs 7% of your levies, and a town may go back to the crown.
+- **Lead the assault yourself** (2 AP): fight a loyalist vanguard (8% of their army). A win gives +10 momentum and turns a town; a loss gives −8.
+- The realm drifts toward whoever holds more of it, by (rebel share − 45%) × 2 a day, and loses 15 stability while the war lasts.
+- A war for a throne can't be bought off or ended by demanding peace.
+
+**Victory** comes at momentum **100**, or when every town (the capital last) has declared for you: you are crowned (King or Queen), with +50 Prestige, +60 renown and reputation of at least 50. The rebel levies rejoin the royal army.
+
+**Defeat** comes at momentum **−100**, after 10 days with almost no levies (under 10) and no army (under 20), or if you **abandon the claim**. After 360 days the war ends either way: momentum 30+ wins the crown, anything less loses. Defeat means **exile**: the claim is gone, −30 Prestige, reputation with the realm falls to −80 or lower, and for 360 days you can't seek or press a claim there.
+
+#### Ruling a realm
+
+As ruler you are the realm's sovereign, and the crown passes to your heir with the House. From Claims & Crowns:
+
+- **The royal levy.** Each day you take a share of what the royal treasury gained since the day before: 8% (light taxes), 15% (standard) or 25% (heavy), at most 400g a day and never below a 500g reserve. A day of war spending or tribute paid brings nothing. It shows in your finances as *royal levy*.
+- **Policies** feed the kingdom's AI (through its bonuses):
+
+| Policy | Option | Effect |
+|--------|--------|--------|
+| Taxes | 🍃 Light | −10% tax income, +6 stability, levy 8% |
+| | ⚖️ Standard | levy 15% |
+| | 💰 Heavy | +10% tax income, −8 stability, levy 25% |
+| War stance | 🕊️ Seek peace | The AI declares no wars, and each day there is a 5% chance per war that your envoys win peace. +3 stability, +10% diplomacy |
+| | 🛡️ Defensive (default) | The AI declares no wars without you. +5% defense |
+| | ⚔️ Aggressive | The AI may declare war as it likes. +5% battle, −3 stability |
+| Faith | 🤝 Tolerant | +3 stability, −10% faith, +5% trade |
+| | 🙏 Devout (default) | No change |
+| | 🔥 Zealous | +20% faith, +5% loyalty, −3 stability |
+
+- **Diplomacy as the realm:** declare war (not on allies, not during a truce); propose peace (35% + 25% × (your army ÷ theirs − 1), 10–90%; a refusal closes their door for 10 days); propose an alliance (both crowns at 40+ relations; relations rise to 75); send royal gifts (300g from the treasury: their relations +10, yours +5).
+- **Abdicate**, and a ruler of the old dynasty takes the throne.
+
+Your stand-in on the throne never dies of NPC old age or court events. If the realm is conquered, the crown is lost.
+
+#### Founding your own kingdom
+
+Instead of taking a throne, you may make one. Hold **3+ settlements** (your colonies, including towns you conquered while unsworn) and have **50+ Prestige**, then use **Form Kingdom** (6 AP) at one of them. It costs 25 Prestige and earns +50 when the realm is proclaimed. The new kingdom is a full kingdom: its capital is that settlement, its land is your settlements and the free (or old liege's) land around them, and it has an army of max(80, 7% of its people), a treasury of max(800, 20% of your gold), a royal council, the faith of its seat, a fleet if it has ports, and the traits Orderly and Mercantile. Seceding from your liege costs −25 reputation with them and −3 karma, and they start out hostile. You rule it exactly as above.
 
 ---
 

@@ -3,7 +3,7 @@ import { PlayerMilitary } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
 import { Companions } from '../../systems/companions.js';
 import { Underworld } from '../../systems/underworld.js';
-import { Utils, Technology, House, Quests, RealmWars, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS } from './_imports.js';
+import { Utils, Technology, House, Quests, RealmWars, Throne, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -540,6 +540,10 @@ Object.assign(PlayerMilitary, {
             });
             // Taking a kingdom's settlement inflames its rival House.
             House.accrueRivalFeud(player, world, previousKingdom, 25, `conquered ${settlement.name}`);
+            // Storming a living realm's capital gives a claim on its throne
+            if (result.capitalCaptured && !result.kingdomDestroyed && previousKingdom) {
+                result.throneClaim = Throne.onCapitalCaptured(player, world, previousKingdom);
+            }
 
             world.events.push({
                 text: `⚔️ ${player.name} has conquered ${settlement.name}!`,

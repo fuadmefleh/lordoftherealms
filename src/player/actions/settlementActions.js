@@ -13,6 +13,7 @@ import { Housing } from '../../systems/housing.js';
 import { Titles } from '../../systems/titles.js';
 import { Festivals } from '../../systems/festivals.js';
 import { RealmPolitics } from '../realmPolitics.js';
+import { Throne } from '../../systems/throne.js';
 import { PlayerReligion } from '../playerReligion.js';
 import { SeasonalWork } from '../seasonalWork.js';
 import { Underworld } from '../../systems/underworld.js';
@@ -296,6 +297,17 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
         });
     }
 
+    // Claims & Crowns — once there is a claim, a crisis, a war for a throne or a crown
+    if (Throne.hasBusiness(player, world)) {
+        const ruled = Throne.ruledKingdom(player, world);
+        actions.push({
+            type: 'claims_crowns',
+            label: 'Claims & Crowns',
+            icon: '👑',
+            description: ruled ? `Rule ${ruled.name}: policies, levy and diplomacy` : 'Your claims on thrones, succession crises and the war for a crown',
+        });
+    }
+
     // Renounce Allegiance (at any settlement, if aligned)
     if (player.allegiance) {
         actions.push({
@@ -306,7 +318,7 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
         });
     }
 
-    if (isPlayerSettlement && playerSettlementCount >= 3 && !hasPlayerFoundedKingdom) {
+    if (isPlayerSettlement && playerSettlementCount >= 3 && !hasPlayerFoundedKingdom && !Throne.ruledKingdom(player, world)) {
         const isSecession = !!(player.allegiance && (!playerKingdom || !playerKingdom.createdByPlayer));
         actions.push({
             type: 'form_kingdom',

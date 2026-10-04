@@ -2,7 +2,7 @@
 // END DAY � onPlayerArrived, endDay turn processing
 // ============================================
 
-import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, Petitions, RealmWars, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents, WEATHER_TYPES, LegendaryArtifacts, Cartography } from './_gameImports.js';
+import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, Petitions, RealmWars, Throne, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents, WEATHER_TYPES, LegendaryArtifacts, Cartography } from './_gameImports.js';
 import { Traits } from '../../systems/traits.js';
 import { Delves } from '../../systems/delves.js';
 import { Underworld } from '../../systems/underworld.js';
@@ -434,6 +434,31 @@ export function endDay() {
             }
             for (const e of war.ended) {
                 if (e) this.ui.showNotification('🕊️ Peace', `The war with ${e.war.name} is over.`, 'info');
+            }
+
+            // Claims & Crowns — succession crises, a war for a throne, the realm you rule
+            const throne = Throne.processDaily(this.player, this.world, { armyStrength: PlayerMilitary.getArmyStrength(this.player) });
+            for (const c of throne.crises) {
+                this.ui.showNotification(`👑 ${c.causeLabel}`, `${c.text} Back a claimant from Dynasty → Claims & Crowns within ${c.endDay - this.world.day} days.`, 'warning');
+            }
+            for (const r of throne.crisesResolved) {
+                const tail = r.rewards && r.rewards.gold ? ` Your reward: ${r.rewards.gold}g and the new ruler's favour.` : (r.backed ? ' The claimant you backed has lost.' : '');
+                this.ui.showNotification('👑 Crisis Ends', `${r.winner} holds the throne of ${r.kingdomName}.${tail}`, r.rewards && r.rewards.gold ? 'success' : 'info');
+            }
+            for (const b of throne.battles) {
+                this.ui.showNotification(b.won ? '🚩 Battle Won' : '🚩 Battle Lost',
+                    `${b.won ? 'Your banners carry the field' : 'The loyalists carry the field'}${b.flipped ? ` — ${b.flipped} ${b.won ? 'declares for you' : 'returns to the crown'}` : ''}.`, b.won ? 'success' : 'warning');
+            }
+            if (throne.civilWar) {
+                const cw = throne.civilWar;
+                this.ui.showNotification(cw.ended === 'crowned' ? '👑 Crowned!' : (cw.ended === 'exile' ? '🥀 Exile' : '🚩 War Ends'),
+                    cw.message || `Your war for ${cw.kingdomName} is over.`, cw.ended === 'crowned' ? 'success' : 'error');
+            }
+            if (throne.ruling && throne.ruling.lost) {
+                this.ui.showNotification('💀 Crown Lost', `${throne.ruling.kingdomName} has fallen, and your crown with it.`, 'error');
+            }
+            for (const name of throne.peace) {
+                this.ui.showNotification('🕊️ Royal Envoys', `Your envoys win peace with ${name}.`, 'info');
             }
 
             // Update market prices

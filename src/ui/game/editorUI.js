@@ -20,7 +20,7 @@ export function resumeGame() {
 
     // Reconstruct player
     this.player = new Player();
-    SaveLoad.restorePlayer(data.player, this.player);
+    SaveLoad.restorePlayer(data.player, this.player, this.world);
 
     // Restore fog of war visibility around player position
     this.player.updateVisibility(this.world, 4);

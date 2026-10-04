@@ -113,6 +113,17 @@ Object.assign(Characters, {
             impact: crisisOccurred ? 'negative' : 'neutral',
         });
 
+        // Remembered for systems/throne.js (succession crises the player can
+        // join). Plain bookkeeping — draws no RNG.
+        kingdom.lastSuccession = {
+            day: world.day,
+            type: successionType,
+            crisis: crisisOccurred,
+            heirName: Characters.getFullName(heir),
+            heirAge: heir.age,
+            oldRulerName,
+        };
+
         return { heir, successionType, crisisOccurred };
     },
 
@@ -273,13 +284,18 @@ Object.assign(Characters, {
         if (!ruler || !ruler.isAlive) return;
 
         // ── Age characters (once per year = every 120 days) ──
-        if (world.day % 120 === 0) {
+        // (not while the player sits the throne — their own life runs it)
+        if (world.day % 120 === 0 && !ruler.isPlayer) {
             Characters._ageCharacters(kingdom, world);
         }
 
         // ── Apply kingdom bonuses from characters ──
         const bonuses = Characters.getKingdomBonuses(kingdom);
         kingdom.characterBonuses = bonuses;
+
+        // The player sits this throne (systems/throne.js): their own life,
+        // family and succession run the court, not NPC dynasty rolls
+        if (ruler.isPlayer) return;
 
         // ── Random character events (5% chance per day per kingdom) ──
         if (Utils.random() < 0.05) {

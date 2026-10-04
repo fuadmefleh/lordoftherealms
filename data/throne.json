@@ -1,0 +1,186 @@
+{
+  "config": {
+    "maxClaimStrength": 100,
+    "pressMinStrength": 25,
+    "pressGold": 300,
+    "pressMinArmy": 40,
+    "exileDays": 360,
+    "exilePrestigeLoss": 30,
+    "exileReputation": -80,
+    "crownedPrestige": 50,
+    "crownedRenown": 60,
+    "crownedReputation": 50,
+
+    "marriageBase": 30,
+    "marriagePerChild": 8,
+    "marriageChildCap": 24,
+    "royalMatchPrestige": 20,
+    "royalMatchGold": 500,
+    "royalMatchMinReputation": 20,
+
+    "forgeGold": 300,
+    "forgeStrength": 15,
+    "forgeCap": 30,
+    "forgeBase": 0.4,
+    "forgePerSpyLevel": 0.1,
+    "forgePerStealth": 0.02,
+    "forgeFailReputation": -15,
+    "forgeFailSpyLoyalty": -10,
+
+    "purchasePrestige": 30,
+    "purchaseStrength": 15,
+    "purchaseCap": 30,
+
+    "conquestStrength": 35,
+
+    "officeClaims": {
+      "2": { "days": 360, "strength": 10 },
+      "3": { "days": 240, "strength": 20 },
+      "4": { "days": 180, "strength": 30 }
+    },
+
+    "lean": {
+      "claimWeight": 0.5,
+      "reputationWeight": 0.25,
+      "prestigePer": 5,
+      "prestigeCap": 15,
+      "opinionWeight": 0.3,
+      "opinionCap": 15,
+      "traitCap": 10,
+      "stabilityPivot": 60,
+      "stabilityWeight": 0.3,
+      "crisisBonus": 15,
+      "armyPer": 20,
+      "armyCap": 15,
+      "crownLoyalty": 35,
+      "settlementNoise": 12,
+      "capitalPenalty": 25,
+      "distancePer": 0.5,
+      "distanceCap": 10,
+      "holdingBonus": 8,
+      "advisorNoise": 10,
+      "advisorLoyaltyWeight": 0.5,
+      "waver": 5
+    },
+
+    "civilWar": {
+      "levyShare": 0.8,
+      "advisorMomentum": 3,
+      "battleChance": 0.3,
+      "fieldShare": 0.6,
+      "momentumPerBattle": 6,
+      "loyalistLoss": 0.05,
+      "rebelLoss": 0.07,
+      "flipChance": 0.35,
+      "driftPivot": 0.45,
+      "driftWeight": 2,
+      "levyRegen": 0.02,
+      "hostScoreWeight": 0.5,
+      "victoryMomentum": 100,
+      "defeatMomentum": -100,
+      "maxDays": 360,
+      "lateVictoryMomentum": 30,
+      "collapseDays": 10,
+      "stabilityMod": -0.15,
+      "vanguardShare": 0.08,
+      "vanguardMin": 20,
+      "vanguardMax": 400,
+      "vanguardWin": 10,
+      "vanguardLoss": -8
+    },
+
+    "crisis": {
+      "chance": { "regent": 0.6, "distant_relative": 0.8, "young_heir": 0.35, "disputed": 1.0, "heir": 0.08 },
+      "youngHeirAge": 20,
+      "durationDays": 60,
+      "stabilityMod": -0.1,
+      "rivalSupport": [25, 45],
+      "incumbentSupport": { "heir": 60, "young_heir": 45, "regent": 40, "distant_relative": 35, "disputed": 35 },
+      "goldPerSupport": 50,
+      "minGold": 200,
+      "prestigeCost": 10,
+      "prestigeSupport": 12,
+      "battleSupport": 15,
+      "rewardGoldMultiplier": 1.5,
+      "rewardGold": 200,
+      "rewardReputation": 30,
+      "rewardPrestige": 15,
+      "loserReputation": -20
+    },
+
+    "ruling": {
+      "levyReserve": 500,
+      "levyCap": 400,
+      "peaceCooldownDays": 10,
+      "peaceBaseChance": 0.35,
+      "allianceMinRelations": 40,
+      "giftCost": 300,
+      "giftRelations": 10,
+      "peaceSeekChance": 0.05
+    },
+
+    "founding": {
+      "minSettlements": 3,
+      "minPrestige": 50,
+      "prestigeCost": 25,
+      "minMilitary": 80,
+      "militaryPerPopulation": 0.07,
+      "treasuryFloor": 800,
+      "treasuryShareOfGold": 0.2,
+      "traits": ["orderly", "mercantile"]
+    }
+  },
+
+  "policies": {
+    "tax": {
+      "label": "Royal taxes",
+      "default": "standard",
+      "options": {
+        "light":    { "label": "Light",    "icon": "🍃", "levy": 0.08, "mods": { "tax": -0.1, "stability": 0.06 }, "blurb": "The realm prospers and loves you; your purse fills slowly." },
+        "standard": { "label": "Standard", "icon": "⚖️", "levy": 0.15,  "mods": {}, "blurb": "The customary dues." },
+        "heavy":    { "label": "Heavy",    "icon": "💰", "levy": 0.25, "mods": { "tax": 0.1, "stability": -0.08 }, "blurb": "The treasury and your purse swell; the realm grumbles." }
+      }
+    },
+    "stance": {
+      "label": "War stance",
+      "default": "defensive",
+      "options": {
+        "peace":      { "label": "Seek peace", "icon": "🕊️", "mods": { "stability": 0.03, "diplomacy": 0.1 }, "blurb": "Your marshals declare no wars and your envoys seek to end the ones you are in." },
+        "defensive":  { "label": "Defensive",  "icon": "🛡️", "mods": { "defense": 0.05 }, "blurb": "Hold what you have. The court declares no wars without your word." },
+        "aggressive": { "label": "Aggressive", "icon": "⚔️", "mods": { "warBonus": 0.05, "stability": -0.03 }, "blurb": "Your marshals may declare war on weak rivals as they see fit." }
+      }
+    },
+    "faith": {
+      "label": "Faith",
+      "default": "devout",
+      "options": {
+        "tolerant": { "label": "Tolerant", "icon": "🤝", "mods": { "stability": 0.03, "faith": -0.1, "tradeBonus": 0.05 }, "blurb": "All faiths may worship freely. Trade and calm, less zeal." },
+        "devout":   { "label": "Devout",   "icon": "🙏", "mods": {}, "blurb": "The crown keeps the realm's faith, as kings always have." },
+        "zealous":  { "label": "Zealous",  "icon": "🔥", "mods": { "faith": 0.2, "loyalty": 0.05, "stability": -0.03 }, "blurb": "The crown champions the faith. Piety and loyalty rise; dissenters grow restless." }
+      }
+    }
+  },
+
+  "sources": {
+    "marriage": { "label": "Royal marriage", "icon": "💍" },
+    "forged":   { "label": "Forged documents", "icon": "📜" },
+    "office":   { "label": "Royal office", "icon": "🏛️" },
+    "conquest": { "label": "Conquest of the capital", "icon": "⚔️" },
+    "purchased":{ "label": "Heralds and genealogists", "icon": "🛡️" }
+  },
+
+  "crisisCauses": {
+    "regent":           { "label": "Regency", "text": "{kingdom} is ruled by a regent, {incumbent}. Its great lords whisper of a stronger hand." },
+    "young_heir":       { "label": "Weak heir", "text": "Young {incumbent} has taken the throne of {kingdom}, and older kin think the crown sits on the wrong head." },
+    "distant_relative": { "label": "Distant heir", "text": "With no direct heir, a distant relative, {incumbent}, claims the throne of {kingdom}. Rivals stir." },
+    "disputed":         { "label": "Disputed succession", "text": "The succession in {kingdom} is disputed. {incumbent} holds the palace, but not the realm." },
+    "heir":             { "label": "Rival claimant", "text": "{incumbent} inherits {kingdom}, but a rival of the blood refuses to kneel." }
+  },
+
+  "strengthLabels": [
+    { "min": 75, "label": "Ironclad", "color": "#f5c542" },
+    { "min": 50, "label": "Strong", "color": "#8fd88f" },
+    { "min": 25, "label": "Fair", "color": "#9bc" },
+    { "min": 0, "label": "Weak", "color": "#aaa" }
+  ]
+}

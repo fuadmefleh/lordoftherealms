@@ -84,7 +84,7 @@ Object.assign(ActionMenu, {
             pilgrimage: 'social', miracle: 'social', donate: 'social',
             pledge_allegiance: 'social', renounce_allegiance: 'social',
             realm_wars: 'social', fund_restoration: 'social',
-            form_kingdom: 'social',
+            form_kingdom: 'social', claims_crowns: 'social',
             host_feast: 'social', hold_tournament: 'social', host_festival: 'social',
             meet_people: 'social', view_relationships: 'social', manage_dynasty: 'social',
             recruit: 'military', attack_unit: 'military', attack_settlement: 'military',
@@ -380,7 +380,7 @@ Object.assign(ActionMenu, {
         trade: 1, collect_goods: 1, donate: 1,
         pledge_allegiance: 1, renounce_allegiance: 1,
         realm_wars: 0, fund_restoration: 2,
-        form_kingdom: 6,
+        form_kingdom: 6, claims_crowns: 0,
         bounty_board: 1, talk_locals: 1, request_meeting: 1,
         buy_house: 1, meet_people: 0,
 
@@ -789,6 +789,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'form_kingdom':
                 ActionMenu.showFormKingdomMenu(game, tile);
+                break;
+            case 'claims_crowns':
+                ActionMenu.showClaimsPanel(game, tile);
                 break;
             case 'host_feast':
                 ActionMenu.showHostFeastMenu(game, tile);

@@ -230,6 +230,7 @@ Object.assign(ActionMenu, {
                 html += `<div style="padding: 8px; background: rgba(155,89,182,0.15); border: 1px solid rgba(155,89,182,0.3); border-radius: 4px; margin-bottom: 10px; font-size: 12px; color: #bb86fc;">
                     👑 You have captured their <strong>capital city</strong>!
                     ${result.kingdomDestroyed ? '<br>💀 <strong>The entire kingdom has fallen!</strong>' : '<br>The kingdom will relocate its capital.'}
+                    ${result.throneClaim ? `<br>📜 Holding their seat gives you a claim on the throne (strength ${result.throneClaim}). See Dynasty → Claims & Crowns.` : ''}
                 </div>`;
             }
 

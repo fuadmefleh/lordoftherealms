@@ -1,6 +1,6 @@
 // ActionMenu — realm methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, Festivals, PlayerEffects } from './_imports.js';
+import { Throne, PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, Festivals, PlayerEffects } from './_imports.js';
 
 Object.assign(ActionMenu, {
     // ============================================
@@ -186,9 +186,13 @@ Object.assign(ActionMenu, {
         const activeSettlement = controlledSettlements.find(s => s.q === tile.q && s.r === tile.r) || controlledSettlements[0];
         const suggestedName = `Kingdom of ${activeSettlement?.settlement?.name || 'New Dawn'}`;
 
+        const status = Throne.foundingStatus(player, world);
+        const blocked = status.ok ? '' : `<p style="font-size: 12px; color: #ff6666; margin: 0 0 10px;">${status.reasons.join(' ')}</p>`;
         let html = `
             <div>
                 <h4 style="margin: 0 0 10px;">👑 Proclaim a New Kingdom</h4>
+                ${blocked}
+                <p style="font-size: 12px; color: var(--text-secondary); margin: 0 0 10px;">Costs ${status.cost} Prestige. You will rule it: set its taxes, war stance and faith, and conduct its diplomacy from Claims & Crowns.</p>
                 <p style="font-size: 12px; color: var(--text-secondary); margin: 0 0 10px;">
                     You will unite <b>${controlledSettlements.length}</b> settlements under a new crown.
                 </p>
@@ -219,146 +223,15 @@ Object.assign(ActionMenu, {
     },
 
     doFormKingdom(game, tile, customName) {
-        const player = game.player;
-        const world = game.world;
-        const controlledSettlements = ActionMenu._getPlayerSettlementTiles(player, world);
-
-        if (controlledSettlements.length < 3) {
-            game.ui.showNotification('Cannot Form Kingdom', `You need at least 3 settlements. You currently control ${controlledSettlements.length}.`, 'error');
+        // The founding itself lives in systems/throne.js (a real kingdom the
+        // simulation treats normally, with a court, faith and fleet)
+        const res = Throne.foundKingdom(game.player, game.world, { name: customName, seat: tile ? { q: tile.q, r: tile.r } : null });
+        if (!res.success) {
+            game.ui.showNotification('Cannot Form Kingdom', res.reason, 'error');
             return;
         }
-
-        const currentKingdom = player.allegiance ? world.getKingdom(player.allegiance) : null;
-        if (currentKingdom && currentKingdom.createdByPlayer) {
-            game.ui.showNotification('Already Sovereign', `You already rule ${currentKingdom.name}.`, 'info');
-            return;
-        }
-
-        const activeSettlement = controlledSettlements.find(s => s.q === tile.q && s.r === tile.r) || controlledSettlements[0];
-        const usedIds = new Set(world.kingdoms.map(k => k.id));
-        let idIndex = 1;
-        let kingdomId = `player_kingdom_${idIndex}`;
-        while (usedIds.has(kingdomId)) {
-            idIndex++;
-            kingdomId = `player_kingdom_${idIndex}`;
-        }
-
-        const palette = ['#c0392b', '#1f7a8c', '#8e44ad', '#2c3e50', '#16a085', '#d35400', '#7f8c8d', '#6d4c41', '#3949ab', '#8d6e63'];
-        const usedColors = new Set(world.kingdoms.map(k => (k.color || '').toLowerCase()));
-        const color = palette.find(c => !usedColors.has(c.toLowerCase())) || `#${Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0')}`;
-        const r = parseInt(color.slice(1, 3), 16);
-        const g = parseInt(color.slice(3, 5), 16);
-        const b = parseInt(color.slice(5, 7), 16);
-
-        const previousAllegiance = player.allegiance || null;
-        const culture = activeSettlement.settlement.culture
-            || (previousAllegiance ? (world.getKingdom(previousAllegiance)?.culture || 'Imperial') : 'Imperial');
-        const normalizedCustomName = String(customName || '').trim().replace(/\s+/g, ' ');
-        const kingdomName = normalizedCustomName.length >= 3
-            ? normalizedCustomName.slice(0, 48)
-            : `Kingdom of ${activeSettlement.settlement.name}`;
-        const rulerName = player.name ? `${player.name} the Founder` : Kingdom.generateRulerName(culture);
-
-        const newKingdom = Kingdom.create({
-            id: kingdomId,
-            name: kingdomName,
-            ruler: rulerName,
-            color,
-            colorLight: `rgba(${r}, ${g}, ${b}, 0.2)`,
-            culture,
-            description: 'A realm forged by player ambition and frontier settlements.',
-            preferredTerrain: ['plains', 'grassland', 'hills'],
-            traits: ['orderly', 'mercantile'],
-        });
-
-        newKingdom.createdByPlayer = true;
-        newKingdom.foundedDay = world.day;
-        newKingdom.capital = { q: activeSettlement.q, r: activeSettlement.r };
-        newKingdom.colonization = {
-            policy: 'coexistence',
-            colonies: [],
-            pioneersActive: 0,
-        };
-
-        let totalPopulation = 0;
-        const territorySeen = new Set();
-        const addTerritory = (q, r) => {
-            const t = world.getTile(q, r);
-            if (!t || !t.terrain.passable) return;
-            const key = `${q},${r}`;
-            if (territorySeen.has(key)) return;
-            territorySeen.add(key);
-            newKingdom.territory.push({ q, r });
-        };
-
-        const controlledSet = new Set(controlledSettlements.map(s => `${s.q},${s.r}`));
-
-        for (const entry of controlledSettlements) {
-            const settlementTile = entry.tile;
-            const settlement = settlementTile.settlement;
-            const settlementKey = `${entry.q},${entry.r}`;
-
-            settlement.kingdom = kingdomId;
-            settlementTile.kingdom = kingdomId;
-            if (settlement.colony) {
-                settlement.colony.motherKingdom = kingdomId;
-                newKingdom.colonization.colonies.push({ q: entry.q, r: entry.r, name: settlement.name });
-            }
-
-            totalPopulation += settlement.population || 0;
-            addTerritory(entry.q, entry.r);
-
-            const neighboring = Hex.neighbors(entry.q, entry.r);
-            for (const n of neighboring) {
-                const nt = world.getTile(n.q, n.r);
-                if (!nt || !nt.terrain.passable) continue;
-
-                const nKey = `${n.q},${n.r}`;
-                const isControlledSettlement = controlledSet.has(nKey);
-                if (nt.kingdom && nt.kingdom !== previousAllegiance && !isControlledSettlement) continue;
-
-                nt.kingdom = kingdomId;
-                addTerritory(n.q, n.r);
-            }
-
-            if (settlementKey === `${activeSettlement.q},${activeSettlement.r}`) {
-                settlement.type = 'capital';
-                settlement.level = Math.max(settlement.level || 1, 3);
-            }
-        }
-
-        newKingdom.population = totalPopulation;
-        newKingdom.military = Math.max(80, Math.floor(totalPopulation * 0.07));
-        newKingdom.treasury = Math.max(800, Math.floor((player.gold || 0) * 0.2));
-
-        for (const kingdom of world.kingdoms) {
-            if (!kingdom.relations) kingdom.relations = {};
-            const relationToNew = (kingdom.id === previousAllegiance) ? -35 : Utils.randInt(-10, 10);
-            const relationFromNew = (kingdom.id === previousAllegiance) ? -45 : Utils.randInt(-8, 12);
-            kingdom.relations[kingdomId] = relationToNew;
-            newKingdom.relations[kingdom.id] = relationFromNew;
-        }
-
-        world.kingdoms.push(newKingdom);
-
-        player.allegiance = kingdomId;
-        player.kingdomTitle = 'king';
-        player.currentTitle = null;
-        player.titleProgress = {};
-        player.title = `King of ${kingdomName}`;
-        if (!player.reputation) player.reputation = {};
-        player.reputation[kingdomId] = (player.reputation[kingdomId] || 0) + 25;
-
-        let msg = `You have founded ${kingdomName} and claimed ${controlledSettlements.length} settlements.`;
-        if (previousAllegiance && previousAllegiance !== kingdomId) {
-            player.reputation[previousAllegiance] = (player.reputation[previousAllegiance] || 0) - 25;
-            player.karma = (player.karma || 0) - 3;
-            const oldName = world.getKingdom(previousAllegiance)?.name || 'your former liege';
-            msg += ` Relations with ${oldName} have worsened.`;
-        }
-
-        game.ui.showNotification('👑 Kingdom Founded', msg, 'success');
-        game.ui.updateStats(player, world);
+        game.ui.showNotification('👑 Kingdom Founded', res.message, 'success');
+        game.ui.updateStats(game.player, game.world);
     },
 
     /**

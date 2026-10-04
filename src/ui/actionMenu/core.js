@@ -71,7 +71,7 @@ Object.assign(ActionMenu, {
         };
 
         const mapping = {
-            rest: 'general', explore_poi: 'general', clear_trees: 'general', dig_treasure: 'general',
+            rest: 'general', eat_meal: 'general', explore_poi: 'general', clear_trees: 'general', dig_treasure: 'general',
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general',
             prospect: 'general', tame_horse: 'general', craft_campfire: 'general',
             disembark: 'general', row_ashore: 'general', row_to_ship: 'general', ship_hold: 'commerce', port_market: 'commerce', explore_ocean: 'general', hunt_pirates: 'military', commit_piracy: 'military', explore_inner_map: 'general',
@@ -362,6 +362,7 @@ Object.assign(ActionMenu, {
     AP_COSTS: {
         // Free actions (0 AP)
         rest: 0,
+        eat_meal: 0,
         disembark: 0,
         explore_inner_map: 0,
         jail_wait: 0, jail_bail: 0, jail_escape: 0,
@@ -582,8 +583,23 @@ Object.assign(ActionMenu, {
                 ActionMenu.collectGoods(game, tile);
                 break;
             case 'rest':
+                // Making camp on purpose beats collapsing by the roadside
+                if (!game.player._restTypeOverride) game.player._restTypeOverride = 'camp';
                 game.endDay();
                 break;
+            case 'eat_meal': {
+                const meal = game.player.eatMeal();
+                if (meal.success) {
+                    const name = meal.food.replace(/_/g, ' ');
+                    game.ui.showNotification('🍖 A Good Meal',
+                        `You eat some ${name} from your pack (+${meal.hunger} hunger).`, 'success');
+                } else {
+                    game.ui.showNotification('🍖 Nothing to Eat', meal.reason, 'error');
+                }
+                ActionMenu.close();
+                game.ui.updateStats(game.player, game.world);
+                break;
+            }
             case 'explore_inner_map':
                 ActionMenu.close();
                 {

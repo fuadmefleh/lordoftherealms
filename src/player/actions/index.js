@@ -99,6 +99,18 @@ export const PlayerActions = {
             description: 'Recover stamina and wait for the next day'
         });
 
+        // Eat from the pack when hungry (the daily ration alone won't keep up
+        // with a hungry day on the road)
+        if (player.needsEnabled && player.needs && player.needs.hunger < 85
+            && player.getFoodCount && player.getFoodCount() > 0) {
+            actions.push({
+                type: 'eat_meal',
+                label: 'Eat a Meal',
+                icon: '🍖',
+                description: `Eat from your pack (hunger ${Math.round(player.needs.hunger)}%)`
+            });
+        }
+
         // Disembark from ship
         if (player.boardedShip && tile.terrain.passable) {
             actions.push({

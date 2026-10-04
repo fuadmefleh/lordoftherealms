@@ -35,6 +35,8 @@ Object.assign(PlayerMilitary, {
         let playerPower = playerStrength * Utils.randFloat(0.8, 1.2) * playerCounterMult * playerTerrainMult * playerMorale;
         // Fighting companions in the travel party
         playerPower *= 1 + PlayerEffects.companionBonus(player, 'power');
+        // A commander in high spirits leads better; a miserable one worse
+        playerPower *= PlayerEffects.moodCombatMultiplier(player);
         // Fortification techs help when the player is the one attacked
         if (context.defending) playerPower *= 1 + Technology.getDefenseBonus(player);
         // A fortified house (watchtower, fortification upgrades) adds +1% per point of defense

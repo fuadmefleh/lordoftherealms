@@ -113,6 +113,20 @@ You consume 1 food per day. If you have no food:
 
 Always keep food in your inventory. Buy bread at settlements, catch fish near water, hunt in the wilderness, or produce grain from farms.
 
+### Needs & Mood
+
+Six needs (0–100) sit under the mood meter in the bottom bar: **hunger, energy, social, fun, hygiene, comfort**. Hover a bar for its value, or the mood label for its current effects.
+
+- **Decay.** A world-map day drains hunger 20, energy 35, social 7, fun 7, hygiene 8, comfort 10. On the inner map needs drain per hour instead (a little faster, since food, beds and benches are close by); hours spent there are taken off that day's world-map drain, so nothing is counted twice.
+- **Refilling.** The daily ration gives +35 hunger, and **Eat a Meal** (world map, 0 AP, when hunger is below 85) eats the best food in your pack. The night's rest depends on where you sleep: an **inn room** (tavern) restores the most, then your **own house**, then a **camp** (Rest / Camp, or ending the day inside any settlement), and sleeping rough restores the least. Tavern drinks, gossip, meals and baths, social actions (meet people, talk to locals, feasts, festivals) and inner-map furniture (chairs, baths, instruments, games, wells) all refill specific needs.
+- **Warnings.** A need at 30 or below gives a warning, and 15 or below a critical one, once a day.
+- **Mood** is 60% your average need plus 40% your lowest need:
+  - **80+ (in high spirits):** +5% battle power and personal melee damage, +3% trade prices, +1 diplomacy (which also helps negotiations and reputation), and +10% reputation earned.
+  - **Below 30 (miserable):** −5% battle power and damage, −3% trade prices, −1 diplomacy, and −2 movement a day.
+  - **Below 15 (desperate):** you also lose 3 health a day, and movement drops by 4 instead.
+
+If you eat every day and sleep under a roof, hunger, energy and comfort stay high. Social, fun and hygiene drift down over about a week unless you visit taverns, talk to people or bathe.
+
 ### Death & Succession
 
 Your character has a natural lifespan of 55–85 years (randomized). After your maximum age, there is a 15% chance of death per year that increases over time. If you die with an heir aged 16+, you continue playing as your heir, who inherits 75% of your gold, 50% of your renown, and 30% of your reputation. Without an heir, the game ends.

@@ -398,6 +398,8 @@ Object.assign(UI.prototype, {
         if (simsKarma) simsKarma.textContent = player.karma;
 
         // ── Sims-style 6 Needs Bars (hidden while the needs system is off) ──
+        const needsStrip = document.getElementById('hudNeeds');
+        if (needsStrip) needsStrip.classList.toggle('hidden', !(player.needsEnabled && player.needs));
         if (player.needsEnabled && player.needs) {
             const needBars = {
                 hunger:  'simsHungerBar',
@@ -410,6 +412,9 @@ Object.assign(UI.prototype, {
             for (const [need, barId] of Object.entries(needBars)) {
                 const pct = Math.round(player.needs[need]);
                 this._setNeedBar(barId, null, pct, '');
+                const bar = document.getElementById(barId);
+                const cell = bar && bar.closest ? bar.closest('.hud-need') : null;
+                if (cell) cell.title = `${need.charAt(0).toUpperCase()}${need.slice(1)}: ${pct}%`;
             }
         }
 
@@ -979,12 +984,33 @@ Object.assign(UI.prototype, {
 
     /** Bottom-bar mood label + meter, derived from morale so it reads high at full health. */
     updateMoodMeter(player) {
-        const pct = hudMorale(player);
-        const mood = hudMoodFromMorale(pct);
+        // With the needs system on, the bar shows the real (needs-driven) mood;
+        // otherwise fall back to the health-derived morale.
+        let pct, mood;
+        if (player.needsEnabled && player.needs && typeof player.getMood === 'function') {
+            mood = player.getMood();
+            pct = Math.max(0, Math.min(100, mood.score));
+        } else {
+            pct = hudMorale(player);
+            mood = hudMoodFromMorale(pct);
+        }
         this._setHudText('simsMoodIcon', mood.icon);
         this._setHudText('simsMoodLabel', mood.label.toUpperCase());
         const fill = document.getElementById('moodMeterFill');
         if (fill) fill.style.width = pct + '%';
+        const label = document.getElementById('simsMoodLabel');
+        if (label && mood.effects) {
+            const fx = mood.effects;
+            const parts = [];
+            if (fx.combatBonus) parts.push('+5% battle power');
+            if (fx.charismaBonus) parts.push('+3% trade, +1 diplomacy');
+            if (fx.reputationGain) parts.push('+10% reputation gains');
+            if (fx.combatPenalty) parts.push('−5% battle power');
+            if (fx.charismaPenalty) parts.push('−3% trade, −1 diplomacy');
+            if (fx.movementPenalty) parts.push(`${fx.movementPenalty} movement`);
+            if (fx.healthDrain) parts.push(`−${fx.healthDrain} health a day`);
+            label.title = `Mood ${pct}/100${parts.length ? ' — ' + parts.join(', ') : ''}`;
+        }
     },
 
     /** Right-rail Current Objective, bound to the first active quest. Read-only. */

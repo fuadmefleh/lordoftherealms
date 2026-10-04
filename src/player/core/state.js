@@ -168,6 +168,7 @@ export class Player {
         };
         this._needWarnings = {};  // Track which low-need warnings have fired today
         this._lastNeedDecayHour = 8; // Track inner-map hour for smooth decay
+        this._needHoursToday = 0;    // Inner-map hours already decayed today
 
         // Tracking
         this.visitedImprovements = new Set();

@@ -40,6 +40,12 @@ const COMPANION_ROLES = {
     priest:     { heal: 2, diplomacy: 0.5, text: 'heals 2 a day, +0.5 diplomacy' },
 };
 const DEFAULT_COMPANION_ROLE = { heal: 1, text: 'keeps camp (heals 1 a day)' };
+/** Battle power / personal damage per point of mood combat modifier. */
+const MOOD_COMBAT_PER_POINT = 0.05;
+/** Trade price advantage per point of mood charisma. */
+const MOOD_TRADE_PER_POINT = 0.03;
+/** Reputation-gain multiplier per point of the mood's `reputationGain`. */
+const MOOD_REPUTATION_PER_POINT = 0.2;
 
 function _perk(player, key) {
     const title = Titles.getActiveTitle(player);
@@ -115,12 +121,13 @@ export const PlayerEffects = {
         let value = (player.skills && player.skills.diplomacy) || 0;
         if (player.house) value += House.getRoleBonuses(player).diplomacyBonus || 0;
         value += this.companionBonus(player, 'diplomacy');
+        value += this.moodCharisma(player); // see MOOD section
         return value;
     },
 
-    /** Multiplier on reputation you earn: +5% per point of effective diplomacy. */
+    /** Multiplier on reputation you earn: +5% per point of effective diplomacy, × mood. */
     reputationGainMultiplier(player) {
-        return 1 + 0.05 * this.effectiveDiplomacy(player);
+        return (1 + 0.05 * this.effectiveDiplomacy(player)) * this.moodReputationMultiplier(player);
     },
 
     /** Scale a positive reputation gain by diplomacy (losses are untouched). */
@@ -137,7 +144,8 @@ export const PlayerEffects = {
 
     /** Fractional price advantage when trading at `settlement`. */
     tradeBonus(player, settlement) {
-        let bonus = _perk(player, 'tradeBonus') + this.companionBonus(player, 'trade');
+        let bonus = _perk(player, 'tradeBonus') + this.companionBonus(player, 'trade')
+            + this.moodTradeBonus(player); // see MOOD section
         const kingdomId = settlement && settlement.kingdom;
         if (kingdomId && player.tradeAgreements && player.tradeAgreements[kingdomId]) {
             bonus += TRADE_AGREEMENT_BONUS;
@@ -186,4 +194,44 @@ export const PlayerEffects = {
         const mult = this.personalDamageMultiplier(player);
         return mult === 0 ? 0 : Math.max(1, Math.round(raw * mult));
     },
+
+    // ──────────── MOOD (needs system) ────────────
+    // player.getMood().effects promises combat, charisma and reputation
+    // modifiers; these helpers are the only readers. Mood has no effect while
+    // the needs system is switched off.
+
+    /** The active mood effects, or {} when needs are off / unavailable. */
+    moodEffects(player) {
+        if (!player || !player.needsEnabled || typeof player.getMood !== 'function') return {};
+        return player.getMood().effects || {};
+    },
+
+    /** Net combat modifier from mood: +1 (great spirits), −1 (miserable), 0 otherwise. */
+    moodCombat(player) {
+        const fx = this.moodEffects(player);
+        return (fx.combatBonus || 0) + (fx.combatPenalty || 0);
+    },
+
+    /** Multiplier on battle power and personal melee damage: ±5% per point. */
+    moodCombatMultiplier(player) {
+        return 1 + MOOD_COMBAT_PER_POINT * this.moodCombat(player);
+    },
+
+    /** Net charisma modifier from mood (+1 / −1 / 0). */
+    moodCharisma(player) {
+        const fx = this.moodEffects(player);
+        return (fx.charismaBonus || 0) + (fx.charismaPenalty || 0);
+    },
+
+    /** Fractional trade price advantage from mood: ±3% per point of charisma. */
+    moodTradeBonus(player) {
+        return MOOD_TRADE_PER_POINT * this.moodCharisma(player);
+    },
+
+    /** Multiplier on reputation earned from a good mood (+10% when ecstatic). */
+    moodReputationMultiplier(player) {
+        const fx = this.moodEffects(player);
+        return 1 + MOOD_REPUTATION_PER_POINT * (fx.reputationGain || 0);
+    },
 };
+

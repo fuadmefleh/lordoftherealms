@@ -523,7 +523,10 @@ export const InnerMapCombat = {
     _computePlayerDamage(player) {
         const str  = (player && player.strength) || 5;
         const luck = (player && player.luck)     || 5;
-        return Math.max(3, str * 2 + Math.floor(luck * 0.4));
+        const base = str * 2 + Math.floor(luck * 0.4);
+        // Mood: ±5% swing strength
+        const mood = player ? PlayerEffects.moodCombatMultiplier(player) : 1;
+        return Math.max(3, Math.round(base * mood));
     },
 
     _spawnFloat(worldX, worldY, value, type = 'normal', label = null) {

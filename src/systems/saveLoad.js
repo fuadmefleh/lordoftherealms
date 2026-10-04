@@ -264,6 +264,8 @@ export const SaveLoad = {
             // Needs (Sims-style)
             needs: player.needs || { hunger: 100, energy: 100, social: 100, fun: 100, hygiene: 100, comfort: 100 },
             _lastNeedDecayHour: player._lastNeedDecayHour || 8,
+            _needHoursToday: player._needHoursToday || 0,
+            needsEnabled: player.needsEnabled !== false,
 
             // Espionage
             espionage: player.espionage || null,
@@ -470,6 +472,13 @@ export const SaveLoad = {
             player.needs = { hunger: 100, energy: 100, social: 100, fun: 100, hygiene: 100, comfort: 100 };
         }
         if (player._lastNeedDecayHour == null) player._lastNeedDecayHour = 8;
+        if (typeof player._needHoursToday !== 'number') player._needHoursToday = 0;
+        // Saves from before the needs system was switched on never carried the
+        // flag — they get the default (on). An explicit opt-out is respected.
+        if (typeof player.needsEnabled !== 'boolean') player.needsEnabled = true;
+        for (const need of ['hunger', 'energy', 'social', 'fun', 'hygiene', 'comfort']) {
+            if (!Number.isFinite(player.needs[need])) player.needs[need] = 100;
+        }
         if (!player._needWarnings) player._needWarnings = {};
 
         // Legendary artifacts fallback

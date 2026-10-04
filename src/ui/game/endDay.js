@@ -128,7 +128,9 @@ export function endDay() {
                     colonyFood: Technology.getEffectTotal(this.player, 'settlementFoodBonus'),
                 },
             });
-            this.player.endDay();
+            this.player.endDay(this.world);
+            // Low needs nag once per day on the world map too
+            if (typeof this._checkNeedWarnings === 'function') this._checkNeedWarnings();
             this.player.updateVisibility(this.world, 4);
 
             // ── Check for hostile unit encounters (raiders/pirates) ──

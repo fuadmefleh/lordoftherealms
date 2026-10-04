@@ -276,6 +276,22 @@ export default function GameView() {
             <span className="hud-mood-label" id="simsMoodLabel">ECSTATIC</span>
             <div className="hud-mood-meter"><div className="hud-mood-fill" id="moodMeterFill" style={{width:'100%'}}></div></div>
           </div>
+          {/* Needs — filled by ui/ui/hud.js _updateSimsHUD; hidden while the needs system is off */}
+          <div className="hud-needs" id="hudNeeds">
+            {[
+              ['hunger', '🍖', 'simsHungerBar'],
+              ['energy', '💤', 'simsEnergyBar'],
+              ['social', '💬', 'simsSocialBar'],
+              ['fun', '🎭', 'simsFunBar'],
+              ['hygiene', '🧼', 'simsHygieneBar'],
+              ['comfort', '🪑', 'simsComfortBar'],
+            ].map(([need, icon, barId]) => (
+              <div key={need} className="hud-need" title={need}>
+                <span className="hud-need-icon">{icon}</span>
+                <div className="hud-need-track"><div className="sims-need-bar-fill high" id={barId} style={{width:'100%'}}></div></div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="hud-bb-divider"></div>

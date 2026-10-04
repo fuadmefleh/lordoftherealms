@@ -9,6 +9,7 @@ import { Technology } from '../../systems/technology.js';
 import { Housing } from '../../systems/housing.js';
 import { Religion } from '../../systems/religion.js';
 import { SettlementServices } from '../settlementServices.js';
+import { DAILY_RATION_HUNGER } from './needs.js';
 
 export const PlayerLifecycleMethods = {
     /**
@@ -28,15 +29,20 @@ export const PlayerLifecycleMethods = {
     },
 
     /**
-     * Rest (end day — restore stamina)
+     * Rest (end day — restore stamina).
+     * `world` is optional; when given, ending the day in a settlement counts
+     * as finding rough lodgings rather than sleeping in a ditch.
      */
-    endDay() {
+    endDay(world = null) {
+        // The day's wear on needs (minus hours already lived on the inner map)
+        this.decayNeedsForDay();
+
         // Daily food consumption — eat 1 food per day
         if (this.consumeFood()) {
             // Fed — reset starvation counter
             this.starvationDays = 0;
             // Eating food satisfies hunger
-            this.modifyNeed('hunger', 30);
+            this.modifyNeed('hunger', DAILY_RATION_HUNGER);
         } else {
             // No food — increment starvation
             this.starvationDays = (this.starvationDays || 0) + 1;
@@ -101,12 +107,18 @@ export const PlayerLifecycleMethods = {
             const hasHouseHere = this.houses.some(h => h.q === this.q && h.r === this.r);
             if (hasHouseHere) restType = 'ownHouse';
         }
-        // If on a settlement tile, assume access to inn
-        // (game.js will override this with 'inn' if player chose to sleep at inn)
-        if (restType === 'outdoors' && this._restTypeOverride) {
-            restType = this._restTypeOverride;
-            this._restTypeOverride = null;
+        // A paid inn room (tavern) beats everything; a deliberate camp (Rest /
+        // Camp) beats sleeping rough. The override is spent either way.
+        const override = this._restTypeOverride;
+        this._restTypeOverride = null;
+        if (override === 'inn') restType = 'inn';
+        else if (restType === 'outdoors' && override) restType = override;
+        // Ending the day inside a settlement finds at least a common-room bench
+        if (restType === 'outdoors' && world && typeof world.getTile === 'function') {
+            const here = world.getTile(this.q, this.r);
+            if (here && here.settlement) restType = 'camp';
         }
+        this._lastRestType = restType;
         this.restOvernight(restType);
 
         // Apply mood effects

@@ -1602,7 +1602,7 @@ The civil war:
 
 As ruler you are the realm's sovereign, and the crown passes to your heir with the House. From Claims & Crowns:
 
-- **The royal levy.** Each day you take a share of what the royal treasury gained since the day before: 8% (light taxes), 15% (standard) or 25% (heavy), at most 400g a day and never below a 500g reserve. A day of war spending or tribute paid brings nothing. It shows in your finances as *royal levy*.
+- **The royal levy.** Each day you take a share of what the royal treasury gained since the day before: 8% (light taxes), 15% (standard) or 25% (heavy), at most 200g a day and never below a 500g reserve. A day of war spending or tribute paid brings nothing. It shows in your finances as *royal levy*.
 - **Policies** feed the kingdom's AI (through its bonuses):
 
 | Policy | Option | Effect |

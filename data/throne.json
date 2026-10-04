@@ -110,7 +110,7 @@
 
     "ruling": {
       "levyReserve": 500,
-      "levyCap": 400,
+      "levyCap": 200,
       "peaceCooldownDays": 10,
       "peaceBaseChance": 0.35,
       "allianceMinRelations": 40,

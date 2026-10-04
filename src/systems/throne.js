@@ -74,7 +74,7 @@ const DEFAULT_CONFIG = {
         rewardGoldMultiplier: 1.5, rewardGold: 200, rewardReputation: 30, rewardPrestige: 15, loserReputation: -20,
     },
     ruling: {
-        levyReserve: 500, levyCap: 400, peaceCooldownDays: 10, peaceBaseChance: 0.35, allianceMinRelations: 40,
+        levyReserve: 500, levyCap: 200, peaceCooldownDays: 10, peaceBaseChance: 0.35, allianceMinRelations: 40,
         giftCost: 300, giftRelations: 10, peaceSeekChance: 0.05,
     },
     founding: {

@@ -20,6 +20,7 @@ import { NpcFamily } from './npcFamily.js';
 import { Cartography } from './cartography.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Traits } from './traits.js';
+import { Underworld } from './underworld.js';
 
 /**
  * What a flattered NPC actually hands over — aligned index-for-index with the
@@ -94,6 +95,8 @@ export const NpcDisposition = {
         let mult = 1 + Math.min(0.5, (mem.giftsReceived || 0) * 0.1);
         if (mem.threatened) mult *= 0.5;
         if (player) mult *= Traits.npcWarmthMultiplier(player);
+        // A known thieves' guild member: guards and priests cool, beggars warm
+        if (player) mult *= Underworld.npcWarmthFactor(player, npc.type);
         return mult;
     },
 

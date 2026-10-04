@@ -11,6 +11,7 @@ import { WEATHER_EFFECTS } from '../world/weather.js';
 import { LegendaryArtifacts } from './legendaryArtifacts.js';
 import { Infrastructure } from './infrastructure.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
+import { Underworld } from './underworld.js';
 
 /**
  * Ships System
@@ -1210,6 +1211,8 @@ export const Ships = {
             for (const kId of Object.keys(player.reputation || {})) {
                 player.reputation[kId] = (player.reputation[kId] || 0) - repLoss;
             }
+            // The realm whose waters these were remembers: underworld heat
+            Underworld.recordPiracy(player, world, typeof ship.q === 'number' ? ship.q : player.q, typeof ship.r === 'number' ? ship.r : player.r);
 
             if (player.financeToday) {
                 player.financeToday.income.piracy = (player.financeToday.income.piracy || 0) + loot;

@@ -4,6 +4,7 @@
 
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, Petitions, RealmWars, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents, WEATHER_TYPES, LegendaryArtifacts, Cartography } from './_gameImports.js';
 import { Traits } from '../../systems/traits.js';
+import { Underworld } from '../../systems/underworld.js';
 
 export function onPlayerArrived() {
     const tile = this.world.getTile(this.player.q, this.player.r);
@@ -33,6 +34,16 @@ export function onPlayerArrived() {
             `You have arrived at this ${sType}. Population: ${Utils.formatNumber(tile.settlement.population)}.`,
             'success'
         );
+        // Underworld heat: a warning at the gate, and perhaps a guard search
+        const gate = Underworld.onEnterSettlement(this.player, this.world, tile);
+        if (gate.warning) {
+            this.ui.showNotification(`🔥 Heat ${Math.round(gate.heat)}`, gate.warning, gate.level === 'watched' ? 'warning' : 'error');
+        }
+        if (gate.search) {
+            this.ui.showNotification(gate.search.arrested ? '🚔 Arrested at the Gate' : '🛂 Guard Search', gate.search.text,
+                gate.search.arrested || gate.search.fine > 0 ? 'error' : 'warning');
+            this.ui.updateStats(this.player, this.world);
+        }
         // Discover basic kingdom knowledge by visiting a settlement
         if (tile.settlement.kingdom) {
             const learned = this.player.learnAboutKingdom(tile.settlement.kingdom, 'basics');
@@ -751,6 +762,12 @@ export function endDay() {
             // Earned traits: habits fade, tax policy reads as greed or goodwill,
             // the dynasty echo fades (gain/loss notices are shown by updateStats)
             Traits.processDay(this.player, this.world);
+
+            // The underworld: heat cools, hot goods cool, rackets and the Guildmaster's cut pay weekly
+            {
+                const uw = Underworld.processDay(this.player, this.world);
+                for (const text of uw.notices) this.ui.showNotification('🗝️ Underworld', text, 'info');
+            }
 
             // Check for new achievements
             const newAchievements = Achievements.checkAchievements(this.player, this.world);

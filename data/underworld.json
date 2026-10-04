@@ -1,0 +1,181 @@
+{
+    "_comment": "The Underworld — heat, the Thieves' Guild, contraband, fences and the black market. Read by src/systems/underworld.js (DataLoader.underworld).",
+    "heat": {
+        "max": 100,
+        "decayPerDay": 1,
+        "lieLowDecayPerDay": 4,
+        "lieLowDays": 3,
+        "watchedAt": 25,
+        "posterAt": 50,
+        "arrestAt": 60,
+        "warrantAt": 80,
+        "posterBountyPerHeat": 4,
+        "searchBase": 0.15,
+        "searchPerHeat": 0.008,
+        "searchMax": 0.85,
+        "arrestChance": 0.45,
+        "searchFinePerHeat": 2,
+        "contrabandFineShare": 0.5,
+        "cleanSearchRelief": 3,
+        "jailBaseDays": 2,
+        "jailDaysPerHeat": 0.08,
+        "jailBailPerDay": 35
+    },
+    "crimes": {
+        "pickpocket":      { "heat": 3,  "caughtHeat": 10, "deeds": { "deceit": 0.5, "cunning": 0.5 }, "karma": -1 },
+        "burglary":        { "heat": 8,  "caughtHeat": 18, "deeds": { "deceit": 1, "cunning": 1, "greed": 0.5 }, "karma": -2 },
+        "racket":          { "heat": 6,  "caughtHeat": 15, "deeds": { "cruelty": 1, "greed": 1, "dread": 0.5 }, "karma": -3 },
+        "racket_weekly":   { "heat": 3,  "caughtHeat": 0,  "deeds": { "greed": 0.5 }, "karma": 0 },
+        "heist":           { "heat": 25, "caughtHeat": 35, "deeds": { "cunning": 3, "deceit": 2, "greed": 1 }, "karma": -5 },
+        "fence":           { "heat": 1,  "caughtHeat": 0,  "deeds": { "deceit": 0.3 }, "karma": 0 },
+        "black_market":    { "heat": 2,  "caughtHeat": 15, "deeds": { "deceit": 0.5, "cunning": 0.5 }, "karma": -1 },
+        "smuggling":       { "heat": 4,  "caughtHeat": 15, "deeds": { "deceit": 0.5, "cunning": 0.5 }, "karma": 0 },
+        "smuggling_route": { "heat": 2,  "caughtHeat": 10, "deeds": { "cunning": 0.3 }, "karma": 0 },
+        "piracy":          { "heat": 12, "caughtHeat": 0,  "deeds": {}, "karma": 0 },
+        "theft":           { "heat": 4,  "caughtHeat": 10, "deeds": {}, "karma": 0 }
+    },
+    "guardStrength": {
+        "village": 1,
+        "town": 2,
+        "city": 3,
+        "capital": 4,
+        "kingdomTraits": { "orderly": 0.75, "militaristic": 0.5, "defensive": 0.5, "religious": 0.25, "secretive": -0.5, "mercantile": -0.25, "mobile": -0.25 }
+    },
+    "odds": {
+        "min": 0.05,
+        "max": 0.95,
+        "stealthPerPoint": 0.04,
+        "statPerPoint": 0.015,
+        "rankPerLevel": 0.02,
+        "guardPenaltyPerPoint": 0.06,
+        "heatPenaltyPerPoint": 0.002,
+        "traits": { "cunning": 0.08, "deceitful": 0.06, "honest": -0.05, "craven": -0.03, "brave": 0.02 }
+    },
+    "guild": {
+        "name": "The Thieves' Guild",
+        "contactCost": 30,
+        "joinFee": 100,
+        "contactSettlementTypes": ["town", "city", "capital"],
+        "ranks": [
+            { "id": "footpad",     "name": "Footpad",     "icon": "👣", "standing": 0 },
+            { "id": "cutpurse",    "name": "Cutpurse",    "icon": "🤏", "standing": 20 },
+            { "id": "prowler",     "name": "Prowler",     "icon": "🐈‍⬛", "standing": 55 },
+            { "id": "shadow",      "name": "Shadow",      "icon": "🌑", "standing": 110 },
+            { "id": "master_thief","name": "Master Thief","icon": "🗝️", "standing": 190 },
+            { "id": "guildmaster", "name": "Guildmaster", "icon": "👑", "standing": 300 }
+        ],
+        "knownMemberRank": 2,
+        "guildmasterCut": { "base": 150, "perRacket": 25, "perRank": 0 },
+        "bribeDiscountPerRank": 0.05,
+        "fenceRateBase": 0.5,
+        "fenceRatePerRank": 0.04
+    },
+    "jobs": {
+        "pickpocket": {
+            "name": "Work the Crowd", "icon": "🤏", "rank": 0, "ap": 2,
+            "description": "Lift purses in the market. Small pickings, small risk.",
+            "base": 0.62, "stat": "luck", "caughtShare": 0.45,
+            "gold": [6, 28], "goldPerGuard": 6, "standing": 2
+        },
+        "burglary": {
+            "name": "Burgle a Merchant's House", "icon": "🏚️", "rank": 1, "ap": 4,
+            "description": "Slip into a merchant's townhouse by night. Coin and goods — the goods will be hot.",
+            "base": 0.5, "stat": "intelligence", "caughtShare": 0.55,
+            "gold": [20, 70], "goldPerGuard": 15, "standing": 5,
+            "loot": ["silk", "perfume", "fine_wine", "spices", "candles", "amulet", "ancient_coin", "luxuries", "gems", "tea"],
+            "lootQty": [1, 3]
+        },
+        "racket": {
+            "name": "Start a Protection Racket", "icon": "🪓", "rank": 2, "ap": 3,
+            "description": "Lean on the shopkeepers. Pays every week; the watch hears about it every week too.",
+            "base": 0.55, "stat": "strength", "caughtShare": 0.4,
+            "weeklyPerPop": 0.04, "weeklyMin": 20, "weeklyMax": 160, "bustHeat": 70, "standing": 6
+        },
+        "heist": {
+            "name": "Plan a Heist", "icon": "💎", "rank": 3, "ap": 6,
+            "description": "The big score. Plan it step by step, then strike.",
+            "base": 0.25, "stat": "intelligence", "caughtShare": 0.7, "standing": 25,
+            "planDays": 14
+        }
+    },
+    "heistTargets": {
+        "counting_house": { "name": "The Counting House", "icon": "🏦", "minType": "town",    "gold": [250, 600],  "loot": ["gold_bar", "gems"],               "lootQty": [1, 3], "difficulty": 0.0 },
+        "noble_manor":    { "name": "A Noble's Manor",    "icon": "🏰", "minType": "town",    "gold": [200, 450],  "loot": ["enchanted_ring", "amulet", "fine_wine", "silk"], "lootQty": [1, 3], "difficulty": 0.05 },
+        "temple_vault":   { "name": "The Temple Vault",   "icon": "⛪", "minType": "city",    "gold": [150, 350],  "loot": ["relics", "holy_water", "scriptures"], "lootQty": [1, 2], "difficulty": 0.05, "karma": -10, "deeds": { "cruelty": 1 } },
+        "royal_treasury": { "name": "The Royal Treasury", "icon": "👑", "minType": "capital", "gold": [600, 1400], "loot": ["royal_seal", "gold_bar", "ancient_artifact"], "lootQty": [1, 2], "difficulty": 0.15 }
+    },
+    "heistSteps": {
+        "case":       { "name": "Case the target",      "icon": "👁️", "ap": 2, "gold": 0,   "bonus": 0.12, "description": "Watch the guards' rounds for a night." },
+        "tools":      { "name": "Buy lockpicks & rope",  "icon": "🔧", "ap": 1, "gold": 80,  "bonus": 0.08, "description": "Proper tools from the guild quartermaster." },
+        "crew":       { "name": "Hire a crew",           "icon": "👥", "ap": 1, "gold": 140, "bonus": 0.14, "description": "A lookout, a climber and a cracksman." },
+        "inside_man": { "name": "Buy an inside man",     "icon": "🤝", "ap": 2, "gold": 180, "bonus": 0.16, "description": "A servant who leaves a door unlatched.", "deeds": { "deceit": 1 } },
+        "escape":     { "name": "Plan the getaway",      "icon": "🐎", "ap": 1, "gold": 60,  "bonus": 0.05, "escape": 0.5, "description": "Horses and a bolt-hole. Halves the chance of arrest if it goes wrong." }
+    },
+    "bribe": {
+        "maxRelief": 30,
+        "goldPerHeatPerGuard": 2.5,
+        "failChance": 0.1,
+        "failHeat": 5,
+        "charismaPerPoint": 0.01
+    },
+    "racketBustChance": 0.25,
+    "hotDays": 10,
+    "blackMarket": {
+        "legal": 1.05,
+        "tariff": 1.35,
+        "illegal": 1.9,
+        "blockadeBonus": 0.5,
+        "closedPortBonus": 0.75,
+        "leanFoodBonus": 0.35,
+        "leanContrabandBonus": 0.15,
+        "catchBase": 0.08,
+        "catchPerGuard": 0.035,
+        "catchPerHeat": 0.003,
+        "catchBlockade": 0.15,
+        "catchLegalShare": 0.4,
+        "stealthRelief": 0.02,
+        "blockadeHeatMultiplier": 2
+    },
+    "contraband": {
+        "tariffRate": 0.25,
+        "global": { "poison": "illegal", "forged_documents": "illegal", "stolen_goods": "illegal" },
+        "byCulture": {
+            "Religious": { "liquor": "illegal", "rum": "illegal", "perfume": "tariff", "beer": "tariff", "mead": "tariff" },
+            "Desert":    { "wine": "illegal", "fine_wine": "illegal", "liquor": "tariff" },
+            "Woodland":  { "ivory": "illegal", "pelts": "tariff", "hide": "tariff" },
+            "Imperial":  { "weapons": "tariff", "military_parts": "tariff" },
+            "Arcane":    { "enchanted_weapon": "illegal", "elixir": "tariff", "rare_book": "tariff" },
+            "Mountain":  { "gems": "tariff", "gold_bar": "tariff" },
+            "Maritime":  { "silk": "tariff", "exotic_spices": "tariff" },
+            "Nordic":    { "luxuries": "tariff", "wine": "tariff" },
+            "Swamp":     { "holy_water": "illegal", "relics": "tariff" },
+            "Nomadic":   { "horses": "tariff", "silk": "tariff" }
+        },
+        "byFaith": {
+            "solaris":     { "relics": "illegal", "incense": "tariff" },
+            "starseers":   { "relics": "illegal", "scriptures": "tariff" },
+            "ironfaith":   { "liquor": "tariff" },
+            "dunewalkers": { "liquor": "illegal", "rum": "illegal" },
+            "earthroot":   { "ivory": "illegal" },
+            "serpentway":  { "holy_water": "illegal" },
+            "stoneheart":  { "relics": "tariff" }
+        },
+        "pious": {
+            "pietyAtLeast": 65,
+            "goods": { "liquor": "illegal", "rum": "illegal", "beer": "tariff", "mead": "tariff", "wine": "tariff" }
+        }
+    },
+    "npcReactions": {
+        "guard": 0.6, "priest": 0.75, "noble": 0.85, "merchant": 0.9,
+        "beggar": 1.4, "traveler": 1.15, "villager": 1.0
+    },
+    "lordReactions": {
+        "cunning": 8, "greedy": 6, "cruel": 4,
+        "honorable": -12, "pious": -8, "cautious": -4
+    },
+    "warnings": {
+        "watched": "The watch eyes you as you pass the gate.",
+        "poster":  "Wanted posters bearing your likeness hang by the gate.",
+        "warrant": "The crown has a warrant out for you here — the guards are looking."
+    }
+}

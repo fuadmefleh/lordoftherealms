@@ -537,6 +537,10 @@ export const Gossip = {
         }
         player.gossip.bounties = player.gossip.bounties.filter(b => b.kingdom !== kingdomId);
         if (player.gossip.warrants) delete player.gossip.warrants[kingdomId];
+        // Answering to the guards also cools underworld heat below the poster line
+        const uw = player.underworld && player.underworld.heat;
+        if (uw && uw[kingdomId] > 20) uw[kingdomId] = 20;
+        if (player.underworld && player.underworld.posters) delete player.underworld.posters[kingdomId];
         return owed.length;
     },
 

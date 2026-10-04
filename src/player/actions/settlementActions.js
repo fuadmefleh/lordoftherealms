@@ -15,6 +15,7 @@ import { Festivals } from '../../systems/festivals.js';
 import { RealmPolitics } from '../realmPolitics.js';
 import { PlayerReligion } from '../playerReligion.js';
 import { SeasonalWork } from '../seasonalWork.js';
+import { Underworld } from '../../systems/underworld.js';
 
 export function addSettlementActions(actions, player, tile, world, ctx) {
     const { isCity, isVillage, isPlayerSettlement, playerSettlementCount, playerKingdom, hasPlayerFoundedKingdom } = ctx;
@@ -463,6 +464,23 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
                 label: 'Smuggle Goods',
                 icon: '🕵️',
                 description: 'Sell goods on the black market for higher prices (risky)'
+            });
+        }
+    }
+
+    // The Underworld — guild jobs, the fence, the black market, cooling off
+    {
+        const uw = player.underworld;
+        const inGuildTown = Underworld.hasGuildPresence(tile.settlement) && uw && (uw.guild.member || uw.guild.contactMet);
+        const heat = Underworld.getHeat(player, tile.settlement.kingdom);
+        if (inGuildTown || heat > 0) {
+            actions.push({
+                type: 'underworld',
+                label: heat > 0 ? `Underworld (heat ${Math.round(heat)})` : 'Underworld',
+                icon: '🗝️',
+                description: inGuildTown
+                    ? 'Guild jobs, the fence and the black market — and your heat in every realm'
+                    : 'Your notoriety here: bribe the watch or lie low'
             });
         }
     }

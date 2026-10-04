@@ -25,9 +25,11 @@ import { DataLoader } from '../core/dataLoader.js';
 // config (DEFAULT_GAMBLING, _getGamblingSettings, _getGamblingGame) = 232, plus denounceHeresy = 233,
 // plus the resource-bonus build hints (_resourceSourceNames, _constructionHint) and
 // meetingPresentTreasure = 236, plus showCourtPanel (petitions & court) = 237, plus the
-// seasonal work handlers (doTrapFurs, doIceFish, doPlantingContract) = 240.
+// seasonal work handlers (doTrapFurs, doIceFish, doPlantingContract) = 240, plus
+// showUnderworldPanel (heat, thieves' guild, fence, black market) = 241.
 const EXPECTED_KEYS = [
     'showCourtPanel',
+    'showUnderworldPanel',
     '_resourceSourceNames', '_constructionHint', 'meetingPresentTreasure',
     'doTrapFurs', 'doIceFish', 'doPlantingContract',
     '_serviceResult', 'showBlacksmithMenu', 'showBlessingMenu', 'showStableMenu', 'showGuardMenu',
@@ -96,8 +98,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 240 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(240);
+    it('has 241 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(241);
     });
 
     it('every member except the known data props is a function', () => {

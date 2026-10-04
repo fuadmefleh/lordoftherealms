@@ -481,6 +481,12 @@ export const DataLoader = {
             DataLoader.petitions = petitionsData;
         }
 
+        // ── The Underworld: heat, guild, contraband (read lazily by systems/underworld.js) ──
+        const underworldData = data['underworld.json'];
+        if (underworldData) {
+            DataLoader.underworld = underworldData;
+        }
+
         // ── Gossip / Rumor System ──
         const gossipData = data['gossip.json'];
         if (gossipData) {

@@ -1,5 +1,6 @@
 // Trading — split from playerEconomy.js; references PlayerEconomy (GOODS etc.).
 import { PlayerEconomy } from './_ref.js';
+import { Underworld } from '../../systems/underworld.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, PlayerEffects, PlayerInventory, Economy, Seasons } from './_imports.js';
 
 export const Trading = {
@@ -207,13 +208,18 @@ export const Trading = {
 
         if (!good) return { success: false, reason: 'Invalid good' };
 
+        // Hot (stolen) goods go only to a fence; contraband only to the black
+        // market; tariffed goods pay the crown its cut (systems/underworld.js)
+        const legality = Underworld.legalSaleCheck(player, goodId, quantity, settlement, world);
+        if (!legality.ok) return { success: false, reason: legality.reason };
+
         // Sell for 70% of base price, moved by the season
         const sellPrice = Trading.getSellPrice(good, world);
         // Commerce techs (accounting, guilds, ...) improve every sale
         const tradeBonus = ((typeof Technology !== 'undefined') ? Technology.getTradeProfitBonus(player) : 0)
             + PlayerEffects.tradeBonus(player, settlement)
             + Economy.saleBonus(settlement); // a market town near gems, spices, oil...
-        const totalEarned = Math.floor(sellPrice * quantity * (1 + tradeBonus));
+        const totalEarned = Math.floor(sellPrice * quantity * (1 + tradeBonus) * legality.priceMult);
 
         player.inventory[goodId] -= quantity;
         player.gold += totalEarned;
@@ -229,6 +235,6 @@ export const Trading = {
         // Increase commerce skill
         player.skills.commerce = Math.min(10, player.skills.commerce + 0.1);
 
-        return { success: true, earned: totalEarned };
+        return { success: true, earned: totalEarned, tariff: legality.tariff || 0 };
     },
 };

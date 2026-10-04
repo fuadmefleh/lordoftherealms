@@ -33,6 +33,7 @@ World simulation systems. Each system manages a distinct aspect of the game worl
 | `tiledExport.js` | — | Export maps to Tiled-compatible format |
 | `titles.js` | ~620 | Nobility titles, duties, rank requirements |
 | `traits.js` | ~430 | Earned character traits: deed counters → traits (data/traits.json), opposites, erosion, effects, dynasty echo on succession |
+| `underworld.js` | ~1180 | The Underworld: per-kingdom heat (guard searches, wanted posters/warrants via Gossip), the Thieves' Guild (ranks, jobs, heists, rackets, Guildmaster's cut), contraband by culture/faith (`data/underworld.json`), black market, hot goods and fences |
 
 ## Turn Processing
 

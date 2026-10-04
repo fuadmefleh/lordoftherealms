@@ -17,6 +17,7 @@ import { Housing } from '../systems/housing.js';
 import { Treasures } from './treasures.js';
 import { Religion } from '../systems/religion.js';
 import { Traits } from '../systems/traits.js';
+import { Underworld } from '../systems/underworld.js';
 
 /** Tenet effect of the player's own religion (0 without one). */
 function _tenet(player, key) {
@@ -293,9 +294,13 @@ export const PlayerEffects = {
         return Math.max(0.5, 1 + Traits.effect(player, 'battlePower'));
     },
 
-    /** A lord's opinion adjustment from the player's traits and the dynasty echo. */
+    /**
+     * A lord's opinion adjustment from the player's traits and the dynasty
+     * echo — and, for a known thieves' guild member, the lord's own character
+     * (a cunning lord likes it, an honorable one does not).
+     */
     lordOpinionBonus(player, lord) {
-        return Traits.lordOpinion(player, lord);
+        return Traits.lordOpinion(player, lord) + Underworld.lordOpinion(player, lord);
     },
 
     // ──────────── MOOD (needs system) ────────────

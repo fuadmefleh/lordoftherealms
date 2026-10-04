@@ -551,6 +551,36 @@ export const NPCLords = {
     },
 
     /**
+     * How each lord trait weighs the player's court reputation — the
+     * mercy/severity/justice/piety/generosity built up by ruling on petitions
+     * (systems/petitions.js keeps it on player.petitions.court).
+     */
+    COURT_OPINION_WEIGHTS: {
+        honorable: { justice: 1, mercy: 0.25 },
+        pious: { piety: 1, mercy: 0.25 },
+        cruel: { severity: 1, mercy: -0.5 },
+        cautious: { mercy: 0.5, severity: -0.25 },
+        greedy: { generosity: -0.5 },
+        brave: { severity: 0.25, justice: 0.25 },
+        cunning: { justice: -0.25 },
+    },
+    /** Cap on the opinion the court reputation can move, either way. */
+    COURT_OPINION_CAP: 15,
+
+    /** Opinion this lord forms from the player's notable rulings at court. */
+    courtOpinion(lord, player) {
+        const court = player && player.petitions && player.petitions.court;
+        if (!lord || !court || !Array.isArray(lord.traits)) return 0;
+        let total = 0;
+        for (const t of lord.traits) {
+            const w = t && NPCLords.COURT_OPINION_WEIGHTS[t.id];
+            if (!w) continue;
+            for (const [axis, weight] of Object.entries(w)) total += (court[axis] || 0) * weight;
+        }
+        return Utils.clamp(Math.round(total), -NPCLords.COURT_OPINION_CAP, NPCLords.COURT_OPINION_CAP);
+    },
+
+    /**
      * Get lord's opinion of player
      */
     getLordOpinion(lord, player) {
@@ -578,6 +608,9 @@ export const NPCLords = {
         if (player.spouse && player.marriageAllianceKingdom && player.marriageAllianceKingdom === lord.kingdomId) {
             opinion += NPCLords.MARRIAGE_KIN_OPINION;
         }
+
+        // Rulings at court — lords remember a merciful, harsh, just or pious ruler
+        opinion += NPCLords.courtOpinion(lord, player);
 
         return Utils.clamp(opinion, -100, 100);
     },

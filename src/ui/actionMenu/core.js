@@ -106,6 +106,7 @@ Object.assign(ActionMenu, {
             collect_tax: 'social', request_bounty: 'social', capture_fugitive: 'social',
             bless_settlement: 'social', hold_council: 'social',
             espionage_menu: 'social', manage_spies: 'social',
+            hold_court: 'social',
         };
 
         for (const action of actions) {
@@ -370,6 +371,7 @@ Object.assign(ActionMenu, {
         servitude_wait: 0, servitude_escape: 0, servitude_buy_freedom: 0,
         view_relationships: 0, manage_dynasty: 0,
         manage_fleet: 0, manage_house: 0, manage_property: 0, manage_colony: 0,
+        hold_court: 0,
 
         // Light actions (1 AP)
         trade: 1, collect_goods: 1, donate: 1,
@@ -857,6 +859,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'hold_council':
                 ActionMenu.doHoldCouncil(game, tile);
+                break;
+            case 'hold_court':
+                ActionMenu.showCourtPanel(game, tile);
                 break;
 
             // ── Espionage Actions ──

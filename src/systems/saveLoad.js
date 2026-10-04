@@ -11,6 +11,7 @@ import { Councils } from './councils.js';
 import { BountyHunting } from './bountyHunting.js';
 import { Gossip } from './gossip.js';
 import { Ships } from './ships.js';
+import { Petitions } from './petitions.js';
 
 
 export const SaveLoad = {
@@ -316,6 +317,9 @@ export const SaveLoad = {
 
             // Gossip / Rumors
             gossip: player.gossip || null,
+
+            // Court petitions (pending, follow-ups, rulings history, court reputation)
+            petitions: player.petitions ? JSON.parse(JSON.stringify(player.petitions)) : null,
         };
     },
 
@@ -468,6 +472,10 @@ export const SaveLoad = {
 
         // Restore gossip system state
         Gossip.loadState(player);
+
+        // Court petitions — older saves have none (backfilled lazily once there is state)
+        if (player.petitions) Petitions.loadState(player);
+        else player.petitions = null;
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

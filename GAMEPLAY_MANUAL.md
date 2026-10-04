@@ -316,6 +316,61 @@ As King, Chancellor or Tax Collector you answer to a council of five factions. C
 
 Council **approval** follows the factions' influence-weighted support. Above 70 it raises your standing with your liege every 5 days; below 30 it lowers it. If approval falls below 15 the council is in uproar, and after 10 days of that it passes a **vote of no confidence** and you lose your office. A suppressed faction can't organise against you until the crackdown ends.
 
+### Petitions & the Court
+
+Once you rule something, people come to you for judgement. You become a **petitioned ruler** when you hold a settlement or colony, hold a royal office (petitions then come from your liege's capital), or head a House of standing (20+ Prestige, or any later generation). Until then no petitioners come.
+
+Every 6–12 days (sooner the more holdings you have) a petitioner arrives with a dilemma, and an end-of-day notice tells you where. Open **⚖️ Hold Court** from the action menu at any of your holdings — an owned settlement or colony, a property, a house you own, or, while in office, any settlement of your kingdom. Up to 3 petitions wait at once.
+
+There are 34 petitions, and each one appears only where it makes sense:
+
+| Condition | Examples |
+|-----------|----------|
+| Settlement size | Guild monopolies, plague quarantine and miners' strikes need a sizeable town |
+| Season | Famine pleas in autumn and winter, droughts in summer, midsummer feasts in spring and summer |
+| War | Refugees at the gates, deserters and war-levy pleas only while you (or your liege) are at war |
+| Peoples | Quarrels between quarters and foreign rites need two or more peoples in the settlement |
+| Faith | Heretic preachers, temple requests, abbeys and pilgrims need a faith there (yours or the kingdom's) |
+| Office / House | Council seats and border lords come to office holders; cousins' debts, rival heralds and feud-crossing marriages come to the House |
+| Colony | Colonists' charters come only from colonies |
+
+Each petition offers 2–4 choices, and every one has a price. The court panel lists what each choice will cost or gain before you choose:
+
+- **Gold, karma, renown and House Prestige**
+- **Settlement happiness, loyalty (colonies) and population**
+- **Council faction support** (Nobility, War Hawks, Guilds, Clergy, Commons) and council approval
+- **Reputation and stability** of the kingdom the petition comes from
+- **Faith**: your own religion's presence in the settlement if you founded one, otherwise the local faith's piety. Some choices also gain your religion followers.
+- **Peoples' mood**: the two largest peoples in a quarrel, or every people at a feast
+- **Rival feud** with the most aggrieved rival House
+
+Some choices are gambles, such as debating a heretic or answering a herald's insult with a verse. Their odds are shown on the button.
+
+**Consequences follow.** Some rulings schedule a follow-up petition days later that refers back to them. For example:
+- A pardoned bandit may return as a loyal captain, or flee with your strongbox.
+- A noble's son you let off may kill again.
+- A hedge preacher you tolerated may come back with a flock that wants its own chapel.
+- Refugees you sheltered may thank you with a harvest, or clash with the townsfolk.
+- The miners will come to collect what you promised them.
+
+The panel marks choices that may have consequences. A follow-up is dropped if you have lost the settlement in the meantime.
+
+**Ignoring has a cost.** Every petition expires after a few days (shown in red when two or fewer remain). An expired petition applies its *ignore* cost, such as unhappiness, lost Prestige or an angry faction. **Send them away unheard** pays that cost immediately.
+
+**Your court's reputation.** Each ruling adds to five traits: 🕊️ Mercy, ⛓️ Severity, ⚖️ Justice, 🙏 Piety and 🎁 Generosity, each running from −20 to +20. Kingdom lords remember them, and their opinion of you shifts by up to ±15:
+
+| Lord trait | Likes |
+|------------|-------|
+| Honorable | Justice (and a little mercy) |
+| Pious | Piety (and a little mercy) |
+| Cruel | Severity; dislikes mercy |
+| Cautious | Mercy; dislikes severity |
+| Greedy | A grasping hand (low generosity) |
+| Brave | Severity and justice |
+| Cunning | Bent justice |
+
+Notable rulings, such as hanging a noble's son, raising a temple or pardoning a bandit, are written into your **House chronicle**. The court panel keeps your recent rulings, and petitions, follow-ups and your court reputation are all saved with the game.
+
 ### Finance Tracking
 
 Click your gold display to open a detailed 90-day financial breakdown showing income sources, expense categories, daily logs, and gold-over-time charts.

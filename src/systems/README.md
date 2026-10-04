@@ -22,6 +22,7 @@ World simulation systems. Each system manages a distinct aspect of the game worl
 | `modStore.js` | — | Mod loading and custom asset injection |
 | `npcFamily/` | ~1280 | Inner-map NPC families, bonds, social ripple effects |
 | `npcDisposition.js` | ~360 | What inner-map NPC disposition does: prices, threats, secrets, family grudges |
+| `petitions.js` | ~600 | Court petitions: data-driven dilemmas (`data/petitions.json`) at the player's holdings; chained follow-ups, expiry costs, court reputation |
 | `peoples/` | ~1900 | 30 tribal cultures, settlement demographics, cultural history; `effects.js` turns values/traits/arts/cuisine/customs/homeland/lore into settlement & kingdom modifiers (tables in `data/peoples.json` → `effects`) |
 | `quests.js` | ~650 | Dynamic quest generation, tracking, rewards |
 | `relationships/` | ~1700 | Courtship, marriage, children, dynasty, heir succession |

@@ -2,7 +2,7 @@
 // END DAY � onPlayerArrived, endDay turn processing
 // ============================================
 
-import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, RealmWars, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents, WEATHER_TYPES, LegendaryArtifacts, Cartography } from './_gameImports.js';
+import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, Petitions, RealmWars, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents, WEATHER_TYPES, LegendaryArtifacts, Cartography } from './_gameImports.js';
 
 export function onPlayerArrived() {
     const tile = this.world.getTile(this.player.q, this.player.r);
@@ -370,6 +370,18 @@ export function endDay() {
                         this.ui.showNotification('🛡️ Plot Foiled', r.text, 'success');
                     }
                 }
+            }
+
+            // Court petitions — dilemmas brought to your holdings; unanswered ones expire
+            const court = Petitions.processDay(this.player, this.world);
+            for (const pet of court.expired) {
+                this.ui.showNotification('⚖️ Petition Ignored',
+                    `${pet.petition.title}: ${pet.text}${pet.effects.length ? ` (${pet.effects.join(', ')})` : ''}`, 'warning');
+            }
+            for (const pet of court.arrived) {
+                const where = pet.ctx && pet.ctx.settlementName ? ` at ${pet.ctx.settlementName}` : '';
+                this.ui.showNotification(`${pet.icon} Petitioners${where}`,
+                    `${pet.title} — hear them at Court (action menu at your holdings) within ${Petitions.daysLeft(pet, this.world)} day(s).`, 'info');
             }
 
             // Kingdoms at war with the player — ultimatums, war hosts, sieges

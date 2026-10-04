@@ -1080,7 +1080,7 @@ Kingdoms are run by AI with distinct personalities. They:
 - React to your influence and actions.
 - Have rulers with 30+ possible traits affecting their behavior (Brilliant Strategist, Cruel, Ambitious, etc.).
 
-**Kingdom bonuses.** A realm's strengths combine three sources: its ruler's traits and skills plus its advisors (general, treasurer, chancellor, court physician, …), its NPC lord's personality numbers, and its culture tradition. Together they set army size and battle power (military, battle, defense), income (treasury, stewardship, taxes), war upkeep, how often it expands, founds villages and opens trade routes, diplomacy, piety, scholarship and cultural influence, advisor loyalty, heir births, and how often the ruler falls ill. The Dynasties panel lists a kingdom's combined bonuses.
+**Kingdom bonuses.** A realm's strengths combine three sources: its ruler's traits and skills plus its advisors (general, treasurer, chancellor, court physician, …), its NPC lord's personality numbers, and its culture tradition. Together they set army size and battle power (military, battle, defense), income (treasury, stewardship, taxes), war upkeep, how often it expands, founds villages and opens trade routes, diplomacy, piety, scholarship and cultural influence, advisor loyalty, heir births, and how often the ruler falls ill. Scholarship, influence and running cultural events add their own small bonuses on top (see [Culture](#19-culture)). The Dynasties panel lists a kingdom's combined bonuses.
 
 **Stability (0–100).** Every kingdom has a stability score that drifts each day toward a target: 60, plus ruler/lord/tradition stability and loyalty, plus world events (rebellions −25, succession crises −20, royal weddings +10, festivals +5, …) and the realm's mood, minus 5 per war and 15 for an empty treasury, adjusted by faith unity. High stability raises income by up to +20% and steadies troops in battle; low stability cuts income (down to −50%) and saps morale. Below 35 the realm is restless and may erupt in a **Peasant Rebellion** (a cunning spymaster lowers the odds). Stability shows in the kingdom info panel and the Dynasties panel.
 
@@ -1245,13 +1245,17 @@ Gifts come from a list — Wildflowers (5g), Silver Necklace (50g), Gold Ring (1
 
 ### Cultural Buildings
 
-| Building | Cost | Build Time | Effect |
+| Building | Cost | Build Time | Effect (level 1) |
 |----------|------|-----------|--------|
-| Scriptorium | 400g | 4 days | +10% research, 10g income |
-| Library | 600g | 6 days | +15% research, 15g income |
-| Theater | 800g | 8 days | +10 morale, 25g income |
-| Monument | 1,000g | 10 days | +1 renown/day, 20g income |
-| University | 1,500g | 14 days | +30% research, 40g income (requires 1,000 pop) |
+| Scriptorium | 400g | 4 days | +10% research speed, 1 gold/day |
+| Library | 600g | 6 days | +15% research speed, 1.5 gold/day |
+| Theater | 800g | 8 days | +2% army morale, 2.5 gold/day |
+| Monument | 1,000g | 10 days | +1 renown/day, 2 gold/day |
+| University | 1,500g | 14 days | +30% research speed, 4 gold/day (requires 1,000 pop) |
+
+Effects start once construction finishes. **Research speed** from Scriptoria, Libraries and Universities adds up (capped at +50%) and shortens every technology you start researching, on top of INT, Writing/Printing Press and University properties. **Income** is a tenth of the building's culture rating per level per day (Philosophy and Printing Press multiply it); fractions carry over, so a Library pays 3 gold every 2 days. Theaters' morale bonus is capped at +6% across all of them.
+
+**Upgrades.** Stand on one of your finished cultural buildings and choose **Upgrade** (3 AP) to raise it to level 2 for half its build cost, then to level 3 for its full build cost (a Library: 300g, then 600g). Each level multiplies income, renown and influence by the level (×2, ×3) and adds +50% to its research and morale bonus (×1.5, ×2). The hex info panel and the Culture overview show each building's level, real income and upgrade price.
 
 ### Cultural Traditions
 
@@ -1268,9 +1272,33 @@ Each kingdom's culture provides distinct bonuses:
 
 These are real kingdom bonuses (shown in the kingdom info panel and Cultural overview): military/cavalry/archery/naval add army strength (cavalry and archery also shift the army's mix), raiding adds battle power, defense helps defenders, endurance resists attrition, trade/navigation/hospitality open trade routes, scholarship/research/magic raise scholarship, faith raises piety, mining adds treasury income, craftsmanship speeds construction, nature/alchemy help population growth, and stealth/poison add intrigue against rebels.
 
+### Scholarship & Influence
+
+Every kingdom has **Scholarship** and **Influence** (0–100). They grow slowly on their own, faster with scholarly traditions and rulers, and much faster with cultural buildings. They have real effects:
+
+- **Scholarship** → up to +5% kingdom income (learned stewards) and +20% construction (repairs and founding villages).
+- **Influence** → up to +3 relations per diplomatic envoy, and *cultural pull*: a realm's envoys warm by +1 per 20 points of influence the other realm has over it (max +3), so admired cultures make friends and fewer enemies.
+- **Both** → stability: ±0.1 per point that their average sits above or below 40 (from −4 to +6).
+
+The kingdom info panel and the Culture overview list each realm's current culture effects.
+
+### Kingdom Cultural Buildings
+
+Kingdoms commission their own cultural buildings (about once every three months, at most 3 per realm, one per town) when the treasury holds at least three times the cost. They are built over the usual construction time, then each adds 5% of its scholarship rating and 10% of its influence rating per day (a Library: +0.25 scholarship, +0.2 influence). If the town is conquered, the building passes to the conqueror.
+
 ### Cultural Events
 
-13 event types can occur, including Grand Festivals, Gladiatorial Games, Philosophical Debates, Art Exhibitions, and more — each providing morale, research, or renown bonuses.
+13 event types can occur (about 1% per kingdom per day, paid from its treasury, lasting 3–7 days). While an event runs, its effect is real:
+
+| Effect | Events | While running |
+|--------|--------|---------------|
+| Morale | Grand Festival, Great Horse Race, Harvest Feast, Gladiatorial Games | +0.2 stability target per point, +value/200 battle morale |
+| Scholarship / Research | Book Fair, Philosophical Debate, Arcane Symposium | +value/10 scholarship per day |
+| Influence | Art Exhibition | +value/10 influence per day |
+| Renown | Bardic Competition | +value/40 diplomacy (+2 relations per envoy) |
+| Industry | Forge Festival | +value% construction, +value/2 % income |
+| Trade | Naval Regatta, Caravan Festival | +value% trade route chance, +value/2 % income |
+| Faith | Spirit Walk | +value/10 piety per day |
 
 ---
 

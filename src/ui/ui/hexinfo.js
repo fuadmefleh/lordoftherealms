@@ -314,15 +314,20 @@ Object.assign(UI.prototype, {
                     <span class="info-value" style="color:#ffffff !important;">${building.icon} ${building.name}</span>
                 </div>
                 <div class="info-row">
+                    <span class="info-label">Level</span>
+                    <span class="info-value">${building.level || 1}/${Culture.LEVELS.max}${building.underConstruction ? ` · 🏗️ ${building.constructionDaysLeft} days left` : ''}</span>
+                </div>
+                <div class="info-row">
                     <span class="info-label">Influence</span>
-                    <span class="info-value">+${building.influencePerDay}/day (radius ${building.influenceRadius})</span>
+                    <span class="info-value">+${building.influencePerDay * (building.level || 1)}/day${building.influenceRadius ? ` (radius ${building.influenceRadius})` : ''}</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Scholarship</span>
                     <span class="info-value">+${building.scholarshipBonus}</span>
                 </div>
-                ${building.researchBonus ? `<div class="info-row"><span class="info-label">Research Bonus</span><span class="info-value">+${Math.round(building.researchBonus * 100)}%</span></div>` : ''}
-                ${building.incomeBonus ? `<div class="info-row"><span class="info-label">Income</span><span class="info-value">+${building.incomeBonus}/day</span></div>` : ''}
+                ${building.researchBonus ? `<div class="info-row"><span class="info-label">Research Bonus</span><span class="info-value">+${Math.round(building.researchBonus * Culture.levelMultiplier(building) * 100)}%</span></div>` : ''}
+                ${building.incomeBonus ? `<div class="info-row"><span class="info-label">Income</span><span class="info-value">+${Math.round(Culture.dailyIncome(building) * 10) / 10} gold/day</span></div>` : ''}
+                ${building.owner === 'player' && Culture.getUpgradeCost(building) !== null ? `<div class="info-row"><span class="info-label">Upgrade</span><span class="info-value">${Culture.getUpgradeCost(building)} gold (stand here → Upgrade)</span></div>` : ''}
             `;
         }
 
@@ -950,6 +955,15 @@ Object.assign(UI.prototype, {
                     <span class="info-label">Scholarship</span>
                     <span class="info-value">${Math.floor(kingdom.cultureData.scholarship)}/100</span>
                 </div>
+                ${(() => {
+                    const d = Culture.describeKingdom(kingdom);
+                    return `<div class="info-row">
+                        <span class="info-label">Culture effects</span>
+                        <span class="info-value" style="font-size: 11px;">${d.effects.join(', ')}</span>
+                    </div>
+                    ${d.buildings.length ? `<div class="info-row"><span class="info-label">Cultural buildings</span><span class="info-value" style="font-size: 11px;">${d.buildings.join(', ')}</span></div>` : ''}
+                    ${d.events.length ? `<div class="info-row"><span class="info-label">Cultural events</span><span class="info-value" style="font-size: 11px;">${d.events.join(', ')}</span></div>` : ''}`;
+                })()}
             `;
         }
 

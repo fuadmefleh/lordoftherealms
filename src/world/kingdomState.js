@@ -100,6 +100,9 @@ export const KingdomBonuses = {
                 if (TRADITION_KEYS[tk] === key && typeof val === 'number') total += val / 100;
             }
         }
+
+        // Scholarship, influence and running cultural events
+        total += KingdomCulture.bonus(kingdom, key);
         return total;
     },
 
@@ -121,6 +124,109 @@ export const KingdomBonuses = {
             if (Math.abs(value) >= 0.005) out.push({ key, label: BONUS_LABELS[key], value });
         }
         return out;
+    },
+};
+
+/**
+ * What a kingdom's culture actually does. kingdom.cultureData carries
+ * scholarship and influence (0-100) and the cultural events it is running
+ * (Culture.processTurn, data/culture.json). This lives in world/ so the
+ * kingdom AI and KingdomBonuses can read it without importing systems/.
+ *
+ * Kept deliberately small — a fully learned, admired realm earns about +5%
+ * income, +20% construction, +3 diplomacy per envoy and +5 stability.
+ */
+export const KingdomCulture = {
+    /** Per-point weights (scholarship/influence are 0-100). */
+    WEIGHTS: {
+        stewardship: 0.10,      // × scholarship/100 → income (stewardship counts half)
+        construction: 0.20,     // × scholarship/100 → repairs and village founding
+        diplomacy: 0.30,        // × influence/100 → +floor(x*10) relations per envoy
+        stabilityPivot: 40,     // average of scholarship & influence giving ±0 stability
+        stabilityPerPoint: 0.1, // stability per point above/below the pivot
+    },
+
+    /** Total `value` of the kingdom's running cultural events with this effect. */
+    eventValue(kingdom, effect) {
+        const events = kingdom && kingdom.cultureData && kingdom.cultureData.events;
+        if (!Array.isArray(events)) return 0;
+        let total = 0;
+        for (const ev of events) {
+            if (ev && ev.effect === effect && (ev.daysLeft === undefined || ev.daysLeft > 0)) total += ev.value || 0;
+        }
+        return total;
+    },
+
+    _levels(kingdom) {
+        const cd = kingdom && kingdom.cultureData;
+        if (!cd) return null;
+        return {
+            scholarship: Utils.clamp(cd.scholarship || 0, 0, 100) / 100,
+            influence: Utils.clamp(cd.influence || 0, 0, 100) / 100,
+        };
+    },
+
+    /**
+     * Fractional KingdomBonuses contribution for a key:
+     *  - scholarship → stewardship (income) and construction
+     *  - influence → diplomacy
+     *  - events: industry → construction & treasury, trade → trade routes &
+     *    treasury, renown → diplomacy
+     */
+    bonus(kingdom, key) {
+        const lv = KingdomCulture._levels(kingdom);
+        if (!lv) return 0;
+        const W = KingdomCulture.WEIGHTS;
+        switch (key) {
+            case 'stewardship': return lv.scholarship * W.stewardship;
+            case 'construction': return lv.scholarship * W.construction + KingdomCulture.eventValue(kingdom, 'industry') / 100;
+            case 'diplomacy': return lv.influence * W.diplomacy + KingdomCulture.eventValue(kingdom, 'renown') / 40;
+            case 'tradeBonus': return KingdomCulture.eventValue(kingdom, 'trade') / 100;
+            case 'treasury': return (KingdomCulture.eventValue(kingdom, 'industry') + KingdomCulture.eventValue(kingdom, 'trade')) / 200;
+            default: return 0;
+        }
+    },
+
+    /** Stability target shift: learning and prestige steady a realm, festivals lift it. */
+    stabilityMod(kingdom) {
+        const lv = KingdomCulture._levels(kingdom);
+        if (!lv) return 0;
+        const W = KingdomCulture.WEIGHTS;
+        const avg = (lv.scholarship + lv.influence) * 50;
+        return (avg - W.stabilityPivot) * W.stabilityPerPoint + KingdomCulture.eventValue(kingdom, 'morale') * 0.2;
+    },
+
+    /** Battle morale from running festivals and games (points/200). */
+    moraleBonus(kingdom) {
+        return KingdomCulture.eventValue(kingdom, 'morale') / 200;
+    },
+
+    /**
+     * Cultural pull: envoys from a less influential realm warm toward an
+     * admired one (+1 per 20 points of influence gap, at most +3).
+     */
+    admiration(kingdom, target) {
+        if (!kingdom || !target || !kingdom.cultureData || !target.cultureData) return 0;
+        const gap = (target.cultureData.influence || 0) - (kingdom.cultureData.influence || 0);
+        return Utils.clamp(Math.floor(gap / 20), 0, 3);
+    },
+
+    /**
+     * Daily growth from running events: book fairs, debates and symposia add
+     * scholarship, exhibitions add influence, spirit walks add piety
+     * (value/10 per day each).
+     */
+    applyEvents(kingdom) {
+        const cd = kingdom && kingdom.cultureData;
+        if (!cd) return;
+        const learning = KingdomCulture.eventValue(kingdom, 'scholarship') + KingdomCulture.eventValue(kingdom, 'research');
+        if (learning && typeof cd.scholarship === 'number') cd.scholarship = Math.min(100, cd.scholarship + learning / 10);
+        const inf = KingdomCulture.eventValue(kingdom, 'influence');
+        if (inf && typeof cd.influence === 'number') cd.influence = Math.min(100, cd.influence + inf / 10);
+        const faith = KingdomCulture.eventValue(kingdom, 'faith');
+        if (faith && kingdom.religion && typeof kingdom.religion.piety === 'number') {
+            kingdom.religion.piety = Math.min(100, kingdom.religion.piety + faith / 10);
+        }
     },
 };
 
@@ -152,6 +258,7 @@ export const KingdomStability = {
         let t = KingdomStability.BASE;
         t += add('Rulers & traditions', (KingdomBonuses.get(kingdom, 'stability') + KingdomBonuses.get(kingdom, 'loyalty') * 0.5) * 100);
         t += add('Events', KingdomStability.eventMod(world, kingdom, 'stability'));
+        t += add('Culture & learning', KingdomCulture.stabilityMod(kingdom));
         t += add('Mood of the realm', KingdomStability.eventMod(world, kingdom, 'morale') * 0.3);
         t += add('Wars', -5 * ((kingdom.wars && kingdom.wars.length) || 0));
         if ((kingdom.treasury || 0) <= 0) t += add('Empty treasury', -15);

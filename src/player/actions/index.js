@@ -361,6 +361,8 @@ export const PlayerActions = {
             const cultureResult = Culture.processPlayerCulture(player, world);
             results.cultureIncome = cultureResult.income;
             results.cultureRenown = cultureResult.renown;
+            // Already applied to research time via Technology.getResearchBonus
+            results.cultureResearchBonus = cultureResult.researchBonus;
         }
 
         if (typeof Festivals !== 'undefined') {

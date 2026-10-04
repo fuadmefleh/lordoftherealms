@@ -383,6 +383,22 @@ export const Achievements = {
             check: (player) => ['theater', 'university'].every(type => (player.culturalBuildings || []).some(b => b.type === type)),
             tier: 'silver',
         },
+        DEAD_OR_ALIVE: {
+            id: 'dead_or_alive',
+            name: 'Dead or Alive',
+            description: 'Bring in 5 wanted criminals',
+            icon: '🎯',
+            check: (player) => (player.bountiesCompleted || 0) >= 5,
+            tier: 'bronze',
+        },
+        LEGENDARY_HUNTER: {
+            id: 'legendary_hunter',
+            name: 'Legendary Hunter',
+            description: 'Reach the top bounty hunter rank',
+            icon: '⭐',
+            check: (player) => ((player.bountyHunter && player.bountyHunter.rank) || 0) >= 5,
+            tier: 'gold',
+        },
         UNDYING: {
             id: 'undying',
             name: 'Undying',

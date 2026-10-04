@@ -47,6 +47,24 @@ export const BountyHunting = {
         if (!Array.isArray(state.boardOffers)) state.boardOffers = [];
     },
 
+    /** Hunter ranks: each adds capture skill and a cut of extra pay. */
+    RANKS: [
+        { rank: 1, title: 'Novice Tracker', icon: '🔰' },
+        { rank: 2, title: 'Bounty Hunter', icon: '🎯' },
+        { rank: 3, title: 'Seasoned Hunter', icon: '🏹' },
+        { rank: 4, title: 'Manhunter', icon: '🐺' },
+        { rank: 5, title: 'Legendary Hunter', icon: '⭐' },
+    ],
+
+    /** Rank title plus its effects: +1 capture power and +10% pay per rank above the first (max +4 / +40%). */
+    getRankInfo(player) {
+        this.initialize(player);
+        const rank = Math.max(1, player.bountyHunter.rank);
+        const def = this.RANKS[Math.min(rank, this.RANKS.length) - 1];
+        const steps = Math.min(4, rank - 1);
+        return { ...def, rank, captureBonus: steps, payBonus: steps * 0.1 };
+    },
+
     _key(q, r) {
         return `${q},${r}`;
     },
@@ -166,8 +184,11 @@ export const BountyHunting = {
         const leadership = player.skills?.leadership || 1;
         const armyPower = Math.min(4, Math.floor(((player.army || []).length || 0) / 4));
 
-        const playerPower = combat + Math.floor(stealth * 0.6) + Math.floor(leadership * 0.4) + armyPower + Utils.randInt(1, 6);
-        const targetPower = bounty.difficulty + Utils.randInt(2, 8);
+        const rankBonus = this.getRankInfo(player).captureBonus;
+        const playerPower = combat + Math.floor(stealth * 0.6) + Math.floor(leadership * 0.4) + armyPower + rankBonus + Utils.randInt(1, 6);
+        // A quarry that has slipped you before is warier (+1 per escape, max +3)
+        const wariness = Math.min(3, bounty.escapes || 0);
+        const targetPower = bounty.difficulty + wariness + Utils.randInt(2, 8);
 
         if (playerPower >= targetPower) {
             bounty.status = 'captured_pending_decision';
@@ -184,6 +205,7 @@ export const BountyHunting = {
         bounty.targetR = Math.max(0, Math.min(maxR, bounty.targetR + stepR));
 
         player.bountyHunter.failedCaptures += 1;
+        bounty.escapes = (bounty.escapes || 0) + 1;
         return {
             success: false,
             escaped: true,
@@ -200,14 +222,16 @@ export const BountyHunting = {
         const state = player.bountyHunter;
 
         if (choice === 'turn_in') {
-            player.gold += bounty.actualPay;
+            // Magistrates pay a renowned hunter's asking price
+            const pay = Math.round(bounty.actualPay * (1 + this.getRankInfo(player).payBonus));
+            player.gold += pay;
             player.renown = (player.renown || 0) + Math.max(3, Math.floor(bounty.difficulty / 2));
             state.capturesTurnedIn += 1;
             player.bountiesCompleted = (player.bountiesCompleted || 0) + 1;
             bounty.status = 'completed';
             this._removeBounty(player, bounty.id);
-            this._recalculateRank(player);
-            return { success: true, turnedIn: true, pay: bounty.actualPay, bounty };
+            const promoted = this._recalculateRank(player);
+            return { success: true, turnedIn: true, pay, bounty, promoted };
         }
 
         if (choice === 'recruit') {
@@ -231,8 +255,8 @@ export const BountyHunting = {
             player.bountiesCompleted = (player.bountiesCompleted || 0) + 1;
             bounty.status = 'completed';
             this._removeBounty(player, bounty.id);
-            this._recalculateRank(player);
-            return { success: true, recruited: true, bounty };
+            const promoted = this._recalculateRank(player);
+            return { success: true, recruited: true, bounty, promoted };
         }
 
         return { success: false, reason: 'Invalid resolution choice.' };
@@ -245,7 +269,9 @@ export const BountyHunting = {
     _recalculateRank(player) {
         const state = player.bountyHunter;
         const total = state.capturesTurnedIn + state.capturesRecruited;
+        const before = state.rank;
         state.rank = 1 + Math.floor(total / 3);
+        return state.rank > before ? this.getRankInfo(player) : null;
     },
 
     processDaily(player, world) {

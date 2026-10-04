@@ -1500,6 +1500,11 @@ Object.assign(ActionMenu, {
         // Show active bounties first
         let html = '<div style="max-height: 500px; overflow-y: auto;">';
         html += '<h4 style="margin-top: 0;">📋 Notice Board</h4>';
+        if (typeof BountyHunting !== 'undefined') {
+            const rank = BountyHunting.getRankInfo(game.player);
+            const perks = rank.captureBonus > 0 ? ` · +${rank.captureBonus} capture, +${Math.round(rank.payBonus * 100)}% pay` : '';
+            html += `<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">${rank.icon} ${rank.title} (rank ${rank.rank})${perks}</div>`;
+        }
 
         // Active bounties
         if (game.player.activeBounties.length > 0) {
@@ -1674,6 +1679,9 @@ Object.assign(ActionMenu, {
                 game.ui.showNotification('Bounty Turned In', `${bounty.targetName} delivered to authorities for ${resolution.pay}g.`, 'success');
             } else if (resolution.recruited) {
                 game.ui.showNotification('Target Recruited', `${bounty.targetName} has joined your ranks.`, 'success');
+            }
+            if (resolution.promoted) {
+                game.ui.showNotification(`${resolution.promoted.icon} ${resolution.promoted.title}`, `Your reputation as a hunter grows: +${resolution.promoted.captureBonus} capture power, +${Math.round(resolution.promoted.payBonus * 100)}% bounty pay.`, 'success');
             }
 
             game.ui.updateStats(game.player, game.world);

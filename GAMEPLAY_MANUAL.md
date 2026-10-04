@@ -1581,9 +1581,23 @@ Find all fragments by exploring POIs, then reforge the artifact at a city or lar
 
 Track and capture wanted criminals across the map for gold and renown. Available through the **Notice Board** at settlements or via the **Jailer** title.
 
-- **10 fugitive types** with varying difficulty (3–8) and rewards (20–60g).
+- **Notice Board** criminals (difficulty 3–10, roughly 175–700g) get harder as your record grows; **Jailer** fugitives are smaller jobs (20–60g).
 - Choose to **turn in** captured targets for the bounty or **recruit** them to your cause.
-- Escalating difficulty ensures bounty hunting remains challenging.
+- A failed arrest lets the quarry flee a few hexes, and each escape makes it warier (+1 difficulty, up to +3).
+
+### Hunter Ranks
+
+Every 3 criminals you bring in raise your rank. Each rank above the first adds +1 capture power and +10% bounty pay (up to +4 / +40%).
+
+| Rank | Title |
+|------|-------|
+| 1 | 🔰 Novice Tracker |
+| 2 | 🎯 Bounty Hunter |
+| 3 | 🏹 Seasoned Hunter |
+| 4 | 🐺 Manhunter |
+| 5+ | ⭐ Legendary Hunter |
+
+Achievements: **Dead or Alive** (bring in 5 criminals) and **Legendary Hunter** (reach rank 5).
 
 ---
 

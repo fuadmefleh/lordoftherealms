@@ -1,6 +1,6 @@
 // UI — hexinfo methods.
 import { UI } from './core.js';
-import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, WorldEvents, InnerMap, InnerMapRenderer } from './_imports.js';
+import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, WorldEvents, InnerMap, InnerMapRenderer, KingdomBonuses, KingdomStability } from './_imports.js';
 
 Object.assign(UI.prototype, {
     /**
@@ -105,6 +105,8 @@ Object.assign(UI.prototype, {
             for (const ev of tileEvents) {
                 const where = ev.kingdomId ? ev.regionName : 'Realm-wide';
                 html += `<span class="info-value" style="font-size: 12px;" title="${(ev.text || '').replace(/"/g, '&quot;')}">${ev.icon} ${ev.name} · ${where} · ${ev.daysLeft}d left</span>`;
+                const effects = WorldEvents.describeEffects(ev);
+                if (effects) html += `<span style="font-size: 10px; color: var(--text-secondary); padding-left: 18px;">${effects}</span>`;
             }
             html += '</div>';
         }
@@ -933,6 +935,10 @@ Object.assign(UI.prototype, {
                     <span class="info-label">Tradition</span>
                     <span class="info-value">${kingdom.cultureData.tradition ? kingdom.cultureData.tradition.icon + ' ' + kingdom.cultureData.tradition.name : kingdom.culture}</span>
                 </div>
+                ${KingdomBonuses.describeTradition(kingdom.cultureData.tradition).length ? `<div class="info-row">
+                    <span class="info-label">Tradition bonuses</span>
+                    <span class="info-value" style="font-size: 11px;">${KingdomBonuses.describeTradition(kingdom.cultureData.tradition).join(', ')}</span>
+                </div>` : ''}
                 <div class="info-row">
                     <span class="info-label">Influence</span>
                     <span class="info-value">${Math.floor(kingdom.cultureData.influence)}/100</span>
@@ -963,6 +969,10 @@ Object.assign(UI.prototype, {
                 <span class="info-label">Population</span>
                 <span class="info-value">${Utils.formatNumber(kingdom.population || 0)}</span>
             </div>
+            ${typeof kingdom.stability === 'number' ? `<div class="info-row">
+                <span class="info-label">Stability</span>
+                <span class="info-value" style="color:${KingdomStability.color(kingdom.stability)};">🏛️ ${Math.round(kingdom.stability)}/100 · ${KingdomStability.label(kingdom.stability)}</span>
+            </div>` : ''}
             ${knows('military') ? `<div class="info-row">
                 <span class="info-label">Military</span>
                 <span class="info-value">⚔️ ${Utils.formatNumber(kingdom.military || 0)}</span>

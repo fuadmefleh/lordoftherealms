@@ -133,7 +133,38 @@ Object.assign(Relationships, {
             }
 
             return { ...action, unlocked: true, lockReason: null };
+        }).flatMap(entry => {
+            // An unlocked gift becomes one button per giftItems entry
+            if (entry.id !== 'gift' || !entry.unlocked) return [entry];
+            return Relationships.getGiftItems().map(gift => ({
+                ...entry,
+                id: `gift:${gift.id}`,
+                label: gift.name,
+                icon: gift.icon || entry.icon,
+                cost: gift.cost || 0,
+                description: gift.description || entry.description,
+            }));
         });
+    },
+
+    /** The court action behind an id; 'gift:<itemId>' resolves to that gift. */
+    _resolveCourtAction(actions, actionId, player, npc) {
+        if (actionId !== 'gift' && !String(actionId).startsWith('gift:')) return actions[actionId] || null;
+        const base = actions.gift;
+        if (!base) return null;
+        const itemId = String(actionId).slice(5);
+        const gift = itemId
+            ? Relationships.getGiftItems().find(g => g.id === itemId)
+            : Relationships.chooseGift(player, npc);
+        if (!gift) return itemId ? null : base;
+        const value = Relationships.giftValue(gift, npc);
+        return {
+            ...base,
+            cost: gift.cost || 0,
+            statBonus: gift.statBonus || base.statBonus,
+            affectionGain: { min: Math.max(1, Math.round(value * 0.75)), max: Math.max(1, Math.round(value * 1.25)) },
+            gift,
+        };
     },
 
     // ────────────────────────────────────────────────────────────────────
@@ -210,11 +241,12 @@ Object.assign(Relationships, {
         }
 
         const actions = Relationships._getCourtActions();
-        const action = actions[actionId];
+        const action = Relationships._resolveCourtAction(actions, actionId, player, npc);
         if (!action) return { success: false, reason: 'Unknown action' };
+        const baseId = action.gift ? 'gift' : actionId;
 
         const availability = Relationships.getCourtActionAvailability(player, npcId)
-            .find(item => item.id === actionId);
+            .find(item => item.id === actionId || item.id === baseId);
         if (availability && !availability.unlocked) {
             return { success: false, reason: availability.lockReason || 'This action is locked' };
         }
@@ -258,7 +290,7 @@ Object.assign(Relationships, {
             rel.history.push({ day: 0, action: actionId, result: 'failed', romantic: true });
 
             if (cost > 0) player.gold -= cost;
-            return { success: false, failed: true, npc, penalty, reason: Relationships._getCourtFailText(actionId, npc) };
+            return { success: false, failed: true, npc, penalty, reason: Relationships._getCourtFailText(baseId, npc) };
         }
 
         // Calculate affection gain

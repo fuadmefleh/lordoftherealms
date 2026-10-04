@@ -502,7 +502,9 @@ export const Taxation = {
                 const settlement = tile.settlement;
                 const taxBase = Math.floor(settlement.population * 0.1); // 0.1 gold per person base
                 const landBonus = 1 + (player.landTaxBonus || 0);
-                const taxCollected = Math.floor(taxBase * taxPolicy.rate * landBonus * Taxation.officeTaxMultiplier(player));
+                // Rebellions and crises cut collections; gold rushes swell them
+                const eventMult = Math.max(0, 1 + WorldEvents.getModifier(world, 'taxIncome', tile));
+                const taxCollected = Math.floor(taxBase * taxPolicy.rate * landBonus * Taxation.officeTaxMultiplier(player) * eventMult);
 
                 totalCollected += taxCollected;
                 settlements.push({

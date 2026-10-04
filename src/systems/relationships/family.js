@@ -4,6 +4,55 @@ import { DataLoader, Utils, Characters, House } from './_imports.js';
 
 Object.assign(Relationships, {
     // ────────────────────────────────────────────────────────────────────
+    //  Marriage effects & gifts (data/relationships.json)
+    // ────────────────────────────────────────────────────────────────────
+    /** marriageEffects with defaults for any missing field. */
+    getMarriageEffects() {
+        const data = Relationships._getData();
+        return {
+            staminaBonus: 1, happinessBonus: 10, reputationBonus: 5, renownGain: 3, allianceWithSpouseKingdom: true,
+            ...((data && data.marriageEffects) || {}),
+        };
+    },
+
+    /** The giftItems list (fallback: a single generic gift). */
+    getGiftItems() {
+        const data = Relationships._getData();
+        if (data && Array.isArray(data.giftItems) && data.giftItems.length > 0) return data.giftItems;
+        return [{ id: 'gift', name: 'Thoughtful Gift', icon: '🎁', cost: 25, affection: 8 }];
+    },
+
+    /** Personalities that especially prize a gift (×1.5 affection). */
+    GIFT_TASTES: {
+        sword: ['bold', 'stoic', 'ambitious'],
+        poem: ['passionate', 'witty', 'shy'],
+        book: ['witty', 'stoic', 'shy'],
+        flowers: ['gentle', 'kind', 'shy'],
+        jewelry: ['ambitious', 'passionate'],
+        ring: ['passionate', 'ambitious', 'kind'],
+    },
+
+    /** Affection a gift is worth to this NPC. */
+    giftValue(gift, npc) {
+        const likes = Relationships.GIFT_TASTES[gift.id] || [];
+        return (gift.affection || 0) * (npc && likes.includes(npc.personality) ? 1.5 : 1);
+    },
+
+    /**
+     * The best gift the player can afford for this NPC: most affection,
+     * cheaper on ties. Null when nothing is affordable.
+     */
+    chooseGift(player, npc) {
+        let best = null;
+        for (const gift of Relationships.getGiftItems()) {
+            if ((gift.cost || 0) > (player.gold || 0)) continue;
+            const v = Relationships.giftValue(gift, npc);
+            if (!best || v > best.v || (v === best.v && (gift.cost || 0) < (best.gift.cost || 0))) best = { gift, v };
+        }
+        return best ? best.gift : null;
+    },
+
+    // ────────────────────────────────────────────────────────────────────
     //  Marriage
     // ────────────────────────────────────────────────────────────────────
     /**
@@ -46,14 +95,22 @@ Object.assign(Relationships, {
         rel.affection = Math.max(rel.affection, 80);
         rel.romantic = true;
 
-        // Marriage bonuses
-        player.maxStamina = (player.maxStamina || 10) + 1;
-        player.renown = (player.renown || 0) + 3;
+        // Marriage bonuses (data/relationships.json marriageEffects)
+        const fx = Relationships.getMarriageEffects();
+        player.maxStamina = (player.maxStamina || 10) + fx.staminaBonus;
+        player.renown = (player.renown || 0) + fx.renownGain;
+        // A newlywed's spirits lift
+        if (fx.happinessBonus && typeof player.modifyNeed === 'function') {
+            player.modifyNeed('social', fx.happinessBonus);
+        }
 
         // Reputation with spouse's kingdom
         if (npc.kingdomId && player.reputation) {
-            player.reputation[npc.kingdomId] = (player.reputation[npc.kingdomId] || 0) + 5;
+            player.reputation[npc.kingdomId] = (player.reputation[npc.kingdomId] || 0) + fx.reputationBonus;
         }
+        // The spouse's realm now counts you as kin: its lord's opinion of you
+        // rises while the marriage lasts (NPCLords.getLordOpinion)
+        player.marriageAllianceKingdom = fx.allianceWithSpouseKingdom && npc.kingdomId ? npc.kingdomId : null;
 
         // A noble match (arranged with Prestige) raises the House's standing
         if (npc.noble) {

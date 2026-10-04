@@ -139,6 +139,8 @@ export const SaveLoad = {
             population: k.population,
             military: k.military,
             treasury: k.treasury,
+            treasuryIncomeBase: k.treasuryIncomeBase,
+            stability: k.stability,
             relations: k.relations,
             wars: k.wars,
             allies: k.allies,

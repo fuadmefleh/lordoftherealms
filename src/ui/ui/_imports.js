@@ -29,3 +29,4 @@ export { InnerMap } from '../../world/innerMap.js';
 export { InnerMapRenderer } from '../innerMapRenderer.js';
 export { InnerMapCharacters } from '../innerMapCharacters.js';
 export { PlayerInventory } from '../../player/inventory.js';
+export { KingdomBonuses, KingdomStability } from '../../world/kingdomState.js';

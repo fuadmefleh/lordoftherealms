@@ -166,9 +166,18 @@ export const Economy = {
      * @param {Object} [playerBonuses] - { colonyFood } from the player's techs,
      *   applied to the player's own colonies only
      */
-    produceDaily(settlement, tile, world, playerBonuses = {}) {
+    produceDaily(settlement, tile, world, playerBonuses = {}, mods = {}) {
         Economy.initSettlement(settlement);
         const prod = Economy.calculateProduction(settlement, tile, world);
+
+        // mods (from KingdomAI): { growth, consumption } fractional modifiers
+        // from rulers and world events; damage (0-0.9) from floods/quakes
+        // cuts gold and goods until repaired
+        const intact = 1 - Math.min(0.9, Math.max(0, mods.damage || 0));
+        if (intact < 1) {
+            prod.gold = Math.round(prod.gold * intact);
+            prod.goods = Math.round(prod.goods * intact);
+        }
 
         settlement.economy.gold += prod.gold;
         // Aqueducts feed the player's colonies
@@ -189,12 +198,13 @@ export const Economy = {
         settlement.economy.goods += prod.goods;
 
         // Population growth based on food surplus
-        const foodConsumption = settlement.population * 0.1; // Each person needs 0.1 food/day
+        // Each person needs 0.1 food/day (refugee waves raise it)
+        const foodConsumption = settlement.population * 0.1 * Math.max(0, 1 + (mods.consumption || 0));
         const foodSurplus = settlement.economy.food - foodConsumption;
 
         if (foodSurplus > 0) {
-            // Grow population slowly
-            const growthRate = Math.min(foodSurplus / settlement.population, 0.001); // Max 0.1% per day
+            // Grow population slowly (max 0.1% per day, scaled by growth modifiers)
+            const growthRate = Math.min(foodSurplus / settlement.population, 0.001) * Math.max(0, 1 + (mods.growth || 0));
             settlement.population = Math.floor(settlement.population * (1 + growthRate));
         } else if (foodSurplus < -foodConsumption * 0.5) {
             // Shrink population if severe food shortage

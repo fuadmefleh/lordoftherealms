@@ -300,19 +300,54 @@ export const Housing = {
         return bonuses;
     },
 
+    /** Influence one house carries: base + per upgrade + upgrades' influenceBonus (Great Hall). */
+    getHouseInfluence(house) {
+        if (!house || !this.getHouseType(house.typeId)) return 0;
+        const settings = this._getInfluenceSettings();
+        let influence = (settings.baseInfluencePerHouse || 0) + (house.upgrades || []).length * (settings.influencePerUpgrade || 0);
+        for (const uid of house.upgrades || []) {
+            const u = this.getUpgrade(uid);
+            if (u && u.effects && u.effects.influenceBonus) influence += u.effects.influenceBonus;
+        }
+        return influence;
+    },
+
     /**
-     * Calculate the player's total housing influence score.
+     * Calculate the player's total housing influence score (capped).
+     * It helps negotiations with lords everywhere (getNegotiationBonus).
      */
     getInfluence(player) {
         const settings = this._getInfluenceSettings();
         let influence = 0;
+        for (const house of (player.houses || [])) influence += this.getHouseInfluence(house);
+        return Math.min(influence, settings.maxInfluenceFromHousing || 50);
+    },
+
+    /**
+     * Local influence in `settlement` from houses the player owns there —
+     * merchants give a known householder better prices.
+     */
+    getLocalInfluence(player, settlement) {
+        if (!player || !settlement) return 0;
+        let influence = 0;
         for (const house of (player.houses || [])) {
-            const ht = this.getHouseType(house.typeId);
-            if (!ht) continue;
-            influence += settings.baseInfluencePerHouse;
-            influence += house.upgrades.length * settings.influencePerUpgrade;
+            const here = (typeof settlement.q === 'number' && house.q === settlement.q && house.r === settlement.r)
+                || (settlement.name && house.settlementName === settlement.name);
+            if (here) influence += this.getHouseInfluence(house);
         }
-        return Math.min(influence, settings.maxInfluenceFromHousing);
+        return Math.min(influence, this._getInfluenceSettings().maxInfluenceFromHousing || 50);
+    },
+
+    /** Fractional price advantage in a settlement where you own a house (0.3% per point). */
+    getLocalTradeBonus(player, settlement) {
+        const per = this._getInfluenceSettings().tradeBonusPerLocalInfluence;
+        return this.getLocalInfluence(player, settlement) * (per != null ? per : 0.003);
+    },
+
+    /** Added chance when negotiating with lords from total housing influence (0.2% per point). */
+    getNegotiationBonus(player) {
+        const per = this._getInfluenceSettings().negotiationPerInfluence;
+        return this.getInfluence(player) * (per != null ? per : 0.002);
     },
 
     /* ── Daily processing ────────────────────────────────────── */

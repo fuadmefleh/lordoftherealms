@@ -281,7 +281,7 @@ export function addWildernessActions(actions, player, tile, world) {
                 type: 'negotiate_indigenous',
                 label: 'Negotiate with Natives',
                 icon: '🤝',
-                description: `Meet with the ${tile.indigenous.tribeName} (${tile.indigenous.population} people)`
+                description: `Meet with the ${tile.indigenous.name} (${tile.indigenous.population} people)`
             });
         }
     }

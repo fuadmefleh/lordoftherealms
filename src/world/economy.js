@@ -240,13 +240,15 @@ export const Economy = {
         Economy.initSettlement(settlement);
         const prod = Economy.calculateProduction(settlement, tile, world);
 
-        // mods (from KingdomAI): { growth, consumption } fractional modifiers
+        // mods (from KingdomAI): { growth, consumption, production } fractional modifiers
         // from rulers and world events; damage (0-0.9) from floods/quakes
-        // cuts gold and goods until repaired
+        // cuts gold and goods until repaired; production (colony policy, e.g.
+        // Exploitation +0.3) scales gold and goods the other way
         const intact = 1 - Math.min(0.9, Math.max(0, mods.damage || 0));
-        if (intact < 1) {
-            prod.gold = Math.round(prod.gold * intact);
-            prod.goods = Math.round(prod.goods * intact);
+        const output = intact * Math.max(0, 1 + (mods.production || 0));
+        if (output !== 1) {
+            prod.gold = Math.round(prod.gold * output);
+            prod.goods = Math.round(prod.goods * output);
         }
 
         settlement.economy.gold += prod.gold;

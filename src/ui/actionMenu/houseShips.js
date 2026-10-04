@@ -16,7 +16,7 @@ Object.assign(ActionMenu, {
 
         let html = '<div style="max-height:450px;overflow-y:auto;">';
         html += '<h4 style="margin-top:0;">🏠 Buy a House</h4>';
-        html += `<p style="font-size:12px;color:var(--text-secondary);">Purchase a home in ${settlement.name}. Owning property grants renown and local influence.</p>`;
+        html += `<p style="font-size:12px;color:var(--text-secondary);">Purchase a home in ${settlement.name}. Owning property grants renown and local influence: better prices with this town's merchants and a stronger hand when negotiating with lords.</p>`;
 
         // NPC-owned houses (flavor)
         if (npcHouses.length > 0) {
@@ -110,7 +110,7 @@ Object.assign(ActionMenu, {
         html += `<span>🔧 Condition: ${house.condition}%</span>`;
         html += `<span>💰 Value: ~${value}g</span>`;
         html += `<span>💰 Upkeep: ${ht.maintenanceCost}g/day</span>`;
-        html += `<span>👑 Influence: ${influence}</span>`;
+        html += `<span title="Better prices here (+${(Housing.getLocalTradeBonus(player, { q: tile.q, r: tile.r, name: house.settlementName }) * 100).toFixed(1)}%) and +${(Housing.getNegotiationBonus(player) * 100).toFixed(0)}% when negotiating with lords">👑 Influence: ${influence}</span>`;
         html += `<span>📦 Upgrades: ${house.upgrades.length}/${ht.maxUpgradeSlots}</span>`;
         html += '</div>';
 
@@ -144,6 +144,7 @@ Object.assign(ActionMenu, {
                 if (effects.reputationBonus) effectParts.push(`+${effects.reputationBonus} reputation`);
                 if (effects.strengthBonus) effectParts.push(`+${effects.strengthBonus} strength`);
                 if (effects.charismaBonus) effectParts.push(`+${effects.charismaBonus} charisma`);
+                if (effects.influenceBonus) effectParts.push(`+${effects.influenceBonus} influence`);
                 if (effects.intelligenceBonus) effectParts.push(`+${effects.intelligenceBonus} intelligence`);
                 if (effects.faithBonus) effectParts.push(`+${effects.faithBonus} faith`);
                 if (effects.commerceSkillBonus) effectParts.push(`+${effects.commerceSkillBonus} commerce`);
@@ -468,8 +469,12 @@ Object.assign(ActionMenu, {
                 if (c.effects.combatBonus) efParts.push(`+${c.effects.combatBonus} combat`);
                 if (c.effects.armorBonus) efParts.push(`+${c.effects.armorBonus} armor`);
                 if (c.effects.crewBonus) efParts.push(`+${c.effects.crewBonus} crew`);
-                if (c.effects.stealthBonus) efParts.push(`stealth +${c.effects.stealthBonus}`);
+                if (c.effects.stealthBonus) efParts.push(`stealth ${c.effects.stealthBonus >= 0 ? '+' : ''}${c.effects.stealthBonus}`);
                 if (c.effects.explorationBonus) efParts.push(`exploration +${c.effects.explorationBonus}`);
+                if (c.effects.captureBonus) efParts.push(`${Math.round(c.effects.captureBonus * 100)}% prize capture`);
+                if (c.effects.fishingBonus) efParts.push(`+${c.effects.fishingBonus} fishing casts`);
+                if (c.effects.renownBonus) efParts.push(`+${c.effects.renownBonus} renown`);
+                if (c.effects.charismaBonus) efParts.push(`+${c.effects.charismaBonus} charisma`);
                 if (efParts.length) html += `<div style="font-size:10px;color:#5cb85c;margin-left:22px;margin-top:2px;">${efParts.join(' · ')}</div>`;
                 html += '</div>';
             }
@@ -692,6 +697,10 @@ Object.assign(ActionMenu, {
                 if (c.effects.crewBonus) efParts.push(`+${c.effects.crewBonus} crew`);
                 if (c.effects.stealthBonus) efParts.push(`stealth ${c.effects.stealthBonus >= 0 ? '+' : ''}${c.effects.stealthBonus}`);
                 if (c.effects.explorationBonus) efParts.push(`explore +${c.effects.explorationBonus}`);
+                if (c.effects.captureBonus) efParts.push(`${Math.round(c.effects.captureBonus * 100)}% prize capture`);
+                if (c.effects.fishingBonus) efParts.push(`+${c.effects.fishingBonus} fishing casts`);
+                if (c.effects.renownBonus) efParts.push(`+${c.effects.renownBonus} renown`);
+                if (c.effects.charismaBonus) efParts.push(`+${c.effects.charismaBonus} charisma`);
                 if (efParts.length) html += `<div style="font-size:10px;color:#5cb85c;margin-left:22px;margin-top:2px;">${efParts.join(' · ')}</div>`;
                 html += '</div>';
             }

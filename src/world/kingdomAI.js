@@ -8,6 +8,7 @@ import { Economy, TradeRoutes } from './economy.js';
 import { Kingdom } from './kingdom.js';
 import { Religion } from '../systems/religion.js';
 import { WorldEvents } from './worldEvents.js';
+import { Colonization } from './colonization.js';
 import { WEATHER_EFFECTS } from './weather.js';
 import { KingdomBonuses, KingdomStability, KingdomCulture, LordInfluence } from './kingdomState.js';
 import { KingdomAtlas } from './kingdomAtlas.js';
@@ -116,6 +117,8 @@ export const KingdomAI = {
                 growth: growthBonus + eventGrowth,
                 consumption: eventConsumption,
                 damage: tile.settlement ? (tile.settlement.damage || 0) : 0,
+                // Frontier colonies work to their policy (Exploitation strips the land)
+                production: Colonization.getProductionBonus(tile.settlement, kingdom),
             });
 
             if (tile.settlement) {

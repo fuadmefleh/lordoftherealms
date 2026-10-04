@@ -18,6 +18,25 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { NpcFamily } from './npcFamily.js';
 import { Cartography } from './cartography.js';
+import { PlayerInventory } from '../core/inventory.js';
+
+/**
+ * What a flattered NPC actually hands over — aligned index-for-index with the
+ * FLATTER_SUCCESS lines in ui/npcDialog.data.js, so each promise is kept.
+ * null = the line is gossip/advice only. Each NPC rewards flattery once.
+ */
+export const FLATTER_REWARDS = {
+    merchant:       [null, { kind: 'discount', amount: 0.10 }],
+    guard:          [null, null],
+    farmer:         [{ kind: 'item', item: 'grain', qty: 4 }, { kind: 'cache', lo: 10, hi: 40 }],
+    priest:         [{ kind: 'karma', amount: 3 }, { kind: 'heal', amount: 15 }],
+    blacksmith_npc: [{ kind: 'discount', amount: 0.10 }, { kind: 'reveal' }],
+    villager:       [{ kind: 'item', item: 'bread', qty: 1 }, null],
+    child:          [{ kind: 'cache', lo: 1, hi: 6 }, { kind: 'cache', lo: 3, hi: 12 }],
+    noble:          [{ kind: 'reputation', amount: 2 }, { kind: 'reputation', amount: 3 }],
+    traveler:       [{ kind: 'reveal' }, { kind: 'reveal' }],
+    beggar:         [{ kind: 'cache', lo: 10, hi: 40 }, { kind: 'intel' }],
+};
 
 /** Price shift per personality trait (positive = dearer for the player). */
 export const TRAIT_PRICE_MODS = {
@@ -279,6 +298,66 @@ export const NpcDisposition = {
             }
             default:
                 return NpcDisposition._grantCache(npc, player, 30, 120, 'There\'s a hidden passage beneath the old well. Leads to a cache of valuables — go before anyone else does.');
+        }
+    },
+
+    /**
+     * Pay out what a flattered NPC promised (FLATTER_REWARDS[type][lineIndex]).
+     * Once per NPC; later flattery only warms them.
+     * @param {object} ctx { player, world, kingdom, type? (dialog type override) }
+     * @returns {{ kind:string, summary:string }|null}
+     */
+    flatterReward(npc, lineIndex, ctx = {}) {
+        const { player, world, kingdom } = ctx;
+        if (!npc || !player) return null;
+        const mem = NpcDisposition.getMemory(npc);
+        if (mem.flatterRewarded) return null;
+        const table = FLATTER_REWARDS[ctx.type || npc.type] || FLATTER_REWARDS.villager;
+        const spec = table[lineIndex];
+        if (!spec) return null;
+        mem.flatterRewarded = true;
+        switch (spec.kind) {
+            case 'discount':
+                if (mem.discount >= spec.amount) return { kind: 'discount', summary: 'Already gives you a good price' };
+                mem.discount = spec.amount;
+                return { kind: 'discount', summary: `${Math.round(spec.amount * 100)}% off with ${npc.name || 'them'} from now on` };
+            case 'item': {
+                const res = PlayerInventory.addOrSell(player, { [spec.item]: spec.qty });
+                return { kind: 'item', summary: res.gold ? `Packs full — sold the gift for ${res.gold}g` : `+${spec.qty} ${spec.item}` };
+            }
+            case 'cache': {
+                const r = NpcDisposition._grantCache(npc, player, spec.lo, spec.hi, '');
+                return { kind: 'cache', summary: `+${r.gold} gold` };
+            }
+            case 'karma':
+                player.karma = (player.karma || 0) + spec.amount;
+                return { kind: 'karma', summary: `+${spec.amount} karma (blessed)` };
+            case 'heal': {
+                const max = player.maxHealth || 100;
+                const before = player.health || 0;
+                player.health = Math.min(max, before + spec.amount);
+                return { kind: 'heal', summary: `+${player.health - before} health` };
+            }
+            case 'reputation': {
+                if (!kingdom) return { kind: 'reputation', summary: 'A kind word at court' };
+                if (!player.reputation) player.reputation = {};
+                player.reputation[kingdom.id] = (player.reputation[kingdom.id] || 0) + spec.amount;
+                return { kind: 'reputation', summary: `+${spec.amount} reputation with ${kingdom.name}` };
+            }
+            case 'reveal': {
+                const n = NpcDisposition._revealNearbyRegion(player, world);
+                if (n > 0) return { kind: 'reveal', summary: `${n} map tiles revealed` };
+                const r = NpcDisposition._grantCache(npc, player, 5, 20, '');
+                return { kind: 'cache', summary: `You already know these lands — they tip you ${r.gold} gold instead` };
+            }
+            case 'intel':
+                if (kingdom && typeof player.learnAboutKingdom === 'function') {
+                    player.learnAboutKingdom(kingdom.id, ['military', 'economy']);
+                    return { kind: 'intel', summary: `Learned ${kingdom.name}'s military & economy` };
+                }
+                return null;
+            default:
+                return null;
         }
     },
 

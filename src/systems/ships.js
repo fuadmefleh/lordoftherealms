@@ -113,6 +113,66 @@ export const Ships = {
         };
     },
 
+    /* ── Customization effects ───────────────────────────────── */
+    // Ship stats from ships.json that act on play:
+    //   armor (hull + Reinforced Hull)  — soaks hull damage: x 10/(10+armor)
+    //   captureBonus (Boarding Planks)  — chance to seize a beaten pirate ship
+    //                                     as a prize; bigger plunder hauls
+    //   explorationBonus (Crow's Nest, Navigator's Quarters) — +10% sea
+    //                                     rewards per point, finds pirates/prey sooner
+    //   stealthBonus (Crow's Nest -1)   — piracy is noticed more/less (reputation)
+    //   fishingBonus (Deep-Sea Nets)    — extra casts when fishing beside the ship
+    //   renownBonus / charismaBonus (Luxury Cabin) — renown once when fitted,
+    //                                     charisma while you own the ship
+
+    /** Hull damage after armor. Always at least 1 for any real hit. */
+    mitigateHullDamage(ship, damage) {
+        if (!(damage > 0)) return 0;
+        const armor = this.getShipEffectiveStats(ship).armor || 0;
+        return Math.max(1, Math.round(damage * 10 / (10 + armor)));
+    },
+
+    /** Multiplier on gold from sea exploration: Navigation tech + the ship's fittings. */
+    getExplorationMultiplier(player, ship) {
+        const tech = player ? Technology.getEffectTotal(player, 'explorationBonus') : 0;
+        const fitted = ship ? (this.getShipEffectiveStats(ship).effects.explorationBonus || 0) : 0;
+        return 1 + tech + 0.1 * fitted;
+    },
+
+    /**
+     * Extra fishing casts from Deep-Sea Nets on one of the player's ships
+     * moored within a hex of (q, r) — the best such ship counts.
+     */
+    getFishingBonus(player, q, r, world = null) {
+        let best = 0;
+        for (const ship of (player && player.ships) || []) {
+            if (!['docked', 'anchored', 'at_sea'].includes(ship.status)) continue;
+            if (typeof ship.q !== 'number') continue;
+            const dist = world && world.width
+                ? Hex.wrappingDistance(q, r, ship.q, ship.r, world.width)
+                : Hex.distance(q, r, ship.q, ship.r);
+            if (dist > 1) continue;
+            best = Math.max(best, this.getShipEffectiveStats(ship).effects.fishingBonus || 0);
+        }
+        return best;
+    },
+
+    /** Add (sign 1) or remove (sign -1) the owner perks of fitted customizations. */
+    _applyOwnerPerks(player, customizationIds, sign) {
+        let renown = 0;
+        let charisma = 0;
+        for (const cid of customizationIds || []) {
+            const c = this.getCustomization(cid);
+            if (!c || !c.effects) continue;
+            renown += c.effects.renownBonus || 0;
+            charisma += c.effects.charismaBonus || 0;
+        }
+        // Renown is earned once, when the fitting is shown off
+        if (sign > 0 && renown) player.renown = (player.renown || 0) + renown;
+        if (charisma) player.charisma = Math.max(0, (player.charisma || 0) + sign * charisma);
+        return { renown: sign > 0 ? renown : 0, charisma: sign * charisma };
+    },
+
     getUpgradeableCustomizations(ship) {
         const st = this.getShipType(ship && ship.typeId);
         if (!st || !Array.isArray(st.customizations)) return [];
@@ -307,6 +367,7 @@ export const Ships = {
             purchaseDay: world.day || 0,
         };
         player.ships.push(ship);
+        this._applyOwnerPerks(player, validCustoms, 1);
 
         if (player.financeToday) {
             player.financeToday.expenses.ships = (player.financeToday.expenses.ships || 0) + totalCost;
@@ -334,6 +395,8 @@ export const Ships = {
 
         player.gold += salePrice;
         player.ships.splice(idx, 1);
+        // Luxury fittings' charisma leaves with the ship
+        this._applyOwnerPerks(player, ship.customizations, -1);
 
         if (player.financeToday) {
             player.financeToday.income.shipSale = (player.financeToday.income.shipSale || 0) + salePrice;
@@ -402,6 +465,7 @@ export const Ships = {
         player.gold -= quote.totalCost;
         if (!Array.isArray(ship.customizations)) ship.customizations = [];
         for (const c of quote.picked) ship.customizations.push(c.id);
+        this._applyOwnerPerks(player, quote.picked.map(c => c.id), 1);
 
         if (player.financeToday) {
             player.financeToday.expenses.ships = (player.financeToday.expenses.ships || 0) + quote.totalCost;
@@ -744,7 +808,7 @@ export const Ships = {
                         Quests.track(player, 'pirates_defeated');
                     }
                     // Give rewards
-                    if (event.reward) this._applyReward(player, event.reward);
+                    if (event.reward) this._applyReward(player, event.reward, ship);
                 } else {
                     resultText += ' You were overwhelmed!';
                     resultType = 'error';
@@ -753,19 +817,20 @@ export const Ships = {
                             ? event.danger.damage[0] + Math.floor(Utils.random() * (event.danger.damage[1] - event.danger.damage[0]))
                             : event.danger.damage)
                         : 10;
-                    ship.condition = Math.max(5, ship.condition - dmg);
+                    ship.condition = Math.max(5, ship.condition - this.mitigateHullDamage(ship, dmg));
                     player.health = Math.max(1, player.health - Math.floor(dmg / 2));
                 }
             } else if (event.danger.damage) {
                 const dmg = Array.isArray(event.danger.damage)
                     ? event.danger.damage[0] + Math.floor(Utils.random() * (event.danger.damage[1] - event.danger.damage[0]))
                     : event.danger.damage;
-                ship.condition = Math.max(5, ship.condition - dmg);
+                const hullDmg = this.mitigateHullDamage(ship, dmg);
+                ship.condition = Math.max(5, ship.condition - hullDmg);
                 resultType = 'warning';
-                resultText += ` Ship took ${dmg}% damage.`;
+                resultText += ` Ship took ${hullDmg}% damage.`;
             }
         } else if (event.reward) {
-            this._applyReward(player, event.reward);
+            this._applyReward(player, event.reward, ship);
             resultType = 'success';
         }
 
@@ -783,9 +848,10 @@ export const Ships = {
         const pirateStr = data.pirateStrength || { min: 8, max: 30 };
         const enemyStrength = pirateStr.min + Math.floor(Utils.random() * (pirateStr.max - pirateStr.min));
         const shipStr = this._getShipCombatStrength(ship, player);
+        const fx = this.getShipEffectiveStats(ship).effects;
 
-        // 50% chance to find pirates
-        if (Utils.random() < 0.5) {
+        // 50% chance to find pirates (lookouts and charts find them sooner)
+        if (Utils.random() < Math.max(0.2, 0.5 - 0.05 * (fx.explorationBonus || 0))) {
             ship.condition = Math.max(5, ship.condition - 1);
             return {
                 success: true,
@@ -806,20 +872,29 @@ export const Ships = {
             player.gold += loot;
             player.karma = (player.karma || 0) + 2;
             player.renown = (player.renown || 0) + 3;
-            ship.condition = Math.max(5, ship.condition - Math.floor(Utils.random() * 5 + 2));
+            ship.condition = Math.max(5, ship.condition - this.mitigateHullDamage(ship, Math.floor(Utils.random() * 5 + 2)));
+
+            // Boarding planks: board the beaten pirate and sell her as a prize
+            let prize = 0;
+            if (fx.captureBonus > 0 && Utils.random() < fx.captureBonus) {
+                prize = enemyStrength * 15;
+                player.gold += prize;
+            }
 
             if (player.financeToday) {
-                player.financeToday.income.pirateBounty = (player.financeToday.income.pirateBounty || 0) + loot;
+                player.financeToday.income.pirateBounty = (player.financeToday.income.pirateBounty || 0) + loot + prize;
             }
 
             return {
                 success: true,
                 icon: '⚔️',
-                title: `Victory! Defeated pirates (str ${enemyStrength}) and claimed ${loot}g bounty! +3 renown, +2 karma.`,
-                type: 'success'
+                title: `Victory! Defeated pirates (str ${enemyStrength}) and claimed ${loot}g bounty! +3 renown, +2 karma.` +
+                    (prize ? ` Your boarders seized their ship — sold as a prize for ${prize}g!` : ''),
+                type: 'success',
+                prize,
             };
         } else {
-            const dmg = 5 + Math.floor(Utils.random() * 15);
+            const dmg = this.mitigateHullDamage(ship, 5 + Math.floor(Utils.random() * 15));
             ship.condition = Math.max(5, ship.condition - dmg);
             player.health = Math.max(1, player.health - Math.floor(dmg / 2));
             return {
@@ -840,8 +915,10 @@ export const Ships = {
         const renownLoss = data.piracyRenownLoss || 2;
         const goldRange = data.piracyGoldRange || [50, 300];
 
-        // 60% chance to find a target
-        if (Utils.random() < 0.4) {
+        const fx = this.getShipEffectiveStats(ship).effects;
+
+        // 60% chance to find a target (better with lookouts and charts)
+        if (Utils.random() < Math.max(0.15, 0.4 - 0.05 * (fx.explorationBonus || 0))) {
             ship.condition = Math.max(5, ship.condition - 1);
             return {
                 success: true,
@@ -858,15 +935,18 @@ export const Ships = {
         const targetPower = targetStr * (0.8 + Utils.random() * 0.4);
 
         if (playerPower > targetPower) {
-            const loot = goldRange[0] + Math.floor(Utils.random() * (goldRange[1] - goldRange[0]));
+            // Boarding planks strip the prize more thoroughly
+            const loot = Math.floor((goldRange[0] + Math.floor(Utils.random() * (goldRange[1] - goldRange[0]))) * (1 + (fx.captureBonus || 0)));
             player.gold += loot;
             player.karma = (player.karma || 0) - karmaLoss;
             player.renown = Math.max(0, (player.renown || 0) - renownLoss);
-            ship.condition = Math.max(5, ship.condition - Math.floor(Utils.random() * 3 + 1));
+            ship.condition = Math.max(5, ship.condition - this.mitigateHullDamage(ship, Math.floor(Utils.random() * 3 + 1)));
 
-            // Reputation loss with all kingdoms
+            // Reputation loss with all kingdoms — a conspicuous ship (Crow's
+            // Nest, stealth -1) is recognised more; a stealthy one less
+            const repLoss = Math.max(1, 3 - (fx.stealthBonus || 0));
             for (const kId of Object.keys(player.reputation || {})) {
-                player.reputation[kId] = (player.reputation[kId] || 0) - 3;
+                player.reputation[kId] = (player.reputation[kId] || 0) - repLoss;
             }
 
             if (player.financeToday) {
@@ -880,7 +960,7 @@ export const Ships = {
                 type: 'warning'
             };
         } else {
-            const dmg = 5 + Math.floor(Utils.random() * 10);
+            const dmg = this.mitigateHullDamage(ship, 5 + Math.floor(Utils.random() * 10));
             ship.condition = Math.max(5, ship.condition - dmg);
             player.karma = (player.karma || 0) - Math.floor(karmaLoss / 2);
             return {
@@ -1014,7 +1094,7 @@ export const Ships = {
             // Storms at sea batter hulls and hold ships back a day
             const storm = this._stormAtSea(ship, world);
             if (storm) {
-                const damage = Math.round(Utils.randInt(3, 8) * storm.danger);
+                const damage = this.mitigateHullDamage(ship, Math.round(Utils.randInt(3, 8) * storm.danger));
                 ship.condition = Math.max(10, (ship.condition || 100) - damage);
                 const report = { shipId: ship.id, name: ship.name, weather: storm.type, damage, delayed: false, cargoLost: null };
                 if (ship.status === 'moving' && Utils.random() < 0.5 * storm.danger) {
@@ -1118,13 +1198,13 @@ export const Ships = {
 
     /* ── Reward helper ───────────────────────────────────────── */
 
-    _applyReward(player, reward) {
+    _applyReward(player, reward, ship = null) {
         if (reward.gold) {
             const rolled = Array.isArray(reward.gold)
                 ? reward.gold[0] + Math.floor(Utils.random() * (reward.gold[1] - reward.gold[0]))
                 : reward.gold;
-            // Navigation makes the most of what the sea offers
-            const amt = Math.floor(rolled * (1 + Technology.getEffectTotal(player, 'explorationBonus')));
+            // Navigation (tech) and the ship's charts and lookouts make the most of what the sea offers
+            const amt = Math.floor(rolled * this.getExplorationMultiplier(player, ship));
             player.gold += amt;
             if (player.financeToday) {
                 player.financeToday.income.exploration = (player.financeToday.income.exploration || 0) + amt;

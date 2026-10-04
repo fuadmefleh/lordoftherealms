@@ -346,12 +346,9 @@ export const Councils = {
 
         let happinessSum = 0;
         let towns = 0;
-        for (const ref of player.settlements || []) {
-            const t = world && world.getTile ? world.getTile(ref.q, ref.r) : null;
-            if (t && t.settlement) {
-                happinessSum += Taxation.getHappiness(t.settlement);
-                towns++;
-            }
+        for (const ref of Taxation.getPlayerSettlements(player, world)) {
+            happinessSum += Taxation.getHappiness(ref.settlement);
+            towns++;
         }
         const happiness = towns > 0 ? happinessSum / towns : 50;
         const clamp = (v) => Math.max(0, Math.min(100, v));

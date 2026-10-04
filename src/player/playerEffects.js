@@ -13,6 +13,7 @@ import { Relationships } from '../systems/relationships.js';
 import { Technology } from '../systems/technology.js';
 import { LegendaryArtifacts } from '../systems/legendaryArtifacts.js';
 import { Peoples } from '../systems/peoples.js';
+import { Housing } from '../systems/housing.js';
 
 /** Personal damage reduction from gear in the inventory (multiplicative). */
 const ARMOR_REDUCTION = { leather_armor: 0.2, shield: 0.15, amulet: 0.1 };
@@ -155,7 +156,8 @@ export const PlayerEffects = {
 
     /** Added chance when negotiating with a lord: +2% per point of effective diplomacy. */
     negotiationBonus(player) {
-        return 0.02 * this.effectiveDiplomacy(player);
+        // Houses give standing: housing influence helps everywhere
+        return 0.02 * this.effectiveDiplomacy(player) + Housing.getNegotiationBonus(player);
     },
 
     // ──────────── TRADE ────────────
@@ -164,7 +166,8 @@ export const PlayerEffects = {
     tradeBonus(player, settlement) {
         let bonus = _perk(player, 'tradeBonus') + this.companionBonus(player, 'trade')
             + this.moodTradeBonus(player) // see MOOD section
-            + this.artifactBonus(player, 'tradeBonus');
+            + this.artifactBonus(player, 'tradeBonus')
+            + Housing.getLocalTradeBonus(player, settlement); // a known householder here
         const kingdomId = settlement && settlement.kingdom;
         bonus += this.liegeTradeModifier(player, kingdomId);
         if (kingdomId && player.tradeAgreements && player.tradeAgreements[kingdomId]) {

@@ -1518,7 +1518,10 @@ Object.assign(ActionMenu, {
 
         // Determine fishing spot quality
         const nearbyTiles = Hex.neighbors(tile.q, tile.r).map(n => game.world.getTile(n.q, n.r)).filter(Boolean);
-        const deepWater = nearbyTiles.some(t => ['ocean', 'deep_ocean', 'sea'].includes(t.terrain.id));
+        // Deep-Sea Nets on one of your ships moored alongside: extra casts and
+        // the nets reach deep water from any shore
+        const netBonus = Ships.getFishingBonus(player, tile.q, tile.r, game.world);
+        const deepWater = netBonus > 0 || nearbyTiles.some(t => ['ocean', 'deep_ocean', 'sea'].includes(t.terrain.id));
         const isCoast = ['coast', 'beach'].includes(tile.terrain.id);
 
         const depths = [];
@@ -1576,7 +1579,7 @@ Object.assign(ActionMenu, {
         let phase = 'depth';    // depth → cast → wait → strike → reel → caught → result
         let chosenDepth = null;
         let castCount = 0;
-        const maxCasts = 3 + Math.floor(Math.random() * 2);
+        const maxCasts = 3 + Math.floor(Math.random() * 2) + netBonus;
         const catches = [];
         let waitTimer = null;
         let biteWindowTimer = null;

@@ -74,6 +74,8 @@ Object.assign(PlayerEconomy, {
             status: 'traveling',
         };
 
+        PlayerEconomy._applyRoadLink(world, caravan, null);
+
         if (!player.caravans) player.caravans = [];
         player.caravans.push(caravan);
 
@@ -164,6 +166,7 @@ Object.assign(PlayerEconomy, {
         caravanUnit.playerOwned = true; // Mark as player's
         // Trade networks speed caravans up
         caravanUnit.speed = (caravanUnit.speed || 1) * (1 + Technology.getEffectTotal(player, 'caravanSpeedBonus'));
+        PlayerEconomy._applyRoadLink(world, caravan, caravanUnit);
         caravanUnit.goods = { ...goods }; // Give it the goods
         world.units.push(caravanUnit);
         caravan.unitId = caravanUnit.id;
@@ -172,6 +175,27 @@ Object.assign(PlayerEconomy, {
         player.caravans.push(caravan);
 
         return { success: true, caravan };
+    },
+
+    /** Revenue bonus for a caravan whose whole journey runs along roads. */
+    ROAD_TRADE_BONUS: 0.15,
+
+    /**
+     * Roads speed trade: if a road network links the caravan's start and
+     * destination, it earns ROAD_TRADE_BONUS more, its wagon (if any) moves a
+     * hex further each day and road wardens drive off half of all robbers;
+     * a timer-only caravan arrives in two-thirds of the time.
+     */
+    _applyRoadLink(world, caravan, unit) {
+        if (!world || !Infrastructure.hasRoadConnection(world, caravan.fromPos.q, caravan.fromPos.r, caravan.toPos.q, caravan.toPos.r)) return false;
+        caravan.roadLinked = true;
+        if (unit) {
+            unit.speed = (unit.speed || 1) + 1;
+            unit.roadLinked = true;
+        } else if (typeof caravan.daysRemaining === 'number') {
+            caravan.daysRemaining = Math.max(1, Math.ceil(caravan.daysRemaining * 2 / 3));
+        }
+        return true;
     },
 
     /**
@@ -315,6 +339,8 @@ Object.assign(PlayerEconomy, {
                     }
 
                     let grossRevenue = Math.floor(marketValue * distanceMultiplier * settlementMultiplier);
+                    // A road the whole way means cheaper haulage and fresher goods
+                    if (caravan.roadLinked) grossRevenue = Math.floor(grossRevenue * (1 + PlayerEconomy.ROAD_TRADE_BONUS));
 
                     let routeRef = null;
                     if (caravan.routeId) {

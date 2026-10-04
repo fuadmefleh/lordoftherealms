@@ -322,7 +322,8 @@ export class WorldUnit {
 
         // Check for raiders nearby
         const raider = world.units.find(u => (u.type === 'raider' || u.type === 'pirate') && Hex.wrappingDistance(this.q, this.r, u.q, u.r, world.width) < 1);
-        if (raider) {
+        // Road wardens see off half the robbers on a road-linked journey (player caravans)
+        if (raider && !(this.roadLinked && Utils.random() < 0.5)) {
             // Transfer caravan's inventory to the raider
             for (const [item, amount] of Object.entries(this.inventory)) {
                 raider.inventory[item] = (raider.inventory[item] || 0) + amount;

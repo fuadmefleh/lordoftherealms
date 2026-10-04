@@ -217,6 +217,7 @@ Object.assign(PlayerEconomy, {
         caravanUnit.playerOwned = true;
         caravanUnit.goods = { ...goods };
         caravanUnit.isSmugglingRoute = !!route.isSmuggling;
+        PlayerEconomy._applyRoadLink(world, caravan, caravanUnit);
         world.units.push(caravanUnit);
 
         caravan.unitId = caravanUnit.id;

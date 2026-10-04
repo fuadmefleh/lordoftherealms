@@ -1,6 +1,6 @@
 // Trading — split from playerEconomy.js; references PlayerEconomy (GOODS etc.).
 import { PlayerEconomy } from './_ref.js';
-import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, PlayerEffects } from './_imports.js';
+import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, PlayerEffects, PlayerInventory } from './_imports.js';
 
 export const Trading = {
     /**
@@ -131,11 +131,15 @@ export const Trading = {
             return { success: false, reason: 'Not enough in stock' };
         }
 
+        // Carrying capacity: a new kind of good needs a free slot
+        if (!PlayerInventory.canAdd(player, good.id)) {
+            return { success: false, reason: PlayerInventory.fullMessage(player), inventoryFull: true };
+        }
+
         player.gold -= totalCost;
 
         // Add to player inventory
-        if (!player.inventory) player.inventory = {};
-        player.inventory[good.id] = (player.inventory[good.id] || 0) + quantity;
+        PlayerInventory.addItem(player, good.id, quantity);
 
         // Reduce settlement stock (increase the "bought" counter)
         if (!settlement.marketStock) settlement.marketStock = {};

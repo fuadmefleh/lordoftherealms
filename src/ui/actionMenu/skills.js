@@ -1,6 +1,6 @@
 // ActionMenu — skills methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader } from './_imports.js';
+import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory } from './_imports.js';
 
 Object.assign(ActionMenu, {
     /**
@@ -1818,8 +1818,7 @@ Object.assign(ActionMenu, {
                     for (let i = 0; i < catches; i++) {
                         const fish = rollFish(depthId);
                         if (fish && fish.name && fish.value > 0) {
-                            player.inventory = player.inventory || {};
-                            player.inventory[fish.name] = (player.inventory[fish.name] || 0) + 1;
+                            if (!PlayerInventory.addItem(player, fish.name, 1).success) continue;
                             totalVal += fish.value;
                             items.push(`${fish.icon} ${fish.label}`);
                         }
@@ -2018,8 +2017,10 @@ Object.assign(ActionMenu, {
 
             let totalValue = 0;
             for (const [key, item] of Object.entries(totals)) {
-                player.inventory = player.inventory || {};
-                player.inventory[key] = (player.inventory[key] || 0) + item.qty;
+                if (!PlayerInventory.addItem(player, key, item.qty).success) {
+                    html += `<div style="padding: 6px 8px; margin-bottom: 4px; color: #ff9800;">🎒 Packs full — released ${item.icon} ${item.label} ×${item.qty}</div>`;
+                    continue;
+                }
                 totalValue += item.value * item.qty;
                 const rarityLabel = item.rarity === 'legendary' ? ' ★' : item.rarity === 'rare' ? ' ◆' : '';
                 html += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; margin-bottom: 4px; background: rgba(255,255,255,0.03); border-radius: 4px; border-left: 3px solid ${item.color};">
@@ -2077,8 +2078,10 @@ Object.assign(ActionMenu, {
                 else if (roll < 0.85) { type = 'ore'; label = 'Iron Ore'; icon = '⛏️'; value = 25; }
                 else if (roll < 0.95) { type = 'fossil'; label = 'Fossil'; icon = '🦴'; value = 35; }
                 else { type = 'crystal'; label = 'Crystal'; icon = '🔮'; value = 50; }
-                player.inventory = player.inventory || {};
-                player.inventory[type] = (player.inventory[type] || 0) + 1;
+                if (!PlayerInventory.addItem(player, type, 1).success) {
+                    game.ui.showNotification('🎒 Inventory Full', PlayerInventory.fullMessage(player), 'warning');
+                    return;
+                }
                 const hpCost = 2;
                 player.health = Math.max(1, player.health - hpCost);
                 if (Math.random() < 0.12) { player.strength = (player.strength || 5) + 1; }
@@ -2272,8 +2275,10 @@ Object.assign(ActionMenu, {
                         totals[f.type].qty++;
                     }
                     for (const [key, item] of Object.entries(totals)) {
-                        player.inventory = player.inventory || {};
-                        player.inventory[key] = (player.inventory[key] || 0) + item.qty;
+                        if (!PlayerInventory.addItem(player, key, item.qty).success) {
+                            html += `<div style="padding: 6px 12px; margin-bottom: 4px; color: #ff9800;">🎒 Packs full — left behind ${item.icon} ${item.label} x${item.qty}</div>`;
+                            continue;
+                        }
                         html += `<div style="padding: 6px 12px; margin-bottom: 4px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between;">
                             <div>${item.icon} ${item.label} x${item.qty}</div>
                             <div style="color: var(--gold);">${item.value * item.qty}g</div>

@@ -20,6 +20,7 @@ import { Relationships } from '../systems/relationships.js';
 import { CustomObjects } from '../world/customObjects.js';
 import { Gossip } from '../systems/gossip.js';
 import { PlayerEffects } from '../player/playerEffects.js';
+import { NpcDisposition } from '../systems/npcDisposition.js';
 
 
 export const InnerMapCombat = {
@@ -173,6 +174,16 @@ export const InnerMapCombat = {
         // Trigger NPC reaction (fight back or flee) and apply relationship penalties
         this._initiateNPCReaction(npc, game);
         this.applyAttackRelationshipPenalties(game, npc);
+
+        // Family & friends turn against the player (once per NPC per assault)
+        if (!npc._assaultRippled) {
+            npc._assaultRippled = true;
+            const ripple = NpcDisposition.onNpcHarmed(npc, InnerMap.npcs || [], 'assault');
+            if (ripple.affected.length > 0 && game && game.ui) {
+                game.ui.showNotification('😠 Word Gets Around',
+                    `${ripple.affected.length} of ${npc.name}'s kin and friends think less of you.`, 'warning');
+            }
+        }
     },
 
     /** Cancel any active attack. */
@@ -277,6 +288,14 @@ export const InnerMapCombat = {
         // Clean up health and reaction state
         this._npcHealth.delete(npc.id);
         this._npcReactions.delete(npc.id);
+
+        // ── Family ripple: relatives grieve and hate the killer ──
+        const ripple = NpcDisposition.onNpcHarmed(npc, InnerMap.npcs || [], 'murder');
+        if (ripple.affected.length > 0 && game && game.ui) {
+            const kin = ripple.affected.filter(a => a.relation !== 'friend').length;
+            game.ui.showNotification('🖤 A Family Grieves',
+                `${npc.name}'s ${kin > 0 ? `family (${kin})` : 'friends'} will never forgive you.`, 'warning');
+        }
 
         // ── Gossip: report the kill ──
         if (game && game.player && game.world) {

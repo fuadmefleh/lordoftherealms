@@ -122,6 +122,9 @@ export function resolveHostileEncounter(player, attacker, world) {
             .map(([k, v]) => `${v} ${k}`)
             .join(', ');
         if (itemLoot) lootMsg += ` Seized: ${itemLoot}.`;
+        if (result.lootLeftBehind && Object.keys(result.lootLeftBehind).length > 0) {
+            lootMsg += ` Packs full — left behind: ${Object.entries(result.lootLeftBehind).map(([k, v]) => `${v} ${k}`).join(', ')}.`;
+        }
         if (result.renownChange > 0) lootMsg += ` +${result.renownChange} renown!`;
 
         return { kind: 'victory', result, notification: { title: `⚔️ Victory!`, body: lootMsg, type: 'success' } };

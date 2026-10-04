@@ -708,7 +708,7 @@ Object.assign(ActionMenu, {
         // Dynasty info
         if (player.dynasty) {
             html += '<div style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 10px; padding-top: 8px;">';
-            html += `<div style="font-size: 11px; color: #888;">Dynasty: <strong style="color: var(--gold);">${player.dynasty.name}</strong> · Prestige: ${player.dynasty.prestige || 0}</div>`;
+            html += `<div style="font-size: 11px; color: #888;">Dynasty: <strong style="color: var(--gold);">${player.dynasty.name}</strong> · Prestige: ${House.getPrestige(player)}</div>`;
             html += `<div style="font-size: 11px; color: #888;">Age: ${player.age} · Max lifespan: ~${player.maxLifespan}</div>`;
             html += '</div>';
         }
@@ -825,7 +825,7 @@ Object.assign(ActionMenu, {
         if (house) {
             html += `<div style="font-size: 11px; color: #aaa;">Founded day ${house.foundedDay} · ⭐ Prestige: ${house.prestige || 0} · Generation ${house.generation || 1}</div>`;
         } else {
-            html += `<div style="font-size: 11px; color: #aaa;">Founded day ${player.dynasty?.founded || 1} · Prestige: ${player.dynasty?.prestige || 0}</div>`;
+            html += `<div style="font-size: 11px; color: #aaa;">Founded day ${player.dynasty?.founded || 1} · Prestige: ${House.getPrestige(player)}</div>`;
         }
         html += `<div style="font-size: 11px; color: #aaa;">You: ${player.name}, age ${player.age} (max ~${player.maxLifespan})</div>`;
         if (player.spouse) {
@@ -1237,7 +1237,7 @@ Object.assign(ActionMenu, {
         if (house) {
             html += `<p style="font-size: 12px; color: var(--gold);">${house.name} · Prestige: ${house.prestige || 0} · Generation ${house.generation || 1}</p>`;
         } else if (player.dynasty) {
-            html += `<p style="font-size: 12px; color: var(--gold);">House ${player.dynasty.name} · Prestige: ${player.dynasty.prestige || 0}</p>`;
+            html += `<p style="font-size: 12px; color: var(--gold);">House ${player.dynasty.name} · Prestige: ${House.getPrestige(player)}</p>`;
         }
 
         // Offer to spend Prestige to secure a smooth succession (avoid disputes).

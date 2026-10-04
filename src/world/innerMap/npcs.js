@@ -438,6 +438,8 @@ Object.assign(InnerMap, {
                                     npc._outsideQ = npc.q; // remember position for when they exit
                                     npc._outsideR = npc.r;
                                     npc.idleTimer = 8 + Utils.random() * 20; // stay inside 8-28 seconds
+                                    // Night: home for the night (guards keep their watch)
+                                    if (this._isNpcNight() && npc.type !== 'guard') npc.idleTimer = 40 + Utils.random() * 40;
                                     npc._targetBuilding = null;
                                     // Traveler visited a place
                                     if (npc.visitsLeft > 0) npc.visitsLeft--;
@@ -584,8 +586,18 @@ Object.assign(InnerMap, {
             return;
         }
 
+        // Day/night schedule: after dark most folk head home (travelers to the
+        // tavern/inn); guards keep patrolling their usual beat.
+        let nightTypes = null;
+        if (this._isNpcNight() && npc.type !== 'guard') {
+            nightTypes = npc.type === 'traveler' ? ['tavern', 'inn'] : ['house'];
+        }
+        const nightCandidates = nightTypes
+            ? (this.buildings || []).filter(b => nightTypes.includes(b.type) && (b.q !== npc.q || b.r !== npc.r))
+            : [];
+
         // Find buildings matching NPC's preferred destinations
-        const candidates = this.buildings.filter(b =>
+        const candidates = nightCandidates.length > 0 ? nightCandidates : this.buildings.filter(b =>
             npc.destinations.includes(b.type) && (b.q !== npc.q || b.r !== npc.r)
         );
 
@@ -628,6 +640,12 @@ Object.assign(InnerMap, {
         // Couldn't find a path, just idle again
         npc.state = 'idle';
         npc.idleTimer = 2 + Utils.random() * 5;
+    },
+
+    /** Night hours for NPC schedules (9 PM – 5 AM, inner-map clock). */
+    _isNpcNight() {
+        const h = (this.timeOfDay == null ? 8 : this.timeOfDay) % 24;
+        return h >= 21 || h < 5;
     },
 
     /**

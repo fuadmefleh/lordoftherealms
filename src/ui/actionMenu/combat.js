@@ -341,6 +341,9 @@ Object.assign(ActionMenu, {
                     html += `<div style="margin-left:12px; color:#aaa;">• ${item}: ${qty}</div>`;
                 }
             }
+            if (result.lootLeftBehind && Object.keys(result.lootLeftBehind).length > 0) {
+                html += `<div style="margin-top:4px; color:#ff9800;">🎒 Packs full — left behind: ${Object.entries(result.lootLeftBehind).map(([k, v]) => `${v} ${k}`).join(', ')}</div>`;
+            }
             html += `</div>`;
             if (result.casualties > 0) {
                 html += `<div style="color:#ff9800;">⚠️ You lost ${result.casualties} soldier${result.casualties > 1 ? 's' : ''} in the battle.</div>`;

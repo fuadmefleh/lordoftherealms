@@ -16,6 +16,7 @@ import { Relationships } from '../systems/relationships.js';
 import { CustomBuildings } from '../world/customBuildings.js';
 import { BuildingCreator } from './buildingCreator.js';
 import { Hotbar } from './hotbar.js';
+import { PlayerInventory } from '../player/inventory.js';
 import { NpcDialog } from './npcDialog.js';
 import { ObjectActions } from './objectActions.js';
 
@@ -887,9 +888,11 @@ Object.assign(InnerMapRenderer, {
                 const gTile = InnerMap.getTile(item.groundItemTileQ, item.groundItemTileR);
                 if (gTile && gTile.groundItem) {
                     const gi = gTile.groundItem;
-                    // Add item back to player inventory
-                    if (!game.player.inventory) game.player.inventory = {};
-                    game.player.inventory[gi.itemId] = (game.player.inventory[gi.itemId] || 0) + (gi.quantity || 1);
+                    // Add item back to player inventory (if there is room)
+                    if (!PlayerInventory.addItem(game.player, gi.itemId, gi.quantity || 1).success) {
+                        game.ui.showNotification('🎒 Inventory Full', PlayerInventory.fullMessage(game.player), 'warning');
+                        break;
+                    }
                     game.ui.showNotification(`${gi.icon} Picked Up`, `Picked up ${gi.name}.`, 'success');
                     delete gTile.groundItem;
                     game.ui.updateStats(game.player, game.world);

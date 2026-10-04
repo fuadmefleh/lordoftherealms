@@ -132,10 +132,10 @@ export class Player {
         this.kingdomTitle = null;    // Title within kingdom (e.g., 'king', 'treasurer', 'lord')
 
         // Dynasty & Relationships
+        // Prestige lives on the House (player.house.prestige, systems/house.js)
         this.dynasty = {
             name: (profile.name || 'Wanderer') + 'son',
             founded: 1,
-            prestige: 0,
         };
         this.spouse = null;            // Relationship NPC id of spouse
         this.children = [];            // Array of child objects

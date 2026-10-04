@@ -3,6 +3,8 @@ import { InnerMap } from '../../world/innerMap.js';
 import { ActionMenu } from '../actionMenu.js';
 import { NpcFamily } from '../../systems/npcFamily.js';
 import { Quests } from '../../systems/quests.js';
+import { NpcDisposition } from '../../systems/npcDisposition.js';
+import { Gossip } from '../../systems/gossip.js';
 import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS, RUMORS, FAREWELLS, THREAT_RESPONSES, THREAT_SUCCESS, FLATTER_RESPONSES, FLATTER_SUCCESS, TIME_COMMENTS, WEATHER_COMMENTS, NPC_QUEST_HOOKS, LOCATION_INFO, KINGDOM_INFO } from '../npcDialog.data.js';
 import { dialogState } from './shared.js';
 import { NpcDialog } from './index.js'; // call-time facade ref (ESM cycle-safe)
@@ -264,22 +266,40 @@ export function _handleChoice(action) {
                     responseText = _pick(pool);
                     dispositionChange = -15;
                     skillGains = { combat: 1 };
-                    // Reveal something useful
-                    if (dialogState._game?.ui?.showNotification) {
-                        setTimeout(() => {
-                            dialogState._game.ui.showNotification('💪 Intimidation', 'Your threat worked. The information may prove useful.', 'success');
-                        }, 1500);
-                    }
                 } else {
                     responseText = _pick(THREAT_RESPONSES[npcType] || THREAT_RESPONSES.villager);
                     dispositionChange = -10;
                 }
-                // Karma hit regardless
-                if (dialogState._game?.player) {
-                    dialogState._game.player.karma = (dialogState._game.player.karma || 0) - 2;
-                    if (dialogState._game.player.modifyNeed) dialogState._game.player.modifyNeed('social', -5);
+                // Concrete outcome: coin handed over, and maybe a report to the guard
+                const game = dialogState._game;
+                const threatNpc = dialogState._npc;
+                const outcome = NpcDisposition.resolveThreat(threatNpc, game?.player, success);
+                if (outcome.gold > 0) responseText += ` *hands over ${outcome.gold} gold*`;
+                if (game?.ui?.showNotification) {
+                    setTimeout(() => {
+                        if (outcome.gold > 0) {
+                            game.ui.showNotification('💪 Intimidation', `${threatNpc.name} hands over ${outcome.gold} gold. They'll fear you — and charge you more.`, 'success');
+                            if (game.ui.updateStats) game.ui.updateStats(game.player, game.world);
+                        } else if (success) {
+                            game.ui.showNotification('💪 Intimidation', `${threatNpc.name} cowers${outcome.alreadyExtorted ? ', but has nothing left to give' : ''}.`, 'info');
+                        }
+                        if (outcome.reported && game.player && game.world) {
+                            const wt = InnerMap.currentWorldTile || {};
+                            Gossip.reportCrime(game.player, game.world, {
+                                crimeType: 'assault',
+                                victim: { name: threatNpc.name, type: threatNpc.type, icon: threatNpc.icon },
+                                q: wt.q, r: wt.r,
+                                scene: { npcs: InnerMap.npcs || [], q: InnerMap.playerInnerQ, r: InnerMap.playerInnerR },
+                            });
+                            game.ui.showNotification('🚨 Reported!', `${threatNpc.name} ran to the guard about your threats. Word will spread.`, 'warning');
+                        }
+                    }, 1500);
                 }
-                mem.threatened = true;
+                // Karma hit regardless
+                if (game?.player) {
+                    game.player.karma = (game.player.karma || 0) - 2;
+                    if (game.player.modifyNeed) game.player.modifyNeed('social', -5);
+                }
                 _showSkillCheckResult(success, 'Intimidate');
                 break;
             }
@@ -288,19 +308,23 @@ export function _handleChoice(action) {
                 const difficulty = 5;
                 const success = _skillCheck('diplomacy', difficulty);
                 if (success) {
-                    // Deep persuasion — reveal settlement/kingdom secret
-                    const secrets = [
-                        'There\'s a hidden passage beneath the old well. Leads to a cache of valuables.',
-                        'The tax collector skims 20% off the top. Everyone knows, no one dares speak.',
-                        'A spy from {kingdom} has been seen meeting the innkeeper in secret.',
-                        'The local lord has a private army hidden in the hills. Double what\'s officially reported.',
-                        'Ancient tunnels connect several buildings underground. The thieves use them freely.',
-                        'The priest keeps a forbidden tome in the church vault. Says it contains prophecies.',
-                    ];
-                    let secret = _pick(secrets);
-                    const kingdom = _getKingdom();
-                    secret = secret.replace(/\{kingdom\}/g, kingdom?.name || 'a rival realm');
-                    responseText = `*leans close and whispers* ${secret}`;
+                    // Deep persuasion — the secret comes with something real
+                    const game = dialogState._game;
+                    const secret = NpcDisposition.persuadeSecret(dialogState._npc, {
+                        player: game?.player, world: game?.world, kingdom: _getKingdom(),
+                    });
+                    responseText = `*leans close and whispers* ${secret.text}`;
+                    const rewardText = secret.kind === 'cache' ? `+${secret.gold} gold`
+                        : secret.kind === 'map' ? `${secret.tilesRevealed} map tiles revealed`
+                        : secret.kind === 'treasure' ? 'Treasure map added to your collection'
+                        : secret.kind === 'discount' ? `${Math.round(secret.discount * 100)}% off with ${dialogState._npc.name} from now on`
+                        : 'Kingdom military & economy intel learned';
+                    if (game?.ui?.showNotification) {
+                        setTimeout(() => {
+                            game.ui.showNotification('🤫 A Secret Shared', rewardText, 'success');
+                            if (game.ui.updateStats) game.ui.updateStats(game.player, game.world);
+                        }, 1500);
+                    }
                     dispositionChange = 5;
                     skillGains = { diplomacy: 2 };
                     if (dialogState._game?.player?.modifyNeed) {
@@ -329,7 +353,8 @@ export function _handleChoice(action) {
 
         // Apply disposition change
         if (dispositionChange !== 0) {
-            mem.disposition = Math.max(0, Math.min(100, mem.disposition + dispositionChange));
+            // Past gifts make goodwill grow faster; threats make it grow slower
+            dispositionChange = NpcDisposition.adjustDisposition(dialogState._npc, dispositionChange);
             mem.lastAction = action;
             _animateDispositionChange(dispositionChange);
 
@@ -427,9 +452,7 @@ export function _giveGoldGift(amount) {
     if (!dialogState._game?.player || dialogState._game.player.gold < amount) return;
     dialogState._game.player.gold -= amount;
 
-    const mem = _mem(dialogState._npc);
     const npcType = dialogState._npc.type || 'villager';
-    mem.giftsReceived++;
 
     // Disposition boost scaled by amount
     let boost = amount >= 100 ? 15 : amount >= 25 ? 8 : 4;
@@ -438,7 +461,9 @@ export function _giveGoldGift(amount) {
     // Nobles care less about small amounts
     if (npcType === 'noble' && amount < 25) boost = Math.ceil(boost / 2);
 
-    mem.disposition = Math.min(100, mem.disposition + boost);
+    // Earlier gifts make each new one count for more; then record this one
+    boost = NpcDisposition.adjustDisposition(dialogState._npc, boost);
+    const giftResult = NpcDisposition.recordGift(dialogState._npc);
 
     // Karma boost
     if (dialogState._game.player) dialogState._game.player.karma = (dialogState._game.player.karma || 0) + 1;
@@ -457,7 +482,8 @@ export function _giveGoldGift(amount) {
         beggar:   '*breaks down crying* Thank you... thank you so much. I can eat tonight!',
     };
 
-    const responseText = responses[npcType] || 'Thank you for your generosity!';
+    let responseText = responses[npcType] || 'Thank you for your generosity!';
+    if (giftResult.forgiven) responseText += ' ...Very well. I suppose I can put your threats behind us.';
 
     dialogState._lines.push({ speaker: 'You', text: `*gives ${amount} gold*`, isNpc: false, _action: 'give_gift' });
     dialogState._lines.push({ speaker: dialogState._npc.name, icon: dialogState._npc.icon, text: responseText, isNpc: true, _action: 'give_gift' });
@@ -476,9 +502,7 @@ export function _giveItemGift(itemId) {
     dialogState._game.player.inventory[itemId]--;
     if (dialogState._game.player.inventory[itemId] <= 0) delete dialogState._game.player.inventory[itemId];
 
-    const mem = _mem(dialogState._npc);
     const npcType = dialogState._npc.type || 'villager';
-    mem.giftsReceived++;
 
     const displayName = itemId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
@@ -487,7 +511,8 @@ export function _giveItemGift(itemId) {
     if (itemId === 'bread' || itemId === 'food') boost = npcType === 'beggar' ? 15 : 6;
     if (itemId === 'ale' || itemId === 'wine') boost = npcType === 'traveler' ? 10 : 6;
 
-    mem.disposition = Math.min(100, mem.disposition + boost);
+    boost = NpcDisposition.adjustDisposition(dialogState._npc, boost);
+    const giftResult = NpcDisposition.recordGift(dialogState._npc);
     if (dialogState._game.player) dialogState._game.player.karma = (dialogState._game.player.karma || 0) + 1;
 
     const responses = {
@@ -495,7 +520,8 @@ export function _giveItemGift(itemId) {
         merchant: `${displayName}? I can certainly find a use for this. Thank you!`,
         child:    `*eyes go wide* For ME?! Thank you thank you thank you!`,
     };
-    const responseText = responses[npcType] || `*accepts the ${displayName}* How thoughtful of you. Thank you.`;
+    let responseText = responses[npcType] || `*accepts the ${displayName}* How thoughtful of you. Thank you.`;
+    if (giftResult.forgiven) responseText += ' ...All right. Let\'s forget about those threats.';
 
     dialogState._lines.push({ speaker: 'You', text: `*gives ${displayName}*`, isNpc: false, _action: 'give_gift' });
     dialogState._lines.push({ speaker: dialogState._npc.name, icon: dialogState._npc.icon, text: responseText, isNpc: true, _action: 'give_gift' });
@@ -565,9 +591,8 @@ export function _showAskAboutSubmenu() {
             dialogState._lineIndex = dialogState._lines.length - 1;
 
             // Small disposition boost for showing interest
-            const mem = _mem(dialogState._npc);
-            mem.disposition = Math.min(100, mem.disposition + 2);
-            _animateDispositionChange(2);
+            const gain = NpcDisposition.adjustDisposition(dialogState._npc, 2);
+            _animateDispositionChange(gain);
 
             // Social need boost
             if (dialogState._game?.player?.modifyNeed) dialogState._game.player.modifyNeed('social', 4);

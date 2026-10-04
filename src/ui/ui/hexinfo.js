@@ -249,7 +249,13 @@ Object.assign(UI.prototype, {
         }
 
         if (tile.religiousBuilding) {
-            const building = tile.religiousBuilding;
+            const building = PlayerReligion.ensureBuildingStats(tile.religiousBuilding);
+            const extraYields = [
+                building.karmaBonus ? `+${building.karmaBonus} karma/day` : '',
+                building.incomeBonus ? `+${Math.floor(building.incomeBonus * 0.1 * (building.level || 1) * (1 + Math.min(2, (building.followers || 0) / 500)))} gold/day` : '',
+                building.renownPerDay ? `+${building.renownPerDay * (building.level || 1)} renown/day` : '',
+                building.scholarshipBonus ? `+${building.scholarshipBonus * 2 * (building.level || 1)}% research` : '',
+            ].filter(Boolean).join(', ');
             html += `
                 <div class="info-section-title">Religious Building</div>
                 <div class="info-row">
@@ -262,8 +268,9 @@ Object.assign(UI.prototype, {
                 </div>
                 <div class="info-row">
                     <span class="info-label">Faith Gain</span>
-                    <span class="info-value">+${building.faithGain}/day</span>
+                    <span class="info-value">+${building.faithGain || 0} followers/day</span>
                 </div>
+                ${extraYields ? `<div class="info-row"><span class="info-label">Yields</span><span class="info-value">${extraYields}</span></div>` : ''}
                 <div class="info-row">
                     <span class="info-label">Followers</span>
                     <span class="info-value">${Utils.formatNumber(building.followers)}</span>

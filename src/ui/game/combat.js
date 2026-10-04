@@ -190,11 +190,17 @@ export function _showFoodPurchaseModal(pathLen, foodCount, tile, targetHex) {
     const buyAndGo = () => {
         cleanup();
         // Execute purchases
+        let failReason = null;
         for (const p of purchasePlan) {
-            Trading.buyGoods(this.player, p.good, p.qty, settlement);
+            const r = Trading.buyGoods(this.player, p.good, p.qty, settlement);
+            if (!r.success) failReason = r.reason;
         }
-        this.ui.showNotification('🍞 Food Purchased',
-            `Bought ${totalFood} food for ${totalCost} gold. Safe travels!`, 'success');
+        if (failReason) {
+            this.ui.showNotification('🍞 Some Food Not Bought', failReason, 'warning');
+        } else {
+            this.ui.showNotification('🍞 Food Purchased',
+                `Bought ${totalFood} food for ${totalCost} gold. Safe travels!`, 'success');
+        }
         this.ui.updateStats(this.player, this.world);
         // Resume movement
         if (this.player.path) {

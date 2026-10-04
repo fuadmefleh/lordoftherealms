@@ -1,6 +1,6 @@
 // UI — panels methods.
 import { UI } from './core.js';
-import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles } from './_imports.js';
+import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles } from './_imports.js';
 
 Object.assign(UI.prototype, {
     /**
@@ -622,6 +622,11 @@ Object.assign(UI.prototype, {
             }
             inventoryHtml += '</div>';
         }
+
+        const used = PlayerInventory.getUsedSlots(player);
+        const cap = PlayerInventory.getCapacity(player);
+        inventoryHtml = `<div style="font-size: 12px; margin-bottom: 8px; color: ${used >= cap ? '#ff9800' : 'var(--text-secondary)'};"
+            title="Each kind of good takes a slot. A mount (+5) and each house (+3) add room.">🎒 Packs: ${used}/${cap} kinds of goods</div>` + inventoryHtml;
 
         this.showCustomPanel('Inventory', inventoryHtml);
     },

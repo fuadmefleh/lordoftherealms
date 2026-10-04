@@ -8,3 +8,4 @@ export { WorldEvents } from '../../world/worldEvents.js';
 export { Technology } from '../../systems/technology.js';
 export { Infrastructure } from '../../systems/infrastructure.js';
 export { PlayerEffects } from '../playerEffects.js';
+export { PlayerInventory } from '../inventory.js';

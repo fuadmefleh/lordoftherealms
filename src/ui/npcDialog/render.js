@@ -3,6 +3,7 @@ import { InnerMap } from '../../world/innerMap.js';
 import { ActionMenu } from '../actionMenu.js';
 import { NpcFamily } from '../../systems/npcFamily.js';
 import { NpcBrain } from '../../systems/npcBrain.js';
+import { NpcDisposition } from '../../systems/npcDisposition.js';
 import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS, RUMORS, FAREWELLS, THREAT_RESPONSES, THREAT_SUCCESS, FLATTER_RESPONSES, FLATTER_SUCCESS, TIME_COMMENTS, WEATHER_COMMENTS, NPC_QUEST_HOOKS, LOCATION_INFO, KINGDOM_INFO } from '../npcDialog.data.js';
 import { dialogState } from './shared.js';
 import { NpcDialog } from './index.js'; // call-time facade ref (ESM cycle-safe)
@@ -11,10 +12,14 @@ import { _handleChoice, _showGiftSubmenu, _giveGoldGift, _giveItemGift, _showAsk
 
 export function _buildConversation(npc) {
     const mem = _mem(npc);
+    // A newly titled player is congratulated (and liked a little more)
+    const titleNews = NpcDisposition.notePlayerTitle(npc, _getPlayerTitle());
     mem.timesSpoken++;
-    mem.playerTitle = _getPlayerTitle();
 
-    const greeting = _getGreeting(npc);
+    let greeting = _getGreeting(npc);
+    if (titleNews.changed && !mem.grudge && !mem.threatened) {
+        greeting = `I hear you're ${titleNews.title} now — congratulations! ` + greeting;
+    }
     dialogState._lines = [{
         speaker: npc.name,
         icon: npc.icon,
@@ -104,6 +109,23 @@ export function _renderChoices(box) {
     const mem = _mem(dialogState._npc);
     const choices = [];
 
+    // A terrified or hateful NPC won't talk — only amends (a gift) or leaving
+    if ((mem.threatened || mem.grudge) && mem.disposition < 15) {
+        if (dialogState._game?.player?.gold > 0 || _hasGiftableInventory()) {
+            choices.push({ icon: '🎁', label: 'Let me make amends.', action: 'give_gift', tooltip: 'Gifts are the only way back into their good graces' });
+        }
+        choices.push({ icon: '👋', label: 'Farewell.', action: 'farewell' });
+        for (const choice of choices) {
+            const btn = document.createElement('button');
+            btn.className = 'npc-dialog-choice';
+            btn.innerHTML = `<span class="npc-dialog-choice-icon">${choice.icon}</span> ${choice.label}`;
+            if (choice.tooltip) btn.title = choice.tooltip;
+            btn.addEventListener('click', () => _handleChoice(choice.action));
+            choicesEl.appendChild(btn);
+        }
+        return;
+    }
+
     // ── Ask for rumors (can ask multiple unique ones) ──
     if (mem.rumorsTold < 3) {
         choices.push({
@@ -150,7 +172,14 @@ export function _renderChoices(box) {
 
     // ── Trade (merchants, blacksmiths, travelers) ──
     if (npcType === 'merchant' || npcType === 'blacksmith_npc' || npcType === 'traveler') {
-        choices.push({ icon: '💰', label: 'Show me your wares.', action: 'trade' });
+        const pm = NpcDisposition.getPriceModifiers(dialogState._npc);
+        if (pm.refuses) {
+            choices.push({ icon: '🚫', label: 'Show me your wares.', action: 'trade', tooltip: pm.refuseReason });
+        } else {
+            const why = pm.reasons.map(r => `${r.label} ${r.pct > 0 ? '+' : ''}${r.pct}%`).join(', ');
+            const tag = pm.pct === 0 ? '' : ` (${pm.pct > 0 ? '+' : ''}${pm.pct}% prices)`;
+            choices.push({ icon: '💰', label: `Show me your wares.${tag}`, action: 'trade', tooltip: why ? `Prices: ${why}` : 'Fair prices' });
+        }
     }
 
     // ── Quest hook (once per NPC, disposition >= 40) ──
@@ -206,7 +235,7 @@ export function _renderChoices(box) {
             label: `[Intimidate — Combat ${combatTotal}/${difficulty}] Watch your tongue.`,
             action: 'threat',
             skillTag: chance >= 100 ? 'guaranteed' : chance >= 60 ? 'likely' : 'risky',
-            tooltip: `${chance}% chance | ⚠ May lower disposition`,
+            tooltip: `${chance}% chance | Success: they hand over coin | ⚠ Lowers disposition, they may report you to the guard`,
         });
     }
 
@@ -220,7 +249,7 @@ export function _renderChoices(box) {
             label: `[Persuade — Diplomacy ${diplomacyTotal}/${difficulty}] I need your trust on something important.`,
             action: 'persuade',
             skillTag: chance >= 100 ? 'guaranteed' : chance >= 60 ? 'likely' : 'risky',
-            tooltip: `${chance}% chance | Requires Warm+ disposition`,
+            tooltip: `${chance}% chance | Requires Warm+ disposition | They may share a map, a cache, true intel or a discount`,
         });
     }
 

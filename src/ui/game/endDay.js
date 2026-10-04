@@ -541,6 +541,16 @@ export function endDay() {
                 this.ui.showNotification('Faith Spreads', `+${playerResults.followersGained} followers`, 'info');
             }
 
+            // Religious building yields
+            const ry = playerResults.religiousYields;
+            if (ry && (ry.gold || ry.renown || ry.researchDays)) {
+                const parts = [];
+                if (ry.gold) parts.push(`+${ry.gold} pilgrim gold`);
+                if (ry.renown) parts.push(`+${ry.renown} renown`);
+                if (ry.researchDays) parts.push(`oracles advance research by ${ry.researchDays} day${ry.researchDays > 1 ? 's' : ''}`);
+                this.ui.showNotification('Sacred Buildings', parts.join(', '), 'info');
+            }
+
             // Blessings expired
             const blessingNames = {
                 prosperity: 'Your Blessing of Prosperity has faded.',
@@ -666,6 +676,9 @@ export function endDay() {
             // Income sources
             if (playerResults.faithIncome > 0) dayFinance.income.faith = playerResults.faithIncome;
             if (playerResults.cultureIncome > 0) dayFinance.income.culture = playerResults.cultureIncome;
+            if (playerResults.religiousYields && playerResults.religiousYields.gold > 0) {
+                dayFinance.income.faith = (dayFinance.income.faith || 0) + playerResults.religiousYields.gold;
+            }
 
             // Caravan profits
             let caravanProfit = 0;

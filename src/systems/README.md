@@ -21,6 +21,7 @@ World simulation systems. Each system manages a distinct aspect of the game worl
 | `marketDynamics.js` | — | Supply/demand shifts, price volatility |
 | `modStore.js` | — | Mod loading and custom asset injection |
 | `npcFamily/` | ~1280 | Inner-map NPC families, bonds, social ripple effects |
+| `npcDisposition.js` | ~360 | What inner-map NPC disposition does: prices, threats, secrets, family grudges |
 | `peoples/` | ~1500 | 25 tribal cultures, settlement demographics, cultural history |
 | `quests.js` | ~650 | Dynamic quest generation, tracking, rewards |
 | `relationships/` | ~1700 | Courtship, marriage, children, dynasty, heir succession |

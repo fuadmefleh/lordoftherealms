@@ -1,6 +1,6 @@
 // Espionage — missions members (split from the original monolith).
 import { Espionage } from './_ref.js';
-import { DataLoader, Utils, Technology, Hex, Tavern, Characters, House, Schemes } from './_imports.js';
+import { DataLoader, Utils, Technology, Hex, Tavern, Characters, House, Schemes, RealmWars } from './_imports.js';
 
 Object.assign(Espionage, {
     // ═══════════════════════════════════════
@@ -170,6 +170,9 @@ Object.assign(Espionage, {
             if (houseSpy > 0) successChance = Math.min(0.95, successChance + houseSpy * 0.01);
         }
 
+        // Mission-specific spy traits (an Alchemist's poisons, a Court Insider's contacts)
+        successChance = Math.min(0.95, successChance + this._traitMissionBonus(spy, mission.type));
+
         // Roll for outcome
         const roll = Utils.random();
         let outcome;
@@ -305,11 +308,21 @@ Object.assign(Espionage, {
             if (kingdom) House.accrueRivalFeud(player, world, kingdom.id, outcome === 'captured' ? 10 : 4, 'caught spying');
         }
 
-        // Renown reward
-        if (isSuccess && missionDef.rewards && missionDef.rewards.renown) {
-            player.renown = (player.renown || 0) + missionDef.rewards.renown;
-            result.rewards.renown = missionDef.rewards.renown;
+        // The victim may answer with an ultimatum
+        if (outcome === 'captured' || isSuccess) {
+            const ultimatum = this._provokeKingdom(player, world, kingdom, missionDef, outcome);
+            if (ultimatum) result.ultimatum = ultimatum;
         }
+
+        // Renown reward — a critical success (bonusRewards) earns half again,
+        // and the spy's loyalty grows with the triumph
+        const outcomeDef = this._getMissionOutcomes()[outcome] || {};
+        if (isSuccess && missionDef.rewards && missionDef.rewards.renown) {
+            const renown = Math.round(missionDef.rewards.renown * (outcomeDef.bonusRewards ? 1.5 : 1));
+            player.renown = (player.renown || 0) + renown;
+            result.rewards.renown = renown;
+        }
+        if (outcomeDef.bonusRewards) spy.loyalty = Math.min(100, (spy.loyalty || 0) + 5);
 
         // Karma penalty for assassination
         if (mission.type === 'assassinate' && missionDef.consequences && missionDef.consequences.karmaPenalty) {
@@ -458,6 +471,15 @@ Object.assign(Espionage, {
                     }
                 }
 
+                // Popular unrest shakes the realm's stability (populationUnrest),
+                // at once and a little more each day the rising lasts
+                const inciteDef = this._getMissions().incite_rebellion || {};
+                const unrest = (inciteDef.effects && inciteDef.effects.populationUnrest) || 0;
+                const unrestScale = severity === 'large' ? 1.5 : 1;
+                if (unrest > 0 && typeof kingdom.stability === 'number') {
+                    kingdom.stability = Math.max(0, kingdom.stability - unrest * 100 * unrestScale);
+                }
+
                 // Track rebellion
                 player.espionage.rebellions.push({
                     kingdomId: kingdom.id,
@@ -465,6 +487,7 @@ Object.assign(Espionage, {
                     startDay: world.day,
                     duration: rebellionDef.duration,
                     daysRemaining: rebellionDef.duration,
+                    unrestPerDay: unrest * 5 * unrestScale,
                 });
 
                 result.rewards.rebellion = { severity, treasuryLoss, militaryLoss };
@@ -509,7 +532,9 @@ Object.assign(Espionage, {
             if (kingdom && kingdom.territory && world) {
                 const config = this._getConfig();
                 const revealRadius = isSuccess ? config.fogRevealRadius : Math.max(2, config.fogRevealRadius - 2);
-                const duration = isSuccess ? config.fogRevealDuration : Math.floor(config.fogRevealDuration / 2);
+                const infilDef = this._getMissions().infiltrate_territory || {};
+                const fullDuration = (infilDef.effects && infilDef.effects.revealDuration) || config.fogRevealDuration;
+                const duration = isSuccess ? fullDuration : Math.floor(fullDuration / 2);
 
                 // Pick a center point in the kingdom (capital or random territory tile)
                 const center = kingdom.capital || Utils.randPick(kingdom.territory);
@@ -708,6 +733,38 @@ Object.assign(Espionage, {
         // Small daily treasury drain during rebellion
         const dailyDrain = Math.floor((kingdom.treasury || 0) * 0.005);
         kingdom.treasury = Math.max(0, (kingdom.treasury || 0) - dailyDrain);
+        // The unrest keeps the realm unsettled while it lasts
+        if (typeof kingdom.stability === 'number') {
+            kingdom.stability = Math.max(0, kingdom.stability - (rebellion.unrestPerDay || 0));
+        }
+    },
+
+    /** Success-chance bonus a spy's traits give on a particular mission type. */
+    _traitMissionBonus(spy, missionType) {
+        const key = { assassinate: 'assassinBonus', steal_technology: 'techStealBonus' }[missionType];
+        if (!key) return 0;
+        let bonus = 0;
+        for (const traitId of spy.traits || []) {
+            const trait = this._getSpyTraits().find(t => t.id === traitId);
+            if (trait && trait.effect && trait.effect[key]) bonus += trait.effect[key];
+        }
+        return bonus;
+    },
+
+    /**
+     * A discovered (or brazen) operation may provoke the victim: with the
+     * mission's warChanceIncrease (full when the spy is caught, a quarter on
+     * a success) the kingdom sends you an ultimatum — pay tribute or face war.
+     * Returns the ultimatum or null.
+     */
+    _provokeKingdom(player, world, kingdom, missionDef, outcome) {
+        const chance = missionDef.consequences && missionDef.consequences.warChanceIncrease;
+        if (!chance || !kingdom || !kingdom.isAlive || !world || player.allegiance === kingdom.id) return null;
+        const s = RealmWars._state(player);
+        if (s.wars[kingdom.id] || s.ultimatums[kingdom.id] || (s.truces[kingdom.id] || 0) > world.day) return null;
+        const roll = outcome === 'captured' ? chance : chance / 4;
+        if (Utils.random() >= roll) return null;
+        return RealmWars.issueUltimatum(player, world, kingdom);
     },
 
     /**

@@ -950,6 +950,13 @@ Spy loyalty starts at 45–90 and decays at 0.1/day. Below 20 loyalty, there is 
 
 ---
 
+### Consequences
+
+- **War risk:** hostile missions list a war risk. If your spy is **caught**, the target kingdom sends you an **ultimatum** with that chance (a quarter of it on a quiet success): pay tribute by the deadline or face war. Kingdoms you're sworn to, or already at war or truce with, won't send one.
+- **Incite Rebellion** knocks 20 points off the realm's stability (30 on a critical success), and keeps draining it each day the rising lasts.
+- **Traits:** an Alchemist adds +15% success on assassinations; a Court Insider adds +10% when stealing technology.
+- **Critical successes** earn half again the renown and raise the spy's loyalty by 5.
+
 ## 15. Ships & Naval
 
 ### Ship Types

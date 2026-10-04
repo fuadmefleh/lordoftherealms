@@ -414,6 +414,10 @@ export function endDay() {
                         mission.text,
                         notifType
                     );
+                    if (mission.ultimatum) {
+                        const u = mission.ultimatum;
+                        this.ui.showNotification('📜 Ultimatum!', `${u.name} knows of your spies. Pay ${u.tribute}g in tribute by day ${u.dueDay}, or face war.`, 'error');
+                    }
                     if (mission.levelUp) {
                         this.ui.showNotification('⬆️ Spy Level Up!', `${mission.spyName} reached level ${mission.newLevel}!`, 'success');
                     }

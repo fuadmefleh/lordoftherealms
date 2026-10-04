@@ -26,6 +26,7 @@ import { PlayerReligion } from '../playerReligion.js';
 import { Quests } from '../../systems/quests.js';
 import { Achievements } from '../../systems/achievements.js';
 
+import { RealmPolitics } from '../realmPolitics.js';
 import { addSettlementActions } from './settlementActions.js';
 import { addWildernessActions } from './wildernessActions.js';
 
@@ -341,6 +342,9 @@ export const PlayerActions = {
 
         // Travel companions heal the player and grow closer
         results.companions = PlayerEffects.processCompanions(player, world);
+
+        // A share of the tribute when a liege you fought for wins its war
+        results.warSpoils = RealmPolitics.processDaily(player, world);
 
         // Lord trade agreements run for a fixed term
         results.tradeAgreementsExpired = PlayerEffects.expireTradeAgreements(player, world.day || 0);

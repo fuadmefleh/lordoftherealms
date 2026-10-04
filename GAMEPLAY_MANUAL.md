@@ -1038,6 +1038,25 @@ Kingdoms are run by AI with distinct personalities. They:
 
 **Stability (0–100).** Every kingdom has a stability score that drifts each day toward a target: 60, plus ruler/lord/tradition stability and loyalty, plus world events (rebellions −25, succession crises −20, royal weddings +10, festivals +5, …) and the realm's mood, minus 5 per war and 15 for an empty treasury, adjusted by faith unity. High stability raises income by up to +20% and steadies troops in battle; low stability cuts income (down to −50%) and saps morale. Below 35 the realm is restless and may erupt in a **Peasant Rebellion** (a cunning spymaster lowers the odds). Stability shows in the kingdom info panel and the Dynasties panel.
 
+### Wars Between Kingdoms
+
+Kingdom wars are fought for **goals**, not to the last man:
+
+- **Pace.** A war sees a pitched battle about one day in three, fought over a border tile. Towns are defended at +25% and the capital at +50%. Taking a town counts triple toward the war goal.
+- **Armies persist.** Losses stick; a realm's army rebuilds about 4% of the way back to what its land can support each day, and sheds men quickly when land is lost.
+- **How wars end.** When an aggressor reaches its war goal (3–8 tiles), the loser sues for peace and pays **20% of its treasury in tribute**. A badly outmatched side may sue early, and long wars end in a truce from sheer weariness.
+- **Truces.** Peace brings a **180-day truce**: neither side may declare war again until it runs out. A realm already fighting two wars won't open a third.
+- **Falling and rising.** A realm falls only when its **last town** does; if its capital is taken, its court flees to its largest remaining town. A fallen realm's old towns remember it: when the occupier's stability drops below 45, a town may throw off its rule and **restore the old kingdom**, which goes straight to war with its occupier.
+
+**Wars of the Realm** (at any settlement, while a war or truce is on) lists every war with both sides' progress toward their goals, the truces in force, and the fallen realms. From there you can:
+
+- **Broker peace** (50g, 2 AP) at a town of either side. The chance rises with your diplomacy and renown, and falls if a side is close to its goal. Success earns +8 renown and reputation with both crowns; failure means both courts refuse your envoys for 10 days.
+- **Join the campaign** (2 AP) while your liege is at war: you fight an enemy vanguard of about 6% of its army. Each victory pays 30g, raises your standing with your liege, weakens the enemy and pushes your liege toward its war goal. When your liege wins, you get a share of the tribute (10% per victory, up to half) plus gold and renown.
+
+**Your liege's wars follow you to market:** in towns of a realm at war with your liege, prices are 15% worse; in towns of its allies, 5% better.
+
+**Restore a fallen realm** (in one of its old towns, 2 AP): fund a rising for 300–1,200g depending on the town's size. The chance is 35%, +25% if the occupier is restless, +3% per point of stealth. Success restores the kingdom there: +20 renown, +40 reputation with it, −30 with the occupier. Failure loses the gold, and the occupier may find out who paid. You can't fund a rising against the realm you're sworn to.
+
 ### NPC Lords
 
 AI-driven lords roam the world with personality traits (Ambitious, Honorable, Cruel, Cunning) that drive their decisions. You can encounter them on the map and request meetings. Each trait's numbers feed their kingdom: a Builder founds villages and repairs damage faster, a Tyrant taxes harder but erodes stability, a Warmonger wins more battles but makes enemies, a Paranoid lord holds his walls. Pious lords weigh your karma heavily, and a lord counts you as kin while you're married into his realm.

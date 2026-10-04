@@ -19,10 +19,12 @@ import { DataLoader } from '../core/dataLoader.js';
 // the build-menu helpers (BUILD_CATEGORIES, _buildOutputText, _canBuildTechBuilding) = 213, plus performRaid = 214, plus the building-service panels
 // (_serviceResult, showBlacksmithMenu, showBlessingMenu, showStableMenu, showGuardMenu,
 // showTributeMenu, showAudienceMenu) = 221, plus the outlaw gate (OUTLAW_REFUSED_ACTIONS,
-// refuseIfOutlawed) = 223.
+// refuseIfOutlawed) = 223, plus the realm-politics panels (REALM_POLITICS_AP,
+// showRealmWarsMenu, showRestorationMenu, _realmResult) = 227.
 const EXPECTED_KEYS = [
     '_serviceResult', 'showBlacksmithMenu', 'showBlessingMenu', 'showStableMenu', 'showGuardMenu',
     'showTributeMenu', 'showAudienceMenu', 'OUTLAW_REFUSED_ACTIONS', 'refuseIfOutlawed',
+    'REALM_POLITICS_AP', 'showRealmWarsMenu', 'showRestorationMenu', '_realmResult',
     'AP_COSTS', 'DEFERRED_AP_ACTIONS', '_appointTitle', '_buskFortuneTelling', '_buskJuggling',
     '_buskPreaching', '_buskSinging', '_buskStorytelling', '_buskingReward', '_categorizeActions',
     '_doForageMinigame', '_doHuntMinigame', '_doMeditateMinigame', '_doProspectMinigame',
@@ -86,12 +88,12 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 223 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(223);
+    it('has 227 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(227);
     });
 
     it('every member except the known data props is a function', () => {
-        const dataProps = new Set(['AP_COSTS', 'BUILD_CATEGORIES', 'DEFERRED_AP_ACTIONS', 'OUTLAW_REFUSED_ACTIONS', '_pendingAP']);
+        const dataProps = new Set(['AP_COSTS', 'BUILD_CATEGORIES', 'DEFERRED_AP_ACTIONS', 'OUTLAW_REFUSED_ACTIONS', 'REALM_POLITICS_AP', '_pendingAP']);
         for (const key of Object.keys(ActionMenu)) {
             if (dataProps.has(key)) continue;
             expect(typeof ActionMenu[key], `${key} should be a function`).toBe('function');

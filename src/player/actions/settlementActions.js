@@ -12,6 +12,7 @@ import { Ships } from '../../systems/ships.js';
 import { Housing } from '../../systems/housing.js';
 import { Titles } from '../../systems/titles.js';
 import { Festivals } from '../../systems/festivals.js';
+import { RealmPolitics } from '../realmPolitics.js';
 
 export function addSettlementActions(actions, player, tile, world, ctx) {
     const { isCity, isVillage, isPlayerSettlement, playerSettlementCount, playerKingdom, hasPlayerFoundedKingdom } = ctx;
@@ -241,6 +242,30 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             label: 'Pledge Allegiance',
             icon: '🏛️',
             description: `Swear fealty to the kingdom of ${tile.settlement.name}`
+        });
+    }
+
+    // Wars of the realms — follow the wars, broker peace, campaign for your liege
+    if (RealmPolitics.activeWars(world).length > 0 || RealmPolitics.truces(world).length > 0) {
+        const campaign = RealmPolitics.campaignOptions(player, world);
+        actions.push({
+            type: 'realm_wars',
+            label: 'Wars of the Realm',
+            icon: '⚔️',
+            description: campaign
+                ? `${campaign.liege.name} is at war — join the campaign, or broker peace between crowns`
+                : 'See the wars between kingdoms and try to broker peace',
+        });
+    }
+
+    // A fallen kingdom's old town — fund the rising
+    if (RealmPolitics.restorationTarget(player, world, tile)) {
+        const t = RealmPolitics.restorationTarget(player, world, tile);
+        actions.push({
+            type: 'fund_restoration',
+            label: `Restore ${t.fallen.name}`,
+            icon: '🔥',
+            description: `This town once belonged to the fallen ${t.fallen.name}. Fund a rising against ${t.occupier.name}.`,
         });
     }
 

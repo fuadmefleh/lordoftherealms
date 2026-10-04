@@ -40,6 +40,9 @@ const COMPANION_ROLES = {
     herbalist:  { heal: 3, text: 'heals 3 health a day' },
     priest:     { heal: 2, diplomacy: 0.5, text: 'heals 2 a day, +0.5 diplomacy' },
 };
+/** Merchants of a realm at war with your liege gouge you; your liege's allies deal kindly. */
+const LIEGE_TRADE = { enemy: -0.15, ally: 0.05 };
+
 const DEFAULT_COMPANION_ROLE = { heal: 1, text: 'keeps camp (heals 1 a day)' };
 /** Battle power / personal damage per point of mood combat modifier. */
 const MOOD_COMBAT_PER_POINT = 0.05;
@@ -150,10 +153,20 @@ export const PlayerEffects = {
         let bonus = _perk(player, 'tradeBonus') + this.companionBonus(player, 'trade')
             + this.moodTradeBonus(player); // see MOOD section
         const kingdomId = settlement && settlement.kingdom;
+        bonus += this.liegeTradeModifier(player, kingdomId);
         if (kingdomId && player.tradeAgreements && player.tradeAgreements[kingdomId]) {
             bonus += TRADE_AGREEMENT_BONUS;
         }
         return bonus;
+    },
+
+    /** Price adjustment in a town of `kingdomId` from the liege's wars and alliances. */
+    liegeTradeModifier(player, kingdomId) {
+        const st = player && player.politics;
+        if (!st || !kingdomId) return 0;
+        if ((st.liegeEnemies || []).includes(kingdomId)) return LIEGE_TRADE.enemy;
+        if ((st.liegeAllies || []).includes(kingdomId)) return LIEGE_TRADE.ally;
+        return 0;
     },
 
     /** Drop trade agreements whose term has run out. Returns the expired kingdom names. */

@@ -597,6 +597,11 @@ export function endDay() {
                 }
             }
 
+            // Your liege won a war you fought in
+            for (const sp of (playerResults.warSpoils || [])) {
+                this.ui.showNotification('🎖️ Spoils of War', `Your liege has humbled ${sp.enemy}. For your service: ${sp.gold} gold and ${sp.renown} renown.`, 'success');
+            }
+
             // Plague — on the player, their soldiers, and their colonies
             const td = playerResults.techDaily;
             if (td && td.plague && td.plague.healthLost > 0) {

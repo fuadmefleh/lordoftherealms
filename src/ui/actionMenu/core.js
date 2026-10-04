@@ -82,6 +82,7 @@ Object.assign(ActionMenu, {
             tavern: 'social', talk_locals: 'social', preach: 'social',
             pilgrimage: 'social', miracle: 'social', donate: 'social',
             pledge_allegiance: 'social', renounce_allegiance: 'social',
+            realm_wars: 'social', fund_restoration: 'social',
             form_kingdom: 'social',
             host_feast: 'social', hold_tournament: 'social', host_festival: 'social',
             meet_people: 'social', view_relationships: 'social', manage_dynasty: 'social',
@@ -373,6 +374,7 @@ Object.assign(ActionMenu, {
         // Light actions (1 AP)
         trade: 1, collect_goods: 1, donate: 1,
         pledge_allegiance: 1, renounce_allegiance: 1,
+        realm_wars: 0, fund_restoration: 2,
         form_kingdom: 6,
         bounty_board: 1, talk_locals: 1, request_meeting: 1,
         buy_house: 1, meet_people: 0,
@@ -449,7 +451,7 @@ Object.assign(ActionMenu, {
         'build_property', 'build_temple', 'build_infrastructure', 'build_cultural',
         'start_caravan', 'tavern', 'miracle', 'ship_passage', 'terraform',
         'talk_locals', 'bounty_board', 'odd_jobs', 'busking',
-        'donate', 'form_kingdom', 'host_feast', 'hold_tournament', 'host_festival',
+        'donate', 'fund_restoration', 'form_kingdom', 'host_feast', 'hold_tournament', 'host_festival',
         'found_colony', 'send_pioneers', 'negotiate_indigenous', 'recruit_settlers',
         'cartography', 'map_trade',
         'attack_unit', 'attack_settlement',
@@ -747,6 +749,12 @@ Object.assign(ActionMenu, {
                 break;
             case 'renounce_allegiance':
                 ActionMenu.doRenounceAllegiance(game, tile);
+                break;
+            case 'realm_wars':
+                ActionMenu.showRealmWarsMenu(game, tile);
+                break;
+            case 'fund_restoration':
+                ActionMenu.showRestorationMenu(game, tile);
                 break;
             case 'form_kingdom':
                 ActionMenu.showFormKingdomMenu(game, tile);

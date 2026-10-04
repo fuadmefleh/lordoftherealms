@@ -313,8 +313,11 @@ export const KingdomAI = {
             k.isAlive &&
             k.id !== kingdom.id &&
             !kingdom.allies.includes(k.id) &&
-            !kingdom.wars.includes(k.id)
+            !kingdom.wars.includes(k.id) &&
+            !KingdomAI.hasTruce(kingdom, k, world)
         );
+        // A realm already fighting two wars doesn't open a third
+        if (kingdom.wars.length >= 2) return;
 
         if (otherKingdoms.length === 0) return;
 
@@ -329,17 +332,11 @@ export const KingdomAI = {
         const theirStrength = target.military + target.population * 0.1;
 
         if (ourStrength > theirStrength * 0.8 || Utils.random() < 0.1) {
-            kingdom.wars.push(target.id);
-            target.wars.push(kingdom.id);
-
+            KingdomAI.startWar(kingdom, target, world);
             world.events.push({
                 text: `⚔️ ${kingdom.name} has declared war on ${target.name}!`,
                 type: 'military'
             });
-
-            // Worsen relations
-            kingdom.relations[target.id] = -100;
-            target.relations[kingdom.id] = -100;
         }
     },
 
@@ -350,14 +347,220 @@ export const KingdomAI = {
     makePeace(kingdom, enemy, world) {
         if (!kingdom || !enemy) return false;
         if (!(kingdom.wars || []).includes(enemy.id)) return false;
-        kingdom.wars = kingdom.wars.filter(id => id !== enemy.id);
-        enemy.wars = (enemy.wars || []).filter(id => id !== kingdom.id);
-        kingdom.relations[enemy.id] = Math.max(kingdom.relations[enemy.id] || 0, -40);
-        enemy.relations[kingdom.id] = Math.max(enemy.relations[kingdom.id] || 0, -40);
-        if (world && Array.isArray(world.events)) {
-            world.events.push({ text: `🕊️ ${kingdom.name} and ${enemy.name} have made peace.`, type: 'diplomatic' });
-        }
+        KingdomAI.endWar(kingdom, enemy, world, { text: `🕊️ ${kingdom.name} and ${enemy.name} have made peace.` });
         return true;
+    },
+
+    // ══════════════════════════════════════════════
+    // WAR LIFECYCLE — goals, exhaustion, peace, truces
+    // ══════════════════════════════════════════════
+
+    /** Tuning for kingdom-vs-kingdom wars. */
+    WAR: {
+        battleChance: 0.3,        // a war sees a pitched battle about every third day
+        truceDays: 180,           // no new war between the two for this long after peace
+        goalTiles: [3, 8],        // tiles the aggressor wants before it settles
+        weariness: 0.00006,       // daily peace chance grows by this per day of war
+        maxWeariness: 0.02,
+        sueRatio: 0.5,            // a side this outmatched may sue for peace
+        sueChance: 0.06,
+        tribute: 0.2,             // share of the loser's treasury paid to the victor
+        settlementDefense: 1.25,  // defending a walled town
+        capitalDefense: 1.5,      // defending the capital
+        regen: 0.04,              // armies rebuild this share of the gap each day
+        demob: 0.2,               // and shrink this fast when the realm can't support them
+    },
+
+    _day(world) { return (world && world.day) || 0; },
+
+    /** True while a peace treaty forbids these two from fighting. */
+    hasTruce(a, b, world) {
+        const until = a.truces && a.truces[b.id];
+        return !!until && until > KingdomAI._day(world);
+    },
+
+    /** Per-enemy war bookkeeping, created on first use (wars started anywhere). */
+    _warState(kingdom, enemyId, world) {
+        if (!kingdom.warState) kingdom.warState = {};
+        if (!kingdom.warState[enemyId]) {
+            const [lo, hi] = KingdomAI.WAR.goalTiles;
+            kingdom.warState[enemyId] = { since: KingdomAI._day(world), gains: 0, goal: Utils.randInt(lo, hi) };
+        }
+        return kingdom.warState[enemyId];
+    },
+
+    /** Declare war between two kingdoms with fresh war goals. */
+    startWar(kingdom, target, world) {
+        if (!kingdom.wars.includes(target.id)) kingdom.wars.push(target.id);
+        if (!target.wars.includes(kingdom.id)) target.wars.push(kingdom.id);
+        if (kingdom.warState) delete kingdom.warState[target.id];
+        if (target.warState) delete target.warState[kingdom.id];
+        KingdomAI._warState(kingdom, target.id, world);
+        KingdomAI._warState(target, kingdom.id, world);
+        if (!kingdom.relations) kingdom.relations = {};
+        if (!target.relations) target.relations = {};
+        kingdom.relations[target.id] = -100;
+        target.relations[kingdom.id] = -100;
+    },
+
+    /**
+     * End a war: both sides sign a truce; a victor takes tribute from the
+     * loser's treasury. opts: { victor, text }.
+     */
+    endWar(a, b, world, opts = {}) {
+        a.wars = (a.wars || []).filter(id => id !== b.id);
+        b.wars = (b.wars || []).filter(id => id !== a.id);
+        if (a.warState) delete a.warState[b.id];
+        if (b.warState) delete b.warState[a.id];
+        const until = KingdomAI._day(world) + KingdomAI.WAR.truceDays;
+        if (!a.truces) a.truces = {};
+        if (!b.truces) b.truces = {};
+        a.truces[b.id] = until;
+        b.truces[a.id] = until;
+        if (!a.relations) a.relations = {};
+        if (!b.relations) b.relations = {};
+        a.relations[b.id] = Math.max(a.relations[b.id] || 0, -40);
+        b.relations[a.id] = Math.max(b.relations[a.id] || 0, -40);
+
+        let tribute = 0;
+        const victor = opts.victor || null;
+        if (victor) {
+            const loser = victor === a ? b : a;
+            tribute = Math.floor(Math.max(0, loser.treasury || 0) * KingdomAI.WAR.tribute);
+            loser.treasury = (loser.treasury || 0) - tribute;
+            victor.treasury = (victor.treasury || 0) + tribute;
+        }
+        // Recent war outcomes (the player's share of a liege's victory reads these)
+        if (world) {
+            if (!Array.isArray(world.warHistory)) world.warHistory = [];
+            world.warHistorySeq = (world.warHistorySeq || 0) + 1;
+            world.warHistory.push({ id: world.warHistorySeq, day: KingdomAI._day(world), a: a.id, b: b.id, victor: victor ? victor.id : null, tribute });
+            if (world.warHistory.length > 100) world.warHistory.splice(0, world.warHistory.length - 100);
+        }
+        if (world && Array.isArray(world.events)) {
+            const loserName = victor ? (victor === a ? b.name : a.name) : null;
+            const text = opts.text || (victor
+                ? `🕊️ ${loserName} sues for peace with ${victor.name}${tribute ? `, paying ${tribute} gold in tribute` : ''}.`
+                : `🕊️ Weary of war, ${a.name} and ${b.name} sign a truce.`);
+            world.events.push({ text, type: 'diplomatic' });
+        }
+        return { tribute };
+    },
+
+    /** Daily check whether a war ends: goals met, the weak sue, or both tire. */
+    _resolveWar(a, b, world) {
+        const W = KingdomAI.WAR;
+        const sa = KingdomAI._warState(a, b.id, world);
+        const sb = KingdomAI._warState(b, a.id, world);
+        // War goals met — the winner dictates terms
+        if (sa.gains >= sa.goal) return KingdomAI.endWar(a, b, world, { victor: a });
+        if (sb.gains >= sb.goal) return KingdomAI.endWar(a, b, world, { victor: b });
+        // A badly outmatched side sues for peace
+        for (const [weak, strong] of [[a, b], [b, a]]) {
+            if ((weak.military || 0) < (strong.military || 0) * W.sueRatio && Utils.random() < W.sueChance) {
+                return KingdomAI.endWar(a, b, world, { victor: strong });
+            }
+        }
+        // Long wars wear both realms down
+        const days = KingdomAI._day(world) - Math.min(sa.since, sb.since);
+        if (Utils.random() < Math.min(W.maxWeariness, days * W.weariness)) {
+            return KingdomAI.endWar(a, b, world);
+        }
+        return null;
+    },
+
+    /** A defeated realm leaves every war; its last tiles pass to the conqueror. */
+    _collapse(defender, attacker, world) {
+        defender.isAlive = false;
+        defender.conqueredBy = attacker.id;
+        defender.conqueredDay = KingdomAI._day(world);
+        for (const t of defender.territory) {
+            const tile = world.getTile(t.q, t.r);
+            if (tile && tile.kingdom === defender.id) {
+                tile.kingdom = attacker.id;
+                attacker.territory.push(t);
+            }
+        }
+        defender.territory = [];
+        for (const k of world.kingdoms) {
+            if (k.wars) k.wars = k.wars.filter(id => id !== defender.id);
+            if (k.warState) delete k.warState[defender.id];
+        }
+        defender.wars = [];
+        world.events.push({ text: `💀 ${defender.name} has been conquered by ${attacker.name}!`, type: 'military' });
+    },
+
+    /** Tiles of settlements still flying this kingdom's banner. */
+    _settlementsOf(kingdom, world) {
+        const out = [];
+        for (const t of kingdom.territory) {
+            const tile = world.getTile(t.q, t.r);
+            if (tile && tile.settlement && tile.settlement.kingdom === kingdom.id) out.push({ q: t.q, r: t.r, settlement: tile.settlement });
+        }
+        return out;
+    },
+
+    // ══════════════════════════════════════════════
+    // RESTORATION — fallen realms rise again
+    // ══════════════════════════════════════════════
+
+    RESTORATION: { unrest: 45, chance: 0.003, minDays: 120, radius: 2 },
+
+    /**
+     * A fallen kingdom's old settlement, held by an occupier with shaky
+     * stability, may throw off its rule and restore the old crown.
+     */
+    processRestorations(world) {
+        const R = KingdomAI.RESTORATION;
+        const day = KingdomAI._day(world);
+        for (const fallen of world.kingdoms) {
+            if (fallen.isAlive || fallen.conqueredDay == null) continue;
+            if (day - fallen.conqueredDay < R.minDays) continue;
+            for (const s of world.getAllSettlements()) {
+                const tile = world.getTile(s.q, s.r);
+                const live = tile && tile.settlement;
+                if (!live || live.formerKingdom !== fallen.id) continue;
+                const occupier = world.getKingdom(live.kingdom);
+                if (!occupier || !occupier.isAlive) continue;
+                if ((occupier.stability != null ? occupier.stability : 60) >= R.unrest) continue;
+                if (Utils.random() >= R.chance) continue;
+                KingdomAI.restoreKingdom(fallen, occupier, { q: s.q, r: s.r, tile }, world);
+                break;
+            }
+        }
+    },
+
+    /** Bring a fallen kingdom back around one of its old settlements. */
+    restoreKingdom(fallen, occupier, seat, world) {
+        const R = KingdomAI.RESTORATION;
+        const { q: sq, r: sr, tile } = seat;
+        fallen.isAlive = true;
+        fallen.conqueredDay = null;
+        fallen.conqueredBy = null;
+        fallen.capital = { q: sq, r: sr };
+        fallen.territory = [];
+        const taken = new Set();
+        for (const h of Hex.hexesInRange(sq, sr, R.radius)) {
+            const q = Hex.wrapQ(h.q, world.width);
+            const t = world.getTile(q, h.r);
+            if (!t || t.kingdom !== occupier.id) continue;
+            if (t.settlement && t !== tile) continue; // only the rising town itself changes hands
+            t.kingdom = fallen.id;
+            fallen.territory.push({ q, r: h.r });
+            taken.add(`${q},${h.r}`);
+        }
+        occupier.territory = occupier.territory.filter(t => !taken.has(`${t.q},${t.r}`));
+        tile.settlement.kingdom = fallen.id;
+        delete tile.settlement.formerKingdom;
+        fallen.population = tile.settlement.population || 0;
+        fallen.military = Math.floor(fallen.population * 0.08);
+        fallen._militaryInit = true;
+        fallen.stability = 55;
+        fallen.treasury = Math.max(fallen.treasury || 0, 200);
+        fallen.wars = [];
+        fallen.truces = {};
+        KingdomAI.startWar(fallen, occupier, world);
+        world.events.push({ text: `🔥 ${tile.settlement.name} throws off ${occupier.name}'s rule — ${fallen.name} rises again!`, type: 'military' });
     },
 
     /**
@@ -367,18 +570,20 @@ export const KingdomAI = {
         // Base military from population (5% of population)
         let military = Math.floor(kingdom.population * 0.05);
 
-        // Bonus from iron and horses
+        // Iron and horses near any settlement arm the realm — once each (they
+        // used to multiply per deposit per town, snowballing big kingdoms)
         const settlements = world.getAllSettlements().filter(s => s.kingdom === kingdom.id);
+        let hasIron = false, hasHorses = false;
         for (const settlement of settlements) {
             const tile = world.getTile(settlement.q, settlement.r);
             if (!tile) continue;
-
-            const nearbyResources = Economy.getNearbyResources(settlement.q, settlement.r, world, 2);
-            for (const res of nearbyResources) {
-                if (res.id === 'iron') military *= 1.2;
-                if (res.id === 'horses') military *= 1.15;
+            for (const res of Economy.getNearbyResources(settlement.q, settlement.r, world, 2)) {
+                if (res.id === 'iron') hasIron = true;
+                if (res.id === 'horses') hasHorses = true;
             }
         }
+        if (hasIron) military *= 1.2;
+        if (hasHorses) military *= 1.15;
 
         // Ruler, generals and martial traditions
         military *= Math.max(0.1, 1 + KingdomBonuses.get(kingdom, 'military'));
@@ -387,7 +592,19 @@ export const KingdomAI = {
         const attrition = WorldEvents.getModifier(world, 'unitAttrition', { kingdom: kingdom.id });
         if (attrition > 0) military *= 1 - Utils.clamp(attrition * (1 - KingdomBonuses.get(kingdom, 'endurance')), 0, 0.9);
 
-        kingdom.military = Math.floor(military);
+        // The realm can support `military`; armies rebuild toward it over
+        // time, so battle losses matter, and shed men fast when land is lost
+        const cap = Math.floor(military);
+        kingdom.militaryCap = cap;
+        if (!kingdom._militaryInit) {
+            kingdom.military = cap;
+            kingdom._militaryInit = true;
+        } else {
+            const cur = kingdom.military || 0;
+            const rate = cap > cur ? KingdomAI.WAR.regen : KingdomAI.WAR.demob;
+            kingdom.military = Math.floor(cur + (cap - cur) * rate);
+            if (attrition > 0 && kingdom.military > cap) kingdom.military = cap;
+        }
     },
 
     /**
@@ -408,8 +625,13 @@ export const KingdomAI = {
                 if (activeWars.includes(warKey)) continue;
                 activeWars.push(warKey);
 
-                // Simulate battle
-                KingdomAI.simulateBattle(kingdom, enemy, world);
+                // Pitched battles every few days, not every day
+                if (Utils.random() < KingdomAI.WAR.battleChance) {
+                    KingdomAI.simulateBattle(kingdom, enemy, world);
+                }
+                if (kingdom.isAlive && enemy.isAlive && kingdom.wars.includes(enemy.id)) {
+                    KingdomAI._resolveWar(kingdom, enemy, world);
+                }
             }
         }
     },
@@ -490,7 +712,7 @@ export const KingdomAI = {
      * Simulate a battle between two kingdoms
      */
     simulateBattle(attacker, defender, world) {
-        const frontline = defender.territory.length > 0 ? Utils.randPick(defender.territory) : null;
+        const frontline = KingdomAI._pickFrontline(attacker, defender, world);
         const battleTile = frontline ? world.getTile(frontline.q, frontline.r) : null;
         const terrainId = battleTile?.terrain?.id;
 
@@ -510,6 +732,11 @@ export const KingdomAI = {
         // Brilliant strategists and ruthless lords win battles; paranoid ones hold walls
         attackPower *= Math.max(0.2, 1 + KingdomBonuses.get(attacker, 'warBonus'));
         defensePower *= Math.max(0.2, 1 + KingdomBonuses.get(defender, 'warBonus') + KingdomBonuses.get(defender, 'defense'));
+        // Walls: towns, and above all the capital, are hard to take
+        if (battleTile && battleTile.settlement && battleTile.settlement.kingdom === defender.id) {
+            const isCapital = defender.capital && defender.capital.q === frontline.q && defender.capital.r === frontline.r;
+            defensePower *= isCapital ? KingdomAI.WAR.capitalDefense : KingdomAI.WAR.settlementDefense;
+        }
 
         let moraleBreak = null;
         if (KingdomAI._checkMoraleBreak(attacker.military, defender.military, attackerMorale)) {
@@ -532,41 +759,38 @@ export const KingdomAI = {
 
         // Determine winner
         if (attackPower > defensePower) {
-            // Attacker wins - steal territory
-            if (defender.territory.length > 0) {
-                const stolenTile = frontline || Utils.randPick(defender.territory);
-                const tile = world.getTile(stolenTile.q, stolenTile.r);
+            // Attacker wins - take the contested tile
+            const tile = frontline ? world.getTile(frontline.q, frontline.r) : null;
+            if (tile && tile.kingdom === defender.id) {
+                tile.kingdom = attacker.id;
+                attacker.territory.push({ q: frontline.q, r: frontline.r });
+                defender.territory = defender.territory.filter(t => t.q !== frontline.q || t.r !== frontline.r);
+                const war = KingdomAI._warState(attacker, defender.id, world);
+                war.gains++;
 
-                if (tile) {
-                    tile.kingdom = attacker.id;
-                    attacker.territory.push(stolenTile);
-                    defender.territory = defender.territory.filter(t =>
-                        t.q !== stolenTile.q || t.r !== stolenTile.r
-                    );
-
-                    // If settlement was captured, change ownership
-                    if (tile.settlement && tile.settlement.kingdom === defender.id) {
-                        tile.settlement.kingdom = attacker.id;
-                    }
+                // A captured settlement changes hands (and remembers its old crown)
+                if (tile.settlement && tile.settlement.kingdom === defender.id) {
+                    tile.settlement.kingdom = attacker.id;
+                    if (!tile.settlement.formerKingdom) tile.settlement.formerKingdom = defender.id;
+                    war.gains += 2; // towns count for more toward the war goal
+                    world.events.push({ text: `🏰 ${attacker.name} captures ${tile.settlement.name} from ${defender.name}!`, type: 'military' });
                 }
+            }
 
-                // Reduce defender military
-                const defenderLossMult = moraleBreak === defender.id ? 0.82 : 0.9;
-                const attackerLossMult = moraleBreak === defender.id ? 0.97 : 0.95;
-                defender.military = Math.floor(defender.military * defenderLossMult);
-                attacker.military = Math.floor(attacker.military * attackerLossMult);
+            // Both armies bleed
+            const defenderLossMult = moraleBreak === defender.id ? 0.82 : 0.9;
+            const attackerLossMult = moraleBreak === defender.id ? 0.97 : 0.95;
+            defender.military = Math.floor(defender.military * defenderLossMult);
+            attacker.military = Math.floor(attacker.military * attackerLossMult);
 
-                // Check if defender is defeated
-                if (defender.territory.length === 0) {
-                    defender.isAlive = false;
-                    world.events.push({
-                        text: `💀 ${defender.name} has been conquered by ${attacker.name}!`,
-                        type: 'military'
-                    });
-
-                    // End all wars involving the defeated kingdom
-                    attacker.wars = attacker.wars.filter(id => id !== defender.id);
-                }
+            // A realm falls only when its last town does; a lost capital moves
+            const towns = KingdomAI._settlementsOf(defender, world);
+            if (towns.length === 0) {
+                KingdomAI._collapse(defender, attacker, world);
+            } else if (defender.capital && !towns.some(t => t.q === defender.capital.q && t.r === defender.capital.r)) {
+                const seat = towns.reduce((a, b) => ((b.settlement.population || 0) > (a.settlement.population || 0) ? b : a));
+                defender.capital = { q: seat.q, r: seat.r };
+                world.events.push({ text: `👑 ${defender.name}'s court flees to ${seat.settlement.name}.`, type: 'military' });
             }
         } else {
             // Defender wins - attacker loses military
@@ -574,17 +798,22 @@ export const KingdomAI = {
             const defenderLossMult = moraleBreak === attacker.id ? 0.98 : 0.95;
             attacker.military = Math.floor(attacker.military * attackerLossMult);
             defender.military = Math.floor(defender.military * defenderLossMult);
+        }
+    },
 
-            // Small chance war ends
-            if (Utils.random() < 0.2) {
-                attacker.wars = attacker.wars.filter(id => id !== defender.id);
-                defender.wars = defender.wars.filter(id => id !== attacker.id);
-
-                world.events.push({
-                    text: `Peace treaty signed between ${attacker.name} and ${defender.name}.`,
-                    type: 'diplomatic'
-                });
+    /**
+     * The tile a battle is fought over: a defender tile bordering the
+     * attacker if there is one (wars are fought at the border), else any.
+     */
+    _pickFrontline(attacker, defender, world) {
+        if (!defender.territory.length) return null;
+        const mine = new Set(attacker.territory.map(t => `${t.q},${t.r}`));
+        const border = [];
+        for (const t of defender.territory) {
+            for (const n of Hex.neighbors(t.q, t.r)) {
+                if (mine.has(`${Hex.wrapQ(n.q, world.width)},${n.r}`)) { border.push(t); break; }
             }
         }
+        return Utils.randPick(border.length ? border : defender.territory);
     },
 };

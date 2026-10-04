@@ -90,6 +90,8 @@ export const SaveLoad = {
             kingdoms: SaveLoad.serializeKingdoms(world.kingdoms),
             events: world.events,
             activeEvents: world.activeEvents || [],
+            warHistory: world.warHistory || [],
+            warHistorySeq: world.warHistorySeq || 0,
         };
     },
 
@@ -144,6 +146,13 @@ export const SaveLoad = {
             relations: k.relations,
             wars: k.wars,
             allies: k.allies,
+            // War lifecycle (goals, truces) and persistent armies
+            warState: k.warState || {},
+            truces: k.truces || {},
+            militaryCap: k.militaryCap,
+            _militaryInit: !!k._militaryInit,
+            conqueredBy: k.conqueredBy || null,
+            conqueredDay: k.conqueredDay != null ? k.conqueredDay : null,
             lord: k.lord,
             characterData: typeof Characters !== 'undefined' ? Characters.serialize(k) : (k.characterData || null),
             colonization: k.colonization || null,
@@ -246,6 +255,7 @@ export const SaveLoad = {
             heir: player.heir || null,
             house: (typeof House !== 'undefined') ? House.serialize(player.house) : (player.house || null),
             realmWars: player.realmWars ? JSON.parse(JSON.stringify(player.realmWars)) : null,
+            politics: player.politics ? JSON.parse(JSON.stringify(player.politics)) : null,
             maxLifespan: player.maxLifespan || 70,
             birthDay: player.birthDay || 0,
             marriageDay: player.marriageDay || null,
@@ -310,6 +320,8 @@ export const SaveLoad = {
         world.year = saveData.year;
         world.events = saveData.events || [];
         world.activeEvents = saveData.activeEvents || [];
+        world.warHistory = saveData.warHistory || [];
+        world.warHistorySeq = saveData.warHistorySeq || 0;
 
         // Restore tile data
         for (let r = 0; r < world.tiles.length; r++) {

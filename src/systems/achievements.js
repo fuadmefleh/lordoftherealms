@@ -272,6 +272,14 @@ export const Achievements = {
             check: (player) => Achievements._stat(player, 'buildings_constructed') >= 20,
             tier: 'silver',
         },
+        HERESY_HUNTER: {
+            id: 'heresy_hunter',
+            name: 'Heresy Hunter',
+            description: 'Suppress 5 heresies',
+            icon: '🔥',
+            check: (player) => Achievements._stat(player, 'heresies_suppressed') >= 5,
+            tier: 'silver',
+        },
         SCHOLAR_SUPREME: {
             id: 'scholar_supreme',
             name: 'Scholar Supreme',

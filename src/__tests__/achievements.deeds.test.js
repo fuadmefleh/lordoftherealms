@@ -23,10 +23,10 @@ function makePlayer() {
 const unlockedIds = (player, world) => Achievements.checkAchievements(player, world).map(a => a.id);
 
 describe('Deed achievements', () => {
-    it('every data achievement except Heresy Hunter has a check', () => {
+    it('every data achievement has a check', () => {
         const json = DataLoader._gamedata.achievements.achievements || DataLoader._gamedata.achievements;
         const unchecked = Object.keys(json).filter(k => typeof (Achievements.ACHIEVEMENTS[k] || {}).check !== 'function');
-        expect(unchecked).toEqual(['HERESY_HUNTER']);
+        expect(unchecked).toEqual([]);
     });
 
     it('first kill and ruin delver unlock from quest counters', () => {

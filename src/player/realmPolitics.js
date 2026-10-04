@@ -6,6 +6,7 @@
 // a hand in all of it:
 //   - see every war (progress toward each side's goal) and truce,
 //   - broker peace between two warring crowns,
+//   - broker an alliance between two crowns on good terms,
 //   - campaign for their liege — wins count toward the liege's war goal and
 //     earn a share of the tribute when the liege wins,
 //   - fund the restoration of a fallen kingdom in one of its old towns.
@@ -15,9 +16,13 @@ import { Utils } from '../core/utils.js';
 import { KingdomAI } from '../world/kingdomAI.js';
 import { PlayerEffects } from './playerEffects.js';
 import { PlayerMilitary } from './playerMilitary.js';
+import { Quests } from '../systems/quests.js';
 
 export const REALM_POLITICS = {
     broker: { fee: 50, cooldownDays: 10, base: 0.2, perDiplomacy: 0.04, maxRenownBonus: 0.15, lopsidedPenalty: 0.15, renown: 8, reputation: 8 },
+    // minRelations: how warm two crowns must already be; sealRelations: where a
+    // sealed pact leaves them (above KingdomAI's alliance bar, so it holds)
+    alliance: { fee: 100, cooldownDays: 15, base: 0.15, perDiplomacy: 0.04, maxRenownBonus: 0.15, minRelations: 30, perRelation: 0.005, sealRelations: 75, renown: 10, reputation: 5 },
     campaign: { enemyShare: 0.06, minStrength: 15, maxStrength: 400, wage: 30, reputation: 3, enemyLoss: 0.95 },
     spoils: { tributeSharePerMerit: 0.1, maxTributeShare: 0.5, goldPerMerit: 20, renownPerMerit: 3, reputationPerMerit: 2 },
     restoration: {
@@ -122,6 +127,92 @@ export const RealmPolitics = {
         }
         st.brokerCooldown[key] = day + B.cooldownDays;
         return { success: true, failed: true, message: `Neither court will yield yet. Your ${B.fee} gold in gifts is spent; try again in ${B.cooldownDays} days.` };
+    },
+
+    // ──────────── BROKER AN ALLIANCE ────────────
+
+    /** The two crowns' mutual regard (average of both directions). */
+    mutualRelations(a, b) {
+        return (((a.relations && a.relations[b.id]) || 0) + ((b.relations && b.relations[a.id]) || 0)) / 2;
+    },
+
+    /**
+     * Pairs of living crowns the player could bind into an alliance: at peace,
+     * not yet allied, and already on warm terms. With `kingdomId`, only pairs
+     * that include that kingdom (envoys work from a town of one side).
+     * @returns {{ a, b, relations }[]}
+     */
+    allianceCandidates(world, kingdomId = null) {
+        const A = REALM_POLITICS.alliance;
+        const alive = (world.kingdoms || []).filter(k => k.isAlive);
+        const out = [];
+        for (let i = 0; i < alive.length; i++) {
+            for (let j = i + 1; j < alive.length; j++) {
+                const a = alive[i], b = alive[j];
+                if (kingdomId && a.id !== kingdomId && b.id !== kingdomId) continue;
+                if ((a.allies || []).includes(b.id) || (b.allies || []).includes(a.id)) continue;
+                if ((a.wars || []).includes(b.id) || (b.wars || []).includes(a.id)) continue;
+                const relations = RealmPolitics.mutualRelations(a, b);
+                if (relations < A.minRelations) continue;
+                out.push({ a, b, relations });
+            }
+        }
+        return out;
+    },
+
+    /** Chance the player's envoys seal an alliance between two crowns. */
+    allianceChance(player, a, b) {
+        const A = REALM_POLITICS.alliance;
+        const chance = A.base + A.perDiplomacy * PlayerEffects.effectiveDiplomacy(player)
+            + Math.min(A.maxRenownBonus, (player.renown || 0) / 1000)
+            + (RealmPolitics.mutualRelations(a, b) - A.minRelations) * A.perRelation;
+        return Utils.clamp(chance, 0.05, 0.85);
+    },
+
+    /**
+     * Try to bind two crowns into an alliance. Success makes them allies,
+     * earns renown and standing with both, and counts toward the Alliance
+     * Broker quest (Quests.track 'alliances_formed').
+     */
+    brokerAlliance(player, world, aId, bId) {
+        const A = REALM_POLITICS.alliance;
+        const st = RealmPolitics._state(player);
+        const pair = RealmPolitics.allianceCandidates(world).find(p =>
+            (p.a.id === aId && p.b.id === bId) || (p.a.id === bId && p.b.id === aId));
+        if (!pair) return { success: false, reason: 'Those crowns cannot be brought into an alliance now.' };
+        const key = 'ally:' + _pairKey(aId, bId);
+        const day = world.day || 0;
+        if ((st.brokerCooldown[key] || 0) > day) {
+            return { success: false, reason: `Both courts are weighing your last proposal. Try again in ${st.brokerCooldown[key] - day} days.` };
+        }
+        if ((player.gold || 0) < A.fee) return { success: false, reason: `Envoys and gifts cost ${A.fee} gold.` };
+        player.gold -= A.fee;
+
+        const { a, b } = pair;
+        if (Utils.random() < RealmPolitics.allianceChance(player, a, b)) {
+            if (!a.allies) a.allies = [];
+            if (!b.allies) b.allies = [];
+            a.allies.push(b.id);
+            b.allies.push(a.id);
+            if (!a.relations) a.relations = {};
+            if (!b.relations) b.relations = {};
+            a.relations[b.id] = Math.max(a.relations[b.id] || 0, A.sealRelations);
+            b.relations[a.id] = Math.max(b.relations[a.id] || 0, A.sealRelations);
+            if (Array.isArray(world.events)) {
+                world.events.push({
+                    text: `🤝 Through ${player.name || 'a wandering envoy'}'s diplomacy, ${a.name} and ${b.name} have formed an alliance!`,
+                    type: 'diplomatic',
+                });
+            }
+            player.renown = (player.renown || 0) + A.renown;
+            if (!player.reputation) player.reputation = {};
+            const gain = PlayerEffects.scaleReputationGain(player, A.reputation);
+            for (const k of [a, b]) player.reputation[k.id] = Math.min(100, (player.reputation[k.id] || 0) + gain);
+            Quests.track(player, 'alliances_formed');
+            return { success: true, message: `${a.name} and ${b.name} seal an alliance at your urging. +${A.renown} renown, +${gain} reputation with both.` };
+        }
+        st.brokerCooldown[key] = day + A.cooldownDays;
+        return { success: true, failed: true, message: `The courts hesitate. Your ${A.fee} gold in gifts is spent; try again in ${A.cooldownDays} days.` };
     },
 
     // ──────────── CAMPAIGN FOR YOUR LIEGE ────────────

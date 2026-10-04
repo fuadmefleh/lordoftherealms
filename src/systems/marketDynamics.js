@@ -261,41 +261,30 @@ export const MarketDynamics = {
 // ============================================
 
 export const Banking = {
+    /** Fallback loan catalogue, used only when data/market.json has no loanOptions. */
+    DEFAULT_LOAN_OPTIONS: [
+        { id: 'small', name: 'Small Loan', amount: 500, interestRate: 0.10, duration: 30 },
+        { id: 'medium', name: 'Medium Loan', amount: 2000, interestRate: 0.15, duration: 60 },
+        { id: 'large', name: 'Large Loan', amount: 5000, interestRate: 0.20, duration: 90 },
+    ],
+
+    /** Loan catalogue from data/market.json (set by DataLoader). */
+    _loanOptions: null,
+
     /**
      * Get loan options for player from a specific kingdom
      */
     getLoanOptions(player, kingdomId) {
-        const maxLoan = Math.floor(player.gold * 2 + player.properties.length * 500);
+        const maxLoan = Math.floor(player.gold * 2 + (player.properties?.length || 0) * 500);
+        const catalogue = Array.isArray(this._loanOptions) && this._loanOptions.length > 0
+            ? this._loanOptions
+            : this.DEFAULT_LOAN_OPTIONS;
 
-        return [
-            {
-                id: 'small',
-                name: 'Small Loan',
-                amount: 500,
-                interestRate: 0.10, // 10% interest
-                duration: 30, // days
-                available: maxLoan >= 500,
-                kingdomId
-            },
-            {
-                id: 'medium',
-                name: 'Medium Loan',
-                amount: 2000,
-                interestRate: 0.15,
-                duration: 60,
-                available: maxLoan >= 2000,
-                kingdomId
-            },
-            {
-                id: 'large',
-                name: 'Large Loan',
-                amount: 5000,
-                interestRate: 0.20,
-                duration: 90,
-                available: maxLoan >= 5000,
-                kingdomId
-            }
-        ];
+        return catalogue.map(opt => ({
+            ...opt,
+            available: maxLoan >= opt.amount,
+            kingdomId,
+        }));
     },
 
     /**

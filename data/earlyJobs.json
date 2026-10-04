@@ -200,37 +200,52 @@
   },
 
   "gambling": {
+    "apCostPerRound": 2,
+    "tavernLuckBonus": 0.05,
+    "tavernTableLuckBonus": 0.02,
     "games": [
       {
-        "id": "dice_roll",
+        "id": "crown_anchor",
         "name": "Crown & Anchor",
         "icon": "🎲",
-        "description": "Roll dice against the house. Match crowns to win.",
+        "color": "#9b59b6",
+        "description": "Pick a symbol, roll 3 dice. The more matches, the bigger the payout!",
         "minBet": 5,
-        "maxBet": 200,
-        "houseEdge": 0.45,
-        "payoutMultiplier": 2.0
+        "maxBet": 500,
+        "matchChance": 0.16666666666666666,
+        "payoutPerMatch": 1
       },
       {
-        "id": "coin_flip",
+        "id": "dragons_flip",
         "name": "Dragon's Flip",
         "icon": "🐉",
-        "description": "Call the coin — dragon or shield. Double or nothing.",
+        "color": "#e67e22",
+        "description": "Call Dragon or Shield. Double or nothing — simple and deadly.",
         "minBet": 10,
         "maxBet": 500,
-        "houseEdge": 0.48,
+        "winChance": 0.48,
+        "doubleOrNothingWinChance": 0.46,
         "payoutMultiplier": 2.0
       },
       {
         "id": "high_low",
         "name": "High-Low",
-        "icon": "📊",
-        "description": "Guess if the next card is higher or lower. Win streaks pay big.",
+        "icon": "🃏",
+        "color": "#2ecc71",
+        "description": "Guess if the next card is higher or lower. Build streaks for bigger payouts!",
         "minBet": 5,
-        "maxBet": 100,
-        "houseEdge": 0.42,
-        "payoutMultiplier": 1.8,
+        "maxBet": 200,
         "streakBonus": 0.5
+      },
+      {
+        "id": "poker",
+        "name": "Texas Hold'em",
+        "icon": "🂡",
+        "color": "#e74c3c",
+        "description": "Two hole cards, five community cards. Outplay the dealer across four betting rounds!",
+        "minBet": 10,
+        "maxBet": 500,
+        "maxAnte": 200
       }
     ]
   },

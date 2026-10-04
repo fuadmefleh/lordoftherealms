@@ -790,6 +790,8 @@ Travel to holy sites scattered across the world to receive gold, karma, and reno
 
 Heresies can emerge within faiths, reducing unity and stability. There are 11 heresy types that spread at varying rates — some benefit scholarship at the cost of faith unity.
 
+**Denounce Heresy** (2 AP) appears in any town whose kingdom has an active heresy. Your sermon knocks 6 + 1.5×faith + 0.5×charisma (+0–4) off the strongest heresy's strength. Drive it to zero and the heresy is suppressed: the kingdom regains 5 piety and you earn +5 reputation there, +5 karma and +5 renown. Suppressions count toward the Heresy Hunter quest and achievement.
+
 ---
 
 ## 12. Technology & Research
@@ -1116,6 +1118,7 @@ Kingdom wars are fought for **goals**, not to the last man:
 **Wars of the Realm** (at any settlement, while a war or truce is on) lists every war with both sides' progress toward their goals, the truces in force, and the fallen realms. From there you can:
 
 - **Broker peace** (50g, 2 AP) at a town of either side. The chance rises with your diplomacy and renown, and falls if a side is close to its goal. Success earns +8 renown and reputation with both crowns; failure means both courts refuse your envoys for 10 days.
+- **Broker an alliance** (100g, 2 AP) at a town of either crown, for two kingdoms at peace, not yet allied, with mutual relations of 30+. The chance rises with your diplomacy, renown and how warm the two crowns already are. Success makes them allies (relations to at least 75), earns +10 renown and +5 reputation with both, and counts toward the Alliance Broker quest; failure means a 15-day wait.
 - **Join the campaign** (2 AP) while your liege is at war: you fight an enemy vanguard of about 6% of its army. Each victory pays 30g, raises your standing with your liege, weakens the enemy and pushes your liege toward its war goal. When your liege wins, you get a share of the tribute (10% per victory, up to half) plus gold and renown.
 
 **Your liege's wars follow you to market:** in towns of a realm at war with your liege, prices are 15% worse; in towns of its allies, 5% better.
@@ -1451,7 +1454,7 @@ Open the **Quest Journal** to see up to **5 offered quests** and press **Accept*
 | Hard | 5 completed quests or 100 renown |
 | Legendary | 10 completed quests or 300 renown |
 
-Artifact quests appear as soon as you find a fragment of that artifact. Progress counts everything you've done since the start of the game — battles won, ruins explored, treasure dug up, roads built, taverns visited, trade revenue and so on — so a quest may complete the moment you accept it. Quests that need heresy suppression or forming alliances aren't offered, since there's no way to do those yet.
+Artifact quests appear as soon as you find a fragment of that artifact. Progress counts everything you've done since the start of the game — battles won, ruins explored, treasure dug up, roads built, taverns visited, trade revenue and so on — so a quest may complete the moment you accept it. Heresy Hunter counts heresies you suppress with Denounce Heresy; Alliance Broker counts alliances you broker from the Wars of the Realm panel.
 
 ### Favours for Townsfolk
 

@@ -26,7 +26,7 @@ function _spendAP(game, cost) {
 
 Object.assign(ActionMenu, {
     /** AP for each realm-politics deed (taken when the deed is attempted). */
-    REALM_POLITICS_AP: { broker: 2, campaign: 2 },
+    REALM_POLITICS_AP: { broker: 2, campaign: 2, alliance: 2 },
 
     showRealmWarsMenu(game, tile) {
         const player = game.player;
@@ -71,6 +71,21 @@ Object.assign(ActionMenu, {
             html += '</div>';
         }
 
+        // Forge alliances — envoys work from a town of one of the two crowns
+        const alliances = here ? RealmPolitics.allianceCandidates(world, here) : [];
+        if (alliances.length) {
+            const A = REALM_POLITICS.alliance;
+            html += '<h5 style="margin:10px 0 4px;color:#8fd88f;">🤝 Forge an alliance</h5>';
+            html += `<div style="color:var(--text-secondary);font-size:11px;">Crowns already on warm terms (${A.minRelations}+) can be bound into an alliance by a persuasive envoy.</div>`;
+            for (const p of alliances) {
+                const chance = Math.round(RealmPolitics.allianceChance(player, p.a, p.b) * 100);
+                html += `<div style="${CARD}">`;
+                html += `<div style="font-weight:bold;">${p.a.name} & ${p.b.name} <span style="color:var(--text-secondary);font-weight:normal;">· relations ${Math.round(p.relations)}</span></div>`;
+                html += `<button onclick="window._realm.ally('${p.a.id}','${p.b.id}')" style="${player.gold >= A.fee ? BTN_GOLD : BTN_DIM}" ${player.gold >= A.fee ? '' : 'disabled'}>🤝 Broker alliance (${A.fee}g, ${ActionMenu.REALM_POLITICS_AP.alliance} AP, ~${chance}%)</button>`;
+                html += '</div>';
+            }
+        }
+
         if (truces.length) {
             html += '<h5 style="margin:10px 0 4px;color:#9bc;">🕊️ Truces</h5>';
             for (const t of truces) {
@@ -95,6 +110,11 @@ Object.assign(ActionMenu, {
                 if (!_spendAP(game, ActionMenu.REALM_POLITICS_AP.broker)) return;
                 const res = RealmPolitics.brokerPeace(player, world, aId, bId);
                 ActionMenu._realmResult(game, '🕊️ Mediation', res, reopen);
+            },
+            ally: (aId, bId) => {
+                if (!_spendAP(game, ActionMenu.REALM_POLITICS_AP.alliance)) return;
+                const res = RealmPolitics.brokerAlliance(player, world, aId, bId);
+                ActionMenu._realmResult(game, '🤝 Alliance', res, reopen);
             },
             campaign: (enemyId) => {
                 if (!_spendAP(game, ActionMenu.REALM_POLITICS_AP.campaign)) return;

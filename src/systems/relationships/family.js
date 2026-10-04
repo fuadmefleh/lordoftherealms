@@ -172,7 +172,7 @@ Object.assign(Relationships, {
         const fatherAge = player.gender === 'male' ? player.age : spouse.age;
 
         if (motherAge < settings.motherMinAge || motherAge > settings.motherMaxAge) return null;
-        if (fatherAge < settings.fatherMinAge) return null;
+        if (fatherAge < settings.fatherMinAge || fatherAge > (settings.fatherMaxAge ?? Infinity)) return null;
 
         // Only check once per year (roughly every daysPerYear days)
         if (world.day % settings.daysPerYear !== 0) return null;

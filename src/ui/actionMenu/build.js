@@ -16,6 +16,19 @@ Object.assign(ActionMenu, {
         }
     },
 
+    /**
+     * Preach against the heresy troubling this settlement's kingdom
+     */
+    denounceHeresy(game, tile) {
+        const result = PlayerReligion.denounceHeresy(game.player, tile.settlement, game.world);
+        if (result.success) {
+            game.ui.showNotification(result.suppressed ? '🔥 Heresy Suppressed!' : '🔥 Heresy Denounced', result.message, 'success');
+            game.ui.updateStats(game.player, game.world);
+        } else {
+            game.ui.showNotification('Cannot Denounce', result.reason, 'error');
+        }
+    },
+
     /** Build-menu category tabs, in display order. */
     BUILD_CATEGORIES: [
         { id: 'all', label: 'All', icon: '📋' },

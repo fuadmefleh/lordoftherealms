@@ -254,32 +254,40 @@ export const Gossip = {
         const consequences = [];
         let expired = 0;
 
+        // How fast rumors fade: 1 = over their full decayDays, 2 = twice as fast…
+        const decayRate = data.decayRate ?? 1;
+        // How many live rumors a single settlement can be buzzing with at once
+        const maxPerSettlement = data.maxRumorsPerSettlement ?? 30;
+        const settlementLoad = this._settlementRumorLoad(player.gossip.rumors);
+
         for (const rumor of player.gossip.rumors) {
             if (rumor.expired) continue;
 
             const typeDef = data.rumorTypes[rumor.type] || data.rumorTypes.murder;
 
             // ── Decay check ──
-            const age = day - rumor.dayCreated;
-            if (age >= (typeDef.decayDays || 60)) {
+            const decayDays = typeDef.decayDays || 60;
+            const age = (day - rumor.dayCreated) * decayRate;
+            if (age >= decayDays) {
                 rumor.expired = true;
+                for (const key of rumor.spreadTo || []) {
+                    settlementLoad.set(key, Math.max(0, (settlementLoad.get(key) || 0) - 1));
+                }
                 expired++;
                 // Remove associated bounties
                 player.gossip.bounties = player.gossip.bounties.filter(b => b.rumorId !== rumor.id);
                 continue;
             }
 
-            // Gradual severity decay
-            const decayRate = data.decayRate || 1;
-            const halfLife = (typeDef.decayDays || 60) / 2;
-            rumor.severity = typeDef.baseSeverity * rumor.credibility * Math.max(0, 1 - (age / (typeDef.decayDays || 60)));
+            // Gradual severity decay (age is already scaled by decayRate)
+            rumor.severity = typeDef.baseSeverity * rumor.credibility * Math.max(0, 1 - (age / decayDays));
 
             // ── Spread to nearby settlements ──
             const spreadSettings = data.spreadSettings || {};
             const spreadCount = spreadSettings.spreadPerDay || 1;
 
             for (let i = 0; i < spreadCount; i++) {
-                this._spreadRumor(rumor, typeDef, world, spreadSettings);
+                this._spreadRumor(rumor, typeDef, world, spreadSettings, settlementLoad, maxPerSettlement);
             }
 
             // ── Apply consequences at each settlement that has the rumor ──
@@ -320,9 +328,25 @@ export const Gossip = {
     },
 
     /**
-     * Spread a rumor to an adjacent settlement.
+     * Count live rumors per settlement key ("q,r").
+     * @returns {Map<string, number>}
      */
-    _spreadRumor(rumor, typeDef, world, settings) {
+    _settlementRumorLoad(rumors) {
+        const load = new Map();
+        for (const rumor of rumors || []) {
+            if (rumor.expired) continue;
+            for (const key of rumor.spreadTo || []) {
+                load.set(key, (load.get(key) || 0) + 1);
+            }
+        }
+        return load;
+    },
+
+    /**
+     * Spread a rumor to an adjacent settlement.
+     * Settlements already holding `maxPerSettlement` live rumors don't take new ones.
+     */
+    _spreadRumor(rumor, typeDef, world, settings, load = null, maxPerSettlement = Infinity) {
         if (!rumor.spreadTo || rumor.spreadTo.length === 0) return;
         const maxDist = settings.maxSpreadDistance || 3;
         const baseChance = (typeDef.spreadChance || 0.5) * (settings.baseSpreadChance || 0.3);
@@ -338,6 +362,7 @@ export const Gossip = {
             for (const settlement of kingdom.settlements) {
                 const sKey = `${settlement.q},${settlement.r}`;
                 if (rumor.spreadTo.includes(sKey)) continue; // Already knows
+                if (load && (load.get(sKey) || 0) >= maxPerSettlement) continue; // Saturated with gossip
 
                 const dist = Hex.wrappingDistance(sq, sr, settlement.q, settlement.r, world.width);
                 if (dist > maxDist) continue;
@@ -354,6 +379,7 @@ export const Gossip = {
 
                 if (Utils.random() < chance + tradeBonus) {
                     rumor.spreadTo.push(sKey);
+                    if (load) load.set(sKey, (load.get(sKey) || 0) + 1);
                     return; // One spread per call
                 }
             }

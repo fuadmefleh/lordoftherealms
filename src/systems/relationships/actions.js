@@ -18,14 +18,30 @@ Object.assign(Relationships, {
         return player.relationships[npcId];
     },
 
+    /**
+     * Label for a relationship score, from data/relationships.json
+     * `relationshipTypes` (the non-romantic types with a score band):
+     * warm types apply from their minScore up, hostile ones from their
+     * maxScore down; anything between is Neutral.
+     */
     getRelationLabel(score) {
-        if (score >= 90) return { label: 'Best Friend', icon: '💜' };
-        if (score >= 60) return { label: 'Close Friend', icon: '💛' };
-        if (score >= 30) return { label: 'Friend', icon: '😊' };
-        if (score >= 10) return { label: 'Acquaintance', icon: '🤝' };
-        if (score > -30) return { label: 'Neutral', icon: '😐' };
-        if (score > -60) return { label: 'Rival', icon: '⚡' };
-        return { label: 'Nemesis', icon: '💀' };
+        const types = Object.values(Relationships._getRelationshipTypes())
+            .filter(t => !t.romantic && (t.minScore != null || t.maxScore != null));
+        // Warm side: the highest band whose minScore the score reaches
+        let warm = null;
+        for (const t of types) {
+            if (t.minScore == null || t.minScore < 0) continue;
+            if (score >= t.minScore && (!warm || t.minScore > warm.minScore)) warm = t;
+        }
+        if (warm) return { id: warm.id, label: warm.label, icon: warm.icon };
+        // Hostile side: the deepest band whose maxScore the score sinks to
+        let cold = null;
+        for (const t of types) {
+            if (t.maxScore == null || t.maxScore >= 0) continue;
+            if (score <= t.maxScore && (!cold || t.maxScore < cold.maxScore)) cold = t;
+        }
+        if (cold) return { id: cold.id, label: cold.label, icon: cold.icon };
+        return { id: 'neutral', label: 'Neutral', icon: '😐' };
     },
 
     getCourtingStage(affection, isMarried) {

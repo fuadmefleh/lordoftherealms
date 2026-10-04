@@ -79,7 +79,7 @@ Object.assign(ActionMenu, {
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
             odd_jobs: 'commerce', bounty_board: 'commerce', busking: 'commerce', gambling: 'commerce',
             smuggle: 'commerce', pickpocket: 'commerce',
-            tavern: 'social', talk_locals: 'social', preach: 'social',
+            tavern: 'social', talk_locals: 'social', preach: 'social', denounce_heresy: 'social',
             pilgrimage: 'social', miracle: 'social', donate: 'social',
             pledge_allegiance: 'social', renounce_allegiance: 'social',
             realm_wars: 'social', fund_restoration: 'social',
@@ -382,7 +382,7 @@ Object.assign(ActionMenu, {
         // Moderate actions (2 AP)
         pickpocket: 2, gambling: 0, smuggle: 0, // gambling/smuggle cost 2 AP per use inside their menus
         recruit: 2, cartography: 2, map_trade: 2, steal_map: 2,
-        craft_campfire: 2, negotiate_indigenous: 2, preach: 2,
+        craft_campfire: 2, negotiate_indigenous: 2, preach: 2, denounce_heresy: 2,
 
         // Half-day work (3 AP)
         forage: 3, busking: 3, meditate: 3,
@@ -541,6 +541,7 @@ Object.assign(ActionMenu, {
                 case 'hold_tournament': p.modifyNeed('fun', 20); p.modifyNeed('social', 15); break;
                 case 'host_festival':   p.modifyNeed('fun', 25); p.modifyNeed('social', 20); break;
                 case 'preach':      p.modifyNeed('social', 8); p.modifyNeed('comfort', 5); break;
+                case 'denounce_heresy': p.modifyNeed('social', 8); break;
                 case 'pilgrimage':  p.modifyNeed('comfort', 15); p.modifyNeed('energy', -10); break;
                 case 'donate':      p.modifyNeed('comfort', 8); break;
                 case 'trade':       p.modifyNeed('social', 5); break;
@@ -574,6 +575,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'preach':
                 ActionMenu.preach(game, tile);
+                break;
+            case 'denounce_heresy':
+                ActionMenu.denounceHeresy(game, tile);
                 break;
             case 'build_property':
                 ActionMenu.showBuildPropertyMenu(game, tile);

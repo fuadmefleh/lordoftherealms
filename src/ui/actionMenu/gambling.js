@@ -12,12 +12,8 @@ Object.assign(ActionMenu, {
         const ownsTavern = tile.playerProperties && tile.playerProperties.some(p => p.type === 'tavern' && !p.underConstruction);
         const tavernTables = ownsTavern ? (tile.playerProperties.find(p => p.type === 'tavern')?.gamblingTables || 0) : 0;
 
-        const minigames = [
-            { id: 'crown_anchor', name: 'Crown & Anchor', icon: '🎲', desc: 'Pick a symbol, roll 3 dice. The more matches, the bigger the payout!', minBet: 5, color: '#9b59b6' },
-            { id: 'dragons_flip', name: "Dragon's Flip", icon: '🐉', desc: 'Call Dragon or Shield. Double or nothing — simple and deadly.', minBet: 10, color: '#e67e22' },
-            { id: 'high_low', name: 'High-Low', icon: '🃏', desc: 'Guess if the next card is higher or lower. Build streaks for bigger payouts!', minBet: 5, color: '#2ecc71' },
-            { id: 'poker', name: "Texas Hold'em", icon: '🂡', desc: 'Two hole cards, five community cards. Outplay the dealer across four betting rounds!', minBet: 10, color: '#e74c3c' },
-        ];
+        // Game catalogue comes from data/earlyJobs.json (gambling.games)
+        const minigames = ActionMenu._getGamblingData();
 
         let html = '<div style="width: 100%; box-sizing: border-box;">';
 
@@ -36,7 +32,7 @@ Object.assign(ActionMenu, {
             html += `
                 <button onclick="window._openMinigame('${mg.id}')" ${!canPlay ? 'disabled' : ''}
                     style="display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px; margin-bottom: 8px;
-                           background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-left: 4px solid ${mg.color};
+                           background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-left: 4px solid ${mg.color || '#9b59b6'};
                            border-radius: 8px; cursor: ${canPlay ? 'pointer' : 'not-allowed'}; text-align: left;
                            color: var(--text-primary); transition: all 0.15s; ${!canPlay ? 'opacity: 0.4;' : ''}"
                     onmouseenter="if(!this.disabled) this.style.background='rgba(255,255,255,0.08)'"
@@ -44,7 +40,7 @@ Object.assign(ActionMenu, {
                     <span style="font-size: 32px; line-height: 1;">${mg.icon}</span>
                     <div style="flex: 1;">
                         <div style="font-family: var(--font-display); font-size: 15px; color: var(--gold); margin-bottom: 3px;">${mg.name}</div>
-                        <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.3;">${mg.desc}</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.3;">${mg.description}</div>
                         <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Min bet: ${mg.minBet}g</div>
                     </div>
                     <span style="font-size: 20px; color: var(--text-muted);">▶</span>
@@ -143,7 +139,8 @@ Object.assign(ActionMenu, {
         };
 
         // ── Game State ────────────────────────────────────────────────────────
-        const maxBet = Math.min(500, game.player.gold);
+        const pokerCfg = ActionMenu._getGamblingGame('poker');
+        const maxBet = Math.min(pokerCfg.maxBet, game.player.gold);
         let deck, playerCards, dealerCards, community;
         let pot = 0, playerBet = 0, dealerBet = 0, currentAnte = 0;
         let street = 'ante'; // ante → preflop → flop → turn → river → showdown
@@ -294,10 +291,10 @@ Object.assign(ActionMenu, {
             if (street === 'ante') {
                 // Ante selection screen
                 html += `<p style="font-size:12px;color:var(--text-secondary);text-align:center;margin-bottom:14px;">Set your ante to start a hand. Both you and the dealer put the ante in the pot.</p>`;
-                const anteMax = Math.min(200, Math.floor(gold / 2));
+                const anteMax = Math.min(pokerCfg.maxAnte ?? 200, Math.floor(gold / 2));
                 html += `<div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:18px;">
                     <span style="font-size:12px;color:var(--text-secondary);">Ante:</span>
-                    <input type="range" id="pokerAnte" min="10" max="${anteMax}" value="${Math.min(20,anteMax)}"
+                    <input type="range" id="pokerAnte" min="${pokerCfg.minBet}" max="${anteMax}" value="${Math.min(20,anteMax)}"
                         oninput="document.getElementById('pokerAnteLabel').textContent=this.value"
                         style="width:160px;accent-color:#e74c3c;">
                     <span id="pokerAnteLabel" style="color:var(--gold);font-weight:bold;min-width:38px;">${Math.min(20,anteMax)}</span>g
@@ -425,7 +422,7 @@ Object.assign(ActionMenu, {
         if (tile && tile.playerProperties && tile.playerProperties.some(p => p.type === 'tavern' && !p.underConstruction)) {
             return true;
         }
-        const apCost = 2;
+        const apCost = ActionMenu._getGamblingSettings().apCostPerRound ?? 2;
         if ((game.player.actionPoints || 0) < apCost) {
             game.ui.showNotification('⚡ No Action Points', `Each round costs ${apCost} AP. Rest to start a new day.`, 'error');
             return false;
@@ -441,8 +438,9 @@ Object.assign(ActionMenu, {
         if (!tile || !tile.playerProperties) return 0;
         const tavern = tile.playerProperties.find(p => p.type === 'tavern' && !p.underConstruction);
         if (!tavern) return 0;
-        const tableBonus = (tavern.gamblingTables || 0) * 0.02;
-        return 0.05 + tableBonus; // 5% base + 2% per table
+        const cfg = ActionMenu._getGamblingSettings();
+        const tableBonus = (tavern.gamblingTables || 0) * (cfg.tavernTableLuckBonus ?? 0.02);
+        return (cfg.tavernLuckBonus ?? 0.05) + tableBonus; // 5% base + 2% per table by default
     },
 
     /**
@@ -461,7 +459,8 @@ Object.assign(ActionMenu, {
     // ── MINIGAME 1: Crown & Anchor ──────────────────────────
     _minigameCrownAnchor(game, tile) {
         const gold = game.player.gold;
-        const maxBet = Math.min(500, gold);
+        const cfg = ActionMenu._getGamblingGame('crown_anchor');
+        const maxBet = Math.min(cfg.maxBet, gold);
         const symbols = [
             { id: 'crown', icon: '👑', name: 'Crown' },
             { id: 'anchor', icon: '⚓', name: 'Anchor' },
@@ -482,7 +481,7 @@ Object.assign(ActionMenu, {
         // Bet slider
         html += `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; justify-content: center;">
                     <span style="font-size: 12px; color: var(--text-secondary);">Bet:</span>
-                    <input type="range" id="caBet" min="5" max="${maxBet}" value="${Math.min(25, maxBet)}" 
+                    <input type="range" id="caBet" min="${cfg.minBet}" max="${maxBet}" value="${Math.min(25, maxBet)}" 
                            oninput="document.getElementById('caBetLabel').textContent = this.value"
                            style="width: 180px; accent-color: var(--gold);">
                     <span id="caBetLabel" style="color: var(--gold); font-weight: bold; min-width: 40px;">${Math.min(25, maxBet)}</span>g
@@ -565,7 +564,7 @@ Object.assign(ActionMenu, {
             for (let i = 0; i < 3; i++) {
                 const r = Math.random();
                 // Base 1/6 chance per die + slight luck bonus
-                if (r < (1/6 + luckBonus)) {
+                if (r < ((cfg.matchChance ?? 1/6) + luckBonus)) {
                     diceResults.push(selectedSymbol);
                 } else {
                     const others = symbols.filter(s => s.id !== selectedSymbol);
@@ -604,7 +603,7 @@ Object.assign(ActionMenu, {
                         ActionMenu._gamblingFinance(game, -bet);
                         if (resultArea) resultArea.innerHTML = `<div style="color: #e74c3c; font-weight: bold; font-size: 14px;">No matches! Lost ${bet}g 💸</div>`;
                     } else {
-                        const payout = bet * matches; // 1x per match, so 1 match = 1x, 2 = 2x, 3 = 3x
+                        const payout = Math.floor(bet * matches * (cfg.payoutPerMatch ?? 1)); // 1x per match, so 1 match = 1x, 2 = 2x, 3 = 3x
                         game.player.gold += payout; // net gain (doesn't deduct bet, matches pay bet each)
                         ActionMenu._gamblingFinance(game, payout);
                         const msg = matches === 3 ? '🎉 TRIPLE MATCH! Jackpot!' : matches === 2 ? '✨ Double match!' : '👍 One match!';
@@ -630,7 +629,8 @@ Object.assign(ActionMenu, {
     // ── MINIGAME 2: Dragon's Flip ───────────────────────────
     _minigameDragonsFlip(game, tile) {
         const gold = game.player.gold;
-        const maxBet = Math.min(500, gold);
+        const cfg = ActionMenu._getGamblingGame('dragons_flip');
+        const maxBet = Math.min(cfg.maxBet, gold);
 
         let html = '<div style="width: 100%; box-sizing: border-box; text-align: center;">';
         html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -643,7 +643,7 @@ Object.assign(ActionMenu, {
         // Bet slider
         html += `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px; justify-content: center;">
                     <span style="font-size: 12px; color: var(--text-secondary);">Bet:</span>
-                    <input type="range" id="dfBet" min="10" max="${maxBet}" value="${Math.min(25, maxBet)}"
+                    <input type="range" id="dfBet" min="${cfg.minBet}" max="${maxBet}" value="${Math.min(25, maxBet)}"
                            oninput="document.getElementById('dfBetLabel').textContent = this.value"
                            style="width: 180px; accent-color: var(--gold);">
                     <span id="dfBetLabel" style="color: var(--gold); font-weight: bold; min-width: 40px;">${Math.min(25, maxBet)}</span>g
@@ -717,7 +717,7 @@ Object.assign(ActionMenu, {
 
                     // Determine result
                     const luckBonus = Math.min((game.player.luck || 5) * 0.008, 0.05) + ActionMenu._getTavernLuckBonus(tile);
-                    const winChance = 0.48 + luckBonus;
+                    const winChance = (cfg.winChance ?? 0.48) + luckBonus;
                     const result = Math.random() < winChance ? call : (call === 'dragon' ? 'shield' : 'dragon');
                     const won = result === call;
                     const resultIcon = result === 'dragon' ? '🐉' : '🛡️';
@@ -732,7 +732,7 @@ Object.assign(ActionMenu, {
                     }
 
                     if (won) {
-                        const winAmount = bet * 2;
+                        const winAmount = Math.floor(bet * (cfg.payoutMultiplier ?? 2));
                         currentWinnings = winAmount;
                         game.player.gold += bet; // Net +bet (double minus the bet)
                         ActionMenu._gamblingFinance(game, bet);
@@ -787,7 +787,7 @@ Object.assign(ActionMenu, {
                     clearInterval(flipInterval);
 
                     const luckBonus = Math.min((game.player.luck || 5) * 0.006, 0.04) + ActionMenu._getTavernLuckBonus(tile);
-                    const result = Math.random() < (0.46 + luckBonus) ? call : (call === 'dragon' ? 'shield' : 'dragon');
+                    const result = Math.random() < ((cfg.doubleOrNothingWinChance ?? 0.46) + luckBonus) ? call : (call === 'dragon' ? 'shield' : 'dragon');
                     const won = result === call;
                     const resultIcon = result === 'dragon' ? '🐉' : '🛡️';
 
@@ -854,7 +854,8 @@ Object.assign(ActionMenu, {
     // ── MINIGAME 3: High-Low ────────────────────────────────
     _minigameHighLow(game, tile) {
         const gold = game.player.gold;
-        const maxBet = Math.min(200, gold);
+        const cfg = ActionMenu._getGamblingGame('high_low');
+        const maxBet = Math.min(cfg.maxBet, gold);
 
         const cardValues = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
         const cardSuits = ['♠', '♥', '♦', '♣'];
@@ -897,7 +898,7 @@ Object.assign(ActionMenu, {
                 // Bet phase
                 html += `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px; justify-content: center;">
                             <span style="font-size: 12px; color: var(--text-secondary);">Bet:</span>
-                            <input type="range" id="hlBet" min="5" max="${Math.min(200, game.player.gold)}" value="${Math.min(20, game.player.gold)}"
+                            <input type="range" id="hlBet" min="${cfg.minBet}" max="${Math.min(cfg.maxBet, game.player.gold)}" value="${Math.min(20, game.player.gold)}"
                                    oninput="document.getElementById('hlBetLabel').textContent = this.value"
                                    style="width: 180px; accent-color: var(--gold);">
                             <span id="hlBetLabel" style="color: var(--gold); font-weight: bold; min-width: 40px;">${Math.min(20, game.player.gold)}</span>g
@@ -915,7 +916,7 @@ Object.assign(ActionMenu, {
                          </button>`;
             } else {
                 // Playing phase
-                const multiplier = 1 + streak * 0.5;
+                const multiplier = 1 + streak * (cfg.streakBonus ?? 0.5);
                 const potentialWin = Math.floor(bet * multiplier);
 
                 html += `<div style="display: flex; justify-content: center; gap: 24px; margin-bottom: 8px;">
@@ -1027,7 +1028,7 @@ Object.assign(ActionMenu, {
 
         window._hlCashOut = () => {
             if (streak === 0) return;
-            const multiplier = 1 + streak * 0.5;
+            const multiplier = 1 + streak * (cfg.streakBonus ?? 0.5);
             const winnings = Math.floor(bet * multiplier);
             game.player.gold += winnings;
             ActionMenu._gamblingFinance(game, winnings - bet);
@@ -2160,15 +2161,36 @@ Object.assign(ActionMenu, {
         ];
     },
 
+    /** Fallback gambling config, used only when data/earlyJobs.json has no gambling section. */
+    DEFAULT_GAMBLING: {
+        apCostPerRound: 2,
+        tavernLuckBonus: 0.05,
+        tavernTableLuckBonus: 0.02,
+        games: [
+            { id: 'crown_anchor', name: 'Crown & Anchor', icon: '🎲', color: '#9b59b6', description: 'Pick a symbol, roll 3 dice. The more matches, the bigger the payout!', minBet: 5, maxBet: 500, matchChance: 1 / 6, payoutPerMatch: 1 },
+            { id: 'dragons_flip', name: "Dragon's Flip", icon: '🐉', color: '#e67e22', description: 'Call Dragon or Shield. Double or nothing — simple and deadly.', minBet: 10, maxBet: 500, winChance: 0.48, doubleOrNothingWinChance: 0.46, payoutMultiplier: 2 },
+            { id: 'high_low', name: 'High-Low', icon: '🃏', color: '#2ecc71', description: 'Guess if the next card is higher or lower. Build streaks for bigger payouts!', minBet: 5, maxBet: 200, streakBonus: 0.5 },
+            { id: 'poker', name: "Texas Hold'em", icon: '🂡', color: '#e74c3c', description: 'Two hole cards, five community cards. Outplay the dealer across four betting rounds!', minBet: 10, maxBet: 500, maxAnte: 200 },
+        ],
+    },
+
+    /** Gambling settings (data/earlyJobs.json `gambling`), falling back to DEFAULT_GAMBLING. */
+    _getGamblingSettings() {
+        const data = (typeof DataLoader !== 'undefined' && DataLoader.earlyJobs && DataLoader.earlyJobs.gambling) || null;
+        return data ? { ...ActionMenu.DEFAULT_GAMBLING, ...data } : ActionMenu.DEFAULT_GAMBLING;
+    },
+
+    /** The list of gambling minigames offered at the gambling den. */
     _getGamblingData() {
-        if (typeof DataLoader !== 'undefined' && DataLoader.earlyJobs && DataLoader.earlyJobs.gambling) {
-            return DataLoader.earlyJobs.gambling.games;
-        }
-        return [
-            { id: 'dice_roll', name: 'Crown & Anchor', icon: '🎲', description: 'Roll dice against the house. Match crowns to win.', minBet: 5, maxBet: 200, houseEdge: 0.45, payoutMultiplier: 2.0 },
-            { id: 'coin_flip', name: "Dragon's Flip", icon: '🐉', description: 'Call the coin — dragon or shield. Double or nothing.', minBet: 10, maxBet: 500, houseEdge: 0.48, payoutMultiplier: 2.0 },
-            { id: 'high_low', name: 'High-Low', icon: '📊', description: 'Guess if the next card is higher or lower.', minBet: 5, maxBet: 100, houseEdge: 0.42, payoutMultiplier: 1.8, streakBonus: 0.5 },
-        ];
+        const games = ActionMenu._getGamblingSettings().games;
+        return Array.isArray(games) && games.length > 0 ? games : ActionMenu.DEFAULT_GAMBLING.games;
+    },
+
+    /** One minigame's config by id, with per-field fallbacks to the defaults. */
+    _getGamblingGame(id) {
+        const fallback = ActionMenu.DEFAULT_GAMBLING.games.find(g => g.id === id) || {};
+        const fromData = ActionMenu._getGamblingData().find(g => g.id === id) || {};
+        return { ...fallback, ...fromData };
     },
 
     _getBuskingData() {

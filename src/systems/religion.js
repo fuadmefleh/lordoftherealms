@@ -444,6 +444,41 @@ export const Religion = {
         });
     },
 
+    /** The heresy a kingdom's faithful most need to stamp out (the strongest), or null. */
+    strongestHeresy(kingdom) {
+        const list = kingdom && kingdom.religion && kingdom.religion.heresies;
+        if (!Array.isArray(list) || list.length === 0) return null;
+        return list.reduce((best, h) => (h.strength > best.strength ? h : best), list[0]);
+    },
+
+    /**
+     * The player works against a kingdom's strongest heresy, knocking `power`
+     * off its strength. A heresy driven to 0 is suppressed: it's removed, the
+     * kingdom's piety recovers a little, and the deed counts toward the
+     * Heresy Hunter quest/achievement (Quests.track 'heresies_suppressed').
+     * @returns {{ heresy: Object|null, suppressed: boolean, remaining: number }}
+     */
+    suppressHeresy(player, kingdom, world, power) {
+        const heresy = Religion.strongestHeresy(kingdom);
+        if (!heresy) return { heresy: null, suppressed: false, remaining: 0 };
+        heresy.strength -= Math.max(0, power);
+        if (heresy.strength > 0) {
+            return { heresy, suppressed: false, remaining: Math.ceil(heresy.strength) };
+        }
+        kingdom.religion.heresies = kingdom.religion.heresies.filter(h => h !== heresy);
+        kingdom.religion.piety = Math.min(100, (kingdom.religion.piety || 0) + 5);
+        if (world && Array.isArray(world.events)) {
+            world.events.push({
+                category: 'religious',
+                text: `${kingdom.name}: ${player.name || 'A zealous preacher'} has driven the ${heresy.name} from the realm.`,
+                kingdom: kingdom.id,
+                impact: 'positive',
+            });
+        }
+        Quests.track(player, 'heresies_suppressed');
+        return { heresy, suppressed: true, remaining: 0 };
+    },
+
     triggerReligiousConflict(kingdom, heresy, world) {
         // Severe consequences: treasury loss, population loss, relation changes
         const treasuryLoss = Math.floor(kingdom.treasury * 0.15);

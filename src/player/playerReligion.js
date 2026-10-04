@@ -7,6 +7,7 @@ import { Utils } from '../core/utils.js';
 import { Quests } from '../systems/quests.js';
 import { Achievements } from '../systems/achievements.js';
 import { Titles } from '../systems/titles.js';
+import { Religion } from '../systems/religion.js';
 
 export const PlayerReligion = {
     /**
@@ -665,6 +666,51 @@ export const PlayerReligion = {
             followersGained,
             karmaGained,
             totalFollowers: player.religion.followers,
+        };
+    },
+
+    /** Tuning for denouncing heresy (preaching against a kingdom's heretics). */
+    DENOUNCE_HERESY: { basePower: 6, perFaith: 1.5, perCharisma: 0.5, randomPower: 4, karma: 5, reputation: 5, renown: 5 },
+
+    /**
+     * The heresy the player could denounce in this settlement's kingdom, or null.
+     * @returns {{ kingdom: Object, heresy: Object }|null}
+     */
+    heresyAt(settlement, world) {
+        if (!settlement || !settlement.kingdom || !world || !world.getKingdom) return null;
+        const kingdom = world.getKingdom(settlement.kingdom);
+        if (!kingdom || kingdom.isAlive === false || !kingdom.religion) return null;
+        const heresy = Religion.strongestHeresy(kingdom);
+        return heresy ? { kingdom, heresy } : null;
+    },
+
+    /**
+     * Preach against the strongest heresy troubling a settlement's kingdom.
+     * Faith and charisma drive how much ground the heretics lose; driving a
+     * heresy out suppresses it (Religion.suppressHeresy) and the crown and
+     * clergy reward the player.
+     */
+    denounceHeresy(player, settlement, world) {
+        const target = PlayerReligion.heresyAt(settlement, world);
+        if (!target) return { success: false, reason: 'No heresy troubles this realm.' };
+        const D = PlayerReligion.DENOUNCE_HERESY;
+        const power = D.basePower + (player.faith || 0) * D.perFaith + (player.charisma || 0) * D.perCharisma
+            + Utils.randInt(0, D.randomPower);
+        const res = Religion.suppressHeresy(player, target.kingdom, world, power);
+        player.faith = Math.min(10, (player.faith || 0) + 0.1);
+        if (!res.suppressed) {
+            return {
+                success: true, suppressed: false, heresy: res.heresy, kingdom: target.kingdom,
+                message: `Your sermon against the ${res.heresy.name} wins converts back to the faith. Its strength falls to ${res.remaining}.`,
+            };
+        }
+        player.karma = (player.karma || 0) + D.karma;
+        player.renown = (player.renown || 0) + D.renown;
+        if (!player.reputation) player.reputation = {};
+        player.reputation[target.kingdom.id] = (player.reputation[target.kingdom.id] || 0) + D.reputation;
+        return {
+            success: true, suppressed: true, heresy: res.heresy, kingdom: target.kingdom,
+            message: `The ${res.heresy.name} is broken! ${target.kingdom.name} is grateful: +${D.reputation} reputation, +${D.karma} karma, +${D.renown} renown.`,
         };
     },
 

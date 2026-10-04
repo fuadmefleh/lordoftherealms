@@ -48,6 +48,25 @@ Object.assign(Relationships, {
         return null;
     },
 
+    /** Relationship types (data/relationships.json `relationshipTypes`), with a built-in fallback. */
+    _getRelationshipTypes() {
+        const data = Relationships._getData();
+        if (data && data.relationshipTypes && Object.keys(data.relationshipTypes).length > 0) {
+            return data.relationshipTypes;
+        }
+        return {
+            acquaintance: { id: 'acquaintance', label: 'Acquaintance', icon: '🤝', minScore: 10, maxScore: 29 },
+            friend: { id: 'friend', label: 'Friend', icon: '😊', minScore: 30, maxScore: 59 },
+            closeFriend: { id: 'closeFriend', label: 'Close Friend', icon: '💛', minScore: 60, maxScore: 89 },
+            bestFriend: { id: 'bestFriend', label: 'Best Friend', icon: '💜', minScore: 90, maxScore: 100 },
+            rival: { id: 'rival', label: 'Rival', icon: '⚡', minScore: -59, maxScore: -30 },
+            nemesis: { id: 'nemesis', label: 'Nemesis', icon: '💀', minScore: -100, maxScore: -60 },
+            lover: { id: 'lover', label: 'Lover', icon: '💕', minScore: 50, maxScore: 100, romantic: true },
+            spouse: { id: 'spouse', label: 'Spouse', icon: '💍', romantic: true, exclusive: true },
+            exSpouse: { id: 'exSpouse', label: 'Former Spouse', icon: '💔', romantic: false },
+        };
+    },
+
     _getHeirSettings() {
         const data = Relationships._getData();
         if (data && data.heirSettings) return data.heirSettings;

@@ -13,6 +13,7 @@ import { Housing } from '../../systems/housing.js';
 import { Titles } from '../../systems/titles.js';
 import { Festivals } from '../../systems/festivals.js';
 import { RealmPolitics } from '../realmPolitics.js';
+import { PlayerReligion } from '../playerReligion.js';
 
 export function addSettlementActions(actions, player, tile, world, ctx) {
     const { isCity, isVillage, isPlayerSettlement, playerSettlementCount, playerKingdom, hasPlayerFoundedKingdom } = ctx;
@@ -80,6 +81,17 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
         icon: '🙏',
         description: 'Spread your faith and gain followers'
     });
+
+    // Denounce heresy — preach against the heretics troubling this realm
+    const heresyHere = PlayerReligion.heresyAt(tile.settlement, world);
+    if (heresyHere) {
+        actions.push({
+            type: 'denounce_heresy',
+            label: 'Denounce Heresy',
+            icon: '🔥',
+            description: `Preach against the ${heresyHere.heresy.name} spreading through ${heresyHere.kingdom.name}`,
+        });
+    }
 
     // Tavern / Talk to Locals
     if (isCity) {
@@ -246,7 +258,8 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
     }
 
     // Wars of the realms — follow the wars, broker peace, campaign for your liege
-    if (RealmPolitics.activeWars(world).length > 0 || RealmPolitics.truces(world).length > 0) {
+    const allianceHere = tile.settlement.kingdom ? RealmPolitics.allianceCandidates(world, tile.settlement.kingdom).length > 0 : false;
+    if (RealmPolitics.activeWars(world).length > 0 || RealmPolitics.truces(world).length > 0 || allianceHere) {
         const campaign = RealmPolitics.campaignOptions(player, world);
         actions.push({
             type: 'realm_wars',
@@ -254,7 +267,9 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             icon: '⚔️',
             description: campaign
                 ? `${campaign.liege.name} is at war — join the campaign, or broker peace between crowns`
-                : 'See the wars between kingdoms and try to broker peace',
+                : allianceHere
+                    ? 'Follow the wars between kingdoms, broker peace, or forge alliances'
+                    : 'See the wars between kingdoms and try to broker peace',
         });
     }
 

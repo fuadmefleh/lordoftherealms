@@ -257,6 +257,8 @@ export const DataLoader = {
         if (unitData) {
             WorldUnit.TYPES = unitData.unitTypes || {};
             WorldUnit.THEMES = unitData.inventoryThemes || {};
+            WorldUnit.DEFAULTS = unitData.defaults || null;
+            WorldUnit.MAX_AGE = unitData.maxAge || null;
         }
 
         // ── Kingdoms ──

@@ -21,7 +21,8 @@ import { DataLoader } from '../core/dataLoader.js';
 // showTributeMenu, showAudienceMenu) = 221, plus the outlaw gate (OUTLAW_REFUSED_ACTIONS,
 // refuseIfOutlawed) = 223, plus the realm-politics panels (REALM_POLITICS_AP,
 // showRealmWarsMenu, showRestorationMenu, _realmResult) = 227, plus showUpgradeCulturalMenu = 228,
-// plus sellMapToArchive (royal archives buy your maps) = 229.
+// plus sellMapToArchive (royal archives buy your maps) = 229, plus the data-driven gambling
+// config (DEFAULT_GAMBLING, _getGamblingSettings, _getGamblingGame) = 232, plus denounceHeresy = 233.
 const EXPECTED_KEYS = [
     '_serviceResult', 'showBlacksmithMenu', 'showBlessingMenu', 'showStableMenu', 'showGuardMenu',
     'showTributeMenu', 'showAudienceMenu', 'OUTLAW_REFUSED_ACTIONS', 'refuseIfOutlawed',
@@ -31,7 +32,7 @@ const EXPECTED_KEYS = [
     '_doForageMinigame', '_doHuntMinigame', '_doMeditateMinigame', '_doProspectMinigame',
     '_doSmuggleMinigame', '_doTameHorseMinigame', '_doTrainCombatMinigame', '_gamblingCheckAP',
     '_gamblingFinance', '_generatePOIRewards', '_getBountyData', '_getBuskingData', '_getForageData',
-    '_getGamblingData', '_getHuntData', '_getJobData', '_getPlayerSettlementTiles', '_getPlayerStat',
+    '_getGamblingData', 'DEFAULT_GAMBLING', '_getGamblingSettings', '_getGamblingGame', '_getHuntData', '_getJobData', '_getPlayerSettlementTiles', '_getPlayerStat',
     '_getRelationshipProgress', '_getTavernLuckBonus', '_handleTellStories', '_laborCharisma',
     '_laborCombat', '_laborIntelligence', '_laborReward', '_laborStamina', '_laborStealth',
     '_laborStrength', '_meetingOptionButton', '_minigameCrownAnchor', '_minigameDragonsFlip',
@@ -48,7 +49,7 @@ const EXPECTED_KEYS = [
     'councilVoteTax', 'councilVoteWar', 'countFishingBoats', 'createMap', 'createMenu',
     'demolishInfrastructure', 'digTreasure', 'disembarkShip', 'doBlessSettlement', 'doCaptureCriminal',
     'doCaptureFugitive', 'doCollectTax', 'doCraftCampfire', 'doSeaActivity', 'doFish', 'doForage', 'doFormKingdom',
-    'doHoldCouncil', 'doHunt', 'doMeditate', 'doPickpocket', 'doPledgeAllegiance', 'doPostSignboard',
+    'denounceHeresy', 'doHoldCouncil', 'doHunt', 'doMeditate', 'doPickpocket', 'doPledgeAllegiance', 'doPostSignboard',
     'doProspect', 'doRenounceAllegiance', 'doRequestBounty', 'doTameHorse', 'doTrainCombat',
     'executeAddErrors', 'executeChangePolicy', 'executeFoundColony', 'executeSendPioneers',
     'explorePOI', 'getAPCost', 'getLogisticsDestinationsHtml', 'getVariablesFishingGrounds',
@@ -89,12 +90,12 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 229 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(229);
+    it('has 233 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(233);
     });
 
     it('every member except the known data props is a function', () => {
-        const dataProps = new Set(['AP_COSTS', 'BUILD_CATEGORIES', 'DEFERRED_AP_ACTIONS', 'OUTLAW_REFUSED_ACTIONS', 'REALM_POLITICS_AP', '_pendingAP']);
+        const dataProps = new Set(['AP_COSTS', 'BUILD_CATEGORIES', 'DEFAULT_GAMBLING', 'DEFERRED_AP_ACTIONS', 'OUTLAW_REFUSED_ACTIONS', 'REALM_POLITICS_AP', '_pendingAP']);
         for (const key of Object.keys(ActionMenu)) {
             if (dataProps.has(key)) continue;
             expect(typeof ActionMenu[key], `${key} should be a function`).toBe('function');

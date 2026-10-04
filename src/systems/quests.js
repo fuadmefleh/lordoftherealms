@@ -371,10 +371,11 @@ export const Quests = {
     },
 
     /**
-     * Objective types no game mechanic can advance yet (the player can't
-     * suppress heresy or form alliances). Quests needing them aren't offered.
+     * Objective types no game mechanic can advance yet. Quests needing them
+     * aren't offered. (Empty now: heresies_suppressed is tracked by
+     * Religion.suppressHeresy, alliances_formed by RealmPolitics.brokerAlliance.)
      */
-    UNTRACKABLE_OBJECTIVES: ['heresies_suppressed', 'alliances_formed'],
+    UNTRACKABLE_OBJECTIVES: [],
 
     /** How many quests the journal offers at once. */
     MAX_AVAILABLE: 5,

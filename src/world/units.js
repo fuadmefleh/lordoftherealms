@@ -21,92 +21,27 @@ export class WorldUnit {
         this.path = [];
         this.destroyed = false;
         this.age = 0;
-        this.maxAge = Utils.randInt(50, 200);
+        const ageRange = WorldUnit.MAX_AGE || WorldUnit.DEFAULT_MAX_AGE;
+        this.maxAge = Utils.randInt(ageRange.min, ageRange.max);
 
-        // Stats based on type
-        switch (type) {
-            case 'caravan':
-                this.icon = '🐫';
-                this.name = 'Trade Caravan';
-                this.speed = 4;
-                this.population = Utils.randInt(5, 15);
-                this.strength = Utils.randInt(2, 5);
-                this.inventory = this.generateInitialInventory('trade');
-                break;
-            case 'raider':
-                this.icon = '🏇';
-                this.name = 'Raider Band';
-                this.speed = 6;
-                this.population = Utils.randInt(10, 30);
-                this.strength = Utils.randInt(8, 15);
-                this.inventory = this.generateInitialInventory('military');
-                break;
-            case 'patrol':
-                this.icon = '💂';
-                this.name = 'Kingdom Patrol';
-                this.speed = 6;
-                this.population = Utils.randInt(15, 40);
-                this.strength = Utils.randInt(15, 25);
-                this.inventory = {};
-                break;
-            case 'settler':
-                this.icon = '⛺';
-                this.name = 'Settler Group';
-                this.speed = 2;
-                this.population = Utils.randInt(20, 50);
-                this.strength = Utils.randInt(5, 10);
-                this.inventory = { 'food': 100, 'tools': 20 };
-                break;
-            case 'ship':
-                this.icon = '⛵';
-                this.name = 'Trading Ship';
-                this.speed = 8;
-                this.population = Utils.randInt(10, 25);
-                this.strength = Utils.randInt(5, 12);
-                this.inventory = this.generateInitialInventory('sea_trade');
-                break;
-            case 'pirate':
-                this.icon = '🏴‍☠️';
-                this.name = 'Pirate Ship';
-                this.speed = 8;
-                this.population = Utils.randInt(15, 35);
-                this.strength = Utils.randInt(12, 20);
-                this.inventory = this.generateInitialInventory('pirate');
-                break;
-            case 'fishing_boat':
-                this.icon = '🛶';
-                this.name = 'Fishing Boat';
-                this.speed = 6;
-                this.population = Utils.randInt(2, 5);
-                this.strength = 1;
-                this.inventory = {};
-                break;
-            case 'lord_party':
-                this.icon = '👑';
-                this.name = 'Royal Procession';
-                this.speed = 3;              // Lords travel slowly with retinue
-                this.population = Utils.randInt(30, 60);
-                this.strength = Utils.randInt(30, 60);
-                this.inventory = {};
-                this.kingdomId = null;        // Set after construction
-                this.lordName = null;         // Set after construction
-                this.daysAtLocation = 0;      // How long they've stayed
-                this.stayDuration = 0;        // How long they plan to stay
-                break;
-            default: {
-                // Types defined only in data/units.json (mercenaries, pilgrims,
-                // beasts, ...) take their stats from there
-                const def = WorldUnit.TYPES[type];
-                const roll = (v) => (v && typeof v === 'object') ? Utils.randInt(v.min, v.max) : (v || 1);
-                this.icon = def ? def.icon : '❓';
-                this.name = def ? def.name : 'Unknown Unit';
-                this.speed = def ? def.speed : 1;
-                this.population = def ? roll(def.population) : 1;
-                this.strength = def ? roll(def.strength) : 1;
-                this.inventory = def && def.inventoryTheme ? this.generateInitialInventory(def.inventoryTheme) : {};
-                if (def && def.extraFields) Object.assign(this, JSON.parse(JSON.stringify(def.extraFields)));
+        // Stats come from the unit template (data/units.json `unitTypes`,
+        // falling back to the built-in DEFAULT_TYPES when data is missing).
+        const def = WorldUnit.getTemplate(type);
+        const fallback = WorldUnit.DEFAULTS || WorldUnit.DEFAULT_UNIT;
+        const roll = (v) => (v && typeof v === 'object') ? Utils.randInt(v.min, v.max) : (v || 1);
+        this.icon = def ? def.icon : fallback.icon;
+        this.name = def ? def.name : fallback.name;
+        this.speed = def ? def.speed : fallback.speed;
+        this.population = roll(def ? def.population : fallback.population);
+        this.strength = roll(def ? def.strength : fallback.strength);
+        this.inventory = def && def.inventoryTheme ? this.generateInitialInventory(def.inventoryTheme) : {};
+        // Fixed starting cargo (e.g. a settler group's food and tools)
+        if (def && def.initialInventory) {
+            for (const [item, qty] of Object.entries(def.initialInventory)) {
+                this.inventory[item] = (this.inventory[item] || 0) + qty;
             }
         }
+        if (def && def.extraFields) Object.assign(this, JSON.parse(JSON.stringify(def.extraFields)));
     }
 
     /** Unit types from data/units.json, installed by DataLoader. */
@@ -115,6 +50,57 @@ export class WorldUnit {
     /** Inventory themes from data/units.json, installed by DataLoader. */
     static THEMES = {};
 
+    /** Stats for an unknown unit type (data/units.json `defaults`), installed by DataLoader. */
+    static DEFAULTS = null;
+
+    /** Lifespan range in days (data/units.json `maxAge`), installed by DataLoader. */
+    static MAX_AGE = null;
+
+    /** Fallback lifespan, used only when data/units.json has no maxAge. */
+    static DEFAULT_MAX_AGE = { min: 50, max: 200 };
+
+    /** Fallback stats for an unknown type, used only when data/units.json has no defaults. */
+    static DEFAULT_UNIT = { icon: '❓', name: 'Unknown Unit', speed: 1, population: 1, strength: 1 };
+
+    /**
+     * Fallback templates for the core unit types, used only when
+     * data/units.json doesn't define them. Same shape as `unitTypes`.
+     */
+    static DEFAULT_TYPES = {
+        caravan: { icon: '🐫', name: 'Trade Caravan', speed: 4, population: { min: 5, max: 15 }, strength: { min: 2, max: 5 }, inventoryTheme: 'trade', domain: 'land' },
+        raider: { icon: '🏇', name: 'Raider Band', speed: 6, population: { min: 10, max: 30 }, strength: { min: 8, max: 15 }, inventoryTheme: 'military', domain: 'land' },
+        patrol: { icon: '💂', name: 'Kingdom Patrol', speed: 6, population: { min: 15, max: 40 }, strength: { min: 15, max: 25 }, inventoryTheme: null, domain: 'land' },
+        settler: { icon: '⛺', name: 'Settler Group', speed: 2, population: { min: 20, max: 50 }, strength: { min: 5, max: 10 }, inventoryTheme: null, initialInventory: { food: 100, tools: 20 }, domain: 'land' },
+        ship: { icon: '⛵', name: 'Trading Ship', speed: 8, population: { min: 10, max: 25 }, strength: { min: 5, max: 12 }, inventoryTheme: 'sea_trade', domain: 'sea' },
+        pirate: { icon: '🏴‍☠️', name: 'Pirate Ship', speed: 8, population: { min: 15, max: 35 }, strength: { min: 12, max: 20 }, inventoryTheme: 'pirate', domain: 'sea' },
+        fishing_boat: { icon: '🛶', name: 'Fishing Boat', speed: 6, population: { min: 2, max: 5 }, strength: 1, inventoryTheme: null, domain: 'sea' },
+        lord_party: {
+            icon: '👑', name: 'Royal Procession', speed: 3, population: { min: 30, max: 60 }, strength: { min: 30, max: 60 }, inventoryTheme: null, domain: 'land',
+            extraFields: { kingdomId: null, lordName: null, daysAtLocation: 0, stayDuration: 0 },
+        },
+    };
+
+    /**
+     * Fallback inventory themes, used only when data/units.json doesn't define them.
+     * Keys other than `randomItem` are fixed items.
+     */
+    static DEFAULT_THEMES = {
+        trade: { gold: { min: 50, max: 200 }, randomItem: { choices: ['silk', 'spices', 'tools', 'gems'], quantity: { min: 5, max: 20 } } },
+        sea_trade: { gold: { min: 100, max: 500 }, randomItem: { choices: ['fish', 'wine', 'silk', 'spices'], quantity: { min: 10, max: 40 } } },
+        military: { gold: { min: 10, max: 50 }, food: { min: 20, max: 60 } },
+        pirate: { gold: { min: 50, max: 300 }, rum: { min: 5, max: 15 } },
+    };
+
+    /** Template for a unit type: data first, built-in default second. */
+    static getTemplate(type) {
+        return (WorldUnit.TYPES && WorldUnit.TYPES[type]) || WorldUnit.DEFAULT_TYPES[type] || null;
+    }
+
+    /** Inventory theme by id: data first, built-in default second. */
+    static getTheme(theme) {
+        return (WorldUnit.THEMES && WorldUnit.THEMES[theme]) || WorldUnit.DEFAULT_THEMES[theme] || null;
+    }
+
     /** Units that attack the player when adjacent. */
     static HOSTILE_TYPES = ['raider', 'pirate', 'beast', 'monster', 'war_host'];
 
@@ -122,37 +108,24 @@ export class WorldUnit {
     static TRAVELER_TYPES = ['mercenary_band', 'pilgrim_group', 'smuggler', 'refugee', 'diplomatic_envoy'];
 
     /**
-     * Generate initial inventory for unit
+     * Generate initial inventory for unit from a theme:
+     * { gold: {min,max}, <item>: {min,max}, randomItem: { choices, quantity } }.
+     * Gold rolls first, then the random item, then fixed items in
+     * declaration order (matching the original hand-written themes).
      */
     generateInitialInventory(theme) {
         const inv = {};
-        switch (theme) {
-            case 'trade':
-                inv['gold'] = Utils.randInt(50, 200);
-                inv[Utils.randPick(['silk', 'spices', 'tools', 'gems'])] = Utils.randInt(5, 20);
-                break;
-            case 'sea_trade':
-                inv['gold'] = Utils.randInt(100, 500);
-                inv[Utils.randPick(['fish', 'wine', 'silk', 'spices'])] = Utils.randInt(10, 40);
-                break;
-            case 'military':
-                inv['gold'] = Utils.randInt(10, 50);
-                inv['food'] = Utils.randInt(20, 60);
-                break;
-            case 'pirate':
-                inv['gold'] = Utils.randInt(50, 300);
-                inv['rum'] = Utils.randInt(5, 15);
-                break;
-            default: {
-                // Data-defined themes: { gold: {min,max}, randomItem: { choices, quantity } }
-                const t = WorldUnit.THEMES[theme];
-                if (!t) break;
-                if (t.gold) inv['gold'] = Utils.randInt(t.gold.min, t.gold.max);
-                if (t.randomItem && t.randomItem.choices && t.randomItem.choices.length) {
-                    const q = t.randomItem.quantity || { min: 1, max: 1 };
-                    inv[Utils.randPick(t.randomItem.choices)] = Utils.randInt(q.min, q.max);
-                }
-            }
+        const t = WorldUnit.getTheme(theme);
+        if (!t) return inv;
+        const rollQty = (v) => (v && typeof v === 'object') ? Utils.randInt(v.min, v.max) : v;
+        if (t.gold != null) inv['gold'] = rollQty(t.gold);
+        if (t.randomItem && t.randomItem.choices && t.randomItem.choices.length) {
+            const q = t.randomItem.quantity || { min: 1, max: 1 };
+            inv[Utils.randPick(t.randomItem.choices)] = Utils.randInt(q.min, q.max);
+        }
+        for (const [item, range] of Object.entries(t)) {
+            if (item === 'gold' || item === 'randomItem') continue;
+            inv[item] = (inv[item] || 0) + rollQty(range);
         }
         return inv;
     }

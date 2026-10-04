@@ -42,6 +42,7 @@ export { House } from '../../systems/house.js';
 export { Schemes } from '../../systems/schemes.js';
 export { Petitions } from '../../systems/petitions.js';
 export { RealmWars } from '../../systems/realmWars.js';
+export { Throne } from '../../systems/throne.js';
 export { Espionage } from '../../systems/espionage.js';
 export { Gossip } from '../../systems/gossip.js';
 export { Tavern } from '../../player/tavern.js';

@@ -186,8 +186,10 @@ export const NPCLords = {
         if (world.day % 120 === 0) { // Once per year
             lord.age++;
 
-            // Death from old age
-            if (lord.age > 70 && Utils.random() < (lord.age - 70) * 0.1) {
+            // Death from old age (a player-ruled realm's lord is only its
+            // steward — the player's line holds the throne)
+            const playerRuled = !!(kingdom.crown && kingdom.crown.playerRuled);
+            if (!playerRuled && lord.age > 70 && Utils.random() < (lord.age - 70) * 0.1) {
                 NPCLords.lordDies(kingdom, world);
                 return;
             }

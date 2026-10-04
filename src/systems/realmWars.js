@@ -58,6 +58,9 @@ export const RealmWars = {
 
     CONFIG,
 
+    /** A civil war (systems/throne.js) ends with a crown or with exile, not a treaty. */
+    CIVIL_WAR_REASON: 'A war for the throne ends with a crown or with exile — see Claims & Crowns.',
+
     _state(player) {
         if (!player.realmWars) player.realmWars = { wars: {}, ultimatums: {}, truces: {} };
         const s = player.realmWars;
@@ -193,6 +196,7 @@ export const RealmWars = {
         const war = RealmWars._state(player).wars[kingdomId];
         const kingdom = world.getKingdom ? world.getKingdom(kingdomId) : null;
         if (!war || !kingdom) return { success: false, reason: 'No such war.' };
+        if (war.civilWar) return { success: false, reason: RealmWars.CIVIL_WAR_REASON };
         const cost = RealmWars.peacePrice(player, kingdom);
         if ((player.gold || 0) < cost) return { success: false, reason: `Need ${cost} gold.` };
         player.gold -= cost;
@@ -205,6 +209,7 @@ export const RealmWars = {
         const war = RealmWars._state(player).wars[kingdomId];
         const kingdom = world.getKingdom ? world.getKingdom(kingdomId) : null;
         if (!war || !kingdom) return { success: false, reason: 'No such war.' };
+        if (war.civilWar) return { success: false, reason: RealmWars.CIVIL_WAR_REASON };
         if (war.score < CONFIG.enforcePeaceScore) {
             return { success: false, reason: `Need a war score of ${CONFIG.enforcePeaceScore} (now ${war.score}). Defeat their war hosts.` };
         }
@@ -360,7 +365,7 @@ export const RealmWars = {
             const rec = RealmWars._dispatchHost(player, world, kingdom, war);
             if (rec) out.marching.push({ kingdomId: kingdom.id, host: rec });
         }
-        if (!war.hosts.length && world.day - war.startDay >= CONFIG.exhaustionDays) {
+        if (!war.civilWar && !war.hosts.length && world.day - war.startDay >= CONFIG.exhaustionDays) {
             out.ended.push(RealmWars.endWar(player, world, kingdom.id, 'exhaustion'));
         }
     },

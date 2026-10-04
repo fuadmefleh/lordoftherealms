@@ -13,6 +13,7 @@ import { Gossip } from './gossip.js';
 import { Ships } from './ships.js';
 import { Traits } from './traits.js';
 import { Petitions } from './petitions.js';
+import { Throne } from './throne.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 
 
@@ -164,6 +165,18 @@ export const SaveLoad = {
             colonization: k.colonization || null,
             cartography: k.cartography || null,
             navy: k.navy || null, // royal fleet and blockades (KingdomNavy)
+            // Claims & Crowns (systems/throne.js): the crown's policies and the
+            // last succession; a player-founded realm keeps its identity
+            crown: k.crown || null,
+            lastSuccession: k.lastSuccession || null,
+            createdByPlayer: !!k.createdByPlayer,
+            traits: k.traits || [],
+            ...(k.createdByPlayer ? {
+                foundedDay: k.foundedDay,
+                colorLight: k.colorLight,
+                preferredTerrain: k.preferredTerrain,
+                religion: k.religion || null,
+            } : {}),
         }));
     },
 
@@ -326,6 +339,8 @@ export const SaveLoad = {
             traits: Traits.serialize(player),
             // Court petitions (pending, follow-ups, rulings history, court reputation)
             petitions: player.petitions ? JSON.parse(JSON.stringify(player.petitions)) : null,
+            // Claims, crises, a civil war, a crown (systems/throne.js)
+            throne: Throne.serialize(player),
         };
     },
 
@@ -393,12 +408,27 @@ export const SaveLoad = {
                 Characters.deserialize(kingdom, savedKingdom.characterData);
             }
         }
+
+        // Kingdoms born after world generation (a realm the player founded)
+        // aren't regenerated — rebuild them from the save
+        for (let i = world.kingdoms.length; i < (saveData.kingdoms || []).length; i++) {
+            const saved = saveData.kingdoms[i];
+            if (!saved || !saved.id) continue;
+            const kingdom = {
+                territory: [], cities: [], wars: [], allies: [], relations: {}, truces: {}, warState: {},
+                royalBank: { treasury: 5000, interestRates: { small: 0.10, medium: 0.15, large: 0.20 } },
+                ...saved,
+            };
+            if (!kingdom.characterData) delete kingdom.characterData;
+            KingdomNavy.ensure(kingdom);
+            world.kingdoms.push(kingdom);
+        }
     },
 
     /**
      * Restore player from save data
      */
-    restorePlayer(saveData, player) {
+    restorePlayer(saveData, player, world = null) {
         Object.assign(player, saveData);
 
         // Backfill firstName/lastName from name for older saves
@@ -486,6 +516,9 @@ export const SaveLoad = {
         // Court petitions — older saves have none (backfilled lazily once there is state)
         if (player.petitions) Petitions.loadState(player);
         else player.petitions = null;
+        // Claims & Crowns — older saves get a blank record (and a crown if they
+        // had founded a kingdom with the old Form Kingdom action)
+        Throne.load(player, world);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

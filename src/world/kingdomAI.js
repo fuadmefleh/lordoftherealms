@@ -427,6 +427,10 @@ export const KingdomAI = {
      * Consider declaring war
      */
     considerWar(kingdom, world) {
+        // A player-ruled realm declares war only on its ruler's word, unless
+        // the crown's war stance lets its marshals act (systems/throne.js)
+        const crown = kingdom.crown;
+        if (crown && crown.playerRuled && !(crown.policies && crown.policies.stance === 'aggressive')) return;
         const otherKingdoms = world.kingdoms.filter(k =>
             k.isAlive &&
             k.id !== kingdom.id &&

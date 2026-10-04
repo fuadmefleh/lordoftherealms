@@ -481,6 +481,12 @@ export const DataLoader = {
             DataLoader.petitions = petitionsData;
         }
 
+        // ── Claims & Crowns (read lazily by systems/throne.js) ──
+        const throneData = data['throne.json'];
+        if (throneData) {
+            DataLoader.throne = throneData;
+        }
+
         // ── Gossip / Rumor System ──
         const gossipData = data['gossip.json'];
         if (gossipData) {

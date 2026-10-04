@@ -31,6 +31,7 @@ World simulation systems. Each system manages a distinct aspect of the game worl
 | `ships.js` | ~1650 | Ship building, crews (hire/wages/morale), naval combat, war-galley escorts, exploration, trade, blockaded port markets, interception by hostile royal fleets |
 | `technology/` | ~1200 | Research tree, labs, parts crafting, tech bonuses |
 | `tiledExport.js` | — | Export maps to Tiled-compatible format |
+| `throne.js` | ~1400 | Claims & Crowns: claims on thrones (royal marriage, forgery, office, conquest, heralds), succession crises, civil wars to press a claim, ruling a realm (levy, policies via `kingdom.crown`, diplomacy), founding a kingdom (`data/throne.json`) |
 | `titles.js` | ~620 | Nobility titles, duties, rank requirements |
 | `traits.js` | ~430 | Earned character traits: deed counters → traits (data/traits.json), opposites, erosion, effects, dynasty echo on succession |
 

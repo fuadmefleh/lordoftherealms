@@ -137,6 +137,10 @@ export const KingdomBonuses = {
         // and mercantile folk (kingdom.peoples, set daily by systems/peoples)
         const pb = kingdom.peoples && kingdom.peoples.bonuses;
         if (pb && typeof pb[key] === 'number') total += pb[key];
+        // The crown: a player ruler's policies, a civil war or a succession
+        // crisis (kingdom.crown, kept by systems/throne.js)
+        const cm = kingdom.crown && kingdom.crown.mods;
+        if (cm && typeof cm[key] === 'number') total += cm[key];
         return total;
     },
 

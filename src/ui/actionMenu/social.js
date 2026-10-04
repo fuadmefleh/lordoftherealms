@@ -840,6 +840,7 @@ Object.assign(ActionMenu, {
         if (house) {
             html += `<button data-am-act="openTileMenu" data-am-args='["showHousePanel"${tile ? `, ${tile.q}, ${tile.r}` : ''}]' style="width:100%; padding:8px; margin-bottom:10px; background: var(--gold); border:none; border-radius:4px; cursor:pointer; font-weight:bold; color:#000;">🛡️ Manage ${house.name}</button>`;
         }
+        html += `<button data-am-act="openTileMenu" data-am-args='["showClaimsPanel"${tile ? `, ${tile.q}, ${tile.r}` : ''}]' style="width:100%; padding:8px; margin-bottom:10px; background:#7a1f1f; border:none; border-radius:4px; cursor:pointer; font-weight:bold; color:#ffd700;">👑 Claims & Crowns</button>`;
 
         // Children
         if (!player.children || player.children.length === 0) {

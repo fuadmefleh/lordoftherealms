@@ -271,7 +271,9 @@ export function _handleChoice(action) {
             }
 
             case 'threat': {
-                const difficulty = npcType === 'guard' || npcType === 'blacksmith_npc' ? 5 : npcType === 'noble' ? 4 : 2;
+                const baseDifficulty = npcType === 'guard' || npcType === 'blacksmith_npc' ? 5 : npcType === 'noble' ? 4 : 2;
+                // Someone you've already cowed folds more easily
+                const difficulty = dialogState._npc ? NpcDisposition.threatDifficulty(dialogState._npc, baseDifficulty) : baseDifficulty;
                 const success = _skillCheck('combat', difficulty);
                 if (success) {
                     const pool = THREAT_SUCCESS[npcType] || THREAT_SUCCESS.villager;

@@ -228,14 +228,16 @@ export function _renderChoices(box) {
     const threatened = dialogState._lines.some(l => l._action === 'threat');
     if (!threatened) {
         const combatTotal = _getSkillTotal('combat');
-        const difficulty = npcType === 'guard' || npcType === 'blacksmith_npc' ? 5 : npcType === 'noble' ? 4 : 2;
+        const baseDifficulty = npcType === 'guard' || npcType === 'blacksmith_npc' ? 5 : npcType === 'noble' ? 4 : 2;
+        const difficulty = dialogState._npc ? NpcDisposition.threatDifficulty(dialogState._npc, baseDifficulty) : baseDifficulty;
+        const cowed = difficulty < baseDifficulty ? ' | 😨 Already afraid of you — easier to cow' : '';
         const chance = Math.min(100, Math.round((combatTotal / difficulty) * 100));
         choices.push({
             icon: '😠',
             label: `[Intimidate — Combat ${combatTotal}/${difficulty}] Watch your tongue.`,
             action: 'threat',
             skillTag: chance >= 100 ? 'guaranteed' : chance >= 60 ? 'likely' : 'risky',
-            tooltip: `${chance}% chance | Success: they hand over coin | ⚠ Lowers disposition, they may report you to the guard`,
+            tooltip: `${chance}% chance${cowed} | Success: they hand over coin | ⚠ Lowers disposition, they may report you to the guard`,
         });
     }
 

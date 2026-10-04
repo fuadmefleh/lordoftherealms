@@ -13,7 +13,7 @@ describe('Festival record', () => {
     it('a seasoned host earns fame, envoys, contest skill and vigilance', () => {
         const p = player();
         Festivals.initialize(p);
-        expect(Festivals.getReputation(p)).toEqual({ hostBonus: 0, extraEnvoys: 0, contestVeteran: 0, vigilance: 0 });
+        expect(Festivals.getReputation(p)).toEqual({ hostBonus: 0, extraEnvoys: 0, contestVeteran: 0, vigilance: 0, envoyGoodwill: 0 });
         Object.assign(p.festivals, { hosted: 10, successfulContests: 4, sabotageEvents: 20 });
         expect(Festivals.getReputation(p)).toMatchObject({ hostBonus: 3, extraEnvoys: 2, vigilance: 0.1 });
         expect(Festivals.getReputation(p).contestVeteran).toBeCloseTo(1.2);

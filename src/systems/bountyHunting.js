@@ -62,7 +62,19 @@ export const BountyHunting = {
         const rank = Math.max(1, player.bountyHunter.rank);
         const def = this.RANKS[Math.min(rank, this.RANKS.length) - 1];
         const steps = Math.min(4, rank - 1);
-        return { ...def, rank, captureBonus: steps, payBonus: steps * 0.1 };
+        const botchPenalty = this.getBotchPenalty(player);
+        return { ...def, rank, captureBonus: steps, payBonus: steps * 0.1 - botchPenalty, botchPenalty };
+    },
+
+    /**
+     * Magistrates hear about botched arrests: every failed capture beyond your
+     * successful ones knocks 5% off the pay you can ask (max −25%).
+     */
+    getBotchPenalty(player) {
+        this.initialize(player);
+        const s = player.bountyHunter;
+        const net = s.failedCaptures - (s.capturesTurnedIn + s.capturesRecruited);
+        return Math.min(0.25, Math.max(0, net) * 0.05);
     },
 
     _key(q, r) {
@@ -206,10 +218,13 @@ export const BountyHunting = {
 
         player.bountyHunter.failedCaptures += 1;
         bounty.escapes = (bounty.escapes || 0) + 1;
+        const penalty = this.getBotchPenalty(player);
+        const repNote = penalty > 0 ? ` Word of the botched arrest spreads — magistrates now pay you ${Math.round(penalty * 100)}% less.` : '';
         return {
             success: false,
             escaped: true,
-            reason: `${bounty.targetName} slipped away during the arrest attempt and fled toward (${bounty.targetQ}, ${bounty.targetR}).`,
+            botchPenalty: penalty,
+            reason: `${bounty.targetName} slipped away during the arrest attempt and fled toward (${bounty.targetQ}, ${bounty.targetR}).${repNote}`,
             bounty,
         };
     },

@@ -698,9 +698,14 @@ export const KingdomAI = {
             kingdom.military = cap;
             kingdom._militaryInit = true;
         } else {
-            const cur = kingdom.military || 0;
-            const rate = cap > cur ? KingdomAI.WAR.regen : KingdomAI.WAR.demob;
-            kingdom.military = Math.floor(cur + (cap - cur) * rate);
+            const cur = Math.floor(kingdom.military || 0);
+            if (cap > cur) {
+                // Recruitment refills the ranks, never past what the realm supports
+                kingdom.military = cur;
+                Kingdom.recruitTroops(kingdom, (cap - cur) * KingdomAI.WAR.regen);
+            } else {
+                kingdom.military = Math.floor(cur + (cap - cur) * KingdomAI.WAR.demob);
+            }
             if (attrition > 0 && kingdom.military > cap) kingdom.military = cap;
         }
     },

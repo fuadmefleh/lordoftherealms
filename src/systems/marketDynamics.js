@@ -546,12 +546,20 @@ export const Taxation = {
             const taxCollected = Math.floor(taxBase * taxPolicy.rate * landBonus * Taxation.officeTaxMultiplier(player) * eventMult * moodMult);
 
             totalCollected += taxCollected;
+            const growthRate = Taxation.getGrowthRate(settlement, taxPolicy);
+            const projectedPopulation = Taxation.projectPopulation(settlement, 30, growthRate);
             const entry = {
                 name: settlement.name,
                 collected: taxCollected,
                 population: settlement.population,
                 happiness: Math.round(happiness),
                 peoplesMood: Taxation.peoplesMood(settlement),
+                growthRate,
+                projectedPopulation,
+                // Next month's weekly take, if the town grows (or shrinks) as projected
+                projectedCollected: settlement.population > 0
+                    ? Math.floor(taxCollected * projectedPopulation / settlement.population)
+                    : taxCollected,
             };
             settlements.push(entry);
             if (!dryRun) Taxation._applyTaxMood(settlement, taxPolicy, entry);
@@ -565,6 +573,23 @@ export const Taxation = {
     /** Mood points a settlement's peoples add to its happiness target (systems/peoples). */
     peoplesMood(settlement) {
         return (settlement && settlement.peoplesEffects && settlement.peoplesEffects.stability) || 0;
+    },
+
+    /**
+     * A settlement's yearly growth rate (fraction per 120-day year), as last
+     * set by tax collection; falls back to the current policy's growth bonus.
+     */
+    getGrowthRate(settlement, taxPolicy = null) {
+        if (settlement && typeof settlement.growthRate === 'number') return settlement.growthRate;
+        return (taxPolicy && taxPolicy.growthBonus) || 0;
+    },
+
+    /** Population `days` from now at `growthRate` per year (defaults to the settlement's own). */
+    projectPopulation(settlement, days = 30, growthRate = null) {
+        const pop = (settlement && settlement.population) || 0;
+        const rate = typeof growthRate === 'number' ? growthRate : Taxation.getGrowthRate(settlement);
+        // Tax-driven decline never drops a town below 10 (see _applyTaxMood)
+        return Math.max(Math.min(pop, 10), Math.round(pop * (1 + rate * days / 120)));
     },
 
     /** A settlement's happiness 0..100 (50 when never taxed). */

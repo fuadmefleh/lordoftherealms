@@ -158,6 +158,11 @@ export const NpcDisposition = {
             shift += 0.10;
             reasons.push({ label: 'Distrusts you', pct: 10 });
         }
+        if (mem.fearful) {
+            // A frightened trader wants you gone and pads the price to make it so
+            shift += 0.05;
+            reasons.push({ label: 'Afraid of you', pct: 5 });
+        }
         if (mem.discount) {
             shift -= mem.discount;
             reasons.push({ label: 'Owes you a favour', pct: -Math.round(mem.discount * 100) });
@@ -194,6 +199,21 @@ export const NpcDisposition = {
     },
 
     /**
+     * How much easier it is to intimidate this NPC again. Someone you have
+     * already cowed (`fearful`) folds faster: −2 to the threat difficulty.
+     * Returns a non-positive modifier to add to the base difficulty.
+     */
+    intimidationModifier(npc) {
+        const mem = NpcDisposition.getMemory(npc);
+        return mem.fearful ? -2 : 0;
+    },
+
+    /** Threat difficulty after the NPC's fear is taken into account (min 1). */
+    threatDifficulty(npc, baseDifficulty) {
+        return Math.max(1, baseDifficulty + NpcDisposition.intimidationModifier(npc));
+    },
+
+    /**
      * Reaction of a threatened NPC when the player talks to them again.
      * @returns {null|{ kind:'refuse'|'fear', text:string }}
      */
@@ -202,6 +222,10 @@ export const NpcDisposition = {
         if (!mem.threatened) return null;
         if (mem.disposition < 15) {
             return { kind: 'refuse', text: '*backs away* Stay away from me! I have nothing more to say to you.' };
+        }
+        if (!mem.fearful) {
+            // They stood up to the threat last time — wary, not cowed
+            return { kind: 'defiant', text: '*folds arms* You again. Your threats did not work last time either.' };
         }
         return { kind: 'fear', text: '*flinches* W-what do you want now? I gave you what you asked for...' };
     },

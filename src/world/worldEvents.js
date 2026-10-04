@@ -326,11 +326,13 @@ export const WorldEvents = {
                 };
 
             case 'recruitment_drive':
-                const increase = Math.floor(kingdom.population * 0.01);
-                kingdom.military += increase;
+                // The realm can only feed so many soldiers (kingdom.militaryCap)
+                const increase = Kingdom.recruitTroops(kingdom, Math.floor(kingdom.population * 0.01));
                 return {
                     category: WorldEvents.CATEGORIES.MILITARY,
-                    text: `${kingdom.name}: Successful recruitment drive. +${increase} military strength.`,
+                    text: increase > 0
+                        ? `${kingdom.name}: Successful recruitment drive. +${increase} military strength.`
+                        : `${kingdom.name}: A recruitment drive finds no takers — the realm cannot feed a larger army.`,
                     kingdom: kingdom.id,
                     impact: 'positive',
                 };

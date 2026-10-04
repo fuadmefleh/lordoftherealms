@@ -75,7 +75,28 @@ export const Festivals = {
             extraEnvoys: Math.min(2, Math.floor(f.hosted / 5)),
             contestVeteran: Math.min(3, f.successfulContests * 0.3),
             vigilance: Math.min(0.1, f.sabotageEvents * 0.01),
+            // Envoys you've feted remember it: +1 reputation per envoy per 5 past
+            // diplomatic receptions (max +3)
+            envoyGoodwill: Math.min(3, Math.floor(f.diplomacyEvents / 5)),
         };
+    },
+
+    /**
+     * A rival envoy received at your festival improves their realm's relations
+     * with your liege's realm. Returns the change applied (0 when you serve no
+     * realm, or the rival is your own).
+     */
+    envoyRelationGain(player, world, rivalId, tier) {
+        if (!player || !player.allegiance || player.allegiance === rivalId || !world || typeof world.getKingdom !== 'function') return 0;
+        const home = world.getKingdom(player.allegiance);
+        const rival = world.getKingdom(rivalId);
+        if (!home || !rival || !home.isAlive || !rival.isAlive) return 0;
+        const gain = tier && tier.id === 'grand' ? 2 : 1;
+        if (!rival.relations) rival.relations = {};
+        if (!home.relations) home.relations = {};
+        rival.relations[home.id] = Math.min(100, (rival.relations[home.id] || 0) + gain);
+        home.relations[rival.id] = Math.min(100, (home.relations[rival.id] || 0) + gain);
+        return gain;
     },
 
     /** The same town tires of you: −30% renown per festival there among your last 3. */
@@ -235,11 +256,14 @@ export const Festivals = {
                 continue;
             }
 
-            const repGain = tier.diplomacy + (stance === 'diplomatic' ? 2 : 0) + Utils.randInt(0, 2);
+            const repGain = tier.diplomacy + (stance === 'diplomatic' ? 2 : 0) + Utils.randInt(0, 2) + fame.envoyGoodwill;
             if (player.reputation) {
                 player.reputation[rival.id] = (player.reputation[rival.id] || 0) + repGain;
             }
-            reputations.push({ rival: rival.name, repGain });
+            // The envoy carries home word of your hospitality: their realm warms
+            // to the one you serve (+1 relations per reception, +2 for a grand one)
+            const relationGain = Festivals.envoyRelationGain(player, world, rival.id, tier);
+            reputations.push({ rival: rival.name, repGain, relationGain });
             player.festivals.diplomacyEvents += 1;
         }
 

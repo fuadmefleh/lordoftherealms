@@ -133,6 +133,7 @@ Object.assign(ActionMenu, {
                 <div style="font-size: 13px; margin-bottom: 8px;"><strong>Pilgrimage Rewards:</strong></div>
                 <div style="font-size: 12px;">💰 Gold reward • ☯ Karma • ⭐ Renown • 🙏 Faith</div>
                 ${site.bonusType === 'healing' ? '<div style="font-size: 12px; color: #27ae60; margin-top: 4px;">💚 Special: Healing waters restore health</div>' : ''}
+                ${site.contested ? `<div style="font-size: 12px; color: #e67e22; margin-top: 4px;">⚔️ Contested: recently seized — tense crowds, thinner offerings (${site.contestedDaysLeft || 'some'} days to settle)</div>` : ''}
             </div>
             <button onclick="window._completePilgrimage()" 
                 style="width: 100%; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;">
@@ -147,7 +148,7 @@ Object.assign(ActionMenu, {
             const result = Religion.completePilgrimage(game.player, tile, game.world);
             if (result.success) {
                 game.ui.showNotification('Pilgrimage Complete!',
-                    `${result.siteName}: +${result.goldReward} gold, +${result.karmaGained} karma, +${result.renownGained} renown${result.healed ? ', health restored!' : ''}`,
+                    `${result.siteName}: +${result.goldReward} gold, +${result.karmaGained} karma, +${result.renownGained} renown${result.healed ? ', health restored!' : ''}${result.contested ? ' The shrine is contested — offerings were thin amid the tension.' : ''}`,
                     'success'
                 );
                 game.ui.updateStats(game.player, game.world);

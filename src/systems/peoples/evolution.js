@@ -179,26 +179,33 @@ Object.assign(Peoples, {
     },
 
     /**
-     * Small organic population shifts between demographic groups.
+     * Keep the demographic groups in step with the settlement's population.
+     *
+     * settlement.population is authoritative — the food model, plague,
+     * famine, settlers and raids all change it — so the groups are rescaled to
+     * match it rather than overwriting it. Contented groups slowly gain share
+     * at the expense of unhappy ones.
      */
     processPopulationDrift(settlement) {
         if (!settlement.demographics || settlement.demographics.length < 2) return;
+        const total = Math.max(0, Math.round(settlement.population || 0));
 
-        // Natural growth — larger groups grow slightly faster
-        for (const demo of settlement.demographics) {
-            const growthRate = 0.0001 * (1 + demo.sentiment / 200);
-            const growth = Math.floor(demo.population * growthRate);
-            demo.population += growth;
-        }
+        // Sentiment (-100..100) nudges each group's share by up to ±0.05% a day
+        const weights = settlement.demographics.map(d =>
+            Math.max(0, d.population) * (1 + 0.0005 * ((d.sentiment || 0) / 100)));
+        const weightSum = weights.reduce((a, w) => a + w, 0);
+        if (weightSum <= 0) return;
 
-        // Recalculate shares
-        const totalPop = settlement.demographics.reduce((sum, d) => sum + d.population, 0);
-        if (totalPop > 0) {
-            for (const demo of settlement.demographics) {
-                demo.share = demo.population / totalPop;
-            }
-            settlement.population = totalPop;
-        }
+        let assigned = 0;
+        let largest = 0;
+        settlement.demographics.forEach((demo, i) => {
+            demo.share = weights[i] / weightSum;
+            demo.population = Math.floor(demo.share * total);
+            assigned += demo.population;
+            if (demo.population > settlement.demographics[largest].population) largest = i;
+        });
+        // Rounding remainder goes to the largest group
+        settlement.demographics[largest].population += total - assigned;
     },
 
     /**

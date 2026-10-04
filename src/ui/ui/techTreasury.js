@@ -482,7 +482,15 @@ Object.assign(UI.prototype, {
         // Prepare Taxes data
         const currentRate = player.taxRate || 'moderate';
         const policy = Taxation.TAX_RATES[currentRate.toUpperCase()];
-        const estimatedTax = Taxation.collectTaxes({ ...player }, world).collected; // Dry run roughly
+        const taxEstimate = Taxation.collectTaxes(player, world, { dryRun: true });
+        const estimatedTax = taxEstimate.collected;
+        const moodRows = taxEstimate.settlements.map(st => {
+            const h = st.happiness;
+            const face = h >= 70 ? '😊' : h >= 40 ? '😐' : '😠';
+            return `<div style="display:flex; justify-content:space-between; font-size:12px; padding:3px 0;">
+                <span>${st.name}</span><span>${face} ${h}/100 · ~${st.collected}g/wk</span></div>`;
+        }).join('');
+        const canSet = Taxation.canSetTaxes(player);
 
         let taxHtml = `
             <div id="tabTax" class="tab-content" style="display:none;">
@@ -511,7 +519,11 @@ Object.assign(UI.prototype, {
                         </div>
                     </div>
                     
+                    ${moodRows ? `<div class="info-section-title">Your Settlements</div>
+                    <div style="margin-bottom:12px;">${moodRows}</div>
+                    <div style="font-size:11px; color:var(--text-secondary); margin-bottom:12px;">Happy towns pay up to 25% more and conquered towns grow loyal; miserable ones pay less and turn against you.</div>` : ''}
                     <div class="info-section-title">Adjust Tax Rate</div>
+                    ${canSet ? '' : '<div style="font-size:11px; color:#e67e22; margin-bottom:8px;">You need settlements of your own, or the office of King, Chancellor or Tax Collector, to set tax rates.</div>'}
                     <div style="display:flex; flex-direction:column; gap:5px;">
         `;
 
@@ -520,7 +532,7 @@ Object.assign(UI.prototype, {
             taxHtml += `
                 <button data-ui-act="setTaxRate" data-ui-args='["${rate.id}"]' style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:${isSelected ? 'var(--gold)' : 'rgba(255,255,255,0.05)'}; color:${isSelected ? 'black' : 'var(--text-primary)'}; border:none; border-radius:4px; cursor:pointer; text-align:left;">
                     <span style="font-weight:bold;">${rate.name}</span>
-                    <span style="font-size:12px; opacity:0.8;">Happ: ${rate.happinessBonus > 0 ? '+' : ''}${rate.happinessBonus} | Growth: ${rate.growthBonus > 0 ? '+' : ''}${(rate.growthBonus * 100).toFixed(0)}%</span>
+                    <span style="font-size:12px; opacity:0.8;">Happ: ${rate.happinessBonus > 0 ? '+' : ''}${rate.happinessBonus} | Growth: ${rate.growthBonus > 0 ? '+' : ''}${(rate.growthBonus * 100).toFixed(0)}%/yr</span>
                 </button>
             `;
         }

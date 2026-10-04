@@ -69,7 +69,7 @@ export const Councils = {
     },
 
     _hasGoverningRole(player) {
-        return !!(player && player.allegiance && ['king', 'chancellor', 'treasurer'].includes(player.kingdomTitle));
+        return !!(player && player.allegiance && ['king', 'chancellor', 'tax_collector', 'treasurer'].includes(player.kingdomTitle));
     },
 
     _hasWarAuthority(player) {

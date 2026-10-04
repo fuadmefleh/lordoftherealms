@@ -79,8 +79,11 @@ export const Trading = {
         // `world` is injected by the caller (Trading.getAvailableGoods ← UI);
         // null in headless/test contexts, which skips weather-based demand.
         if (world && world.weather) {
-            const temp = tile.temperature ?? 15; // default 15
-            const isCold = temp < 5;
+            // Seasonal temperature in °C, and snow on the ground makes it worse
+            const temp = world.weather.getTemperature(tile.q, tile.r);
+            const celsius = typeof temp === 'object' ? temp.celsius : 15;
+            const wx = world.weather.getWeather(tile.q, tile.r).type;
+            const isCold = celsius < 5 || wx === 'snow' || wx === 'blizzard';
 
             if (good.id === 'firewood') {
                 if (isCold) price *= 1.5; // High demand in cold

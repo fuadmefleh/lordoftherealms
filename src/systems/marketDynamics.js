@@ -482,10 +482,18 @@ export const Taxation = {
     },
 
     /**
-     * Collect taxes from settlements
+     * Collect taxes from the player's settlements (weekly).
+     *
+     * The rate sets each settlement's mood: happiness drifts toward
+     * 50 + 1.5 × the policy's happiness bonus. Content people pay more
+     * (×0.75 at 0 happiness … ×1.25 at 100), grow faster or slower by the
+     * policy's yearly growth bonus, and — in conquered towns — warm to or
+     * turn against your rule (colony loyalty).
+     * Pass { dryRun: true } to estimate without changing anything.
      */
-    collectTaxes(player, world) {
+    collectTaxes(player, world, opts = {}) {
         if (!player.taxRate) player.taxRate = 'moderate';
+        const dryRun = !!opts.dryRun;
 
         const taxPolicy = this.TAX_RATES[player.taxRate.toUpperCase()];
         if (!taxPolicy) return { collected: 0, settlements: [] };
@@ -500,49 +508,81 @@ export const Taxation = {
                 if (!tile || !tile.settlement) continue;
 
                 const settlement = tile.settlement;
+                const happiness = Taxation.getHappiness(settlement);
                 const taxBase = Math.floor(settlement.population * 0.1); // 0.1 gold per person base
                 const landBonus = 1 + (player.landTaxBonus || 0);
                 // Rebellions and crises cut collections; gold rushes swell them
                 const eventMult = Math.max(0, 1 + WorldEvents.getModifier(world, 'taxIncome', tile));
-                const taxCollected = Math.floor(taxBase * taxPolicy.rate * landBonus * Taxation.officeTaxMultiplier(player) * eventMult);
+                const moodMult = 0.75 + happiness / 200;
+                const taxCollected = Math.floor(taxBase * taxPolicy.rate * landBonus * Taxation.officeTaxMultiplier(player) * eventMult * moodMult);
 
                 totalCollected += taxCollected;
-                settlements.push({
+                const entry = {
                     name: settlement.name,
                     collected: taxCollected,
-                    population: settlement.population
-                });
-
-                // Apply happiness and growth effects
-                settlement.happiness = (settlement.happiness || 50) + taxPolicy.happinessBonus * 0.1;
-                settlement.growthRate = (settlement.growthRate || 1) * (1 + taxPolicy.growthBonus);
+                    population: settlement.population,
+                    happiness: Math.round(happiness),
+                };
+                settlements.push(entry);
+                if (!dryRun) Taxation._applyTaxMood(settlement, taxPolicy, entry);
             }
         }
 
-        player.gold += totalCollected;
+        if (!dryRun) player.gold += totalCollected;
 
         return { collected: totalCollected, settlements, policy: taxPolicy };
+    },
+
+    /** A settlement's happiness 0..100 (50 when never taxed). */
+    getHappiness(settlement) {
+        return typeof settlement.happiness === 'number' ? settlement.happiness : 50;
+    },
+
+    /** Weekly mood, growth and loyalty change from the tax policy. */
+    _applyTaxMood(settlement, taxPolicy, entry) {
+        const target = Math.max(0, Math.min(100, 50 + taxPolicy.happinessBonus * 1.5));
+        const happiness = Taxation.getHappiness(settlement);
+        settlement.happiness = Math.max(0, Math.min(100, happiness + (target - happiness) * 0.25));
+        entry.happiness = Math.round(settlement.happiness);
+
+        // growthBonus is per year (120 days); a collection covers a week
+        settlement.growthRate = taxPolicy.growthBonus;
+        const delta = Math.round(settlement.population * taxPolicy.growthBonus * 7 / 120);
+        if (delta !== 0) settlement.population = Math.max(10, settlement.population + delta);
+        entry.populationChange = delta;
+
+        // Conquered towns warm to light taxes and resent heavy ones
+        if (settlement.colony && typeof settlement.colony.loyalty === 'number') {
+            const shift = (settlement.happiness - 50) / 25;
+            settlement.colony.loyalty = Math.max(0, Math.min(100, settlement.colony.loyalty + shift));
+            entry.loyaltyChange = Math.round(shift * 10) / 10;
+        }
+    },
+
+    /**
+     * Who may set tax rates: a lord of their own settlements, or a royal
+     * official — the King, Chancellor or Tax Collector (Treasurer in old saves).
+     */
+    canSetTaxes(player) {
+        if (!player) return false;
+        if (player.settlements && player.settlements.length > 0) return true;
+        return !!(player.allegiance && ['king', 'chancellor', 'tax_collector', 'treasurer'].includes(player.kingdomTitle));
     },
 
     /**
      * Change tax rate
      */
     setTaxRate(player, newRate, world = null) {
-        // Check if player has authority to change tax rates
-        if (!player.allegiance) {
-            return { success: false, reason: 'You must be part of a kingdom to set tax rates' };
-        }
-
-        // Only king or treasurer can change tax rates
-        if (player.kingdomTitle !== 'king' && player.kingdomTitle !== 'treasurer') {
-            return { success: false, reason: 'Only the King or Treasurer can change tax rates' };
+        if (!Taxation.canSetTaxes(player)) {
+            return { success: false, reason: 'Only a lord of settlements, the King, the Chancellor or the Tax Collector can set tax rates' };
         }
 
         const policy = this.TAX_RATES[newRate.toUpperCase()];
         if (!policy) return { success: false, reason: 'Invalid tax rate' };
 
         const currentPolicy = this.TAX_RATES[(player.taxRate || 'moderate').toUpperCase()] || this.TAX_RATES.MODERATE;
-        if (policy.rate > currentPolicy.rate && typeof Councils !== 'undefined') {
+        // A sworn official answers to the council; an independent lord does not
+        if (policy.rate > currentPolicy.rate && player.allegiance && typeof Councils !== 'undefined') {
             const approval = Councils.canRaiseTaxes(player, newRate, world);
             if (!approval.success) {
                 return { success: false, reason: approval.reason };

@@ -271,15 +271,20 @@ Failing to repay on time has severe consequences. The Merchant Guild tech reduce
 
 ### Tax Collection
 
-If you hold the **Tax Collector** title or govern settlements, you can set tax rates:
+You can set tax rates if you govern settlements of your own, or hold the office of **King**, **Chancellor** or **Tax Collector**. Officials sworn to a kingdom need a council vote to *raise* taxes; an independent lord does not. Taxes are collected from your settlements every 7 days.
 
-| Tax Level | Rate | Effect on Happiness | Effect on Growth |
-|-----------|------|--------------------|-----------------| 
-| Very Low | 5% | +10 happiness | +5% growth |
-| Low | 10% | +5 happiness | +2% growth |
-| Moderate | 15% | No change | No change |
-| High | 25% | −10 happiness | −5% growth |
-| Very High | 40% | −20 happiness | −10% growth |
+| Tax Level | Rate | Happiness target | Growth per year |
+|-----------|------|------------------|-----------------|
+| Very Low | 5% | 65 | +5% |
+| Low | 10% | 57 | +2% |
+| Moderate | 15% | 50 | — |
+| High | 25% | 35 | −5% |
+| Very High | 40% | 20 | −10% |
+
+Each settlement's **happiness** (0–100) drifts a quarter of the way toward the target at every collection. It matters:
+- **Revenue** is scaled from ×0.75 (happiness 0) to ×1.25 (happiness 100), so squeezing a miserable town yields less than you'd think.
+- **Conquered towns** gain or lose loyalty each week by (happiness − 50) / 25, and low-loyalty colonies rebel.
+- The Treasury's Tax tab lists each settlement's mood and weekly yield.
 
 ### Finance Tracking
 

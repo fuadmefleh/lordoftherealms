@@ -104,6 +104,14 @@ describe('war lifecycle', () => {
         expect(a.wars).not.toContain('B');
     });
 
+    it('old towns rise more readily under a restless occupier, never under a content one', () => {
+        expect(KingdomAI.restorationChance({ stability: 90 })).toBe(0);
+        const calm = KingdomAI.restorationChance({ stability: 60 });
+        const restless = KingdomAI.restorationChance({ stability: 30 });
+        expect(calm).toBeGreaterThan(0);
+        expect(restless).toBeGreaterThan(calm);
+    });
+
     it('a fallen realm can be restored in its old town', () => {
         const { world, a, b } = makeWorld();
         b.isAlive = false;

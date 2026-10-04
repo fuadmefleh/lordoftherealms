@@ -61,6 +61,8 @@ Object.assign(World.prototype, {
 
         // Process wars
         KingdomAI.processWars(this);
+        // Fallen realms may rise again in their old towns
+        KingdomAI.processRestorations(this);
 
         // Generate world events
         const worldEvents = WorldEvents.generateEvents(this);

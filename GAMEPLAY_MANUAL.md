@@ -1046,7 +1046,7 @@ Kingdom wars are fought for **goals**, not to the last man:
 - **Armies persist.** Losses stick; a realm's army rebuilds about 4% of the way back to what its land can support each day, and sheds men quickly when land is lost.
 - **How wars end.** When an aggressor reaches its war goal (3–8 tiles), the loser sues for peace and pays **20% of its treasury in tribute**. A badly outmatched side may sue early, and long wars end in a truce from sheer weariness.
 - **Truces.** Peace brings a **180-day truce**: neither side may declare war again until it runs out. A realm already fighting two wars won't open a third.
-- **Falling and rising.** A realm falls only when its **last town** does; if its capital is taken, its court flees to its largest remaining town. A fallen realm's old towns remember it: when the occupier's stability drops below 45, a town may throw off its rule and **restore the old kingdom**, which goes straight to war with its occupier.
+- **Falling and rising.** A realm falls only when its **last town** does; if its capital is taken, its court flees to its largest remaining town. A fallen realm's old towns remember it: unless the occupier's realm is content (stability 75+), each old town has a small daily chance to throw off its rule and **restore the old kingdom**. The chance grows as the occupier's stability falls, and the restored realm goes straight to war with its occupier.
 
 **Wars of the Realm** (at any settlement, while a war or truce is on) lists every war with both sides' progress toward their goals, the truces in force, and the fallen realms. From there you can:
 

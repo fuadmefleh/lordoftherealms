@@ -504,11 +504,21 @@ export const KingdomAI = {
     // RESTORATION — fallen realms rise again
     // ══════════════════════════════════════════════
 
-    RESTORATION: { unrest: 45, chance: 0.003, minDays: 120, radius: 2 },
+    // Daily chance per old town = chance × (calm − occupier stability) / 15,
+    // capped at 3× — none under a content occupier (stability ≥ calm).
+    // `unrest` marks a restless occupier (players funding a rising do better).
+    RESTORATION: { calm: 75, chance: 0.0015, maxScale: 3, unrest: 45, minDays: 120, radius: 2 },
+
+    /** Daily chance that an old town rises against an occupier at this stability. */
+    restorationChance(occupier) {
+        const R = KingdomAI.RESTORATION;
+        const stability = occupier.stability != null ? occupier.stability : 60;
+        return R.chance * Utils.clamp((R.calm - stability) / 15, 0, R.maxScale);
+    },
 
     /**
-     * A fallen kingdom's old settlement, held by an occupier with shaky
-     * stability, may throw off its rule and restore the old crown.
+     * A fallen kingdom's old settlement may throw off its occupier's rule and
+     * restore the old crown — likelier the less content the occupier's realm.
      */
     processRestorations(world) {
         const R = KingdomAI.RESTORATION;
@@ -522,8 +532,8 @@ export const KingdomAI = {
                 if (!live || live.formerKingdom !== fallen.id) continue;
                 const occupier = world.getKingdom(live.kingdom);
                 if (!occupier || !occupier.isAlive) continue;
-                if ((occupier.stability != null ? occupier.stability : 60) >= R.unrest) continue;
-                if (Utils.random() >= R.chance) continue;
+                const chance = KingdomAI.restorationChance(occupier);
+                if (chance <= 0 || Utils.random() >= chance) continue;
                 KingdomAI.restoreKingdom(fallen, occupier, { q: s.q, r: s.r, tile }, world);
                 break;
             }

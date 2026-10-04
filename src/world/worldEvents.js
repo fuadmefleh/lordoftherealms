@@ -594,6 +594,12 @@ export const WorldEvents = {
                     b.wars = (b.wars || []).filter(id => id !== a.id);
                     if (a.relations) a.relations[b.id] = Math.max(a.relations[b.id] || 0, -40);
                     if (b.relations) b.relations[a.id] = Math.max(b.relations[a.id] || 0, -40);
+                    // Same truce terms as a negotiated peace (KingdomAI.WAR.truceDays)
+                    const until = (world.day || 0) + 180;
+                    a.truces = { ...(a.truces || {}), [b.id]: until };
+                    b.truces = { ...(b.truces || {}), [a.id]: until };
+                    if (a.warState) delete a.warState[b.id];
+                    if (b.warState) delete b.warState[a.id];
                     ev.truce = true;
                 }
             }
@@ -648,6 +654,8 @@ export const WorldEvents = {
             const war = template.onStart === 'declareWar';
             const pool = world.kingdoms.filter(k => k.isAlive && k.id !== kingdom.id
                 && !(kingdom.wars || []).includes(k.id)
+                // no war while a peace treaty holds
+                && !(war && ((kingdom.truces || {})[k.id] || 0) > (world.day || 0))
                 // wars break out between realms already on poor terms
                 && (!war || (!(kingdom.allies || []).includes(k.id) && ((kingdom.relations || {})[k.id] || 0) <= 0)));
             if (pool.length === 0) return null;

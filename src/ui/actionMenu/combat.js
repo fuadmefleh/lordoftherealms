@@ -586,7 +586,9 @@ Object.assign(ActionMenu, {
 
         // Reputation boost scales with gift
         // A skilled diplomat (or House Chancellor) makes a gift go further
-        const repBoost = PlayerEffects.scaleReputationGain(player, Math.floor(giftAmount / 10));
+        // Diplomacy Mastery (allianceCost) — each gold of a gift buys more goodwill
+        const costMult = Technology.getAllianceCostMultiplier(player);
+        const repBoost = PlayerEffects.scaleReputationGain(player, Math.floor(giftAmount / (10 * costMult)));
         if (!player.reputation) player.reputation = {};
         player.reputation[kingdom.id] = (player.reputation[kingdom.id] || 0) + repBoost;
 
@@ -711,8 +713,10 @@ Object.assign(ActionMenu, {
         player.reputation[kingdom.id] = (player.reputation[kingdom.id] || 0) + 20;
 
         // If they were pledged elsewhere, that kingdom dislikes it
+        // Diplomacy Mastery (allianceCost) softens the old crown's resentment
+        const desertionPenalty = Math.round(15 * Technology.getAllianceCostMultiplier(player));
         if (oldAllegiance && oldAllegiance !== kingdom.id) {
-            player.reputation[oldAllegiance] = (player.reputation[oldAllegiance] || 0) - 15;
+            player.reputation[oldAllegiance] = (player.reputation[oldAllegiance] || 0) - desertionPenalty;
         }
 
         player.renown = (player.renown || 0) + 5;
@@ -727,7 +731,7 @@ Object.assign(ActionMenu, {
         if (oldAllegiance && oldAllegiance !== kingdom.id) {
             const oldKingdom = world.getKingdom(oldAllegiance);
             if (oldKingdom) {
-                html += `<div style="color:#ff6666;">📉 Reputation -15 with ${oldKingdom.name}</div>`;
+                html += `<div style="color:#ff6666;">📉 Reputation -${desertionPenalty} with ${oldKingdom.name}</div>`;
             }
         }
         html += `</div>`;

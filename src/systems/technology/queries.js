@@ -66,6 +66,8 @@ Object.assign(Technology, {
         }
         const plague = Technology.applyPlagueExposure(player, world);
         if (plague) out.plague = plague;
+        const colonyPlague = Technology.applyColonyPlague(player, world);
+        if (colonyPlague.length) out.colonyPlague = colonyPlague;
         return out;
     },
 
@@ -127,6 +129,36 @@ Object.assign(Technology, {
             world.events.push({ text: `☠️ The plague in ${plague.regionName || 'the region'} claims ${unitsLost} of your soldiers.`, type: 'disaster' });
         }
         return { healthLost, unitsLost, resistance };
+    },
+
+    /** Daily toll on a colony a plague reaches, before resistance. */
+    COLONY_PLAGUE: { populationLoss: 0.02, loyaltyLoss: 2 },
+
+    /**
+     * Plague reaching the player's colonies thins their settlers and shakes
+     * their loyalty each day; the player's plague resistance techs (medicine
+     * they bring to their people) cut both. Returns [{ name, lost, loyaltyLost }].
+     */
+    applyColonyPlague(player, world) {
+        const hits = [];
+        if (!Array.isArray(player.colonies) || !player.colonies.length) return hits;
+        if (!world || !world.activeEvents || !world.activeEvents.length || !world.getTile) return hits;
+        const exposure = 1 - Technology.getPlagueResistance(player);
+        for (const c of player.colonies) {
+            const tile = world.getTile(c.q, c.r);
+            const settlement = tile && tile.settlement;
+            if (!settlement) continue;
+            if (!WorldEvents.getEventsAt(world, tile).some(ev => ev.id === 'plague')) continue;
+            const lost = Math.floor((settlement.population || 0) * Technology.COLONY_PLAGUE.populationLoss * exposure);
+            settlement.population = Math.max(10, (settlement.population || 0) - lost);
+            let loyaltyLost = 0;
+            if (settlement.colony) {
+                loyaltyLost = Math.round(Technology.COLONY_PLAGUE.loyaltyLoss * exposure);
+                settlement.colony.loyalty = Math.max(0, (settlement.colony.loyalty || 0) - loyaltyLost);
+            }
+            hits.push({ name: settlement.name, lost, loyaltyLost });
+        }
+        return hits;
     },
 
     // ═══════════════════════════════════════

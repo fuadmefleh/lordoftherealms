@@ -1,7 +1,7 @@
 // PlayerEconomy — auctions members.
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
-import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure } from './_imports.js';
+import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, PlayerInventory } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
     _generateAuctionLot(player, world) {
@@ -63,8 +63,14 @@ Object.assign(PlayerEconomy, {
         const reward = lot.reward;
 
         if (reward.kind === 'item') {
-            if (!player.inventory) player.inventory = {};
-            player.inventory[reward.goodId] = (player.inventory[reward.goodId] || 0) + reward.amount;
+            // No room for a new kind of good: the auction house refunds the winning bid
+            const res = PlayerInventory.addItem(player, reward.goodId, reward.amount);
+            if (!res.success) {
+                player.gold = (player.gold || 0) + (lot.currentBid || 0);
+                lot.refunded = true;
+                lot.refundReason = res.reason;
+                return;
+            }
         } else if (reward.kind === 'artifact') {
             player.renown = (player.renown || 0) + (reward.renown || 0);
             if (!player.skills) player.skills = {};
@@ -151,7 +157,12 @@ Object.assign(PlayerEconomy, {
 
             if (lot.topBidder === 'player') {
                 PlayerEconomy._applyAuctionReward(player, world, lot);
-                events.push({
+                events.push(lot.refunded ? {
+                    eventType: 'auction',
+                    title: 'Auction Refunded',
+                    message: `You won ${lot.title}, but had no room to carry it — your ${lot.currentBid}g was refunded. ${lot.refundReason}`,
+                    severity: 'warning',
+                } : {
                     eventType: 'auction',
                     title: 'Auction Won!',
                     message: `${lot.title} secured for ${lot.currentBid}g. Reward: ${lot.reward.label}`,

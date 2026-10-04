@@ -971,7 +971,9 @@ Object.assign(ActionMenu, {
             const items = Object.entries(cargo.moved).map(([id, n]) => `${n} ${id.replace(/_/g, ' ')}`).join(', ');
             text += ` Brought ashore: ${items}.`;
         }
-        if (cargo.remaining > 0 && !isPort) {
+        if (cargo.packsFull) {
+            text += ` Your packs are full — ${Object.keys(cargo.leftAboard).map(id => id.replace(/_/g, ' ')).join(', ')} stays in the hold.`;
+        } else if (cargo.remaining > 0 && !isPort) {
             text += ` ${cargo.remaining} cargo stays aboard — without a dock the boat ferries only ${Ships.LANDING_BOAT_CAPACITY} a day (use Ship's Hold).`;
         }
         return text;
@@ -1099,6 +1101,7 @@ Object.assign(ActionMenu, {
 
         const after = (result) => {
             if (!result.success) game.ui.showNotification("Ship's Hold", result.message, 'error');
+            else if (result.cargo && result.cargo.packsFull) game.ui.showNotification("Ship's Hold", 'Your packs are full — sell or drop something to make room.', 'warning');
             game.ui.updateStats(player, world);
             ActionMenu.showShipHoldMenu(game, ship.id);
         };

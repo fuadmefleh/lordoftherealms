@@ -1,7 +1,7 @@
 // PlayerEconomy — property members.
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
-import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerEffects } from './_imports.js';
+import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerEffects, PlayerInventory } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
     /**
@@ -493,9 +493,9 @@ Object.assign(PlayerEconomy, {
             // Taverns pay out gold directly — their storage only tallies earnings
             if (!property.produces || property.produces === 'gold' || property.storage <= 0) continue;
 
-            // Move from property storage to player inventory
+            // Move from property storage to player inventory (stays put if the packs are full)
             const goodType = property.produces;
-            player.inventory[goodType] = (player.inventory[goodType] || 0) + property.storage;
+            if (!PlayerInventory.addItem(player, goodType, property.storage).success) continue;
             collected[goodType] = (collected[goodType] || 0) + property.storage;
             property.storage = 0;
         }

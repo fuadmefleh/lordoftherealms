@@ -72,7 +72,7 @@ const BONUS_LABELS = {
     tradeBonus: '⚖️ Trade', caravanProfitBonus: '🐪 Caravans', diplomacy: '🗣️ Diplomacy', relations: '🤝 Relations',
     stability: '🏛️ Stability', loyalty: '👑 Loyalty', expansion: '🗺️ Expansion', construction: '🔨 Construction',
     population: '👥 Growth', intrigue: '🕵️ Intrigue', research: '📚 Research', culture: '🎭 Culture',
-    faith: '🙏 Faith', heirs: '👶 Heirs', rulerHealth: '🩺 Ruler health',
+    faith: '🙏 Faith', heirs: '👶 Heirs', rulerHealth: '🩺 Ruler health', visionRadius: '🧭 Scouting',
 };
 
 export const KingdomBonuses = {

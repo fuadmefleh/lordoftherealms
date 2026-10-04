@@ -4,6 +4,7 @@
 
 import { Utils } from '../core/utils.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
+import { PlayerInventory } from '../core/inventory.js';
 
 
 export const Quests = {
@@ -608,10 +609,9 @@ export const Quests = {
         }
 
         if (rewards.items) {
-            if (!player.inventory) player.inventory = {};
-            for (const [item, n] of Object.entries(rewards.items)) {
-                player.inventory[item] = (player.inventory[item] || 0) + n;
-            }
+            // Goods that won't fit in full packs are sold on the spot
+            const res = PlayerInventory.addOrSell(player, rewards.items);
+            if (res.gold > 0) quest.overflowSold = { items: res.sold, gold: res.gold };
         }
 
         return rewards;

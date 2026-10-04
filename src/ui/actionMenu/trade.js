@@ -104,15 +104,18 @@ Object.assign(ActionMenu, {
     collectGoods(game, tile) {
         if (!game.player.inventory) game.player.inventory = {};
         const parts = [];
+        let full = false;
         for (const prop of PlayerEconomy.getPropertiesAt(tile)) {
             // Taverns pay out directly; their storage only tallies earnings
             if (!prop.produces || prop.produces === 'gold' || !(prop.storage > 0)) continue;
             const good = prop.produces;
-            game.player.inventory[good] = (game.player.inventory[good] || 0) + prop.storage;
+            // No room for a new kind of good — it waits in the property's storage
+            if (!PlayerInventory.addItem(game.player, good, prop.storage).success) { full = true; continue; }
             const goodDef = PlayerEconomy.GOODS[good.toUpperCase()];
             parts.push(`${prop.storage} ${goodDef ? goodDef.name : good}`);
             prop.storage = 0;
         }
+        if (full) game.ui.showNotification('🎒 Packs Full', `Some goods stay in storage. ${PlayerInventory.fullMessage(game.player)}`, 'warning');
         if (parts.length === 0) return;
 
         game.ui.showNotification('Goods Collected', `Collected ${parts.join(', ')}`, 'success');

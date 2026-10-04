@@ -208,7 +208,6 @@ Object.assign(UI.prototype, {
             // and the realm's stability — all of these feed the kingdom AI
             let bonusHtml = '';
             const bonusList = KingdomBonuses.summary(kingdom)
-                .filter(b => b.key !== 'visionRadius')
                 .map(b => `${b.label} ${b.value > 0 ? '+' : ''}${(b.value * 100).toFixed(0)}%`);
             if (bonusList.length > 0) {
                 bonusHtml = `<div style="font-size:10px;color:var(--text-secondary);margin-top:4px;">${bonusList.join(' · ')}</div>`;

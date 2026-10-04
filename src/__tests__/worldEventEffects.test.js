@@ -158,7 +158,8 @@ describe('kingdom economy reads event effects', () => {
         for (let d = 0; d < 20; d++) {
             for (const w of [base, boom, famine]) KingdomAI.updateEconomy(w.k1, w);
         }
-        expect(base.s1.population).toBe(2000);
+        // The food model itself moves the base town only slightly
+        expect(Math.abs(base.s1.population - 2000)).toBeLessThan(20);
         expect(boom.s1.population).toBeGreaterThan(base.s1.population);
         expect(famine.s1.population).toBeLessThan(base.s1.population);
     });

@@ -162,6 +162,65 @@ export const Economy = {
     },
 
     /**
+     * Food model. Most people grow their own food (subsistence), so only the
+     * gap is felt: villages run a small surplus, cities a deficit they cover
+     * by buying food with their own gold. Growth slows towards a size cap per
+     * settlement type; real shortfalls (broke and hungry) shrink the place.
+     */
+    FOOD: {
+        perCapita: 0.1,                // food eaten per person per day
+        selfSufficiency: { village: 1.0, town: 0.92, city: 0.82, capital: 0.75 },
+        capacity: { village: 1500, town: 5000, city: 15000, capital: 30000 },
+        importPrice: 0.5,              // gold per unit of food bought in
+        maxGrowth: 0.0003,             // per day, before the capacity taper
+        starvation: 0.003,             // daily loss at a 100% shortfall
+        stockDays: 10,                 // granary holds this many days' needs
+    },
+
+    /** Feed a settlement for one day and grow or shrink its population. */
+    _feedPopulation(settlement, mods = {}) {
+        const F = Economy.FOOD;
+        const econ = settlement.economy;
+        const pop = Math.max(0, settlement.population || 0);
+        if (pop <= 0) return;
+        const type = F.capacity[settlement.type] ? settlement.type : 'village';
+
+        // Refugee waves and similar raise consumption
+        const needed = pop * F.perCapita * Math.max(0, 1 + (mods.consumption || 0));
+        let available = econ.food + pop * F.perCapita * F.selfSufficiency[type];
+
+        // Short? Buy food in with the settlement's own gold
+        if (available < needed && econ.gold > 0) {
+            const buy = Math.min(needed - available, Math.floor(econ.gold / F.importPrice));
+            if (buy > 0) {
+                econ.gold -= Math.ceil(buy * F.importPrice);
+                econ.foodImported = (econ.foodImported || 0) + buy;
+                available += buy;
+            }
+        }
+
+        const surplus = available - needed;
+        let change = 0;
+        if (surplus > 0) {
+            const cap = F.capacity[type];
+            const taper = Math.max(0, 1 - pop / cap);
+            const rate = Math.min(surplus / pop, F.maxGrowth) * taper * Math.max(0, 1 + (mods.growth || 0));
+            if (rate > 0) change = pop * rate;
+        } else if (surplus < 0) {
+            change = -pop * F.starvation * (-surplus / needed);
+        }
+        // Daily change is often a fraction of a person; carry it over so small
+        // places still grow (and starve) instead of rounding to nothing
+        const total = (econ.popCarry || 0) + change;
+        const whole = Math.trunc(total);
+        econ.popCarry = total - whole;
+        if (whole !== 0) settlement.population = Math.max(10, pop + whole);
+
+        // What isn't eaten goes to the granary (bounded)
+        econ.food = Math.min(Math.max(0, surplus), needed * F.stockDays);
+    },
+
+    /**
      * Process one day of production for a settlement
      * @param {Object} [playerBonuses] - { colonyFood } from the player's techs,
      *   applied to the player's own colonies only
@@ -197,22 +256,7 @@ export const Economy = {
         // Legacy compatibility
         settlement.economy.goods += prod.goods;
 
-        // Population growth based on food surplus
-        // Each person needs 0.1 food/day (refugee waves raise it)
-        const foodConsumption = settlement.population * 0.1 * Math.max(0, 1 + (mods.consumption || 0));
-        const foodSurplus = settlement.economy.food - foodConsumption;
-
-        if (foodSurplus > 0) {
-            // Grow population slowly (max 0.1% per day, scaled by growth modifiers)
-            const growthRate = Math.min(foodSurplus / settlement.population, 0.001) * Math.max(0, 1 + (mods.growth || 0));
-            settlement.population = Math.floor(settlement.population * (1 + growthRate));
-        } else if (foodSurplus < -foodConsumption * 0.5) {
-            // Shrink population if severe food shortage
-            settlement.population = Math.floor(settlement.population * 0.999);
-        }
-
-        // Consume food
-        settlement.economy.food = Math.max(0, settlement.economy.food - foodConsumption);
+        Economy._feedPopulation(settlement, mods);
 
         return settlement.economy;
     },

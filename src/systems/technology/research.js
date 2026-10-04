@@ -1,6 +1,7 @@
 // Technology — research members (split from the original monolith).
 import { Technology } from './_ref.js';
 import { PlayerEconomy, PlayerMilitary } from './_imports.js';
+import { PlayerInventory } from '../../core/inventory.js';
 
 Object.assign(Technology, {
     // ═══════════════════════════════════════
@@ -379,9 +380,11 @@ Object.assign(Technology, {
             const partsType = crafting.partsType;
             const quantity = crafting.quantity;
 
-            // Add parts to inventory
-            if (!player.inventory) player.inventory = {};
-            player.inventory[partsType] = (player.inventory[partsType] || 0) + quantity;
+            // Finished parts wait at the workshop until the packs have room
+            crafting.progress = crafting.totalDays;
+            if (!PlayerInventory.addItem(player, partsType, quantity).success) {
+                return { completed: false, waitingForRoom: true, partsType, quantity, message: PlayerInventory.fullMessage(player) };
+            }
 
             player.technology.currentCrafting = null;
 

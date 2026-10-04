@@ -10,6 +10,7 @@ import { Economy } from './economy.js';
 import { Kingdom } from './kingdom.js';
 import { Infrastructure } from '../systems/infrastructure.js';
 import { WorldUnit } from './units.js';
+import { KingdomBonuses } from './kingdomState.js';
 
 export const Colonization = {
 
@@ -425,12 +426,15 @@ export const Colonization = {
             if (kingdom.colonization.colonies.length >= 5) continue; // max 5 AI colonies
             if (kingdom.colonization.pioneersActive >= 2) continue;
 
-            // Find a target: unclaimed passable tile far from capital but reachable
-            const targetDist = Utils.randInt(10, 20);
+            // Find a target: unclaimed passable tile far from capital but reachable.
+            // Explorer rulers (visionRadius) scout further and survey more sites.
+            const vision = Math.max(0, KingdomBonuses.get(kingdom, 'visionRadius'));
+            const targetDist = Utils.randInt(10, Math.round(20 * (1 + vision)));
+            const attempts = Math.round(40 * (1 + vision));
             let bestTarget = null;
             let bestScore = -Infinity;
 
-            for (let attempt = 0; attempt < 40; attempt++) {
+            for (let attempt = 0; attempt < attempts; attempt++) {
                 const angle = Utils.random() * Math.PI * 2;
                 const tq = Math.round(kingdom.capital.q + Math.cos(angle) * targetDist);
                 const tr = Math.round(kingdom.capital.r + Math.sin(angle) * targetDist * 0.75);

@@ -1,7 +1,7 @@
 // PlayerEconomy — caravans members.
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
-import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents } from './_imports.js';
+import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerInventory } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
     /**
@@ -289,9 +289,9 @@ Object.assign(PlayerEconomy, {
                         if (dest) {
                             dest.inputStorage = (dest.inputStorage || 0) + qty;
                         } else {
-                            // Recipe changed en route — hand the goods to the player rather than lose them
-                            if (!player.inventory) player.inventory = {};
-                            player.inventory[goodId] = (player.inventory[goodId] || 0) + qty;
+                            // Recipe changed en route — hand the goods to the player rather than
+                            // lose them (sold on the spot if the packs have no room)
+                            PlayerInventory.addOrSell(player, { [goodId]: qty });
                         }
                     }
                     completed.push({ ...caravan, finalProfit: 0 });
@@ -460,8 +460,9 @@ Object.assign(PlayerEconomy, {
             // Return old input storage to player inventory
             if (prop.inputStorage > 0 && prop.activeRecipe) {
                 const oldRecipe = PlayerEconomy.RECIPES[prop.activeRecipe];
-                if (oldRecipe && player.inventory) {
-                    player.inventory[oldRecipe.input] = (player.inventory[oldRecipe.input] || 0) + prop.inputStorage;
+                if (oldRecipe) {
+                    // Returned to the packs, or sold off if there's no room for it
+                    PlayerInventory.addOrSell(player, { [oldRecipe.input]: prop.inputStorage });
                 }
                 prop.inputStorage = 0;
             }

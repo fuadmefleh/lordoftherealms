@@ -91,6 +91,7 @@ Object.assign(ActionMenu, {
             return;
         }
 
+        const oldAllegiance = game.player.allegiance;
         const result = game.player.pledgeAllegiance(settlement.kingdom, game.world);
         if (result.success) {
             const kingdom = result.kingdom;
@@ -98,8 +99,16 @@ Object.assign(ActionMenu, {
             if (game.player.reputation) {
                 game.player.reputation[settlement.kingdom] = (game.player.reputation[settlement.kingdom] || 0) + 5;
             }
+            // Deserting another crown costs standing there (softened by Diplomacy Mastery)
+            let desertion = '';
+            if (oldAllegiance && oldAllegiance !== settlement.kingdom && game.player.reputation) {
+                const penalty = Math.round(15 * Technology.getAllianceCostMultiplier(game.player));
+                game.player.reputation[oldAllegiance] = (game.player.reputation[oldAllegiance] || 0) - penalty;
+                const old = game.world.getKingdom(oldAllegiance);
+                desertion = ` ${old ? old.name : 'Your former realm'} resents the desertion (−${penalty} reputation).`;
+            }
             game.ui.showNotification('⚔️ Allegiance Pledged',
-                `You have sworn allegiance to ${kingdom.name}. You are now a citizen of the realm. +5 reputation.`, 'success');
+                `You have sworn allegiance to ${kingdom.name}. You are now a citizen of the realm. +5 reputation.${desertion}`, 'success');
             game.ui.updateStats(game.player, game.world);
         } else {
             game.ui.showNotification('Cannot Pledge', result.reason, 'error');

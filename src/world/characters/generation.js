@@ -353,7 +353,7 @@ Object.assign(Characters, {
             relations: 0,          // diplomacy drift
             caravanProfitBonus: 0, // trade-route founding
             rulerHealth: 0,        // ruler illness/recovery
-            visionRadius: 0,       // kept for the trait tooltip; kingdoms have no fog of war
+            visionRadius: 0,       // Explorer: scouts colony sites further afield (colonization.js)
         };
 
         if (!kingdom.characterData) return bonuses;

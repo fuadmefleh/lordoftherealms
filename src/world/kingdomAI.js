@@ -117,6 +117,8 @@ export const KingdomAI = {
             });
 
             if (tile.settlement) {
+                // The food model's growth or hunger sticks to the real settlement
+                tile.settlement.population = settlement.population;
                 // Lasting drift of the real settlement: gold rushes and refugee
                 // waves swell it, plagues and strained granaries shrink it,
                 // healers and stewards help (0.1%/day per +1.0 of modifier)

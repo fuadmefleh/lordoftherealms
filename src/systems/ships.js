@@ -2,6 +2,7 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
 import { Utils } from '../core/utils.js';
+import { PlayerInventory } from '../core/inventory.js';
 import { Quests } from './quests.js';
 import { Technology } from './technology.js';
 import { WorldEvents } from '../world/worldEvents.js';
@@ -589,6 +590,7 @@ export const Ships = {
      */
     unloadCargo(ship, player, maxUnits = Infinity, itemId = null) {
         const moved = {};
+        const leftAboard = {};
         let budget = maxUnits;
         let total = 0;
         if (!player.inventory) player.inventory = {};
@@ -597,6 +599,8 @@ export const Ships = {
             if (itemId && item !== itemId) continue;
             const take = Math.min(qty, budget);
             if (take <= 0) continue;
+            // A new kind of good needs a free slot in the packs; otherwise it stays aboard
+            if (!PlayerInventory.canAdd(player, item)) { leftAboard[item] = qty; continue; }
             ship.cargo[item] = qty - take;
             if (ship.cargo[item] <= 0) delete ship.cargo[item];
             player.inventory[item] = (player.inventory[item] || 0) + take;
@@ -604,7 +608,7 @@ export const Ships = {
             budget -= take;
             total += take;
         }
-        return { moved, total, remaining: this.getCargoUsed(ship) };
+        return { moved, total, remaining: this.getCargoUsed(ship), leftAboard, packsFull: Object.keys(leftAboard).length > 0 };
     },
 
     /**

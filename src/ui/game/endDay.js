@@ -588,9 +588,25 @@ export function endDay() {
             if (playerResults.craftingUpdate) {
                 if (playerResults.craftingUpdate.completed) {
                     this.ui.showNotification('Crafting Complete!', `🔧 ${playerResults.craftingUpdate.quantity}x parts crafted and added to inventory!`, 'success');
+                } else if (playerResults.craftingUpdate.waitingForRoom) {
+                    this.ui.showNotification('🔧 Parts Ready', `Your ${playerResults.craftingUpdate.quantity}x parts are finished but waiting at the workshop. ${playerResults.craftingUpdate.message}`, 'warning');
                 } else if (playerResults.craftingUpdate.remaining) {
                     if (playerResults.craftingUpdate.remaining <= 1) {
                         this.ui.showNotification('Crafting', `Parts almost ready! 1 day remaining`, 'info');
+                    }
+                }
+            }
+
+            // Plague — on the player, their soldiers, and their colonies
+            const td = playerResults.techDaily;
+            if (td && td.plague && td.plague.healthLost > 0) {
+                const resist = td.plague.resistance > 0 ? ` Your medicine spared you ${Math.round(td.plague.resistance * 100)}% of it.` : '';
+                this.ui.showNotification('☠️ Plague', `The sickness here costs you ${td.plague.healthLost} health${td.plague.unitsLost ? ` and ${td.plague.unitsLost} soldier(s)` : ''}.${resist}`, 'warning');
+            }
+            if (td && td.colonyPlague) {
+                for (const hit of td.colonyPlague) {
+                    if (hit.lost > 0 || hit.loyaltyLost > 0) {
+                        this.ui.showNotification('☠️ Plague in ' + hit.name, `${hit.lost} settlers died and loyalty fell by ${hit.loyaltyLost}.`, 'warning');
                     }
                 }
             }
@@ -648,7 +664,8 @@ export function endDay() {
             // Check for completed quests
             const completedQuests = Quests.updateProgress(this.player, this.world);
             for (const quest of completedQuests) {
-                this.ui.showNotification('Quest Complete!', `${quest.title} — Rewards: ${Quests.describeRewards(quest.rewards)}`, 'success');
+                const sold = quest.overflowSold ? ` (no room in your packs — sold for ${quest.overflowSold.gold}g)` : '';
+                this.ui.showNotification('Quest Complete!', `${quest.title} — Rewards: ${Quests.describeRewards(quest.rewards)}${sold}`, 'success');
                 // House Prestige for finishing a quest.
                 if (typeof House !== 'undefined') {
                     House.recordPlayerDeed(this.player, this.world, 'quest', { reason: `quest: ${quest.title}` });

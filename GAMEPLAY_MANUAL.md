@@ -200,7 +200,7 @@ Every settlement has a market where you can buy and sell goods. Prices vary by s
 
 Prices are also affected by local supply and demand, terrain resources, and world events. Each trade earns +0.1 Commerce skill.
 
-**Carrying capacity.** Your packs hold **20 kinds of goods** (stacks are unlimited — 300 grain is one slot). A mount adds +5 slots and each house you own adds +3. When full, you can still add to goods you already carry, but new goods are refused (purchases fail without charging you; battle loot, gathered finds and ground items that don't fit are left behind; crafting is cancelled with ingredients returned). The Inventory panel shows `Packs: used/capacity`.
+**Carrying capacity.** Your packs hold **20 kinds of goods** (stacks are unlimited — 300 grain is one slot). A mount adds +5 slots and each house you own adds +3. When full, you can still add to goods you already carry, but new goods are refused (purchases fail without charging you; battle loot, gathered finds and ground items that don't fit are left behind; crafting is cancelled with ingredients returned). The Inventory panel shows `Packs: used/capacity`. Goods you're owed are never silently lost: quest rewards and stock returned from caravans or retooled workshops are sold on the spot at base price if they don't fit; an auction you win without room is refunded; collected property goods and ship cargo stay where they are; finished tech parts wait at the workshop until you make room.
 
 **Trading with townsfolk.** Merchants, travelers and blacksmiths you meet in a settlement set their own prices from how they feel about you. Disposition shifts prices up to ±20% (Devoted −20%, Hostile +20%), and personality adds to it: *generous* −8%, *kind* −5%, *jovial* −3%, *bold* +2%, *cautious* +3%, *stubborn* +4%, *stern* +5%. Their buy-back price moves the other way. Someone you threatened charges +10% and refuses to trade at all while their disposition is below 25. The trade window lists the reasons.
 
@@ -842,6 +842,8 @@ The game has **40 technologies** across **8 categories**, organized in tiers wit
 | Herbalism | 1 | 100g | 5 | +10% population growth, +15% plague resistance |
 | Surgery | 2 | 250g | 10 | −20% battle casualties; 30% of the fallen survive wounded |
 | Plague Prevention | 2 | 300g | 10 | +40% plague resistance |
+
+A plague over your tile costs you health and soldiers each day; one over your colonies kills 2% of their settlers and 2 loyalty a day. Plague resistance cuts all of it.
 | Hospital | 3 | 400g | 14 | +25% population growth, unlocks Hospital |
 
 While a **Plague Outbreak** rages over the realm you stand in, you lose 6 health a day and each soldier has a 4% daily chance to die. Plague resistance (Herbalism + Plague Prevention = 55%, max 90%) cuts both by that share.
@@ -1635,4 +1637,8 @@ Click on your character or nearby hexes to open the **contextual radial action m
 Each day on the road together also raises your relationship with every companion by 1.
 
 **Rumours of your crimes.** When gossip about a crime reaches a settlement, its guards may turn hostile and its crown may post a bounty on you. If the rumour is bad enough, the settlement **bans** you. The worst crimes bring a **warrant** that covers the whole kingdom. While you're banned or wanted, merchants, taverns, recruiters and officials turn you away. Only the guard tower will still deal with you, so you can settle your record there. Bounties and warrants lapse after 90 days if you don't pay them.
+
+**Settlement food.** Most townsfolk grow their own food, so only the gap matters: villages run a small surplus and grow slowly towards a size cap (village 1,500 · town 5,000 · city 15,000 · capital 30,000); towns and cities buy their shortfall with their own gold. A settlement that is both short of food and broke starves and shrinks, gradually.
+
+**Diplomacy Mastery** also makes gifts to lords buy more goodwill and softens a former crown's anger when you pledge to another. **Explorer** rulers scout further afield and survey more sites when founding colonies.
 

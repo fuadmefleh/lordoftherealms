@@ -22,7 +22,7 @@ const topLevel = [
     'kingdomAI', 'kingdoms', 'market', 'military', 'npcLords', 'objects',
     'peoples', 'playerEconomy', 'quests', 'relationships', 'religion',
     'ships', 'tavern', 'technology', 'terrain', 'titles', 'units', 'worldEvents',
-    'gossip', 'traits'
+    'gossip', 'traits', 'petitions'
 ];
 
 const merged = {};

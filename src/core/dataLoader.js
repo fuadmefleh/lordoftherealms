@@ -462,6 +462,12 @@ export const DataLoader = {
             }
         }
 
+        // ── Petitions & Court (read lazily by systems/petitions.js) ──
+        const petitionsData = data['petitions.json'];
+        if (petitionsData) {
+            DataLoader.petitions = petitionsData;
+        }
+
         // ── Gossip / Rumor System ──
         const gossipData = data['gossip.json'];
         if (gossipData) {

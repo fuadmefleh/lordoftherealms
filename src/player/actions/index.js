@@ -25,6 +25,7 @@ import { PlayerMilitary } from '../playerMilitary.js';
 import { PlayerReligion } from '../playerReligion.js';
 import { Quests } from '../../systems/quests.js';
 import { Achievements } from '../../systems/achievements.js';
+import { Petitions } from '../../systems/petitions.js';
 
 import { RealmPolitics } from '../realmPolitics.js';
 import { addSettlementActions } from './settlementActions.js';
@@ -193,6 +194,19 @@ export const PlayerActions = {
                     description: `Attempt to capture ${criminalTarget.targetName} (${criminalTarget.notoriety || 'wanted'}, difficulty ${criminalTarget.difficulty}).`
                 });
             }
+        }
+
+        // Court — hear the petitions brought to your holdings
+        if (Petitions.canHoldCourtAt(player, world, tile)) {
+            const waiting = Petitions.pending(player).length;
+            actions.push({
+                type: 'hold_court',
+                label: waiting ? `Hold Court (${waiting} waiting)` : 'Hold Court',
+                icon: '⚖️',
+                description: waiting
+                    ? `${waiting} petition(s) await your ruling — each choice has a price, and ignoring them does too`
+                    : 'Review your court: past rulings and the reputation they earned you'
+            });
         }
 
         // ── Shared tile context ──

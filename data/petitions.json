@@ -1,0 +1,730 @@
+{
+  "_comment": "Petitions & Court — dilemmas petitioners bring to the player's holdings. See src/systems/petitions.js for the schema and the effect-key registry. Tokens in text: {name} {name2} {settlement} {kingdom} {people} {rivalPeople} {faith} {house} {rival} {prior} {priorChoice}.",
+  "config": {
+    "firstDelay": 3,
+    "cadenceMin": 6,
+    "cadenceMax": 12,
+    "cadencePerHolding": 1,
+    "cadenceFloor": 3,
+    "maxPending": 3,
+    "defaultExpiry": 10,
+    "repeatCooldown": 45,
+    "historyCap": 20,
+    "courtCap": 20,
+    "housePrestige": 20,
+    "opinionCap": 15
+  },
+  "courtAxes": {
+    "mercy": { "name": "Mercy", "icon": "🕊️" },
+    "severity": { "name": "Severity", "icon": "⛓️" },
+    "justice": { "name": "Justice", "icon": "⚖️" },
+    "piety": { "name": "Piety", "icon": "🙏" },
+    "generosity": { "name": "Generosity", "icon": "🎁" }
+  },
+  "names": {
+    "given": ["Aldric", "Bertha", "Cedric", "Dagny", "Edmund", "Freya", "Gareth", "Hilde", "Ivo", "Jorun", "Kasimir", "Lena", "Marek", "Nessa", "Oswin", "Petra", "Quill", "Rowena", "Sigurd", "Tamsin", "Ulric", "Vera", "Wulfric", "Yrsa"],
+    "family": ["Ashford", "Brook", "Coldwell", "Dunmore", "Elm", "Fairweather", "Greaves", "Holt", "Ironside", "Marsh", "Oakes", "Pike", "Redmane", "Stone", "Thorne", "Underhill", "Vane", "Wick"]
+  },
+  "petitions": {
+    "land_dispute": {
+      "title": "The Moved Boundary Stone",
+      "icon": "🌾",
+      "text": "Two farmers of {settlement}, {name} and {name2}, each swear the other moved the boundary stone between their fields by night. The harvest of a whole strip hangs on your word.",
+      "requires": { "holding": ["settlement"] },
+      "weight": 3,
+      "expires": 8,
+      "ignore": { "result": "With no ruling, the quarrel turned to fists at the market cross.", "effects": { "happiness": -3, "court": { "justice": -1 } } },
+      "choices": [
+        { "id": "survey", "label": "Send a surveyor to find the true line", "effects": { "gold": -30, "happiness": 3, "court": { "justice": 2 } }, "result": "Your surveyor traces the old charter line. Both men grumble, but both accept it." },
+        { "id": "split", "label": "Split the strip down the middle", "effects": { "happiness": 1, "court": { "mercy": 1 } }, "result": "Neither man is satisfied — which the village takes as a fair sign." },
+        { "id": "seize", "label": "Declare the strip crown land", "effects": { "gold": 40, "happiness": -5, "faction": { "commons": -4 }, "court": { "severity": 1, "generosity": -1 } }, "result": "The strip is yours now. Both farmers curse you, for once in agreement." }
+      ]
+    },
+    "guild_monopoly": {
+      "title": "The Clothiers' Charter",
+      "icon": "🧵",
+      "text": "{name}, master of the clothiers' guild of {settlement}, lays a heavy purse before you. The guild asks for sole right to sell cloth in the town — no peddlers, no foreign bolts.",
+      "requires": { "holding": ["settlement", "office"], "minPopulation": 300 },
+      "weight": 2,
+      "expires": 10,
+      "ignore": { "result": "The guild takes your silence as contempt.", "effects": { "faction": { "merchants": -4 } } },
+      "choices": [
+        { "id": "grant", "label": "Grant the monopoly and take the purse", "effects": { "gold": 150, "happiness": -4, "faction": { "merchants": 8, "commons": -6 }, "court": { "generosity": -1 } }, "result": "The guild's purse is heavy. The price of cloth will soon be heavier.", "followUp": { "options": [{ "id": "guild_overreach", "weight": 1 }], "delay": [12, 20], "chance": 0.7 } },
+        { "id": "limited", "label": "Grant a five-year charter for a fee", "effects": { "gold": 70, "happiness": -1, "faction": { "merchants": 3 } }, "result": "A charter with an end date — the guild grumbles at the terms and pays." },
+        { "id": "refuse", "label": "Refuse: the market stays open", "effects": { "happiness": 3, "faction": { "merchants": -6, "commons": 4 }, "court": { "justice": 1 } }, "result": "The peddlers cheer. The guild masters do not." }
+      ]
+    },
+    "famine_plea": {
+      "title": "Empty Granaries",
+      "icon": "🥖",
+      "text": "A delegation from {settlement}, led by the reeve {name}, kneels in the snow. The stores will not last the season; children are already going hungry.",
+      "requires": { "holding": ["settlement"], "season": ["Autumn", "Winter"] },
+      "weight": 3,
+      "expires": 6,
+      "ignore": { "result": "No help came. Some starved; more left.", "effects": { "happiness": -8, "population": -20, "karma": -3, "loyalty": -4 } },
+      "choices": [
+        { "id": "open", "label": "Buy grain from the treasury", "effects": { "gold": -90, "happiness": 8, "loyalty": 5, "karma": 3, "faction": { "commons": 6 }, "court": { "generosity": 2 } }, "result": "Carts of grain roll into {settlement}. They will remember who fed them.", "chronicle": "{house} fed {settlement} through a hungry winter." },
+        { "id": "requisition", "label": "Requisition the merchants' stores", "effects": { "happiness": 5, "faction": { "merchants": -8, "commons": 4 }, "court": { "severity": 1, "justice": 1 } }, "result": "Your soldiers open the merchants' cellars. The poor eat; the merchants count their losses." },
+        { "id": "temples", "label": "Send the hungry to the temples' charity", "effects": { "gold": -20, "happiness": 2, "faction": { "clergy": 4 }, "court": { "piety": 1 } }, "result": "The priests feed whom they can. It is not enough, but it is something." },
+        { "id": "refuse", "label": "Refuse — the treasury is not a granary", "effects": { "happiness": -6, "population": -15, "karma": -3, "court": { "severity": 2, "generosity": -1 } }, "result": "The delegation leaves in silence. The winter does the rest." }
+      ]
+    },
+    "drought_plea": {
+      "title": "The Wells Run Dry",
+      "icon": "☀️",
+      "text": "The summer has been merciless around {settlement}. {name} asks that you pay diggers for a deep well before the cattle die.",
+      "requires": { "holding": ["settlement"], "season": ["Summer"] },
+      "weight": 2,
+      "expires": 8,
+      "ignore": { "result": "The cattle died in the dry fields.", "effects": { "happiness": -5, "gold": -10 } },
+      "choices": [
+        { "id": "dig", "label": "Pay for the deep well", "effects": { "gold": -70, "happiness": 6, "population": 10, "court": { "generosity": 1 } }, "result": "Sweet water at forty feet. {settlement} drinks to your health." },
+        { "id": "pray", "label": "Order prayers for rain", "requires": { "faith": true }, "effects": { "faction": { "clergy": 4 }, "faith": 3, "court": { "piety": 2 } }, "gamble": { "chance": 0.4, "success": { "effects": { "happiness": 5, "renown": 2 }, "result": "Rain falls three days later. The priests say it was you; you let them." }, "failure": { "effects": { "happiness": -4 }, "result": "The sky stays brass. The prayers are not answered." } }, "result": "Bells ring and censers swing across {settlement}." },
+        { "id": "share", "label": "Make the town share the old well by lot", "effects": { "happiness": -1, "court": { "justice": 1 } }, "result": "A fair rota, grimly kept." }
+      ]
+    },
+    "heretic_preacher": {
+      "title": "The Hedge Preacher",
+      "icon": "📢",
+      "text": "A wild-eyed preacher, {name}, draws crowds in the square of {settlement}, denouncing {faith} as a lie of the rich. The priests demand you silence him.",
+      "requires": { "holding": ["settlement", "office"], "faith": true },
+      "weight": 2,
+      "expires": 9,
+      "ignore": { "result": "Unchecked, the preacher's crowds grew — and so did the priests' anger.", "effects": { "faction": { "clergy": -5 }, "faith": -3, "stability": -1 } },
+      "choices": [
+        { "id": "expel", "label": "Expel him from the town", "effects": { "faction": { "clergy": 5 }, "happiness": -1, "faith": 2, "court": { "severity": 1, "piety": 1 } }, "result": "{name} is marched to the boundary stones. His followers watch in silence." },
+        { "id": "imprison", "label": "Imprison him for sedition", "effects": { "faction": { "clergy": 3 }, "stability": 2, "karma": -1, "happiness": -2, "court": { "severity": 2 } }, "result": "The cell door shuts. The square is quiet — for now." },
+        { "id": "tolerate", "label": "Let him preach — words are not crimes", "effects": { "faction": { "clergy": -6, "commons": 3 }, "happiness": 2, "karma": 1, "court": { "mercy": 2 } }, "result": "{name} goes on preaching, freely and loudly.", "followUp": { "options": [{ "id": "heretic_flock", "weight": 1 }], "delay": [10, 18], "chance": 0.8 } },
+        { "id": "debate", "label": "Debate him before the crowd", "effects": { "court": { "justice": 1 } }, "gamble": { "chance": 0.55, "success": { "effects": { "renown": 5, "faith": 5, "faction": { "clergy": 3 } }, "result": "You take his arguments apart one by one. The crowd laughs him out of town." }, "failure": { "effects": { "renown": -3, "faction": { "clergy": -4 }, "faith": -2 }, "result": "He is quicker than you. The crowd laughs — at you." } }, "result": "You climb the steps of the market cross." }
+      ]
+    },
+    "noble_sons_crime": {
+      "title": "A Noble Son's Crime",
+      "icon": "🗡️",
+      "text": "{name2}, the son of a landed family, killed a tanner of {settlement} in a drunken quarrel. Witnesses abound. His father begs mercy and hints at gratitude; the tanner's widow demands the rope.",
+      "requires": { "holding": ["settlement", "office"], "minPopulation": 150 },
+      "weight": 2,
+      "expires": 7,
+      "ignore": { "result": "You let it rot. The commons say the gallows are only for the poor.", "effects": { "happiness": -4, "faction": { "commons": -5 }, "court": { "justice": -2 } } },
+      "choices": [
+        { "id": "hang", "label": "Hang him — the law is the same for all", "effects": { "happiness": 5, "faction": { "nobility": -10, "commons": 8 }, "renown": 3, "rivalFeud": 6, "court": { "justice": 3, "severity": 1 } }, "result": "{name2} hangs at dawn. The commons cheer; the great families mark the day.", "chronicle": "{house} hanged a noble's son for murder in {settlement}.", "notable": true },
+        { "id": "bloodprice", "label": "Exact a blood-price for the widow", "effects": { "happiness": 1, "faction": { "nobility": -3, "commons": 2 }, "court": { "justice": 1, "mercy": 1 } }, "result": "The father pays the widow handsomely. No one is happy, which is how justice often feels." },
+        { "id": "bribe", "label": "Accept the father's 'gratitude'", "effects": { "gold": 160, "karma": -5, "happiness": -6, "faction": { "nobility": 6, "commons": -10 }, "court": { "justice": -3, "generosity": -1 } }, "result": "The purse is heavy and the boy walks free.", "followUp": { "prior": "name2", "options": [{ "id": "noble_son_again", "weight": 1 }], "delay": [14, 24], "chance": 0.75 } },
+        { "id": "pardon", "label": "Pardon him for his family's service", "effects": { "happiness": -4, "faction": { "nobility": 8, "commons": -8 }, "karma": -2, "court": { "mercy": 2, "justice": -2 } }, "result": "{name2} walks free with a lecture. The widow's curses follow you up the stairs.", "followUp": { "prior": "name2", "options": [{ "id": "noble_son_again", "weight": 1 }], "delay": [14, 24], "chance": 0.5 } }
+      ]
+    },
+    "refugees_at_gates": {
+      "title": "Refugees at the Gates",
+      "icon": "🧳",
+      "text": "Hundreds of refugees fleeing war have gathered outside {settlement}. Their spokeswoman, {name}, asks for shelter. The townsfolk eye them warily.",
+      "requires": { "holding": ["settlement"], "war": true },
+      "weight": 4,
+      "expires": 5,
+      "ignore": { "result": "The refugees camped at the walls until hunger and fever broke them up.", "effects": { "karma": -3, "happiness": -2, "renown": -2 } },
+      "choices": [
+        { "id": "admit", "label": "Open the gates", "effects": { "population": 60, "happiness": -3, "gold": -40, "karma": 4, "court": { "mercy": 2, "generosity": 1 } }, "result": "The refugees stream in, thin and grateful.", "followUp": { "options": [{ "id": "refugees_settled", "weight": 2 }, { "id": "refugees_unrest", "weight": 1 }], "delay": [15, 25] }, "chronicle": "{house} sheltered war refugees at {settlement}." },
+        { "id": "militia", "label": "Admit those who will serve in the militia", "effects": { "population": 35, "faction": { "military": 4 }, "gold": -15, "court": { "justice": 1 } }, "result": "The able-bodied take up spears; the rest move on." },
+        { "id": "turn_away", "label": "Turn them away", "effects": { "karma": -4, "happiness": 2, "court": { "severity": 2 } }, "result": "The gates stay shut. The column trudges on down the road." }
+      ]
+    },
+    "migrants_seek_land": {
+      "title": "Settlers Seek Land",
+      "icon": "🏡",
+      "text": "A band of landless families led by {name} asks leave to clear the woods beside {settlement} and settle there under your protection.",
+      "requires": { "holding": ["settlement"], "war": false },
+      "weight": 2,
+      "expires": 10,
+      "ignore": { "result": "The families moved on to a kinder lord.", "effects": { "renown": -1 } },
+      "choices": [
+        { "id": "grant", "label": "Grant them the woodland, tax-free for a year", "effects": { "population": 40, "happiness": 1, "court": { "generosity": 1 } }, "result": "Axes ring in the woods by {settlement}." },
+        { "id": "rent", "label": "Grant it, for rent", "effects": { "population": 25, "gold": 30 }, "result": "They agree to your terms, without enthusiasm." },
+        { "id": "refuse", "label": "The woods are for your hunting", "effects": { "faction": { "nobility": 2, "commons": -3 } }, "result": "The families leave. The deer remain." }
+      ]
+    },
+    "peoples_conflict": {
+      "title": "Quarrel of the Quarters",
+      "icon": "🏘️",
+      "text": "In {settlement}, the {people} and the {rivalPeople} have come to blows over the market well. Elders of both peoples stand before you, each demanding the other be punished.",
+      "requires": { "holding": ["settlement"], "peoples": 2 },
+      "weight": 3,
+      "expires": 7,
+      "ignore": { "result": "The quarters settled it themselves, with cudgels.", "effects": { "peoplesSentiment": -5, "rivalPeoplesSentiment": -5, "happiness": -3, "stability": -1 } },
+      "choices": [
+        { "id": "side_a", "label": "Side with the {people}", "effects": { "peoplesSentiment": 12, "rivalPeoplesSentiment": -12, "happiness": -1, "court": { "justice": -1 } }, "result": "The {people} rejoice. The {rivalPeople} will not forget." },
+        { "id": "side_b", "label": "Side with the {rivalPeople}", "effects": { "peoplesSentiment": -12, "rivalPeoplesSentiment": 12, "happiness": -1, "court": { "justice": -1 } }, "result": "The {rivalPeople} rejoice. The {people} will not forget." },
+        { "id": "second_well", "label": "Dig a second well for all", "effects": { "gold": -60, "peoplesSentiment": 5, "rivalPeoplesSentiment": 5, "happiness": 2, "court": { "justice": 1, "generosity": 1 } }, "result": "Two wells, and a fragile peace." },
+        { "id": "watch", "label": "Flog the brawlers of both quarters", "effects": { "peoplesSentiment": -3, "rivalPeoplesSentiment": -3, "stability": 2, "happiness": -2, "court": { "severity": 2 } }, "result": "Order returns at the end of a whip." }
+      ]
+    },
+    "peoples_festival_ban": {
+      "title": "A Foreign Rite",
+      "icon": "🎭",
+      "text": "The {people} of {settlement} wish to hold their ancestral rite in the streets. Townsfolk call it strange and unlucky, and {name} has gathered signatures to ban it.",
+      "requires": { "holding": ["settlement"], "peoples": 2 },
+      "weight": 2,
+      "expires": 8,
+      "ignore": { "result": "The rite went ahead amid jeers and thrown stones.", "effects": { "peoplesSentiment": -6, "happiness": -1 } },
+      "choices": [
+        { "id": "allow", "label": "Allow the rite, under the watch's protection", "effects": { "gold": -20, "peoplesSentiment": 10, "happiness": -2, "court": { "mercy": 1, "justice": 1 } }, "result": "Drums and masks fill the streets. Some townsfolk even join in." },
+        { "id": "ban", "label": "Ban it within the walls", "effects": { "peoplesSentiment": -10, "happiness": 2, "court": { "severity": 1 } }, "result": "The {people} hold their rite in a field outside, grieving." },
+        { "id": "join", "label": "Attend the rite yourself", "effects": { "peoplesSentiment": 14, "allPeoplesSentiment": 2, "renown": 2, "faction": { "clergy": -3 } }, "result": "Your presence silences the jeering. The {people} will speak of it for years.", "chronicle": "{house} honoured the rites of the {people} at {settlement}." }
+      ]
+    },
+    "bandit_surrender": {
+      "title": "The Bandit's Surrender",
+      "icon": "🏹",
+      "text": "{name}, a bandit captain who has plagued the roads near {settlement}, comes under a white flag. He offers to lay down arms — in exchange for a pardon for himself and his men.",
+      "requires": { "holding": ["settlement", "office", "house"] },
+      "weight": 3,
+      "expires": 6,
+      "ignore": { "result": "Unanswered, the bandits went back to the roads.", "effects": { "happiness": -3, "renown": -2 } },
+      "choices": [
+        { "id": "pardon", "label": "Pardon him and take his men into your guard", "effects": { "faction": { "military": -2 }, "karma": 2, "happiness": 1, "court": { "mercy": 3 } }, "result": "{name} kneels and swears to serve. Your sergeants look doubtful.", "followUp": { "options": [{ "id": "bandit_loyal", "weight": 2 }, { "id": "bandit_betrays", "weight": 1 }], "delay": [8, 16] }, "notable": true, "chronicle": "{house} pardoned the bandit {name} and took him into service." },
+        { "id": "hang", "label": "Seize and hang him", "effects": { "renown": 3, "happiness": 3, "karma": -2, "faction": { "commons": 2 }, "court": { "severity": 2, "justice": 1 } }, "result": "A white flag is no shield for a murderer. {name} hangs at the crossroads." },
+        { "id": "loot", "label": "Take his hoard and let him go", "effects": { "gold": 120, "karma": -3, "court": { "generosity": -2, "justice": -1 } }, "result": "The bandit's chest is heavy. He rides off lighter, and smiling.", "followUp": { "options": [{ "id": "bandit_raids_again", "weight": 1 }], "delay": [10, 18], "chance": 0.7 } }
+      ]
+    },
+    "temple_request": {
+      "title": "A Temple for {settlement}",
+      "icon": "⛪",
+      "text": "Father {name} of {faith} asks you to fund a proper temple in {settlement}. The faithful worship in a barn, he says, and the gods notice such things.",
+      "requires": { "holding": ["settlement"], "faith": true, "minPopulation": 80 },
+      "weight": 2,
+      "expires": 12,
+      "ignore": { "result": "The priest preached a sermon on ungrateful lords.", "effects": { "faction": { "clergy": -3 }, "faith": -1 } },
+      "choices": [
+        { "id": "temple", "label": "Fund a stone temple", "effects": { "gold": -150, "faction": { "clergy": 10 }, "faith": 8, "happiness": 5, "karma": 3, "prestige": 3, "court": { "piety": 3, "generosity": 1 } }, "result": "Masons arrive within the week. The faithful weep at the first stone.", "chronicle": "{house} raised a temple of {faith} in {settlement}.", "notable": true },
+        { "id": "shrine", "label": "Fund a modest shrine", "effects": { "gold": -50, "faction": { "clergy": 3 }, "faith": 3, "happiness": 2, "court": { "piety": 1 } }, "result": "A small shrine rises by the well." },
+        { "id": "tithe", "label": "Demand the priests tithe to you instead", "effects": { "gold": 40, "faction": { "clergy": -10 }, "karma": -2, "faith": -3, "court": { "piety": -2, "generosity": -1 } }, "result": "Father {name} pays, pale with fury." },
+        { "id": "refuse", "label": "Refuse politely", "effects": { "faction": { "clergy": -4 }, "happiness": -1 }, "result": "The priest bows stiffly and leaves." }
+      ]
+    },
+    "moneylender_debt": {
+      "title": "The Moneylender's Bond",
+      "icon": "💰",
+      "text": "{name2}, a moneylender of {settlement}, holds the bond of {name}, a cooper who cannot pay. By the letter of the contract the cooper's house and tools are forfeit.",
+      "requires": { "holding": ["settlement", "office"] },
+      "weight": 3,
+      "expires": 8,
+      "ignore": { "result": "The moneylender took the cooper's house. The town took note.", "effects": { "happiness": -2, "faction": { "commons": -2 } } },
+      "choices": [
+        { "id": "enforce", "label": "Enforce the contract", "effects": { "faction": { "merchants": 6, "commons": -5 }, "happiness": -2, "court": { "justice": 2, "mercy": -1 } }, "result": "A bond is a bond. The cooper's family moves in with his sister." },
+        { "id": "cancel", "label": "Cancel the debt by decree", "effects": { "faction": { "merchants": -8, "commons": 6 }, "happiness": 3, "court": { "mercy": 2, "justice": -1 } }, "result": "The moneylender tears the bond with shaking hands." },
+        { "id": "pay_half", "label": "Pay half from your purse and reschedule the rest", "effects": { "gold": -60, "faction": { "merchants": 2, "commons": 3 }, "happiness": 2, "karma": 1, "court": { "generosity": 2 } }, "result": "Both men leave with something. The town admires the compromise." },
+        { "id": "cap", "label": "Cap interest across the town", "effects": { "faction": { "merchants": -5, "commons": 5 }, "happiness": 2, "court": { "justice": 1 } }, "result": "Your decree is read in the square. The lenders draw up new contracts.", "followUp": { "prior": "name2", "options": [{ "id": "usury_backlash", "weight": 1 }], "delay": [10, 16], "chance": 0.5 } }
+      ]
+    },
+    "widow_inheritance": {
+      "title": "The Widow's Forge",
+      "icon": "⚒️",
+      "text": "The smith of {settlement} has died. His widow, {name}, means to keep the forge. His brother, {name2}, says custom gives it to him.",
+      "requires": { "holding": ["settlement"] },
+      "weight": 2,
+      "expires": 9,
+      "ignore": { "result": "The brother took the forge by force; the widow took to the road.", "effects": { "happiness": -2, "court": { "justice": -1 } } },
+      "choices": [
+        { "id": "widow", "label": "The forge is the widow's", "effects": { "happiness": 2, "karma": 1, "faction": { "nobility": -1 }, "court": { "justice": 2 } }, "result": "{name} relights the forge the same night." },
+        { "id": "brother", "label": "Custom gives it to the brother", "effects": { "faction": { "nobility": 2 }, "happiness": -1, "court": { "justice": -1 } }, "result": "Custom is satisfied. The widow is not." },
+        { "id": "sell", "label": "Sell the forge and split the price (less your fee)", "effects": { "gold": 25, "court": { "generosity": -1 } }, "result": "A new smith buys the forge. The family splits the coin and the grudge." }
+      ]
+    },
+    "soldiers_tavern_brawl": {
+      "title": "Soldiers Wreck a Tavern",
+      "icon": "🍺",
+      "text": "Men of the garrison smashed {name}'s tavern in {settlement} after a dispute over a dice game. The tavernkeeper wants compensation; the sergeant says his men were cheated.",
+      "requires": { "holding": ["settlement", "office"] },
+      "weight": 2,
+      "expires": 7,
+      "ignore": { "result": "The tavern stays shuttered and the soldiers swagger.", "effects": { "happiness": -3, "faction": { "commons": -2 } } },
+      "choices": [
+        { "id": "garrison_pays", "label": "Dock the soldiers' pay", "effects": { "faction": { "military": -5, "commons": 4 }, "happiness": 2, "court": { "justice": 2 } }, "result": "The men pay, and mutter." },
+        { "id": "treasury_pays", "label": "Pay from the treasury", "effects": { "gold": -40, "faction": { "military": 2 }, "happiness": 2, "court": { "generosity": 1 } }, "result": "The tavern reopens. The soldiers learn nothing." },
+        { "id": "flog", "label": "Flog the ringleaders", "effects": { "faction": { "military": -3 }, "stability": 1, "happiness": 1, "court": { "severity": 2 } }, "result": "Discipline is restored, publicly." }
+      ]
+    },
+    "witch_accusation": {
+      "title": "The Herbwoman Accused",
+      "icon": "🌿",
+      "text": "A child in {settlement} has sickened, and the mob blames {name}, an old herbwoman who lives by the mill. They drag her before you crying witchcraft.",
+      "requires": { "holding": ["settlement"] },
+      "weight": 2,
+      "expires": 4,
+      "ignore": { "result": "Left to itself, the mob decided. It was ugly.", "effects": { "karma": -4, "happiness": -2, "court": { "justice": -2 } } },
+      "choices": [
+        { "id": "protect", "label": "Take her under your protection", "effects": { "karma": 3, "happiness": -3, "faction": { "clergy": -4 }, "court": { "mercy": 2, "justice": 1 } }, "result": "The mob disperses, sullen. {name} bows deeply to you.", "followUp": { "options": [{ "id": "herbwoman_healer", "weight": 1 }], "delay": [8, 15], "chance": 0.8 } },
+        { "id": "banish", "label": "Banish her from the town", "effects": { "karma": -2, "happiness": 1, "faction": { "clergy": 3 }, "court": { "severity": 1 } }, "result": "{name} hobbles away down the north road." },
+        { "id": "trial", "label": "Hold a proper trial", "effects": { "gold": -15, "court": { "justice": 2 } }, "gamble": { "chance": 0.6, "success": { "effects": { "happiness": 2, "renown": 2 }, "result": "The physician shows the child ate bad mushrooms. The town is shamed and quiet." }, "failure": { "effects": { "happiness": -3 }, "result": "The trial finds nothing either way. Nobody is satisfied." } }, "result": "You summon witnesses and a physician." }
+      ]
+    },
+    "miners_strike": {
+      "title": "The Miners Lay Down Picks",
+      "icon": "⛏️",
+      "text": "The miners and quarrymen of {settlement} refuse to work. {name} speaks for them: the pay is a pittance and the tunnels kill a man a month.",
+      "requires": { "holding": ["settlement"], "minPopulation": 200 },
+      "weight": 2,
+      "expires": 7,
+      "ignore": { "result": "The strike dragged on; the town went without stone and ore.", "effects": { "gold": -40, "happiness": -3 } },
+      "choices": [
+        { "id": "raise", "label": "Raise their wages from your treasury", "effects": { "gold": -70, "happiness": 3, "faction": { "commons": 4 }, "court": { "generosity": 2 } }, "result": "The picks ring again." },
+        { "id": "promise", "label": "Promise a share of next season's profit", "effects": { "happiness": 2, "court": { "justice": 1 } }, "result": "The miners return to work on your word.", "followUp": { "options": [{ "id": "miners_promise", "weight": 1 }], "delay": [15, 25] } },
+        { "id": "break", "label": "Break the strike with the garrison", "effects": { "gold": 30, "happiness": -6, "karma": -2, "faction": { "merchants": 4, "commons": -6 }, "court": { "severity": 3 } }, "result": "Spears drive the miners back into the dark." }
+      ]
+    },
+    "deserter_caught": {
+      "title": "A Deserter Caught",
+      "icon": "🏃",
+      "text": "{name}, a young levy, ran from the war and was caught hiding in his mother's barn near {settlement}. The captains want an example made.",
+      "requires": { "holding": ["settlement", "office"], "war": true },
+      "weight": 3,
+      "expires": 5,
+      "ignore": { "result": "The captains carried out the sentence themselves, and despised you for not giving it.", "effects": { "faction": { "military": -4 }, "karma": -1 } },
+      "choices": [
+        { "id": "hang", "label": "Hang him as an example", "effects": { "faction": { "military": 6, "commons": -3 }, "karma": -2, "court": { "severity": 3 } }, "result": "The levies watch {name} hang. None desert that month." },
+        { "id": "front", "label": "Send him back to the front lines", "effects": { "faction": { "military": 2 }, "court": { "justice": 1 } }, "result": "{name} returns to the line under guard." },
+        { "id": "spare", "label": "Spare him — he is a boy", "effects": { "faction": { "military": -5, "commons": 3 }, "karma": 2, "court": { "mercy": 3 } }, "result": "His mother kisses your boots. The captains mutter about softness." }
+      ]
+    },
+    "war_levy_plea": {
+      "title": "Spare Us the Levy",
+      "icon": "🛡️",
+      "text": "With the harvest standing, the people of {settlement} beg exemption from the war levy. {name} says if the men march, the grain will rot.",
+      "requires": { "holding": ["settlement"], "war": true },
+      "weight": 3,
+      "expires": 6,
+      "ignore": { "result": "The levy was taken by default. Half the harvest rotted.", "effects": { "happiness": -5, "loyalty": -3 } },
+      "choices": [
+        { "id": "exempt", "label": "Exempt them", "effects": { "happiness": 5, "loyalty": 3, "faction": { "military": -6 }, "court": { "mercy": 1 } }, "result": "The men stay to reap. The captains count their thin ranks." },
+        { "id": "enforce", "label": "The levy stands", "effects": { "happiness": -6, "loyalty": -3, "faction": { "military": 5 }, "court": { "severity": 1, "justice": 1 } }, "result": "The men march. The women and old folk reap what they can." },
+        { "id": "mercs", "label": "Hire mercenaries in their place", "effects": { "gold": -100, "happiness": 3, "faction": { "military": 2 }, "court": { "generosity": 1 } }, "result": "Hired swords march in place of farmers." }
+      ]
+    },
+    "foreign_merchant_rights": {
+      "title": "A Foreign Merchant Prince",
+      "icon": "🐫",
+      "text": "{name}, a merchant prince from distant lands, asks for a warehouse and the right to trade freely in {settlement}, offering a gift of rare spices and silver.",
+      "requires": { "holding": ["settlement", "office"], "minPopulation": 400 },
+      "weight": 1,
+      "expires": 10,
+      "ignore": { "result": "The merchant prince took his caravans elsewhere.", "effects": { "faction": { "merchants": -2 } } },
+      "choices": [
+        { "id": "grant", "label": "Grant him free trade", "effects": { "gold": 90, "faction": { "merchants": -4 }, "reputation": 3, "happiness": 1 }, "result": "Spices and silks fill the market — and local merchants fume." },
+        { "id": "taxed", "label": "Grant it, with a heavy toll", "effects": { "gold": 40, "faction": { "merchants": 2 } }, "result": "He accepts, calculating." },
+        { "id": "refuse", "label": "Protect the local guilds", "effects": { "faction": { "merchants": 6 }, "reputation": -2 }, "result": "The local guilds toast your name." }
+      ]
+    },
+    "monastery_exemption": {
+      "title": "The Abbey's Exemption",
+      "icon": "📿",
+      "text": "The abbot of a {faith} abbey near {settlement} asks that its lands be freed from tax, that the brothers may feed the poor.",
+      "requires": { "holding": ["settlement", "office"], "faith": true },
+      "weight": 2,
+      "expires": 12,
+      "ignore": { "result": "The abbot complains to his superiors of your indifference.", "effects": { "faction": { "clergy": -3 } } },
+      "choices": [
+        { "id": "grant", "label": "Grant the exemption", "effects": { "gold": -40, "faction": { "clergy": 7 }, "faith": 3, "karma": 2, "court": { "piety": 2, "generosity": 1 } }, "result": "The abbey's bells ring in your honour." },
+        { "id": "refuse", "label": "Tax them like anyone else", "effects": { "gold": 30, "faction": { "clergy": -5 }, "court": { "justice": 1, "piety": -1 } }, "result": "The abbot pays, and prays for your soul with feeling." },
+        { "id": "bargain", "label": "Exempt them in exchange for a school", "effects": { "faction": { "clergy": 3, "commons": 3 }, "happiness": 2, "court": { "justice": 1 } }, "result": "The brothers will teach the town's children their letters." }
+      ]
+    },
+    "orphans": {
+      "title": "The Orphans of {settlement}",
+      "icon": "🧒",
+      "text": "Fever has left a dozen children orphaned in {settlement}. {name}, a washerwoman, has been feeding them from her own pot, and begs for help.",
+      "requires": { "holding": ["settlement"] },
+      "weight": 2,
+      "expires": 10,
+      "ignore": { "result": "The children scattered to the streets.", "effects": { "karma": -2, "happiness": -2 } },
+      "choices": [
+        { "id": "orphanage", "label": "Found an orphanage", "effects": { "gold": -70, "karma": 5, "happiness": 3, "prestige": 2, "court": { "generosity": 3, "mercy": 1 } }, "result": "A house with a hearth and a matron. The children have a home.", "chronicle": "{house} founded an orphanage in {settlement}." },
+        { "id": "temple", "label": "Give them to the temple's care", "effects": { "faction": { "clergy": 3 }, "karma": 1, "court": { "piety": 1 } }, "result": "The priests take them in." },
+        { "id": "apprentice", "label": "Bind them as apprentices", "effects": { "gold": 20, "karma": -2, "faction": { "merchants": 3 }, "court": { "generosity": -1 } }, "result": "The guilds get cheap hands; the children get a trade, eventually." }
+      ]
+    },
+    "poacher": {
+      "title": "The Poacher",
+      "icon": "🦌",
+      "text": "Your foresters have caught {name} with a deer on his shoulders. His family is starving, he says, and he had no other way.",
+      "requires": { "holding": ["settlement", "house"] },
+      "weight": 2,
+      "expires": 6,
+      "ignore": { "result": "The foresters let him go, and the woods filled with snares.", "effects": { "faction": { "nobility": -2 } } },
+      "choices": [
+        { "id": "hang", "label": "Hang him by forest law", "effects": { "faction": { "nobility": 4, "commons": -5 }, "karma": -3, "court": { "severity": 3 } }, "result": "Forest law is old and hard. {name} hangs." },
+        { "id": "fine", "label": "Fine him and keep the deer", "effects": { "gold": 10, "court": { "justice": 1 } }, "result": "He pays what he has." },
+        { "id": "gamekeeper", "label": "Hire him as a gamekeeper", "effects": { "gold": -10, "karma": 2, "court": { "mercy": 2 } }, "result": "Who better to catch poachers than a poacher?", "followUp": { "options": [{ "id": "gamekeeper_report", "weight": 1 }], "delay": [10, 18], "chance": 0.8 } }
+      ]
+    },
+    "festival_request": {
+      "title": "A Midsummer Feast",
+      "icon": "🎉",
+      "text": "The folk of {settlement} ask you to sponsor the midsummer feast — oxen, ale, musicians — as the old lords did.",
+      "requires": { "holding": ["settlement"], "season": ["Spring", "Summer"] },
+      "weight": 2,
+      "expires": 10,
+      "ignore": { "result": "The feast was a meagre affair, and they knew whom to blame.", "effects": { "happiness": -3 } },
+      "choices": [
+        { "id": "lavish", "label": "Sponsor a lavish feast", "effects": { "gold": -90, "happiness": 8, "renown": 3, "allPeoplesSentiment": 4, "faction": { "commons": 4 }, "prestige": 2, "court": { "generosity": 2 } }, "result": "The ale flows for three days. Songs are made about your table." },
+        { "id": "modest", "label": "Sponsor a modest feast", "effects": { "gold": -30, "happiness": 3 }, "result": "Bread, beer and a fiddler. It suffices." },
+        { "id": "refuse", "label": "Times are hard; no feast this year", "effects": { "happiness": -4, "court": { "generosity": -1 } }, "result": "The square stays quiet on midsummer night." }
+      ]
+    },
+    "disputed_match": {
+      "title": "A Match Across a Feud",
+      "icon": "💍",
+      "text": "{name}, the daughter of a family sworn to {house}, wishes to marry a son of {rival}. Her father asks whether the House forbids it.",
+      "requires": { "holding": ["house"], "rivals": true },
+      "weight": 2,
+      "expires": 12,
+      "ignore": { "result": "The lovers eloped. Both houses took offence.", "effects": { "prestige": -2, "rivalFeud": 3 } },
+      "choices": [
+        { "id": "bless", "label": "Bless the match", "effects": { "rivalFeud": -8, "prestige": 2, "faction": { "nobility": 2 }, "court": { "mercy": 1 } }, "result": "A wedding softens old grudges — a little.", "chronicle": "{house} blessed a marriage with {rival}, cooling an old feud." },
+        { "id": "forbid", "label": "Forbid it", "effects": { "rivalFeud": 2, "prestige": 1, "court": { "severity": 1 } }, "result": "The girl weeps; her father thanks you." },
+        { "id": "dowry", "label": "Bless it, and demand a dowry from {rival}", "effects": { "gold": 80, "rivalFeud": 4, "court": { "generosity": -1 } }, "result": "{rival} pays, with very bad grace." }
+      ]
+    },
+    "cousin_debts": {
+      "title": "The Cousin's Debts",
+      "icon": "🎲",
+      "text": "{name}, a cousin of {house}, has run up ruinous gambling debts in the name of the House. His creditors are at your door.",
+      "requires": { "holding": ["house"] },
+      "weight": 2,
+      "expires": 8,
+      "ignore": { "result": "The creditors spread word that {house} does not pay its debts.", "effects": { "prestige": -4, "renown": -2 } },
+      "choices": [
+        { "id": "pay", "label": "Pay the debts — the House's name is at stake", "effects": { "gold": -120, "prestige": 3, "court": { "generosity": 1 } }, "result": "The creditors are paid. {name} is lectured within an inch of his life." },
+        { "id": "disown", "label": "Disown him publicly", "effects": { "prestige": -3, "court": { "severity": 2 } }, "result": "{name} is struck from the House's rolls.", "followUp": { "options": [{ "id": "cousin_revenge", "weight": 1 }], "delay": [12, 20], "chance": 0.6 } },
+        { "id": "work", "label": "Make him work the debt off in your service", "effects": { "gold": -40, "prestige": 1, "court": { "justice": 2 } }, "result": "{name} becomes the House's least willing clerk." }
+      ]
+    },
+    "rival_herald_insult": {
+      "title": "A Herald's Insult",
+      "icon": "📯",
+      "text": "A herald of {rival} has read out a mocking verse about {house} in the great hall of {kingdom}. Your household waits to see how you answer.",
+      "requires": { "holding": ["house"], "rivals": true },
+      "weight": 2,
+      "expires": 6,
+      "ignore": { "result": "Silence was taken for weakness.", "effects": { "prestige": -3, "renown": -2 } },
+      "choices": [
+        { "id": "demand", "label": "Demand a public apology", "effects": { "rivalFeud": 8, "prestige": 3, "renown": 2, "court": { "severity": 1 } }, "result": "{rival} apologizes through gritted teeth." },
+        { "id": "laugh", "label": "Laugh it off", "effects": { "rivalFeud": -5, "prestige": -1, "karma": 1, "court": { "mercy": 1 } }, "result": "Your good humour wins some admirers — and some sneers." },
+        { "id": "verse", "label": "Answer with a sharper verse", "effects": { "rivalFeud": 4 }, "gamble": { "chance": 0.6, "success": { "effects": { "prestige": 6, "renown": 3 }, "result": "Your reply is repeated in every tavern. {rival} is the joke now." }, "failure": { "effects": { "prestige": -3 }, "result": "Your verse limps. The court winces." } }, "result": "You call for pen and ink." }
+      ]
+    },
+    "veterans_pension": {
+      "title": "The Old Soldiers",
+      "icon": "🎖️",
+      "text": "Grey veterans of old campaigns, led by {name}, ask for pensions. They bled for the realm, they say, and now beg in the streets of {settlement}.",
+      "requires": { "holding": ["settlement", "office"] },
+      "weight": 2,
+      "expires": 10,
+      "ignore": { "result": "The veterans told every recruit how the realm repays its soldiers.", "effects": { "faction": { "military": -4 } } },
+      "choices": [
+        { "id": "pension", "label": "Grant pensions", "effects": { "gold": -60, "faction": { "military": 6 }, "renown": 2, "court": { "generosity": 2 } }, "result": "The old soldiers salute you with shaking hands." },
+        { "id": "land", "label": "Grant them plots of land instead", "effects": { "population": 10, "faction": { "military": 3, "nobility": -2 }, "loyalty": 2, "court": { "generosity": 1 } }, "result": "Swords to ploughshares, literally." },
+        { "id": "refuse", "label": "Refuse — they were paid in their day", "effects": { "faction": { "military": -5 }, "karma": -1, "court": { "generosity": -1 } }, "result": "The veterans spit on the steps as they leave." }
+      ]
+    },
+    "plague_quarantine": {
+      "title": "Fever in the Lower Town",
+      "icon": "🤒",
+      "text": "{name}, a physician of {settlement}, warns that a fever is spreading in the lower town. She asks you to seal it off before it reaches the rest.",
+      "requires": { "holding": ["settlement"], "minPopulation": 300 },
+      "weight": 2,
+      "expires": 4,
+      "ignore": { "result": "No action was taken. The fever spread.", "effects": { "population": -30, "happiness": -5 } },
+      "choices": [
+        { "id": "quarantine", "label": "Seal the lower town", "effects": { "happiness": -6, "population": -8, "faction": { "merchants": -4 }, "court": { "severity": 1, "justice": 1 } }, "result": "Chains go up across the lanes. Behind them, people wail.", "followUp": { "options": [{ "id": "plague_contained", "weight": 3 }, { "id": "plague_spreads", "weight": 1 }], "delay": [6, 10] } },
+        { "id": "physicians", "label": "Pay physicians to treat the sick", "effects": { "gold": -80, "happiness": 2, "karma": 2, "court": { "generosity": 2 } }, "result": "Physicians in beaked masks go door to door.", "followUp": { "options": [{ "id": "plague_contained", "weight": 2 }, { "id": "plague_spreads", "weight": 1 }], "delay": [6, 10] } },
+        { "id": "pray", "label": "Leave it to prayer", "effects": { "faction": { "clergy": 4 }, "faith": 2, "court": { "piety": 2 } }, "result": "The priests lead processions through the lower town.", "followUp": { "options": [{ "id": "plague_contained", "weight": 1 }, { "id": "plague_spreads", "weight": 2 }], "delay": [6, 10] } }
+      ]
+    },
+    "smuggler_bribe": {
+      "title": "The Smugglers' Offer",
+      "icon": "📦",
+      "text": "A smooth-tongued fellow named {name} offers you a share of the smuggling trade through {settlement} — if your toll-men look the other way.",
+      "requires": { "holding": ["settlement", "office"] },
+      "weight": 2,
+      "expires": 7,
+      "ignore": { "result": "The smugglers took your silence as consent, and paid you nothing.", "effects": { "faction": { "merchants": -2 } } },
+      "choices": [
+        { "id": "accept", "label": "Take your cut", "effects": { "gold": 110, "karma": -4, "faction": { "merchants": -3 }, "court": { "justice": -2 } }, "result": "A purse appears on your table every new moon.", "followUp": { "options": [{ "id": "smuggling_exposed", "weight": 1 }], "delay": [12, 22], "chance": 0.5 } },
+        { "id": "crack_down", "label": "Arrest him and raid the warehouses", "effects": { "gold": -20, "renown": 3, "faction": { "merchants": 5 }, "court": { "justice": 2, "severity": 1 } }, "result": "Contraband piles up in the square. {name} sits in a cell." },
+        { "id": "legalize", "label": "Make them pay a legal toll", "effects": { "gold": 40, "faction": { "merchants": 1 }, "court": { "justice": 1 } }, "result": "Smugglers become importers, at a price." }
+      ]
+    },
+    "pilgrim_shelter": {
+      "title": "Pilgrims Seek Shelter",
+      "icon": "🚶",
+      "text": "A column of {faith} pilgrims led by {name} asks for food and shelter in {settlement} on their way to a holy site.",
+      "requires": { "holding": ["settlement"], "faith": true },
+      "weight": 2,
+      "expires": 5,
+      "ignore": { "result": "The pilgrims slept in the ditches and spoke of your town's coldness.", "effects": { "faith": -2, "karma": -1 } },
+      "choices": [
+        { "id": "shelter", "label": "Shelter and feed them", "effects": { "gold": -30, "karma": 3, "faith": 4, "faction": { "clergy": 3 }, "court": { "piety": 2, "generosity": 1 } }, "result": "The pilgrims bless your hall as they go." },
+        { "id": "charge", "label": "Charge them for lodging", "effects": { "gold": 30, "karma": -2, "faith": -2, "court": { "generosity": -1 } }, "result": "Pilgrims pay; pilgrims remember." },
+        { "id": "join", "label": "Walk a day's road with them", "requires": { "playerReligion": true }, "effects": { "followers": 15, "faith": 5, "renown": 2, "court": { "piety": 3 } }, "result": "Your company on the road inspires several to take up your faith." }
+      ]
+    },
+    "council_seat": {
+      "title": "A Seat on the Council",
+      "icon": "🏛️",
+      "text": "{name}, a wealthy burgher of {kingdom}, asks you to name him to the council. He promises the guilds' support — and a handsome gift.",
+      "requires": { "holding": ["office"] },
+      "weight": 2,
+      "expires": 10,
+      "ignore": { "result": "The burgher found a more obliging patron.", "effects": { "faction": { "merchants": -2 } } },
+      "choices": [
+        { "id": "appoint", "label": "Appoint him", "effects": { "gold": 100, "faction": { "merchants": 6, "nobility": -6 }, "councilApproval": -2, "court": { "justice": -1 } }, "result": "The nobles are appalled to sit beside a draper." },
+        { "id": "refuse", "label": "Council seats are not for sale", "effects": { "faction": { "nobility": 4, "merchants": -4 }, "councilApproval": 2, "court": { "justice": 2 } }, "result": "The burgher leaves with his purse." },
+        { "id": "commons", "label": "Offer the seat to a commoner instead", "effects": { "faction": { "commons": 8, "nobility": -4, "merchants": -3 }, "councilApproval": 1, "renown": 2 }, "result": "A blacksmith sits on the council. The realm talks of nothing else.", "chronicle": "{house} gave a council seat in {kingdom} to a commoner.", "notable": true }
+      ]
+    },
+    "border_lord_tribute": {
+      "title": "The Border Lord's Grievance",
+      "icon": "🏰",
+      "text": "{name}, a lord on the marches of {kingdom}, complains that royal taxes leave him nothing to pay his garrison. He hints that the realm's enemies pay better.",
+      "requires": { "holding": ["office"] },
+      "weight": 2,
+      "expires": 8,
+      "ignore": { "result": "The border lord grew sullen, and his gates less watchful.", "effects": { "stability": -2, "faction": { "nobility": -3 } } },
+      "choices": [
+        { "id": "remit", "label": "Remit his taxes for a year", "effects": { "gold": -60, "stability": 2, "faction": { "nobility": 4, "military": 3 } }, "result": "The marches hold firm." },
+        { "id": "threaten", "label": "Remind him what treason costs", "effects": { "stability": 1, "faction": { "nobility": -5 }, "court": { "severity": 2 } }, "gamble": { "chance": 0.7, "success": { "effects": { "renown": 2 }, "result": "He backs down, white-faced." }, "failure": { "effects": { "stability": -4, "reputation": -4 }, "result": "He opens his gates to raiders out of spite." } }, "result": "You send a letter sealed in black wax." },
+        { "id": "garrison", "label": "Send royal troops to his castle", "effects": { "gold": -30, "faction": { "military": 4, "nobility": -2 }, "stability": 2 }, "result": "Royal banners fly over the marches." }
+      ]
+    },
+    "colony_autonomy": {
+      "title": "The Colonists' Charter",
+      "icon": "📜",
+      "text": "The elders of {settlement}, led by {name}, ask for a charter of rights: their own council, their own courts, and lower taxes.",
+      "requires": { "holding": ["settlement"], "colony": true },
+      "weight": 2,
+      "expires": 10,
+      "ignore": { "result": "The elders read your silence as contempt.", "effects": { "loyalty": -5 } },
+      "choices": [
+        { "id": "grant", "label": "Grant the charter", "effects": { "loyalty": 10, "happiness": 5, "gold": -40, "court": { "generosity": 1, "justice": 1 } }, "result": "{settlement} celebrates its charter." },
+        { "id": "partial", "label": "Grant them a council, but keep the courts", "effects": { "loyalty": 4, "happiness": 2 }, "result": "Half a loaf, accepted gravely." },
+        { "id": "refuse", "label": "Refuse — a colony is ruled, not consulted", "effects": { "loyalty": -6, "happiness": -3, "stability": 1, "court": { "severity": 2 } }, "result": "The elders leave in silence." }
+      ]
+    },
+
+    "bandit_loyal": {
+      "title": "The Pardoned Bandit Returns",
+      "icon": "🛡️",
+      "text": "{prior}, the bandit you pardoned, has served your guard with ferocious loyalty. Today he brings in the heads of the gang he once rode with, and asks for a captain's rank.",
+      "followUpOnly": true,
+      "requires": { "holding": ["settlement", "office", "house"] },
+      "expires": 8,
+      "ignore": { "result": "{prior} took the silence hard, but stayed.", "effects": { "faction": { "military": -1 } } },
+      "choices": [
+        { "id": "promote", "label": "Make him a captain", "effects": { "gold": -30, "faction": { "military": 4 }, "renown": 3, "stability": 1, "happiness": 2, "court": { "mercy": 1, "justice": 1 } }, "result": "Captain {prior} salutes you. The roads are safer than they have been in years.", "chronicle": "{prior}, once a bandit pardoned by {house}, became a captain of its guard.", "notable": true },
+        { "id": "reward", "label": "Reward him with gold, but no rank", "effects": { "gold": -50, "faction": { "military": 2 }, "renown": 1 }, "result": "{prior} pockets the gold with a shrug." }
+      ]
+    },
+    "bandit_betrays": {
+      "title": "The Bandit's Betrayal",
+      "icon": "🐍",
+      "text": "{prior}, the bandit you pardoned, has fled back to the hills — with the guard's horses and the strongbox of {settlement}.",
+      "followUpOnly": true,
+      "requires": { "holding": ["settlement", "office", "house"] },
+      "expires": 6,
+      "ignore": { "result": "{prior} is a legend in the taverns now — at your expense.", "effects": { "renown": -4, "happiness": -3 } },
+      "choices": [
+        { "id": "hunt", "label": "Lead the hunt yourself", "effects": { "gold": -40, "renown": 4, "court": { "severity": 2 } }, "result": "You run {prior} to ground in a shepherd's hut. This time there is no pardon.", "chronicle": "{house} hunted down the treacherous bandit {prior}." },
+        { "id": "bounty", "label": "Post a bounty", "effects": { "gold": -60, "renown": 1 }, "result": "Bounty hunters bring back his head within the month." },
+        { "id": "let_go", "label": "Let him go — the lesson is learned", "effects": { "gold": -30, "renown": -3, "happiness": -2, "court": { "mercy": 1 } }, "result": "The strongbox is gone. So is your faith in reformed men." }
+      ]
+    },
+    "bandit_raids_again": {
+      "title": "The Bandit Rides Again",
+      "icon": "🔥",
+      "text": "{prior}, the bandit you let go with his life for his hoard, has rebuilt his band. Farms near {settlement} are burning.",
+      "followUpOnly": true,
+      "requires": { "holding": ["settlement", "office", "house"] },
+      "expires": 5,
+      "ignore": { "result": "The raids went on unchecked.", "effects": { "happiness": -6, "population": -10, "gold": -40 } },
+      "choices": [
+        { "id": "ride", "label": "Ride out against him", "effects": { "gold": -50, "renown": 3, "happiness": 2, "court": { "severity": 1 } }, "result": "His band scatters before your riders." },
+        { "id": "pay", "label": "Pay him to go elsewhere", "effects": { "gold": -80, "renown": -3, "karma": -2 }, "result": "He takes the gold — and someone else's farms burn." }
+      ]
+    },
+    "noble_son_again": {
+      "title": "He Has Killed Again",
+      "icon": "⚰️",
+      "text": "{prior}, the noble son you spared, has killed again — a serving girl this time. The town is at the edge of riot, and everyone remembers your last ruling.",
+      "followUpOnly": true,
+      "requires": { "holding": ["settlement", "office"] },
+      "expires": 4,
+      "ignore": { "result": "A mob burned the young lord's family home. Order broke down for days.", "effects": { "happiness": -10, "stability": -3, "faction": { "commons": -6, "nobility": -4 } } },
+      "choices": [
+        { "id": "hang", "label": "Hang him now", "effects": { "happiness": 4, "faction": { "nobility": -10, "commons": 6 }, "court": { "justice": 2, "severity": 1 } }, "result": "Too late for the girl. Not too late for justice, the people say — barely.", "chronicle": "{house} hanged {prior}, twice a killer, too late to save his second victim.", "notable": true },
+        { "id": "exile", "label": "Exile him beyond the realm", "effects": { "happiness": -2, "faction": { "nobility": -3, "commons": 2 }, "court": { "mercy": 1 } }, "result": "{prior} is put on a ship. The town is not appeased." },
+        { "id": "protect", "label": "Protect him again", "effects": { "happiness": -10, "karma": -6, "faction": { "nobility": 5, "commons": -12 }, "stability": -2, "court": { "justice": -3 } }, "result": "Your guards ring his family's house. Stones fly at your banners." }
+      ]
+    },
+    "heretic_flock": {
+      "title": "The Preacher's Flock",
+      "icon": "🔥",
+      "text": "{prior}, the hedge preacher you let speak, now has a flock of hundreds in {settlement}. They ask for a chapel of their own; the priests of {faith} call it open heresy.",
+      "followUpOnly": true,
+      "requires": { "holding": ["settlement", "office"] },
+      "expires": 8,
+      "ignore": { "result": "The flock built its chapel anyway, and the priests blame you.", "effects": { "faction": { "clergy": -6 }, "faith": -4, "stability": -1 } },
+      "choices": [
+        { "id": "allow", "label": "Let them build", "effects": { "faction": { "clergy": -10, "commons": 5 }, "happiness": 4, "faith": -5, "karma": 1, "court": { "mercy": 2 } }, "result": "A plain timber chapel rises. Its bell sounds different from the temple's.", "chronicle": "{house} allowed {prior}'s dissenters a chapel in {settlement}." },
+        { "id": "suppress", "label": "Disperse the flock", "effects": { "faction": { "clergy": 6, "commons": -4 }, "happiness": -5, "stability": 1, "karma": -2, "court": { "severity": 3, "piety": 1 } }, "result": "Soldiers break up the meetings. {prior} vanishes into the hills." },
+        { "id": "absorb", "label": "Invite {prior} into the established temple", "effects": { "gold": -40, "faction": { "clergy": 2 }, "faith": 3, "court": { "piety": 1, "justice": 1 } }, "gamble": { "chance": 0.5, "success": { "effects": { "happiness": 3, "renown": 2 }, "result": "{prior} accepts a pulpit. The schism heals." }, "failure": { "effects": { "faction": { "clergy": -4 } }, "result": "{prior} spits on the offer." } }, "result": "You broker a meeting between preacher and priests." }
+      ]
+    },
+    "refugees_settled": {
+      "title": "The Refugees Give Thanks",
+      "icon": "🌻",
+      "text": "The refugees you sheltered in {settlement} have cleared fields and raised houses. {prior} comes with their first harvest as a gift.",
+      "followUpOnly": true,
+      "requires": { "holding": ["settlement"] },
+      "expires": 10,
+      "ignore": { "result": "The gift went unacknowledged.", "effects": { "happiness": -1 } },
+      "choices": [
+        { "id": "accept", "label": "Accept their gift", "effects": { "gold": 50, "happiness": 2, "karma": 1 }, "result": "Their harvest fills your table." },
+        { "id": "return", "label": "Return it — let them keep their first harvest", "effects": { "happiness": 4, "loyalty": 4, "karma": 2, "renown": 2, "court": { "generosity": 2 } }, "result": "They will tell their grandchildren of this.", "chronicle": "The refugees of {settlement} became loyal subjects of {house}." }
+      ]
+    },
+    "refugees_unrest": {
+      "title": "Old Townsfolk and New",
+      "icon": "⚔️",
+      "text": "The refugees you admitted to {settlement} are clashing with the old townsfolk over work and wages. {prior} says her people are being driven from the market.",
+      "followUpOnly": true,
+      "requires": { "holding": ["settlement"] },
+      "expires": 7,
+      "ignore": { "result": "The clashes festered into a riot.", "effects": { "happiness": -6, "population": -15, "stability": -1 } },
+      "choices": [
+        { "id": "protect", "label": "Guarantee the newcomers' rights", "effects": { "happiness": -3, "karma": 2, "court": { "justice": 2 } }, "result": "The law protects the newcomers. The old townsfolk resent it." },
+        { "id": "works", "label": "Pay for public works to employ them", "effects": { "gold": -70, "happiness": 4, "court": { "generosity": 2 } }, "result": "New walls, new jobs, fewer fights." },
+        { "id": "expel", "label": "Send the troublemakers away", "effects": { "population": -25, "happiness": 2, "karma": -3, "court": { "severity": 2 } }, "result": "Shelter, it turns out, had conditions." }
+      ]
+    },
+    "herbwoman_healer": {
+      "title": "The Herbwoman's Cure",
+      "icon": "🍵",
+      "text": "{prior}, the herbwoman you protected, has broken a fever that the priests could not. The mothers of {settlement} want her honoured — and the priests want her silenced.",
+      "followUpOnly": true,
+      "requires": { "holding": ["settlement"] },
+      "expires": 8,
+      "ignore": { "result": "{prior} went back to her hut by the mill.", "effects": {} },
+      "choices": [
+        { "id": "physician", "label": "Name her town physician", "effects": { "gold": -30, "happiness": 4, "population": 10, "faction": { "clergy": -3 }, "court": { "justice": 1 } }, "result": "{prior} has a salary now, and a house near the square.", "chronicle": "{house} named the once-accused herbwoman {prior} physician of {settlement}.", "notable": true },
+        { "id": "honour", "label": "Honour her quietly", "effects": { "karma": 2, "happiness": 2 }, "result": "A purse and a word of thanks." }
+      ]
+    },
+    "miners_promise": {
+      "title": "The Miners Call in Your Promise",
+      "icon": "⛏️",
+      "text": "{prior} and the miners of {settlement} have worked the season on your word. Now they want the share you promised.",
+      "followUpOnly": true,
+      "requires": { "holding": ["settlement"] },
+      "expires": 6,
+      "ignore": { "result": "A broken promise. The mines fell silent again.", "effects": { "happiness": -8, "karma": -3, "faction": { "commons": -6 } } },
+      "choices": [
+        { "id": "pay", "label": "Pay the promised share", "effects": { "gold": -90, "happiness": 4, "faction": { "commons": 4 }, "court": { "justice": 2 } }, "result": "Your word is good. The miners will work for you again." },
+        { "id": "renege", "label": "Renege — profits were poor", "effects": { "happiness": -8, "karma": -3, "faction": { "commons": -6 }, "court": { "justice": -3 } }, "result": "The miners curse your name in the dark." }
+      ]
+    },
+    "gamekeeper_report": {
+      "title": "The Gamekeeper's Catch",
+      "icon": "🦉",
+      "text": "{prior}, the poacher you made gamekeeper, has broken a ring of poachers selling your deer in three towns. He brings the ringleader to you.",
+      "followUpOnly": true,
+      "requires": { "holding": ["settlement", "house"] },
+      "expires": 8,
+      "ignore": { "result": "The ringleader bribed his way out.", "effects": {} },
+      "choices": [
+        { "id": "reward", "label": "Reward {prior}", "effects": { "gold": -20, "renown": 2, "faction": { "nobility": 3 }, "court": { "justice": 1 } }, "result": "The poacher-turned-keeper beams with pride." },
+        { "id": "fine_ring", "label": "Fine the ring heavily", "effects": { "gold": 60, "faction": { "nobility": 2 } }, "result": "The ring pays for every deer, twice over." }
+      ]
+    },
+    "plague_contained": {
+      "title": "The Fever Breaks",
+      "icon": "✨",
+      "text": "{prior} reports that the fever in {settlement} has broken. The lower town is mourning, but the rest of the town was spared.",
+      "followUpOnly": true,
+      "requires": { "holding": ["settlement"] },
+      "expires": 8,
+      "ignore": { "result": "The physicians went unthanked.", "effects": {} },
+      "choices": [
+        { "id": "reward", "label": "Reward the physicians", "effects": { "gold": -40, "happiness": 3, "renown": 2 }, "result": "{prior} is cheered through the streets." },
+        { "id": "thanksgiving", "label": "Hold a service of thanksgiving", "effects": { "faction": { "clergy": 3 }, "faith": 2, "happiness": 2, "court": { "piety": 1 } }, "result": "The temple is packed to the doors." }
+      ]
+    },
+    "plague_spreads": {
+      "title": "The Fever Spreads",
+      "icon": "☠️",
+      "text": "Despite everything, the fever has burst out of the lower town of {settlement}. {prior} begs for drastic measures.",
+      "followUpOnly": true,
+      "requires": { "holding": ["settlement"] },
+      "expires": 3,
+      "ignore": { "result": "The fever ran its course. The graveyards filled.", "effects": { "population": -60, "happiness": -8 } },
+      "choices": [
+        { "id": "burn", "label": "Burn the infected quarter", "effects": { "population": -25, "happiness": -8, "karma": -3, "court": { "severity": 3 } }, "result": "Smoke hangs over {settlement} for days. The fever dies with the houses." },
+        { "id": "physicians", "label": "Bring physicians from every town", "effects": { "gold": -120, "population": -15, "happiness": 2, "court": { "generosity": 2 } }, "result": "The fever is beaten back, at great cost." },
+        { "id": "flee", "label": "Let those who can flee", "effects": { "population": -40, "happiness": -4 }, "result": "Half the town empties onto the roads." }
+      ]
+    },
+    "smuggling_exposed": {
+      "title": "Your Arrangement Exposed",
+      "icon": "🕯️",
+      "text": "A customs clerk has found your name in {prior}'s smuggling ledgers. He has not yet gone to the magistrates.",
+      "followUpOnly": true,
+      "requires": { "holding": ["settlement", "office"] },
+      "expires": 4,
+      "ignore": { "result": "The clerk went to the magistrates. The ledgers were read aloud.", "effects": { "renown": -6, "reputation": -8, "karma": -2, "faction": { "merchants": -5 } } },
+      "choices": [
+        { "id": "pay_off", "label": "Pay the clerk to burn the ledgers", "effects": { "gold": -90, "karma": -2, "court": { "justice": -1 } }, "result": "The ledgers burn. The clerk buys a fine house." },
+        { "id": "confess", "label": "Confess and pay restitution", "effects": { "gold": -60, "renown": -3, "karma": 3, "faction": { "merchants": -2 }, "court": { "justice": 2 } }, "result": "Your honesty is admired, if not your past.", "chronicle": "{house} confessed to profiting from smuggling and paid restitution." },
+        { "id": "deny", "label": "Deny everything", "gamble": { "chance": 0.5, "success": { "effects": { "renown": 1 }, "result": "The ledgers are dismissed as forgeries." }, "failure": { "effects": { "renown": -6, "reputation": -6, "faction": { "merchants": -5 } }, "result": "No one believes you." } }, "effects": {}, "result": "You meet the accusation with a stony face." }
+      ]
+    },
+    "guild_overreach": {
+      "title": "The Guild Squeezes the Town",
+      "icon": "🧵",
+      "text": "The clothiers' guild you granted a monopoly in {settlement} has tripled the price of cloth. {prior}'s guild is rich; the town shivers.",
+      "followUpOnly": true,
+      "requires": { "holding": ["settlement", "office"] },
+      "expires": 8,
+      "ignore": { "result": "The guild kept squeezing.", "effects": { "happiness": -5, "faction": { "commons": -3 } } },
+      "choices": [
+        { "id": "revoke", "label": "Revoke the monopoly", "effects": { "faction": { "merchants": -10, "commons": 6 }, "happiness": 5, "court": { "justice": 2 } }, "result": "The peddlers return. The guild masters are livid." },
+        { "id": "tax", "label": "Tax their windfall", "effects": { "gold": 80, "faction": { "merchants": -4 }, "happiness": -2 }, "result": "If the guild must be rich, the crown will share it." },
+        { "id": "tolerate", "label": "A charter is a charter", "effects": { "happiness": -5, "faction": { "merchants": 4, "commons": -4 } }, "result": "The guild thanks you. The town does not." }
+      ]
+    },
+    "usury_backlash": {
+      "title": "The Lenders Close Their Doors",
+      "icon": "🔒",
+      "text": "Since your cap on interest, the moneylenders of {settlement} — {prior} among them — refuse to lend at all. Farmers cannot buy seed.",
+      "followUpOnly": true,
+      "requires": { "holding": ["settlement", "office"] },
+      "expires": 7,
+      "ignore": { "result": "Fields lay unsown for want of credit.", "effects": { "happiness": -4, "gold": -20 } },
+      "choices": [
+        { "id": "lend", "label": "Lend seed money from your own treasury", "effects": { "gold": -80, "happiness": 4, "faction": { "commons": 4 }, "court": { "generosity": 2 } }, "result": "The crown becomes the town's banker." },
+        { "id": "repeal", "label": "Repeal the cap", "effects": { "faction": { "merchants": 6, "commons": -5 }, "happiness": -1 }, "result": "The lenders reopen, smug." },
+        { "id": "force", "label": "Order them to lend", "effects": { "faction": { "merchants": -6 }, "happiness": 2, "court": { "severity": 2 } }, "result": "They lend, grudgingly, and badly." }
+      ]
+    },
+    "cousin_revenge": {
+      "title": "The Disowned Cousin",
+      "icon": "🗝️",
+      "text": "{prior}, the cousin you disowned, has turned up at the court of {rival}, telling everyone who will listen the secrets of {house}.",
+      "followUpOnly": true,
+      "requires": { "holding": ["house"] },
+      "expires": 8,
+      "ignore": { "result": "{prior}'s stories spread unchallenged.", "effects": { "prestige": -5, "rivalFeud": 5 } },
+      "choices": [
+        { "id": "buy_back", "label": "Buy his silence and his return", "effects": { "gold": -100, "prestige": 1, "court": { "mercy": 1 } }, "result": "{prior} slinks home, chastened and richer." },
+        { "id": "denounce", "label": "Denounce him as a liar", "effects": { "prestige": -2, "rivalFeud": 4, "renown": 1 }, "result": "A war of words. Neither side wins." },
+        { "id": "ignore_him", "label": "Let {rival} keep him", "effects": { "prestige": -3, "rivalFeud": 2 }, "result": "Let them have the fool." }
+      ]
+    }
+  }
+}

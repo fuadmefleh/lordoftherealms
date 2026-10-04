@@ -379,16 +379,16 @@ Object.assign(ActionMenu, {
         const nearbyIndigenous = Colonization.getNearbyIndigenous(world, q, r, 3);
         let indigenousWarning = '';
         if (nearbyIndigenous.length > 0) {
-            const names = nearbyIndigenous.map(i => i.tribeName).join(', ');
+            const names = nearbyIndigenous.map(i => i.name).join(', ');
             indigenousWarning = `<p style="color:#e8a040;">⚠️ Nearby indigenous: ${names}</p>`;
         }
 
         // Distance from capital
-        const capitalTile = world.getAllSettlements().find(s => s.kingdom === player.kingdom && s.type === 'capital');
+        const capitalTile = world.getAllSettlements().find(s => s.kingdom === player.allegiance && s.type === 'capital');
         let distInfo = '';
         if (capitalTile) {
             const dist = Hex.wrappingDistance(q, r, capitalTile.q, capitalTile.r, world.width);
-            const penalty = Colonization.getDistancePenalty(world, world.kingdoms.find(k => k.id === player.kingdom), q, r);
+            const penalty = Colonization.getDistancePenalty(world, world.kingdoms.find(k => k.id === player.allegiance), q, r);
             distInfo = `<p>Distance from capital: <b>${dist}</b> hexes (loyalty penalty: <span style="color:${penalty > 15 ? '#ff6666' : '#aaffaa'}">-${penalty.toFixed(1)}</span>)</p>`;
         }
 
@@ -399,7 +399,7 @@ Object.assign(ActionMenu, {
                 <label style="display:block; margin:6px 0; cursor:pointer; padding:6px; border:1px solid #555; border-radius:4px;" 
                        onclick="document.querySelectorAll('.colony-policy-opt').forEach(e=>e.style.borderColor='#555');this.style.borderColor='#4CAF50';document.getElementById('selectedPolicy').value='${id}'">
                     <b>${policy.name}</b><br>
-                    <small style="color:#aaa;">${policy.desc}</small><br>
+                    <small style="color:#aaa;">${policy.description || policy.desc || ''}</small><br>
                     <small>Expansion: +${(policy.expansionBonus * 100).toFixed(0)}% | Loyalty: +${policy.loyaltyBonus} | Production: +${(policy.productionBonus * 100).toFixed(0)}%</small>
                 </label>`;
         }
@@ -533,7 +533,7 @@ Object.assign(ActionMenu, {
 
         const world = game.world;
         const player = game.player;
-        const capitalTile = world.getAllSettlements().find(s => s.kingdom === player.kingdom && s.type === 'capital');
+        const capitalTile = world.getAllSettlements().find(s => s.kingdom === player.allegiance && s.type === 'capital');
         let dist = 0;
         if (capitalTile) {
             dist = Hex.wrappingDistance(tile.q, tile.r, capitalTile.q, capitalTile.r, world.width);
@@ -625,13 +625,13 @@ Object.assign(ActionMenu, {
         html += `
                 <div style="padding:8px; background:#2a2a2a; border-radius:4px; margin-bottom:8px;">
                     <small style="color:#aaa;">Policy</small><br>
-                    <b>${policy.name}</b> — <small>${policy.desc}</small>
+                    <b>${policy.name}</b> — <small>${policy.description || policy.desc || ''}</small>
                 </div>
 
                 <div style="padding:8px; background:#2a2a2a; border-radius:4px; margin-bottom:8px;">
                     <small style="color:#aaa;">Indigenous Relations</small><br>
                     <b style="color:${colony.indigenousRelation > 50 ? '#4CAF50' : colony.indigenousRelation > 0 ? '#e8a040' : '#ff4444'}">${colony.indigenousRelation.toFixed(0)}</b> / 100
-                    ${nearbyIndigenous.length > 0 ? `<br><small>Nearby: ${nearbyIndigenous.map(i => `${i.tribeName} (${i.population})`).join(', ')}</small>` : '<br><small>No indigenous nearby</small>'}
+                    ${nearbyIndigenous.length > 0 ? `<br><small>Nearby: ${nearbyIndigenous.map(i => `${i.name} (${i.population})`).join(', ')}</small>` : '<br><small>No indigenous nearby</small>'}
                 </div>
 
                 <div style="padding:8px; background:#2a2a2a; border-radius:4px; margin-bottom:10px;">
@@ -738,8 +738,8 @@ Object.assign(ActionMenu, {
                 <div style="padding:8px; margin:4px 0; border:1px solid ${isCurrent ? '#4CAF50' : '#555'}; border-radius:4px; cursor:pointer; ${isCurrent ? 'background:#2a3a2a;' : ''}"
                      data-am-act="executeChangePolicy" data-am-args='[${q}, ${r}, "${id}"]'>
                     <b>${policy.name}</b> ${isCurrent ? '(current)' : ''}<br>
-                    <small style="color:#aaa;">${policy.desc}</small><br>
-                    <small>Expansion: +${(policy.expansionBonus * 100).toFixed(0)}% | Indigenous: ${policy.indigenousRelation > 0 ? '+' : ''}${policy.indigenousRelation} | Loyalty: +${policy.loyaltyBonus}</small>
+                    <small style="color:#aaa;">${policy.description || policy.desc || ''}</small><br>
+                    <small>Expansion: +${(policy.expansionBonus * 100).toFixed(0)}% | Indigenous: ${policy.indigenousRelation > 0 ? '+' : ''}${policy.indigenousRelation} | Loyalty: +${policy.loyaltyBonus} | Production: +${((policy.productionBonus || 0) * 100).toFixed(0)}%</small>
                 </div>`;
         }
 
@@ -766,13 +766,16 @@ Object.assign(ActionMenu, {
         const indigenous = tile.indigenous;
         if (!indigenous) return;
 
-        const player = game.player;
-        const hostilityColor = indigenous.hostility > 60 ? '#ff4444' : indigenous.hostility > 30 ? '#e8a040' : '#4CAF50';
-        const dispositionText = indigenous.hostility > 70 ? 'Hostile' : indigenous.hostility > 40 ? 'Wary' : indigenous.hostility > 20 ? 'Cautious' : 'Friendly';
+        const hostility = Colonization.getTribeHostility(indigenous);
+        const hostilityColor = hostility > 60 ? '#ff4444' : hostility > 30 ? '#e8a040' : '#4CAF50';
+        const dispositionText = Colonization.getTribeDisposition(indigenous);
+        const canLearn = Colonization.canLearnFromTribe(indigenous);
+        const trade = typeof indigenous.tradeability === 'number' ? indigenous.tradeability : 0.5;
+        const tradeWord = trade >= 0.6 ? 'Keen traders' : trade >= 0.4 ? 'Willing traders' : 'Reluctant traders';
 
         let html = `
             <div style="max-height:450px; overflow-y:auto;">
-                <h3 style="margin:0 0 10px;">The ${indigenous.tribeName}</h3>
+                <h3 style="margin:0 0 10px;">The ${indigenous.name}</h3>
                 
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
                     <div style="padding:8px; background:#2a2a2a; border-radius:4px;">
@@ -785,11 +788,11 @@ Object.assign(ActionMenu, {
                     </div>
                     <div style="padding:8px; background:#2a2a2a; border-radius:4px;">
                         <small style="color:#aaa;">Territory</small><br>
-                        <b>${tile.terrain.name}</b>
+                        <b>${tile.terrain.name}</b><br><small style="color:#aaa;">${tradeWord}</small>
                     </div>
                     <div style="padding:8px; background:#2a2a2a; border-radius:4px;">
                         <small style="color:#aaa;">Hostility</small><br>
-                        <b style="color:${hostilityColor}">${indigenous.hostility.toFixed(0)}</b>
+                        <b style="color:${hostilityColor}">${hostility}</b> <small style="color:#aaa;">/ 100</small>
                     </div>
                 </div>
 
@@ -798,26 +801,26 @@ Object.assign(ActionMenu, {
 
                 <button data-am-act="tradeWithIndigenous" data-am-args='[${tile.q}, ${tile.r}]' 
                         style="width:100%; padding:6px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer;">
-                    🤝 Trade Goods (costs 50g, reduces hostility)
+                    🤝 Trade Goods (costs ${Colonization.TRIBE_TRADE_COST}g, reduces hostility — more with keen traders)
                 </button>
 
                 <button data-am-act="giftToIndigenous" data-am-args='[${tile.q}, ${tile.r}]' 
                         style="width:100%; padding:6px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer;">
-                    🎁 Offer Tribute (costs 100g, greatly reduces hostility)
+                    🎁 Offer Tribute (costs ${Colonization.TRIBE_TRIBUTE_COST}g, greatly reduces hostility)
                 </button>
 
                 <button data-am-act="learnFromIndigenous" data-am-args='[${tile.q}, ${tile.r}]' 
                         style="width:100%; padding:6px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer;">
-                    📖 Learn Local Knowledge (${indigenous.hostility < 40 ? 'Available' : 'Need friendly relations'})
+                    📖 Learn Local Knowledge (${canLearn ? 'Available' : 'Need friendly relations'})
                 </button>
 
-                ${indigenous.hostility > 50 ? `
+                ${hostility > 50 ? `
                 <div style="padding:8px; background:#4a2020; border:1px solid #ff4444; border-radius:4px; margin-top:8px;">
-                    ⚠️ The ${indigenous.tribeName} are ${dispositionText.toLowerCase()} towards outsiders. 
+                    ⚠️ The ${indigenous.name} are ${dispositionText.toLowerCase()} towards outsiders. 
                     Trade or tribute may improve relations.
                 </div>` : `
                 <div style="padding:8px; background:#2a3a2a; border:1px solid #4CAF50; border-radius:4px; margin-top:8px;">
-                    The ${indigenous.tribeName} are ${dispositionText.toLowerCase()} and open to interaction.
+                    The ${indigenous.name} are ${dispositionText.toLowerCase()} and open to interaction.
                 </div>`}
             </div>`;
 
@@ -833,20 +836,14 @@ Object.assign(ActionMenu, {
         if (!tile || !tile.indigenous) return;
         if (!ActionMenu.commitPendingAP(game)) return;
 
-        if (player.gold < 50) {
-            game.ui.showNotification('Not Enough Gold', 'Need 50 gold to trade.', 'error');
+        const res = Colonization.tradeWithTribe(player, tile.indigenous);
+        if (!res.success) {
+            game.ui.showNotification('Not Enough Gold', res.reason, 'error');
             return;
         }
 
-        player.gold -= 50;
-        tile.indigenous.hostility = Math.max(0, tile.indigenous.hostility - 10);
-        
-        // Gain some bonus
-        const bonus = Utils.randInt(1, 3);
-        player.karma = (player.karma || 0) + bonus;
-        
-        game.ui.showNotification('Trade Successful', 
-            `Traded with the ${tile.indigenous.tribeName}. Hostility reduced. Gained ${bonus} karma from cultural exchange.`, 'success');
+        game.ui.showNotification('Trade Successful',
+            `Traded with the ${tile.indigenous.name}: their goods resold for ${res.profit} gold. Relations +${res.relationGain} (hostility now ${res.hostility}). +${res.karma} karma from cultural exchange.`, 'success');
         ActionMenu.showNegotiateIndigenousMenu(game, tile);
         game.ui.updateStats(game.player, game.world);
     },
@@ -860,17 +857,14 @@ Object.assign(ActionMenu, {
         if (!tile || !tile.indigenous) return;
         if (!ActionMenu.commitPendingAP(game)) return;
 
-        if (player.gold < 100) {
-            game.ui.showNotification('Not Enough Gold', 'Need 100 gold for tribute.', 'error');
+        const res = Colonization.tributeToTribe(player, tile.indigenous);
+        if (!res.success) {
+            game.ui.showNotification('Not Enough Gold', res.reason, 'error');
             return;
         }
 
-        player.gold -= 100;
-        tile.indigenous.hostility = Math.max(0, tile.indigenous.hostility - 25);
-        player.renown = (player.renown || 0) + 5;
-        
-        game.ui.showNotification('Tribute Accepted', 
-            `The ${tile.indigenous.tribeName} graciously accept your tribute. Relations greatly improved. +5 renown.`, 'success');
+        game.ui.showNotification('Tribute Accepted',
+            `The ${tile.indigenous.name} graciously accept your tribute. Relations +${res.relationGain} (hostility now ${res.hostility}). +${res.renown} renown.`, 'success');
         ActionMenu.showNegotiateIndigenousMenu(game, tile);
         game.ui.updateStats(game.player, game.world);
     },
@@ -884,7 +878,7 @@ Object.assign(ActionMenu, {
         if (!tile || !tile.indigenous) return;
         if (!ActionMenu.commitPendingAP(game)) return;
 
-        if (tile.indigenous.hostility >= 40) {
+        if (!Colonization.canLearnFromTribe(tile.indigenous)) {
             game.ui.showNotification('Too Hostile', 'The natives don\'t trust you enough to share their knowledge. Improve relations first.', 'error');
             return;
         }
@@ -903,10 +897,10 @@ Object.assign(ActionMenu, {
         else if (benefit.stat === 'renown') player.renown = (player.renown || 0) + benefit.value;
 
         // Slight hostility increase from knowledge exchange
-        tile.indigenous.hostility = Math.min(100, tile.indigenous.hostility + 5);
+        Colonization.noteTribeTaught(tile.indigenous);
 
         game.ui.showNotification('Knowledge Gained', 
-            `The ${tile.indigenous.tribeName} teach you about ${benefit.text}. ${benefit.value > 0 ? `+${benefit.value} ${benefit.stat}` : ''}`, 'success');
+            `The ${tile.indigenous.name} teach you about ${benefit.text}. ${benefit.value > 0 ? `+${benefit.value} ${benefit.stat}` : ''}`, 'success');
         game.ui.updateStats(game.player, game.world);
     },
 

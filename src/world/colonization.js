@@ -194,7 +194,6 @@ export const Colonization = {
     processKingdomColonies(kingdom, world, playerBonuses = {}) {
         if (!kingdom.colonization || !kingdom.colonization.colonies) return;
 
-        const policy = Colonization.POLICIES[kingdom.colonization.policy] || Colonization.POLICIES.coexistence;
         const capitalQ = kingdom.capital ? kingdom.capital.q : 0;
         const capitalR = kingdom.capital ? kingdom.capital.r : 0;
 
@@ -221,6 +220,9 @@ export const Colonization = {
             }
 
             const colonyData = tile.settlement.colony;
+            // A colony founded with its own policy (the player's) follows it;
+            // the rest follow the mother kingdom's
+            const colonyPolicy = Colonization.getColonyPolicy(colonyData, kingdom);
             const dist = Hex.wrappingDistance(colony.q, colony.r, capitalQ, capitalR, world.width);
 
             // ── Loyalty calculation ──
@@ -237,7 +239,7 @@ export const Colonization = {
             loyaltyChange += Math.min(0.2, colonyData.garrisonStrength * 0.01);
 
             // Policy bonus
-            loyaltyChange += policy.loyaltyBonus;
+            loyaltyChange += colonyPolicy.loyaltyBonus;
 
             // Base recovery
             loyaltyChange += Colonization.BASE_LOYALTY_RECOVERY;
@@ -251,6 +253,10 @@ export const Colonization = {
             for (const ind of nearbyIndigenous) {
                 if (ind.relation < -30) loyaltyChange -= 0.05;
             }
+            // The colony's standing with its neighbours (shown in its panel)
+            colonyData.indigenousRelation = nearbyIndigenous.length
+                ? Math.round(nearbyIndigenous.reduce((sum, ind) => sum + (ind.relation || 0), 0) / nearbyIndigenous.length)
+                : 0;
 
             if (colonyData.isPlayerColony && playerBonuses.colonyLoyalty) loyaltyChange += playerBonuses.colonyLoyalty;
             colonyData.loyalty = Utils.clamp(colonyData.loyalty + loyaltyChange, 0, 100);
@@ -263,7 +269,7 @@ export const Colonization = {
                     // Process settler arrivals from recruitment
                     Colonization._processSettlerArrivals(tile, world);
                 } else {
-                    let growthRate = 1 + (policy.expansionBonus - 1) * 0.5;
+                    let growthRate = 1 + (colonyPolicy.expansionBonus - 1) * 0.5;
                     if (colonyData.isPlayerColony && playerBonuses.colonyGrowth) growthRate *= 1 + playerBonuses.colonyGrowth;
                     const growth = Utils.randInt(1, Math.ceil(5 * growthRate));
                     tile.settlement.population += growth;
@@ -375,8 +381,9 @@ export const Colonization = {
                     }
                 }
 
-                // Hostile indigenous may attack nearby colonies
-                if (ind.relation < -50 && encroached && Utils.random() < 0.02) {
+                // Hostile indigenous may attack nearby colonies — fierce peoples
+                // (high temperament) take less provocation than peaceful ones
+                if (encroached && Colonization.getTribeHostility(ind) >= Colonization.TRIBE_RAID_HOSTILITY && Utils.random() < 0.02) {
                     // Find nearest colony settlement
                     for (const n of neighbors) {
                         const nt = world.getTile(n.q, n.r);
@@ -925,6 +932,98 @@ export const Colonization = {
     /**
      * Get indigenous populations near a hex
      */
+    /** The policy a colony follows: its own (player colonies) or its mother kingdom's. */
+    getColonyPolicy(colonyData, kingdom) {
+        const P = Colonization.POLICIES;
+        if (colonyData && colonyData.policy && P[colonyData.policy]) return P[colonyData.policy];
+        const kp = kingdom && kingdom.colonization && kingdom.colonization.policy;
+        return (kp && P[kp]) || P.coexistence;
+    },
+
+    /**
+     * Fractional gold/goods bonus a colony earns from its policy
+     * (productionBonus: Exploitation +30%, Manifest Destiny +10%, ...).
+     * 0 for settlements that aren't frontier colonies.
+     */
+    getProductionBonus(settlement, kingdom) {
+        if (!settlement || !settlement.colony) return 0;
+        return Colonization.getColonyPolicy(settlement.colony, kingdom).productionBonus || 0;
+    },
+
+    // ── Indigenous diplomacy ──
+    // A tribe's hostility (0-100) blends its people's temperament
+    // (tribe.hostility, 0-1 from colonization.json) with how relations with
+    // outsiders have gone (relation, -100..100). Trade and tribute improve
+    // relation; how much trade helps depends on the tribe's tradeability.
+
+    /** Current hostility 0-100 (higher = more dangerous). */
+    getTribeHostility(ind) {
+        if (!ind) return 0;
+        const temperament = (typeof ind.hostility === 'number' ? ind.hostility : 0.3) * 100;
+        return Math.round(Utils.clamp(temperament - (ind.relation || 0) * 0.6, 0, 100));
+    },
+
+    /** Display word for a hostility score. */
+    getTribeDisposition(ind) {
+        const h = Colonization.getTribeHostility(ind);
+        return h > 70 ? 'Hostile' : h > 40 ? 'Wary' : h > 20 ? 'Cautious' : 'Friendly';
+    },
+
+    /** Hostility below which a tribe shares its knowledge. */
+    TRIBE_LEARN_HOSTILITY: 40,
+    /** Hostility at or above which a tribe raids encroaching colonies. */
+    TRIBE_RAID_HOSTILITY: 70,
+    TRIBE_TRADE_COST: 50,
+    TRIBE_TRIBUTE_COST: 100,
+
+    _shiftTribeRelation(ind, delta) {
+        ind.relation = Utils.clamp((ind.relation || 0) + delta, -100, 100);
+        ind.discovered = true;
+    },
+
+    /**
+     * Trade goods with a tribe. Relation gain and the goods' resale profit
+     * scale with the tribe's tradeability (0-1).
+     * @returns {{success, reason?, relationGain?, profit?, karma?, hostility?}}
+     */
+    tradeWithTribe(player, ind) {
+        if (!player || !ind) return { success: false, reason: 'No one to trade with.' };
+        const cost = Colonization.TRIBE_TRADE_COST;
+        if ((player.gold || 0) < cost) return { success: false, reason: `Need ${cost} gold to trade.` };
+        const trade = typeof ind.tradeability === 'number' ? ind.tradeability : 0.5;
+        player.gold -= cost;
+        const relationGain = Math.round(6 + 14 * trade);       // 9 (wary traders) .. 17 (keen)
+        Colonization._shiftTribeRelation(ind, relationGain);
+        // Exotic goods sell on: keen traders return more than you paid
+        const profit = Math.round(cost * (0.5 + trade) * Utils.randFloat(0.8, 1.2));
+        player.gold += profit;
+        const karma = Utils.randInt(1, 3);
+        player.karma = (player.karma || 0) + karma;
+        return { success: true, relationGain, profit, karma, hostility: Colonization.getTribeHostility(ind) };
+    },
+
+    /** Pay tribute: a large, reliable relation gain plus renown. */
+    tributeToTribe(player, ind) {
+        if (!player || !ind) return { success: false, reason: 'No one to honour.' };
+        const cost = Colonization.TRIBE_TRIBUTE_COST;
+        if ((player.gold || 0) < cost) return { success: false, reason: `Need ${cost} gold for tribute.` };
+        player.gold -= cost;
+        const relationGain = 25;
+        Colonization._shiftTribeRelation(ind, relationGain);
+        player.renown = (player.renown || 0) + 5;
+        return { success: true, relationGain, renown: 5, hostility: Colonization.getTribeHostility(ind) };
+    },
+
+    /** Can the tribe be asked to share its knowledge? */
+    canLearnFromTribe(ind) {
+        return !!ind && Colonization.getTribeHostility(ind) < Colonization.TRIBE_LEARN_HOSTILITY;
+    },
+
+    /** After sharing knowledge the tribe grows a little warier (-3 relation). */
+    noteTribeTaught(ind) {
+        if (ind) Colonization._shiftTribeRelation(ind, -3);
+    },
+
     getNearbyIndigenous(world, centerQ, centerR, radius) {
         const result = [];
         const hexes = Hex.hexesInRange(centerQ, centerR, radius);

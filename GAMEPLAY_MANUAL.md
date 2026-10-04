@@ -186,6 +186,10 @@ Every settlement has a market where you can buy and sell goods. Prices vary by s
 
 Prices are also affected by local supply and demand, terrain resources, and world events. Each trade earns +0.1 Commerce skill.
 
+**Carrying capacity.** Your packs hold **20 kinds of goods** (stacks are unlimited — 300 grain is one slot). A mount adds +5 slots and each house you own adds +3. When full, you can still add to goods you already carry, but new goods are refused (purchases fail without charging you; battle loot, gathered finds and ground items that don't fit are left behind; crafting is cancelled with ingredients returned). The Inventory panel shows `Packs: used/capacity`.
+
+**Trading with townsfolk.** Merchants, travelers and blacksmiths you meet in a settlement set their own prices from how they feel about you. Disposition shifts prices up to ±20% (Devoted −20%, Hostile +20%), and personality adds to it: *generous* −8%, *kind* −5%, *jovial* −3%, *bold* +2%, *cautious* +3%, *stubborn* +4%, *stern* +5%. Their buy-back price moves the other way. Someone you threatened charges +10% and refuses to trade at all while their disposition is below 25. The trade window lists the reasons.
+
 ### Goods
 
 The game features 26+ tradeable goods:
@@ -646,14 +650,19 @@ There are also **6 extinct faiths** that can be discovered through scholarly res
 | Temple | 1,000g | 12 days | 15 | 5 hexes | — |
 | Monastery | 800g | 9 days | 10 | 4 hexes | +2 karma/day |
 | Cathedral | 2,500g | 16 days | 30 | 8 hexes | +3 karma |
-| Oracle Tower | 1,200g | 10 days | 12 | 6 hexes | +5 scholarship |
-| Pilgrim Hospice | 600g | 5 days | 8 | 3 hexes | +30g income |
+| Oracle Tower | 1,200g | 10 days | 12 | 6 hexes | +5 scholarship (+10% research speed) |
+| Pilgrim Hospice | 600g | 5 days | 8 | 3 hexes | 3–9 pilgrim gold/day |
 | Sacred Grove | 500g | 4 days | 7 | 4 hexes | +1 karma |
 | Reliquary Vault | 1,500g | 12 days | 20 | 5 hexes | +1 renown/day |
 
 ### Faith Spreading
 
-Religious buildings automatically convert nearby settlements at a rate of 1% × (1 + Faith × 0.1) of the population per day. As followers accumulate, your religious influence grows.
+Every finished religious building draws its **Faith/Day** in pilgrims as new followers each day, and converts settlements within its influence radius at 1% × (1 + Faith × 0.1) × (0.5 + Faith/Day ÷ 20) of their population per day — a Shrine converts at 0.75×, a Temple 1.25×, a Cathedral 2×. As followers accumulate, your religious influence grows.
+
+Special yields, applied daily once construction is done:
+- **Pilgrim Hospice** — 3 gold/day, rising to 9 as the hospice gathers followers (+1× per 500, max 3×).
+- **Reliquary Vault** — +1 renown/day.
+- **Oracle Tower** — each scholarship point is 2% of a research day; the oracles' insight (banked up to 5 days) speeds your current research.
 
 ### Preaching
 
@@ -1021,7 +1030,7 @@ Failing to fulfill your duties risks demotion.
 
 ### Spending Prestige
 
-Prestige is your House's standing — gold can't buy what it does. From the House panel:
+Prestige is your House's standing — gold can't buy what it does. It is the only prestige counter: older saves' "dynasty prestige" is folded into House Prestige on load, and an heir succeeding you earns the House +5. From the House panel:
 
 | Action | Cost | Effect |
 |--------|------|--------|
@@ -1076,6 +1085,18 @@ You can build relationships with NPCs through social actions:
 | Blood Oath | 40g | Permanent bond (requires best friend) |
 | Insult | Free | Damage relationship |
 | Challenge to Duel | Free | Test of combat |
+
+### Townsfolk: Disposition, Threats and Secrets
+
+Every person you talk to on a settlement map remembers you (the disposition bar in the dialog), and it has real effects:
+
+- **Prices** — see *Trading with townsfolk* in §4.
+- **Gifts** build a habit of goodwill: each gift makes later disposition gains 10% larger (up to +50%). Three gifts to someone you threatened make amends.
+- **Intimidate** — on success the NPC hands over coin (once per person: merchants 20–60g, nobles 30–80g, villagers 3–12g). Either way they become afraid of you, warm to you at half speed, charge you more, and may run to the guard (25% after a successful threat, 45% after a failed one; more if bold or stern), which spreads an assault rumour. Below 15 disposition they won't talk at all — only a gift or goodbye.
+- **Persuade** (Warm+) — one real secret per person: a sketch map that reveals unexplored land 5–10 hexes away, a treasure map, a hidden cache of gold, true numbers on the kingdom's army, treasury and wars, or (traders) a permanent 15% discount.
+- **Titles** — gain a title and people who knew you congratulate you (+5 disposition, once).
+- **Harming people** — attacking someone sours their spouse, children, parents and siblings toward you (killing them far more: up to −63), and close friends too. Grieving relatives hold a grudge and greet you with it, and the family's bonds with each other grow stronger.
+- **Night** — from 9 PM to 5 AM most townsfolk go home (travelers to the tavern) and stay in; guards keep patrolling.
 
 ### Relationship Tiers
 

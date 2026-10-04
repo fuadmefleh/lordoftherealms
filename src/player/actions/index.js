@@ -321,6 +321,9 @@ export const PlayerActions = {
         // Spread faith
         results.followersGained = PlayerReligion.spreadFaith(player, world);
 
+        // Religious building yields (pilgrim gold, relic renown, oracle scholarship)
+        results.religiousYields = PlayerReligion.applyBuildingYields(player, world);
+
         // Update blessings
         results.blessingsExpired = PlayerReligion.updateBlessings(player);
 

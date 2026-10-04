@@ -2,26 +2,14 @@
 import { InnerMap } from '../../world/innerMap.js';
 import { ActionMenu } from '../actionMenu.js';
 import { NpcFamily } from '../../systems/npcFamily.js';
+import { NpcDisposition } from '../../systems/npcDisposition.js';
 import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS, RUMORS, FAREWELLS, THREAT_RESPONSES, THREAT_SUCCESS, FLATTER_RESPONSES, FLATTER_SUCCESS, TIME_COMMENTS, WEATHER_COMMENTS, NPC_QUEST_HOOKS, LOCATION_INFO, KINGDOM_INFO } from '../npcDialog.data.js';
 import { dialogState } from './shared.js';
 import { _buildConversation, _render, _typewrite, _skipTypewrite, _renderChoices, _hasGiftableInventory } from './render.js';
 import { _handleChoice, _showGiftSubmenu, _giveGoldGift, _giveItemGift, _showAskAboutSubmenu, _showSkillCheckResult, _animateDispositionChange, _updateDispositionBar, _createOverlay } from './choices.js';
 
 export function _mem(npc) {
-    if (!npc._dialogMemory) {
-        npc._dialogMemory = {
-            timesSpoken: 0,      // Total conversations
-            disposition: 50,     // 0=hostile, 50=neutral, 100=friendly
-            lastAction: null,    // Last player action toward this NPC
-            giftsReceived: 0,    // How many gifts
-            threatened: false,   // Ever threatened
-            flattered: false,    // Ever flattered
-            questOffered: false, // Already offered a quest this session
-            rumorsTold: 0,       // How many rumors shared
-            playerTitle: null,   // Last known player title
-        };
-    }
-    return npc._dialogMemory;
+    return NpcDisposition.getMemory(npc);
 }
 
 export function _dispositionLabel(d) {
@@ -102,6 +90,14 @@ export function _isPlayerRenowned() {
 export function _getGreeting(npc) {
     const type = npc.type || 'villager';
     const mem = _mem(npc);
+
+    // Someone who saw you harm their kin or friend remembers it
+    const grudge = NpcDisposition.grudgeLine(npc);
+    if (grudge && mem.disposition < 40) return grudge;
+
+    // A threatened NPC is afraid of you (or refuses to talk at all)
+    const fear = NpcDisposition.threatReaction(npc);
+    if (fear) return fear.text;
 
     // Check for family reaction first — if player treated a relative well/poorly
     const familyReaction = NpcFamily.getFamilyReactionLine(npc, InnerMap.npcs || []);

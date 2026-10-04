@@ -9,3 +9,4 @@ export { PlayerEffects } from '../playerEffects.js';
 export { Housing } from '../../systems/housing.js';
 export { Culture } from '../../systems/culture.js';
 export { PlayerReligion } from '../playerReligion.js';
+export { PlayerInventory } from '../inventory.js';

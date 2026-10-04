@@ -527,7 +527,13 @@ Object.assign(ActionMenu, {
                         <div>
                             <div><span style="font-size: 20px;">${building.icon}</span> <strong>${building.name}</strong></div>
                             <div style="font-size: 12px; color: var(--text-secondary);">${building.description}</div>
-                            <div style="font-size: 12px;">Faith: +${building.faithGain}/day | Radius: ${building.influenceRadius}</div>
+                            <div style="font-size: 12px;">Faith: +${building.faithGain} followers/day, ×${PlayerReligion.faithMultiplier(building).toFixed(2)} conversion | Radius: ${building.influenceRadius}</div>
+                            ${building.karmaBonus || building.incomeBonus || building.renownPerDay || building.scholarshipBonus ? `<div style="font-size: 12px; color: var(--text-secondary);">${[
+                                building.karmaBonus ? `+${building.karmaBonus} karma/day` : '',
+                                building.incomeBonus ? `~${Math.floor(building.incomeBonus * 0.1)}–${Math.floor(building.incomeBonus * 0.3)} pilgrim gold/day` : '',
+                                building.renownPerDay ? `+${building.renownPerDay} renown/day` : '',
+                                building.scholarshipBonus ? `+${building.scholarshipBonus * 2}% research speed` : '',
+                            ].filter(Boolean).join(' | ')}</div>` : ''}
                             <div style="font-size: 11px; color: var(--gold);">🏗️ Build time: ${building.constructionDays || 0} days</div>
                         </div>
                         <button onclick="window.buildTemple('${key}')" style="padding: 8px 16px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer;">${building.cost} gold</button>

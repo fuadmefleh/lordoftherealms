@@ -28,3 +28,4 @@ export { Titles } from '../../systems/titles.js';
 export { InnerMap } from '../../world/innerMap.js';
 export { InnerMapRenderer } from '../innerMapRenderer.js';
 export { InnerMapCharacters } from '../innerMapCharacters.js';
+export { PlayerInventory } from '../../player/inventory.js';

@@ -110,6 +110,9 @@ export const PlayerReligion = {
             faithGain: building.faithGain,
             influenceRadius: building.influenceRadius,
             karmaBonus: building.karmaBonus || 0,
+            scholarshipBonus: building.scholarshipBonus || 0,
+            incomeBonus: building.incomeBonus || 0,
+            renownPerDay: building.renownPerDay || 0,
             followers: 0,
             level: 1,
             underConstruction: constructionDays > 0,
@@ -133,7 +136,44 @@ export const PlayerReligion = {
     },
 
     /**
-     * Spread faith from religious buildings
+     * Look up a religious building definition by its id (e.g. 'oracle_tower').
+     */
+    getBuildingDef(typeId) {
+        if (!typeId) return null;
+        return Object.values(PlayerReligion.BUILDING_TYPES || {}).find(b => b.id === typeId) || null;
+    },
+
+    /**
+     * Backfill stats onto a placed building from its definition. Older saves
+     * only stored faithGain/influenceRadius/karmaBonus, dropping the special
+     * yields (scholarship, pilgrim income, relic renown).
+     */
+    ensureBuildingStats(building) {
+        if (!building || building._statsBackfilled) return building;
+        const def = PlayerReligion.getBuildingDef(building.type);
+        if (def) {
+            for (const key of ['faithGain', 'influenceRadius', 'karmaBonus', 'scholarshipBonus', 'incomeBonus', 'renownPerDay']) {
+                if (building[key] === undefined) building[key] = def[key] || 0;
+            }
+            building._statsBackfilled = true;
+        }
+        return building;
+    },
+
+    /**
+     * Conversion multiplier from a building's faithGain. Buildings without a
+     * faithGain (legacy fixtures) convert at the base rate.
+     */
+    faithMultiplier(building) {
+        if (!building || !building.faithGain) return 1;
+        return 0.5 + building.faithGain / 20; // shrine 0.75x, temple 1.25x, cathedral 2x
+    },
+
+    /**
+     * Spread faith from religious buildings.
+     * Each building draws `faithGain` pilgrims a day directly (the advertised
+     * "+X/day") and converts settlement population in its influence radius,
+     * scaled by faithGain.
      */
     spreadFaith(player, world) {
         if (!player.religion || player.religion.buildings.length === 0) return 0;
@@ -147,21 +187,25 @@ export const PlayerReligion = {
             const tile = world.getTile(buildingRef.q, buildingRef.r);
             if (!tile || !tile.religiousBuilding) continue;
 
-            const building = tile.religiousBuilding;
+            const building = PlayerReligion.ensureBuildingStats(tile.religiousBuilding);
             if (building.underConstruction) continue; // Still being built
-            const hexes = Hex.hexesInRange(buildingRef.q, buildingRef.r, building.influenceRadius);
+            const hexes = Hex.hexesInRange(buildingRef.q, buildingRef.r, building.influenceRadius || 0);
+            const mult = PlayerReligion.faithMultiplier(building);
+
+            // Pilgrims drawn to the building itself
+            let gained = Math.floor((building.faithGain || 0) * (1 + spreadBonus));
 
             for (const hex of hexes) {
                 const nearbyTile = world.getTile(hex.q, hex.r);
                 if (!nearbyTile || !nearbyTile.settlement) continue;
 
                 // Convert some population to followers
-                const conversionRate = 0.01 * (1 + player.faith * 0.1) * (1 + spreadBonus);
-                const newFollowers = Math.floor(nearbyTile.settlement.population * conversionRate);
-
-                building.followers += newFollowers;
-                totalFollowersGained += newFollowers;
+                const conversionRate = 0.01 * (1 + player.faith * 0.1) * (1 + spreadBonus) * mult;
+                gained += Math.floor(nearbyTile.settlement.population * conversionRate);
             }
+
+            building.followers += gained;
+            totalFollowersGained += gained;
 
             // Gain karma from monasteries
             if (building.karmaBonus) {
@@ -173,6 +217,54 @@ export const PlayerReligion = {
         player.religion.influence = Math.floor(player.religion.followers / 100);
 
         return totalFollowersGained;
+    },
+
+    /**
+     * Daily special yields of finished religious buildings:
+     *  - incomeBonus (Pilgrim Hospice): gold from pilgrims, growing with the building's followers
+     *  - renownPerDay (Reliquary Vault): renown from relic veneration
+     *  - scholarshipBonus (Oracle Tower): each point is 2% of a research day,
+     *    banked as "oracle insight" (cap 5 days) and spent in whole days on the
+     *    player's current research (completion is left to Technology.processResearch).
+     */
+    applyBuildingYields(player, world) {
+        const out = { gold: 0, renown: 0, researchDays: 0 };
+        if (!player.religion || !player.religion.buildings || !world) return out;
+
+        let scholarship = 0;
+        for (const ref of player.religion.buildings) {
+            const tile = world.getTile(ref.q, ref.r);
+            if (!tile || !tile.religiousBuilding) continue;
+            const b = PlayerReligion.ensureBuildingStats(tile.religiousBuilding);
+            if (b.underConstruction) continue;
+            const level = b.level || 1;
+            if (b.incomeBonus) {
+                const pilgrimMult = 1 + Math.min(2, (b.followers || 0) / 500);
+                out.gold += Math.floor(b.incomeBonus * 0.1 * level * pilgrimMult);
+            }
+            if (b.renownPerDay) out.renown += b.renownPerDay * level;
+            if (b.scholarshipBonus) scholarship += b.scholarshipBonus * level;
+        }
+
+        if (out.gold) player.gold = (player.gold || 0) + out.gold;
+        if (out.renown) player.renown = (player.renown || 0) + out.renown;
+
+        if (scholarship > 0) {
+            player.religion.oracleInsight = Math.min(5, (player.religion.oracleInsight || 0) + scholarship * 0.02);
+            const research = player.technology && player.technology.currentResearch;
+            if (research && player.religion.oracleInsight + 1e-9 >= 1) {
+                const days = Math.floor(player.religion.oracleInsight + 1e-9);
+                // Leave the final day to processResearch so completion is handled in one place
+                const room = Math.max(0, (research.totalDays || 0) - 1 - (research.progress || 0));
+                const applied = Math.min(days, room);
+                if (applied > 0) {
+                    research.progress = (research.progress || 0) + applied;
+                    player.religion.oracleInsight = Math.max(0, player.religion.oracleInsight - applied);
+                    out.researchDays = applied;
+                }
+            }
+        }
+        return out;
     },
 
     /**

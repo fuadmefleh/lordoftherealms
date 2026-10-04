@@ -1,6 +1,6 @@
 // ActionMenu — trade methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader } from './_imports.js';
+import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, NpcDisposition } from './_imports.js';
 
 Object.assign(ActionMenu, {
     /**
@@ -1096,6 +1096,13 @@ Object.assign(ActionMenu, {
             return;
         }
 
+        // Disposition & personality set this trader's prices (both ways)
+        const priceMods = NpcDisposition.getPriceModifiers(npc);
+        if (priceMods.refuses) {
+            game.ui.showNotification('🚫 No Deal', priceMods.refuseReason, 'warning');
+            return;
+        }
+
         const playerGold = game.player.gold || 0;
         const npcName = npc.name || 'Trader';
         const npcIcon = npc.icon || '🧑';
@@ -1125,7 +1132,7 @@ Object.assign(ActionMenu, {
         for (const [itemId, data] of Object.entries(npc.shopInventory)) {
             const goodDef = PlayerEconomy.GOODS[itemId.toUpperCase()] || Object.values(PlayerEconomy.GOODS).find(g => g.id === itemId);
             if (!goodDef || data.qty <= 0) continue;
-            const price = Math.max(1, Math.round(goodDef.basePrice * (data.markup || 1)));
+            const price = NpcDisposition.buyPrice(npc, goodDef.basePrice * (data.markup || 1));
             shopGoods.push({ ...goodDef, quantity: data.qty, price, _itemId: itemId });
         }
 
@@ -1144,7 +1151,7 @@ Object.assign(ActionMenu, {
                 if (quantity <= 0) continue;
                 const good = PlayerEconomy.GOODS[goodId.toUpperCase()];
                 if (!good) continue;
-                const sellPrice = Math.max(1, Math.floor(good.basePrice * 0.65));
+                const sellPrice = NpcDisposition.sellPrice(npc, good.basePrice * 0.65);
                 sellItems.push({ ...good, quantity, sellPrice });
             }
         }
@@ -1194,6 +1201,10 @@ Object.assign(ActionMenu, {
             </div>
             <div class="npc-trade-purse">💰 ${playerGold.toLocaleString()}</div>
         </div>
+        ${priceMods.reasons.length > 0 ? `<div style="font-size:11px; margin:-6px 0 10px; color:${priceMods.pct > 0 ? '#ff8a65' : priceMods.pct < 0 ? '#66bb6a' : 'var(--text-secondary)'};"
+            title="Disposition and personality change what this trader charges and pays">
+            🏷️ Prices ${priceMods.pct > 0 ? '+' : ''}${priceMods.pct}% · ${priceMods.reasons.map(r => `${r.label} ${r.pct > 0 ? '+' : ''}${r.pct}%`).join(', ')}
+        </div>` : ''}
 
         <div class="npc-trade-tabs">
             <button class="npc-trade-tab active" data-npc-tab="buy">🛒 Buy</button>
@@ -1270,10 +1281,13 @@ Object.assign(ActionMenu, {
                     game.ui.showNotification('Not Enough Gold', `You need ${totalCost} gold but only have ${game.player.gold}.`, 'error');
                     return;
                 }
+                if (!PlayerInventory.canAdd(game.player, itemId)) {
+                    game.ui.showNotification('🎒 Inventory Full', PlayerInventory.fullMessage(game.player), 'error');
+                    return;
+                }
                 // Deduct gold, add to player inventory, reduce NPC stock
                 game.player.gold -= totalCost;
-                if (!game.player.inventory) game.player.inventory = {};
-                game.player.inventory[itemId] = (game.player.inventory[itemId] || 0) + qty;
+                PlayerInventory.addItem(game.player, itemId, qty);
                 npc.shopInventory[itemId].qty -= qty;
                 if (npc.shopInventory[itemId].qty <= 0) delete npc.shopInventory[itemId];
                 game.ui.showNotification('Purchase Complete', `Bought ${qty}x ${displayName} for ${totalCost} gold`, 'success');

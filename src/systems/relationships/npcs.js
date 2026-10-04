@@ -16,10 +16,10 @@ Object.assign(Relationships, {
         // Set up player dynasty fields if not present
         if (!player.dynasty) {
             const dynastySurname = player.lastName || player.firstName || player.name || 'Wanderer';
+            // Prestige lives on the House (player.house.prestige)
             player.dynasty = {
                 name: dynastySurname,
                 founded: 1,
-                prestige: 0,
             };
         }
         if (!player.spouse) player.spouse = null;          // NPC id

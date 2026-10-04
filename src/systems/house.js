@@ -239,7 +239,30 @@ export const House = {
             player.house = House._blankHouse(player, world);
             House._chronicle(player.house, world, `${player.house.name} enters history.`, ['founding']);
         }
+        House.migrateLegacyPrestige(player);
         return player.house;
+    },
+
+    /**
+     * Fold the legacy `player.dynasty.prestige` counter (pre-House saves) into
+     * House Prestige once, then drop it so there is a single source of truth.
+     * Returns the amount migrated.
+     */
+    migrateLegacyPrestige(player) {
+        if (!player || !player.house || !player.dynasty) return 0;
+        if (!Object.prototype.hasOwnProperty.call(player.dynasty, 'prestige')) return 0;
+        const legacy = Math.max(0, Math.floor(player.dynasty.prestige || 0));
+        delete player.dynasty.prestige;
+        if (legacy > 0) {
+            player.house.prestige = (player.house.prestige || 0) + legacy;
+            House._logPrestige(player.house, player.house.lastNotableDay || 0, legacy, 'legacy dynasty prestige');
+        }
+        return legacy;
+    },
+
+    /** The player's dynastic Prestige (House Prestige). */
+    getPrestige(player) {
+        return (player && player.house && player.house.prestige) || 0;
     },
 
     /**
@@ -864,6 +887,7 @@ export const House = {
             sigil: { ...blank.sigil, ...(data.sigil || {}) },
             roles: { ...blank.roles, ...(data.roles || {}) },
         };
+        House.migrateLegacyPrestige(player);
         return player.house;
     },
 };

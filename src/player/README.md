@@ -12,6 +12,7 @@ Everything controlled by or owned by the player character. This is the player's 
 | `military/` | ~1498 | Army recruitment, formation combat, sieges, mercenaries |
 | `tavern/` | ~2017 | Intelligence gathering, rumors, informants, Sims-style needs |
 | `playerReligion.js` | 379 | Found a religion, build holy sites, perform miracles |
+| `inventory.js` | — | Carrying capacity (`maxInventory` slots) and the `addItem` gain path |
 | `index.js` | — | Barrel re-export of all public player APIs |
 
 ## Key Objects

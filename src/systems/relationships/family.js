@@ -405,9 +405,10 @@ Object.assign(Relationships, {
         player.allegiance = null;
         player.kingdomTitle = null;
 
-        // Increase dynasty prestige
-        if (player.dynasty) {
-            player.dynasty.prestige = (player.dynasty.prestige || 0) + 5;
+        // An heir taking up the mantle is a notable deed for the House
+        // (House prestige superseded the legacy player.dynasty.prestige counter)
+        if (typeof House !== 'undefined' && player.house) {
+            House.award(player.house, 5, 'an heir takes up the mantle', world ? world.day : 0);
         }
 
         // Clear old relationships (new character doesn't know the same people personally)

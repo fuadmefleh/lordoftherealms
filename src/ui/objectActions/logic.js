@@ -1,6 +1,7 @@
 // Object-action helper + modal functions (stateless; take game as a param).
 import { InnerMap } from '../../world/innerMap.js';
 import { Hotbar } from '../hotbar.js';
+import { PlayerInventory } from '../../player/inventory.js';
 import { FOOD_ITEMS, COOK_RECIPES, CRAFT_RECIPES, SMELT_RECIPES, BREW_RECIPES, HEAL_ITEMS, MODAL_STYLE, MODAL_HEADER_STYLE, MODAL_BODY_STYLE, MODAL_FOOTER_STYLE } from './data.js';
 import { OBJECT_ACTIONS } from './actions.js';
 
@@ -40,11 +41,10 @@ export function _consumeIngredients(game, ingredients) {
     }
 }
 
+/** Add results to the inventory; returns the PlayerInventory.addItems summary (dropped = didn't fit). */
 export function _giveResults(game, results) {
     if (!game.player.inventory) game.player.inventory = {};
-    for (const [item, amt] of Object.entries(results)) {
-        game.player.inventory[item] = (game.player.inventory[item] || 0) + amt;
-    }
+    return PlayerInventory.addItems(game.player, results);
 }
 
 /** The world tile of the settlement the player is visiting, or null. */
@@ -292,8 +292,15 @@ export function _showRecipeModal(game, objDef, title, icon, recipes) {
     window._execRecipe = (idx) => {
         const recipe = recipes[idx];
         if (!recipe || !_canCraftRecipe(game, recipe)) return;
+        const invBefore = { ...(game.player.inventory || {}) };
         _consumeIngredients(game, recipe.ingredients);
-        _giveResults(game, recipe.result);
+        const given = _giveResults(game, recipe.result);
+        if (given.full) {
+            // No room for the product — undo the craft rather than destroy the ingredients
+            game.player.inventory = invBefore;
+            game.ui.showNotification('🎒 Inventory Full', PlayerInventory.fullMessage(game.player), 'warning');
+            return;
+        }
         _advanceTime(1);
         _removeModal(id);
         const resultStr = Object.entries(recipe.result).map(([k, v]) => `${v}× ${k.replace(/_/g, ' ')}`).join(', ');
@@ -465,8 +472,11 @@ export function _showStoreModal(game, objDef, anchorQ, anchorR) {
             if ((storage[itemId] || 0) <= 0) return;
             storage[itemId]--;
             if (storage[itemId] <= 0) delete storage[itemId];
-            if (!game.player.inventory) game.player.inventory = {};
-            game.player.inventory[itemId] = (game.player.inventory[itemId] || 0) + 1;
+            if (!PlayerInventory.addItem(game.player, itemId, 1).success) {
+                storage[itemId] = (storage[itemId] || 0) + 1;
+                game.ui.showNotification('🎒 Inventory Full', PlayerInventory.fullMessage(game.player), 'warning');
+                return;
+            }
         }
         renderContent();
         game.ui.updateStats(game.player, game.world);

@@ -1,6 +1,6 @@
 // PlayerMilitary — combat members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
-import { Utils, Technology, House, Quests, RealmWars, PlayerEffects, Housing, Culture, PlayerReligion } from './_imports.js';
+import { Utils, Technology, House, Quests, RealmWars, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -543,17 +543,15 @@ Object.assign(PlayerMilitary, {
         let karmaChange = 0;
         let renownChange = 0;
         let inventoryLoot = {};
+        let lootLeftBehind = null;
 
         if (combatResult.victory) {
             // Transfer unit inventory to player
             if (worldUnit.inventory) {
-                for (const [item, qty] of Object.entries(worldUnit.inventory)) {
-                    if (qty > 0) {
-                        if (!player.inventory) player.inventory = {};
-                        player.inventory[item] = (player.inventory[item] || 0) + qty;
-                        inventoryLoot[item] = qty;
-                    }
-                }
+                // Loot that doesn't fit in the player's packs is left behind
+                const loot = PlayerInventory.addItems(player, worldUnit.inventory);
+                inventoryLoot = loot.added;
+                if (loot.full) lootLeftBehind = loot.dropped;
             }
 
             // Destroy the unit
@@ -641,6 +639,7 @@ Object.assign(PlayerMilitary, {
             karmaChange,
             renownChange,
             inventoryLoot,
+            lootLeftBehind,
         };
     },
 });

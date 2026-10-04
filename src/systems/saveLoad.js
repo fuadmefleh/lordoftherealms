@@ -163,10 +163,32 @@ export const SaveLoad = {
     },
 
     /**
+     * Player fields the game reads back that the explicit list below used to
+     * drop — trained attributes reset to 5, debts vanished, mercenary
+     * contracts, map deceptions, the marriage alliance and tax policy were
+     * forgotten on load. Saved only when present, so old saves load as before.
+     */
+    EXTRA_PLAYER_FIELDS: [
+        'charisma', 'intelligence', 'faith', 'maxInventory',
+        'loans', 'taxRate', 'activeContract',
+        'mapDeceptions', 'marriageAllianceKingdom', 'cultureIncomeCarry',
+        'foragingTrips', 'huntingTrips', 'jobsCompleted', 'performancesGiven',
+    ],
+
+    _pickDefined(obj, keys) {
+        const out = {};
+        for (const k of keys) {
+            if (obj[k] !== undefined) out[k] = obj[k];
+        }
+        return out;
+    },
+
+    /**
      * Serialize player state
      */
     serializePlayer(player) {
         return {
+            ...SaveLoad._pickDefined(player, SaveLoad.EXTRA_PLAYER_FIELDS),
             q: player.q,
             r: player.r,
             gold: player.gold,

@@ -292,7 +292,7 @@ Object.assign(ActionMenu, {
             html += statPill('⚓', st.speed);
             html += statPill('📦', st.cargoCapacity);
             html += statPill('⚔️', st.combatStrength);
-            html += statPill('👥', st.crewRequired);
+            html += statPill('👥', `${st.crewRequired} crew needed`);
             html += '</div>';
             if (canAfford) {
                 html += `<button onclick="window._buyUsedShip(${i})" style="width:100%;${btnPrimary}">Buy Used Ship</button>`;
@@ -317,7 +317,7 @@ Object.assign(ActionMenu, {
             html += statPill('⚓', st.speed);
             html += statPill('📦', st.cargoCapacity);
             html += statPill('⚔️', st.combatStrength);
-            html += statPill('👥', st.crewRequired);
+            html += statPill('👥', `${st.crewRequired} crew (${st.crewRequired * Ships._getCrewSettings().wagePerSailorPerDay}g/day wages)`);
             html += statPill('💰/day', `${st.dailyUpkeep}g`);
             html += statPill('🏗️ Days', st.buildDays);
             if (st.customizations && st.customizations.length > 0) {
@@ -480,6 +480,7 @@ Object.assign(ActionMenu, {
             }
         }
 
+        html += `<div style="font-size:11px;color:var(--text-secondary);margin-top:8px;">👥 New ships come without a crew: hire ${st.crewRequired} sailors at a port (${Ships._getCrewSettings().hireCostPerSailor}g each to sign on, ${Ships._getCrewSettings().wagePerSailorPerDay}g a day in wages).</div>`;
         html += `<div id="buildTotalCost" style="font-size:13px;font-weight:bold;margin:10px 0 8px;padding:8px;border-radius:6px;background:rgba(245,197,66,0.08);border:1px solid rgba(245,197,66,0.25);">Total: ${baseCost}g</div>`;
         html += `<button onclick="window._commissionShip('${typeId}', ${baseCost})" style="width:100%;${btnPrimary}">🔨 Commission Ship</button>`;
         html += `<button onclick="ActionMenu.showShipyardMenu(window._game, window._tile)" style="width:100%;margin-top:6px;${btnSecondary}">← Back to Shipyard</button>`;
@@ -554,8 +555,12 @@ Object.assign(ActionMenu, {
         html += statPill('⚓ Speed', eff.speed);
         html += statPill('📦 Cargo', eff.cargoCapacity);
         html += statPill('⚔️ Str', eff.combatStrength);
-        html += statPill('👥 Crew', eff.crewRequired);
-        html += statPill('💰/day', `${st.dailyUpkeep}g`);
+        const crew = Ships.getCrew(ship);
+        const crewColor = crew >= eff.crewRequired ? '#5cb85c' : crew >= Ships.getMinCrew(ship) ? '#f0ad4e' : '#d9534f';
+        const morale = Ships.getMorale(ship);
+        html += statPill('👥 Crew', `<span style="color:${crewColor}">${crew}/${eff.crewRequired}</span>`);
+        html += statPill('🙂 Morale', morale);
+        html += statPill('💰/day', `${st.dailyUpkeep}g + ${Ships.getDailyWages(ship)}g wages`);
         if (ship.status === 'building') html += statPill('🏗️', `${ship.buildDaysLeft}d left`);
         if (ship.status === 'moving') html += statPill('🧭', ship.destinationName || 'en route');
         html += '</div>';
@@ -581,7 +586,26 @@ Object.assign(ActionMenu, {
             html += '</div>';
         }
 
+        // Crew: what a short-handed ship loses, and hiring at this port
+        const crewOpen = Math.max(0, eff.crewRequired - crew);
+        html += '<div style="margin-bottom:8px;padding:8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.02);font-size:11px;">';
+        html += '<div style="font-size:12px;font-weight:bold;margin-bottom:4px;">👥 Crew</div>';
+        if (crew < Ships.getMinCrew(ship)) {
+            html += `<div style="color:#e57373;">Needs at least ${Ships.getMinCrew(ship)} sailors to leave port.</div>`;
+        }
+        if (crewOpen > 0) {
+            html += `<div style="color:var(--text-secondary);">Short-handed: ${Math.round(Ships.getCrewSpeedFactor(ship) * 100)}% speed, ${Math.round(Ships.getCrewCombatFactor(ship) * 100)}% fighting strength, fewer fish in the nets.</div>`;
+        }
+        html += `<div style="color:var(--text-secondary);">Wages ${Ships._getCrewSettings().wagePerSailorPerDay}g per sailor a day. Storms, defeats and missed wages sap morale; below ${Ships._getCrewSettings().desertionMorale} sailors desert.</div>`;
+        html += '</div>';
+
         html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">';
+        if (ship.status === 'docked' && crewOpen > 0 && Ships.isPortTile(game.world, ship.q, ship.r)) {
+            html += `<button onclick="window._hireCrew('${ship.id}')" style="flex:1;${btnPrimary}">👥 Hire ${crewOpen} sailors (${Ships.getHireCost(crewOpen)}g)</button>`;
+        }
+        if (ship.status === 'docked' && crew > 0) {
+            html += `<button onclick="window._dismissCrew('${ship.id}')" style="flex:1;${btnSecondary}">👋 Pay off 1 sailor</button>`;
+        }
         if (ship.condition < 100 && ship.status === 'docked') {
             const repCost = Ships.getRepairCost(ship);
             html += `<button onclick="window._repairShip('${ship.id}')" style="flex:1;${btnPrimary}">🔧 Repair (${repCost}g)</button>`;
@@ -610,6 +634,21 @@ Object.assign(ActionMenu, {
             } else {
                 game.ui.showNotification('Error', result.message, 'error');
             }
+        };
+
+        window._hireCrew = (sid) => {
+            const result = Ships.hireCrew(player, game.world, sid);
+            game.ui.showNotification(result.success ? '👥 Crew Hired' : 'Cannot Hire', result.message, result.success ? 'success' : 'error');
+            if (result.success) {
+                game.ui.updateStats(player, game.world);
+                ActionMenu._showShipManagePanel(game, tile, sid);
+            }
+        };
+
+        window._dismissCrew = (sid) => {
+            const result = Ships.dismissCrew(player, sid, 1);
+            game.ui.showNotification(result.success ? '👋 Crew Paid Off' : 'Error', result.message, result.success ? 'info' : 'error');
+            if (result.success) ActionMenu._showShipManagePanel(game, tile, sid);
         };
 
         window._renameShip = (sid) => {
@@ -837,10 +876,19 @@ Object.assign(ActionMenu, {
             html += statPill('⚓', eff.speed);
             html += statPill('⚔️', eff.combatStrength);
             html += statPill('📦', eff.cargoCapacity);
-            html += statPill('👥', eff.crewRequired);
+            html += statPill('👥', `${Ships.getCrew(ship)}/${eff.crewRequired}`);
+            html += statPill('🙂', Ships.getMorale(ship));
             html += '</div>';
+            const noCrew = Ships.crewSailReason(ship);
             html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">';
-            html += `<button onclick="window._boardShip('${ship.id}')" style="width:100%;${btnPrimary}">⛵ Board & Set Sail</button>`;
+            if (noCrew) {
+                html += `<div style="font-size:11px;color:#e57373;">${noCrew}</div>`;
+            } else {
+                if (Ships.getCrewRatio(ship) < 1) {
+                    html += `<div style="font-size:11px;color:#f0ad4e;width:100%;">Short-handed: sails slower and fights worse.</div>`;
+                }
+                html += `<button onclick="window._boardShip('${ship.id}')" style="width:100%;${btnPrimary}">⛵ Board & Set Sail</button>`;
+            }
             html += '</div>';
             html += '</div>';
         }
@@ -857,16 +905,14 @@ Object.assign(ActionMenu, {
         window._tile = tile;
 
         window._boardShip = (shipId) => {
-            const ship = Ships.getShipById(player, shipId);
-            if (!ship) {
-                game.ui.showNotification('Error', 'Ship not found.', 'error');
+            // Board the ship (needs a skeleton crew)
+            const boarded = Ships.boardShip(player, shipId);
+            if (!boarded.success) {
+                game.ui.showNotification('Cannot Sail', boarded.message, 'error');
                 return;
             }
-            
-            // Board the ship
-            player.boardedShip = shipId;
-            ship.status = 'at_sea';
-            
+            const ship = boarded.ship;
+
             game.ui.hideCustomPanel();
             game.ui.showNotification('⛵', `You board the ${ship.name}. You can now sail across water tiles!`, 'success');
             game.ui.updateStats(player, game.world);
@@ -1190,6 +1236,10 @@ Object.assign(ActionMenu, {
         if (allShips.length === 0) {
             html += '<p style="font-size:12px;color:var(--text-secondary);text-align:center;">You do not own any ships.</p>';
         }
+        const escort = Ships.getEscortStrength(player);
+        if (escort > 0) {
+            html += `<p style="font-size:11px;color:#4fc3f7;">⛵ ${Ships.getSquadron(player).length} war galley(s) escort your ships: +${escort} strength in every sea fight.</p>`;
+        }
 
         for (const ship of allShips) {
             const st = Ships.getShipType(ship.typeId);
@@ -1200,6 +1250,8 @@ Object.assign(ActionMenu, {
             html += '<div style="font-size:11px;display:flex;flex-wrap:wrap;gap:6px;margin:4px 0;">';
             html += `<span>📍 ${ship.dockedAt || ship.destinationName || 'Unknown'}</span>`;
             html += `<span>🔧 ${ship.condition}%</span>`;
+            html += `<span>👥 ${Ships.getCrew(ship)}/${Ships.getShipEffectiveStats(ship).crewRequired}</span>`;
+            html += `<span>🙂 ${Ships.getMorale(ship)}</span>`;
             if (ship.status === 'building') html += `<span>🏗️ ${ship.buildDaysLeft} days left</span>`;
             if (ship.status === 'moving') html += `<span>🧭 ${ship.travelDaysLeft || '?'} days ETA</span>`;
             html += '</div>';

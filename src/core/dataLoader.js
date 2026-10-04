@@ -303,6 +303,7 @@ export const DataLoader = {
 
         // ── Military ──
         const milData = data['military.json'];
+        DataLoader.military = milData; // navalRules + unit domains, read by Ships
         PlayerMilitary.UNIT_TYPES = milData.unitTypes;
         PlayerMilitary.CONTRACT_TYPES = milData.contractTypes;
 

@@ -10,6 +10,7 @@ import { Festivals } from './festivals.js';
 import { Councils } from './councils.js';
 import { BountyHunting } from './bountyHunting.js';
 import { Gossip } from './gossip.js';
+import { Ships } from './ships.js';
 
 
 export const SaveLoad = {
@@ -394,6 +395,9 @@ export const SaveLoad = {
             player.firstName = parts[0] || 'Wanderer';
             player.lastName = parts.slice(1).join(' ') || '';
         }
+
+        // Ship crews and naval units (backfills crews for saves from before them)
+        Ships.restoreFromSave(player);
 
         // Restore the House (backfills a blank for legacy saves without one)
         if (typeof House !== 'undefined') {

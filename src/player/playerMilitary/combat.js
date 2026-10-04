@@ -7,10 +7,19 @@ Object.assign(PlayerMilitary, {
      * Combat encounter (for random events or player-initiated)
      */
     combat(player, enemyStrength, enemyName = 'Bandits', context = {}) {
-        const playerStrength = PlayerMilitary.getArmyStrength(player);
+        // Who fights depends on the theatre: inland, war galleys stay at sea;
+        // at a port they blockade; on the water they lead (see theatreWeights)
+        const theatre = context.theatre || 'land';
+        const strengthParts = PlayerMilitary.getTheatreStrengthBreakdown(player, theatre);
+        const playerStrength = strengthParts.total;
 
         if (playerStrength === 0) {
-            return { victory: false, reason: 'No army to fight with!' };
+            const onlyShips = theatre === 'land' && (player.army || []).length > 0
+                && (player.army || []).every(u => PlayerMilitary.isNavalUnit(u));
+            return {
+                victory: false,
+                reason: onlyShips ? 'Your war galleys cannot fight on land — recruit soldiers.' : 'No army to fight with!',
+            };
         }
 
         const terrainId = context.terrainId || null;
@@ -85,14 +94,19 @@ Object.assign(PlayerMilitary, {
         // Plate armour turns blows that would have killed
         casualtyRate *= specials.casualtyMult;
 
-        const casualtyCount = Math.ceil(player.army.length * casualtyRate);
+        // Only units that took the field can fall (galleys stay out of land battles)
+        const fighting = () => player.army.filter(u => PlayerMilitary._theatreParticipant(u, theatre));
+        const casualtyCount = Math.ceil(fighting().length * casualtyRate);
 
         // Surgery: each would-be casualty may be carried off wounded instead
         const woundedChance = Technology.getEffectTotal(player, 'woundedRecoveryBonus');
         const woundedUnits = [];
         let casualties = 0;
-        for (let i = 0; i < casualtyCount && player.army.length > 0; i++) {
-            const unit = player.army.pop();
+        for (let i = 0; i < casualtyCount; i++) {
+            const candidates = fighting();
+            if (candidates.length === 0) break;
+            const unit = candidates[candidates.length - 1];
+            player.army.splice(player.army.lastIndexOf(unit), 1);
             if (woundedChance > 0 && Utils.random() < woundedChance) {
                 unit.woundedDays = PlayerMilitary.WOUNDED_DAYS;
                 woundedUnits.push(unit);
@@ -110,8 +124,8 @@ Object.assign(PlayerMilitary, {
             loot = Math.floor(enemyStrength * Utils.randFloat(2, 5));
             player.gold += loot;
 
-            // Experience for survivors
-            for (const unit of player.army) {
+            // Experience for the survivors who fought
+            for (const unit of fighting()) {
                 unit.experience += 5;
                 if (unit.experience >= 100 && unit.level < 5) {
                     unit.level++;
@@ -164,6 +178,9 @@ Object.assign(PlayerMilitary, {
             playerStrength,
             enemyStrength,
             commanderSlain: specials.commanderSlain,
+            theatre,
+            navalSupport: strengthParts.naval,
+            shipSupport: strengthParts.ship,
             tactics: {
                 terrainId,
                 weather: weatherType,
@@ -291,7 +308,9 @@ Object.assign(PlayerMilitary, {
      * settlement can only be raided once per RAID_COOLDOWN_DAYS.
      */
     raidSettlement(player, settlement, tile, world) {
-        const playerStrength = PlayerMilitary.getArmyStrength(player);
+        // At a port, war galleys blockade the harbour and join the fight
+        const theatre = PlayerMilitary.settlementTheatre(world, tile);
+        const playerStrength = PlayerMilitary.getTheatreStrength(player, theatre);
 
         if (playerStrength < 30) {
             return { success: false, reason: 'Army too weak to raid (need 30+ strength)' };
@@ -311,6 +330,7 @@ Object.assign(PlayerMilitary, {
             enemyComposition: PlayerMilitary._getSettlementComposition(settlement, tile),
             world,
             siege: true, // siege engines batter the defences
+            theatre,
         });
 
         result.defenseStrength = defenseStrength;
@@ -350,10 +370,12 @@ Object.assign(PlayerMilitary, {
      * Harder than raiding — the entire garrison must be defeated.
      */
     attackSettlement(player, settlement, tile, world) {
-        const playerStrength = PlayerMilitary.getArmyStrength(player);
+        // At a port, war galleys blockade the harbour and join the siege
+        const theatre = PlayerMilitary.settlementTheatre(world, tile);
+        const playerStrength = PlayerMilitary.getTheatreStrength(player, theatre);
 
-        if (playerStrength === 0) {
-            return { success: false, reason: 'You have no army! Recruit soldiers first.' };
+        if (PlayerMilitary.getArmyStrength(player) === 0) {
+            return { success: false, reason: 'You have no land army! Recruit soldiers first — galleys alone cannot take a town.' };
         }
 
         if (playerStrength < 50) {
@@ -394,6 +416,7 @@ Object.assign(PlayerMilitary, {
             enemyComposition: PlayerMilitary._getSettlementComposition(settlement, tile),
             world,
             siege: true, // siege engines breach the walls
+            theatre,
             enemyMoraleBonus: settlement.type === 'capital' ? 0.1 : 0,
         });
         result.garrisonStrength = garrisonStrength;
@@ -562,6 +585,9 @@ Object.assign(PlayerMilitary, {
             enemyComposition: PlayerMilitary._getWorldUnitComposition(worldUnit),
             world,
             defending: !!opts.defending,
+            // Aboard ship or on the water the fight is at sea
+            theatre: PlayerMilitary.tileTheatre(
+                typeof player.q === 'number' ? world.getTile(player.q, player.r) : unitTile, player),
         });
 
         // Handle no-army edge case

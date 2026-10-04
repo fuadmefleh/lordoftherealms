@@ -245,6 +245,8 @@ export const RealmPolitics = {
 
         const strength = RealmPolitics.campaignStrength(enemy);
         const battle = PlayerMilitary.combat(player, strength, `${enemy.name} vanguard`, { ...context, world });
+        // No battle was fought (e.g. only war galleys, which stay off land fields)
+        if (battle.reason) return { success: false, reason: battle.reason };
         if (battle.victory) {
             const st = RealmPolitics._state(player);
             const meritKey = `${opts.liege.id}:${enemy.id}`;

@@ -141,7 +141,9 @@
       "upkeep": 15,
       "strength": 20,
       "domain": "sea",
-      "description": "Armed warship for naval combat"
+      "minSettlement": "town",
+      "requiresPort": true,
+      "description": "Oared warship. Never fights on land: it escorts your ships at sea and blockades coastal settlements you raid or besiege. Recruited only at ports."
     },
     "SCOUT": {
       "id": "scout",
@@ -154,6 +156,15 @@
       "sightRange": 4,
       "description": "Fast reconnaissance: +1 vision radius and +1 movement per day while in your army"
     }
+  },
+  "navalRules": {
+    "_doc": "How much of each domain fights in each theatre. land = inland battles, coastal = raids/sieges on a port settlement, sea = fights on water. escortShare = part of the war-galley squadron strength added to every fight your own ships take on at sea.",
+    "theatreWeights": {
+      "land": { "land": 1, "sea": 0 },
+      "coastal": { "land": 1, "sea": 0.5 },
+      "sea": { "land": 0.5, "sea": 1 }
+    },
+    "escortShare": 0.5
   },
   "contractTypes": {
     "GUARD_DUTY": {

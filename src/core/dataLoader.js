@@ -279,6 +279,9 @@ export const DataLoader = {
         const econData = data['economy.json'];
         Economy.PRODUCTION_RATES = econData.productionRates;
         Economy.RESOURCE_BONUSES = econData.resourceBonuses;
+        if (econData.resourceGoods) Economy.RESOURCE_GOODS = econData.resourceGoods;
+        if (econData.resourceEffects) Economy.RESOURCE_EFFECTS = econData.resourceEffects;
+        if (econData.propertyResourceBonuses) Economy.PROPERTY_RESOURCE_BONUSES = econData.propertyResourceBonuses;
 
         // ── Quests ──
         const questData = data['quests.json'];

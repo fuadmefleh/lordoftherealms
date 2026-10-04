@@ -49,8 +49,8 @@
             "produces": "iron",
             "productionRate": 5,
             "upkeep": 15,
-            "requiredResource": ["iron", "gold_ore", "gems", "stone"],
-            "description": "Extracts valuable resources for sale. Upkeep: 15g/day"
+            "requiredResource": ["iron", "gold_ore", "gems", "stone", "coal"],
+            "description": "Extracts valuable resources for sale (iron, gold, gems, stone or coal). Upkeep: 15g/day"
         },
         "WORKSHOP": {
             "id": "workshop",
@@ -166,7 +166,7 @@
             "productionRate": 5,
             "upkeep": 12,
             "requiredSettlement": true,
-            "allowedRecipes": ["TOOLS", "WEAPONS"],
+            "allowedRecipes": ["TOOLS", "WEAPONS", "IRON_INGOT"],
             "recipeChangeCost": 200,
             "description": "A dedicated smithy. Forges tools or weapons from iron. Upkeep: 12g/day"
         },
@@ -393,7 +393,7 @@
             "productionRate": 3,
             "upkeep": 8,
             "requiredSettlement": true,
-            "allowedRecipes": ["HEALING_SALVE", "POTION"],
+            "allowedRecipes": ["HEALING_SALVE", "POTION", "ELIXIR"],
             "recipeChangeCost": 150,
             "description": "Prepares herbal remedies and alchemical potions. Upkeep: 8g/day"
         },
@@ -453,7 +453,7 @@
             "productionRate": 5,
             "upkeep": 5,
             "requiredSettlement": true,
-            "allowedRecipes": ["CANDLES"],
+            "allowedRecipes": ["CANDLES", "LAMP_OIL"],
             "recipeChangeCost": 0,
             "description": "Renders beeswax into candles. An essential light source. Upkeep: 5g/day"
         },
@@ -498,7 +498,7 @@
             "productionRate": 4,
             "upkeep": 10,
             "requiredSettlement": true,
-            "allowedRecipes": ["SHIELD", "TOOLS", "WEAPONS"],
+            "allowedRecipes": ["SHIELD", "TOOLS", "WEAPONS", "IRON_INGOT", "DRAGONSCALE_ARMOR"],
             "recipeChangeCost": 150,
             "description": "Versatile smithy producing shields, tools, and weapons. Upkeep: 10g/day"
         },
@@ -541,7 +541,7 @@
             "productionRate": 8,
             "upkeep": 6,
             "requiredTerrain": ["plains", "grassland", "savanna"],
-            "description": "Raises cattle for meat. Pair with a Smokehouse or Butcher for dried provisions. Upkeep: 6g/day"
+            "description": "Raises cattle for meat. Pair with a Smokehouse or Butcher for dried provisions. Built on or beside a cattle herd it yields 30% more. Upkeep: 6g/day"
         },
         "HERB_GARDEN": {
             "id": "herb_garden",
@@ -568,6 +568,19 @@
             "upkeep": 12,
             "requiredTerrain": ["plains", "grassland", "savanna"],
             "description": "Breeds horses — slow to raise but prized by every army and merchant. Upkeep: 12g/day"
+        },
+        "PITCH_WORKS": {
+            "id": "pitch_works",
+            "category": "resources",
+            "name": "Pitch Works",
+            "icon": "🛢️",
+            "cost": 700,
+            "constructionDays": 6,
+            "produces": "oil",
+            "productionRate": 4,
+            "upkeep": 8,
+            "requiredResource": ["oil"],
+            "description": "Skims rock oil from a desert seep. Sell it, or refine it into lamp oil at a Chandlery. Upkeep: 8g/day"
         },
         "FORAGER_HUT": {
             "id": "forager_hut",
@@ -664,7 +677,27 @@
         "FRUIT": { "id": "fruit", "name": "Fresh Fruit", "icon": "🍎", "basePrice": 5 },
         "GLASS": { "id": "glass", "name": "Glass", "icon": "💠", "basePrice": 18 },
         "MEAD": { "id": "mead", "name": "Mead", "icon": "🍶", "basePrice": 25 },
-        "PARCHMENT": { "id": "parchment", "name": "Parchment", "icon": "📄", "basePrice": 14 }
+        "PARCHMENT": { "id": "parchment", "name": "Parchment", "icon": "📄", "basePrice": 14 },
+        "FOOD": { "id": "food", "name": "Army Rations", "icon": "🥫", "basePrice": 4, "description": "Hardtack and salt pork seized from soldiers. Eaten on the road like any other food." },
+        "COAL": { "id": "coal", "name": "Coal", "icon": "⚫", "basePrice": 10, "description": "Mined from coal seams. Smiths and smelters burn it: forges near coal work faster, and a furnace makes ingots from less iron with it." },
+        "OIL": { "id": "oil", "name": "Rock Oil", "icon": "🛢️", "basePrice": 22, "description": "Black oil from desert seeps. A prized trade good; chandlers refine it into lamp oil." },
+        "LAMP_OIL": { "id": "lamp_oil", "name": "Lamp Oil", "icon": "🧴", "basePrice": 15, "description": "Refined oil for lamps and lanterns." },
+        "RUM": { "id": "rum", "name": "Rum", "icon": "🍹", "basePrice": 14, "description": "Pirate rum. A swig puts spring back in your step (+1 movement today).", "treasure": { "consume": { "movement": 1 } } },
+        "HOLY_WATER": { "id": "holy_water", "name": "Holy Water", "icon": "💧", "basePrice": 15, "description": "Blessed water carried by pilgrims. Drink it to mend small wounds (+10 health).", "treasure": { "consume": { "health": 10 } } },
+        "RELICS": { "id": "relics", "name": "Holy Relics", "icon": "📿", "basePrice": 85, "description": "Bones and tokens of saints. A pious lord treasures them; a House that enshrines them gains standing.", "treasure": { "gift": 8, "prestige": 2 } },
+        "SCRIPTURES": { "id": "scriptures", "name": "Scriptures", "icon": "📖", "basePrice": 30, "description": "Illuminated holy texts. A modest courtly gift.", "treasure": { "gift": 4 } },
+        "POISON": { "id": "poison", "name": "Poison", "icon": "☠️", "basePrice": 45, "description": "Smuggled poison. Fences pay well and ask nothing." },
+        "STOLEN_GOODS": { "id": "stolen_goods", "name": "Stolen Goods", "icon": "📦", "basePrice": 25, "description": "Fenced wares of uncertain origin." },
+        "FORGED_DOCUMENTS": { "id": "forged_documents", "name": "Forged Documents", "icon": "🖋️", "basePrice": 55, "description": "Passable letters of introduction. Carrying them helps a little at the negotiating table (+2%).", "treasure": { "equip": { "negotiation": 0.02 } } },
+        "RARE_HERBS": { "id": "rare_herbs", "name": "Rare Herbs", "icon": "🌺", "basePrice": 28, "description": "Exotic herbs. An apothecary brews them into an Elixir of Vigor." },
+        "ANCIENT_ARTIFACT": { "id": "ancient_artifact", "name": "Ancient Artifact", "icon": "🏺", "basePrice": 240, "description": "A relic of a lost age from a creature's hoard. Lords covet it; enshrined in your hall it brings your House prestige.", "treasure": { "gift": 20, "prestige": 6 } },
+        "ENCHANTED_WEAPON": { "id": "enchanted_weapon", "name": "Enchanted Weapon", "icon": "🗡️", "basePrice": 280, "description": "A rune-etched blade from a legendary hoard. Carried at the head of your army it adds 5% battle power.", "treasure": { "gift": 15, "prestige": 3, "equip": { "battlePower": 0.05 } } },
+        "DRAGON_SCALE": { "id": "dragon_scale", "name": "Dragon Scale", "icon": "🐉", "basePrice": 200, "description": "A plate of scale harder than steel. Carried as a buckler it turns 10% of the harm you take; a blacksmith can work three into dragonscale armour.", "treasure": { "gift": 12, "prestige": 4, "equip": { "damageReduction": 0.1 } } },
+        "DRAGONSCALE_ARMOR": { "id": "dragonscale_armor", "name": "Dragonscale Armour", "icon": "🐲", "basePrice": 750, "description": "Armour of dragon scale. Turns 25% of the harm you take, and kings would trade a province for it.", "treasure": { "gift": 25, "prestige": 8, "equip": { "damageReduction": 0.25 } } },
+        "ROYAL_SEAL": { "id": "royal_seal", "name": "Royal Seal", "icon": "🔏", "basePrice": 160, "description": "A sovereign's signet. Carrying it lends you authority in negotiation (+5%); returned to a lord it earns real gratitude.", "treasure": { "gift": 18, "prestige": 3, "equip": { "negotiation": 0.05 } } },
+        "TREATY": { "id": "treaty", "name": "Sealed Treaty", "icon": "📜", "basePrice": 100, "description": "Signed terms between courts. Useful leverage at the table (+3% negotiation), or a gift a lord will value.", "treasure": { "gift": 12, "equip": { "negotiation": 0.03 } } },
+        "GIFT_CHEST": { "id": "gift_chest", "name": "Gift Chest", "icon": "🎁", "basePrice": 130, "description": "A chest of courtly presents meant for a lord. Present it at a royal audience.", "treasure": { "gift": 20 } },
+        "FINE_WINE": { "id": "fine_wine", "name": "Fine Wine", "icon": "🍷", "basePrice": 35, "description": "A vintage fit for a royal table. A small courtly gift.", "treasure": { "gift": 5 } }
     },
     "RECIPES": {
         "FIREWOOD": { "id": "firewood", "name": "Split Firewood", "input": "wood", "inputQty": 2, "output": "firewood", "outputQty": 5, "description": "Prepare fuel for heating." },
@@ -697,6 +730,10 @@
         "POTION": { "id": "potion", "name": "Brew Potion", "input": "mushrooms", "inputQty": 3, "output": "potion", "outputQty": 1, "description": "Brew mushrooms into a mysterious potion." },
         "AMULET": { "id": "amulet", "name": "Cut Amulet", "input": "gems", "inputQty": 2, "output": "amulet", "outputQty": 1, "description": "Cut gemstones into enchanted amulets." },
         "PERFUME": { "id": "perfume", "name": "Distil Perfume", "input": "herbs", "inputQty": 3, "output": "perfume", "outputQty": 1, "description": "Distil aromatic herbs into perfume." },
-        "INCENSE": { "id": "incense", "name": "Press Incense", "input": "herbs", "inputQty": 2, "output": "incense", "outputQty": 2, "description": "Press herbs into fragrant incense." }
+        "INCENSE": { "id": "incense", "name": "Press Incense", "input": "herbs", "inputQty": 2, "output": "incense", "outputQty": 2, "description": "Press herbs into fragrant incense." },
+        "IRON_INGOT": { "id": "iron_ingot", "name": "Smelt Iron Ingots", "input": "iron", "inputQty": 3, "output": "iron_ingot", "outputQty": 1, "description": "Smelt iron into ingots. Coal nearby fires the furnace hotter." },
+        "DRAGONSCALE_ARMOR": { "id": "dragonscale_armor", "name": "Forge Dragonscale Armour", "input": "dragon_scale", "inputQty": 3, "output": "dragonscale_armor", "outputQty": 1, "description": "Rivet dragon scales into a suit of armour." },
+        "LAMP_OIL": { "id": "lamp_oil", "name": "Refine Lamp Oil", "input": "oil", "inputQty": 1, "output": "lamp_oil", "outputQty": 2, "description": "Refine rock oil into clean-burning lamp oil." },
+        "ELIXIR": { "id": "elixir", "name": "Brew Elixir of Vigor", "input": "rare_herbs", "inputQty": 2, "output": "elixir", "outputQty": 1, "description": "Brew rare herbs into a restorative elixir." }
     }
 }

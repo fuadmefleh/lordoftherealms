@@ -1,6 +1,6 @@
 // UI — panels methods.
 import { UI } from './core.js';
-import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability } from './_imports.js';
+import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability, Treasures } from './_imports.js';
 
 Object.assign(UI.prototype, {
     /**
@@ -624,10 +624,24 @@ Object.assign(UI.prototype, {
                 const fallbackName = itemId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                 const icon = (item && item.icon) ? item.icon : '📦';
                 const name = (item && item.name) ? item.name : fallbackName;
+                const worth = item && item.basePrice ? `<span style="color: var(--text-secondary); font-size: 11px; margin-left: 6px;">~${item.basePrice}g each</span>` : '';
+                // Treasures: what they do, plus enshrine / use buttons
+                const info = Treasures.info(itemId);
+                let extra = '';
+                if (info) {
+                    const lines = Treasures.describe(itemId);
+                    extra += `<div style="font-size: 11px; color: #ce93d8; margin-top: 4px;">${lines.join(' · ')}</div>`;
+                    const btn = 'padding: 3px 8px; margin: 4px 6px 0 0; font-size: 11px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(245,197,66,0.15); color: var(--text-primary); cursor: pointer;';
+                    if (info.prestige > 0 && player.house) extra += `<button data-ui-act="dedicateTreasure" data-ui-args='["${itemId}"]' style="${btn}">🏛️ Enshrine (+${info.prestige} Prestige)</button>`;
+                    if (info.consume) extra += `<button data-ui-act="useTreasure" data-ui-args='["${itemId}"]' style="${btn}">✋ Use</button>`;
+                }
+                const title = item && item.description ? ` title="${String(item.description).replace(/"/g, '&quot;')}"` : '';
                 inventoryHtml += `
-                    <div style="display: flex; justify-content: space-between; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
-                        <span>${icon} ${name}</span>
-                        <span style="color: var(--gold);">×${quantity}</span>
+                    <div${title} style="padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>${icon} ${name}${worth}</span>
+                            <span style="color: var(--gold);">×${quantity}</span>
+                        </div>${extra}
                     </div>
                 `;
             }
@@ -640,6 +654,30 @@ Object.assign(UI.prototype, {
             title="Each kind of good takes a slot. A mount (+5) and each house (+3) add room.">🎒 Packs: ${used}/${cap} kinds of goods</div>` + inventoryHtml;
 
         this.showCustomPanel('Inventory', inventoryHtml);
+    },
+
+    /** Enshrine a treasure in the House hall for Prestige. */
+    dedicateTreasure(itemId) {
+        const r = Treasures.dedicate(this.game.player, itemId, this.game.world ? this.game.world.day : 0);
+        if (r.success) this.showNotification('🏛️ Enshrined', `${Treasures.name(itemId)} now hangs in your hall. +${r.prestige} Prestige.`, 'success');
+        else this.showNotification('Cannot Enshrine', r.reason, 'error');
+        this.updateStats(this.game.player, this.game.world);
+        this.showInventoryPanel();
+    },
+
+    /** Use a consumable treasure (holy water, rum). */
+    useTreasure(itemId) {
+        const r = Treasures.use(this.game.player, itemId);
+        if (r.success) {
+            const parts = [];
+            if (r.health) parts.push(`+${r.health} health`);
+            if (r.movement) parts.push(`+${r.movement} movement`);
+            this.showNotification(`${(Treasures.def(itemId) || {}).icon || '✋'} ${Treasures.name(itemId)}`, parts.join(', ') || 'Used.', 'success');
+        } else {
+            this.showNotification('Cannot Use', r.reason, 'error');
+        }
+        this.updateStats(this.game.player, this.game.world);
+        this.showInventoryPanel();
     },
 
     /**

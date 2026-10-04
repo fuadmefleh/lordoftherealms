@@ -43,6 +43,8 @@ Object.assign(PlayerMilitary, {
         playerPower *= 1 + PlayerEffects.companionBonus(player, 'power');
         // The Sword of the First King
         playerPower *= 1 + PlayerEffects.artifactBonus(player, 'battlePower');
+        // An enchanted weapon from a legendary hoard
+        playerPower *= 1 + PlayerEffects.treasureBonus(player, 'battlePower');
         // A commander in high spirits leads better; a miserable one worse
         playerPower *= PlayerEffects.moodCombatMultiplier(player);
         // Fortification techs help when the player is the one attacked
@@ -584,9 +586,13 @@ Object.assign(PlayerMilitary, {
         if (combatResult.victory) {
             // Transfer unit inventory to player
             if (worldUnit.inventory) {
+                // Coin goes straight to the purse (it used to sit in the packs as
+                // an 'item' nothing ever spent)
+                const { gold: coin = 0, ...goods } = worldUnit.inventory;
+                if (coin > 0) player.gold = (player.gold || 0) + coin;
                 // Loot that doesn't fit in the player's packs is left behind
-                const loot = PlayerInventory.addItems(player, worldUnit.inventory);
-                inventoryLoot = loot.added;
+                const loot = PlayerInventory.addItems(player, goods);
+                inventoryLoot = coin > 0 ? { gold: coin, ...loot.added } : loot.added;
                 if (loot.full) lootLeftBehind = loot.dropped;
             }
 

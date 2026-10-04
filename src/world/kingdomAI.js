@@ -134,7 +134,10 @@ export const KingdomAI = {
                 }
                 // Builders repair storm and quake damage
                 if (tile.settlement.damage > 0) {
-                    tile.settlement.damage = Math.max(0, Math.round((tile.settlement.damage - repairRate) * 1000) / 1000);
+                    // ...faster with stone and timber close at hand
+                    const rb = tile.settlement.economy && tile.settlement.economy.resourceBonuses;
+                    const localRepair = repairRate * (1 + ((rb && rb.construction) || 0) * Economy.effectScale('repair'));
+                    tile.settlement.damage = Math.max(0, Math.round((tile.settlement.damage - localRepair) * 1000) / 1000);
                 }
             }
 
@@ -670,6 +673,9 @@ export const KingdomAI = {
         // used to multiply per deposit per town, snowballing big kingdoms)
         const settlements = world.getAllSettlements().filter(s => s.kingdom === kingdom.id);
         let hasIron = false, hasHorses = false;
+        // Best recruiting ground in the realm: armies regrow faster where
+        // iron, horses or coal are at hand (resourceBonuses.military)
+        let recruiting = 0;
         for (const settlement of settlements) {
             const tile = world.getTile(settlement.q, settlement.r);
             if (!tile) continue;
@@ -677,6 +683,7 @@ export const KingdomAI = {
                 if (res.id === 'iron') hasIron = true;
                 if (res.id === 'horses') hasHorses = true;
             }
+            recruiting = Math.max(recruiting, Economy.resourceBonus(world, settlement.q, settlement.r, 'military'));
         }
         if (hasIron) military *= 1.2;
         if (hasHorses) military *= 1.15;
@@ -699,7 +706,8 @@ export const KingdomAI = {
             kingdom._militaryInit = true;
         } else {
             const cur = kingdom.military || 0;
-            const rate = cap > cur ? KingdomAI.WAR.regen : KingdomAI.WAR.demob;
+            const regen = Math.min(1, KingdomAI.WAR.regen * (1 + recruiting * Economy.effectScale('armyRegen')));
+            const rate = cap > cur ? regen : KingdomAI.WAR.demob;
             kingdom.military = Math.floor(cur + (cap - cur) * rate);
             if (attrition > 0 && kingdom.military > cap) kingdom.military = cap;
         }

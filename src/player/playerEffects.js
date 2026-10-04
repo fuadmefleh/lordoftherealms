@@ -14,6 +14,7 @@ import { Technology } from '../systems/technology.js';
 import { LegendaryArtifacts } from '../systems/legendaryArtifacts.js';
 import { Peoples } from '../systems/peoples.js';
 import { Housing } from '../systems/housing.js';
+import { Treasures } from './treasures.js';
 
 /** Personal damage reduction from gear in the inventory (multiplicative). */
 const ARMOR_REDUCTION = { leather_armor: 0.2, shield: 0.15, amulet: 0.1 };
@@ -65,6 +66,13 @@ export const PlayerEffects = {
     /** A reforged relic's lasting effect (see LegendaryArtifacts.getPassiveTotal). */
     artifactBonus(player, key) {
         return LegendaryArtifacts.getPassiveTotal(player, key);
+    },
+
+    // ──────────── CARRIED TREASURES (legendary loot) ────────────
+
+    /** A carried treasure's bonus: battlePower, damageReduction or negotiation. */
+    treasureBonus(player, key) {
+        return Treasures.equipTotal(player, key);
     },
 
     // ──────────── DIVINE BLESSINGS (miracles) ────────────
@@ -157,7 +165,8 @@ export const PlayerEffects = {
     /** Added chance when negotiating with a lord: +2% per point of effective diplomacy. */
     negotiationBonus(player) {
         // Houses give standing: housing influence helps everywhere
-        return 0.02 * this.effectiveDiplomacy(player) + Housing.getNegotiationBonus(player);
+        return 0.02 * this.effectiveDiplomacy(player) + Housing.getNegotiationBonus(player)
+            + this.treasureBonus(player, 'negotiation'); // a royal seal or treaty in hand
     },
 
     // ──────────── TRADE ────────────
@@ -222,6 +231,8 @@ export const PlayerEffects = {
         for (const [item, reduction] of Object.entries(ARMOR_REDUCTION)) {
             if (inv[item] > 0) mult *= 1 - reduction;
         }
+        // Dragon scale and dragonscale armour
+        mult *= 1 - this.treasureBonus(player, 'damageReduction');
         return mult;
     },
 

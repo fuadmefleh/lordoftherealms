@@ -27,7 +27,7 @@ export const DAILY_RATION_HUNGER = 35;
 
 /** Hunger restored by a deliberate meal (Eat a Meal action), by food type. */
 export const MEAL_HUNGER = {
-    cooked_meat: 40, cooked_fish: 30, bread: 25, preserved_fish: 25, fish: 20, grain: 15,
+    cooked_meat: 40, cooked_fish: 30, bread: 25, preserved_fish: 25, fish: 20, grain: 15, food: 20,
 };
 
 export const PlayerNeedsMethods = {

@@ -31,6 +31,148 @@ export const Economy = {
         spices: { gold: 1.3, trade: 1.4 },
         stone: { construction: 1.5, goods: 1.1 },
         salt: { food: 1.2, trade: 1.2 },
+        coal: { goods: 1.25, military: 1.1 },
+        oil: { trade: 1.3, gold: 1.1 },
+        cattle: { food: 1.3, goods: 1.1 },
+    },
+
+    /** What each map resource yields as settlement goods (data/economy.json). */
+    RESOURCE_GOODS: {
+        iron: ['iron'], gold_ore: ['gold_ore'], gems: ['gems'], timber: ['wood'],
+        wheat: ['food'], fish: ['food'], stone: ['stone'], spices: ['spices'],
+        horses: ['horses'], coal: ['coal'], oil: ['oil'], cattle: ['food', 'hide'],
+    },
+
+    /**
+     * How the goods / military / trade / construction bonuses turn into
+     * effects (see data/economy.json "resourceEffects._doc").
+     */
+    RESOURCE_EFFECTS: {
+        radius: 2,
+        nearbyWeight: 0.5,
+        cap: 0.5,
+        scales: {
+            goods: 1, recruitCost: 0.5, armyRegen: 1, routeIncome: 1, caravanProfit: 0.5,
+            salePrice: 0.25, buildCost: 0.5, buildTime: 0.5, repair: 1,
+        },
+    },
+
+    /** Player properties that run better on or beside a resource. */
+    PROPERTY_RESOURCE_BONUSES: {
+        coal: { properties: ['forge', 'blacksmith', 'glassworks'], bonus: 0.25, radius: 1, label: 'coal-fired' },
+        cattle: { properties: ['cattle_ranch', 'dairy', 'tannery'], bonus: 0.3, radius: 1, label: 'local herds' },
+        oil: { properties: ['chandlery'], bonus: 0.2, radius: 1, label: 'oil seep' },
+    },
+
+    /** The bonus kinds that are applied outside gold/food production. */
+    BONUS_KINDS: ['goods', 'military', 'trade', 'construction'],
+
+    /** Scale for one effect of the resource bonuses (0 when unknown). */
+    effectScale(key) {
+        const scales = (Economy.RESOURCE_EFFECTS && Economy.RESOURCE_EFFECTS.scales) || {};
+        return Number.isFinite(scales[key]) ? scales[key] : 0;
+    },
+
+    /**
+     * Fractional bonus of one kind ('goods', 'military', 'trade',
+     * 'construction', ...) that map resources give a hex: a resource on the
+     * hex counts in full, one within the radius at `nearbyWeight`. Capped.
+     * @returns {number} 0 .. cap
+     */
+    resourceBonus(world, q, r, kind) {
+        return Economy.resourceBonuses(world, q, r)[kind] || 0;
+    },
+
+    /**
+     * Every bonus kind at a hex, plus the resources that supply them.
+     * @returns {{goods:number, military:number, trade:number, construction:number, sources:Array<{id:string, direct:boolean}>}}
+     */
+    resourceBonuses(world, q, r) {
+        const out = { goods: 0, military: 0, trade: 0, construction: 0, sources: [] };
+        if (!world || typeof world.getTile !== 'function' || !Number.isFinite(q) || !Number.isFinite(r)) return out;
+        const fx = Economy.RESOURCE_EFFECTS || {};
+        const radius = Number.isFinite(fx.radius) ? fx.radius : 2;
+        const nearby = Number.isFinite(fx.nearbyWeight) ? fx.nearbyWeight : 0.5;
+        const cap = Number.isFinite(fx.cap) ? fx.cap : 0.5;
+        for (const hex of Hex.hexesInRange(q, r, radius)) {
+            const tile = world.getTile(hex.q, hex.r);
+            const id = tile && tile.resource && tile.resource.id;
+            const bonus = id && Economy.RESOURCE_BONUSES[id];
+            if (!bonus) continue;
+            const direct = hex.q === q && hex.r === r;
+            const weight = direct ? 1 : nearby;
+            let counted = false;
+            for (const kind of Economy.BONUS_KINDS) {
+                if (!(bonus[kind] > 1)) continue;
+                out[kind] += (bonus[kind] - 1) * weight;
+                counted = true;
+            }
+            if (counted) out.sources.push({ id, direct });
+        }
+        for (const kind of Economy.BONUS_KINDS) out[kind] = Math.min(cap, out[kind]);
+        return out;
+    },
+
+    /**
+     * Cost and time multipliers for building on a hex: stone and timber
+     * nearby make construction cheaper and faster.
+     * @returns {{cost:number, time:number, bonus:number}}
+     */
+    constructionModifiers(world, q, r) {
+        const bonus = Economy.resourceBonus(world, q, r, 'construction');
+        return {
+            bonus,
+            cost: 1 - bonus * Economy.effectScale('buildCost'),
+            time: 1 - bonus * Economy.effectScale('buildTime'),
+        };
+    },
+
+    /** Build days after the local construction bonus (never below 1 if it was above 0). */
+    scaleBuildDays(days, world, q, r) {
+        if (!(days > 0)) return days || 0;
+        return Math.max(1, Math.round(days * Economy.constructionModifiers(world, q, r).time));
+    },
+
+    /** Multiplier on recruiting soldiers at a settlement with iron, horses or coal near it. */
+    recruitCostMultiplier(world, settlement) {
+        if (!settlement) return 1;
+        const bonus = world ? Economy.resourceBonus(world, settlement.q, settlement.r, 'military')
+            : ((settlement.economy && settlement.economy.resourceBonuses && settlement.economy.resourceBonuses.military) || 0);
+        return 1 - bonus * Economy.effectScale('recruitCost');
+    },
+
+    /** Multiplier on the profit a caravan earns selling at this settlement. */
+    caravanProfitMultiplier(world, settlement) {
+        if (!settlement) return 1;
+        return 1 + Economy.resourceBonus(world, settlement.q, settlement.r, 'trade') * Economy.effectScale('caravanProfit');
+    },
+
+    /** Extra sale-price fraction in a settlement whose markets draw traders (cached daily). */
+    saleBonus(settlement) {
+        const b = settlement && settlement.economy && settlement.economy.resourceBonuses;
+        return b ? (b.trade || 0) * Economy.effectScale('salePrice') : 0;
+    },
+
+    /**
+     * Bonus a player property gets from a resource on or beside its tile
+     * (coal-fired forges, herds for ranches and dairies, oil for chandlers).
+     * The best matching resource counts once.
+     * @returns {{bonus:number, resource:string|null, label:string|null}}
+     */
+    propertyResourceBonus(world, tile, propertyType) {
+        const none = { bonus: 0, resource: null, label: null };
+        if (!world || !tile || !propertyType || typeof world.getTile !== 'function') return none;
+        let best = none;
+        for (const [resId, def] of Object.entries(Economy.PROPERTY_RESOURCE_BONUSES || {})) {
+            if (!def || !Array.isArray(def.properties) || !def.properties.includes(propertyType)) continue;
+            if (!(def.bonus > best.bonus)) continue;
+            const near = Hex.hexesInRange(tile.q, tile.r, def.radius || 0).some(h => {
+                const t = world.getTile(h.q, h.r);
+                return t && t.resource && t.resource.id === resId;
+            });
+            if (near) best = { bonus: def.bonus, resource: resId, label: def.label || resId };
+        }
+        return best;
     },
 
     /**
@@ -75,28 +217,18 @@ export const Economy = {
             if (bonus.gold) breakdown.gold *= (1 + (bonus.gold - 1) * multiplier);
             if (bonus.food) breakdown.food *= (1 + (bonus.food - 1) * multiplier);
 
-            // Map terrain resources to specific GOODS
-            const resourceToGood = {
-                'iron': 'iron',
-                'gold_ore': 'gold_ore',
-                'gems': 'gems',
-                'timber': 'wood',
-                'wheat': 'food',
-                'fish': 'food',
-                'stone': 'stone',
-                'spices': 'spices',
-                'horses': 'horses'
-            };
-
-            const goodId = resourceToGood[resId];
-            if (goodId) {
+            // Map terrain resources to specific GOODS (cattle give food and hides)
+            const goods = (Economy.RESOURCE_GOODS && Economy.RESOURCE_GOODS[resId]) || [];
+            const list = Array.isArray(goods) ? goods : [goods];
+            list.forEach((goodId, i) => {
                 // Determine base production for this specific resource
                 let baseProd = isDirect ? 8 : 4;
                 if (goodId === 'food') baseProd *= 1.5; // Food resources produce more volume
+                if (i > 0) baseProd *= 0.5;             // By-products (hides from cattle) come in smaller amounts
 
                 const prod = baseProd * popMod;
                 breakdown.items[goodId] = (breakdown.items[goodId] || 0) + prod;
-            }
+            });
         };
 
         // Apply direct resource
@@ -108,6 +240,18 @@ export const Economy = {
         const nearbyResources = Economy.getNearbyResources(tile.q, tile.r, world, 2);
         for (const res of nearbyResources) {
             applyResource(res.id, false);
+        }
+
+        // Goods, military, trade and construction bonuses from nearby
+        // resources. Goods lift every crafted/raw good the town turns out;
+        // the rest are cached for recruitment, trade and repairs.
+        const resBonuses = Economy.resourceBonuses(world, tile.q, tile.r);
+        breakdown.resourceBonuses = resBonuses;
+        const goodsMult = 1 + resBonuses.goods * Economy.effectScale('goods');
+        if (goodsMult !== 1) {
+            for (const key in breakdown.items) {
+                if (key !== 'food') breakdown.items[key] *= goodsMult;
+            }
         }
 
         // The settlement's peoples: crafts, enterprise and husbandry
@@ -150,6 +294,11 @@ export const Economy = {
             food: Math.round(detailed.food + (detailed.items.food || 0)),
             goods: totalItems,
             breakdown: detailed // Store breakdown for UI
+        };
+        // Cached for systems that only hold the settlement (recruitment, sales)
+        const rb = detailed.resourceBonuses || {};
+        settlement.economy.resourceBonuses = {
+            goods: rb.goods || 0, military: rb.military || 0, trade: rb.trade || 0, construction: rb.construction || 0,
         };
 
         return settlement.economy.production;
@@ -312,6 +461,10 @@ export const Economy = {
         // Mercantile peoples and trader diasporas work the routes harder
         const commerce = settlement.peoplesEffects ? (settlement.peoplesEffects.trade || 0) : 0;
         if (commerce && totalProfit > 0) totalProfit = Math.round(totalProfit * (1 + commerce));
+        // Gems, spices, salt, horses and oil nearby draw merchants
+        const rb = settlement.economy.resourceBonuses;
+        const tradeMult = 1 + ((rb && rb.trade) || 0) * Economy.effectScale('routeIncome');
+        if (tradeMult !== 1 && totalProfit > 0) totalProfit = Math.round(totalProfit * tradeMult);
 
         settlement.economy.gold += totalProfit;
         return totalProfit;
@@ -342,6 +495,7 @@ export const Economy = {
             },
             tradeRoutes: settlement.economy.tradeRoutes.length,
             wealth: Economy.getWealth(settlement),
+            resourceBonuses: settlement.economy.production.breakdown.resourceBonuses,
         };
     },
 };

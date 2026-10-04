@@ -43,3 +43,4 @@ export { PlayerInventory } from '../../player/inventory.js';
 export { NpcDisposition } from '../../systems/npcDisposition.js';
 export { RealmPolitics, REALM_POLITICS } from '../../player/realmPolitics.js';
 export { KingdomAtlas } from '../../world/kingdomAtlas.js';
+export { Treasures } from '../../player/treasures.js';

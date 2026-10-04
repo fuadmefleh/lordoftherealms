@@ -1,6 +1,6 @@
 // UI — hexinfo methods.
 import { UI } from './core.js';
-import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, WorldEvents, InnerMap, InnerMapRenderer, KingdomBonuses, KingdomStability, WEATHER_TYPES, Cartography } from './_imports.js';
+import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, WorldEvents, InnerMap, InnerMapRenderer, KingdomBonuses, KingdomStability, WEATHER_TYPES, Cartography, Terrain } from './_imports.js';
 
 Object.assign(UI.prototype, {
     /**
@@ -670,6 +670,27 @@ Object.assign(UI.prototype, {
             `;
         }
 
+        // Goods / military / trade / construction bonuses from nearby resources
+        const rb = econ.resourceBonuses || { goods: 0, military: 0, trade: 0, construction: 0, sources: [] };
+        const pct = (f) => Math.round(f * 100);
+        const fxRows = [
+            ['📦 Goods output', rb.goods > 0 ? `+${pct(rb.goods * Economy.effectScale('goods'))}%` : null],
+            ['⚔️ Recruit cost (yours) · army regrowth', rb.military > 0 ? `−${pct(rb.military * Economy.effectScale('recruitCost'))}% · +${pct(rb.military * Economy.effectScale('armyRegen'))}%` : null],
+            ['🐪 Trade-route income · caravans', rb.trade > 0 ? `+${pct(rb.trade * Economy.effectScale('routeIncome'))}% · +${pct(rb.trade * Economy.effectScale('caravanProfit'))}%` : null],
+            ['🧱 Build cost · time · repairs', rb.construction > 0 ? `−${pct(rb.construction * Economy.effectScale('buildCost'))}% · −${pct(rb.construction * Economy.effectScale('buildTime'))}% · +${pct(rb.construction * Economy.effectScale('repair'))}%` : null],
+        ].filter(r => r[1]);
+        let resourceHtml = '';
+        if (fxRows.length) {
+            const names = [...new Set((rb.sources || []).map(s => {
+                const def = (Terrain.RESOURCES || {})[String(s.id).toUpperCase()];
+                return def ? `${def.icon} ${def.name}` : s.id;
+            }))].join(', ');
+            resourceHtml = `<div class="info-section-title" style="margin-top:20px;">Resource Advantages</div>
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">From ${names}</div>
+                ${fxRows.map(([label, value]) => `<div class="info-row" style="padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <span class="info-label">${label}</span><span class="info-value" style="color:#81c784; font-weight:600;">${value}</span></div>`).join('')}`;
+        }
+
         const html = `
             <div style="margin-bottom: 20px; text-align:center; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px solid rgba(255,215,0,0.1);">
                 <div style="font-size: 14px; color: var(--text-secondary);">Production for</div>
@@ -689,7 +710,8 @@ Object.assign(UI.prototype, {
 
             <div class="info-section-title" style="margin-top:20px;">Detailed Goods Production</div>
             ${itemsHtml}
-            
+            ${resourceHtml}
+
             <div style="margin-top: 24px; font-size: 11px; color: var(--text-secondary); font-style: italic; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 4px;">
                 Production varies based on settlement type, population size, and access to natural resources within a 2-tile radius. 
                 Larger cities have significantly higher base output and generic goods generation.

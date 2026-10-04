@@ -21,8 +21,10 @@ import { DataLoader } from '../core/dataLoader.js';
 // showTributeMenu, showAudienceMenu) = 221, plus the outlaw gate (OUTLAW_REFUSED_ACTIONS,
 // refuseIfOutlawed) = 223, plus the realm-politics panels (REALM_POLITICS_AP,
 // showRealmWarsMenu, showRestorationMenu, _realmResult) = 227, plus showUpgradeCulturalMenu = 228,
-// plus sellMapToArchive (royal archives buy your maps) = 229.
+// plus sellMapToArchive (royal archives buy your maps) = 229, plus the resource-bonus
+// build hints (_resourceSourceNames, _constructionHint) and meetingPresentTreasure = 232.
 const EXPECTED_KEYS = [
+    '_resourceSourceNames', '_constructionHint', 'meetingPresentTreasure',
     '_serviceResult', 'showBlacksmithMenu', 'showBlessingMenu', 'showStableMenu', 'showGuardMenu',
     'showTributeMenu', 'showAudienceMenu', 'OUTLAW_REFUSED_ACTIONS', 'refuseIfOutlawed',
     'REALM_POLITICS_AP', 'showRealmWarsMenu', 'showRestorationMenu', '_realmResult',
@@ -89,8 +91,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 229 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(229);
+    it('has 232 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(232);
     });
 
     it('every member except the known data props is a function', () => {

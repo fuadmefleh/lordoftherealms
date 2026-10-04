@@ -1,6 +1,6 @@
 // ActionMenu — combat methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerEffects } from './_imports.js';
+import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerEffects, Treasures } from './_imports.js';
 
 /** Battle-report lines for soldiers saved by surgeons and a slain enemy commander. */
 function battleExtrasHtml(result) {
@@ -338,7 +338,10 @@ Object.assign(ActionMenu, {
             if (result.inventoryLoot && Object.keys(result.inventoryLoot).length > 0) {
                 html += `<div style="margin-top:4px;">📦 Supplies captured:</div>`;
                 for (const [item, qty] of Object.entries(result.inventoryLoot)) {
-                    html += `<div style="margin-left:12px; color:#aaa;">• ${item}: ${qty}</div>`;
+                    const good = PlayerEconomy.GOODS[item.toUpperCase()];
+                    const label = item === 'gold' ? '💰 Coin' : good ? `${good.icon} ${good.name}` : item.replace(/_/g, ' ');
+                    const hint = Treasures.info(item) ? ' <span style="color:#ce93d8; font-size:11px;">(treasure — see Inventory)</span>' : '';
+                    html += `<div style="margin-left:12px; color:#aaa;">• ${label}: ${qty}${hint}</div>`;
                 }
             }
             if (result.lootLeftBehind && Object.keys(result.lootLeftBehind).length > 0) {
@@ -469,6 +472,16 @@ Object.assign(ActionMenu, {
             player.gold >= 50,
             player.gold < 50 ? 'Need at least 50 gold' : null
         );
+
+        // 1b. Present a treasure (legendary loot, envoy gifts, relics...)
+        for (const gift of Treasures.giftable(player).slice(0, 4)) {
+            html += this._meetingOptionButton(
+                gift.def.icon || '🎁', `Present ${gift.def.name}`,
+                `A worthy gift: about +${gift.value} reputation (you carry ${gift.qty})`,
+                `ActionMenu.meetingPresentTreasure(game, '${lordUnit.id}', '${gift.id}')`,
+                true, null
+            );
+        }
 
         // 2. Request Trade Agreement (neutral+ required)
         html += this._meetingOptionButton(
@@ -621,6 +634,44 @@ Object.assign(ActionMenu, {
         ">Continue</button></div>`;
 
         game.ui.showCustomPanel('🤝 Diplomacy', html);
+        game.ui.updateStats(player, world);
+    },
+
+    /**
+     * Meeting action: present a treasure from the packs to the lord
+     */
+    meetingPresentTreasure(game, lordUnitId, itemId) {
+        const player = game.player;
+        const world = game.world;
+        const lordUnit = world.units.find(u => u.id === lordUnitId);
+        if (!lordUnit) return;
+        const kingdom = world.getKingdom(lordUnit.kingdomId);
+        if (!kingdom || !kingdom.lord) return;
+        const icon = (Treasures.def(itemId) || {}).icon || '🎁';
+        if (!Treasures.giftable(player).some(g => g.id === itemId)) {
+            game.ui.showNotification('Cannot Present', `You carry no ${Treasures.name(itemId)} fit for a lord.`, 'error');
+            return;
+        }
+        if (!ActionMenu.commitPendingAP(game)) return;
+        const result = Treasures.presentToLord(player, kingdom, itemId, (p, g) => PlayerEffects.scaleReputationGain(p, g));
+        if (!result.success) {
+            game.ui.showNotification('Cannot Present', result.reason, 'error');
+            return;
+        }
+        const html = `<div style="padding:15px; text-align:center;">
+            <span style="font-size:42px;">${icon}</span>
+            <h3 style="color:#4caf50;">Treasure Accepted</h3>
+            <p style="color:#aaa;">You present ${kingdom.lord.name} with a <span style="color:#ffd700;">${result.item}</span>.</p>
+            <div style="background:#1a2a1a; padding:8px; border-radius:4px; margin:10px 0;">
+                <div style="color:#4caf50;">📈 Reputation with ${kingdom.name} +${result.reputation}</div>
+            </div>
+            <p style="color:#aaa; font-style:italic;">"A gift worthy of a crown. You honour this court."</p>
+            <button data-am-act="closePanelAndRefresh" style="
+                width:100%; padding:10px; margin-top:10px;
+                background:#444; border:1px solid #666; border-radius:6px;
+                color:#eee; cursor:pointer; font-size:14px;
+            ">Continue</button></div>`;
+        game.ui.showCustomPanel('🎁 Diplomacy', html);
         game.ui.updateStats(player, world);
     },
 

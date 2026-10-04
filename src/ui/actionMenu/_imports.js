@@ -48,3 +48,4 @@ export { Treasures } from '../../player/treasures.js';
 export { KingdomNavy } from '../../world/kingdomNavy.js';
 export { Seasons } from '../../world/seasons.js';
 export { SeasonalWork } from '../../player/seasonalWork.js';
+export { Delves } from '../../systems/delves.js';

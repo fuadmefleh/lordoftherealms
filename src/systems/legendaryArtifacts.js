@@ -121,6 +121,38 @@ export const LegendaryArtifacts = {
         return Utils.randPick(candidates);
     },
 
+    /**
+     * Award one fragment of a relic (biased by the site type), as found by
+     * exploring a POI or at the bottom of a delve (systems/delves.js).
+     * Returns the same shape as a fragment discovery from discoverFromPOI.
+     */
+    grantFragment(player, poiType) {
+        this.initialize(player);
+        const artifact = this._chooseArtifactForFragment(player, poiType);
+        if (!artifact) return { found: false };
+
+        player.artifacts.fragments[artifact.id] = (player.artifacts.fragments[artifact.id] || 0) + 1;
+        player.artifacts.discovered = Array.from(new Set([...(player.artifacts.discovered || []), artifact.id]));
+        const fragmentsOwned = player.artifacts.fragments[artifact.id];
+        const completedSet = fragmentsOwned >= artifact.fragmentsRequired;
+
+        if (typeof Quests !== 'undefined') {
+            Quests.generateAvailableQuests(player);
+        }
+
+        return {
+            found: true,
+            type: 'fragment',
+            artifact,
+            fragmentsOwned,
+            fragmentsRequired: artifact.fragmentsRequired,
+            completedSet,
+            lore: completedSet
+                ? `This fragment completes the set needed to reforge ${artifact.name}.`
+                : `The fragment bears markings matching legends of ${artifact.name}.`,
+        };
+    },
+
     discoverFromPOI(player, world, tile, poi) {
         this.initialize(player);
         if (!poi) return { found: false };
@@ -169,29 +201,7 @@ export const LegendaryArtifacts = {
         }
 
         if (roll < fragmentChance) {
-            const artifact = this._chooseArtifactForFragment(player, poi.type);
-            if (!artifact) return { found: false };
-
-            player.artifacts.fragments[artifact.id] = (player.artifacts.fragments[artifact.id] || 0) + 1;
-            player.artifacts.discovered = Array.from(new Set([...(player.artifacts.discovered || []), artifact.id]));
-            const fragmentsOwned = player.artifacts.fragments[artifact.id];
-            const completedSet = fragmentsOwned >= artifact.fragmentsRequired;
-
-            if (typeof Quests !== 'undefined') {
-                Quests.generateAvailableQuests(player);
-            }
-
-            return {
-                found: true,
-                type: 'fragment',
-                artifact,
-                fragmentsOwned,
-                fragmentsRequired: artifact.fragmentsRequired,
-                completedSet,
-                lore: completedSet
-                    ? `This fragment completes the set needed to reforge ${artifact.name}.`
-                    : `The fragment bears markings matching legends of ${artifact.name}.`,
-            };
+            return this.grantFragment(player, poi.type);
         }
 
         return { found: false };

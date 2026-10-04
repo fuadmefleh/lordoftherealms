@@ -697,7 +697,8 @@
         "ROYAL_SEAL": { "id": "royal_seal", "name": "Royal Seal", "icon": "🔏", "basePrice": 160, "description": "A sovereign's signet. Carrying it lends you authority in negotiation (+5%); returned to a lord it earns real gratitude.", "treasure": { "gift": 18, "prestige": 3, "equip": { "negotiation": 0.05 } } },
         "TREATY": { "id": "treaty", "name": "Sealed Treaty", "icon": "📜", "basePrice": 100, "description": "Signed terms between courts. Useful leverage at the table (+3% negotiation), or a gift a lord will value.", "treasure": { "gift": 12, "equip": { "negotiation": 0.03 } } },
         "GIFT_CHEST": { "id": "gift_chest", "name": "Gift Chest", "icon": "🎁", "basePrice": 130, "description": "A chest of courtly presents meant for a lord. Present it at a royal audience.", "treasure": { "gift": 20 } },
-        "FINE_WINE": { "id": "fine_wine", "name": "Fine Wine", "icon": "🍷", "basePrice": 35, "description": "A vintage fit for a royal table. A small courtly gift.", "treasure": { "gift": 5 } }
+        "FINE_WINE": { "id": "fine_wine", "name": "Fine Wine", "icon": "🍷", "basePrice": 35, "description": "A vintage fit for a royal table. A small courtly gift.", "treasure": { "gift": 5 } },
+        "CURSED_IDOL": { "id": "cursed_idol", "name": "Cursed Idol", "icon": "🗿", "basePrice": 20, "description": "A grinning idol carried up out of a delve. While you carry it the curse saps a little health and karma each day and dogs your luck below ground. Sell it or be rid of it some other way." }
     },
     "RECIPES": {
         "FIREWOOD": { "id": "firewood", "name": "Split Firewood", "input": "wood", "inputQty": 2, "output": "firewood", "outputQty": 5, "description": "Prepare fuel for heating." },

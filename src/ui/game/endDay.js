@@ -4,6 +4,7 @@
 
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, Petitions, RealmWars, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents, WEATHER_TYPES, LegendaryArtifacts, Cartography } from './_gameImports.js';
 import { Traits } from '../../systems/traits.js';
+import { Delves } from '../../systems/delves.js';
 
 export function onPlayerArrived() {
     const tile = this.world.getTile(this.player.q, this.player.r);
@@ -388,6 +389,20 @@ export function endDay() {
                 this.ui.showNotification(`${pet.icon} Petitioners${where}`,
                     `${pet.title} — hear them at Court (action menu at your holdings) within ${Petitions.daysLeft(pet, this.world)} day(s).`, 'info');
             }
+
+            // Delves — an unfinished delve ends, injuries mend, a cursed idol bites,
+            // awakened guardians roam until slain or their time passes
+            const delveDay = Delves.processDay(this.world, this.player);
+            if (delveDay.ended) {
+                this.ui.showNotification('🕯️ Delve Ended',
+                    `You leave ${delveDay.ended.name} with your haul (${delveDay.ended.chambers} of ${delveDay.ended.total} chambers).`, 'info');
+            }
+            for (const name of delveDay.healed) this.ui.showNotification('🩹 Mended', `Your ${name.toLowerCase()} has healed.`, 'success');
+            if (delveDay.curse && delveDay.curse.health > 0) {
+                this.ui.showNotification('🗿 Cursed', `The idol in your packs saps you (-${delveDay.curse.health} health, -${delveDay.curse.karma} karma). Sell it or be rid of it.`, 'warning');
+            }
+            for (const name of delveDay.slain) this.ui.showNotification('⚔️ Guardian Slain', `${name} will trouble the land no more.`, 'success');
+            for (const name of delveDay.faded) this.ui.showNotification('🌫️ Guardian Returns', `${name} has gone back to the depths.`, 'info');
 
             // Kingdoms at war with the player — ultimatums, war hosts, sieges
             const war = RealmWars.processDaily(this.player, this.world);

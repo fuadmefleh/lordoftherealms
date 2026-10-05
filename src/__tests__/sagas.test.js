@@ -217,7 +217,7 @@ describe('branching on the player\'s part', () => {
         runDays(w, p, 1);
         expect(saga.ended && saga.ended.chapter).toBe('slain');
         expect(saga.involved).toBe(true);
-        expect(p.inventory.dragon_scale).toBe(3);
+        expect(p.inventory.dragon_scale).toBeGreaterThanOrEqual(4); // the ending's three + the carcass bounty (1–2)
         expect(p.renown).toBeGreaterThan(renown);
     });
 

@@ -21,12 +21,14 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { House } from './house.js';
 import { Traits } from './traits.js';
+import { Deeds } from './deeds.js';
 
 const DEFAULT_LEGACY = {
     weights: {
         generation: 40, yearRuled: 2, prestige: 1, crown: 150, title: 20, settlement: 25, battle: 3, quest: 2,
         ambitionMilestone: 10, ambitionCapstone: 60, delveCleared: 6, rivalBested: 5, petitionRuled: 1,
         child: 5, earnedTrait: 4, nobleMarriage: 10,
+        holdingProject: 3, raidRepelled: 4, rebellionCrushed: 6,
     },
     ranks: [{ min: 0, label: 'A Forgotten Line', icon: '🕯️' }],
     epithets: [],
@@ -56,6 +58,7 @@ export const Legacy = {
         const rivals = player && player.rivals && player.rivals.stats;
         const delves = player && player.delves && player.delves.stats;
         const petitions = player && player.petitions && player.petitions.stats;
+        const holdings = player && player.holdings && player.holdings.stats;
         return {
             prestige: _num(house.prestige),
             stats: { ...(house.stats || {}) },
@@ -63,11 +66,17 @@ export const Legacy = {
             delvesCleared: _num(delves && delves.cleared),
             rivalsBested: rivals ? _num(rivals.duelsWon) + _num(rivals.slain) + _num(rivals.racesWon) : 0,
             petitionsRuled: _num(petitions && petitions.ruled),
+            holdingProjects: _num(holdings && holdings.projects),
+            raidsRepelled: _num(holdings && holdings.raidsRepelled),
+            rebellionsCrushed: _num(holdings && holdings.rebellionsCrushed),
+            holdingsLost: _num(holdings && holdings.holdingsLost),
+            // Every counter Deeds & Records shows, for its 'this reign' column
+            deeds: Deeds.collect(player),
         };
     },
 
     _zeroSnapshot() {
-        return { prestige: 0, stats: {}, delves: 0, delvesCleared: 0, rivalsBested: 0, petitionsRuled: 0 };
+        return { prestige: 0, stats: {}, delves: 0, delvesCleared: 0, rivalsBested: 0, petitionsRuled: 0, holdingProjects: 0, raidsRepelled: 0, rebellionsCrushed: 0, holdingsLost: 0 };
     },
 
     /** Backfill the reign records (old saves, new games). Idempotent. */
@@ -168,6 +177,10 @@ export const Legacy = {
             delvesCleared: Math.max(0, now.delvesCleared - _num(was.delvesCleared)),
             rivalsBested: Math.max(0, now.rivalsBested - _num(was.rivalsBested)),
             petitionsRuled: Math.max(0, now.petitionsRuled - _num(was.petitionsRuled)),
+            holdingProjects: Math.max(0, now.holdingProjects - _num(was.holdingProjects)),
+            raidsRepelled: Math.max(0, now.raidsRepelled - _num(was.raidsRepelled)),
+            rebellionsCrushed: Math.max(0, now.rebellionsCrushed - _num(was.rebellionsCrushed)),
+            holdingsLost: Math.max(0, now.holdingsLost - _num(was.holdingsLost)),
             notableRulings: notable,
             children: ((player.children || []).filter(c => c && _num(c.birthDay) >= r.startDay)).length,
             prestigeGained: Math.round(now.prestige - _num(was.prestige)),
@@ -195,7 +208,9 @@ export const Legacy = {
             + _num(rec.ambitionMilestones) * w.ambitionMilestone + _num(rec.ambitionCapstones) * w.ambitionCapstone
             + _num(rec.delvesCleared) * w.delveCleared + _num(rec.rivalsBested) * w.rivalBested
             + _num(rec.petitionsRuled) * w.petitionRuled + _num(rec.children) * w.child
-            + (rec.traits || []).length * w.earnedTrait + _num(rec.nobleMarriages) * w.nobleMarriage);
+            + (rec.traits || []).length * w.earnedTrait + _num(rec.nobleMarriages) * w.nobleMarriage
+            + _num(rec.holdingProjects) * _num(w.holdingProject) + _num(rec.raidsRepelled) * _num(w.raidRepelled)
+            + _num(rec.rebellionsCrushed) * _num(w.rebellionCrushed));
     },
 
     /** The ruler dies: close and file their reign. Returns the record. */

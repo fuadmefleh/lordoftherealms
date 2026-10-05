@@ -38,6 +38,17 @@ function _roll(v) {
     return _num(v);
 }
 
+/**
+ * The player's seafaring record (player.voyageStats: voyages made, days at
+ * sea, events met, the longest voyage) — shown in Deeds & Records. Created on
+ * demand; saved with the player.
+ */
+function _voyageStat(player, key, n = 1, max = false) {
+    if (!player) return;
+    const s = player.voyageStats && typeof player.voyageStats === 'object' ? player.voyageStats : (player.voyageStats = {});
+    s[key] = max ? Math.max(_num(s[key]), n) : _num(s[key]) + n;
+}
+
 export const VoyageMethods = {
 
     /* ── Settings ────────────────────────────────────────────── */
@@ -404,6 +415,7 @@ export const VoyageMethods = {
         const v = ship.voyage;
         const cfg = this._getVoyageSettings();
         v.day = _num(v.day) + 1;
+        _voyageStat(player, 'daysAtSea');
         const out = { shipId: ship.id, name: ship.name, destName: v.destName, day: v.day, estDays: v.estDays, moved: 0, arrived: false, autoResolved: null, event: null, lost: false };
 
         if (v.pending) out.autoResolved = this.resolveVoyageEvent(player, world, null);
@@ -448,6 +460,8 @@ export const VoyageMethods = {
             out.expeditionDone = true;
             this._endVoyage(ship, world, `Reached ${v.destName} after ${v.day} day${v.day === 1 ? '' : 's'}. You have the helm.`, '🧭');
             Traits.recordDeed(player, 'seafaring', 1);
+            _voyageStat(player, 'voyages');
+            _voyageStat(player, 'longest', v.day, true);
             return out;
         }
         if (v.step >= v.route.length) {
@@ -459,6 +473,8 @@ export const VoyageMethods = {
             out.arrived = true;
             this._endVoyage(ship, world, `Made port at ${v.destName} after ${v.day} day${v.day === 1 ? '' : 's'} at sea.`);
             Traits.recordDeed(player, 'seafaring', 1);
+            _voyageStat(player, 'voyages');
+            _voyageStat(player, 'longest', v.day, true);
             return out;
         }
 
@@ -472,6 +488,7 @@ export const VoyageMethods = {
             const event = this._pickVoyageEvent(player, ship);
             if (event) {
                 v.pending = { id: event.id, day: world.day || 0 };
+                _voyageStat(player, 'events');
                 this._voyageLog(ship, event.icon || '❗', `${event.title}: ${event.text}`, world);
                 out.event = this.describeVoyageEvent(player);
             }
@@ -696,7 +713,11 @@ export const VoyageMethods = {
         }
 
         if (fx.chance) {
-            const pass = Utils.random() < _num(fx.chance.p, 0.5);
+            // A chance may lean on one of the player's attributes: { stat: 'luck', per: 0.06 }
+            // shifts p by `per` for each point above (or below) 5
+            let p = _num(fx.chance.p, 0.5);
+            if (fx.chance.stat) p += (_num(player[fx.chance.stat], 5) - 5) * _num(fx.chance.per, 0.05);
+            const pass = Utils.random() < Math.max(0.05, Math.min(0.95, p));
             this._applyVoyageOutcome(player, world, ship, pass ? fx.chance.pass : fx.chance.fail, lines, depth + 1);
         }
         if (fx.fight) {

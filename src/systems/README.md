@@ -9,9 +9,10 @@ World simulation systems. Each system manages a distinct aspect of the game worl
 | `ailments.js` | ~1140 | Wounds, sickness and medicine: wounds from fights/delves (attribute, skill, movement and battle-power penalties, healing time, infection, permanent Scarred/Lame traits), staged diseases from exposure, raw food, swamps, plague, the lean season and long voyages; contagion to companions and ship crews; physicians, temple rites, remedies, prayer (`data/ailments.json`); `processDay(world, player, ctx)` reports death, the UI triggers it |
 | `achievements.js` | ~197 | 30+ achievements; checked after player actions |
 | `audio/` | ~1100 | Procedural Web Audio API music & SFX — no external files |
-| `bountyHunting.js` | ~305 | Criminal tracking, bounty boards, capture mechanics |
+| `bountyHunting.js` | ~370 | Criminal tracking, bounty boards, capture mechanics; saga beasts on notice boards (`Sagas.bountyOffers`) tracked daily with a hunter's fee |
 | `cartography/` | ~950 | Map making, map trading, propaganda maps, stolen maps |
 | `companions.js` | ~1050 | Travel companions with values & approval (react to deeds, rulings, piracy, karma, battles, wages), mood-scaled bonuses, raise demands/desertion/betrayal, personal quests (`data/companions.json`), bonds, death in battle |
+| `deeds.js` | ~190 | Deeds & Records: every system's player counters as one flat map (`collect`) and a sectioned view with lifetime and this-reign columns (`sections`, against Legacy's reign snapshot); read-only, no RNG |
 | `councils.js` | ~412 | Parliament voting — taxes, war declarations, faction management |
 | `culture.js` | — | Cultural spread, assimilation, hybrid traditions |
 | `delves.js` | ~880 | Delves into ruins and caves: 3–6 chambers per kind (sunken/tomb/ruins/mine/cave) from `data/delves.json`, choices tested by stats/skills/gear/companions/traits, depth-scaled loot through the inventory cap, fragments, lore, injuries, a cursed idol and awakened guardians; `processDay(world, player)` |

@@ -184,7 +184,7 @@
             ]
         },
         "scurvy": {
-            "kind": "disease", "name": "Scurvy", "icon": "🦷", "severity": 2, "contagion": 0, "companionDeath": 0.004, "ashoreCare": 0.3,
+            "kind": "disease", "name": "Scurvy", "icon": "🦷", "severity": 2, "contagion": 0, "companionDeath": 0.004, "ashoreCare": 0.3, "ashoreRecovery": 3,
             "description": "Long weeks at sea without fresh food.",
             "stages": [
                 { "name": "Sea Weariness", "icon": "😩", "days": [5, 8], "worsen": 0.6, "effects": { "movement": -1, "attrs": { "strength": -1 } } },

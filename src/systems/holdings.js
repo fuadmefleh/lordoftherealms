@@ -924,9 +924,13 @@ export const Holdings = {
 
             // Your faith tended at the shrine or temple
             if (fx.faith > 0 && player.religion) Religion.addPresence(player.religion, ref.q, ref.r, fx.faith);
-            // Your own watch keeps your name out of the reports
-            if (fx.heatRelief > 0 && s.kingdom && Underworld.getHeat(player, s.kingdom) > 0) {
-                Underworld.addHeat(player, s.kingdom, -fx.heatRelief, world);
+            // Your own watch keeps your name out of the reports — the realm's
+            // own, or for an independent holding the nearest realm's
+            if (fx.heatRelief > 0) {
+                const watchKingdom = s.kingdom || Underworld._nearestKingdom(world, ref.q, ref.r);
+                if (watchKingdom && Underworld.getHeat(player, watchKingdom) > 0) {
+                    Underworld.addHeat(player, watchKingdom, -fx.heatRelief, world);
+                }
             }
 
             Holdings._tickUnrest(player, world, ref, h, out);

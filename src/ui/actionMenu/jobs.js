@@ -3,7 +3,7 @@ import { ActionMenu } from './_ref.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, Seasons, SeasonalWork } from './_imports.js';
 import { MinigameHost, startForge } from '../minigames/index.js';
 import { Ailments } from '../../systems/ailments.js';
-import { Foraging } from '../../player/foraging.js';
+import { Foraging, Hunting } from '../../player/foraging.js';
 
 Object.assign(ActionMenu, {
     // ============================================================
@@ -812,17 +812,18 @@ Object.assign(ActionMenu, {
             title: '🌿 Foraging',
             icon: '🌿',
             description: 'Search the area for useful plants and materials.',
-            baseRewardText: '1 random foraged item',
+            baseRewardText: '1 foraged find (its usual bundle)',
             onSkip: () => {
-                // Base reward: 1 random item from the loot table (player/foraging.js)
+                // Base reward: 1 find from the loot table, qty range honoured (player/foraging.js)
                 const res = Foraging.quickForage(player, tile, forageData);
                 const entry = res.entry;
-                const sellPrice = entry.sell || entry.sellPrice || 5;
+                const label = `${entry.icon || '🌿'} ${entry.name || entry.item} x${res.qty}`;
                 if (res.added) {
-                    game.ui.showNotification('🌿 Foraging', `Quick search — found ${entry.icon || '🌿'} ${entry.name || entry.item} (~${sellPrice}g).`, 'success');
+                    game.ui.showNotification('🌿 Foraging', `Quick search — found ${label}.`, 'success');
                 } else {
-                    game.ui.showNotification('🌿 Foraging', `You found ${entry.icon || '🌿'} ${entry.name || entry.item} but had to leave it. ${res.reason}`, 'warning');
+                    game.ui.showNotification('🌿 Foraging', `You found ${label} but had to leave it. ${res.reason}`, 'warning');
                 }
+                if (res.rankUp) game.ui.showNotification('🌿 Foraging', `Your craft grows: ${res.rankUp.icon} ${res.rankUp.name}.`, 'success');
                 game.ui.updateStats(player, game.world);
                 game.endDay();
             },
@@ -835,57 +836,17 @@ Object.assign(ActionMenu, {
         const category = (ActionMenu._getForageData().terrain_mapping || {})[terrainId] || terrainId;
 
         // ── Foraging Minigame: Search patches ──
+        // The field and every roll come from player/foraging.js (seeded RNG,
+        // luck/int/craft-rank bonuses, qty ranges); this only presents it.
         const GRID_SIZE = 4;
-        let grid = [];
-        let searchesLeft = 4 + Math.floor(intStat / 3);
+        const grid = Foraging.makeGrid(lootTable, player, GRID_SIZE);
+        let searchesLeft = Foraging.searches(player);
+        const craft = Foraging.skill(player);
         let found = [];
         let totalValue = 0;
         let phase = 'searching'; // searching → result
         let statusMsg = '';
-        let revealedHints = [];
-
-        // Place loot items randomly. Each cell is: { type, entry, searched, hinted }
-        const generateGrid = () => {
-            grid = [];
-            for (let y = 0; y < GRID_SIZE; y++) {
-                const row = [];
-                for (let x = 0; x < GRID_SIZE; x++) {
-                    // Each cell has a chance of holding an item from the loot table
-                    const roll = Math.random();
-                    let cumChance = 0;
-                    let entry = null;
-                    const intBonus = 1 + intStat * 0.05;
-                    for (const e of lootTable) {
-                        cumChance += e.chance * intBonus * 0.6;
-                        if (roll < cumChance) { entry = e; break; }
-                    }
-                    row.push({
-                        entry,
-                        searched: false,
-                        hinted: false,
-                        nearbyCount: 0, // filled in after generation
-                    });
-                }
-                grid.push(row);
-            }
-            // Calculate "nearby" hints — count loot in adjacent cells
-            for (let y = 0; y < GRID_SIZE; y++) {
-                for (let x = 0; x < GRID_SIZE; x++) {
-                    let count = 0;
-                    for (let dy = -1; dy <= 1; dy++) {
-                        for (let dx = -1; dx <= 1; dx++) {
-                            if (dx === 0 && dy === 0) continue;
-                            const ny = y + dy, nx = x + dx;
-                            if (ny >= 0 && ny < GRID_SIZE && nx >= 0 && nx < GRID_SIZE && grid[ny][nx].entry) {
-                                count++;
-                            }
-                        }
-                    }
-                    grid[y][x].nearbyCount = count;
-                }
-            }
-        };
-        generateGrid();
+        let trip = null;
 
         // Terrain icons for flavor
         const terrainIcons = {
@@ -901,12 +862,12 @@ Object.assign(ActionMenu, {
         const render = () => {
             let html = '<div style="max-width: 440px; text-align: center;">';
             html += `<h4 style="margin: 0 0 4px;">🌿 Foraging</h4>`;
-            html += `<p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">Terrain: ${category} | Intelligence: ${intStat} | Luck: ${luckStat}</p>`;
+            html += `<p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">Terrain: ${category} | Intelligence: ${intStat} | Luck: ${luckStat} | ${craft.icon} ${craft.name} (${craft.trips} trips)</p>`;
 
             if (phase === 'searching') {
                 html += `<div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px;">
                     <span>🔍 Searches left: <span style="color: var(--gold); font-weight: bold;">${searchesLeft}</span></span>
-                    <span>💰 Found: <span style="color: var(--gold);">${totalValue}g</span></span>
+                    <span>🧺 Finds: <span style="color: var(--gold);">${found.length}</span> (~${totalValue}g)</span>
                 </div>`;
 
                 // Grid
@@ -962,20 +923,27 @@ Object.assign(ActionMenu, {
                 html += `<div style="font-size: 48px; margin: 8px 0;">🌿</div>`;
                 if (found.length > 0) {
                     html += `<div style="font-size: 16px; color: #2ecc71; font-weight: bold; margin-bottom: 8px;">Foraging Haul</div>`;
-                    // Consolidate
-                    const totals = {};
-                    for (const f of found) {
-                        const key = f.entry.name;
-                        if (!totals[key]) totals[key] = { ...f.entry, foundQty: 0 };
-                        totals[key].foundQty += f.qty;
-                    }
-                    for (const item of Object.values(totals)) {
+                    // Consolidate what went into the packs (and what had to be left)
+                    const consolidate = (list) => {
+                        const totals = {};
+                        for (const f of list) {
+                            const key = f.entry.item;
+                            if (!totals[key]) totals[key] = { ...f.entry, foundQty: 0 };
+                            totals[key].foundQty += f.qty;
+                        }
+                        return Object.values(totals);
+                    };
+                    for (const item of consolidate(trip ? trip.kept : found)) {
                         html += `<div style="padding: 6px 12px; margin-bottom: 4px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between;">
                             <div>${item.icon} ${item.name} x${item.foundQty}</div>
-                            <div style="color: var(--gold);">${item.foundQty * item.sellPrice}g</div>
+                            <div style="color: var(--text-secondary);">~${item.foundQty * (item.sellPrice || 0)}g</div>
                         </div>`;
                     }
-                    html += `<div style="margin-top: 8px; padding: 8px; background: rgba(245,197,66,0.1); border-radius: 4px; font-weight: bold; color: var(--gold);">Total: ${totalValue} gold</div>`;
+                    if (trip && trip.lost.length) {
+                        html += `<div style="font-size: 11px; color: #e67e22; margin-top: 4px;">Left behind (packs full): ${consolidate(trip.lost).map(i => `${i.icon} ${i.name} x${i.foundQty}`).join(', ')}</div>`;
+                    }
+                    html += `<div style="margin-top: 8px; padding: 8px; background: rgba(245,197,66,0.1); border-radius: 4px; font-weight: bold; color: var(--gold);">Into your packs — worth ~${trip ? trip.value : totalValue} gold at market</div>`;
+                    if (trip && trip.rankUp) html += `<div style="margin-top: 6px; color: #2ecc71;">Your craft grows: ${trip.rankUp.icon} ${trip.rankUp.name}</div>`;
                 } else {
                     html += `<div style="font-size: 16px; color: #f39c12; margin-bottom: 8px;">Slim Pickings</div>`;
                     html += `<div style="color: var(--text-secondary);">You searched but found nothing of value today.</div>`;
@@ -1000,12 +968,11 @@ Object.assign(ActionMenu, {
             searchesLeft--;
 
             if (cell.entry) {
-                const intBonus = 1 + intStat * 0.05;
-                const qty = Math.floor(Math.random() * (cell.entry.qty.max - cell.entry.qty.min + 1)) + cell.entry.qty.min;
+                const qty = Foraging.rollQty(cell.entry, player);
                 found.push({ entry: cell.entry, qty });
-                const value = qty * cell.entry.sellPrice;
+                const value = qty * (cell.entry.sellPrice || 0);
                 totalValue += value;
-                statusMsg = `<span style="color: #2ecc71;">Found ${cell.entry.icon} ${cell.entry.name} x${qty}! (+${value}g)</span>`;
+                statusMsg = `<span style="color: #2ecc71;">Found ${cell.entry.icon} ${cell.entry.name} x${qty}! (~${value}g)</span>`;
             } else {
                 if (cell.nearbyCount > 0) {
                     statusMsg = `<span style="color: #f39c12;">Nothing here, but ${cell.nearbyCount} item${cell.nearbyCount > 1 ? 's' : ''} nearby...</span>`;
@@ -1023,16 +990,10 @@ Object.assign(ActionMenu, {
         };
 
         const finishForaging = () => {
+            if (phase === 'result') return;
             phase = 'result';
-            if (found.length > 0) {
-                player.gold += totalValue;
-                player.renown += found.length > 2 ? 1 : 0;
-                if (!player.foragingTrips) player.foragingTrips = 0;
-                player.foragingTrips++;
-                if (player.financeToday) {
-                    player.financeToday.income.foraging = (player.financeToday.income.foraging || 0) + totalValue;
-                }
-            }
+            // Finds go into the packs; the trip counts toward the forager's craft
+            trip = Foraging.finishTrip(player, found);
             render();
             game.ui.updateStats(player, game.world);
         };
@@ -1066,24 +1027,24 @@ Object.assign(ActionMenu, {
             title: '🏹 Hunting',
             icon: '🏹',
             description: 'Track and hunt wild game in this area.',
-            baseRewardText: '1 basic game item',
+            baseRewardText: '1 quarry (its usual yield)',
             onSkip: () => {
-                // Base reward: 1 item from loot table (basic game)
-                const entry = lootTable[0] || { item: 'meat', name: 'Venison', icon: '🥩', sell: 8 };
-                const huntAdd = PlayerInventory.addItem(player, entry.item, 1);
-                const sellPrice = entry.sell || 8;
-                if (huntAdd.success) {
-                    game.ui.showNotification('🏹 Hunting', `Quick hunt — caught ${entry.icon || '🥩'} ${entry.name || entry.item} (~${sellPrice}g).`, 'success');
+                // Base reward: one quarry, qty range honoured (player/foraging.js → Hunting)
+                const res = Hunting.quickHunt(player, lootTable);
+                const entry = res.entry;
+                const label = `${entry.icon || '🥩'} ${entry.name || entry.item} x${res.qty}`;
+                if (res.added) {
+                    game.ui.showNotification('🏹 Hunting', `Quick hunt — took ${label}.`, 'success');
                 } else {
-                    game.ui.showNotification('🏹 Hunting', `You caught ${entry.icon || '🥩'} ${entry.name || entry.item} but had no room to carry it. ${huntAdd.reason}`, 'warning');
+                    game.ui.showNotification('🏹 Hunting', `You took ${label} but had no room to carry it. ${res.reason}`, 'warning');
                 }
+                if (res.rankUp) game.ui.showNotification('🏹 Hunting', `Your craft grows: ${res.rankUp.icon} ${res.rankUp.name}.`, 'success');
                 game.ui.updateStats(player, game.world);
                 game.endDay();
             },
             onPlay: () => {
-                // Pick a prey animal from the loot table
-                const preyPool = lootTable.filter(e => e.chance > 0);
-                const prey = preyPool[Math.floor(Math.random() * preyPool.length)];
+                // Pick a prey animal from the loot table (luck favours the rare beasts)
+                const prey = Hunting.pickPrey(lootTable, player) || lootTable[0];
                 const preyName = prey.name || 'Animal';
                 const preyIcon = prey.icon || '🦌';
                 ActionMenu._doHuntMinigame(game, tile, player, combatSkill, strStat, luckStat, lootTable, prey, preyName, preyIcon);
@@ -1131,13 +1092,13 @@ Object.assign(ActionMenu, {
             const correct = clueTypes.filter(c => c.correct);
             const wrong = clueTypes.filter(c => !c.correct);
             const pick = [
-                correct[Math.floor(Math.random() * correct.length)],
-                correct[Math.floor(Math.random() * correct.length)],
-                wrong[Math.floor(Math.random() * wrong.length)],
+                correct[Math.floor(Utils.random() * correct.length)],
+                correct[Math.floor(Utils.random() * correct.length)],
+                wrong[Math.floor(Utils.random() * wrong.length)],
             ];
             // Shuffle
             for (let i = pick.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
+                const j = Math.floor(Utils.random() * (i + 1));
                 [pick[i], pick[j]] = [pick[j], pick[i]];
             }
             return pick;
@@ -1272,10 +1233,10 @@ Object.assign(ActionMenu, {
                     for (const item of totalLoot) {
                         html += `<div style="padding: 6px 12px; margin-bottom: 4px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
                             <div>${item.icon} ${item.name} x${item.foundQty}</div>
-                            <div style="color: var(--gold);">${item.foundQty * item.sellPrice}g</div>
+                            <div style="color: var(--text-secondary);">~${item.foundQty * (item.sellPrice || 0)}g</div>
                         </div>`;
                     }
-                    html += `<div style="margin-top: 8px; padding: 8px; background: rgba(245,197,66,0.1); border-radius: 4px; font-weight: bold; color: var(--gold);">Total: ${totalValue} gold</div>`;
+                    html += `<div style="margin-top: 8px; padding: 8px; background: rgba(245,197,66,0.1); border-radius: 4px; font-weight: bold; color: var(--gold);">Into your packs — worth ~${totalValue} gold at market</div>`;
                     if (statusMsg) html += `<div style="font-size: 12px; color: var(--text-secondary); margin-top: 6px;">${statusMsg}</div>`;
                 } else if (huntResult === 'fled') {
                     html += `<div style="font-size: 48px; margin: 12px 0;">💨</div>`;
@@ -1307,7 +1268,7 @@ Object.assign(ActionMenu, {
             trackRound++;
             const chosen = trackClues[idx];
             if (chosen && chosen.correct) {
-                const gain = 20 + combatSkill * 2 + Math.random() * 10;
+                const gain = 20 + combatSkill * 2 + Utils.random() * 10;
                 trackProgress = Math.min(100, trackProgress + gain);
                 statusMsg = `<span style="color: #2ecc71;">✓ ${chosen.label} — you're on the trail!</span>`;
             } else {
@@ -1335,7 +1296,7 @@ Object.assign(ActionMenu, {
             if (phase !== 'stalk') return;
             stalkDistance = Math.max(0, stalkDistance - 1);
             const noiseChance = 0.35 - combatSkill * 0.02;
-            const alertGain = Math.random() < noiseChance ? (15 + Math.random() * 15) : (3 + Math.random() * 5);
+            const alertGain = Utils.random() < noiseChance ? (15 + Utils.random() * 15) : (3 + Utils.random() * 5);
             alertLevel = Math.min(100, alertLevel + alertGain);
 
             if (alertGain > 12) {
@@ -1356,7 +1317,7 @@ Object.assign(ActionMenu, {
         // ── Stalk: wait to reduce alertness ──
         window._huntWait = () => {
             if (phase !== 'stalk') return;
-            const reduction = 10 + combatSkill * 2 + Math.random() * 8;
+            const reduction = 10 + combatSkill * 2 + Utils.random() * 8;
             alertLevel = Math.max(0, alertLevel - reduction);
             statusMsg = '<span style="color: #3498db;">You hold still and wait... the animal calms down.</span>';
             render();
@@ -1393,59 +1354,43 @@ Object.assign(ActionMenu, {
                 const center = pos + 25; // target is 50px wide
                 accuracy = 100 - Math.abs(center - 50) * 2;
             } else {
-                accuracy = 40 + Math.random() * 30;
+                accuracy = 40 + Utils.random() * 30;
             }
 
-            const hitThreshold = 35 - combatSkill * 2 - strStat;
+            // Experience steadies the aim (player/foraging.js → Hunting)
+            const hitThreshold = Hunting.hitThreshold(player);
             if (accuracy >= hitThreshold) {
-                // Hit!
-                const combatBonus = 1 + combatSkill * 0.08;
-                const strBonus = 1 + strStat * 0.03;
-                const totalBonus = combatBonus * strBonus;
-
-                for (const entry of lootTable) {
-                    if (Math.random() < entry.chance * totalBonus * 1.3) {
-                        const qty = Math.floor(Math.random() * (entry.qty.max - entry.qty.min + 1)) + entry.qty.min;
-                        totalLoot.push({ ...entry, foundQty: qty });
-                        totalValue += qty * entry.sellPrice;
-                    }
-                }
-                if (totalLoot.length === 0) {
-                    // At least give one item
-                    const fallback = lootTable[0];
-                    totalLoot.push({ ...fallback, foundQty: 1 });
-                    totalValue += fallback.sellPrice;
-                }
-
-                player.gold += totalValue;
-                if (!player.huntingTrips) player.huntingTrips = 0;
-                player.huntingTrips++;
-                if (player.financeToday) {
-                    player.financeToday.income.hunting = (player.financeToday.income.hunting || 0) + totalValue;
-                }
+                // Hit! The kill goes into the packs, in each beast's qty range
+                const trip = Hunting.finishTrip(player, Hunting.strikeLoot(lootTable, player));
+                totalLoot = trip.kept.map(f => ({ ...f.entry, foundQty: f.qty }));
+                totalValue = trip.value;
 
                 let extra = '';
-                if (player.skills && Math.random() < 0.25) {
+                if (trip.lost.length) extra += ` No room for ${trip.lost.map(f => `${f.entry.name} x${f.qty}`).join(', ')} — left behind.`;
+                if (trip.rankUp) extra += ` Your craft grows: ${trip.rankUp.icon} ${trip.rankUp.name}.`;
+                if (player.skills && Utils.random() < 0.25) {
                     player.skills.combat = Math.min(10, (player.skills.combat || 1) + 0.1);
-                    extra = ' Combat skill improved!';
+                    extra += ' Combat skill improved!';
                 }
 
                 huntResult = 'success';
                 statusMsg = extra;
                 phase = 'result';
-            } else if (accuracy < 15 && Math.random() < 0.2) {
+            } else if (accuracy < 15 && Utils.random() < 0.2) {
                 // Bad miss + injury
-                const dmg = Math.floor(Math.random() * 12) + 5;
+                const dmg = Math.floor(Utils.random() * 12) + 5;
                 player.health = Math.max(1, player.health - dmg);
                 huntResult = 'injured';
                 statusMsg = `Your arrow ricocheted! -${dmg} HP`;
                 // The startled beast may leave you with a lasting wound (systems/ailments.js)
                 const wound = Ailments.maybeWound(player, game.world, 'hunt');
                 if (wound) statusMsg += ` ${wound.icon} ${wound.name}.`;
+                Hunting.finishTrip(player, []); // a hard lesson is still experience
                 phase = 'result';
             } else {
                 huntResult = 'missed';
                 statusMsg = `Your arrow flew wide. The ${preyName} fled.`;
+                Hunting.finishTrip(player, []);
                 phase = 'result';
             }
             render();
@@ -1564,7 +1509,7 @@ Object.assign(ActionMenu, {
                 const isInstantComplete = b.type === 'instant' && game.player.q === b.fromQ && game.player.r === b.fromR;
                 const onCriminalTarget = b.type === 'criminal_hunt' && b.status === 'active' && game.player.q === b.targetQ && game.player.r === b.targetR;
                 const awaitingDecision = b.type === 'criminal_hunt' && b.status === 'captured_pending_decision';
-                const locationHint = b.type === 'criminal_hunt'
+                const locationHint = (b.type === 'criminal_hunt' || b.type === 'saga_beast')
                     ? `Last seen near (${b.targetQ}, ${b.targetR})`
                     : (b.destName ? `Destination: ${b.destName}` : '');
 
@@ -1638,6 +1583,15 @@ Object.assign(ActionMenu, {
 
             bounty.daysElapsed = 0;
             bounty.status = bounty.status || 'active';
+
+            if (bounty.type === 'saga_beast') {
+                // A saga beast: tracked daily; defeat it in battle to claim (systems/sagas.js)
+                game.player.activeBounties.push(bounty);
+                game.ui.showNotification('Notice Taken', `${bounty.targetName} — last seen near (${bounty.targetQ}, ${bounty.targetR}). Bring an army.`, 'success');
+                game.ui.updateStats(game.player, game.world);
+                ActionMenu.showBountyBoardMenu(game, tile);
+                return;
+            }
 
             if (bounty.type === 'criminal_hunt') {
                 game.player.activeBounties.push(bounty);

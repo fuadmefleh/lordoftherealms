@@ -245,7 +245,7 @@ export const SaveLoad = {
         'loans', 'taxRate', 'activeContract',
         'mapDeceptions', 'marriageAllianceKingdom', 'cultureIncomeCarry',
         'foragingTrips', 'huntingTrips', 'jobsCompleted', 'performancesGiven',
-        'plantingContracts',
+        'plantingContracts', 'voyageStats',
         // "Pretender to X", "Exile", an office's title — a fresh Player says "Nobody"
         'title',
     ],

@@ -615,7 +615,10 @@ export const Ailments = {
             out.drained = _num(out.drained) + blow;
             out.crises = (out.crises || []).concat([{ name: stage.name || def.name, blow }]);
         }
-        rec.dayInStage = _num(rec.dayInStage) + 1;
+        // Some sicknesses (scurvy) run their course far faster ashore with
+        // fresh food or a town's market: def.ashoreRecovery days pass per day
+        const ashore = _num(def.ashoreRecovery) > 1 && !player.boardedShip && Ailments._freshOrTown(player, world);
+        rec.dayInStage = _num(rec.dayInStage) + (ashore ? _num(def.ashoreRecovery) : 1);
         if (rec.dayInStage < _num(rec.stageDays)) return;
         // The crisis: worse, or it passes
         const next = stages[rec.stage + 1];

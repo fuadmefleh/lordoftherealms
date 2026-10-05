@@ -4,6 +4,14 @@
 
 import { Utils } from '../core/utils.js';
 import { Traits } from './traits.js';
+import { Sagas } from './sagas.js';
+
+/** A hunter who took the notice on a saga beast earns this much over the realm's bounty. */
+const SAGA_NOTICE_BONUS = 0.25;
+
+function _num(v) {
+    return typeof v === 'number' && isFinite(v) ? v : 0;
+}
 
 
 export const BountyHunting = {
@@ -30,6 +38,7 @@ export const BountyHunting = {
                 capturesTurnedIn: 0,
                 capturesRecruited: 0,
                 failedCaptures: 0,
+                beastsSlain: 0,
                 nextTargetId: 1,
                 boardRefreshDay: 0,
                 boardSettlementKey: '',
@@ -42,6 +51,7 @@ export const BountyHunting = {
         if (typeof state.capturesTurnedIn !== 'number') state.capturesTurnedIn = 0;
         if (typeof state.capturesRecruited !== 'number') state.capturesRecruited = 0;
         if (typeof state.failedCaptures !== 'number') state.failedCaptures = 0;
+        if (typeof state.beastsSlain !== 'number') state.beastsSlain = 0;
         if (typeof state.nextTargetId !== 'number') state.nextTargetId = 1;
         if (typeof state.boardRefreshDay !== 'number') state.boardRefreshDay = 0;
         if (typeof state.boardSettlementKey !== 'string') state.boardSettlementKey = '';
@@ -74,7 +84,7 @@ export const BountyHunting = {
     getBotchPenalty(player) {
         this.initialize(player);
         const s = player.bountyHunter;
-        const net = s.failedCaptures - (s.capturesTurnedIn + s.capturesRecruited);
+        const net = s.failedCaptures - (s.capturesTurnedIn + s.capturesRecruited + s.beastsSlain);
         return Math.min(0.25, Math.max(0, net) * 0.05);
     },
 
@@ -159,9 +169,13 @@ export const BountyHunting = {
         const day = world.day || 1;
         const settlementKey = this._key(tile.q, tile.r);
 
+        // Saga beasts roaming nearby are cried on every board (systems/sagas.js);
+        // they are never cached, so a slain or departed beast drops off at once
+        const beasts = this.sagaOffers(player, world, tile);
+
         const mustRefresh = state.boardSettlementKey !== settlementKey || day >= state.boardRefreshDay;
         if (!mustRefresh && state.boardOffers.length > 0) {
-            return [...state.boardOffers, ...existingOffers];
+            return [...beasts, ...state.boardOffers, ...existingOffers];
         }
 
         const targetCount = 1 + (Utils.random() < 0.4 ? 1 : 0);
@@ -174,7 +188,13 @@ export const BountyHunting = {
         state.boardRefreshDay = day + 2;
         state.boardOffers = generated;
 
-        return [...generated, ...existingOffers];
+        return [...beasts, ...generated, ...existingOffers];
+    },
+
+    /** Posted saga beasts near this board that the player has not already taken. */
+    sagaOffers(player, world, tile) {
+        const taken = new Set((player.activeBounties || []).map(b => b && b.id));
+        return Sagas.bountyOffers(player, world, tile).filter(o => !taken.has(o.id));
     },
 
     getBountyTargetAtPlayer(player) {
@@ -286,7 +306,7 @@ export const BountyHunting = {
 
     _recalculateRank(player) {
         const state = player.bountyHunter;
-        const total = state.capturesTurnedIn + state.capturesRecruited;
+        const total = state.capturesTurnedIn + state.capturesRecruited + (state.beastsSlain || 0);
         const before = state.rank;
         state.rank = 1 + Math.floor(total / 3);
         return state.rank > before ? this.getRankInfo(player) : null;
@@ -294,7 +314,35 @@ export const BountyHunting = {
 
     processDaily(player, world) {
         this.initialize(player);
-        const updates = { escaped: [], moved: [], escalated: [] };
+        const updates = { escaped: [], moved: [], escalated: [], beasts: [] };
+
+        // Saga beasts on the hunter's list: follow the beast's trail; when it
+        // falls to the player, the notice pays its bonus (the realm's own
+        // bounty is paid by Sagas); if it escapes the story, the notice lapses
+        for (const bounty of (player.activeBounties || []).slice()) {
+            if (bounty.type !== 'saga_beast' || bounty.status !== 'active') continue;
+            const found = Sagas.unitRecord(player, bounty.sagaKey);
+            const rec = found && found.rec;
+            if (rec && rec.slain) {
+                const bonus = Math.round(_num(bounty.actualPay) * (SAGA_NOTICE_BONUS + Math.max(0, this.getRankInfo(player).payBonus)));
+                player.gold = (player.gold || 0) + bonus;
+                player.bountyHunter.beastsSlain += 1;
+                player.bountiesCompleted = (player.bountiesCompleted || 0) + 1;
+                bounty.status = 'completed';
+                this._removeBounty(player, bounty.id);
+                const promoted = this._recalculateRank(player);
+                updates.beasts.push({ bountyId: bounty.id, targetName: bounty.targetName, outcome: 'slain', bonus, promoted });
+            } else if (!rec || rec.gone) {
+                bounty.status = 'lapsed';
+                this._removeBounty(player, bounty.id);
+                updates.beasts.push({ bountyId: bounty.id, targetName: bounty.targetName, outcome: 'gone' });
+            } else if (rec.q !== bounty.targetQ || rec.r !== bounty.targetR) {
+                bounty.lastKnownQ = bounty.targetQ;
+                bounty.lastKnownR = bounty.targetR;
+                bounty.targetQ = rec.q;
+                bounty.targetR = rec.r;
+            }
+        }
 
         for (const bounty of player.activeBounties || []) {
             if (bounty.type !== 'criminal_hunt' || bounty.status !== 'active') continue;

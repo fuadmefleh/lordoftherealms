@@ -6,6 +6,9 @@ import { Utils } from '../core/utils.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Traits } from './traits.js';
+import { Deeds } from './deeds.js';
+import { Ships } from './ships.js';
+import { KingdomNavy } from '../world/kingdomNavy.js';
 
 
 export const Quests = {
@@ -402,9 +405,11 @@ export const Quests = {
      * templates the player hasn't taken, in difficulty tiers they've unlocked.
      * Artifact quests are offered as soon as a matching fragment is found.
      */
-    generateAvailableQuests(player) {
+    generateAvailableQuests(player, world = null) {
         if (!player.quests) return;
-        const offered = (player.quests.available || []).filter(Boolean);
+        // An offer whose system has slipped out of reach (the ship sold, the
+        // siege over) leaves the board — judged only when the world is known
+        const offered = (player.quests.available || []).filter(q => q && (!world || Quests.isReachable(q, player, world)));
         const taken = (id) => Quests.hasQuest(player, id);
 
         // Artifact quests: only once the player holds a fragment
@@ -420,6 +425,7 @@ export const Quests = {
         const pool = Object.entries(Quests.QUEST_TEMPLATES).filter(([, t]) =>
             !Quests._artifactOf(t) && !t.starter && tiers.includes(t.difficulty || 'easy')
             && !(t.objectives || []).some(o => Quests.UNTRACKABLE_OBJECTIVES.includes(o.type))
+            && Quests.isReachable(t, player, world)
             && !taken(t.id) && !offered.some(o => o.id === t.id));
         // Fisher-Yates with the seeded RNG so offers are reproducible per seed
         for (let i = pool.length - 1; i > 0; i--) {
@@ -477,21 +483,83 @@ export const Quests = {
         const quest = player.quests.available[questIndex];
         quest.status = 'active';
         quest.startedAt = world ? world.day : 0;
+        // "Since" objectives count only what is done from now on
+        let deeds = null;
+        for (const obj of quest.objectives || []) {
+            if (!Quests.SINCE_OBJECTIVES.includes(obj.type)) continue;
+            if (obj.type === 'deed_since' && !deeds) deeds = Deeds.collect(player);
+            obj.baseline = Quests._sinceReading(player, obj, deeds);
+            obj.current = 0;
+        }
 
         player.quests.active.push(quest);
         player.quests.available.splice(questIndex, 1);
-        Quests.generateAvailableQuests(player);
+        Quests.generateAvailableQuests(player, world);
 
         return { success: true, quest };
+    },
+
+    /** Objectives that count from a baseline taken when the quest is accepted. */
+    SINCE_OBJECTIVES: ['counter_since', 'deed_since', 'court_since'],
+
+    /** The raw reading a "since" objective measures from (before the baseline). */
+    _sinceReading(player, obj, deeds = null) {
+        if (obj.type === 'counter_since') return Quests._counter(player, obj.stat);
+        if (obj.type === 'deed_since') return (deeds || Deeds.collect(player))[obj.key] || 0;
+        if (obj.type === 'court_since') {
+            const court = player.throne && player.throne.ruling && player.throne.ruling.court;
+            return (court && court.stats && court.stats[obj.stat]) || 0;
+        }
+        return 0;
+    },
+
+    /**
+     * Gates for quests that send the player into a system: a template's
+     * `requires` (a name or a list) must all hold for it to be offered.
+     * Each reads player state only (world when given); none creates state.
+     */
+    REQUIREMENTS: {
+        // A ship of one's own, or standing in a port where one can take passage
+        seafarer: (p, w) => (p.ships || []).length > 0
+            || !!(w && typeof w.getTile === 'function' && typeof p.q === 'number' && Ships.isPortTile(w, p.q, p.r)),
+        company: (p) => !!(p.merchant && p.merchant.company),
+        holdings: (p) => ((p.holdings && p.holdings.keys) || []).length > 0,
+        // Petitioners come to the player's holdings
+        court: (p) => Quests.REQUIREMENTS.holdings(p) || ((p.petitions && p.petitions.pending) || []).length > 0,
+        rivals: (p) => ((p.rivals && p.rivals.list) || []).some(r => r && !r.dead),
+        sagaBeast: (p) => ((p.sagas && p.sagas.active) || []).some(s => (s.units || []).some(u => u && !u.slain && !u.gone)),
+        // A holding of the player's under siege, or a siege-relief contract for the company
+        besieged: (p) => Object.keys((p.realmWars && p.realmWars.besieged) || {}).length > 0
+            || (!!(p.merchant && p.merchant.company)
+                && [...(p.merchant.board || []), ...(p.merchant.company.contracts || [])].some(c => c && c.defId === 'siege_relief')),
+        siegeCamp: (p) => !!(p.sieges && p.sieges.active),
+        army: (p) => (p.army || []).length >= 3,
+        ruler: (p) => !!(p.throne && p.throne.ruling),
+        crisis: (p) => ((p.throne && p.throne.crises) || []).length > 0,
+        underworld: (p) => !!(p.underworld && p.underworld.guild && (p.underworld.guild.member || p.underworld.guild.contactMet)),
+        blockade: (p, w) => !!w && (w.kingdoms || []).some(k => k && k.isAlive !== false && KingdomNavy.isBlockaded(k)),
+        companions: (p) => (p.travelParty || []).length > 0,
+    },
+
+    /** Can this template (or offer) be offered now? Unknown requirements never pass. */
+    isReachable(template, player, world = null) {
+        const req = template && template.requires;
+        if (!req) return true;
+        return (Array.isArray(req) ? req : [req]).every(r => {
+            const fn = Quests.REQUIREMENTS[r];
+            return typeof fn === 'function' && !!fn(player, world);
+        });
     },
 
     /**
      * Update quest progress
      */
     updateProgress(player, world) {
+        if (player.quests) Quests._tidyBoard(player, world);
         if (!player.quests || player.quests.active.length === 0) return [];
 
         const completed = [];
+        let deeds = null;
 
         for (const quest of player.quests.active) {
             let allComplete = true;
@@ -499,6 +567,17 @@ export const Quests = {
             for (const objective of quest.objectives) {
                 // Update objective progress
                 switch (objective.type) {
+                    case 'deed_since':
+                        if (!deeds) deeds = Deeds.collect(player);
+                        objective.current = Math.max(0, Quests._sinceReading(player, objective, deeds) - (objective.baseline || 0));
+                        break;
+                    case 'court_since':
+                        objective.current = Math.max(0, Quests._sinceReading(player, objective) - (objective.baseline || 0));
+                        break;
+                    case 'deliver_item':
+                        // Goods carried for the giver; handed over when the quest completes
+                        objective.current = Math.min(objective.target, (player.inventory && player.inventory[objective.item]) || 0);
+                        break;
                     case 'gold':
                         objective.current = player.gold;
                         break;
@@ -616,6 +695,8 @@ export const Quests = {
                 player.quests.active.splice(index, 1);
                 player.quests.completed.push(quest);
 
+                // Hand over the goods the giver asked for
+                Quests._handOver(player, quest);
                 // Grant rewards
                 Quests.grantRewards(player, quest);
                 Traits.recordDeed(player, 'honesty', 2); // a promise kept
@@ -624,10 +705,33 @@ export const Quests = {
 
         // Generate new quests
         if (completed.length > 0) {
-            Quests.generateAvailableQuests(player);
+            Quests.generateAvailableQuests(player, world);
         }
 
         return completed;
+    },
+
+    /** A completed quest's deliver_item objectives take the goods from the packs. */
+    _handOver(player, quest) {
+        for (const obj of quest.objectives || []) {
+            if (obj.type !== 'deliver_item' || !player.inventory) continue;
+            const left = Math.max(0, (player.inventory[obj.item] || 0) - obj.target);
+            if (left > 0) player.inventory[obj.item] = left;
+            else delete player.inventory[obj.item];
+        }
+    },
+
+    /**
+     * Daily board upkeep: offers whose system is out of reach are dropped,
+     * and a short board is refilled. Draws RNG only when it refills.
+     */
+    _tidyBoard(player, world) {
+        if (!world || !Array.isArray(player.quests.available)) return;
+        const before = player.quests.available.length;
+        const kept = player.quests.available.filter(q => q && Quests.isReachable(q, player, world));
+        if (kept.length === before) return;
+        player.quests.available = kept;
+        Quests.generateAvailableQuests(player, world);
     },
 
     /**

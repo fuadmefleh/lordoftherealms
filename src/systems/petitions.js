@@ -37,6 +37,7 @@ import { House } from './house.js';
 import { Councils } from './councils.js';
 import { Taxation } from './marketDynamics.js';
 import { Religion } from './religion.js';
+import { Quests } from './quests.js';
 
 const DEFAULT_CONFIG = {
     firstDelay: 3,
@@ -804,6 +805,7 @@ export const Petitions = {
             notable,
         };
         Petitions._record(player, world, petition, entry);
+        for (const [axis, v] of Object.entries(entry.court)) if (v > 0) Quests.track(player, `ruled_${axis}`);
         if (notable) {
             st.notable.push({ day: (world && world.day) || 0, title: petition.title, choice: entry.choice, court: entry.court });
             if (st.notable.length > 10) st.notable = st.notable.slice(-10);

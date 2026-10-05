@@ -748,6 +748,7 @@ export const Delves = {
         if (reason === 'collapse') st.stats.collapses++;
         if (reason === 'cleared') {
             st.stats.cleared++;
+            Quests.track(player, `delve_cleared_${a.kind}`); // quest board / Every Dark Place
             const bonus = Math.round(_num(Delves.CONFIG.clearRenown) * Delves._rewardMult(a.plan.length - 1));
             player.renown = _num(player.renown) + bonus;
             a.haul.renown += bonus;

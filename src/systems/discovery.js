@@ -49,6 +49,7 @@ import { Rivals } from './rivals.js';
 import { House } from './house.js';
 import { Traits } from './traits.js';
 import { Ailments } from './ailments.js';
+import { Quests } from './quests.js';
 
 const DEFAULT_CONFIG = {
     minDay: 1,
@@ -597,6 +598,7 @@ export const Discovery = {
         site.naming = { untilDay: day + cfg.namingDays };
         for (const g of site.features.goods) site.stock[g] = Math.max(_num(site.stock[g]), Math.ceil(cfg.stock.max / 2));
         st.stats.found++;
+        if (site.hint) Quests.track(player, 'hinted_lands_found'); // a rumoured or charted land
         player.renown = Math.max(0, _num(player.renown) + _num(cfg.renown[site.kind], 8));
         Traits.recordDeed(player, how === 'land' ? 'travel' : 'seafaring', 1);
         Traits.recordDeed(player, 'learning', 1);

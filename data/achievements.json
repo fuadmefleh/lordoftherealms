@@ -293,6 +293,349 @@
       "description": "Survive 5 battles at below 20% health",
       "icon": "💪",
       "tier": "gold"
+    },
+    "INTO_THE_DARK": {
+      "id": "into_the_dark",
+      "name": "Into the Dark",
+      "description": "Finish your first delve",
+      "icon": "🕳️",
+      "tier": "bronze"
+    },
+    "DELVE_MASTER": {
+      "id": "delve_master",
+      "name": "Delve Master",
+      "description": "Clear 10 delves to the bottom",
+      "icon": "⛏️",
+      "tier": "silver"
+    },
+    "SIX_CHAMBERS_DOWN": {
+      "id": "six_chambers_down",
+      "name": "Six Chambers Down",
+      "description": "Reach the sixth chamber of a delve",
+      "icon": "🕯️",
+      "tier": "gold"
+    },
+    "EVERY_DARK_PLACE": {
+      "id": "every_dark_place",
+      "name": "Every Dark Place",
+      "description": "Clear a delve of every kind: sunken ruins, tomb, ruins, mine and cave",
+      "icon": "🗿",
+      "tier": "gold"
+    },
+    "DUELIST": {
+      "id": "duelist",
+      "name": "Duelist",
+      "description": "Best a rival adventurer in a duel",
+      "icon": "🤺",
+      "tier": "bronze"
+    },
+    "MASTER_DUELIST": {
+      "id": "master_duelist",
+      "name": "Master Duelist",
+      "description": "Win 10 duels against rival adventurers",
+      "icon": "⚔️",
+      "tier": "silver"
+    },
+    "BLOOD_FEUD": {
+      "id": "blood_feud",
+      "name": "Blood Feud",
+      "description": "Slay a rival adventurer",
+      "icon": "🩸",
+      "tier": "silver"
+    },
+    "FRIEND_FOR_LIFE": {
+      "id": "friend_for_life",
+      "name": "A Friend for Life",
+      "description": "Win a companion's devotion",
+      "icon": "🤝",
+      "tier": "bronze"
+    },
+    "BAND_OF_BROTHERS": {
+      "id": "band_of_brothers",
+      "name": "Band of Brothers",
+      "description": "Win the devotion of 3 companions",
+      "icon": "🛡️",
+      "tier": "gold"
+    },
+    "MAGISTRATE": {
+      "id": "magistrate",
+      "name": "Magistrate",
+      "description": "Rule on 10 petitions",
+      "icon": "⚖️",
+      "tier": "bronze"
+    },
+    "WISDOM_OF_SOLOMON": {
+      "id": "wisdom_of_solomon",
+      "name": "Wisdom of Solomon",
+      "description": "Rule on 50 petitions",
+      "icon": "📜",
+      "tier": "silver"
+    },
+    "LORD_OF_THE_MANOR": {
+      "id": "lord_of_the_manor",
+      "name": "Lord of the Manor",
+      "description": "Rule a holding",
+      "icon": "🏡",
+      "tier": "bronze"
+    },
+    "IMPROVER_OF_LANDS": {
+      "id": "improver_of_lands",
+      "name": "Improver of Lands",
+      "description": "Complete 10 projects in your holdings",
+      "icon": "🏗️",
+      "tier": "silver"
+    },
+    "IRON_FIST": {
+      "id": "iron_fist",
+      "name": "Iron Fist",
+      "description": "Crush a rebellion in one of your holdings",
+      "icon": "✊",
+      "tier": "silver"
+    },
+    "UNBROKEN_WALLS": {
+      "id": "unbroken_walls",
+      "name": "Unbroken Walls",
+      "description": "See a holding through an enemy siege: relieved or held",
+      "icon": "🏯",
+      "tier": "silver"
+    },
+    "THE_GATES_GIVE_WAY": {
+      "id": "the_gates_give_way",
+      "name": "The Gates Give Way",
+      "description": "Take a town by siege",
+      "icon": "🏰",
+      "tier": "silver"
+    },
+    "BREAKER_OF_CITIES": {
+      "id": "breaker_of_cities",
+      "name": "Breaker of Cities",
+      "description": "Take 5 towns by siege",
+      "icon": "🔨",
+      "tier": "gold"
+    },
+    "NO_RELIEF_COMING": {
+      "id": "no_relief_coming",
+      "name": "No Relief Coming",
+      "description": "Beat an army marching to relieve your siege",
+      "icon": "🚩",
+      "tier": "silver"
+    },
+    "STUFF_OF_SAGAS": {
+      "id": "stuff_of_sagas",
+      "name": "The Stuff of Sagas",
+      "description": "Bring a saga you joined to a triumphant end",
+      "icon": "📖",
+      "tier": "silver"
+    },
+    "SAGA_OF_AGES": {
+      "id": "saga_of_ages",
+      "name": "Saga of Ages",
+      "description": "Win 3 sagas",
+      "icon": "🌠",
+      "tier": "legendary"
+    },
+    "WYRMSLAYER": {
+      "id": "wyrmslayer",
+      "name": "Wyrmslayer",
+      "description": "Slay the wyrm of \"The Wyrm Wakes\" saga",
+      "icon": "🐉",
+      "tier": "legendary"
+    },
+    "MONSTER_HUNTER": {
+      "id": "monster_hunter",
+      "name": "Monster Hunter",
+      "description": "Claim the bounty on a saga beast cried on the notice boards",
+      "icon": "📯",
+      "tier": "silver"
+    },
+    "A_CLAIM_TO_THE_THRONE": {
+      "id": "a_claim_to_the_throne",
+      "name": "A Claim to the Throne",
+      "description": "Hold a claim on a throne",
+      "icon": "📜",
+      "tier": "bronze"
+    },
+    "KINGMAKER": {
+      "id": "kingmaker",
+      "name": "Kingmaker",
+      "description": "Back the claimant who wins a succession crisis",
+      "icon": "🎭",
+      "tier": "gold"
+    },
+    "UNEASY_LIES_THE_HEAD": {
+      "id": "uneasy_lies_the_head",
+      "name": "Uneasy Lies the Head",
+      "description": "Win a crown",
+      "icon": "👑",
+      "tier": "gold"
+    },
+    "THE_FULL_COUNCIL": {
+      "id": "the_full_council",
+      "name": "The Full Council",
+      "description": "Fill all five seats of your royal council",
+      "icon": "🏛️",
+      "tier": "gold"
+    },
+    "LAWGIVER": {
+      "id": "lawgiver",
+      "name": "Lawgiver",
+      "description": "Pass 5 royal edicts",
+      "icon": "🖋️",
+      "tier": "silver"
+    },
+    "LONG_REIGN": {
+      "id": "long_reign",
+      "name": "Long Reign",
+      "description": "Rule a realm for 10 years",
+      "icon": "⏳",
+      "tier": "legendary"
+    },
+    "ONE_OF_THE_GUILD": {
+      "id": "one_of_the_guild",
+      "name": "One of the Guild",
+      "description": "Join the Thieves' Guild",
+      "icon": "🗝️",
+      "tier": "bronze"
+    },
+    "PRINCE_OF_THIEVES": {
+      "id": "prince_of_thieves",
+      "name": "Prince of Thieves",
+      "description": "Rise to the top rank of the Thieves' Guild",
+      "icon": "🌑",
+      "tier": "gold"
+    },
+    "CHARTERED_COMPANY": {
+      "id": "chartered_company",
+      "name": "Chartered Company",
+      "description": "Found a trading company",
+      "icon": "🏦",
+      "tier": "bronze"
+    },
+    "MERCHANT_PRINCE_OF_THE_SEAS": {
+      "id": "merchant_prince_of_the_seas",
+      "name": "Merchant Prince of the Seas",
+      "description": "Run 5 trading posts and bring 10 company convoys in by ship",
+      "icon": "⛵",
+      "tier": "legendary"
+    },
+    "HOSTILE_TAKEOVER": {
+      "id": "hostile_takeover",
+      "name": "Hostile Takeover",
+      "description": "Buy out a rival merchant house",
+      "icon": "📈",
+      "tier": "gold"
+    },
+    "LAND_HO": {
+      "id": "land_ho",
+      "name": "Land Ho!",
+      "description": "Discover an uncharted land",
+      "icon": "🏝️",
+      "tier": "bronze"
+    },
+    "CARTOGRAPHER_OF_THE_UNKNOWN": {
+      "id": "cartographer_of_the_unknown",
+      "name": "Cartographer of the Unknown",
+      "description": "Name 5 lands you discovered",
+      "icon": "🧭",
+      "tier": "gold"
+    },
+    "SEA_LEGS": {
+      "id": "sea_legs",
+      "name": "Sea Legs",
+      "description": "Complete a voyage",
+      "icon": "🌊",
+      "tier": "bronze"
+    },
+    "OLD_SALT": {
+      "id": "old_salt",
+      "name": "Old Salt",
+      "description": "Spend 100 days at sea",
+      "icon": "⚓",
+      "tier": "silver"
+    },
+    "ADMIRAL": {
+      "id": "admiral",
+      "name": "Admiral",
+      "description": "Command a fleet of 5 ships",
+      "icon": "🚢",
+      "tier": "silver"
+    },
+    "SURVIVED_THE_BLACK_DEATH": {
+      "id": "survived_the_black_death",
+      "name": "Survived the Black Death",
+      "description": "Catch the plague and live",
+      "icon": "🐀",
+      "tier": "gold"
+    },
+    "MASTER_FORAGER": {
+      "id": "master_forager",
+      "name": "Master Forager",
+      "description": "Reach the rank of Master Forager",
+      "icon": "🏵️",
+      "tier": "gold"
+    },
+    "MASTER_OF_THE_HUNT": {
+      "id": "master_of_the_hunt",
+      "name": "Master of the Hunt",
+      "description": "Reach the rank of Master of the Hunt",
+      "icon": "🐗",
+      "tier": "gold"
+    },
+    "A_PERSON_OF_CHARACTER": {
+      "id": "a_person_of_character",
+      "name": "A Person of Character",
+      "description": "Earn 5 character traits",
+      "icon": "🎭",
+      "tier": "silver"
+    },
+    "RAISED_RIGHT": {
+      "id": "raised_right",
+      "name": "Raised Right",
+      "description": "Raise a child of your House to come of age",
+      "icon": "🎓",
+      "tier": "silver"
+    },
+    "BLOOD_ROYAL": {
+      "id": "blood_royal",
+      "name": "Blood Royal",
+      "description": "Marry a child of your House into a royal line",
+      "icon": "💍",
+      "tier": "gold"
+    },
+    "THE_LINE_ENDURES": {
+      "id": "the_line_endures",
+      "name": "The Line Endures",
+      "description": "Pass the House to an heir",
+      "icon": "🌳",
+      "tier": "silver"
+    },
+    "DEAD_OR_ALIVE": {
+      "id": "dead_or_alive",
+      "name": "Dead or Alive",
+      "description": "Bring in 5 wanted criminals",
+      "icon": "🎯",
+      "tier": "bronze"
+    },
+    "LEGENDARY_HUNTER": {
+      "id": "legendary_hunter",
+      "name": "Legendary Hunter",
+      "description": "Reach the top bounty hunter rank",
+      "icon": "⭐",
+      "tier": "gold"
+    },
+    "MASTER_OF_REVELS": {
+      "id": "master_of_revels",
+      "name": "Master of Revels",
+      "description": "Host 10 festivals",
+      "icon": "🎪",
+      "tier": "silver"
+    },
+    "CHAMPION_OF_THE_LISTS": {
+      "id": "champion_of_the_lists",
+      "name": "Champion of the Lists",
+      "description": "Finish on the podium in 5 festival contests",
+      "icon": "🏆",
+      "tier": "bronze"
     }
   }
 }

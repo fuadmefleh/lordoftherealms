@@ -43,6 +43,7 @@ import { House } from './house.js';
 import { Holdings } from './holdings.js';
 import { Sieges } from './sieges.js';
 import { RealmWars } from './realmWars.js';
+import { Quests } from './quests.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -473,6 +474,7 @@ export const HoldingSieges = {
                 s.garrison += Math.floor(c.gold / C.supply.goldPerGarrison);
                 s.morale = Utils.clamp(s.morale + Math.min(C.morale.suppliedMax, c.gold / C.morale.goldPerPoint), 0, 100);
             }
+            Quests.track(player, 'siege_supplies_delivered');
             const text = `Your ${c.via === 'ship' ? 'ship' : 'caravan'} slips into ${s.name} with ${what}.`;
             HoldingSieges._log(s, world, text);
             out.notices.push({ title: '📦 Supplies Through', text, type: 'success' });

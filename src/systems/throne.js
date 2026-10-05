@@ -38,6 +38,7 @@ import { House } from './house.js';
 import { RealmWars } from './realmWars.js';
 import { Titles } from './titles.js';
 import { Traits } from './traits.js';
+import { Quests } from './quests.js';
 import { Relationships } from './relationships.js';
 
 // Code defaults (data/throne.json → config overrides them key by key).
@@ -619,6 +620,7 @@ export const Throne = {
                 player.gold = (player.gold || 0) + gold;
                 _addRep(player, kingdom.id, C.rewardReputation);
                 House.award(player.house, C.rewardPrestige, `kingmaker in ${kingdom.name}`, world.day);
+                Quests.track(player, 'kingmaker');
                 result.rewards = { gold, reputation: C.rewardReputation, prestige: C.rewardPrestige };
                 Throne._log(player, world, `👑 ${winner.name} wins the throne of ${kingdom.name} with your backing: +${gold}g, +${C.rewardReputation} reputation, +${C.rewardPrestige} Prestige.`);
             } else {

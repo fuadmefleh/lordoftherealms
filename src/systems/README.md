@@ -7,7 +7,7 @@ World simulation systems. Each system manages a distinct aspect of the game worl
 | File | Lines | Description |
 |------|-------|-------------|
 | `ailments.js` | ~1140 | Wounds, sickness and medicine: wounds from fights/delves (attribute, skill, movement and battle-power penalties, healing time, infection, permanent Scarred/Lame traits), staged diseases from exposure, raw food, swamps, plague, the lean season and long voyages; contagion to companions and ship crews; physicians, temple rites, remedies, prayer (`data/ailments.json`); `processDay(world, player, ctx)` reports death, the UI triggers it |
-| `achievements.js` | ~197 | 30+ achievements; checked after player actions |
+| `achievements.js` | ~740 | 91 achievements (presentation in `data/achievements.json`, checks in code), checked at day's end; the newer systems' ones read `Deeds.collect` counters, live system state, or `Quests.track` event counters (`delve_cleared_<kind>`, `saga_slain_<saga>`, `kingmaker`, `recovered_<disease>`, `convoys_by_sea`) |
 | `audio/` | ~1100 | Procedural Web Audio API music & SFX — no external files |
 | `bountyHunting.js` | ~370 | Criminal tracking, bounty boards, capture mechanics; saga beasts on notice boards (`Sagas.bountyOffers`) tracked daily with a hunter's fee |
 | `cartography/` | ~950 | Map making, map trading, propaganda maps, stolen maps |
@@ -34,7 +34,7 @@ World simulation systems. Each system manages a distinct aspect of the game worl
 | `npcDisposition.js` | ~360 | What inner-map NPC disposition does: prices, threats, secrets, family grudges |
 | `petitions.js` | ~600 | Court petitions: data-driven dilemmas (`data/petitions.json`) at the player's holdings; chained follow-ups, expiry costs, court reputation |
 | `peoples/` | ~1900 | 30 tribal cultures, settlement demographics, cultural history; `effects.js` turns values/traits/arts/cuisine/customs/homeland/lore into settlement & kingdom modifiers (tables in `data/peoples.json` → `effects`) |
-| `quests.js` | ~650 | Dynamic quest generation, tracking, rewards |
+| `quests.js` | ~850 | Quest board (templates in `data/quests.json`), tracking, rewards; a template's `requires` names a gate in `REQUIREMENTS` (seafarer, company, court, rivals, sagaBeast, besieged, blockade, …) so it's offered only when its system is reachable (unreachable offers drop off daily); "since" objectives (`counter_since` on a `Quests.track` stat, `deed_since` on a `Deeds.collect` key, `court_since` on the royal court's stats) count from acceptance; `deliver_item` takes goods from the packs on completion |
 | `relationships/` | ~1700 | Courtship, marriage, children, dynasty, heir succession |
 | `religion.js` | ~750 | World religions, holy sites, heresies, pilgrimages |
 | `rivals.js` | ~1350 | Rival adventurers: 6–9 named NPCs (`data/rivals.json`) created lazily on the first daily tick, who travel abstractly and delve sites first (full or partial loot read by `delves.js`), claim your bounties, take quest offers, enter your contests, back throne claimants; attitude/memory toward the player, duels (via `PlayerEffects`), team-ups, hires, races, sabotage, nemesis ambushes and slander (Gossip), deaths and newcomers; Hall of Heroes leaderboard + news; `processDay(world, player)` |

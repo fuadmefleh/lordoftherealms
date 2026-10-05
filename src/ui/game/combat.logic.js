@@ -12,6 +12,12 @@
 import { Utils } from '../../core/utils.js';
 import { PlayerMilitary } from '../../player/playerMilitary.js';
 import { PlayerEffects } from '../../player/playerEffects.js';
+import { Ailments } from '../../systems/ailments.js';
+
+/** " You suffer a Deep Gash." — the wound a fight left you with, if any. */
+function _woundText(wound) {
+    return wound ? ` ${wound.icon} You suffer ${/^[aeiou]/i.test(wound.name) ? 'an' : 'a'} ${wound.name.toLowerCase()}.` : '';
+}
 
 /**
  * Resolve a hostile encounter between the player and an adjacent attacker unit.
@@ -37,14 +43,17 @@ export function resolveHostileEncounter(player, attacker, world) {
         player.health = Math.max(1, player.health - healthLost);
         attacker.targetQ = null;
         attacker.targetR = null;
+        // Tooth and claw can leave a wound that lasts (systems/ailments.js)
+        const wound = healthLost > 0 ? Ailments.maybeWound(player, world, attacker.type) : null;
         return {
             kind: 'robbed',
             goldStolen: 0,
             healthLost,
             stolenItems: {},
+            wound,
             notification: {
                 title: `${attacker.icon || '🐺'} ${attacker.name} Attack!`,
-                body: `A ${attacker.name} fell on you! Without an army you barely escaped. You lost ${healthLost} health.`,
+                body: `A ${attacker.name} fell on you! Without an army you barely escaped. You lost ${healthLost} health.${_woundText(wound)}`,
                 type: 'error',
             },
         };
@@ -93,6 +102,8 @@ export function resolveHostileEncounter(player, attacker, world) {
             .join(', ');
         if (stolenList) msg += ` They also took: ${stolenList}.`;
         msg += ` You lost ${healthLost} health.`;
+        const wound = healthLost > 0 ? Ailments.maybeWound(player, world, 'ambush') : null;
+        msg += _woundText(wound);
 
         if (world && world.events) {
             world.events.push({
@@ -110,6 +121,7 @@ export function resolveHostileEncounter(player, attacker, world) {
             goldStolen,
             healthLost,
             stolenItems,
+            wound,
             notification: { title: `⚔️ ${attacker.name} Attack!`, body: msg, type: 'error' },
         };
     }
@@ -131,8 +143,11 @@ export function resolveHostileEncounter(player, attacker, world) {
             lootMsg += ` Packs full — left behind: ${Object.entries(result.lootLeftBehind).map(([k, v]) => `${v} ${k}`).join(', ')}.`;
         }
         if (result.renownChange > 0) lootMsg += ` +${result.renownChange} renown!`;
+        // You fought in the line yourself (systems/ailments.js)
+        const wound = result.noArmy ? null : Ailments.afterBattle(player, world, true, { sea: theatre === 'sea' });
+        lootMsg += _woundText(wound);
 
-        return { kind: 'victory', result, notification: { title: `⚔️ Victory!`, body: lootMsg, type: 'success' } };
+        return { kind: 'victory', result, wound, notification: { title: `⚔️ Victory!`, body: lootMsg, type: 'success' } };
     }
 
     let defeatMsg = `Defeated by the ${attacker.name}!`;
@@ -141,5 +156,7 @@ export function resolveHostileEncounter(player, attacker, world) {
         defeatMsg += ` You have been captured and forced into servitude for ${result.servitudeDays} days!`;
         if (result.goldConfiscated > 0) defeatMsg += ` ${result.goldConfiscated} gold confiscated.`;
     }
-    return { kind: 'defeat', result, notification: { title: `💀 Defeat!`, body: defeatMsg, type: 'error' } };
+    const wound = result.noArmy ? null : Ailments.afterBattle(player, world, false, { sea: theatre === 'sea' });
+    defeatMsg += _woundText(wound);
+    return { kind: 'defeat', result, wound, notification: { title: `💀 Defeat!`, body: defeatMsg, type: 'error' } };
 }

@@ -276,6 +276,8 @@ export default function GameView() {
             <span className="hud-mood-label" id="simsMoodLabel">ECSTATIC</span>
             <div className="hud-mood-meter"><div className="hud-mood-fill" id="moodMeterFill" style={{width:'100%'}}></div></div>
           </div>
+          {/* Wounds and sickness — icons with tooltips, filled by ui/ui/hud.js _updateSimsHUD */}
+          <div className="hud-conditions" id="hudConditions"></div>
           {/* Needs — filled by ui/ui/hud.js _updateSimsHUD; hidden while the needs system is off */}
           <div className="hud-needs" id="hudNeeds">
             {[

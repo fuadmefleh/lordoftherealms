@@ -1217,6 +1217,13 @@ Object.assign(ActionMenu, {
             html += '<h3 style="color: #a33; margin-top: 0;">💀 Starvation</h3>';
             html += `<p style="font-size: 14px;">${player.name} has perished from starvation after ${player.starvationDays || '?'} days without food, at the age of ${player.age}.</p>`;
             html += '<p style="font-size: 12px; color: #aaa; font-style: italic;">"Even the mightiest lord cannot defy hunger forever."</p>';
+        } else if (cause === 'illness' || cause === 'wounds') {
+            // Death from a disease or festering wounds (systems/ailments.js)
+            const dc = (player.ailments && player.ailments.deathCause) || {};
+            const what = dc.name ? dc.name.toLowerCase() : (cause === 'wounds' ? 'your wounds' : 'sickness');
+            html += `<h3 style="color: #a33; margin-top: 0;">${dc.icon || '💀'} ${cause === 'wounds' ? 'Taken by Wounds' : 'Taken by Sickness'}</h3>`;
+            html += `<p style="font-size: 14px;">${player.name} has died of ${what} at the age of ${player.age}.</p>`;
+            html += '<p style="font-size: 12px; color: #aaa; font-style: italic;">"A sword spares some men. A fever spares fewer."</p>';
         } else {
             html += '<h3 style="color: #a33; margin-top: 0;">💀 Death Comes for All</h3>';
             html += `<p style="font-size: 14px;">${player.name} has died at the age of ${player.age}.</p>`;

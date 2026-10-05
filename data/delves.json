@@ -76,10 +76,10 @@
         }
     },
     "injuries": {
-        "broken_arm": { "name": "Broken Arm", "icon": "🦴", "stat": "strength", "amount": 1 },
-        "concussion": { "name": "Concussion", "icon": "💫", "stat": "intelligence", "amount": 1 },
-        "scarred_face": { "name": "Fresh Scars", "icon": "🩹", "stat": "charisma", "amount": 1 },
-        "dark_dreams": { "name": "Dark Dreams", "icon": "🌑", "stat": "faith", "amount": 1 }
+        "broken_arm": { "ailment": "broken_arm", "name": "Broken Arm", "icon": "🦴", "stat": "strength", "amount": 1 },
+        "concussion": { "ailment": "concussion", "name": "Concussion", "icon": "💫", "stat": "intelligence", "amount": 1 },
+        "scarred_face": { "ailment": "slashed_face", "name": "Fresh Scars", "icon": "🩹", "stat": "charisma", "amount": 1 },
+        "dark_dreams": { "ailment": "dark_dreams", "name": "Dark Dreams", "icon": "🌑", "stat": "faith", "amount": 1 }
     },
     "guardians": {
         "stone_sentinel": { "name": "Awakened Stone Sentinel", "icon": "🗿", "strength": [50, 90] },

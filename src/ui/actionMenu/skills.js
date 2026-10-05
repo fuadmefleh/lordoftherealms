@@ -1,6 +1,7 @@
 // ActionMenu — skills methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
 import { Underworld } from '../../systems/underworld.js';
+import { Ailments } from '../../systems/ailments.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -2600,6 +2601,9 @@ Object.assign(ActionMenu, {
                     player.health = Math.max(1, player.health - dmg);
                     tameResult = 'kicked';
                     statusMsg = `The panicked horse kicked you! -${dmg} HP`;
+                    // A hoof can crack ribs or break an arm (systems/ailments.js)
+                    const wound = Ailments.maybeWound(player, game.world, 'kick');
+                    if (wound) statusMsg += ` ${wound.icon} ${wound.name}.`;
                 } else {
                     tameResult = 'bolted';
                 }

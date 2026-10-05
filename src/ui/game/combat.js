@@ -6,6 +6,7 @@ import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDyna
 import { resolveHostileEncounter } from './combat.logic.js';
 import { PlayerReligion } from '../../player/playerReligion.js';
 import { Traits } from '../../systems/traits.js';
+import { Ailments } from '../../systems/ailments.js';
 
 export function playerPray() {
     if (!this.player) return;
@@ -14,6 +15,12 @@ export function playerPray() {
     Traits.recordDeed(this.player, 'piety');
     this.ui.updateStats(this.player, this.world);
     this.ui.showNotification('Prayer', 'You take a moment to pray. ☯ +1 Karma', 'success');
+    // A prayer for the sick eases a fever, and is now and then answered (systems/ailments.js)
+    const healing = Ailments.pray(this.player, this.world);
+    if (healing) {
+        this.ui.showNotification(healing.answered ? '✨ Prayer Answered' : '🙏 Prayer for Healing', healing.message, healing.answered ? 'success' : 'info');
+        this.ui.updateStats(this.player, this.world);
+    }
 
     // At certain karma thresholds, unlock religious path
     if (this.player.karma === 10 && !this.player.religion) {

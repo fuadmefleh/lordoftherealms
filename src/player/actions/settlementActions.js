@@ -17,6 +17,7 @@ import { Throne } from '../../systems/throne.js';
 import { PlayerReligion } from '../playerReligion.js';
 import { SeasonalWork } from '../seasonalWork.js';
 import { Underworld } from '../../systems/underworld.js';
+import { Ailments } from '../../systems/ailments.js';
 
 export function addSettlementActions(actions, player, tile, world, ctx) {
     const { isCity, isVillage, isPlayerSettlement, playerSettlementCount, playerKingdom, hasPlayerFoundedKingdom } = ctx;
@@ -93,6 +94,16 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             label: 'Denounce Heresy',
             icon: '🔥',
             description: `Preach against the ${heresyHere.heresy.name} spreading through ${heresyHere.kingdom.name}`,
+        });
+    }
+
+    // Physician / herbalist — when you or a companion need treatment (systems/ailments.js)
+    if (Ailments.list(player).length > 0 || Ailments.sickCompanions(player).length > 0) {
+        actions.push({
+            type: 'seek_physician',
+            label: isVillage ? 'See the Herbalist' : 'See a Physician',
+            icon: '⚕️',
+            description: 'Have your wounds and sickness treated (better in cities, and with medicine techs)'
         });
     }
 

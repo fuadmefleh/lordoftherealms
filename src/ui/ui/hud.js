@@ -4,6 +4,7 @@ import { Seasons } from '../../world/seasons.js';
 import { Utils, ActionMenu, Religion, Economy, Terrain, PlayerEconomy, PlayerMilitary, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, InnerMapCharacters, WEATHER_TYPES, Treasures } from './_imports.js';
 import { Traits } from '../../systems/traits.js';
 import { Companions } from '../../systems/companions.js';
+import { Ailments } from '../../systems/ailments.js';
 
 Object.assign(UI.prototype, {
     setupEventListeners() {
@@ -480,6 +481,18 @@ Object.assign(UI.prototype, {
                 else if (mood.score >= 35) { plumbob.style.color = '#f1c40f'; plumbob.style.filter = 'drop-shadow(0 0 6px rgba(241,196,15,0.5))'; }
                 else { plumbob.style.color = '#e74c3c'; plumbob.style.filter = 'drop-shadow(0 0 6px rgba(231,76,60,0.5))'; }
             }
+        }
+
+        // Wounds and sickness: one icon each, tooltip with effects and time left
+        const condEl = document.getElementById('hudConditions');
+        if (condEl) {
+            const info = Ailments.describe(player, world);
+            const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+            const html = info.map(a => {
+                const cls = a.infected ? ' infected' : (a.note && a.note.startsWith('This stage can kill') ? ' deadly' : '');
+                return `<span class="hud-condition${cls}" title="${esc(Ailments.tooltip(a))}">${a.icon}</span>`;
+            }).join('');
+            if (condEl.innerHTML !== html) condEl.innerHTML = html;
         }
 
         // Day display

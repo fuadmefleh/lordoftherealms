@@ -3693,6 +3693,10 @@ body {
 .hud-mood-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--accent-green); }
 .hud-mood-meter { flex: 1; height: 5px; background: rgba(0, 0, 0, 0.4); border-radius: 3px; overflow: hidden; min-width: 40px; }
 .hud-mood-fill { height: 100%; background: linear-gradient(90deg, var(--accent-green), #7fe3a1); border-radius: 3px; transition: width var(--transition-med); }
+.hud-conditions { display: flex; flex-wrap: wrap; gap: 3px; }
+.hud-conditions:empty { display: none; }
+.hud-condition { font-size: 13px; line-height: 1; padding: 1px 3px; border-radius: 3px; background: rgba(229, 115, 115, 0.15); border: 1px solid rgba(229, 115, 115, 0.35); cursor: help; }
+.hud-condition.infected, .hud-condition.deadly { background: rgba(231, 76, 60, 0.3); border-color: #e74c3c; }
 .hud-needs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px 8px; }
 .hud-needs.hidden { display: none; }
 .hud-need { display: flex; align-items: center; gap: 3px; cursor: default; }

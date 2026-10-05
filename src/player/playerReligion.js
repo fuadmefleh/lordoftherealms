@@ -9,6 +9,7 @@ import { Achievements } from '../systems/achievements.js';
 import { Titles } from '../systems/titles.js';
 import { Religion } from '../systems/religion.js';
 import { Traits } from '../systems/traits.js';
+import { Ailments } from '../systems/ailments.js';
 
 export const PlayerReligion = {
     // ──────────── TENETS & INFLUENCE ────────────
@@ -568,10 +569,15 @@ export const PlayerReligion = {
         let result = { success: true, miracle, karmaCost };
 
         switch (miracle.id) {
-            case 'healing':
+            case 'healing': {
                 player.health = player.maxHealth;
-                result.effect = 'Health fully restored!';
+                // Every wound closes, every fever breaks (systems/ailments.js)
+                const cured = Ailments.cureAll(player);
+                result.effect = cured > 0
+                    ? `Health fully restored, and ${cured} wound${cured > 1 ? 's and sicknesses' : ' or sickness'} lifted!`
+                    : 'Health fully restored!';
                 break;
+            }
 
             case 'blessing':
                 player.blessings = player.blessings || {};

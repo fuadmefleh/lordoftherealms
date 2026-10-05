@@ -393,6 +393,15 @@ export const OBJECT_ACTIONS = {
         condition: (game) => !!_settlementTile(game),
         conditionFail: 'Only available in a settlement.',
     },
+    physician: {
+        label: 'Infirmary',
+        icon: '⚕️',
+        desc: 'Have your wounds and sickness treated',
+        category: 'service',
+        panel: 'showPhysicianMenu',
+        condition: (game) => !!_settlementTile(game),
+        conditionFail: 'Only available in a settlement.',
+    },
     settle_record: {
         label: 'Settle Your Record',
         icon: '🗂️',

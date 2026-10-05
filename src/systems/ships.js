@@ -12,6 +12,7 @@ import { LegendaryArtifacts } from './legendaryArtifacts.js';
 import { Infrastructure } from './infrastructure.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { Underworld } from './underworld.js';
+import { Ailments } from './ailments.js';
 
 /**
  * Ships System
@@ -1080,6 +1081,8 @@ export const Ships = {
                         : 10;
                     ship.condition = Math.max(5, ship.condition - this.mitigateHullDamage(ship, dmg));
                     player.health = Math.max(1, player.health - Math.floor(dmg / 2));
+                    const wound = Ailments.maybeWound(player, world, 'sea_battle');
+                    if (wound) resultText += ` ${wound.icon} You took ${wound.name.toLowerCase()} in the fighting.`;
                 }
             } else if (event.danger.damage) {
                 const dmg = Array.isArray(event.danger.damage)
@@ -1159,10 +1162,12 @@ export const Ships = {
             const dmg = this.mitigateHullDamage(ship, 5 + Math.floor(Utils.random() * 15));
             ship.condition = Math.max(5, ship.condition - dmg);
             player.health = Math.max(1, player.health - Math.floor(dmg / 2));
+            const wound = Ailments.maybeWound(player, world, 'sea_battle');
             return {
                 success: true,
                 icon: '💀',
-                title: `Defeated! The pirates were too strong (str ${enemyStrength}). Ship took ${dmg}% damage.${crewToll.text}`,
+                title: `Defeated! The pirates were too strong (str ${enemyStrength}). Ship took ${dmg}% damage.${crewToll.text}` +
+                    (wound ? ` ${wound.icon} You took ${wound.name.toLowerCase()} in the fighting.` : ''),
                 type: 'error'
             };
         }

@@ -174,6 +174,57 @@ Six needs (0–100) sit under the mood meter in the bottom bar: **hunger, energy
 
 If you eat every day and sleep under a roof, hunger, energy and comfort stay high. Social, fun and hygiene drift down over about a week unless you visit taverns, talk to people or bathe.
 
+### Wounds, Sickness & Medicine
+
+Besides your health points, you can carry **conditions**: wounds and diseases. Each one shows as an icon in the bottom bar next to your mood. Hover it to see its effects and how long it has left. The **Character panel** lists them under *Condition*, with buttons to use remedies from your pack.
+
+**Wounds.** Fights can leave wounds that last after the health loss heals:
+
+| Wound | Effects while it lasts | Heals in | Infection risk | Can leave |
+|---|---|---|---|---|
+| 🩸 Deep Gash | −3% battle power | 5–9 days | some | — |
+| 🦴 Cracked Ribs | −1 strength, −1 movement, −5% battle power | 12–18 days | none | — |
+| 🦴 Broken Arm | −2 strength, −1 combat skill, −12% battle power | 20–30 days | slight | — |
+| 🤕 Head Wound | −1 intelligence, −1 movement | 8–14 days | some | a scar (30%) |
+| 🏹 Arrow in the Leg | −3 movement, −1 stealth, −5% battle power | 10–18 days | high | a limp (25%) |
+| 🗡️ Slashed Face | −1 charisma | 6–10 days | some | a scar (50%) |
+| 🐺 Savage Bite | −1 movement, −4% battle power | 6–12 days | very high | a scar (10%) |
+| 💫 Concussion / 🌑 Dark Dreams | −1 intelligence / −1 faith | 6–12 days | none | — |
+
+Where wounds come from: being robbed or ambushed with no army (25%), a beast (35%) or a monster (60%) falling on you, battles you fight in (6% when you win, 22% when you lose, and sea fights 18%), lost tournament bouts (15% each), hunting mishaps, a kick from a horse you are taming, hard blows in a brawl on the local map, and delve failures. Carried leather armour (−20%) and a shield (−15%) lower the odds, and Divine Protection prevents wounds entirely. A second wound of the same kind extends the first instead of stacking.
+
+**Healing.** A wound heals 1 day's worth each night, +1 in an inn bed or your own house (+½ at a deliberate camp), +½ once treated, +½ with a healer or herbalist in your party, and +1 near a Hospital you own. An **untreated** wound can turn **infected**. An infected wound stops healing, drains 2 health a day, and may fester into **Wound Fever**. Treatment and dressing it with herbs or a salve make infection much less likely. An infection may clear on its own, and it clears fastest when you rest indoors.
+
+**Lasting marks.** A head wound, slashed face or bite can heal into a scar, which gives you the **🩹 Scarred** trait: intimidation is 1 easier, townsfolk warm 15% slower, +3 military faction, and brave or cruel lords respect it. An arrow in the leg can leave a limp, which gives you the **🦵 Lame** trait: −1 movement every day, intimidation 1 harder, and townsfolk warm 5% slower. Treated wounds scar half as often. These marks are permanent, but your heir does not inherit them.
+
+**Sickness.** A disease runs through stages. At the end of each stage it either passes or gets worse. The last stage of a serious disease can kill.
+
+| Disease | Caught from | Stages | Contagious |
+|---|---|---|---|
+| 🤧 Chill | A night in the open in a storm, snow or blizzard (more likely the more health it costs you) | Chill → Fever → Lung Fever (deadly) | slightly |
+| 🥵 Heatstroke | A night in the open in a heat wave | one short stage | no |
+| 🤢 Bloody Flux | Eating raw rations (fish, grain) as your daily food | Gripes → Bloody Flux (deadly) | yes |
+| 🦟 Marsh Fever | Nights in swamps and tropical jungle, worst in summer. A settlement, inn or house helps a lot. | Shivers → Marsh Fever (deadly) | no |
+| 🐀 Plague | Standing where a Plague Outbreak rages. Crowded cities and capitals are the worst, and the wild is the least risky. Plague resistance techs cut the chance. | Buboes → Black Death (very deadly) | highly |
+| 🦠 Famine Fever | The lean season, much worse when you are hungry or starving, and in crowded towns | Hunger Fever → Famine Fever (deadly) | yes |
+| 🦷 Scurvy | More than 28 days aboard ship without fresh food. Carrying fruit or berries prevents it (you eat one every 3 days at sea). | Sea Weariness → Scurvy (deadly). It recovers much faster ashore with fresh food. | no |
+| 🔥 Wound Fever | An infected wound festering | Fester → Wound Fever (deadly) | no |
+
+A strong constitution (strength above 5) lowers the chance to catch anything.
+
+**Care.** How well you are looked after lowers both the chance that a disease gets worse and the chance that it kills you. Each of these helps: an inn bed (×0.5) or your own bed (×0.55), a camp (×0.85), a healer (×0.7), herbalist (×0.8) or priest (×0.9) in your party, a temple blessing, a Hospital you own nearby, your own Herbalism research, a physician's treatment, and remedies.
+
+**Contagion.** A contagious disease can spread to your travel companions, and a sick companion can give it back to you. Sick companions can die of it, so have them nursed by a physician. Aboard your ship, a contagious disease can spread to the crew. A long voyage without fresh food can also bring scurvy to the crew. A sick crew loses 2 morale a day and now and then a sailor, and the outbreak passes twice as fast in port.
+
+**Medicine.**
+- **Physician / herbalist** (world-map action **See a Physician**, shown when you or a companion need one, or the *Infirmary* at a church or temple altar). Treatment is free of AP and costs about 18 gold per point of severity: wounds 1–3, plus the disease stage, plus 1 if infected. The price is scaled by settlement size (village ×0.85 … capital ×1.3). The quality of care is 45% from a village herbalist, 60% in a town, 75% in a city and 85% in a capital, plus 5% for Herbalism, +12% for wounds with Surgery, +8% for diseases with Plague Prevention and 10% for Hospital (up to 95%). A treated wound is cleaned (any infection cut out), set to heal sooner, heals faster, rarely festers and scars half as often. A treated disease is less likely to get worse or kill, and it may ease a stage at once. Treatment also restores 10 health. A physician can also nurse a sick companion.
+- **Temple healing rites** (in the temple's Blessing menu). These treat diseases only, at 60% of the price, and their quality depends on your faith (30% + 3% per point). They also give +1 karma.
+- **Remedies from your pack** (Character panel): **Herbs** and **Rare Herbs** dress a wound against infection and ease a fever. A **Healing Salve** dresses a wound, speeds its healing and may draw out an infection. A **Healing Potion** eases a fever and may lift a stage. An **Elixir** eases a fever. **Holy Water** dresses a wound and may lift a disease stage (better with high faith). Each also restores some health.
+- **Prayer** (once a day while sick) eases your worst disease for two days. The faithful are sometimes answered, and the disease lifts a stage. High faith and 20+ karma make this more likely.
+- The **Divine Healing** miracle closes every wound and ends every sickness, as well as restoring your health.
+
+**How often.** Ailments are occasional. A careful player who sleeps under a roof, eats cooked food, keeps out of plague regions and pays for treatment rarely falls ill, and almost never dies of it. Someone who sleeps rough in all weathers, lives on raw fish and never sees a physician will be ill a good part of the year.
+
 ### Character Traits
 
 Your character becomes someone through what they do. Every notable deed is counted, and once a deed tally passes a trait's threshold you **earn that trait**. A notification announces each trait you gain or lose, and the **Character Sheet** lists your traits, their effects, your progress toward the next ones ("Becoming…"), and your dynasty's reputation.
@@ -198,6 +249,8 @@ Your character becomes someone through what they do. Every notable deed is count
 | 🧭 Wanderer | Travel | +2% prices, +10% goodwill, +0.5 diplomacy |
 | 🗡️ Kinslayer | Kinslaying | A permanent stain: −15 lord opinion, clergy and nobles shun you |
 | 🏆 Champion of Tournaments | Tournament placings | +3% battle power, +6 nobility, +5% reputation |
+| 🩹 Scarred | A wound that healed into a scar (see [Wounds, Sickness & Medicine](#wounds-sickness--medicine)) | Intimidate 1 easier, −15% goodwill, +3 military faction; permanent |
+| 🦵 Lame | An arrow wound that left a limp | −1 movement a day, intimidate 1 harder, −5% goodwill; permanent |
 
 - **Opposites** (Brave/Craven, Cruel/Merciful, Greedy/Generous, Honest/Deceitful, Beloved/Dread Lord) cannot coexist: earning one replaces the other.
 - **Erosion.** Deeds against a trait wear it down (lies erode Honest, greed erodes Generous, mercy and festivals erode Dread Lord, and so on). A trait is lost once its progress falls below half its threshold. Progress caps at twice the threshold, so a deeply held trait takes a long run of contrary deeds to undo.
@@ -207,7 +260,7 @@ Your character becomes someone through what they do. Every notable deed is count
 
 Your character has a natural lifespan of 55–85 years (randomized). After your maximum age, there is a 15% chance of death per year that increases over time. If you die with an heir aged 16+, you continue playing as your heir, who inherits 75% of your gold, 50% of your renown, and 30% of your reputation. Without an heir, the game ends. Traits are **not** inherited. Instead your House keeps a *reputation of the dynasty*: the late ruler's two strongest traits at half strength. This echo only affects how others react to you (goodwill, lords, intimidation, reputation, council factions), and it fades by about a quarter of a percent a day until it is gone.
 
-You can also die in combat (health reduced to 0) or from starvation.
+You can also die in combat (health reduced to 0), from starvation, or from sickness and festering wounds (see [Wounds, Sickness & Medicine](#wounds-sickness--medicine)). The late ruler's wounds and diseases die with them: an heir starts hale.
 
 ---
 
@@ -246,7 +299,7 @@ Weather fronts drift east across the map and change every day; the season decide
 | 🔥 Heat Wave | −15% | −25% (not on irrigated land) | | Mild exposure |
 
 - **Roads** halve the travel penalty. Sailing is unaffected.
-- **Exposure:** ending the day in the open in a storm, blizzard or heat wave costs health and comfort. A settlement, an inn or your own house protects you completely; a deliberate camp halves the loss.
+- **Exposure:** ending the day in the open in a storm, blizzard or heat wave costs health and comfort. A settlement, an inn or your own house protects you completely; a deliberate camp halves the loss. Exposure can also give you a **chill** (storms, snow) or **heatstroke** (heat waves).
 - **Battles** apply the weather to both armies by their makeup, so an archer-heavy host should avoid fighting in the rain.
 - **Storms at sea** damage the hulls of ships under way or at anchor, may hold a voyage back a day, and can wash cargo overboard. Docked ships ride it out in harbour.
 - A Granary halves bad-weather losses at nearby farms, just as it does for droughts.
@@ -283,7 +336,7 @@ Ruins and caves are **delves**: expeditions down through 3–6 chambers, the las
 - **Depth** — every chamber deeper is 5% harder, and its harm 12% worse. Insight from reading an inscription, honoring a shrine or scouting ahead improves your next roll.
 - **The curse** — carrying a cursed idol costs 5% on every roll.
 
-Choices spend **stamina** (today's movement; if you run out you pay 3 health per missing point) and sometimes gold or an item (meat to distract a beast, lamp oil to burn a path). Failure brings harm, which armour and treasures reduce, and may bring a lingering **injury**: a broken arm (−1 strength), concussion (−1 intelligence), fresh scars (−1 charisma) or dark dreams (−1 faith), each lasting 6–12 days. A delve never kills you, but if your health falls to 10 or below you collapse and stagger out with what you carry.
+Choices spend **stamina** (today's movement; if you run out you pay 3 health per missing point) and sometimes gold or an item (meat to distract a beast, lamp oil to burn a path). Failure brings harm, which armour and treasures reduce, and may bring a lingering **injury**: a broken arm (−2 strength, −1 combat), concussion (−1 intelligence), a slashed face (−1 charisma, may scar) or dark dreams (−1 faith). Each lasts about 6–12 days. Injuries are ordinary wounds: they heal faster with rest and treatment, and some can turn infected (see [Wounds, Sickness & Medicine](#wounds-sickness--medicine)). A delve never kills you, but if your health falls to 10 or below you collapse and stagger out with what you carry.
 
 **Rewards.** Gold, goods and renown grow by 25% for every chamber of depth. Loot goes into your packs and respects the inventory cap; what doesn't fit is left behind and shown in your haul. Delves also give lore (World History and the heritage of peoples), ancient maps and treasure maps for your collection, and **legendary artifact fragments**, which the deep finales are the surest place to find. When the delve ends, the site also gets the old relic roll of an Explore and gives up any ancient map hidden there. Reaching the bottom adds bonus renown.
 
@@ -501,6 +554,8 @@ Town buildings sell services with lasting effects. Use them from a building's me
 | Guard Tower | Settle Your Record | Pay 50g per offense, plus any gossip bounty this crown has posted on you (and 250g if it has a warrant out), to wipe your record, lift the warrant and calm the guards (+3 reputation) |
 | Town Hall | Pay Tribute (50 / 150 / 400g) | +1 reputation with the crown per 25g, up to 100 |
 | Town Hall / Manor | Seek Audience | Court actions available here: pledge allegiance, seek office, feasts, councils… |
+| Church / Temple altar | Infirmary (also **See a Physician** on the world map) | Treat wounds and sickness by severity; better in cities and with medicine techs (see [Wounds, Sickness & Medicine](#wounds-sickness--medicine)) |
+| Temple | Healing Rites | Tend a disease for 60% of a physician's price, quality by your faith, +1 karma |
 
 Furniture inside buildings is usable too: beds (in your own home), rented tavern rooms (5g), market stalls (trade), bars (drinks, rumors, gambling), anvils and forges (craft, smelt), altars (pray, donate), barracks racks (hire troops, train) and more.
 
@@ -1135,7 +1190,7 @@ The game has **40 technologies** across **8 categories**, organized in tiers wit
 A plague over your tile costs you health and soldiers each day; one over your colonies kills 2% of their settlers and 2 loyalty a day. Plague resistance cuts all of it.
 | Hospital | 3 | 400g | 14 | +25% population growth, unlocks Hospital |
 
-While a **Plague Outbreak** rages over the realm you stand in, you lose 6 health a day and each soldier has a 4% daily chance to die. Plague resistance (Herbalism + Plague Prevention = 55%, max 90%) cuts both by that share.
+While a **Plague Outbreak** rages over the realm you stand in, you lose 6 health a day and each soldier has a 4% daily chance to die. Plague resistance (Herbalism + Plague Prevention = 55%, max 90%) cuts both by that share, and also your chance of catching the **plague** itself. Medicine techs also make physicians better: Herbalism +5%, Surgery +12% on wounds, Plague Prevention +8% on diseases, Hospital +10%. Knowing Herbalism yourself also helps you recover, and a Hospital you own nearby speeds healing.
 
 #### Culture & Learning 📚
 | Tech | Tier | Cost | Days | Effect |
@@ -1312,6 +1367,7 @@ Every ship needs sailors (its **crew** stat). New and used ships come **without 
 - Below a **skeleton crew** (a quarter of the crew stat) a ship cannot leave port.
 - **Morale** rests at 70 and scales combat strength (+15% at 100, −35% at 0). Storms at sea shake it and can wash a sailor overboard; a sea fight won lifts it (and may cost a sailor), a defeat costs 10–25% of the crew and a big morale hit. Paid crews recover toward 70, faster in harbour.
 - **Missed wages** (not enough gold) cost 15 morale a day; below 25 morale, 10% of the crew deserts each day.
+- **Sickness aboard.** If you sail with a contagious disease, it can spread to your crew. Weeks at sea without fruit or berries can also bring scurvy to them. A sick crew loses 2 morale a day and now and then a sailor, until the outbreak passes. It passes twice as fast in port.
 - Ships from older saves keep a full crew at morale 70.
 
 Tunables live in `data/ships.json` → `settings.crew`.

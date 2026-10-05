@@ -17,12 +17,15 @@ export const PlayerLifecycleMethods = {
      * Consume 1 unit of food (best type first). Returns true if food was consumed.
      */
     consumeFood() {
+        this._lastFood = null;
         if (!this.inventory) return false;
         // Same list (and order) as Player.FOOD_TYPES — cooked food goes first
         for (const food of ['cooked_meat', 'cooked_fish', 'bread', 'preserved_fish', 'fish', 'grain', 'food']) {
             if (this.inventory[food] && this.inventory[food] > 0) {
                 this.inventory[food]--;
                 if (this.inventory[food] <= 0) delete this.inventory[food];
+                // What was eaten (raw rations can bring on the flux — systems/ailments.js)
+                this._lastFood = food;
                 return true;
             }
         }

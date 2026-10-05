@@ -2,7 +2,8 @@
 // guard tower, town hall, manor). Logic lives in player/settlementServices.js;
 // these panels present it and route to existing menus where one already exists.
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, SettlementServices, SERVICE_CONFIG } from './_imports.js';
+import { PlayerActions, SettlementServices, SERVICE_CONFIG, Relationships } from './_imports.js';
+import { Ailments } from '../../systems/ailments.js';
 
 const BTN = 'width: 100%; padding: 9px; margin-top: 6px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;';
 const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
@@ -83,13 +84,89 @@ Object.assign(ActionMenu, {
         html += `<div style="font-size: 12px; color: var(--text-secondary); margin: 4px 0;">+${cfg.movementBonus} movement and +${cfg.healthRegen} healing each day for ${cfg.days} days, and +1 karma.</div>`;
         if (active > 0) html += `<div style="font-size: 12px; color: #5ddb6a;">You are blessed — ${active} day${active > 1 ? 's' : ''} left.</div>`;
         html += _button(`Make an offering (${cost}g)`, 'bless', player.gold >= cost);
-        html += '</div></div>';
+        html += '</div>';
+        // Healing rites for the sick (systems/ailments.js) — the priests tend fevers, not wounds
+        const rites = Ailments.treatmentOptions(player, game.world, settlement, true).filter(o => o.kind === 'disease');
+        if (rites.length) {
+            html += `<div style="${CARD}">`;
+            html += `<div style="font-weight: bold;">🕯️ Healing Rites</div>`;
+            html += `<div style="font-size: 12px; color: var(--text-secondary); margin: 4px 0;">The priests pray over the sick and dose them with temple remedies. Your faith counts (${Math.round(Ailments.templeQuality(player) * 100)}% care). +1 karma.</div>`;
+            rites.forEach((o, i) => {
+                html += _button(`${o.icon} Tend your ${o.name.toLowerCase()} (${o.cost}g)`, `rite${i}`, o.can);
+            });
+            html += '</div>';
+        }
+        html += '</div>';
 
         game.ui.showCustomPanel('⛪ Temple', html);
+        const reopen = () => ActionMenu.showBlessingMenu(game, tile);
         window._svc = {
-            bless: () => ActionMenu._serviceResult(game, '✨ Blessing', SettlementServices.seekBlessing(player, settlement),
-                () => ActionMenu.showBlessingMenu(game, tile)),
+            bless: () => ActionMenu._serviceResult(game, '✨ Blessing', SettlementServices.seekBlessing(player, settlement), reopen),
         };
+        rites.forEach((o, i) => {
+            window._svc[`rite${i}`] = () => ActionMenu._serviceResult(game, '🕯️ Healing Rites',
+                Ailments.treat(player, game.world, settlement, o.key, true), reopen);
+        });
+    },
+
+    // ──────────── PHYSICIAN / HERBALIST ────────────
+    /**
+     * Treat wounds and sickness (systems/ailments.js). A village has only a
+     * herbalist; towns and cities have physicians, better with your medicine
+     * techs (Herbalism, Surgery, Plague Prevention, Hospital).
+     */
+    showPhysicianMenu(game, tile) {
+        const player = game.player;
+        const settlement = tile && tile.settlement;
+        if (!settlement) {
+            game.ui.showNotification('⚕️ Physician', 'There is no one here to treat you.', 'info');
+            return;
+        }
+        const reopen = () => ActionMenu.showPhysicianMenu(game, tile);
+        const who = settlement.type === 'village' ? 'herbalist' : 'physician';
+        const options = Ailments.treatmentOptions(player, game.world, settlement, false);
+        const info = Ailments.describe(player, game.world);
+        const sickParty = Ailments.sickCompanions(player);
+
+        let html = '<div>';
+        html += `<p style="font-size: 12px; color: var(--text-secondary); margin-top: 0;">${who === 'herbalist'
+            ? 'The village herbalist clears a bench among drying bundles of herbs.'
+            : `The ${settlement.type}'s physician washes his hands and looks you over.`}</p>`;
+        if (!options.length && !sickParty.length) {
+            html += `<div style="${CARD} font-size: 12px; color: var(--text-secondary);">"You're as sound as a bell. Come back when something hurts."</div>`;
+        }
+        options.forEach((o, i) => {
+            const d = info.find(x => x.key === o.key) || {};
+            html += `<div style="${CARD}">`;
+            html += `<div style="font-weight: bold;">${o.icon} ${o.name}</div>`;
+            if (d.effects) html += `<div style="font-size: 12px; color: #e57373; margin: 2px 0;">${d.effects}</div>`;
+            html += `<div style="font-size: 11px; color: var(--text-secondary);">${d.timeText || ''}${d.note ? ` — ${d.note}` : ''}</div>`;
+            html += `<div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Treatment quality here: ${Math.round(o.quality * 100)}%</div>`;
+            html += _button(o.can ? `Treat (${o.cost}g)` : o.reason, `t${i}`, o.can);
+            html += '</div>';
+        });
+        sickParty.forEach((s, i) => {
+            let name = 'A companion';
+            try { const npc = Relationships.getNPC(s.npcId); if (npc) name = npc.firstName; } catch (e) { /* unknown */ }
+            const cost = Ailments.companionTreatmentCost(player, settlement, s.npcId);
+            html += `<div style="${CARD}">`;
+            html += `<div style="font-weight: bold;">🤒 ${name} — ${s.disease}</div>`;
+            html += _button(`Have ${name} nursed back to health (${cost}g)`, `c${i}`, (player.gold || 0) >= cost);
+            html += '</div>';
+        });
+        html += `<div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px;">Resting at an inn or in your own house, a healer in your party and remedies from your pack (herbs, salves, potions, holy water — use them from the Character panel) all help you mend.</div>`;
+        html += '</div>';
+
+        game.ui.showCustomPanel(who === 'herbalist' ? '🌿 Herbalist' : '⚕️ Physician', html);
+        window._svc = {};
+        options.forEach((o, i) => {
+            window._svc[`t${i}`] = () => ActionMenu._serviceResult(game, '⚕️ Treatment',
+                Ailments.treat(player, game.world, settlement, o.key, false), reopen);
+        });
+        sickParty.forEach((s, i) => {
+            window._svc[`c${i}`] = () => ActionMenu._serviceResult(game, '⚕️ Treatment',
+                Ailments.treatCompanion(player, settlement, s.npcId), reopen);
+        });
     },
 
     // ──────────── STABLE ────────────

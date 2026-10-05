@@ -5,6 +5,7 @@
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, Petitions, RealmWars, Throne, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents, WEATHER_TYPES, LegendaryArtifacts, Cartography } from './_gameImports.js';
 import { Traits } from '../../systems/traits.js';
 import { Delves } from '../../systems/delves.js';
+import { Ailments } from '../../systems/ailments.js';
 import { Underworld } from '../../systems/underworld.js';
 
 export function onPlayerArrived() {
@@ -161,6 +162,18 @@ export function endDay() {
                 this.ui.showNotification('❄️ Attrition', `The harsh conditions claimed ${eventEffects.unitsLost} of your soldiers. Shelter in a settlement to stop the losses.`, 'warning');
             }
             this._reportWeather(eventEffects);
+
+            // Wounds and sickness: mend or fester, pass or worsen; new illness
+            // from the night's exposure, the food, the swamp, plague or the sea
+            const ailmentDay = Ailments.processDay(this.world, this.player, {
+                exposure: eventEffects.weatherHealthLost || 0,
+                weather: eventEffects.weather,
+            });
+            this._reportAilments(ailmentDay);
+            if (ailmentDay.died) {
+                this._triggerDeath(ailmentDay.died.cause);
+                return;
+            }
             this.player.updateVisibility(this.world, 4);
             this._reportExposedDeceptions();
 
@@ -927,6 +940,42 @@ export function _reportWeather(fx) {
     if (fx.weatherHealthLost > 0) {
         this.ui.showNotification(`${info.icon} Exposure`,
             `A night in the open in the ${info.name.toLowerCase()} cost you ${fx.weatherHealthLost} health. Shelter in a settlement, an inn or your own house.`, 'warning');
+    }
+}
+
+/** Notices for the day's wounds and sickness (systems/ailments.js). */
+export function _reportAilments(out) {
+    if (!out) return;
+    const n = (title, text, type) => this.ui.showNotification(title, text, type);
+    const SOURCE = {
+        exposure: 'A night in the open has made you ill',
+        food: 'Something you ate has turned your stomach',
+        swamp: 'The fen air has given you a fever',
+        plague: 'You have caught the plague',
+        lean: 'The fevers of the lean months have reached you',
+        sea: 'Weeks at sea without fresh food are telling on you',
+        companion: 'You have caught it from a companion',
+    };
+    for (const c of out.caught || []) {
+        const from = c.from ? ` (from ${c.from})` : '';
+        n(`${c.icon} ${c.name}`, `${SOURCE[c.source] || 'You have fallen ill'}${from}: ${c.text}. Rest indoors and see a physician.`, 'warning');
+    }
+    for (const w of out.worsened || []) n(`${w.icon} ${w.stage}`, `Your ${w.name.toLowerCase()} has worsened. Rest at an inn or at home, and get it treated.`, 'error');
+    for (const name of out.healed || []) n('🩹 Recovered', `Your ${name.toLowerCase()} has passed.`, 'success');
+    for (const name of out.infected || []) n('🧫 Infection', `Your ${name.toLowerCase()} has turned infected and stopped mending. A physician or a healing salve can save it.`, 'error');
+    for (const f of out.festered || []) n(`${f.icon} ${f.name}`, `Your infected ${f.wound.toLowerCase()} has poisoned your blood.`, 'error');
+    for (const s of out.scarred || []) {
+        const t = (s.traits || []).length ? ' You are now ' + s.traits.map(id => (Traits.TRAITS[id] || {}).name || id).join(', ') + '.' : '';
+        n('🩹 A Lasting Mark', `Your ${s.wound.toLowerCase()} has healed, but it left its mark.${t}`, 'warning');
+    }
+    for (const c of out.companions || []) {
+        if (c.event === 'caught') n('🤒 Companion Ill', `${c.name} has caught your ${c.disease.toLowerCase()}.`, 'warning');
+        else if (c.event === 'recovered') n('🩹 Companion Recovered', `${c.name} is over the ${c.disease.toLowerCase()}.`, 'success');
+    }
+    for (const c of out.crews || []) {
+        if (c.event === 'outbreak') n('🤒 Sickness Aboard', `${c.disease} has broken out among the crew of the ${c.name}. Put into port to let it pass.`, 'warning');
+        else if (c.event === 'sailorDied') n('⚓ Burial at Sea', `A sailor of the ${c.name} has died of ${c.disease.toLowerCase()}.`, 'warning');
+        else if (c.event === 'over') n('⚓ Crew Recovered', `The sickness aboard the ${c.name} has run its course.`, 'info');
     }
 }
 

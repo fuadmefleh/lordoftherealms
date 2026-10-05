@@ -21,6 +21,7 @@ import { CustomObjects } from '../world/customObjects.js';
 import { Gossip } from '../systems/gossip.js';
 import { PlayerEffects } from '../player/playerEffects.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
+import { Ailments } from '../systems/ailments.js';
 
 
 export const InnerMapCombat = {
@@ -446,6 +447,11 @@ export const InnerMapCombat = {
 
             // Floor at 1 so the player can’t be outright killed by the trigger
             player.health = Math.max(1, player.health - dmg);
+            // A hard blow can leave a lasting wound (systems/ailments.js)
+            const wound = dmg > 0 ? Ailments.maybeWound(player, game.world, 'brawl') : null;
+            if (wound && game.ui && typeof game.ui.showNotification === 'function') {
+                game.ui.showNotification(`${wound.icon} Wounded`, `${npc.name || 'Your attacker'} leaves you with ${/^[aeiou]/i.test(wound.name) ? 'an' : 'a'} ${wound.name.toLowerCase()}.`, 'warning');
+            }
 
             // Refresh HUD
             if (game.ui && typeof game.ui.updateStats === 'function') {
@@ -545,7 +551,9 @@ export const InnerMapCombat = {
         const base = str * 2 + Math.floor(luck * 0.4);
         // Mood: ±5% swing strength
         const mood = player ? PlayerEffects.moodCombatMultiplier(player) : 1;
-        return Math.max(3, Math.round(base * mood));
+        // Wounds and sickness weaken your blows
+        const hurt = player ? PlayerEffects.ailmentBattleMultiplier(player) : 1;
+        return Math.max(3, Math.round(base * mood * hurt));
     },
 
     _spawnFloat(worldX, worldY, value, type = 'normal', label = null) {

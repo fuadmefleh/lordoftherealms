@@ -63,6 +63,8 @@ Object.assign(PlayerMilitary, {
         playerPower *= PlayerEffects.faithBattleMultiplier(player);
         // Earned traits (Brave, Craven, Sea Wolf, Champion…)
         playerPower *= PlayerEffects.traitBattleMultiplier(player);
+        // A wounded or fevered commander (systems/ailments.js)
+        playerPower *= PlayerEffects.ailmentBattleMultiplier(player);
         // Fortification techs help when the player is the one attacked
         if (context.defending) playerPower *= 1 + Technology.getDefenseBonus(player);
         // A fortified house (watchtower, fortification upgrades) adds +1% per point of defense

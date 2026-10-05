@@ -1,6 +1,7 @@
 // UI — panels methods.
 import { UI } from './core.js';
 import { Traits } from '../../systems/traits.js';
+import { Ailments } from '../../systems/ailments.js';
 import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability, Treasures, KingdomAI, KingdomNavy } from './_imports.js';
 
 Object.assign(UI.prototype, {
@@ -139,6 +140,8 @@ Object.assign(UI.prototype, {
                 <span class="info-value">${player.criminalRecord.pickpocket > 0 ? 'Pickpocket ×' + player.criminalRecord.pickpocket : ''}${player.criminalRecord.pickpocket > 0 && player.criminalRecord.smuggling > 0 ? ', ' : ''}${player.criminalRecord.smuggling > 0 ? 'Smuggling ×' + player.criminalRecord.smuggling : ''}</span>
             </div>` : ''}
 
+            ${this._ailmentsSectionHtml(player)}
+
             ${this._traitsSectionHtml(player)}
 
             <div class="info-section-title">Skills</div>
@@ -146,6 +149,52 @@ Object.assign(UI.prototype, {
         `;
 
         this.showPanel('characterPanel');
+    },
+
+    /**
+     * Character-panel section: wounds and sickness (systems/ailments.js) —
+     * effects, time left, and remedies from the pack.
+     */
+    _ailmentsSectionHtml(player) {
+        const world = this.game && this.game.world;
+        const info = Ailments.describe(player, world);
+        const sickParty = Ailments.sickCompanions(player);
+        let html = '<div class="info-section-title">Condition</div>';
+        if (!info.length) {
+            html += '<div style="font-size:11px; color:var(--text-secondary); padding:2px 0 6px;">Hale and whole. No wounds or sickness.</div>';
+        }
+        const remedies = Ailments.remediesHeld(player);
+        for (const a of info) {
+            const rec = Ailments.list(player).find(r => r.key === a.key);
+            const usable = remedies.filter(r => Ailments.remedyFits(r.def, rec));
+            const esc = (s) => String(s).replace(/"/g, '&quot;');
+            html += `
+                <div class="info-row" title="${esc(Ailments.tooltip(a))}" style="flex-wrap:wrap;">
+                    <span class="info-label">${a.icon} ${a.name}${a.contagious ? ' <span style="color:#e67e22; font-size:10px;">contagious</span>' : ''}</span>
+                    <span class="info-value" style="font-size:11px; color:#e57373;">${a.effects || ''}</span>
+                    <div style="width:100%; font-size:10px; color:var(--text-secondary);">${a.timeText}${a.note ? ` — ${a.note}` : ''}</div>
+                    ${usable.length ? `<div style="width:100%; display:flex; gap:4px; flex-wrap:wrap; margin:2px 0 4px;">${usable.map(r =>
+                        `<button data-ui-act="_useRemedy" data-ui-args='${JSON.stringify([r.item, a.key])}' style="font-size:10px; padding:2px 6px; border-radius:3px; border:1px solid rgba(245,197,66,0.4); background:rgba(245,197,66,0.08); color:var(--gold); cursor:pointer;">Use ${r.name} (${r.qty})</button>`).join('')}</div>` : ''}
+                </div>`;
+        }
+        if (sickParty.length) {
+            for (const s of sickParty) {
+                let name = 'A companion';
+                try { const npc = Relationships.getNPC(s.npcId); if (npc) name = npc.firstName; } catch (e) { /* unknown */ }
+                html += `<div class="info-row"><span class="info-label">🤒 ${name}</span><span class="info-value" style="font-size:11px;">${s.disease}</span></div>`;
+            }
+        }
+        return html;
+    },
+
+    /** Use a remedy from the pack on a condition (Character panel buttons). */
+    _useRemedy(item, key) {
+        const game = this.game;
+        if (!game || !game.player) return;
+        const r = Ailments.useRemedy(game.player, game.world, item, key);
+        this.showNotification(r.success ? '🌿 Remedy' : '🌿 No Use', r.success ? r.message : r.reason, r.success ? 'success' : 'error');
+        this.updateStats(game.player, game.world);
+        this.showCharacterPanel();
     },
 
     /** Character-panel section: earned traits, progress toward the next, dynasty echo. */

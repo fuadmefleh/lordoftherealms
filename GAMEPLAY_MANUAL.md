@@ -803,9 +803,9 @@ Food a factor sells goes into the town's granary. Contraband is never on a facto
 **Convoys.** From a post, **dispatch** goods to another post or to a contract town. The convoy goes by **ship** when both ends are ports (9 hexes a day, 0.6% risk a day) and by **caravan** otherwise (5 hexes a day, 1.2% risk a day). It costs about 0.08g per unit per day, minimum 5g. A struck convoy loses 40–100% of its load to bandits, storms or pirates.
 
 **Supply contracts.** Each week the crowns post contracts on the company's board. Each one names a good, a quantity, a price per unit (1.25–2× the good's base price) and a deadline:
-- **Bread (or meat) for a town** short of food: during a famine, drought, blizzard or plague, and in the lean weeks.
-- **Relief for a besieged town**: at a war premium.
-- **Timber, rope, hemp or rock oil** for a realm with a fleet.
+- **Bread (or meat) for a town** short of food: during a famine, drought, blizzard or plague, a hard frost or hoarded granaries (a saga such as the Long Winter), and in the lean weeks.
+- **Relief for a besieged town**, at a war premium: a port an enemy fleet blockades, or one of your own holdings under siege, when a realm can pay for it. Food delivered to a besieged holding of yours also fills its siege stores.
+- **Timber, rope, hemp or rock oil** for a realm with a fleet, or a realm whose coasts pirates harry (a pirate surge, the Sea Reavers).
 - **Iron, weapons, arrows, horses or coal** for a realm at war.
 - **Stone for new walls**, or **luxuries, gems or liquor for a court wedding**.
 
@@ -1725,6 +1725,7 @@ A war host that reaches one of your holdings camps on its tile and **invests** i
 - **walls**: the holding's defence (palisade, stone walls, watchtower, the governor's martial skill), with an integrity the besiegers batter down;
 - **food stores** in days, reckoned as for a town you besiege: its size, the season and the lean weeks, plus up to 20 days in the granary. A **port** eats them at half pace unless the enemy realm has a fleet (navy strength 10+) to close the harbour;
 - **morale**: 45, plus the town's happiness and loyalty above or below 50, the walls, and a governor's martial skill and loyalty (15–95).
+- **the crown** (if you rule a realm): your royal Marshal adds garrison and morale and your Steward food stores (see [The Royal Court](#the-royal-court)), and the edict of fortification adds +0.15 to the walls of holdings in the realm and of your own colonies.
 
 **Each day** the town eats a day of stores and loses a point of morale (a governor's martial skill slows that). Starving, the garrison loses 3% a day and 6 morale; low stores or hunger can bring **disease** (garrison and people die, morale falls). Your army within 4 hexes, half as strong as the besiegers or more, heartens them (+2 a day).
 
@@ -1934,8 +1935,8 @@ A crown is a realm to govern, not just a title. Open **🏛️ Royal Court** (an
 | Office | Competence from | Per point of competence |
 |--------|-----------------|-------------------------|
 | 📜 Chancellor | diplomacy (a child's diplomacy and charisma) | +2% diplomacy, +1% relations, +1% peace odds; at 12+ the court can enforce one more edict |
-| ⚔️ Marshal | martial (a child's combat and strength) | +5% army regrowth, +0.6% army size |
-| 💰 Steward | stewardship (a child's commerce and intelligence) | +1.2% treasury income, +0.5% construction. Below 25 loyalty the steward skims. |
+| ⚔️ Marshal | martial (a child's combat and strength) | +5% army regrowth, +0.6% army size; a holding of yours that comes under siege gets +1.5% garrison and +0.5 morale (× his loyalty factor) |
+| 💰 Steward | stewardship (a child's commerce and intelligence) | +1.2% treasury income, +0.5% construction; a holding of yours that comes under siege starts with +1.5% food stores (× loyalty factor). Below 25 loyalty the steward skims. |
 | 🗝️ Spymaster | intrigue (a child's stealth and intelligence) | +2% intrigue (fewer peasant rebellions), +1.2% a day to reveal each hidden faction (3% with no spymaster) |
 | 🙏 High Priest | learning, +5 if Pious (a child's diplomacy and faith) | +1.5% faith, and faith unity rises toward 50 + 2.5 × competence |
 
@@ -1946,16 +1947,16 @@ A companion's competence is 7, +6 if their trade suits the office (a priest as H
 | Edict | Cost / upkeep | Effect | Factions | Lords who like / hate it |
 |-------|---------------|--------|----------|--------------------------|
 | ⚔️ Conscription | 150g | +15% army, +30% regrowth, −4 stability; −4 all lords | War Hawks +8, Commons −10 | domination, conquest / wealth, trade, peace |
-| 🛣️ Road-building programme | 200g, 30g/day | +12% trade, +15% construction, +5% expansion | Guilds +6, Commons +2 | trade, colonising |
+| 🛣️ Road-building programme | 200g, 30g/day | +12% trade, +15% construction, +5% expansion; roads and bridges you build in the realm cost 40% less | Guilds +6, Commons +2 | trade, colonising |
 | 🤝 Religious tolerance | 100g | +3 stability, +4% trade, −8% faith; minorities' mood +2 a week; faith unity −0.05 a day | Clergy −10, Commons +4, Guilds +4 | trade / faith |
 | 🔥 Persecution of heretics | 100g, 10g/day | +15% faith, −5 stability, −4% trade; faith unity +0.1 a day; minorities' mood −3 a week | Clergy +10, Commons −6 | faith, fear / trade |
-| 📜 Merchant charters | 150g | +15% trade, +10% caravans, −4% taxes | Guilds +10, Nobility −5 | trade, wealth |
+| 📜 Merchant charters | 150g | +15% trade, +10% caravans, −4% taxes; a trading-company charter from the realm costs half | Guilds +10, Nobility −5 | trade, wealth |
 | 🍞 Famine dole | 100g, 45g/day | +8 stability, +10% growth | Commons +10, Clergy +3 | justice, faith / wealth |
-| 💎 Crown monopolies | 200g | +15% treasury, −10% trade; −3 all lords | Guilds −12, Nobility −4 | — / wealth, trade |
+| 💎 Crown monopolies | 200g | +15% treasury, −10% trade; −3 all lords; rival merchant houses earn 1% a week less per post in the realm | Guilds −12, Nobility −4 | — / wealth, trade |
 | ⚖️ Royal assizes | 150g, 20g/day | +5 stability, +5% loyalty; −3 all lords | Commons +5, Nobility −6 | justice / fear, domination |
 | 💰 Scutage | 100g | +8% treasury, −10% army; +4 all lords | War Hawks −8, Nobility +4 | wealth / domination, conquest |
 | 🎭 Royal patronage of the arts | 150g, 25g/day | +30% culture, +15% research, +5% diplomacy; +2 all lords | Nobility +4, Clergy +2 | alliance |
-| 🏰 Fortification of the marches | 200g, 35g/day | +15% defense; +2 all lords | War Hawks +4 | survival |
+| 🏰 Fortification of the marches | 200g, 35g/day | +15% defense; +2 all lords; your holdings in the realm (and your own colonies) face a siege with +0.15 walls | War Hawks +4 | survival |
 
 Tolerance and persecution exclude each other, as do merchant charters and crown monopolies, and scutage and conscription.
 
@@ -1983,7 +1984,7 @@ Factions form in **secret**. Each day each hidden faction has a 3% chance to be 
 
 **Revolt** is a civil war inside your realm. The rebel lords take their levies (1.5 per point of power) from the royal army and raise a host of 4 per point. While it lasts the realm loses 12 stability, the crown's taxes fall by half the rebel towns' share of the realm's people, and other crowns smell weakness.
 
-- About every 15 days the rebels send a **war host** (30% of their strength, 25–200) at the nearest loyal town. Taken, the town joins them (−15 momentum); repelled, the host scatters (+10). Meet a host in the field and break it: **+15** momentum.
+- About every 15 days the rebels send a **war host** (30% of their strength, 25–200) at the nearest loyal town. Taken, the town joins them (−15 momentum); repelled, the host scatters (+10). A town that is one of your own holdings also fights with its garrison and walls; if it falls it is sacked (+25 unrest, a quarter of its garrison and 5% of its people lost) but never joins the rebels, and a holding already besieged by a foreign war host is left to that siege. Meet a host in the field and break it: **+15** momentum.
 - The **royal army** meets the rebels in the field about one day in four (±8 momentum, losses on both sides).
 - **Besiege a rebel seat** with your own army (the realm sends no relief against itself). Taken by storm, surrender or sack, it returns to the crown and its lord is broken: **+20** momentum, **+40** for the leader's seat.
 - **Crushed** at momentum 100 (or once the rebels have no men or seats left): every rebel lord is broken, +25 Prestige, +6 stability.
@@ -2182,6 +2183,8 @@ The House adds 40 per generation and 1 per point of Prestige.
 |---|---|
 | ⚔️ Arms & House | battles won, quests, titles, settlements taken, noble marriages, ambition milestones |
 | 👑 The Throne | crowns won, claims held, succession crises and civil wars underway, reigning, throne chronicle entries |
+| 🏛️ The Royal Court | vassal lords and edicts in force; edicts proclaimed, royal feasts, grants and favours, plots uncovered, revolts (crushed and conceded), lords broken |
+| 🏯 Holdings Besieged | under siege now; sieges endured, relieved, held, saved by terms, bought off, lifted by peace, fallen |
 | 🏰 Holdings | holdings ruled, projects built, raids repelled and suffered, rebellions and rebellions crushed, holdings lost, governors who betrayed you |
 | ⚖️ Petitions & Court | petitions ruled and ignored |
 | 🛡️ Sieges | towns besieged, taken, sacked, terms accepted, sieges lifted and broken, relief armies beaten |

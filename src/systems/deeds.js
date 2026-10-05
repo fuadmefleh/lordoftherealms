@@ -3,7 +3,8 @@
 // ============================================
 // Many systems keep counters about the player (delves, petitions, sagas,
 // companions, the underworld, holdings, ailments, rivals, sieges, the trading
-// company, discoveries, voyages, the throne, bounties, foraging and hunting).
+// company, discoveries, voyages, the throne and the royal court, sieges of the
+// player's holdings, bounties, foraging and hunting).
 // Deeds gathers them into one flat map of numbers (collect) and a sectioned
 // view (sections) with two columns: the House's lifetime total, and this
 // reign's share — measured against the snapshot Legacy takes when a ruler
@@ -34,6 +35,17 @@ export const DEED_SECTIONS = [
     { id: 'throne', title: 'The Throne', icon: '👑', rows: [
         ['house.crowned', 'Crowns won'], ['throne.claims', 'Claims held', true], ['throne.crises', 'Succession crises underway', true],
         ['throne.civilWar', 'Civil war being waged', true], ['throne.ruling', 'Reigning over a realm', true], ['throne.events', 'Throne chronicle entries'],
+    ] },
+    { id: 'kingship', title: 'The Royal Court', icon: '🏛️', rows: [
+        ['kingship.vassals', 'Vassal lords', true], ['kingship.edictsInForce', 'Edicts in force', true],
+        ['kingship.edictsPassed', 'Edicts proclaimed'], ['kingship.feasts', 'Royal feasts'], ['kingship.grants', 'Grants and favours'],
+        ['kingship.plotsRevealed', 'Plots uncovered'], ['kingship.revolts', 'Revolts'], ['kingship.revoltsCrushed', 'Revolts crushed'],
+        ['kingship.revoltsConceded', 'Revolts conceded'], ['kingship.lordsBroken', 'Lords broken'],
+    ] },
+    { id: 'holdingSieges', title: 'Holdings Besieged', icon: '🏯', rows: [
+        ['holdingSieges.active', 'Under siege now', true], ['holdingSieges.besieged', 'Sieges endured'], ['holdingSieges.relieved', 'Relieved'],
+        ['holdingSieges.held', 'Held until the enemy gave up'], ['holdingSieges.terms', 'Saved by terms'], ['holdingSieges.bought', 'Besiegers bought off'],
+        ['holdingSieges.lifted', 'Lifted by peace'], ['holdingSieges.fallen', 'Fallen'],
     ] },
     { id: 'holdings', title: 'Holdings', icon: '🏰', rows: [
         ['holdings.held', 'Holdings ruled', true], ['holdings.projects', 'Projects built'], ['holdings.raidsRepelled', 'Raids repelled'],
@@ -113,6 +125,17 @@ export const Deeds = {
         out['throne.civilWar'] = throne.civilWar ? 1 : 0;
         out['throne.ruling'] = throne.ruling ? 1 : 0;
         out['throne.events'] = Array.isArray(throne.history) ? throne.history.length : 0;
+
+        // The royal court rides inside the crown (systems/kingship.js)
+        const court = _obj(_obj(throne.ruling).court);
+        put('kingship', court.stats, ['edictsPassed', 'feasts', 'grants', 'plotsRevealed', 'revolts', 'revoltsCrushed', 'revoltsConceded', 'lordsBroken']);
+        out['kingship.vassals'] = Array.isArray(court.vassals) ? court.vassals.filter(v => v && !v.rebel).length : 0;
+        out['kingship.edictsInForce'] = Object.keys(_obj(court.edicts)).length;
+
+        // Sieges of the player's holdings (systems/holdingSieges.js, on player.realmWars)
+        const rw = _obj(player.realmWars);
+        put('holdingSieges', rw.siegeStats, ['besieged', 'relieved', 'held', 'terms', 'bought', 'lifted', 'fallen']);
+        out['holdingSieges.active'] = Object.keys(_obj(rw.besieged)).length;
 
         const holdings = _obj(player.holdings);
         put('holdings', holdings.stats, ['projects', 'raidsRepelled', 'raidsSuffered', 'rebellions', 'rebellionsCrushed', 'holdingsLost', 'betrayals']);

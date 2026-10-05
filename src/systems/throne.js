@@ -1021,6 +1021,9 @@ export const Throne = {
                     for (const [key, v] of Object.entries(court.mods)) crown.mods[key] = (crown.mods[key] || 0) + v;
                 }
                 if (court && court.revolt) crown.revolt = true;
+                // The edicts in force and their effects beyond the kingdom AI
+                if (court && court.edicts) crown.edicts = Object.keys(court.edicts);
+                if (court && court.effects) crown.effects = { ...court.effects };
                 touched = true;
             }
             if (st.civilWar && st.civilWar.kingdomId === k.id) {

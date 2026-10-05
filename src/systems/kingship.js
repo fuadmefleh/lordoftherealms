@@ -55,6 +55,7 @@ import { Companions } from './companions.js';
 import { Relationships } from './relationships.js';
 import { Upbringing } from './upbringing.js';
 import { RealmWars } from './realmWars.js';
+import { Holdings } from './holdings.js';
 
 const OFFICES = ['chancellor', 'marshal', 'steward', 'spymaster', 'highPriest'];
 const TAX_STEPS = ['heavy', 'standard', 'light'];
@@ -143,12 +144,22 @@ export const Kingship = {
         return (v.traits || []).map(id => (defs.find(t => t.id === id) || { name: id }).name);
     },
 
-    /** Realm settlements no vassal holds (the capital is the crown's own). */
-    _freeSeats(court, world, k) {
+    /** The player's own holdings (systems/holdings.js) as a set of "q,r" keys. */
+    _holdingKeys(player, world) {
+        return new Set(player ? Holdings.list(player, world).map(h => h.key) : []);
+    },
+
+    /**
+     * Realm settlements no vassal holds. The capital is the crown's own, and so
+     * are the player's holdings: no lord is seated on them (and none can carry
+     * them into a revolt the player could never besiege them out of).
+     */
+    _freeSeats(court, world, k, player = null) {
         const held = new Set(court.vassals.filter(v => v.seat).map(v => _key(v.seat.q, v.seat.r)));
+        const mine = Kingship._holdingKeys(player, world);
         const cap = k.capital;
         return Throne._settlementsOf(world, k)
-            .filter(e => !(cap && cap.q === e.q && cap.r === e.r) && !held.has(_key(e.q, e.r)))
+            .filter(e => !(cap && cap.q === e.q && cap.r === e.r) && !held.has(_key(e.q, e.r)) && !mine.has(_key(e.q, e.r)))
             .sort((a, b) => _num(b.settlement.population) - _num(a.settlement.population));
     },
 
@@ -173,7 +184,7 @@ export const Kingship = {
 
     _generateVassals(player, world, k, court) {
         const C = Kingship.config();
-        const seats = Kingship._freeSeats(court, world, k).slice(0, C.maxVassals || 8);
+        const seats = Kingship._freeSeats(court, world, k, player).slice(0, C.maxVassals || 8);
         for (const s of seats) Kingship._newVassal(court, world, k, s);
         while (court.vassals.length < (C.minVassals || 3)) Kingship._newVassal(court, world, k, null);
         for (const v of court.vassals) {
@@ -841,12 +852,14 @@ export const Kingship = {
         const members = f.members.map(id => court.vassals.find(v => v.id === id)).filter(Boolean);
         let power = 0;
         const seats = [];
+        const mine = Kingship._holdingKeys(player, world);
         for (const v of members) {
             const p = Kingship.power(world, v, k);
             power += p;
             v.rebel = true;
             for (const o of OFFICES) if (court.council[o] && court.council[o].kind === 'vassal' && court.council[o].id === v.id) court.council[o] = null;
-            if (Kingship._seatOf(world, v, k)) seats.push(_key(v.seat.q, v.seat.r));
+            // A lord seated (in an older save) on a holding of the player's cannot carry it into revolt
+            if (Kingship._seatOf(world, v, k) && !mine.has(_key(v.seat.q, v.seat.r))) seats.push(_key(v.seat.q, v.seat.r));
         }
         const levies = Math.round(power * _num(R.leviesPerPower));
         k.military = Math.max(0, _num(k.military) - levies);
@@ -977,10 +990,13 @@ export const Kingship = {
         return unit;
     },
 
-    _dispatchHost(world, k, rv) {
+    _dispatchHost(world, k, rv, player = null) {
         const R = Kingship.config().revolt || {};
         const bases = rv.seats.map(s => s.split(',').map(Number));
-        const loyal = Throne._settlementsOf(world, k).filter(e => !rv.seats.includes(_key(e.q, e.r)));
+        // A holding of the player's already under siege by a foreign war host
+        // (systems/holdingSieges.js) is that siege's business, not the rebels'
+        const besieged = (player && player.realmWars && player.realmWars.besieged) || {};
+        const loyal = Throne._settlementsOf(world, k).filter(e => !rv.seats.includes(_key(e.q, e.r)) && !besieged[_key(e.q, e.r)]);
         if (!bases.length || !loyal.length) return null;
         let best = null;
         for (const t of loyal) {
@@ -1002,7 +1018,7 @@ export const Kingship = {
         return rec;
     },
 
-    _hostStrikes(world, k, rv, rec, unit, out) {
+    _hostStrikes(world, k, rv, rec, unit, out, player = null) {
         const R = Kingship.config().revolt || {};
         unit.destroyed = true;
         rv.hosts = rv.hosts.filter(h => h.id !== rec.id);
@@ -1010,7 +1026,28 @@ export const Kingship = {
         const s = tile && tile.settlement;
         if (!s || s.kingdom !== k.id) { rv.strength += rec.strength; return; }
         const isCapital = !!(k.capital && k.capital.q === rec.targetQ && k.capital.r === rec.targetR);
-        const defense = _num(s.population) * 0.05 + _num(k.military) * (isCapital ? 0.3 : 0.1);
+        // A holding of the player's own (systems/holdings.js) also fights with its garrison and walls
+        const holding = player ? Holdings.find(player, world, rec.targetQ, rec.targetR) : null;
+        const defense = _num(s.population) * 0.05 + _num(k.military) * (isCapital ? 0.3 : 0.1)
+            + (holding ? Holdings.defenseRating(s) : 0);
+        if (holding) {
+            // The rebels can storm the player's own town but cannot make it a rebel seat
+            if (rec.strength * Utils.randFloat(0.8, 1.3) > defense) {
+                const h = Holdings.ensure(s);
+                const H = (Kingship.config().revolt || {}).holdingSacked || {};
+                h.unrest = Utils.clamp(_num(h.unrest) + _num(H.unrest), 0, 100);
+                Holdings._garrisonLosses(h, _num(H.garrisonLoss));
+                s.population = Math.max(0, Math.round(_num(s.population) * (1 - _num(H.populationLoss))));
+                rv.momentum += _num(R.townFalls);
+                rv.strength += Math.round(rec.strength * 0.5);
+                Kingship._note(out, '🔥', 'Holding Sacked', `${rec.name} breaks into ${s.name}, your own holding, and sacks it before marching off. Its people seethe and its garrison is bloodied.`, 'error');
+            } else {
+                rv.momentum += _num(R.townHolds);
+                Holdings.onSiegeRepelled(s);
+                Kingship._note(out, '🛡️', 'Rebels Repelled', `Your holding of ${s.name} holds against ${rec.name}; the host is scattered.`, 'success');
+            }
+            return;
+        }
         if (rec.strength * Utils.randFloat(0.8, 1.3) > defense) {
             rv.seats.push(_key(rec.targetQ, rec.targetR));
             rv.momentum += _num(R.townFalls);
@@ -1038,10 +1075,10 @@ export const Kingship = {
                 rv.strength += rec.strength;
                 continue;
             }
-            if (unit.q === rec.targetQ && unit.r === rec.targetR) Kingship._hostStrikes(world, k, rv, rec, unit, out);
+            if (unit.q === rec.targetQ && unit.r === rec.targetR) Kingship._hostStrikes(world, k, rv, rec, unit, out, player);
         }
         if (rv.hosts.length < 2 && _day(world) - rv.lastHostDay >= _num(R.hostCadence) && rv.strength >= _num(R.hostMin) * 2) {
-            const rec = Kingship._dispatchHost(world, k, rv);
+            const rec = Kingship._dispatchHost(world, k, rv, player);
             if (rec) Kingship._note(out, '🔥', 'Rebel Host Marching', `${rec.name} (strength ${rec.strength}) marches on ${rec.target.name}. Meet it in the field.`, 'warning');
         }
         // The royal host meets the rebels in the field
@@ -1103,10 +1140,16 @@ export const Kingship = {
             if (def.peaceChance) peace += def.peaceChance * p.competence * f;
             if (o === 'steward' && p.loyalty < _num(C.embezzleLoyalty)) add('treasury', -(_num(C.embezzleLoyalty) - p.loyalty) * _num(C.embezzleShare));
         }
+        // Edicts' effects outside the kingdom AI (roads, charters, rival houses,
+        // holdings' walls), published on kingdom.crown.effects by Throne.syncCrowns
+        // and read through KingdomBonuses.crownEffect
+        const effects = {};
         for (const id of Object.keys(court.edicts)) {
             const def = Kingship.edicts()[id];
             for (const [key, v] of Object.entries((def && def.mods) || {})) add(key, v);
+            for (const [key, v] of Object.entries((def && def.effects) || {})) if (typeof v === 'number') effects[key] = (effects[key] || 0) + v;
         }
+        court.effects = effects;
         const G = (Kingship.config().grants || {}).land || {};
         add('tax', -court.vassals.reduce((s, v) => s + _num(v.lands), 0) * _num(G.taxLoss));
         // Lords who refuse the levy keep their men and their dues
@@ -1218,7 +1261,8 @@ export const Kingship = {
         const F = Kingship.config().factions || {};
         const sm = Kingship.councillor(player, world, 'spymaster');
         const def = Kingship.offices().spymaster || {};
-        const chance = _num(F.revealBase) + (sm ? _num(def.reveal) * sm.competence * Kingship._loyaltyFactor(sm.loyalty) : 0);
+        const per = def.reveal != null ? def.reveal : F.revealPerCompetence; // the office's own rate, else the factions' default
+        const chance = _num(F.revealBase) + (sm ? _num(per) * sm.competence * Kingship._loyaltyFactor(sm.loyalty) : 0);
         for (const f of court.factions) {
             if (f.revealed) continue;
             if (Utils.random() < chance) {
@@ -1363,7 +1407,7 @@ export const Kingship = {
         if ((day - since) > 0 && (day - since) % (C.yearDays || 120) === 0) Kingship._yearly(player, world, court, k, out);
         if (day - court.lastNewVassalDay >= _num(C.newVassalCadence) && court.vassals.length < _num(C.maxVassals)) {
             court.lastNewVassalDay = day;
-            const seat = Kingship._freeSeats(court, world, k)[0];
+            const seat = Kingship._freeSeats(court, world, k, player)[0];
             if (seat) {
                 const v = Kingship._newVassal(court, world, k, seat);
                 v.opinion = Kingship.opinion(player, world, v).target;

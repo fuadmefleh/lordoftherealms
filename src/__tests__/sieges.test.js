@@ -6,6 +6,7 @@ import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { Utils } from '../core/utils.js';
 import { Sieges } from '../systems/sieges.js';
 import { SaveLoad } from '../systems/saveLoad.js';
+import { RealmWars } from '../systems/realmWars.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 import { Player } from '../player/player.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
@@ -77,6 +78,21 @@ describe('Sieges — investing', () => {
         expect(drawsDuring(() => Sieges.processDay(world, player))).toBe(0);
     });
 
+    it("investing a realm's town is an act of war, unless your liege already fights that realm", () => {
+        const { world, player, tile, settlement } = setup();
+        const res = Sieges.invest(player, world, tile);
+        expect(res.success).toBe(true);
+        expect(RealmWars.atWarWith(player, settlement.kingdom)).toBe(true);
+        expect(res.siege.declaredWar).toBe(true);
+
+        const b = setup(4243);
+        const liege = b.world.kingdoms.find(k => k.isAlive && k.id !== b.settlement.kingdom);
+        b.player.allegiance = liege.id;
+        if (!liege.wars.includes(b.settlement.kingdom)) liege.wars.push(b.settlement.kingdom);
+        expect(Sieges.invest(b.player, b.world, b.tile).success).toBe(true);
+        expect(RealmWars.atWarWith(b.player, b.settlement.kingdom)).toBe(false);
+    });
+
     it('needs a land army of the minimum strength', () => {
         const { world, player, tile } = setup();
         player.army = armyOf('soldier', 1);
@@ -108,7 +124,8 @@ describe('Sieges — investing', () => {
         expect(s.storesStart).toBe(s.stores);
         expect(s.wallHp).toBe(100);
         expect(s.morale).toBeGreaterThan(0);
-        expect(player.reputation[settlement.kingdom]).toBe(repBefore + Sieges.config().investReputation);
+        // The siege's own cost, then the war it starts drags standing down to -60
+        expect(player.reputation[settlement.kingdom]).toBe(Math.min(repBefore + Sieges.config().investReputation, -60));
         expect(Sieges.invest(player, world, tile).success).toBe(false); // one siege at a time
     });
 

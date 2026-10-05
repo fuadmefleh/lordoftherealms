@@ -51,6 +51,7 @@ import { Quests } from './quests.js';
 import { Holdings } from './holdings.js';
 import { Ailments } from './ailments.js';
 import { Petitions } from './petitions.js';
+import { RealmWars } from './realmWars.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 
 const STANCES = ['blockade', 'works', 'sap'];
@@ -469,6 +470,14 @@ export const Sieges = {
             if (!player.reputation) player.reputation = {};
             player.reputation[s.kingdomId] = (player.reputation[s.kingdomId] || 0) + C.investReputation;
             House.accrueRivalFeud(player, world, s.kingdomId, C.investFeud, `besieged ${s.name}`);
+            // Besieging a realm's town is war with that realm — unless you fight
+            // it as your liege's sworn man in a war the crowns already wage
+            const liege = player.allegiance && world.getKingdom ? world.getKingdom(player.allegiance) : null;
+            const liegesWar = !!(liege && Array.isArray(liege.wars) && liege.wars.includes(s.kingdomId));
+            if (kingdom && kingdom.isAlive !== false && !liegesWar && !RealmWars.atWarWith(player, s.kingdomId)) {
+                RealmWars.declareWar(player, world, kingdom, 'siege');
+                s.declaredWar = true;
+            }
         }
         player.karma = _num(player.karma) + C.investKarma;
         Traits.recordAggression(player, s.kingdomId, { dread: 1 });

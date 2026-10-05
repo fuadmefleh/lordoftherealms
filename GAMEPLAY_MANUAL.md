@@ -890,7 +890,7 @@ Units gain XP through combat (+5 XP per battle, +10 XP per contract). At 100 XP,
 Choosing **Attack** on a settlement opens a panel with two options:
 
 - **Raid** — fight only half the garrison, plunder its gold and withdraw. No conquest; karma -5, reputation -20 with the owning kingdom (-30 if the raid fails), population -10%. A raided settlement has nothing worth taking for **30 days**.
-- **Lay Siege** — your army (50+ land strength) camps before the walls and the siege begins. Investing a town costs reputation -15 with its kingdom and karma -2. From then on the siege runs day by day: the action menu shows **Siege of …** (no AP to open), and the siege panel shows the day count, both sides' strength, stores and morale, the walls, your works and any relief army on the way.
+- **Lay Siege** — your army (50+ land strength) camps before the walls and the siege begins. Investing a town costs reputation -15 with its kingdom and karma -2, and is an act of war: unless your liege is already at war with that realm (or it is your own civil war), the realm declares war on you and its war hosts will march on your holdings. From then on the siege runs day by day: the action menu shows **Siege of …** (no AP to open), and the siege panel shows the day count, both sides' strength, stores and morale, the walls, your works and any relief army on the way.
 
 **The defenders** have:
 

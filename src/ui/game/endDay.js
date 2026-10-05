@@ -16,6 +16,8 @@ import { HoldingSieges } from '../../systems/holdingSieges.js';
 import { Discovery } from '../../systems/discovery.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { Kingship } from '../../systems/kingship.js';
+import { Chatter } from '../../systems/chatter.js';
+import { Heralds } from '../../systems/heralds.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 
@@ -35,6 +37,20 @@ export function onPlayerArrived() {
     // If arrived at a settlement
     if (tile.settlement) {
         Quests.trackSettlementVisited(this.player, tile.settlement.name);
+        // Townsfolk talk of what is happening here (systems/chatter.js), now and then
+        if (this.ui._townChatter !== false) {
+            const key = `${this.player.q},${this.player.r}`;
+            if (!this._chatterHeard) this._chatterHeard = {};
+            const last = this._chatterHeard[key];
+            if (last == null || this.world.day - last >= Chatter.config().ambientCooldownDays) {
+                const said = Chatter.ambient(this.world, this.player, this.player.q, this.player.r);
+                if (said) {
+                    this._chatterHeard[key] = this.world.day;
+                    const who = said.who.charAt(0).toUpperCase() + said.who.slice(1);
+                    this.ui.showNotification(`🗣️ Overheard in ${said.settlementName}`, `${who}: "${said.text}"`, 'default');
+                }
+            }
+        }
         // Kingdoms visited, for the Globe Trotter achievement
         const kId = tile.settlement.kingdom;
         if (kId) {
@@ -534,6 +550,12 @@ export function endDay() {
             // The trading company — factors' weekly trade, convoys, contracts, rival houses, ventures
             const companyDay = MerchantHouses.processDay(this.player, this.world);
             for (const n of companyDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
+            // The heralds cry the great news of the day as it reaches you (systems/heralds.js)
+            const heraldDay = Heralds.processDay(this.world, this.player);
+            if (this.ui._heralds !== false) {
+                for (const n of heraldDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            }
 
             // Update market prices
             MarketDynamics.updatePrices(this.world);

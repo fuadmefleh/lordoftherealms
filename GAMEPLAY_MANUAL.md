@@ -2074,6 +2074,20 @@ Every person you talk to on a settlement map remembers you (the disposition bar 
 - **Harming people** — attacking someone sours their spouse, children, parents and siblings toward you (killing them far more: up to −63), and close friends too. Grieving relatives hold a grudge and greet you with it, and the family's bonds with each other grow stronger.
 - **Night** — from 9 PM to 5 AM most townsfolk go home (travelers to the tavern) and stay in; guards keep patrolling.
 
+### Townsfolk Talk & Heralds
+
+The world talks about itself. What townsfolk say depends on what is going on around them and on who you are (lines live in `data/chatter.json`):
+
+- **Their world**: their realm's wars (and your war with it), an enemy fleet blockading their port, a siege nearby (yours, or one of your holdings), the season and the lean weeks, plague, famine, drought, bandits, pirates, a comet or other world events close by, a revolt, a saga in the region, a rival adventurer who passed through in the last 12 days, a new ruler (30 days), and the heralds' latest proclamations.
+- **You**: your earned traits (a Dread Lord is met with terror, the Pious with blessings), your court's reputation (merciful, severe, just, pious, generous), your standing (their king, a foreign king, a pretender, an exile), your House's age and Prestige, and the deeds the gossip has carried to their town.
+- **Them**: their occupation and personality — a smith grumbles that the war eats iron, a merchant curses the blockade, a bold villager wants a spear.
+
+You hear it when greeted (hostile folk keep their own greetings), when you ask **"What news?"** (mostly the world's news, never the same line twice), and as an **overheard remark** when you arrive in a town where something is happening (at most once per town every 3 days; Settings → Overheard Town Talk). With the local LLM voice on, the same facts are handed to the model; the written lines stay the default.
+
+**Heralds.** A coronation, a realm falling or rising again, a war declared, a peace made, a saga's end, a revolt or peasant rebellion, a new land named on the charts, or a siege won or broken is proclaimed where it happened. The news travels 8 hexes a day; every town it reaches knows it (townsfolk repeat it, and it is pinned to the tavern notice board) and when it reaches you, you get a dismissible notice. At most one a day, with two quiet days between (the gravest news — a coronation, a fallen realm — always gets through). News of your own doings is talked about but not cried at you. Proclamations are forgotten after 40 days. Settings → Heralds' Proclamations turns the notices off.
+
+**Your deeds spread.** Sacking a town, feeding a starving town from your treasury (the Empty Granaries petition), pardoning a criminal at court, or winning a duel against a rival adventurer starts a rumour where it happened. It spreads from town to town like any rumour and fades over 40–90 days, but it is talk, not a crime: no bounty, no reputation loss, no hostile guards. Townsfolk who have heard it mention it, and **Listen for Gossip** at a tavern repeats it as *Talk of Your Deeds*.
+
 ### Relationship Tiers
 
 | Tier | Score Range |
@@ -2387,13 +2401,13 @@ Visit taverns in cities and settlements to gather intelligence, hire informants,
 
 | Action | Cost | Effect |
 |--------|------|--------|
-| Buy Drinks | 5g | 1–3 random rumors (55% accuracy) |
+| Buy Drinks | 5g | 1–3 random rumors (55% accuracy); when something is happening in the region (war, blockade, siege, plague, a saga, a rival, a new ruler, a revolt, a proclamation) most are *Talk of the Region*, and an inaccurate one is a distorted telling |
 | Talk to Merchants | 10g | Prices for 3–5 goods at 2–4 nearby settlements (85% accuracy) |
 | Ask about Characters | 50g | Intel on 2–3 nearest rulers (70% accuracy) |
 | Ask about Military | 50g | War reports, army estimates (cities only, 70% accuracy) |
 | Ask about Sacred Places | 50g | Discover 1–3 holy sites (70% accuracy) |
 | Hire Informant | 200g + 10g/day | Permanent source in this city (95% accuracy) |
-| Check Notice Board | Free | Kingdom decrees, settlement stats, bounties, talk of sagas and of [uncharted lands](#uncharted-lands) |
+| Check Notice Board | Free | Kingdom decrees, settlement stats, bounties, the heralds' proclamations, talk of sagas and of [uncharted lands](#uncharted-lands) |
 | Browse Maps | Free | Open cartography trade panel |
 | Sell Your Soul | Free | 5–10g gold; costs escalating karma and renown |
 

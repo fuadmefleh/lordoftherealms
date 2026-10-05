@@ -37,6 +37,7 @@ import { House } from './house.js';
 import { Councils } from './councils.js';
 import { Taxation } from './marketDynamics.js';
 import { Religion } from './religion.js';
+import { Gossip } from './gossip.js';
 
 const DEFAULT_CONFIG = {
     firstDelay: 3,
@@ -804,6 +805,14 @@ export const Petitions = {
             notable,
         };
         Petitions._record(player, world, petition, entry);
+        // A ruling folk will talk about (a famine dole, a pardon): word spreads as gossip
+        if (choice.rumor) {
+            Gossip.spreadDeed(player, world, choice.rumor, {
+                q: ctx.q != null ? ctx.q : player.q, r: ctx.q != null ? ctx.r : player.r,
+                location: ctx.settlementName || undefined, kingdom: ctx.kingdomId || undefined,
+                victim: ctx[choice.rumorVictim || 'name'] || undefined,
+            });
+        }
         if (notable) {
             st.notable.push({ day: (world && world.day) || 0, title: petition.title, choice: entry.choice, court: entry.court });
             if (st.notable.length > 10) st.notable = st.notable.slice(-10);

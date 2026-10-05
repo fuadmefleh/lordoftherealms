@@ -7,7 +7,7 @@ import { NpcDisposition } from '../../systems/npcDisposition.js';
 import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS, RUMORS, FAREWELLS, THREAT_RESPONSES, THREAT_SUCCESS, FLATTER_RESPONSES, FLATTER_SUCCESS, TIME_COMMENTS, WEATHER_COMMENTS, NPC_QUEST_HOOKS, LOCATION_INFO, KINGDOM_INFO } from '../npcDialog.data.js';
 import { dialogState } from './shared.js';
 import { NpcDialog } from './index.js'; // call-time facade ref (ESM cycle-safe)
-import { _mem, _dispositionLabel, _pick, _getTimeOfDay, _getWeather, _getSettlement, _getKingdom, _skillCheck, _getAttributeBonus, _getSkillTotal, _getPlayerTitle, _isPlayerRenowned, _getGreeting, _getRumor, _getFarewell } from './helpers.js';
+import { _mem, _dispositionLabel, _pick, _getTimeOfDay, _getWeather, _getSettlement, _getKingdom, _skillCheck, _getAttributeBonus, _getSkillTotal, _getPlayerTitle, _isPlayerRenowned, _getGreeting, _getRumor, _getFarewell, _worldContext } from './helpers.js';
 import { _handleChoice, _showGiftSubmenu, _giveGoldGift, _giveItemGift, _showAskAboutSubmenu, _showSkillCheckResult, _animateDispositionChange, _updateDispositionBar, _createOverlay } from './choices.js';
 
 export function _buildConversation(npc) {
@@ -33,7 +33,7 @@ export function _buildConversation(npc) {
     // immediately and stays if the model is off, slow, or offline.
     if (typeof NpcBrain !== 'undefined' && NpcBrain.isEnabled() && NpcBrain.isMajor(npc)) {
         const disposition = _dispositionLabel(mem.disposition || 0);
-        NpcBrain.generateNpcLine(npc, { topic: 'a fitting greeting', disposition, fallback: greeting })
+        NpcBrain.generateNpcLine(npc, { topic: 'a fitting greeting', disposition, fallback: greeting, worldContext: _worldContext(npc) })
             .then((line) => {
                 // Only swap if the dialog is still open on the greeting line.
                 if (!line || line === greeting) return;

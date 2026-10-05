@@ -27,6 +27,7 @@ import { Sagas } from './sagas.js';
 import { Sieges } from './sieges.js';
 import { HoldingSieges } from './holdingSieges.js';
 import { Discovery } from './discovery.js';
+import { Heralds } from './heralds.js';
 import { MerchantHouses } from './merchantHouses.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { WorldUnit } from '../world/units.js';
@@ -419,6 +420,8 @@ export const SaveLoad = {
             discovery: Discovery.serialize(player),
             // The trading company, charters, rival merchant houses, contracts, ventures (systems/merchantHouses.js)
             merchant: MerchantHouses.serialize(player),
+            // The heralds: recent proclamations and what they last saw (systems/heralds.js)
+            heralds: Heralds.serialize(player),
         };
     },
 
@@ -649,6 +652,8 @@ export const SaveLoad = {
         Discovery.loadState(player);
         // Merchant houses — older saves have none (stays null until a charter or company)
         MerchantHouses.loadState(player);
+        // Heralds — older saves get a blank record (the first tick only takes a snapshot)
+        Heralds.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

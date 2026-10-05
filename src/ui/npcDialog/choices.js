@@ -8,7 +8,7 @@ import { Gossip } from '../../systems/gossip.js';
 import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS, RUMORS, FAREWELLS, THREAT_RESPONSES, THREAT_SUCCESS, FLATTER_RESPONSES, FLATTER_SUCCESS, TIME_COMMENTS, WEATHER_COMMENTS, NPC_QUEST_HOOKS, LOCATION_INFO, KINGDOM_INFO } from '../npcDialog.data.js';
 import { dialogState } from './shared.js';
 import { NpcDialog } from './index.js'; // call-time facade ref (ESM cycle-safe)
-import { _mem, _dispositionLabel, _pick, _getTimeOfDay, _getWeather, _getSettlement, _getKingdom, _skillCheck, _getAttributeBonus, _getSkillTotal, _getPlayerTitle, _isPlayerRenowned, _getGreeting, _getRumor, _getFarewell } from './helpers.js';
+import { _mem, _dispositionLabel, _pick, _getTimeOfDay, _getWeather, _getSettlement, _getKingdom, _skillCheck, _getAttributeBonus, _getSkillTotal, _getPlayerTitle, _isPlayerRenowned, _getGreeting, _getRumor, _getFarewell, _getNews } from './helpers.js';
 import { _buildConversation, _render, _typewrite, _skipTypewrite, _renderChoices, _hasGiftableInventory } from './render.js';
 
 export function _handleChoice(action) {
@@ -53,7 +53,7 @@ export function _handleChoice(action) {
 
         switch (action) {
             case 'ask_rumor': {
-                responseText = _getRumor(npcType);
+                responseText = _getNews(dialogState._npc);
                 mem.rumorsTold++;
                 dispositionChange = 2; // Sharing gossip builds minor rapport
                 // Slight social need boost

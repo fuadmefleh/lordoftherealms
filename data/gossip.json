@@ -110,6 +110,46 @@
             "spreadChance": 0.85,
             "description": "{perpetrator} killed a noble in {location}"
         },
+        "sack": {
+            "label": "Sack",
+            "icon": "🔥",
+            "deed": true,
+            "baseSeverity": 60,
+            "credibility": 0.95,
+            "decayDays": 90,
+            "spreadChance": 0.85,
+            "description": "{perpetrator} sacked {location} and left it burning"
+        },
+        "famine_dole": {
+            "label": "Famine Dole",
+            "icon": "🥖",
+            "deed": true,
+            "baseSeverity": 40,
+            "credibility": 0.9,
+            "decayDays": 60,
+            "spreadChance": 0.7,
+            "description": "{perpetrator} fed the hungry of {location} from their own treasury"
+        },
+        "pardon": {
+            "label": "Pardon",
+            "icon": "🕊️",
+            "deed": true,
+            "baseSeverity": 30,
+            "credibility": 0.85,
+            "decayDays": 40,
+            "spreadChance": 0.55,
+            "description": "{perpetrator} pardoned {victim} at the court of {location}"
+        },
+        "duel_won": {
+            "label": "Duel Won",
+            "icon": "🤺",
+            "deed": true,
+            "baseSeverity": 35,
+            "credibility": 0.85,
+            "decayDays": 45,
+            "spreadChance": 0.65,
+            "description": "{perpetrator} beat {victim} in a duel near {location}"
+        },
         "priest_murder": {
             "label": "Priest Murder",
             "icon": "⚖️💀",

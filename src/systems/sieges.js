@@ -55,6 +55,7 @@ import { Ailments } from './ailments.js';
 import { Petitions } from './petitions.js';
 import { RealmWars } from './realmWars.js';
 import { Kingship } from './kingship.js';
+import { Gossip } from './gossip.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 import { WorldUnit } from '../world/units.js';
 
@@ -1097,6 +1098,7 @@ export const Sieges = {
         Sieges._court(player, { severity: K.severity });
         Quests.track(player, 'battles_won');
         if (world.events) world.events.push({ text: `🔥 ${player.name || 'A lord'} sacks ${s.name}!`, type: 'military' });
+        Gossip.spreadDeed(player, world, 'sack', { q: s.q, r: s.r, location: s.name, kingdom: s.kingdomId });
         return Sieges._finish(player, world, 'sacked', `${s.name} is sacked: ${plunder} gold in plunder, and the town burns.`);
     },
 

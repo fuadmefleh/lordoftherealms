@@ -1,0 +1,658 @@
+{
+    "_comment": "A living world: what townsfolk say about what is happening (systems/chatter.js), the heralds' proclamations (systems/heralds.js) and the tavern's regional news (player/tavern/intel.js). Line groups are chosen by conditions on world and player state; see the manual, 'Townsfolk Talk & Heralds'.",
+
+    "config": {
+        "localRadius": 8,
+        "eventRadius": 10,
+        "sagaRadius": 14,
+        "siegeRadius": 6,
+        "rivalRadius": 6,
+        "rivalDays": 12,
+        "newRulerDays": 30,
+        "courtThreshold": 5,
+        "greetChance": 0.45,
+        "newsChance": 0.8,
+        "ambientCooldownDays": 3,
+        "tavernRadius": 20,
+        "specificityBonus": 1
+    },
+
+    "heralds": {
+        "config": {
+            "speed": 8,
+            "lifeDays": 40,
+            "minGapDays": 2,
+            "maxPerDay": 1,
+            "cap": 24
+        },
+        "priority": {
+            "coronation": 9, "realm_fallen": 10, "realm_restored": 8, "peace": 7, "war": 6,
+            "saga_end": 6, "revolt": 8, "revolt_end": 7, "rebellion": 5, "discovery": 5,
+            "siege_won": 6, "siege_lost": 7
+        },
+        "icons": {
+            "coronation": "👑", "realm_fallen": "🏴", "realm_restored": "🚩", "peace": "🕊️", "war": "⚔️",
+            "saga_end": "📜", "revolt": "🔥", "revolt_end": "🛡️", "rebellion": "🔥", "discovery": "🗺️",
+            "siege_won": "🏰", "siege_lost": "🏳️"
+        },
+        "templates": {
+            "coronation": [
+                "Hear ye! {ruler} is crowned in {kingdom}. Long may they reign!",
+                "By order of the crown of {kingdom}: {ruler} sits the throne, and all oaths are owed anew.",
+                "The bells of {kingdom} ring for {ruler}, crowned this week before the lords of the realm."
+            ],
+            "realm_fallen": [
+                "Hear ye! The realm of {kingdom} is no more. Its banners are struck and its towns bow to new masters.",
+                "Mourn {kingdom}: its last walls have fallen and its crown is broken."
+            ],
+            "realm_restored": [
+                "Hear ye! The banners of {kingdom} fly again over its old towns!",
+                "{kingdom} rises from its ashes. Let all who remember it rejoice."
+            ],
+            "peace": [
+                "Hear ye! {kingdom} and {other} have made peace. Let the swords be sheathed and the roads reopen.",
+                "By treaty sealed: the war between {kingdom} and {other} is ended.",
+                "Peace between {kingdom} and {other}! The levies march home before the frost."
+            ],
+            "war": [
+                "Hear ye! {kingdom} and {other} are at war. Every able man to his lord's banner!",
+                "War is declared between {kingdom} and {other}. Travellers, keep to the high roads."
+            ],
+            "saga_end": [
+                "Hear ye! {saga} is ended: {title}.",
+                "So ends {saga}. {title}. Let the tale be told in every hall."
+            ],
+            "revolt": [
+                "Hear ye! {leader} and the lords with them rise against the crown of {kingdom}!",
+                "Rebellion in {kingdom}! {leader} raises banners against the throne."
+            ],
+            "revolt_end": [
+                "Hear ye! The revolt in {kingdom} is ended. The realm is one again, for now.",
+                "The rebel banners in {kingdom} are lowered. The crown's peace returns."
+            ],
+            "rebellion": [
+                "Hear ye! The common folk of {place} have risen against the lords of {kingdom}.",
+                "Unrest in {kingdom}: {place} is in open rebellion."
+            ],
+            "discovery": [
+                "Hear ye! A new land is charted: {place}, found by {by}.",
+                "The map-makers add a new name: {place}, first sighted by {by}."
+            ],
+            "siege_won": [
+                "Hear ye! {place} has fallen to {by} after {days} day(s) of siege.",
+                "{place} is taken! The siege laid by {by} is ended in victory."
+            ],
+            "siege_lost": [
+                "Hear ye! The siege of {place} is broken. {by}'s host is driven off.",
+                "{place} holds! After {days} day(s), {by} gives up the siege."
+            ]
+        }
+    },
+
+    "tavern": {
+        "war": {
+            "true": ["{kingdom} and {enemy} are at each other's throats. The levies left last week.", "A soldier home on leave says the war with {enemy} is going hard for {kingdom}."],
+            "false": ["Word is {kingdom} and {enemy} have signed a truce already.", "A drover swears the war with {enemy} is over. He sounded very sure."]
+        },
+        "blockade": {
+            "true": ["{blockader}'s ships hold the harbour mouth. Nothing sails out of {settlement} without their leave.", "The fishers say {blockader}'s galleys sit off the coast day and night."],
+            "false": ["The blockade? Lifted, they say. {blockader}'s ships sailed home.", "Someone swears the harbour is open again. Nobody has seen it with their own eyes."]
+        },
+        "siege": {
+            "true": ["{siegeTown} is under siege. The camp-followers say the stores won't last.", "Smoke over {siegeTown} again. The siege goes on."],
+            "false": ["They say {siegeTown} opened its gates yesterday.", "A tinker swears the siege of {siegeTown} was lifted days ago."]
+        },
+        "event": {
+            "true": ["Talk is all of the {eventName} at {eventPlace}.", "A carter just in from {eventPlace} says the {eventName} is real enough."],
+            "false": ["Someone swears the {eventName} at {eventPlace} is over already.", "They say the {eventName} at {eventPlace} was never as bad as the criers made out."]
+        },
+        "saga": {
+            "true": ["Everyone is talking about {saga}. Nobody sleeps easy.", "A pilgrim brought news of {saga}: it isn't over."],
+            "false": ["{saga}? Old wives' tales. It ended months ago, they say.", "A bard swears {saga} is finished. Bards say a lot of things."]
+        },
+        "rival": {
+            "true": ["{rival} passed through here not long ago. {rivalNews}", "You've just missed {rival}. They drank here and left a story behind."],
+            "false": ["{rival} is dead, they say. Fell off a cliff, or was it a horse?", "Someone saw {rival} heading the other way entirely."]
+        },
+        "newRuler": {
+            "true": ["{ruler} wears the crown of {kingdom} now. {oldRuler} is gone.", "New coins already, with {ruler}'s face on them."],
+            "false": ["They say {oldRuler} isn't dead at all, only hiding.", "A pedlar swears {ruler} won't last the season. Who knows."]
+        },
+        "revolt": {
+            "true": ["Lords are in revolt across {kingdom}. Choose your roads carefully.", "The rebels hold towns in {kingdom}. Taxes go to whoever has the most spears."],
+            "false": ["The revolt? Bought off already, they say.", "I heard the rebels in {kingdom} all surrendered. I heard wrong before."]
+        },
+        "proclamation": {
+            "true": ["The crier was here: {proclamation}", "Did you hear the herald? {proclamation}"],
+            "false": ["The crier said something about a crown, or a war. I was drinking.", "A herald came through, but folk can't agree on what he said."]
+        }
+    },
+
+    "groups": [
+        { "id": "war_any", "when": { "war": true }, "lines": [
+            "They've called up every second son in {settlement} for the war with {enemy}.",
+            "War with {enemy}. Bread costs more and nobody knows when it ends.",
+            "My cousin marched off against {enemy} in the spring. Not a letter since.",
+            "If {enemy} comes this far, I'm taking the cart and the goats to the hills.",
+            "Every night the watch doubles. That's what war with {enemy} looks like from here."
+        ]},
+        { "id": "war_guard", "when": { "war": true, "occupation": ["guard"] }, "weight": 2, "lines": [
+            "Eyes open, stranger. We're at war with {enemy}, and spies come in all shapes.",
+            "Half the garrison went to the front against {enemy}. The rest of us sleep in our boots.",
+            "Captain says {enemy} scouts were seen two days out. Keep your blade handy."
+        ]},
+        { "id": "war_merchant", "when": { "war": true, "occupation": ["merchant"] }, "weight": 2, "lines": [
+            "The war with {enemy} has closed half my roads. Prices go up, and I can't help it.",
+            "Iron and horses sell themselves while {kingdom} fights {enemy}. Grain too.",
+            "I lost a whole wagon to {enemy} raiders last month. War is ruin for honest trade."
+        ]},
+        { "id": "war_farmer", "when": { "war": true, "occupation": ["farmer"] }, "weight": 2, "lines": [
+            "The lord's men took two of my oxen for the war against {enemy}. Who'll plough now?",
+            "War with {enemy}, and still the fields want sowing. Nobody fights a war on an empty belly.",
+            "They burn the fields first, the soldiers. Pray {enemy} never comes up this valley."
+        ]},
+        { "id": "war_priest", "when": { "war": true, "occupation": ["priest"] }, "weight": 2, "lines": [
+            "I bury the sons this war with {enemy} sends home. Pray for peace, traveller.",
+            "The shrine fills with mothers lighting candles for their boys at the front."
+        ]},
+        { "id": "war_noble", "when": { "war": true, "occupation": ["noble"] }, "weight": 2, "lines": [
+            "The crown wants more men for the war with {enemy}, and more silver. Always more silver.",
+            "A war with {enemy} is a fine thing for a family with ambitions. Ruinous for one without."
+        ]},
+        { "id": "war_blacksmith", "when": { "war": true, "occupation": ["blacksmith_npc"] }, "weight": 2, "lines": [
+            "Spearheads, spearheads, spearheads. The war with {enemy} eats iron faster than I can forge it.",
+            "I haven't made a plough blade in weeks. The war with {enemy} wants swords.",
+            "I'm charging the crown double, and they pay it. That tells you how the war with {enemy} goes."
+        ]},
+        { "id": "war_beggar", "when": { "war": true, "occupation": ["beggar"] }, "weight": 2, "lines": [
+            "Lost my leg the last time {kingdom} fought {enemy}. A copper for an old soldier?",
+            "War makes beggars faster than any plague. Spare something?"
+        ]},
+        { "id": "war_child", "when": { "war": true, "occupation": ["child"] }, "weight": 2, "lines": [
+            "My da says {enemy} soldiers eat children. Is that true?",
+            "We play knights and {enemy}. I'm always the knight!"
+        ]},
+        { "id": "war_traveler", "when": { "war": true, "occupation": ["traveler"] }, "weight": 2, "lines": [
+            "I came the long way round. The roads near {enemy}'s border are crawling with patrols.",
+            "Saw a column marching to the front against {enemy}. Boys, most of them."
+        ]},
+        { "id": "war_bold", "when": { "war": true, "personality": ["bold"] }, "lines": [
+            "If they'd give me a spear I'd go myself. {enemy} needs a lesson.",
+            "Let {enemy} come. {settlement} has stood through worse."
+        ]},
+        { "id": "war_cautious", "when": { "war": true, "personality": ["cautious", "quiet"] }, "lines": [
+            "I keep my head down and my door barred. Wars are for other people.",
+            "Best not to say too much about the war. You never know who's listening."
+        ]},
+        { "id": "player_war", "when": { "playerWar": true }, "weight": 2, "lines": [
+            "{kingdom} is at war with you, and you walk in here bold as brass?",
+            "The crown has put a price on your banners. I never saw you, understand?",
+            "Your war with {kingdom} has made you a lot of enemies here. Not me, mind. I sell to anyone."
+        ]},
+
+        { "id": "blockade_any", "when": { "blockade": true }, "lines": [
+            "{blockader}'s ships sit off the harbour. Nothing comes in and nothing goes out.",
+            "With the port shut by {blockader}, salt fish costs as much as beef.",
+            "The fishing boats stay tied up. {blockader}'s galleys sink anything that tries.",
+            "The blockade's strangling us. The harbour master drinks from noon now."
+        ]},
+        { "id": "blockade_merchant", "when": { "blockade": true, "occupation": ["merchant"] }, "weight": 2, "lines": [
+            "My cargo has sat on the quay for weeks. {blockader}'s blockade will ruin me.",
+            "Whatever you want from over the sea, it's dear. Blame {blockader}.",
+            "Smugglers still slip past {blockader}'s ships at night, if you know who to ask. I don't, of course."
+        ]},
+        { "id": "blockade_poor", "when": { "blockade": true, "occupation": ["villager", "beggar"] }, "weight": 2, "lines": [
+            "My man fished for a living. Now he sits by the fire and curses {blockader}.",
+            "When the harbour's shut, the poor eat last."
+        ]},
+
+        { "id": "siege_any", "when": { "siege": true }, "weight": 2, "lines": [
+            "You can see the smoke from {siegeTown} on a clear day. The siege goes on.",
+            "Refugees from {siegeTown} sleep in the barns. They say the walls won't hold much longer.",
+            "They're starving {siegeTown} out. I pray it never comes to that here.",
+            "Every cart that leaves for {siegeTown} comes back empty and bloody."
+        ]},
+        { "id": "siege_guard", "when": { "siege": true, "occupation": ["guard"] }, "weight": 3, "lines": [
+            "If {siegeTown} falls, we're next. The captain's had us drilling at dawn.",
+            "We've orders to turn back anyone fleeing {siegeTown} without papers. Grim work."
+        ]},
+        { "id": "siege_merchant", "when": { "siege": true, "occupation": ["merchant"] }, "weight": 3, "lines": [
+            "Bread for the siege camp at {siegeTown} sells at three times the price. War is good for someone.",
+            "I won't send a wagon near {siegeTown}. Both sides steal from carts."
+        ]},
+
+        { "id": "season_winter", "when": { "season": ["Winter"] }, "lines": [
+            "Cold enough to freeze the ale in the barrel. Keep near the fire, traveller.",
+            "The passes are snowed shut. Nobody travels in winter if they can help it.",
+            "Wolves come close to the walls in winter. Mind the roads at dusk."
+        ]},
+        { "id": "season_spring", "when": { "season": ["Spring"] }, "lines": [
+            "Spring at last. The roads are mud, but at least they're open.",
+            "Lambing season. Half the town hasn't slept in a week."
+        ]},
+        { "id": "season_summer", "when": { "season": ["Summer"] }, "lines": [
+            "Summer's when the lords go to war. Dry roads, full granaries.",
+            "Long days and short tempers. Summer in {settlement} is always the same."
+        ]},
+        { "id": "season_autumn", "when": { "season": ["Autumn"] }, "lines": [
+            "Harvest time! Every hand is in the fields, mine included.",
+            "Grain is cheap now. By spring it'll cost you dear. Buy while you can.",
+            "The harvest fair is coming. Best time of year in {settlement}."
+        ]},
+        { "id": "farmer_autumn", "when": { "season": ["Autumn"], "occupation": ["farmer"] }, "weight": 2, "lines": [
+            "The barley is in, thank the gods. Now to get it to the mill before the rain.",
+            "Good harvest or bad, the lord takes his share first."
+        ]},
+        { "id": "farmer_spring", "when": { "season": ["Spring"], "occupation": ["farmer"] }, "weight": 2, "lines": [
+            "Sowing time. If you've strong arms, there's work in the fields for a few coppers.",
+            "Pray for gentle rain. A wet spring and a dry summer, that's what we want."
+        ]},
+        { "id": "lean_any", "when": { "lean": true }, "weight": 2, "lines": [
+            "These are the lean weeks. The granary's near empty and the new crop's a long way off.",
+            "Everyone tightens their belt this time of year. Some have no belt left to tighten.",
+            "Bread's dear and getting dearer. Spring can't come soon enough.",
+            "The lean season. Children cry at night here, and not from bad dreams."
+        ]},
+        { "id": "lean_beggar", "when": { "lean": true, "occupation": ["beggar", "child"] }, "weight": 2, "lines": [
+            "Haven't eaten since yesterday. Anything, please. Anything at all.",
+            "The temple ran out of bread this morning. Have you a crust?"
+        ]},
+        { "id": "lean_merchant", "when": { "lean": true, "occupation": ["merchant"] }, "weight": 2, "lines": [
+            "Food's the best trade in the lean weeks. Anyone who stored grain at harvest is rich now.",
+            "Sell me your grain and I'll pay you well. In the lean season everyone is hungry."
+        ]},
+        { "id": "lean_farmer", "when": { "lean": true, "occupation": ["farmer"] }, "weight": 2, "lines": [
+            "We're eating the seed corn now. That's how lean it is.",
+            "Old Hobb slaughtered his last pig to get through the lean weeks. Next year will be harder."
+        ]},
+
+        { "id": "plague_any", "when": { "event": ["plague"] }, "weight": 3, "lines": [
+            "Plague at {eventPlace}. They've shut the gates there, and they burn the dead at night.",
+            "Keep your distance, stranger. They say the sickness at {eventPlace} spreads on the breath.",
+            "Vinegar on a cloth over your mouth. That's what the physicians say. For all the good it does.",
+            "Three carts of dead from {eventPlace} yesterday. I counted."
+        ]},
+        { "id": "plague_priest", "when": { "event": ["plague"], "occupation": ["priest"] }, "weight": 3, "lines": [
+            "The plague at {eventPlace} is a judgement, some say. I say it is a sickness, and we must tend the sick.",
+            "I go to {eventPlace} tomorrow to give the last rites. Pray for me."
+        ]},
+        { "id": "plague_merchant", "when": { "event": ["plague"], "occupation": ["merchant"] }, "weight": 3, "lines": [
+            "Herbs and remedies, very dear while the plague's at {eventPlace}. I won't apologise."
+        ]},
+        { "id": "famine_any", "when": { "event": ["famine"] }, "weight": 3, "lines": [
+            "The granaries of {eventPlace} are bare. People are eating bark bread.",
+            "Hungry months. My neighbour sold his cow for a sack of oats.",
+            "If you have food to sell, sell it here. People are desperate.",
+            "Famine makes thieves of honest folk. Watch your packs."
+        ]},
+        { "id": "drought_any", "when": { "event": ["drought"] }, "weight": 2, "lines": [
+            "Not a drop of rain in weeks. The wells around {eventPlace} are dry.",
+            "The river's so low you can walk across it. Bad for the mills, bad for the crops.",
+            "The priests pray for rain every morning. The sky ignores them."
+        ]},
+        { "id": "flood_any", "when": { "event": ["flood"] }, "weight": 2, "lines": [
+            "The floods near {eventPlace} took whole villages. Mud up to the rooftops.",
+            "Don't take the low road. It's under water since the floods."
+        ]},
+        { "id": "bandits_any", "when": { "event": ["bandit_uprising"] }, "weight": 2, "lines": [
+            "Bandits rule the roads near {eventPlace} now. Travel in company or not at all.",
+            "The bandit gang near {eventPlace} took a whole caravan. Killed the drivers.",
+            "The lord does nothing about the bandits. Maybe the lord is paid not to."
+        ]},
+        { "id": "pirates_any", "when": { "event": ["pirate_surge"] }, "weight": 2, "lines": [
+            "Pirates off {eventPlace}. No captain will sail without an escort.",
+            "Black sails near {eventPlace}. Three ships lost this month."
+        ]},
+        { "id": "gold_rush_any", "when": { "event": ["gold_rush"] }, "weight": 2, "lines": [
+            "Gold near {eventPlace}! Half the young men left with picks and dreams.",
+            "My brother went prospecting at {eventPlace}. He came back with a cough and no gold."
+        ]},
+        { "id": "market_crash_any", "when": { "event": ["market_crash"] }, "weight": 2, "lines": [
+            "The markets of {eventPlace} have crashed. Merchants hang themselves over their ledgers.",
+            "Nobody's buying. Nobody's selling. Coin's gone to ground since the crash."
+        ]},
+        { "id": "trade_boom_any", "when": { "event": ["trade_boom"] }, "lines": [
+            "Business is good! Caravans every day since trade picked up in {eventPlace}.",
+            "Never seen so many merchants on the roads. Good times, while they last."
+        ]},
+        { "id": "monster_any", "when": { "event": ["monster_sighting"] }, "weight": 2, "lines": [
+            "Something big near {eventPlace}. Took three sheep and a shepherd.",
+            "They're offering silver for whoever kills the beast at {eventPlace}. No takers yet.",
+            "I heard it howling last night. Don't laugh, I heard it."
+        ]},
+        { "id": "comet_any", "when": { "event": ["comet_sighting"] }, "lines": [
+            "Did you see the comet? A sword of fire in the sky. Something terrible is coming, mark me.",
+            "The priests say the comet is an omen. They never say of what."
+        ]},
+        { "id": "eclipse_any", "when": { "event": ["eclipse"] }, "lines": [
+            "The sun went black at noon! I've never been so frightened in my life."
+        ]},
+        { "id": "earthquake_any", "when": { "event": ["earthquake"] }, "weight": 2, "lines": [
+            "The ground shook near {eventPlace}. Walls fell, and the temple bell rang by itself.",
+            "Since the earthquake I sleep outside. Roofs fall, the sky doesn't."
+        ]},
+        { "id": "festival_any", "when": { "event": ["festival"] }, "lines": [
+            "A grand festival in {eventPlace}! Music and free ale, they say.",
+            "Everyone's off to the festival. I'm stuck minding the house."
+        ]},
+        { "id": "refugees_any", "when": { "event": ["refugee_wave"] }, "weight": 2, "lines": [
+            "Refugees pour into {eventPlace}. Poor souls, but where will they all sleep?",
+            "There's a new face on every corner since the refugees came. Some folk don't like it."
+        ]},
+        { "id": "blizzard_any", "when": { "event": ["blizzard"] }, "weight": 2, "lines": [
+            "The blizzard buried the roads around {eventPlace}. Nobody's moving until the thaw.",
+            "Snow to the eaves. Two travellers froze on the road last night."
+        ]},
+        { "id": "harvest_any", "when": { "event": ["bountiful_harvest"] }, "lines": [
+            "Best harvest in living memory around {eventPlace}! The granaries are bursting.",
+            "So much grain this year they're giving it to the pigs. Imagine!"
+        ]},
+        { "id": "faith_strife_any", "when": { "event": ["religious_schism", "holy_crusade"] }, "lines": [
+            "The faithful are at each other's throats again. Schisms, crusades, I keep out of it.",
+            "The priests preach war from the pulpit now. That never ends well."
+        ]},
+
+        { "id": "revolt_any", "when": { "revolt": true }, "weight": 3, "lines": [
+            "The lords are in revolt. Nobody knows who to pay taxes to any more.",
+            "Rebels hold the next town. If they come here, keep your mouth shut and your door barred.",
+            "Some say the rebels are right. I say nothing. Saying things gets you hanged."
+        ]},
+        { "id": "revolt_noble", "when": { "revolt": true, "occupation": ["noble"] }, "weight": 3, "lines": [
+            "A revolt is a dangerous game. Pick the winning side early, I always say.",
+            "My cousin rides with the rebels. I write to him every week, and to the crown every other week."
+        ]},
+
+        { "id": "saga_any", "when": { "saga": true }, "weight": 2, "lines": [
+            "Have you heard about {saga}? Everyone here talks of nothing else.",
+            "Strange times. {saga}, they're calling it. The old folk say it's like the stories.",
+            "My grandmother says {saga} is the end of the world. She said that about the last harvest too."
+        ]},
+        { "id": "saga_wyrm", "when": { "saga": ["wyrm_wakes"] }, "weight": 3, "lines": [
+            "The wyrm! Burned a whole farmstead to ash near the peaks. You can see the scorch from the road.",
+            "The mountain shook and the wyrm came out. They say {villain}'s name in whispers.",
+            "Nobody grazes sheep on the high pastures any more. Not with the wyrm awake."
+        ]},
+        { "id": "saga_grey_cough", "when": { "saga": ["grey_cough"] }, "weight": 3, "lines": [
+            "The Grey Cough. First you're tired, then you're coughing, then you're gone.",
+            "There's a scholar going about saying she can cure the Grey Cough. I hope she's right."
+        ]},
+        { "id": "saga_lost_heir", "when": { "saga": ["lost_heir"] }, "weight": 3, "lines": [
+            "A lost heir, back from the dead? {villain}, he calls himself. Half the town believes him.",
+            "If the lost heir is real, there'll be war. If he's not, there'll be hangings."
+        ]},
+        { "id": "saga_long_winter", "when": { "saga": ["long_winter"] }, "weight": 3, "lines": [
+            "This winter won't end. Frost in the fields well past when it should have thawed.",
+            "Bread riots in the next town over. The Long Winter, folk call it."
+        ]},
+        { "id": "saga_sea_reavers", "when": { "saga": ["sea_reavers"] }, "weight": 3, "lines": [
+            "Black sails on the horizon. The reavers burned a fishing village not two days' sail from here.",
+            "{villain} leads the reavers, they say. A name to frighten children with."
+        ]},
+        { "id": "saga_sundering_faith", "when": { "saga": ["sundering_faith"] }, "weight": 3, "lines": [
+            "There's a preacher splitting the faithful in two. Families won't sit at the same table.",
+            "Which side of the schism are you on? Careful how you answer here."
+        ]},
+        { "id": "saga_iron_company", "when": { "saga": ["iron_company"] }, "weight": 3, "lines": [
+            "The Iron Company wasn't paid, so now they take what they're owed from us.",
+            "Sellswords with no master. {villain}'s men, they say. Lock up your daughters and your silver."
+        ]},
+        { "id": "saga_comet", "when": { "saga": ["the_comet"] }, "weight": 3, "lines": [
+            "The comet grows redder every night. The prophets in the square say the end is near.",
+            "There's a cult now, worshipping the comet. Gave away all their goods. Fools."
+        ]},
+
+        { "id": "rival_here", "when": { "rival": true }, "weight": 2, "lines": [
+            "{rival} was through here only days ago. Bought a round for the whole tavern.",
+            "You just missed {rival}! Same look in the eye as you, I'd say.",
+            "{rival} stayed a night and left before dawn. In a hurry to beat someone to something.",
+            "Everyone's talking about {rival}. You should do something worth talking about."
+        ]},
+        { "id": "rival_merchant", "when": { "rival": true, "occupation": ["merchant"] }, "weight": 2, "lines": [
+            "{rival} bought half my rope and all my torches. Off to some ruin, I suppose."
+        ]},
+        { "id": "rival_guard", "when": { "rival": true, "occupation": ["guard"] }, "weight": 2, "lines": [
+            "{rival} came through armed to the teeth. We watched that one closely. Same as you."
+        ]},
+        { "id": "rival_child", "when": { "rival": true, "occupation": ["child"] }, "weight": 2, "lines": [
+            "{rival} gave me a copper and showed me a real sword! Are you as famous as {rival}?"
+        ]},
+
+        { "id": "new_ruler", "when": { "newRuler": true }, "weight": 2, "lines": [
+            "{oldRuler} is dead, and {ruler} wears the crown now. New ruler, new taxes, you'll see.",
+            "They rang the bells for {ruler} all day. I hope the new one is kinder than the old.",
+            "{ruler} on the throne. The coins with {oldRuler}'s face are still good, for now.",
+            "A new reign. Everyone's waiting to see which lords {ruler} favours."
+        ]},
+        { "id": "new_ruler_noble", "when": { "newRuler": true, "occupation": ["noble"] }, "weight": 3, "lines": [
+            "The court is all a-flutter since {ruler} was crowned. Fortunes rise and fall in a day.",
+            "{ruler} hasn't yet named the new council. Every family in {kingdom} is scheming."
+        ]},
+
+        { "id": "heard_coronation", "when": { "proclamation": ["coronation"] }, "lines": [
+            "The crier was here: {proclamation}",
+            "A herald came through crying a coronation. A new crown, they say. Same old taxes."
+        ]},
+        { "id": "heard_realm_fallen", "when": { "proclamation": ["realm_fallen"] }, "weight": 2, "lines": [
+            "Did you hear? {proclamation} I never thought I'd live to see it.",
+            "A whole realm gone. Kingdoms die like men, it seems."
+        ]},
+        { "id": "heard_peace", "when": { "proclamation": ["peace"] }, "weight": 2, "lines": [
+            "Peace! The herald said so. {proclamation}",
+            "There's a treaty, the crier says. My boy might come home.",
+            "Peace, they say. I'll believe it when the soldiers are home and the taxes go down."
+        ]},
+        { "id": "heard_war", "when": { "proclamation": ["war"] }, "lines": [
+            "The crier was here yesterday. {proclamation}",
+            "War again, the herald says. It's always war again."
+        ]},
+        { "id": "heard_saga_end", "when": { "proclamation": ["saga_end"] }, "weight": 2, "lines": [
+            "Did you hear the herald? {proclamation}",
+            "So that's over, then. The crier said as much. Folk will tell that tale for a hundred years."
+        ]},
+        { "id": "heard_revolt", "when": { "proclamation": ["revolt", "rebellion"] }, "lines": [
+            "The crier spoke of revolt. {proclamation}"
+        ]},
+        { "id": "heard_discovery", "when": { "proclamation": ["discovery"] }, "lines": [
+            "A new land on the maps! {proclamation}",
+            "The herald says someone found an island no one knew. I'd like to see it, once."
+        ]},
+        { "id": "heard_siege_won", "when": { "proclamation": ["siege_won"] }, "lines": [
+            "The herald brought news of a siege won. {proclamation}",
+            "Walls fall and banners change. The crier tells it like a song."
+        ]},
+        { "id": "heard_siege_lost", "when": { "proclamation": ["siege_lost"] }, "lines": [
+            "Bad news from the crier: {proclamation}",
+            "A siege lost, the herald says. Somebody's sons won't come home."
+        ]},
+
+        { "id": "deed_sack", "when": { "deed": ["sack"] }, "weight": 3, "lines": [
+            "You're the one who sacked {deedPlace}. I've heard the stories. Every one of them.",
+            "They say you burned {deedPlace} and took the coin from the temple. Is it true?",
+            "*steps back* Please, we've nothing worth taking here. Not like {deedPlace}."
+        ]},
+        { "id": "deed_famine_dole", "when": { "deed": ["famine_dole"] }, "weight": 3, "lines": [
+            "You fed {deedPlace} through the hungry winter. People remember a thing like that.",
+            "The grain carts at {deedPlace} were yours, weren't they? Gods bless you for it.",
+            "My sister lives in {deedPlace}. She says your grain kept her children alive."
+        ]},
+        { "id": "deed_pardon", "when": { "deed": ["pardon"] }, "weight": 3, "lines": [
+            "You pardoned that one at {deedPlace}. Mercy or weakness, folk can't agree.",
+            "A pardon at {deedPlace}! You've a soft heart, or a clever head."
+        ]},
+        { "id": "deed_duel_won", "when": { "deed": ["duel_won"] }, "weight": 3, "lines": [
+            "You beat {deedVictim} in a duel near {deedPlace}! I'd have paid to see it.",
+            "They're saying you put {deedVictim} on their back. Was it a clean fight?",
+            "The duel near {deedPlace} is all anyone talks about. You've made a name, friend."
+        ]},
+
+        { "id": "trait_dread_lord", "when": { "trait": ["dread_lord"] }, "weight": 3, "lines": [
+            "*goes pale* Y-yes, my lord. Whatever you need. Anything.",
+            "They say you hang men from the gate and leave them for the crows. I'll cause you no trouble.",
+            "Mothers frighten their children with your name. I didn't think you'd be so... ordinary-looking.",
+            "*bows low, trembling* We heard you were coming. The whole street went quiet."
+        ]},
+        { "id": "trait_dread_lord_guard", "when": { "trait": ["dread_lord"], "occupation": ["guard"] }, "weight": 3, "lines": [
+            "Captain says to give you no cause for anger. Pass, my lord. Quickly.",
+            "I'll look the other way, my lord. I've a family."
+        ]},
+        { "id": "trait_dread_lord_child", "when": { "trait": ["dread_lord"], "occupation": ["child"] }, "weight": 3, "lines": [
+            "*runs to hide behind a barrel*"
+        ]},
+        { "id": "trait_pious", "when": { "trait": ["pious"] }, "weight": 2, "lines": [
+            "Bless you, friend. Folk say you never pass a shrine without kneeling.",
+            "The gods favour you, they say. Would you say a prayer for my sick mother?",
+            "A pious soul in these hard times. You give me hope."
+        ]},
+        { "id": "trait_pious_priest", "when": { "trait": ["pious"], "occupation": ["priest"] }, "weight": 3, "lines": [
+            "Your devotion is spoken of even in the high temple. Walk in the light, child.",
+            "Kneel with me a moment. It is rare to meet a lord who means the prayers."
+        ]},
+        { "id": "trait_zealous", "when": { "trait": ["zealous"] }, "weight": 2, "lines": [
+            "You're the one who burns heretics, aren't you? I've always been very devout. Very.",
+            "Folk say you'd put a whole town to the torch for the faith. Is that holy?"
+        ]},
+        { "id": "trait_cruel", "when": { "trait": ["cruel"] }, "weight": 2, "lines": [
+            "I've heard what you do to people who cross you. I won't cross you.",
+            "*won't meet your eyes* Please, just tell me what you want."
+        ]},
+        { "id": "trait_merciful", "when": { "trait": ["merciful"] }, "weight": 2, "lines": [
+            "You spared the beaten when you could have killed them. Not many lords would.",
+            "They say you've a kind heart. Kind hearts are rare these days.",
+            "You're the merciful one. My uncle owes you his life, he says."
+        ]},
+        { "id": "trait_brave", "when": { "trait": ["brave"] }, "lines": [
+            "They say you charge at the head of your men. The soldiers love you for it.",
+            "First into the fight, last out. That's what they sing about you."
+        ]},
+        { "id": "trait_craven", "when": { "trait": ["craven"] }, "lines": [
+            "*smirks* Not running away today, then?",
+            "The soldiers have a song about you. It's not a nice one."
+        ]},
+        { "id": "trait_generous", "when": { "trait": ["generous"] }, "lines": [
+            "An open hand, they say you have. The poor of {settlement} bless your name.",
+            "You bought the whole tavern a round last time. Folk haven't forgotten."
+        ]},
+        { "id": "trait_greedy", "when": { "trait": ["greedy"] }, "lines": [
+            "Counting coins again? They say you'd sell your mother for a good margin.",
+            "Hide the silver, here comes the miser. *laughs nervously* Only joking."
+        ]},
+        { "id": "trait_beloved", "when": { "trait": ["beloved"] }, "weight": 2, "lines": [
+            "It's you! My children will never believe I spoke to you!",
+            "The whole town loves you, you know. We'd follow you anywhere."
+        ]},
+        { "id": "trait_kinslayer", "when": { "trait": ["kinslayer"] }, "weight": 2, "lines": [
+            "Kinslayer. *spits* The gods will have their due from you.",
+            "Your own blood. How do you sleep at night?"
+        ]},
+        { "id": "trait_champion", "when": { "trait": ["champion"] }, "lines": [
+            "The champion of the lists! I won a silver on you at the last tourney.",
+            "Will you be riding in the next tournament? The whole town would come."
+        ]},
+        { "id": "trait_drunkard", "when": { "trait": ["drunkard"] }, "lines": [
+            "Tavern's that way, if you're looking. You usually are, they say.",
+            "*sniffs* Started early today?"
+        ]},
+        { "id": "trait_sea_wolf", "when": { "trait": ["sea_wolf"] }, "lines": [
+            "A sea wolf, they call you. The salt's in your blood, I can tell."
+        ]},
+        { "id": "trait_scholar", "when": { "trait": ["scholar"] }, "lines": [
+            "They say you've read every book in three kingdoms. Can you read this letter for me?"
+        ]},
+        { "id": "trait_merchant_prince", "when": { "trait": ["merchant_prince"] }, "lines": [
+            "The merchant prince himself! Half the caravans on these roads carry your goods.",
+            "They say you could buy {settlement} twice over. Could you?"
+        ]},
+        { "id": "trait_honest", "when": { "trait": ["honest"] }, "lines": [
+            "Your word's good as gold, folk say. Rare in a lord."
+        ]},
+        { "id": "trait_deceitful", "when": { "trait": ["deceitful"] }, "lines": [
+            "Silver-tongued, they call you. I'll count my change twice, if it's all the same."
+        ]},
+        { "id": "trait_wanderer", "when": { "trait": ["wanderer"] }, "lines": [
+            "Back on the road again? You've seen more of the world than anyone in {settlement}."
+        ]},
+        { "id": "trait_cunning", "when": { "trait": ["cunning"] }, "lines": [
+            "They say you're always three moves ahead. I'll keep my secrets to myself, then."
+        ]},
+        { "id": "trait_gambler", "when": { "trait": ["gambler"] }, "lines": [
+            "Fancy a game of dice? No? They say you never refuse."
+        ]},
+        { "id": "trait_scarred", "when": { "trait": ["scarred"] }, "lines": [
+            "That scar... I've heard the story. Was it really a bear?"
+        ]},
+
+        { "id": "court_mercy", "when": { "court": ["mercy"] }, "lines": [
+            "They say you judge with mercy. My brother's in a debtors' cell. Would you hear his case?",
+            "A merciful lord. Folk go to your court hoping, not trembling."
+        ]},
+        { "id": "court_severity", "when": { "court": ["severity"] }, "lines": [
+            "Your court hangs thieves by the dozen, they say. I've never stolen a thing in my life.",
+            "Hard justice at your court, folk say. Hard, but the roads are safer.",
+            "The gallows at your seat are never empty, I hear."
+        ]},
+        { "id": "court_justice", "when": { "court": ["justice"] }, "lines": [
+            "A fair judge, they call you. The poor get a hearing at your court as well as the rich.",
+            "If I've a quarrel with my neighbour, I'd want you to hear it."
+        ]},
+        { "id": "court_piety", "when": { "court": ["piety"] }, "lines": [
+            "Your court favours the temples, they say. The priests sing your praises.",
+            "A lord who listens to the clergy. My mother would approve."
+        ]},
+        { "id": "court_generosity", "when": { "court": ["generosity"] }, "lines": [
+            "Your court opens its purse to petitioners, they say. Is it true?",
+            "Folk say you never send a hungry man away from your hall."
+        ]},
+
+        { "id": "title_our_king", "when": { "title": ["our_king"] }, "weight": 3, "lines": [
+            "*drops to one knee* Your Majesty! In {settlement}! Nobody told us!",
+            "Long live the crown! Forgive me, Majesty, I didn't recognise you at first.",
+            "Your Majesty. The taxes are heavy, if I may say so. Only if I may.",
+            "The king, here, in the street! Wait till I tell my wife."
+        ]},
+        { "id": "title_our_king_noble", "when": { "title": ["our_king"], "occupation": ["noble"] }, "weight": 3, "lines": [
+            "Majesty. My family has always been loyal, whatever you may have heard."
+        ]},
+        { "id": "title_our_king_guard", "when": { "title": ["our_king"], "occupation": ["guard"] }, "weight": 3, "lines": [
+            "*snaps to attention* Your Majesty! The watch is at your command!"
+        ]},
+        { "id": "title_king", "when": { "title": ["foreign_king"] }, "weight": 2, "lines": [
+            "A foreign crown, walking our streets. The lords here will want to know why.",
+            "You're a king, they say. Not ours, though. Mind that."
+        ]},
+        { "id": "title_pretender", "when": { "title": ["pretender"] }, "weight": 3, "lines": [
+            "You're the one pressing a claim to the throne! Bold. Maybe mad.",
+            "Folk are choosing sides in your war for the crown. I choose to keep my head.",
+            "If you win, remember {settlement} was kind to you. If you lose, we never met."
+        ]},
+        { "id": "title_exile", "when": { "title": ["exile"] }, "weight": 3, "lines": [
+            "An exile, they say. A crown lost. That's a hard road.",
+            "You had a throne in your grasp once. Now look at you.",
+            "Exiles come through here sometimes. Most never go home."
+        ]},
+
+        { "id": "house_old", "when": { "houseGen": 2 }, "lines": [
+            "{house}! My father spoke of your father. Or was it your grandfather?",
+            "An old name, {house}. Folk here remember it.",
+            "The {house} line goes on, I see. Good. The world needs old families."
+        ]},
+        { "id": "house_ancient", "when": { "houseGen": 3 }, "weight": 2, "lines": [
+            "{house} has been in the songs for generations. And here's another of you!",
+            "Three generations of {house}, and the name only grows."
+        ]},
+        { "id": "house_prestige", "when": { "prestige": 200 }, "weight": 2, "lines": [
+            "{house} is the talk of every hall. Mind the envy that comes with that.",
+            "Every noble family wants a marriage with {house} these days. So my mistress says."
+        ]},
+
+        { "id": "karma_dark", "when": { "karmaMax": -50 }, "weight": 2, "lines": [
+            "There's something cold about you. The dogs won't stop barking.",
+            "Folk cross the street when you pass. I'd guess you know why."
+        ]},
+        { "id": "renowned_child", "when": { "renownMin": 80, "occupation": ["child"] }, "weight": 2, "lines": [
+            "Are you really {player}? The {player}? Can I touch your sword?"
+        ]},
+        { "id": "renowned_traveler", "when": { "renownMin": 80, "occupation": ["traveler"] }, "weight": 2, "lines": [
+            "Your name's known three kingdoms over, {player}. I heard it in a tavern by the sea."
+        ]}
+    ]
+}

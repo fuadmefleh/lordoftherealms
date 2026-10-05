@@ -341,6 +341,60 @@ Object.assign(Renderer.prototype, {
     },
 
     /**
+     * Outlaw lairs the player knows of (player.outlawLairs, systems/outlawLairs.js):
+     * the lair's icon with a red ring scaled by notoriety, its name and chief;
+     * a faint ❔ where tavern talk places a lair not yet found; a gold ring
+     * round a lair under a bargain (tribute or partnership).
+     */
+    renderOutlawLairs(ctx) {
+        const st = this.player && this.player.outlawLairs;
+        if (!st || !Array.isArray(st.lairs) || !this.world) return;
+        const z = this.camera.zoom;
+        const size = this.hexSize * z;
+        const ICON = { bandit_camp: '🏕️', smugglers_den: '⚓', deserter_fort: '🏚️', cultist_grotto: '🕯️', beast_den: '🐺' };
+        const day = this.world.day || 0;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (const lair of st.lairs) {
+            if (!lair || lair.status !== 'active' || !(lair.known || lair.rumoured)) continue;
+            const q = lair.known ? lair.q : lair.hintQ;
+            const r = lair.known ? lair.r : lair.hintR;
+            const pos = this.getHexPixelPos(q, r);
+            const s = this.camera.worldToScreen(pos.x, pos.y);
+            if (s.x < -60 || s.x > this.canvas.width + 60 || s.y < -60 || s.y > this.canvas.height + 60) continue;
+            if (!lair.known) {
+                ctx.globalAlpha = 0.5;
+                ctx.font = `${Math.max(10, size * 0.5)}px serif`;
+                ctx.fillText('❔', s.x, s.y);
+                continue;
+            }
+            const bargain = lair.allied || (lair.tribute && lair.tribute.until >= day);
+            const n = Math.max(0, Math.min(100, lair.notoriety || 0));
+            ctx.globalAlpha = 0.85;
+            ctx.strokeStyle = bargain ? 'rgba(230, 190, 60, 0.9)' : `rgba(${150 + Math.round(n)}, 40, 30, 0.9)`;
+            ctx.lineWidth = Math.max(1.5, (1.5 + n / 40) * z);
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, size * 0.7, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.globalAlpha = 0.95;
+            ctx.font = `${Math.max(12, size * 0.7)}px serif`;
+            ctx.fillText(ICON[lair.kind] || '🏕️', s.x, s.y);
+            if (z > 0.55) {
+                ctx.font = `bold ${Math.max(9, 10 * z)}px serif`;
+                ctx.fillStyle = bargain ? 'rgba(240, 215, 130, 0.95)' : 'rgba(255, 170, 150, 0.95)';
+                ctx.fillText(lair.name, s.x, s.y + size * 0.85);
+                if (z > 0.9 && lair.leader) {
+                    ctx.font = `${Math.max(8, 9 * z)}px serif`;
+                    ctx.fillStyle = 'rgba(220, 200, 190, 0.85)';
+                    ctx.fillText(lair.leader.slain ? 'leaderless' : lair.leader.name, s.x, s.y + size * 1.15);
+                }
+            }
+        }
+        ctx.restore();
+    },
+
+    /**
      * Holdings under siege (player.realmWars.besieged, systems/holdingSieges.js):
      * a red ring on the hex, crossed swords and the day count of the siege.
      */

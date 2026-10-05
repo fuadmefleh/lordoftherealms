@@ -46,6 +46,7 @@ export const COUNSEL_PANELS = {
     rivals: { label: 'Rivals', open: (g) => ActionMenu.showRivalsPanel(g, _here(g)) },
     sagas: { label: 'Sagas', open: (g) => ActionMenu.showSagasJournal(g) },
     discoveries: { label: 'Discoveries', open: (g) => ActionMenu.showDiscoveries(g) },
+    outlawLairs: { label: 'Outlaws', open: (g) => ActionMenu.showOutlawLairs(g) },
     claims: { label: 'Claims', open: (g) => ActionMenu.showClaimsPanel(g, _here(g)) },
     company: { label: 'Company', open: (g) => ActionMenu.showTradingCompany(g, _here(g)) },
     bounties: { label: 'Bounties', settlement: true, open: (g) => ActionMenu.showBountyBoardMenu(g, _here(g)) },

@@ -268,6 +268,7 @@ export function _checkHostileEncounters() {
 
     const hostiles = this.world.units.filter(u =>
         !u.destroyed &&
+        !u.sparesPlayer && // a lair's riders under a bargain (systems/outlawLairs.js)
         WorldUnit.HOSTILE_TYPES.includes(u.type) &&
         Hex.wrappingDistance(u.q, u.r, this.player.q, this.player.r, this.world.width) <= 1
     );

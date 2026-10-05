@@ -67,6 +67,11 @@ export const DEED_SECTIONS = [
         ['bounty.rank', 'Hunter rank', true], ['bounty.completed', 'Bounties completed'], ['bounty.turnedIn', 'Outlaws turned in'],
         ['bounty.recruited', 'Outlaws recruited'], ['bounty.failed', 'Captures botched'], ['bounty.beasts', 'Saga beasts on notice'],
     ] },
+    { id: 'outlaws', title: 'Outlaw Lairs', icon: '🏕️', rows: [
+        ['outlaws.clearedByPlayer', 'Lairs you cleared'], ['outlaws.leadersSlain', 'Outlaw chiefs slain'], ['outlaws.partiesBroken', 'Raiding parties broken'],
+        ['outlaws.scouted', 'Lairs scouted'], ['outlaws.tributes', 'Tributes paid'], ['outlaws.tributeGold', 'Gold paid in tribute'],
+        ['outlaws.alliances', 'Outlaw partnerships'], ['outlaws.allyGold', 'Gold from outlaw partners'], ['bounty.chiefs', 'Outlaw chiefs on notice'],
+    ] },
     { id: 'delves', title: 'Delves', icon: '🕳️', rows: [
         ['delves.delves', 'Delves entered'], ['delves.chambers', 'Chambers explored'], ['delves.cleared', 'Delves cleared'],
         ['delves.deepest', 'Deepest chamber reached'], ['delves.retreats', 'Retreats'], ['delves.collapses', 'Collapses survived'],
@@ -152,6 +157,8 @@ export const Deeds = {
         out['bounty.recruited'] = _num(bh.capturesRecruited);
         out['bounty.failed'] = _num(bh.failedCaptures);
         out['bounty.beasts'] = _num(bh.beastsSlain);
+        out['bounty.chiefs'] = _num(bh.outlawChiefs);
+        put('outlaws', _obj(player.outlawLairs).stats, ['clearedByPlayer', 'leadersSlain', 'partiesBroken', 'scouted', 'tributes', 'tributeGold', 'alliances', 'allyGold']);
 
         put('delves', _obj(player.delves).stats, ['delves', 'chambers', 'cleared', 'deepest', 'retreats', 'collapses']);
         put('rivals', _obj(player.rivals).stats, ['duelsWon', 'duelsLost', 'racesWon', 'racesLost', 'slain', 'sabotaged', 'teamUps', 'hires']);

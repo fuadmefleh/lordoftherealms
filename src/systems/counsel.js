@@ -594,6 +594,62 @@ R.delveSites = (ctx, p) => {
     return [{ key: `${best.q},${best.r}`, q: best.q, r: best.r, icon: info.icon, site: info.name || 'A ruin', dist: best.dist }];
 };
 
+// Outlaw lairs (systems/outlawLairs.js) — raw reads of player.outlawLairs
+function _lairsKnown(ctx) {
+    const st = ctx.player.outlawLairs;
+    return _arr(st && st.lairs).filter(l => l && l.status === 'active' && l.known);
+}
+
+function _lairSpares(l, day) {
+    return !!(l.allied || (l.tribute && _num(l.tribute.until) >= day));
+}
+
+/** Known lairs within reach of the player's holdings (or the player) whose riders are out. */
+R.outlawThreats = (ctx, p) => {
+    const out = [];
+    const radius = _num(p.radius, 9);
+    const holds = Holdings.list(ctx.player, ctx.world) || [];
+    const width = ctx.world && ctx.world.width;
+    for (const l of _lairsKnown(ctx)) {
+        if (_lairSpares(l, ctx.day)) continue;
+        let place = null;
+        let d = Infinity;
+        for (const h of holds) {
+            if (!h || !Number.isFinite(h.q)) continue;
+            const hd = width > 0 ? Hex.wrappingDistance(h.q, h.r, l.q, l.r, width) : Hex.distance(h.q, h.r, l.q, l.r);
+            if (hd <= radius && hd < d) { d = hd; place = (h.settlement && h.settlement.name) || 'your holding'; }
+        }
+        const pd = ctx.dist(l.q, l.r);
+        if (!place && pd <= _num(p.nearRadius, 4)) { place = 'you'; d = pd; }
+        if (!place) continue;
+        const riding = _arr(l.parties).length;
+        out.push({
+            key: `lair:${l.id}`, q: l.q, r: l.r, lair: l.name, leader: (l.leader && l.leader.name) || 'its chief', place, dist: d,
+            riding: riding ? `, ${riding} band${riding === 1 ? '' : 's'} riding` : '',
+            severity: riding && place !== 'you' ? 'warning' : 'notice', boost: _num(l.notoriety) / 20,
+        });
+    }
+    return out;
+};
+
+/** Known lairs the player could take on: a chief with a price, a hoard, a leaderless band. */
+R.outlawTargets = (ctx, p) => {
+    const out = [];
+    const radius = _num(p.radius, 12);
+    for (const l of _lairsKnown(ctx)) {
+        if (l.allied) continue;
+        const d = ctx.dist(l.q, l.r);
+        if (d > radius) continue;
+        const leaderless = !!(l.leader && l.leader.slain);
+        out.push({
+            key: `lairT:${l.id}`, q: l.q, r: l.r, lair: l.name, dist: d,
+            what: leaderless ? 'leaderless and quarrelling' : `held by ${(l.leader && l.leader.name) || 'a chief'}`,
+            boost: (leaderless ? 2 : 0) - d / 6,
+        });
+    }
+    return out;
+};
+
 R.bounties = (ctx) => {
     const out = [];
     const active = _arr(ctx.player.activeBounties);

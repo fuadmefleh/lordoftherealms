@@ -27,6 +27,7 @@ import './rivals.js';
 import './heirs.js';
 import './sagas.js';
 import './discovery.js';
+import './outlawLairs.js';
 import './merchantHouses.js';
 import './deeds.js';
 import './counsel.js';

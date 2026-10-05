@@ -1096,7 +1096,7 @@ export const Holdings = {
         const R = Holdings.config().raids;
         const day = _num(world.day);
         if (h.lastRaidDay != null && day - h.lastRaidDay < 7) return;
-        const raiders = (world.units || []).filter(u => u && !u.destroyed && u.type === 'raider'
+        const raiders = (world.units || []).filter(u => u && !u.destroyed && u.type === 'raider' && !u.sparesPlayer
             && Hex.wrappingDistance(u.q, u.r, ref.q, ref.r, world.width) <= R.radius);
         if (!raiders.length) return;
         const reduction = Math.min(R.maxReduction, _num(h.fx.raidReduction));

@@ -1,6 +1,6 @@
 // ActionMenu — jobs methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, Seasons, SeasonalWork } from './_imports.js';
+import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, Seasons, SeasonalWork, OutlawLairs } from './_imports.js';
 import { MinigameHost, startForge } from '../minigames/index.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Foraging, Hunting } from '../../player/foraging.js';
@@ -1509,7 +1509,7 @@ Object.assign(ActionMenu, {
                 const isInstantComplete = b.type === 'instant' && game.player.q === b.fromQ && game.player.r === b.fromR;
                 const onCriminalTarget = b.type === 'criminal_hunt' && b.status === 'active' && game.player.q === b.targetQ && game.player.r === b.targetR;
                 const awaitingDecision = b.type === 'criminal_hunt' && b.status === 'captured_pending_decision';
-                const locationHint = (b.type === 'criminal_hunt' || b.type === 'saga_beast')
+                const locationHint = (b.type === 'criminal_hunt' || b.type === 'saga_beast' || b.type === 'lair_leader')
                     ? `Last seen near (${b.targetQ}, ${b.targetR})`
                     : (b.destName ? `Destination: ${b.destName}` : '');
 
@@ -1588,6 +1588,16 @@ Object.assign(ActionMenu, {
                 // A saga beast: tracked daily; defeat it in battle to claim (systems/sagas.js)
                 game.player.activeBounties.push(bounty);
                 game.ui.showNotification('Notice Taken', `${bounty.targetName} — last seen near (${bounty.targetQ}, ${bounty.targetR}). Bring an army.`, 'success');
+                game.ui.updateStats(game.player, game.world);
+                ActionMenu.showBountyBoardMenu(game, tile);
+                return;
+            }
+
+            if (bounty.type === 'lair_leader') {
+                // An outlaw chief: the notice shows the lair; kill the chief to claim (systems/outlawLairs.js)
+                game.player.activeBounties.push(bounty);
+                const lair = OutlawLairs.reveal(game.player, bounty.lairId);
+                game.ui.showNotification('Notice Taken', `${bounty.targetName} holds ${lair ? lair.name : 'a lair'} at (${bounty.targetQ}, ${bounty.targetR}). Storm it, or strike at the chief alone.`, 'success');
                 game.ui.updateStats(game.player, game.world);
                 ActionMenu.showBountyBoardMenu(game, tile);
                 return;

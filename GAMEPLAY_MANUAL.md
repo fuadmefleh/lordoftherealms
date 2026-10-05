@@ -37,6 +37,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 23. [Achievements](#23-achievements)
 24. [World Events](#24-world-events)
     - [Sagas](#sagas) — month-long world storylines: the wyrm, the plague cult, the lost heir, the long winter, sea reavers, schism, a rogue company, the comet
+    - [Outlaw Lairs](#outlaw-lairs) — bandit camps, smugglers' dens, deserters' forts, cultist grottos and beast dens that grow, raid, and must be dealt with
 25. [Cartography](#25-cartography)
 26. [Legendary Artifacts](#26-legendary-artifacts)
 27. [Bounty Hunting](#27-bounty-hunting)
@@ -2757,6 +2758,71 @@ The gold comes out of the realm's treasury. A realm that can't pay in full still
 While a wyrm, flagship or company roams, every **notice board** within 28 hexes posts it as a legendary bounty: where it was last seen, the price, and the realm that pays. Take the notice and the board tracks the beast for up to 120 days. When you kill it, you earn a **hunter's fee** on top of the realm's bounty: 25% more, plus your hunter rank's pay bonus. It counts as a bounty completed and toward your hunter rank. If the beast leaves the story (flies off, sails away, crosses into another realm), the notice lapses. Rival bounty hunters leave saga beasts to you.
 
 Saga monsters and fleets are named world units. A kingdom patrol cannot bring down the wyrm or the Iron Company, but royal war fleets do hunt reavers; if one sinks the flagship, the crown gets the credit. Everything a saga changes is saved with your game: its events, sites, crises and heresies with the world, and the saga itself with you. Its monsters return to the map when you load.
+
+---
+
+## Outlaw Lairs
+
+Random bandit bands come and go, but an **outlaw lair** stays. Lairs are strongholds that take root in country nobody polices well, grow while nobody deals with them, and send out raiding parties that are real units on the map. Five kinds exist:
+
+| Lair | Where it forms | Its raiders | Can you bargain? |
+|------|----------------|-------------|------------------|
+| 🏕️ **Bandit Camp** | Woods, plains, grassland and hills near a road | Cutthroats who rob caravans and burn villages | Tribute or partnership |
+| ⚓ **Smugglers' Den** | Beaches, swamps, islands and other ground beside water | Runners who rob caravans; more coin, less burning | Tribute or partnership |
+| 🏚️ **Deserters' Fort** | Hills, highlands and plains near a road, only in a realm at war | A free company: the strongest raiders, and the lair grows faster while the war lasts | Tribute or partnership |
+| 🕯️ **Cultist Grotto** | Hills, mountains, swamps and deep forest | The Hooded, who carry off pilgrims: each raid also lowers the realm's faith unity | Tribute only |
+| 🐺 **Beast Den** | Wild forest, mountains and tundra **away** from roads | A pack (a beast unit) that takes herds and people but no coin | No |
+
+**Where and when.** Two lairs exist from the first day. Every two weeks after day 12 another may form, up to six at once and two per realm. A lair forms 3–8 hexes from the nearest town, on the same land as that town, never on a settlement, ruin or building, and at least 9 hexes from another lair. The likeliest places are realms with **low stability**, unclaimed wilderness, and land near a road. A **lawful lord** (the NPC lord personality) keeps them away. Where lairs form is decided by the world's seed, not by chance rolls.
+
+**Each lair has** a name, a **chief** with a name and a trait, a **strength** (fighting men), **notoriety**, and a **hoard**:
+- *Cruel* chiefs burn more on every raid. *Cunning* ones are hard to scout and harder to storm. *Greedy* ones raid for more coin and charge more tribute. *Honourable* ones do less harm, charge less, and keep their bargains. *Savage* is for beasts.
+- **Strength** grows every day: faster in a restless realm (low stability) or one at war, slower under a lawful lord. A hoard past 2000 gold is spent on more men. A Bandit Camp tops out at 160, a Deserters' Fort at 200.
+- **Notoriety** rises with every raid (more for a sack) and with every expedition the lair throws back, and slowly fades. It sets how often parties ride out, the price on the chief's head, and how widely the lair is known (*Whispered* → *Known* at 25 → *Feared* at 50 → *Infamous* at 80).
+
+### What a lair does
+
+- **Raiding parties.** Every 5–13 days (more often as notoriety grows) a lair with at least 12 men at home sends a party, about a third of its garrison (8–36 strong), at a town within 9 hexes. Villages and towns are picked before cities, and a town raided in the last month is mostly left alone. Up to three parties ride at once. Like any raider, a party **robs caravans** it meets (your trade route caravans too) and **attacks you** if you are within reach.
+- **At the town** the party burns buildings (typically +2–10% **damage**, which cuts the town's production until the realm repairs it), kills 1–3% of its **people**, burns its **food stores**, and carries off **coin from the realm's treasury**. A cultist raid also lowers the realm's **faith unity**.
+- **At your holdings.** A raider party that reaches one of your holdings raids it the way bandits always have (see *Developing Your Holdings*): your walls, watch and garrison may beat it off, and if they don't you lose people, stores and happiness, and unrest rises. A beast pack goes round the walls for the herds: people, food and unrest.
+- **Home again.** A party carries everything it took back to the lair, into the **hoard**. Laden with plunder on the way home, it avoids a fight. A party destroyed in the field (by you, a patrol, or your holding's walls) costs the lair those men.
+- **The realm suffers.** Once a lair's notoriety reaches 20, the realm it preys on gets a regional event, **Outlaws of …**, for as long as the lair stands. It lowers that realm's **stability** (up to −8) and its **land trade income** (up to −20%), scaled by notoriety. Low stability means less tax income and, below 35, the risk of peasant rebellion. A lair in unclaimed wilderness is the problem of the nearest realm whose towns it raids.
+
+### Realm expeditions
+
+Every 10 days, a realm troubled by a lair of notoriety 20 or more may send **wardens** after it. Lawful lords send them far more often, and so does a lair's infamy. The realm needs 300 gold in its treasury and soldiers to spare. The **Realm Wardens** (🛡️) march from the realm's nearest town, sized to what its scouts report of the lair. At the lair they storm it:
+- **Win**, and the lair is burned out. Its hoard goes into the realm's treasury and the surviving wardens go home.
+- **Lose**, and most of the wardens never come back. The lair gains notoriety and the wardens' weapons.
+
+### Finding lairs
+
+- **On the road.** Come within 2 hexes of a lair and you find it.
+- **Tavern talk** (the notice board in any tavern) names *Known* lairs within 20 hexes with a rough location. *Feared* ones are named with their exact place.
+- **Infamous** lairs are no secret: the whole country knows where they are.
+- **Notice boards** post the chief of any lair with notoriety 30+ within 24 hexes; taking the notice marks the lair on your map.
+- **The heralds** cry it when a lair grows infamous, and when one is burned out, by you or by a realm's wardens. **Townsfolk** within 10 hexes of a lair talk about it.
+
+Lairs you have found show on the map as their icon in a red ring that thickens with notoriety, with the lair's name and (zoomed in) its chief. A gold ring marks a lair you have a bargain with. A faint ❔ marks one you have only heard of. **Journal → 🏕️ Outlaw Lairs** lists every lair you know of: chief, strength, parties out, raids, your bargains, the notice you hold, and the latest news of it.
+
+### Dealing with a lair
+
+Stand on or beside a lair and the action menu offers **Outlaw Lair: (name)** (free to open). Inside:
+
+| Deed | AP | What happens |
+|------|----|--------------|
+| 🔭 **Scout** | 3 | Odds: 55% + 5% per Stealth point (−15% against a cunning chief). Success reveals the garrison, the hoard and the chief's trait, and makes every assault stage 15% weaker. Failure costs 4–10 health and puts the camp on guard for 5 days (+15% to its defences). |
+| ⚔️ **Storm the lair** | 8 | Needs an army. Three battles, each fought with your full army through the usual combat (terrain, tactics, morale, casualties): the outer palisade (40% of the garrison), the camp (60%), and the chief's hold (50%, plus the chief), all behind fortifications (×1.15). Lose a stage and the assault fails; the lair gains notoriety. Win all three and the lair is **cleared**. |
+| 🗡️ **Strike at the chief alone** | 4 | Odds: 25% + 5% per Stealth + 4% per Combat (+10% if scouted, −12% against a cunning chief). Success kills the chief: the lair loses a third of its men to infighting, stops raiding, and gets a new chief in 18–32 days, or scatters if too few are left. Failure costs 12–25 health and alerts the camp for a week. |
+| 💰 **Pay tribute** | 1 | 60g + 4g per point of strength + 2g per point of notoriety (×1.4 for a greedy chief, ×0.8 for an honourable one). For 60 days its parties **spare you**: they won't hunt you, rob your caravans or raid your holdings. The gold goes into the hoard and buys the lair more men. The realm thinks less of you (−2 reputation) and it counts as cowardice. |
+| 🗝️ **Become partners** | 1 | Only for members of the Thieves' Guild or the notorious (karma −15 or lower); not cultists or beasts. Costs 100g. Its riders spare you, and every week you get **15% of the hoard** (up to 200g). You also gain **guild standing** and **3 heat** a week in that realm. If a realm's wardens burn the lair, the prisoners name you: **+25 heat**. Storming a partner's lair breaks the partnership. |
+
+**Clearing a lair** pays its **hoard** (gold, plus goods into your packs; whatever doesn't fit is left behind), **renown** (10 + a quarter of its notoriety), **House Prestige** (a battle won, ×1.5, written into the chronicle), and **standing with the realm** it preyed on (8 + a tenth of its notoriety). It counts as valour, its parties scatter, and the realm's *Outlaws of …* event ends.
+
+**The chief's bounty.** If you hold the notice on a chief, killing them (storming the lair or striking alone) pays the posted price (80g + 6g per point of notoriety, plus your hunter rank's pay bonus) at the end of the day, +3 renown, and counts toward your hunter rank. If the chief dies at someone else's hand, or the lair is burned out without you, the notice lapses.
+
+**The Steward's Counsel** warns you about a known lair within 9 hexes of your holdings (or close to you), and points out a lair within 12 hexes you could take on. **Deeds & Records** keeps count of the lairs you cleared, chiefs slain, parties broken, lairs scouted, tribute paid and partnerships.
+
+Lairs, their chiefs, parties, hoards and your bargains are saved with your game. Older saves gain lairs on the next day.
 
 ---
 

@@ -145,6 +145,10 @@ export default function TopBar() {
               <span className="civ-dd-icon">🧭</span>
               <span className="civ-dd-text">Discoveries</span>
             </button>
+            <button className="civ-dropdown-item" id="btnOutlaws">
+              <span className="civ-dd-icon">🏕️</span>
+              <span className="civ-dd-text">Outlaw Lairs</span>
+            </button>
             <button className="civ-dropdown-item" id="btnDeeds">
               <span className="civ-dd-icon">🏅</span>
               <span className="civ-dd-text">Deeds &amp; Records</span>

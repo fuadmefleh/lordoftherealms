@@ -36,6 +36,7 @@ import { HoldingSieges } from '../../systems/holdingSieges.js';
 import { Discovery } from '../../systems/discovery.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { Quests } from '../../systems/quests.js';
+import { OutlawLairs } from '../../systems/outlawLairs.js';
 import { travelTo } from './harness.js';
 
 const FOOD = ['grain', 'bread'];
@@ -570,6 +571,24 @@ function fight(game, stats) {
     count(stats, res && res.victory ? 'battlesWon' : 'battlesFought');
 }
 
+/** An outlaw lair next door: storm it with a clearly stronger army, or buy peace when rich. */
+function outlaws(game, stats) {
+    const { player, world } = game;
+    const lair = OutlawLairs.lairNear(player, world, player.q, player.r, 1);
+    if (!lair) return;
+    const strength = PlayerMilitary.getArmyStrength(player);
+    if (strength > OutlawLairs.garrison(lair) * 2.5 + 20 && player.health >= 50) {
+        if (!lair.scouted) OutlawLairs.scout(player, world, lair.id);
+        const res = OutlawLairs.assault(player, world, lair.id);
+        if (res.success) count(stats, res.cleared ? 'lairsCleared' : 'lairAssaultsFailed');
+        return;
+    }
+    const kind = OutlawLairs.kind(lair.kind) || {};
+    if (kind.parley && !OutlawLairs.sparesPlayer(lair, world.day) && player.gold > OutlawLairs.tributePrice(player, lair) * 4) {
+        if (OutlawLairs.payTribute(player, world, lair.id).success) count(stats, 'lairTributes');
+    }
+}
+
 function delve(game, stats) {
     const { player, world } = game;
     const tile = world.getTile(player.q, player.r);
@@ -875,6 +894,19 @@ export function botDay(game, stats) {
             for (const o of Ailments.treatmentOptions(player, world, here.settlement)) {
                 if (o.can && Ailments.treat(player, world, here.settlement, o.key).success) count(stats, 'treated');
             }
+            // Nothing to eat for sale here (a hamlet picked bare): move on to the
+            // next town rather than starve while resting
+            if (player.getFoodCount() === 0 && player.gold >= 50) {
+                const next = nearest(world, player, settlementTiles(world), 3)[0];
+                if (next) {
+                    game.dest = { q: next.q, r: next.r };
+                    travelTo(game, next.q, next.r);
+                    const now = world.getTile(player.q, player.r);
+                    if (now && now.settlement) booked(game, 'buyFood', () => buyFood(game, now, stats));
+                    count(stats, 'foodRuns');
+                    return;
+                }
+            }
             count(stats, 'convalescing');
             return;
         }
@@ -906,6 +938,7 @@ export function botDay(game, stats) {
     settlementBusiness(game, stats);
     booked(game, 'delve', () => delve(game, stats));
     booked(game, 'fight', () => fight(game, stats));
+    booked(game, 'outlaws', () => outlaws(game, stats));
 
     booked(game, 'discoveries', () => discoveries(game, stats));
     const tile = world.getTile(player.q, player.r);

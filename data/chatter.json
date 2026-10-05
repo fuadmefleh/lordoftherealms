@@ -28,12 +28,12 @@
         "priority": {
             "coronation": 9, "realm_fallen": 10, "realm_restored": 8, "peace": 7, "war": 6,
             "saga_end": 6, "revolt": 8, "revolt_end": 7, "rebellion": 5, "discovery": 5,
-            "siege_won": 6, "siege_lost": 7
+            "siege_won": 6, "siege_lost": 7, "lair_cleared": 5, "lair_risen": 5
         },
         "icons": {
             "coronation": "👑", "realm_fallen": "🏴", "realm_restored": "🚩", "peace": "🕊️", "war": "⚔️",
             "saga_end": "📜", "revolt": "🔥", "revolt_end": "🛡️", "rebellion": "🔥", "discovery": "🗺️",
-            "siege_won": "🏰", "siege_lost": "🏳️"
+            "siege_won": "🏰", "siege_lost": "🏳️", "lair_cleared": "🛡️", "lair_risen": "🏕️"
         },
         "templates": {
             "coronation": [
@@ -85,6 +85,14 @@
             "siege_lost": [
                 "Hear ye! The siege of {place} is broken. {by}'s host is driven off.",
                 "{place} holds! After {days} day(s), {by} gives up the siege."
+            ],
+            "lair_cleared": [
+                "Hear ye! The outlaws of {place} are put down by {by}. {leader} will trouble the roads no more.",
+                "{place} is burned out! {by} has ended {leader} and the roads are safe again."
+            ],
+            "lair_risen": [
+                "Beware! The outlaws of {place} under {leader} terrorise the country of {kingdom}. Travel in company.",
+                "A price is cried on {leader} of {place}, whose riders burn the villages of {kingdom}."
             ]
         }
     },
@@ -360,6 +368,21 @@
         { "id": "revolt_noble", "when": { "revolt": true, "occupation": ["noble"] }, "weight": 3, "lines": [
             "A revolt is a dangerous game. Pick the winning side early, I always say.",
             "My cousin rides with the rebels. I write to him every week, and to the crown every other week."
+        ]},
+
+        { "id": "outlaws_any", "when": { "outlaws": true }, "weight": 2, "lines": [
+            "Nobody takes the road after dark now. Not with {leader}'s riders out of {lair}.",
+            "They hit a cart from {settlement} last week. Folk say it was the {lair} lot.",
+            "If the crown won't deal with {lair}, somebody should. There's a price on {leader}'s head, I hear.",
+            "My brother-in-law swears he saw smoke over {lair}. Bandits don't hide anymore, they build."
+        ]},
+        { "id": "outlaws_guard", "when": { "outlaws": true, "occupation": ["guard"] }, "weight": 3, "lines": [
+            "We'd clear out {lair} ourselves if the captain gave the word. He won't. Not enough of us.",
+            "Watch the roads, stranger. {leader} has eyes in every tavern from here to {lair}."
+        ]},
+        { "id": "outlaws_merchant", "when": { "outlaws": true, "occupation": ["merchant", "traveler"] }, "weight": 3, "lines": [
+            "Lost two wagons on the road past {lair}. I pay guards now, and the guards cost more than the goods.",
+            "Go round {lair} if you value your purse. {leader} takes a toll in coin or in blood."
         ]},
 
         { "id": "saga_any", "when": { "saga": true }, "weight": 2, "lines": [

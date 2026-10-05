@@ -18,6 +18,7 @@ import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { Kingship } from '../../systems/kingship.js';
 import { Chatter } from '../../systems/chatter.js';
 import { Heralds } from '../../systems/heralds.js';
+import { OutlawLairs } from '../../systems/outlawLairs.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 
@@ -479,6 +480,10 @@ export function endDay() {
             const sagaDay = Sagas.processDay(this.world, this.player);
             for (const n of sagaDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            // Outlaw lairs — formation, growth, raiding parties, realm expeditions (systems/outlawLairs.js)
+            const lairDay = OutlawLairs.processDay(this.world, this.player);
+            for (const n of lairDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
             // Uncharted lands — sightings at sea, finds close by, rivals' finds, claims (systems/discovery.js)
             const discoveryDay = Discovery.processDay(this.world, this.player);
             for (const n of discoveryDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
@@ -873,6 +878,14 @@ export function endDay() {
                     this.ui.showNotification('🎯 Notice Honoured', `You took the notice on ${b.targetName}: +${b.bonus} gold as the hunter's fee.${b.promoted ? ` Promoted to ${b.promoted.title}!` : ''}`, 'success');
                 } else {
                     this.ui.showNotification('🎯 Notice Lapsed', `${b.targetName} is beyond reach now; the notice is taken down.`, 'info');
+                }
+            }
+            // Outlaw chiefs on the hunter's list (systems/outlawLairs.js)
+            for (const b of (playerResults.bountyTracking && playerResults.bountyTracking.chiefs) || []) {
+                if (b.outcome === 'slain') {
+                    this.ui.showNotification('🎯 Bounty Paid', `The price on ${b.targetName}'s head is yours: +${b.pay} gold.${b.promoted ? ` Promoted to ${b.promoted.title}!` : ''}`, 'success');
+                } else {
+                    this.ui.showNotification('🎯 Notice Lapsed', `${b.targetName} is beyond your reach now; the notice is taken down.`, 'info');
                 }
             }
 

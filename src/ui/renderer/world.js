@@ -82,6 +82,8 @@ Object.assign(Renderer.prototype, {
         this.renderMapDeceptions(ctx);
         // Uncharted places you have found or heard of (systems/discovery.js)
         this.renderDiscoveries(ctx);
+        // Your holdings under siege (systems/holdingSieges.js)
+        this.renderHoldingSieges(ctx);
 
         // Render units
         this.renderUnits(ctx);

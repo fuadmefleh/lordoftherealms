@@ -6,7 +6,8 @@
 // issues an *ultimatum* — pay tribute within a few days or face war. Ignore it
 // and the kingdom declares war, then marches real *war hosts* (world units)
 // at the player's properties and colonies. A host that reaches its target
-// razes or damages a property, or besieges and may capture a colony. The
+// razes or damages a property, or lays a day-by-day siege to a holding
+// (systems/holdingSieges.js), which may end with its capture. The
 // player fights hosts in the field (they engage when adjacent, or can be
 // attacked), and each host destroyed raises the player's war score. Wars end
 // by buying peace, by forcing peace once the score is high enough, through
@@ -22,6 +23,7 @@ import { WorldUnit } from '../world/units.js';
 import { House } from './house.js';
 import { Technology } from './technology.js';
 import { Holdings } from './holdings.js';
+import { HoldingSieges } from './holdingSieges.js';
 
 const CONFIG = {
     checkCadence: 10,          // days between hostility checks
@@ -101,6 +103,13 @@ export const RealmWars = {
             const t = world.getTile(c.q, c.r);
             if (t && t.settlement && t.settlement.colony) out.push({ kind: 'colony', q: c.q, r: c.r, name: c.name });
         }
+        // Towns held in your own name (taken while sworn to no one)
+        for (const ref of player.settlements || []) {
+            const t = world.getTile(ref.q, ref.r);
+            const s = t && t.settlement;
+            if (!s || s.kingdom || out.some(o => o.q === ref.q && o.r === ref.r)) continue;
+            out.push({ kind: 'colony', q: ref.q, r: ref.r, name: s.name });
+        }
         return out;
     },
 
@@ -179,6 +188,7 @@ export const RealmWars = {
         const s = RealmWars._state(player);
         const war = s.wars[kingdomId];
         if (!war) return null;
+        HoldingSieges.onWarEnded(player, world, kingdomId);
         for (const h of war.hosts) {
             const unit = (world.units || []).find(u => u.id === h.id);
             if (unit) unit.destroyed = true;
@@ -239,6 +249,7 @@ export const RealmWars = {
         unit.objectiveR = rec.targetR;
         unit.maxAge = 100000;
         unit.inventory = { gold: Math.round(rec.strength * 2), food: rec.strength };
+        if (rec.besieging) unit.besieging = rec.besieging;
         world.units.push(unit);
         return unit;
     },
@@ -282,6 +293,8 @@ export const RealmWars = {
         war.score += CONFIG.scorePerHostDefeated;
         war.hostsDefeated++;
         House.recordPlayerDeed(player, world, 'battleWon', { reason: `broke the ${unit.name}` });
+        // A host broken before a besieged holding relieves it
+        if (unit.besieging) HoldingSieges.onHostDefeated(player, world, { besieging: unit.besieging });
         return war;
     },
 
@@ -314,12 +327,7 @@ export const RealmWars = {
                 // Stationed troops, militia and walls (systems/holdings.js) hold the gates
                 const defense = Holdings.defenseRating(settlement) * Utils.randFloat(0.8, 1.4);
                 if (rec.strength > defense) {
-                    settlement.kingdom = kingdom.id;
-                    tile.kingdom = kingdom.id;
-                    colony.isPlayerColony = false;
-                    if (kingdom.territory) kingdom.territory.push({ q: tile.q, r: tile.r });
-                    kingdom.population = (kingdom.population || 0) + (settlement.population || 0);
-                    player.colonies = (player.colonies || []).filter(c => !(c.q === t.q && c.r === t.r));
+                    RealmWars._captureHolding(player, world, kingdom, null, t);
                     text = `${rec.name} storms your colony ${settlement.name}. It now belongs to ${kingdom.name}.`;
                     lost = true;
                 } else {
@@ -342,12 +350,36 @@ export const RealmWars = {
         return text;
     },
 
+    /**
+     * A holding taken by the enemy: it joins the realm and leaves the player's
+     * colonies and towns (Holdings sees it lost on its next tick). With a war
+     * record, the loss counts against the war score.
+     */
+    _captureHolding(player, world, kingdom, war, t) {
+        const tile = world.getTile(t.q, t.r);
+        const settlement = tile && tile.settlement;
+        if (!settlement) return false;
+        settlement.kingdom = kingdom.id;
+        tile.kingdom = kingdom.id;
+        if (settlement.colony) settlement.colony.isPlayerColony = false;
+        if (kingdom.territory && !kingdom.territory.some(p => p.q === tile.q && p.r === tile.r)) kingdom.territory.push({ q: tile.q, r: tile.r });
+        kingdom.population = (kingdom.population || 0) + (settlement.population || 0);
+        player.colonies = (player.colonies || []).filter(c => !(c.q === t.q && c.r === t.r));
+        if (Array.isArray(player.settlements)) player.settlements = player.settlements.filter(c => !(c.q === t.q && c.r === t.r));
+        if (war) {
+            war.score += CONFIG.scorePerHoldingLost;
+            war.holdingsLost++;
+        }
+        return true;
+    },
+
     _tickWar(player, world, kingdom, war, out) {
         // Keep host records in sync with their units, re-spawning after a load.
         for (const rec of war.hosts.slice()) {
             let unit = world.units.find(u => u.id === rec.id);
             if (!unit) unit = RealmWars._spawnUnit(world, kingdom, rec);
             if (unit.destroyed) continue; // defeated today; onHostDefeated already ran
+            if (rec.besieging) continue;  // camped before a holding (systems/holdingSieges.js)
             rec.stuckDays = (unit.q === rec.q && unit.r === rec.r) ? (rec.stuckDays || 0) + 1 : 0;
             rec.q = unit.q; rec.r = unit.r;
             if (rec.stuckDays >= 8) {
@@ -358,6 +390,12 @@ export const RealmWars = {
                 continue;
             }
             if (unit.q === rec.targetQ && unit.r === rec.targetR) {
+                // A holding is besieged day by day; a property is struck at once
+                const siege = rec.target.kind === 'colony' ? HoldingSieges.begin(player, world, kingdom, war, rec, unit) : null;
+                if (siege) {
+                    out.struck.push({ kingdomId: kingdom.id, text: siege.text, siege: true });
+                    continue;
+                }
                 const text = RealmWars._strike(player, world, kingdom, war, rec, unit);
                 if (text) out.struck.push({ kingdomId: kingdom.id, text });
             }

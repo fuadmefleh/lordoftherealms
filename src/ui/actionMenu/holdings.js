@@ -3,6 +3,7 @@
 // systems/holdings.js; this panel presents it.
 import { ActionMenu } from './_ref.js';
 import { Holdings, PlayerMilitary } from './_imports.js';
+import { HoldingSieges } from '../../systems/holdingSieges.js';
 
 const BTN = 'padding: 5px 9px; margin: 3px 4px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
 const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
@@ -53,6 +54,14 @@ Object.assign(ActionMenu, {
             html += `<button ${player.gold >= cost ? 'onclick="window._holding.parley()"' : 'disabled'} style="${player.gold >= cost ? BTN_GOLD : BTN_DIM}">🤝 Buy them off (${cost}g, −5 renown)</button>`;
             if (!present) html += '<div style="color:#999; font-size:10px; margin-top:3px;">You must be at the holding to lead your army against them. A garrison strong enough will crush them on its own.</div>';
             html += '</div>';
+        }
+
+        // ── Under siege (systems/holdingSieges.js) ──
+        const siege = HoldingSieges.at(player, q, r);
+        if (siege) {
+            html += `<div style="${CARD} border-color:#c0392b; background:rgba(192,57,43,0.12);">`;
+            html += `<strong style="color:#ff7b6b;">🚩 Under siege by ${esc(siege.hostName)}</strong><div style="margin:4px 0;">Day ${world.day - siege.startDay} · ${Math.round(siege.stores)} days of food · garrison ${Math.round(siege.garrison)} vs ${Math.round(siege.besiegers)} besiegers.</div>`;
+            html += `<button data-am-act="showHoldingSiegesPanel" style="${BTN_RED}">🏰 Holdings Under Siege</button></div>`;
         }
 
         // ── Stats summary ──

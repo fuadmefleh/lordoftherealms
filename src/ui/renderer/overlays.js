@@ -340,6 +340,43 @@ Object.assign(Renderer.prototype, {
         ctx.restore();
     },
 
+    /**
+     * Holdings under siege (player.realmWars.besieged, systems/holdingSieges.js):
+     * a red ring on the hex, crossed swords and the day count of the siege.
+     */
+    renderHoldingSieges(ctx) {
+        const b = this.player && this.player.realmWars && this.player.realmWars.besieged;
+        if (!b || !this.world) return;
+        const sieges = Object.values(b);
+        if (!sieges.length) return;
+        const z = this.camera.zoom;
+        const size = this.hexSize * z;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (const s of sieges) {
+            const pos = this.getHexPixelPos(s.q, s.r);
+            const p = this.camera.worldToScreen(pos.x, pos.y);
+            if (p.x < -60 || p.x > this.canvas.width + 60 || p.y < -60 || p.y > this.canvas.height + 60) continue;
+            ctx.globalAlpha = 0.9;
+            ctx.strokeStyle = s.stores <= 0 ? 'rgba(255, 60, 40, 0.95)' : 'rgba(231, 76, 60, 0.85)';
+            ctx.lineWidth = Math.max(2, 3 * z);
+            if (ctx.setLineDash) ctx.setLineDash([6 * z, 4 * z]);
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, size * 0.85, 0, Math.PI * 2);
+            ctx.stroke();
+            if (ctx.setLineDash) ctx.setLineDash([]);
+            ctx.font = `${Math.max(10, size * 0.5)}px serif`;
+            ctx.fillText('⚔️', p.x - size * 0.45, p.y - size * 0.45);
+            if (z > 0.5) {
+                ctx.font = `bold ${Math.max(9, 10 * z)}px serif`;
+                ctx.fillStyle = 'rgba(255, 190, 170, 0.95)';
+                ctx.fillText(`Siege · day ${(this.world.day || 0) - s.startDay}`, p.x, p.y - size * 0.95);
+            }
+        }
+        ctx.restore();
+    },
+
     renderUnits(ctx) {
         if (!this.world || !this.world.units) return;
 

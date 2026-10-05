@@ -5,6 +5,7 @@ import { Utils, ActionMenu, Religion, Economy, Terrain, PlayerEconomy, PlayerMil
 import { Traits } from '../../systems/traits.js';
 import { Companions } from '../../systems/companions.js';
 import { Ailments } from '../../systems/ailments.js';
+import { HoldingSieges } from '../../systems/holdingSieges.js';
 
 Object.assign(UI.prototype, {
     setupEventListeners() {
@@ -356,6 +357,27 @@ Object.assign(UI.prototype, {
             jailEl.style.display = 'block';
         } else if (jailEl) {
             jailEl.style.display = 'none';
+        }
+
+        // Holdings under siege (systems/holdingSieges.js): a banner that opens the panel
+        let siegeEl = document.getElementById('holdingSiegeBanner');
+        const besieged = HoldingSieges.list(player);
+        if (besieged.length) {
+            if (!siegeEl) {
+                siegeEl = document.createElement('div');
+                siegeEl.id = 'holdingSiegeBanner';
+                if (siegeEl.setAttribute) siegeEl.setAttribute('data-am-act', 'showHoldingSiegesPanel');
+                siegeEl.style.cssText = 'color: #ffb4a0; font-weight: bold; font-size: 12px; text-align: center; padding: 4px 8px; background: rgba(192,57,43,0.3); border: 1px solid rgba(231,76,60,0.6); border-radius: 4px; margin-top: 4px; cursor: pointer;';
+                const topBar = document.getElementById('topBar');
+                if (topBar) topBar.appendChild(siegeEl);
+            }
+            const worst = besieged.reduce((a, b) => (b.stores < a.stores ? b : a), besieged[0]);
+            siegeEl.textContent = besieged.length === 1
+                ? `🏰 ${worst.name} is under siege — day ${world.day - worst.startDay}, ${Math.round(worst.stores)} days of food. Click to act.`
+                : `🏰 ${besieged.length} holdings under siege — ${worst.name} has ${Math.round(worst.stores)} days of food. Click to act.`;
+            siegeEl.style.display = 'block';
+        } else if (siegeEl) {
+            siegeEl.style.display = 'none';
         }
 
         // Show servitude status if active

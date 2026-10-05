@@ -172,6 +172,7 @@ export class WorldUnit {
                 this.updateRaider(world, player);
                 break;
             case 'war_host':
+            case 'relief_host': // a realm marching to relieve a town the player besieges (systems/sieges.js)
                 this.updateWarHost(world);
                 break;
             default:

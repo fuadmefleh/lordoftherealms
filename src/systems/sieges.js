@@ -24,9 +24,11 @@
 //              terms (surrender with safe passage, a ransom, or tribute —
 //              traits, diplomacy and the court reputation weigh in), fight a
 //              relief host, or lift the siege.
-//   RELIEF     the owning realm may send a relief host out of its army; it
-//              arrives days later and attacks the camp unless the player
-//              fights it first or withdraws.
+//   RELIEF     the owning realm may send a relief host out of its army: a
+//              real world unit ('relief_host', saved with world.units) that
+//              marches from the realm's capital and can be intercepted on the
+//              road. Arrived, it attacks the camp the next day unless the
+//              player fights it first or withdraws.
 //   OUTCOMES   capture through PlayerMilitary.conquerSettlement (the liege
 //              gets it, or it becomes the player's own holding), a sack
 //              (plunder, karma, cruel deeds), or terms. A loyalist town of the
@@ -53,6 +55,7 @@ import { Ailments } from './ailments.js';
 import { Petitions } from './petitions.js';
 import { RealmWars } from './realmWars.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
+import { WorldUnit } from '../world/units.js';
 
 const STANCES = ['blockade', 'works', 'sap'];
 const TERMS = ['surrender', 'ransom', 'tribute'];
@@ -65,6 +68,7 @@ const _day = (world) => (world && world.day) || 0;
 /** Built-in tuning; data/military.json → sieges overrides it key by key. */
 const DEFAULTS = {
     minStrength: 50,
+    leash: 1,              // hexes the army may stray from the walls (to meet a relief host) before the siege is lifted
     investReputation: -15,
     investKarma: -2,
     investFeud: 5,
@@ -112,7 +116,7 @@ const DEFAULTS = {
         chance: { village: 0.4, town: 0.7, city: 0.8, capital: 1.0 },
         minMilitary: 60, share: 0.35, min: 30, max: 300,
         hexesPerDay: 3, extraDays: [2, 5], minDays: 3, maxDays: 20,
-        sally: 0.25, sallyMorale: 40, returnShare: 0.8,
+        sally: 0.25, sallyMorale: 40, returnShare: 0.8, stuckDays: 8,
     },
     civilWar: { momentum: 15, capitalMomentum: 40 },
 };
@@ -188,6 +192,11 @@ export const Sieges = {
             if (!STANCES.includes(s.stance)) s.stance = 'blockade';
             for (const k of ['garrison', 'garrisonStart', 'walls', 'wallHp', 'stores', 'storesStart', 'morale', 'campMorale', 'mine', 'campSick', 'hungryDays', 'assaults', 'nextParleyDay']) {
                 s[k] = _num(s[k]);
+            }
+            // A relief host recorded before it walked the map gets its unit on the next tick
+            if (s.relief) {
+                s.relief.strength = _num(s.relief.strength);
+                s.relief.stuckDays = _num(s.relief.stuckDays);
             }
         }
     },
@@ -367,12 +376,24 @@ export const Sieges = {
             navalBlockade: Sieges.navalBlockade(player, world, s),
             supply: sup,
             campDaysLeft: daily > 0 ? Math.floor(sup.packs / daily) : null,
-            reliefEta: s.relief && !s.relief.arrived ? Math.max(0, s.relief.arriveDay - _day(world)) : null,
+            reliefEta: s.relief && !s.relief.arrived ? Sieges.reliefEta(world, s) : null,
+            // Within a hex of your lines: you may march out and meet it on the road
+            reliefNear: !!(s.relief && typeof s.relief.q === 'number' && typeof player.q === 'number'
+                && Hex.wrappingDistance(player.q, player.r, s.relief.q, s.relief.r, world.width) <= 1),
             terms: Sieges.termsValue(s),
             chances: Object.fromEntries(TERMS.map(t => [t, Sieges.termsChance(player, world, t)])),
             canParley: _day(world) >= s.nextParleyDay,
             works: Sieges.workOptions(player, s),
         };
+    },
+
+    /** Days until the relief host reaches the walls (mustering, then the march from where it is now). */
+    reliefEta(world, s) {
+        const rel = s && s.relief;
+        if (!rel || rel.arrived) return null;
+        if (typeof rel.q !== 'number') return Math.max(0, _num(rel.arriveDay) - _day(world));
+        const dist = Hex.wrappingDistance(rel.q, rel.r, s.q, s.r, world.width);
+        return Math.max(0, _num(rel.departDay) - _day(world)) + Math.ceil(dist / Sieges.config().relief.hexesPerDay);
     },
 
     /** Engines the player can build here: [{ id, name, built, building, progress, days, cost, can, reason }]. */
@@ -454,13 +475,20 @@ export const Sieges = {
         if (kingdom && kingdom.isAlive !== false) {
             const R = C.relief;
             const chance = _num(R.chance[s.type]);
-            if ((kingdom.military || 0) >= R.minMilitary && Utils.random() < chance) {
+            const from = (kingdom.military || 0) >= R.minMilitary ? Sieges._reliefOrigin(world, kingdom, s) : null;
+            if (from && Utils.random() < chance) {
                 const strength = Utils.clamp(Math.round(kingdom.military * R.share), R.min, R.max);
-                const from = kingdom.capital && !(kingdom.capital.q === s.q && kingdom.capital.r === s.r) ? kingdom.capital : null;
-                const dist = from ? Hex.wrappingDistance(from.q, from.r, s.q, s.r, world.width) : 0;
+                const dist = Hex.wrappingDistance(from.q, from.r, s.q, s.r, world.width);
                 const days = Utils.clamp(Math.ceil(dist / R.hexesPerDay) + Utils.randInt(R.extraDays[0], R.extraDays[1]), R.minDays, R.maxDays);
                 kingdom.military = Math.max(0, kingdom.military - strength);
-                s.relief = { name: `${kingdom.name} Relief Host`, kingdomId: kingdom.id, strength, arriveDay: day + days, arrived: false, arrivedDay: null };
+                s.relief = {
+                    id: `rh_${kingdom.id}_${day}_${s.q}_${s.r}`,
+                    name: `${kingdom.name} Relief Host`, kingdomId: kingdom.id, strength,
+                    q: from.q, r: from.r, stuckDays: 0,
+                    departDay: day + Math.max(0, days - Math.ceil(dist / R.hexesPerDay)), // mustering
+                    arriveDay: day + days, arrived: false, arrivedDay: null,
+                };
+                Sieges._spawnRelief(world, s);
                 s.morale = Utils.clamp(s.morale + C.defenderMorale.reliefBonus, 0, 100);
             }
         }
@@ -484,6 +512,145 @@ export const Sieges = {
         Sieges._log(s, world, `The army invests ${s.name}: ${s.garrison} defenders, ${Math.round(s.stores)} days of food.`);
         if (world.events) world.events.push({ text: `🏰 ${player.name || 'A lord'} lays siege to ${s.name}!`, type: 'military' });
         return { success: true, siege: s };
+    },
+
+    // ── The relief host on the map ──────────────────────────────
+
+    /** Where a realm's relief host musters: its capital, or (the capital besieged) its nearest other town. */
+    _reliefOrigin(world, kingdom, s) {
+        if (kingdom.capital && !(kingdom.capital.q === s.q && kingdom.capital.r === s.r)) return { q: kingdom.capital.q, r: kingdom.capital.r };
+        if (!world.getAllSettlements) return null;
+        let best = null;
+        for (const t of world.getAllSettlements()) {
+            if (t.kingdom !== kingdom.id || (t.q === s.q && t.r === s.r)) continue;
+            const d = Hex.wrappingDistance(t.q, t.r, s.q, s.r, world.width);
+            if (!best || d < best.d) best = { d, q: t.q, r: t.r };
+        }
+        return best ? { q: best.q, r: best.r } : null;
+    },
+
+    /** Put the relief host on the map as a world unit (saved with world.units). */
+    _spawnRelief(world, s) {
+        const rel = s.relief;
+        if (!world.units) world.units = [];
+        const unit = new WorldUnit('relief_host', rel.q, rel.r, s.q, s.r);
+        unit.id = rel.id;
+        unit.icon = '🚩';
+        unit.name = rel.name;
+        unit.speed = Sieges.config().relief.hexesPerDay;
+        unit.strength = rel.strength;
+        unit.population = rel.strength * 2;
+        unit.kingdomId = rel.kingdomId;
+        unit.reliefFor = `${s.q},${s.r}`;
+        const marching = !(rel.departDay > _day(world));
+        unit.objectiveQ = marching ? s.q : null;
+        unit.objectiveR = marching ? s.r : null;
+        unit.maxAge = 100000;
+        unit.inventory = { gold: Math.round(rel.strength * 2), food: rel.strength };
+        world.units.push(unit);
+        return unit;
+    },
+
+    /** The relief host's unit: null when it has been destroyed (by the player). */
+    _reliefUnit(world, s) {
+        const rel = s.relief;
+        if (!rel) return null;
+        const unit = (world.units || []).find(u => u.id === rel.id);
+        return unit && !unit.destroyed ? unit : null;
+    },
+
+    /** The relief host goes home: its unit leaves the map, most of its men rejoin the realm's army. */
+    _reliefHome(world, s) {
+        const rel = s.relief;
+        if (!rel) return;
+        const unit = (world.units || []).find(u => u.id === rel.id);
+        if (unit) unit.destroyed = true;
+        const k = Sieges._kingdom(world, rel.kingdomId);
+        if (k) k.military = _num(k.military) + Math.round(rel.strength * Sieges.config().relief.returnShare);
+    },
+
+    /** Shortest land route from `from` to `to` (breadth-first over passable tiles), or null. Draws nothing. */
+    _landPath(world, from, to, maxNodes = 4000) {
+        const key = (q, r) => `${q},${r}`;
+        const goal = key(to.q, to.r);
+        const prev = new Map([[key(from.q, from.r), null]]);
+        const queue = [{ q: from.q, r: from.r }];
+        for (let i = 0; i < queue.length && prev.size < maxNodes; i++) {
+            const cur = queue[i];
+            for (const n of Hex.neighbors(cur.q, cur.r)) {
+                const q = Hex.wrapQ(n.q, world.width);
+                const k = key(q, n.r);
+                if (prev.has(k)) continue;
+                const t = world.getTile(q, n.r);
+                if (!t || !t.terrain || !t.terrain.passable) continue;
+                prev.set(k, key(cur.q, cur.r));
+                if (k === goal) {
+                    const path = [];
+                    for (let at = k; at && at !== key(from.q, from.r); at = prev.get(at)) {
+                        const [pq, pr] = at.split(',').map(Number);
+                        path.unshift({ q: pq, r: pr });
+                    }
+                    return path;
+                }
+                queue.push({ q, r: n.r });
+            }
+        }
+        return null;
+    },
+
+    /** The relief host's march today: legacy records get a unit, a destroyed unit means it was broken. */
+    _reliefDay(player, world, s, out) {
+        const rel = s.relief;
+        const C = Sieges.config();
+        const day = _day(world);
+        if (!rel.id) {
+            // A save from before relief hosts walked the map
+            rel.id = `rh_${rel.kingdomId}_${s.startDay}_${s.q}_${s.r}`;
+            const k = Sieges._kingdom(world, rel.kingdomId);
+            const from = rel.arrived ? { q: s.q, r: s.r } : (k && Sieges._reliefOrigin(world, k, s)) || { q: s.q, r: s.r };
+            rel.q = from.q; rel.r = from.r; rel.stuckDays = 0; rel.departDay = 0;
+            Sieges._spawnRelief(world, s);
+            return null;
+        }
+        const unit = Sieges._reliefUnit(world, s);
+        if (!unit) {
+            // Cut down on the road (or at the walls) by your army
+            s.relief = null;
+            s.morale = Utils.clamp(s.morale - C.defenderMorale.reliefBeaten, 0, 100);
+            s.campMorale = Utils.clamp(s.campMorale + C.camp.reliefWon, 0, 100);
+            Sieges.state(player).stats.reliefsBeaten++;
+            const text = `${rel.name} is no more. ${s.name} is alone.`;
+            Sieges._log(s, world, text);
+            out.notices.push({ title: '🚩 Relief Broken', text, type: 'success' });
+            return null;
+        }
+        if (unit.objectiveQ == null && day >= _num(rel.departDay)) {
+            unit.objectiveQ = s.q;
+            unit.objectiveR = s.r;
+        }
+        let moved = unit.q !== rel.q || unit.r !== rel.r;
+        if (!moved && !rel.arrived && unit.objectiveQ != null && !(unit.q === s.q && unit.r === s.r)) {
+            // The straight march is blocked (water, mountains): take the long road round
+            const path = Sieges._landPath(world, unit, s);
+            if (path && path.length) {
+                const step = path[Math.min(path.length, Math.max(1, _num(unit.speed, 1))) - 1];
+                unit.q = step.q; unit.r = step.r;
+                moved = true;
+            }
+        }
+        rel.q = unit.q; rel.r = unit.r;
+        if (rel.arrived) return unit;
+        if (unit.q === s.q && unit.r === s.r) return unit;
+        rel.stuckDays = (!moved && unit.objectiveQ != null) ? _num(rel.stuckDays) + 1 : 0;
+        if (rel.stuckDays >= C.relief.stuckDays) {
+            const text = `${rel.name} can find no road to ${s.name} and turns back.`;
+            Sieges._reliefHome(world, s);
+            s.relief = null;
+            Sieges._log(s, world, text);
+            out.notices.push({ title: '🚩 Relief Turns Back', text, type: 'success' });
+            return null;
+        }
+        return unit;
     },
 
     // ── Daily choices ───────────────────────────────────────────
@@ -599,7 +766,10 @@ export const Sieges = {
     fightRelief(player, world) {
         const s = Sieges.active(player);
         if (!s || !s.relief) return { success: false, reason: 'No relief host to fight.' };
-        if (!s.relief.arrived) return { success: false, reason: `${s.relief.name} has not arrived yet.` };
+        // Arrived at the walls, or met on the road within reach of your lines
+        const r = s.relief;
+        const near = typeof r.q === 'number' && Hex.wrappingDistance(player.q, player.r, r.q, r.r, world.width) <= 1;
+        if (!r.arrived && !near) return { success: false, reason: `${r.name} has not arrived yet.` };
         return Sieges._reliefBattle(player, world, s, true);
     },
 
@@ -632,7 +802,7 @@ export const Sieges = {
         if (!settlement) why = `${s.name} is no more.`;
         else if ((settlement.kingdom || null) !== s.kingdomId || (settlement.colony && settlement.colony.isPlayerColony)) why = `${s.name} has changed hands.`;
         else if (s.civilWar && (player.throne && player.throne.civilWar && player.throne.civilWar.sides || {})[`${s.q},${s.r}`] === 'pretender') why = `${s.name} declares for you of its own accord.`;
-        else if (player.q !== s.q || player.r !== s.r) why = `You marched away from ${s.name}; the siege is lifted.`;
+        else if (typeof player.q !== 'number' || Hex.wrappingDistance(player.q, player.r, s.q, s.r, world.width) > _num(C.leash)) why = `You marched away from ${s.name}; the siege is lifted.`;
         else if (player.jailState || player.indenturedServitude) why = `Without you the siege of ${s.name} breaks up.`;
         else if (PlayerMilitary.getArmyStrength(player) <= 0) why = `No army is left to hold the lines before ${s.name}.`;
         if (why) {
@@ -641,14 +811,16 @@ export const Sieges = {
             return out;
         }
 
-        // The relief host
+        // The relief host, marching on the map
+        if (s.relief) Sieges._reliefDay(player, world, s, out);
         if (s.relief) {
+            const atWalls = s.relief.q === s.q && s.relief.r === s.r;
             if (s.relief.arrived && day > s.relief.arrivedDay) {
                 out.notices.push({ title: '🚩 Relief Attacks', text: `${s.relief.name} falls on your siege lines!`, type: 'error' });
                 out.battle = Sieges._reliefBattle(player, world, s, false);
                 if (out.battle.message) out.notices.push({ title: out.battle.victory ? '🚩 Relief Broken' : '🚩 Siege Broken', text: out.battle.message, type: out.battle.victory ? 'success' : 'error' });
                 if (out.battle.outcome) { out.ended = out.battle.outcome; return out; }
-            } else if (!s.relief.arrived && day >= s.relief.arriveDay) {
+            } else if (!s.relief.arrived && atWalls) {
                 s.relief.arrived = true;
                 s.relief.arrivedDay = day;
                 const text = `${s.relief.name} (strength ${s.relief.strength}) has come to relieve ${s.name}. Fight it or withdraw, or it attacks tomorrow.`;
@@ -829,6 +1001,8 @@ export const Sieges = {
         });
         result.success = true;
         result.sally = sally;
+        const unit = (world.units || []).find(u => u.id === relief.id);
+        if (unit && !result.reason) unit.destroyed = true;
         if (!result.reason && result.victory) {
             s.relief = null;
             s.garrison = Math.max(1, s.garrison - Math.round(sally * 0.5));
@@ -916,10 +1090,7 @@ export const Sieges = {
         const s = st.active;
         if (!s) return { outcome, text };
         // A relief host still on the road goes home
-        if (s.relief) {
-            const k = Sieges._kingdom(world, s.relief.kingdomId);
-            if (k) k.military = _num(k.military) + Math.round(s.relief.strength * Sieges.config().relief.returnShare);
-        }
+        if (s.relief) Sieges._reliefHome(world, s);
         st.active = null;
         if (st.stats[outcome] != null) st.stats[outcome]++;
         const days = _day(world) - s.startDay;

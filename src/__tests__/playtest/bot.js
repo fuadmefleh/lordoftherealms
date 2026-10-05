@@ -31,6 +31,7 @@ import { Companions } from '../../systems/companions.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Sieges } from '../../systems/sieges.js';
+import { HoldingSieges } from '../../systems/holdingSieges.js';
 import { Discovery } from '../../systems/discovery.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { travelTo } from './harness.js';
@@ -648,6 +649,44 @@ function siege(game, stats) {
     return !!Sieges.active(player);
 }
 
+/**
+ * A holding under siege: march to relieve it when the army is strong enough
+ * (and fight the host there), pay the enemy off when rich, send food when the
+ * stores run low, and let the governor sally when the garrison outnumbers the
+ * lines. Returns true while the army is on its way or fighting.
+ */
+function defendHoldings(game, stats) {
+    const { player, world } = game;
+    const sieges = HoldingSieges.list(player);
+    if (!sieges.length) return false;
+    count(stats, 'holdingSiegeDays');
+    const s = sieges[0];
+    const d = HoldingSieges.describe(player, world, s.key);
+    if (!d) return false;
+    if (d.army >= s.besiegers * 1.3 && !player.boardedShip && !Sieges.active(player) && d.distance <= 30) {
+        if (d.canRelieve) {
+            const r = HoldingSieges.relieve(player, world, s.key);
+            count(stats, r.victory ? 'holdingsRelieved' : 'holdingReliefsBeaten');
+            return true;
+        }
+        game.dest = { q: s.q, r: s.r };
+        travelTo(game, s.q, s.r);
+        count(stats, 'reliefMarches');
+        return true;
+    }
+    if (player.gold >= d.buyOffPrice * 2) {
+        if (HoldingSieges.buyOff(player, world, s.key).success) count(stats, 'holdingSiegesBoughtOff');
+        return false;
+    }
+    if (s.stores < 5 && !s.convoys.length && Sieges._foodInPacks(player) >= 30) {
+        if (HoldingSieges.sendSupplies(player, world, s.key, { via: 'caravan', food: 20 }).success) count(stats, 'holdingSupplies');
+    }
+    if (d.canSally && s.garrison > s.besiegers * 0.6) {
+        if (HoldingSieges.sally(player, world, s.key).won) count(stats, 'holdingSallies');
+    }
+    return false;
+}
+
 /** Raise the children: a focus each, a cheap tutor when rich, answer their dilemmas. */
 function family(game, stats) {
     const { player, world } = game;
@@ -821,6 +860,7 @@ export function botDay(game, stats) {
             if (booked(game, 'medicine', () => Ailments.treat(player, world, sickAt.settlement, opt.key)).success) count(stats, 'treated');
         }
     }
+    if (booked(game, 'holdingSieges', () => defendHoldings(game, stats))) return;
     if (booked(game, 'siege', () => siege(game, stats))) return;
     booked(game, 'court', () => court(game, stats));
     booked(game, 'throne', () => throne(game, stats));

@@ -12,6 +12,7 @@ import { Rivals } from '../../systems/rivals.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { Sagas } from '../../systems/sagas.js';
 import { Sieges } from '../../systems/sieges.js';
+import { HoldingSieges } from '../../systems/holdingSieges.js';
 import { Discovery } from '../../systems/discovery.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
@@ -479,11 +480,14 @@ export function endDay() {
                     `${m.host.name} (strength ${m.host.strength}) marches on your ${t.kind === 'colony' ? `colony ${t.name}` : `${t.type}`} at (${t.q}, ${t.r}). Meet it in the field to stop it.`, 'warning');
             }
             for (const s of war.struck) {
-                this.ui.showNotification('🔥 Holding Attacked', s.text, 'error');
+                this.ui.showNotification(s.siege ? '🏰 Holding Besieged' : '🔥 Holding Attacked', s.text, 'error');
             }
             for (const e of war.ended) {
                 if (e) this.ui.showNotification('🕊️ Peace', `The war with ${e.war.name} is over.`, 'info');
             }
+            // Sieges of your holdings — stores, works, storms, convoys, endings (systems/holdingSieges.js)
+            const holdingSiegeDay = HoldingSieges.processDay(this.world, this.player);
+            for (const n of holdingSiegeDay.notices) this.ui.showNotification(n.title, n.text, n.type);
 
             // Claims & Crowns — succession crises, a war for a throne, the realm you rule
             const throne = Throne.processDaily(this.player, this.world, { armyStrength: PlayerMilitary.getArmyStrength(this.player) });

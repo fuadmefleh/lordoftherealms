@@ -238,9 +238,17 @@ describe('Sieges — the daily tick', () => {
         tune('relief.chance', { village: 1, town: 1, city: 1, capital: 1 });
         Sieges.invest(player, world, tile);
         const s = Sieges.active(player);
-        world.day = s.relief.arriveDay;
-        const arrive = Sieges.processDay(world, player);
+        // The relief host is a world unit; it musters, then marches to the walls
+        const unit = world.units.find(u => u.id === s.relief.id);
+        expect(unit && unit.type).toBe('relief_host');
+        let arrive = null;
+        for (let i = 0; i < 60 && !s.relief.arrived; i++) {
+            world.day++;
+            unit.update(world);
+            arrive = Sieges.processDay(world, player);
+        }
         expect(s.relief.arrived).toBe(true);
+        expect(unit.q === s.q && unit.r === s.r).toBe(true);
         expect(arrive.notices.some(n => /Relief/.test(n.title))).toBe(true);
         expect(arrive.battle).toBe(null);
         world.day++;
@@ -248,6 +256,66 @@ describe('Sieges — the daily tick', () => {
         expect(attack.battle).toBeTruthy();
         if (attack.battle.victory) expect(Sieges.active(player).relief).toBe(null);
         else expect(Sieges.active(player)).toBe(null);
+    });
+});
+
+describe('Sieges — the relief host on the map', () => {
+    it('cut down on the road, the relief host never comes: the town loses heart', () => {
+        const { world, player, tile, settlement } = setup();
+        world.getKingdom(settlement.kingdom).military = 600;
+        tune('relief.chance', { village: 1, town: 1, city: 1, capital: 1 });
+        Sieges.invest(player, world, tile);
+        const s = Sieges.active(player);
+        const unit = world.units.find(u => u.id === s.relief.id);
+        expect(unit.reliefFor).toBe(`${s.q},${s.r}`);
+        expect(Sieges.describe(player, world).reliefEta).toBeGreaterThan(0);
+        // Your army meets it a hex from the walls and fights it with the usual combat
+        player.army = armyOf('soldier', 60);
+        unit.q = (s.q + 1) % world.width; unit.r = s.r;
+        s.relief.q = unit.q; s.relief.r = unit.r;
+        const res = PlayerMilitary.attackUnit(player, unit, world);
+        expect(res.victory).toBe(true);
+        world.units = world.units.filter(u => !u.destroyed); // the day's sweep
+        const before = s.morale;
+        world.day++;
+        const out = Sieges.processDay(world, player);
+        expect(s.relief).toBe(null);
+        expect(s.morale).toBeLessThan(before);
+        expect(out.notices.some(n => /Relief Broken/.test(n.title))).toBe(true);
+        expect(Sieges.state(player).stats.reliefsBeaten).toBe(1);
+    });
+
+    it('the army may stray a hex to meet it without lifting the siege', () => {
+        const { world, player, tile } = setup();
+        tune('relief.chance', {});
+        Sieges.invest(player, world, tile);
+        player.q = (player.q + 1) % world.width;
+        world.day++;
+        expect(Sieges.processDay(world, player).ended).toBe(null);
+        expect(Sieges.active(player)).toBeTruthy();
+    });
+
+    it('lifting the siege sends the relief host home and off the map', () => {
+        const { world, player, tile, settlement } = setup();
+        world.getKingdom(settlement.kingdom).military = 600;
+        tune('relief.chance', { village: 1, town: 1, city: 1, capital: 1 });
+        Sieges.invest(player, world, tile);
+        const id = Sieges.active(player).relief.id;
+        Sieges.lift(player, world);
+        expect(world.units.find(u => u.id === id).destroyed).toBe(true);
+    });
+
+    it('an older save\'s relief record gets a unit on the next tick', () => {
+        const { world, player, tile, settlement } = setup();
+        world.getKingdom(settlement.kingdom).military = 600;
+        tune('relief.chance', {});
+        Sieges.invest(player, world, tile);
+        const s = Sieges.active(player);
+        s.relief = { name: 'Old Relief', kingdomId: settlement.kingdom, strength: 80, arriveDay: world.day + 6, arrived: false, arrivedDay: null };
+        world.day++;
+        Sieges.processDay(world, player);
+        expect(s.relief.id).toBeTruthy();
+        expect(world.units.some(u => u.id === s.relief.id && u.type === 'relief_host')).toBe(true);
     });
 });
 

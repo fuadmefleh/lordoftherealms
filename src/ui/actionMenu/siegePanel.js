@@ -37,7 +37,8 @@ export function siegePanelHtml(player, info) {
         html += `<div style="${CARD}border:1px solid rgba(231,76,60,0.6);">`;
         html += r.arrived
             ? `<div style="color:#e74c3c;font-weight:bold;">🚩 ${_esc(r.name)} is here (strength ${r.strength}). Fight it or withdraw — it attacks your lines tomorrow.</div>`
-            : `<div style="color:#e67e22;font-weight:bold;">🚩 ${_esc(r.name)} (strength ~${r.strength}) marches to relieve the town: ${info.reliefEta} day(s) away.</div>`;
+            : `<div style="color:#e67e22;font-weight:bold;">🚩 ${_esc(r.name)} (strength ~${r.strength}) marches to relieve the town: ${info.reliefEta} day(s) away${typeof r.q === 'number' ? `, now at (${r.q}, ${r.r})` : ''}.</div>`
+              + `<div style="${MUTED}">It is on the map: meet it on the road (your army may stray one hex from the walls) or wait for it at your lines.</div>`;
         html += '</div>';
     }
 
@@ -78,7 +79,9 @@ export function siegePanelHtml(player, info) {
     html += `<div style="${CARD}"><div style="font-weight:bold;color:var(--gold);margin-bottom:4px;">Actions <span style="${MUTED}">(${ap} AP)</span></div>`;
     html += _btn(`⚔️ Storm and hold (${C.storm.apCost} AP)`, 'storm', 'hold', ap >= C.storm.apCost, 'border-color:rgba(231,76,60,0.6);', 'A costly assault: walls still standing cost extra men.');
     html += _btn(`🔥 Storm and sack (${C.storm.apCost} AP)`, 'storm', 'sack', ap >= C.storm.apCost, 'border-color:rgba(230,126,34,0.6);', `Loot the town and leave it burning: karma ${C.sack.karma}, cruel deeds.`);
-    if (s.relief && s.relief.arrived) html += _btn(`🚩 Fight the relief host (${C.storm.apCost} AP)`, 'relief', null, ap >= C.storm.apCost, 'border-color:rgba(231,76,60,0.6);');
+    if (s.relief && (s.relief.arrived || info.reliefNear)) {
+        html += _btn(`🚩 ${s.relief.arrived ? 'Fight' : 'Intercept'} the relief host (${C.storm.apCost} AP)`, 'relief', null, ap >= C.storm.apCost, 'border-color:rgba(231,76,60,0.6);');
+    }
     html += '<div style="margin-top:6px;">';
     const t = info.terms;
     const termLabel = {

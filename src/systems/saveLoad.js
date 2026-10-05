@@ -24,6 +24,7 @@ import { Holdings } from './holdings.js';
 import { Rivals } from './rivals.js';
 import { Sagas } from './sagas.js';
 import { Sieges } from './sieges.js';
+import { HoldingSieges } from './holdingSieges.js';
 import { Discovery } from './discovery.js';
 import { MerchantHouses } from './merchantHouses.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
@@ -640,6 +641,8 @@ export const SaveLoad = {
         Sagas.loadState(player);
         // Sieges — older saves get a blank record
         Sieges.loadState(player);
+        // Sieges of your holdings — the ledger on player.realmWars, backfilled for older saves
+        HoldingSieges.loadState(player);
         // Uncharted lands — older saves get a blank record (the places are chosen next day)
         Discovery.loadState(player);
         // Merchant houses — older saves have none (stays null until a charter or company)

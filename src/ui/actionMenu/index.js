@@ -21,6 +21,7 @@ import './delves.js';
 import './underworld.js';
 import './throne.js';
 import './holdings.js';
+import './holdingSieges.js';
 import './rivals.js';
 import './heirs.js';
 import './sagas.js';

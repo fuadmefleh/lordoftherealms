@@ -990,11 +990,11 @@ Each day the town eats a day of its stores. A **port** still fed by sea eats the
   - **Ransom**: the town (and its realm's treasury) pays about 1.2 gold a head, more when its spirit is broken, and you march away.
   - **Tribute**: 30% of the ransom now and 20% every week for 4 weeks.
 - **Fight the relief host** (8 AP) — see below.
-- **Hold the siege** ends the day; **Lift the siege** marches away. Moving off the tile, being captured or losing your whole army also lifts it.
+- **Hold the siege** ends the day; **Lift the siege** marches away. Marching more than one hex from the walls, being captured or losing your whole army also lifts it.
 
 **Your camp** needs a ration for every 3 companies a day. The land gives some (most in summer and autumn, little in winter, less on barren ground, and less every day the army forages it); the rest comes from the food in your packs. A hungry camp loses 10 morale a day. Camp morale starts at 60 (+3 per Leadership) and also falls to boredom after 10 days and to sickness; ram, tower or trebuchet finished and a relief army beaten raise it. Under 30 morale, or after 3 hungry days, soldiers **desert** (not mercenaries). **Camp disease** grows likelier the longer the siege lasts (more in summer, when hungry, or when the town is sick; Medicine techs that resist plague help): for 5–9 days it may carry off a company a day, and you may catch the **Bloody Flux** yourself. Army upkeep is paid every day as usual.
 
-**Relief armies.** When you invest a town its realm may send a relief host (40% for a village up to always for a capital, if its army is 60+): 35% of its army (30–300 strength), arriving in a few days to a few weeks depending on the distance from its capital. The panel warns you how far away it is. On the day it arrives you may fight it or withdraw; if you do neither it attacks your lines the next day, with a sally from the garrison (a quarter of it, if their morale is 40+). Beat it and the town loses heart (−25 morale); lose and the siege is broken. A host that goes home returns most of its strength to the realm's army.
+**Relief armies.** When you invest a town its realm may send a relief host (40% for a village up to always for a capital, if its army is 60+): 35% of its army (30–300 strength). It is a real army on the map (🚩): it musters at the realm's capital (or, if you besiege the capital, its nearest other town) for a few days, then marches on the town at 3 hexes a day, taking the long way round water and mountains. The panel shows where it is and how many days away. You can **intercept** it: your army may stray one hex from the walls without lifting the siege, so meet it as it comes up (**Intercept the relief host** in the siege panel, or attack it from the map). Once it reaches the walls you may fight it or withdraw; if you do neither it attacks your lines the next day, with a sally from the garrison (a quarter of it, if their morale is 40+). Beat it, wherever you meet it, and the town loses heart (−25 morale); lose at the walls and the siege is broken. A host that can find no road for 8 days turns back. A host that goes home (or whose siege is lifted) returns most of its strength to the realm's army. Relief hosts are saved with the other units on the map.
 
 **Throne wars.** In a war for a throne (see [Claims & Crowns](#claims--crowns-the-path-to-the-throne)) a loyalist town of that realm can be besieged too: taken by storm or surrender it declares for you instead of being conquered (+15 momentum, +40 for the capital). Towns that have declared for you can't be besieged.
 
@@ -1685,9 +1685,9 @@ Every 10 days, if you own at least one property or colony, a kingdom with hostil
 **At war**, the enemy sends **war hosts** (🚩 on the map) every 12 days, at most two at a time. Each host's strength is 20 plus 4% of the kingdom's military, between 25 and 180. Hosts march on whichever of your holdings lies closest to one of the enemy's settlements:
 
 - A **property** at level 2 or higher is sacked: it loses a level and its stored goods, and stops producing for 20 days. A level-1 property is burned to the ground.
-- A **colony** is besieged. If the host is stronger than the garrison, the colony is stormed and joins the enemy kingdom. If the garrison holds, the colony loses 10 loyalty.
+- A **holding** (a colony, or a town you hold in your own name) is **besieged** day by day — see [Holdings Under Siege](#holdings-under-siege) below.
 
-A war host attacks you when you're next to it, and you can attack it yourself. Breaking a host gives +30 war score and Prestige. Each holding you lose costs −20 war score, and a colony that holds out gives +10.
+A war host attacks you when you're next to it, and you can attack it yourself. Breaking a host gives +30 war score and Prestige. Each holding you lose costs −20 war score, and a holding that holds out gives +10.
 
 **Ending the war**, from Dynasty → House → Wars & Ultimatums:
 
@@ -1697,6 +1697,35 @@ A war host attacks you when you're next to it, and you can attack it yourself. B
 - **The enemy falls.** If its kingdom is destroyed, the war ends.
 
 A 120-day truce follows any peace.
+
+### Holdings Under Siege
+
+A war host that reaches one of your holdings camps on its tile and **invests** it. A banner under the top bar (and a red ring with ⚔️ and the day count on the map) shows every holding under siege; click it for the **Holdings Under Siege** panel, also linked from Manage Holding. Every notice reaches you wherever you are.
+
+**The defenders** have:
+
+- a **garrison**: the colony's own guard (10 if it has none), 1% of the people, the stationed troops and the militia;
+- **walls**: the holding's defence (palisade, stone walls, watchtower, the governor's martial skill), with an integrity the besiegers batter down;
+- **food stores** in days, reckoned as for a town you besiege: its size, the season and the lean weeks, plus up to 20 days in the granary. A **port** eats them at half pace unless the enemy realm has a fleet (navy strength 10+) to close the harbour;
+- **morale**: 45, plus the town's happiness and loyalty above or below 50, the walls, and a governor's martial skill and loyalty (15–95).
+
+**Each day** the town eats a day of stores and loses a point of morale (a governor's martial skill slows that). Starving, the garrison loses 3% a day and 6 morale; low stores or hunger can bring **disease** (garrison and people die, morale falls). Your army within 4 hexes, half as strong as the besiegers or more, heartens them (+2 a day).
+
+**The besiegers** build a **ram** in 3 days (the walls then count 15% less), then batter the walls 4% a day. From day 3, with the ram up, they **storm** when the odds are good: half the time at 1.5× the storm defence, one day in five at even odds, and now and then against a starving town. A failed storm costs them 15% of their men and heart and lifts the town's (+8). They carry 18–28 days of food; when it runs out they lose 4% a day and 5 morale. Their camp can fall sick too, and boredom sets in after 15 days. They **give up** when their morale is gone, when they are down to 40% of their strength, or after 60 days.
+
+**Your options:**
+
+| Option | Effect |
+|--------|--------|
+| ⚔️ **Relieve it** | March your army to the holding (within a hex) and fight the war host there with the usual combat — or just march up: the host attacks you when you're next to it. If the town's morale is 40+, a quarter of the garrison sallies to help. Win and the siege is lifted (+30 war score, Prestige, +10 loyalty, +5 happiness); lose and the town's morale falls 10. |
+| 📦 **Send supplies** | A caravan (4 hexes a day, 30% chance the besiegers catch it) or, to a port, a ship (6 hexes a day, 12%, +35% if their fleet is at sea; you need a ship) carrying food from your packs and/or gold. Each day's worth of food (1 per 50 people, at least 4) is a day of stores (+3 morale); every 10 gold hires a man inside, every 25 gold a point of morale (up to 15). Caught supplies feed the besiegers instead. |
+| 🗡️ **Order a sally** | The governor (or the garrison captain) leads 40% of the garrison against part of the lines. Martial skill and morale weigh in. Win: the besiegers lose 12% of their men and 12 morale and their ram burns; lose: 40% of the sally is lost and morale −10. Once every 4 days. |
+| 🤝 **Governor's terms** | The governor offers the besiegers your gold (about 2 per besieger, more while their spirits are high) to march away. The chance rises as their morale falls, when they are hungry, with the governor's intrigue and stewardship and with a strong garrison. A refusal costs 3 morale; once every 3 days. |
+| 💰 **Pay them to lift it** | Half the war's peace price plus 1.5 gold per besieger, paid into the enemy's treasury. The host goes home; the war goes on. |
+| 🕊️ **Buy peace** | The war's peace price (see below): the war ends and every siege it brought is lifted. |
+| 🏳️ **Let it fall** | The gates open and the town goes to the enemy. |
+
+**Outcomes.** *Relieved* (the host broken), *held* (the besiegers give up: +10 war score, +5 loyalty), *bought off* (terms or payment), *lifted* (peace), or *fallen* — stormed, starved into surrender (morale or garrison at 0) or yielded. A fallen holding joins the enemy realm (−20 war score); its stationed troops and governor are lost as with any lost holding. Otherwise the garrison's losses fall on the stationed troops. Every siege goes into the House chronicle, and the panel lists your last sieges and how they ended. Another host that arrives joins the siege. Tuning: `data/military.json` → `holdingSieges` (built-in defaults otherwise).
 
 ### Kingdom AI
 
@@ -2207,7 +2236,7 @@ A governor's **loyalty** settles toward a base (family 80, a companion's approva
 
 **Neglect.** A holding with no governor drifts while you are more than 6 hexes away. Each day it loses 0.25 happiness (down to 20) and 0.15 loyalty, and its unrest grows.
 
-**Garrison.** At the holding you can station soldiers from your army there, and march them out again. Hired mercenaries and warships can't be stationed. The garrison adds its strength to the town's defence against kingdom war hosts, bandits and rebels. It also calms unrest (fully once it reaches 2% of the population, at least 20 strength), and it is paid from your purse every day at the troops' normal upkeep. If you can't pay, a tenth of it deserts. A war host beaten off at the walls costs the garrison 15% of its troops. If the town is lost, its garrison is lost with it.
+**Garrison.** At the holding you can station soldiers from your army there, and march them out again. Hired mercenaries and warships can't be stationed. The garrison adds its strength to the town's defence against kingdom war hosts, bandits and rebels. It also calms unrest (fully once it reaches 2% of the population, at least 20 strength), and it is paid from your purse every day at the troops' normal upkeep. If you can't pay, a tenth of it deserts. In a siege (see [Holdings Under Siege](#holdings-under-siege)) the garrison's losses fall on the stationed troops. If the town is lost, its garrison is lost with it.
 
 **Defence** = (the colony's own guard, or 10) + 1% of the population + garrison strength + militia, × (1 + walls, watchtower and governor bonuses).
 

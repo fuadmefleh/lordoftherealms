@@ -41,7 +41,7 @@ const DEFAULT_CONFIG = {
     minRivals: 6,
     maxRivals: 9,
     hexesPerDay: 6,
-    restDays: [1, 4],
+    restDays: [3, 8],
     replaceAfterDays: [8, 20],
     delveRadius: 28,
     wanderRadius: 16,

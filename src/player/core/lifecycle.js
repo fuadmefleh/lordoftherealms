@@ -44,6 +44,11 @@ export const PlayerLifecycleMethods = {
             this.starvationDays = 0;
             // Eating food satisfies hunger
             this.modifyNeed('hunger', DAILY_RATION_HUNGER);
+        } else if (this.jailState || this.indenturedServitude) {
+            // Prisoners and bonded workers get their captors' thin gruel: no
+            // starving to death in a cell you can't leave to buy bread
+            this.starvationDays = 0;
+            this.modifyNeed('hunger', DAILY_RATION_HUNGER / 2);
         } else {
             // No food — increment starvation
             this.starvationDays = (this.starvationDays || 0) + 1;

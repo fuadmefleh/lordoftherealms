@@ -887,10 +887,45 @@ Units gain XP through combat (+5 XP per battle, +10 XP per contract). At 100 XP,
 
 ### Sieges and Raids
 
-Choosing **Attack** on a settlement opens the siege panel with two options:
+Choosing **Attack** on a settlement opens a panel with two options:
 
-- **Siege** — fight the full garrison to conquer the settlement. Heavy karma and reputation penalties with every kingdom.
 - **Raid** — fight only half the garrison, plunder its gold and withdraw. No conquest; karma -5, reputation -20 with the owning kingdom (-30 if the raid fails), population -10%. A raided settlement has nothing worth taking for **30 days**.
+- **Lay Siege** — your army (50+ land strength) camps before the walls and the siege begins. Investing a town costs reputation -15 with its kingdom and karma -2. From then on the siege runs day by day: the action menu shows **Siege of …** (no AP to open), and the siege panel shows the day count, both sides' strength, stores and morale, the walls, your works and any relief army on the way.
+
+**The defenders** have:
+
+- a **garrison**: 3% of the population × the town's size (village 0.8, town 1.5, city 3, capital 5), plus 15% of the realm's army (40% at the capital) and a holding's stationed troops and militia;
+- **walls**: +10% for a town, +30% for a city, +40% for a capital, plus a holding's walls and the realm's own defensive character. Their **integrity** (100%) falls to mines and trebuchets and is mended a little each night while the defenders are fed and in good heart;
+- **food stores** in days: 10 (village) to 30 (capital), more after the autumn harvest, less in spring and the lean weeks, plus up to 20 days of granary reserve;
+- **morale**: 70 (80 at a capital, +10 when a relief army is coming).
+
+Each day the town eats a day of its stores. A **port** still fed by sea eats them at half pace, unless your war galleys or an enemy realm's fleet blockade it. Morale falls a little every day; once the stores are gone the garrison starves (−3% a day, −6 morale), and low stores or hunger can bring **disease** inside the walls (garrison and people die, morale falls). A garrison whose morale reaches 0 **surrenders**.
+
+**Your stance for the day:**
+
+| Stance | Effect |
+|--------|--------|
+| 🛡️ Blockade | Tighten the cordon: the town eats 25% faster and loses an extra point of morale a day |
+| Siege works | Build one engine at a time (paid when you start). 🐏 Battering ram (60g, 3 days): the storm defence is 15% weaker. 🗼 Siege tower (150g, 6 days, needs Fortification): walls count half in a storm and cost half the men. 🏹 Trebuchet (300g, 8 days, needs Siege Engineering): batters the walls −6% a day. Siege engines in your army build 50% faster, a large army (6+ companies) 20% faster |
+| ⛏️ Sap the walls | Dig a mine (10 days, 50% faster with Fortification). When it is fired 60% of the wall comes down. Each day the defenders may break in (6%), setting it back 3 days and killing a crew |
+
+**Actions:**
+
+- **Storm** (8 AP) — a battle with the usual combat rules against the garrison behind what is left of its walls: defence = garrison × (1 + walls × integrity), −15% with a ram, scaled down by low morale (to 55%), starvation (×0.8) and disease (×0.85). Scaling the walls costs up to 12% of your companies on top of the battle's losses (less as the walls come down, half with a tower). **Storm and hold** takes the town with the usual conquest: plunder, the old realm loses its army share (a capital moves, or the realm falls), the town goes to your liege — or, if you are sworn to no one, becomes your own holding; karma −10, reputation −50 with the owner and −10 with every realm, renown and House Prestige, a claim on the throne for a capital. **Storm and sack** loots it instead: 3–6 gold a head, a quarter of the people lost, happiness −20, karma −15, reputation −40 with the owner and −10 with all, cruelty, greed and dread deeds, and severity in your court reputation; the town stays with its realm. A failed storm costs the garrison 10% but lifts its morale (+8), drops your camp's morale (−15) and costs −10 reputation.
+- **Offer terms** (2 AP, once every 3 days) — the chance shows on each button. It rises as the defenders' morale falls, when they starve, with your strength against theirs, your Diplomacy, traits that help negotiation (Honest, Cunning), a fearsome name (Dread Lord, Cruel) and a merciful or severe court reputation; it falls while a relief army is on its way. A refusal hardens them (+3 morale).
+  - **Surrender with safe passage** (hardest): the town is taken without a storm — a little plunder, 5% of the people lost, karma −3, half the reputation loss; mercy and honesty deeds.
+  - **Ransom**: the town (and its realm's treasury) pays about 1.2 gold a head, more when its spirit is broken, and you march away.
+  - **Tribute**: 30% of the ransom now and 20% every week for 4 weeks.
+- **Fight the relief host** (8 AP) — see below.
+- **Hold the siege** ends the day; **Lift the siege** marches away. Moving off the tile, being captured or losing your whole army also lifts it.
+
+**Your camp** needs a ration for every 3 companies a day. The land gives some (most in summer and autumn, little in winter, less on barren ground, and less every day the army forages it); the rest comes from the food in your packs. A hungry camp loses 10 morale a day. Camp morale starts at 60 (+3 per Leadership) and also falls to boredom after 10 days and to sickness; ram, tower or trebuchet finished and a relief army beaten raise it. Under 30 morale, or after 3 hungry days, soldiers **desert** (not mercenaries). **Camp disease** grows likelier the longer the siege lasts (more in summer, when hungry, or when the town is sick; Medicine techs that resist plague help): for 5–9 days it may carry off a company a day, and you may catch the **Bloody Flux** yourself. Army upkeep is paid every day as usual.
+
+**Relief armies.** When you invest a town its realm may send a relief host (40% for a village up to always for a capital, if its army is 60+): 35% of its army (30–300 strength), arriving in a few days to a few weeks depending on the distance from its capital. The panel warns you how far away it is. On the day it arrives you may fight it or withdraw; if you do neither it attacks your lines the next day, with a sally from the garrison (a quarter of it, if their morale is 40+). Beat it and the town loses heart (−25 morale); lose and the siege is broken. A host that goes home returns most of its strength to the realm's army.
+
+**Throne wars.** In a war for a throne (see [Claims & Crowns](#claims--crowns-the-path-to-the-throne)) a loyalist town of that realm can be besieged too: taken by storm or surrender it declares for you instead of being conquered (+15 momentum, +40 for the capital). Towns that have declared for you can't be besieged.
+
+Tuning lives in `data/military.json` → `sieges`.
 
 ### Creatures and Travelers
 
@@ -935,9 +970,9 @@ Mercenaries have a **loyalty** system (45–90 base). If you fail to pay them or
 | Action | Min Strength | Risk | Rewards |
 |--------|-------------|------|---------|
 | Raid | 30 | Lower garrison defense | Plunder, −5 karma, −20 reputation |
-| Conquer | 50 | Full garrison battle | Capture settlement, large plunder, −10 karma, −20+ reputation with all kingdoms |
+| Siege | 50 | A campaign of days: hunger, disease, desertion, relief armies, a costly storm | Capture (holding or liege), sack, ransom or tribute — see [Sieges and Raids](#sieges-and-raids) |
 
-Garrison strength scales with population, settlement tier, and walls.
+Garrison strength scales with population, settlement tier, the realm's army and walls.
 
 ### Indentured Servitude
 
@@ -1701,6 +1736,7 @@ The civil war:
 - **Loyalist war hosts** march on your holdings, as in any war against you (§16). Each host you break adds half its war score to your momentum (+15); a holding lost costs −10.
 - **Field battles** about one day in three. Your odds are (levies + your army) against 60% of the loyalist army, ± momentum ÷ 400 (10–90%). A win gives +6 momentum, costs the loyalists 5% of their army, and 35% of the time a loyalist town declares for you (the capital last). A loss gives −6 momentum, costs 7% of your levies, and a town may go back to the crown.
 - **Lead the assault yourself** (2 AP): fight a loyalist vanguard (8% of their army). A win gives +10 momentum and turns a town; a loss gives −8.
+- **Besiege a loyalist town**: taken by storm or surrender, it declares for you (+15 momentum, +40 for the capital) — see [Sieges and Raids](#sieges-and-raids).
 - The realm drifts toward whoever holds more of it, by (rebel share − 45%) × 2 a day, and loses 15 stability while the war lasts.
 - A war for a throne can't be bought off or ended by demanding peace.
 

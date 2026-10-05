@@ -47,6 +47,7 @@ import { Cartography } from '../../systems/cartography.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Rivals } from '../../systems/rivals.js';
 import { Sagas } from '../../systems/sagas.js';
+import { Sieges } from '../../systems/sieges.js';
 import { Holdings } from '../../systems/holdings.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
@@ -254,6 +255,8 @@ export function endDay(game) {
     mark(game, 'RealmWars.processDaily');
     Throne.processDaily(player, world, { armyStrength: PlayerMilitary.getArmyStrength(player) });
     mark(game, 'Throne.processDaily');
+    Sieges.processDay(world, player);
+    mark(game, 'Sieges.processDay');
     Holdings.processDay(player, world);
     mark(game, 'Holdings.processDay');
     MarketDynamics.updatePrices(world);

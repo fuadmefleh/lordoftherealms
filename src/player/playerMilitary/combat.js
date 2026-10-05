@@ -444,17 +444,46 @@ Object.assign(PlayerMilitary, {
         const previousKingdom = settlement.kingdom;
 
         if (result.victory) {
+            PlayerMilitary.conquerSettlement(player, settlement, tile, world, result);
+        } else {
+            // --- DEFEAT ---
+            result.conquered = false;
+
+            // Reputation hit even for failed attack
+            if (previousKingdom) {
+                player.reputation[previousKingdom] =
+                    (player.reputation[previousKingdom] || 0) - 30;
+            }
+            player.karma -= 5;
+            result.karmaChange = -5;
+        }
+
+        return result;
+    },
+
+    /**
+     * Take a settlement: plunder, the old realm's losses (a capital moves or
+     * the realm falls), the new owner (the player's liege, or the player's
+     * own colony/holding when unsworn), karma, reputation, renown and House
+     * deeds. Shared by attackSettlement and a siege that ends in capture or
+     * surrender (systems/sieges.js). `opts` softens a negotiated surrender:
+     * { plunder: [min, max] per head, popKeep, karma, reputationMult }.
+     */
+    conquerSettlement(player, settlement, tile, world, result = {}, opts = {}) {
+        const previousKingdom = settlement.kingdom;
+        {
             // --- CONQUEST ---
             result.conquered = true;
             Quests.track(player, 'settlements_captured');
 
             // Plunder gold from the settlement
-            const plunder = Math.floor(settlement.population * Utils.randFloat(1, 3));
+            const range = opts.plunder || [1, 3];
+            const plunder = Math.floor(settlement.population * Utils.randFloat(range[0], range[1]));
             player.gold += plunder;
             result.plunder = plunder;
 
             // Population suffers from the siege
-            settlement.population = Math.floor(settlement.population * 0.7);
+            settlement.population = Math.floor(settlement.population * (opts.popKeep != null ? opts.popKeep : 0.7));
 
             // Remove settlement from old kingdom
             if (previousKingdom) {
@@ -518,15 +547,17 @@ Object.assign(PlayerMilitary, {
             // Clear market stock (looted)
             settlement.marketStock = {};
 
-            // Massive karma and reputation hit
-            player.karma -= 10;
-            Traits.recordAggression(player, previousKingdom, { cruelty: 2 });
-            result.karmaChange = -10;
+            // Massive karma and reputation hit (less for a town that opened its gates)
+            const karma = opts.karma != null ? opts.karma : -10;
+            player.karma += karma;
+            if (karma <= -10) Traits.recordAggression(player, previousKingdom, { cruelty: 2 });
+            result.karmaChange = karma;
 
             // Reputation with ALL kingdoms drops
+            const repMult = opts.reputationMult != null ? opts.reputationMult : 1;
             for (const k of world.kingdoms) {
                 if (!k.isAlive) continue;
-                const penalty = k.id === previousKingdom ? -50 : -10;
+                const penalty = Math.round((k.id === previousKingdom ? -50 : -10) * repMult);
                 player.reputation[k.id] = (player.reputation[k.id] || 0) + penalty;
             }
 
@@ -554,19 +585,7 @@ Object.assign(PlayerMilitary, {
                 text: `⚔️ ${player.name} has conquered ${settlement.name}!`,
                 type: 'military'
             });
-        } else {
-            // --- DEFEAT ---
-            result.conquered = false;
-
-            // Reputation hit even for failed attack
-            if (previousKingdom) {
-                player.reputation[previousKingdom] =
-                    (player.reputation[previousKingdom] || 0) - 30;
-            }
-            player.karma -= 5;
-            result.karmaChange = -5;
         }
-
         return result;
     },
 

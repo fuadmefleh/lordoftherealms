@@ -30,6 +30,7 @@ import { Underworld } from '../../systems/underworld.js';
 import { Companions } from '../../systems/companions.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { Ailments } from '../../systems/ailments.js';
+import { Sieges } from '../../systems/sieges.js';
 import { travelTo } from './harness.js';
 
 const FOOD = ['grain', 'bread'];
@@ -444,6 +445,54 @@ function chooseDestination(game) {
     return near.length ? Utils.randPick(near) : null;
 }
 
+/**
+ * Now and then lay siege to a weak town of a realm, and see it through:
+ * a ram, terms after a few days, a storm with overwhelming odds, a relief
+ * host fought or fled, and lifting the siege when the camp goes hungry.
+ * Returns true while the army is camped before the walls.
+ */
+function siege(game, stats) {
+    const { player, world } = game;
+    if (!Sieges.active(player)) {
+        const tile = world.getTile(player.q, player.r);
+        const st = tile && tile.settlement;
+        if (!st || !st.kingdom || st.type === 'capital' || player.gold < 1500 || player.getFoodCount() < 20) return false;
+        if (PlayerMilitary.getArmyStrength(player) < 2 * PlayerMilitary.getSettlementDefense(st, world)) return false;
+        if (Utils.random() > 0.05) return false;
+        if (!Sieges.invest(player, world, tile).success) return false;
+        count(stats, 'siegesLaid');
+    }
+    const s = Sieges.active(player);
+    const d = Sieges.describe(player, world);
+    count(stats, 'siegeDays');
+    if (s.relief && s.relief.arrived) {
+        if (d.army > s.relief.strength * 1.3) {
+            const r = Sieges.fightRelief(player, world);
+            count(stats, r.victory ? 'reliefsBeaten' : 'reliefLosses');
+        } else if (Sieges.lift(player, world)) {
+            count(stats, 'siegesLifted');
+        }
+        return !!Sieges.active(player);
+    }
+    if (s.hungryDays >= 2 || d.day > 30) {
+        Sieges.lift(player, world);
+        count(stats, 'siegesLifted');
+        return false;
+    }
+    if (d.canParley && d.day >= 2) {
+        const term = d.chances.surrender > 0.4 ? 'surrender' : d.chances.ransom > 0.3 ? 'ransom' : 'tribute';
+        if (Sieges.negotiate(player, world, term).accepted) count(stats, 'siegeTerms');
+    }
+    if (Sieges.active(player) && d.day >= 3 && d.army >= d.defense * 2.5) {
+        const r = Sieges.storm(player, world, { sack: Utils.random() < 0.2 });
+        count(stats, r.victory ? 'siegesStormed' : 'stormsRepelled');
+    }
+    if (Sieges.active(player) && s.stance === 'blockade' && !s.works.ram && !s.building && player.gold > 1000) {
+        if (Sieges.setStance(player, world, 'works', 'ram').success) count(stats, 'siegeWorks');
+    }
+    return !!Sieges.active(player);
+}
+
 /** Raise the children: a focus each, a cheap tutor when rich, answer their dilemmas. */
 function family(game, stats) {
     const { player, world } = game;
@@ -604,6 +653,7 @@ export function botDay(game, stats) {
             if (booked(game, 'medicine', () => Ailments.treat(player, world, sickAt.settlement, opt.key)).success) count(stats, 'treated');
         }
     }
+    if (booked(game, 'siege', () => siege(game, stats))) return;
     booked(game, 'court', () => court(game, stats));
     booked(game, 'throne', () => throne(game, stats));
     booked(game, 'treasures', () => treasures(game, stats));

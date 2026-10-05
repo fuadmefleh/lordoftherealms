@@ -2,6 +2,7 @@
 // for a crown, and ruling a realm. Logic lives in systems/throne.js; this
 // panel presents it.
 import { ActionMenu } from './_ref.js';
+import { Sieges } from '../../systems/sieges.js';
 import { Throne, PlayerMilitary, House } from './_imports.js';
 
 const BTN = 'padding: 5px 9px; margin: 4px 4px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
@@ -105,6 +106,7 @@ Object.assign(ActionMenu, {
             html += `<div>Momentum ${Math.round(cw.momentum)} <span style="${MUTED}">(crowned at ${cfg.civilWar.victoryMomentum}, exile at ${cfg.civilWar.defeatMomentum})</span></div>`;
             html += _bar(cw.momentum, cfg.civilWar.defeatMomentum, cfg.civilWar.victoryMomentum, cw.momentum >= 0 ? '#8fd88f' : '#e74c3c');
             html += `<div style="${MUTED}">Your levies ${Math.round(cw.levies)} + your army ${army} vs. loyalists ${Math.floor(cwK.military || 0)} · battles won ${cw.battlesWon}, lost ${cw.battlesLost}. Loyalist war hosts march on your holdings — break them in the field.</div>`;
+            html += `<div style="${MUTED}">🏰 Or besiege a loyalist town: taken by storm or surrender, it declares for you (+${Sieges.config().civilWar.momentum} momentum, +${Sieges.config().civilWar.capitalMomentum} for the capital).</div>`;
             if (fc) html += _leanings(fc, cw.sides);
             const van = Throne.loyalistVanguard(player, world);
             html += _btn(`⚔️ Lead the assault (${AP.battle} AP, ≈${van} strength)`, 'window._throne.assault()', army > 0);

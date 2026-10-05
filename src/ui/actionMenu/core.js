@@ -87,7 +87,7 @@ Object.assign(ActionMenu, {
             form_kingdom: 'social', claims_crowns: 'social',
             host_feast: 'social', hold_tournament: 'social', host_festival: 'social',
             meet_people: 'social', view_relationships: 'social', manage_dynasty: 'social',
-            recruit: 'military', attack_unit: 'military', attack_settlement: 'military',
+            recruit: 'military', attack_unit: 'military', attack_settlement: 'military', siege_camp: 'military',
             train_combat: 'military', reforge_artifact: 'military', capture_criminal: 'military',
             request_meeting: 'social',
             build_property: 'building', build_temple: 'building',
@@ -411,7 +411,7 @@ Object.assign(ActionMenu, {
         demolish_infrastructure: 6, send_pioneers: 6,
 
         // Combat / Major ship operations (8 AP)
-        attack_unit: 8, attack_settlement: 8,
+        attack_unit: 8, attack_settlement: 8, siege_camp: 0,
         board_ship: 8, visit_shipyard: 1, row_ashore: 4, row_to_ship: 4, ship_hold: 0, port_market: 0, explore_ocean: 6, hunt_pirates: 10, commit_piracy: 10,
 
         // Title actions
@@ -855,6 +855,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'attack_settlement':
                 ActionMenu.showSiegeConfirm(game, tile);
+                break;
+            case 'siege_camp':
+                ActionMenu.showSiegePanel(game);
                 break;
             case 'request_meeting':
                 ActionMenu.showLordMeetingMenu(game, tile, { type: actionType, unitId });

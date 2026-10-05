@@ -14,6 +14,7 @@ import { Culture } from '../../systems/culture.js';
 import { PlayerEconomy } from '../playerEconomy.js';
 import { SeasonalWork } from '../seasonalWork.js';
 import { Delves } from '../../systems/delves.js';
+import { Sieges } from '../../systems/sieges.js';
 
 export function addWildernessActions(actions, player, tile, world) {
     // Meditate / Pray (anywhere on passable terrain)
@@ -371,8 +372,19 @@ export function addWildernessActions(actions, player, tile, world) {
         }
     }
 
+    // The siege in progress here (systems/sieges.js): its camp, not a fresh attack
+    const siegeHere = tile.settlement && Sieges.activeAt(player, tile.q, tile.r);
+    if (siegeHere) {
+        actions.push({
+            type: 'siege_camp',
+            label: `Siege of ${tile.settlement.name} (day ${(world.day || 0) - siegeHere.startDay})`,
+            icon: '🏰',
+            description: 'Your camp before the walls: stance, siege works, storm, terms, relief',
+        });
+    }
+
     // Attack settlement
-    if (tile.settlement && player.army && player.army.length > 0) {
+    if (tile.settlement && !siegeHere && player.army && player.army.length > 0) {
         const isOwnColony = tile.settlement.colony && tile.settlement.colony.isPlayerColony;
         const isOwnKingdom = player.allegiance && tile.settlement.kingdom === player.allegiance;
         if (!isOwnColony && !isOwnKingdom) {

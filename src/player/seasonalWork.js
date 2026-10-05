@@ -21,6 +21,27 @@ import { PlayerInventory } from './inventory.js';
 
 const range = (pair, fallback) => (Array.isArray(pair) && pair.length === 2 ? pair : fallback);
 
+/**
+ * Where a settlement stands. Settlement objects on tiles carry no q/r of their
+ * own, so look for the tile holding it (the same object, or failing that one
+ * with its name — contracts from older saves stored no position).
+ */
+function locateSettlement(world, settlement, name = settlement && settlement.name) {
+    if (settlement && Number.isFinite(settlement.q) && Number.isFinite(settlement.r)) return { q: settlement.q, r: settlement.r };
+    if (!world || !Array.isArray(world.tiles)) return null;
+    let byName = null;
+    for (let r = 0; r < world.tiles.length; r++) {
+        const row = world.tiles[r] || [];
+        for (let q = 0; q < row.length; q++) {
+            const s = row[q] && row[q].settlement;
+            if (!s) continue;
+            if (settlement && s === settlement) return { q, r };
+            if (!byName && name && s.name === name) byName = { q, r };
+        }
+    }
+    return byName;
+}
+
 export const SeasonalWork = {
     // ── Seasonal odd jobs ─────────────────────────────────
 
@@ -164,9 +185,10 @@ export const SeasonalWork = {
         const size = settlement.type === 'town' ? 1.25 : 1;
         const payout = Math.round(Utils.randInt(plo, phi) * size);
         const day = Seasons.today(world);
+        const at = locateSettlement(world, settlement) || {};
         const contract = {
             settlementName: settlement.name,
-            q: settlement.q, r: settlement.r,
+            q: at.q, r: at.r,
             signedDay: day,
             dueDay: SeasonalWork.harvestDay(day),
             payout,
@@ -193,7 +215,8 @@ export const SeasonalWork = {
         const paid = [];
         player.plantingContracts = contracts.filter(c => {
             if (day < c.dueDay) return true;
-            const tile = world && typeof world.getTile === 'function' ? world.getTile(c.q, c.r) : null;
+            const at = Number.isFinite(c.q) && Number.isFinite(c.r) ? c : locateSettlement(world, null, c.settlementName);
+            const tile = at && world && typeof world.getTile === 'function' ? world.getTile(at.q, at.r) : null;
             if (!tile || !tile.settlement || tile.settlement.name !== c.settlementName) {
                 paid.push({ settlementName: c.settlementName, paid: 0, factor: 0, lost: true });
                 return false;

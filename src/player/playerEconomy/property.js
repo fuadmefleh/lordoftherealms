@@ -300,7 +300,9 @@ Object.assign(PlayerEconomy, {
                         const pop = tile.settlement.population || 50;
                         if (tile.settlement.type === 'capital') baseIncome = 35;
                         else if (tile.settlement.type === 'town') baseIncome = 25;
-                        baseIncome += Math.floor(pop / 100) * 2; // +2g per 100 pop
+                        // +2g per 100 pop, up to +40: a capital of 15,000 used to
+                        // add 300g a day, repaying a 900g tavern in three days
+                        baseIncome += Math.min(40, Math.floor(pop / 100) * 2);
                     }
                     // Level bonus
                     baseIncome = Math.floor(baseIncome * (1 + (property.level - 1) * 0.15));

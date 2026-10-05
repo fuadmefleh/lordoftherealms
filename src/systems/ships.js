@@ -11,6 +11,7 @@ import { WEATHER_EFFECTS } from '../world/weather.js';
 import { LegendaryArtifacts } from './legendaryArtifacts.js';
 import { Infrastructure } from './infrastructure.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
+import { Economy } from '../world/economy.js';
 import { Underworld } from './underworld.js';
 
 /**
@@ -1340,6 +1341,26 @@ export const Ships = {
         return { success: true, ship, bought: n, cost };
     },
 
+    /**
+     * What this port pays the player per unit for a market entry, with trade
+     * bonuses — but never past what the same goods cost here: below the
+     * port's own asking price, and at most half the town market's (the
+     * least a player's discounts can buy them for).
+     */
+    portSaleUnitPrice(player, world, q, r, entry) {
+        const portTile = world.getTile(q, r);
+        const eventMod = WorldEvents.getModifier(world, 'tradeIncome', portTile) + WorldEvents.getModifier(world, 'seaTradeIncome', portTile)
+            // A Lighthouse you own beside the port brings ships in safely
+            + (Technology.hasBuildingNear(player, world, 'lighthouse_building', q, r, 1) ? 0.15 : 0)
+            // Lighthouse tech: charted harbours pay better at every port
+            + Technology.getEffectTotal(player, 'portTradeBonus');
+        const price = entry.sell * (1 + Technology.getTradeProfitBonus(player)) * (1 + eventMod);
+        const marketAsk = Economy.marketAsk(world, portTile, entry.id);
+        let unitCap = entry.buy ? entry.buy - 1 : Infinity;
+        if (marketAsk != null) unitCap = Math.min(unitCap, Math.floor(marketAsk * 0.5));
+        return Math.max(0, Math.min(price, unitCap));
+    },
+
     /** Sell a trade good from a docked ship's hold to this port. */
     sellTradeGood(player, world, shipId, goodId, qty) {
         const ship = this._getShipAtPort(player, world, shipId);
@@ -1350,13 +1371,7 @@ export const Ships = {
         if (!entry) return { success: false, message: 'Nobody here buys that.' };
         const n = Math.min(qty, (ship.cargo && ship.cargo[goodId]) || 0);
         if (n <= 0) return { success: false, message: 'None of that in the hold.' };
-        const portTile = world.getTile(player.q, player.r);
-        const eventMod = WorldEvents.getModifier(world, 'tradeIncome', portTile) + WorldEvents.getModifier(world, 'seaTradeIncome', portTile)
-            // A Lighthouse you own beside the port brings ships in safely
-            + (Technology.hasBuildingNear(player, world, 'lighthouse_building', player.q, player.r, 1) ? 0.15 : 0)
-            // Lighthouse tech: charted harbours pay better at every port
-            + Technology.getEffectTotal(player, 'portTradeBonus');
-        const revenue = Math.max(0, Math.floor(n * entry.sell * (1 + Technology.getTradeProfitBonus(player)) * (1 + eventMod)));
+        const revenue = Math.max(0, Math.floor(n * this.portSaleUnitPrice(player, world, player.q, player.r, entry)));
         ship.cargo[goodId] -= n;
         if (ship.cargo[goodId] <= 0) delete ship.cargo[goodId];
         player.gold = (player.gold || 0) + revenue;
@@ -1456,11 +1471,18 @@ export const Ships = {
             }
         }
 
-        // Deduct total upkeep
+        // Deduct total upkeep — never past an empty purse: what can't be
+        // paid goes undone, and neglected hulls wear
+        let upkeepShort = 0;
         if (totalUpkeep > 0) {
-            player.gold -= totalUpkeep;
-            if (player.financeToday) {
-                player.financeToday.expenses.ships = (player.financeToday.expenses.ships || 0) + totalUpkeep;
+            const paidUpkeep = Math.min(totalUpkeep, Math.max(0, player.gold || 0));
+            upkeepShort = totalUpkeep - paidUpkeep;
+            player.gold -= paidUpkeep;
+            if (player.financeToday && paidUpkeep > 0) {
+                player.financeToday.expenses.ships = (player.financeToday.expenses.ships || 0) + paidUpkeep;
+            }
+            if (upkeepShort > 0) {
+                for (const ship of ships) ship.condition = Math.max(10, (ship.condition || 100) - 1);
             }
         }
 
@@ -1468,7 +1490,7 @@ export const Ships = {
         const interceptions = this._interceptShips(player, world);
 
         const crew = this._payCrews(player, ships);
-        return { stormReports, crew, interceptions };
+        return { stormReports, crew, interceptions, upkeepShort };
     },
 
     /* ── Royal fleets at sea ─────────────────────────────────── */

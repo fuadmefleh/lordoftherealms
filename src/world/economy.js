@@ -6,6 +6,7 @@ import { Hex } from '../core/hex.js';
 import { Utils } from '../core/utils.js';
 import { Kingdom } from './kingdom.js';
 import { Seasons } from './seasons.js';
+import { DataLoader } from '../core/dataLoader.js';
 
 export const Economy = {
     /**
@@ -152,6 +153,150 @@ export const Economy = {
     saleBonus(settlement) {
         const b = settlement && settlement.economy && settlement.economy.resourceBonuses;
         return b ? (b.trade || 0) * Economy.effectScale('salePrice') : 0;
+    },
+
+    // ── The settlement market (what the player can buy, and at what price) ──
+    // Lives here, below the player and systems layers, so every outlet that
+    // buys from the player (the market itself, fences, black markets, ports)
+    // can check what the same goods cost on the same tile.
+
+    /** GOODS definitions (data/playerEconomy.json). */
+    _goods() {
+        const pe = DataLoader._gamedata && DataLoader._gamedata.playerEconomy;
+        return (pe && pe.GOODS) || {};
+    },
+
+    /**
+     * The goods a settlement's market sells: [{ key, qtyMult }] (GOODS keys;
+     * stock is population × qtyMult).
+     */
+    marketGoods(settlement, tile) {
+        const out = [];
+        if (!settlement) return out;
+        const add = (key, qtyMult) => out.push({ key, qtyMult });
+        const type = settlement.type;
+
+        // All settlements have basic food
+        add('GRAIN', 0.1);
+        add('BREAD', 0.05);
+        // Larger settlements have more variety
+        if (type === 'town' || type === 'city' || type === 'capital') {
+            add('TOOLS', 0.02);
+            add('WOOD', 0.05);
+            add('STONE', 0.03);
+        }
+        if (type === 'city' || type === 'capital') {
+            add('WEAPONS', 0.01);
+            add('LUXURIES', 0.005);
+            add('GEMS', 0.002);
+        }
+        // All settlements with taverns sell beer and liquor
+        if (type === 'town' || type === 'capital') {
+            add('BEER', 0.08);
+            add('LIQUOR', 0.03);
+        }
+        // Horses available at larger settlements
+        if (type === 'town') add('HORSES', 0.005);  // Basic workhorses at towns
+        if (type === 'city' || type === 'capital') add('HORSE', 0.003); // Quality riding horses
+        // Local resources stock the market: coal from the pits, rock oil
+        // from the seeps, beef and hides from the herds
+        const resId = tile && tile.resource && tile.resource.id;
+        if (resId === 'coal') add('COAL', 0.03);
+        if (resId === 'oil') { add('OIL', 0.01); add('LAMP_OIL', 0.01); }
+        if (resId === 'cattle') { add('MEAT', 0.04); add('HIDE', 0.02); }
+        return out;
+    },
+
+    /**
+     * What a settlement's market charges for one unit of `good` (a GOODS
+     * entry), before the player's own discounts.
+     */
+    marketPrice(good, settlement, tile, world = null) {
+        let price = good.basePrice;
+
+        // Larger settlements have better prices (cheaper to buy)
+        const sizeMultiplier = {
+            village: 1.2,
+            town: 1.0,
+            city: 0.9,
+            capital: 0.8,
+        };
+        price *= sizeMultiplier[settlement.type] || 1.0;
+
+        // Temperature based demand for Firewood and Warm Clothes.
+        // `world` is null in headless/test contexts, which skips weather-based demand.
+        if (world && world.weather) {
+            // Seasonal temperature in °C, and snow on the ground makes it worse
+            const temp = world.weather.getTemperature(tile.q, tile.r);
+            const celsius = typeof temp === 'object' ? temp.celsius : 15;
+            const wx = world.weather.getWeather(tile.q, tile.r).type;
+            const isCold = celsius < 5 || wx === 'snow' || wx === 'blizzard';
+
+            if (good.id === 'firewood') {
+                if (isCold) price *= 1.5; // High demand in cold
+                else price *= 0.8; // Low demand elsewhere
+            }
+            if (good.id === 'clothes') {
+                if (isCold) price *= 1.3;
+            }
+        } else {
+            // Fallback to biome based logic
+            const isCold = ['tundra', 'snowy_wasteland', 'ice_sheet', 'taiga', 'boreal_forest'].includes(tile.terrain.id);
+            if (good.id === 'firewood') {
+                if (isCold) price *= 1.5;
+                else price *= 0.8;
+            }
+        }
+
+        // Resource bonuses affect prices
+        if (tile.resource) {
+            if (good.id === 'grain' && ['wheat'].includes(tile.resource.id)) price *= 0.7;
+            if ((good.id === 'bread' || good.id === 'flour') && ['wheat'].includes(tile.resource.id)) price *= 0.85;
+            if (good.id === 'weapons' && tile.resource.id === 'iron') price *= 0.8;
+            if (good.id === 'luxuries' && ['gems', 'spices'].includes(tile.resource.id)) price *= 0.85;
+            if (good.id === 'stone' && tile.resource.id === 'stone') price *= 0.7;
+            if (good.id === 'gold_ore' && tile.resource.id === 'gold_ore') price *= 0.7;
+            // Coal-fired smithies turn out cheaper metalwork
+            if (['weapons', 'tools', 'iron_ingot', 'coal'].includes(good.id) && tile.resource.id === 'coal') price *= good.id === 'coal' ? 0.7 : 0.9;
+            if (['oil', 'lamp_oil'].includes(good.id) && tile.resource.id === 'oil') price *= 0.7;
+            if (['meat', 'hide', 'cheese', 'leather_armor'].includes(good.id) && tile.resource.id === 'cattle') price *= 0.75;
+        }
+
+        // The agricultural year: food is cheap after the harvest and dear in
+        // the lean months, furs dear in winter (world/seasons.js)
+        price *= Seasons.priceMultiplier(good.id, Seasons.today(world));
+
+        return Math.floor(price);
+    },
+
+    /**
+     * The open-market asking price for `goodId` at the settlement on `tile`,
+     * or null when its market doesn't sell that good. Outlets that buy from
+     * the player on the same tile pay less than this, so nothing can be
+     * bought and sold straight back for a profit.
+     */
+    marketAsk(world, tile, goodId) {
+        const settlement = tile && tile.settlement;
+        if (!settlement || !goodId) return null;
+        const key = String(goodId).toUpperCase();
+        const good = Economy._goods()[key];
+        if (!good || !Economy.marketGoods(settlement, tile).some(g => g.key === key)) return null;
+        return Economy.marketPrice(good, settlement, tile, world);
+    },
+
+    /** The tile a settlement object stands on (settlements carry q/r once the world has stamped them). */
+    settlementTile(world, settlement) {
+        if (!world || !settlement || typeof world.getTile !== 'function') return null;
+        if (Number.isFinite(settlement.q) && Number.isFinite(settlement.r)) {
+            const t = world.getTile(settlement.q, settlement.r);
+            if (t && t.settlement === settlement) return t;
+        }
+        if (!Array.isArray(world.tiles)) return null;
+        for (const row of world.tiles) {
+            if (!Array.isArray(row)) continue;
+            for (const t of row) if (t && t.settlement === settlement) return t;
+        }
+        return null;
     },
 
     /**

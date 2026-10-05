@@ -1,0 +1,274 @@
+{
+  "_comment": "Kingship — ruling a realm as its sovereign (src/systems/kingship.js, built on systems/throne.js). The royal council's great offices, realm-wide edicts with upkeep, the realm's lords as vassals (opinion, ambition, power, factions, levy refusal and revolt), and the AI's regard for a player-ruled realm. Office and edict 'mods' are kingdom bonus keys (world/kingdomState.js KingdomBonuses) fed through kingdom.crown.mods; office mods are per point of competence (1-20), scaled by the councillor's loyalty.",
+
+  "config": {
+    "maxVassals": 8,
+    "minVassals": 3,
+    "vassalTick": 7,
+    "opinionDrift": 0.3,
+    "favourDecay": 0.9,
+    "grudgeDecay": 0.95,
+    "yearDays": 120,
+    "deathAge": 70,
+    "deathChancePerYear": 0.08,
+    "newVassalCadence": 30,
+
+    "power": { "base": 8, "perPopulation": 0.006, "populationCap": 30, "typeBonus": { "city": 10, "capital": 10, "town": 4, "castle": 8 }, "perMartial": 1.2, "perLand": 10, "perTitle": 5, "landless": 6 },
+
+    "opinion": {
+      "levy": { "light": 10, "standard": 0, "heavy": -15 },
+      "councilSeat": 15,
+      "upstarts": -5,
+      "upstartsAmbition": 7,
+      "kin": 25,
+      "stabilityPivot": 50,
+      "stabilityWeight": 0.2,
+      "prestigePer": 25,
+      "prestigeCap": 10,
+      "warLike": 4,
+      "warHate": -4,
+      "warCap": 2,
+      "edictLike": 8,
+      "edictHate": -10,
+      "honorPer": 1.5,
+      "ambitionPer": -1.5,
+      "refusingLevy": -50
+    },
+
+    "council": {
+      "loyaltyBase": 0.25,
+      "loyaltyPer": 0.0125,
+      "loyaltyMax": 1.25,
+      "familyLoyalty": 75,
+      "spouseCompetence": 10,
+      "companionBase": 7,
+      "companionMatch": 6,
+      "devotedBonus": 3,
+      "vassalLoyaltyFromOpinion": 0.5,
+      "embezzleLoyalty": 25,
+      "embezzleShare": 0.002
+    },
+
+    "edictRules": { "maxEdicts": 4, "chancellorExtraAt": 12, "defaultPassCost": 150, "revokeFactionShare": 0.5 },
+
+    "grants": {
+      "gold": { "treasury": 250, "favour": 15 },
+      "title": { "prestige": 10, "favour": 20, "maxTitles": 3 },
+      "land": { "favour": 30, "taxLoss": 0.02, "max": 2 },
+      "marriage": { "prestige": 15, "gold": 300 },
+      "feast": { "treasury": 500, "favour": 8, "stability": 2, "cooldown": 30, "prestige": 3 },
+      "favour": { "gold": 120, "favour": 10, "rivalFavour": -4, "cooldown": 14 }
+    },
+
+    "breakLord": { "powerMult": 0.4, "grudge": -60, "fearOthers": -5, "cowedDays": 180, "stability": -3, "maxPowerShare": 0.5, "prestige": 5 },
+
+    "factions": {
+      "joinOpinion": -15,
+      "leaveOpinion": 10,
+      "joinChance": 0.6,
+      "revealBase": 0.03,
+      "revealPerCompetence": 0.012,
+      "ultimatumThreat": 0.3,
+      "revoltThreat": 0.45,
+      "ultimatumDays": 15,
+      "refuseDays": 60,
+      "surpriseRevoltChance": 0.35,
+      "concedeOpinion": 15,
+      "refuseOpinion": -10,
+      "crownBase": 30,
+      "crownPerMilitary": 0.05,
+      "loyalShare": 0.5,
+      "loyalOpinion": 20,
+      "arrestOthers": -6
+    },
+
+    "revolt": {
+      "strengthPerPower": 4,
+      "leviesPerPower": 1.5,
+      "battleChance": 0.25,
+      "royalShare": 0.4,
+      "momentumPerBattle": 8,
+      "rebelLoss": 0.12,
+      "royalLoss": 0.04,
+      "hostCadence": 15,
+      "hostShare": 0.3,
+      "hostMin": 25,
+      "hostMax": 200,
+      "hostDefeated": 15,
+      "seatTaken": 20,
+      "leaderSeatTaken": 40,
+      "townFalls": -15,
+      "townHolds": 10,
+      "crushedAt": 100,
+      "lostAt": -100,
+      "maxDays": 240,
+      "stabilityMod": -0.12,
+      "regen": 0.01,
+      "crushedPrestige": 25,
+      "crushedStability": 6,
+      "concededPrestige": -30,
+      "concededStability": -10,
+      "parleyPerStrength": 3,
+      "parleyPrestige": -10,
+      "parleyOpinion": 20,
+      "garrisonShare": 0.3
+    },
+
+    "ai": {
+      "cadence": 7,
+      "nearCapitals": 28,
+      "envyRatio": 1.2,
+      "envy": -2,
+      "ambitionEnvy": -1,
+      "warRelations": -20,
+      "warRatio": 0.9,
+      "weakWarRatio": 0.6,
+      "weakStability": 35,
+      "warChance": 0.25,
+      "balanceRatio": 1.3,
+      "balanceChance": 0.2,
+      "balanceMinRelations": 10,
+      "bandwagonRelations": 20,
+      "bandwagon": 2
+    }
+  },
+
+  "offices": {
+    "chancellor": {
+      "label": "Chancellor", "icon": "📜", "skill": "diplomacy",
+      "childSkill": "diplomacy", "childStat": "charisma", "occupations": ["noble", "diplomat", "scholar"],
+      "mods": { "diplomacy": 0.02, "relations": 0.01 }, "peaceChance": 0.01,
+      "blurb": "Foreign affairs: warmer envoys, better odds of peace, and one more edict the court can manage at 12+ competence."
+    },
+    "marshal": {
+      "label": "Marshal", "icon": "⚔️", "skill": "martial",
+      "childSkill": "combat", "childStat": "strength", "occupations": ["general", "knight", "guard", "hunter"],
+      "mods": { "militaryRegen": 0.05, "military": 0.006 },
+      "blurb": "The royal host: armies rebuild faster and the realm keeps a larger one."
+    },
+    "steward": {
+      "label": "Steward", "icon": "💰", "skill": "stewardship",
+      "childSkill": "commerce", "childStat": "intelligence", "occupations": ["merchant", "miller", "artisan", "blacksmith"],
+      "mods": { "treasury": 0.012, "construction": 0.005 },
+      "blurb": "The royal treasury: more income for the crown. A disloyal steward skims."
+    },
+    "spymaster": {
+      "label": "Spymaster", "icon": "🗝️", "skill": "intrigue",
+      "childSkill": "stealth", "childStat": "intelligence", "occupations": ["spymaster", "diplomat"],
+      "mods": { "intrigue": 0.02 }, "reveal": 0.012,
+      "blurb": "Plots revealed: vassal factions come to light before they strike, and rebellion is rooted out."
+    },
+    "highPriest": {
+      "label": "High Priest", "icon": "🙏", "skill": "learning",
+      "childSkill": "diplomacy", "childStat": "faith", "occupations": ["priest", "healer", "herbalist", "scholar"],
+      "piousBonus": 5,
+      "mods": { "faith": 0.015 }, "unity": 2.5,
+      "blurb": "Faith unity: the realm's church draws together (and steadies the realm)."
+    }
+  },
+
+  "edicts": {
+    "conscription": {
+      "label": "Conscription", "icon": "⚔️", "upkeep": 0, "passCost": 150,
+      "mods": { "military": 0.15, "militaryRegen": 0.3, "stability": -0.04 },
+      "factions": { "military": 8, "commons": -10 },
+      "vassalOpinion": -4, "likes": ["domination", "conquer"], "hates": ["wealth", "trade", "peace"],
+      "blurb": "Every village sends its sons. A larger, faster-mustering host; the commons and the lords' fields suffer."
+    },
+    "road_programme": {
+      "label": "Road-building programme", "icon": "🛣️", "upkeep": 30, "passCost": 200,
+      "mods": { "tradeBonus": 0.12, "construction": 0.15, "expansion": 0.05 },
+      "factions": { "merchants": 6, "commons": 2 },
+      "vassalOpinion": 0, "likes": ["trade", "colonize"], "hates": [],
+      "blurb": "Royal surveyors and corvée gangs pave the king's highways. Trade and building quicken."
+    },
+    "tolerance": {
+      "label": "Religious tolerance", "icon": "🤝", "upkeep": 0, "passCost": 100, "excludes": ["persecution"],
+      "mods": { "stability": 0.03, "tradeBonus": 0.04, "faith": -0.08 },
+      "factions": { "clergy": -10, "commons": 4, "merchants": 4 },
+      "unityDaily": -0.05, "minoritySentiment": 2,
+      "vassalOpinion": 0, "likes": ["trade"], "hates": ["faith"],
+      "blurb": "Every people may keep its rites. Minorities settle; the bishops fume and the church frays a little."
+    },
+    "persecution": {
+      "label": "Persecution of heretics", "icon": "🔥", "upkeep": 10, "passCost": 100, "excludes": ["tolerance"],
+      "mods": { "faith": 0.15, "stability": -0.05, "tradeBonus": -0.04 },
+      "factions": { "clergy": 10, "commons": -6 },
+      "unityDaily": 0.1, "minoritySentiment": -3,
+      "vassalOpinion": 0, "likes": ["faith", "fear"], "hates": ["trade"],
+      "blurb": "Inquisitors ride. The faith hardens and unites; minorities seethe."
+    },
+    "merchant_charters": {
+      "label": "Merchant charters", "icon": "📜", "upkeep": 0, "passCost": 150, "excludes": ["crown_monopolies"],
+      "mods": { "tradeBonus": 0.15, "caravanProfitBonus": 0.1, "tax": -0.04 },
+      "factions": { "merchants": 10, "nobility": -5 },
+      "vassalOpinion": 0, "likes": ["trade", "wealth"], "hates": [],
+      "blurb": "Free towns and guild charters. Trade booms; the crown's dues are lighter."
+    },
+    "famine_dole": {
+      "label": "Famine dole", "icon": "🍞", "upkeep": 45, "passCost": 100,
+      "mods": { "stability": 0.08, "population": 0.1 },
+      "factions": { "commons": 10, "clergy": 3 },
+      "vassalOpinion": 0, "likes": ["justice", "faith"], "hates": ["wealth"],
+      "blurb": "Royal granaries open to the hungry. The realm grows and steadies — at a price every day."
+    },
+    "crown_monopolies": {
+      "label": "Crown monopolies", "icon": "💎", "upkeep": 0, "passCost": 200, "excludes": ["merchant_charters"],
+      "mods": { "treasury": 0.15, "tradeBonus": -0.1 },
+      "factions": { "merchants": -12, "nobility": -4 },
+      "vassalOpinion": -3, "likes": [], "hates": ["wealth", "trade"],
+      "blurb": "Salt, iron and wine are the crown's alone. The treasury swells; merchants and greedy lords resent it."
+    },
+    "royal_assizes": {
+      "label": "Royal assizes", "icon": "⚖️", "upkeep": 20, "passCost": 150,
+      "mods": { "stability": 0.05, "loyalty": 0.05 },
+      "factions": { "commons": 5, "nobility": -6 },
+      "vassalOpinion": -3, "likes": ["justice"], "hates": ["fear", "domination"],
+      "blurb": "The king's judges ride circuit and overrule the lords' own courts. Order and loyalty — and baronial grumbling."
+    },
+    "scutage": {
+      "label": "Scutage", "icon": "💰", "upkeep": 0, "passCost": 100, "excludes": ["conscription"],
+      "mods": { "treasury": 0.08, "military": -0.1 },
+      "factions": { "military": -8, "nobility": 4 },
+      "vassalOpinion": 4, "likes": ["wealth"], "hates": ["domination", "conquer"],
+      "blurb": "The lords pay gold instead of knight-service. A richer crown, a smaller host, and lords who keep their men at home."
+    },
+    "patronage": {
+      "label": "Royal patronage of the arts", "icon": "🎭", "upkeep": 25, "passCost": 150,
+      "mods": { "culture": 0.3, "research": 0.15, "diplomacy": 0.05 },
+      "factions": { "nobility": 4, "clergy": 2 },
+      "vassalOpinion": 2, "likes": ["alliance"], "hates": [],
+      "blurb": "Poets, painters and scholars at court. Learning and renown spread; foreign courts admire you."
+    },
+    "fortification": {
+      "label": "Fortification of the marches", "icon": "🏰", "upkeep": 35, "passCost": 200,
+      "mods": { "defense": 0.15 },
+      "factions": { "military": 4 },
+      "vassalOpinion": 2, "likes": ["survive"], "hates": [],
+      "blurb": "Stone castles on every border. The realm is harder to take."
+    }
+  },
+
+  "demands": {
+    "lowerLevy": { "label": "a lighter royal levy", "icon": "🍃" },
+    "passEdict": { "label": "the edict of {edict}", "icon": "📜" },
+    "revokeEdict": { "label": "the repeal of {edict}", "icon": "✂️" }
+  },
+
+  "goalDemands": {
+    "wealth": [["revokeEdict", "crown_monopolies"], ["lowerLevy"]],
+    "trade": [["revokeEdict", "crown_monopolies"], ["passEdict", "merchant_charters"], ["lowerLevy"]],
+    "faith": [["revokeEdict", "tolerance"], ["passEdict", "persecution"]],
+    "justice": [["passEdict", "royal_assizes"], ["lowerLevy"]],
+    "domination": [["revokeEdict", "scutage"], ["passEdict", "conscription"]],
+    "conquer": [["passEdict", "conscription"]],
+    "fear": [["revokeEdict", "royal_assizes"]],
+    "survive": [["revokeEdict", "conscription"], ["passEdict", "fortification"], ["lowerLevy"]],
+    "peace": [["revokeEdict", "conscription"], ["lowerLevy"]],
+    "alliance": [["lowerLevy"]],
+    "expand": [["lowerLevy"]],
+    "colonize": [["passEdict", "road_programme"]]
+  },
+
+  "traitOpinion": { "honorable": 8, "cautious": 4, "pious": 2, "cunning": -2, "ambitious": -6, "greedy": -4, "cruel": -4, "brave": 2 }
+}

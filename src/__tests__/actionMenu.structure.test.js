@@ -31,7 +31,7 @@ import { DataLoader } from '../core/dataLoader.js';
 // plus showHoldingPanel (holdings development) = 244, plus showRivalsPanel and
 // showHallOfHeroes (rival adventurers) = 246, plus showPhysicianMenu (wounds, sickness
 // and medicine) = 247, plus the heirs panels (showChildPanel, showHouseChronicle,
-// showEpitaph, _heirProfileHtml, _reignsHtml) = 252, plus showSagasJournal (world storylines) = 253, plus showDiscoveries (uncharted lands) = 254, plus showTradingCompany (merchant houses) = 255, plus showHoldingSiegesPanel and holdingSiegeAct (holdings under siege) = 259, plus showDeeds (Deeds & Records) = 260.
+// showEpitaph, _heirProfileHtml, _reignsHtml) = 252, plus showSagasJournal (world storylines) = 253, plus showDiscoveries (uncharted lands) = 254, plus showTradingCompany (merchant houses) = 255, plus showHoldingSiegesPanel and holdingSiegeAct (holdings under siege) = 259, plus showDeeds (Deeds & Records) = 260, plus showRoyalCourt (kingship) = 261.
 const EXPECTED_KEYS = [
     'showCourtPanel', 'showDelvePanel', 'showClaimsPanel', 'showHoldingPanel',
     'showRivalsPanel', 'showHallOfHeroes', 'showPhysicianMenu',
@@ -82,7 +82,7 @@ const EXPECTED_KEYS = [
     'showBuildInfrastructureMenu', 'showBuildPropertyMenu', 'showBuildTempleMenu', 'showBuskingMenu',
     'showBuyHouseMenu', 'showCartographyMenu', 'showCharacterDataModal', 'showContractMenu',
     'showCouncilMenu', 'showDeathScreen', 'showDonateMenu', 'showDynastyMenu', 'showEspionageMenu',
-    'showFestivalMenu', 'showFleetMenu', 'showFormKingdomMenu', 'showFoundColonyMenu',
+    'showFestivalMenu', 'showFleetMenu', 'showRoyalCourt', 'showFormKingdomMenu', 'showFoundColonyMenu',
     'showGamblingMenu', 'showHostFeastMenu', 'showHousePanel', 'showIntelJournal', 'showLordMeetingMenu',
     'showManageColonyMenu', 'showManageHouseMenu', 'showManagePropertyMenu', 'showManageSpiesMenu',
     'showMapCollection', 'showMapTradeMenu', 'showMeetPeopleMenu', 'showMiracleMenu',
@@ -110,8 +110,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 260 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(260);
+    it('has 261 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(261);
     });
 
     it('every member except the known data props is a function', () => {

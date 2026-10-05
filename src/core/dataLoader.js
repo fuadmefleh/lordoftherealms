@@ -502,6 +502,12 @@ export const DataLoader = {
             DataLoader.throne = throneData;
         }
 
+        // ── Kingship: council, edicts, vassals (read lazily by systems/kingship.js and the kingdom AI) ──
+        const kingshipData = data['kingship.json'];
+        if (kingshipData) {
+            DataLoader.kingship = kingshipData;
+        }
+
         // ── Holdings development: projects, governors, garrisons (read lazily by systems/holdings.js) ──
         const holdingsData = data['holdings.json'];
         if (holdingsData) {

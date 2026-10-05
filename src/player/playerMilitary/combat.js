@@ -3,6 +3,7 @@ import { PlayerMilitary } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
 import { Companions } from '../../systems/companions.js';
 import { Underworld } from '../../systems/underworld.js';
+import { Kingship } from '../../systems/kingship.js';
 import { Utils, Technology, House, Quests, RealmWars, Throne, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS, Economy } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
@@ -670,7 +671,11 @@ Object.assign(PlayerMilitary, {
             // Destroy the unit
             worldUnit.destroyed = true;
             worldUnit.slainByPlayer = true; // sagas tell your kill from a patrol's (systems/sagas.js)
-            if (worldUnit.type === 'war_host') RealmWars.onHostDefeated(player, world, worldUnit);
+            if (worldUnit.type === 'war_host') {
+                // A rebel host against your own crown (systems/kingship.js), or a realm's
+                if (worldUnit.revoltId) Kingship.onRebelHostDefeated(player, world, worldUnit);
+                else RealmWars.onHostDefeated(player, world, worldUnit);
+            }
             // Beating raiders, pirates, monsters (saga beasts among them) and sellswords
             // is a battle won for the House's legacy ("the Warlike"); war hosts are
             // counted by RealmWars, and robbing caravans and boats is no glory.

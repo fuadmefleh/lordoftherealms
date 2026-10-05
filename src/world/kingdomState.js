@@ -67,7 +67,7 @@ const TRADITION_KEYS = {
 
 /** Human labels for kingdom bonus keys (panels, tooltips). */
 const BONUS_LABELS = {
-    military: '⚔️ Military', warBonus: '🗡️ Battle', defense: '🛡️ Defense', endurance: '🥾 Endurance',
+    military: '⚔️ Military', militaryRegen: '🔁 Army regen', warBonus: '🗡️ Battle', defense: '🛡️ Defense', endurance: '🥾 Endurance',
     treasury: '💰 Treasury', stewardship: '📒 Stewardship', tax: '💵 Taxes', upkeep: '🏕️ Upkeep',
     tradeBonus: '⚖️ Trade', caravanProfitBonus: '🐪 Caravans', diplomacy: '🗣️ Diplomacy', relations: '🤝 Relations',
     stability: '🏛️ Stability', loyalty: '👑 Loyalty', expansion: '🗺️ Expansion', construction: '🔨 Construction',

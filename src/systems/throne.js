@@ -1015,6 +1015,12 @@ export const Throne = {
                 crown.playerRuled = true;
                 crown.policies = { ...st.ruling.policies };
                 crown.mods = Throne.policyMods(st.ruling.policies);
+                // The royal court: council, edicts, vassals and revolts (systems/kingship.js)
+                const court = st.ruling.court;
+                if (court && court.mods) {
+                    for (const [key, v] of Object.entries(court.mods)) crown.mods[key] = (crown.mods[key] || 0) + v;
+                }
+                if (court && court.revolt) crown.revolt = true;
                 touched = true;
             }
             if (st.civilWar && st.civilWar.kingdomId === k.id) {
@@ -1077,7 +1083,10 @@ export const Throne = {
         const e = Throne._kingdom(world, enemyId);
         if (!k || !e) return 0;
         const ratio = (k.military || 0) / Math.max(1, e.military || 0);
-        return Utils.clamp(R.peaceBaseChance + (ratio - 1) * 0.25, 0.1, 0.9);
+        // A Chancellor's envoys (systems/kingship.js) improve the odds
+        const court = Throne.state(player).ruling.court;
+        const chancellor = (court && court.peaceChance) || 0;
+        return Utils.clamp(R.peaceBaseChance + (ratio - 1) * 0.25 + chancellor, 0.1, 0.9);
     },
 
     proposePeace(player, world, enemyId) {

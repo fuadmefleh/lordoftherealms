@@ -38,6 +38,7 @@ import { Petitions } from '../../systems/petitions.js';
 import { Delves } from '../../systems/delves.js';
 import { RealmWars } from '../../systems/realmWars.js';
 import { Throne } from '../../systems/throne.js';
+import { Kingship } from '../../systems/kingship.js';
 import { Espionage } from '../../systems/espionage.js';
 import { Gossip } from '../../systems/gossip.js';
 import { Traits } from '../../systems/traits.js';
@@ -262,6 +263,8 @@ export function endDay(game) {
     mark(game, 'HoldingSieges.processDay');
     Throne.processDaily(player, world, { armyStrength: PlayerMilitary.getArmyStrength(player) });
     mark(game, 'Throne.processDaily');
+    Kingship.processDay(world, player);
+    mark(game, 'Kingship.processDay');
     Sieges.processDay(world, player);
     mark(game, 'Sieges.processDay');
     Holdings.processDay(player, world);

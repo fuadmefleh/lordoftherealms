@@ -20,6 +20,7 @@ import { Delves } from './delves.js';
 import { Ailments } from './ailments.js';
 import { Underworld } from './underworld.js';
 import { Throne } from './throne.js';
+import { Kingship } from './kingship.js';
 import { Holdings } from './holdings.js';
 import { Rivals } from './rivals.js';
 import { Sagas } from './sagas.js';
@@ -633,6 +634,7 @@ export const SaveLoad = {
         // Claims & Crowns — older saves get a blank record (and a crown if they
         // had founded a kingdom with the old Form Kingdom action)
         Throne.load(player, world);
+        Kingship.load(player, world); // the royal court rides inside player.throne
         // Holdings — older saves have none; owned settlements get a blank record and fresh effects
         Holdings.loadState(player, world);
         // Rival adventurers — older saves get a blank record (the cast arrives next day)

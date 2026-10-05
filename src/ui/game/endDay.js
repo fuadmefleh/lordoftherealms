@@ -15,6 +15,7 @@ import { Sieges } from '../../systems/sieges.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
 import { Discovery } from '../../systems/discovery.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
+import { Kingship } from '../../systems/kingship.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 
 export function onPlayerArrived() {
@@ -513,6 +514,9 @@ export function endDay() {
             for (const name of throne.peace) {
                 this.ui.showNotification('🕊️ Royal Envoys', `Your envoys win peace with ${name}.`, 'info');
             }
+            // The royal court — council, edicts, vassals, factions and revolts (systems/kingship.js)
+            const courtDay = Kingship.processDay(this.world, this.player);
+            for (const n of courtDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Sieges — the siege in progress, tribute owed (systems/sieges.js)
             const siegeDay = Sieges.processDay(this.world, this.player);

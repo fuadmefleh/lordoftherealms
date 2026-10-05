@@ -54,6 +54,7 @@ import { Holdings } from './holdings.js';
 import { Ailments } from './ailments.js';
 import { Petitions } from './petitions.js';
 import { RealmWars } from './realmWars.js';
+import { Kingship } from './kingship.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 import { WorldUnit } from '../world/units.js';
 
@@ -419,7 +420,9 @@ export const Sieges = {
         if (!settlement) return { ok: false, reason: 'There is no settlement here.' };
         if (Sieges.active(player)) return { ok: false, reason: `You are already besieging ${Sieges.active(player).name}.` };
         if (settlement.colony && settlement.colony.isPlayerColony) return { ok: false, reason: 'This is your own holding.' };
-        if (player.allegiance && settlement.kingdom === player.allegiance) return { ok: false, reason: 'This town belongs to your liege.' };
+        // A seat of lords in revolt against your own crown may be besieged (systems/kingship.js)
+        const rebelSeat = Kingship.isRebelSeat(player, tile.q, tile.r);
+        if (player.allegiance && settlement.kingdom === player.allegiance && !rebelSeat) return { ok: false, reason: 'This town belongs to your liege.' };
         const cw = Sieges._civilWar(player, settlement, tile.q, tile.r);
         if (cw && cw.sides && cw.sides[`${tile.q},${tile.r}`] === 'pretender') return { ok: false, reason: `${settlement.name} has declared for you.` };
         if (player.boardedShip) return { ok: false, reason: 'Go ashore first.' };
@@ -446,6 +449,7 @@ export const Sieges = {
             kingdomId: settlement.kingdom || null,
             kingdomName: kingdom ? kingdom.name : null,
             civilWar: !!cw,
+            revolt: Kingship.isRebelSeat(player, tile.q, tile.r),
             population: _num(settlement.population),
             startDay: day,
             stance: 'blockade',
@@ -467,12 +471,14 @@ export const Sieges = {
             relief: null,
             log: [],
         };
+        // Rebels hold their own walls: their men, not the crown's army
+        if (s.revolt) s.garrison = Math.max(1, Math.round(Kingship.rebelStrength(player) * _num((Kingship.config().revolt || {}).garrisonShare) + s.population * 0.02));
         s.garrisonStart = s.garrison;
         st.active = s;
         st.stats.invested++;
 
-        // Will the realm march to relieve it?
-        if (kingdom && kingdom.isAlive !== false) {
+        // Will the realm march to relieve it? (Not your own realm against its rebels.)
+        if (kingdom && kingdom.isAlive !== false && !s.revolt) {
             const R = C.relief;
             const chance = _num(R.chance[s.type]);
             const from = (kingdom.military || 0) >= R.minMilitary ? Sieges._reliefOrigin(world, kingdom, s) : null;
@@ -493,8 +499,8 @@ export const Sieges = {
             }
         }
 
-        // Acts of war against the owner (a civil war is already one)
-        if (s.kingdomId && !s.civilWar) {
+        // Acts of war against the owner (a civil war or a revolt is already one)
+        if (s.kingdomId && !s.civilWar && !s.revolt) {
             if (!player.reputation) player.reputation = {};
             player.reputation[s.kingdomId] = (player.reputation[s.kingdomId] || 0) + C.investReputation;
             House.accrueRivalFeud(player, world, s.kingdomId, C.investFeud, `besieged ${s.name}`);
@@ -708,7 +714,7 @@ export const Sieges = {
         s.garrison = Math.max(1, Math.round(s.garrison * (1 - C.storm.garrisonLoss)));
         s.morale = Utils.clamp(s.morale + C.defenderMorale.repelled, 0, 100);
         s.campMorale = Utils.clamp(s.campMorale - C.camp.stormLost, 0, 100);
-        if (s.kingdomId && !s.civilWar && player.reputation) {
+        if (s.kingdomId && !s.civilWar && !s.revolt && player.reputation) {
             player.reputation[s.kingdomId] = (player.reputation[s.kingdomId] || 0) + C.storm.failReputation;
         }
         Sieges._log(s, world, `The assault on ${s.name} is thrown back from the walls.`);
@@ -802,6 +808,7 @@ export const Sieges = {
         if (!settlement) why = `${s.name} is no more.`;
         else if ((settlement.kingdom || null) !== s.kingdomId || (settlement.colony && settlement.colony.isPlayerColony)) why = `${s.name} has changed hands.`;
         else if (s.civilWar && (player.throne && player.throne.civilWar && player.throne.civilWar.sides || {})[`${s.q},${s.r}`] === 'pretender') why = `${s.name} declares for you of its own accord.`;
+        else if (s.revolt && !Kingship.isRebelSeat(player, s.q, s.r)) why = `${s.name} no longer holds out against the crown.`;
         else if (typeof player.q !== 'number' || Hex.wrappingDistance(player.q, player.r, s.q, s.r, world.width) > _num(C.leash)) why = `You marched away from ${s.name}; the siege is lifted.`;
         else if (player.jailState || player.indenturedServitude) why = `Without you the siege of ${s.name} breaks up.`;
         else if (PlayerMilitary.getArmyStrength(player) <= 0) why = `No army is left to hold the lines before ${s.name}.`;
@@ -1029,6 +1036,14 @@ export const Sieges = {
         const settlement = tile && tile.settlement;
         if (!settlement) return Sieges._finish(player, world, 'lifted', 'The town is gone.');
         const surrender = how === 'surrender';
+        // A rebel seat of your own realm returns to the crown; its lord is broken
+        if (s.revolt) {
+            const back = Kingship.onRebelSeatTaken(player, world, s.q, s.r);
+            Quests.track(player, 'settlements_captured');
+            House.recordPlayerDeed(player, world, 'battleWon', { reason: `retook ${s.name} from rebels` });
+            result.revolt = true;
+            return Sieges._finish(player, world, 'captured', `${s.name} ${surrender ? 'opens its gates' : 'falls'} and returns to the crown${back && back.lord ? `; ${back.lord} is in chains` : ''} (+${back ? back.gain : 0} momentum against the revolt).`);
+        }
         const cw = s.civilWar ? Sieges._civilWar(player, settlement, s.q, s.r) : null;
         if (cw) {
             const k = Sieges._kingdom(world, cw.kingdomId);
@@ -1062,6 +1077,7 @@ export const Sieges = {
     _sack(player, world, s, tile, result) {
         const K = Sieges.config().sack;
         const settlement = tile.settlement;
+        if (s.revolt) Kingship.onRebelSeatTaken(player, world, s.q, s.r);
         const plunder = Math.floor(_num(settlement.population) * Utils.randFloat(K.plunder[0], K.plunder[1]));
         player.gold = _num(player.gold) + plunder;
         result.plunder = plunder;

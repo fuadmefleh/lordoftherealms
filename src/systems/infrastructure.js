@@ -291,7 +291,10 @@ export const Infrastructure = {
     getRiverPenalty(tile, player) {
         if (!tile || !tile.hasRiver || !tile.terrain || !tile.terrain.passable) return 0;
         if (Infrastructure.hasRiverCrossing(tile)) return 0;
-        const reduction = player ? Technology.getEffectTotal(player, 'riverCrossReduction') : 0;
+        // Bridge Construction, plus a Grand Bridge's wardens (systems/patronage.js → player.patronage.fx)
+        const pfx = player && player.patronage && player.patronage.fx;
+        const reduction = player ? Technology.getEffectTotal(player, 'riverCrossReduction')
+            + (pfx && Number.isFinite(pfx.riverCross) ? pfx.riverCross : 0) : 0;
         const factor = Math.max(0, 1 - Math.min(1, reduction));
         return Math.round(Infrastructure.RIVER_CROSSING_PENALTY * factor);
     },

@@ -1151,7 +1151,7 @@ export const Holdings = {
             used: Holdings.usedSlots(h),
             population: _num(s.population),
             happiness: Math.round(Taxation.getHappiness(s)),
-            happinessTarget: Math.round(_clamp(50 + policy.happinessBonus * 1.5 + Taxation.peoplesMood(s) + _num(fx.happiness), 0, 100)),
+            happinessTarget: Math.round(_clamp(50 + policy.happinessBonus * 1.5 + Taxation.peoplesMood(s) + _num(fx.happiness) + Taxation.patronageMood(s), 0, 100)),
             loyalty: s.colony && typeof s.colony.loyalty === 'number' ? Math.round(s.colony.loyalty) : null,
             unrest: Math.round(h.unrest),
             defense: Math.round(Holdings.defenseRating(s)),

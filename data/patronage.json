@@ -1,0 +1,179 @@
+{
+    "_comment": "Patronage & Great Works (src/systems/patronage.js). Clients (artists, scholars, architects, physicians, chroniclers) are offered in a town's salon, chosen by a hash of the world seed, the town and the month (no RNG). They draw a weekly stipend, produce works on commission and can be poached by rival Houses or leave when unpaid or idle. Great Works are multi-stage projects at a settlement the player rules or holds a house in: each stage wants goods + gold delivered, then days of paid labour. Every effect key has a reader: research (Technology.getResearchBonus), conversion (PlayerReligion.conversionMultiplier), education (Upbringing growth), vision (Player.updateVisibility), festivalRenown (Festivals.getReputation), riverCross (Infrastructure.getRiverPenalty), care/woundHeal (Ailments), mood (Taxation happiness target via settlement.patronage), monthlyPrestige (House Prestige, paid by Patronage). Kingdoms build wonders too (npc*), first to finish a unique work claims it for the world.",
+    "config": {
+        "salonSize": 3,
+        "salonRefreshDays": 30,
+        "salonMinType": "town",
+        "maxClients": 4,
+        "maxClientsPerTitle": 1,
+        "payCadence": 7,
+        "contentStart": 60,
+        "contentPaid": 2,
+        "contentUnpaid": -18,
+        "contentIdlePerDay": -0.6,
+        "contentWorkingPerDay": 0.25,
+        "idleGraceDays": 14,
+        "leaveUnpaidWeeks": 3,
+        "leaveContentBelow": 5,
+        "hireFeeWeeks": 2,
+        "poach": {
+            "cadence": 15,
+            "base": 0.04,
+            "perFeud": 0.002,
+            "perSkill": 0.006,
+            "lowContent": 40,
+            "lowContentBonus": 0.06,
+            "highContent": 80,
+            "highContentGuard": 0.04,
+            "answerDays": 6,
+            "counterWeeks": 10,
+            "matchStipendRaise": 0.25,
+            "matchContent": 15,
+            "feudOnLoss": 6
+        },
+        "materialMarkup": 1.6,
+        "remoteMarkup": 1.25,
+        "quality": {
+            "masterpieceSkill": 8,
+            "modestBelow": 4,
+            "mult": { "modest": 0.7, "fine": 1, "masterpiece": 1.6 }
+        },
+        "treatiseCap": 12,
+        "careFloor": 0.6,
+        "carePerText": 0.94,
+        "woundHealPerText": 0.1,
+        "woundHealCap": 0.5,
+        "artMoodPerValue": 1.5,
+        "artMoodCap": 8,
+        "donateReputationPerValue": 3,
+        "architectSpeedPerSkill": 0.05,
+        "maxGreatWorksBuilding": 2,
+        "labourTierBonus": 0.1,
+        "warSpeed": 0.5,
+        "famineFarmProduction": -0.3,
+        "refundOnForestall": 0.5,
+        "npc": {
+            "firstDay": 90,
+            "cadence": 30,
+            "startChance": 0.22,
+            "maxPerKingdom": 2,
+            "treasuryShare": 0.5,
+            "winterSpeed": 0.5,
+            "warSpeed": 0.5,
+            "maxActive": 3
+        }
+    },
+    "names": {
+        "first": ["Aldo", "Benedetta", "Caspar", "Donatella", "Eamon", "Fiora", "Giacomo", "Hilde", "Ivo", "Jacoba", "Konrad", "Lucia", "Matthias", "Nerissa", "Orlan", "Perpetua", "Quintus", "Rosalind", "Silvio", "Tamsin", "Ulric", "Viola", "Wendel", "Ysolde", "Zeno", "Agnese", "Bartholomew", "Cosima", "Desmond", "Elspeth"],
+        "family": ["Vellani", "of Marrow Hill", "Ashcombe", "Delacroix", "the Elder", "Brightwater", "Moravec", "of the Seven Bells", "Quillon", "Stonemere", "Fairweather", "Corvino", "Haldane", "of Westreach", "Lindqvist", "Orsini", "Pembroke", "Thornwood", "Valcourt", "Wexley"]
+    },
+    "professions": {
+        "artist": { "name": "Artist", "icon": "🎨", "works": ["painting", "sculpture"], "stipend": [18, 40], "blurb": "Paints and carves: Prestige for your House, and works you can donate to lift a town." },
+        "scholar": { "name": "Scholar", "icon": "📚", "works": ["treatise"], "stipend": [16, 36], "blurb": "Writes treatises that push your current research forward." },
+        "architect": { "name": "Architect", "icon": "📐", "works": [], "stipend": [24, 48], "blurb": "Oversees a Great Work: its labour goes faster with every point of skill." },
+        "physician": { "name": "Physician", "icon": "⚕️", "works": ["medical_text"], "stipend": [18, 38], "blurb": "Writes medical texts: sickness is less deadly and wounds mend faster." },
+        "chronicler": { "name": "Chronicler", "icon": "📜", "works": ["chronicle"], "stipend": [14, 30], "blurb": "Writes the chronicle of your House: Prestige, and a lasting place in its legacy." }
+    },
+    "temperaments": {
+        "diligent": { "name": "Diligent", "speed": 1.25, "qualityBonus": 0, "stipend": 1, "poach": 0, "idle": 1.2, "blurb": "works fast, frets when idle" },
+        "mercurial": { "name": "Mercurial", "speed": 0.85, "qualityBonus": 1.5, "stipend": 1.05, "poach": 0.02, "idle": 1, "blurb": "slow, but touched by genius" },
+        "proud": { "name": "Proud", "speed": 1, "qualityBonus": 0.5, "stipend": 1.3, "poach": -0.02, "idle": 1.5, "blurb": "costly, loyal to a great House" },
+        "devoted": { "name": "Devoted", "speed": 1, "qualityBonus": 0, "stipend": 0.85, "poach": -0.03, "idle": 0.6, "blurb": "cheap and faithful" },
+        "restless": { "name": "Restless", "speed": 1.1, "qualityBonus": 0, "stipend": 1, "poach": 0.04, "idle": 1.3, "blurb": "quick, with a wandering eye" }
+    },
+    "ambitions": {
+        "fame": { "name": "Fame", "blurb": "wants works donated where people see them", "content": 6 },
+        "wealth": { "name": "Wealth", "blurb": "wants a fat stipend; easy to poach", "content": 0, "poach": 0.03 },
+        "mastery": { "name": "Mastery", "blurb": "wants great commissions; grows in skill with each work", "content": 4, "skillGain": 0.34 },
+        "glory": { "name": "Glory", "blurb": "wants to serve a House of high Prestige", "content": 5, "prestige": 150 }
+    },
+    "works": {
+        "painting": { "name": "Painting", "icon": "🖼️", "days": 35, "materials": { "dyes": 2 }, "prestige": 4, "artValue": 1, "titles": ["Portrait of the House", "The Harvest at Dusk", "Allegory of Good Rule", "The Drowned Saint", "View of the River Gate", "The Hunt in Winter"] },
+        "sculpture": { "name": "Sculpture", "icon": "🗿", "days": 55, "materials": { "stone": 8 }, "prestige": 6, "artValue": 2, "titles": ["The Founder in Bronze", "Lion of the Gate", "The Weeping Mother", "Mercy and Justice", "The Horseman"] },
+        "treatise": { "name": "Treatise", "icon": "📖", "days": 40, "materials": { "parchment": 2 }, "prestige": 2, "researchDays": 6, "titles": ["On the Motion of Waters", "A Discourse on Metals", "The Art of Numbers", "Of Stars and Seasons", "On Engines of War"] },
+        "medical_text": { "name": "Medical Text", "icon": "⚕️", "days": 45, "materials": { "herbs": 4, "parchment": 1 }, "prestige": 2, "care": 1, "titles": ["The Physician's Garden", "On Fevers", "A Treatise of Wounds", "Of the Humours", "The Plague Book"] },
+        "chronicle": { "name": "Chronicle", "icon": "📜", "days": 60, "materials": { "parchment": 3 }, "prestige": 8, "chronicle": 1, "titles": ["Annals of the House", "The Deeds of the Line", "A Chronicle of the Realm", "The Book of the Founders"] }
+    },
+    "greatWorks": {
+        "cathedral": {
+            "name": "Grand Cathedral", "icon": "⛪", "unique": false, "minType": "town",
+            "blurb": "A spire over the town: your faith converts faster and the town is happier.",
+            "stages": [
+                { "name": "Foundations", "days": 40, "gold": 700, "labour": 8, "goods": { "stone": 60, "wood": 20 }, "outdoor": true },
+                { "name": "Nave and Walls", "days": 50, "gold": 900, "labour": 10, "goods": { "stone": 80, "iron": 10 }, "outdoor": true },
+                { "name": "Spire and Glass", "days": 40, "gold": 1100, "labour": 10, "goods": { "glass": 20, "wood": 20, "candles": 10 }, "outdoor": false }
+            ],
+            "effects": { "conversion": 0.25, "mood": 6 },
+            "prestige": 60,
+            "npc": { "days": 360, "cost": 5000, "stability": 4 }
+        },
+        "great_library": {
+            "name": "The Great Library", "icon": "🏛️", "unique": true, "minType": "town",
+            "blurb": "The one Great Library of the world: research goes faster. First to finish claims it.",
+            "stages": [
+                { "name": "Halls", "days": 45, "gold": 900, "labour": 9, "goods": { "stone": 70, "wood": 30 }, "outdoor": true },
+                { "name": "Stacks and Reading Rooms", "days": 40, "gold": 1000, "labour": 9, "goods": { "wood": 40, "parchment": 20 }, "outdoor": false },
+                { "name": "The Collection", "days": 35, "gold": 1400, "labour": 6, "goods": { "rare_book": 4, "parchment": 20, "candles": 10 }, "outdoor": false }
+            ],
+            "effects": { "research": 0.2, "mood": 2 },
+            "prestige": 90,
+            "npc": { "days": 420, "cost": 6500, "stability": 5 }
+        },
+        "university": {
+            "name": "University", "icon": "🎓", "unique": false, "minType": "town",
+            "blurb": "Masters and students: the heirs of your House learn faster.",
+            "stages": [
+                { "name": "Colleges", "days": 40, "gold": 800, "labour": 8, "goods": { "stone": 50, "wood": 30 }, "outdoor": true },
+                { "name": "Lecture Halls", "days": 40, "gold": 900, "labour": 8, "goods": { "wood": 30, "parchment": 15, "candles": 10 }, "outdoor": false }
+            ],
+            "effects": { "education": 0.35, "mood": 2 },
+            "prestige": 50,
+            "npc": { "days": 300, "cost": 4000, "stability": 3 }
+        },
+        "observatory": {
+            "name": "The Royal Observatory", "icon": "🔭", "unique": true, "minType": "village",
+            "blurb": "The one great observatory of the world: you see further across the land. First to finish claims it.",
+            "stages": [
+                { "name": "Tower", "days": 45, "gold": 800, "labour": 8, "goods": { "stone": 60, "iron": 10 }, "outdoor": true },
+                { "name": "Instruments", "days": 35, "gold": 1300, "labour": 6, "goods": { "glass": 20, "iron": 15, "compass": 2 }, "outdoor": false }
+            ],
+            "effects": { "vision": 1 },
+            "prestige": 70,
+            "npc": { "days": 360, "cost": 5000, "stability": 3 }
+        },
+        "hippodrome": {
+            "name": "Hippodrome", "icon": "🏟️", "unique": false, "minType": "town",
+            "blurb": "Races and games: your festivals win more renown and the town is happier.",
+            "stages": [
+                { "name": "Track and Earthworks", "days": 35, "gold": 600, "labour": 10, "goods": { "stone": 40, "wood": 30 }, "outdoor": true },
+                { "name": "Stands and Stables", "days": 40, "gold": 900, "labour": 10, "goods": { "stone": 50, "wood": 40, "horses": 4 }, "outdoor": true }
+            ],
+            "effects": { "festivalRenown": 4, "mood": 5 },
+            "prestige": 45,
+            "npc": { "days": 300, "cost": 4000, "stability": 4 }
+        },
+        "grand_bridge": {
+            "name": "Grand Bridge", "icon": "🌉", "unique": false, "minType": "village", "requires": "river",
+            "blurb": "A great stone bridge and the bridge-wardens it pays: fording rivers costs you half the effort everywhere.",
+            "stages": [
+                { "name": "Piers", "days": 40, "gold": 700, "labour": 10, "goods": { "stone": 70, "wood": 20 }, "outdoor": true },
+                { "name": "Arches and Roadway", "days": 40, "gold": 800, "labour": 10, "goods": { "stone": 60, "iron": 10 }, "outdoor": true }
+            ],
+            "effects": { "riverCross": 0.5, "mood": 1 },
+            "prestige": 40,
+            "npc": { "days": 300, "cost": 3500, "stability": 2 }
+        },
+        "colossus": {
+            "name": "The Colossus", "icon": "🗽", "unique": true, "minType": "town", "requires": "port",
+            "blurb": "The one Colossus of the world, astride the harbour: Prestige for your House every month. First to finish claims it.",
+            "stages": [
+                { "name": "Plinth", "days": 40, "gold": 900, "labour": 10, "goods": { "stone": 80 }, "outdoor": true },
+                { "name": "Bronze Body", "days": 50, "gold": 1400, "labour": 12, "goods": { "iron": 40, "gold_ore": 6, "wood": 30 }, "outdoor": true },
+                { "name": "The Crown and Beacon", "days": 30, "gold": 1000, "labour": 8, "goods": { "oil": 10, "glass": 10 }, "outdoor": true }
+            ],
+            "effects": { "monthlyPrestige": 6, "mood": 3 },
+            "prestige": 100,
+            "npc": { "days": 450, "cost": 7000, "stability": 6 }
+        }
+    }
+}

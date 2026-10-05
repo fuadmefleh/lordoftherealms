@@ -68,11 +68,18 @@ export const Festivals = {
      *  - contestVeteran: +0.3 contest power per past podium finish (max +3)
      *  - vigilance: −1% rival sabotage chance per past sabotage attempt (max −10%)
      */
+    /** Extra festival renown from a Hippodrome the player holds (0 without one). */
+    _hippodrome(player) {
+        const fx = player && player.patronage && player.patronage.fx;
+        return fx && Number.isFinite(fx.festivalRenown) ? Math.max(0, fx.festivalRenown) : 0;
+    },
+
     getReputation(player) {
         this.initialize(player);
         const f = player.festivals;
         return {
-            hostBonus: Math.min(5, Math.floor(f.hosted / 3)),
+            // ...plus a Hippodrome's games (systems/patronage.js → player.patronage.fx)
+            hostBonus: Math.min(5, Math.floor(f.hosted / 3)) + Festivals._hippodrome(player),
             extraEnvoys: Math.min(2, Math.floor(f.hosted / 5)),
             contestVeteran: Math.min(3, f.successfulContests * 0.3),
             vigilance: Math.min(0.1, f.sabotageEvents * 0.01),

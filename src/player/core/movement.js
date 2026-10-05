@@ -45,6 +45,9 @@ export const PlayerMovementMethods = {
         // A Royal Cartographer's trained eye charts further afield
         const title = Titles.getActiveTitle(this);
         viewRadius += (title && title.perks && title.perks.explorationBonus) || 0;
+        // The Royal Observatory (systems/patronage.js → player.patronage.fx)
+        const pfx = this.patronage && this.patronage.fx;
+        viewRadius += (pfx && Number.isFinite(pfx.vision)) ? pfx.vision : 0;
         // First, set all tiles to not visible
         for (let r = 0; r < world.height; r++) {
             for (let q = 0; q < world.width; q++) {

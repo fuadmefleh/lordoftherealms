@@ -431,6 +431,9 @@ export const Ailments = {
         if (player.blessings && player.blessings.temple_blessing > 0 && c.blessing) { m *= c.blessing; parts.push('a blessing'); }
         if (Ailments._hasHospital(player, world) && c.hospital) { m *= c.hospital; parts.push('a hospital'); }
         if (Ailments._knows(player, 'herbalism') && c.herbalism) { m *= c.herbalism; parts.push('herb-lore'); }
+        // Medical texts your physicians wrote (systems/patronage.js → player.patronage.fx)
+        const pfx = player.patronage && player.patronage.fx;
+        if (pfx && _num(pfx.care) > 0 && pfx.care < 1) { m *= pfx.care; parts.push('your physicians\' texts'); }
         if (rec) {
             if (rec.treated > 0) { m *= 1 - 0.6 * rec.treated; parts.push('treatment'); }
             if (rec.easedUntil >= _day(world) && rec.easeMult > 0 && rec.easeMult < 1) { m *= rec.easeMult; parts.push('remedies'); }
@@ -561,6 +564,7 @@ export const Ailments = {
             if (rec.treated > 0) heal += _num(cfgW.treatedHeal);
             if (healer) heal += _num(cfgW.healerHeal);
             if (hospital) heal += _num(cfgW.hospitalHeal);
+            heal += _num(player.patronage && player.patronage.fx && player.patronage.fx.woundHeal); // medical texts
             rec.daysLeft = _num(rec.daysLeft) - heal;
             if (rec.daysLeft <= 0) {
                 Ailments._remove(player, rec);

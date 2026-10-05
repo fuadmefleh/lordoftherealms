@@ -29,6 +29,7 @@ import { HoldingSieges } from './holdingSieges.js';
 import { Discovery } from './discovery.js';
 import { Heralds } from './heralds.js';
 import { MerchantHouses } from './merchantHouses.js';
+import { Patronage } from './patronage.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { WorldUnit } from '../world/units.js';
 import { Terrain } from '../world/terrain.js';
@@ -126,6 +127,8 @@ export const SaveLoad = {
             units: SaveLoad.serializeUnits(world.units),
             // Regional market supply, demand, prices and price history
             markets: MarketDynamics.regionalMarkets || {},
+            // Great Works raised and rising, the wonders claimed (systems/patronage.js)
+            greatWorks: Patronage.serializeWorld(world),
             // Ids for characters, maps, spies, ... keep counting from here
             idCounter: Utils.getIdCounter(),
         };
@@ -226,7 +229,9 @@ export const SaveLoad = {
             // peoples, stores) — regeneration would reset it to day one
             ...SaveLoad._pickDefined(k, ['religion', 'cultureData', 'peoples', 'food', 'goods',
                 // Recomputed during the day, but read before that on the first day after a load
-                'characterBonuses', 'lordModifiers', 'playerFaith']),
+                'characterBonuses', 'lordModifiers', 'playerFaith',
+                // Wonders the realm has raised (systems/patronage.js; read by its stability)
+                'greatWorks']),
             ...(k.createdByPlayer ? {
                 foundedDay: k.foundedDay,
                 colorLight: k.colorLight,
@@ -425,6 +430,8 @@ export const SaveLoad = {
             merchant: MerchantHouses.serialize(player),
             // The heralds: recent proclamations and what they last saw (systems/heralds.js)
             heralds: Heralds.serialize(player),
+            // Patronage: clients, commissions, the gallery, Great Works under way (systems/patronage.js)
+            patronage: Patronage.serialize(player),
         };
     },
 
@@ -513,6 +520,9 @@ export const SaveLoad = {
             KingdomNavy.ensure(kingdom);
             world.kingdoms.push(kingdom);
         }
+
+        // Great Works (older saves: none raised, none rising)
+        Patronage.restoreWorld(saveData.greatWorks, world);
 
         // World units (older saves keep the ones the regenerated world spawned)
         if (Array.isArray(saveData.units)) world.units = SaveLoad.restoreUnits(saveData.units);
@@ -659,6 +669,8 @@ export const SaveLoad = {
         MerchantHouses.loadState(player);
         // Heralds — older saves get a blank record (the first tick only takes a snapshot)
         Heralds.loadState(player);
+        // Patronage — older saves get a blank record (no clients, no works)
+        Patronage.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

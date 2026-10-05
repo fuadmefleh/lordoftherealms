@@ -634,6 +634,12 @@ export const Taxation = {
         return typeof v === 'number' && isFinite(v) ? v : fallback;
     },
 
+    /** Mood points a town's great works and donated art add (systems/patronage.js). */
+    patronageMood(settlement) {
+        const v = settlement && settlement.patronage && settlement.patronage.mood;
+        return typeof v === 'number' && isFinite(v) ? v : 0;
+    },
+
     /** Mood points a settlement's peoples add to its happiness target (systems/peoples). */
     peoplesMood(settlement) {
         return (settlement && settlement.peoplesEffects && settlement.peoplesEffects.stability) || 0;
@@ -667,7 +673,8 @@ export const Taxation = {
         const peoplesMood = Taxation.peoplesMood(settlement);
         // Taverns, temples and squares in a developed holding lift the mood
         const holdingMood = Taxation.holdingFx(settlement, 'happiness');
-        const target = Math.max(0, Math.min(100, 50 + taxPolicy.happinessBonus * 1.5 + peoplesMood + holdingMood));
+        // Great works and donated art (systems/patronage.js → settlement.patronage)
+        const target = Math.max(0, Math.min(100, 50 + taxPolicy.happinessBonus * 1.5 + peoplesMood + holdingMood + Taxation.patronageMood(settlement)));
         const happiness = Taxation.getHappiness(settlement);
         settlement.happiness = Math.max(0, Math.min(100, happiness + (target - happiness) * 0.25));
         entry.happiness = Math.round(settlement.happiness);

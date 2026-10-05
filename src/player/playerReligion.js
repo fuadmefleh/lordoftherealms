@@ -41,8 +41,12 @@ export const PlayerReligion = {
 
     /** Multiplier on converting people (buildings, preaching): tenets × influence. */
     conversionMultiplier(player) {
+        // A Grand Cathedral (systems/patronage.js → player.patronage.fx) preaches too
+        const fx = player && player.patronage && player.patronage.fx;
+        const cathedral = fx && Number.isFinite(fx.conversion) ? fx.conversion : 0;
         return Math.max(0, 1 + PlayerReligion.tenetBonus(player, 'conversion'))
-            * (1 + Religion.PLAYER_INFLUENCE.conversionBonus * PlayerReligion.influenceFactor(player));
+            * (1 + Religion.PLAYER_INFLUENCE.conversionBonus * PlayerReligion.influenceFactor(player))
+            * (1 + cathedral);
     },
 
     /** Settlements devoted to the player's faith (share ≥ devotedShare). [{ q, r, share }] */

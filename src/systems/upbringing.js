@@ -330,7 +330,10 @@ export const Upbringing = {
             }
         }
 
-        Upbringing._growPure(child, years, true);
+        // A University of the House's (systems/patronage.js) teaches faster
+        const fx = player.patronage && player.patronage.fx;
+        const university = fx && Number.isFinite(fx.education) ? Math.max(0, fx.education) : 0;
+        Upbringing._growPure(child, years * (1 + university), true);
 
         // The parent's example: each of the ruler's earned traits may rub off
         const chance = cfg.parentRubOffChancePerYear * years;

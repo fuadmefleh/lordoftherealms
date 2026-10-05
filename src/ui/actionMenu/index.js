@@ -30,6 +30,7 @@ import './discovery.js';
 import './merchantHouses.js';
 import './deeds.js';
 import './counsel.js';
+import './patronage.js';
 
 // Expose ActionMenu globally so inline onclick handlers in dynamic HTML can access it
 window.ActionMenu = ActionMenu;

@@ -71,7 +71,15 @@ Object.assign(Technology, {
         const universities = Math.min(2, Technology.countOwnedBuildings(player, 'university_building', world));
         return Technology.getEffectTotal(player, 'researchBonus') + 0.25 * universities
             + Technology.getCulturalResearchBonus(player, world)
-            + Religion.tenetBonus(player.religion, 'research'); // the Wisdom tenet
+            + Religion.tenetBonus(player.religion, 'research') // the Wisdom tenet
+            + Technology.patronageFx(player, 'research'); // the Great Library (systems/patronage.js)
+    },
+
+    /** A standing Great Work effect cached on player.patronage.fx (0 when none). */
+    patronageFx(player, key) {
+        const fx = player && player.patronage && player.patronage.fx;
+        const v = fx && fx[key];
+        return typeof v === 'number' && Number.isFinite(v) ? v : 0;
     },
 
     /**

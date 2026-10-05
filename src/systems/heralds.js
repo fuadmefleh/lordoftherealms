@@ -4,7 +4,7 @@
 // When something big happens — a coronation, a realm falling or rising
 // again, a war declared or a peace made, a saga ending, a revolt against a
 // crown (or its end), a peasant rebellion, a new land named on the charts, a
-// siege won or broken — the heralds proclaim it. A proclamation starts where
+// siege won or broken, a Great Work finished or begun — the heralds proclaim it. A proclamation starts where
 // it happened and spreads outward `speed` hexes a day; every settlement it
 // has reached knows it (Chatter's `proclamation` condition and the tavern's
 // news read heardAt), and when it reaches the player it becomes a short
@@ -163,7 +163,10 @@ export const Heralds = {
     },
 
     /** Mark everything already on record as heard (first tick, old saves). */
-    _markSeen(player, st) {
+    _markSeen(player, st, world = null) {
+        const gw = world && world.greatWorks;
+        for (const b of (gw && Array.isArray(gw.built)) ? gw.built : []) if (b && b.uid) st.seen[`gw:${b.uid}`] = _num(b.day);
+        for (const n of (gw && Array.isArray(gw.npc)) ? gw.npc : []) if (n && n.uid) st.seen[`gwn:${n.uid}`] = _num(n.startDay);
         for (const s of (player && player.discovery && player.discovery.sites) || []) {
             if (s && s.discovered) st.seen[`d:${s.id}`] = true;
         }
@@ -281,6 +284,26 @@ export const Heralds = {
             Heralds._proclaim(st, world, 'discovery', { place: site.name, by }, { q: site.q, r: site.r }, { own: mine });
         }
 
+        // Great Works: wonders finished (anyone's), and kingdoms laying first stones
+        // (systems/patronage.js keeps world.greatWorks; records are day-stamped)
+        const gw = world.greatWorks;
+        for (const b of (gw && Array.isArray(gw.built)) ? gw.built : []) {
+            if (!b || !b.uid || st.seen[`gw:${b.uid}`] != null || _num(b.day) < since - 1) continue;
+            st.seen[`gw:${b.uid}`] = _num(b.day);
+            const mine = b.owner === 'player';
+            const k = mine ? null : _kingdom(world, b.kingdomId);
+            const by = mine ? ((player.house && player.house.name) || player.name || 'a great House') : (k ? k.name : 'a realm');
+            Heralds._proclaim(st, world, 'wonder', { title: b.name, place: b.settlementName || 'the capital', by }, { q: b.q, r: b.r }, { kingdomId: b.kingdomId, own: mine });
+        }
+        for (const n of (gw && Array.isArray(gw.npc)) ? gw.npc : []) {
+            if (!n || !n.uid || st.seen[`gwn:${n.uid}`] != null || _num(n.startDay) < since - 1) continue;
+            st.seen[`gwn:${n.uid}`] = _num(n.startDay);
+            const k = _kingdom(world, n.kingdomId);
+            const t = world.getTile ? world.getTile(n.q, n.r) : null;
+            const def = (DataLoader.patronage && DataLoader.patronage.greatWorks && DataLoader.patronage.greatWorks[n.workId]) || {};
+            Heralds._proclaim(st, world, 'wonder_begun', { title: def.name || 'a great work', place: (t && t.settlement && t.settlement.name) || 'its capital', by: k ? k.name : 'a realm' }, { q: n.q, r: n.r }, { kingdomId: n.kingdomId });
+        }
+
         // The player's own sieges (won, or broken), and sieges of the player's holdings
         for (const x of rec.sieges.filter(fresh)) {
             st.seen[x.key] = x.day;
@@ -314,7 +337,7 @@ export const Heralds = {
 
         if (!st.snapshot) {
             st.snapshot = Heralds._snapshot(world, player);
-            Heralds._markSeen(player, st);
+            Heralds._markSeen(player, st, world);
         } else {
             Heralds._detect(world, player, st, st.lastDay == null ? day - 1 : st.lastDay);
         }

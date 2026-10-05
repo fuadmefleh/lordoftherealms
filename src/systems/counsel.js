@@ -48,6 +48,7 @@ import { Traits } from './traits.js';
 import { BountyHunting } from './bountyHunting.js';
 import { Holdings } from './holdings.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
+import { Patronage } from './patronage.js';
 
 export const GROUPS = ['threat', 'opportunity', 'goal'];
 export const SEVERITIES = { critical: 3, warning: 2, notice: 1, info: 0 };
@@ -701,6 +702,75 @@ R.discoveryRumours = (ctx) => _arr(ctx.player.discovery && ctx.player.discovery.
     const d = ctx.dist(q, r);
     return { key: s.id, q, r, how: charted ? 'A chart marks' : 'Sailors whisper of', boost: -Math.min(d, 60) / 20 };
 });
+
+// ── PATRONAGE & GREAT WORKS (systems/patronage.js) ───────────
+
+/** The player's patronage record, only when it is well-formed (Patronage.state backfills). */
+function _patronage(player) {
+    const st = player && player.patronage;
+    if (!_obj(st) || !Array.isArray(st.clients) || !Array.isArray(st.projects) || !Array.isArray(st.offers)) return null;
+    return st;
+}
+
+R.patronageOffers = (ctx) => {
+    const st = _patronage(ctx.player);
+    if (!st) return [];
+    return st.offers.map(o => {
+        const c = st.clients.find(x => x && x.id === o.clientId);
+        if (!c) return null;
+        const left = _num(o.dueDay) - ctx.day;
+        return { key: c.id, name: c.name, rival: o.rivalName || 'A rival House', counter: _num(o.counter), left: _days(left),
+            severity: left <= 2 ? 'warning' : 'notice', boost: -left / 10 };
+    }).filter(Boolean);
+};
+
+R.greatWorkStalled = (ctx) => {
+    const st = _patronage(ctx.player);
+    if (!st) return [];
+    return st.projects.filter(p => p && p.status === 'building' && p.stall && p.stall !== 'winter').map(p => {
+        const def = Patronage.greatWork(p.workId) || {};
+        return { key: p.id, q: p.q, r: p.r, work: def.name || 'Great Work', place: p.name, why: Patronage.STALL_TEXT[p.stall] || p.stall,
+            severity: p.stall === 'lost' || p.stall === 'siege' ? 'warning' : 'notice' };
+    });
+};
+
+R.wonderRace = (ctx) => {
+    const st = _patronage(ctx.player);
+    const ws = ctx.world && ctx.world.greatWorks;
+    if (!st || !_obj(ws) || !Array.isArray(ws.npc)) return [];
+    const out = [];
+    for (const p of st.projects) {
+        const def = p && Patronage.greatWork(p.workId);
+        if (!def || !def.unique) continue;
+        for (const n of ws.npc) {
+            if (!n || n.workId !== p.workId) continue;
+            const pct = Math.round(100 * _num(n.progress) / Math.max(1, _num(n.days, 1)));
+            out.push({ key: `${p.id}:${n.uid}`, q: n.q, r: n.r, work: def.name, realm: _kingdomName(ctx.world, n.kingdomId), pct,
+                severity: pct >= 75 ? 'warning' : 'notice', boost: pct / 20 });
+        }
+    }
+    return out;
+};
+
+R.greatWorkSupply = (ctx) => {
+    const st = _patronage(ctx.player);
+    if (!st) return [];
+    return st.projects.filter(p => p && p.status === 'supplying').map(p => {
+        const def = Patronage.greatWork(p.workId) || {};
+        const stage = (def.stages || [])[_num(p.stage)] || {};
+        return { key: p.id, q: p.q, r: p.r, work: def.name || 'Great Work', place: p.name, stage: (stage.name || 'next stage').toLowerCase() };
+    });
+};
+
+R.idleClients = (ctx, p) => {
+    const st = _patronage(ctx.player);
+    if (!st) return [];
+    const profs = Patronage.professions();
+    return st.clients.filter(c => c && !c.task && !c.assignedTo && _num(c.idleDays) >= _num(p.minIdle, 3)).map(c => ({
+        key: c.id, name: c.name, prof: ((profs[c.profession] || {}).name || 'client').toLowerCase(),
+        idle: _days(_num(c.idleDays)), boost: _num(c.idleDays) / 20,
+    }));
+};
 
 // ── GOALS ────────────────────────────────────────────────────
 

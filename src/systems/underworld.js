@@ -173,13 +173,28 @@ export const Underworld = {
         return world.getKingdom(settlement.kingdom) || null;
     },
 
-    /** Guard strength of a settlement: its size, plus the realm's character. */
+    /**
+     * Guard strength of a settlement: its size, the realm's character, and —
+     * in one of the player's holdings — the watch they built (watchtower,
+     * walls: holding.fx.raidReduction) and the troops they stationed there.
+     */
     guardStrength(settlement, kingdom = null) {
         if (!settlement) return 0;
         const g = Underworld.data().guardStrength || {};
         let s = _num(g[settlement.type], { village: 1, town: 2, city: 3, capital: 4 }[settlement.type] || 1);
         for (const t of (kingdom && kingdom.traits) || []) s += _num((g.kingdomTraits || {})[t]);
+        const h = Underworld._ownHolding(settlement);
+        if (h) {
+            s += Economy.holdingFx(settlement, 'raidReduction') * _num(g.holdingWatch, 2);
+            s += Math.min(_num(g.holdingGarrisonMax, 1.5), (Array.isArray(h.garrison) ? h.garrison.length : 0) * _num(g.holdingGarrisonPer, 0.25));
+        }
         return Math.max(0.5, s);
+    },
+
+    /** The development record of a settlement the player holds (systems/holdings.js), else null. */
+    _ownHolding(settlement) {
+        const h = settlement && settlement.holding;
+        return h && typeof h === 'object' && !h.lost ? h : null;
     },
 
     _typeRank(type) {
@@ -1042,6 +1057,8 @@ export const Underworld = {
         const warnings = Underworld.data().warnings || {};
         const warning = level === 'clear' ? null : (warnings[level] || null);
         if (heat < h.watchedAt) return { heat, level, warning, search: null };
+        // Your own holding's watch answers to you: no search at your own gate
+        if (Underworld._ownHolding(settlement)) return { heat, level, warning, search: null };
 
         const kingdom = Underworld._settlementKingdom(world, settlement);
         const guard = Underworld.guardStrength(settlement, kingdom);

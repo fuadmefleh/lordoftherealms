@@ -48,6 +48,7 @@
             "renown": [8, 25],
             "goals": { "delve": 6, "quest": 2, "wander": 2, "festival": 1 },
             "teamUp": true, "hireable": true,
+            "traitAttitude": { "scholar": 4, "wanderer": 4, "greedy": -3, "deceitful": -4 },
             "lines": {
                 "greet": ["Another digger? The deep places don't share well, friend.", "I've a map with your name nowhere on it.", "Gold sleeps under every old stone. I mean to wake it."],
                 "friendly": ["Heard of a vault under the hills — come along and we split it fair.", "You've good instincts. Rare in this trade."],
@@ -61,6 +62,7 @@
             "renown": [10, 30],
             "goals": { "festival": 3, "bounty": 2, "delve": 2, "quest": 2, "wander": 1 },
             "teamUp": true, "hireable": true,
+            "traitAttitude": { "brave": 4, "champion": 5, "generous": 3, "craven": -6, "merciful": -2 },
             "lines": {
                 "greet": ["My blade's for hire, but not to you — not yet.", "Coin first, then we talk.", "Seen you swing a sword. Could be worse."],
                 "friendly": ["You ever need steel at your back, you know where I drink.", "Ride with you any day. Pay's good, company's better."],
@@ -74,6 +76,7 @@
             "renown": [8, 22],
             "goals": { "bounty": 6, "quest": 2, "wander": 1 },
             "teamUp": false, "hireable": true,
+            "traitAttitude": { "honest": 4, "dread_lord": -3, "deceitful": -5, "cunning": -3 },
             "lines": {
                 "greet": ["If your face were on a poster, I'd already have you.", "Every name on that board is mine. Keep that in mind.", "Hunting the same quarry, are we?"],
                 "friendly": ["Tip for you: the slow ones hide in the marsh hamlets.", "You've a nose for the trail. I respect that."],
@@ -87,6 +90,7 @@
             "renown": [10, 26],
             "goals": { "delve": 3, "quest": 3, "festival": 1, "wander": 2 },
             "teamUp": true, "hireable": false,
+            "traitAttitude": { "pious": 6, "zealous": 5, "merciful": 4, "cruel": -8, "kinslayer": -10, "drunkard": -3 },
             "lines": {
                 "greet": ["The restless dead do not rest themselves. Someone must go down.", "Walk in the light, stranger.", "Have you prayed today?"],
                 "friendly": ["The heavens favour you. I have seen it.", "Come with me into the tombs — two lamps burn brighter than one."],
@@ -100,6 +104,7 @@
             "renown": [6, 20],
             "goals": { "quest": 4, "delve": 3, "wander": 3 },
             "teamUp": true, "hireable": true,
+            "traitAttitude": { "merchant_prince": 6, "generous": 3, "honest": 3, "gambler": 2, "deceitful": -4 },
             "lines": {
                 "greet": ["Everything has a price. Even old ruins. Especially old ruins.", "Fancy a partnership? No? Your loss.", "Buy low, delve deep, sell high."],
                 "friendly": ["I keep a ledger of favours. Yours is in the black.", "Partners split the risk and double the profit."],
@@ -113,6 +118,7 @@
             "renown": [12, 30],
             "goals": { "usurp": 4, "festival": 2, "quest": 2, "delve": 1, "wander": 1 },
             "teamUp": false, "hireable": false, "ambitious": true,
+            "traitAttitude": { "cunning": 4, "beloved": -4, "dread_lord": -5, "honest": -2 },
             "lines": {
                 "greet": ["Crowns are only hats, until someone sits under them.", "One day you'll bow to me. Practise now.", "I have friends in every court."],
                 "friendly": ["When I am king, you'll want for nothing. Remember who stood by whom.", "There is room at my table for you."],
@@ -126,6 +132,7 @@
             "renown": [10, 28],
             "goals": { "festival": 5, "wander": 3, "bounty": 1, "quest": 1 },
             "teamUp": false, "hireable": true, "duelist": true,
+            "traitAttitude": { "champion": -6, "brave": 4, "scarred": 3, "craven": -8 },
             "lines": {
                 "greet": ["Draw, or step aside.", "They say you can fight. I'd like to see it.", "I collect famous names. Yours is getting there."],
                 "friendly": ["A worthy blade. Spar with me sometime — for the joy of it.", "Of all the swords in this land, yours I'd least like to cross."],

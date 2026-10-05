@@ -51,6 +51,8 @@ const DEFAULT_CONFIG = {
     courtCap: 20,
     housePrestige: 20,
     opinionCap: 15,
+    governorDaysPerStewardship: 0.3,
+    governorDaysMax: 3,
 };
 
 const COURT_AXES = ['mercy', 'severity', 'justice', 'piety', 'generosity'];
@@ -462,11 +464,22 @@ export const Petitions = {
         return String(text || '').replace(/\{(\w+)\}/g, (m, k) => (map[k] != null ? map[k] : m));
     },
 
-    /** Extra days petitioners wait at a holding with a Moot Hall (settlement.holding.fx, systems/holdings.js). */
+    /**
+     * Extra days petitioners wait at a holding: a Moot Hall (settlement.holding.fx)
+     * and a governor who keeps them in hand while you are away (their
+     * stewardship; systems/holdings.js).
+     */
     _holdingDays(world, ctx) {
         const tile = ctx && ctx.q != null && world && typeof world.getTile === 'function' ? world.getTile(ctx.q, ctx.r) : null;
-        const fx = tile && tile.settlement && tile.settlement.holding && tile.settlement.holding.fx;
-        return (fx && fx.petitionDays > 0) ? Math.round(fx.petitionDays) : 0;
+        const h = tile && tile.settlement && tile.settlement.holding;
+        const fx = h && h.fx;
+        let days = (fx && fx.petitionDays > 0) ? Math.round(fx.petitionDays) : 0;
+        const gov = h && !h.lost && h.governor;
+        if (gov) {
+            const cfg = Petitions.config();
+            days += Math.min(cfg.governorDaysMax, Math.floor((Number(gov.stewardship) || 0) * cfg.governorDaysPerStewardship));
+        }
+        return days;
     },
 
     _create(player, world, def, defId, ctx) {

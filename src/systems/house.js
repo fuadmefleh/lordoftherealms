@@ -555,6 +555,17 @@ export const House = {
         const member = House._findMember(player, memberId);
         if (!member) return { success: false, reason: 'Not a family member' };
         if (member.isAlive === false) return { success: false, reason: 'They have passed away' };
+        // Offices are for grown children at home (systems/upbringing.js); the
+        // heir may be named at any age — a regency heir inherits young.
+        if (roleId !== 'heir') {
+            const up = member.upbringing;
+            const grown = up ? !!up.comeOfAge : (member.age || 0) >= 16;
+            if (!grown) return { success: false, reason: `${member.firstName || 'They'} must come of age (16) to hold an office` };
+            const p = up && up.placement;
+            if (p && p.kind === 'ward' && !p.returned) {
+                return { success: false, reason: `${member.firstName || 'They'} is away as a ward and cannot hold an office` };
+            }
+        }
 
         // One role per member — vacate any prior appointment.
         for (const rid of ROLE_IDS) {

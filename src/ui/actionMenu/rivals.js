@@ -85,7 +85,7 @@ Object.assign(ActionMenu, {
                         ? `<span style="color:#7fd07f;">You cut ${_esc(r.name)} down. +${res.renown} renown, -${res.harm} health.</span>`
                         : `<span style="color:#7fd07f;">You win the duel! +${res.renown} renown, -${res.harm} health.</span>`;
                 } else {
-                    h += `<span style="color:#e08080;">You lose the duel. -${res.harm} health.</span>`;
+                    h += `<span style="color:#e08080;">You lose the duel. -${res.harm} health.${res.wound ? ` ${res.wound.icon || '🩸'} ${_esc(res.wound.name)}.` : ''}</span>`;
                 }
                 if (res.after) h += `<br><i>"${_esc(res.after)}"</i>`;
                 refresh({ html: h, color: res.playerWon ? 'rgba(127,208,127,0.4)' : 'rgba(224,96,96,0.4)' });

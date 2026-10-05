@@ -3,6 +3,7 @@
 // ============================================
 
 import { Utils } from '../core/utils.js';
+import { DataLoader } from '../core/dataLoader.js';
 import { KingdomAI } from './kingdomAI.js';
 import { KingdomStability, LordInfluence } from './kingdomState.js';
 import { TradeRoutes } from './economy.js';
@@ -580,7 +581,10 @@ export const NPCLords = {
             if (!w) continue;
             for (const [axis, weight] of Object.entries(w)) total += (court[axis] || 0) * weight;
         }
-        return Utils.clamp(Math.round(total), -NPCLords.COURT_OPINION_CAP, NPCLords.COURT_OPINION_CAP);
+        // data/petitions.json config.opinionCap tunes the cap (falls back to the constant)
+        const cfgCap = Number(DataLoader.petitions && DataLoader.petitions.config && DataLoader.petitions.config.opinionCap);
+        const cap = cfgCap > 0 ? cfgCap : NPCLords.COURT_OPINION_CAP;
+        return Utils.clamp(Math.round(total), -cap, cap);
     },
 
     /**

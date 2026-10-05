@@ -181,7 +181,7 @@ Object.assign(ActionMenu, {
             },
             companion: (id, npcId) => {
                 const npc = Companions.members(player, world).find(n => n.id === npcId);
-                const eff = npc ? Companions.tier(npc).effectiveness : 1;
+                const eff = npc ? Companions.effectiveness(player, npc) : 1;
                 const res = Upbringing.hireCompanionTutor(player, world, id, npc, eff);
                 if (!res.success) return fail(res.reason);
                 refresh({ html: `🧭 ${_esc(res.tutor.name)} agrees to teach ${_esc(child.firstName)} on the road.` });

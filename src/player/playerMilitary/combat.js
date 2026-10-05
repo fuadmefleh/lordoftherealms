@@ -652,6 +652,12 @@ Object.assign(PlayerMilitary, {
             worldUnit.destroyed = true;
             worldUnit.slainByPlayer = true; // sagas tell your kill from a patrol's (systems/sagas.js)
             if (worldUnit.type === 'war_host') RealmWars.onHostDefeated(player, world, worldUnit);
+            // Beating raiders, pirates, monsters (saga beasts among them) and sellswords
+            // is a battle won for the House's legacy ("the Warlike"); war hosts are
+            // counted by RealmWars, and robbing caravans and boats is no glory.
+            if (['raider', 'pirate', 'monster', 'mercenary'].includes(worldUnit.type) || worldUnit.sagaKey) {
+                House.recordPlayerDeed(player, world, 'battleWon', { reason: `defeated ${worldUnit.name || 'a foe'}` });
+            }
 
             Quests.track(player, 'battles_won');
             if (worldUnit.type === 'raider' || worldUnit.type === 'pirate') Quests.track(player, 'raiders_defeated');

@@ -1036,6 +1036,16 @@ export function _reportUpbringing(out) {
     for (const t of out.tutorsLeft || []) n('🧑‍🏫 Tutor Gone', t.text, 'warning');
     for (const c of out.comeOfAge || []) n('🎓 Coming of Age', `${c.text} Give them an office, a match or a wardship from the Dynasty menu.`, 'success');
     for (const w of out.wardsReturned || []) n('🏰 A Ward Returns', w.text, 'success');
+    // Your example rubbing off on a child (Upbringing._growthTick)
+    const byChild = new Map();
+    for (const r of out.rubOff || []) {
+        if (!r || !r.child) continue;
+        if (!byChild.has(r.child)) byChild.set(r.child, []);
+        byChild.get(r.child).push((Traits.TRAITS[r.traitId] || {}).name || r.traitId);
+    }
+    for (const [child, names] of byChild) {
+        n(`👪 ${child.firstName} Watches You`, `${child.firstName} is picking up your ways: ${names.join(', ').toLowerCase()}.`, 'info');
+    }
 }
 
 /** Tell the player when what they see contradicts a doctored map they trusted. */

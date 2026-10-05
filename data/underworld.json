@@ -39,6 +39,10 @@
         "town": 2,
         "city": 3,
         "capital": 4,
+        "_holding": "In the player's own holdings: + fx.raidReduction x holdingWatch (watchtower, walls) + stationed troops x holdingGarrisonPer (up to holdingGarrisonMax)",
+        "holdingWatch": 2,
+        "holdingGarrisonPer": 0.25,
+        "holdingGarrisonMax": 1.5,
         "kingdomTraits": { "orderly": 0.75, "militaristic": 0.5, "defensive": 0.5, "religious": 0.25, "secretive": -0.5, "mercantile": -0.25, "mobile": -0.25 }
     },
     "odds": {

@@ -18,6 +18,7 @@
         "mismatchTutorFactor": 0.3,
         "companionQuality": 1.2,
         "companionMatchQuality": 1.7,
+        "companionMinEffectiveness": 1,
         "historyCap": 12,
         "noticeCap": 20,
         "chronicleNotable": true

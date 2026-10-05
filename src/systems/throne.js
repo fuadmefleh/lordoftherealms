@@ -397,7 +397,8 @@ export const Throne = {
         a += add('Reputation', Utils.clamp(opts.reputation != null ? opts.reputation : _rep(player, kingdom.id), -100, 100) * L.reputationWeight);
         a += add('Prestige', Math.min(L.prestigeCap, House.getPrestige(player) / L.prestigePer));
         a += add('The court\'s opinion', Utils.clamp(NPCLords.getLordOpinion(kingdom.lord, player) * L.opinionWeight, -L.opinionCap, L.opinionCap));
-        a += add('Your traits', Utils.clamp(Traits.effect(player, 'lordOpinion'), -L.traitCap, L.traitCap));
+        // Flat trait opinion plus the king's own affinities (a Pious king likes a Pious pretender)
+        a += add('Your traits', Utils.clamp(Traits.lordOpinion(player, kingdom.lord), -L.traitCap, L.traitCap));
         const stability = typeof kingdom.stability === 'number' ? kingdom.stability : 60;
         a += add('Unrest in the realm', (L.stabilityPivot - stability) * L.stabilityWeight);
         if (Throne.crisisFor(player, kingdom.id)) a += add('Succession crisis', L.crisisBonus);
@@ -936,6 +937,11 @@ export const Throne = {
         player.allegiance = kingdom.id;
         player.kingdomTitle = 'king';
         player.title = `${ruler.gender === 'female' ? 'Queen' : 'King'} of ${kingdom.name}`;
+        // Every crown won — taken in a civil war or founded — counts for the House's legacy
+        if (player.house) {
+            player.house.stats = player.house.stats || {};
+            player.house.stats.crowned = (player.house.stats.crowned || 0) + 1;
+        }
         _addRep(player, kingdom.id, 0);
         player.reputation[kingdom.id] = Math.max(player.reputation[kingdom.id], Throne.config().crownedReputation);
         Throne.syncCrowns(player, world);
@@ -954,10 +960,6 @@ export const Throne = {
         Throne._takeThrone(player, world, kingdom);
         player.renown = (player.renown || 0) + cfg.crownedRenown;
         House.award(player.house, cfg.crownedPrestige, `crowned in ${kingdom.name}`, world.day);
-        if (player.house) {
-            player.house.stats = player.house.stats || {};
-            player.house.stats.crowned = (player.house.stats.crowned || 0) + 1;
-        }
         const text = how === 'weariness'
             ? `👑 The loyalists of ${kingdom.name} lay down their arms. ${kingdom.ruler} is crowned!`
             : `👑 The civil war is won. ${kingdom.ruler} is crowned in ${kingdom.name}!`;

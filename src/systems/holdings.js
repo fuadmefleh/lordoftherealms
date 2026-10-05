@@ -226,7 +226,18 @@ export const Holdings = {
         const st = Holdings.ensureLedger(player);
         for (const ref of owned) {
             Holdings.ensure(ref.settlement);
+            ref.settlement.holding.lost = false;
             Holdings.refresh(ref.settlement);
+        }
+        // Towns developed once and lost since (saves from before the lost flag):
+        // only their walls still stand
+        const ownedKeys = new Set(owned.map(o => o.key));
+        if (world && typeof world.getAllSettlements === 'function') {
+            for (const s of world.getAllSettlements()) {
+                if (!s || !s.holding || ownedKeys.has(_key(s.q, s.r))) continue;
+                s.holding.lost = true;
+                Holdings.refresh(s);
+            }
         }
         if (world && owned.length) st.keys = owned.map(o => o.key);
         return st;
@@ -403,7 +414,11 @@ export const Holdings = {
         for (const id of Object.keys(built)) {
             const def = Holdings.project(id);
             for (const [k, v] of Object.entries((def && def.effects) || {})) {
-                if (FX_KEYS.includes(k)) fx[k] += _num(v);
+                if (!FX_KEYS.includes(k)) continue;
+                // A town no longer yours keeps its walls; its harbour, markets,
+                // workshops and drill yards stop working for you.
+                if (h.lost && k !== 'defense') continue;
+                fx[k] += _num(v);
             }
         }
         const gov = opts.governor !== undefined ? opts.governor : h.governor;
@@ -690,7 +705,10 @@ export const Holdings = {
         const h = Holdings.ensure(ref.settlement);
         if (h.governor) Holdings.dismissGovernor(player, world, q, r);
         player.gold = _num(player.gold) - _num(cand.fee);
-        if (cand.kind === 'companion') {
+        // A governor stays at their post: a companion — or a spouse travelling
+        // with you — leaves the party (and cannot be invited back while in office)
+        const inParty = cand.kind === 'companion' || Relationships.isInTravelParty(player, cand.id);
+        if (inParty) {
             Relationships.removeFromTravelParty(player, cand.id);
             const npc = Relationships.getNPC(cand.id);
             if (npc) npc.governing = ref.key;
@@ -700,6 +718,7 @@ export const Holdings = {
             stewardship: cand.stewardship, martial: cand.martial, intrigue: cand.intrigue,
             loyaltyMod: cand.loyaltyMod || 0, loyalty: cand.loyalty, wage: _num(cand.wage),
             appointedDay: _num(world && world.day), unpaid: 0, warned: false,
+            ...(inParty && cand.kind !== 'companion' ? { rejoinParty: true } : {}),
         };
         Holdings.ensureLedger(player);
         Holdings.refresh(ref.settlement);
@@ -722,7 +741,7 @@ export const Holdings = {
 
     /** A governor leaves office; a companion who is still welcome rejoins the party. */
     _releaseGovernor(player, g, rejoin) {
-        if (!g || g.kind !== 'companion') return;
+        if (!g || (g.kind !== 'companion' && !g.rejoinParty)) return;
         const npc = Relationships.getNPC(g.id);
         if (!npc) return;
         delete npc.governing;
@@ -831,6 +850,7 @@ export const Holdings = {
         h.queue = [];
         h.rebellion = null;
         h.unrest = 0;
+        h.lost = true;
         s.happiness = 50;
         Holdings.refresh(s);
         const st = Holdings.ensureLedger(player);
@@ -855,6 +875,7 @@ export const Holdings = {
         h.garrison = [];
         h.queue = [];
         h.rebellion = null;
+        h.lost = true;
         Holdings.refresh(s);
         const text = `${s.name} is no longer yours${lostTroops ? `; its ${lostTroops} stationed troops are lost` : ''}.`;
         out.lost.push({ q, r, name: s.name, text });
@@ -889,6 +910,7 @@ export const Holdings = {
         for (const ref of owned) {
             const s = ref.settlement;
             const h = Holdings.ensure(s);
+            if (h.lost) h.lost = false; // retaken
             Holdings._tickGovernor(player, world, ref, h, out);
             Holdings.refresh(s);
 

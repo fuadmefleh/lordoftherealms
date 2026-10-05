@@ -498,11 +498,12 @@ export const Companions = {
         st.snap = now;
 
         // A companion who left by any road (e.g. removed from their profile)
-        // takes their personal quest with them
+        // takes their personal quest with them — one away governing a holding
+        // (systems/holdings.js) keeps it for when they rejoin
         const party = Array.isArray(player.travelParty) ? player.travelParty : [];
         for (const npc of Relationships._npcs || []) {
             const q = npc && npc.companion && npc.companion.quest;
-            if (q && q.status === 'active' && (!npc.isAlive || !party.includes(npc.id))) Companions._abandonQuest(player, npc);
+            if (q && q.status === 'active' && (!npc.isAlive || (!party.includes(npc.id) && !npc.governing))) Companions._abandonQuest(player, npc);
         }
 
         const members = Companions.members(player, world);

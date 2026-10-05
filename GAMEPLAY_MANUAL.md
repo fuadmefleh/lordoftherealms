@@ -1290,7 +1290,7 @@ A criminal path through the realms, alongside the honest one. Everything here is
 | 60+ | **Arrest risk** | A search can end in arrest |
 | 80+ | **Warrant** | A kingdom-wide warrant: merchants, taverns and recruiters there refuse you until you settle with the guards |
 
-**Guard searches.** Entering a settlement in a realm where you are watched, guards may search you — the higher the heat and the bigger the garrison, the likelier. They **confiscate** goods banned there and any **hot** goods, fine you (more for what they find), and may **arrest** you into the town jail (2+ days, bail available). A clean search cools your heat by 3.
+**Guard searches.** Entering a settlement in a realm where you are watched, guards may search you — the higher the heat and the bigger the garrison, the likelier. Never at the gate of your own holding: your watch answers to you. But a watchtower or walls and the troops you station there make every job, burglary and black-market deal *in* that town harder, as if its guard were stronger. They **confiscate** goods banned there and any **hot** goods, fine you (more for what they find), and may **arrest** you into the town jail (2+ days, bail available). A clean search cools your heat by 3.
 
 **Guard strength** is village 1, town 2, city 3, capital 4, adjusted by the realm's character (*orderly* +0.75, *militaristic* and *defensive* +0.5, *secretive* −0.5, *mercantile* −0.25…).
 
@@ -1862,7 +1862,7 @@ Stats cap at 14 and skills at 8 during childhood.
 **Tutors.** A tutor multiplies the growth. The full bonus applies when their subject matches the focus; otherwise only 30% of it does.
 
 - *Court tutors* cost gold up front plus a monthly wage, paid every 30 days. An unpaid tutor leaves. The Hedge Tutor teaches all subjects (×1.25, 40g + 6g a month). The Master-at-Arms, Retired Steward, Court Envoy, Court Scholar, Whisperer and House Chaplain each teach one focus (×1.8–1.9, 120–180g + 14–22g a month). Each also passes on some of their own character: the Master-at-Arms breeds bravery, the Whisperer cunning.
-- *A companion* travelling with you teaches for free. Their occupation decides the subject: knights and guards teach martial arts, merchants stewardship, scholars and healers learning, priests piety, and so on. Their mood scales the bonus (×1.7 at best when they have a subject, ×1.2 otherwise), and their values rub off: an honourable companion breeds honesty, a greedy one greed. They stop teaching when they leave your party.
+- *A companion* travelling with you teaches for free. Their occupation decides the subject: knights and guards teach martial arts, merchants stewardship, scholars and healers learning, priests piety, and so on. Their mood and their friendships in the party scale the bonus, re-checked every month: a content companion teaches at ×1.7 when they have a subject (×1.2 otherwise), a loyal or devoted one better still. A disgruntled or mutinous companion refuses to teach, and stops if their mood sours. Their values rub off: an honourable companion breeds honesty, a greedy one greed. They stop teaching when they leave your party.
 
 **Childhood events.** Every 40 days, each child aged 6–15 has a 45% chance of a dilemma for you to decide. The dilemmas are a bully, a fever, a prodigy moment, a scandal, a duel challenge, a religious calling, the first hunt, a beggar at the gate, the locked library, dice in the stables, the children's court, dreams of the sea, a sibling feud, a wandering mentor, a lie, and a harvest feast. Each choice shapes the child's skills, stats and character. Some choices cost gold and some are risky (⚠️): a fever left to run its course can weaken a child for life, or rarely kill them. Duels and hunts are contests of strength and combat skill. An event left unanswered for 20 days resolves itself with the household's default choice.
 
@@ -1885,7 +1885,7 @@ Married and fostered children stay in the line of succession.
 
 - its years, the ruler's age and cause of death, and their earned traits;
 - any title or crown held;
-- what happened in it: crowns won, settlements taken, battles won, wars fought, quests, titles gained, delves cleared, rival adventurers bested (duels, races, rivals slain), petitions ruled (with the notable rulings), children born, ambition milestones and Prestige gained;
+- what happened in it: crowns won (taken or founded), settlements taken, battles won (war hosts, raiders, pirates, monsters and saga beasts), wars fought, quests, titles gained, delves cleared, rival adventurers bested (duels, races, rivals slain), petitions ruled (with the notable rulings), children born, ambition milestones and Prestige gained;
 - the chronicle's most important entries.
 
 Each ruler also earns an epithet from their deeds ("the Crowned", "the Conqueror", "the Warlike", "the Delver", "the Duellist", "the Judge"), or else from their first trait ("the Brave").
@@ -2044,9 +2044,11 @@ A project costs gold, materials and days. Materials come out of your packs. Anyt
 | 🍺 Tavern and Inn | 250g, 20 wood | 7 | +4 happiness, +1.5% growth, +10% daily chance of settlers arriving at a young colony, +3% tax |
 | 🏛️ Moot Hall (village+) | 320g, 15 stone, 10 wood | 8 | petitioners from the town wait 4 days longer, +2 happiness, calms unrest most |
 
+A **governor** also keeps petitioners in hand while you are away: petitions from a governed town wait 1 extra day per 3 points of the governor's Stewardship (up to 3).
+
 Happiness from projects raises the target the town drifts toward at each tax collection. Growth adds to the tax policy's yearly growth, and in a kingdom's colony it also speeds the daily growth. Walls also stand if the town is ever taken from you, so retaking it will be harder.
 
-**Governor.** Appoint a governor from your travelling companions (they leave your party until relieved), your spouse or a child aged 16 or over, or a steward for hire (100g, then 3–6g a day; three are on offer each month). Each has **Stewardship**, **Martial** and **Intrigue** from 0 to 10:
+**Governor.** Appoint a governor from your travelling companions (they leave your party until relieved, and cannot be invited back while in office; a companion's personal quest waits for them), your spouse (who also leaves your party if travelling with you) or a child aged 16 or over, or a steward for hire (100g, then 3–6g a day; three are on offer each month). Each has **Stewardship**, **Martial** and **Intrigue** from 0 to 10:
 
 - **Stewardship:** +3% tax and +0.3% growth a year per point, and faster building.
 - **Martial:** +4% defence per point, and calms unrest.
@@ -2075,6 +2077,8 @@ A **rebellion** stops all taxes and building there. A garrison that grows strong
 If the rebels still hold the town at the deadline, it becomes a free town and is no longer yours.
 
 **Bandit raids.** Raider bands within 2 hexes of a holding may fall on it (about 6% a day per band, less with walls, a watchtower and a crafty governor, and at most once a week). If the town's defence beats the band, the band is destroyed. Otherwise the raiders burn 30% of its stored food, kill 3% of its people, cost 6 happiness and 8 unrest, and set back construction by 2 days.
+
+A holding you lose — to rebels or a war host — keeps only its walls. Its harbour, markets, workshops and other works stop serving you until you take it back.
 
 Projects, governors, garrisons, unrest and rebellions are all saved with the game.
 
@@ -2507,12 +2511,12 @@ When you arrive in a town where a rival is resting, you meet them and hear a lin
 
 ### Friends, Rivals and Nemeses
 
-Attitude moves with what you do: fair splits, contracts served out and races they win warm them. Losing duels and contests to you, losing races, and sabotage cool them. Rivals go from **Friend** (60+) through **Friendly**, **Neutral** and **Rival** to **Nemesis** (−60 or worse).
+Attitude moves with what you do: fair splits, contracts served out and races they win warm them. Losing duels and contests to you, losing races, and sabotage cool them. They also hear what kind of person you are: each archetype cares about some of your earned traits, once when you earn one (and back again if you lose it). A Pious Crusader warms to a Pious or Merciful player and loathes a Cruel one or a Kinslayer; a Wandering Duelist respects the Brave and resents a Champion; a sellsword likes the Brave and the Generous. Rivals go from **Friend** (60+) through **Friendly**, **Neutral** and **Rival** to **Nemesis** (−60 or worse).
 
 A nemesis acts against you:
 
 - **Slander.** They spread 'slander' rumours through the gossip system. These carry no bounty, but they cost you renown and reputation as they spread from town to town.
-- **Ambush.** About every 20 days they may come after you. If you have not moved on when they arrive, they ambush you. Beat them off and they flee wounded, or sometimes die. Lose and they take 10% of your gold.
+- **Ambush.** About every 20 days they may come after you. If you have not moved on when they arrive, they ambush you. Beat them off and they flee wounded, or sometimes die. Lose and they take 10% of your gold. Losing a duel or an ambush may leave you **wounded** (see Wounds), twice as likely in a duel to the death.
 
 Rivals can die in the depths, on a manhunt, under your banner or by your hand. Newcomers arrive 8–20 days later to replace the dead.
 

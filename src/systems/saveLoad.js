@@ -242,6 +242,8 @@ export const SaveLoad = {
         'mapDeceptions', 'marriageAllianceKingdom', 'cultureIncomeCarry',
         'foragingTrips', 'huntingTrips', 'jobsCompleted', 'performancesGiven',
         'plantingContracts',
+        // "Pretender to X", "Exile", an office's title — a fresh Player says "Nobody"
+        'title',
     ],
 
     _pickDefined(obj, keys) {

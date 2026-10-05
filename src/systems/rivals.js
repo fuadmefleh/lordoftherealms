@@ -36,6 +36,8 @@ import { Delves } from './delves.js';
 import { Quests } from './quests.js';
 import { Gossip } from './gossip.js';
 import { PlayerEffects } from '../player/playerEffects.js';
+import { Ailments } from './ailments.js';
+import { Traits } from './traits.js';
 
 const DEFAULT_CONFIG = {
     minRivals: 6,
@@ -387,6 +389,34 @@ export const Rivals = {
         return _num(rival && rival.attitude) <= Rivals.config().attitude.nemesis;
     },
 
+    /**
+     * Rivals hear what kind of person you have become: each earned trait the
+     * archetype cares about (archetypes.*.traitAttitude in data/rivals.json)
+     * moves their attitude once when earned, and back if the trait is lost.
+     * No RNG.
+     */
+    _tickTraits(player, world) {
+        const earned = Traits.getEarned(player);
+        for (const rival of Rivals.state(player).list) {
+            if (!rival || rival.dead) continue;
+            const table = Rivals.archetype(rival.archetype).traitAttitude || {};
+            if (!rival.traitsHeard || typeof rival.traitsHeard !== 'object') rival.traitsHeard = {};
+            const heard = rival.traitsHeard;
+            for (const id of earned) {
+                if (heard[id] != null || !table[id]) continue;
+                heard[id] = _num(table[id]);
+                const name = (Traits.TRAITS[id] && Traits.TRAITS[id].name) || id;
+                Rivals.remember(rival, world, `heard you are ${name.toLowerCase()}`, heard[id]);
+            }
+            for (const id of Object.keys(heard)) {
+                if (earned.includes(id)) continue;
+                const name = (Traits.TRAITS[id] && Traits.TRAITS[id].name) || id;
+                Rivals.remember(rival, world, `heard you are ${name.toLowerCase()} no longer`, -heard[id]);
+                delete heard[id];
+            }
+        }
+    },
+
     /** Change a rival's attitude and remember why. */
     remember(rival, world, text, delta) {
         if (!rival) return;
@@ -437,6 +467,7 @@ export const Rivals = {
         const notify = (icon, title, text, type = 'info') => out.notices.push({ icon, title, text, type });
         const cfg = Rivals.config();
 
+        Rivals._tickTraits(player, world);
         Rivals._tickPartner(player, world, notify);
         Rivals._tickHires(player, world, notify);
         Rivals._tickRace(player, world, notify);
@@ -807,7 +838,7 @@ export const Rivals = {
             const fled = !res.rivalDied;
             notify('🗡️', 'Ambushed!', `${rival.name} sprang on you — "${line}" — but you beat them off${fled ? '; they fled wounded' : ' and they fell'}. (-${res.harm} health, +${res.renown} renown)`, 'warning');
         } else {
-            notify('🗡️', 'Ambushed!', `${rival.name} sprang on you — "${line}" You were beaten and robbed: -${res.harm} health, -${res.goldLost} gold.`, 'error');
+            notify('🗡️', 'Ambushed!', `${rival.name} sprang on you — "${line}" You were beaten and robbed: -${res.harm} health, -${res.goldLost} gold.${res.wound ? ` ${res.wound.icon || '🩸'} ${res.wound.name}.` : ''}`, 'error');
         }
     },
 
@@ -1061,7 +1092,7 @@ export const Rivals = {
         const pRoll = Rivals.playerPower(player) + Utils.randInt(1, 8) - (ambush ? 2 : 0);
         const rRoll = Rivals.rivalPower(rival) + Utils.randInt(1, 8);
         const playerWon = pRoll >= rRoll;
-        const res = { playerWon, harm: 0, renown: 0, rivalDied: false, goldLost: 0 };
+        const res = { playerWon, harm: 0, renown: 0, rivalDied: false, goldLost: 0, wound: null };
         const st = Rivals.state(player);
         const day = _day(world);
         if (playerWon) {
@@ -1089,6 +1120,8 @@ export const Rivals = {
                 rival.gold += res.goldLost;
             }
             Rivals.remember(rival, world, ambush ? 'fell to my ambush' : 'lost a duel to me', ambush ? 0 : 4);
+            // The loser may carry a wound away (the 'duel' / 'ambush' sources in data/ailments.json)
+            res.wound = Ailments.maybeWound(player, world, ambush ? 'ambush' : 'duel', { chanceMult: toDeath ? 2 : 1 });
         }
         player.health = Math.max(1, _num(player.health) - res.harm);
         if (!res.rivalDied) {

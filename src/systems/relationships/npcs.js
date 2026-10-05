@@ -283,6 +283,15 @@ Object.assign(Relationships, {
             return { success: false, reason: `${npc.firstName} is already in your travel party.` };
         }
 
+        // Governing one of your holdings (systems/holdings.js): they keep to their post
+        if (npc.governing) {
+            return { success: false, reason: `${npc.firstName} is governing one of your holdings. Dismiss them there first.` };
+        }
+        // A companion who betrayed you (systems/companions.js) will not ride with you again
+        if (npc.companion && npc.companion.leftHow === 'betrayed') {
+            return { success: false, reason: `${npc.firstName} betrayed you once and will not travel with you again.` };
+        }
+
         const rel = Relationships.getRelationship(player, npcId);
 
         const known = !!player.relationships?.[npcId];

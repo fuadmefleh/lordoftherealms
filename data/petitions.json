@@ -12,7 +12,9 @@
     "historyCap": 20,
     "courtCap": 20,
     "housePrestige": 20,
-    "opinionCap": 15
+    "opinionCap": 15,
+    "governorDaysPerStewardship": 0.3,
+    "governorDaysMax": 3
   },
   "courtAxes": {
     "mercy": { "name": "Mercy", "icon": "🕊️" },

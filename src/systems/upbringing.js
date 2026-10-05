@@ -28,6 +28,8 @@ import { Utils } from '../core/utils.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Traits } from './traits.js';
 import { House } from './house.js';
+import { Companions } from './companions.js';
+import { Relationships } from './relationships.js';
 
 const STATS = ['strength', 'charisma', 'intelligence', 'faith', 'luck'];
 const SKILLS = ['commerce', 'combat', 'leadership', 'diplomacy', 'stealth', 'cartography'];
@@ -36,7 +38,7 @@ const DEFAULT_CONFIG = {
     startAge: 6, comeOfAgeAge: 16, growthCadence: 30, eventCadence: 40, eventChance: 0.45,
     pendingDays: 20, unfocusedSkillRate: 0.12, statCap: 14, skillCap: 8, seedThreshold: 3,
     seedCap: 12, maxChildhoodTraits: 3, parentRubOffChancePerYear: 0.35, parentRubOff: 1,
-    mismatchTutorFactor: 0.3, companionQuality: 1.2, companionMatchQuality: 1.7, historyCap: 12,
+    mismatchTutorFactor: 0.3, companionQuality: 1.2, companionMatchQuality: 1.7, companionMinEffectiveness: 1, historyCap: 12,
 };
 
 function _num(v) {
@@ -186,7 +188,7 @@ export const Upbringing = {
      * tier's (Companions.tier(npc).effectiveness). They teach for free, but only
      * while they travel with the House.
      */
-    hireCompanionTutor(player, world, childId, npc, effectiveness = 1) {
+    hireCompanionTutor(player, world, childId, npc, effectiveness = null) {
         const child = Upbringing._child(player, childId);
         if (!child || child.isAlive === false) return { success: false, reason: 'No such child.' };
         const up = Upbringing.ensure(child);
@@ -195,9 +197,12 @@ export const Upbringing = {
             return { success: false, reason: 'Only a companion travelling with you can tutor.' };
         }
         const cfg = Upbringing.config();
+        const mood = Upbringing._companionMood(player, npc);
+        if (mood.tooUnhappy) {
+            return { success: false, reason: `${npc.firstName} is too unhappy with you (${mood.label}) to take on your child.` };
+        }
         const focus = (Upbringing.data().companionOccupations || {})[npc.occupation] || null;
-        const base = focus ? cfg.companionMatchQuality : cfg.companionQuality;
-        const quality = Math.round((1 + (base - 1) * Math.max(0, _num(effectiveness) || 1)) * 100) / 100;
+        const quality = Upbringing._companionQuality(focus, effectiveness != null ? effectiveness : mood.effectiveness);
         const seeds = {};
         const valueSeeds = Upbringing.data().companionValueSeeds || {};
         for (const v of ((npc.companion && npc.companion.values) || [])) {
@@ -209,6 +214,31 @@ export const Upbringing = {
             since: (world && world.day) || 0,
         };
         return { success: true, tutor: up.tutor };
+    },
+
+    /**
+     * A companion's teaching mood (systems/companions.js): their mood tier and
+     * party bonds scale the bonus; below Content they will not teach. A
+     * companion with no recorded approval counts as content.
+     */
+    _companionMood(player, npc) {
+        const c = npc && npc.companion;
+        if (!c || typeof c.approval !== 'number' || !isFinite(c.approval)) {
+            return { effectiveness: 1, tooUnhappy: false, label: 'Content' };
+        }
+        const tier = Companions.tier(npc) || {};
+        const minEff = _num(Upbringing.config().companionMinEffectiveness);
+        return {
+            effectiveness: Companions.effectiveness(player, npc),
+            tooUnhappy: _num(tier.effectiveness, 1) < minEff,
+            label: tier.label || tier.id || 'unhappy',
+        };
+    },
+
+    _companionQuality(focus, effectiveness) {
+        const cfg = Upbringing.config();
+        const base = focus ? cfg.companionMatchQuality : cfg.companionQuality;
+        return Math.round((1 + (base - 1) * Math.max(0, _num(effectiveness) || 1)) * 100) / 100;
     },
 
     dismissTutor(player, childId) {
@@ -284,6 +314,12 @@ export const Upbringing = {
             let leave = null;
             if (t.kind === 'companion' && !((player.travelParty || []).includes(t.npcId))) {
                 leave = `${t.name} no longer travels with you and stops tutoring ${child.firstName}.`;
+            } else if (t.kind === 'companion') {
+                // Their teaching follows their mood now, not the day they agreed
+                const npc = Relationships.getNPC(t.npcId);
+                const mood = npc ? Upbringing._companionMood(player, npc) : null;
+                if (mood && mood.tooUnhappy) leave = `${t.name} is too unhappy with you to keep tutoring ${child.firstName}.`;
+                else if (mood) t.quality = Upbringing._companionQuality(t.focus, mood.effectiveness);
             } else if (t.kind === 'court' && t.wage > 0) {
                 if ((player.gold || 0) >= t.wage) player.gold -= t.wage;
                 else leave = `Unpaid, the ${t.name} leaves ${child.firstName}'s service.`;

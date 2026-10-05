@@ -357,7 +357,8 @@ export const NPCLords = {
         const T = NPCLords.GOAL_TUNING.trade;
         const towns = NPCLords._towns(kingdom, world);
         if (towns.length === 0) return 0;
-        const names = new Map(world.getAllSettlements().map(s => [s.name, s.kingdom]));
+        const all = world.getSettlementViews ? world.getSettlementViews() : world.getAllSettlements(); // read-only
+        const names = new Map(all.map(s => [s.name, s.kingdom]));
         let routes = 0;
         const partners = new Set();
         for (const town of towns) {

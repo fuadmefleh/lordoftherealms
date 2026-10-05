@@ -62,5 +62,7 @@ const world = new World(width, height, seed);
 ## Notes
 
 - `world.js` is the orchestrator — it holds `world.tiles[][]`, `world.kingdoms[]`, and calls each system's `processDay()` at turn end.
+- **Per-day caches** (`world/runtime.js`): while `advanceDay` runs, the settlement scan behind `getAllSettlements()` is shared (code that founds a settlement calls `world.invalidateSettlements()`), and `world.dayMemo(name, q, r, compute)` memoises lookups that can't change mid-day (resources around a hex, road reach). Outside `advanceDay` nothing is cached, so tests and UI code may edit tiles freely. `getAllSettlements()` still returns fresh copies; `getSettlementViews()` returns the live objects for read-only scans and `getSettlementsOf(kingdomId)` copies only one realm's.
+- **World units are saved** with the world (`SaveLoad.serializeWorld` → `units`) and restored without running the `WorldUnit` constructor (no RNG draws); saves from before that regenerate them.
 - `terrain/generation.js` uses layered Perlin noise to produce elevation, temperature, and moisture maps. Biomes are assigned from a lookup table, not hardcoded per-tile.
 - The inner map (`innerMap/`) is a separate high-resolution grid generated lazily when the player enters a settlement hex. It is not part of the main `world.tiles` grid.

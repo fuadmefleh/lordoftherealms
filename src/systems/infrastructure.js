@@ -317,6 +317,14 @@ export const Infrastructure = {
      * Check if two hexes are connected by a road network
      */
     hasRoadConnection(world, startQ, startR, endQ, endR) {
+        // While a day is simulated the road network can't change: flood it
+        // once per start (e.g. a capital with many colonies) and look the
+        // end up in what the search would have reached
+        if (typeof world.isSimulatingDay === 'function' && world.isSimulatingDay()
+            && Number.isInteger(startQ) && Number.isInteger(startR) && Number.isInteger(endQ) && Number.isInteger(endR)) {
+            return world.dayMemo('roadReach', startQ, startR, () => Infrastructure._roadReach(world, startQ, startR))
+                .has(`${endQ},${endR}`);
+        }
         // BFS only through road/bridge tiles (both world-generated and player-built)
         const visited = new Set();
         const queue = [{ q: startQ, r: startR }];
@@ -362,6 +370,41 @@ export const Infrastructure = {
             }
         }
         return false;
+    },
+
+    /**
+     * Every hex hasRoadConnection's search from (startQ, startR) would visit
+     * if it never stopped early, as "q,r" keys (the start as given, the rest
+     * wrapped). Empty when the start is not on a usable road.
+     */
+    _roadReach(world, startQ, startR) {
+        const reached = new Set();
+        const startTile = world.getTile(startQ, startR);
+        if (!startTile || (!startTile.infrastructure && !startTile.hasRoad)) return reached;
+        if (startTile.infrastructure && startTile.infrastructure.underConstruction && !startTile.hasRoad) return reached;
+
+        const visited = new Set([`${startQ},${startR}`]);
+        const queue = [{ q: startQ, r: startR }];
+        for (let head = 0; head < queue.length; head++) {
+            const current = queue[head];
+            reached.add(`${current.q},${current.r}`);
+            for (const n of Hex.neighbors(current.q, current.r)) {
+                const wq = Hex.wrapQ(n.q, world.width);
+                const wr = n.r;
+                if (wr < 0 || wr >= world.height) continue;
+                const key = `${wq},${wr}`;
+                if (visited.has(key)) continue;
+                const nTile = world.getTile(wq, wr);
+                if (!nTile) continue;
+                if (!nTile.hasRoad) {
+                    if (!nTile.infrastructure || nTile.infrastructure.underConstruction) continue;
+                    if (!['dirt_road', 'stone_road', 'bridge'].includes(nTile.infrastructure.id)) continue;
+                }
+                visited.add(key);
+                queue.push({ q: wq, r: wr });
+            }
+        }
+        return reached;
     },
 
     /**

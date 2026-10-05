@@ -44,6 +44,9 @@ import { Traits } from '../../systems/traits.js';
 import { Underworld } from '../../systems/underworld.js';
 import { LegendaryArtifacts } from '../../systems/legendaryArtifacts.js';
 import { Cartography } from '../../systems/cartography.js';
+import { Ailments } from '../../systems/ailments.js';
+import { Rivals } from '../../systems/rivals.js';
+import { Holdings } from '../../systems/holdings.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
 
 export const WORLD_W = 80;
@@ -140,8 +143,17 @@ export function endDay(game) {
     mark(game, 'world.advanceDay');
     player.endDay(world);
     mark(game, 'player.endDay');
-    WorldEvents.applyPlayerDailyEffects(world, player);
+    const eventEffects = WorldEvents.applyPlayerDailyEffects(world, player) || {};
     mark(game, 'WorldEvents.applyPlayerDailyEffects');
+    const ailmentDay = Ailments.processDay(world, player, {
+        exposure: eventEffects.weatherHealthLost || 0,
+        weather: eventEffects.weather,
+    });
+    mark(game, 'Ailments.processDay');
+    if (ailmentDay && ailmentDay.died) {
+        out.died = ailmentDay.died.cause || 'illness';
+        return out;
+    }
     player.updateVisibility(world, 4);
     mark(game, 'player.updateVisibility');
     Cartography.exposeDeceptions(player, world);
@@ -229,10 +241,14 @@ export function endDay(game) {
     mark(game, 'Petitions.processDay');
     Delves.processDay(world, player);
     mark(game, 'Delves.processDay');
+    Rivals.processDay(world, player);
+    mark(game, 'Rivals.processDay');
     RealmWars.processDaily(player, world);
     mark(game, 'RealmWars.processDaily');
     Throne.processDaily(player, world, { armyStrength: PlayerMilitary.getArmyStrength(player) });
     mark(game, 'Throne.processDaily');
+    Holdings.processDay(player, world);
+    mark(game, 'Holdings.processDay');
     MarketDynamics.updatePrices(world);
     mark(game, 'MarketDynamics.updatePrices');
 
@@ -282,6 +298,7 @@ export function onArrived(game) {
     }
     Underworld.onEnterSettlement(player, world, tile);
     if (kId) player.learnAboutKingdom(kId, 'basics');
+    Rivals.onPlayerArrived(player, world, tile);
 }
 
 /**

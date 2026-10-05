@@ -18,6 +18,8 @@ import { PlayerEconomy, Trading } from '../../player/playerEconomy.js';
 import { PlayerMilitary } from '../../player/playerMilitary.js';
 import { Treasures } from '../../player/treasures.js';
 import { SeasonalWork } from '../../player/seasonalWork.js';
+import { Foraging } from '../../player/foraging.js';
+import { DataLoader } from '../../core/dataLoader.js';
 import { Relationships } from '../../systems/relationships.js';
 import { Ships } from '../../systems/ships.js';
 import { Petitions } from '../../systems/petitions.js';
@@ -25,6 +27,7 @@ import { Delves } from '../../systems/delves.js';
 import { Throne } from '../../systems/throne.js';
 import { Espionage } from '../../systems/espionage.js';
 import { Underworld } from '../../systems/underworld.js';
+import { Companions } from '../../systems/companions.js';
 import { travelTo } from './harness.js';
 
 const FOOD = ['grain', 'bread'];
@@ -158,7 +161,7 @@ function work(game, tile, stats) {
 function companions(game, tile, stats) {
     const { player, world } = game;
     Relationships.ensureTravelParty(player);
-    if (player.travelParty.length >= 2 || Utils.random() > 0.3) return;
+    if (player.travelParty.length >= 2 || player.gold < 500 || Utils.random() > 0.3) return;
     const npcs = Relationships.getNPCsAtSettlement(tile, world).filter(n => !player.travelParty.includes(n.id));
     if (!npcs.length) return;
     const npc = Utils.randPick(npcs);
@@ -450,6 +453,34 @@ export function botDay(game, stats) {
     if (player.gold < 150 && (player.army || []).length > 2) {
         player.army.splice(0, Math.ceil(player.army.length / 2));
         count(stats, 'disbanded');
+    }
+    // Broke: let the spies and paid companions go too — wages can't come before bread
+    if (player.gold < 150) {
+        for (const spy of [...((player.espionage && player.espionage.spies) || [])]) {
+            if (Espionage.dismissSpy(player, spy.id)) count(stats, 'spiesDismissed');
+        }
+        for (const id of [...(player.travelParty || [])]) {
+            const npcId = typeof id === 'object' ? id.id : id;
+            if (Companions.dismiss(player, npcId, world).success) count(stats, 'companionsDismissed');
+        }
+    }
+    // Broke and foodless: live off the land like anyone would — step out of
+    // town onto forageable ground and spend the day searching it
+    const forage = DataLoader.earlyJobs && DataLoader.earlyJobs.foraging;
+    if (player.gold < 20 && player.getFoodCount() === 0 && forage) {
+        let here = world.getTile(player.q, player.r);
+        if (!Foraging.lootTableFor(here, forage) || here.settlement) {
+            const spot = Hex.neighbors(player.q, player.r)
+                .map(n => world.getTile(Hex.wrapQ(n.q, world.width), n.r))
+                .find(t => t && !t.settlement && t.terrain.passable && Foraging.lootTableFor(t, forage));
+            if (spot) travelTo(game, spot.q, spot.r);
+            here = world.getTile(player.q, player.r);
+        }
+        if (!here.settlement) {
+            const f = Foraging.quickForage(player, here, forage);
+            if (f.success && f.added) count(stats, 'foraged');
+            return;
+        }
     }
     if (player.needs && player.needs.hunger < 60 && player.getFoodCount() > 0) player.eatMeal();
     booked(game, 'court', () => court(game, stats));

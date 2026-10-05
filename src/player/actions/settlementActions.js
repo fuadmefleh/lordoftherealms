@@ -17,6 +17,7 @@ import { Throne } from '../../systems/throne.js';
 import { PlayerReligion } from '../playerReligion.js';
 import { SeasonalWork } from '../seasonalWork.js';
 import { Underworld } from '../../systems/underworld.js';
+import { Rivals } from '../../systems/rivals.js';
 
 export function addSettlementActions(actions, player, tile, world, ctx) {
     const { isCity, isVillage, isPlayerSettlement, playerSettlementCount, playerKingdom, hasPlayerFoundedKingdom } = ctx;
@@ -294,6 +295,25 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             label: `Restore ${t.fallen.name}`,
             icon: '🔥',
             description: `This town once belonged to the fallen ${t.fallen.name}. Fund a rising against ${t.occupier.name}.`,
+        });
+    }
+
+    // Rival adventurers resting in town, and the Hall of Heroes (systems/rivals.js)
+    const rivalsHere = Rivals.rivalsAt(player, world, tile.q, tile.r);
+    if (rivalsHere.length) {
+        actions.push({
+            type: 'rivals_here',
+            label: `Adventurers Here (${rivalsHere.length})`,
+            icon: '🗡️',
+            description: `${rivalsHere.map(r => r.name).join(', ')}: talk, duel, team up, hire, race or sabotage`,
+        });
+    }
+    if (Rivals.state(player).initialized) {
+        actions.push({
+            type: 'hall_of_heroes',
+            label: 'Hall of Heroes',
+            icon: '🏆',
+            description: 'Your renown ranked against the rival adventurers of the realm, and their latest deeds',
         });
     }
 

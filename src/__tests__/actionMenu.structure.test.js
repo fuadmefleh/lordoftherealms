@@ -28,9 +28,11 @@ import { DataLoader } from '../core/dataLoader.js';
 // seasonal work handlers (doTrapFurs, doIceFish, doPlantingContract) = 240, plus
 // showDelvePanel (delves into ruins and caves) = 241, plus showUnderworldPanel (heat,
 // thieves' guild, fence, black market) = 242, plus showClaimsPanel (Claims & Crowns) = 243,
-// plus showHoldingPanel (holdings development) = 244.
+// plus showHoldingPanel (holdings development) = 244, plus showRivalsPanel and
+// showHallOfHeroes (rival adventurers) = 246.
 const EXPECTED_KEYS = [
     'showCourtPanel', 'showDelvePanel', 'showClaimsPanel', 'showHoldingPanel',
+    'showRivalsPanel', 'showHallOfHeroes',
     'showUnderworldPanel',
     '_resourceSourceNames', '_constructionHint', 'meetingPresentTreasure',
     'doTrapFurs', 'doIceFish', 'doPlantingContract',
@@ -100,8 +102,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 244 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(244);
+    it('has 246 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(246);
     });
 
     it('every member except the known data props is a function', () => {

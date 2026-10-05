@@ -21,6 +21,7 @@ import './delves.js';
 import './underworld.js';
 import './throne.js';
 import './holdings.js';
+import './rivals.js';
 
 // Expose ActionMenu globally so inline onclick handlers in dynamic HTML can access it
 window.ActionMenu = ActionMenu;

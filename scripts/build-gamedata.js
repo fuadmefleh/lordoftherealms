@@ -23,7 +23,7 @@ const topLevel = [
     'peoples', 'playerEconomy', 'quests', 'relationships', 'religion',
     'ships', 'tavern', 'technology', 'terrain', 'titles', 'units', 'worldEvents',
     'gossip', 'traits', 'petitions', 'companions', 'delves',
-    'underworld', 'throne', 'holdings'
+    'underworld', 'throne', 'holdings', 'rivals'
 ];
 
 const merged = {};

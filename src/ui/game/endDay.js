@@ -7,6 +7,7 @@ import { Traits } from '../../systems/traits.js';
 import { Delves } from '../../systems/delves.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Holdings } from '../../systems/holdings.js';
+import { Rivals } from '../../systems/rivals.js';
 
 export function onPlayerArrived() {
     const tile = this.world.getTile(this.player.q, this.player.r);
@@ -54,6 +55,12 @@ export function onPlayerArrived() {
                 if (k) this.ui.showNotification('Knowledge Gained', `You have learned about the realm of ${k.name}.`, 'info');
             }
         }
+        // Rival adventurers resting here (systems/rivals.js)
+        for (const m of Rivals.onPlayerArrived(this.player, this.world, tile)) {
+            const att = Rivals.attitudeOf(m.rival);
+            this.ui.showNotification(`${m.rival.icon} ${m.first ? 'You meet ' : ''}${m.rival.name}`,
+                `${m.first ? `${Rivals.archetype(m.rival.archetype).label}, renown ${m.rival.renown}. ` : `${att.icon} ${att.label}. `}"${m.line}" (Adventurers here, in the action menu)`, 'info');
+        }
     }
 
     // If arrived at a point of interest
@@ -64,6 +71,11 @@ export function onPlayerArrived() {
             `You found ${tile.improvement.name}! ${tile.improvement.icon} Use the Explore action to investigate.`,
             'info'
         );
+    }
+
+    // A site a rival adventurer got to first
+    if (tile.improvement && tile.improvement.lootedBy) {
+        this.ui.showNotification('🕯️ Already Looted', `${tile.improvement.name} has been stripped bare — ${tile.improvement.lootedBy} got here first.`, 'default');
     }
 
     // If tile has resources
@@ -415,6 +427,10 @@ export function endDay() {
             }
             for (const name of delveDay.slain) this.ui.showNotification('⚔️ Guardian Slain', `${name} will trouble the land no more.`, 'success');
             for (const name of delveDay.faded) this.ui.showNotification('🌫️ Guardian Returns', `${name} has gone back to the depths.`, 'info');
+
+            // Rival adventurers — their deeds near you, races, ambushes, slander
+            const rivalDay = Rivals.processDay(this.world, this.player);
+            for (const n of rivalDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Kingdoms at war with the player — ultimatums, war hosts, sieges
             const war = RealmWars.processDaily(this.player, this.world);

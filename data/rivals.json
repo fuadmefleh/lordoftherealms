@@ -1,0 +1,161 @@
+{
+    "_comment": "Rival adventurers (systems/rivals.js): named NPC adventurers who pursue the same goals as the player — delves, bounties, quests, tournaments, thrones — and remember how the player treated them.",
+
+    "config": {
+        "minRivals": 6,
+        "maxRivals": 9,
+        "hexesPerDay": 6,
+        "restDays": [1, 4],
+        "replaceAfterDays": [8, 20],
+        "delveRadius": 28,
+        "wanderRadius": 16,
+        "nearPlayerChance": 0.45,
+        "noticeRadius": 14,
+        "maxNews": 40,
+        "maxMemory": 8,
+        "attitude": { "nemesis": -60, "rival": -20, "friendly": 20, "friend": 60 },
+        "delve": { "fullClearBase": 0.1, "fullClearPerProwess": 0.03, "shareRange": [0.2, 0.5], "lootFactorPerShare": 0.7, "deathChance": 0.03, "renown": [3, 8], "restDays": 4 },
+        "bounty": { "base": 0.35, "perProwess": 0.05, "perDifficulty": 0.05, "deathChance": 0.02, "renown": [3, 6] },
+        "quest": { "days": [4, 10], "renown": [2, 5] },
+        "festival": { "winBase": 0.2, "perProwess": 0.04, "renown": [2, 6] },
+        "duel": { "apCost": 4, "harm": [8, 20], "deathHarm": [18, 35], "renownPerTen": 1, "minRenown": 2 },
+        "teamUp": { "days": 7, "share": 0.25, "bonus": 0.08 },
+        "hire": { "days": 10, "baseCost": 60, "costPerLevel": 35 },
+        "race": { "wager": 75, "renown": 6 },
+        "sabotage": { "cost": 50, "base": 0.35, "perStealth": 0.06, "guildBonus": 0.15, "delayDays": [3, 6] },
+        "nemesis": { "slanderChance": 0.12, "huntWeight": 3, "ambushRadius": 3 },
+        "usurp": { "claimRenown": 70, "support": [5, 14] }
+    },
+
+    "firstNames": [
+        "Kael", "Mira", "Doran", "Isolde", "Bram", "Seren", "Talia", "Corvin", "Ysolde", "Garrick",
+        "Wren", "Edric", "Liora", "Roderic", "Anwen", "Hale", "Sabine", "Torvald", "Nessa", "Aurek",
+        "Brannoc", "Elsbeth", "Fenwick", "Rhosyn", "Jory", "Maelis", "Ulric", "Thessaly", "Orla", "Cassian"
+    ],
+    "surnames": [
+        "Ashveil", "Thornbury", "Grey", "Vantreth", "Holloway", "Marrowind", "Blackmere", "Stormcrow",
+        "Fallowfield", "Duskryn", "Ironwood", "Redhollow", "Saltmarsh", "Kestrel", "Whitlock", "Embervale"
+    ],
+    "epithets": [
+        "the Bold", "the Lucky", "Halfhand", "the Unbowed", "Silvertongue", "the Grim", "of the Long Road",
+        "Two-Swords", "the Pious", "the Red", "Lightfoot", "the Patient", "Crowbane", "the Gilded"
+    ],
+
+    "archetypes": {
+        "treasure_hunter": {
+            "label": "Treasure Hunter", "icon": "🗝️",
+            "stats": { "prowess": [4, 7], "cunning": [6, 9], "faith": [2, 5], "charm": [3, 7] },
+            "renown": [8, 25],
+            "goals": { "delve": 6, "quest": 2, "wander": 2, "festival": 1 },
+            "teamUp": true, "hireable": true,
+            "lines": {
+                "greet": ["Another digger? The deep places don't share well, friend.", "I've a map with your name nowhere on it.", "Gold sleeps under every old stone. I mean to wake it."],
+                "friendly": ["Heard of a vault under the hills — come along and we split it fair.", "You've good instincts. Rare in this trade."],
+                "hostile": ["Stay out of my ruins.", "Every tomb you empty is coin out of my purse."],
+                "boast": ["I came out of the last one with more than I went in with. And all my fingers."]
+            }
+        },
+        "sellsword": {
+            "label": "Sellsword Captain", "icon": "⚔️",
+            "stats": { "prowess": [6, 9], "cunning": [3, 6], "faith": [2, 5], "charm": [3, 6] },
+            "renown": [10, 30],
+            "goals": { "festival": 3, "bounty": 2, "delve": 2, "quest": 2, "wander": 1 },
+            "teamUp": true, "hireable": true,
+            "lines": {
+                "greet": ["My blade's for hire, but not to you — not yet.", "Coin first, then we talk.", "Seen you swing a sword. Could be worse."],
+                "friendly": ["You ever need steel at your back, you know where I drink.", "Ride with you any day. Pay's good, company's better."],
+                "hostile": ["Cross me again and we settle it with steel.", "There's a ditch out there with room in it."],
+                "boast": ["Twelve fights, twelve purses. Want to be the thirteenth?"]
+            }
+        },
+        "bounty_hunter": {
+            "label": "Bounty Hunter", "icon": "🎯",
+            "stats": { "prowess": [5, 8], "cunning": [5, 8], "faith": [1, 4], "charm": [2, 5] },
+            "renown": [8, 22],
+            "goals": { "bounty": 6, "quest": 2, "wander": 1 },
+            "teamUp": false, "hireable": true,
+            "lines": {
+                "greet": ["If your face were on a poster, I'd already have you.", "Every name on that board is mine. Keep that in mind.", "Hunting the same quarry, are we?"],
+                "friendly": ["Tip for you: the slow ones hide in the marsh hamlets.", "You've a nose for the trail. I respect that."],
+                "hostile": ["Next bounty I see with your name on it, I'm taking.", "Stay off my trail, or end up on someone's."],
+                "boast": ["Brought in three this season. Alive. Mostly."]
+            }
+        },
+        "crusader": {
+            "label": "Pious Crusader", "icon": "✝️",
+            "stats": { "prowess": [5, 8], "cunning": [2, 5], "faith": [7, 10], "charm": [4, 7] },
+            "renown": [10, 26],
+            "goals": { "delve": 3, "quest": 3, "festival": 1, "wander": 2 },
+            "teamUp": true, "hireable": false,
+            "lines": {
+                "greet": ["The restless dead do not rest themselves. Someone must go down.", "Walk in the light, stranger.", "Have you prayed today?"],
+                "friendly": ["The heavens favour you. I have seen it.", "Come with me into the tombs — two lamps burn brighter than one."],
+                "hostile": ["Your deeds are noted, and not only by me.", "I will pray for you. Then I will stop you."],
+                "boast": ["I sent a barrow-king back to his grave last spring."]
+            }
+        },
+        "merchant_adventurer": {
+            "label": "Merchant Adventurer", "icon": "💰",
+            "stats": { "prowess": [3, 6], "cunning": [6, 9], "faith": [2, 6], "charm": [6, 9] },
+            "renown": [6, 20],
+            "goals": { "quest": 4, "delve": 3, "wander": 3 },
+            "teamUp": true, "hireable": true,
+            "lines": {
+                "greet": ["Everything has a price. Even old ruins. Especially old ruins.", "Fancy a partnership? No? Your loss.", "Buy low, delve deep, sell high."],
+                "friendly": ["I keep a ledger of favours. Yours is in the black.", "Partners split the risk and double the profit."],
+                "hostile": ["I've ruined better than you with a single letter.", "Your credit is poor in every town I trade in."],
+                "boast": ["Bought a sunken hall for a song. Sold its silver for an opera."]
+            }
+        },
+        "usurper": {
+            "label": "Would-be Usurper", "icon": "👑",
+            "stats": { "prowess": [4, 7], "cunning": [6, 9], "faith": [2, 5], "charm": [6, 9] },
+            "renown": [12, 30],
+            "goals": { "usurp": 4, "festival": 2, "quest": 2, "delve": 1, "wander": 1 },
+            "teamUp": false, "hireable": false, "ambitious": true,
+            "lines": {
+                "greet": ["Crowns are only hats, until someone sits under them.", "One day you'll bow to me. Practise now.", "I have friends in every court."],
+                "friendly": ["When I am king, you'll want for nothing. Remember who stood by whom.", "There is room at my table for you."],
+                "hostile": ["When I take the throne, your name goes on the first list.", "You stand in the way of history."],
+                "boast": ["Three lords already owe me their seats."]
+            }
+        },
+        "duelist": {
+            "label": "Wandering Duelist", "icon": "🤺",
+            "stats": { "prowess": [7, 10], "cunning": [4, 7], "faith": [2, 5], "charm": [4, 7] },
+            "renown": [10, 28],
+            "goals": { "festival": 5, "wander": 3, "bounty": 1, "quest": 1 },
+            "teamUp": false, "hireable": true, "duelist": true,
+            "lines": {
+                "greet": ["Draw, or step aside.", "They say you can fight. I'd like to see it.", "I collect famous names. Yours is getting there."],
+                "friendly": ["A worthy blade. Spar with me sometime — for the joy of it.", "Of all the swords in this land, yours I'd least like to cross."],
+                "hostile": ["Our last bout isn't over. Not while we both breathe.", "I'll find you at the next tourney. And the one after."],
+                "boast": ["Unhorsed the Earl's champion at the spring lists. Twice."]
+            }
+        }
+    },
+
+    "lines": {
+        "duelAccept": ["Gladly.", "Finally.", "To first blood, then.", "Mind your footing."],
+        "duelRefuse": ["Not you, friend. I'd rather drink with you.", "I've nothing to prove to you.", "Another day."],
+        "duelWin": ["Yield! Ha — there's no shame in losing to me.", "Better luck next time.", "Remember this day."],
+        "duelLose": ["Well struck… I'll remember that.", "Enough! You have it.", "Next time it goes the other way."],
+        "teamUpYes": ["Two lamps in the dark. I'm in — for a quarter of the take.", "Partners, then. A fair cut and no knives in the back."],
+        "teamUpNo": ["I work alone.", "With you? I'd sooner go down with a cave bear."],
+        "hireYes": ["Your coin, my sword. For ten days.", "Done. Point me at the trouble."],
+        "hireNo": ["Not for any money.", "I don't fight for people I don't trust."],
+        "raceAccept": ["A race? Ha! See you at the bottom — if you get there.", "You're on. Loser pays."],
+        "raceWon": ["Curse you — first again.", "Fine. You had the faster horse."],
+        "raceLost": ["Too slow! I'll take that wager.", "The place was empty by the time you heard of it."],
+        "ambush": ["Thought you'd seen the last of me?", "No crowd to cheer you now."],
+        "slander": ["{rival} tells every tavern that {player} is a coward and a cheat.", "{rival} swears {player} robs graves and sells the bones."]
+    },
+
+    "attitudeLabels": [
+        { "min": 60, "id": "friend", "label": "Friend", "icon": "💛", "color": "#7fd07f" },
+        { "min": 20, "id": "friendly", "label": "Friendly", "icon": "🙂", "color": "#b5d77f" },
+        { "min": -19, "id": "neutral", "label": "Neutral", "icon": "😐", "color": "#c8c8c8" },
+        { "min": -59, "id": "rival", "label": "Rival", "icon": "😠", "color": "#e08a50" },
+        { "min": -100, "id": "nemesis", "label": "Nemesis", "icon": "💀", "color": "#e06060" }
+    ]
+}

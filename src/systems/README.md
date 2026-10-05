@@ -30,6 +30,7 @@ World simulation systems. Each system manages a distinct aspect of the game worl
 | `quests.js` | ~650 | Dynamic quest generation, tracking, rewards |
 | `relationships/` | ~1700 | Courtship, marriage, children, dynasty, heir succession |
 | `religion.js` | ~750 | World religions, holy sites, heresies, pilgrimages |
+| `rivals.js` | ~1350 | Rival adventurers: 6–9 named NPCs (`data/rivals.json`) created lazily on the first daily tick, who travel abstractly and delve sites first (full or partial loot read by `delves.js`), claim your bounties, take quest offers, enter your contests, back throne claimants; attitude/memory toward the player, duels (via `PlayerEffects`), team-ups, hires, races, sabotage, nemesis ambushes and slander (Gossip), deaths and newcomers; Hall of Heroes leaderboard + news; `processDay(world, player)` |
 | `saveLoad.js` | ~650 | Game state serialization / deserialization (save & load) |
 | `ships.js` | ~1650 | Ship building, crews (hire/wages/morale), naval combat, war-galley escorts, exploration, trade, blockaded port markets, interception by hostile royal fleets |
 | `technology/` | ~1200 | Research tree, labs, parts crafting, tech bonuses |

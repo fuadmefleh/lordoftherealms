@@ -39,6 +39,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 26. [Legendary Artifacts](#26-legendary-artifacts)
 27. [Bounty Hunting](#27-bounty-hunting)
 28. [Festivals & Tournaments](#28-festivals--tournaments)
+    - [Rival Adventurers](#rival-adventurers) — named rivals who delve, hunt bounties and compete with you; the Hall of Heroes
 29. [Saving & Loading](#29-saving--loading)
 30. [Controls & UI](#30-controls--ui)
 31. [Tips & Strategies](#31-tips--strategies)
@@ -2246,6 +2247,67 @@ Your record as a host builds over time (shown in the festival menu):
 - **Vigilance:** each past sabotage attempt cuts the chance of the next by 1% (up to −10%).
 - **Novelty:** a town that has hosted one of your last 3 festivals is less impressed: −30% renown for each.
 - Achievements: **Master of Revels** (host 10 festivals) and **Champion of the Lists** (5 podium finishes).
+
+Rival adventurers nearby (see below) enter your tournaments and festivals by name: they replace some of the nameless champions in the lists, and a festival summary shows which rivals you beat (+1 renown each) and which outshone you.
+
+## Rival Adventurers
+
+You are not the only one chasing glory. From the first day a small cast of **6–9 named adventurers** roams the realm and pursues the same goals you do. Each has an archetype, four stats (⚔️ prowess, 🧠 cunning, 🙏 faith, 💬 charm), a level, a renown score, a home town, and an **attitude** toward you (−100 to 100) built from what you have done to them.
+
+| Archetype | What they chase |
+|-----------|-----------------|
+| 🗝️ Treasure Hunter | Ruins and caves first, then quests |
+| ⚔️ Sellsword Captain | Tournaments, bounties, delves; can be hired |
+| 🎯 Bounty Hunter | The criminals on your notice board |
+| ✝️ Pious Crusader | Tombs and the restless dead, quests |
+| 💰 Merchant Adventurer | Commissions and delves |
+| 👑 Would-be Usurper | Thrones: claims and succession crises |
+| 🤺 Wandering Duelist | Tournaments; will always cross swords |
+
+The cast, their names and lines live in `data/rivals.json`.
+
+### What They Do
+
+Rivals don't walk the map. They travel from place to place at about 6 hexes a day, rest a few days in a town, then pick their next venture:
+
+- **Delves.** They head for the nearest unexplored ruin or cave. A rival may **clear** it, so it is no longer delvable ("already looted by Kael the Bold"), or **plunder part of it**. A partly looted site can still be delved, but its gold, goods and renown shrink (the delve entrance shows by how much). The depths can kill them.
+- **Bounties.** A bounty hunter goes after a criminal on your board, or one you have already accepted, and may bring them in before you. The bounty and its pay are then gone.
+- **Quests.** A rival near you may take an offer off your quest journal.
+- **Contests.** They win jousts and archery contests in the towns, and enter yours by name.
+- **Thrones.** An ambitious rival with 70+ renown proclaims a claim to a throne. In a succession crisis (Claims & Crowns) they back a claimant: your claimant if they like you, the other one if they hate you, with double weight in the realm they claim.
+
+Notable deeds within about 14 hexes of you, and anything that touches you, arrive as end-of-day notices. Every deed goes into the **Tales of the Road** news.
+
+### Meeting Them
+
+When you arrive in a town where a rival is resting, you meet them and hear a line in their voice. **Adventurers Here** in the Social menu lists them, with their attitude and the last thing they remember about you:
+
+| Deed | AP | Effect |
+|------|----|--------|
+| 💬 Talk | 0 | A line that matches their mood toward you |
+| ⚔️ Duel | 4 | A fight to first blood. Your power is combat ×2 + strength + luck, scaled by trait, mood and treasure bonuses, against their prowess and level. The winner gains renown and the loser harm (armour reduces yours). Once a day per rival. |
+| 💀 To the death | 4 | Only with someone who already dislikes you. If you win, they die. If you lose, you take heavy harm. |
+| 🤝 Team up | 1 | Treasure hunters, sellswords, crusaders and merchants delve with you for 7 days: about +10% to every delve check, for 25% of the gold you find. A fair split warms them. |
+| 💰 Hire | 1 | Sellswords, bounty hunters, treasure hunters, merchants and duelists join your army for 10 days, paid up front (60g + 35g per level). If they are lost from your ranks, they either die or leave to recover from their wounds. |
+| 🏁 Race | 1 | You each stake 75g on the nearest unexplored delve site. They need a day to provision. Delve it before they arrive and you take the 150g pot and +6 renown. Otherwise they keep the pot. |
+| 🗡️ Sabotage | 2 | 50g to have them waylaid. Success depends on stealth, plus 15% as a thieves' guild member. It delays their venture (or race) by 3–6 days and costs them renown. If it fails, they know it was you (−25 attitude, −2 karma). |
+
+### Friends, Rivals and Nemeses
+
+Attitude moves with what you do: fair splits, contracts served out and races they win warm them. Losing duels and contests to you, losing races, and sabotage cool them. Rivals go from **Friend** (60+) through **Friendly**, **Neutral** and **Rival** to **Nemesis** (−60 or worse).
+
+A nemesis acts against you:
+
+- **Slander.** They spread 'slander' rumours through the gossip system. These carry no bounty, but they cost you renown and reputation as they spread from town to town.
+- **Ambush.** About every 20 days they may come after you. If you have not moved on when they arrive, they ambush you. Beat them off and they flee wounded, or sometimes die. Lose and they take 10% of your gold.
+
+Rivals can die in the depths, on a manhunt, under your banner or by your hand. Newcomers arrive 8–20 days later to replace the dead.
+
+### The Hall of Heroes
+
+**Hall of Heroes** (Social menu, at any settlement once the cast exists) ranks your renown against every living rival. It shows each rival's attitude toward you and what they are doing now ("Bound for the Sunken Ruins of Tallow (~3d)"). It also lists your current delving partner and race, your duel and race record, the latest Tales of the Road, and the fallen.
+
+Rival state (the cast, attitudes, memories, news, partner, race) is saved with your game. Older saves get their cast on the first day after loading.
 
 ---
 

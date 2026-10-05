@@ -506,6 +506,12 @@ export const DataLoader = {
             DataLoader.holdings = holdingsData;
         }
 
+        // ── Rival adventurers (read lazily by systems/rivals.js) ──
+        const rivalsData = data['rivals.json'];
+        if (rivalsData) {
+            DataLoader.rivals = rivalsData;
+        }
+
         // ── Gossip / Rumor System ──
         const gossipData = data['gossip.json'];
         if (gossipData) {

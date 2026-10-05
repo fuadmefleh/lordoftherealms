@@ -18,6 +18,7 @@ import { Delves } from './delves.js';
 import { Underworld } from './underworld.js';
 import { Throne } from './throne.js';
 import { Holdings } from './holdings.js';
+import { Rivals } from './rivals.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 
 
@@ -354,6 +355,8 @@ export const SaveLoad = {
             throne: Throne.serialize(player),
             // Holdings ledger (per-settlement development is saved with the tiles)
             holdings: Holdings.serialize(player),
+            // Rival adventurers: the cast, their attitude/memory, news, partner, race (systems/rivals.js)
+            rivals: Rivals.serialize(player),
         };
     },
 
@@ -538,6 +541,8 @@ export const SaveLoad = {
         Throne.load(player, world);
         // Holdings — older saves have none; owned settlements get a blank record and fresh effects
         Holdings.loadState(player, world);
+        // Rival adventurers — older saves get a blank record (the cast arrives next day)
+        Rivals.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

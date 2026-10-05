@@ -506,7 +506,9 @@ export const Ailments = {
         if (pen > 0 && _num(player.movementRemaining) > 1) {
             const before = player.movementRemaining;
             player.movementRemaining = Math.max(1, before - pen);
-            out.movementLost = before - player.movementRemaining;        }
+            out.movementLost = before - player.movementRemaining;
+            // A wounded day's full strength still carries one hex (Player.stepAlongPath)
+            if (_num(player._dayMovement) > player.movementRemaining) player._dayMovement = player.movementRemaining;        }
 
         // ── Companions and crews ──
         if (!out.died) {

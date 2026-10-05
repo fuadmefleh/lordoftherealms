@@ -35,6 +35,7 @@ import { Sieges } from '../../systems/sieges.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
 import { Discovery } from '../../systems/discovery.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
+import { Quests } from '../../systems/quests.js';
 import { travelTo } from './harness.js';
 
 const FOOD = ['grain', 'bread'];
@@ -757,6 +758,11 @@ export function botDay(game, stats) {
         count(stats, 'servitudeDays');
         return;
     }
+    // The quest board: once settled in (past the short soak's horizon, whose
+    // runs stay as they were), take the first offer each week while there's room
+    if (world.day > 150 && world.day % 7 === 0 && player.quests && player.quests.active.length < 3 && (player.quests.available || []).length) {
+        if (Quests.acceptQuest(player, player.quests.available[0].id, world).success) count(stats, 'questsAccepted');
+    }
     if (Ships.getVoyage(player)) {
         voyageDay(game, stats);
         return;
@@ -816,7 +822,11 @@ export function botDay(game, stats) {
             const town = nearest(world, player, settlementTiles(world), 1)[0];
             if (town) {
                 game.dest = { q: town.q, r: town.r };
+                const from = `${player.q},${player.r}`;
                 travelTo(game, town.q, town.r);
+                // No road to any town (an island landing): row back out to the anchored ship
+                const anchored = (player.ships || []).find(s => s.status === 'anchored' && Hex.distance(s.q, s.r, player.q, player.r) <= 1);
+                if (from === `${player.q},${player.r}` && anchored && Ships.rowToShip(player, anchored.id).success) count(stats, 'rowedToShip');
                 const now = world.getTile(player.q, player.r);
                 if (now && now.settlement) booked(game, 'buyFood', () => buyFood(game, now, stats));
                 count(stats, 'foodRuns');

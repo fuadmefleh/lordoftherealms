@@ -7,6 +7,7 @@ import { Utils } from '../core/utils.js';
 import { Kingdom } from './kingdom.js';
 import { Seasons } from './seasons.js';
 import { DataLoader } from '../core/dataLoader.js';
+import { SettlementMarket } from './settlementMarket.js';
 
 export const Economy = {
     /**
@@ -195,8 +196,11 @@ export const Economy = {
     },
 
     /**
-     * The goods a settlement's market sells: [{ key, qtyMult }] (GOODS keys;
-     * stock is population × qtyMult).
+     * The goods a settlement's market sells: [{ key, qtyMult }] (GOODS keys).
+     * The staples by size and local resource are always on the stalls (sold
+     * out when the store is empty); any other good the town keeps
+     * (world/settlementMarket.js) is on sale while it holds a couple of
+     * days' worth. qtyMult is the old fixed stock per head (unused now).
      */
     marketGoods(settlement, tile) {
         const out = [];
@@ -232,14 +236,38 @@ export const Economy = {
         if (resId === 'coal') add('COAL', 0.03);
         if (resId === 'oil') { add('OIL', 0.01); add('LAMP_OIL', 0.01); }
         if (resId === 'cattle') { add('MEAT', 0.04); add('HIDE', 0.02); }
+        // Whatever else the town has in store: flour from the mill, fish off
+        // the boats, iron from the mine, cloth from the weavers...
+        const m = settlement.market;
+        if (m && m.stock) {
+            const listed = new Set(out.map(g => g.key));
+            for (const id in m.stock) {
+                const key = id.toUpperCase();
+                if (listed.has(key)) continue;
+                const have = m.stock[id];
+                if (!(have >= 3) || have < SettlementMarket.refNeed(settlement, id) * 2) continue;
+                add(key, 0);
+            }
+        }
         return out;
     },
 
     /**
      * What a settlement's market charges for one unit of `good` (a GOODS
-     * entry), before the player's own discounts.
+     * entry) today, before the player's own discounts: the ask base × the
+     * scarcity of the town's stock (world/settlementMarket.js).
      */
     marketPrice(good, settlement, tile, world = null) {
+        return Math.floor(Economy.marketAskBase(good, settlement, tile, world) * SettlementMarket.scarcity(settlement, good.id));
+    },
+
+    /**
+     * What the market charges for one unit before the scarcity of its stock
+     * — base × size × cold demand × local resources × season × events ×
+     * monopoly markup — unrounded. A purchase or sale moves along the
+     * scarcity curve from here (SettlementMarket.levelFactor).
+     */
+    marketAskBase(good, settlement, tile, world = null) {
         let price = good.basePrice;
 
         // Larger settlements have better prices (cheaper to buy)
@@ -251,33 +279,13 @@ export const Economy = {
         };
         price *= sizeMultiplier[settlement.type] || 1.0;
 
-        // Temperature based demand for Firewood and Warm Clothes.
-        // `world` is null in headless/test contexts, which skips weather-based demand.
-        if (world && world.weather) {
-            // Seasonal temperature in °C, and snow on the ground makes it worse
-            const temp = world.weather.getTemperature(tile.q, tile.r);
-            const celsius = typeof temp === 'object' ? temp.celsius : 15;
-            const wx = world.weather.getWeather(tile.q, tile.r).type;
-            const isCold = celsius < 5 || wx === 'snow' || wx === 'blizzard';
-
-            if (good.id === 'firewood') {
-                if (isCold) price *= 1.5; // High demand in cold
-                else price *= 0.8; // Low demand elsewhere
-            }
-            if (good.id === 'clothes') {
-                if (isCold) price *= 1.3;
-            }
-        } else {
-            // Fallback to biome based logic
-            const isCold = ['tundra', 'snowy_wasteland', 'ice_sheet', 'taiga', 'boreal_forest'].includes(tile.terrain.id);
-            if (good.id === 'firewood') {
-                if (isCold) price *= 1.5;
-                else price *= 0.8;
-            }
-        }
+        // Temperature based demand for Firewood and Warm Clothes (snow on the
+        // ground makes it worse). `world` is null in headless/test contexts,
+        // which falls back to the biome.
+        price *= SettlementMarket.coldFactor(world, tile, good.id);
 
         // Resource bonuses affect prices
-        if (tile.resource) {
+        if (tile && tile.resource) {
             if (good.id === 'grain' && ['wheat'].includes(tile.resource.id)) price *= 0.7;
             if ((good.id === 'bread' || good.id === 'flour') && ['wheat'].includes(tile.resource.id)) price *= 0.85;
             if (good.id === 'weapons' && tile.resource.id === 'iron') price *= 0.8;
@@ -294,11 +302,14 @@ export const Economy = {
         // the lean months, furs dear in winter (world/seasons.js)
         price *= Seasons.priceMultiplier(good.id, Seasons.today(world));
 
+        // Timed world events near the market (a crash, drought food prices)
+        price *= SettlementMarket.eventFactor(world, tile, good.id);
+
         // A monopoly that carries a markup (the crown's, systems/kingship.js)
         // makes the good dearer in this market
         price *= 1 + Economy.monopolyMarkup(settlement, good.id, world ? world.day : null);
 
-        return Math.floor(price);
+        return price;
     },
 
     /**
@@ -601,7 +612,9 @@ export const Economy = {
         // cuts gold and goods until repaired; production (colony policy, e.g.
         // Exploitation +0.3) scales gold and goods the other way
         const intact = 1 - Math.min(0.9, Math.max(0, mods.damage || 0));
-        const output = intact * Math.max(0, 1 + (mods.production || 0));
+        // A town short of tools works slower (world/settlementMarket.js)
+        const live = (tile && tile.settlement) || settlement;
+        const output = intact * Math.max(0, 1 + (mods.production || 0)) * SettlementMarket.toolFactor(live);
         if (output !== 1) {
             prod.gold = Math.round(prod.gold * output);
             prod.goods = Math.round(prod.goods * output);
@@ -619,22 +632,20 @@ export const Economy = {
         const foodBonus = settlement.colony && settlement.colony.isPlayerColony ? (playerBonuses.colonyFood || 0) : 0;
         settlement.economy.food += foodBonus > 0 ? Math.round(prod.seasonalFood * (1 + foodBonus)) : prod.seasonalFood;
 
-        // Store specific goods in stockpile if settlement handles it
-        if (!settlement.economy.stockpile) {
-            settlement.economy.stockpile = { food: 0, gold: 0, goods: 0 };
-        }
-
-        for (const [item, amount] of Object.entries(prod.breakdown.items)) {
-            if (item === 'food') continue; // Food handled above
-            settlement.economy.stockpile[item] = (settlement.economy.stockpile[item] || 0) + amount;
-        }
+        // The specific goods (prod.breakdown.items) reach the settlement's
+        // market through world/settlementMarket.js, which reads this
+        // breakdown in the daily market tick
 
         // Legacy compatibility
         settlement.economy.goods += prod.goods;
 
-        // Close-knit peoples (kinship) grow faster
+        // Close-knit peoples (kinship) grow faster; a market dearth makes
+        // the people eat harder into the granary (world/settlementMarket.js)
         const kinship = settlement.peoplesEffects ? (settlement.peoplesEffects.growth || 0) : 0;
-        Economy._feedPopulation(settlement, kinship ? { ...mods, growth: (mods.growth || 0) + kinship } : mods);
+        const strain = SettlementMarket.foodStrain(live);
+        Economy._feedPopulation(settlement, (kinship || strain)
+            ? { ...mods, growth: (mods.growth || 0) + kinship, consumption: (mods.consumption || 0) + strain }
+            : mods);
 
         // Thin granaries in the lean weeks sour the mood (on the live settlement;
         // getAllSettlements hands out copies)
@@ -703,17 +714,17 @@ export const Economy = {
     },
 
     /**
-     * Process trade routes for a settlement
+     * Credit a settlement's trade income: its share of the margin on the
+     * goods NPC traders moved through it (world/settlementMarket.js flows,
+     * banked in economy.tradeIncome), worked harder by mercantile peoples
+     * and by gems, spices and the like nearby. Routes (createTradeRoute)
+     * are the links the goods move along; they carry no flat payment.
      */
     processTrade(settlement) {
-        if (!settlement.economy || !settlement.economy.tradeRoutes) return 0;
+        if (!settlement.economy) return 0;
 
-        let totalProfit = 0;
-        for (const route of settlement.economy.tradeRoutes) {
-            if (route.active) {
-                totalProfit += route.profit;
-            }
-        }
+        let totalProfit = Math.max(0, settlement.economy.tradeIncome || 0);
+        settlement.economy.tradeIncome = 0;
         // Mercantile peoples and trader diasporas work the routes harder
         const commerce = settlement.peoplesEffects ? (settlement.peoplesEffects.trade || 0) : 0;
         if (commerce && totalProfit > 0) totalProfit = Math.round(totalProfit * (1 + commerce));
@@ -721,6 +732,7 @@ export const Economy = {
         const rb = settlement.economy.resourceBonuses;
         const tradeMult = 1 + ((rb && rb.trade) || 0) * Economy.effectScale('routeIncome');
         if (tradeMult !== 1 && totalProfit > 0) totalProfit = Math.round(totalProfit * tradeMult);
+        totalProfit = Math.round(totalProfit);
 
         settlement.economy.gold += totalProfit;
         return totalProfit;

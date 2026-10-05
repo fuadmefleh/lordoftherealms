@@ -43,6 +43,7 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Economy } from '../world/economy.js';
+import { SettlementMarket } from '../world/settlementMarket.js';
 import { Seasons } from '../world/seasons.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { KingdomBonuses } from '../world/kingdomState.js';
@@ -1084,7 +1085,8 @@ export const Sieges = {
         result.plunder = plunder;
         settlement.population = Math.max(1, Math.floor(_num(settlement.population) * K.popKeep));
         settlement.happiness = Utils.clamp(_num(settlement.happiness) + K.happiness, 0, 100);
-        settlement.marketStock = {};
+        // The market's stores are carried off or burned (world/settlementMarket.js)
+        SettlementMarket.loot(settlement, 0.8);
         settlement.lastRaidedDay = _day(world);
         player.karma = _num(player.karma) + K.karma;
         result.karmaChange = K.karma;

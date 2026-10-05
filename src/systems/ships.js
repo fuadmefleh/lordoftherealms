@@ -12,6 +12,7 @@ import { LegendaryArtifacts } from './legendaryArtifacts.js';
 import { Infrastructure } from './infrastructure.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { Economy } from '../world/economy.js';
+import { SettlementMarket } from '../world/settlementMarket.js';
 import { Seasons } from '../world/seasons.js';
 import { Underworld } from './underworld.js';
 import { Ailments } from './ailments.js';
@@ -1294,12 +1295,21 @@ export const Ships = {
         const tile = typeof world.getTile === 'function' ? world.getTile(q, r) : null;
         // The season moves sea goods as it moves land goods (fixed for the price period)
         const seasonDay = Number.isFinite(world.day) ? period * this.PORT_PRICE_PERIOD : null;
+        const town = tile && tile.settlement;
         const market = this._getTradeGoods().filter(g => g.id).map((g, i) => {
             let roleRoll = this._hash(q, r, i) % 3;
+            // The town's own stores (world/settlementMarket.js): a glut ships
+            // out, a dearth is bought in — and prices follow the same stock
+            const kept = town && town.market && SettlementMarket.tracks(g.id);
+            const scarcity = kept ? SettlementMarket.scarcity(town, g.id) : 1;
+            if (kept && scarcity <= 0.8) roleRoll = 0;
+            else if (kept && scarcity >= 1.4) roleRoll = 1;
             // A town whose own market stocks the good doesn't import it
             if (roleRoll === 1 && tile && Economy.marketAsk(world, tile, g.id) != null) roleRoll = 2;
             const t = (this._hash(q, r, i, period) % 1000) / 1000;
-            const basePrice = this.tradeGoodBasePrice(g) * Seasons.priceMultiplier(g.id, seasonDay);
+            const basePrice = kept
+                ? SettlementMarket.value(world, town, tile, g.id, this.tradeGoodBasePrice(g))
+                : this.tradeGoodBasePrice(g) * Seasons.priceMultiplier(g.id, seasonDay);
             const base = { id: g.id, name: g.name, icon: g.icon || '📦', basePrice: Math.round(basePrice) };
             if (roleRoll === 0) {
                 const buy = Math.max(2, Math.round(basePrice * lerp(P.export, t)));
@@ -1370,6 +1380,9 @@ export const Ships = {
         player.gold -= cost;
         if (!ship.cargo) ship.cargo = {};
         ship.cargo[goodId] = (ship.cargo[goodId] || 0) + n;
+        // What the town has in store goes first (the rest comes off foreign hulls)
+        const portTown = world.getTile(player.q, player.r);
+        if (portTown && portTown.settlement) SettlementMarket.take(portTown.settlement, goodId, n);
         if (player.financeToday) {
             player.financeToday.expenses.seaTrade = (player.financeToday.expenses.seaTrade || 0) + cost;
         }
@@ -1382,14 +1395,24 @@ export const Ships = {
      * port's own asking price, and at most half the town market's (the
      * least a player's discounts can buy them for).
      */
-    portSaleUnitPrice(player, world, q, r, entry) {
+    portSaleUnitPrice(player, world, q, r, entry, qty = 1) {
         const portTile = world.getTile(q, r);
+        // A big cargo of a good the town keeps floods its stores: each unit
+        // fetches what the stock it finds commands (averaged over the lot)
+        const town = portTile && portTile.settlement;
+        let depth = 1;
+        if (qty > 1 && town && town.market && SettlementMarket.tracks(entry.id)) {
+            const s0 = SettlementMarket.stock(town, entry.id);
+            let sum = 0;
+            for (let j = 0; j < qty; j++) sum += SettlementMarket.levelFactor(town, entry.id, s0 + j);
+            depth = sum / qty;
+        }
         const eventMod = WorldEvents.getModifier(world, 'tradeIncome', portTile) + WorldEvents.getModifier(world, 'seaTradeIncome', portTile)
             // A Lighthouse you own beside the port brings ships in safely
             + (Technology.hasBuildingNear(player, world, 'lighthouse_building', q, r, 1) ? 0.15 : 0)
             // Lighthouse tech: charted harbours pay better at every port
             + Technology.getEffectTotal(player, 'portTradeBonus');
-        const price = entry.sell * (1 + Technology.getTradeProfitBonus(player)) * (1 + eventMod);
+        const price = entry.sell * depth * (1 + Technology.getTradeProfitBonus(player)) * (1 + eventMod);
         // Never past what the same goods cost here or in a settlement next door
         const near = this.nearbyAsks(world, q, r, entry.id);
         let unitCap = entry.buy ? entry.buy - 1 : Infinity;
@@ -1444,10 +1467,13 @@ export const Ships = {
         if (!entry) return { success: false, message: 'Nobody here buys that.' };
         const n = Math.min(qty, (ship.cargo && ship.cargo[goodId]) || 0);
         if (n <= 0) return { success: false, message: 'None of that in the hold.' };
-        const revenue = Math.max(0, Math.floor(n * this.portSaleUnitPrice(player, world, player.q, player.r, entry)));
+        const revenue = Math.max(0, Math.floor(n * this.portSaleUnitPrice(player, world, player.q, player.r, entry, n)));
         ship.cargo[goodId] -= n;
         if (ship.cargo[goodId] <= 0) delete ship.cargo[goodId];
         player.gold = (player.gold || 0) + revenue;
+        // The cargo lands in the town's stores
+        const portTown = world.getTile(player.q, player.r);
+        if (portTown && portTown.settlement) SettlementMarket.add(portTown.settlement, goodId, n);
         Quests.track(player, 'trade_profit', revenue);
         if (player.skills && Utils.random() < 0.2) {
             player.skills.commerce = Math.min(10, (player.skills.commerce || 1) + 0.1);

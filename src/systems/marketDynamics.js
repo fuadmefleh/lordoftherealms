@@ -1,175 +1,185 @@
 // ============================================
-// MARKET DYNAMICS — Regional supply/demand pricing system
+// MARKET DYNAMICS — the daily market tick and regional price reports
 // ============================================
+// Every settlement keeps one goods inventory (world/settlementMarket.js).
+// This module drives its day: what each town brings to market (its land,
+// map resources via Economy.calculateDetailedProduction, the player's
+// properties nearby, its holdings), and the NPC trade that moves goods
+// along the kingdoms' trade routes and between near neighbours — cut by
+// war, blockades (world/kingdomNavy.js), sieges (systems/sieges.js,
+// systems/holdingSieges.js), outlaw lairs (systems/outlawLairs.js) and
+// raiders on the roads. getPrice / getPriceTrend / getMarketSummary report
+// the same prices to caravans, the tavern and the market screens.
+// Deterministic; draws no RNG.
 
 import { PlayerEconomy } from '../player/playerEconomy.js';
 import { Economy } from '../world/economy.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { Seasons } from '../world/seasons.js';
+import { SettlementMarket } from '../world/settlementMarket.js';
+import { KingdomNavy } from '../world/kingdomNavy.js';
 import { Technology } from './technology.js';
 import { Hex } from '../core/hex.js';
 import { Councils } from './councils.js';
 import { Titles } from './titles.js';
 import { Utils } from '../core/utils.js';
+import { Infrastructure } from './infrastructure.js';
+import { OutlawLairs } from './outlawLairs.js';
+import { Sieges } from './sieges.js';
+import { HoldingSieges } from './holdingSieges.js';
 
+const _key = (q, r) => `${q},${r}`;
+/** Days a settlement's production profile holds before it is worked out again. */
+const PROFILE_DAYS = 5;
+/** Days the trade links hold before they are drawn again (new towns redraw them at once). */
+const LINK_DAYS = 10;
+const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+
+/** Per-world caches rebuilt from world state (land around towns, trade links). */
+const _caches = new WeakMap();
 
 export const MarketDynamics = {
-    // Regional market state (per settlement)
-    regionalMarkets: {}, // settlementId -> { supply: {}, demand: {}, prices: {} }
-    
-    /**
-     * Initialize market with base prices from PlayerEconomy.GOODS
-     */
+    // Old saves carried a separate supply/demand table here; prices now live
+    // on each settlement's market. Kept (empty) for callers and old saves.
+    regionalMarkets: {},
+
+    /** What the last daily tick moved: { moved, value, gold }. */
+    lastFlow: null,
+
     initialize() {
         this.regionalMarkets = {};
+        this.lastFlow = null;
+    },
+
+    _cache(world) {
+        let c = _caches.get(world);
+        if (!c) {
+            c = { land: new Map(), links: null };
+            _caches.set(world, c);
+        }
+        return c;
     },
 
     /**
-     * Initialize or get market for a settlement
+     * The daily market tick (after the world's day, from endDay): every
+     * settlement produces, works up and consumes its goods
+     * (SettlementMarket.processSettlement), then NPC traders move goods
+     * along the trade links (SettlementMarket.flows). `player` supplies the
+     * player-side disruptions (lairs, sieges). @returns {{ moved, value, gold }}
      */
-    getOrCreateSettlementMarket(settlementId) {
-        if (!this.regionalMarkets[settlementId]) {
-            const market = {
-                supply: {},
-                demand: {},
-                prices: {},
-                priceHistory: {}
-            };
-            
-            // Initialize with base prices
-            if (typeof PlayerEconomy !== 'undefined' && PlayerEconomy.GOODS) {
-                for (const [key, good] of Object.entries(PlayerEconomy.GOODS)) {
-                    market.prices[good.id] = good.basePrice;
-                    market.supply[good.id] = 50; // Neutral starting supply
-                    market.demand[good.id] = 50; // Neutral starting demand
-                    market.priceHistory[good.id] = [good.basePrice];
-                }
+    updatePrices(world, player = null) {
+        if (!world || typeof world.getTile !== 'function') return null;
+        const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : world.getAllSettlements();
+        const cache = this._cache(world);
+        const day = Seasons.today(world);
+        const foodSeason = SettlementMarket.seasonalFood(day);
+        let spill = null;
+        const k = SettlementMarket.tickDays();
+        const turn = Number.isFinite(day) ? ((day % k) + k) % k : 0;
+        const lives = [];
+        for (const s of views) {
+            const tile = world.getTile(s.q, s.r);
+            const live = tile && tile.settlement;
+            if (!live) continue;
+            if (live.q !== s.q || live.r !== s.r) { live.q = s.q; live.r = s.r; }
+            Economy.initSettlement(live);
+            lives.push(live);
+            const m = SettlementMarket.ensure(live);
+            // Markets take their turns (every tickDays, staggered by place)
+            if (k > 1 && Number.isFinite(day) && SettlementMarket.slot(s.q, s.r) !== turn) continue;
+            // What the town brings to market, worked out afresh every few days
+            // (kept on the market, so a loaded game carries on identically)
+            const bucket = Math.floor(_num(day) / PROFILE_DAYS);
+            if (!Array.isArray(m.prod) || m.prodAt !== bucket || m.prod.length !== SettlementMarket.config().goodIds.length) {
+                if (!spill) spill = this._propertySpill(world, views);
+                const land = this._land(world, cache, tile, day);
+                // The breakdown produceDaily stored today (kingdom towns), else worked out fresh
+                const stored = live.kingdom && live.economy.production && live.economy.production.breakdown;
+                const bd = stored || Economy.calculateDetailedProduction(live, tile, world);
+                const rates = Economy.PRODUCTION_RATES[live.type] || Economy.PRODUCTION_RATES.village;
+                const foodBase = rates.baseFood * (1 + (_num(live.population) / 10000) * 0.5);
+                const prod = SettlementMarket.production(live, land, bd, foodBase, spill.get(_key(s.q, s.r)) || null);
+                m.prod = SettlementMarket.productionList(prod);
+                m.prodAt = bucket;
             }
-            
-            this.regionalMarkets[settlementId] = market;
+            SettlementMarket.processSettlement(live, m.prod, {
+                day,
+                days: Number.isFinite(day) ? k : 1,
+                cold: SettlementMarket.isCold(world, tile),
+                foodMult: foodSeason * Math.max(0, 1 + WorldEvents.getModifier(world, 'farmProduction', tile)),
+                mineMult: Math.max(0, 1 + WorldEvents.getModifier(world, 'mineProduction', tile)),
+                intact: 1 - Math.min(0.9, Math.max(0, _num(live.damage))),
+                goodsMult: 1 + Economy.holdingFx(live, 'goods'),
+            });
         }
-        return this.regionalMarkets[settlementId];
+        const links = this._links(world, cache, lives, day);
+        for (const live of lives) if (live.market && live.market.trade) live.market.trade.cut = 0;
+        this._disrupt(world, player, links, k > 1 && Number.isFinite(day) ? turn : null);
+        const flow = SettlementMarket.flows(links, this._basePrices(), day);
+        // Independent towns have no realm treasury pass to bank their trade (KingdomAI.updateEconomy)
+        for (const live of lives) if (!live.kingdom) Economy.processTrade(live);
+        this.lastFlow = flow;
+        return flow;
+    },
+
+    /** Land profile of a settlement's hex, recomputed each 30-day stretch (terraforming is rare). */
+    _land(world, cache, tile, day) {
+        const k = _key(tile.q, tile.r);
+        const bucket = Math.floor(_num(day) / 30);
+        const hit = cache.land.get(k);
+        if (hit && hit.bucket === bucket) return hit.land;
+        const land = SettlementMarket.landProfile(world, tile.q, tile.r);
+        cache.land.set(k, { bucket, land });
+        return land;
+    },
+
+    /** Base prices of the goods the markets trade (data/playerEconomy.json GOODS). */
+    _basePrices() {
+        const out = {};
+        for (const id of SettlementMarket.config().goodIds) {
+            const g = PlayerEconomy.GOODS && PlayerEconomy.GOODS[id.toUpperCase()];
+            out[id] = g ? g.basePrice : 0;
+        }
+        return out;
     },
 
     /**
-     * Update regional market prices based on local supply and demand
+     * Goods the player's working properties near each settlement add to its
+     * market (data/markets.json propertySpill): Map 'q,r' → { goodId: units }.
      */
-    updatePrices(world) {
-        const settlements = world.getAllSettlements();
-        // Tiles with player properties (few or none): settlements with none
-        // within 5 hexes skip the 91-hex neighbourhood scan below
-        const propertyTiles = MarketDynamics._propertyTiles(world);
-        const basePrices = new Map();
-        const basePriceOf = (goodId) => {
-            let price = basePrices.get(goodId);
-            if (price === undefined) {
-                price = PlayerEconomy.GOODS[goodId.toUpperCase()]?.basePrice || 10;
-                basePrices.set(goodId, price);
-            }
-            return price;
-        };
-        const hasOwn = Object.prototype.hasOwnProperty;
-
-        for (const settlement of settlements) {
-            const settlementId = `${settlement.q}-${settlement.r}`;
-            const market = this.getOrCreateSettlementMarket(settlementId);
-            const tile = world.getTile(settlement.q, settlement.r);
-            if (!tile) continue;
-
-            // Today's local supply and demand: 10 of every good the market
-            // lists (the base), plus the amounts added below
-            const newSupply = new Map();
-            const newDemand = new Map();
-            const add = (into, goodId, amount) => {
-                const cur = into.has(goodId) ? into.get(goodId) : (hasOwn.call(market.prices, goodId) ? 10 : 0);
-                into.set(goodId, (cur || 0) + amount);
-            };
-
-            // Calculate local production from settlement
-            const econ = Economy.getSummary(settlement, tile, world);
-            if (econ.production.food > 0) {
-                add(newSupply, 'grain', econ.production.food * 0.5);
-                add(newSupply, 'fish', econ.production.food * 0.3);
-            }
-            if (econ.production.goods > 0) {
-                // Distribute goods production across various goods
-                add(newSupply, 'wood', econ.production.goods * 0.2);
-                add(newSupply, 'stone', econ.production.goods * 0.15);
-                add(newSupply, 'iron', econ.production.goods * 0.1);
-            }
-
-            // Player properties in this region (within radius)
-            const nearbyTiles = MarketDynamics._propertiesNear(propertyTiles, settlement, world)
-                ? Hex.hexesInRange(settlement.q, settlement.r, 5) : [];
-            for (const hex of nearbyTiles) {
-                const nearbyTile = world.getTile(hex.q, hex.r);
-                if (!nearbyTile || !nearbyTile.playerProperties) continue;
-                
-                for (const prop of nearbyTile.playerProperties) {
-                    if (prop.produces && prop.productionRate) {
-                        add(newSupply, prop.produces, prop.productionRate);
-                    }
-                }
-            }
-
-            // Calculate demand based on population
-            const popDemand = Math.floor(settlement.population / 100);
-            add(newDemand, 'grain', popDemand * 0.8);
-            add(newDemand, 'bread', popDemand * 0.6);
-            add(newDemand, 'fish', popDemand * 0.5);
-            add(newDemand, 'wood', popDemand * 0.4);
-            add(newDemand, 'clothes', popDemand * 0.3);
-            add(newDemand, 'tools', popDemand * 0.2);
-
-            // Smooth transition (70% old, 30% new). Most values settle, so a
-            // store is skipped when it would write the same value back (these
-            // big per-good tables are slow to write)
-            const supplies = market.supply, demands = market.demand, prices = market.prices;
-            for (const goodId in prices) {
-                const todaySupply = newSupply.has(goodId) ? newSupply.get(goodId) : 10;
-                const todayDemand = newDemand.has(goodId) ? newDemand.get(goodId) : 10;
-                const oldSupply = supplies[goodId], oldDemand = demands[goodId];
-                const supply = Math.floor((oldSupply || 0) * 0.7 + (todaySupply || 0) * 0.3);
-                const demand = Math.floor((oldDemand || 0) * 0.7 + (todayDemand || 0) * 0.3);
-                if (!Object.is(oldSupply, supply)) supplies[goodId] = supply;
-                if (!Object.is(oldDemand, demand)) demands[goodId] = demand;
-
-                // Calculate price based on supply/demand ratio
-                const basePrice = basePriceOf(goodId);
-                const ratio = demand / Math.max(1, supply);
-
-                // Price increases when demand > supply, decreases when supply > demand
-                let newPrice = Math.floor(basePrice * ratio);
-
-                // Clamp prices to reasonable range (40% to 400% of base for regional variance)
-                newPrice = Math.max(Math.floor(basePrice * 0.4), Math.min(Math.floor(basePrice * 4), newPrice));
-
-                // Smooth price changes (85% old, 15% new)
-                const oldPrice = prices[goodId];
-                const price = Math.floor((oldPrice || basePrice) * 0.85 + newPrice * 0.15);
-                if (!Object.is(oldPrice, price)) prices[goodId] = price;
-
-                // Track price history (last 30 days): past 30, the oldest
-                // drops out (shifted down in place)
-                let history = market.priceHistory[goodId];
-                if (!history) history = market.priceHistory[goodId] = [];
-                const len = history.length;
-                if (len >= 30) {
-                    for (let i = 1; i < len; i++) history[i - 1] = history[i];
-                    history[len - 1] = price;
-                } else {
-                    history.push(price);
+    _propertySpill(world, views) {
+        const out = new Map();
+        const tiles = this._propertyTiles(world);
+        if (tiles && tiles.length === 0) return out;
+        const P = SettlementMarket.config().propertySpill;
+        const radius = _num(P.radius, 3);
+        const share = _num(P.share, 0.25);
+        const list = tiles || [];
+        for (const [q, r] of list) {
+            const t = world.getTile(q, r);
+            if (!t || !Array.isArray(t.playerProperties)) continue;
+            for (const prop of t.playerProperties) {
+                if (!prop || prop.underConstruction || !prop.produces || !(prop.productionRate > 0)) continue;
+                if (!SettlementMarket.tracks(prop.produces)) continue;
+                for (const s of views) {
+                    if (Math.abs(s.r - r) > radius) continue;
+                    if (Hex.wrappingDistance(s.q, s.r, q, r, world.width) > radius) continue;
+                    const k = _key(s.q, s.r);
+                    const m = out.get(k) || {};
+                    m[prop.produces] = (m[prop.produces] || 0) + prop.productionRate * share;
+                    out.set(k, m);
                 }
             }
         }
+        return out;
     },
 
     /**
      * [q, r] of every tile holding player properties, or null when the world
-     * has no tile grid to scan (then every settlement scans its neighbourhood).
+     * has no tile grid to scan.
      */
     _propertyTiles(world) {
-        if (!Array.isArray(world.tiles) || !(world.width > 10)) return null;
+        if (!Array.isArray(world.tiles)) return null;
         const out = [];
         for (let r = 0; r < world.tiles.length; r++) {
             const row = world.tiles[r];
@@ -181,46 +191,231 @@ export const MarketDynamics = {
         return out;
     },
 
-    /** Could a hex within 5 of the settlement hold player properties? */
-    _propertiesNear(propertyTiles, settlement, world) {
-        if (!propertyTiles) return true;
-        for (const [q, r] of propertyTiles) {
-            if (Hex.wrappingDistance(settlement.q, settlement.r, q, r, world.width) <= 5) return true;
+    // ── Trade links ───────────────────────────────────────
+
+    /**
+     * The trade links between settlements: each town's kingdom trade routes
+     * and its nearest neighbours by land (same region) or by sea (port to
+     * port), up to `partners` each. Drawn every LINK_DAYS days or when a
+     * town is founded or lost, and saved on the markets (market.links) so a
+     * loaded game trades on the same ones; a link knows its distance, road,
+     * sea leg, routes, friction and capacity.
+     */
+    _links(world, cache, lives, day) {
+        const T = SettlementMarket.config().trade;
+        const n = lives.length;
+        const bucket = Math.floor(_num(day) / LINK_DAYS);
+        const same = (c) => c && c.lives.length === n && c.lives.every((s, i) => lives[i] === s);
+        if (cache.links && cache.links.bucket === bucket && same(cache.links)) return cache.links.list;
+        const make = (a, b, d, sea, road, nRoutes) => {
+            const friction = T.perHex * Math.max(1, d) * (road ? T.roadFactor : 1) * (sea ? T.seaFactor : 1);
+            const base = T.capacity + T.perRoute * Math.min(nRoutes, T.maxRoutes);
+            return {
+                a, b, dist: d, sea, road, routes: nRoutes, friction, base, capacity: base, factor: 1,
+                slot: SettlementMarket.slot(a.q + b.q, a.r + b.r),
+            };
+        };
+        // A loaded game picks up the links its towns were trading on (saved on
+        // each market), so it carries on exactly as it would have
+        if (!cache.links && n > 0 && lives.every(s => s.market && s.market.linksAt === bucket && s.market.linksN === n)) {
+            const at = new Map();
+            lives.forEach(s => at.set(_key(s.q, s.r), s));
+            const list = [];
+            for (const a of lives) {
+                for (const [q, r, d, sea, road, nRoutes] of a.market.links || []) {
+                    const b = at.get(_key(q, r));
+                    if (b) list.push(make(a, b, d, !!sea, !!road, nRoutes));
+                }
+            }
+            cache.links = { bucket, lives: lives.slice(), list };
+            return list;
         }
-        return false;
+        // Who could trade with whom (distance, land or sea)
+        const tiles = lives.map(s => world.getTile(s.q, s.r));
+        const port = lives.map(s => KingdomNavy.isPortTile(world, s.q, s.r));
+        const cands = [];
+        for (let i = 0; i < n; i++) {
+            const a = lives[i];
+            const list = [];
+            for (let j = 0; j < n; j++) {
+                if (j === i) continue;
+                const b = lives[j];
+                if (Math.abs(a.r - b.r) > T.maxRange) continue;
+                const d = Hex.wrappingDistance(a.q, a.r, b.q, b.r, world.width);
+                if (d > T.maxRange) continue;
+                const sameLand = !!(tiles[i] && tiles[j] && tiles[i].regionId !== undefined && tiles[i].regionId === tiles[j].regionId);
+                if (!sameLand && !(port[i] && port[j])) continue;
+                list.push({ j, d, sea: !sameLand, near: sameLand ? d <= T.localRange : d <= T.seaRange });
+            }
+            list.sort((x, y) => (x.d - y.d) || (x.j - y.j));
+            cands.push(list);
+        }
+        // The kingdoms' trade routes between them
+        const byName = new Map();
+        lives.forEach((s, i) => { if (s.name && !byName.has(s.name)) byName.set(s.name, i); });
+        const pairKey = (i, j) => (i < j ? i * 100000 + j : j * 100000 + i);
+        const routeCount = new Map();
+        for (let i = 0; i < n; i++) {
+            const rs = lives[i].economy && lives[i].economy.tradeRoutes;
+            if (!Array.isArray(rs)) continue;
+            for (const rt of rs) {
+                const j = byName.get(rt && rt.to);
+                if (j === undefined || j === i) continue;
+                const k = pairKey(i, j);
+                routeCount.set(k, (routeCount.get(k) || 0) + 1);
+            }
+        }
+        // Each town's partners: its routed towns first, then its nearest neighbours
+        const pairs = new Map();
+        for (let i = 0; i < n; i++) {
+            const picks = [];
+            for (const c of cands[i]) if (routeCount.has(pairKey(i, c.j))) picks.push(c);
+            for (const c of cands[i]) if (c.near && !routeCount.has(pairKey(i, c.j))) picks.push(c);
+            for (const c of picks.slice(0, T.partners)) {
+                const k = pairKey(i, c.j);
+                if (!pairs.has(k)) pairs.set(k, { i: Math.min(i, c.j), j: Math.max(i, c.j), d: c.d, sea: c.sea });
+            }
+        }
+        // A road the whole way (towns on one network share its flood; the
+        // floods are kept for a month — new roads are rare)
+        const month = Math.floor(_num(day) / 30);
+        if (!cache.reach || cache.reach.month !== month) cache.reach = { month, map: new Map() };
+        const reached = cache.reach.map;
+        const reach = (s) => {
+            const key = _key(s.q, s.r);
+            let r = reached.get(key);
+            if (!r) {
+                r = Infrastructure._roadReach(world, s.q, s.r);
+                reached.set(key, r);
+                for (const t of lives) {
+                    const tk = _key(t.q, t.r);
+                    if (r.has(tk) && !reached.has(tk)) reached.set(tk, r);
+                }
+            }
+            return r;
+        };
+        const list = [];
+        const saved = new Map(lives.map(s => [s, []]));
+        for (const [k, p] of [...pairs.entries()].sort((x, y) => x[0] - y[0])) {
+            const a = lives[p.i], b = lives[p.j];
+            const road = !p.sea && reach(a).has(_key(b.q, b.r));
+            const nRoutes = routeCount.get(k) || 0;
+            list.push(make(a, b, p.d, p.sea, road, nRoutes));
+            saved.get(a).push([b.q, b.r, p.d, p.sea ? 1 : 0, road ? 1 : 0, nRoutes]);
+        }
+        for (const s of lives) {
+            if (!s.market) continue;
+            s.market.links = saved.get(s);
+            s.market.linksAt = bucket;
+            s.market.linksN = n;
+        }
+        cache.links = { bucket, lives: lives.slice(), list };
+        return list;
     },
 
     /**
-     * Get current price for a good at a specific location
+     * Today's disruption of each link (link.factor, 1 = open, 0 = cut):
+     * war between the two realms, a realm at war at all, a blockade of
+     * either port (sea legs), a siege of either town, outlaw lairs and
+     * raider bands near the road, and world events on trade.
+     */
+    _disrupt(world, player, links, turn = null) {
+        const T = SettlementMarket.config().trade;
+        const W = world.width;
+        const kingdomOf = (s) => (s.kingdom && typeof world.getKingdom === 'function' ? world.getKingdom(s.kingdom) : null);
+        const besieged = new Set();
+        const siege = player ? Sieges.active(player) : null;
+        if (siege && Number.isFinite(siege.q)) besieged.add(_key(siege.q, siege.r));
+        for (const hs of player ? HoldingSieges.list(player) : []) if (hs && Number.isFinite(hs.q)) besieged.add(_key(hs.q, hs.r));
+        const lairs = player ? OutlawLairs.active(player).filter(l => Number.isFinite(l.q)) : [];
+        const raiders = (world.units || []).filter(u => u && !u.destroyed && u.type === 'raider');
+        const blockade = new Map();
+        const portBlock = (s) => {
+            const k = _key(s.q, s.r);
+            if (!blockade.has(k)) blockade.set(k, KingdomNavy.portBlockade(world, s.q, s.r));
+            return blockade.get(k);
+        };
+        const near = (q, r, a, b, mid, radius) => {
+            if (Math.abs(r - mid.r) > radius + Math.abs(a.r - b.r) / 2 + 1) return false;
+            return Hex.wrappingDistance(q, r, a.q, a.r, W) <= radius
+                || Hex.wrappingDistance(q, r, b.q, b.r, W) <= radius
+                || Hex.wrappingDistance(q, r, mid.q, mid.r, W) <= radius;
+        };
+        for (const link of links) {
+            const { a, b } = link;
+            // Only the links taking their turn today
+            if (turn !== null && link.slot !== turn) { link.factor = 0; continue; }
+            // Bigger towns trade more
+            link.capacity = link.base * (0.5 + 0.5 * Math.min(2, (_num(a.population) + _num(b.population)) / 6000));
+            let f = 1;
+            const ka = kingdomOf(a), kb = kingdomOf(b);
+            if (ka && kb && ka !== kb && Array.isArray(ka.wars) && ka.wars.includes(kb.id)) f *= 1 - T.warCut;
+            if ((ka && Array.isArray(ka.wars) && ka.wars.length) || (kb && Array.isArray(kb.wars) && kb.wars.length)) f *= T.atWarFactor;
+            if (link.sea) {
+                for (const s of [a, b]) {
+                    const bl = portBlock(s);
+                    if (bl) f *= bl.closed ? 0 : 0.5;
+                }
+            }
+            if (besieged.has(_key(a.q, a.r)) || besieged.has(_key(b.q, b.r))) f *= 1 - T.siegeCut;
+            if (f > 0 && (lairs.length || raiders.length)) {
+                let dq = b.q - a.q;
+                if (W && Math.abs(dq) > W / 2) dq -= Math.sign(dq) * W;
+                const mid = { q: Math.round(a.q + dq / 2), r: Math.round((a.r + b.r) / 2) };
+                if (W) mid.q = Hex.wrapQ(mid.q, W);
+                for (const l of lairs) {
+                    if (near(l.q, l.r, a, b, mid, T.lairRadius)) f *= 1 - T.lairCut * Math.max(0.3, Math.min(1, _num(l.strength) / 60));
+                }
+                for (const u of raiders) {
+                    if (near(u.q, u.r, a, b, mid, T.raiderRadius)) f *= 1 - T.raiderCut;
+                }
+            }
+            if (f > 0 && Array.isArray(world.activeEvents) && world.activeEvents.length) {
+                const ta = world.getTile(a.q, a.r);
+                const mod = WorldEvents.getModifier(world, 'tradeIncome', ta)
+                    + WorldEvents.getModifier(world, link.sea ? 'seaTradeIncome' : 'landTradeIncome', ta);
+                f *= Math.max(0, 1 + mod);
+            }
+            link.factor = Math.max(0, Math.min(2, f));
+            if (link.factor < 0.5) {
+                for (const s of [a, b]) if (s.market && s.market.trade) s.market.trade.cut = _num(s.market.trade.cut) + 1;
+            }
+        }
+    },
+
+    // ── Reports ───────────────────────────────────────────
+
+    /** The settlement on (q, r), or the nearest one: { settlement, tile } or null. */
+    _marketAt(q, r, world) {
+        if (!world) return null;
+        const tile = typeof world.getTile === 'function' ? world.getTile(q, r) : null;
+        if (tile && tile.settlement) return { settlement: tile.settlement, tile };
+        const nearest = this.findNearestSettlement(q, r, world);
+        if (!nearest) return null;
+        const t = typeof world.getTile === 'function' ? world.getTile(nearest.q, nearest.r) : null;
+        return { settlement: (t && t.settlement) || nearest, tile: t || { q: nearest.q, r: nearest.r } };
+    },
+
+    /**
+     * What a good is worth at the market on (or nearest) (q, r) today: its
+     * base × the town's scarcity × season × cold demand × world events
+     * (SettlementMarket.value) — the price before a market's own markup.
      */
     getPrice(goodId, q, r, world) {
-        // Find nearest settlement
-        const nearestSettlement = this.findNearestSettlement(q, r, world);
-        if (!nearestSettlement) {
-            // Return base price if no settlement nearby
-            return PlayerEconomy.GOODS[goodId.toUpperCase()]?.basePrice || 10;
-        }
-        
-        const settlementId = `${nearestSettlement.q}-${nearestSettlement.r}`;
-        const market = this.getOrCreateSettlementMarket(settlementId);
-        const price = market.prices[goodId] || PlayerEconomy.GOODS[goodId.toUpperCase()]?.basePrice || 10;
-        // Timed world events (market crash, drought food prices, ...) near this market
-        const tile = world && world.getTile ? world.getTile(nearestSettlement.q, nearestSettlement.r) : null;
-        let mod = WorldEvents.getModifier(world, 'prices', tile);
-        if (WorldEvents.FOOD_GOODS.includes(goodId)) mod += WorldEvents.getModifier(world, 'foodPrices', tile);
-        // The agricultural year (cheap after the harvest, dear in the lean months)
-        mod += Seasons.priceModifier(goodId, Seasons.today(world));
-        return Math.max(1, Math.round(price * (1 + mod)));
+        const base = PlayerEconomy.GOODS[String(goodId).toUpperCase()]?.basePrice || 10;
+        const at = this._marketAt(q, r, world);
+        if (!at) return base;
+        return Math.max(1, Math.round(SettlementMarket.value(world, at.settlement, at.tile, goodId, base)));
     },
 
     /**
      * Find nearest settlement to given coordinates
      */
     findNearestSettlement(q, r, world) {
-        const settlements = world.getAllSettlements();
+        const settlements = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : world.getAllSettlements();
         let nearest = null;
         let minDist = Infinity;
-        
+
         for (const settlement of settlements) {
             const dist = Hex.wrappingDistance(q, r, settlement.q, settlement.r, world.width);
             if (dist < minDist) {
@@ -228,90 +423,55 @@ export const MarketDynamics = {
                 nearest = settlement;
             }
         }
-        
+
         return nearest;
     },
 
-    /**
-     * Get price trend (rising, falling, stable) at a location
-     */
+    /** Where the good's price is heading at the market on (or nearest) (q, r): 'rising' | 'falling' | 'stable'. */
     getPriceTrend(goodId, q, r, world) {
-        const nearestSettlement = this.findNearestSettlement(q, r, world);
-        if (!nearestSettlement) return 'stable';
-        
-        const settlementId = `${nearestSettlement.q}-${nearestSettlement.r}`;
-        const market = this.getOrCreateSettlementMarket(settlementId);
-        const history = market.priceHistory[goodId];
-        
-        if (!history || history.length < 2) return 'stable';
-
-        const recent = history.slice(-5);
-        const avg = recent.reduce((a, b) => a + b, 0) / recent.length;
-        const current = history[history.length - 1];
-
-        if (current > avg * 1.1) return 'rising';
-        if (current < avg * 0.9) return 'falling';
-        return 'stable';
+        const at = this._marketAt(q, r, world);
+        return at ? SettlementMarket.trend(at.settlement, goodId) : 'stable';
     },
 
     /**
-     * Get market summary for UI - shows player's local market
+     * The market nearest the player, good by good, for the UI: price, base,
+     * trend, stock (supply), daily need (demand), days of need in store,
+     * stock label and the change against the base price.
      */
     getMarketSummary(playerQ, playerR, world) {
-        const nearestSettlement = this.findNearestSettlement(playerQ, playerR, world);
-        
-        if (!nearestSettlement) {
-            // Return base prices if no settlement nearby
-            const summary = [];
-            for (const [key, good] of Object.entries(PlayerEconomy.GOODS || {})) {
-                summary.push({
-                    id: good.id,
-                    name: good.name,
-                    icon: good.icon,
-                    price: good.basePrice,
-                    basePrice: good.basePrice,
-                    trend: 'stable',
-                    supply: 50,
-                    demand: 50,
-                    priceChange: 0,
-                    location: 'No market nearby'
-                });
-            }
-            return summary;
-        }
-        
-        const settlementId = `${nearestSettlement.q}-${nearestSettlement.r}`;
-        const market = this.getOrCreateSettlementMarket(settlementId);
+        const at = this._marketAt(playerQ, playerR, world);
         const summary = [];
-        
-        for (const [key, good] of Object.entries(PlayerEconomy.GOODS || {})) {
-            const price = market.prices[good.id] || good.basePrice;
-            const history = market.priceHistory[good.id];
-            let trend = 'stable';
-            
-            if (history && history.length >= 2) {
-                const recent = history.slice(-5);
-                const avg = recent.reduce((a, b) => a + b, 0) / recent.length;
-                const current = history[history.length - 1];
-                if (current > avg * 1.1) trend = 'rising';
-                else if (current < avg * 0.9) trend = 'falling';
+        for (const id of SettlementMarket.config().goodIds) {
+            const good = PlayerEconomy.GOODS && PlayerEconomy.GOODS[id.toUpperCase()];
+            if (!good) continue;
+            if (!at) {
+                summary.push({
+                    id: good.id, name: good.name, icon: good.icon, price: good.basePrice, basePrice: good.basePrice,
+                    trend: 'stable', supply: 0, demand: 0, priceChange: 0, location: 'No market nearby',
+                });
+                continue;
             }
-            
+            const info = SettlementMarket.info(at.settlement, id);
+            if (!(info.stock > 0) && !(info.need > 0)) continue;
+            const price = this.getPrice(id, at.tile.q, at.tile.r, world);
             summary.push({
                 id: good.id,
                 name: good.name,
                 icon: good.icon,
                 price,
                 basePrice: good.basePrice,
-                trend,
-                supply: market.supply[good.id] || 0,
-                demand: market.demand[good.id] || 0,
+                trend: info.trend,
+                supply: Math.floor(info.stock),
+                demand: Math.round(info.need * 10) / 10,
+                days: info.days,
+                label: info.label,
+                color: info.color,
                 priceChange: Math.round(((price - good.basePrice) / good.basePrice) * 100),
-                location: nearestSettlement.name
+                location: at.settlement.name,
             });
         }
         return summary;
-    }
+    },
 };
 
 // ============================================

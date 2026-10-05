@@ -568,8 +568,9 @@ export function endDay() {
                 for (const n of heraldDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             }
 
-            // Update market prices
-            MarketDynamics.updatePrices(this.world);
+            // The settlement markets' day: production, consumption, NPC trade
+            // (world/settlementMarket.js; lairs and sieges disrupt the roads)
+            MarketDynamics.updatePrices(this.world, this.player);
 
             // Process informants and expire old intel
             let intelResult = { cost: 0 };

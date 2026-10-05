@@ -57,6 +57,7 @@ import { Upbringing } from './upbringing.js';
 import { RealmWars } from './realmWars.js';
 import { Holdings } from './holdings.js';
 import { Economy } from '../world/economy.js';
+import { SettlementMarket } from '../world/settlementMarket.js';
 import { Seasons } from '../world/seasons.js';
 import { WorldEvents } from '../world/worldEvents.js';
 
@@ -1273,6 +1274,8 @@ export const Kingship = {
         const D = (Kingship.edicts().famine_dole || {}).dole || {};
         const need = _num(D.reserveDays) || 5;
         if ((Seasons.isLean(_day(world)) || _num(s.leanMood) > 0) && Economy.foodReserveDays(s) < need) return 'lean';
+        // A market that has run out of bread and grain for weeks (world/settlementMarket.js)
+        if (SettlementMarket.inDearth(s)) return 'lean';
         return null;
     },
 
@@ -1306,8 +1309,8 @@ export const Kingship = {
                 ? _num(s.economy.food) / reserve
                 : _num(s.population) * _num(Economy.FOOD && Economy.FOOD.perCapita) * 0.25;
             let want = Math.ceil(Math.max(0, days - (Number.isFinite(reserve) ? reserve : days)) * perDay);
-            // In a famine the crown's bread goes out every day, stocked granary or not
-            if (kind === 'famine') want = Math.max(want, Math.ceil(perDay));
+            // In a famine — or a market dearth — the crown's bread goes out every day, stocked granary or not
+            if (kind === 'famine' || SettlementMarket.inDearth(s)) want = Math.max(want, Math.ceil(perDay));
             want = Math.min(want, _num(D.maxPerTown) || 60);
             if (!(want > 0)) continue;
             const afford = Math.floor(_num(k.treasury) / price);
@@ -1317,6 +1320,8 @@ export const Kingship = {
                 const cost = Math.ceil(grain * price);
                 k.treasury = _num(k.treasury) - cost;
                 s.economy.food = _num(s.economy.food) + grain;
+                // The dole's grain reaches the market too, easing a dearth
+                SettlementMarket.add(s, 'grain', grain);
                 res.grain += grain;
                 res.gold += cost;
             }

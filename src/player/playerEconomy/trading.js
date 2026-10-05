@@ -1,16 +1,23 @@
 // Trading — split from playerEconomy.js; references PlayerEconomy (GOODS etc.).
+// Buying and selling go through the settlement's one goods inventory
+// (world/settlementMarket.js): a purchase takes real stock and every unit
+// costs a little more than the last; a sale adds stock and every unit
+// fetches a little less.
 import { PlayerEconomy } from './_ref.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Ships } from '../../systems/ships.js';
-import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, PlayerEffects, PlayerInventory, Economy, Seasons } from './_imports.js';
+import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, PlayerEffects, PlayerInventory, Economy, Seasons, SettlementMarket } from './_imports.js';
 
 export const Trading = {
     /**
-     * Get available goods at a settlement
+     * Get available goods at a settlement: each with its price for the next
+     * unit, the stock on hand (quantity), and the market's stock reading
+     * (scarcity, label, trend, days of need in store).
      */
     getAvailableGoods(settlement, tile, world = null) {
         const goods = [];
-        if (!settlement.marketStock) settlement.marketStock = {};
+        if (!settlement) return goods;
+        SettlementMarket.ensure(settlement);
 
         // What the market stocks lives in world/economy.js so other outlets can see it
         // Contraband isn't sold openly where the realm has banned it
@@ -20,14 +27,20 @@ export const Trading = {
             if (!good) continue;
             if (kingdom && Underworld.contrabandStatus(kingdom, good.id) === 'illegal') continue;
 
-            const baseQty = Math.floor(settlement.population * qtyMult);
-            const bought = settlement.marketStock[good.id] || 0;
-            const available = Math.max(0, baseQty - bought);
-
+            const tracked = SettlementMarket.tracks(good.id);
+            const askBase = Economy.marketAskBase(good, settlement, tile, world);
+            const info = SettlementMarket.info(settlement, good.id);
             goods.push({
                 ...good,
-                quantity: available,
-                price: Trading.calculatePrice(good, settlement, tile, world),
+                quantity: tracked ? SettlementMarket.available(settlement, good.id) : Math.floor((settlement.population || 0) * qtyMult),
+                price: Math.floor(askBase * info.scarcity),
+                askBase,
+                stock: info.stock,
+                scarcity: info.scarcity,
+                stockLabel: info.label,
+                stockColor: info.color,
+                stockDays: info.days,
+                trend: info.trend,
             });
         }
 
@@ -35,7 +48,7 @@ export const Trading = {
     },
 
     /**
-     * Calculate price based on settlement and resources (Economy.marketPrice).
+     * Price of one unit at the market's current stock (Economy.marketPrice).
      * `world` is injected by the caller; null in headless/test contexts,
      * which skips weather-based demand.
      */
@@ -52,28 +65,68 @@ export const Trading = {
     },
 
     /**
-     * Most a buyer on this tile pays per unit of `goodId` the player sells:
-     * one less than what the player would pay to buy it back here or in a
-     * settlement next door (a market's price after the player's discount, or
-     * a port's), or Infinity when nobody there sells it. Keeps sell bonuses
+     * What `quantity` units of a market entry (Trading.getAvailableGoods)
+     * cost the player: each unit at the price the stock it leaves behind
+     * commands, after the player's discount. One unit costs the listed price.
+     */
+    buyCost(player, entry, quantity, settlement) {
+        const disc = Math.max(0.5, 1 - Trading.buyDiscount(player, settlement));
+        const q = Math.max(0, Math.floor(quantity));
+        if (!(entry && entry.askBase > 0) || !settlement || !settlement.market || !SettlementMarket.tracks(entry.id)) {
+            return Math.ceil(((entry && entry.price) || 0) * q * disc);
+        }
+        const s0 = SettlementMarket.stock(settlement, entry.id);
+        let sum = 0;
+        for (let i = 0; i < q; i++) sum += Math.floor(entry.askBase * SettlementMarket.scarcity(settlement, entry.id, s0 - i));
+        return Math.ceil(sum * disc);
+    },
+
+    /**
+     * Most a buyer on this tile pays per unit (averaged over `quantity`) for
+     * `goodId` the player sells: each unit one less than buying it back
+     * would cost — here at the stock the sale leaves, or in a settlement
+     * next door (a market's price after the player's discount, or a
+     * port's) — or Infinity when nobody there sells it. Keeps sell bonuses
      * from turning a market into a buy-and-sell-back money loop.
      */
-    saleUnitCap(player, goodId, settlement, world = null, tile = null) {
+    saleUnitCap(player, goodId, settlement, world = null, tile = null, quantity = 1) {
         const at = tile || Economy.settlementTile(world, settlement);
         if (!at) return Infinity;
+        const q = Math.max(1, Math.floor(quantity));
+        const here = at.settlement || settlement;
+        const discount = (s) => Math.max(0.5, 1 - Trading.buyDiscount(player, s));
         // Each market's price after the player's own discount there (as buyGoods charges it)
-        const discounted = (ask, s) => Math.ceil(ask * Math.max(0.5, 1 - Trading.buyDiscount(player, s)));
-        let ask = Infinity;
+        const discounted = (ask, s) => Math.ceil(ask * discount(s));
+        let flat = Infinity;
+        let ownAsk = null;
         if (world && typeof world.getTile === 'function') {
             const near = Ships.nearbyAsks(world, at.q, at.r, goodId);
-            for (const m of near.markets) ask = Math.min(ask, discounted(m.ask, m.settlement));
+            for (const m of near.markets) {
+                if (m.settlement === here) ownAsk = m.ask;
+                else flat = Math.min(flat, discounted(m.ask, m.settlement) - 1);
+            }
             // ...or a harbour's
-            if (near.port != null) ask = Math.min(ask, near.port);
+            if (near.port != null) flat = Math.min(flat, near.port - 1);
         } else {
-            const market = Economy.marketAsk(world, at, goodId);
-            if (market != null) ask = discounted(market, settlement);
+            ownAsk = Economy.marketAsk(world, at, goodId);
         }
-        return ask === Infinity ? Infinity : Math.max(0, ask - 1);
+        if (ownAsk == null) return flat === Infinity ? Infinity : Math.max(0, flat);
+        // This market: buying the unit back costs the price at the stock the sale leaves
+        const good = Economy._goods()[String(goodId).toUpperCase()];
+        const tracked = good && here && here.market && SettlementMarket.tracks(goodId);
+        let total = 0;
+        if (tracked) {
+            const askBase = Economy.marketAskBase(good, here, at, world);
+            const s0 = SettlementMarket.stock(here, goodId);
+            const d = discount(here);
+            for (let j = 1; j <= q; j++) {
+                const own = Math.floor(askBase * SettlementMarket.scarcity(here, goodId, s0 + j) * d) - 1;
+                total += Math.max(0, Math.min(flat, own));
+            }
+        } else {
+            total = Math.max(0, Math.min(flat, discounted(ownAsk, here) - 1)) * q;
+        }
+        return total / q;
     },
 
     /** Share of the base price a settlement pays for goods you sell it. */
@@ -81,11 +134,18 @@ export const Trading = {
 
     /**
      * What a settlement pays per unit for a good you sell, before trade
-     * bonuses: 70% of base, moved by the season (sell food in the lean
-     * months, not into the harvest glut).
+     * bonuses: 70% of what it's worth there — base × the town's scarcity ×
+     * season × cold demand × events (SettlementMarket.value). Without a
+     * settlement (or a market that doesn't keep the good) it's 70% of base,
+     * moved by the season (sell food in the lean months, not into the
+     * harvest glut).
      */
-    getSellPrice(good, world = null) {
+    getSellPrice(good, world = null, settlement = null, tile = null) {
         if (!good) return 0;
+        if (settlement && settlement.market && SettlementMarket.tracks(good.id)) {
+            const at = tile || Economy.settlementTile(world, settlement);
+            return Math.floor(SettlementMarket.value(world, settlement, at, good.id, good.basePrice) * Trading.SELL_SHARE);
+        }
         return Math.floor(good.basePrice * Trading.SELL_SHARE * Seasons.priceMultiplier(good.id, Seasons.today(world)));
     },
 
@@ -96,19 +156,31 @@ export const Trading = {
     },
 
     /**
-     * What `settlement` pays the player per unit of `good`: 70% of base,
-     * moved by the season, raised by trade bonuses, cut by any tariff
-     * (`priceMult`) — and never more than buying it back here would cost
-     * (Trading.saleUnitCap).
+     * What `settlement` pays the player per unit of `good` (averaged over
+     * `quantity`): 70% of what each unit is worth there at the stock it
+     * finds (the more you sell, the less each fetches), raised by trade
+     * bonuses, cut by any tariff (`priceMult`) — and never more than buying
+     * it back here would cost (Trading.saleUnitCap).
      */
     saleUnitPrice(player, good, settlement, world = null, priceMult = 1, quantity = 1) {
-        const sellPrice = Trading.getSellPrice(good, world);
+        const q = Math.max(1, Math.floor(quantity));
         // Commerce techs (accounting, guilds, ...) improve every sale
         const tradeBonus = ((typeof Technology !== 'undefined') ? Technology.getTradeProfitBonus(player) : 0)
             + PlayerEffects.tradeBonus(player, settlement)
             + Economy.saleBonus(settlement); // a market town near gems, spices, oil...
-        const value = sellPrice * quantity * (1 + tradeBonus) * priceMult;
-        return Math.min(value, Trading.saleUnitCap(player, good.id, settlement, world) * quantity) / quantity;
+        let value;
+        if (settlement && settlement.market && SettlementMarket.tracks(good.id)) {
+            const at = Economy.settlementTile(world, settlement);
+            const now = SettlementMarket.scarcity(settlement, good.id);
+            const unitBase = SettlementMarket.value(world, settlement, at, good.id, good.basePrice) / (now || 1);
+            const s0 = SettlementMarket.stock(settlement, good.id);
+            let sum = 0;
+            for (let j = 0; j < q; j++) sum += unitBase * SettlementMarket.scarcity(settlement, good.id, s0 + j);
+            value = sum * Trading.SELL_SHARE * (1 + tradeBonus) * priceMult;
+        } else {
+            value = Trading.getSellPrice(good, world) * q * (1 + tradeBonus) * priceMult;
+        }
+        return Math.min(value, Trading.saleUnitCap(player, good.id, settlement, world, null, q) * q) / q;
     },
 
 
@@ -129,15 +201,14 @@ export const Trading = {
      * Buy goods from a settlement
      */
     buyGoods(player, good, quantity, settlement) {
-        const discount = Trading.buyDiscount(player, settlement);
-        const totalCost = Math.ceil(good.price * quantity * Math.max(0.5, 1 - discount));
+        if (quantity > good.quantity) {
+            return { success: false, reason: 'Not enough in stock' };
+        }
+
+        const totalCost = Trading.buyCost(player, good, quantity, settlement);
 
         if (player.gold < totalCost) {
             return { success: false, reason: 'Not enough gold' };
-        }
-
-        if (quantity > good.quantity) {
-            return { success: false, reason: 'Not enough in stock' };
         }
 
         const blocked = Trading.monopolyBlock(settlement, good.id);
@@ -160,9 +231,8 @@ export const Trading = {
         // Add to player inventory
         PlayerInventory.addItem(player, good.id, quantity);
 
-        // Reduce settlement stock (increase the "bought" counter)
-        if (!settlement.marketStock) settlement.marketStock = {};
-        settlement.marketStock[good.id] = (settlement.marketStock[good.id] || 0) + quantity;
+        // The goods leave the town's store (the price climbs)
+        if (settlement) SettlementMarket.take(settlement, good.id, quantity);
 
         // Increase commerce skill
         player.skills.commerce = Math.min(10, player.skills.commerce + 0.1);
@@ -203,7 +273,10 @@ export const Trading = {
         player.gold += totalEarned;
         Quests.track(player, 'trade_profit', totalEarned);
 
-        // Food sold to a settlement goes into its granary — a town short of
+        // The goods join the town's store (the price falls)
+        if (settlement) SettlementMarket.add(settlement, goodId, quantity);
+
+        // Food sold to a settlement also eases its granary — a town short of
         // stores in the lean season is glad of it (Economy.applyLeanSeason)
         if (settlement && Seasons.priceGroup(goodId) === 'food') {
             if (!settlement.economy) Economy.initSettlement(settlement);

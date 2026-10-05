@@ -292,13 +292,13 @@ Object.assign(UI.prototype, {
         let marketHtml = '';
         if (typeof MarketDynamics !== 'undefined') {
             const summary = MarketDynamics.getMarketSummary(player.q, player.r, world);
-            if (summary && summary.prices) {
+            if (Array.isArray(summary) && summary.length) {
                 let priceRows = '';
-                for (const [goodId, data] of Object.entries(summary.prices)) {
+                for (const data of summary) {
                     const trendIcon = data.trend === 'rising' ? '📈' : data.trend === 'falling' ? '📉' : '➡️';
                     const trendColor = data.trend === 'rising' ? '#e74c3c' : data.trend === 'falling' ? '#27ae60' : 'var(--text-secondary)';
                     priceRows += `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                        <td style="padding:6px;">${goodId}</td>
+                        <td style="padding:6px;">${data.icon || ''} ${data.name || data.id}${data.label ? ` <span style="color:${data.color};font-size:10px;">${data.label}</span>` : ''}</td>
                         <td style="padding:6px;text-align:right;color:var(--gold);">${Math.round(data.price || data.currentPrice || 0)}</td>
                         <td style="padding:6px;text-align:right;color:${trendColor};">${trendIcon} ${data.trend || 'stable'}</td>
                     </tr>`;

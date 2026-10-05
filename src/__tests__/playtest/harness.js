@@ -281,7 +281,7 @@ export function endDay(game) {
     mark(game, 'Patronage.processDay');
     Heralds.processDay(world, player);
     mark(game, 'Heralds.processDay');
-    MarketDynamics.updatePrices(world);
+    MarketDynamics.updatePrices(world, player);
     mark(game, 'MarketDynamics.updatePrices');
 
     Tavern.expireOldIntel(player, world.day);

@@ -1,6 +1,6 @@
 // ActionMenu — trade methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, NpcDisposition, Seasons } from './_imports.js';
+import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, NpcDisposition, Seasons, SettlementMarket } from './_imports.js';
 
 Object.assign(ActionMenu, {
     /**
@@ -906,10 +906,31 @@ Object.assign(ActionMenu, {
                 if (quantity <= 0) continue;
                 const good = PlayerEconomy.GOODS[goodId.toUpperCase()];
                 if (!good) continue;
-                const sellPrice = Trading.getSellPrice(good, game.world);
+                // What this town pays for the first unit (its stock sets it)
+                const sellPrice = Math.floor(Trading.saleUnitPrice(game.player, good, tile.settlement, game.world));
                 sellItems.push({ ...good, quantity, sellPrice });
             }
         }
+
+        // ── The town's stores (world/settlementMarket.js): how full, which way the price moves ──
+        const stockBadge = (goodId) => {
+            if (!SettlementMarket.tracks(goodId) || !tile.settlement || !tile.settlement.market) return '';
+            const info = SettlementMarket.info(tile.settlement, goodId);
+            const pct = Math.round((info.scarcity - 1) * 100);
+            const arrow = info.trend === 'rising' ? '▲' : info.trend === 'falling' ? '▼' : '';
+            const days = info.days != null ? ` · ${info.days >= 99 ? '99+' : Math.floor(info.days)}d in store` : '';
+            return `<div class="trade-meta" style="color:${info.color};" title="Stock ${Math.floor(info.stock)}${info.need > 0 ? `, the town uses ${Math.round(info.need * 10) / 10} a day` : ', the town does not use it'}. Buying raises the price, selling lowers it.">${info.label} ${pct >= 0 ? '+' : ''}${pct}%${arrow ? ` ${arrow}` : ''}${days}</div>`;
+        };
+        const mkt = tile.settlement && tile.settlement.market;
+        const dearth = tile.settlement && SettlementMarket.worstShortage(tile.settlement);
+        const glut = tile.settlement && SettlementMarket.biggestGlut(tile.settlement);
+        const nameOf = (id) => (PlayerEconomy.GOODS[id.toUpperCase()] && PlayerEconomy.GOODS[id.toUpperCase()].name) || id;
+        const storesParts = [];
+        if (dearth) storesParts.push(`<span style="color:#e74c3c;">Short of ${nameOf(dearth.id)}</span>`);
+        if (glut) storesParts.push(`<span style="color:#3498db;">Glut of ${nameOf(glut.id)}</span>`);
+        if (mkt && mkt.trade && (mkt.trade.in > 0 || mkt.trade.out > 0)) storesParts.push(`<span>Traders: ${Math.round(mkt.trade.in)} in / ${Math.round(mkt.trade.out)} out today</span>`);
+        if (mkt && mkt.trade && mkt.trade.cut > 0) storesParts.push('<span style="color:#e67e22;">Trade roads disrupted</span>');
+        if (SettlementMarket.inDearth(tile.settlement)) storesParts.push('<span style="color:#e74c3c;">Dearth: the poor go hungry</span>');
 
         // ── Season outlook and price-trend arrows (world/seasons.js) ──
         const outlook = Seasons.outlook(game.world.day);
@@ -930,6 +951,7 @@ Object.assign(ActionMenu, {
             <div style="font-weight:700; color:var(--text-primary);">${outlook.icon} ${outlook.season}, day ${outlook.dayInSeason} of 30</div>
             <div style="color:var(--text-secondary); margin:2px 0 4px;">${outlook.note}</div>
             ${outlookParts.length ? `<div style="display:flex; flex-wrap:wrap; gap:10px;">${outlookParts.join('')}</div>` : ''}
+            ${storesParts.length ? `<div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:4px;">🏚️ ${storesParts.join('')}</div>` : ''}
         </div>`;
 
         // ── Render HTML ──
@@ -1002,6 +1024,7 @@ Object.assign(ActionMenu, {
                     <span class="trade-icon">${good.icon}</span>
                     <div>
                         <div class="trade-name">${good.name}</div>
+                        ${stockBadge(good.id)}
                         ${trendBadge(good.id)}
                     </div>
                     <div class="trade-price">${isSoldOut ? '' : good.price + ' 💰'}
@@ -1031,6 +1054,7 @@ Object.assign(ActionMenu, {
                     <div>
                         <div class="trade-name">${item.name}</div>
                         <div class="trade-meta">You have: ${item.quantity}</div>
+                        ${stockBadge(item.id)}
                         ${trendBadge(item.id)}
                     </div>
                     <div class="trade-price" style="color:#2ecc71;">${item.sellPrice} 💰

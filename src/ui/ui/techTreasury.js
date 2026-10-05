@@ -371,8 +371,8 @@ Object.assign(UI.prototype, {
                         <div>Item</div>
                         <div style="text-align:right;">Price</div>
                         <div style="text-align:center;">Trend</div>
-                        <div style="text-align:right;">Supply</div>
-                        <div style="text-align:right;">Demand</div>
+                        <div style="text-align:right;" title="Units in the town's store">Stock</div>
+                        <div style="text-align:right;" title="Units the town uses a day">Use/day</div>
                     </div>
         `;
 
@@ -389,6 +389,7 @@ Object.assign(UI.prototype, {
                     <div style="display:flex; align-items:center;">
                         <span style="font-size:18px; margin-right:8px;">${item.icon || '📦'}</span>
                         <span style="color:var(--text-primary);">${item.name || item.id || 'Unknown Item'}</span>
+                        ${item.label ? `<span style="margin-left:6px; font-size:10px; color:${item.color};">${item.label}</span>` : ''}
                     </div>
                     <div style="text-align:right; font-weight:bold; color:${priceColor};">${item.price}g</div>
                     <div style="text-align:center; color:${trendColor};">${trendIcon}</div>

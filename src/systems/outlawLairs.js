@@ -49,6 +49,7 @@ import { Hex } from '../core/hex.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { WorldUnit } from '../world/units.js';
 import { LordInfluence } from '../world/kingdomState.js';
+import { SettlementMarket } from '../world/settlementMarket.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 import { House } from './house.js';
 import { Traits } from './traits.js';
@@ -744,6 +745,8 @@ export const OutlawLairs = {
         const lost = Math.round(_num(s.population) * _num(R.population) * harm);
         s.population = Math.max(10, Math.round(_num(s.population) - lost));
         if (s.economy && Number.isFinite(s.economy.food)) s.economy.food = Math.floor(s.economy.food * (1 - Math.min(0.9, _num(R.food) * harm)));
+        // ...and the market's stores with them (world/settlementMarket.js)
+        if (s.market) SettlementMarket.loot(s, Math.min(0.9, _num(R.food) * harm) * 0.5);
         const kingdom = _kingdom(world, s.kingdom);
         let coin = Math.round(_roll(R.loot || [0, 0]) * _num(trait.lootMult, 1));
         if (kingdom) {

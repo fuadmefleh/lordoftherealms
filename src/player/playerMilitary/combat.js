@@ -4,6 +4,7 @@ import { Traits } from '../../systems/traits.js';
 import { Companions } from '../../systems/companions.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Kingship } from '../../systems/kingship.js';
+import { SettlementMarket } from '../../world/settlementMarket.js';
 import { Utils, Technology, House, Quests, RealmWars, Throne, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS, Economy } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
@@ -545,8 +546,8 @@ Object.assign(PlayerMilitary, {
                 result.newOwner = 'you (independent colony)';
             }
 
-            // Clear market stock (looted)
-            settlement.marketStock = {};
+            // The market's stores are looted (world/settlementMarket.js)
+            SettlementMarket.loot(settlement, 0.5);
 
             // Massive karma and reputation hit (less for a town that opened its gates)
             const karma = opts.karma != null ? opts.karma : -10;

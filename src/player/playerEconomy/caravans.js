@@ -2,7 +2,7 @@
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
 import { Underworld } from '../../systems/underworld.js';
-import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerInventory, Economy } from './_imports.js';
+import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerInventory, Economy, SettlementMarket } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
     /**
@@ -337,16 +337,25 @@ Object.assign(PlayerEconomy, {
                     // Recalculate based on current market prices
                     // What the destination market pays for the goods today (its
                     // price, with the season and events): a sale, so Trading.SELL_SHARE of it
+                    // — each unit at what the town's stock commands as the
+                    // load lands in it (world/settlementMarket.js), which it then joins
+                    const targetTile = world.getTile(caravan.toPos.q, caravan.toPos.r);
+                    const destTown = targetTile && targetTile.settlement;
                     let marketValue = 0;
                     for (const [goodId, qty] of Object.entries(caravan.goods)) {
-                        const currentPrice = MarketDynamics.getPrice(goodId, caravan.toPos.q, caravan.toPos.r, world);
-                        marketValue += currentPrice * Trading.SELL_SHARE * qty;
+                        const good = PlayerEconomy.GOODS[String(goodId).toUpperCase()];
+                        if (destTown && destTown.market && good && SettlementMarket.tracks(goodId)) {
+                            marketValue += SettlementMarket.lotValue(world, destTown, targetTile, goodId, good.basePrice, qty) * Trading.SELL_SHARE;
+                            SettlementMarket.add(destTown, goodId, qty);
+                        } else {
+                            const currentPrice = MarketDynamics.getPrice(goodId, caravan.toPos.q, caravan.toPos.r, world);
+                            marketValue += currentPrice * Trading.SELL_SHARE * qty;
+                        }
                     }
 
                     const dist = Hex.wrappingDistance(caravan.fromPos.q, caravan.fromPos.r, caravan.toPos.q, caravan.toPos.r, world.width);
                     const distanceMultiplier = PlayerEconomy.caravanDistanceMultiplier(dist);
 
-                    const targetTile = world.getTile(caravan.toPos.q, caravan.toPos.r);
                     const settlementMultiplier = PlayerEconomy.caravanSizeMultiplier(targetTile && targetTile.settlement && targetTile.settlement.type);
 
                     let grossRevenue = Math.floor(marketValue * distanceMultiplier * settlementMultiplier);

@@ -26,7 +26,8 @@ const topLevel = [
     'underworld', 'throne', 'holdings', 'rivals', 'ailments', 'upbringing',
     'sagas', 'discovery', 'merchantHouses', 'kingship', 'counsel', 'chatter',
     'patronage',
-    'outlawLairs'
+    'outlawLairs',
+    'markets'
 ];
 
 const merged = {};

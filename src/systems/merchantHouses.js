@@ -38,6 +38,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { Economy } from '../world/economy.js';
+import { SettlementMarket } from '../world/settlementMarket.js';
 import { Seasons } from '../world/seasons.js';
 import { PlayerEconomy, Trading } from '../player/playerEconomy.js';
 import { PlayerInventory } from '../player/inventory.js';
@@ -1040,8 +1041,9 @@ export const MerchantHouses = {
         const unit = MerchantHouses.contractUnitPay(world, contract);
         contract.delivered += n;
         MerchantHouses._credit(c, world, unit * n, 'contracts', `${n} ${_label(contract.good)} to ${contract.town} (${how})`);
-        // Food fills the town's granary
+        // The goods reach the town's market (world/settlementMarket.js); food fills its granary too
         const tile = world.getTile(contract.q, contract.r);
+        if (tile && tile.settlement) SettlementMarket.add(tile.settlement, contract.good, n);
         if (tile && tile.settlement && Seasons.priceGroup(contract.good) === 'food') {
             if (!tile.settlement.economy) Economy.initSettlement(tile.settlement);
             tile.settlement.economy.food = _num(tile.settlement.economy.food) + n;
@@ -1340,7 +1342,8 @@ export const MerchantHouses = {
                     if (post.stock[good.id] <= 0) delete post.stock[good.id];
                     sellVolume -= sellN;
                     sales += MerchantHouses._credit(c, world, earned, 'sales', `${post.name}: sold ${sellN} ${_label(good.id)} at ${Math.round(unit * 10) / 10}`);
-                    // Food sold goes into the town's granary, as the player's does
+                    // The goods join the town's store (as the player's do); food its granary too
+                    SettlementMarket.add(s, good.id, sellN);
                     if (Seasons.priceGroup(good.id) === 'food') {
                         if (!s.economy) Economy.initSettlement(s);
                         s.economy.food = _num(s.economy.food) + sellN;
@@ -1354,12 +1357,14 @@ export const MerchantHouses = {
                     const room = cfg.post.capacity - MerchantHouses.stockTotal(post);
                     // Factors never spend the company's running costs for the next weeks
                     const spendable = Math.max(0, c.capital - MerchantHouses.reserve(player));
-                    const n = Math.min(order.buyQty, entry.quantity, buyVolume, room, Math.floor(spendable / unit));
+                    let n = Math.min(order.buyQty, entry.quantity, buyVolume, room, Math.floor(spendable / unit));
+                    // Each unit costs what the player would pay for it (the price climbs as the stock falls)
+                    let cost = n > 0 ? Trading.buyCost(player, entry, n, s) : 0;
+                    while (n > 0 && cost > spendable) cost = --n > 0 ? Trading.buyCost(player, entry, n, s) : 0;
                     if (n > 0) {
-                        purchases += MerchantHouses._debit(c, world, unit * n, 'purchases', `${post.name}: bought ${n} ${_label(good.id)} at ${unit}`);
+                        purchases += MerchantHouses._debit(c, world, cost, 'purchases', `${post.name}: bought ${n} ${_label(good.id)} at ${Math.round(cost / n * 10) / 10}`);
                         post.stock[good.id] = _num(post.stock[good.id]) + n;
-                        if (!s.marketStock) s.marketStock = {};
-                        s.marketStock[good.id] = _num(s.marketStock[good.id]) + n;
+                        SettlementMarket.take(s, good.id, n);
                         buyVolume -= n;
                     }
                 }

@@ -138,20 +138,9 @@ Object.assign(World.prototype, {
             Cartography.processTurn(this);
         }
 
-        // Replenish market stock — settlements gradually restock goods
-        const allSettlements = this.getSettlementViews(); // read-only: positions
-        for (const s of allSettlements) {
-            const tile = this.getTile(s.q, s.r);
-            if (!tile || !tile.settlement || !tile.settlement.marketStock) continue;
-            const stock = tile.settlement.marketStock;
-            for (const goodId in stock) {
-                if (stock[goodId] > 0) {
-                    // Replenish ~10% per day (full restock in ~10 days)
-                    const replenish = Math.max(1, Math.ceil(stock[goodId] * 0.1));
-                    stock[goodId] = Math.max(0, stock[goodId] - replenish);
-                }
-            }
-        }
+        // Market stocks are real inventories now, restocked by what each town
+        // produces and trades (world/settlementMarket.js, ticked daily by
+        // MarketDynamics.updatePrices)
 
         // Process units (player injected so raiders can target them without a global)
         this.processUnits(player);

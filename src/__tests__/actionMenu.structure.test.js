@@ -85,7 +85,7 @@ const EXPECTED_KEYS = [
     'showNegotiateIndigenousMenu', 'showNpcTradeMenu', 'showOddJobsMenu', 'showQuantityInput',
     'showRecruitMenu', 'showRecruitSettlersMenu', 'showReforgeArtifactMenu', 'showRelationshipsMenu',
     'showSeekTitleMenu', 'showSendPioneersMenu', 'showShipPassageMenu', 'showShipyardMenu',
-    'showSiegeConfirm', 'showSmuggleMenu', 'showTalkLocalsMenu', 'showTavernMenu', 'showTerraformMenu',
+    'showSiegeConfirm', 'showSiegePanel', 'siegeAct', 'showSmuggleMenu', 'showTalkLocalsMenu', 'showTavernMenu', 'showTerraformMenu',
     'showTitleStatusPanel', 'showTournamentMenu', 'showTradeMenu', 'showTravelPartyMenu', 'spendAP',
     'tradeWithIndigenous', 'visitHolySite',
 ];
@@ -106,8 +106,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 253 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(253);
+    it('has 255 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(255);
     });
 
     it('every member except the known data props is a function', () => {

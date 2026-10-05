@@ -2,6 +2,8 @@
 import { ActionMenu } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
 import { Ailments } from '../../systems/ailments.js';
+import { Sieges } from '../../systems/sieges.js';
+import { siegePanelHtml, siegeResultHtml } from './siegePanel.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerEffects, Treasures } from './_imports.js';
 
 /** Battle-report lines for soldiers saved by surgeons and a slain enemy commander. */
@@ -42,6 +44,12 @@ Object.assign(ActionMenu, {
         const settlement = tile.settlement;
         if (!settlement) {
             game.ui.showNotification('No Settlement', 'There is no settlement here to attack.', 'default');
+            return;
+        }
+        // A siege in progress here: the siege panel (no AP for opening it)
+        if (Sieges.activeAt(game.player, tile.q, tile.r)) {
+            ActionMenu._pendingAP = null;
+            ActionMenu.showSiegePanel(game);
             return;
         }
 
@@ -103,8 +111,12 @@ Object.assign(ActionMenu, {
 
         // Warnings
         html += `<div style="padding: 10px; background: rgba(231,76,60,0.1); border-left: 3px solid #e74c3c; border-radius: 0 4px 4px 0; margin-bottom: 12px; font-size: 12px;">`;
-        html += `<div style="color: #e74c3c; font-weight: bold; margin-bottom: 4px;">⚠️ Consequences of Attack</div>`;
+        html += `<div style="color: #e74c3c; font-weight: bold; margin-bottom: 4px;">⚠️ Consequences of a Siege</div>`;
         html += `<div style="color: var(--text-secondary); line-height: 1.5;">`;
+        html += `• Your army camps before the walls: starve the town, build engines, dig mines, storm it or offer terms — day by day<br>`;
+        html += `• The camp eats ${Math.ceil(PlayerMilitary.getArmyStrength(game.player) > 0 ? game.player.army.length / Sieges.config().camp.rationsPerUnits : 0)} food a day beyond what it forages; it may sicken and desert<br>`;
+        html += `• ${kingdom ? kingdom.name : 'The owner'} may send a relief army<br>`;
+        html += `• Investing: reputation ${Sieges.config().investReputation} with ${kingdom ? kingdom.name : 'the defenders'}, karma ${Sieges.config().investKarma}. Taking it by storm:<br>`;
         html += `• Massive karma penalty (-10)<br>`;
         html += `• Reputation with <strong>ALL</strong> kingdoms drops<br>`;
         if (settlement.kingdom) {
@@ -143,7 +155,7 @@ Object.assign(ActionMenu, {
                 <button data-am-act="performSiege" style="
                     flex: 1; padding: 10px; background: rgba(231,76,60,0.3); border: 1px solid rgba(231,76,60,0.6);
                     border-radius: 6px; cursor: pointer; color: #ff6666; font-weight: bold; font-family: var(--font-body); font-size: 13px;">
-                    ⚔️ SIEGE
+                    🏰 LAY SIEGE
                 </button>
             </div>
         `;
@@ -194,107 +206,105 @@ Object.assign(ActionMenu, {
     },
 
     /**
-     * Execute siege attack against a settlement
+     * Invest the settlement on the player's tile: the siege begins
+     * (systems/sieges.js), then the siege panel opens.
      */
     performSiege(game) {
         game.ui.hideCustomPanel();
-        if (!ActionMenu.commitPendingAP(game)) return;
-
         const tile = game.world.getTile(game.player.q, game.player.r);
         if (!tile || !tile.settlement) {
             game.ui.showNotification('Error', 'No settlement here to attack.', 'error');
             return;
         }
-
-        const settlement = tile.settlement;
-        const result = PlayerMilitary.attackSettlement(game.player, settlement, tile, game.world);
-
-        if (!result.success && result.reason) {
-            game.ui.showNotification('Cannot Attack', result.reason, 'error');
+        const check = Sieges.canInvest(game.player, game.world, tile);
+        if (!check.ok) {
+            ActionMenu._pendingAP = null;
+            game.ui.showNotification('Cannot Besiege', check.reason, 'error');
             return;
         }
-        _rollBattleWound(game, result);
-
-        let html = '<div style="padding: 10px;">';
-
-        if (result.victory) {
-            // Victory panel
-            html += `<div style="text-align: center; margin-bottom: 12px;">
-                <span style="font-size: 48px;">🏆</span>
-                <h3 style="color: #66ff66; margin: 5px 0;">Settlement Conquered!</h3>
-                <p style="color: #aaa;">You have taken ${settlement.name}!</p>
-            </div>`;
-
-            html += `<div style="background: rgba(46,204,113,0.1); padding: 10px; border-radius: 6px; margin-bottom: 10px;">`;
-            html += `<div style="font-weight: bold; color: var(--gold); margin-bottom: 6px;">Battle Results</div>`;
-            html += `<div style="font-size: 13px; line-height: 1.6;">`;
-            html += `<div>💰 Gold plundered: <strong style="color: #ffd700;">${result.plunder}</strong></div>`;
-            html += `<div>👑 New owner: <strong style="color: #4fc3f7;">${result.newOwner}</strong></div>`;
-            if (result.renownChange > 0) {
-                html += `<div>⭐ Renown: <strong style="color: #e67e22;">+${result.renownChange}</strong></div>`;
-            }
-            if (result.casualties > 0) {
-                html += `<div style="color: #ff9800;">⚠️ Soldiers lost: ${result.casualties}</div>`;
-            }
-            html += battleExtrasHtml(result);
-            html += `</div></div>`;
-
-            if (result.capitalCaptured) {
-                html += `<div style="padding: 8px; background: rgba(155,89,182,0.15); border: 1px solid rgba(155,89,182,0.3); border-radius: 4px; margin-bottom: 10px; font-size: 12px; color: #bb86fc;">
-                    👑 You have captured their <strong>capital city</strong>!
-                    ${result.kingdomDestroyed ? '<br>💀 <strong>The entire kingdom has fallen!</strong>' : '<br>The kingdom will relocate its capital.'}
-                    ${result.throneClaim ? `<br>📜 Holding their seat gives you a claim on the throne (strength ${result.throneClaim}). See Dynasty → Claims & Crowns.` : ''}
-                </div>`;
-            }
-
-            html += `<div style="font-size: 11px; color: #ff6666; padding: 6px; background: rgba(231,76,60,0.1); border-radius: 4px;">
-                😈 Karma: ${result.karmaChange} | Reputation with all kingdoms damaged
-            </div>`;
-
-            if (result.tactics) {
-                const terrain = result.tactics.terrainId || 'mixed ground';
-                html += `<div style="margin-top:8px; font-size:11px; color:var(--text-secondary); padding:6px; background:rgba(79,195,247,0.08); border-radius:4px;">`;
-                html += `📐 Tactical: counters x${result.tactics.playerCounterMult} • terrain x${result.tactics.playerTerrainMult} (${terrain}) • morale ${result.tactics.playerMorale}`;
-                if (result.tactics.moraleBreak === 'enemy') html += `<br>😨 Defender morale broke and they fled.`;
-                html += `</div>`;
-            }
-        } else {
-            // Defeat panel
-            html += `<div style="text-align: center; margin-bottom: 12px;">
-                <span style="font-size: 48px;">💀</span>
-                <h3 style="color: #ff6666; margin: 5px 0;">Siege Failed!</h3>
-                <p style="color: #aaa;">The defenders of ${settlement.name} repelled your assault!</p>
-            </div>`;
-
-            html += `<div style="background: rgba(231,76,60,0.1); padding: 10px; border-radius: 6px; margin-bottom: 10px;">`;
-            html += `<div style="font-size: 13px; line-height: 1.6;">`;
-            html += `<div style="color: #ff9800;">⚠️ Soldiers lost: ${result.casualties}</div>`;
-            html += battleExtrasHtml(result);
-            html += `<div style="color: #ff6666;">😈 Karma: ${result.karmaChange}</div>`;
-            if (result.captured) {
-                html += `<div style="color: #ff6666; margin-top: 4px;">⛓️ You have been captured into indentured servitude for ${result.servitudeDays} days!</div>`;
-                html += `<div style="color: #ffd700;">💰 ${result.goldConfiscated} gold confiscated.</div>`;
-            }
-            html += `</div></div>`;
-
-            if (result.tactics) {
-                const terrain = result.tactics.terrainId || 'mixed ground';
-                html += `<div style="margin-top:8px; font-size:11px; color:var(--text-secondary); padding:6px; background:rgba(79,195,247,0.08); border-radius:4px;">`;
-                html += `📐 Tactical: counters x${result.tactics.playerCounterMult} • terrain x${result.tactics.playerTerrainMult} (${terrain}) • morale ${result.tactics.playerMorale}`;
-                if (result.tactics.moraleBreak === 'player') html += `<br>😨 Your line broke and fled under pressure.`;
-                html += `</div>`;
-            }
+        if (!ActionMenu.commitPendingAP(game)) return;
+        const res = Sieges.invest(game.player, game.world, tile);
+        if (!res.success) {
+            game.ui.showNotification('Cannot Besiege', res.reason, 'error');
+            return;
         }
-
-        html += `<button data-am-act="closePanelAndRefresh" style="
-            width: 100%; padding: 10px; margin-top: 10px;
-            background: #444; border: 1px solid #666; border-radius: 6px;
-            color: #eee; cursor: pointer; font-size: 14px;
-        ">Continue</button></div>`;
-
-        game.ui.showCustomPanel(result.victory ? '⚔️ Victory!' : '⚔️ Defeat', html);
+        if (res.siege.relief) {
+            game.ui.showNotification('🚩 Relief Expected', `Scouts report ${res.siege.relief.name} gathering to relieve ${res.siege.name}.`, 'warning');
+        }
         game.ui.updateStats(game.player, game.world);
-        game.endDay();
+        ActionMenu.showSiegePanel(game);
+    },
+
+    /** The siege panel: both sides' state, the stance, works, terms and the relief warning. */
+    showSiegePanel(game) {
+        const info = Sieges.describe(game.player, game.world);
+        if (!info) {
+            game.ui.showNotification('No Siege', 'You are not besieging anything.', 'default');
+            return;
+        }
+        game.ui.showCustomPanel(`🏰 Siege of ${info.siege.name} — day ${info.day}`, siegePanelHtml(game.player, info));
+    },
+
+    /** Buttons of the siege panel: data-am-act="siegeAct" data-am-args='["act", "arg"]'. */
+    siegeAct(game, act, arg = null) {
+        const player = game.player;
+        const world = game.world;
+        const s = Sieges.active(player);
+        if (!s) { game.ui.hideCustomPanel(); return; }
+        const C = Sieges.config();
+        const spend = (cost) => {
+            if ((player.actionPoints || 0) < cost) {
+                game.ui.showNotification('⚡ Not Enough Action Points', `This needs ${cost} AP but you have ${player.actionPoints || 0}. Wait a day.`, 'error');
+                return false;
+            }
+            player.actionPoints -= cost;
+            return true;
+        };
+        if (act === 'stance') {
+            const [stance, work] = String(arg).split(':');
+            const res = Sieges.setStance(player, world, stance, work || null);
+            if (!res.success) game.ui.showNotification('🏰 Siege', res.reason, 'error');
+            game.ui.updateStats(player, world);
+            ActionMenu.showSiegePanel(game);
+            return;
+        }
+        if (act === 'wait') {
+            game.ui.hideCustomPanel();
+            game.endDay();
+            if (Sieges.active(player)) ActionMenu.showSiegePanel(game);
+            return;
+        }
+        if (act === 'lift') {
+            const res = Sieges.lift(player, world);
+            game.ui.hideCustomPanel();
+            game.ui.showNotification('🏳️ Siege Lifted', res.text || 'You march away.', 'info');
+            return;
+        }
+        let title = '🏰 Siege';
+        let result;
+        if (act === 'storm') {
+            if (!spend(C.storm.apCost)) return;
+            result = Sieges.storm(player, world, { sack: arg === 'sack' });
+            if (result.success === false) { game.ui.showNotification('Cannot Storm', result.reason, 'error'); return; }
+            _rollBattleWound(game, result);
+            title = result.victory ? '⚔️ The Walls Are Carried' : '⚔️ Assault Repelled';
+        } else if (act === 'terms') {
+            if (!spend(C.terms.apCost)) return;
+            result = Sieges.negotiate(player, world, arg);
+            if (result.success === false) { game.ui.showNotification('🕊️ Parley', result.reason, 'error'); return; }
+            title = result.accepted ? '🕊️ Terms Accepted' : '🕊️ Terms Refused';
+        } else if (act === 'relief') {
+            if (!spend(C.storm.apCost)) return;
+            result = Sieges.fightRelief(player, world);
+            if (result.success === false) { game.ui.showNotification('🚩 Relief', result.reason, 'error'); return; }
+            _rollBattleWound(game, result);
+            title = result.victory ? '🚩 Relief Host Broken' : '🚩 Driven Off';
+        } else {
+            return;
+        }
+        game.ui.updateStats(player, world);
+        const html = siegeResultHtml(result, battleExtrasHtml(result), !!Sieges.active(player));
+        game.ui.showCustomPanel(title, html);
     },
 
     /**

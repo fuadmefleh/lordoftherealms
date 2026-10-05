@@ -11,6 +11,7 @@ import { Holdings } from '../../systems/holdings.js';
 import { Rivals } from '../../systems/rivals.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { Sagas } from '../../systems/sagas.js';
+import { Sieges } from '../../systems/sieges.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 
 export function onPlayerArrived() {
@@ -502,6 +503,10 @@ export function endDay() {
             for (const name of throne.peace) {
                 this.ui.showNotification('🕊️ Royal Envoys', `Your envoys win peace with ${name}.`, 'info');
             }
+
+            // Sieges — the siege in progress, tribute owed (systems/sieges.js)
+            const siegeDay = Sieges.processDay(this.world, this.player);
+            for (const n of siegeDay.notices) this.ui.showNotification(n.title, n.text, n.type);
 
             // Holdings — construction, governors, garrisons, unrest and rebellion, bandit raids
             const holdingsDay = Holdings.processDay(this.player, this.world);

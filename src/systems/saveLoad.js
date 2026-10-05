@@ -23,6 +23,7 @@ import { Throne } from './throne.js';
 import { Holdings } from './holdings.js';
 import { Rivals } from './rivals.js';
 import { Sagas } from './sagas.js';
+import { Sieges } from './sieges.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { WorldUnit } from '../world/units.js';
 import { Terrain } from '../world/terrain.js';
@@ -408,6 +409,8 @@ export const SaveLoad = {
             rivals: Rivals.serialize(player),
             // Sagas: running and concluded storylines, what the player heard (systems/sagas.js)
             sagas: Sagas.serialize(player),
+            // A siege in progress, tribute owed, past sieges (systems/sieges.js)
+            sieges: Sieges.serialize(player),
         };
     },
 
@@ -629,6 +632,8 @@ export const SaveLoad = {
         Rivals.loadState(player);
         // Sagas — older saves get a blank record (the first saga starts on schedule)
         Sagas.loadState(player);
+        // Sieges — older saves get a blank record
+        Sieges.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

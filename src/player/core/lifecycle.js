@@ -11,6 +11,7 @@ import { Religion } from '../../systems/religion.js';
 import { SettlementServices } from '../settlementServices.js';
 import { DAILY_RATION_HUNGER, MEAL_HUNGER } from './needs.js';
 import { PlayerMilitary } from '../playerMilitary.js';
+import { Ships } from '../../systems/ships.js';
 
 export const PlayerLifecycleMethods = {
     /**
@@ -28,6 +29,12 @@ export const PlayerLifecycleMethods = {
                 this._lastFood = food;
                 return true;
             }
+        }
+        // Aboard ship, the captain eats from the ship's stores
+        const fromHold = this.boardedShip != null ? Ships.feedCaptain(this) : null;
+        if (fromHold) {
+            this._lastFood = fromHold;
+            return true;
         }
         return false;
     },

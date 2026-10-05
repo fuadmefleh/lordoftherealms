@@ -7,6 +7,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { BASE_INVENTORY_SLOTS } from '../core/inventory.js';
 import { Underworld } from '../systems/underworld.js';
+import { Economy } from '../world/economy.js';
 import { Gossip } from '../systems/gossip.js';
 import { Traits } from '../systems/traits.js';
 import { SaveLoad } from '../systems/saveLoad.js';
@@ -198,6 +199,12 @@ describe('contraband by culture and faith', () => {
     it('the black market pays a premium for contraband, more under blockade and in the lean season', () => {
         const w = makeWorld(50);
         const tile = w.getTile(0, 0);
+        // Liquor sold openly next door (Tidewatch's town market) caps the
+        // premium: no buying it there and fencing it here at a profit
+        const nextDoorAsk = Economy.marketAsk(w, w.getTile(1, 0), 'liquor');
+        expect(Underworld.blackMarketPrice(w, tile, 'liquor')).toBeLessThanOrEqual(Math.floor(nextDoorAsk * 0.5));
+        // With no open sale next door (a village), contraband fetches its premium
+        w.tiles['1,0'].settlement.type = 'village';
         const legalPrice = Underworld.blackMarketPrice(w, w.getTile(1, 0), 'liquor');
         const banned = Underworld.blackMarketPrice(w, tile, 'liquor');
         expect(banned).toBeGreaterThan(legalPrice);

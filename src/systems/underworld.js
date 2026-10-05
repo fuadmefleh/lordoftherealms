@@ -518,20 +518,23 @@ export const Underworld = {
 
     /**
      * Ceiling on what the underworld pays per unit for goods sold openly on
-     * this tile: half the open asking price (market or port) — the least a
-     * player's discounts can buy them for — so nothing bought here sells
-     * straight back to a fence or the black market at a profit. The
-     * contraband premium is for goods you can't simply buy in the square.
+     * this tile or in a settlement next door: half the open asking price
+     * (market or port) — the least a player's discounts can buy them for —
+     * so nothing bought here or next door sells straight back to a fence or
+     * the black market at a profit. The contraband premium is for goods you
+     * can't simply buy in the square.
      */
     openSaleCap(world, tile, goodId) {
         const settlement = tile && tile.settlement;
         if (!settlement) return Infinity;
-        // Banned goods aren't on open sale (Trading.getAvailableGoods skips them)
+        // Banned goods aren't on open sale here (Trading.getAvailableGoods skips them)
         const banned = Underworld.contrabandStatus(Underworld._settlementKingdom(world, settlement), goodId) === 'illegal';
         let ask = banned ? null : Economy.marketAsk(world, tile, goodId);
-        if (world && typeof world.getTile === 'function' && Ships.isPortTile(world, tile.q, tile.r)) {
-            const e = Ships.getPortMarket(world, tile.q, tile.r).find(x => x.id === goodId);
-            if (e && e.buy) ask = ask == null ? e.buy : Math.min(ask, e.buy);
+        if (world && typeof world.getTile === 'function') {
+            const near = Ships.nearbyAsks(world, tile.q, tile.r, goodId, { skipHereMarket: banned });
+            for (const a of [near.market, near.port]) {
+                if (a != null) ask = ask == null ? a : Math.min(ask, a);
+            }
         }
         return ask == null ? Infinity : Math.max(1, Math.floor(ask * 0.5));
     },

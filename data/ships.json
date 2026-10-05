@@ -337,15 +337,206 @@
     "piracyRenownLoss": 2,
     "piracyGoldRange": [50, 300],
 
+    "voyageEvents": [
+        {
+            "id": "becalmed", "icon": "🌫️", "title": "Becalmed", "weight": 10,
+            "text": "The wind dies. The sails hang slack and the sea turns to glass.",
+            "default": "wait",
+            "choices": [
+                { "id": "wait", "label": "Wait for the wind", "text": "You lie becalmed for a day while the water casks run low.", "delay": 1, "morale": -3 },
+                { "id": "sweeps", "label": "Man the sweeps", "requires": { "crew": 4 }, "text": "The crew rows you through the doldrums, cursing every stroke.", "morale": -6 },
+                { "id": "whistle", "label": "Whistle for a wind", "chance": {
+                    "p": 0.5,
+                    "pass": { "text": "A breeze answers before the tune is done. The hands grin.", "morale": 3 },
+                    "fail": { "text": "No wind comes, and the old hands mutter that you have angered the sea.", "delay": 1, "morale": -4 }
+                } }
+            ]
+        },
+        {
+            "id": "sighted_sail", "icon": "⛵", "title": "Sail Ho!", "weight": 12,
+            "text": "A sail on the horizon, hull-down and closing on your course.",
+            "default": "run",
+            "choices": [
+                { "id": "hail", "label": "Close and hail her", "chance": {
+                    "p": 0.65,
+                    "pass": { "text": "A merchantman. Her master trades news of the sea lanes and a cask of fresh water.", "morale": 2, "renown": 1 },
+                    "fail": { "text": "Pirates! They run out their guns as you come alongside.", "fight": {
+                        "strength": [10, 28], "pirates": true,
+                        "win": { "text": "You beat them off and take their purse.", "gold": [60, 180], "renown": 3, "deed": { "valor": 1 } },
+                        "lose": { "text": "They board you, take what they like and leave you wallowing.", "hull": 12, "loseCargo": 0.2 }
+                    } }
+                } },
+                { "id": "run", "label": "Crowd on sail and run", "morale": -1, "chance": {
+                    "p": 0.75,
+                    "pass": { "text": "You show her your stern and lose her by nightfall." },
+                    "fail": { "text": "She is faster. Pirates, and they mean to have you.", "fight": {
+                        "strength": [10, 28], "pirates": true,
+                        "win": { "text": "Cornered, your crew fights like devils and drives them off.", "gold": [40, 120], "renown": 2, "deed": { "valor": 1 } },
+                        "lose": { "text": "They take a share of the hold and leave you limping.", "hull": 10, "loseCargo": 0.25 }
+                    } }
+                } },
+                { "id": "prey", "label": "Run her down (piracy)", "text": "You hoist no colours and give chase.", "fight": {
+                    "strength": [3, 14],
+                    "win": { "text": "You plunder her hold and set her crew adrift in the boats.", "gold": [80, 260], "piracy": true, "deed": { "greed": 1 } },
+                    "lose": { "text": "Her crew fights back hard, and you sheer off with a holed hull.", "hull": 8, "karma": -2 }
+                } }
+            ]
+        },
+        {
+            "id": "derelict_wreck", "icon": "🏚️", "title": "A Derelict", "weight": 8,
+            "text": "A derelict drifts across your bows: masts snapped, sails rotting, not a soul on deck.",
+            "default": "pass",
+            "choices": [
+                { "id": "board", "label": "Board and search her", "delay": 1, "chance": {
+                    "p": 0.6,
+                    "pass": { "text": "Her strongroom is intact. You carry off her strongbox and a few bales.", "gold": [40, 160], "cargo": { "spices": 3 } },
+                    "fail": { "text": "Something foul lingered in her hold. The flux breaks out among your men.", "sickness": "flux", "morale": -3 }
+                } },
+                { "id": "salvage", "label": "Strip her timbers", "text": "Your carpenter strips good oak and spars to patch your own hull.", "repair": 6, "cargo": { "wood": 4 } },
+                { "id": "pass", "label": "Give her a wide berth", "text": "The crew crosses themselves as she drifts astern.", "morale": -1 }
+            ]
+        },
+        {
+            "id": "serpent_rumour", "icon": "🐍", "title": "Coils in the Swell", "weight": 6,
+            "text": "The lookout swears he saw great coils rise and sink off the bow. The crew talks of nothing else.",
+            "default": "steer_wide",
+            "choices": [
+                { "id": "hunt", "label": "Hunt the beast", "text": "You beat to quarters and go looking for it.", "fight": {
+                    "strength": [20, 40], "monster": true,
+                    "win": { "text": "A sea serpent, and you have slain it. Its teeth will hang in every tavern you drink in.", "renown": 6, "gold": [50, 150], "morale": 8, "deed": { "valor": 2, "seafaring": 1 } },
+                    "lose": { "text": "It was real. It stove in your planking and took a man before it sounded.", "hull": 15, "crew": -1, "morale": -8 }
+                } },
+                { "id": "steer_wide", "label": "Steer wide of those waters", "text": "You lose a day going around, and the crew breathes easier.", "delay": 1, "morale": 2 },
+                { "id": "scoff", "label": "Laugh it off", "chance": {
+                    "p": 0.6,
+                    "pass": { "text": "You call it a log and a bellyful of rum, and the crew laughs with you.", "morale": 3 },
+                    "fail": { "text": "Nobody laughs. The night watch refuses to go aloft.", "morale": -6 }
+                } }
+            ]
+        },
+        {
+            "id": "man_overboard", "icon": "🆘", "title": "Man Overboard!", "weight": 8,
+            "requires": { "minCrew": 3 },
+            "text": "A sailor goes over the side in a squall. You can see his head in the wake.",
+            "default": "come_about",
+            "choices": [
+                { "id": "come_about", "label": "Come about for him", "chance": {
+                    "p": 0.75,
+                    "pass": { "text": "You haul him aboard half-drowned. The crew will not forget it.", "morale": 6, "deed": { "mercy": 1 } },
+                    "fail": { "text": "You search until dark, but the sea has him.", "crew": -1, "morale": -4 }
+                } },
+                { "id": "sail_on", "label": "Hold your course", "text": "You will not risk the ship for one man. The crew watches him fall astern.", "crew": -1, "morale": -10, "karma": -2, "deed": { "cruelty": 1 } }
+            ]
+        },
+        {
+            "id": "st_elmos_fire", "icon": "🔥", "title": "St Elmo's Fire", "weight": 7,
+            "text": "Blue fire crawls along the yards and crackles at the masthead in the dark.",
+            "default": "ignore",
+            "choices": [
+                { "id": "blessing", "label": "Proclaim it a blessing", "text": "You tell them the saint walks with the ship. They believe you.", "morale": 8, "deed": { "piety": 1 } },
+                { "id": "pray", "label": "Lead the crew in prayer", "text": "The whole ship's company kneels on the wet deck until the fire fades.", "morale": 4, "karma": 1 },
+                { "id": "ignore", "label": "Ignore it", "text": "The hands whisper about drowned men's lanterns.", "morale": -4 }
+            ]
+        },
+        {
+            "id": "merchant_convoy", "icon": "🚢", "title": "A Convoy Asks for Escort", "weight": 7,
+            "text": "A convoy of fat merchantmen signals you: pirates work these waters, and they will pay for an escort.",
+            "default": "decline",
+            "choices": [
+                { "id": "escort", "label": "Escort them", "text": "You shepherd the convoy along a day's detour.", "delay": 1, "chance": {
+                    "p": 0.5,
+                    "pass": { "text": "The pirates never show. The merchants pay all the same.", "gold": [100, 220], "renown": 2 },
+                    "fail": { "text": "Two pirate sloops fall on the convoy at dawn.", "fight": {
+                        "strength": [12, 30], "pirates": true,
+                        "win": { "text": "You drive them off. The grateful merchants pay handsomely.", "gold": [150, 400], "renown": 4, "deed": { "valor": 1 } },
+                        "lose": { "text": "The convoy scatters and you take a mauling covering it.", "hull": 12, "morale": -6 }
+                    } }
+                } },
+                { "id": "decline", "label": "Decline", "text": "You wish them luck and hold your course." },
+                { "id": "shake_down", "label": "Demand protection money", "text": "They pay, and they will tell every harbourmaster what you did.", "gold": [80, 220], "karma": -4, "heat": 8, "deed": { "greed": 2 } }
+            ]
+        },
+        {
+            "id": "castaway", "icon": "🏊", "title": "A Castaway", "weight": 6,
+            "text": "A castaway clings to a spar, waving weakly at your sails.",
+            "default": "rescue",
+            "choices": [
+                { "id": "rescue", "label": "Take him aboard", "text": "Fed and dried, he signs on as a hand.", "provisions": -2, "crew": 1, "karma": 2, "deed": { "mercy": 1 } },
+                { "id": "leave", "label": "Sail past", "text": "You have no food to spare. The crew does not meet your eye.", "karma": -3, "morale": -3, "deed": { "cruelty": 1 } }
+            ]
+        },
+        {
+            "id": "smugglers", "icon": "🏴", "title": "Smugglers' Lugger", "weight": 6,
+            "text": "A lugger running without lights comes alongside. Cheap wine, she says, and no questions.",
+            "default": "ignore",
+            "choices": [
+                { "id": "buy", "label": "Buy her wine (120g)", "requires": { "gold": 120 }, "text": "Six casks swing into your hold. Somebody's excise man is the poorer.", "gold": -120, "cargo": { "wine": 6 }, "heat": 4, "deed": { "cunning": 1 } },
+                { "id": "report", "label": "Take her name for the harbourmaster", "text": "You note her name and course for the next harbourmaster.", "renown": 2, "karma": 1, "deed": { "honesty": 1 } },
+                { "id": "ignore", "label": "Send her on her way", "text": "She melts back into the dark." }
+            ]
+        },
+        {
+            "id": "fish_shoal", "icon": "🐟", "title": "A Great Shoal", "weight": 8,
+            "text": "The sea boils silver: a shoal of herring as far as the eye can see.",
+            "default": "nets",
+            "choices": [
+                { "id": "nets", "label": "Cast the nets", "text": "Fresh fish for every mess and more salted down for the voyage.", "provisions": 6, "morale": 2 },
+                { "id": "press_on", "label": "Press on", "text": "You do not stop." }
+            ]
+        },
+        {
+            "id": "fog_bank", "icon": "🌁", "title": "Fog Bank", "weight": 8,
+            "text": "A fog bank swallows the ship. From the helm you cannot see the bowsprit.",
+            "default": "heave_to",
+            "choices": [
+                { "id": "feel_way", "label": "Feel your way through", "chance": {
+                    "p": 0.75,
+                    "pass": { "text": "Leadsman calling every minute, you come out the far side unscathed.", "deed": { "seafaring": 1 } },
+                    "fail": { "text": "A grinding shudder: you have scraped a reef.", "hull": 10, "morale": -3 }
+                } },
+                { "id": "heave_to", "label": "Heave to until it lifts", "text": "You lie to for a day, bells ringing in the murk.", "delay": 1 }
+            ]
+        },
+        {
+            "id": "grumbling", "icon": "😠", "title": "Grumbling Below Decks", "weight": 9,
+            "requires": { "maxMorale": 45, "minCrew": 2 },
+            "text": "The hands are muttering: short commons, hard usage, and a captain who doesn't care.",
+            "default": "ignore",
+            "choices": [
+                { "id": "bonus", "label": "Promise a bonus (3g a hand)", "requires": { "goldPerCrew": 3 }, "text": "Coin talks. The muttering stops.", "goldPerCrew": -3, "morale": 12, "deed": { "generosity": 1 } },
+                { "id": "rations", "label": "Break out extra rations", "requires": { "provisions": 4 }, "text": "A double ration and a tot all round.", "provisions": -4, "morale": 6 },
+                { "id": "flog", "label": "Flog the ringleader", "chance": {
+                    "p": 0.5,
+                    "pass": { "text": "The lash restores order, for now.", "morale": 5, "deed": { "dread": 1, "cruelty": 1 } },
+                    "fail": { "text": "The crew turns sullen. Two hands slip away in the jolly boat that night.", "morale": -10, "crew": -2, "deed": { "cruelty": 1 } }
+                } },
+                { "id": "ignore", "label": "Let them grumble", "text": "It festers.", "morale": -5 }
+            ]
+        },
+        {
+            "id": "message_bottle", "icon": "🍾", "title": "A Message in a Bottle", "weight": 5,
+            "text": "A sealed bottle bobs alongside, its cork waxed and stamped.",
+            "default": "open",
+            "choices": [
+                { "id": "open", "label": "Fish it out and read it", "chance": {
+                    "p": 0.5,
+                    "pass": { "text": "A drowned merchant's last words, and the mark of a cache ashore. You find it on the way.", "gold": [40, 140] },
+                    "fail": { "text": "A love letter, sadly lettered. The crew reads it aloud at supper, much moved.", "morale": 3, "renown": 1 }
+                } },
+                { "id": "leave", "label": "Leave it to the sea", "text": "Some messages are not for you." }
+            ]
+        }
+    ],
+
     "tradeGoods": [
-        { "id": "spices", "icon": "🧂", "name": "Spices", "buyPrice": [10, 25], "sellPrice": [20, 50] },
-        { "id": "silk", "icon": "🧣", "name": "Silk", "buyPrice": [15, 30], "sellPrice": [25, 60] },
-        { "id": "wine", "icon": "🍷", "name": "Wine", "buyPrice": [5, 15], "sellPrice": [10, 30] },
-        { "id": "iron", "icon": "⚒️", "name": "Iron", "buyPrice": [8, 20], "sellPrice": [15, 40] },
-        { "id": "ivory", "icon": "🦷", "name": "Ivory", "buyPrice": [20, 40], "sellPrice": [35, 80] },
-        { "id": "gems", "icon": "💎", "name": "Gems", "buyPrice": [30, 60], "sellPrice": [50, 120] },
-        { "id": "wood", "icon": "🌲", "name": "Timber", "buyPrice": [3, 10], "sellPrice": [6, 20] },
-        { "id": "fish", "icon": "🐟", "name": "Fish", "buyPrice": [2, 5], "sellPrice": [4, 12] }
+        { "id": "spices", "icon": "🧂", "name": "Spices", "basePrice": 45 },
+        { "id": "silk", "icon": "🧣", "name": "Silk", "basePrice": 80 },
+        { "id": "wine", "icon": "🍷", "name": "Wine", "basePrice": 45 },
+        { "id": "iron", "icon": "⚒️", "name": "Iron", "basePrice": 20 },
+        { "id": "ivory", "icon": "🦷", "name": "Ivory", "basePrice": 45 },
+        { "id": "gems", "icon": "💎", "name": "Gems", "basePrice": 60 },
+        { "id": "wood", "icon": "🌲", "name": "Timber", "basePrice": 8 },
+        { "id": "fish", "icon": "🐟", "name": "Fish", "basePrice": 8 }
     ],
 
     "settings": {
@@ -373,6 +564,32 @@
             "victoryLossChance": 0.4,
             "defeatMoraleLoss": 12,
             "defeatLossShare": [0.1, 0.25]
+        },
+        "portPrices": {
+            "_doc": "Port prices as multiples of the good's land base price (data/playerEconomy.json GOODS, moved by the season), so sea goods share the land economy's scale. Exporters sell cheap and pay exportResale of their own price; local markets sit around base with a spread; importers pay a premium and sell none. A port whose own town market stocks the good never imports it.",
+            "export": [0.7, 0.9],
+            "exportResale": 0.75,
+            "local": [0.9, 1.1],
+            "localMarkup": 1.1,
+            "localResale": 0.85,
+            "import": [1.15, 1.5]
+        },
+        "provisions": {
+            "_doc": "Ships away from port feed their crew from the hold: one unit of any listed food feeds sailorsPerRation sailors for a day. A ship's chandler at a port sells the provision item at chandlerMarkup over the town's food price (never below minPrice). A crew with nothing to eat loses hungerMoraleLoss morale a day; after scurvyAfterHungryDays hungry days scurvy breaks out aboard, and a broken crew deserts.",
+            "item": "food",
+            "foods": ["food", "preserved_fish", "bread", "grain", "fish", "cooked_fish", "cooked_meat", "game_meat", "fruit", "berries", "honey", "crabs", "seaweed", "mushrooms"],
+            "sailorsPerRation": 4,
+            "chandlerMarkup": 1.5,
+            "minPrice": 6,
+            "hungerMoraleLoss": 8,
+            "scurvyAfterHungryDays": 3
+        },
+        "voyage": {
+            "_doc": "Voyages to a port take real days: each day the ship sails getSailingSpeed hexes along a sea route (half in a storm), and the normal day passes. eventChance is the daily chance of an at-sea event (voyageEvents); logLength caps the voyage log.",
+            "eventChance": 0.3,
+            "stormProgress": 0.5,
+            "logLength": 40,
+            "maxRouteNodes": 60000
         }
     }
 }

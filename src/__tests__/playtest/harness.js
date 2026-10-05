@@ -174,8 +174,9 @@ export function endDay(game) {
     mark(game, 'LegendaryArtifacts.processDaily');
     Housing.processDaily(player, world);
     mark(game, 'Housing.processDaily');
-    Ships.processDaily(player, world);
+    const shipDay = Ships.processDaily(player, world);
     mark(game, 'Ships.processDaily');
+    game.voyageDay = (shipDay && shipDay.voyage) || null;
 
     // Construction ticks (properties, religious, infrastructure, cultural)
     for (const propRef of player.properties || []) {
@@ -288,6 +289,9 @@ export function endDay(game) {
     mark(game, 'Underworld.processDay');
     Achievements.checkAchievements(player, world);
     mark(game, 'Achievements.checkAchievements');
+    // A voyage that made port today lands the player there (endDay.js hands
+    // the day's voyage report to ui/actionMenu/voyage.js, which does this)
+    if (game.voyageDay && game.voyageDay.arrived) onArrived(game);
     return out;
 }
 

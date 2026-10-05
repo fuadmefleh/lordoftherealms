@@ -12,8 +12,10 @@ import { LegendaryArtifacts } from './legendaryArtifacts.js';
 import { Infrastructure } from './infrastructure.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { Economy } from '../world/economy.js';
+import { Seasons } from '../world/seasons.js';
 import { Underworld } from './underworld.js';
 import { Ailments } from './ailments.js';
+import { VoyageMethods } from './shipVoyages.js';
 
 /**
  * Ships System
@@ -761,40 +763,13 @@ export const Ships = {
 
     /* ── Player sails on their ship ──────────────────────────── */
 
+    /**
+     * Set out with the player aboard for a port. The voyage takes real days
+     * (systems/shipVoyages.js): each day's tick moves the ship along a sea
+     * route, feeds the crew and may bring an event at sea.
+     */
     sailPlayerTo(player, shipId, destQ, destR, destName, world) {
-        const ship = this.getShipById(player, shipId);
-        if (!ship) return { success: false, message: 'Ship not found.' };
-        if (ship.status !== 'docked') return { success: false, message: 'Ship must be docked.' };
-        const noCrew = this.crewSailReason(ship);
-        if (noCrew) return { success: false, message: noCrew };
-
-        const st = this.getShipType(ship.typeId);
-        const dist = Hex.distance(ship.q, ship.r, destQ, destR);
-        const speed = this.getSailingSpeed(player, ship);
-        const travelDays = Math.max(1, Math.ceil(dist / speed));
-        const travelCost = travelDays * (st ? st.dailyUpkeep : 5);
-
-        if (player.gold < travelCost) {
-            return { success: false, message: `Need ${travelCost}g for the journey.` };
-        }
-
-        player.gold -= travelCost;
-
-        // Teleport player and ship
-        player.q = destQ;
-        player.r = destR;
-        ship.q = destQ;
-        ship.r = destR;
-        ship.dockedAt = destName;
-
-        // Condition degrades slightly from travel
-        ship.condition = Math.max(10, ship.condition - Math.floor(travelDays * 0.5));
-
-        if (player.financeToday) {
-            player.financeToday.expenses.ships = (player.financeToday.expenses.ships || 0) + travelCost;
-        }
-
-        return { success: true, message: `Sailed to ${destName} in ${travelDays} days for ${travelCost}g.` };
+        return this.startVoyage(player, world, shipId, destQ, destR, destName);
     },
 
     /* ── Landing ashore / ports ──────────────────────────────── */
@@ -963,6 +938,7 @@ export const Ships = {
             return { success: false, message: 'You must be on land or a beach to disembark.' };
         }
         const isPort = this.hasDock(world, player.q, player.r);
+        if (ship.voyage) this._endVoyage(ship, world, 'Went ashore before the voyage was done.');
         player.boardedShip = null;
         ship.status = 'docked';
         ship.q = player.q;
@@ -985,6 +961,7 @@ export const Ships = {
             .some(t => t.q === dest.q && t.r === dest.r);
         if (!isTarget) return { success: false, message: 'You can only row to walkable land next to your ship.' };
 
+        if (ship.voyage) this._endVoyage(ship, world, 'Rowed ashore before the voyage was done.');
         ship.status = 'anchored';
         ship.q = player.q;
         ship.r = player.r;
@@ -1284,28 +1261,58 @@ export const Ships = {
      * days. Buy low at an exporter, sail, sell high at an importer.
      * @returns {Array<{id, name, icon, role, buy: number|null, sell: number}>}
      */
+    /** Port price multiples of the land base price (data/ships.json → settings.portPrices). */
+    _getPortPriceSettings() {
+        return {
+            export: [0.7, 0.9],
+            exportResale: 0.75,
+            local: [0.9, 1.1],
+            localMarkup: 1.1,
+            localResale: 0.85,
+            import: [1.15, 1.5],
+            ...(this._getSettings().portPrices || {}),
+        };
+    },
+
+    /**
+     * A sea good's land base price (data/playerEconomy.json GOODS), so ports
+     * and the land economy share one scale; the trade good's own basePrice
+     * is the fallback for goods the land economy doesn't know.
+     */
+    tradeGoodBasePrice(good) {
+        const land = PlayerInventory.goodValue(good.id);
+        return land > 0 ? land : (good.basePrice || 10);
+    },
+
     getPortMarket(world, q, r) {
         const period = Math.floor((world.day || 0) / this.PORT_PRICE_PERIOD);
-        const lerp = ([lo, hi], t) => Math.round(lo + (hi - lo) * t);
+        const lerp = ([lo, hi], t) => lo + (hi - lo) * t;
+        const P = this._getPortPriceSettings();
         // An enemy fleet off the harbour: prices suffer, or the port is shut
         const blockade = this.getPortBlockade(world, q, r);
         if (blockade && blockade.closed) return [];
+        const tile = typeof world.getTile === 'function' ? world.getTile(q, r) : null;
+        // The season moves sea goods as it moves land goods (fixed for the price period)
+        const seasonDay = Number.isFinite(world.day) ? period * this.PORT_PRICE_PERIOD : null;
         const market = this._getTradeGoods().filter(g => g.id).map((g, i) => {
-            const roleRoll = this._hash(q, r, i) % 3;
+            let roleRoll = this._hash(q, r, i) % 3;
+            // A town whose own market stocks the good doesn't import it
+            if (roleRoll === 1 && tile && Economy.marketAsk(world, tile, g.id) != null) roleRoll = 2;
             const t = (this._hash(q, r, i, period) % 1000) / 1000;
-            const base = { id: g.id, name: g.name, icon: g.icon || '📦' };
+            const basePrice = this.tradeGoodBasePrice(g) * Seasons.priceMultiplier(g.id, seasonDay);
+            const base = { id: g.id, name: g.name, icon: g.icon || '📦', basePrice: Math.round(basePrice) };
             if (roleRoll === 0) {
-                const buy = Math.max(2, lerp(g.buyPrice, t));
-                return { ...base, role: 'export', buy, sell: Math.max(1, Math.min(buy - 1, Math.round(buy * 0.75))) };
+                const buy = Math.max(2, Math.round(basePrice * lerp(P.export, t)));
+                return { ...base, role: 'export', buy, sell: Math.max(1, Math.min(buy - 1, Math.round(buy * P.exportResale))) };
             }
             if (roleRoll === 1) {
-                return { ...base, role: 'import', buy: null, sell: lerp(g.sellPrice, t) };
+                return { ...base, role: 'import', buy: null, sell: Math.max(1, Math.round(basePrice * lerp(P.import, t))) };
             }
-            // Local market: priced between the two ranges, with a spread
+            // Local market: about the base price, with a spread
             // (a port always charges more than it pays, so there's no same-port loop)
-            const mid = lerp([g.buyPrice[1], g.sellPrice[0]], t);
-            const buy = Math.max(2, Math.ceil(mid * 1.1));
-            return { ...base, role: 'local', buy, sell: Math.max(1, Math.min(buy - 1, Math.floor(mid * 0.9))) };
+            const mid = basePrice * lerp(P.local, t);
+            const buy = Math.max(2, Math.ceil(mid * P.localMarkup));
+            return { ...base, role: 'local', buy, sell: Math.max(1, Math.min(buy - 1, Math.floor(mid * P.localResale))) };
         });
         // Your own Harbour (systems/holdings.js) gives you better terms here
         const harbour = this._harbourBonus(world, q, r);
@@ -1383,10 +1390,43 @@ export const Ships = {
             // Lighthouse tech: charted harbours pay better at every port
             + Technology.getEffectTotal(player, 'portTradeBonus');
         const price = entry.sell * (1 + Technology.getTradeProfitBonus(player)) * (1 + eventMod);
-        const marketAsk = Economy.marketAsk(world, portTile, entry.id);
+        // Never past what the same goods cost here or in a settlement next door
+        const near = this.nearbyAsks(world, q, r, entry.id);
         let unitCap = entry.buy ? entry.buy - 1 : Infinity;
-        if (marketAsk != null) unitCap = Math.min(unitCap, Math.floor(marketAsk * 0.5));
+        if (near.port != null) unitCap = Math.min(unitCap, near.port - 1);
+        if (near.market != null) unitCap = Math.min(unitCap, Math.floor(near.market * 0.5));
         return Math.max(0, Math.min(price, unitCap));
+    },
+
+    /**
+     * The cheapest open asking prices for a good on (q, r) and in the
+     * settlements on the hexes next to it: { market, port }, each null when
+     * nobody there sells it. Every outlet that buys from the player caps its
+     * price under these, so goods bought here or next door never sell
+     * straight back for a profit. `skipHereMarket` leaves out this tile's own
+     * town market (a good banned here isn't on its stalls). `markets` lists
+     * each town market's ask with its settlement, for callers that apply the
+     * player's discount there.
+     */
+    nearbyAsks(world, q, r, goodId, { skipHereMarket = false } = {}) {
+        const out = { market: null, port: null, markets: [] };
+        if (!world || typeof world.getTile !== 'function' || !goodId) return out;
+        const W = world.width || 0;
+        const spots = [{ q, r }, ...Hex.neighbors(q, r)];
+        for (let i = 0; i < spots.length; i++) {
+            const t = world.getTile(W ? Hex.wrapQ(spots[i].q, W) : spots[i].q, spots[i].r);
+            if (!t || !t.settlement) continue;
+            if (i > 0 || !skipHereMarket) {
+                const ask = Economy.marketAsk(world, t, goodId);
+                if (ask != null && (out.market == null || ask < out.market)) out.market = ask;
+                if (ask != null) out.markets.push({ ask, settlement: t.settlement });
+            }
+            if (this.isPortTile(world, t.q, t.r)) {
+                const e = this.getPortMarket(world, t.q, t.r).find(x => x.id === goodId);
+                if (e && e.buy && (out.port == null || e.buy < out.port)) out.port = e.buy;
+            }
+        }
+        return out;
     },
 
     /** Sell a trade good from a docked ship's hold to this port. */
@@ -1422,6 +1462,7 @@ export const Ships = {
         const settings = this._getSettings();
         let totalUpkeep = 0;
         const stormReports = [];
+        const storms = {};
 
         for (const ship of ships) {
             // A Shipyard you own repairs docked ships beside it for free
@@ -1432,6 +1473,7 @@ export const Ships = {
             }
             // Storms at sea batter hulls and hold ships back a day
             const storm = this._stormAtSea(ship, world);
+            if (storm) storms[ship.id] = storm;
             if (storm) {
                 const damage = this.mitigateHullDamage(ship, Math.round(Utils.randInt(3, 8) * storm.danger));
                 ship.condition = Math.max(10, (ship.condition || 100) - damage);
@@ -1515,11 +1557,18 @@ export const Ships = {
             }
         }
 
+        // The player's voyage sails on (systems/shipVoyages.js)
+        const voyageShip = this.getVoyageShip(player);
+        const voyage = this._voyageDay(player, world, voyageShip ? storms[voyageShip.id] || null : null);
+
         // Hostile royal fleets stop ships sailing near their ports
         const interceptions = this._interceptShips(player, world);
 
+        // Crews away from port eat from the hold
+        const provisions = this._feedCrews(player, world);
         const crew = this._payCrews(player, ships);
-        return { stormReports, crew, interceptions, upkeepShort };
+        if (voyage) this._logVoyageDay(player, world, voyage, { stormReports, interceptions, provisions, crew });
+        return { stormReports, crew, interceptions, upkeepShort, provisions, voyage };
     },
 
     /* ── Royal fleets at sea ─────────────────────────────────── */
@@ -1737,7 +1786,11 @@ export const Ships = {
     restoreFromSave(player) {
         // Saves from before crews existed: those ships sailed fully manned,
         // so they keep a full crew at resting morale
-        for (const ship of player.ships || []) this._ensureCrew(ship);
+        for (const ship of player.ships || []) {
+            this._ensureCrew(ship);
+            // ...and provisions/voyage fields from before voyages took days
+            this._backfillVoyage(player, ship);
+        }
         // ...and their war galleys learn they belong at sea
         for (const unit of player.army || []) {
             if (!unit.domain && this.isNavalUnit(unit)) unit.domain = 'sea';
@@ -1752,3 +1805,6 @@ export const Ships = {
         }
     },
 };
+
+// Provisions, voyages that take real days, and events at sea
+Object.assign(Ships, VoyageMethods);

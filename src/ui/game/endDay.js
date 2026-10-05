@@ -11,6 +11,7 @@ import { Holdings } from '../../systems/holdings.js';
 import { Rivals } from '../../systems/rivals.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { Sagas } from '../../systems/sagas.js';
+import { onVoyageDay } from '../actionMenu/voyage.js';
 
 export function onPlayerArrived() {
     const tile = this.world.getTile(this.player.q, this.player.r);
@@ -235,6 +236,8 @@ export function endDay() {
                 // Capture ship statuses before processing
                 const shipsBefore = (this.player.ships || []).map(s => ({ id: s.id, status: s.status, name: s.name, buildDaysLeft: s.buildDaysLeft, travelDaysLeft: s.travelDaysLeft }));
                 const shipDay = Ships.processDaily(this.player, this.world);
+                // A voyage under way: its day goes to the voyage panel once the day is done
+                this._voyageDay = (shipDay && shipDay.voyage) || null;
                 for (const rep of (shipDay && shipDay.stormReports) || []) {
                     const wx = WEATHER_TYPES[rep.weather] || { icon: '⛈️', name: 'Storm' };
                     let text = `${rep.name} was caught in a ${wx.name.toLowerCase()} at sea (hull −${rep.damage}%).`;
@@ -943,6 +946,13 @@ export function endDay() {
             }
 
             this.ui.showNotification('New Day', `Day ${((this.world.day - 1) % 30) + 1} of ${this.world.season}, Year ${this.world.year}`, 'default');
+
+            // At sea: show the voyage log, then sail on or wait for orders (ui/actionMenu/voyage.js)
+            if (this._voyageDay) {
+                const voyageDay = this._voyageDay;
+                this._voyageDay = null;
+                setTimeout(() => onVoyageDay(this, voyageDay), 0);
+            }
         } catch (e) {
             console.error("Error ending day:", e);
             this.ui.showNotification('Error', 'Failed to end day. Check console.', 'error');

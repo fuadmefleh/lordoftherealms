@@ -1,6 +1,6 @@
 // UI — techTreasury methods.
 import { UI } from './core.js';
-import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing } from './_imports.js';
+import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Finance } from './_imports.js';
 
 Object.assign(UI.prototype, {
     /**
@@ -400,84 +400,46 @@ Object.assign(UI.prototype, {
         }
         marketHtml += '</div></div>';
 
-        // Prepare Bank data - get all kingdoms
-        const allLoans = [];
-        let totalLoanCount = 0;
-        if (player.loans) {
-            for (const [kingdomId, loans] of Object.entries(player.loans)) {
-                for (const loan of loans) {
-                    allLoans.push({ ...loan, kingdomId });
-                    totalLoanCount++;
-                }
-            }
-        }
-
+        // Bank tab: the Banks, Credit & Coin summary (systems/finance.js); the
+        // banking house panel itself is ActionMenu.showBank
+        const fin = Finance.state(player);
+        const finSum = Finance.summary(player, world);
         let bankHtml = `
             <div id="tabBank" class="tab-content" style="display:none;">
                 <div style="background:rgba(0,0,0,0.2); padding:15px; border-radius:4px; margin-bottom:15px;">
-                    <h3 style="margin-top:0; color:var(--gold);">Royal Banks</h3>
-                    <div style="color:var(--text-secondary); font-style:italic; margin-bottom:15px;">"Each kingdom maintains its own royal treasury and lending services."</div>
+                    <h3 style="margin-top:0; color:var(--gold);">Banks, Credit &amp; Coin</h3>
+                    <div style="font-size:12px; color:var(--text-secondary); margin-bottom:10px;">Credit <b>${finSum.score}</b> (${finSum.label}) · deposits ${finSum.deposits}g · bonds ${finSum.bonds}g · owed ${finSum.debt}g (${finSum.dailyDue}g a day)</div>
         `;
-
-        if (allLoans.length > 0) {
-            bankHtml += `<div class="info-section-title">Active Loans (${totalLoanCount} total)</div>`;
-            for (const loan of allLoans) {
-                const kingdom = world.getKingdom(loan.kingdomId);
-                const kingdomName = kingdom ? kingdom.name : 'Unknown Kingdom';
+        if (fin.loans.length > 0) {
+            bankHtml += `<div class="info-section-title">Active Loans (${fin.loans.length})</div>`;
+            for (const loan of fin.loans) {
+                const owed = Math.ceil(loan.totalOwed);
                 bankHtml += `
                     <div style="background:rgba(231, 76, 60, 0.1); border:1px solid rgba(231, 76, 60, 0.3); padding:10px; border-radius:4px; margin-bottom:10px;">
                         <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                            <span style="font-weight:bold; color:#e74c3c;">${loan.totalOwed}g Owed</span>
-                            <span style="color:var(--text-secondary);">${loan.remainingDays} days left</span>
+                            <span style="font-weight:bold; color:#e74c3c;">${owed}g Owed</span>
+                            <span style="color:var(--text-secondary);">${loan.remainingDays} days left${loan.overdue ? ` · ${loan.overdue} overdue` : ''}</span>
                         </div>
-                        <div style="font-size:11px; color:var(--text-secondary); margin-bottom:3px;">From: ${kingdomName}</div>
+                        <div style="font-size:11px; color:var(--text-secondary); margin-bottom:3px;">From: ${loan.lender || 'your creditors'}</div>
                         <div style="font-size:12px; color:var(--text-secondary);">Daily Payment: ${loan.dailyPayment}g</div>
-                        <button data-ui-act="repayLoan" data-ui-args='["${loan.id}"]' style="margin-top:8px; width:100%; padding:6px; background:#e74c3c; color:white; border:none; border-radius:3px; cursor:pointer;">Repay Full Amount (${loan.totalOwed}g)</button>
+                        <button data-ui-act="repayLoan" data-ui-args='["${loan.id}"]' style="margin-top:8px; width:100%; padding:6px; background:#e74c3c; color:white; border:none; border-radius:3px; cursor:pointer;">Repay Full Amount (${owed}g)</button>
                     </div>
                 `;
             }
         } else {
             bankHtml += `<div style="padding:10px; text-align:center; color:var(--text-secondary);">No active loans. You are debt free!</div>`;
         }
-
-        bankHtml += `<div class="info-section-title" style="margin-top:15px;">Available Royal Banks</div>`;
-        
-        // Show loan options from each kingdom
-        for (const kingdom of world.kingdoms) {
-            const kingdomLoans = player.loans[kingdom.id] || [];
-            const options = Banking.getLoanOptions(player, kingdom.id);
-            
-            bankHtml += `
-                <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:4px; margin-bottom:10px;">
-                    <div style="font-weight:bold; color:${kingdom.color}; margin-bottom:8px;">
-                        ${kingdom.name} Royal Bank
-                        <span style="font-size:11px; color:var(--text-secondary);">(${kingdomLoans.length}/3 loans)</span>
-                    </div>
-                    <div style="display:flex; gap:10px;">
-            `;
-
-            for (const opt of options) {
-                const canTake = opt.available && kingdomLoans.length < 3;
-                if (canTake) {
-                    bankHtml += `
-                        <div style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:4px; text-align:center;">
-                            <div style="font-weight:bold; color:var(--gold); margin-bottom:5px;">${opt.amount}g</div>
-                            <div style="font-size:11px; color:#aaa; margin-bottom:8px;">${(opt.interestRate * 100).toFixed(0)}% Interest<br>${opt.duration} Days</div>
-                            <button data-ui-act="takeLoan" data-ui-args='["${opt.id}", "${kingdom.id}"]' style="width:100%; padding:4px; font-size:12px; background:var(--gold); border:none; border-radius:3px; cursor:pointer;">Take Loan</button>
-                        </div>
-                    `;
-                } else {
-                    bankHtml += `
-                        <div style="flex:1; background:rgba(255,255,255,0.02); padding:10px; border-radius:4px; text-align:center; opacity:0.5;">
-                            <div style="font-weight:bold; color:var(--text-secondary); margin-bottom:5px;">${opt.amount}g</div>
-                            <div style="font-size:11px; color:#aaa;">${!opt.available ? 'Requires more<br>collateral' : 'Max loans<br>reached'}</div>
-                        </div>
-                    `;
-                }
-            }
-
-            bankHtml += `</div></div>`;
+        bankHtml += `<div class="info-section-title" style="margin-top:15px;">Banking Houses</div>`;
+        for (const bank of fin.banks) {
+            const k = world.getKingdom(bank.kingdomId);
+            const acct = fin.accounts[bank.id];
+            const state = bank.status !== 'open' ? 'failed' : Finance.inPanic(bank, world.day || 0) ? 'a run on the house' : `reserves ${Math.round(Finance.reserveRatio(bank) * 100)}%`;
+            bankHtml += `<div style="background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:4px; margin-bottom:6px; font-size:12px;">
+                <b style="color:${k ? k.color : 'inherit'};">${bank.name}</b> · ${bank.seat}${k ? `, ${k.name}` : ''} · ${state}${acct ? ` · your deposit ${Math.floor(acct.balance)}g` : ''}
+            </div>`;
         }
+        bankHtml += `<div style="font-size:11px; color:var(--text-secondary); margin-top:8px;">Deposits, loans and royal bonds are arranged at a house's seat or its branches in its realm's cities.</div>`;
+        bankHtml += `<button data-ui-act="takeLoan" data-ui-args='[]' style="margin-top:8px; width:100%; padding:6px; background:var(--gold); border:none; border-radius:3px; cursor:pointer;">Open the banking house panel</button>`;
         bankHtml += `</div></div>`;
 
         // Prepare Taxes data
@@ -732,27 +694,23 @@ Object.assign(UI.prototype, {
     },
 
     /**
-     * Take a loan (UI Action)
+     * Take a loan (UI Action): loans come from the banking houses, so this
+     * opens the banking house panel here (systems/finance.js via Banking).
      */
-    takeLoan(loanId, kingdomId) {
-        const result = Banking.takeLoan(this.game.player, loanId, kingdomId);
-        if (result.success) {
-            const kingdom = this.game.world.getKingdom(kingdomId);
-            const kingdomName = kingdom ? kingdom.name : 'a kingdom';
-            this.showNotification('Loan Approved', `${result.loan.principal}g from ${kingdomName} added to Treasury`, 'success');
-            // Refresh panel
-            this.showTreasuryPanel(this.game.player, this.game.world);
-            this.updateStats(this.game.player, this.game.world);
-        } else {
-            this.showNotification('Loan Denied', result.reason, 'error');
+    takeLoan(loanId = null, kingdomId = null) {
+        if (loanId) {
+            const result = Banking.takeLoan(this.game.player, loanId, kingdomId, this.game.world);
+            this.showNotification(result.success ? 'Loan Approved' : 'Loan Denied', result.success ? result.text : result.reason, result.success ? 'success' : 'error');
+            if (result.success) this.updateStats(this.game.player, this.game.world);
         }
+        ActionMenu.showBank(this.game, this.game.world.getTile(this.game.player.q, this.game.player.r));
     },
 
     /**
      * Repay a loan (UI Action)
      */
     repayLoan(loanId) {
-        const result = Banking.repayLoan(this.game.player, loanId);
+        const result = Banking.repayLoan(this.game.player, loanId, this.game.world);
         if (result.success) {
             this.showNotification('Loan Repaid', `Debt cleared!`, 'success');
             // Refresh panel

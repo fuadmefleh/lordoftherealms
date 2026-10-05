@@ -128,6 +128,75 @@ seeds still lose money in a year with no sourceable contracts.
   player's own prices, `contractUnitPay`.
 - The soak's arbitrage probe stays green.
 
+## Banks, Credit & Coin
+
+`systems/finance.js`, with tunables in `data/finance.json` and the loan products in
+`market.json` → `loanOptions`. This section was measured on seeds 101, 202 and 303 for
+one game year (120 days), with the finance tick running alone and 20,000 g in hand. The
+world numbers come from 5 seeds × 720 days with the bot.
+
+**The rule.** Deposits and bonds are a safe, slow return, well below every capital
+investment above. Loans are a leverage tool that pays when the money goes into
+something that earns, and that really hurts when it doesn't.
+
+| Instrument | Return or cost | Compare |
+|---|---|---|
+| **Deposit** | 4.05% a year at a house with full reserves, compounded daily: 5,000 g became 5,176–5,212 g in a year. The rate runs from 3% to 7.5% as reserves fall | Trading company about 12% a year. A raw producer repays itself in 30–55 days, roughly 200–400% a year |
+| **Royal bond** (healthy crown) | 6.0% a year: a 5,000 g bond for 120 days paid 289 g in coupons, plus +10 reputation and +12 Prestige | Up to 20% for a crown in debt or with debased coin, with real default risk: coupons can be missed, repayment put off and the principal cut |
+| **Small loan** (500 g, 30 days) | 9.4% flat at a fresh score of 560, 8.1% at 647 | |
+| **Medium loan** (2,000 g, 60 days) | 14.1% / 12.2% | Builds two raw producers that repay themselves inside the term |
+| **Large loan** (5,000 g, 90 days) | 18.8% / 16.3%. Needs a score of 600 | |
+| **Great loan** (15,000 g, 120 days) | 26.3% / 22.7%. Needs a score of 680 | |
+
+**Interest on loans** is a flat charge for the term. The credit factor is 1 at a score of
+600, about 0.67 at 800 and 1.33 at 400. A house whose reserves have fallen below 80%
+charges up to 60% more. The techs still cut it: Merchant Guild by 25% and Banking
+Systems by 20%.
+
+**Borrowing limit:** (60% of collateral + gold) × a score factor (0.25–1.75), plus 300 g
+for a clean name. A fresh character with 20,000 g in hand had a limit of about 19,500 g.
+
+**The downside is real.**
+- A missed day adds a quarter of the daily payment and a day to the term.
+- **7 days overdue:** bailiffs take goods at half their value.
+- **14 days, then weekly:** the lender seizes deposits, the most valuable property, a
+  docked ship or the company's capital, all at half their value.
+- **30 days:** a write-off. You lose 15 reputation in the realm and 20 Prestige plus
+  0.5% of the debt, and that house will lend nothing more until you make the debt good.
+  Debts of 1,500 g or more put a bounty of a quarter of the debt (at most 3,000 g) on
+  you. Debts of 4,000 g or more add the debtors' prison: a 20% daily arrest chance in
+  the realm's towns, 5–20 days inside.
+
+**Crowns.** Kingdom treasuries already grow by thousands of gold a day, so crown finance
+is relative to each crown's own income:
+- War spending is 1.6 × the smoothed daily income.
+- The reserve is 30 days of income.
+- Capacity is 25 days of income. A crown is in crisis above 1.2 × capacity, after two
+  missed weekly payments, or after 14 days of unpaid armies.
+- Houses lend to crowns only while their own reserves stay at 60% or more.
+
+Over 720 days per seed:
+
+| Seed | Crown loans | Highest debt ratio | Crises and events | Houses failed |
+|---|---|---|---|---|
+| 101 | 73 | 1.49 | 3 debasements, 2 levies, 1 run | 0 |
+| 202 | 160 | 4.40 | 6 debasements, 3 levies, 1 run | 0 |
+| 303 | 85 | 1.24 | 1 crown default, 1 debasement, 1 royal seizure, 6 runs, 1 silver find | 0 |
+| 404 | 144 | 1.85 | 3 crown defaults, 3 debasements, 3 levies, 4 runs | 0 |
+| 505 | 5 | 1.47 | 1 levy, 1 run | 0 |
+
+Coin purity recovered to 1.0 everywhere but one realm (0.86) by the end. Bank failures
+are rare by design: a run fails with about 10% odds at 60% reserves, rising as the vaults
+empty. None failed in these ten world-years. The tests force failures.
+
+**Debasement** takes 0.1 of the silver out per step, down to a floor of 0.5. Each step
+raises prices by 9% in every market of that realm, through `Coinage.priceMultiplier`,
+which is one multiplier in `Economy.marketPrice`. Buying and selling in the same market
+rise together, so the same-tile arbitrage caps hold.
+
+**Soak.** `SOAK=1 npx vitest run src/__tests__/playtest.soak.test.js` passes: 5 seeds ×
+800 days, with the bot depositing, borrowing, repaying and buying bonds.
+
 ## Re-measuring
 
 - **Long soak.** `SOAK=1 SOAK_VERBOSE=1 npx vitest run playtest.soak` prints each

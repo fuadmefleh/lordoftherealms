@@ -27,6 +27,7 @@ const topLevel = [
     'sagas', 'discovery', 'merchantHouses', 'kingship', 'counsel', 'chatter',
     'patronage',
     'outlawLairs',
+    'finance',
     'markets'
 ];
 

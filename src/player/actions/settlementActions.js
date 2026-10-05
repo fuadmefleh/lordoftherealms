@@ -21,6 +21,7 @@ import { Rivals } from '../../systems/rivals.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Patronage } from '../../systems/patronage.js';
+import { Finance } from '../../systems/finance.js';
 
 export function addSettlementActions(actions, player, tile, world, ctx) {
     const { isCity, isVillage, isPlayerSettlement, playerSettlementCount, playerKingdom, hasPlayerFoundedKingdom } = ctx;
@@ -358,6 +359,23 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             description: n
                 ? `${n} client(s) in your service: commissions, Great Works, the gallery, the wonders of the world`
                 : 'Take artists, scholars, architects, physicians and chroniclers into your service, and raise Great Works',
+        });
+    }
+
+    // Banks, Credit & Coin (systems/finance.js) — a banking house's seat or one
+    // of its branches in its realm's cities, or debts to see to anywhere
+    const banksHere = Finance.banksAt(player, world, tile);
+    const fin = player.finance;
+    const owes = !!(fin && Array.isArray(fin.loans) && fin.loans.some(l => l && l.overdue > 0));
+    if (banksHere.length || owes) {
+        const b = banksHere[0];
+        actions.push({
+            type: 'bank',
+            label: b ? b.name : 'Your Debts',
+            icon: '🏦',
+            description: b
+                ? `Deposits, loans, royal bonds and your credit report${banksHere.length > 1 ? ` (${banksHere.length} houses here)` : ''}`
+                : 'You are behind on a loan: pay before the bailiffs come',
         });
     }
 

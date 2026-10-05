@@ -457,17 +457,50 @@ Coal yields coal, oil yields rock oil, and cattle yield food and hides. Coal als
 | Liquor | 30g | Grain (distilling) |
 | Luxuries | 100g | Gold Ore (refining) |
 
-### Banking & Loans
+### Banks, Credit & Coin
 
-You can take loans from royal banks at settlements:
+Money has its own life in the realms. A few great **banking houses** take deposits, lend to merchants and to crowns, and sometimes fail. Every realm strikes its own coin, and a crown in trouble may clip it.
 
-| Loan | Amount | Interest | Repayment Period |
-|------|--------|----------|-----------------|
-| Small | 500g | 10% (pay back 550g) | 30 days |
-| Medium | 2,000g | 15% (pay back 2,300g) | 60 days |
-| Large | 5,000g | 20% (pay back 6,000g) | 90 days |
+**Banking houses.** Three to five named houses (the Medrano Counting House, House Varenne & Sons, …) keep their seats in capitals and great cities, at most one per realm, and the same world always has the same houses. A house serves you at its seat and at its **branches**, the cities and capitals of its realm. Look for the **🏦 bank** action there. Each house has capital reserves (your deposits are part of them, and its loans draw on them) and a standing with every crown. The Treasury's Bank tab lists the houses, their reserves and your accounts. The bank panel shows the full books: accounts, loans, royal bonds, your credit report and the realms' coin.
 
-Failing to repay on time has severe consequences. The Merchant Guild tech reduces interest rates by 25%, and Banking Systems tech reduces them by another 20%.
+**Deposits** earn a slow, safe interest, compounded daily: about **4% a game year**, up to 7.5% at a house short of coin. They are not perfectly safe. If a house fails, its receivers pay back only **30–60%**. Deposits count as collateral, and the house you owe takes them first if you fall behind.
+
+**Loans** come in four sizes:
+
+| Loan | Amount | Base interest | Term | Credit needed |
+|------|--------|---------------|------|---------------|
+| Small | 500g | 10% | 30 days | any |
+| Medium | 2,000g | 15% | 60 days | 520 |
+| Large | 5,000g | 20% | 90 days | 600 |
+| Great | 15,000g | 28% | 120 days | 680 |
+
+The interest is a flat charge for the term, repaid in equal daily payments. Your **credit score** sets the actual rate: about a third less at 800 and a third more at 400. So do the house's reserves, since a house short of coin charges more. A bad name in the house's realm (reputation −20 or lower) adds 20%. The Merchant Guild tech cuts interest by 25%, and Banking Systems by another 20%. You may hold up to three loans from one house, within your **borrowing limit**: 60% of your collateral plus your gold, scaled by your score. You can repay a loan in full from anywhere.
+
+**Your credit report** (300–850) is built from:
+- **Repayment history:** loans repaid and days paid on time raise it. Missed payments, defaults (and recent ones in particular), and days overdue lower it. A debt made good wins some of it back.
+- **Collateral:** properties at their build cost, ships, your trading company, holdings and deposits.
+- **House Prestige.**
+- **Debt load:** what you owe against what you own.
+
+**Defaults have teeth.** A day you cannot pay adds a late fee and a day to the term. Then the arrears escalate:
+- **7 days overdue:** the bailiffs take goods from your packs at half their worth, and your reputation in the house's realm falls.
+- **14 days, then every week:** the house seizes collateral at half its worth, in this order: your deposits with it, your most valuable property, a ship lying in port (never the one you are aboard), then your company's coffers.
+- **30 days:** you are **declared a defaulter**. The house writes off the rest and will not lend to you again until you **make good** the debt. You lose reputation in its realm (−15) and House Prestige. A debt of 1,500g or more puts a **bounty** on your head there. One of 4,000g or more sends you to the **debtors' prison** if the watch of any town in that realm catches you (5–20 days, with bail).
+
+**Royal bonds.** Through any banking house you can lend to a crown, from 500g up to 20,000g per crown, for 120 or 240 days. You get interest every 7 days, the principal back at maturity, reputation with the realm (+1 per 500g, up to +10) and Prestige for your House (+1 per 400g, up to +25). A healthy crown pays about **6% a year**. A crown deep in debt, with debased coin or a recent default, pays up to 20%, because it may miss coupons, put off repayment by a month, or **repudiate** its debts and cut your bond with everyone else's. You can sell a bond back to the brokers at a discount.
+
+**Crowns in debt.** Every crown keeps a reserve of about a month's income. War costs more than a realm earns, and a crown at war (or raising a wonder) that drops below its reserve borrows from the friendliest house with coin to spare. It pays interest from its taxes and pays its debts down every week. A crown in crisis (missed payments, unpaid armies, or debts beyond what its income can carry) chooses one of three ways out:
+- **A war levy:** more gold for two months, and unrest (stability −6).
+- **Debasing the coin:** gold from the mint at once. Prices in all of the realm's markets rise (+9% for each tenth of silver taken out), stability falls, the houses think less of it, and trust in its coin drops.
+- **Default:** its lenders lose capital and may face a run, and the realm loses stability (−10 at once, −8 while the memory lasts). No house lends to it for months.
+
+Honest coin returns slowly once a crown is out of trouble, or at once if new silver is found.
+
+**Panics.** A run on a house is rare, but more likely when its vaults are low, after a crown defaults on it, or after a crown seizes its strongroom. During a run, withdrawals are rationed to a trickle a day and no loans are made. When the run ends, the house either stands, poorer, or **fails**. A new house opens at the seat about three months later. Heralds proclaim failed houses, crown defaults and debased coin, and townsfolk talk about clipped coin, levies and queues at the counting-house doors.
+
+**As a ruler**, the bank panel's Coin tab shows your crown's purse. From there you can borrow for the crown, debase the coin, or repudiate the crown's debts.
+
+The Steward's Counsel warns you of an overdue loan, of the next step it brings and when, of gold running short of your daily payments, of a run on a house that holds your deposits, of bonds with a crown in trouble, and of a debtors' prison waiting for you.
 
 ### Tax Collection
 

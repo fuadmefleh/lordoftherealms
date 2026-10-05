@@ -17,7 +17,8 @@ The world model: terrain generation, kingdoms, settlements, economy, NPCs, and e
 | `kingdomAI.js` | ~700 | Kingdom decision-making, expansion, diplomacy AI |
 | `kingdomNavy.js` | ~330 | `KingdomNavy`: royal fleets. Ports set the cap, the treasury pays for building and upkeep, fleets battle and blockade in kingdom wars (income, sieges, port markets), and the fleets near a ship's position can intercept it. All rolls are deterministic hashes with no RNG draws |
 | `kingdomAtlas.js` | ~240 | `KingdomAtlas`: royal cartography of NPC realms — court cartographer, archive charts of rivals (war bonus / target choice), atlas skill and accuracy |
-| `kingdomState.js` | ~300 | `KingdomBonuses` (ruler/advisor + NPC lord + tradition bonuses combined), `LordInfluence` (lord stats and goal modifiers read by the kingdom AI) and `KingdomStability` (0-100 stat, drift, rebellion risk) |
+| `kingdomState.js` | ~300 | `KingdomBonuses` (ruler/advisor + NPC lord + tradition bonuses combined), `LordInfluence` (lord stats and goal modifiers read by the kingdom AI) and `KingdomStability` (0-100 stat, drift, rebellion risk; its target reads `Coinage.stabilityMod`) |
+| `coinage.js` | ~90 | `Coinage`: the read side of crown finance on `kingdom.finance` — coin purity, `priceMultiplier(world, settlement)` (read by `Economy.marketPrice`; exactly 1 for pure coin), `stabilityMod` (debased coin, war levy, recent default, heavy debt), trust. Pure, no RNG; written by `systems/finance.js` |
 | `npcLords.js` | ~600 | Kingdom lords: generation, traits → goals, daily goal actions (trade, faith, justice, domination, fear, survive, …), succession |
 | `settlementGenerator.js` | ~800 | Settlement generation: size, buildings, population |
 | `terrain/` | ~1680 | Terrain types, world map generation (noise-based), rivers |

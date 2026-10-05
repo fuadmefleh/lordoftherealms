@@ -45,6 +45,7 @@ const DEFAULT_CONFIG = {
 const CONDITIONS = {
     war: 'bool', playerWar: 'bool', blockade: 'bool', siege: 'bool', revolt: 'bool',
     rival: 'bool', newRuler: 'bool', lean: 'bool', outlaws: 'bool',
+    money: 'boolOrList',
     event: 'list', season: 'list', trait: 'list', court: 'list', title: 'list',
     occupation: 'list', personality: 'list',
     saga: 'boolOrList', proclamation: 'boolOrList', deed: 'boolOrList',
@@ -53,6 +54,8 @@ const CONDITIONS = {
 };
 
 export const SEASONS = ['Spring', 'Summer', 'Autumn', 'Winter'];
+/** What townsfolk say about money (systems/finance.js): the `money` condition's kinds. */
+export const MONEY_KINDS = ['debased', 'levy', 'default', 'bank_run', 'bank_failed', 'bank'];
 export const OCCUPATIONS = ['merchant', 'guard', 'farmer', 'priest', 'blacksmith_npc', 'villager', 'child', 'noble', 'traveler', 'beggar'];
 export const PERSONALITIES = ['kind', 'stern', 'jovial', 'quiet', 'bold', 'cautious', 'witty', 'generous', 'stubborn', 'curious'];
 export const COURT_AXES = ['mercy', 'severity', 'justice', 'piety', 'generosity'];
@@ -64,6 +67,7 @@ const TOKEN_NEEDS = {
     saga: 'saga', villain: 'saga', rival: 'rival', rivalNews: 'rival', oldRuler: 'newRuler',
     proclamation: 'proclamation', deedPlace: 'deed', deedVictim: 'deed',
     lair: 'outlaws', leader: 'outlaws',
+    bank: 'money',
 };
 const ALWAYS_TOKENS = ['settlement', 'kingdom', 'ruler', 'player', 'house', 'season', 'title'];
 
@@ -156,7 +160,7 @@ export const Chatter = {
             war: false, enemy: null, playerWar: false,
             blockade: false, blockader: null,
             siege: false, siegeTown: null,
-            events: [], revolt: false, sagas: [], rival: null, newRuler: false, oldRuler: null, outlaws: null,
+            events: [], revolt: false, sagas: [], rival: null, newRuler: false, oldRuler: null, outlaws: null, money: [],
             proclamations: [], deeds: [],
             traits: [], court: [], titles: [], titleLabel: '',
             houseGen: house ? _num(house.generation) || 1 : 0,
@@ -230,6 +234,22 @@ export const Chatter = {
             if (d <= rad('outlawRadius') && (!lairBest || d < lairBest.d)) lairBest = { d, l };
         }
         if (lairBest) ctx.outlaws = { name: lairBest.l.name, leader: (lairBest.l.leader && lairBest.l.leader.name) || 'their chief' };
+
+        // Money talk: debased coin, a war levy, a crown's default, a run on the
+        // bank or a broken one, or just the banking house in town (systems/finance.js)
+        if (kingdom) {
+            const f = kingdom.finance;
+            if (f && typeof f.purity === 'number' && f.purity < 1) ctx.money.push({ kind: 'debased' });
+            if (f && f.levy && day != null && _num(f.levy.until) >= day) ctx.money.push({ kind: 'levy' });
+            if (f && f.lastDefaultDay != null && day != null && day - f.lastDefaultDay <= 60) ctx.money.push({ kind: 'default' });
+            const banks = (player && player.finance && Array.isArray(player.finance.banks)) ? player.finance.banks : [];
+            for (const b of banks) {
+                if (!b || b.kingdomId !== kid) continue;
+                if (b.status === 'failed' && day != null && day - _num(b.failedDay) <= 60) ctx.money.push({ kind: 'bank_failed', bank: b.name });
+                else if (b.status === 'open' && b.panic && day != null && _num(b.panic.until) >= day) ctx.money.push({ kind: 'bank_run', bank: b.name });
+                else if (b.status === 'open' && b.q === q && b.r === r) ctx.money.push({ kind: 'bank', bank: b.name });
+            }
+        }
 
         // A rival adventurer who passed through lately
         const rivals = player && player.rivals;
@@ -311,6 +331,7 @@ export const Chatter = {
                 return !!ctx[key] === !!v;
             case 'rival': return !!ctx.rival === !!v;
             case 'outlaws': return !!ctx.outlaws === !!v;
+            case 'money': { const m = ctx.money || []; return v === true ? m.length > 0 : v === false ? m.length === 0 : Chatter._anyIn(v, m.map(x => x.kind)); }
             case 'event': return Chatter._anyIn(v, ctx.events.map(e => e.id));
             case 'saga': return v === true ? ctx.sagas.length > 0 : v === false ? ctx.sagas.length === 0 : Chatter._anyIn(v, ctx.sagas.map(s => s.id));
             case 'proclamation': return v === true ? ctx.proclamations.length > 0 : v === false ? ctx.proclamations.length === 0 : Chatter._anyIn(v, ctx.proclamations.map(p => p.kind));
@@ -346,6 +367,7 @@ export const Chatter = {
         const saga = Chatter._first(ctx.sagas, when.saga, 'id');
         const pr = Chatter._first(ctx.proclamations, when.proclamation, 'kind');
         const deed = Chatter._first(ctx.deeds, when.deed, 'type');
+        const money = Chatter._first((ctx.money || []).filter(m => m.bank), when.money, 'kind');
         const map = {
             settlement: ctx.settlementName, kingdom: ctx.kingdomName, ruler: ctx.ruler,
             player: ctx.playerName, house: ctx.houseName, season: (ctx.season || 'the season').toLowerCase(),
@@ -358,6 +380,7 @@ export const Chatter = {
             proclamation: pr && pr.text,
             deedPlace: deed && deed.place, deedVictim: deed && deed.victim,
             lair: ctx.outlaws && ctx.outlaws.name, leader: ctx.outlaws && ctx.outlaws.leader,
+            bank: money && money.bank,
         };
         return String(text).replace(/\{(\w+)\}/g, (m, k) => (map[k] != null ? map[k] : m));
     },
@@ -491,6 +514,9 @@ export const Chatter = {
         if (ctx.revolt) f.push('Lords or peasants are in revolt in the realm.');
         for (const s of ctx.sagas) f.push(`Everyone talks of "${s.name}".`);
         if (ctx.outlaws) f.push(`Outlaws led by ${ctx.outlaws.leader} hold ${ctx.outlaws.name} nearby and raid the roads.`);
+        const MONEY = { debased: 'The coin of the realm has been debased and prices are rising.', levy: 'The crown has raised an extraordinary war levy.',
+            default: 'The crown has refused to pay its debts.', bank_run: 'Depositors are running on the bank.', bank_failed: 'A banking house has failed.' };
+        for (const m of ctx.money || []) if (MONEY[m.kind]) f.push(MONEY[m.kind]);
         if (ctx.rival) f.push(`The adventurer ${ctx.rival.name} passed through recently.`);
         if (ctx.newRuler) f.push(`${ctx.ruler} has newly taken the throne from ${ctx.oldRuler}.`);
         if (ctx.proclamations.length) f.push(`The heralds proclaimed: ${ctx.proclamations[0].text}`);
@@ -524,7 +550,7 @@ export const Chatter = {
         const sagaIds = Object.keys((DataLoader.sagas && DataLoader.sagas.sagas) || {});
         const deedIds = Object.entries((DataLoader.gossip && DataLoader.gossip.rumorTypes) || {}).filter(([, d]) => d && d.deed).map(([id]) => id);
         const heraldKinds = Object.keys(((Chatter.data().heralds || {}).templates) || {});
-        const enums = { season: SEASONS, trait: traits, court: COURT_AXES, title: TITLES, occupation: OCCUPATIONS, personality: PERSONALITIES, event: eventIds, saga: sagaIds, deed: deedIds, proclamation: heraldKinds };
+        const enums = { season: SEASONS, trait: traits, court: COURT_AXES, title: TITLES, occupation: OCCUPATIONS, personality: PERSONALITIES, event: eventIds, saga: sagaIds, deed: deedIds, proclamation: heraldKinds, money: MONEY_KINDS };
         const seen = new Set();
         for (const g of Chatter.groups()) {
             const gid = g && g.id;
@@ -558,7 +584,7 @@ export const Chatter = {
         }
         // Heralds and tavern templates
         const H = Chatter.data().heralds || {};
-        const heraldTokens = ['ruler', 'kingdom', 'other', 'saga', 'title', 'leader', 'place', 'by', 'days'];
+        const heraldTokens = ['ruler', 'kingdom', 'other', 'saga', 'title', 'leader', 'place', 'by', 'days', 'bank', 'purity'];
         for (const [kind, list] of Object.entries(H.templates || {})) {
             if (!Array.isArray(list) || !list.length) problems.push(`heralds.${kind}: no templates`);
             for (const t of list || []) for (const [, tok] of String(t).matchAll(/\{(\w+)\}/g)) {

@@ -550,6 +550,12 @@ export const DataLoader = {
             DataLoader.sagas = sagasData;
         }
 
+        // ── Banks, Credit & Coin (read lazily by systems/finance.js and world/coinage.js) ──
+        const financeData = data['finance.json'];
+        if (financeData) {
+            DataLoader.finance = financeData;
+        }
+
         // ── Outlaw lairs (read lazily by systems/outlawLairs.js) ──
         const outlawLairsData = data['outlawLairs.json'];
         if (outlawLairsData) {

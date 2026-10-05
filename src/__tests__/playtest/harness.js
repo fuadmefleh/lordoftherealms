@@ -57,6 +57,7 @@ import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { Heralds } from '../../systems/heralds.js';
 import { Patronage } from '../../systems/patronage.js';
 import { OutlawLairs } from '../../systems/outlawLairs.js';
+import { Finance } from '../../systems/finance.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
 
 export const WORLD_W = 80;
@@ -294,8 +295,8 @@ export function endDay(game) {
     mark(game, 'Espionage.prepareForSave');
     Gossip.processDaily(player, world);
     mark(game, 'Gossip.processDaily');
-    Banking.processLoans(player, world);
-    mark(game, 'Banking.processLoans');
+    game.financeDay = Finance.processDay(world, player);
+    mark(game, 'Finance.processDay');
     if (world.day % 7 === 0) Taxation.collectTaxes(player, world);
     mark(game, 'Taxation.collectTaxes');
     if (player.queuedPath) player.resumeQueuedPath();

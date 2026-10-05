@@ -8,6 +8,7 @@ import { Kingdom } from './kingdom.js';
 import { Seasons } from './seasons.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { SettlementMarket } from './settlementMarket.js';
+import { Coinage } from './coinage.js';
 
 export const Economy = {
     /**
@@ -308,6 +309,7 @@ export const Economy = {
         // A monopoly that carries a markup (the crown's, systems/kingship.js)
         // makes the good dearer in this market
         price *= 1 + Economy.monopolyMarkup(settlement, good.id, world ? world.day : null);
+        price *= Coinage.priceMultiplier(world, settlement); // debased coin (world/coinage.js; 1 when pure)
 
         return price;
     },

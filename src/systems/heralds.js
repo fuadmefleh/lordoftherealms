@@ -149,7 +149,7 @@ export const Heralds = {
 
     /** Keys of the day-stamped records Heralds reads: [{ key, day, ... }] per kind. */
     _records(player) {
-        const out = { sagas: [], sieges: [], holdings: [], lairs: [] };
+        const out = { sagas: [], sieges: [], holdings: [], lairs: [], finance: [] };
         for (const s of (player && player.sagas && Array.isArray(player.sagas.done)) ? player.sagas.done : []) {
             if (s && s.ended) out.sagas.push({ key: `saga:${s.uid}`, day: _num(s.ended.day), s });
         }
@@ -163,6 +163,10 @@ export const Heralds = {
         for (const h of (player && player.outlawLairs && Array.isArray(player.outlawLairs.history)) ? player.outlawLairs.history : []) {
             if (h && h.key) out.lairs.push({ key: h.key, day: _num(h.day), h });
         }
+        // Banks failed, crowns defaulted, coin debased (systems/finance.js)
+        for (const h of (player && player.finance && Array.isArray(player.finance.history)) ? player.finance.history : []) {
+            if (h && h.key) out.finance.push({ key: h.key, day: _num(h.day), h });
+        }
         return out;
     },
 
@@ -175,7 +179,7 @@ export const Heralds = {
             if (s && s.discovered) st.seen[`d:${s.id}`] = true;
         }
         const rec = Heralds._records(player);
-        for (const x of [...rec.sagas, ...rec.sieges, ...rec.holdings, ...rec.lairs]) st.seen[x.key] = x.day;
+        for (const x of [...rec.sagas, ...rec.sieges, ...rec.holdings, ...rec.lairs, ...rec.finance]) st.seen[x.key] = x.day;
     },
 
     _capital(world, k) {
@@ -332,6 +336,21 @@ export const Heralds = {
             if (!kind) continue;
             Heralds._proclaim(st, world, kind, { place: h.name, leader: h.leader || 'the chief', by: h.by || 'the wardens', kingdom: h.kingdom || 'the realm' },
                 { q: h.q, r: h.r }, { kingdomId: h.kingdomId, own: !!h.own });
+        }
+
+        // Money: a banking house failed, a crown repudiated its debts, a mint clipped its coin
+        const FIN = { bank_failed: 'bank_failed', crown_default: 'crown_default', debased: 'coin_debased' };
+        for (const x of rec.finance.filter(fresh)) {
+            st.seen[x.key] = x.day;
+            const h = x.h;
+            const kind = FIN[h.kind];
+            if (!kind) continue;
+            const k = _kingdom(world, h.kingdomId);
+            const at = h.kind === 'bank_failed' ? Heralds._placeByName(world, h.place) : Heralds._capital(world, k);
+            Heralds._proclaim(st, world, kind, {
+                bank: h.bank || 'a banking house', place: h.place || (k ? k.name : 'the city'), kingdom: h.kingdom || (k ? k.name : 'the realm'),
+                purity: h.purity != null ? Math.round(h.purity * 100) : 90,
+            }, at, { kingdomId: h.kingdomId != null ? h.kingdomId : null });
         }
 
         st.snapshot = now;

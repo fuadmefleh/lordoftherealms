@@ -28,6 +28,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
 import { Seasons } from './seasons.js';
 import { WorldEvents } from './worldEvents.js';
+import { Coinage } from './coinage.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -411,7 +412,8 @@ export const SettlementMarket = {
         return base * SettlementMarket.scarcity(settlement, goodId, level)
             * Seasons.priceMultiplier(goodId, Seasons.today(world))
             * SettlementMarket.coldFactor(world, tile, goodId)
-            * SettlementMarket.eventFactor(world, tile, goodId);
+            * SettlementMarket.eventFactor(world, tile, goodId)
+            * Coinage.priceMultiplier(world, settlement); // a debased coin buys less (world/coinage.js)
     },
 
     /**

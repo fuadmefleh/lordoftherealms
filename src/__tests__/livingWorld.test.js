@@ -102,6 +102,7 @@ describe('chatter data', () => {
             proclamations: [{ kind: 'peace', text: 'Peace!' }],
             deeds: [{ type: 'sack', place: 'Brindle', victim: 'Kael' }],
             outlaws: { name: 'Crowmoor Camp', leader: 'Captain Hask the Red' },
+            money: [{ kind: 'debased' }, { kind: 'bank', bank: 'The Medrano Counting House' }, { kind: 'bank_run', bank: 'The Medrano Counting House' }, { kind: 'bank_failed', bank: 'The Aurelian Bank' }],
         };
         for (const g of Chatter.groups()) {
             for (const line of g.lines) {

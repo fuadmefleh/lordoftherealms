@@ -29,6 +29,7 @@ import { HoldingSieges } from './holdingSieges.js';
 import { Discovery } from './discovery.js';
 import { Heralds } from './heralds.js';
 import { OutlawLairs } from './outlawLairs.js';
+import { Finance } from './finance.js';
 import { MerchantHouses } from './merchantHouses.js';
 import { Patronage } from './patronage.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
@@ -232,7 +233,9 @@ export const SaveLoad = {
                 // Recomputed during the day, but read before that on the first day after a load
                 'characterBonuses', 'lordModifiers', 'playerFaith',
                 // Wonders the realm has raised (systems/patronage.js; read by its stability)
-                'greatWorks']),
+                'greatWorks',
+                // The crown's debts, coin purity, levy and defaults (systems/finance.js, world/coinage.js)
+                'finance']),
             ...(k.createdByPlayer ? {
                 foundedDay: k.foundedDay,
                 colorLight: k.colorLight,
@@ -435,6 +438,8 @@ export const SaveLoad = {
             patronage: Patronage.serialize(player),
             // Outlaw lairs: strongholds, their leaders, parties, hoards, bargains; realm expeditions (systems/outlawLairs.js)
             outlawLairs: OutlawLairs.serialize(player),
+            // Banks, Credit & Coin: the banking houses, deposits, loans, royal bonds, credit history (systems/finance.js)
+            finance: Finance.serialize(player),
         };
     },
 
@@ -676,6 +681,9 @@ export const SaveLoad = {
         Patronage.loadState(player);
         // Outlaw lairs — older saves get a blank record (lairs take root on the next tick)
         OutlawLairs.loadState(player);
+        // Banks, Credit & Coin — older saves get a blank record and their banking
+        // houses; loans from the old royal banks (player.loans) are folded in
+        Finance.loadState(player, world);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

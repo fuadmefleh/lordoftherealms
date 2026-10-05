@@ -15,6 +15,7 @@ export { Culture } from '../../systems/culture.js';
 export { Quests } from '../../systems/quests.js';
 export { Technology } from '../../systems/technology.js';
 export { Banking, MarketDynamics, Taxation } from '../../systems/marketDynamics.js';
+export { Finance } from '../../systems/finance.js';
 export { Hex } from '../../core/hex.js';
 export { SaveLoad } from '../../systems/saveLoad.js';
 export { audioManager } from '../../systems/audio.js';

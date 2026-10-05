@@ -49,6 +49,7 @@ import { BountyHunting } from './bountyHunting.js';
 import { Holdings } from './holdings.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { Patronage } from './patronage.js';
+import { Finance } from './finance.js';
 
 export const GROUPS = ['threat', 'opportunity', 'goal'];
 export const SEVERITIES = { critical: 3, warning: 2, notice: 1, info: 0 };
@@ -893,3 +894,68 @@ R.legacy = (ctx) => {
     }];
 };
 
+// ── BANKS, CREDIT & COIN (systems/finance.js) ─────────────────
+
+/** Loans overdue: what comes next (bailiffs, seizure, default) and when. */
+R.loanDefault = (ctx) => {
+    const NEXT = { bailiffs: 'bailiffs take your goods', seizure: 'your collateral is seized', default: 'you are declared a defaulter' };
+    return Finance.atRisk(ctx.player, ctx.world).map(r => ({
+        key: `loan:${r.loan.id}`, lender: r.lender, overdue: r.overdue, owed: Math.ceil(_num(r.loan.totalOwed)),
+        next: NEXT[r.next] || r.next, when: r.inDays <= 0 ? 'any day now' : `in ${r.inDays} day${r.inDays === 1 ? '' : 's'}`,
+        severity: (r.next === 'default' || r.inDays <= 3) ? 'critical' : 'warning', boost: r.overdue,
+    }));
+};
+
+/** Gold running short of the loans' daily payments (not yet missed). */
+R.loanDue = (ctx, p) => {
+    const st = _obj(ctx.player.finance);
+    const loans = _arr(st && st.loans);
+    if (!loans.length || loans.some(l => _num(l.overdue) > 0)) return [];
+    const due = loans.reduce((s, l) => s + _num(l.dailyPayment), 0);
+    const days = due > 0 ? Math.floor(_num(ctx.player.gold) / due) : Infinity;
+    if (days > _num(p.warnDays, 5)) return [];
+    return [{ key: 'loanDue', due, gold: Math.floor(_num(ctx.player.gold)), days, severity: days <= 1 ? 'warning' : 'notice' }];
+};
+
+/** Your deposits in a house that is being run on or running dry. */
+R.bankRisk = (ctx, p) => {
+    const st = _obj(ctx.player.finance);
+    if (!st) return [];
+    const out = [];
+    for (const [id, a] of Object.entries(_obj(st.accounts) || {})) {
+        const b = _arr(st.banks).find(x => x && x.id === id);
+        const amount = Math.floor(_num(a && a.balance));
+        if (!b || b.status !== 'open' || amount <= 0) continue;
+        const run = Finance.inPanic(b, ctx.day);
+        const low = Finance.reserveRatio(b) < _num(p.lowReserve, 0.45);
+        if (!run && !low) continue;
+        out.push({ key: `bank:${id}`, q: b.q, r: b.r, bank: b.name, amount, why: run ? 'depositors are running on it' : 'its vaults are running low', severity: run ? 'warning' : 'notice' });
+    }
+    return out;
+};
+
+/** Royal bonds with a crown in trouble. */
+R.bondRisk = (ctx, p) => {
+    const st = _obj(ctx.player.finance);
+    const out = [];
+    for (const b of _arr(st && st.bonds)) {
+        const k = ctx.world && ctx.world.getKingdom ? ctx.world.getKingdom(b.kingdomId) : null;
+        const f = k && _obj(k.finance);
+        if (!f) continue;
+        const ratio = _num(f.debtRatio);
+        if (ratio < _num(p.ratio, 0.8) && !_num(b.missed)) continue;
+        out.push({ key: `bond:${b.id}`, realm: k.name, amount: Math.floor(_num(b.principal)), why: _num(b.missed) ? 'has missed payments to you' : `owes ${Math.round(ratio * 100)}% of what it can carry`, severity: 'notice' });
+    }
+    return out;
+};
+
+/** A defaulter is wanted for the debtors' prison in a realm. */
+R.debtWarrant = (ctx) => {
+    const st = _obj(ctx.player.finance);
+    const out = [];
+    for (const [kid, w] of Object.entries(_obj(st && st.wanted) || {})) {
+        const k = ctx.world && ctx.world.getKingdom ? ctx.world.getKingdom(kid) : null;
+        out.push({ key: `wanted:${kid}`, realm: k ? k.name : kid, amount: Math.ceil(_num(w && w.amount)) });
+    }
+    return out;
+};

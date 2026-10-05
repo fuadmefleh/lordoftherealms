@@ -28,12 +28,14 @@
         "priority": {
             "coronation": 9, "realm_fallen": 10, "realm_restored": 8, "peace": 7, "war": 6,
             "saga_end": 6, "revolt": 8, "revolt_end": 7, "rebellion": 5, "discovery": 5,
-            "siege_won": 6, "siege_lost": 7, "wonder": 7, "wonder_begun": 4, "lair_cleared": 5, "lair_risen": 5
+            "siege_won": 6, "siege_lost": 7, "wonder": 7, "wonder_begun": 4, "lair_cleared": 5, "lair_risen": 5,
+            "bank_failed": 6, "crown_default": 7, "coin_debased": 5
         },
         "icons": {
             "coronation": "👑", "realm_fallen": "🏴", "realm_restored": "🚩", "peace": "🕊️", "war": "⚔️",
             "saga_end": "📜", "revolt": "🔥", "revolt_end": "🛡️", "rebellion": "🔥", "discovery": "🗺️",
-            "siege_won": "🏰", "siege_lost": "🏳️", "wonder": "🏛️", "wonder_begun": "🏗️", "lair_cleared": "🛡️", "lair_risen": "🏕️"
+            "siege_won": "🏰", "siege_lost": "🏳️", "wonder": "🏛️", "wonder_begun": "🏗️", "lair_cleared": "🛡️", "lair_risen": "🏕️",
+            "bank_failed": "🏚️", "crown_default": "📛", "coin_debased": "💱"
         },
         "templates": {
             "coronation": [
@@ -101,6 +103,18 @@
             "lair_risen": [
                 "Beware! The outlaws of {place} under {leader} terrorise the country of {kingdom}. Travel in company.",
                 "A price is cried on {leader} of {place}, whose riders burn the villages of {kingdom}."
+            ],
+            "bank_failed": [
+                "Hear ye! {bank} of {place} has shut its doors. Depositors are bidden to the receivers.",
+                "{bank} is broken! The strongrooms of {place} stand empty, and many a purse with them."
+            ],
+            "crown_default": [
+                "Hear ye! The crown of {kingdom} will not pay its creditors. The bankers weep and the realm trembles.",
+                "By order of the crown, the debts of {kingdom} are repudiated. Let lenders beware."
+            ],
+            "coin_debased": [
+                "Know all: the mint of {kingdom} strikes new coin of {purity} parts silver in the hundred. Prices rise in every market.",
+                "The coin of {kingdom} is clipped and thinned. Merchants weigh it twice and ask for more."
             ]
         }
     },
@@ -391,6 +405,36 @@
         { "id": "outlaws_merchant", "when": { "outlaws": true, "occupation": ["merchant", "traveler"] }, "weight": 3, "lines": [
             "Lost two wagons on the road past {lair}. I pay guards now, and the guards cost more than the goods.",
             "Go round {lair} if you value your purse. {leader} takes a toll in coin or in blood."
+        ]},
+
+        { "id": "money_debased", "when": { "money": ["debased"] }, "weight": 2, "lines": [
+            "Bite the new coin and your teeth go through it. The crown's clipped it again.",
+            "Bread costs a third more than last year, and the baker swears it isn't his fault. It's the coin.",
+            "My grandmother's silver penny buys twice what the new ones do. I keep it under the floor."
+        ]},
+        { "id": "money_debased_merchant", "when": { "money": ["debased"], "occupation": ["merchant", "traveler"] }, "weight": 3, "lines": [
+            "I weigh every coin from {kingdom} twice now, and still lose on the exchange.",
+            "Prices in {settlement} are up, but so is everything I pay. Base coin makes fools of us all."
+        ]},
+        { "id": "money_levy", "when": { "money": ["levy"] }, "weight": 2, "lines": [
+            "Another levy! The tax men took my second cow for the crown's war debts.",
+            "They say {ruler} owes the bankers more than the realm earns in a season. And who pays? We do."
+        ]},
+        { "id": "money_default", "when": { "money": ["default"] }, "weight": 2, "lines": [
+            "The crown told the bankers it won't pay. Bold. Now nobody will lend to {kingdom} for a generation.",
+            "When kings don't pay their debts, why should anyone pay theirs? Mind you, the bailiffs still come for ours."
+        ]},
+        { "id": "money_bank_run", "when": { "money": ["bank_run"] }, "weight": 3, "lines": [
+            "There's a crowd at the doors of {bank} since dawn, all waving their notes. I got out what I could.",
+            "They say {bank} can't pay out. If you've coin there, run, don't walk."
+        ]},
+        { "id": "money_bank_failed", "when": { "money": ["bank_failed"] }, "weight": 3, "lines": [
+            "{bank} is broken. My savings with it. Thirty years at the loom, gone like smoke.",
+            "The receivers of {bank} pay a third of what's owed, they say, and take a year to do it."
+        ]},
+        { "id": "money_bank", "when": { "money": ["bank"], "occupation": ["merchant", "noble", "traveler"] }, "weight": 1, "lines": [
+            "{bank} lends to kings and cobblers alike, at a price. Mind you pay it back. Their bailiffs don't knock twice.",
+            "Put your coin with {bank} if you've more than you can carry. Safer than under the bed, mostly."
         ]},
 
         { "id": "saga_any", "when": { "saga": true }, "weight": 2, "lines": [

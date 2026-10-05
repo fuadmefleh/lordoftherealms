@@ -52,6 +52,7 @@ export const COUNSEL_PANELS = {
     bounties: { label: 'Bounties', settlement: true, open: (g) => ActionMenu.showBountyBoardMenu(g, _here(g)) },
     house: { label: 'House', open: (g) => ActionMenu.showHousePanel(g, _here(g)) },
     patronage: { label: 'Patronage', open: (g) => ActionMenu.showPatronage(g, _here(g)) },
+    bank: { label: 'Bank', open: (g) => ActionMenu.showBank(g, _here(g)) },
     child: { label: 'Heir', open: (g, item) => ActionMenu.showChildPanel(g, item.action.arg) },
     tournament: { label: 'Tournament', settlement: true, open: (g) => ActionMenu.showTournamentMenu(g, _here(g)) },
     holding: { label: 'Holding', open: (g, item) => ActionMenu.showHoldingPanel(g, item && item.action.q !== null ? g.world.getTile(item.action.q, item.action.r) : _here(g)) },

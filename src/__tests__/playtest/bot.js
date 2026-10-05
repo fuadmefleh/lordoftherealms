@@ -39,6 +39,7 @@ import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { Quests } from '../../systems/quests.js';
 import { Patronage } from '../../systems/patronage.js';
 import { OutlawLairs } from '../../systems/outlawLairs.js';
+import { Finance } from '../../systems/finance.js';
 import { travelTo } from './harness.js';
 
 const FOOD = ['grain', 'bread'];
@@ -574,6 +575,30 @@ function patronage(game, tile, stats) {
     }
 }
 
+/** Banks, Credit & Coin: park surplus gold, borrow now and then, buy a royal bond when rich. */
+function banking(game, tile, stats) {
+    const { player, world } = game;
+    const st = Finance.state(player);
+    // Pay off a loan early once flush
+    for (const l of st.loans.slice()) {
+        if (player.gold > Math.ceil(l.totalOwed) * 3 && Finance.repayLoan(player, world, l.id).success) count(stats, 'loansRepaid');
+    }
+    const here = Finance.banksAt(player, world, tile);
+    if (!here.length) return;
+    const bank = here[0];
+    const acct = st.accounts[bank.id];
+    if (player.gold > 9000 && Finance.deposit(player, world, bank.id, 2000).success) count(stats, 'deposits');
+    else if (player.gold < 300 && acct && acct.balance >= 100 && Finance.withdraw(player, world, bank.id, 500).success) count(stats, 'withdrawals');
+    if (!st.loans.length && Utils.random() < 0.05) {
+        const offer = Finance.loanOffers(player, world, bank.id).filter(o => o.available).pop();
+        if (offer && Finance.takeLoan(player, world, bank.id, offer.id).success) count(stats, `loan_${offer.id}`);
+    }
+    if (player.gold > 12000 && Utils.random() < 0.05) {
+        const o = Finance.bondOffers(player, world).find(x => x.room >= 1000);
+        if (o && Finance.buyBond(player, world, o.kingdomId, 1000).success) count(stats, 'bondsBought');
+    }
+}
+
 function settlementBusiness(game, stats) {
     const { player, world } = game;
     const tile = world.getTile(player.q, player.r);
@@ -593,6 +618,7 @@ function settlementBusiness(game, stats) {
     booked(game, 'heist', () => heist(game, tile, stats));
     booked(game, 'company', () => company(game, tile, stats));
     booked(game, 'patronage', () => patronage(game, tile, stats));
+    booked(game, 'banking', () => banking(game, tile, stats));
 }
 
 // ── Out in the world ─────────────────────────────────────────

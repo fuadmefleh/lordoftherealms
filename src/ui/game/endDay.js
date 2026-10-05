@@ -20,6 +20,7 @@ import { Chatter } from '../../systems/chatter.js';
 import { Heralds } from '../../systems/heralds.js';
 import { Patronage } from '../../systems/patronage.js';
 import { OutlawLairs } from '../../systems/outlawLairs.js';
+import { Finance } from '../../systems/finance.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 
@@ -635,18 +636,14 @@ export function endDay() {
                 }
             }
 
-            // Process loans
-            const loanResults = Banking.processLoans(this.player, this.world);
-            if (loanResults.paid > 0) {
-                this.ui.showNotification('Loan Payment', `-${loanResults.paid} gold`, 'default');
+            // Banks, Credit & Coin — deposit interest, loan payments and what a
+            // missed one brings, bond coupons, the crowns' debts and coin, panics
+            // (systems/finance.js; runs the loans the old Banking.processLoans did)
+            const financeDay = Finance.processDay(this.world, this.player);
+            if (financeDay.paid > 0) {
+                this.ui.showNotification('Loan Payment', `-${financeDay.paid} gold`, 'default');
             }
-            for (const defaulted of loanResults.defaulted) {
-                if (defaulted.seizedProperty) {
-                    this.ui.showNotification('Property Seized!', `Couldn't pay loan - property confiscated!`, 'error');
-                } else {
-                    this.ui.showNotification('Loan Default', `Missed payment! +5% penalty`, 'error');
-                }
-            }
+            for (const n of financeDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Collect taxes (every 7 days)
             let taxCollected = 0;
@@ -983,7 +980,7 @@ export function endDay() {
             if (playerResults.upkeepCost > 0) dayFinance.expenses.armyUpkeep = playerResults.upkeepCost;
             if (holdingsDay.upkeep > 0) dayFinance.expenses.holdings = holdingsDay.upkeep;
             if (playerResults.mercenaryWages > 0) dayFinance.expenses.mercenaryWages = playerResults.mercenaryWages;
-            if (loanResults && loanResults.paid > 0) dayFinance.expenses.loanPayments = loanResults.paid;
+            if (financeDay && financeDay.paid > 0) dayFinance.expenses.loanPayments = financeDay.paid;
             if (typeof Tavern !== 'undefined' && intelResult && intelResult.cost > 0) dayFinance.expenses.informants = intelResult.cost;
 
             // Property upkeep (calculated from properties)

@@ -404,7 +404,13 @@ describe('save and load', () => {
         expect(saga).toBeTruthy();
         // The idle test player is no fighter; keep it alive so the story is what's tested
         // (world units now survive the load, so the raiders that ambushed it stay close)
-        const keepAlive = (g) => { g.player.health = g.player.maxHealth || 100; };
+        // (and fed: how soon an idle player starves depends on the whole world's run)
+        const keepAlive = (g) => {
+            g.player.health = g.player.maxHealth || 100;
+            g.player.starvationDays = 0;
+            g.player.inventory = g.player.inventory || {};
+            g.player.inventory.food = Math.max(g.player.inventory.food || 0, 20);
+        };
         for (let i = 0; i < 15; i++) { keepAlive(game); endDay(game); }
         const g2 = roundTrip(game);
         expect(Sagas.serialize(g2.player)).toEqual(Sagas.serialize(p));

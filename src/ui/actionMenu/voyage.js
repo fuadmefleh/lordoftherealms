@@ -56,8 +56,8 @@ export function heaveTo(game) {
     game.ui.updateStats(game.player, game.world);
 }
 
-/** Start a voyage from the Sail To menu, optionally victualling first. */
-export function beginVoyage(game, shipId, destQ, destR, destName, victualDays = 0) {
+/** Start a voyage from the Sail To menu, optionally victualling first (`start` overrides how she sets out). */
+export function beginVoyage(game, shipId, destQ, destR, destName, victualDays = 0, start = null) {
     const player = game.player;
     const world = game.world;
     if (victualDays > 0) {
@@ -68,7 +68,8 @@ export function beginVoyage(game, shipId, destQ, destR, destName, victualDays = 
             game.ui.showNotification(bought.success ? '🍞 Provisioned' : 'Provisions', bought.message, bought.success ? 'success' : 'warning');
         }
     }
-    const result = Ships.startVoyage(player, world, shipId, destQ, destR, destName);
+    // `start` sets out some other way — an expedition (systems/discovery.js)
+    const result = start ? start() : Ships.startVoyage(player, world, shipId, destQ, destR, destName);
     if (!result.success) {
         game.ui.showNotification('Cannot Sail', result.message, 'error');
         return;

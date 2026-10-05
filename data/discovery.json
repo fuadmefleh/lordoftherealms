@@ -1,0 +1,333 @@
+{
+  "_comment": "Uncharted lands (src/systems/discovery.js): remote islands, hidden coves, lost valleys and sunken reefs chosen lazily from the generated map by a hash of the world seed; how they are found, named, sold, settled and contested; the exotic goods found there (merged into playerEconomy GOODS at load, never stocked by any market).",
+  "config": {
+    "minDay": 1,
+    "minSpacing": 6,
+    "islandMaxRegion": 45,
+    "walkFindRadius": 2,
+    "sightRadius": 5,
+    "openSeaDistance": 5,
+    "sighting": {
+      "base": 0.25,
+      "openSea": 0.2,
+      "hinted": 0.3,
+      "shipExploration": 0.03
+    },
+    "exploreOcean": {
+      "radius": 16,
+      "base": 0.35,
+      "hinted": 0.35,
+      "perLeague": 0.015
+    },
+    "expedition": {
+      "maxLeagues": 45,
+      "openSeaMin": 8,
+      "victualDays": 3
+    },
+    "namingDays": 3,
+    "renown": {
+      "island": 12,
+      "cove": 8,
+      "valley": 10,
+      "reef": 8
+    },
+    "prestige": {
+      "island": 6,
+      "cove": 4,
+      "valley": 5,
+      "reef": 4
+    },
+    "rumour": {
+      "chance": 0.35,
+      "radius": 30,
+      "blur": 4,
+      "hintRadius": 5
+    },
+    "maps": {
+      "ancient": 0.5,
+      "treasure": 0.25
+    },
+    "rivals": {
+      "startDay": 30,
+      "dailyChance": 0.02,
+      "renown": [
+        4,
+        9
+      ]
+    },
+    "stock": {
+      "max": 6,
+      "regenDays": 4,
+      "claimedMax": 16,
+      "claimedRegenDays": 1,
+      "gatherMax": 4,
+      "skimChance": 0.08
+    },
+    "archive": {
+      "base": {
+        "island": 260,
+        "cove": 160,
+        "valley": 200,
+        "reef": 150
+      },
+      "perFeature": 0.25,
+      "secondHand": 0.5,
+      "reputation": 3
+    },
+    "claim": {
+      "colonyRadius": 3,
+      "kingdomClaimChance": 0.006,
+      "poachReputation": 2
+    },
+    "contest": {
+      "chance": 0.008,
+      "days": 20,
+      "tribute": [
+        250,
+        600
+      ],
+      "fleetShare": 0.5,
+      "minFleet": 15,
+      "winRenown": 10,
+      "loseReputation": 10
+    },
+    "hazards": {
+      "reefDamage": [
+        6,
+        16
+      ],
+      "reefChartedSafe": true,
+      "stormDamage": [
+        3,
+        9
+      ],
+      "stormChance": 0.3,
+      "diseaseChance": 0.35
+    },
+    "salvage": {
+      "gold": [
+        40,
+        160
+      ]
+    }
+  },
+  "kinds": {
+    "island": {
+      "label": "Remote Island",
+      "icon": "🏝️",
+      "count": 4,
+      "minSettlementDistance": 5,
+      "goods": [
+        "ambergris",
+        "cloudpepper",
+        "sea_silk"
+      ],
+      "nativesChance": 0.5,
+      "ruinsChance": 0.4,
+      "hazards": {
+        "storms": 0.5,
+        "disease": 0.25
+      },
+      "names": [
+        "Isle of {noun}s",
+        "{noun} Isle",
+        "{adj} Key",
+        "{finder}'s Isle",
+        "The {adj} Atoll"
+      ]
+    },
+    "cove": {
+      "label": "Hidden Cove",
+      "icon": "🌊",
+      "count": 4,
+      "minSettlementDistance": 5,
+      "goods": [
+        "pearls",
+        "sea_silk"
+      ],
+      "nativesChance": 0.35,
+      "ruinsChance": 0.35,
+      "hazards": {
+        "storms": 0.25,
+        "disease": 0.15
+      },
+      "names": [
+        "{adj} Cove",
+        "{noun} Cove",
+        "{finder}'s Haven",
+        "Cove of {noun}s",
+        "{adj} Inlet"
+      ]
+    },
+    "valley": {
+      "label": "Lost Valley",
+      "icon": "⛰️",
+      "count": 3,
+      "minSettlementDistance": 5,
+      "goods": [
+        "ghost_orchid",
+        "golden_amber",
+        "cloudpepper"
+      ],
+      "nativesChance": 0.45,
+      "ruinsChance": 0.55,
+      "hazards": {
+        "disease": 0.5
+      },
+      "names": [
+        "{adj} Vale",
+        "Valley of {noun}s",
+        "{finder}'s Hollow",
+        "The {adj} Glen",
+        "{noun}deep"
+      ]
+    },
+    "reef": {
+      "label": "Sunken Reef",
+      "icon": "🐚",
+      "count": 3,
+      "minSettlementDistance": 6,
+      "goods": [
+        "pearls",
+        "blue_coral",
+        "ambergris"
+      ],
+      "nativesChance": 0,
+      "ruinsChance": 0.6,
+      "hazards": {
+        "reef": 1,
+        "storms": 0.3
+      },
+      "names": [
+        "{adj} Reef",
+        "{noun} Shoals",
+        "{finder}'s Reef",
+        "The {adj} Bank",
+        "Reef of {noun}s"
+      ]
+    }
+  },
+  "nameParts": {
+    "adj": [
+      "Amber",
+      "Silent",
+      "Hidden",
+      "Verdant",
+      "Whispering",
+      "Sunken",
+      "Forgotten",
+      "Golden",
+      "Misty",
+      "Coral",
+      "Emerald",
+      "Lantern",
+      "Weeping",
+      "Starlit",
+      "Drowned",
+      "Hollow",
+      "Sapphire",
+      "Thunder"
+    ],
+    "noun": [
+      "Gull",
+      "Pearl",
+      "Serpent",
+      "Lantern",
+      "Orchid",
+      "Storm",
+      "Heron",
+      "Wreck",
+      "Siren",
+      "Turtle",
+      "Moon",
+      "Ember",
+      "Cormorant",
+      "Whale",
+      "Bell",
+      "Crown"
+    ]
+  },
+  "goods": [
+    {
+      "id": "ambergris",
+      "name": "Ambergris",
+      "icon": "🐋",
+      "basePrice": 140,
+      "exotic": true,
+      "description": "Grey treasure of the whale roads, worth its weight in silver to perfumers."
+    },
+    {
+      "id": "pearls",
+      "name": "Pearls",
+      "icon": "⚪",
+      "basePrice": 120,
+      "exotic": true,
+      "description": "Lustrous pearls from untouched oyster beds."
+    },
+    {
+      "id": "sea_silk",
+      "name": "Sea Silk",
+      "icon": "🧵",
+      "basePrice": 110,
+      "exotic": true,
+      "description": "Golden thread spun from the beards of giant shellfish."
+    },
+    {
+      "id": "cloudpepper",
+      "name": "Cloudpepper",
+      "icon": "🌶️",
+      "basePrice": 95,
+      "exotic": true,
+      "description": "A fiery spice that grows nowhere on any known shore."
+    },
+    {
+      "id": "blue_coral",
+      "name": "Blue Coral",
+      "icon": "💠",
+      "basePrice": 100,
+      "exotic": true,
+      "description": "Coral the colour of deep water, prized by jewellers."
+    },
+    {
+      "id": "ghost_orchid",
+      "name": "Ghost Orchid",
+      "icon": "🌸",
+      "basePrice": 130,
+      "exotic": true,
+      "description": "A pale orchid from hidden valleys; physicians and princes pay dearly."
+    },
+    {
+      "id": "golden_amber",
+      "name": "Golden Amber",
+      "icon": "🟠",
+      "basePrice": 115,
+      "exotic": true,
+      "description": "Amber holding the insects of a vanished age."
+    }
+  ],
+  "natives": {
+    "island": [
+      "tidecallers",
+      "sailweavers",
+      "reefbuilders",
+      "deepdivers"
+    ],
+    "cove": [
+      "tidecallers",
+      "deepdivers",
+      "sailweavers"
+    ],
+    "valley": [
+      "skyherders",
+      "runespeakers",
+      "mosswalkers",
+      "dreamweavers"
+    ]
+  },
+  "rumours": [
+    "Fishermen in {town} swear they saw birds of a kind no one knows, flying out of the {dir}.",
+    "A drunk sailor in {town} talks of a {kind} somewhere to the {dir}, about {leagues} leagues off.",
+    "An old trapper in {town} claims there is a {kind} beyond the wild country to the {dir}.",
+    "Driftwood carved by unknown hands washes up near {town}. It comes from the {dir}."
+  ]
+}

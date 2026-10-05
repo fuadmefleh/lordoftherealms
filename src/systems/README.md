@@ -15,6 +15,7 @@ World simulation systems. Each system manages a distinct aspect of the game worl
 | `councils.js` | ~412 | Parliament voting — taxes, war declarations, faction management |
 | `culture.js` | — | Cultural spread, assimilation, hybrid traditions |
 | `delves.js` | ~880 | Delves into ruins and caves: 3–6 chambers per kind (sunken/tomb/ruins/mine/cave) from `data/delves.json`, choices tested by stats/skills/gear/companions/traits, depth-scaled loot through the inventory cap, fragments, lore, injuries, a cursed idol and awakened guardians; `processDay(world, player)` |
+| `discovery.js` | ~1270 | Uncharted lands: remote islands, hidden coves, lost valleys and sunken reefs picked lazily from the generated map by a seed hash (no RNG, no world-gen change); found at sea (sightings from `processDay`, expeditions that end in open sea via `startExpedition`), by `exploreOcean` (wraps Ships'), on foot, from tavern rumours (`tavernRumors`) and ancient/treasure maps (`chartFromMap`, from `Cartography.applyMap`), or first by rivals; naming (renown, Prestige, House chronicle), exotic goods (`data/discovery.json` → goods, merged into GOODS, stocked by no market), natives, ruins (delve sites), hazards, archive sales, colonies and naval contests; state on `player.discovery`; `processDay(world, player)` |
 | `espionage.js` | — | Spy networks, sabotage, counterintelligence |
 | `festivals.js` | — | Festival hosting, contests, diplomatic events |
 | `gossip.js` | — | Settlement gossip propagation |

@@ -2,6 +2,7 @@
 import { Cartography } from './_ref.js';
 import { Utils, Hex, KingdomAtlas } from './_imports.js';
 import { Quests } from '../quests.js';
+import { Discovery } from '../discovery.js';
 
 Object.assign(Cartography, {
     // ── Map Reading / Applying ─────────────────
@@ -96,8 +97,11 @@ Object.assign(Cartography, {
             ? { planted: 0, spotted: 0 }
             : Cartography.plantDeceptions(player, map, world);
 
+        // Ancient and treasure maps can mark an uncharted place (systems/discovery.js)
+        const discovery = Discovery.chartFromMap(player, world, map);
+
         return {
-            tilesRevealed, accuracy,
+            tilesRevealed, accuracy, discovery,
             hasErrors: (map.deliberateErrors || []).length > 0,
             deceptionsPlanted: deceit.planted,
             deceptionsSpotted: deceit.spotted,

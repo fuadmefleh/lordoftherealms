@@ -80,6 +80,8 @@ Object.assign(Renderer.prototype, {
 
         // What your (possibly doctored) maps claim about unseen land
         this.renderMapDeceptions(ctx);
+        // Uncharted places you have found or heard of (systems/discovery.js)
+        this.renderDiscoveries(ctx);
 
         // Render units
         this.renderUnits(ctx);

@@ -1437,6 +1437,8 @@ If you steer off the route by hand, the ship plots a new one from wherever you a
 
 **Board & Take the Helm** still lets you sail by hand, hex by hex, using stamina.
 
+**Expeditions** (in the same Voyage menu) sail toward a rumoured or charted uncharted place, or out into open sea far from every port, and end at sea with you at the helm (see [Uncharted Lands](#uncharted-lands)).
+
 ### Events at Sea
 
 On each day of a voyage there is a 30% chance of an event. Each offers choices; an event left unanswered takes its default choice the next day. Events tie into morale, crew, cargo, provisions, hull, gold, renown, karma, traits and the underworld:
@@ -1506,6 +1508,42 @@ The squadron is about 30% of the realm's fleet (6–60 strength). Your ship figh
 
 - **Win:** +2 renown, a few sailors may be lost, and the realm's fleet loses half the squadron. Against a realm at war with you, you also gain +10 war score.
 - **Lose:** the hull takes 8–20% damage, 10–25% of the crew is lost, and the squadron seizes 30% of every good in the hold.
+
+### Uncharted Lands
+
+The map is generated whole at the start, but a few places in it are on **no map**: remote islands, hidden coves, lost valleys behind high ground, and sunken reefs. On the first day the game picks them from the map itself: unclaimed islands and coasts far from any town, and unexplored valleys ringed by hills and mountains. About a dozen are hidden, and the same world always hides the same places. Until someone finds a place it doesn't show on your map, even if you have sailed past the hex.
+
+**Finding them**
+
+- **At sea.** Each day aboard, a place within **5 leagues** may be sighted (25% a day, +20% in open sea at least 5 leagues from any port, +30% if a rumour or chart points to it; better lookouts and exploration fittings help). Inland valleys can't be seen from the sea.
+- **Expeditions.** From **Board Ship → Voyage**, the **🗺️ Expeditions** list offers voyages toward a rumoured or charted place, or into the **open sea** farthest from every port within 45 leagues. An expedition is a normal voyage (days at sea, rations, events), but it ends **out at sea** with you at the helm instead of in a port.
+- **Explore the Waters** finds the nearest uncharted place within 16 leagues of your ship far more often than random chance would (35%, +35% with a rumour or chart, more the closer it is). Otherwise it rolls the usual sea events.
+- **On foot or aboard, close by.** Coming within **2 hexes** of a place finds it. This is how lost valleys are found.
+- **Tavern notice boards** sometimes carry a rumour of a place within 30 leagues ("a drunk sailor talks of a hidden cove somewhere to the west…"). The rumour shows as a faint ❔ on your map within about 5 leagues of the real spot.
+- **Ancient and treasure maps.** About half of ancient maps and a quarter of treasure maps mark one of these places when you read them. The ❔ then sits on the exact hex.
+- **Rival adventurers** go looking too, from day 30. A rival who finds a place first names it, gains renown, and sells the chart to the nearest realm. You hear the news, and the place appears in your log as theirs.
+
+**Naming and claiming.** Whoever finds a place first names it. You choose from three or four generated names (one carries your family name) in **Journal → Discoveries**. If you don't choose within 3 days, it keeps the first. Finding a place earns renown (8–12), counts toward the Seafaring/Travel and Learning traits, and naming it adds Prestige (4–6) and an entry in the **House chronicle**. Found places are drawn on your map with their names.
+
+**What's there**
+
+| Place | Exotic goods | Often |
+|-------|--------------|-------|
+| 🏝️ Remote Island | Ambergris, Cloudpepper, Sea Silk | natives, ruins, storms |
+| 🌊 Hidden Cove | Pearls, Sea Silk | natives, ruins |
+| ⛰️ Lost Valley | Ghost Orchid, Golden Amber, Cloudpepper | natives, ruins, sickness |
+| 🐚 Sunken Reef | Pearls, Blue Coral, Ambergris | a wreck to salvage, reefs, storms |
+
+- **Exotic goods** (95–140g base) are sold by **no market and no port**. They come only from these places, and any town market buys them at the usual 70% of base. Use **🧺 Gather** in the Discoveries log while standing on the place, or aboard right beside a reef, to take up to 4 of each into your packs once a day (the inventory cap applies). A place holds up to 6 of each and regrows one every 4 days.
+- **Natives:** one of the Peoples (Tidecallers, Reefbuilders, Skyherders and others) living as a tribe on the place. You can trade with them and pay them tribute as with any tribe (see [Colonization](#20-colonization)).
+- **Ruins** become a delve site (sunken halls on beaches and islands, ruins inland). A reef's **wreck** gives 40–160g of salvage to whoever finds it.
+- **Hazards:** an uncharted **reef** may scrape the hull of the ship that finds it (6–16%; charted reefs are safe). **Storms** around a known place may batter a ship that sails within 2 hexes. **Sickness** (the flux, or marsh fever in valleys) may take you the first time you go ashore.
+
+**Selling or keeping the secret.** Standing in a realm's town, city or capital, you can **sell the chart** of a place you found to its Royal Archive: 150–260g by kind, +25% for each good, people or ruin there, halved if another realm already knows of it, and less from an archive that has caught you selling doctored maps. You also gain +3 reputation with that realm. A realm that knows of a place sends its own traders, who take from its stock, and it may **claim** it (a 🚩 in the log). Gathering on a realm's claim costs 2 reputation with that realm. A place you keep secret is yours alone unless a rival stumbles on it.
+
+**Settling.** Standing on a found place, **🏕️ Found a colony here** founds a colony named for it (see [Colonization](#20-colonization)), and any colony of yours within 3 hexes also claims the place. A claimed place is yours alone: no one else takes from it, and its stock grows to 16 of each good, one a day. A realm that knows of the place may **contest** your claim. You can pay its tribute (250–600g) within 20 days, or face its ships. When the 20 days are up, your ships, war galleys and the colony's garrison are matched against about half of that realm's navy. Win, and you gain +10 renown and the realm gives up its claim. Lose, and the colony and the place pass to that realm, and you lose 10 reputation with it.
+
+Tunables live in `data/discovery.json`.
 
 ---
 
@@ -2038,6 +2076,8 @@ You can found colonies on unclaimed wilderness (costs gold). Recruit settlers fr
 | Coastal Tribes | Coast, Beach | Very Low | Very High |
 | Tundra People | Tundra, Snow | Low | Low |
 
+**Uncharted lands.** A colony founded on or within 3 hexes of an island, cove or valley you found claims it. You alone gather its exotic goods, and more of them. Realms that know of the place may contest the claim with their navies (see [Uncharted Lands](#uncharted-lands)).
+
 ### Colonization Policies
 
 | Policy | Expansion | Indigenous Relations | Loyalty | Production |
@@ -2134,7 +2174,7 @@ Visit taverns in cities and settlements to gather intelligence, hire informants,
 | Ask about Military | 50g | War reports, army estimates (cities only, 70% accuracy) |
 | Ask about Sacred Places | 50g | Discover 1–3 holy sites (70% accuracy) |
 | Hire Informant | 200g + 10g/day | Permanent source in this city (95% accuracy) |
-| Check Notice Board | Free | Kingdom decrees, settlement stats, bounties |
+| Check Notice Board | Free | Kingdom decrees, settlement stats, bounties, talk of sagas and of [uncharted lands](#uncharted-lands) |
 | Browse Maps | Free | Open cartography trade panel |
 | Sell Your Soul | Free | 5–10g gold; costs escalating karma and renown |
 
@@ -2411,7 +2451,7 @@ Saga monsters and fleets are named world units. A kingdom patrol cannot bring do
 | Treasure | 3 tiles | Free (found) | Marks buried valuables |
 | Continent | Everything | 5,000g | Entire continent — extremely rare |
 
-Maps can be purchased from wandering cartographers at taverns or found during exploration.
+Maps can be purchased from wandering cartographers at taverns or found during exploration. Reading an **ancient** map (about half of them) or a **treasure** map (about a quarter) may also mark one of the [uncharted lands](#uncharted-lands) on its exact hex.
 
 
 ### Doctored & Propaganda Maps

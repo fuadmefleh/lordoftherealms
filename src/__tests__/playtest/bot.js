@@ -31,6 +31,7 @@ import { Companions } from '../../systems/companions.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Sieges } from '../../systems/sieges.js';
+import { Discovery } from '../../systems/discovery.js';
 import { travelTo } from './harness.js';
 
 const FOOD = ['grain', 'bread'];
@@ -222,7 +223,9 @@ function seaActivity(game, tile, stats) {
         .find(n => n.r >= 0 && n.r < world.height && Ships.isWaterTile(world.getTile(n.q, n.r)));
     if (water) travelTo(game, water.q, water.r);
     const act = Utils.random() < 0.1 ? 'commitPiracy' : Utils.randPick(['exploreOcean', 'huntPirates']);
-    const res = Ships[act](player, ship.id, world);
+    // Exploring can turn up an uncharted place (systems/discovery.js), as in the ship menu
+    const res = act === 'exploreOcean' ? Discovery.exploreOcean(player, ship.id, world) : Ships[act](player, ship.id, world);
+    if (res && res.discovery) count(stats, 'discoveredExploring');
     if (res && res.success) count(stats, `sea_${act}`);
     travelTo(game, tile.q, tile.r);
     if (Ships.disembark(player, world).success) count(stats, 'disembarked');
@@ -265,6 +268,38 @@ function sail(game, tile, stats) {
     const res = Ships.sailPlayerTo(player, ship.id, d.q, d.r, dTile.settlement.name, world);
     if (res.success) { count(stats, 'voyages'); return true; }
     return false;
+}
+
+/**
+ * An expedition from a port (systems/discovery.js): read the notice board
+ * for rumours of uncharted land, victual, and sail for the rumour — or for
+ * the open sea far from every port.
+ */
+function expedition(game, tile, stats) {
+    const { player, world } = game;
+    if (!Ships.isPortTile(world, tile.q, tile.r) || player.gold < 300 || Utils.random() > 0.1) return false;
+    const ship = (player.ships || []).find(s => s.status === 'docked' && s.q === tile.q && s.r === tile.r && !Ships.crewSailReason(s));
+    if (!ship) return false;
+    count(stats, 'discoveryRumours', Discovery.tavernRumors(player, world, tile).length);
+    const targets = Discovery.expeditionTargets(player, world, ship);
+    const t = targets.find(x => x.siteId) || targets.find(x => x.id === 'open');
+    if (!t) return false;
+    const want = Ships.provisionsNeeded(ship, Ships.voyageDays(player, ship, t.leagues) * 2 + 3);
+    if (want > 0 && Ships.buyProvisions(player, world, ship.id, want).success) count(stats, 'provisioned');
+    if (!Discovery.startExpedition(player, world, ship.id, t.id).success) return false;
+    count(stats, 'expeditions');
+    return true;
+}
+
+/** Uncharted lands found: name them, gather their goods, sometimes sell the chart. */
+function discoveries(game, stats) {
+    const { player, world } = game;
+    for (const site of Discovery.sites(player)) {
+        if (site.naming && Discovery.nameSite(player, world, site.id, site.nameOptions[1] || null).success) count(stats, 'discoveriesNamed');
+        if (!Discovery.gatherReason(player, world, site) && Discovery.gather(player, world, site.id).success) count(stats, 'exoticGathered');
+        if (!Discovery.archiveOffer(player, world, site).reason && Utils.random() < 0.3
+            && Discovery.sellToArchive(player, world, site.id).success) count(stats, 'chartsSold');
+    }
 }
 
 /** A day at sea on a voyage: answer any event, sometimes heave to. */
@@ -514,6 +549,8 @@ function family(game, stats) {
 /** One day of the bot's play (before the harness ends the day). */
 export function botDay(game, stats) {
     const { player, world } = game;
+    // Yesterday's finds (Discovery.processDay in the harness's endDay)
+    if (game.discoveryDay && game.discoveryDay.found.length) count(stats, 'discovered', game.discoveryDay.found.length);
     if (player.jailState) {
         if (player.jailState.bailCost && player.gold > player.jailState.bailCost * 3) {
             player.gold -= player.jailState.bailCost;
@@ -538,6 +575,12 @@ export function botDay(game, stats) {
         return;
     }
     if (player.boardedShip) {
+        discoveries(game, stats);
+        // Out at sea after an expedition: search the waters before heading in
+        if (Ships.isWaterTile(world.getTile(player.q, player.r)) && Utils.random() < 0.5) {
+            const res = Discovery.exploreOcean(player, player.boardedShip, world);
+            if (res && res.discovery) count(stats, 'discoveredExploring');
+        }
         const t = world.getTile(player.q, player.r);
         if (t && t.terrain.passable) Ships.disembark(player, world);
         else {
@@ -661,7 +704,9 @@ export function botDay(game, stats) {
     booked(game, 'delve', () => delve(game, stats));
     booked(game, 'fight', () => fight(game, stats));
 
+    booked(game, 'discoveries', () => discoveries(game, stats));
     const tile = world.getTile(player.q, player.r);
+    if (tile && tile.settlement && booked(game, 'expedition', () => expedition(game, tile, stats))) return;
     if (tile && tile.settlement && booked(game, 'sail', () => sail(game, tile, stats))) {
         settlementBusiness(game, stats);
         return;

@@ -24,6 +24,7 @@ import { Holdings } from './holdings.js';
 import { Rivals } from './rivals.js';
 import { Sagas } from './sagas.js';
 import { Sieges } from './sieges.js';
+import { Discovery } from './discovery.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { WorldUnit } from '../world/units.js';
 import { Terrain } from '../world/terrain.js';
@@ -411,6 +412,8 @@ export const SaveLoad = {
             sagas: Sagas.serialize(player),
             // A siege in progress, tribute owed, past sieges (systems/sieges.js)
             sieges: Sieges.serialize(player),
+            // Uncharted lands: the hidden places, who found them, claims (systems/discovery.js)
+            discovery: Discovery.serialize(player),
         };
     },
 
@@ -634,6 +637,8 @@ export const SaveLoad = {
         Sagas.loadState(player);
         // Sieges — older saves get a blank record
         Sieges.loadState(player);
+        // Uncharted lands — older saves get a blank record (the places are chosen next day)
+        Discovery.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

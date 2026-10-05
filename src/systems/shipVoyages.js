@@ -430,6 +430,14 @@ export const VoyageMethods = {
             ship.q = q; ship.r = r;
         }
 
+        // An expedition (systems/discovery.js) ends out at sea, the player at the helm
+        if (v.step >= v.route.length && v.expedition) {
+            ship.status = 'at_sea';
+            out.expeditionDone = true;
+            this._endVoyage(ship, world, `Reached ${v.destName} after ${v.day} day${v.day === 1 ? '' : 's'}. You have the helm.`, '🧭');
+            Traits.recordDeed(player, 'seafaring', 1);
+            return out;
+        }
         if (v.step >= v.route.length) {
             ship.status = 'docked';
             ship.dockedAt = v.destName;
@@ -505,7 +513,7 @@ export const VoyageMethods = {
         const v = ship.voyage || ship.lastVoyage;
         const today = world ? world.day || 0 : 0;
         out.log = v && Array.isArray(v.log) ? v.log.filter(e => e.day === today) : [];
-        out.notable = notable || out.arrived;
+        out.notable = notable || out.arrived || !!out.expeditionDone;
         out.provisionDays = this.getProvisionDays(ship);
         out.morale = this.getMorale(ship);
         out.crew = this.getCrew(ship);

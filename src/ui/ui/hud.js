@@ -34,6 +34,8 @@ Object.assign(UI.prototype, {
 
         // Sagas journal button (systems/sagas.js)
         document.getElementById('btnSagas')?.addEventListener('click', () => ActionMenu.showSagasJournal(this.game));
+        // Discoveries log: uncharted lands (systems/discovery.js)
+        document.getElementById('btnDiscoveries')?.addEventListener('click', () => ActionMenu.showDiscoveries(this.game));
 
         // Event Log button
         const btnEventLog = document.getElementById('btnEventLog');

@@ -107,7 +107,7 @@ Object.assign(ActionMenu, {
             collect_tax: 'social', request_bounty: 'social', capture_fugitive: 'social',
             bless_settlement: 'social', hold_council: 'social',
             espionage_menu: 'social', manage_spies: 'social',
-            hold_court: 'social',
+            hold_court: 'social', manage_holding: 'frontier',
             underworld: 'commerce',
         };
 
@@ -373,7 +373,7 @@ Object.assign(ActionMenu, {
         servitude_wait: 0, servitude_escape: 0, servitude_buy_freedom: 0,
         view_relationships: 0, manage_dynasty: 0,
         manage_fleet: 0, manage_house: 0, manage_property: 0, manage_colony: 0,
-        hold_court: 0,
+        hold_court: 0, manage_holding: 0,
         underworld: 0, // jobs inside the panel cost their own AP
 
         // Light actions (1 AP)
@@ -890,6 +890,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'hold_court':
                 ActionMenu.showCourtPanel(game, tile);
+                break;
+            case 'manage_holding':
+                ActionMenu.showHoldingPanel(game, tile);
                 break;
 
             // ── Espionage Actions ──

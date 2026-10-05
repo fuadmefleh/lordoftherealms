@@ -3,7 +3,7 @@ import { PlayerMilitary } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
 import { Companions } from '../../systems/companions.js';
 import { Underworld } from '../../systems/underworld.js';
-import { Utils, Technology, House, Quests, RealmWars, Throne, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS } from './_imports.js';
+import { Utils, Technology, House, Quests, RealmWars, Throne, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS, Economy } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -424,6 +424,9 @@ Object.assign(PlayerMilitary, {
         if (settlement.type === 'city' || settlement.type === 'capital') {
             garrisonStrength = Math.floor(garrisonStrength * 1.3); // 30% wall bonus
         }
+        // Walls raised while it was a holding (systems/holdings.js) still stand
+        const holdingWalls = Economy.holdingFx(settlement, 'defense');
+        if (holdingWalls) garrisonStrength = Math.floor(garrisonStrength * (1 + holdingWalls));
 
         // Combat
         const result = PlayerMilitary.combat(player, garrisonStrength, settlement.name, {
@@ -591,6 +594,9 @@ Object.assign(PlayerMilitary, {
         if (settlement.type === 'city' || settlement.type === 'capital') {
             garrisonStrength = Math.floor(garrisonStrength * 1.3);
         }
+        // Walls raised while it was a holding (systems/holdings.js) still stand
+        const walls = Economy.holdingFx(settlement, 'defense');
+        if (walls) garrisonStrength = Math.floor(garrisonStrength * (1 + walls));
 
         return garrisonStrength;
     },

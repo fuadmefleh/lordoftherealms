@@ -288,6 +288,9 @@ export const Colonization = {
                 } else {
                     let growthRate = 1 + (colonyPolicy.expansionBonus - 1) * 0.5;
                     if (colonyData.isPlayerColony && playerBonuses.colonyGrowth) growthRate *= 1 + playerBonuses.colonyGrowth;
+                    // Developed holdings (systems/holdings.js: markets, granaries, inns) grow faster
+                    const holdingGrowth = Economy.holdingFx(tile.settlement, 'growth');
+                    if (holdingGrowth) growthRate *= 1 + holdingGrowth * 10;
                     const growth = Utils.randInt(1, Math.ceil(5 * growthRate));
                     tile.settlement.population += growth;
                 }
@@ -674,6 +677,9 @@ export const Colonization = {
         // Incentive bonus
         const incentiveDef = Colonization.INCENTIVES[rec.incentive] || Colonization.INCENTIVES.none;
         arrivalChance += incentiveDef.attractionBonus;
+
+        // A Tavern and Inn (systems/holdings.js) keeps passing travellers
+        arrivalChance += Economy.holdingFx(tile.settlement, 'settlers');
 
         // Reputation decays slowly
         if (rec.reputation > 0) {

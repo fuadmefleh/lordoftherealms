@@ -17,6 +17,7 @@ import { Companions } from './companions.js';
 import { Delves } from './delves.js';
 import { Underworld } from './underworld.js';
 import { Throne } from './throne.js';
+import { Holdings } from './holdings.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 
 
@@ -351,6 +352,8 @@ export const SaveLoad = {
             delves: Delves.serialize(player),
             // Claims, crises, a civil war, a crown (systems/throne.js)
             throne: Throne.serialize(player),
+            // Holdings ledger (per-settlement development is saved with the tiles)
+            holdings: Holdings.serialize(player),
         };
     },
 
@@ -533,6 +536,8 @@ export const SaveLoad = {
         // Claims & Crowns — older saves get a blank record (and a crown if they
         // had founded a kingdom with the old Form Kingdom action)
         Throne.load(player, world);
+        // Holdings — older saves have none; owned settlements get a blank record and fresh effects
+        Holdings.loadState(player, world);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

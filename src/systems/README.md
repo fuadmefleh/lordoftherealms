@@ -17,6 +17,7 @@ World simulation systems. Each system manages a distinct aspect of the game worl
 | `espionage.js` | — | Spy networks, sabotage, counterintelligence |
 | `festivals.js` | — | Festival hosting, contests, diplomatic events |
 | `gossip.js` | — | Settlement gossip propagation |
+| `holdings.js` | ~1170 | Holdings development: building projects in the player's settlements (slots by population tier, `data/holdings.json`), cached as `settlement.holding.fx` and read by Taxation, Economy, PlayerMilitary, RealmWars, Ships, Colonization and Petitions; governors (companion/family/steward, loyalty and skim), garrisons, unrest, rebellion and bandit raids; `processDay(player, world)` |
 | `housing.js` | — | Player-owned houses, upgrades, condition decay |
 | `infrastructure.js` | — | Roads, bridges, improvements, travel bonuses |
 | `legendaryArtifacts.js` | — | Artifact discovery and recovery quests |

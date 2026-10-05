@@ -500,6 +500,12 @@ export const DataLoader = {
             DataLoader.throne = throneData;
         }
 
+        // ── Holdings development: projects, governors, garrisons (read lazily by systems/holdings.js) ──
+        const holdingsData = data['holdings.json'];
+        if (holdingsData) {
+            DataLoader.holdings = holdingsData;
+        }
+
         // ── Gossip / Rumor System ──
         const gossipData = data['gossip.json'];
         if (gossipData) {

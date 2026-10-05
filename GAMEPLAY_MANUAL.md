@@ -30,6 +30,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 18. [Relationships & Dynasty](#18-relationships--dynasty)
 19. [Culture](#19-culture)
 20. [Colonization](#20-colonization)
+    - [Developing Your Holdings](#developing-your-holdings) — projects, governors, garrisons, unrest and rebellion
 21. [Tavern & Intelligence](#21-tavern--intelligence)
 22. [Quests](#22-quests)
 23. [Achievements](#23-achievements)
@@ -414,6 +415,7 @@ Each settlement's **happiness** (0–100) drifts a quarter of the way toward the
 - **Revenue** is scaled from ×0.75 (happiness 0) to ×1.25 (happiness 100), so squeezing a miserable town yields less than you'd think.
 - **Conquered towns** gain or lose loyalty each week by (happiness − 50) / 25, and low-loyalty colonies rebel.
 - The Treasury's Tax tab lists each settlement's mood and weekly yield.
+- **Development** changes all of this: markets, harbours and a good steward raise a holding's take, while a skimming governor or a revolt cuts it. Taverns, temples and squares raise its happiness target. See [Developing Your Holdings](#developing-your-holdings).
 
 ### The Council
 
@@ -1830,6 +1832,71 @@ You can found colonies on unclaimed wilderness (costs gold). Recruit settlers fr
 | Missionary | 1.0× | Slightly Positive | +10% | +5% |
 
 **Missionary work.** A Missionary colony befriends tribes within 4 hexes (+0.05 relation a day) and converts them to its faith. If it is your colony and you have founded a religion, it spreads *your* faith: every settlement within 4 hexes gains a share of followers each day, and converted tribesfolk join your faith (2% of a tribe's people a day). The mother kingdom gains cultural influence and piety (+0.01 a day per colony, at most +0.05). The colony panel shows how far its missionaries reach. Religious kingdoms send Missionary colonies of their own.
+
+### Developing Your Holdings
+
+Your **holdings** are the settlements you rule and tax: colonies you founded and towns you conquered that are still yours. Open **🏰 Manage Holding** from the action menu at one of them (or from the colony panel). The panel shows the town's development slots, the projects being built, its governor and garrison, and a summary of its numbers: weekly tax (and how much the governor skims), happiness and the target it is drifting toward, loyalty, unrest, defence against the rebels it could raise, garrison strength and upkeep, days of food in store and yearly growth.
+
+**Projects.** A holding has a few development slots, and more as it grows:
+
+| Tier | Population | Slots |
+|------|-----------|-------|
+| Hamlet | under 150 | 2 |
+| Village | 150+ | 3 |
+| Town | 600+ | 4 |
+| City | 2,000+ | 5 |
+| Great City | 5,000+ | 6 |
+
+A project costs gold, materials and days. Materials come out of your packs. Anything you lack is bought on the spot at 1.5× its price (wood and stone 12g, iron 30g, tools 52g). Stone and timber near the town shorten the work. A good steward speeds it up (+6% per point of stewardship). You can abandon a project under construction for half its gold back. The panel shows each project's effect before you build it, with the gold it would add to the weekly tax and the change in defence.
+
+| Project | Cost | Days | Effect |
+|---------|------|------|--------|
+| 🚧 Palisade | 150g, 20 wood | 6 | +25% defence, 20% fewer bandit raids, calms unrest |
+| 🏰 Stone Walls (replaces the Palisade, village+) | 600g, 40 stone, 4 tools | 15 | +60% defence, 45% fewer raids, calms unrest more |
+| 🏪 Market Square | 300g, 10 wood, 15 stone | 8 | +12% tax, +4% on what you sell there, +2 happiness, +1% growth a year |
+| 🌾 Granary | 200g, 25 wood | 6 | +6 days of food in store (the lean season), +1% growth, +1 happiness |
+| 🕯️ Shrine | 120g, 8 stone | 4 | +3 happiness, spreads your faith there (0.4% of the unbelievers a day), calms unrest |
+| ⛪ Temple (replaces the Shrine, village+) | 550g, 35 stone, 10 wood | 12 | +6 happiness, spreads your faith (1% a day), calms unrest more |
+| ⚔️ Barracks | 350g, 20 wood, 8 iron | 9 | +10 militia defence, +50% recruits a day and 10% cheaper recruits here, garrison upkeep −25% |
+| ⚓ Harbour (beside the water only) | 450g, 35 wood, 10 stone | 12 | +8% tax, 8% better port-market prices for you, free repairs (+5% a day) for your ships docked there, +2 days of food, +1.5% growth |
+| 🗼 Watchtower | 180g, 10 wood, 10 stone | 5 | 40% fewer raids, your underworld heat in the town's realm cools 0.5 a day faster, +5% defence |
+| 🔨 Workshop Quarter (village+) | 400g, 20 wood, 10 iron, 4 tools | 10 | +20% goods produced, +6% tax |
+| 🍺 Tavern and Inn | 250g, 20 wood | 7 | +4 happiness, +1.5% growth, +10% daily chance of settlers arriving at a young colony, +3% tax |
+| 🏛️ Moot Hall (village+) | 320g, 15 stone, 10 wood | 8 | petitioners from the town wait 4 days longer, +2 happiness, calms unrest most |
+
+Happiness from projects raises the target the town drifts toward at each tax collection. Growth adds to the tax policy's yearly growth, and in a kingdom's colony it also speeds the daily growth. Walls also stand if the town is ever taken from you, so retaking it will be harder.
+
+**Governor.** Appoint a governor from your travelling companions (they leave your party until relieved), your spouse or a child aged 16 or over, or a steward for hire (100g, then 3–6g a day; three are on offer each month). Each has **Stewardship**, **Martial** and **Intrigue** from 0 to 10:
+
+- **Stewardship:** +3% tax and +0.3% growth a year per point, and faster building.
+- **Martial:** +4% defence per point, and calms unrest.
+- **Intrigue:** calms unrest and wards off raids (+2% per point), but makes a disloyal governor skim more.
+
+A governor's **loyalty** settles toward a base (family 80, a companion's approval of you, a steward 55), plus up to +10 from your renown and ±5 from the town's mood, minus 2 per point of intrigue (ambition) and 15 while their wages go unpaid. Below 70 loyalty a governor **skims** the taxes: up to half of them, more the craftier they are. Below 20 loyalty they may **betray you**, fleeing with up to 10% of your gold (at most 300g) and leaving the town in uproar (+40 unrest). You are warned when a governor grows restless.
+
+**Neglect.** A holding with no governor drifts while you are more than 6 hexes away. Each day it loses 0.25 happiness (down to 20) and 0.15 loyalty, and its unrest grows.
+
+**Garrison.** At the holding you can station soldiers from your army there, and march them out again. Hired mercenaries and warships can't be stationed. The garrison adds its strength to the town's defence against kingdom war hosts, bandits and rebels. It also calms unrest (fully once it reaches 2% of the population, at least 20 strength), and it is paid from your purse every day at the troops' normal upkeep. If you can't pay, a tenth of it deserts. A war host beaten off at the walls costs the garrison 15% of its troops. If the town is lost, its garrison is lost with it.
+
+**Defence** = (the colony's own guard, or 10) + 1% of the population + garrison strength + militia, × (1 + walls, watchtower and governor bonuses).
+
+**Unrest and rebellion.** Unrest (0–100) eases by 0.25 a day on its own and is raised by:
+- unhappiness below 40, up to +1.5 a day
+- loyalty below 30, up to +0.8 a day
+- high taxes (+0.15 a day, very high +0.35)
+- neglect (+0.4 a day)
+
+It is calmed by order from projects and the governor, by your troops, and by your presence (−0.5 a day while you are within a hex). From 60 you are warned. From 75, a holding whose garrison couldn't beat its rebels may rise in revolt (rebels number 10 + 4% of the population). At 100 it rises for certain. A strong enough garrison puts the riots down instead, losing some troops.
+
+A **rebellion** stops all taxes and building there. A garrison that grows strong enough crushes it on its own. Otherwise you have **15 days**:
+- **Crush the rebels** with your army at the holding (a battle).
+- **Buy them off** for half a gold coin per inhabitant (at least 100g) and 5 renown.
+
+If the rebels still hold the town at the deadline, it becomes a free town and is no longer yours.
+
+**Bandit raids.** Raider bands within 2 hexes of a holding may fall on it (about 6% a day per band, less with walls, a watchtower and a crafty governor, and at most once a week). If the town's defence beats the band, the band is destroyed. Otherwise the raiders burn 30% of its stored food, kill 3% of its people, cost 6 happiness and 8 unrest, and set back construction by 2 days.
+
+Projects, governors, garrisons, unrest and rebellions are all saved with the game.
 
 ---
 

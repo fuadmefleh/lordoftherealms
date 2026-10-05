@@ -20,6 +20,7 @@ import './court.js';
 import './delves.js';
 import './underworld.js';
 import './throne.js';
+import './holdings.js';
 
 // Expose ActionMenu globally so inline onclick handlers in dynamic HTML can access it
 window.ActionMenu = ActionMenu;

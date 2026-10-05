@@ -451,7 +451,9 @@ Object.assign(PlayerMilitary, {
         // Can recruit roughly 1 per 50 people, minimum 1; martial peoples
         // (shieldfolk, refugees, ...) step forward more readily
         const { capacityMult } = Peoples.recruitModifiers(settlement);
-        return Math.max(1, Math.floor((pop / 50) * capacityMult));
+        // A Barracks in one of your holdings (systems/holdings.js) drills more recruits
+        const barracks = 1 + Economy.holdingFx(settlement, 'recruitCapacity');
+        return Math.max(1, Math.floor((pop / 50) * capacityMult * barracks));
     },
 
     /**

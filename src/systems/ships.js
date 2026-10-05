@@ -1257,6 +1257,20 @@ export const Ships = {
         return h >>> 0;
     },
 
+    /** A player holding with a finished Harbour at (q, r). */
+    _harbourAt(world, q, r) {
+        const tile = world && typeof world.getTile === 'function' ? world.getTile(q, r) : null;
+        const fx = tile && tile.settlement && tile.settlement.holding && tile.settlement.holding.fx;
+        return !!(fx && fx.port > 0);
+    },
+
+    /** Port-price bonus of a player holding's Harbour at (q, r) (settlement.holding.fx). */
+    _harbourBonus(world, q, r) {
+        const tile = world && typeof world.getTile === 'function' ? world.getTile(q, r) : null;
+        const fx = tile && tile.settlement && tile.settlement.holding && tile.settlement.holding.fx;
+        return fx && fx.port > 0 ? (fx.portPrices || 0) : 0;
+    },
+
     /**
      * What a port trades in. Each port is an exporter (cheap to buy, pays
      * little), importer (pays well, sells none) or local market for each
@@ -1287,6 +1301,15 @@ export const Ships = {
             const buy = Math.max(2, Math.ceil(mid * 1.1));
             return { ...base, role: 'local', buy, sell: Math.max(1, Math.min(buy - 1, Math.floor(mid * 0.9))) };
         });
+        // Your own Harbour (systems/holdings.js) gives you better terms here
+        const harbour = this._harbourBonus(world, q, r);
+        if (harbour > 0) {
+            for (const e of market) {
+                if (e.buy !== null) e.buy = Math.max(2, Math.round(e.buy * (1 - harbour)));
+                e.sell = Math.max(1, Math.round(e.sell * (1 + harbour)));
+                if (e.buy !== null) e.sell = Math.min(e.sell, e.buy - 1);
+            }
+        }
         if (!blockade) return market;
         const B = KingdomNavy.CONFIG.blockade;
         return market.map(e => {
@@ -1382,8 +1405,9 @@ export const Ships = {
 
         for (const ship of ships) {
             // A Shipyard you own repairs docked ships beside it for free
+            // ... and so does the Harbour of one of your holdings
             if (ship.status === 'docked' && world && ship.condition < 100
-                && Technology.hasBuildingNear(player, world, 'shipyard', ship.q, ship.r, 1)) {
+                && (Technology.hasBuildingNear(player, world, 'shipyard', ship.q, ship.r, 1) || this._harbourAt(world, ship.q, ship.r))) {
                 ship.condition = Math.min(100, ship.condition + 5);
             }
             // Storms at sea batter hulls and hold ships back a day

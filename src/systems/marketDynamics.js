@@ -535,13 +535,18 @@ export const Taxation = {
             // Rebellions and crises cut collections; gold rushes swell them
             const eventMult = Math.max(0, 1 + WorldEvents.getModifier(world, 'taxIncome', tile));
             const moodMult = 0.75 + happiness / 200;
-            const taxCollected = Math.floor(taxBase * taxPolicy.rate * landBonus * Taxation.officeTaxMultiplier(player) * eventMult * moodMult);
+            // Holdings development (systems/holdings.js): markets, harbours and a
+            // good steward raise the take; a skimming governor or a revolt cuts it
+            const holdingMult = Taxation.holdingFx(settlement, 'taxMult', 1);
+            const taxCollected = Math.floor(taxBase * taxPolicy.rate * landBonus * Taxation.officeTaxMultiplier(player) * eventMult * moodMult * holdingMult);
 
             totalCollected += taxCollected;
             const growthRate = Taxation.getGrowthRate(settlement, taxPolicy);
             const projectedPopulation = Taxation.projectPopulation(settlement, 30, growthRate);
             const entry = {
                 name: settlement.name,
+                q: ref.q,
+                r: ref.r,
                 collected: taxCollected,
                 population: settlement.population,
                 happiness: Math.round(happiness),
@@ -562,6 +567,13 @@ export const Taxation = {
         return { collected: totalCollected, settlements, policy: taxPolicy };
     },
 
+    /** One cached holdings effect of a settlement (settlement.holding.fx, systems/holdings.js). */
+    holdingFx(settlement, key, fallback = 0) {
+        const fx = settlement && settlement.holding && settlement.holding.fx;
+        const v = fx && fx[key];
+        return typeof v === 'number' && isFinite(v) ? v : fallback;
+    },
+
     /** Mood points a settlement's peoples add to its happiness target (systems/peoples). */
     peoplesMood(settlement) {
         return (settlement && settlement.peoplesEffects && settlement.peoplesEffects.stability) || 0;
@@ -573,7 +585,7 @@ export const Taxation = {
      */
     getGrowthRate(settlement, taxPolicy = null) {
         if (settlement && typeof settlement.growthRate === 'number') return settlement.growthRate;
-        return (taxPolicy && taxPolicy.growthBonus) || 0;
+        return ((taxPolicy && taxPolicy.growthBonus) || 0) + Taxation.holdingFx(settlement, 'growth');
     },
 
     /** Population `days` from now at `growthRate` per year (defaults to the settlement's own). */
@@ -593,14 +605,16 @@ export const Taxation = {
     _applyTaxMood(settlement, taxPolicy, entry) {
         // Orderly, harmonious peoples settle happier; restless ones less so
         const peoplesMood = Taxation.peoplesMood(settlement);
-        const target = Math.max(0, Math.min(100, 50 + taxPolicy.happinessBonus * 1.5 + peoplesMood));
+        // Taverns, temples and squares in a developed holding lift the mood
+        const holdingMood = Taxation.holdingFx(settlement, 'happiness');
+        const target = Math.max(0, Math.min(100, 50 + taxPolicy.happinessBonus * 1.5 + peoplesMood + holdingMood));
         const happiness = Taxation.getHappiness(settlement);
         settlement.happiness = Math.max(0, Math.min(100, happiness + (target - happiness) * 0.25));
         entry.happiness = Math.round(settlement.happiness);
 
         // growthBonus is per year (120 days); a collection covers a week
-        settlement.growthRate = taxPolicy.growthBonus;
-        const delta = Math.round(settlement.population * taxPolicy.growthBonus * 7 / 120);
+        settlement.growthRate = taxPolicy.growthBonus + Taxation.holdingFx(settlement, 'growth');
+        const delta = Math.round(settlement.population * settlement.growthRate * 7 / 120);
         if (delta !== 0) settlement.population = Math.max(10, settlement.population + delta);
         entry.populationChange = delta;
 

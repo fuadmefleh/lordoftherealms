@@ -462,6 +462,13 @@ export const Petitions = {
         return String(text || '').replace(/\{(\w+)\}/g, (m, k) => (map[k] != null ? map[k] : m));
     },
 
+    /** Extra days petitioners wait at a holding with a Moot Hall (settlement.holding.fx, systems/holdings.js). */
+    _holdingDays(world, ctx) {
+        const tile = ctx && ctx.q != null && world && typeof world.getTile === 'function' ? world.getTile(ctx.q, ctx.r) : null;
+        const fx = tile && tile.settlement && tile.settlement.holding && tile.settlement.holding.fx;
+        return (fx && fx.petitionDays > 0) ? Math.round(fx.petitionDays) : 0;
+    },
+
     _create(player, world, def, defId, ctx) {
         const st = Petitions._state(player);
         const day = (world && world.day) || 0;
@@ -472,7 +479,7 @@ export const Petitions = {
             icon: def.icon || '📜',
             text: Petitions.fill(def.text, ctx),
             arrivedDay: day,
-            expiresDay: day + (def.expires || Petitions.config().defaultExpiry),
+            expiresDay: day + (def.expires || Petitions.config().defaultExpiry) + Petitions._holdingDays(world, ctx),
             ctx,
         };
         st.pending.push(petition);

@@ -668,6 +668,11 @@ Object.assign(ActionMenu, {
                     💰 Send Gold Aid (+15 loyalty, costs 150g)
                 </button>
 
+                <button data-am-act="openTileMenu" data-am-args='["showHoldingPanel", ${tile.q}, ${tile.r}]'
+                        style="width:100%; padding:6px; margin:3px 0; background:#6a5a2a; color:#fff; border:none; border-radius:4px; cursor:pointer;">
+                    🏰 Manage Holding (projects, governor, garrison)
+                </button>
+
                 <button data-am-act="changeColonyPolicy" data-am-args='[${tile.q}, ${tile.r}]' 
                         style="width:100%; padding:6px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer;">
                     📜 Change Policy

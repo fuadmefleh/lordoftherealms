@@ -21,6 +21,7 @@ import { Hex } from '../core/hex.js';
 import { WorldUnit } from '../world/units.js';
 import { House } from './house.js';
 import { Technology } from './technology.js';
+import { Holdings } from './holdings.js';
 
 const CONFIG = {
     checkCadence: 10,          // days between hostility checks
@@ -310,7 +311,8 @@ export const RealmWars = {
             const settlement = tile && tile.settlement;
             const colony = settlement && settlement.colony;
             if (colony) {
-                const defense = ((colony.garrisonStrength || 10) + (settlement.population || 0) * 0.01) * Utils.randFloat(0.8, 1.4);
+                // Stationed troops, militia and walls (systems/holdings.js) hold the gates
+                const defense = Holdings.defenseRating(settlement) * Utils.randFloat(0.8, 1.4);
                 if (rec.strength > defense) {
                     settlement.kingdom = kingdom.id;
                     tile.kingdom = kingdom.id;
@@ -322,7 +324,8 @@ export const RealmWars = {
                     lost = true;
                 } else {
                     colony.loyalty = Math.max(0, (colony.loyalty || 0) - 10);
-                    text = `${rec.name} besieges ${settlement.name}, but the garrison holds (−10 loyalty).`;
+                    const fallen = Holdings.onSiegeRepelled(settlement);
+                    text = `${rec.name} besieges ${settlement.name}, but the garrison holds (−10 loyalty${fallen ? `, ${fallen} stationed troops lost` : ''}).`;
                     war.score += 10;
                 }
             }

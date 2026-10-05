@@ -26,6 +26,7 @@ import { PlayerReligion } from '../playerReligion.js';
 import { Quests } from '../../systems/quests.js';
 import { Achievements } from '../../systems/achievements.js';
 import { Petitions } from '../../systems/petitions.js';
+import { Holdings } from '../../systems/holdings.js';
 
 import { RealmPolitics } from '../realmPolitics.js';
 import { SeasonalWork } from '../seasonalWork.js';
@@ -207,6 +208,20 @@ export const PlayerActions = {
                 description: waiting
                     ? `${waiting} petition(s) await your ruling — each choice has a price, and ignoring them does too`
                     : 'Review your court: past rulings and the reputation they earned you'
+            });
+        }
+
+        // Holdings — develop a settlement you rule: projects, governor, garrison
+        if (tile.settlement && Holdings.isHolding(player, world, tile.q, tile.r)) {
+            const hold = tile.settlement.holding;
+            const revolt = !!(hold && hold.rebellion);
+            actions.push({
+                type: 'manage_holding',
+                label: revolt ? 'Manage Holding (in revolt!)' : 'Manage Holding',
+                icon: '🏰',
+                description: revolt
+                    ? `${tile.settlement.name} has risen against you — crush the rebels or buy them off`
+                    : `Develop ${tile.settlement.name}: building projects, a governor, the garrison and unrest`
             });
         }
 

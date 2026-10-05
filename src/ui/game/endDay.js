@@ -6,6 +6,7 @@ import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDyna
 import { Traits } from '../../systems/traits.js';
 import { Delves } from '../../systems/delves.js';
 import { Underworld } from '../../systems/underworld.js';
+import { Holdings } from '../../systems/holdings.js';
 
 export function onPlayerArrived() {
     const tile = this.world.getTile(this.player.q, this.player.r);
@@ -461,6 +462,14 @@ export function endDay() {
                 this.ui.showNotification('🕊️ Royal Envoys', `Your envoys win peace with ${name}.`, 'info');
             }
 
+            // Holdings — construction, governors, garrisons, unrest and rebellion, bandit raids
+            const holdingsDay = Holdings.processDay(this.player, this.world);
+            for (const c of holdingsDay.completed) this.ui.showNotification('🏗️ Project Finished', c.text, 'success');
+            for (const r of holdingsDay.raids) this.ui.showNotification(r.repelled ? '🛡️ Raid Repelled' : '🔥 Holding Raided', r.text, r.repelled ? 'success' : 'error');
+            for (const r of holdingsDay.rebellions) this.ui.showNotification('🔥 Rebellion!', r.text, 'error');
+            for (const l of holdingsDay.lost) this.ui.showNotification('🏴 Holding Lost', l.text, 'error');
+            for (const text of holdingsDay.notices) this.ui.showNotification('🏰 Holdings', text, 'warning');
+
             // Update market prices
             MarketDynamics.updatePrices(this.world);
 
@@ -858,6 +867,7 @@ export function endDay() {
 
             // Expense sources
             if (playerResults.upkeepCost > 0) dayFinance.expenses.armyUpkeep = playerResults.upkeepCost;
+            if (holdingsDay.upkeep > 0) dayFinance.expenses.holdings = holdingsDay.upkeep;
             if (playerResults.mercenaryWages > 0) dayFinance.expenses.mercenaryWages = playerResults.mercenaryWages;
             if (loanResults && loanResults.paid > 0) dayFinance.expenses.loanPayments = loanResults.paid;
             if (typeof Tavern !== 'undefined' && intelResult && intelResult.cost > 0) dayFinance.expenses.informants = intelResult.cost;

@@ -1,0 +1,221 @@
+{
+    "_comment": "Holdings development (src/systems/holdings.js): projects the player builds in the settlements they rule, governors, garrisons, unrest and rebellion. Each project effect is read by an existing system: tax/happiness/growth by Taxation (marketDynamics.js), reserveDays by Economy.foodReserveDays (lean season), goods by Economy.produceDaily, salePrice by Economy.saleBonus, recruitDiscount by Economy.recruitCostMultiplier, recruitCapacity by PlayerMilitary.getRecruitmentCapacity, defense/militia by RealmWars sieges, player sieges and bandit raids, raidReduction by Holdings raids, faith by Religion.addPresence, heatRelief by Underworld.addHeat, portPrices and port repairs by Ships, settlers and growth by Colonization, petitionDays by Petitions, order by Holdings unrest.",
+    "config": {
+        "ungovernedDistance": 6,
+        "presentDistance": 1,
+        "drift": { "happiness": 0.25, "happinessFloor": 20, "loyalty": 0.15, "unrest": 0.4 },
+        "unrest": {
+            "decay": 0.25,
+            "lowHappiness": 40,
+            "happinessWeight": 1.5,
+            "lowLoyalty": 30,
+            "loyaltyWeight": 0.8,
+            "highTax": { "high": 0.15, "very_high": 0.35 },
+            "garrisonControl": 0.8,
+            "presentRelief": 0.5,
+            "riskAt": 75,
+            "riskDivisor": 250,
+            "certainAt": 100,
+            "warnAt": 60
+        },
+        "rebellion": {
+            "days": 15,
+            "strengthBase": 10,
+            "strengthPerPop": 0.04,
+            "crushRatio": 1.2,
+            "garrisonLoss": 0.15,
+            "crushedUnrest": 35,
+            "riotUnrestDrop": 30,
+            "parleyGoldPerPop": 0.5,
+            "parleyMin": 100,
+            "parleyUnrest": 50,
+            "parleyHappiness": 10,
+            "parleyRenown": -5,
+            "victoryUnrest": 25,
+            "victoryHappiness": -5
+        },
+        "garrison": { "controlPerPop": 0.02, "controlMin": 20, "desertShare": 0.1, "siegeLoss": 0.15 },
+        "governor": {
+            "taxPerStewardship": 0.03,
+            "growthPerStewardship": 0.003,
+            "buildPerStewardship": 0.06,
+            "defensePerMartial": 0.04,
+            "orderPerMartial": 0.05,
+            "orderPerStewardship": 0.02,
+            "orderPerIntrigue": 0.03,
+            "raidPerIntrigue": 0.02,
+            "skimLoyalty": 70,
+            "skimMax": 0.5,
+            "loyaltyDrift": 0.5,
+            "baseLoyalty": { "family": 80, "companion": 60, "steward": 55 },
+            "renownPer": 0.05,
+            "renownCap": 10,
+            "intrigueAmbition": 2,
+            "unpaidPenalty": 15,
+            "betrayAt": 20,
+            "betrayChance": 0.04,
+            "betrayStealShare": 0.1,
+            "betrayStealMax": 300,
+            "betrayUnrest": 40,
+            "hireFee": 100,
+            "stewardWage": [3, 6],
+            "stewardOffers": 3,
+            "familyMinAge": 16
+        },
+        "raids": {
+            "radius": 2,
+            "chancePerRaider": 0.06,
+            "maxReduction": 0.85,
+            "foodLoss": 0.3,
+            "happiness": 6,
+            "populationLoss": 0.03,
+            "unrest": 8,
+            "progressLoss": 2
+        },
+        "materialPrices": { "wood": 8, "stone": 8, "iron": 20, "tools": 35 },
+        "buyMarkup": 1.5,
+        "cancelRefund": 0.5,
+        "logCap": 30,
+        "caps": { "raidReduction": 0.85, "defense": 1.5 }
+    },
+    "tiers": [
+        { "id": "hamlet", "name": "Hamlet", "minPopulation": 0, "slots": 2 },
+        { "id": "village", "name": "Village", "minPopulation": 150, "slots": 3 },
+        { "id": "town", "name": "Town", "minPopulation": 600, "slots": 4 },
+        { "id": "city", "name": "City", "minPopulation": 2000, "slots": 5 },
+        { "id": "great_city", "name": "Great City", "minPopulation": 5000, "slots": 6 }
+    ],
+    "effectLabels": {
+        "tax": { "label": "tax", "pct": true },
+        "happiness": { "label": "happiness" },
+        "growth": { "label": "growth a year", "pct": true },
+        "defense": { "label": "defence", "pct": true },
+        "militia": { "label": "militia strength" },
+        "raidReduction": { "label": "fewer bandit raids", "pct": true },
+        "reserveDays": { "label": "days of food in store" },
+        "goods": { "label": "goods output", "pct": true },
+        "salePrice": { "label": "sale prices here", "pct": true },
+        "recruitCapacity": { "label": "recruits a day", "pct": true },
+        "recruitDiscount": { "label": "cheaper recruits", "pct": true },
+        "garrisonUpkeep": { "label": "garrison upkeep", "pct": true },
+        "faith": { "label": "your faith's presence a day", "pct": true },
+        "heatRelief": { "label": "underworld heat a day (cooling)" },
+        "portPrices": { "label": "port market prices", "pct": true },
+        "settlers": { "label": "settler arrivals", "pct": true },
+        "petitionDays": { "label": "days to answer petitions" },
+        "order": { "label": "unrest calmed a day" },
+        "buildSpeed": { "label": "build speed", "pct": true }
+    },
+    "projects": {
+        "palisade": {
+            "name": "Palisade", "icon": "🚧", "category": "defence",
+            "description": "A ditch and a ring of sharpened stakes. Keeps out bandits and slows a war host.",
+            "gold": 150, "materials": { "wood": 20 }, "days": 6,
+            "effects": { "defense": 0.25, "raidReduction": 0.2, "order": 0.1 }
+        },
+        "stone_walls": {
+            "name": "Stone Walls", "icon": "🏰", "category": "defence", "upgradeOf": "palisade", "minTier": 1,
+            "description": "Replaces the palisade with curtain walls and a gatehouse.",
+            "gold": 600, "materials": { "stone": 40, "tools": 4 }, "days": 15,
+            "effects": { "defense": 0.6, "raidReduction": 0.45, "order": 0.2 }
+        },
+        "market_square": {
+            "name": "Market Square", "icon": "🏪", "category": "economy",
+            "description": "A paved square with stalls and a weigh-house. Traders come, and so does coin.",
+            "gold": 300, "materials": { "wood": 10, "stone": 15 }, "days": 8,
+            "effects": { "tax": 0.12, "salePrice": 0.04, "happiness": 2, "growth": 0.01 }
+        },
+        "granary": {
+            "name": "Granary", "icon": "🌾", "category": "economy",
+            "description": "Raised stores against the lean weeks. The town counts as having more food put by.",
+            "gold": 200, "materials": { "wood": 25 }, "days": 6,
+            "effects": { "reserveDays": 6, "growth": 0.01, "happiness": 1 }
+        },
+        "shrine": {
+            "name": "Shrine", "icon": "🕯️", "category": "faith",
+            "description": "A wayside shrine. If you founded a faith, it is yours that is tended here.",
+            "gold": 120, "materials": { "stone": 8 }, "days": 4,
+            "effects": { "happiness": 3, "faith": 0.004, "order": 0.1 }
+        },
+        "temple": {
+            "name": "Temple", "icon": "⛪", "category": "faith", "upgradeOf": "shrine", "minTier": 1,
+            "description": "Raises the shrine into a temple with its own priests.",
+            "gold": 550, "materials": { "stone": 35, "wood": 10 }, "days": 12,
+            "effects": { "happiness": 6, "faith": 0.01, "order": 0.25 }
+        },
+        "barracks": {
+            "name": "Barracks", "icon": "⚔️", "category": "military",
+            "description": "Quarters and a drill yard. A local militia, more and cheaper recruits, and a cheaper garrison.",
+            "gold": 350, "materials": { "wood": 20, "iron": 8 }, "days": 9,
+            "effects": { "militia": 10, "recruitCapacity": 0.5, "recruitDiscount": 0.1, "garrisonUpkeep": -0.25, "order": 0.15 }
+        },
+        "harbour": {
+            "name": "Harbour", "icon": "⚓", "category": "economy", "coastal": true,
+            "description": "Quays and a breakwater. Only a holding beside the water can build one.",
+            "gold": 450, "materials": { "wood": 35, "stone": 10 }, "days": 12,
+            "effects": { "tax": 0.08, "portPrices": 0.08, "reserveDays": 2, "growth": 0.015, "port": 1 }
+        },
+        "watchtower": {
+            "name": "Watchtower", "icon": "🗼", "category": "defence",
+            "description": "Lookouts on the roads. Bandits are seen coming, and the watch is yours.",
+            "gold": 180, "materials": { "wood": 10, "stone": 10 }, "days": 5,
+            "effects": { "raidReduction": 0.4, "heatRelief": 0.5, "defense": 0.05, "order": 0.15 }
+        },
+        "workshop_quarter": {
+            "name": "Workshop Quarter", "icon": "🔨", "category": "economy", "minTier": 1,
+            "description": "Streets of smiths, coopers and weavers.",
+            "gold": 400, "materials": { "wood": 20, "iron": 10, "tools": 4 }, "days": 10,
+            "effects": { "goods": 0.2, "tax": 0.06, "growth": 0.005 }
+        },
+        "tavern_inn": {
+            "name": "Tavern and Inn", "icon": "🍺", "category": "people",
+            "description": "Ale, beds and gossip. Travellers stop, and some of them stay.",
+            "gold": 250, "materials": { "wood": 20 }, "days": 7,
+            "effects": { "happiness": 4, "growth": 0.015, "settlers": 0.1, "tax": 0.03 }
+        },
+        "moot_hall": {
+            "name": "Moot Hall", "icon": "🏛️", "category": "people", "minTier": 1,
+            "description": "Where the town meets and your court sits. Petitioners wait longer and quarrels cool.",
+            "gold": 320, "materials": { "stone": 15, "wood": 10 }, "days": 8,
+            "effects": { "petitionDays": 4, "happiness": 2, "order": 0.3 }
+        }
+    },
+    "governorTraits": {
+        "practical": { "stewardship": 2 },
+        "honest": { "stewardship": 1, "loyalty": 10 },
+        "scholarly": { "stewardship": 2 },
+        "generous": { "stewardship": 1, "loyalty": 5 },
+        "serious": { "stewardship": 1 },
+        "greedy": { "intrigue": 2, "loyalty": -10 },
+        "cunning": { "intrigue": 3 },
+        "brave": { "martial": 2 },
+        "martial": { "martial": 3 },
+        "cautious": { "martial": 1, "stewardship": 1 },
+        "adventurous": { "martial": 1, "loyalty": -5 },
+        "loyal": { "loyalty": 15 },
+        "fickle": { "loyalty": -15 },
+        "homebody": { "stewardship": 1, "loyalty": 5 }
+    },
+    "governorOccupations": {
+        "merchant": { "stewardship": 2 },
+        "merchant prince": { "stewardship": 3, "intrigue": 1 },
+        "miller": { "stewardship": 1 },
+        "farmer": { "stewardship": 1 },
+        "scholar": { "stewardship": 2 },
+        "court scholar": { "stewardship": 2, "intrigue": 1 },
+        "noble": { "stewardship": 2, "intrigue": 1 },
+        "diplomat": { "intrigue": 2, "stewardship": 1 },
+        "spymaster": { "intrigue": 4 },
+        "guard": { "martial": 2 },
+        "knight": { "martial": 3 },
+        "general": { "martial": 4 },
+        "hunter": { "martial": 1 },
+        "blacksmith": { "martial": 1, "stewardship": 1 },
+        "tavern keeper": { "intrigue": 1, "stewardship": 1 },
+        "priest": { "stewardship": 1 }
+    },
+    "stewardNames": {
+        "given": ["Aldric", "Bertilde", "Corwin", "Dagny", "Edmund", "Fenna", "Godric", "Hilde", "Isolde", "Jorund", "Katrin", "Leofric", "Maud", "Osric", "Rowena", "Sigrun", "Theobald", "Wynne"],
+        "family": ["Ashford", "Blackwood", "Crane", "Dunmore", "Fairweather", "Greaves", "Holt", "Marlow", "Pell", "Redfern", "Stroud", "Thorne", "Vane", "Wexley"]
+    }
+}

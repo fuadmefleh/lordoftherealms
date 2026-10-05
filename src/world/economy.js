@@ -139,7 +139,8 @@ export const Economy = {
         if (!settlement) return 1;
         const bonus = world ? Economy.resourceBonus(world, settlement.q, settlement.r, 'military')
             : ((settlement.economy && settlement.economy.resourceBonuses && settlement.economy.resourceBonuses.military) || 0);
-        return 1 - bonus * Economy.effectScale('recruitCost');
+        // A holding's Barracks (systems/holdings.js) trains recruits cheaply
+        return (1 - bonus * Economy.effectScale('recruitCost')) * (1 - Economy.holdingFx(settlement, 'recruitDiscount'));
     },
 
     /** Multiplier on the profit a caravan earns selling at this settlement. */
@@ -151,7 +152,15 @@ export const Economy = {
     /** Extra sale-price fraction in a settlement whose markets draw traders (cached daily). */
     saleBonus(settlement) {
         const b = settlement && settlement.economy && settlement.economy.resourceBonuses;
-        return b ? (b.trade || 0) * Economy.effectScale('salePrice') : 0;
+        // plus a holding's Market Square (systems/holdings.js)
+        return (b ? (b.trade || 0) * Economy.effectScale('salePrice') : 0) + Economy.holdingFx(settlement, 'salePrice');
+    },
+
+    /** One cached effect of a player holding's development (settlement.holding.fx, systems/holdings.js). */
+    holdingFx(settlement, key) {
+        const fx = settlement && settlement.holding && settlement.holding.fx;
+        const v = fx && fx[key];
+        return typeof v === 'number' && isFinite(v) ? v : 0;
     },
 
     /**
@@ -400,6 +409,9 @@ export const Economy = {
             prod.gold = Math.round(prod.gold * output);
             prod.goods = Math.round(prod.goods * output);
         }
+        // A holding's Workshop Quarter (systems/holdings.js) turns out more goods
+        const workshops = Economy.holdingFx(settlement, 'goods');
+        if (workshops) prod.goods = Math.round(prod.goods * (1 + workshops));
 
         settlement.economy.gold += prod.gold;
         // The agricultural year: little comes to market at planting time and
@@ -445,7 +457,8 @@ export const Economy = {
         if (pop <= 0 || !econ) return Infinity;
         const type = F.selfSufficiency[settlement.type] !== undefined ? settlement.type : 'village';
         const marketNeed = pop * F.perCapita * Math.max(0.05, 1 - F.selfSufficiency[type]);
-        return Math.max(0, econ.food || 0) / marketNeed;
+        // A holding's Granary or Harbour (systems/holdings.js) keeps extra days put by
+        return Math.max(0, econ.food || 0) / marketNeed + Economy.holdingFx(settlement, 'reserveDays');
     },
 
     /**

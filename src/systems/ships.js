@@ -1424,6 +1424,11 @@ export const Ships = {
             if (this.isPortTile(world, t.q, t.r)) {
                 const e = this.getPortMarket(world, t.q, t.r).find(x => x.id === goodId);
                 if (e && e.buy && (out.port == null || e.buy < out.port)) out.port = e.buy;
+                // The ship's chandler sells provisions here too
+                if (goodId === this._getProvisionSettings().item) {
+                    const chandler = this.provisionPrice(world, t.q, t.r);
+                    if (out.port == null || chandler < out.port) out.port = chandler;
+                }
             }
         }
         return out;

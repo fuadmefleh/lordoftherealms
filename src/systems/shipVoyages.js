@@ -92,9 +92,14 @@ export const VoyageMethods = {
         return Math.floor(this.getProvisions(ship) / need);
     },
 
-    /** Units of provisions to buy so the hold feeds the crew for `days`. */
-    provisionsNeeded(ship, days) {
-        return Math.max(0, Math.ceil(days * this.getDailyRations(ship)) - this.getProvisions(ship));
+    /**
+     * Units of provisions to buy so the hold feeds the crew for `days`. The
+     * captain eats from the hold too once their own packs run dry, so their
+     * ration is counted unless `captain: false`.
+     */
+    provisionsNeeded(ship, days, { captain = true } = {}) {
+        const perDay = this.getDailyRations(ship) + (captain ? 1 : 0);
+        return Math.max(0, Math.ceil(days * perDay) - this.getProvisions(ship));
     },
 
     /** What a port's ship's chandler charges for one unit of provisions. */

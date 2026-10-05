@@ -265,11 +265,13 @@ describe('provisions', () => {
         const p = captain(s);
         expect(Ships.getDailyRations(s)).toBe(2);
         expect(Ships.getProvisionDays(s)).toBe(3);
+        // The captain's own ration is counted too (they eat from the hold when their packs run dry)
+        expect(Ships.provisionsNeeded(s, 10, { captain: false })).toBe(14);
         const need = Ships.provisionsNeeded(s, 10);
-        expect(need).toBe(14);
+        expect(need).toBe(24);
         const res = Ships.buyProvisions(p, w, s.id, need);
         expect(res.success).toBe(true);
-        expect(Ships.getProvisionDays(s)).toBe(10);
+        expect(Ships.getProvisionDays(s)).toBe(15);
         expect(p.gold).toBe(5000 - need * Ships.provisionPrice(w, 5, 10));
         // The chandler's markup keeps provisions dearer than the land market pays for food
         const food = PlayerEconomy.GOODS.FOOD;

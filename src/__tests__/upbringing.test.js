@@ -315,6 +315,39 @@ describe('placing grown children', () => {
         expect(Heirs.arrangeRoyalMatch(p, world, a.id, 'k1').success).toBe(false);
     });
 
+    it('a wed heir brings their spouse to the throne, and the match counts as a noble marriage', () => {
+        const k = kingdom();
+        const world = makeWorld({ day: 300, kingdoms: [k], getTile: () => null });
+        const a = makeChild({ age: 18 });
+        const p = makePlayer(world, [a]);
+        a.upbringing.comeOfAge = true;
+        p.reputation = { k1: 30 };
+        p.house.prestige = 50;
+        const before = (p.house.stats && p.house.stats.nobleMarriage) || 0;
+        expect(Heirs.marryForAlliance(p, world, a.id, 'k1').success).toBe(true);
+        expect(p.house.stats.nobleMarriage).toBe(before + 1);
+
+        const res = Relationships.succeedAsHeir(p, a.id, world, { cause: 'old age' });
+        expect(res.success).toBe(true);
+        expect(p.spouse).toBeTruthy();
+        const npc = Relationships.getNPC(p.spouse);
+        expect(npc.isMarried).toBe(true);
+        expect(npc.gender).toBe('male');
+        expect(npc.kingdomId).toBe('k1');
+        expect(p.marriageAllianceKingdom).toBe('k1');
+    });
+
+    it('an unwed heir inherits no spouse and no kinship', () => {
+        const world = makeWorld({ day: 300, getTile: () => null });
+        const a = makeChild({ age: 18 });
+        const p = makePlayer(world, [a]);
+        p.spouse = 'old_spouse';
+        p.marriageAllianceKingdom = 'k9';
+        Relationships.succeedAsHeir(p, a.id, world, { cause: 'old age' });
+        expect(p.spouse).toBeNull();
+        expect(p.marriageAllianceKingdom).toBeNull();
+    });
+
     it("a ward is away for a season and returns with skills and the host's trait", () => {
         const k = kingdom();
         const world = makeWorld({ day: 300, kingdoms: [k] });

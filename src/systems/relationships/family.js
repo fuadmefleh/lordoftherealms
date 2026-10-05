@@ -370,6 +370,37 @@ Object.assign(Relationships, {
      * Take over as an heir — creates a new player from the child's stats
      * Returns the transformed player data
      */
+    /**
+     * The heir's match (alliance or royal, made while they were a child of the
+     * House) becomes the new ruler's spouse: a real NPC, with the spouse's
+     * realm counting the House as kin, as a marriage made in person does.
+     */
+    _seatHeirSpouse(player, child, world) {
+        const sp = child && child.upbringing && child.upbringing.spouse;
+        if (!sp || !world) return null;
+        const k = sp.kingdomId && typeof world.getKingdom === 'function' ? world.getKingdom(sp.kingdomId) : null;
+        const home = k && k.capital ? world.getTile(k.capital.q, k.capital.r) : null;
+        const settlement = (home && home.settlement) || { name: sp.kingdomName || 'abroad', kingdom: sp.kingdomId || null };
+        const npc = Relationships.generateNPC(settlement, world);
+        const [first, ...rest] = String(sp.name || npc.firstName).split(' ');
+        npc.firstName = first;
+        if (rest.length && sp.kind === 'royal') npc.dynasty = rest.join(' ');
+        npc.gender = child.gender === 'female' ? 'male' : 'female';
+        npc.age = Math.max(16, (child.age || 18) + Utils.randInt(-3, 3));
+        npc.isMarried = true;
+        npc.noble = true;
+        npc.royal = sp.kind === 'royal';
+        if (sp.royalId) npc.royalId = sp.royalId;
+        player.spouse = npc.id;
+        player.marriageDay = sp.day != null ? sp.day : ((world && world.day) || 0);
+        const fx = Relationships.getMarriageEffects();
+        player.marriageAllianceKingdom = fx.allianceWithSpouseKingdom && sp.kingdomId ? sp.kingdomId : null;
+        const rel = Relationships.getRelationship(player, npc.id);
+        rel.affection = Math.max(rel.affection || 0, 60);
+        rel.romantic = true;
+        return npc;
+    },
+
     succeedAsHeir(player, childId, world, opts = {}) {
         const settings = Relationships._getHeirSettings();
         const child = (player.children || []).find(c => c.id === childId);
@@ -449,6 +480,7 @@ Object.assign(Relationships, {
         // Keep dynasty, clear personal relationships
         player.spouse = null;
         player.marriageDay = null;
+        player.marriageAllianceKingdom = null;
         player.heir = null;
 
         // Remove this child from children, keep others as siblings
@@ -467,6 +499,9 @@ Object.assign(Relationships, {
 
         // Clear old relationships (new character doesn't know the same people personally)
         player.relationships = {};
+
+        // An heir already wed (systems/heirs.js matches) brings their spouse to the throne
+        Relationships._seatHeirSpouse(player, child, world);
 
         // House-level succession stakes: advance the generation, possibly a
         // disputed succession (securable with Prestige, else holdings fragment).

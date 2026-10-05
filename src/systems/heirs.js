@@ -42,6 +42,12 @@ export const Heirs = {
     },
 
     /** Common gate: a living, come-of-age, unmarried child who is at home. */
+    /** A child's noble match counts as a noble marriage for the reign's legacy. */
+    _recordMatch(player, world, child, spouse) {
+        if (!player.house || !player.house.stats) return;
+        player.house.stats.nobleMarriage = (player.house.stats.nobleMarriage || 0) + 1;
+    },
+
     _available(player, childId) {
         const child = ((player && player.children) || []).find(c => c && c.id === childId);
         if (!child || child.isAlive === false) return { error: 'No such child.' };
@@ -99,6 +105,7 @@ export const Heirs = {
             House.award(player.house, cfg.alliancePrestige, `${child.firstName} weds into ${k.name}`, world && world.day);
             House._chronicle(player.house, world, `${child.firstName} weds ${up.spouse.name}, binding ${player.house.name} to ${k.name}.`, ['marriage', 'heirs']);
         }
+        Heirs._recordMatch(player, world, child, up.spouse);
         return { success: true, child, spouse: up.spouse, reputation: cfg.allianceReputation, cost: cfg.allianceDowry };
     },
 
@@ -135,6 +142,7 @@ export const Heirs = {
         up.placement = { kind: 'royal', kingdomId: kid, kingdomName: k.name, day: world.day };
         const claim = Throne.grantClaim(player, world, kid, 'marriage', cfg.royalClaim);
         House._chronicle(player.house, world, `${child.firstName} weds ${up.spouse.name} of the royal house of ${k.name}.`, ['marriage', 'heirs', 'throne']);
+        Heirs._recordMatch(player, world, child, up.spouse);
         return { success: true, child, spouse: up.spouse, claim, cost: tcfg.royalMatchGold, prestige: tcfg.royalMatchPrestige };
     },
 

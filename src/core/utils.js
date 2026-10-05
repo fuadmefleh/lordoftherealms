@@ -61,6 +61,11 @@ export const Utils = {
         _perm = null;
     },
 
+    /** The RNG function currently in use (to restore after a scoped setSeed). */
+    getRng() {
+        return _rng;
+    },
+
     /**
      * Restore the default (non-deterministic) Math.random source.
      * Tests call this between cases so RNG state never leaks across them.

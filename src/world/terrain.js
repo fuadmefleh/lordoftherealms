@@ -104,7 +104,7 @@ export const Terrain = {
             const seedVal = typeof params.seed === 'string' ? Math.abs(Utils.hashStr(params.seed)) : params.seed;
             rng = Utils.seededRandom(seedVal);
         } else {
-            rng = Math.random;
+            rng = () => Utils.random(); // seedable (Math.random unless a seed is set)
         }
 
         // Noise Parameters

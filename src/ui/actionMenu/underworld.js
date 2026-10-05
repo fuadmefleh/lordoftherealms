@@ -142,7 +142,7 @@ Object.assign(ActionMenu, {
             if (!goods.length) html += '<div style="color:#999;">You carry nothing to sell.</div>';
             for (const [id, qty] of goods.slice(0, 14)) {
                 const hot = sum.hot.find(h => h.item === id);
-                const price = Underworld.fencePrice(player, id);
+                const price = Underworld.fencePrice(player, id, game.world, tile);
                 html += `<div style="display:flex; align-items:center; justify-content:space-between; padding:3px 0; border-bottom:1px solid rgba(255,255,255,0.05);">`;
                 html += `<span>${label(id)} ×${qty}${hot ? ` <span style="color:#e08040;">🔥 hot ${hot.qty} (${hot.daysLeft}d)</span>` : ''}</span>`;
                 html += `<span><span style="color:var(--gold);">${price}g</span> <button onclick="window._uw.fence('${id}', 1)" style="${BTN_GOLD}">1</button>`;

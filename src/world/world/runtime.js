@@ -510,6 +510,11 @@ Object.assign(World.prototype, {
         for (let r = 0; r < this.height; r++) {
             for (let q = 0; q < this.width; q++) {
                 if (this.tiles[r][q].settlement) {
+                    // Settlements are created without their position; code that
+                    // holds a tile's settlement (recruiting, resource bonuses,
+                    // planting contracts, NPC homes) reads settlement.q/r
+                    const s = this.tiles[r][q].settlement;
+                    if (s.q !== q || s.r !== r) { s.q = q; s.r = r; }
                     settlements.push({
                         q, r,
                         ...this.tiles[r][q].settlement

@@ -204,16 +204,13 @@ export const PlayerMovementMethods = {
                 return false;
             }
 
-            // Check stamina
+            // Check stamina and action points (each move step costs 1 AP). Too
+            // tired for the next hex: queue the rest of the way for tomorrow,
+            // as running out exactly on a step does (it used to drop the trip)
             const moveCost = this._hexMoveCost(tile);
-            if (this.movementRemaining < moveCost) {
-                this.isMoving = false;
-                this.path = null;
-                return false;
-            }
-
-            // Check action points (each move step costs 1 AP)
-            if ((this.actionPoints || 0) < 1) {
+            if (this.movementRemaining < moveCost || (this.actionPoints || 0) < 1) {
+                this.queuedPath = this.path;
+                this.queuedPathIndex = this.pathIndex;
                 this.isMoving = false;
                 this.path = null;
                 return false;

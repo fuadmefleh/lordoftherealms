@@ -30,6 +30,8 @@ import { KingdomNavy } from '../world/kingdomNavy.js';
 import { Seasons } from '../world/seasons.js';
 import { Gossip } from './gossip.js';
 import { Traits } from './traits.js';
+import { Ships } from './ships.js';
+import { Economy } from '../world/economy.js';
 
 const LOG_CAP = 20;
 const SETTLEMENT_ORDER = ['village', 'town', 'city', 'capital'];
@@ -510,7 +512,28 @@ export const Underworld = {
     },
 
     blackMarketPrice(world, tile, goodId) {
-        return Math.max(1, Math.floor(Underworld._baseValue(goodId) * Underworld.blackMarketMultiplier(world, tile, goodId)));
+        const price = Math.max(1, Math.floor(Underworld._baseValue(goodId) * Underworld.blackMarketMultiplier(world, tile, goodId)));
+        return Math.min(price, Underworld.openSaleCap(world, tile, goodId));
+    },
+
+    /**
+     * Ceiling on what the underworld pays per unit for goods sold openly on
+     * this tile: half the open asking price (market or port) — the least a
+     * player's discounts can buy them for — so nothing bought here sells
+     * straight back to a fence or the black market at a profit. The
+     * contraband premium is for goods you can't simply buy in the square.
+     */
+    openSaleCap(world, tile, goodId) {
+        const settlement = tile && tile.settlement;
+        if (!settlement) return Infinity;
+        // Banned goods aren't on open sale (Trading.getAvailableGoods skips them)
+        const banned = Underworld.contrabandStatus(Underworld._settlementKingdom(world, settlement), goodId) === 'illegal';
+        let ask = banned ? null : Economy.marketAsk(world, tile, goodId);
+        if (world && typeof world.getTile === 'function' && Ships.isPortTile(world, tile.q, tile.r)) {
+            const e = Ships.getPortMarket(world, tile.q, tile.r).find(x => x.id === goodId);
+            if (e && e.buy) ask = ask == null ? e.buy : Math.min(ask, e.buy);
+        }
+        return ask == null ? Infinity : Math.max(1, Math.floor(ask * 0.5));
     },
 
     /**
@@ -616,8 +639,9 @@ export const Underworld = {
         return _clamp(g.fenceRateBase + rank * g.fenceRatePerRank, 0.1, 0.95);
     },
 
-    fencePrice(player, goodId) {
-        return Math.max(1, Math.floor(Underworld._baseValue(goodId) * Underworld.fenceRate(player)));
+    fencePrice(player, goodId, world = null, tile = null) {
+        const price = Math.max(1, Math.floor(Underworld._baseValue(goodId) * Underworld.fenceRate(player)));
+        return Math.min(price, Underworld.openSaleCap(world, tile, goodId));
     },
 
     /** Can the player reach a fence here? (a guild member, or a contact met) */
@@ -634,7 +658,7 @@ export const Underworld = {
         if (!(qty > 0) || held < qty) return { success: false, reason: 'You do not have that many.' };
         const day = Seasons.today(world);
         const hot = Math.min(qty, Underworld.hotQty(player, goodId, day));
-        const price = Underworld.fencePrice(player, goodId);
+        const price = Underworld.fencePrice(player, goodId, world, tile);
         Underworld._removeGoods(player, goodId, qty);
         if (hot > 0) Underworld._consumeHot(player, goodId, hot);
         const earned = price * qty;

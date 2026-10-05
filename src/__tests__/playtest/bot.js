@@ -28,6 +28,7 @@ import { Throne } from '../../systems/throne.js';
 import { Espionage } from '../../systems/espionage.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Companions } from '../../systems/companions.js';
+import { Ailments } from '../../systems/ailments.js';
 import { travelTo } from './harness.js';
 
 const FOOD = ['grain', 'bread'];
@@ -483,6 +484,19 @@ export function botDay(game, stats) {
         }
     }
     if (player.needs && player.needs.hunger < 60 && player.getFoodCount() > 0) player.eatMeal();
+    // Sick in a town with money to spare: see the physician, as a player would
+    // before a fever or the flux reaches its deadly stage
+    const here = world.getTile(player.q, player.r);
+    if (here && here.settlement) {
+        for (const opt of Ailments.treatmentOptions(player, world, here.settlement)) {
+            if (opt.kind !== 'disease' || !opt.can || player.gold < Math.max(500, opt.cost * 5)) continue;
+            const rec = Ailments.list(player).find(a => a.key === opt.key);
+            const def = rec && Ailments.def(rec.id);
+            const stage = def && def.stages && def.stages[rec.stage];
+            if (!stage || !(stage.deathChance > 0)) continue;
+            if (booked(game, 'medicine', () => Ailments.treat(player, world, here.settlement, opt.key)).success) count(stats, 'treated');
+        }
+    }
     booked(game, 'court', () => court(game, stats));
     booked(game, 'throne', () => throne(game, stats));
     booked(game, 'treasures', () => treasures(game, stats));

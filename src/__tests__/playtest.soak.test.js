@@ -15,6 +15,8 @@ import { Utils } from '../core/utils.js';
 import { PlayerEconomy, Trading } from '../player/playerEconomy.js';
 import { Ships } from '../systems/ships.js';
 import { Underworld } from '../systems/underworld.js';
+import { MarketDynamics } from '../systems/marketDynamics.js';
+import { WorldUnit } from '../world/units.js';
 import { loadData, newGame, endDay, roundTrip } from './playtest/harness.js';
 import { botDay } from './playtest/bot.js';
 
@@ -152,8 +154,29 @@ function snapshot(game) {
         kingdoms: game.world.kingdoms.map(k => [k.id, k.isAlive, Math.round(k.treasury), k.religion && Math.round(k.religion.piety),
             k.cultureData && Math.round(k.cultureData.influence)]),
         holySites: game.world.tiles.flat().filter(t => t.holySite).map(t => `${t.q},${t.r}:${t.holySite.controller}`).join(' '),
+        buildings: game.world.tiles.flat().filter(t => t.religiousBuilding || t.culturalBuilding)
+            .map(t => `${t.q},${t.r}:${t.religiousBuilding ? t.religiousBuilding.type : ''}/${t.culturalBuilding ? t.culturalBuilding.type : ''}`).join(' '),
         terrain: terrainDigest(game.world),
+        // World units (raiders, caravans, processions, guardians, war hosts, ...) come back as they were
+        units: game.world.units.map(u => `${u.id}:${u.type}@${u.q},${u.r}>${u.targetQ},${u.targetR}:${u.strength}:${u.age}${u.destroyed ? 'x' : ''}`),
+        unitClasses: game.world.units.every(u => u instanceof WorldUnit),
+        // ...and the player's caravans still find their units
+        caravanUnits: (p.caravans || []).filter(c => c.unitId).map(c => game.world.units.some(u => u.id === c.unitId)),
+        markets: Utils.hashStr(JSON.stringify(MarketDynamics.regionalMarkets)),
+        idCounter: Utils.getIdCounter(),
     };
+}
+
+/** Delve guardians: one live unit per awakened guardian, never a duplicate after a load. */
+function guardianProblems(game, phase) {
+    const out = [];
+    const st = game.player.delves;
+    for (const g of (st && st.guardians) || []) {
+        if (g.slain || g.gone) continue;
+        const n = game.world.units.filter(u => u.delveGuardianId === g.id && !u.destroyed).length;
+        if (n > 1) out.push(`seed ${game.seed} day ${game.world.day} (${phase}): ${n} units for guardian ${g.name}`);
+    }
+    return out;
 }
 
 function runSoak(seed) {
@@ -191,6 +214,9 @@ function runSoak(seed) {
             game = roundTrip(game);
             expect(snapshot(game), `seed ${seed}: save/load round trip changed state`).toEqual(before);
             problems.push(...checkInvariants(game, 'after load'));
+        }
+        if (i >= SAVE_AT && i <= SAVE_AT + 3) {
+            problems.push(...guardianProblems(game, i === SAVE_AT ? 'after load' : 'after reload day'));
         }
     }
     return { game, stats, problems, arbitrage: [...arbitrage], died, history, days: game.world.day - startDay };

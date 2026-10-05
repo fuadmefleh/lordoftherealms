@@ -110,7 +110,7 @@ export const Delves = {
     INJURIES: {},
     GUARDIANS: {},
 
-    /** Live guardian units this session, by guardian record id (not saved). */
+    /** Live guardian units this session, by guardian record id (the units are saved with the world; this map is rebuilt from them). */
     _live: new Map(),
 
     /** Install content from data/delves.json. */
@@ -835,7 +835,13 @@ export const Delves = {
         if (world && Array.isArray(world.units)) {
             for (const g of st.guardians) {
                 if (g.slain || g.gone) continue;
-                const unit = Delves._live.get(g.id);
+                let unit = Delves._live.get(g.id);
+                if (!unit) {
+                    // After a load the guardian comes back with the saved world
+                    // units: pick it up rather than raising a second one
+                    unit = world.units.find(u => u && u.delveGuardianId === g.id) || null;
+                    if (unit) Delves._live.set(g.id, unit);
+                }
                 if (unit && unit.destroyed) {
                     g.slain = true;
                     out.slain.push(g.name);

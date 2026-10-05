@@ -21,6 +21,10 @@ import { Throne } from './throne.js';
 import { Holdings } from './holdings.js';
 import { Rivals } from './rivals.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
+import { WorldUnit } from '../world/units.js';
+import { Terrain } from '../world/terrain.js';
+import { MarketDynamics } from './marketDynamics.js';
+import { Utils } from '../core/utils.js';
 
 
 export const SaveLoad = {
@@ -107,7 +111,27 @@ export const SaveLoad = {
             // Terrain is regenerated on load, not saved: the seed and settings
             // reproduce it (see World.generate)
             generationParams: world.generationParams || null,
+            // Raiders, caravans (the player's among them), lord processions,
+            // pirates, delve guardians, war hosts, settlers, fishing boats...
+            // as they stand — older saves regenerate them
+            units: SaveLoad.serializeUnits(world.units),
+            // Regional market supply, demand, prices and price history
+            markets: MarketDynamics.regionalMarkets || {},
+            // Ids for characters, maps, spies, ... keep counting from here
+            idCounter: Utils.getIdCounter(),
         };
+    },
+
+    /** World units as plain data (each WorldUnit's own fields). */
+    serializeUnits(units) {
+        if (!Array.isArray(units)) return [];
+        return units.filter(u => u && typeof u === 'object').map(u => ({ ...u }));
+    },
+
+    /** WorldUnits back from saved data — no constructor, so no RNG draws. */
+    restoreUnits(saved) {
+        return saved.filter(u => u && typeof u === 'object' && u.type)
+            .map(u => Object.assign(Object.create(WorldUnit.prototype), u));
     },
 
     /**
@@ -131,6 +155,13 @@ export const SaveLoad = {
                     indigenous: tile.indigenous || null,
                     // Who holds a holy site, its pilgrims and level change in play
                     ...(tile.holySite ? { holySite: tile.holySite } : {}),
+                    // The player's temples, shrines and cultural buildings
+                    ...(tile.religiousBuilding ? { religiousBuilding: tile.religiousBuilding } : {}),
+                    ...(tile.culturalBuilding ? { culturalBuilding: tile.culturalBuilding } : {}),
+                    // Land the player cleared or levelled (regeneration would undo it)
+                    ...(tile.terraformed ? {
+                        terraformed: { terrain: tile.terrain && tile.terrain.id, resource: tile.resource || null, elevation: tile.elevation },
+                    } : {}),
                     // Terrain is regenerated, not saved
                 });
             }
@@ -184,7 +215,9 @@ export const SaveLoad = {
             traits: k.traits || [],
             // State that evolves in play (piety, heresies, cultural influence,
             // peoples, stores) — regeneration would reset it to day one
-            ...SaveLoad._pickDefined(k, ['religion', 'cultureData', 'peoples', 'food', 'goods']),
+            ...SaveLoad._pickDefined(k, ['religion', 'cultureData', 'peoples', 'food', 'goods',
+                // Recomputed during the day, but read before that on the first day after a load
+                'characterBonuses', 'lordModifiers', 'playerFaith']),
             ...(k.createdByPlayer ? {
                 foundedDay: k.foundedDay,
                 colorLight: k.colorLight,
@@ -419,6 +452,9 @@ export const SaveLoad = {
                     || savedTile.playerProperty || null;
                 tile.indigenous = savedTile.indigenous || null;
                 if (savedTile.holySite) tile.holySite = savedTile.holySite;
+                if (savedTile.religiousBuilding) tile.religiousBuilding = savedTile.religiousBuilding;
+                if (savedTile.culturalBuilding) tile.culturalBuilding = savedTile.culturalBuilding;
+                if (savedTile.terraformed) SaveLoad._restoreTerraform(tile, savedTile.terraformed);
             }
         }
 
@@ -451,6 +487,33 @@ export const SaveLoad = {
             KingdomNavy.ensure(kingdom);
             world.kingdoms.push(kingdom);
         }
+
+        // World units (older saves keep the ones the regenerated world spawned)
+        if (Array.isArray(saveData.units)) world.units = SaveLoad.restoreUnits(saveData.units);
+        // Never hand out an id the save already used
+        if (typeof saveData.idCounter === 'number') {
+            Utils.setIdCounter(Math.max(Utils.getIdCounter(), saveData.idCounter));
+        }
+        // The settlement scan changed under any cache
+        if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();
+    },
+
+    /**
+     * Regional markets from a save (null for older saves: they start afresh).
+     * Call after MarketDynamics.initialize().
+     */
+    restoreMarkets(saveData) {
+        const markets = saveData && saveData.markets;
+        if (markets && typeof markets === 'object' && !Array.isArray(markets)) MarketDynamics.regionalMarkets = markets;
+    },
+
+    /** Put back terrain the player cleared or levelled. */
+    _restoreTerraform(tile, saved) {
+        const type = saved.terrain && Object.values(Terrain.TYPES).find(t => t && t.id === saved.terrain);
+        if (type) tile.terrain = type;
+        tile.resource = saved.resource || null;
+        if (typeof saved.elevation === 'number') tile.elevation = saved.elevation;
+        tile.terraformed = true;
     },
 
     /**

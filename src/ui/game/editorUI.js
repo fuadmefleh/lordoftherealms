@@ -32,6 +32,8 @@ export function resumeGame() {
 
     // Initialize market dynamics
     MarketDynamics.initialize();
+    // ...with the saved regional markets (older saves start afresh)
+    SaveLoad.restoreMarkets(data.world);
 
     // Initialize character system for kingdoms that don't have it yet (older saves)
     if (typeof Characters !== 'undefined') {

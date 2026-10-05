@@ -86,7 +86,7 @@ Object.assign(PlayerEconomy, {
         );
         if (duplicate) return { success: false, reason: 'A matching route already exists' };
 
-        const routeId = `${isSmuggling ? 'SR' : 'TR'}-${Date.now()}-${Math.floor(Utils.random() * 999)}`;
+        const routeId = `${isSmuggling ? 'SR' : 'TR'}-${Utils.nextId()}-${Math.floor(Utils.random() * 999)}`;
         const route = {
             id: routeId,
             isSmuggling,

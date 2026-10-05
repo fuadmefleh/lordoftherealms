@@ -577,6 +577,7 @@ export const Colonization = {
             kingdom: player.allegiance || null,
             founded: world.day,
         };
+        if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();
 
         Economy.initSettlement(tile.settlement);
 
@@ -848,6 +849,7 @@ export const Colonization = {
             kingdom: settler.ownerAllegiance || null,
             founded: world.day,
         };
+        if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();
 
         Economy.initSettlement(tile.settlement);
 
@@ -907,6 +909,7 @@ export const Colonization = {
             kingdom: kingdom.id,
             founded: world.day,
         };
+        if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();
 
         Economy.initSettlement(tile.settlement);
 

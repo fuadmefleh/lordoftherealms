@@ -1038,6 +1038,7 @@ Object.assign(ActionMenu, {
 
         // Change terrain to grassland
         tile.terrain = Terrain.TYPES.GRASSLAND;
+        tile.terraformed = true; // saved (SaveLoad.serializeTiles)
 
         // Remove any forest-specific resource
         if (tile.resource && ['wood', 'timber'].includes(tile.resource.id)) {
@@ -1142,6 +1143,7 @@ Object.assign(ActionMenu, {
 
             // Change terrain to grassland
             tile.terrain = Terrain.TYPES.GRASSLAND;
+            tile.terraformed = true; // saved (SaveLoad.serializeTiles)
 
             // Update elevation to match (grassland level)
             tile.elevation = Math.min(tile.elevation, 0.50);

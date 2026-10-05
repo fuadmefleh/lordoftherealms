@@ -402,10 +402,13 @@ describe('save and load', () => {
         Utils.setSeed(17);
         const saga = Sagas.start(p, w, 'the_comet');
         expect(saga).toBeTruthy();
-        for (let i = 0; i < 15; i++) endDay(game);
+        // The idle test player is no fighter; keep it alive so the story is what's tested
+        // (world units now survive the load, so the raiders that ambushed it stay close)
+        const keepAlive = (g) => { g.player.health = g.player.maxHealth || 100; };
+        for (let i = 0; i < 15; i++) { keepAlive(game); endDay(game); }
         const g2 = roundTrip(game);
         expect(Sagas.serialize(g2.player)).toEqual(Sagas.serialize(p));
-        for (let i = 0; i < 200 && Sagas.active(g2.player).some(s => s.uid === saga.uid); i++) endDay(g2);
+        for (let i = 0; i < 200 && Sagas.active(g2.player).some(s => s.uid === saga.uid); i++) { keepAlive(g2); endDay(g2); }
         const s2 = Sagas.get(g2.player, saga.uid);
         expect(s2.ended).toBeTruthy();
         // Its events and its crater were saved with the world

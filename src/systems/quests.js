@@ -301,7 +301,7 @@ export const Quests = {
      * @param {Object} npc   The NPC who asked ({ id, name })
      * @returns {{ success: boolean, quest?: Object, reason?: string }}
      */
-    createNpcTask(player, hook, npc) {
+    createNpcTask(player, hook, npc, world = null) {
         if (!player.quests) Quests.initialize(player);
         const objDef = hook && Quests.NPC_TASK_OBJECTIVES[hook.type];
         if (!objDef) return { success: false, reason: 'Nothing concrete to do' };
@@ -323,7 +323,7 @@ export const Quests = {
             rewards,
             difficulty: 'easy',
             status: 'active',
-            startedAt: Date.now(),
+            startedAt: world ? world.day : 0,
         };
         player.quests.active.push(quest);
         return { success: true, quest };
@@ -462,7 +462,7 @@ export const Quests = {
     /**
      * Accept a quest
      */
-    acceptQuest(player, questId) {
+    acceptQuest(player, questId, world = null) {
         if (!player.quests) return { success: false, reason: 'Quest system not initialized' };
 
         const questIndex = player.quests.available.findIndex(q => q.id === questId);
@@ -476,7 +476,7 @@ export const Quests = {
 
         const quest = player.quests.available[questIndex];
         quest.status = 'active';
-        quest.startedAt = Date.now();
+        quest.startedAt = world ? world.day : 0;
 
         player.quests.active.push(quest);
         player.quests.available.splice(questIndex, 1);

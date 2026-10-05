@@ -56,65 +56,87 @@ export const MarketDynamics = {
      */
     updatePrices(world) {
         const settlements = world.getAllSettlements();
-        
+        // Tiles with player properties (few or none): settlements with none
+        // within 5 hexes skip the 91-hex neighbourhood scan below
+        const propertyTiles = MarketDynamics._propertyTiles(world);
+        const basePrices = new Map();
+        const basePriceOf = (goodId) => {
+            let price = basePrices.get(goodId);
+            if (price === undefined) {
+                price = PlayerEconomy.GOODS[goodId.toUpperCase()]?.basePrice || 10;
+                basePrices.set(goodId, price);
+            }
+            return price;
+        };
+        const hasOwn = Object.prototype.hasOwnProperty;
+
         for (const settlement of settlements) {
             const settlementId = `${settlement.q}-${settlement.r}`;
             const market = this.getOrCreateSettlementMarket(settlementId);
             const tile = world.getTile(settlement.q, settlement.r);
             if (!tile) continue;
 
-            const newSupply = {};
-            const newDemand = {};
-
-            // Initialize
-            for (const goodId in market.prices) {
-                newSupply[goodId] = 10; // Base local supply
-                newDemand[goodId] = 10; // Base local demand
-            }
+            // Today's local supply and demand: 10 of every good the market
+            // lists (the base), plus the amounts added below
+            const newSupply = new Map();
+            const newDemand = new Map();
+            const add = (into, goodId, amount) => {
+                const cur = into.has(goodId) ? into.get(goodId) : (hasOwn.call(market.prices, goodId) ? 10 : 0);
+                into.set(goodId, (cur || 0) + amount);
+            };
 
             // Calculate local production from settlement
             const econ = Economy.getSummary(settlement, tile, world);
             if (econ.production.food > 0) {
-                newSupply['grain'] = (newSupply['grain'] || 0) + econ.production.food * 0.5;
-                newSupply['fish'] = (newSupply['fish'] || 0) + econ.production.food * 0.3;
+                add(newSupply, 'grain', econ.production.food * 0.5);
+                add(newSupply, 'fish', econ.production.food * 0.3);
             }
             if (econ.production.goods > 0) {
                 // Distribute goods production across various goods
-                newSupply['wood'] = (newSupply['wood'] || 0) + econ.production.goods * 0.2;
-                newSupply['stone'] = (newSupply['stone'] || 0) + econ.production.goods * 0.15;
-                newSupply['iron'] = (newSupply['iron'] || 0) + econ.production.goods * 0.1;
+                add(newSupply, 'wood', econ.production.goods * 0.2);
+                add(newSupply, 'stone', econ.production.goods * 0.15);
+                add(newSupply, 'iron', econ.production.goods * 0.1);
             }
 
             // Player properties in this region (within radius)
-            const nearbyTiles = Hex.hexesInRange(settlement.q, settlement.r, 5);
+            const nearbyTiles = MarketDynamics._propertiesNear(propertyTiles, settlement, world)
+                ? Hex.hexesInRange(settlement.q, settlement.r, 5) : [];
             for (const hex of nearbyTiles) {
                 const nearbyTile = world.getTile(hex.q, hex.r);
                 if (!nearbyTile || !nearbyTile.playerProperties) continue;
                 
                 for (const prop of nearbyTile.playerProperties) {
                     if (prop.produces && prop.productionRate) {
-                        newSupply[prop.produces] = (newSupply[prop.produces] || 0) + prop.productionRate;
+                        add(newSupply, prop.produces, prop.productionRate);
                     }
                 }
             }
 
             // Calculate demand based on population
             const popDemand = Math.floor(settlement.population / 100);
-            newDemand['grain'] = (newDemand['grain'] || 0) + popDemand * 0.8;
-            newDemand['bread'] = (newDemand['bread'] || 0) + popDemand * 0.6;
-            newDemand['fish'] = (newDemand['fish'] || 0) + popDemand * 0.5;
-            newDemand['wood'] = (newDemand['wood'] || 0) + popDemand * 0.4;
-            newDemand['clothes'] = (newDemand['clothes'] || 0) + popDemand * 0.3;
-            newDemand['tools'] = (newDemand['tools'] || 0) + popDemand * 0.2;
+            add(newDemand, 'grain', popDemand * 0.8);
+            add(newDemand, 'bread', popDemand * 0.6);
+            add(newDemand, 'fish', popDemand * 0.5);
+            add(newDemand, 'wood', popDemand * 0.4);
+            add(newDemand, 'clothes', popDemand * 0.3);
+            add(newDemand, 'tools', popDemand * 0.2);
 
-            // Smooth transition (70% old, 30% new)
-            for (const goodId in market.prices) {
-                market.supply[goodId] = Math.floor((market.supply[goodId] || 0) * 0.7 + (newSupply[goodId] || 0) * 0.3);
-                market.demand[goodId] = Math.floor((market.demand[goodId] || 0) * 0.7 + (newDemand[goodId] || 0) * 0.3);
+            // Smooth transition (70% old, 30% new). Most values settle, so a
+            // store is skipped when it would write the same value back (these
+            // big per-good tables are slow to write)
+            const supplies = market.supply, demands = market.demand, prices = market.prices;
+            for (const goodId in prices) {
+                const todaySupply = newSupply.has(goodId) ? newSupply.get(goodId) : 10;
+                const todayDemand = newDemand.has(goodId) ? newDemand.get(goodId) : 10;
+                const oldSupply = supplies[goodId], oldDemand = demands[goodId];
+                const supply = Math.floor((oldSupply || 0) * 0.7 + (todaySupply || 0) * 0.3);
+                const demand = Math.floor((oldDemand || 0) * 0.7 + (todayDemand || 0) * 0.3);
+                if (!Object.is(oldSupply, supply)) supplies[goodId] = supply;
+                if (!Object.is(oldDemand, demand)) demands[goodId] = demand;
 
                 // Calculate price based on supply/demand ratio
-                const basePrice = PlayerEconomy.GOODS[goodId.toUpperCase()]?.basePrice || 10;
-                const ratio = market.demand[goodId] / Math.max(1, market.supply[goodId]);
+                const basePrice = basePriceOf(goodId);
+                const ratio = demand / Math.max(1, supply);
 
                 // Price increases when demand > supply, decreases when supply > demand
                 let newPrice = Math.floor(basePrice * ratio);
@@ -123,16 +145,49 @@ export const MarketDynamics = {
                 newPrice = Math.max(Math.floor(basePrice * 0.4), Math.min(Math.floor(basePrice * 4), newPrice));
 
                 // Smooth price changes (85% old, 15% new)
-                market.prices[goodId] = Math.floor((market.prices[goodId] || basePrice) * 0.85 + newPrice * 0.15);
+                const oldPrice = prices[goodId];
+                const price = Math.floor((oldPrice || basePrice) * 0.85 + newPrice * 0.15);
+                if (!Object.is(oldPrice, price)) prices[goodId] = price;
 
-                // Track price history (last 30 days)
-                if (!market.priceHistory[goodId]) market.priceHistory[goodId] = [];
-                market.priceHistory[goodId].push(market.prices[goodId]);
-                if (market.priceHistory[goodId].length > 30) {
-                    market.priceHistory[goodId].shift();
+                // Track price history (last 30 days): past 30, the oldest
+                // drops out (shifted down in place)
+                let history = market.priceHistory[goodId];
+                if (!history) history = market.priceHistory[goodId] = [];
+                const len = history.length;
+                if (len >= 30) {
+                    for (let i = 1; i < len; i++) history[i - 1] = history[i];
+                    history[len - 1] = price;
+                } else {
+                    history.push(price);
                 }
             }
         }
+    },
+
+    /**
+     * [q, r] of every tile holding player properties, or null when the world
+     * has no tile grid to scan (then every settlement scans its neighbourhood).
+     */
+    _propertyTiles(world) {
+        if (!Array.isArray(world.tiles) || !(world.width > 10)) return null;
+        const out = [];
+        for (let r = 0; r < world.tiles.length; r++) {
+            const row = world.tiles[r];
+            if (!row) continue;
+            for (let q = 0; q < row.length; q++) {
+                if (row[q] && row[q].playerProperties) out.push([q, r]);
+            }
+        }
+        return out;
+    },
+
+    /** Could a hex within 5 of the settlement hold player properties? */
+    _propertiesNear(propertyTiles, settlement, world) {
+        if (!propertyTiles) return true;
+        for (const [q, r] of propertyTiles) {
+            if (Hex.wrappingDistance(settlement.q, settlement.r, q, r, world.width) <= 5) return true;
+        }
+        return false;
     },
 
     /**

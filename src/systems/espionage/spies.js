@@ -376,7 +376,7 @@ Object.assign(Espionage, {
         const duration = Math.max(3, mission.baseDuration - durationReduction);
 
         const activeMission = {
-            id: Date.now() + Math.floor(Utils.random() * 1000),
+            id: 1e6 + Utils.nextId() * 1000 + Math.floor(Utils.random() * 1000),
             spyId: spy.id,
             type: missionType,
             targetKingdom: targetKingdomId,

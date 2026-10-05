@@ -574,6 +574,19 @@ export function botDay(game, stats) {
             return;
         }
     }
+    // Sick in a town with money to spare: see the physician, as a player would
+    // before a fever or the flux reaches its deadly stage
+    const sickAt = world.getTile(player.q, player.r);
+    if (sickAt && sickAt.settlement) {
+        for (const opt of Ailments.treatmentOptions(player, world, sickAt.settlement)) {
+            if (opt.kind !== 'disease' || !opt.can || player.gold < Math.max(500, opt.cost * 5)) continue;
+            const rec = Ailments.list(player).find(a => a.key === opt.key);
+            const def = rec && Ailments.def(rec.id);
+            const stage = def && def.stages && def.stages[rec.stage];
+            if (!stage || !(stage.deathChance > 0)) continue;
+            if (booked(game, 'medicine', () => Ailments.treat(player, world, sickAt.settlement, opt.key)).success) count(stats, 'treated');
+        }
+    }
     booked(game, 'court', () => court(game, stats));
     booked(game, 'throne', () => throne(game, stats));
     booked(game, 'treasures', () => treasures(game, stats));

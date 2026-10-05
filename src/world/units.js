@@ -532,6 +532,7 @@ export class WorldUnit {
                     level: 0,
                     kingdom: null,
                 };
+                if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();
                 world.events.push({ text: `A new settlement, ${name}, has been established!`, type: 'growth' });
             }
             this.destroyed = true;

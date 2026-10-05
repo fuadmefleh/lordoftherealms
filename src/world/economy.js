@@ -82,7 +82,7 @@ export const Economy = {
      * @returns {number} 0 .. cap
      */
     resourceBonus(world, q, r, kind) {
-        return Economy.resourceBonuses(world, q, r)[kind] || 0;
+        return Economy._sharedResourceBonuses(world, q, r)[kind] || 0;
     },
 
     /**
@@ -90,6 +90,25 @@ export const Economy = {
      * @returns {{goods:number, military:number, trade:number, construction:number, sources:Array<{id:string, direct:boolean}>}}
      */
     resourceBonuses(world, q, r) {
+        const b = Economy._sharedResourceBonuses(world, q, r);
+        return {
+            goods: b.goods, military: b.military, trade: b.trade, construction: b.construction,
+            sources: b.sources.map(s => ({ id: s.id, direct: s.direct })),
+        };
+    },
+
+    /**
+     * resourceBonuses, memoised for the day being simulated (map resources
+     * don't change mid-day). Read-only: callers get copies via resourceBonuses.
+     */
+    _sharedResourceBonuses(world, q, r) {
+        if (world && typeof world.dayMemo === 'function') {
+            return world.dayMemo('resourceBonuses', q, r, () => Economy._computeResourceBonuses(world, q, r));
+        }
+        return Economy._computeResourceBonuses(world, q, r);
+    },
+
+    _computeResourceBonuses(world, q, r) {
         const out = { goods: 0, military: 0, trade: 0, construction: 0, sources: [] };
         if (!world || typeof world.getTile !== 'function' || !Number.isFinite(q) || !Number.isFinite(r)) return out;
         const fx = Economy.RESOURCE_EFFECTS || {};
@@ -463,6 +482,15 @@ export const Economy = {
      * Get resources within a radius of a hex
      */
     getNearbyResources(centerQ, centerR, world, radius) {
+        // Map resources don't change mid-day: memoised while a day is simulated
+        if (world && typeof world.dayMemo === 'function' && (radius === 2 || radius === 3)) {
+            return world.dayMemo(radius === 2 ? 'nearbyResources2' : 'nearbyResources3', centerQ, centerR,
+                () => Economy._computeNearbyResources(centerQ, centerR, world, radius)).slice();
+        }
+        return Economy._computeNearbyResources(centerQ, centerR, world, radius);
+    },
+
+    _computeNearbyResources(centerQ, centerR, world, radius) {
         const resources = [];
         const hexes = Hex.hexesInRange(centerQ, centerR, radius);
 
@@ -714,24 +742,42 @@ export const TradeRoutes = {
      */
     findPotentialRoutes(kingdom, world, maxDistance = 15) {
         const routes = [];
-        const settlements = world.getAllSettlements();
-        const kingdomSettlements = settlements.filter(s => s.kingdom === kingdom.id);
+        // Routes hold getAllSettlements-style copies; only the settlements
+        // that end up on a route are copied (once each), the scan reads the
+        // live ones (nothing changes during it)
+        const live = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : null;
+        const settlements = live || world.getAllSettlements();
+        const copies = new Array(settlements.length);
+        const copyOf = (i) => {
+            if (!live) return settlements[i];
+            return copies[i] || (copies[i] = world.copySettlement(settlements[i]));
+        };
 
-        for (const s1 of kingdomSettlements) {
-            for (const s2 of settlements) {
+        for (let i = 0; i < settlements.length; i++) {
+            const s1 = settlements[i];
+            if (s1.kingdom !== kingdom.id) continue;
+            // Destinations s1 already trades with
+            const current = s1.economy?.tradeRoutes;
+            const existing = new Set();
+            if (current) for (const r of current) existing.add(r.to);
+            for (let j = 0; j < settlements.length; j++) {
+                const s2 = settlements[j];
                 // Don't trade with self
                 if (s1.q === s2.q && s1.r === s2.r) continue;
+                // Rows further apart than the reach can't be in range (hex
+                // distance is at least the row difference, wrapped or not)
+                if (Math.abs(s1.r - s2.r) > maxDistance) continue;
 
                 // Calculate distance
                 const dist = Hex.wrappingDistance(s1.q, s1.r, s2.q, s2.r, world.width);
 
                 if (dist <= maxDistance) {
                     // Check if route already exists
-                    const exists = s1.economy?.tradeRoutes?.some(r => r.to === s2.name);
+                    const exists = existing.has(s2.name);
                     if (!exists) {
                         routes.push({
-                            from: s1,
-                            to: s2,
+                            from: copyOf(i),
+                            to: copyOf(j),
                             distance: dist,
                             profit: Math.max(5, Math.floor(50 / (1 + dist * 0.1))),
                         });

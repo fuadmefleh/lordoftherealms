@@ -65,12 +65,12 @@ export const Hex = {
      * Distance between two hexes (axial)
      */
     distance(q1, r1, q2, r2) {
-        const c1 = Hex.axialToCube(q1, r1);
-        const c2 = Hex.axialToCube(q2, r2);
+        // Cube distance (x = q, y = -q - r, z = r), without the cube objects:
+        // this runs in nearly every per-day loop
         return Math.max(
-            Math.abs(c1.x - c2.x),
-            Math.abs(c1.y - c2.y),
-            Math.abs(c1.z - c2.z)
+            Math.abs(q1 - q2),
+            Math.abs((-q1 - r1) - (-q2 - r2)),
+            Math.abs(r1 - r2)
         );
     },
 

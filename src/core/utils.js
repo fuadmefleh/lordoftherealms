@@ -17,6 +17,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 let _rng = Math.random;
 
+// Deterministic id counter for game objects (characters, maps, spies, ...).
+// Reset when a world is generated and saved with the game, so ids never
+// depend on the wall clock and a save keeps handing out fresh ones.
+let _idCounter = 0;
+
 // noise2D permutation table — lazily (re)built from `_rng` so that seeding the
 // RNG also makes terrain generation reproducible. Built on first use, and
 // invalidated whenever the RNG source changes.
@@ -73,6 +78,23 @@ export const Utils = {
     resetRng() {
         _rng = Math.random;
         _perm = null;
+        _idCounter = 0;
+    },
+
+    /** The next game-object id number (1, 2, 3, ...). Draws no randomness. */
+    nextId() {
+        _idCounter++;
+        return _idCounter;
+    },
+
+    /** The id counter, for saving. */
+    getIdCounter() {
+        return _idCounter;
+    },
+
+    /** Set the id counter (a new world starts at 0; a load restores the saved value). */
+    setIdCounter(n) {
+        _idCounter = Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
     },
 
     /**

@@ -160,7 +160,7 @@ Object.assign(Cartography, {
         const mapType = Cartography.MAP_TYPES.regional;
 
         const map = {
-            id: `map_${Date.now()}_${Utils.randInt(0, 9999)}`,
+            id: `map_${Utils.nextId()}_${Utils.randInt(0, 9999)}`,
             type: 'regional',
             name: `Regional Map of ${Cartography._getRegionName(player.q, player.r, world)}`,
             icon: qualityData.icon,
@@ -193,7 +193,7 @@ Object.assign(Cartography, {
         const mapType = Cartography.MAP_TYPES.survey;
 
         const map = {
-            id: `map_${Date.now()}_${Utils.randInt(0, 9999)}`,
+            id: `map_${Utils.nextId()}_${Utils.randInt(0, 9999)}`,
             type: 'survey',
             name: `Survey of ${Cartography._getRegionName(player.q, player.r, world)}`,
             icon: '📐',
@@ -228,7 +228,7 @@ Object.assign(Cartography, {
         if (!kingdom) return null;
 
         const map = {
-            id: `map_${Date.now()}_${Utils.randInt(0, 9999)}`,
+            id: `map_${Utils.nextId()}_${Utils.randInt(0, 9999)}`,
             type: 'kingdom',
             name: `Map of ${kingdom.name}`,
             icon: '👑',
@@ -259,7 +259,7 @@ Object.assign(Cartography, {
         if (!kingdom || !kingdom.capital) return null;
 
         const map = {
-            id: `prop_${Date.now()}_${Utils.randInt(0, 9999)}`,
+            id: `prop_${Utils.nextId()}_${Utils.randInt(0, 9999)}`,
             type: 'propaganda',
             name: `Official Map of ${kingdom.name}`,
             icon: '📣',
@@ -305,7 +305,7 @@ Object.assign(Cartography, {
         }
 
         const map = {
-            id: `ancient_${Date.now()}_${Utils.randInt(0, 9999)}`,
+            id: `ancient_${Utils.nextId()}_${Utils.randInt(0, 9999)}`,
             type: 'ancient',
             name: `Ancient Map Fragment — ${Cartography._getRegionName(targetQ, targetR, world)}`,
             icon: '📜',
@@ -357,7 +357,7 @@ Object.assign(Cartography, {
         }
 
         const map = {
-            id: `treasure_${Date.now()}_${Utils.randInt(0, 9999)}`,
+            id: `treasure_${Utils.nextId()}_${Utils.randInt(0, 9999)}`,
             type: 'treasure',
             name: 'Treasure Map',
             icon: '💎',

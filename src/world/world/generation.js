@@ -14,6 +14,8 @@ Object.assign(World.prototype, {
         const seed = terrainParams.seed || Utils.randInt(1, 2147483646);
         this.generationParams = { ...terrainParams, seed };
         const outerRng = Utils.getRng();
+        // A new world numbers its characters, maps, spies, ... from 1
+        Utils.setIdCounter(0);
         Utils.setSeed(typeof seed === 'string' ? Math.abs(Utils.hashStr(seed)) : seed);
         try {
             this._generateWorld(this.generationParams);

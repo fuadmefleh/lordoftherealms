@@ -29,6 +29,42 @@ Object.assign(World.prototype, {
      *   import the tech system)
      */
     advanceDay(player = null, opts = {}) {
+        // Every system below scans the world's settlements; share one scan
+        // (and the per-day memos) for the whole day
+        this._settlementCache = { positions: null };
+        this._dayMemo = new Map();
+        try {
+            return this._advanceDay(player, opts);
+        } finally {
+            this._settlementCache = null;
+            this._dayMemo = null;
+        }
+    },
+
+    /** True while advanceDay runs (the per-day caches are live). */
+    isSimulatingDay() {
+        return !!this._dayMemo;
+    },
+
+    /**
+     * A memo that lives while one day is being simulated (outside advanceDay
+     * it just computes), for lookups that cannot change within the day —
+     * e.g. what map resources lie around a hex. `name` picks the table and
+     * (q, r) the hex.
+     */
+    dayMemo(name, q, r, compute) {
+        const memo = this._dayMemo;
+        if (!memo || !Number.isInteger(q) || !Number.isInteger(r) || Math.abs(q) >= 32768 || Math.abs(r) >= 32768) return compute();
+        let table = memo.get(name);
+        if (!table) { table = new Map(); memo.set(name, table); }
+        const k = (q + 32768) * 65536 + (r + 32768);
+        if (table.has(k)) return table.get(k);
+        const value = compute();
+        table.set(k, value);
+        return value;
+    },
+
+    _advanceDay(player, opts) {
         this.day++;
 
         // Season tracking (30 days per season)
@@ -103,7 +139,7 @@ Object.assign(World.prototype, {
         }
 
         // Replenish market stock — settlements gradually restock goods
-        const allSettlements = this.getAllSettlements();
+        const allSettlements = this.getSettlementViews(); // read-only: positions
         for (const s of allSettlements) {
             const tile = this.getTile(s.q, s.r);
             if (!tile || !tile.settlement || !tile.settlement.marketStock) continue;
@@ -289,7 +325,7 @@ Object.assign(World.prototype, {
     _spawnSpecialUnits() {
         const active = (id) => (this.activeEvents || []).some(ev => ev.id === id);
         const count = (type) => this.units.filter(u => u.type === type && !u.destroyed).length;
-        const settlements = this.getAllSettlements();
+        const settlements = this.getSettlementViews(); // read-only
         const randomTile = (test) => {
             for (let i = 0; i < 20; i++) {
                 const q = Utils.randInt(0, this.width - 1);
@@ -328,7 +364,7 @@ Object.assign(World.prototype, {
     },
 
     spawnUnits() {
-        const settlements = this.getAllSettlements();
+        const settlements = this.getSettlementViews(); // read-only
         if (settlements.length < 2) return;
 
         // Spawn caravan
@@ -506,22 +542,96 @@ Object.assign(World.prototype, {
      * Get all settlements in the world
      */
     getAllSettlements() {
+        return this._settlementCopies(null);
+    },
+
+    /**
+     * getAllSettlements().filter(s => s.kingdom === kingdomId), without
+     * copying every other realm's towns. Same copies, same order.
+     */
+    getSettlementsOf(kingdomId) {
+        return this._settlementCopies(kingdomId);
+    },
+
+    /**
+     * The live settlement objects (tile.settlement, stamped with q/r) in the
+     * same order as getAllSettlements — no copying. READ-ONLY use: for code
+     * that only reads q/r/name/type/kingdom and goes to the tile for the rest.
+     */
+    getSettlementViews() {
+        const positions = this._settlementPositions();
+        const out = new Array(positions.length / 2);
+        for (let i = 0; i < positions.length; i += 2) {
+            const r = positions[i], q = positions[i + 1];
+            const s = this.tiles[r][q].settlement;
+            if (s.q !== q || s.r !== r) { s.q = q; s.r = r; }
+            out[i / 2] = s;
+        }
+        return out;
+    },
+
+    /** A settlement as getAllSettlements hands it out: a fresh { q, r, ...s } copy. */
+    copySettlement(s) {
+        const copy = { q: s.q, r: s.r };
+        for (const key in s) copy[key] = s[key];
+        return copy;
+    },
+
+    /**
+     * Fresh shallow copies ({ q, r, ...settlement }) of the settlements in
+     * row-major order — callers may mutate them. With `kingdomId` set, only
+     * that realm's. The tile scan is cached while a day is simulated.
+     */
+    _settlementCopies(kingdomId) {
+        const positions = this._settlementPositions();
         const settlements = [];
-        for (let r = 0; r < this.height; r++) {
-            for (let q = 0; q < this.width; q++) {
-                if (this.tiles[r][q].settlement) {
-                    // Settlements are created without their position; code that
-                    // holds a tile's settlement (recruiting, resource bonuses,
-                    // planting contracts, NPC homes) reads settlement.q/r
-                    const s = this.tiles[r][q].settlement;
-                    if (s.q !== q || s.r !== r) { s.q = q; s.r = r; }
-                    settlements.push({
-                        q, r,
-                        ...this.tiles[r][q].settlement
-                    });
-                }
-            }
+        for (let i = 0; i < positions.length; i += 2) {
+            const r = positions[i], q = positions[i + 1];
+            const s = this.tiles[r][q].settlement;
+            // Settlements are created without their position; code that
+            // holds a tile's settlement (recruiting, resource bonuses,
+            // planting contracts, NPC homes) reads settlement.q/r
+            if (s.q !== q || s.r !== r) { s.q = q; s.r = r; }
+            if (kingdomId !== null && s.kingdom !== kingdomId) continue;
+            // = { q, r, ...s } (settlements are plain objects), but a for-in
+            // copy is several times faster on their many differing shapes
+            const copy = { q, r };
+            for (const key in s) copy[key] = s[key];
+            settlements.push(copy);
         }
         return settlements;
+    },
+
+    /**
+     * Flat [r0, q0, r1, q1, ...] of the tiles holding a settlement, in
+     * row-major order. Outside a day's simulation every call rescans (code
+     * and tests may set tile.settlement directly). Inside advanceDay the
+     * scan is reused until a settlement is founded (the founding code calls
+     * invalidateSettlements) or one vanishes from its tile (checked here).
+     */
+    _settlementPositions() {
+        const cache = this._settlementCache;
+        if (cache && cache.positions) {
+            const pos = cache.positions;
+            let intact = true;
+            for (let i = 0; i < pos.length; i += 2) {
+                if (!this.tiles[pos[i]][pos[i + 1]].settlement) { intact = false; break; }
+            }
+            if (intact) return pos;
+        }
+        const positions = [];
+        for (let r = 0; r < this.height; r++) {
+            const row = this.tiles[r];
+            for (let q = 0; q < this.width; q++) {
+                if (row[q].settlement) positions.push(r, q);
+            }
+        }
+        if (cache) cache.positions = positions;
+        return positions;
+    },
+
+    /** A settlement was founded or removed: drop the cached settlement scan. */
+    invalidateSettlements() {
+        if (this._settlementCache) this._settlementCache.positions = null;
     },
 });

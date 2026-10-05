@@ -146,7 +146,8 @@ Object.assign(Peoples, {
      * Process daily cultural dynamics — called each turn.
      */
     processTurn(world) {
-        const allSettlements = world.getAllSettlements();
+        // Read-only: positions only (the live settlement is read from its tile)
+        const allSettlements = world.getSettlementViews ? world.getSettlementViews() : world.getAllSettlements();
         const kingdomTotals = {};
 
         for (const s of allSettlements) {

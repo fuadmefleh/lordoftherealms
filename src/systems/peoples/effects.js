@@ -36,6 +36,45 @@ function specOf(spec) {
     return [spec, 1];
 }
 
+const artAspectMemo = { tables: null, map: null };
+
+/**
+ * The aspects a people's values, traits and art forms feed, in their order —
+ * a people's culture doesn't change, so this is worked out once per tribe
+ * object (and effect tables). Values: [aspect, strength, value]; traits:
+ * [aspect, multiplier, trait]; arts: [aspect, art].
+ */
+const tribeAspectMemo = new WeakMap();
+
+function tribeAspects(tribe, E) {
+    const hit = tribeAspectMemo.get(tribe);
+    if (hit && hit.tables === E) return hit;
+    const out = { tables: E, values: [], traits: [], arts: [] };
+    for (const [value, strength] of Object.entries(tribe.values || {})) out.values.push([E.valueAspects[value], strength, value]);
+    for (const trait of tribe.traits || []) {
+        const spec = specOf(E.traitAspects[trait]);
+        if (spec) out.traits.push([spec[0], spec[1], trait]);
+    }
+    for (const art of tribe.artForms || []) out.arts.push([Peoples.artAspect(art), art]);
+    if (typeof tribe === 'object') tribeAspectMemo.set(tribe, out);
+    return out;
+}
+
+/** How computeEffects words a source of an aspect (the "why" list). */
+const LABEL = { spaced: 0, trait: 1, status: 2, knownFor: 3, quarter: 4, restless: 5, larder: 6 };
+
+function sourceLabel(s) {
+    switch (s.kind) {
+        case LABEL.spaced: return `${s.a} ${s.b}`;
+        case LABEL.trait: return `${s.a}: ${s.b}`;
+        case LABEL.status: return `${s.a} ${s.b}s`;
+        case LABEL.knownFor: return `known for ${s.a}`;
+        case LABEL.quarter: return `${s.a} (${s.b})`;
+        case LABEL.restless: return `${s.a} is restless`;
+        default: return `varied larder (${s.a} cuisines)`;
+    }
+}
+
 function round(v, places = 3) {
     const f = Math.pow(10, places);
     return Math.round(v * f) / f;
@@ -49,6 +88,17 @@ Object.assign(Peoples, {
     artAspect(art) {
         const E = Peoples.EFFECTS;
         if (!E || !art) return null;
+        // Pure in (art, effect tables): memoised per tables object, since
+        // every settlement's effects are recomputed every day
+        if (artAspectMemo.tables !== E) { artAspectMemo.tables = E; artAspectMemo.map = new Map(); }
+        const key = String(art);
+        if (artAspectMemo.map.has(key)) return artAspectMemo.map.get(key);
+        const aspect = Peoples._artAspect(E, key);
+        artAspectMemo.map.set(key, aspect);
+        return aspect;
+    },
+
+    _artAspect(E, art) {
         const tokens = String(art).toLowerCase().split(/[^a-z]+/).filter(Boolean);
         for (const [aspect, words] of E.artKeywords || []) {
             if (words.some(w => tokens.some(tok => tok.startsWith(w.trim())))) return aspect;
@@ -147,45 +197,47 @@ Object.assign(Peoples, {
         const W = E.weights;
         const scores = {};
         const sources = {};
-        const add = (aspect, amount, label) => {
+        // Labels are only spelled out for the top three sources of each
+        // aspect (see sourceLabel): kind + up to two parts
+        const add = (aspect, amount, kind, a, b) => {
             if (!aspect || !E.aspects[aspect] || !amount) return;
             scores[aspect] = (scores[aspect] || 0) + amount;
-            (sources[aspect] = sources[aspect] || []).push({ label, amount });
+            (sources[aspect] = sources[aspect] || []).push({ amount, kind, a, b });
         };
 
         for (const demo of settlement.demographics) {
             const tribe = demo.tribe;
             if (!tribe) continue;
             const share = Math.max(0, demo.share || 0);
-            for (const [value, strength] of Object.entries(tribe.values || {})) {
-                add(E.valueAspects[value], share * strength * W.valuePerPoint, `${tribe.name} ${value}`);
+            const parts = tribeAspects(tribe, E);
+            for (const [aspect, strength, value] of parts.values) {
+                add(aspect, share * strength * W.valuePerPoint, LABEL.spaced, tribe.name, value);
             }
-            for (const trait of tribe.traits || []) {
-                const spec = specOf(E.traitAspects[trait]);
-                if (spec) add(spec[0], share * W.trait * spec[1], `${tribe.name}: ${trait}`);
+            for (const [aspect, mult, trait] of parts.traits) {
+                add(aspect, share * W.trait * mult, LABEL.trait, tribe.name, trait);
             }
-            for (const art of tribe.artForms || []) {
-                add(Peoples.artAspect(art), share * W.artForm, `${tribe.name} ${art}`);
+            for (const [aspect, art] of parts.arts) {
+                add(aspect, share * W.artForm, LABEL.spaced, tribe.name, art);
             }
             const st = specOf(E.statusAspects[demo.status]);
-            if (st) add(st[0], share * W.status * st[1], `${tribe.name} ${demo.status}s`);
+            if (st) add(st[0], share * W.status * st[1], LABEL.status, tribe.name, demo.status);
         }
 
         const identity = settlement.culturalIdentity;
         if (identity && identity.signatureArt) {
-            add(Peoples.artAspect(identity.signatureArt), W.signatureArt, `known for ${identity.signatureArt}`);
+            add(Peoples.artAspect(identity.signatureArt), W.signatureArt, LABEL.knownFor, identity.signatureArt);
         }
 
         for (const q of settlement.culturalQuarters || []) {
-            if (q.mood === 'thriving') add(Peoples.artAspect(q.specialty), W.thrivingQuarter, `${q.name} (${q.specialty})`);
-            else if (q.mood === 'restless') add('stability', W.restlessQuarter, `${q.name} is restless`);
+            if (q.mood === 'thriving') add(Peoples.artAspect(q.specialty), W.thrivingQuarter, LABEL.quarter, q.name, q.specialty);
+            else if (q.mood === 'restless') add('stability', W.restlessQuarter, LABEL.restless, q.name);
         }
 
         // Cuisine: every distinct people's kitchen (and each hybrid dish) widens the larder
         const kitchens = new Set(settlement.demographics.map(d => d.tribe && d.tribe.id).filter(Boolean)).size
             + (settlement.hybridTraditions || []).filter(t => t.cuisine).length;
         if (kitchens > 1) {
-            add('food', Math.min(W.cuisineMax, (kitchens - 1) * W.cuisinePerPeople), `varied larder (${kitchens} cuisines)`);
+            add('food', Math.min(W.cuisineMax, (kitchens - 1) * W.cuisinePerPeople), LABEL.larder, kitchens);
         }
 
         for (const [aspect, def] of Object.entries(E.aspects)) {
@@ -195,7 +247,7 @@ Object.assign(Peoples, {
                 out.why[aspect] = sources[aspect]
                     .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
                     .slice(0, 3)
-                    .map(s => s.label);
+                    .map(sourceLabel);
             }
         }
 

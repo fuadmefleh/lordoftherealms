@@ -123,7 +123,7 @@ export const KingdomAI = {
         let totalGoods = 0;
         let totalPopulation = 0;
 
-        const settlements = world.getAllSettlements().filter(s => s.kingdom === kingdom.id);
+        const settlements = KingdomAI._settlementCopiesOf(kingdom, world);
 
         // Growth bonuses from healers/stewards; growth and food modifiers from events
         const growthBonus = KingdomBonuses.get(kingdom, 'population');
@@ -336,6 +336,7 @@ export const KingdomAI = {
 
         // Find border tiles
         const borderTiles = [];
+        const seen = new Set();
         for (const hex of kingdom.territory) {
             const neighbors = Hex.neighbors(hex.q, hex.r);
             for (const n of neighbors) {
@@ -343,7 +344,8 @@ export const KingdomAI = {
                 if (tile && tile.terrain.passable && !tile.kingdom) {
                     // Check if not already in list
                     const key = `${n.q},${n.r}`;
-                    if (!borderTiles.some(t => `${t.q},${t.r}` === key)) {
+                    if (!seen.has(key)) {
+                        seen.add(key);
                         borderTiles.push({ q: n.q, r: n.r, tile });
                     }
                 }
@@ -369,6 +371,7 @@ export const KingdomAI = {
                 level: 0,
                 kingdom: kingdom.id,
             };
+            if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();
             Economy.initSettlement(target.tile.settlement);
         }
     },
@@ -627,6 +630,21 @@ export const KingdomAI = {
         world.events.push({ text: `💀 ${defender.name} has been conquered by ${attacker.name}!`, type: 'military' });
     },
 
+    /**
+     * world.getAllSettlements().filter(s => s.kingdom === kingdom.id) — copies,
+     * in map order — without copying every other realm's towns.
+     */
+    _settlementCopiesOf(kingdom, world) {
+        if (typeof world.getSettlementsOf === 'function') return world.getSettlementsOf(kingdom.id);
+        return world.getAllSettlements().filter(s => s.kingdom === kingdom.id);
+    },
+
+    /** The same settlements, live and uncopied — for read-only use. */
+    _settlementViewsOf(kingdom, world) {
+        if (typeof world.getSettlementViews === 'function') return world.getSettlementViews().filter(s => s.kingdom === kingdom.id);
+        return world.getAllSettlements().filter(s => s.kingdom === kingdom.id);
+    },
+
     /** Tiles of settlements still flying this kingdom's banner. */
     _settlementsOf(kingdom, world) {
         const out = [];
@@ -663,7 +681,7 @@ export const KingdomAI = {
         for (const fallen of world.kingdoms) {
             if (fallen.isAlive || fallen.conqueredDay == null) continue;
             if (day - fallen.conqueredDay < R.minDays) continue;
-            for (const s of world.getAllSettlements()) {
+            for (const s of (world.getSettlementViews ? world.getSettlementViews() : world.getAllSettlements())) {
                 const tile = world.getTile(s.q, s.r);
                 const live = tile && tile.settlement;
                 if (!live || live.formerKingdom !== fallen.id) continue;
@@ -720,7 +738,7 @@ export const KingdomAI = {
 
         // Iron and horses near any settlement arm the realm — once each (they
         // used to multiply per deposit per town, snowballing big kingdoms)
-        const settlements = world.getAllSettlements().filter(s => s.kingdom === kingdom.id);
+        const settlements = KingdomAI._settlementViewsOf(kingdom, world); // read-only: positions
         let hasIron = false, hasHorses = false;
         // Best recruiting ground in the realm: armies regrow faster where
         // iron, horses or coal are at hand (resourceBonuses.military)

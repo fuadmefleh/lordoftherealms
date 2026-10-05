@@ -193,7 +193,8 @@ describe('the economy reads the peoples', () => {
     });
 
     it('commerce raises trade-route profit', () => {
-        const mk = trade => ({ economy: { gold: 0, tradeRoutes: [{ active: true, profit: 40 }] }, peoplesEffects: { trade } });
+        // tradeIncome: the town's share of the margin on goods traders moved (world/settlementMarket.js flows)
+        const mk = trade => ({ economy: { gold: 0, tradeRoutes: [{ active: true, profit: 40 }], tradeIncome: 40 }, peoplesEffects: { trade } });
         const a = mk(0); const b = mk(0.1);
         expect(Economy.processTrade(a)).toBe(40);
         expect(Economy.processTrade(b)).toBe(44);

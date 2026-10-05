@@ -95,10 +95,14 @@ describe('Naval Warfare and Lighthouse', () => {
 
     it('port sales pay more with portTradeBonus', () => {
         const GRASS = { id: 'grassland', passable: true, moveCost: 1 };
-        const tile = { q: 5, r: 5, terrain: GRASS, settlement: { name: 'Saltmere', type: 'town' } };
-        const world = { width: 20, height: 20, day: 1, getTile: (q, r) => (q === 5 && r === 5 ? tile : { q, r, terrain: { id: 'ocean', passable: false } }) };
-        const good = Ships.getPortMarket(world, 5, 5)[0].id;
+        // A fresh port each sale: a cargo landed floods the town's stores (world/settlementMarket.js)
+        const mkWorld = () => {
+            const tile = { q: 5, r: 5, terrain: GRASS, settlement: { name: 'Saltmere', type: 'town' } };
+            return { width: 20, height: 20, day: 1, getTile: (q, r) => (q === 5 && r === 5 ? tile : { q, r, terrain: { id: 'ocean', passable: false } }) };
+        };
+        const good = Ships.getPortMarket(mkWorld(), 5, 5)[0].id;
         const sell = (techs) => {
+            const world = mkWorld();
             const p = withTechs(techs, { boardedShip: null, ships: [ship()] });
             p.ships[0].cargo[good] = 10;
             return Ships.sellTradeGood(p, world, 's1', good, 10).revenue;

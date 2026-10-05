@@ -203,7 +203,8 @@ function snapshot(game) {
         unitClasses: game.world.units.every(u => u instanceof WorldUnit),
         // ...and the player's caravans still find their units
         caravanUnits: (p.caravans || []).filter(c => c.unitId).map(c => game.world.units.some(u => u.id === c.unitId)),
-        markets: Utils.hashStr(JSON.stringify(MarketDynamics.regionalMarkets)),
+        // Every settlement's goods market (stock, trend, shortages, trade links)
+        markets: Utils.hashStr(JSON.stringify(game.world.getSettlementViews().map(s => [s.q, s.r, s.market || null]))),
         // The trading company, rival houses, contracts and the towns' monopolies
         merchant: Utils.hashStr(JSON.stringify(p.merchant || null)),
         // Patronage: clients, commissions, Great Works; the world's wonders

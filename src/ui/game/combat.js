@@ -77,12 +77,13 @@ export function _showFoodPurchaseModal(pathLen, foodCount, tile, targetHex) {
     let remaining = deficit;
     for (const fg of foodGoods) {
         if (remaining <= 0) break;
-        const canBuy = Math.min(remaining, fg.quantity);
-        const canAfford = Math.floor(this.player.gold / fg.price);
-        const qty = Math.min(canBuy, canAfford);
+        // Each unit costs a little more than the last as the stall empties
+        const purse = { ...this.player, gold: Math.max(0, (this.player.gold || 0) - totalCost) };
+        const qty = Trading.affordable(purse, fg, settlement, remaining);
         if (qty > 0) {
-            purchasePlan.push({ good: fg, qty, cost: qty * fg.price });
-            totalCost += qty * fg.price;
+            const cost = Trading.buyCost(this.player, fg, qty, settlement);
+            purchasePlan.push({ good: fg, qty, cost });
+            totalCost += cost;
             totalFood += qty;
             remaining -= qty;
         }

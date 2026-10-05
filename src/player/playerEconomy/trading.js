@@ -82,6 +82,24 @@ export const Trading = {
     },
 
     /**
+     * Most units of a market entry the player can pay for (at most `max`,
+     * and the stock on hand): the price climbs with each unit taken.
+     */
+    affordable(player, entry, settlement, max = Infinity) {
+        const gold = Math.max(0, (player && player.gold) || 0);
+        let hi = Math.max(0, Math.floor(Math.min(max, (entry && entry.quantity) || 0)));
+        if (hi <= 0) return 0;
+        if (Trading.buyCost(player, entry, hi, settlement) <= gold) return hi;
+        let lo = 0;
+        while (lo < hi) {
+            const mid = Math.ceil((lo + hi) / 2);
+            if (Trading.buyCost(player, entry, mid, settlement) <= gold) lo = mid;
+            else hi = mid - 1;
+        }
+        return lo;
+    },
+
+    /**
      * Most a buyer on this tile pays per unit (averaged over `quantity`) for
      * `goodId` the player sells: each unit one less than buying it back
      * would cost — here at the stock the sale leaves, or in a settlement

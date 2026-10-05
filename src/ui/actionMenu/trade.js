@@ -1032,7 +1032,7 @@ Object.assign(ActionMenu, {
                     </div>
                     <div>${isSoldOut
                         ? '<span class="trade-sold-out">Sold Out</span>'
-                        : `<button class="trade-btn trade-btn-buy ${canAfford ? '' : 'trade-btn-disabled'}" onclick="window._tradeBuy('${good.id}', ${good.price}, ${good.quantity})">Buy</button>`
+                        : `<button class="trade-btn trade-btn-buy ${canAfford ? '' : 'trade-btn-disabled'}" title="The price rises as the stall empties" onclick="window._tradeBuy('${good.id}', ${good.price}, ${Math.max(1, Trading.affordable(game.player, good, tile.settlement))})">Buy</button>`
                     }</div>
                 </div>`;
             }

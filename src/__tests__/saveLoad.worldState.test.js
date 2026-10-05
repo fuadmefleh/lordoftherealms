@@ -117,15 +117,17 @@ describe('save/load keeps world state', () => {
         expect(out.slain).toContain('The Warden');
     });
 
-    it('regional markets and the id counter survive a load', () => {
+    it('settlement markets and the id counter survive a load', () => {
         let game = newGame(4246);
         for (let i = 0; i < 6; i++) endDay(game);
-        const markets = JSON.stringify(MarketDynamics.regionalMarkets);
-        expect(Object.keys(MarketDynamics.regionalMarkets).length).toBeGreaterThan(0);
+        const marketsOf = (w) => JSON.stringify(w.getSettlementViews().map(s => [s.q, s.r, s.market]));
+        const markets = marketsOf(game.world);
+        expect(game.world.getSettlementViews().every(s => s.market && s.market.stock)).toBe(true);
         const map = Cartography.generateTreasureMap ? Cartography.generateTreasureMap(game.world) : null;
         const counter = Utils.getIdCounter();
         game = roundTrip(game);
-        expect(JSON.stringify(MarketDynamics.regionalMarkets)).toBe(markets);
+        expect(marketsOf(game.world)).toBe(markets);
+        expect(MarketDynamics.regionalMarkets).toEqual({});
         expect(Utils.getIdCounter()).toBe(counter);
         if (map) expect(map.id).not.toMatch(/\d{13}/); // no wall-clock ids
     });

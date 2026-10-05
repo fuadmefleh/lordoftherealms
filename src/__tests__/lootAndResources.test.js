@@ -334,7 +334,8 @@ describe('goods, military, trade and construction bonuses are applied', () => {
             const s = tile.settlement;
             Economy.initSettlement(s);
             Economy.calculateProduction(s, tile, world);
-            s.economy.tradeRoutes.push({ profit: 40, active: true });
+            // The town's share of the margin on goods traders moved (world/settlementMarket.js flows)
+            s.economy.tradeIncome = 40;
             return Economy.processTrade(s);
         };
         expect(income({})).toBe(40);

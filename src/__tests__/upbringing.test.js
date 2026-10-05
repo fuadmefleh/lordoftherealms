@@ -442,7 +442,10 @@ describe('in the daily turn', () => {
         try {
             let game = newGame(4242);
             const p = game.player;
-            p.gold = 3000;
+            // Enough to keep a household fed for 140 days: village stalls hold
+            // little food now (world/settlementMarket.js) and the bot's scripted
+            // spending ran a 3,000g purse dry by day 50
+            p.gold = 6000;
             p.children = [makeChild({ age: 8, birthDay: 0 }), makeChild({ age: 15, firstName: 'Cal', gender: 'male' })];
             Upbringing.loadState(p);
             Upbringing.setFocus(p, p.children[0].id, 'learning', game.world);

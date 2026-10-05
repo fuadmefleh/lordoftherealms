@@ -372,7 +372,7 @@ export function roundTrip(game) {
     SaveLoad.restorePlayer(data.player, p2, w2);
     p2.updateVisibility(w2, 4);
     MarketDynamics.initialize();
-    SaveLoad.restoreMarkets(data.world);
+    SaveLoad.restoreMarkets(data.world, w2);
     Relationships.initialize(p2);
     Ships.restoreFromSave(p2);
     Titles.initialize(p2);

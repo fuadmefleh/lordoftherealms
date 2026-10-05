@@ -87,7 +87,8 @@ function buyFood(game, tile, stats) {
     for (const id of FOOD) {
         const g = goods.find(x => x.id === id);
         if (!g || g.quantity <= 0) continue;
-        const qty = Math.min(30, g.quantity, Math.floor(player.gold / Math.max(1, g.price)));
+        // Each unit costs a little more than the last as the stall empties
+        const qty = Trading.affordable(player, g, tile.settlement, 30);
         if (qty <= 0) continue;
         const res = Trading.buyGoods(player, g, qty, tile.settlement);
         if (res.success) { count(stats, 'foodBought', qty); return; }
@@ -118,7 +119,7 @@ function speculate(game, tile, stats) {
         .filter(g => !FOOD.includes(g.id) && g.quantity > 0 && g.price > 0);
     if (!goods.length) return;
     const g = Utils.randPick(goods);
-    const qty = Math.min(g.quantity, 5, Math.floor((player.gold * 0.05) / g.price));
+    const qty = Math.min(Trading.affordable(player, g, tile.settlement, 5), Math.floor((player.gold * 0.05) / g.price));
     if (qty > 0 && Trading.buyGoods(player, g, qty, tile.settlement).success) count(stats, 'speculation');
 }
 

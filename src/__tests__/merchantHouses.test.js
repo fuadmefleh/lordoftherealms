@@ -9,6 +9,7 @@ import { Petitions } from '../systems/petitions.js';
 import { Ships } from '../systems/ships.js';
 import { Trading } from '../player/playerEconomy.js';
 import { Underworld } from '../systems/underworld.js';
+import { SettlementMarket } from '../world/settlementMarket.js';
 import { loadData, newGame, roundTrip } from './playtest/harness.js';
 
 let logSpy;
@@ -133,12 +134,13 @@ describe('merchant houses: factors trade by the player\'s price rules', () => {
         const c = MerchantHouses.company(player);
         const good = Trading.getAvailableGoods(town.settlement, town, world).find(x => x.quantity > 10);
         const before = c.capital;
-        const stockBefore = (town.settlement.marketStock || {})[good.id] || 0;
+        const stockBefore = SettlementMarket.stock(town.settlement, good.id);
         MerchantHouses.setOrder(player, post.id, { good: good.id, buyBelow: 9999, buyQty: 10, sellAbove: 1, sellQty: 0, keep: 0 });
         nextWeek(g);
         const bought = post.stock[good.id];
         expect(bought).toBeGreaterThan(0);
-        expect(town.settlement.marketStock[good.id]).toBe(stockBefore + bought);
+        // The goods left the town's own store (world/settlementMarket.js)
+        expect(SettlementMarket.stock(town.settlement, good.id)).toBeCloseTo(stockBefore - bought, 1);
         expect(c.pnl.expenses.purchases).toBeGreaterThan(0);
         // Now sell everything above a keep of 2
         MerchantHouses.setOrder(player, post.id, { good: good.id, buyBelow: 0, buyQty: 0, sellAbove: 1, sellQty: 999, keep: 2 });

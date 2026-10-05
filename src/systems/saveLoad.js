@@ -36,6 +36,7 @@ import { KingdomNavy } from '../world/kingdomNavy.js';
 import { WorldUnit } from '../world/units.js';
 import { Terrain } from '../world/terrain.js';
 import { MarketDynamics } from './marketDynamics.js';
+import { SettlementMarket } from '../world/settlementMarket.js';
 import { Utils } from '../core/utils.js';
 
 
@@ -127,8 +128,9 @@ export const SaveLoad = {
             // pirates, delve guardians, war hosts, settlers, fishing boats...
             // as they stand — older saves regenerate them
             units: SaveLoad.serializeUnits(world.units),
-            // Regional market supply, demand, prices and price history
-            markets: MarketDynamics.regionalMarkets || {},
+            // Settlement markets travel with their tiles (settlement.market);
+            // the old regional table is kept empty for older readers
+            markets: {},
             // Great Works raised and rising, the wonders claimed (systems/patronage.js)
             greatWorks: Patronage.serializeWorld(world),
             // Ids for characters, maps, spies, ... keep counting from here
@@ -543,12 +545,18 @@ export const SaveLoad = {
     },
 
     /**
-     * Regional markets from a save (null for older saves: they start afresh).
-     * Call after MarketDynamics.initialize().
+     * Markets after a load. Each settlement's goods market (stock, trend,
+     * shortages, trade links — world/settlementMarket.js) travels with its
+     * tile; settlements from older saves get one at its equilibrium here,
+     * their old bought-counters (marketStock) and unread stockpiles dropped.
+     * The old regional supply/demand table (saveData.markets) is retired:
+     * prices now come from the settlements' own stock. Call after
+     * MarketDynamics.initialize().
      */
-    restoreMarkets(saveData) {
-        const markets = saveData && saveData.markets;
-        if (markets && typeof markets === 'object' && !Array.isArray(markets)) MarketDynamics.regionalMarkets = markets;
+    restoreMarkets(saveData, world = null) {
+        MarketDynamics.regionalMarkets = {};
+        if (!world || typeof world.getSettlementViews !== 'function') return;
+        for (const s of world.getSettlementViews()) SettlementMarket.ensure(s);
     },
 
     /** Put back terrain the player cleared or levelled. */

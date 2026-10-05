@@ -44,6 +44,9 @@ import { Holdings } from './holdings.js';
 import { Sieges } from './sieges.js';
 import { RealmWars } from './realmWars.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
+import { KingdomBonuses } from '../world/kingdomState.js';
+import { Throne } from './throne.js';
+import { Kingship } from './kingship.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = (world) => (world && world.day) || 0;
@@ -82,6 +85,7 @@ const DEFAULTS = {
     buyOff: { peaceShare: 0.5, perStrength: 1.5 },
     supply: { caravanSpeed: 4, shipSpeed: 6, caravanCatch: 0.3, shipCatch: 0.12, fleetCatch: 0.35, goldPerGarrison: 10, maxGold: 1000, maxFood: 300 },
     relief: { sallyMorale: 40, sallyShare: 0.25, failMorale: 10 },
+    crown: { marshalGarrison: 0.015, marshalMorale: 0.5, stewardStores: 0.015 }, // per competence point (× loyalty factor) of a crowned player's council
     outcome: { relievedLoyalty: 10, relievedHappiness: 5, heldLoyalty: 5, heldScore: 10 },
     historyCap: 12,
     logCap: 10,
@@ -192,6 +196,38 @@ export const HoldingSieges = {
         let m = M.base + (happy - 50) * M.happiness + (loyal - 50) * M.loyalty + HoldingSieges.wallsOf(settlement) * M.walls;
         if (c.governor) m += c.martial * M.martial + (c.loyalty - 50) * M.govLoyalty;
         return Utils.clamp(Math.round(m), M.min, M.max);
+    },
+
+    /**
+     * What a crowned player's realm lends a besieged holding at the outset:
+     * the royal Marshal stiffens the garrison and its heart, the Steward
+     * stocks the granaries (systems/kingship.js — competence × loyalty), and
+     * the edict of fortification raises the walls of holdings in the realm
+     * (kingdom.crown.effects.holdingWalls). { garrison, stores } are shares,
+     * { morale } points, { walls } a defence bonus; all 0 without a crown.
+     */
+    crownAid(player, world, settlement) {
+        const out = { garrison: 0, morale: 0, stores: 0, walls: 0, marshal: null, steward: null };
+        const realm = Throne.ruledKingdom(player, world);
+        if (!realm || !settlement) return out;
+        const A = HoldingSieges.config().crown;
+        const marshal = Kingship.councillor(player, world, 'marshal');
+        if (marshal) {
+            const m = marshal.competence * Kingship._loyaltyFactor(marshal.loyalty);
+            out.garrison += m * A.marshalGarrison;
+            out.morale += Math.round(m * A.marshalMorale);
+            out.marshal = marshal.name;
+        }
+        const steward = Kingship.councillor(player, world, 'steward');
+        if (steward) {
+            out.stores += steward.competence * Kingship._loyaltyFactor(steward.loyalty) * A.stewardStores;
+            out.steward = steward.name;
+        }
+        // Fortification: holdings in the realm (or the crown's own colonies, which belong to no other)
+        if (!settlement.kingdom || settlement.kingdom === realm.id) out.walls += Math.max(0, KingdomBonuses.crownEffect(realm, 'holdingWalls'));
+        out.garrison = Math.round(out.garrison * 1000) / 1000;
+        out.stores = Math.round(out.stores * 1000) / 1000;
+        return out;
     },
 
     /** Food (from the packs or a convoy) that makes one day of stores. */
@@ -348,7 +384,9 @@ export const HoldingSieges = {
         }
         Holdings.ensure(settlement);
         Holdings.refresh(settlement);
-        const stores = Sieges.storesOf(settlement, world);
+        const aid = HoldingSieges.crownAid(player, world, settlement);
+        const baseStores = Sieges.storesOf(settlement, world);
+        const stores = aid.stores > 0 ? _r1(baseStores * (1 + aid.stores)) : baseStores;
         const B = C.besiegers;
         const s = {
             key, q: ref.q, r: ref.r,
@@ -361,11 +399,11 @@ export const HoldingSieges = {
             besiegerStores: Utils.randInt(B.stores[0], B.stores[1]),
             besiegerMorale: B.morale,
             besiegerSick: 0,
-            garrison: HoldingSieges.garrisonOf(settlement),
-            walls: Math.round(HoldingSieges.wallsOf(settlement) * 100) / 100,
+            garrison: Math.round(HoldingSieges.garrisonOf(settlement) * (1 + aid.garrison)),
+            walls: Math.round((HoldingSieges.wallsOf(settlement) + aid.walls) * 100) / 100,
             wallHp: 100,
             stores, storesStart: stores,
-            morale: HoldingSieges.moraleOf(settlement),
+            morale: Utils.clamp(HoldingSieges.moraleOf(settlement) + aid.morale, 0, 100),
             townSick: false,
             port: KingdomNavy.isPortTile(world, ref.q, ref.r),
             ram: 0, ramBuilt: false,
@@ -383,6 +421,9 @@ export const HoldingSieges = {
         unit.besieging = key;
         const text = `${rec.name} (strength ${rec.strength}) lays siege to ${settlement.name}: ${s.garrison} defenders, ${Math.round(stores)} days of food. Relieve it, supply it, or pay them off — see Holdings Under Siege.`;
         HoldingSieges._log(s, world, `${rec.name} invests the town.`);
+        const crownHelp = [aid.marshal && `the Marshal ${aid.marshal} sends captains`, aid.steward && `the Steward ${aid.steward} fills the granaries`,
+            aid.walls > 0 && 'the royal masons have raised the walls'].filter(Boolean);
+        if (crownHelp.length) HoldingSieges._log(s, world, `The crown stands by ${settlement.name}: ${crownHelp.join('; ')}.`);
         if (player.house) House._chronicle(player.house, world, `${kingdom.name} lays siege to ${settlement.name}.`, ['war', 'siege']);
         return { siege: s, text };
     },
@@ -448,6 +489,22 @@ export const HoldingSieges = {
         s.besiegers = Math.max(1, Math.round(s.besiegers));
         unit.strength = s.besiegers;
         rec.strength = s.besiegers;
+    },
+
+    /**
+     * Food run into a besieged holding by other hands (a trading-company
+     * contract delivery, systems/merchantHouses.js): it fills the stores and
+     * heartens the town like the player's own convoy. Returns days of stores
+     * added (0 when the holding is not under siege). Draws no RNG.
+     */
+    receiveFood(player, world, q, r, food, from = 'A convoy') {
+        const s = HoldingSieges.at(player, q, r);
+        if (!s || !(food > 0)) return 0;
+        const days = _r1(food / HoldingSieges.foodPerDay(s));
+        s.stores = _r1(_num(s.stores) + days);
+        s.morale = Utils.clamp(_num(s.morale) + HoldingSieges.config().morale.fed, 0, 100);
+        HoldingSieges._log(s, world, `${from} brings ${food} food into ${s.name} (+${days} days of stores).`);
+        return days;
     },
 
     _convoysDay(player, world, s, out) {

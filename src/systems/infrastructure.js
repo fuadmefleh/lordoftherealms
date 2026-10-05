@@ -6,6 +6,7 @@ import { Technology } from './technology.js';
 import { Hex } from '../core/hex.js';
 import { Quests } from './quests.js';
 import { Economy } from '../world/economy.js';
+import { KingdomBonuses } from '../world/kingdomState.js';
 
 
 export const Infrastructure = {
@@ -98,6 +99,11 @@ export const Infrastructure = {
         // Stone and timber close at hand cut the cost and the time
         const local = world ? Economy.constructionModifiers(world, tile.q, tile.r) : { cost: 1 };
         cost = Math.round(cost * local.cost);
+        // A royal road-building programme (an edict of the realm, systems/kingship.js) pays for part of it
+        if (world && tile.kingdom && /road|bridge/.test(infra.id) && typeof world.getKingdom === 'function') {
+            const roadFx = KingdomBonuses.crownEffect(world.getKingdom(tile.kingdom), 'roadCost');
+            if (roadFx) cost = Math.max(1, Math.round(cost * Math.max(0.1, 1 + roadFx)));
+        }
         const buildDays = world ? Economy.scaleBuildDays(infra.buildTime || 0, world, tile.q, tile.r) : (infra.buildTime || 0);
         if (player.gold < cost) {
             return { can: false, reason: `Need ${cost} gold (have ${Math.floor(player.gold)})` };

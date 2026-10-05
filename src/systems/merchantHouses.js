@@ -47,6 +47,9 @@ import { Gossip } from './gossip.js';
 import { Petitions } from './petitions.js';
 import { Taxation } from './marketDynamics.js';
 import { RealmWars } from './realmWars.js';
+import { HoldingSieges } from './holdingSieges.js';
+import { KingdomNavy } from '../world/kingdomNavy.js';
+import { KingdomBonuses } from '../world/kingdomState.js';
 
 const DEFAULT_CONFIG = {
     charter: { baseCost: 900, perSettlement: 60, maxCost: 2400, minReputation: 0 },
@@ -75,7 +78,8 @@ const DEFAULT_CONFIG = {
 
 const FAMINE_EVENTS = ['famine', 'drought', 'blizzard', 'plague'];
 const FLOWS = ['paidIn', 'drawn'];
-const SIEGE_FLAGS = ['underSiege', 'besieged', 'siege'];
+// A timed event this hard on bread counts as hunger (a saga's hoarded granaries)
+const HUNGER_FOOD_PRICES = 0.2;
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -297,7 +301,10 @@ export const MerchantHouses = {
         const cfg = MerchantHouses.config().charter;
         const n = kingdom && world && world.getSettlementsOf ? world.getSettlementsOf(kingdom.id).length
             : ((kingdom && kingdom.settlements) || []).length;
-        return Math.min(cfg.maxCost, Math.round(cfg.baseCost + cfg.perSettlement * n));
+        const base = Math.min(cfg.maxCost, Math.round(cfg.baseCost + cfg.perSettlement * n));
+        // A realm under the edict of merchant charters (systems/kingship.js) sells them cheap
+        const edict = KingdomBonuses.crownEffect(kingdom, 'charterCost');
+        return edict ? Math.max(1, Math.round(base * Math.max(0.1, 1 + edict))) : base;
     },
 
     hasCharter(player, kingdomId = null) {
@@ -894,14 +901,27 @@ export const MerchantHouses = {
         return Math.max(0, pay);
     },
 
-    _triggerTowns(world, trigger, towns) {
+    /**
+     * The towns a kind of contract may be posted in today, each read from real
+     * world state: famine and hunger (world events, and saga events such as
+     * the Long Winter's frost and hoarded granaries), sieges (a port an enemy
+     * fleet blockades — world/kingdomNavy.js — or a holding of the player's
+     * under siege — systems/holdingSieges.js), realms at war, and realms with
+     * a fleet to build or pirates on their coasts (Sea Reavers).
+     */
+    _triggerTowns(world, trigger, towns, player = null) {
         const day = _day(world);
         if (trigger === 'famine') {
             const out = [];
+            const seen = new Set();
             for (const ev of world.activeEvents || []) {
-                if (FAMINE_EVENTS.includes(ev.id) && typeof ev.q === 'number') {
-                    const t = world.getTile(ev.q, ev.r);
-                    if (t && t.settlement) out.push({ q: ev.q, r: ev.r, name: t.settlement.name, kingdom: t.settlement.kingdom });
+                const fx = ev.effects || {};
+                const hungry = FAMINE_EVENTS.includes(ev.id) || _num(fx.farmProduction) < 0 || _num(fx.foodPrices) >= HUNGER_FOOD_PRICES;
+                if (!hungry || typeof ev.q !== 'number' || seen.has(_key(ev.q, ev.r))) continue;
+                const t = world.getTile(ev.q, ev.r);
+                if (t && t.settlement) {
+                    seen.add(_key(ev.q, ev.r));
+                    out.push({ q: ev.q, r: ev.r, name: t.settlement.name, kingdom: t.settlement.kingdom });
                 }
             }
             // The lean weeks: any town may run short
@@ -909,10 +929,15 @@ export const MerchantHouses = {
             return out;
         }
         if (trigger === 'siege') {
-            return towns.filter(t => {
-                const s = world.getTile(t.q, t.r).settlement;
-                return s && SIEGE_FLAGS.some(f => s[f]);
-            });
+            const besieged = (player && player.realmWars && player.realmWars.besieged) || {};
+            const out = towns.filter(t => !!besieged[_key(t.q, t.r)] || !!KingdomNavy.portBlockade(world, t.q, t.r));
+            // A besieged holding too small for the town list still counts — if a realm can pay for it
+            for (const s of Object.values(besieged)) {
+                const tile = world.getTile(s.q, s.r);
+                const st = tile && tile.settlement;
+                if (st && st.kingdom && !out.some(t => t.q === s.q && t.r === s.r)) out.push({ q: s.q, r: s.r, name: st.name, kingdom: st.kingdom });
+            }
+            return out;
         }
         if (trigger === 'war') {
             return towns.filter(t => {
@@ -921,9 +946,12 @@ export const MerchantHouses = {
             });
         }
         if (trigger === 'fleet') {
+            const harried = new Set((world.activeEvents || [])
+                .filter(ev => ev.kingdomId && _num((ev.effects || {}).pirateSpawnRate) > 0).map(ev => ev.kingdomId));
             return towns.filter(t => {
                 const k = t.kingdom && world.getKingdom(t.kingdom);
-                return k && k.isAlive && k.navy && _num(k.navy.ports) > 0 && Ships.isPortTile(world, t.q, t.r);
+                if (!k || !k.isAlive || !Ships.isPortTile(world, t.q, t.r)) return false;
+                return (k.navy && _num(k.navy.ports) > 0) || harried.has(k.id);
             });
         }
         return towns.filter(t => t.kingdom);
@@ -936,7 +964,7 @@ export const MerchantHouses = {
         const busy = new Set(m.board.map(c => _key(c.q, c.r)).concat(((m.company && m.company.contracts) || []).map(c => _key(c.q, c.r))));
         const options = [];
         for (const [id, def] of Object.entries(defs)) {
-            const places = MerchantHouses._triggerTowns(world, def.trigger || 'any', towns).filter(t => !busy.has(_key(t.q, t.r)));
+            const places = MerchantHouses._triggerTowns(world, def.trigger || 'any', towns, player).filter(t => !busy.has(_key(t.q, t.r)));
             if (places.length) options.push({ value: { id, def, places }, weight: def.trigger === 'any' ? 1 : 2 });
         }
         if (!options.length) return null;
@@ -1013,6 +1041,8 @@ export const MerchantHouses = {
         if (tile && tile.settlement && Seasons.priceGroup(contract.good) === 'food') {
             if (!tile.settlement.economy) Economy.initSettlement(tile.settlement);
             tile.settlement.economy.food = _num(tile.settlement.economy.food) + n;
+            // A holding of the player's under siege eats it as siege stores
+            HoldingSieges.receiveFood(player, world, contract.q, contract.r, n, `${c.name} (${how})`);
         }
         if (contract.delivered >= contract.qty) MerchantHouses._completeContract(player, world, contract, out);
         return n;
@@ -1398,7 +1428,13 @@ export const MerchantHouses = {
             const t = MerchantHouses.temperament(r);
             const contested = r.posts.filter(p => c.posts.some(cp => cp.q === p.q && cp.r === p.r)).length;
             const monopolies = views.reduce((a, s) => a + Object.values(s.monopolies || {}).filter(mo => mo.holder === r.id).length, 0);
-            const rate = Utils.randFloat(cfg.weeklyReturn[0], cfg.weeklyReturn[1]) + t.returnBias - contested * cfg.contestedDrag + monopolies * 0.002;
+            // Crown monopolies (an edict of a realm the player rules) squeeze the posts in that realm
+            const crownDrag = r.posts.reduce((a, p) => {
+                const tile = world.getTile(p.q, p.r);
+                const k = tile && tile.settlement && tile.settlement.kingdom && world.getKingdom(tile.settlement.kingdom);
+                return a + KingdomBonuses.crownEffect(k, 'rivalPostReturn');
+            }, 0);
+            const rate = Utils.randFloat(cfg.weeklyReturn[0], cfg.weeklyReturn[1]) + t.returnBias - contested * cfg.contestedDrag + monopolies * 0.002 + crownDrag;
             const delta = r.capital * rate;
             r.capital = Math.max(0, r.capital + delta);
             r.lastProfit = Math.round(delta);

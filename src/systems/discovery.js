@@ -48,6 +48,7 @@ import { Ships } from './ships.js';
 import { Rivals } from './rivals.js';
 import { House } from './house.js';
 import { Traits } from './traits.js';
+import { Holdings } from './holdings.js';
 import { Ailments } from './ailments.js';
 
 const DEFAULT_CONFIG = {
@@ -1154,7 +1155,10 @@ export const Discovery = {
         const c = site.claim && site.claim.colony;
         const t = c && world.getTile(c.q, c.r);
         const col = t && t.settlement && t.settlement.colony;
-        return n + _num(col && col.garrisonStrength);
+        // Troops stationed there and its militia (systems/holdings.js) man the shore too
+        const h = t && t.settlement && t.settlement.holding;
+        const held = h ? Holdings.garrisonStrength(h) + _num(h.fx && h.fx.militia) : 0;
+        return n + _num(col && col.garrisonStrength) + held;
     },
 
     _contestFleet(kingdom) {

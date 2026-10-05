@@ -83,6 +83,8 @@
     },
 
     "revolt": {
+      "_holdingSacked": "A rebel host that storms one of the player's own holdings sacks it (unrest, garrison and people lost); it never becomes a rebel seat.",
+      "holdingSacked": { "unrest": 25, "garrisonLoss": 0.25, "populationLoss": 0.05 },
       "strengthPerPower": 4,
       "leviesPerPower": 1.5,
       "battleChance": 0.25,
@@ -180,7 +182,8 @@
       "mods": { "tradeBonus": 0.12, "construction": 0.15, "expansion": 0.05 },
       "factions": { "merchants": 6, "commons": 2 },
       "vassalOpinion": 0, "likes": ["trade", "colonize"], "hates": [],
-      "blurb": "Royal surveyors and corvée gangs pave the king's highways. Trade and building quicken."
+      "effects": { "roadCost": -0.4 },
+      "blurb": "Royal surveyors and corvée gangs pave the king's highways. Trade and building quicken, and roads and bridges you build in the realm cost 40% less."
     },
     "tolerance": {
       "label": "Religious tolerance", "icon": "🤝", "upkeep": 0, "passCost": 100, "excludes": ["persecution"],
@@ -203,7 +206,8 @@
       "mods": { "tradeBonus": 0.15, "caravanProfitBonus": 0.1, "tax": -0.04 },
       "factions": { "merchants": 10, "nobility": -5 },
       "vassalOpinion": 0, "likes": ["trade", "wealth"], "hates": [],
-      "blurb": "Free towns and guild charters. Trade booms; the crown's dues are lighter."
+      "effects": { "charterCost": -0.5 },
+      "blurb": "Free towns and guild charters. Trade booms; the crown's dues are lighter, and a company charter from the realm costs half."
     },
     "famine_dole": {
       "label": "Famine dole", "icon": "🍞", "upkeep": 45, "passCost": 100,
@@ -217,7 +221,8 @@
       "mods": { "treasury": 0.15, "tradeBonus": -0.1 },
       "factions": { "merchants": -12, "nobility": -4 },
       "vassalOpinion": -3, "likes": [], "hates": ["wealth", "trade"],
-      "blurb": "Salt, iron and wine are the crown's alone. The treasury swells; merchants and greedy lords resent it."
+      "effects": { "rivalPostReturn": -0.01 },
+      "blurb": "Salt, iron and wine are the crown's alone. The treasury swells; merchants and greedy lords resent it, and rival merchant houses earn less from their posts in the realm."
     },
     "royal_assizes": {
       "label": "Royal assizes", "icon": "⚖️", "upkeep": 20, "passCost": 150,
@@ -245,7 +250,8 @@
       "mods": { "defense": 0.15 },
       "factions": { "military": 4 },
       "vassalOpinion": 2, "likes": ["survive"], "hates": [],
-      "blurb": "Stone castles on every border. The realm is harder to take."
+      "effects": { "holdingWalls": 0.15 },
+      "blurb": "Stone castles on every border. The realm is harder to take, and your own holdings in it hold out behind stronger walls."
     }
   },
 

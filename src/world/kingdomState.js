@@ -144,6 +144,18 @@ export const KingdomBonuses = {
         return total;
     },
 
+    /**
+     * A player-ruled realm's edict effect beyond the kingdom AI (roadCost,
+     * charterCost, rivalPostReturn, holdingWalls — data/kingship.json →
+     * edicts.*.effects), summed over the edicts in force. kingdom.crown.effects
+     * is kept by systems/throne.js (syncCrowns). 0 for any other realm.
+     */
+    crownEffect(kingdom, key) {
+        const fx = kingdom && kingdom.crown && kingdom.crown.effects;
+        const v = fx && fx[key];
+        return typeof v === 'number' && Number.isFinite(v) ? v : 0;
+    },
+
     /** Tradition bonuses as display strings, e.g. ['⚔️ Military +10%', ...]. */
     describeTradition(tradition) {
         if (!tradition || !tradition.bonuses) return [];

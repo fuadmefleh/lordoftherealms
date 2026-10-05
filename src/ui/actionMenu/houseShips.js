@@ -1,5 +1,6 @@
 // ActionMenu — houseShips methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
+import { beginVoyage } from './voyage.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMap, KingdomNavy } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -561,6 +562,8 @@ Object.assign(ActionMenu, {
         html += statPill('👥 Crew', `<span style="color:${crewColor}">${crew}/${eff.crewRequired}</span>`);
         html += statPill('🙂 Morale', morale);
         html += statPill('💰/day', `${st.dailyUpkeep}g + ${Ships.getDailyWages(ship)}g wages`);
+        const foodDays = Ships.getProvisionDays(ship);
+        html += statPill('🍞 Provisions', foodDays === Infinity ? '—' : `${foodDays} days`);
         if (ship.status === 'building') html += statPill('🏗️', `${ship.buildDaysLeft}d left`);
         if (ship.status === 'moving') html += statPill('🧭', ship.destinationName || 'en route');
         html += '</div>';
@@ -597,6 +600,7 @@ Object.assign(ActionMenu, {
             html += `<div style="color:var(--text-secondary);">Short-handed: ${Math.round(Ships.getCrewSpeedFactor(ship) * 100)}% speed, ${Math.round(Ships.getCrewCombatFactor(ship) * 100)}% fighting strength, fewer fish in the nets.</div>`;
         }
         html += `<div style="color:var(--text-secondary);">Wages ${Ships._getCrewSettings().wagePerSailorPerDay}g per sailor a day. Storms, defeats and missed wages sap morale; below ${Ships._getCrewSettings().desertionMorale} sailors desert.</div>`;
+        html += `<div style="color:var(--text-secondary);">Away from port the crew eats from the hold: ${Math.round(Ships.getDailyRations(ship) * 10) / 10} provisions a day. A hungry crew loses heart, then scurvy comes aboard.</div>`;
         html += '</div>';
 
         html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">';
@@ -605,6 +609,11 @@ Object.assign(ActionMenu, {
         }
         if (ship.status === 'docked' && crew > 0) {
             html += `<button onclick="window._dismissCrew('${ship.id}')" style="flex:1;${btnSecondary}">👋 Pay off 1 sailor</button>`;
+        }
+        const victual = ship.status === 'docked' && Ships.isPortTile(game.world, ship.q, ship.r) ? Ships.provisionsNeeded(ship, 10) : 0;
+        if (victual > 0) {
+            const price = Ships.provisionPrice(game.world, ship.q, ship.r);
+            html += `<button onclick="window._provisionShip('${ship.id}', ${victual})" style="flex:1;${btnPrimary}">🍞 Provision for 10 days (${victual} × ${price}g)</button>`;
         }
         if (ship.condition < 100 && ship.status === 'docked') {
             const repCost = Ships.getRepairCost(ship);
@@ -639,6 +648,15 @@ Object.assign(ActionMenu, {
         window._hireCrew = (sid) => {
             const result = Ships.hireCrew(player, game.world, sid);
             game.ui.showNotification(result.success ? '👥 Crew Hired' : 'Cannot Hire', result.message, result.success ? 'success' : 'error');
+            if (result.success) {
+                game.ui.updateStats(player, game.world);
+                ActionMenu._showShipManagePanel(game, tile, sid);
+            }
+        };
+
+        window._provisionShip = (sid, units) => {
+            const result = Ships.buyProvisions(player, game.world, sid, units);
+            game.ui.showNotification(result.success ? '🍞 Provisioned' : 'Provisions', result.message, result.success ? 'success' : 'error');
             if (result.success) {
                 game.ui.updateStats(player, game.world);
                 ActionMenu._showShipManagePanel(game, tile, sid);
@@ -878,6 +896,8 @@ Object.assign(ActionMenu, {
             html += statPill('📦', eff.cargoCapacity);
             html += statPill('👥', `${Ships.getCrew(ship)}/${eff.crewRequired}`);
             html += statPill('🙂', Ships.getMorale(ship));
+            const boardFood = Ships.getProvisionDays(ship);
+            html += statPill('🍞', boardFood === Infinity ? '—' : `${boardFood}d`);
             html += '</div>';
             const noCrew = Ships.crewSailReason(ship);
             html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">';
@@ -887,7 +907,8 @@ Object.assign(ActionMenu, {
                 if (Ships.getCrewRatio(ship) < 1) {
                     html += `<div style="font-size:11px;color:#f0ad4e;width:100%;">Short-handed: sails slower and fights worse.</div>`;
                 }
-                html += `<button onclick="window._boardShip('${ship.id}')" style="width:100%;${btnPrimary}">⛵ Board & Set Sail</button>`;
+                html += `<button onclick="ActionMenu._showSailToMenu(window._game, window._tile, '${ship.id}')" style="flex:1;${btnPrimary}">🧭 Voyage to a Port</button>`;
+                html += `<button onclick="window._boardShip('${ship.id}')" style="flex:1;${btnSecondary}">⛵ Board & Take the Helm</button>`;
             }
             html += '</div>';
             html += '</div>';
@@ -1176,41 +1197,44 @@ Object.assign(ActionMenu, {
         const player = game.player;
         const ship = Ships.getShipById(player, shipId);
         if (!ship) return;
-        const st = Ships.getShipType(ship.typeId);
         const btnBase = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;';
         const btnPrimary = `${btnBase}border:1px solid rgba(245,197,66,0.55);background:linear-gradient(180deg,#f6cf57,#d9a92a);color:#1a1a1a;`;
         const btnSecondary = `${btnBase}border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);`;
 
-        const allSettlements = game.world.getAllSettlements();
-        const coastalDests = allSettlements.filter(s => {
-            if (s.q === tile.q && s.r === tile.r) return false;
-            return Hex.neighbors(s.q, s.r).some(n => {
-                const nt = game.world.getTile(n.q, n.r);
-                return nt && ['ocean', 'deep_ocean', 'coast', 'lake', 'sea'].includes(nt.terrain.id);
-            });
-        });
+        // Ports this ship can reach by sea, nearest first
+        const routes = Ships.seaRoutes(game.world, ship.q, ship.r).slice(0, 24);
+        const speed = Ships.getSailingSpeed(player, ship);
+        const food = Ships.getProvisionDays(ship);
+        const price = Ships.provisionPrice(game.world, ship.q, ship.r);
+        const perDay = Ships.getDailyRations(ship);
+        const st = Ships.getShipType(ship.typeId);
+        const costPerDay = (st ? st.dailyUpkeep : 5) + Ships.getDailyWages(ship);
 
         let html = '<div style="max-height:430px;overflow-y:auto;">';
         html += `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">`;
-        html += `<div><h4 style="margin:0;">🧭 Sail ${ship.name}</h4><div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">Pick a destination port and pay travel upkeep.</div></div>`;
-        html += `<div style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,0.03);">⚓ Speed ${st ? st.speed : 4}</div>`;
+        html += `<div><h4 style="margin:0;">🧭 Voyage in ${ship.name}</h4><div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">Each day at sea is a day: ${costPerDay}g upkeep and wages, ${Math.round(perDay * 10) / 10} provisions eaten, and whatever the sea sends.</div></div>`;
+        html += `<div style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,0.03);white-space:nowrap;">⚓ ${speed}/day · 🍞 ${food === Infinity ? '—' : `${food}d`}</div>`;
         html += '</div>';
 
-        if (coastalDests.length === 0) {
-            html += '<div style="padding:14px;border:1px dashed var(--border);border-radius:8px;text-align:center;font-size:12px;color:var(--text-secondary);">No coastal destinations found.</div>';
+        if (routes.length === 0) {
+            html += '<div style="padding:14px;border:1px dashed var(--border);border-radius:8px;text-align:center;font-size:12px;color:var(--text-secondary);">No port can be reached by sea from here.</div>';
         }
 
-        for (const dest of coastalDests) {
-            const dist = Hex.distance(tile.q, tile.r, dest.q, dest.r);
-            const speed = st ? st.speed : 4;
-            const travelDays = Math.max(1, Math.ceil(dist / speed));
-            const fuelCost = travelDays * (st ? st.dailyUpkeep : 5);
-            const canAfford = (player.gold || 0) >= fuelCost;
+        for (const dest of routes) {
+            const days = Ships.voyageDays(player, ship, dest.distance);
+            const short = food !== Infinity && food < days + 1;
+            const need = Ships.provisionsNeeded(ship, days + 2);
+            const safeName = dest.name.replace(/'/g, "\\'");
             html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:6px;">`;
-            html += `<div><div style="font-size:12px;font-weight:bold;">${dest.name}</div>`;
-            html += `<div style="font-size:10px;color:var(--text-secondary);">${dist} hexes · ~${travelDays} days · ${fuelCost}g travel upkeep</div></div>`;
-            html += `<button onclick="window._doSailTo('${ship.id}', ${dest.q}, ${dest.r}, '${dest.name.replace(/'/g, "\\'")}')" style="${canAfford ? btnPrimary : `${btnSecondary}opacity:0.5;cursor:not-allowed;`}" ${!canAfford ? 'disabled' : ''}>Sail</button>`;
-            html += '</div>';
+            html += `<div><div style="font-size:12px;font-weight:bold;">${dest.name} <span style="font-weight:normal;color:var(--text-secondary);">(${dest.type})</span></div>`;
+            html += `<div style="font-size:10px;color:var(--text-secondary);">${dest.distance} leagues by sea · ~${days} day${days === 1 ? '' : 's'} · ~${days * costPerDay}g on the way</div>`;
+            if (short) html += `<div style="font-size:10px;color:#e57373;">Provisions for ${food} day${food === 1 ? '' : 's'} — victual first or the crew goes hungry.</div>`;
+            html += '</div><div style="display:flex;gap:4px;">';
+            if (short && need > 0) {
+                html += `<button onclick="window._doSailTo('${ship.id}', ${dest.q}, ${dest.r}, '${safeName}', ${days + 2})" style="${btnPrimary}" title="${need} provisions at ${price}g">🍞 Victual & Sail (${need * price}g)</button>`;
+            }
+            html += `<button onclick="window._doSailTo('${ship.id}', ${dest.q}, ${dest.r}, '${safeName}', 0)" style="${short ? btnSecondary : btnPrimary}">Sail</button>`;
+            html += '</div></div>';
         }
 
         html += `<button onclick="ActionMenu.showBoardShipMenu(window._game, window._tile)" style="width:100%;margin-top:8px;${btnSecondary}">← Back to Board Ship</button>`;
@@ -1219,17 +1243,9 @@ Object.assign(ActionMenu, {
         window._game = game;
         window._tile = tile;
 
-        window._doSailTo = (sid, dq, dr, dname) => {
-            const result = Ships.sailPlayerTo(player, sid, dq, dr, dname, game.world);
-            if (result.success) {
-                game.ui.hideCustomPanel();
-                game.ui.showNotification('⛵ Arrived!', result.message, 'success');
-                ActionMenu._centerCameraOnPlayer(game);
-                game.ui.updateStats(player, game.world);
-                game.endDay();
-            } else {
-                game.ui.showNotification('Error', result.message, 'error');
-            }
+        window._doSailTo = (sid, dq, dr, dname, victualDays) => {
+            game.ui.hideCustomPanel();
+            beginVoyage(game, sid, dq, dr, dname, victualDays);
         };
     },
 
@@ -1259,6 +1275,9 @@ Object.assign(ActionMenu, {
             html += `<span>🔧 ${ship.condition}%</span>`;
             html += `<span>👥 ${Ships.getCrew(ship)}/${Ships.getShipEffectiveStats(ship).crewRequired}</span>`;
             html += `<span>🙂 ${Ships.getMorale(ship)}</span>`;
+            const fleetFood = Ships.getProvisionDays(ship);
+            html += `<span>🍞 ${fleetFood === Infinity ? '—' : `${fleetFood}d`}</span>`;
+            if (ship.voyage) html += `<span>🧭 → ${ship.voyage.destName}</span>`;
             if (ship.status === 'building') html += `<span>🏗️ ${ship.buildDaysLeft} days left</span>`;
             if (ship.status === 'moving') html += `<span>🧭 ${ship.travelDaysLeft || '?'} days ETA</span>`;
             html += '</div>';

@@ -1370,10 +1370,56 @@ Every ship needs sailors (its **crew** stat). New and used ships come **without 
 - Below a **skeleton crew** (a quarter of the crew stat) a ship cannot leave port.
 - **Morale** rests at 70 and scales combat strength (+15% at 100, −35% at 0). Storms at sea shake it and can wash a sailor overboard; a sea fight won lifts it (and may cost a sailor), a defeat costs 10–25% of the crew and a big morale hit. Paid crews recover toward 70, faster in harbour.
 - **Missed wages** (not enough gold) cost 15 morale a day; below 25 morale, 10% of the crew deserts each day.
-- **Sickness aboard.** If you sail with a contagious disease, it can spread to your crew. Weeks at sea without fruit or berries can also bring scurvy to them. A sick crew loses 2 morale a day and now and then a sailor, until the outbreak passes. It passes twice as fast in port.
+- **Sickness aboard.** If you sail with a contagious disease, it can spread to your crew. Weeks at sea without fruit or berries (in your packs or the hold) can also bring scurvy to them. A sick crew loses 2 morale a day and now and then a sailor, until the outbreak passes. It passes twice as fast in port.
 - Ships from older saves keep a full crew at morale 70.
 
 Tunables live in `data/ships.json` → `settings.crew`.
+
+### Provisions
+
+Ships away from port feed their crew from the **hold**. Each unit of food aboard (provisions, preserved fish, bread, grain, fish, fruit and other food) feeds **4 sailors for a day**, so a Trading Cog with 8 hands eats 2 units a day. A crew in harbour eats ashore and touches nothing.
+
+- **Buying provisions.** A docked ship's management panel has **🍞 Provision for 10 days**; the Voyage menu offers **Victual & Sail**. A port's chandler charges 1.5× the town's food price (at least 6g a unit). Provisions take up hold space like any cargo.
+- **Days remaining** are shown on every ship panel (🍞): the fleet list, the ship's panel, Board Ship and the voyage panel.
+- **Running out.** A crew with nothing to eat loses up to 8 morale a day. After **3 hungry days** scurvy breaks out aboard (see Sickness aboard). Once morale falls below 25, sailors desert every day.
+- **The captain's table.** If your own packs are empty while you're aboard, you eat a day's ration from the hold.
+
+Tunables live in `data/ships.json` → `settings.provisions`.
+
+### Voyages
+
+From **Board Ship** at a port, **🧭 Voyage to a Port** lists every port your ship can reach **by sea** (a route over open water; a port on another sea isn't listed), with the distance in leagues, the days it will take, and what the days will cost. A voyage takes **real days**: each day the ship sails her speed in hexes (her crew and fittings count) along the route, and a full day passes: wages, upkeep, rations, morale, the weather and storms (a storm **halves** the day's run), interception by hostile royal fleets, and sickness aboard. Nothing is paid up front.
+
+After each day the **voyage panel** shows the ship's log, the provisions left, morale, crew and hull. A quiet day sails on by itself. On a day worth stopping for (a storm, a fight, hunger, desertion, or an event at sea) you choose:
+
+- **⛵ Sail on**: another day at sea.
+- **⚓ Heave to**: end the voyage where you are and take the helm yourself (still aboard). From there you can sail by hand, row ashore or explore.
+
+If you steer off the route by hand, the ship plots a new one from wherever you are. Going ashore (Disembark or Row Ashore) ends the voyage. When you make port, the ship docks with her hold as you left it and the panel shows the full log of the passage.
+
+**Board & Take the Helm** still lets you sail by hand, hex by hex, using stamina.
+
+### Events at Sea
+
+On each day of a voyage there is a 30% chance of an event. Each offers choices; an event left unanswered takes its default choice the next day. Events tie into morale, crew, cargo, provisions, hull, gold, renown, karma, traits and the underworld:
+
+| Event | Choices |
+|-------|---------|
+| 🌫️ Becalmed | Wait (a day lost) · Man the sweeps (morale) · Whistle for a wind (luck) |
+| ⛵ Sail Ho! | Hail her (news, or pirates) · Run (may be caught) · Run her down: piracy costs karma, reputation and heat |
+| 🏚️ A Derelict | Board her (a day; loot, or the flux aboard) · Strip her timbers (hull repair, timber) · Pass by |
+| 🐍 Coils in the Swell | Hunt the serpent (a hard fight: renown and Valor) · Steer wide (a day) · Laugh it off |
+| 🆘 Man Overboard | Come about (Mercy, morale) · Hold your course (a sailor lost, Cruelty) |
+| 🔥 St Elmo's Fire | Proclaim a blessing (morale, Piety) · Pray (karma) · Ignore (morale) |
+| 🚢 A Convoy Asks for Escort | Escort (a day; pay, perhaps a pirate fight) · Decline · Demand protection money (gold, karma, heat, Greed) |
+| 🏊 A Castaway | Take him aboard (a new hand, Mercy) · Sail past (Cruelty) |
+| 🏴 Smugglers' Lugger | Buy her wine (cargo, heat) · Report her (renown, Honesty) · Ignore |
+| 🐟 A Great Shoal | Cast the nets (provisions) · Press on |
+| 🌁 Fog Bank | Feel your way (may scrape a reef) · Heave to (a day) |
+| 😠 Grumbling Below Decks (low morale) | A bonus per hand · Extra rations · Flog the ringleader (Dread, or worse) · Let them grumble |
+| 🍾 A Message in a Bottle | Read it (a cache, or a love letter) · Leave it |
+
+The event table lives in `data/ships.json` → `voyageEvents` (effects: morale, crew, gold, renown, karma, hull, repair, delay, cargo, provisions, heat, trait deeds, piracy, sickness, chance rolls and fights); voyage tunables in `settings.voyage`.
 
 ### Naval Travel
 
@@ -1397,11 +1443,13 @@ A used ship market exists at settlements with variable condition (40–85%) and 
 
 With a ship docked at a port, **Port Market** (free) buys trade goods — spices, silk, wine, iron, ivory, gems, timber, fish — straight into its hold, and sells them out of it. Every port has a role for each good:
 
-- **Exports** — cheap to buy, but the port pays little for it.
-- **Imports** — the port doesn't sell it but pays a premium.
-- **Local market** — buys and sells in between.
+- **Exports** — cheap to buy (70–90% of the good's base price), but the port pays only three quarters of that.
+- **Imports** — the port doesn't sell it but pays a premium (115–150% of base).
+- **Local market** — buys and sells around the base price (90–110%), with a spread.
 
-Roles are fixed per port; prices drift every 7 days. Buy where a good is exported, sail, and sell where it's imported — the hold's cargo capacity caps how much each run carries.
+Port prices are on the **same scale as the land economy**: each good's base price is its land base price (silk 80, spices, wine and ivory 45, gems 60, iron 20, timber and fish 8), moved by the season as on land. Roles are fixed per port; prices drift every 7 days. A town whose own market stocks a good (timber, gems) never imports it by sea. Buy where a good is exported, sail, and sell where it's imported. The margin comes from **distance and risk**: days of wages, upkeep and rations, storms, pirates and royal fleets, blockades and the season. The hold's cargo capacity caps how much each run carries. Carrying an export inland pays about what the land markets pay (70% of base), so it's no shortcut.
+
+**No buy-and-sell-back.** No outlet (a port, the town market, a fence or the black market) pays more for a good than it costs to buy on the same tile **or in a settlement on the next hex**.
 
 **Blockaded ports.** While an enemy fleet blockades a realm's ports (see [Royal Fleets](#royal-fleets)), its port markets charge 25% more and pay 20% less. If the blockading fleet is at least three times the realm's own, the harbour is **closed**: nobody buys or sells until the blockade is broken.
 

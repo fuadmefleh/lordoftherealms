@@ -12,6 +12,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { PlayerInventory } from '../core/inventory.js';
 import { Utils } from '../core/utils.js';
+import { Hex } from '../core/hex.js';
 import { PlayerEconomy, Trading } from '../player/playerEconomy.js';
 import { Ships } from '../systems/ships.js';
 import { Underworld } from '../systems/underworld.js';
@@ -89,7 +90,8 @@ function checkInvariants(game, phase) {
 
 /**
  * Same-tile arbitrage probe: what the player could buy here right now and
- * at once sell back here (town market, fence, black market, port) for more.
+ * at once sell back here, or in a settlement one hex away (town market,
+ * fence, black market, port), for more.
  * Run for the player as they are and for a trade-buffed version of them
  * (trade agreements with every realm), since bonuses are what open loops.
  */
@@ -111,17 +113,30 @@ function probeArbitrage(game) {
         for (const e of port) {
             if (e.buy && (!buys[e.id] || e.buy < buys[e.id].price)) buys[e.id] = { price: e.buy, via: 'port' };
         }
+        // The ship's chandler's provisions
+        if (port.length) {
+            const item = Ships._getProvisionSettings().item;
+            const price = Ships.provisionPrice(world, tile.q, tile.r);
+            if (!buys[item] || price < buys[item].price) buys[item] = { price, via: 'chandler' };
+        }
+        // Sell back here, or one hex away (settlements next door)
+        const outlets = [tile, ...Hex.neighbors(tile.q, tile.r)
+            .map(n => world.getTile(Hex.wrapQ(n.q, world.width), n.r))
+            .filter(t => t && t.settlement)];
         for (const [id, buy] of Object.entries(buys)) {
             const good = Object.values(PlayerEconomy.GOODS).find(g => g.id === id);
-            const offers = [];
-            if (good) offers.push({ via: 'market', price: Trading.saleUnitPrice(p, good, tile.settlement, world) });
-            offers.push({ via: 'blackMarket', price: Underworld.blackMarketPrice(world, tile, id) });
-            if (Underworld.hasGuildPresence(tile.settlement)) offers.push({ via: 'fence', price: Underworld.fencePrice(p, id, world, tile) });
-            const e = port.find(x => x.id === id);
-            if (e) offers.push({ via: 'port', price: Ships.portSaleUnitPrice(p, world, tile.q, tile.r, e) });
-            for (const o of offers) {
-                if (o.price > buy.price) {
-                    found.push(`${who} ${id}: buy ${buy.price} (${buy.via}) → sell ${Math.round(o.price * 100) / 100} (${o.via}) at ${tile.settlement.name}`);
+            for (const at of outlets) {
+                const offers = [];
+                if (good) offers.push({ via: 'market', price: Trading.saleUnitPrice(p, good, at.settlement, world) });
+                offers.push({ via: 'blackMarket', price: Underworld.blackMarketPrice(world, at, id) });
+                if (Underworld.hasGuildPresence(at.settlement)) offers.push({ via: 'fence', price: Underworld.fencePrice(p, id, world, at) });
+                const atPort = at === tile ? port : Ships.isPortTile(world, at.q, at.r) ? Ships.getPortMarket(world, at.q, at.r) : [];
+                const e = atPort.find(x => x.id === id);
+                if (e) offers.push({ via: 'port', price: Ships.portSaleUnitPrice(p, world, at.q, at.r, e) });
+                for (const o of offers) {
+                    if (o.price > buy.price) {
+                        found.push(`${who} ${id}: buy ${buy.price} (${buy.via}) at ${tile.settlement.name} → sell ${Math.round(o.price * 100) / 100} (${o.via}) at ${at.settlement.name}`);
+                    }
                 }
             }
         }
@@ -222,7 +237,7 @@ describe('headless playtest soak', () => {
 
     it('the bot reached the systems it is meant to exercise', () => {
         for (const key of ['foodBought', 'recruited', 'sales', 'coloniesFounded', 'guildJoined', 'delvesStarted',
-            'petitionsRuled', 'companionsHired', 'shipsBought', 'crewHired', 'voyages', 'propertiesBuilt']) {
+            'petitionsRuled', 'companionsHired', 'shipsBought', 'crewHired', 'voyages', 'daysAtSea', 'propertiesBuilt']) {
             expect(totals[key] || 0, `the bot never did "${key}" — ${JSON.stringify(totals)}`).toBeGreaterThan(0);
         }
     });

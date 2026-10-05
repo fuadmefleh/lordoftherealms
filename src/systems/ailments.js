@@ -760,6 +760,20 @@ export const Ailments = {
         }
     },
 
+    /**
+     * Start an outbreak of disease `id` among a ship's crew (a starving crew
+     * gets scurvy; a fouled derelict, the flux). False if one is already
+     * running or the disease is unknown.
+     */
+    startCrewOutbreak(player, ship, id) {
+        if (!player || !ship || !Ailments.def(id)) return false;
+        const st = Ailments.getState(player);
+        const key = String(ship.id);
+        if (st.crews[key]) return false;
+        st.crews[key] = { id, daysLeft: _roll((Ailments.cfg().crew || {}).days || [5, 10]) };
+        return true;
+    },
+
     _crewsDay(player, world, out) {
         const st = Ailments.getState(player);
         const cfg = Ailments.cfg();
@@ -780,7 +794,8 @@ export const Ailments = {
                 }
             }
             const fresh = (((cfg.sources || {}).scurvy) || {}).fresh || [];
-            const hasFresh = fresh.some(f => player.inventory && player.inventory[f] > 0);
+            // Fruit in the captain's packs or in the ship's hold keeps scurvy off
+            const hasFresh = fresh.some(f => (player.inventory && player.inventory[f] > 0) || (boarded.cargo && boarded.cargo[f] > 0));
             if (!st.crews[String(boarded.id)] && !hasFresh && st.daysAtSea > _num(crewCfg.scurvyGraceDays)
                 && Utils.random() < Math.min(0.3, (st.daysAtSea - _num(crewCfg.scurvyGraceDays)) * _num(crewCfg.scurvyPerDay))) {
                 st.crews[String(boarded.id)] = { id: 'scurvy', daysLeft: _roll(crewCfg.days || [5, 10]) };

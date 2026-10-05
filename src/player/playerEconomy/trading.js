@@ -53,22 +53,26 @@ export const Trading = {
 
     /**
      * Most a buyer on this tile pays per unit of `goodId` the player sells:
-     * one less than what the player would pay to buy it back here (the
-     * market's price after the player's discount, or the port's), or
-     * Infinity when nobody here sells it. Keeps sell bonuses from turning a
-     * market into a buy-and-sell-back money loop.
+     * one less than what the player would pay to buy it back here or in a
+     * settlement next door (a market's price after the player's discount, or
+     * a port's), or Infinity when nobody there sells it. Keeps sell bonuses
+     * from turning a market into a buy-and-sell-back money loop.
      */
     saleUnitCap(player, goodId, settlement, world = null, tile = null) {
         const at = tile || Economy.settlementTile(world, settlement);
         if (!at) return Infinity;
-        // The market's price after the player's own discount (as buyGoods charges it)
-        const market = Economy.marketAsk(world, at, goodId);
-        let ask = market == null ? Infinity
-            : Math.ceil(market * Math.max(0.5, 1 - Trading.buyDiscount(player, settlement)));
-        // ...or the harbour's, at a port
-        const port = world && Ships.isPortTile(world, at.q, at.r)
-            ? Ships.getPortMarket(world, at.q, at.r).find(e => e.id === goodId) : null;
-        if (port && port.buy) ask = Math.min(ask, port.buy);
+        // Each market's price after the player's own discount there (as buyGoods charges it)
+        const discounted = (ask, s) => Math.ceil(ask * Math.max(0.5, 1 - Trading.buyDiscount(player, s)));
+        let ask = Infinity;
+        if (world && typeof world.getTile === 'function') {
+            const near = Ships.nearbyAsks(world, at.q, at.r, goodId);
+            for (const m of near.markets) ask = Math.min(ask, discounted(m.ask, m.settlement));
+            // ...or a harbour's
+            if (near.port != null) ask = Math.min(ask, near.port);
+        } else {
+            const market = Economy.marketAsk(world, at, goodId);
+            if (market != null) ask = discounted(market, settlement);
+        }
         return ask === Infinity ? Infinity : Math.max(0, ask - 1);
     },
 

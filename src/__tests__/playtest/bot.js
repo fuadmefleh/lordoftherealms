@@ -28,6 +28,7 @@ import { Throne } from '../../systems/throne.js';
 import { Espionage } from '../../systems/espionage.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Companions } from '../../systems/companions.js';
+import { Ailments } from '../../systems/ailments.js';
 import { travelTo } from './harness.js';
 
 const FOOD = ['grain', 'bread'];
@@ -254,9 +255,29 @@ function sail(game, tile, stats) {
     if (!dest.length) return false;
     const d = Utils.randPick(dest);
     const dTile = world.getTile(d.q, d.r);
+    // Victual the ship for the passage, with a few days in hand
+    const route = Ships.seaPath(world, tile, d);
+    if (!route) return false;
+    const want = Ships.provisionsNeeded(ship, Ships.voyageDays(player, ship, route.length) + 3);
+    if (want > 0 && Ships.buyProvisions(player, world, ship.id, want).success) count(stats, 'provisioned');
     const res = Ships.sailPlayerTo(player, ship.id, d.q, d.r, dTile.settlement.name, world);
     if (res.success) { count(stats, 'voyages'); return true; }
     return false;
+}
+
+/** A day at sea on a voyage: answer any event, sometimes heave to. */
+function voyageDay(game, stats) {
+    const { player, world } = game;
+    if (player.needs && player.needs.hunger < 60 && player.getFoodCount() > 0) player.eatMeal();
+    const ev = Ships.describeVoyageEvent(player);
+    if (ev) {
+        const open = ev.choices.filter(c => c.available);
+        const pick = open.length && Utils.random() < 0.8 ? Utils.randPick(open).id : null;
+        const res = Ships.resolveVoyageEvent(player, world, pick);
+        if (res.success) count(stats, pick ? 'voyageEventsAnswered' : 'voyageEventsDefaulted');
+    }
+    if (Utils.random() < 0.01 && Ships.heaveTo(player, world).success) count(stats, 'heaveTo');
+    count(stats, 'daysAtSea');
 }
 
 function throne(game, stats) {
@@ -444,9 +465,25 @@ export function botDay(game, stats) {
         count(stats, 'servitudeDays');
         return;
     }
+    if (Ships.getVoyage(player)) {
+        voyageDay(game, stats);
+        return;
+    }
     if (player.boardedShip) {
         const t = world.getTile(player.q, player.r);
         if (t && t.terrain.passable) Ships.disembark(player, world);
+        else {
+            // Hove to on open water: sail for the nearest port, or row ashore
+            const port = Ships.seaRoutes(world, player.q, player.r)[0];
+            if (port) travelTo(game, port.q, port.r);
+            const here = world.getTile(player.q, player.r);
+            if (here && here.terrain.passable) Ships.disembark(player, world);
+            else {
+                const shore = Ships.getRowAshoreTargets(world, player.q, player.r)[0];
+                if (shore && Ships.rowAshore(player, world, shore.q, shore.r).success) count(stats, 'rowedAshore');
+            }
+            if (player.boardedShip) return;
+        }
     }
 
     // Broke: pay off soldiers and sailors rather than starve
@@ -463,6 +500,9 @@ export function botDay(game, stats) {
             const npcId = typeof id === 'object' ? id.id : id;
             if (Companions.dismiss(player, npcId, world).success) count(stats, 'companionsDismissed');
         }
+        // ...and sell a ship whose upkeep and wages the purse can't carry
+        const docked = (player.ships || []).find(s => s.status === 'docked');
+        if (docked && Ships.sellShip(player, docked.id).success) count(stats, 'shipsSold');
     }
     // Broke and foodless: live off the land like anyone would — step out of
     // town onto forageable ground and spend the day searching it
@@ -483,6 +523,25 @@ export function botDay(game, stats) {
         }
     }
     if (player.needs && player.needs.hunger < 60 && player.getFoodCount() > 0) player.eatMeal();
+    // Badly hurt: get to a town, see a physician and rest there
+    if (player.health < 50) {
+        const here = world.getTile(player.q, player.r);
+        if (here && here.settlement) {
+            booked(game, 'buyFood', () => buyFood(game, here, stats));
+            if (player.needs && player.needs.hunger < 60 && player.getFoodCount() > 0) player.eatMeal();
+            for (const o of Ailments.treatmentOptions(player, world, here.settlement)) {
+                if (o.can && Ailments.treat(player, world, here.settlement, o.key).success) count(stats, 'treated');
+            }
+            count(stats, 'convalescing');
+            return;
+        }
+        const town = nearest(world, player, settlementTiles(world), 3)[0];
+        if (town) {
+            game.dest = { q: town.q, r: town.r };
+            travelTo(game, town.q, town.r);
+            return;
+        }
+    }
     booked(game, 'court', () => court(game, stats));
     booked(game, 'throne', () => throne(game, stats));
     booked(game, 'treasures', () => treasures(game, stats));

@@ -137,7 +137,9 @@ function snapshot(game) {
         prestige: p.house && p.house.prestige, party: (p.travelParty || []).slice(),
         guild: JSON.stringify(Underworld.ensure(p).guild),
         petitions: ((p.petitions && p.petitions.pending) || []).length,
-        kingdoms: game.world.kingdoms.map(k => [k.id, k.isAlive, Math.round(k.treasury)]),
+        kingdoms: game.world.kingdoms.map(k => [k.id, k.isAlive, Math.round(k.treasury), k.religion && Math.round(k.religion.piety),
+            k.cultureData && Math.round(k.cultureData.influence)]),
+        holySites: game.world.tiles.flat().filter(t => t.holySite).map(t => `${t.q},${t.r}:${t.holySite.controller}`).join(' '),
         terrain: terrainDigest(game.world),
     };
 }

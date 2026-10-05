@@ -126,6 +126,8 @@ export const SaveLoad = {
                     playerProperties: tile.playerProperties || null,
                     playerProperty: tile.playerProperty || null,
                     indigenous: tile.indigenous || null,
+                    // Who holds a holy site, its pilgrims and level change in play
+                    ...(tile.holySite ? { holySite: tile.holySite } : {}),
                     // Terrain is regenerated, not saved
                 });
             }
@@ -177,6 +179,9 @@ export const SaveLoad = {
             lastSuccession: k.lastSuccession || null,
             createdByPlayer: !!k.createdByPlayer,
             traits: k.traits || [],
+            // State that evolves in play (piety, heresies, cultural influence,
+            // peoples, stores) — regeneration would reset it to day one
+            ...SaveLoad._pickDefined(k, ['religion', 'cultureData', 'peoples', 'food', 'goods']),
             ...(k.createdByPlayer ? {
                 foundedDay: k.foundedDay,
                 colorLight: k.colorLight,
@@ -404,6 +409,7 @@ export const SaveLoad = {
                 tile.playerProperty = (tile.playerProperties && tile.playerProperties[0])
                     || savedTile.playerProperty || null;
                 tile.indigenous = savedTile.indigenous || null;
+                if (savedTile.holySite) tile.holySite = savedTile.holySite;
             }
         }
 

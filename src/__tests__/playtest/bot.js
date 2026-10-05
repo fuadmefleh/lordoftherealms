@@ -527,11 +527,22 @@ export function botDay(game, stats) {
     // town onto forageable ground and spend the day searching it
     const forage = DataLoader.earlyJobs && DataLoader.earlyJobs.foraging;
     if (player.gold < 20 && player.getFoodCount() === 0 && forage) {
+        // Ground where something edible grows (bare hills give only stone)
+        const edible = (t) => {
+            const table = t && !t.settlement && t.terrain.passable && Foraging.lootTableFor(t, forage);
+            return !!table && table.some(e => player.constructor.FOOD_TYPES.includes(e.item));
+        };
         let here = world.getTile(player.q, player.r);
-        if (!Foraging.lootTableFor(here, forage) || here.settlement) {
-            const spot = Hex.neighbors(player.q, player.r)
-                .map(n => world.getTile(Hex.wrapQ(n.q, world.width), n.r))
-                .find(t => t && !t.settlement && t.terrain.passable && Foraging.lootTableFor(t, forage));
+        if (!edible(here)) {
+            let spot = null;
+            for (let r = 1; r <= 5 && !spot; r++) {
+                for (let dq = -r; dq <= r && !spot; dq++) {
+                    for (let dr = -r; dr <= r && !spot; dr++) {
+                        const t = world.getTile(Hex.wrapQ(player.q + dq, world.width), player.r + dr);
+                        if (t && edible(t)) spot = t;
+                    }
+                }
+            }
             if (spot) travelTo(game, spot.q, spot.r);
             here = world.getTile(player.q, player.r);
         }
@@ -543,8 +554,9 @@ export function botDay(game, stats) {
     }
     if (player.needs && player.needs.hunger < 60 && player.getFoodCount() > 0) player.eatMeal();
     if ((player.children || []).length) family(game, stats);
-    // Badly hurt: get to a town, see a physician and rest there
-    if (player.health < 50) {
+    // Badly hurt: get to a town, see a physician and rest there (a pauper
+    // can't pay one; better to go and live off the land)
+    if (player.health < 50 && player.gold >= 20) {
         const here = world.getTile(player.q, player.r);
         if (here && here.settlement) {
             booked(game, 'buyFood', () => buyFood(game, here, stats));

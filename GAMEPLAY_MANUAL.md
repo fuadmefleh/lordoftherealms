@@ -15,6 +15,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 5. [Properties & Production](#5-properties--production)
 6. [Crafting](#6-crafting)
 7. [Caravans & Trade Routes](#7-caravans--trade-routes)
+    - [Merchant Houses: the Trading Company](#merchant-houses-the-trading-company) — charters, factors and standing orders, supply contracts, rival houses, monopolies, shares and royal ventures
 8. [Housing](#8-housing)
 9. [Military & Combat](#9-military--combat)
 10. [Mercenary Contracts](#10-mercenary-contracts)
@@ -755,6 +756,78 @@ Routes auto-dispatch when goods are available, based on a configurable frequency
 **Smuggling Risk**: Chance of being caught depends on distance, stealth skill, and protection level. Getting caught means confiscation of 35–55% of profits, fines, −2 karma, and −4 reputation.
 
 Every smuggling run raises **heat** with the destination's crown (more if intercepted — see [The Underworld](#the-underworld)). Running goods into a **blockaded** realm pays half again as much (more if its port is sealed by enemy fleets) but adds 15% to the catch chance; the **lean season** adds another 15% to the take.
+
+### Merchant Houses: the Trading Company
+
+Caravans and routes are trade you run yourself. In the mid and late game you can found a **trading company**: a chartered house with its own name, capital, ledger and reputation, factors working for it in distant towns, supply contracts from the crowns, and rival merchant houses competing for the same markets. Open it from **Trading Company** in any town's action menu (shown once you have 1,500 gold, a charter, a royal office or a company).
+
+**Charters.** A company needs a charter, which you can get in one of three ways:
+- **Buy one** from a crown in one of its towns: 900g + 60g per town the realm holds (at most 2,400g). The gold goes to the royal treasury. The realm must not be at war with you, and your reputation with it must be 0 or better.
+- **A royal office** carries the right to charter a company in the realm you serve.
+- **At court**: the *Merchant Venturers* petition at your holdings (pop. 250+) can seal a charter for your House.
+
+**Founding.** Put in at least 500 gold of capital. The company's capital is separate from your purse: use **Pay in** and **Draw out** on the Ledger tab to move gold between them. Capital moved in or out does not count as profit or loss. The company starts with 30 reputation, which drifts back up by 1 a week while it is below 30.
+
+**Posts and factors.** In any town, open a **post** (350g, or ×1.5 for a foreign licence in a realm whose charter you lack; up to 6 posts) by hiring one of three factor candidates. Each candidate has:
+- **Skill** (2–9): units handled per week = 20 + 8 × skill. The wage is 10g + 3g × skill per week, plus 8g rent for the post.
+- **Honesty**, which is hidden. You see only the references people give, and they are not always right. A factor with honesty below 0.7 **skims** part of each week's turnover. After a few weeks of skimming the books "look thin". An **audit** (60g) finds the skim 85% of the time and claws back half of it. You can then replace the factor from the town's candidates while you are there.
+- A factor who goes unpaid for 2 weeks quits, and the post sits idle.
+
+Each post's warehouse holds 300 units. When you stand at a post you can **store** goods from your packs there (not stolen ones) and **take** goods out.
+
+**Standing orders.** A factor handles up to 4 goods. Each order says *buy up to X a week while the price is ≤ P, sell up to Y a week while the price is ≥ Q, always keep N*. Once a week the factor sells, then buys. Factors never spend the company's last two weeks of wages and rent.
+
+**Factors trade by your price rules.** A factor pays the market's price after *your* discounts (exactly what *Buy* would charge you), and sells for exactly what you would get (the season, your trade bonuses, tariffs, and the cap below what the goods cost here or next door). A factor's sale price is always below its buying price in the same town, so a post cannot buy and sell back at a profit. A post makes money in two ways:
+- **Timing**: buy food after the harvest and sell it in the lean months.
+- **Moving goods**: send stock from one post to another, or to a contract.
+
+Food a factor sells goes into the town's granary. Contraband is never on a factor's books.
+
+**Competition and theft.**
+- A rival house with a post in the same town takes custom: your factor sells only 60% of his volume there, unless you hold the monopoly.
+- Thieves rob a post's warehouse now and then, taking 25–60% of the stock. Robberies are likelier in towns where the guild operates, rarer behind strong walls, and likelier still with a crooked factor inside. If you are a Thieves' Guild member of rank 2 or above, the guild mostly leaves your posts alone (×0.3).
+
+**Convoys.** From a post, **dispatch** goods to another post or to a contract town. The convoy goes by **ship** when both ends are ports (9 hexes a day, 0.6% risk a day) and by **caravan** otherwise (5 hexes a day, 1.2% risk a day). It costs about 0.08g per unit per day, minimum 5g. A struck convoy loses 40–100% of its load to bandits, storms or pirates.
+
+**Supply contracts.** Each week the crowns post contracts on the company's board. Each one names a good, a quantity, a price per unit (1.25–2× the good's base price) and a deadline:
+- **Bread for a town** short of food: during a famine, drought, blizzard or plague, and in the lean weeks.
+- **Relief for a besieged town**: at a war premium.
+- **Timber, rope or hemp** for a realm with a fleet.
+- **Iron, weapons or arrows** for a realm at war.
+- **Stone for new walls**, or **luxuries for a court wedding**.
+
+The contract town never sells the good itself or next door, so the goods must be brought in. You can deliver by hand from your packs, from a docked ship's hold, from your post in that town, or by convoy. If a market there has since started selling the good, the pay drops below what the good costs there.
+
+A fulfilled contract gives +5 to +10 company reputation and +3 reputation with the crown. A contract still short at its deadline is **broken**: −10 company reputation, −3 with the crown, and a *Broken Contract* rumour spreads from the town. A company needs 10 reputation to take contracts. A contract left on the board for a week or two may be taken by a rival house.
+
+**Rival merchant houses.** 3–5 of the great houses (House Medrano, the Vanterpool Staple, Orsini & Sons, Grauwacke Ironmongers, the Lilywhite Fellowship, Karsk Fur & Amber, the Saffron Road Company) already trade from their seats and a few nearby towns. Which houses exist, and where, is fixed by the world. They act only once you have a company. Each week a house:
+- earns or loses on its capital, and pays half its profit out as dividends;
+- opens posts in nearby towns, and grows more hostile (**rivalry**) when you move into its towns, win its contracts or wage price wars;
+- **lobbies for a monopoly** on one of its goods in one of its towns. In your own town it comes to your court with a purse, and you can grant the monopoly, refuse, or give it to your own company instead.
+- A house with high rivalry **slanders** your company in your post towns: a *Merchant Slander* rumour and −2 company reputation.
+- A house whose capital falls below 400g is **ruined**. Its posts close and its monopolies lapse. A newcomer may take its place.
+
+On the Rivals tab you can:
+- **Buy shares** in a house at 115% of its share price (capital ÷ 100), and **sell** them back at 85%. Flipping shares always loses money. Shares earn your part of the house's dividends.
+- **Buy out** a house once you hold 51 shares, by paying for the rest. Its coffers fold into your company's capital and its monopolies pass to you.
+- Start a **price war** (200g or more): the house loses 0.9–1.5× what you spend, but your company loses 3 reputation and the house's rivalry jumps.
+
+**Monopolies.** A monopoly on a good in a town means nobody but its holder may buy or sell that good there: not you at the market, not your factor, not a rival. You can win monopolies in four ways:
+- Granting one to the clothiers' guild in the *Clothiers' Charter* petition creates a real **textiles** monopoly (the five-year charter lasts 600 days). Revoking it when the guild overreaches reopens the trade.
+- A rival can buy one from the crown.
+- Your company can **lobby** for one at a post (👑 on an order): 600g + 0.4g per inhabitant, with 40 company reputation and 10 with the crown. The odds are 55%, ±0.4% per reputation point above or below 50. In a town you rule, it is half price and certain.
+- Buying out a house passes its monopolies to you.
+
+A company monopoly lasts 120 days. While it lasts, your factor there sells 25% more volume and rivals do not undercut him.
+
+**Royal ventures.** Now and then a crown sells shares in a venture: a spice fleet, a whaling voyage, a silver mine or a long caravan east. Your company can stake capital in it, up to the venture's limit. The stake goes to the royal treasury. Some 30–80 days later the venture **comes home** (1.4–2.5× the stake) or is **lost** (0–40% salvaged). On average a venture returns a little more than it costs, at real risk.
+
+**The Ledger tab** shows:
+- capital, reputation, and the company's worth (capital, stock at sale value and shares);
+- all-time profit and loss by category: sales, contracts, dividends, ventures, buy-outs against purchases, wages, rent, convoys, lobbying, robbery and so on;
+- the last weeks' income, expenses and capital;
+- the news of the trade;
+- the latest ledger lines.
 
 ---
 

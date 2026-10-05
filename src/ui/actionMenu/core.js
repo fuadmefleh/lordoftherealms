@@ -808,6 +808,9 @@ Object.assign(ActionMenu, {
             case 'hall_of_heroes':
                 ActionMenu.showHallOfHeroes(game, tile);
                 break;
+            case 'trading_company':
+                ActionMenu.showTradingCompany(game, tile);
+                break;
             case 'host_feast':
                 ActionMenu.showHostFeastMenu(game, tile);
                 break;

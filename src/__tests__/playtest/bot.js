@@ -30,6 +30,7 @@ import { Underworld } from '../../systems/underworld.js';
 import { Companions } from '../../systems/companions.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { Ailments } from '../../systems/ailments.js';
+import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { travelTo } from './harness.js';
 
 const FOOD = ['grain', 'bread'];
@@ -176,12 +177,125 @@ function companions(game, tile, stats) {
 function court(game, stats) {
     const { player, world } = game;
     for (const pet of Petitions.pending(player).slice()) {
-        const def = Petitions.getDef(pet.defId);
+        const def = Petitions.defOf(pet);
         const choices = ((def && def.choices) || []).filter(c => Petitions.canChoose(player, pet, c).ok);
         if (!choices.length) continue;
         const res = Petitions.rule(player, world, pet.id, Utils.randPick(choices).id);
         if (res.success) count(stats, 'petitionsRuled');
     }
+}
+
+// The trading company: charter and found it, open posts, set standing
+// orders, take contracts and send convoys, draw profits, invest
+function company(game, tile, stats) {
+    const { player, world } = game;
+    let c = MerchantHouses.company(player);
+    if (!c) {
+        if (player.gold < 4000 || Utils.random() > 0.3) return;
+        if (!MerchantHouses.hasCharter(player) && !MerchantHouses.officeCharter(player)) {
+            if (MerchantHouses.buyCharter(player, world, tile).success) count(stats, 'chartersBought');
+        }
+        const capital = Math.min(4000, Math.floor(player.gold * 0.5));
+        if (MerchantHouses.found(player, world, { capital }).success) count(stats, 'companyFounded');
+        c = MerchantHouses.company(player);
+        if (!c) return;
+    }
+    let post = MerchantHouses.postAt(player, tile.q, tile.r);
+    if (!post && c.posts.length < 3 && c.capital > 800 && Utils.random() < 0.5) {
+        const cands = MerchantHouses.candidates(player, world, tile);
+        const best = cands.reduce((bi, f, i) => (f.skill > cands[bi].skill ? i : bi), 0);
+        if (MerchantHouses.openPost(player, world, tile, best).success) count(stats, 'postsOpened');
+        post = MerchantHouses.postAt(player, tile.q, tile.r);
+    }
+    if (post) {
+        if (!post.factor) {
+            if (MerchantHouses.replaceFactor(player, world, post.id, 0).success) count(stats, 'factorsHired');
+        } else if (post.suspicion >= 12 && MerchantHouses.audit(player, world, post.id).success) {
+            count(stats, 'audits');
+        }
+        // A standing order on something this market sells: buy at today's
+        // price or better, sell a quarter dearer
+        if (!post.orders.length) {
+            const goods = Trading.getAvailableGoods(tile.settlement, tile, world).filter(g => g.quantity > 5 && g.price > 2);
+            if (goods.length) {
+                const g = Utils.randPick(goods);
+                // Buy on a dip, sell when the price has risen with the season
+                const unit = MerchantHouses.factorBuyUnit(player, world, tile, g.id);
+                const sale = MerchantHouses.factorSaleUnit(player, world, tile, g.id);
+                if (unit && sale && MerchantHouses.setOrder(player, post.id, { good: g.id, buyBelow: Math.floor(unit * 0.95), buyQty: 20, sellAbove: Math.ceil(sale * 1.15), sellQty: 20, keep: 0 }).success) {
+                    count(stats, 'ordersSet');
+                }
+            }
+        }
+        if (Utils.random() < 0.1) {
+            const id = Utils.randPick(Object.keys(player.inventory || {}));
+            if (id && MerchantHouses.depositStock(player, world, post.id, id, 5).success) {
+                count(stats, 'stockDeposited');
+                // ...and let the factor sell it off
+                if (!post.orders.some(o => o.good === id) && post.orders.length < 4) MerchantHouses.setOrder(player, post.id, { good: id, buyBelow: 0, buyQty: 0, sellAbove: 1, sellQty: 10, keep: 0 });
+            }
+        }
+        if (Utils.random() < 0.05 && c.capital > 2000) {
+            const order = post.orders[0];
+            if (order && MerchantHouses.lobbyMonopoly(player, world, post.id, order.good).success) count(stats, 'lobbied');
+        }
+    }
+    // Contracts: take one, buy its good at a post that sells it, send it on
+    const m = MerchantHouses.state(player);
+    // ...one a post can buy the goods for, cheaper than it pays
+    const supplied = (ct) => ct.deadline - world.day >= 15 && c.posts.some(p => {
+        if (!p.factor) return false;
+        const t = world.getTile(p.q, p.r);
+        const unit = MerchantHouses.factorBuyUnit(player, world, t, ct.good);
+        const entry = unit && Trading.getAvailableGoods(t.settlement, t, world).find(g => g.id === ct.good);
+        return entry && unit < ct.pay && entry.quantity >= ct.qty / 2 && c.capital > unit * ct.qty;
+    });
+    const offer = m.board.find(supplied);
+    if (c.contracts.length < 2 && offer && Utils.random() < 0.5) {
+        if (MerchantHouses.acceptContract(player, world, offer.id).success) count(stats, 'contractsAccepted');
+    }
+    for (const ct of c.contracts) {
+        for (const opt of MerchantHouses.deliveryOptions(player, world, ct.id)) {
+            if (MerchantHouses.deliverContract(player, world, ct.id, opt.from, { shipId: opt.shipId }).success) count(stats, 'contractDeliveries');
+        }
+        if (ct.status !== 'accepted') continue;
+        for (const p of c.posts) {
+            if ((p.stock[ct.good] || 0) > 0) {
+                if (MerchantHouses.dispatchConvoy(player, world, p.id, { contractId: ct.id }, ct.good, p.stock[ct.good]).success) count(stats, 'convoys');
+                continue;
+            }
+            const t = world.getTile(p.q, p.r);
+            const unit = MerchantHouses.factorBuyUnit(player, world, t, ct.good);
+            if (p.factor && unit && unit < ct.pay) {
+                // Buy only what the contract still needs
+                const held = c.posts.reduce((a, x) => a + (x.stock[ct.good] || 0), 0)
+                    + c.convoys.filter(v => v.contractId === ct.id).reduce((a, v) => a + v.qty, 0);
+                const need = Math.max(0, ct.qty - ct.delivered - held);
+                if (p.orders.length >= 4 && !p.orders.some(o => o.good === ct.good)) p.orders.shift();
+                MerchantHouses.setOrder(player, p.id, { good: ct.good, buyBelow: unit + 2, buyQty: need, sellAbove: 9999, sellQty: 0, keep: 0 });
+                break;
+            }
+        }
+    }
+    // Stock bought for a contract that's gone: let the factor sell it
+    for (const p of c.posts) {
+        for (const o of p.orders) {
+            if (o.sellQty === 0 && !c.contracts.some(ct => ct.good === o.good)) Object.assign(o, { buyQty: 0, sellQty: 20, sellAbove: 1 });
+        }
+    }
+    // Draw profits, top up a starved company, invest a little
+    if (c.capital > 6000) { if (MerchantHouses.withdraw(player, world, 1500).success) count(stats, 'companyDrawn'); }
+    else if (c.capital < 1000 && player.gold > 3000 && MerchantHouses.deposit(player, world, 1500).success) count(stats, 'companyFunded');
+    if (m.ventures.length && c.capital > 1500 && Utils.random() < 0.1) {
+        const v = Utils.randPick(m.ventures);
+        if (MerchantHouses.invest(player, world, v.id, Math.min(v.maxStake, Math.floor(c.capital * 0.1))).success) count(stats, 'ventureStakes');
+    }
+    const rival = Utils.randPick(MerchantHouses.activeRivals(player));
+    if (rival && c.capital > 2500 && Utils.random() < 0.05) {
+        if (rival.shares.player >= 51 && MerchantHouses.buyOut(player, world, rival.id).success) count(stats, 'buyouts');
+        else if (MerchantHouses.buyShares(player, world, rival.id, 5).success) count(stats, 'sharesBought');
+    }
+    if (rival && rival.shares.player > 0 && Utils.random() < 0.02 && MerchantHouses.sellShares(player, world, rival.id, rival.shares.player).success) count(stats, 'sharesSold');
 }
 
 function ships(game, tile, stats) {
@@ -368,6 +482,7 @@ function settlementBusiness(game, stats) {
     booked(game, 'ships', () => ships(game, tile, stats));
     booked(game, 'sea', () => seaActivity(game, tile, stats));
     booked(game, 'heist', () => heist(game, tile, stats));
+    booked(game, 'company', () => company(game, tile, stats));
 }
 
 // ── Out in the world ─────────────────────────────────────────

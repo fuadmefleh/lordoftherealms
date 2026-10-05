@@ -23,6 +23,7 @@ import { Throne } from './throne.js';
 import { Holdings } from './holdings.js';
 import { Rivals } from './rivals.js';
 import { Sagas } from './sagas.js';
+import { MerchantHouses } from './merchantHouses.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { WorldUnit } from '../world/units.js';
 import { Terrain } from '../world/terrain.js';
@@ -406,6 +407,8 @@ export const SaveLoad = {
             rivals: Rivals.serialize(player),
             // Sagas: running and concluded storylines, what the player heard (systems/sagas.js)
             sagas: Sagas.serialize(player),
+            // The trading company, charters, rival merchant houses, contracts, ventures (systems/merchantHouses.js)
+            merchant: MerchantHouses.serialize(player),
         };
     },
 
@@ -627,6 +630,8 @@ export const SaveLoad = {
         Rivals.loadState(player);
         // Sagas — older saves get a blank record (the first saga starts on schedule)
         Sagas.loadState(player);
+        // Merchant houses — older saves have none (stays null until a charter or company)
+        MerchantHouses.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

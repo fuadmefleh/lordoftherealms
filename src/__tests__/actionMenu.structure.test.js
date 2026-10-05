@@ -31,12 +31,12 @@ import { DataLoader } from '../core/dataLoader.js';
 // plus showHoldingPanel (holdings development) = 244, plus showRivalsPanel and
 // showHallOfHeroes (rival adventurers) = 246, plus showPhysicianMenu (wounds, sickness
 // and medicine) = 247, plus the heirs panels (showChildPanel, showHouseChronicle,
-// showEpitaph, _heirProfileHtml, _reignsHtml) = 252, plus showSagasJournal (world storylines) = 253.
+// showEpitaph, _heirProfileHtml, _reignsHtml) = 252, plus showSagasJournal (world storylines) = 253, plus showTradingCompany (merchant houses) = 254.
 const EXPECTED_KEYS = [
     'showCourtPanel', 'showDelvePanel', 'showClaimsPanel', 'showHoldingPanel',
     'showRivalsPanel', 'showHallOfHeroes', 'showPhysicianMenu',
     'showChildPanel', 'showHouseChronicle', 'showEpitaph', '_heirProfileHtml', '_reignsHtml',
-    'showSagasJournal',
+    'showSagasJournal', 'showTradingCompany',
     'showUnderworldPanel',
     '_resourceSourceNames', '_constructionHint', 'meetingPresentTreasure',
     'doTrapFurs', 'doIceFish', 'doPlantingContract',
@@ -106,8 +106,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 253 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(253);
+    it('has 254 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(254);
     });
 
     it('every member except the known data props is a function', () => {

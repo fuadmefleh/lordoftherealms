@@ -312,6 +312,19 @@ export const Economy = {
         return Economy.marketPrice(good, settlement, tile, world);
     },
 
+    /**
+     * Who holds the monopoly on `goodId` in this settlement — 'player', a
+     * rival merchant house's id or 'guild' — or null. Granted by petitions
+     * and lobbying (systems/merchantHouses.js); nobody else may buy or sell
+     * that good there while it lasts. `day` skips one that has run out.
+     */
+    monopolyHolder(settlement, goodId, day = null) {
+        const m = settlement && settlement.monopolies && settlement.monopolies[goodId];
+        if (!m) return null;
+        if (day != null && m.untilDay != null && day >= m.untilDay) return null;
+        return m.holder || null;
+    },
+
     /** The tile a settlement object stands on (settlements carry q/r once the world has stamped them). */
     settlementTile(world, settlement) {
         if (!world || !settlement || typeof world.getTile !== 'function') return null;

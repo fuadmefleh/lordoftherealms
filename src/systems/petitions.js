@@ -214,6 +214,33 @@ const EFFECTS = {
         // Court reputation is shown separately (it is the ruling's character, not a cost)
         describe: () => null,
     },
+    // A town monopoly on one good: { good, holder, holderName, days } grants
+    // it ('guild', a merchant house id or 'player'), { good, revoke } ends it.
+    // Read by Trading.monopolyBlock and systems/merchantHouses.js.
+    monopoly: {
+        apply(c, v) {
+            if (!c.settlement || !v || !v.good) return;
+            if (!c.settlement.monopolies) c.settlement.monopolies = {};
+            if (v.revoke) { delete c.settlement.monopolies[v.good]; return; }
+            c.settlement.monopolies[v.good] = {
+                holder: v.holder || 'guild', holderName: v.holderName || null,
+                sinceDay: c.day, untilDay: v.days ? c.day + v.days : null,
+            };
+        },
+        describe: (v, ctx) => (ctx.q == null || !v || !v.good) ? null
+            : v.revoke ? `the ${v.good.replace(/_/g, ' ')} trade reopens`
+                : `${v.holderName || 'a guild'}: ${v.good.replace(/_/g, ' ')} monopoly${v.days ? ` for ${v.days} days` : ''}`,
+    },
+    // A merchant charter for the player's House (systems/merchantHouses.js founds a company on it)
+    charter: {
+        apply(c) {
+            if (!c.player.merchant || typeof c.player.merchant !== 'object') c.player.merchant = {};
+            const m = c.player.merchant;
+            if (!Array.isArray(m.charters)) m.charters = [];
+            m.charters.push({ kingdomId: c.ctx.kingdomId || c.player.allegiance || null, source: 'petition', day: c.day });
+        },
+        describe: () => 'a merchant charter for your House',
+    },
     rivalFeud: {
         apply(c, v) {
             const id = c.ctx.rivalId || Petitions._topRivalId(c.player);

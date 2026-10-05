@@ -11,6 +11,7 @@ import { Holdings } from '../../systems/holdings.js';
 import { Rivals } from '../../systems/rivals.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { Sagas } from '../../systems/sagas.js';
+import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 
 export function onPlayerArrived() {
@@ -510,6 +511,10 @@ export function endDay() {
             for (const r of holdingsDay.rebellions) this.ui.showNotification('🔥 Rebellion!', r.text, 'error');
             for (const l of holdingsDay.lost) this.ui.showNotification('🏴 Holding Lost', l.text, 'error');
             for (const text of holdingsDay.notices) this.ui.showNotification('🏰 Holdings', text, 'warning');
+
+            // The trading company — factors' weekly trade, convoys, contracts, rival houses, ventures
+            const companyDay = MerchantHouses.processDay(this.player, this.world);
+            for (const n of companyDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Update market prices
             MarketDynamics.updatePrices(this.world);

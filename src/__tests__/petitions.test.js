@@ -139,6 +139,10 @@ describe('petition registry (data/petitions.json)', () => {
                             expect(Petitions.COURT_AXES, `${id} ${where}: court axis ${axis}`).toContain(axis);
                             expect(typeof v).toBe('number');
                         }
+                    } else if (key === 'monopoly') {
+                        expect(typeof value.good, `${id} ${where}: monopoly good`).toBe('string');
+                    } else if (key === 'charter') {
+                        expect(value, `${id} ${where}: charter`).toBe(true);
                     } else {
                         expect(typeof value, `${id} ${where}: ${key}`).toBe('number');
                     }

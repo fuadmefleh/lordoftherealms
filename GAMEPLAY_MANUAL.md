@@ -35,6 +35,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 22. [Quests](#22-quests)
 23. [Achievements](#23-achievements)
 24. [World Events](#24-world-events)
+    - [Sagas](#sagas) — month-long world storylines: the wyrm, the plague cult, the lost heir, the long winter, sea reavers, schism, a rogue company, the comet
 25. [Cartography](#25-cartography)
 26. [Legendary Artifacts](#26-legendary-artifacts)
 27. [Bounty Hunting](#27-bounty-hunting)
@@ -2263,6 +2264,40 @@ Smaller military news is reported too. **Training exercises** add up to 10% to a
 |-------|----------|--------|
 | Religious Schism | Moderate | −0.5 piety/day, +30% heresy risk, −10 stability |
 | Holy Crusade | Severe | +15 morale, +0.5 piety/day, −30% diplomacy |
+
+## Sagas
+
+Beyond single events, the world tells **sagas**: storylines in 3–5 chapters that unfold over two to four months whether or not you take part. Each one is staged on the game's own systems. Its chapters start real timed events, plagues and famines, put monsters and fleets on the map, open delve sites, raise heresies and succession crises, bring petitioners to your court and post quests. Each saga ends in one of several ways, and every ending leaves the world changed.
+
+**When.** The first saga begins somewhere between day 60 and day 120 of a new game. After that a new one starts every 45–90 days, and at most two run at once. Sagas are chosen to fit the world: Sea Reavers needs a coast, The Wyrm Wakes needs mountains or hills, and the faith sagas need a realm with a faith. The same saga does not come round again for about five years.
+
+**Hearing of them.** You only follow sagas you have heard about:
+- **Tavern notice boards** (free at any tavern) carry talk of sagas within about 28 hexes or in that town's kingdom.
+- **Being near.** If you are within 10 hexes when a chapter turns, you see it for yourself.
+- **Public chapters** (a wyrm burning villages, a plague, a reaver fleet, a pretender's crisis) are news everywhere.
+- **Petitioners** who come to your court about a saga, and a saga **quest** on your quest board.
+- Every ending is news. You always hear how a saga ended, even if you never heard it begin.
+
+**The Sagas journal** (Journal → 📜 Sagas) lists every saga you know of: the chapters you saw and their dates, what you have heard, where its monster was last seen, its delve site, and **Your Part**, the actions the current chapter offers. An action may need you to be near a place (the town, the capital, the lair, the monster), or need gold, Prestige, renown, soldiers or goods. Chapters that passed before you heard of the saga stay hidden.
+
+**Taking part.** You join a saga by taking one of its actions, ruling its petition, accepting its quest, or killing its monster in battle. Once you have taken part, its ending pays out: renown, House Prestige, gold, kingdom reputation, trait deeds, items, and an entry in your House chronicle. If your side lost, it scars you instead. A saga you ignored still ends; the world decides without you, and you get nothing from it. A successful ending completes the saga's quest, which pays its own reward. Any other ending withdraws the quest.
+
+**The end-of-day report** tells you when a saga you know of turns a chapter, when word of a saga first reaches you, and when a saga raid strikes one of your holdings.
+
+### The sagas
+
+| Saga | Where | Chapters | Your part | How it can end |
+|------|-------|----------|-----------|----------------|
+| 🐉 **The Wyrm Wakes** | Peaks near a town | Tremors → Vanishing Herds (livestock gone, meat dear, the lair appears as a delve site) → Fire on the Roofs (a wyrm of strength 110–150 roams and burns villages; trade and stability fall) → The Hunt (a rival adventurer goes after it) | Scout the cleft; leave offerings (200g); parley with the wyrm (500g, beside it); slay it in battle; delve its lair while it hunts | **Wyrmslayer** (3 dragon scales, +40 renown, +25 Prestige); **The Wyrm's Bargain** (it sleeps on your gold); **The Stolen Hoard** (gold and a scale, but the town burns); a rival is hailed Wyrmslayer and loots the lair; or the wyrm's shadow lies on the realm for a season |
+| 😷 **The Grey Cough** | A kingdom's capital | The Censer-Bearers (a cult heresy rises) → Plague (a real plague event that you can catch, and a Sealed Hospice delve site) → the Scholar's Vigil, or the cough spreads to the neighbouring realm | Consult the physicians (60g); fund a scholar (400g); break the censer processions (5+ soldiers); delve the Sealed Hospice | **The Cure** (the plague ends, you are cured, +30 renown, +10 karma); or the plague **burns out**, taking 6% of the realm's people |
+| 👑 **The Lost Heir** | A kingdom with a ruler | A Signet Ring → Lords in the Night → The Pretender (a real succession crisis; back a claimant at court as usual) | Seek out the claimant; warn the ruler; expose the fraud (150g, at the capital, after meeting them); offer your hand (300g, 20 Prestige: a claim on the throne and support for the pretender); raise your banner for them (8+ soldiers) | **Long Live the Heir** (the pretender is crowned, and a spouse or banner-man is richly rewarded); **The Pretender Falls** (shame for their backers); **The Fraud Unmasked** (the crisis ends, +300g, reputation) |
+| ❄️ **The Long Winter** | A kingdom | Early Frost → The Hungry Months (a long famine, and hoarders driving food prices up) → Bread Riots | Give 40 food to the poor; break open the hoarders' barns (3+ soldiers; the underworld counts it as theft); buy into the hoarders' ring (200g); at court, open your stores | **The Thaw** (you fed them: renown, Prestige, reputation); **A Fat Spring** (650g for the profiteer, but karma and reputation are lost); **A Bitter Spring** (riots and graves) |
+| 🏴‍☠️ **Sea Reavers** | A coastal town | Black Sails (more pirates, less sea trade) → The Reaver Fleet (a flagship and galleys raid the coast; prices rise) → The Battle of the Headland (the royal fleet sails out) | Sink the flagship; pay the reavers to go (500g); fund the royal fleet (300g, which raises the crown's chances) | **The Flagship Burns** (you sank it); **Paid to Go** (they raid other seas); **The Crown's Victory**; **The Reaver Coast** (the reavers hold the sea-lanes for months) |
+| ⛪ **The Sundering Faith** | A kingdom with a faith | The Barefoot Preacher (a heresy) → Schism (stability and piety fall, heresy spreads) → Holy Strife (riots; the neighbour backs the bishops) | Hear the preacher; champion the reformers or stand with the bishops (one or the other); call a council of reconciliation (300g, 40 renown, at the capital); force a truce in the strife (250g, 8+ soldiers) | **The Council of Reconciliation**; **The Reformation**; **The Bonfire**. The side you chose shares the victory or the shame |
+| ⚔️ **The Iron Company** | A kingdom | Wages in Arrears → The Company Goes Rogue (a company of strength 80–110 plunders the land) → The Sack (a town is sacked and the treasury pays a ransom) | Pay their arrears (400g) or buy their contract (600g, beside them); beat them in battle | **The Company Broken**; **A New Paymaster** (you); **The King's Justice**; or they cross into the neighbouring realm |
+| ☄️ **The Comet** | Everywhere, with a seer in one realm | The Forked Star → The Prophecy (a star cult, and a Starfall Crater delve site) → The Red Star (panic, prices rise) | Pay an astrologer to chart it (50g); debate the seer (after charting); delve the crater | **The Star-Iron** (an artifact and gems); **The Seer Confounded**; the cult rises; or the star simply fades |
+
+Saga monsters and fleets are named world units. A kingdom patrol cannot bring down the wyrm or the Iron Company, but royal war fleets do hunt reavers; if one sinks the flagship, the crown gets the credit. Everything a saga changes is saved with your game: its events, sites, crises and heresies with the world, and the saga itself with you. Its monsters return to the map when you load.
 
 ---
 

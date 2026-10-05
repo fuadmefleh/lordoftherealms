@@ -499,6 +499,25 @@ export const Petitions = {
         return Petitions._create(player, world, def, defId, Petitions._buildCtx(def, b, player, world));
     },
 
+    /**
+     * Bring a petition whose definition travels with it (sagas — systems/sagas.js
+     * — write their own dilemmas). The def is stored on the petition, so it
+     * needs no entry in data/petitions.json and is saved with the court.
+     */
+    spawnCustom(player, world, defId, def, base = null) {
+        if (!def || !Array.isArray(def.choices)) return null;
+        const b = base || Petitions.holdingContexts(player, world).find(h => Petitions.isEligible(def, h, player, world));
+        if (!b) return null;
+        const p = Petitions._create(player, world, def, defId, Petitions._buildCtx(def, b, player, world));
+        p.def = def;
+        return p;
+    },
+
+    /** A petition's definition: its own (saga petitions) or the catalogue's. */
+    defOf(petition) {
+        return (petition && petition.def) || Petitions.getDef(petition && petition.defId);
+    },
+
     _spawnRandom(player, world) {
         const st = Petitions._state(player);
         const day = (world && world.day) || 0;
@@ -639,7 +658,7 @@ export const Petitions = {
     rule(player, world, petitionId, choiceId) {
         const petition = Petitions._find(player, petitionId);
         if (!petition) return { success: false, reason: 'No such petition.' };
-        const def = Petitions.getDef(petition.defId);
+        const def = Petitions.defOf(petition);
         const choice = def && (def.choices || []).find(ch => ch.id === choiceId);
         const can = Petitions.canChoose(player, petition, choice);
         if (!can.ok) return { success: false, reason: can.reason };
@@ -689,7 +708,7 @@ export const Petitions = {
     },
 
     _ignore(player, world, petition, reason) {
-        const def = Petitions.getDef(petition.defId);
+        const def = Petitions.defOf(petition);
         const ig = (def && def.ignore) || {};
         const described = Petitions.describeEffects(ig.effects, petition.ctx, player, world);
         Petitions.applyEffects(player, world, petition.ctx, ig.effects);

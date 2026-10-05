@@ -650,6 +650,7 @@ Object.assign(PlayerMilitary, {
 
             // Destroy the unit
             worldUnit.destroyed = true;
+            worldUnit.slainByPlayer = true; // sagas tell your kill from a patrol's (systems/sagas.js)
             if (worldUnit.type === 'war_host') RealmWars.onHostDefeated(player, world, worldUnit);
 
             Quests.track(player, 'battles_won');

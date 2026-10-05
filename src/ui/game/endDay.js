@@ -10,6 +10,7 @@ import { Underworld } from '../../systems/underworld.js';
 import { Holdings } from '../../systems/holdings.js';
 import { Rivals } from '../../systems/rivals.js';
 import { Upbringing } from '../../systems/upbringing.js';
+import { Sagas } from '../../systems/sagas.js';
 
 export function onPlayerArrived() {
     const tile = this.world.getTile(this.player.q, this.player.r);
@@ -448,6 +449,10 @@ export function endDay() {
             // Rival adventurers — their deeds near you, races, ambushes, slander
             const rivalDay = Rivals.processDay(this.world, this.player);
             for (const n of rivalDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
+            // Sagas — world storylines turning a chapter (systems/sagas.js)
+            const sagaDay = Sagas.processDay(this.world, this.player);
+            for (const n of sagaDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Kingdoms at war with the player — ultimatums, war hosts, sieges
             const war = RealmWars.processDaily(this.player, this.world);

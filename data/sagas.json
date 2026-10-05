@@ -1,0 +1,1010 @@
+{
+    "_comment": "Sagas (systems/sagas.js): world-scale storylines in chapters. A chapter's effects land when it begins, its daily effects each day it runs, and its next[] transitions are checked in order every day (first match wins). Effect keys are listed in Sagas.EFFECTS, transition conditions in Sagas.CONDITIONS, action requirements in Sagas.ACTION_REQUIRES. Tokens: {kingdom} {kingdom2} {settlement} {site} {rival} {villain} {faith} {heresy} {ruler} {house}. A chapter with `end` concludes the saga; rewards only reach the player when they took part (an action, an accepted saga quest or a saga petition ruled), unless an effect says always.",
+    "config": {
+        "firstStart": [60, 120],
+        "gapDays": [45, 90],
+        "maxActive": 2,
+        "hearRadius": 10,
+        "tavernRadius": 28,
+        "doneCap": 12,
+        "heardCap": 14,
+        "repeatAfterDays": 600
+    },
+    "names": {
+        "reaver": ["Black Maren", "Saltjaw Teodric", "Ulla Redsail", "Captain Corvane", "Hask the Drowned", "Ysolde Grimtide"],
+        "preacher": ["Brother Aldous", "Mother Sefa", "the Barefoot Prior Anselm", "Sister Wenna", "Ebbe the Unshod"],
+        "captain": ["Captain Brannoc Steelhand", "Old Varga Ironmouth", "Dame Ottilie of the Nine Spears", "Captain Gorm the Paymaster"],
+        "prophet": ["the Hermit Ossian", "Blind Agathe", "Tamsin Starwatcher", "the Ash-Faced Seer"]
+    },
+    "sagas": {
+        "wyrm_wakes": {
+            "name": "The Wyrm Wakes",
+            "icon": "🐉",
+            "weight": 3,
+            "summary": "Something vast stirs under the peaks near {settlement}.",
+            "anchor": "lair",
+            "fit": { "terrain": ["mountain", "highlands", "hills"] },
+            "start": "tremors",
+            "petitions": {
+                "herds": {
+                    "title": "The Vanished Herds",
+                    "icon": "🐑",
+                    "text": "Herdsmen who fled the high pastures beg your help: whole flocks gone in a night, and a scorched smell on the wind. They want silver to restock, or a sword to go up the mountain.",
+                    "expires": 10,
+                    "ignore": { "result": "The herdsmen went away to find a braver lord.", "effects": { "renown": -2, "court": { "generosity": -1 } } },
+                    "choices": [
+                        { "id": "restock", "label": "Pay to restock their flocks", "effects": { "gold": -80, "karma": 3, "court": { "generosity": 2 } }, "result": "The herdsmen bless your name and drive new lambs to safer valleys." },
+                        { "id": "hunt", "label": "Swear to hunt the beast", "effects": { "renown": 3, "court": { "justice": 1 } }, "result": "Word goes round the hill-steadings: a lord has sworn to climb the mountain." },
+                        { "id": "send_away", "label": "Tell them to guard their own flocks", "effects": { "gold": 0, "karma": -2, "court": { "severity": 1 } }, "result": "They leave muttering about lords who sleep behind walls." }
+                    ]
+                }
+            },
+            "chapters": {
+                "tremors": {
+                    "title": "Tremors",
+                    "text": "The earth shudders under the peaks above {settlement}. Shepherds speak of a warm wind breathing out of a cleft in the rock, and the goats will not graze near it.",
+                    "rumor": "Shepherds from {settlement} swear the mountain is breathing.",
+                    "days": [12, 18],
+                    "effects": [
+                        { "do": "event", "name": "Tremors", "icon": "🌋", "days": [20, 30], "scope": "kingdom", "effects": { "stability": -2, "mineProduction": -0.15 }, "text": "The ground shakes in {kingdom}; miners refuse the deep shafts." }
+                    ],
+                    "actions": [
+                        { "id": "scout", "label": "Climb to the cleft", "text": "You find claw-marks as long as your arm and a cave mouth that breathes like a forge.", "requires": { "near": "site", "radius": 6 }, "flags": ["scouted"], "effects": [ { "do": "site", "poiType": "cave", "name": "The Wyrm's Lair", "icon": "🐉" }, { "do": "reward", "renown": 2, "deeds": { "travel": 1 } } ] }
+                    ],
+                    "next": [ { "to": "vanishing", "if": { "timeout": true } } ]
+                },
+                "vanishing": {
+                    "title": "The Vanishing Herds",
+                    "text": "Livestock vanish from the high pastures around {settlement} — whole flocks in a night. A herdsman swears he saw wings blot out the moon. Meat and wool grow dear.",
+                    "rumor": "Flocks are vanishing around {settlement}. Something with wings is eating well.",
+                    "days": [15, 22],
+                    "effects": [
+                        { "do": "site", "poiType": "cave", "name": "The Wyrm's Lair", "icon": "🐉" },
+                        { "do": "event", "name": "Vanishing Herds", "icon": "🐑", "days": [30, 40], "scope": "kingdom", "effects": { "foodPrices": 0.15, "farmProduction": -0.1 }, "text": "Flocks vanish from the pastures of {kingdom}." },
+                        { "do": "petition", "id": "herds" },
+                        { "do": "rival", "renown": 0, "news": "{rival} buys rope and lamp-oil in {settlement}, asking the way to the high cleft." }
+                    ],
+                    "actions": [
+                        { "id": "offerings", "label": "Leave offerings of gold at the cleft", "text": "You leave a chest of coin at the cave mouth. In the morning it is gone, and the flocks are left alone a while.", "requires": { "near": "site", "radius": 4 }, "cost": { "gold": 200 }, "flags": ["appeased"], "effects": [ { "do": "reward", "deeds": { "cunning": 1 } } ] }
+                    ],
+                    "next": [
+                        { "to": "lair_robbed", "if": { "site": "delved" } },
+                        { "to": "bargain", "if": { "flag": "appeased", "timeout": true } },
+                        { "to": "raids", "if": { "timeout": true } }
+                    ]
+                },
+                "raids": {
+                    "title": "Fire on the Roofs",
+                    "text": "The wyrm wakes fully. It quarters the sky above {kingdom}, burning thatch and carrying off cattle, and roads empty as travellers hide. A bounty is cried in every market.",
+                    "rumor": "The wyrm of {site} burns a village every few days. They say it lairs in the cleft above {settlement}.",
+                    "public": true,
+                    "days": [35, 50],
+                    "effects": [
+                        { "do": "site", "poiType": "cave", "name": "The Wyrm's Lair", "icon": "🐉" },
+                        { "do": "unit", "type": "monster", "role": "boss", "name": "The Wyrm of {site}", "icon": "🐉", "strength": [110, 150], "at": "site" },
+                        { "do": "event", "name": "Wyrm Raids", "icon": "🔥", "days": [45, 60], "scope": "kingdom", "effects": { "stability": -6, "tradeIncome": -0.2, "morale": -10 }, "text": "A wyrm burns the villages of {kingdom}." },
+                        { "do": "quest", "title": "Slay the Wyrm of {site}", "text": "A wyrm burns the villages of {kingdom}. Find it — it hunts from the cleft above {settlement} — and kill it.", "objective": "Slay the wyrm", "rewards": { "gold": 400, "renown": 20 } },
+                        { "do": "rival", "renown": 2, "news": "{rival} swears before the shrine of {settlement} to bring back the wyrm's head." }
+                    ],
+                    "daily": [
+                        { "do": "raid", "chance": 0.22, "near": "boss", "radius": 6, "population": -0.05, "damage": 0.1, "text": "The wyrm fell on {target} — roofs burned and folk were taken." }
+                    ],
+                    "actions": [
+                        { "id": "parley", "label": "Parley with the wyrm", "text": "You stand before the wyrm with your hands empty and your purse open. It considers you with an eye like a furnace door — and names its price.", "requires": { "near": "boss", "radius": 2 }, "cost": { "gold": 500 }, "flags": ["bargained"], "effects": [ { "do": "reward", "deeds": { "cunning": 2 }, "karma": -2 } ] }
+                    ],
+                    "next": [
+                        { "to": "slain", "if": { "unit": "slain" } },
+                        { "to": "lair_robbed", "if": { "site": "delved" } },
+                        { "to": "bargain", "if": { "flag": "bargained" } },
+                        { "to": "felled_by_others", "if": { "unit": "gone" } },
+                        { "to": "the_hunt", "if": { "timeout": true } }
+                    ]
+                },
+                "the_hunt": {
+                    "title": "The Hunt",
+                    "text": "{rival} rides for the cleft above {settlement} with a dozen hired spears and a ballista on a mule-cart. The whole of {kingdom} waits for smoke.",
+                    "rumor": "{rival} has gone up the mountain after the wyrm. Nobody is betting on them coming down.",
+                    "public": true,
+                    "days": [8, 14],
+                    "daily": [
+                        { "do": "raid", "chance": 0.15, "near": "boss", "radius": 6, "population": -0.04, "damage": 0.08, "text": "The wyrm fell on {target} again." }
+                    ],
+                    "next": [
+                        { "to": "slain", "if": { "unit": "slain" } },
+                        { "to": "felled_by_others", "if": { "unit": "gone" } },
+                        { "to": "rival_slays", "if": { "timeout": true, "chance": 0.5, "rival": true } },
+                        { "to": "wyrm_reigns", "if": { "timeout": true } }
+                    ]
+                },
+                "slain": {
+                    "title": "Wyrmslayer",
+                    "text": "The wyrm of {site} is dead, its bulk steaming on the hillside. {kingdom} rings its bells; the hoard in the lair still waits for someone bold enough to go in.",
+                    "end": { "outcome": "triumph", "success": true },
+                    "effects": [
+                        { "do": "endEvents" },
+                        { "do": "stability", "amount": 5, "scope": "kingdom" },
+                        { "do": "reward", "renown": 40, "prestige": 25, "items": { "dragon_scale": 3 }, "deeds": { "valor": 3 }, "reputation": 20, "chronicle": "{house} slew the Wyrm of {site} and the bells of {kingdom} rang for three days." },
+                        { "do": "rival", "attitude": -10, "news": "{rival} arrived at the cleft to find the wyrm already dead, and swore about it." }
+                    ]
+                },
+                "bargain": {
+                    "title": "The Wyrm's Bargain",
+                    "text": "Gold has done what swords would not: the wyrm takes its tribute and sleeps again under the mountain. {kingdom} breathes — and wonders who will pay next year.",
+                    "end": { "outcome": "mixed", "success": true },
+                    "effects": [
+                        { "do": "removeUnits" },
+                        { "do": "endEvents" },
+                        { "do": "stability", "amount": 2, "scope": "kingdom" },
+                        { "do": "reward", "prestige": 10, "renown": 10, "deeds": { "cunning": 2 }, "chronicle": "{house} struck a bargain with the Wyrm of {site}, and it sleeps on a bed of their gold." }
+                    ]
+                },
+                "lair_robbed": {
+                    "title": "The Stolen Hoard",
+                    "text": "Someone crept into the lair while the wyrm hunted and came out with its hoard. It returned to an empty bed, burned {settlement} in its rage, and flew east over the sea, never to return.",
+                    "end": { "outcome": "mixed", "success": true },
+                    "effects": [
+                        { "do": "removeUnits" },
+                        { "do": "endEvents" },
+                        { "do": "population", "pct": -0.12, "scope": "settlement" },
+                        { "do": "damage", "amount": 0.3, "scope": "settlement" },
+                        { "do": "reward", "always": true, "gold": 500, "items": { "dragon_scale": 1 }, "deeds": { "cunning": 2, "greed": 1 }, "reputation": -10, "chronicle": "{house} robbed the Wyrm of {site} of its hoard. {settlement} paid for it in fire." }
+                    ]
+                },
+                "felled_by_others": {
+                    "title": "The Wyrm Falls",
+                    "text": "The wyrm is brought down — not by any hero of song, but by spears and luck. Its carcass is sold by the pound in the markets of {kingdom}.",
+                    "end": { "outcome": "triumph", "success": false },
+                    "effects": [
+                        { "do": "endEvents" },
+                        { "do": "stability", "amount": 3, "scope": "kingdom" }
+                    ]
+                },
+                "rival_slays": {
+                    "title": "{rival}, Wyrmslayer",
+                    "text": "{rival} comes down from the mountain with the wyrm's head on a cart and the hoard on three more. Songs are already being written. None of them mention you.",
+                    "end": { "outcome": "triumph", "success": false },
+                    "effects": [
+                        { "do": "removeUnits" },
+                        { "do": "endEvents" },
+                        { "do": "stability", "amount": 3, "scope": "kingdom" },
+                        { "do": "rival", "renown": 30, "news": "{rival} slew the Wyrm of {site} and is hailed Wyrmslayer." },
+                        { "do": "lootSite" }
+                    ]
+                },
+                "wyrm_reigns": {
+                    "title": "The Wyrm's Shadow",
+                    "text": "No one kills the wyrm. Glutted, it crawls back into the mountain to sleep — but the high valleys of {kingdom} are emptied, and a shadow lies on the land for a season.",
+                    "end": { "outcome": "tragedy", "success": false },
+                    "effects": [
+                        { "do": "removeUnits" },
+                        { "do": "endEvents" },
+                        { "do": "population", "pct": -0.06, "scope": "kingdom" },
+                        { "do": "event", "name": "The Wyrm's Shadow", "icon": "🐉", "days": [80, 100], "scope": "kingdom", "effects": { "stability": -4, "tradeIncome": -0.15 }, "text": "{kingdom} lives in the shadow of a sleeping wyrm." },
+                        { "do": "rival", "attitude": 0, "news": "{rival} came back from the wyrm's mountain alone, and will not speak of it." }
+                    ]
+                }
+            }
+        },
+
+        "grey_cough": {
+            "name": "The Grey Cough",
+            "icon": "😷",
+            "weight": 3,
+            "summary": "A dry grey cough spreads from {settlement}, and a cult says it is a judgement.",
+            "anchor": "kingdom",
+            "fit": { "faith": true },
+            "start": "whispers",
+            "petitions": {
+                "quarantine": {
+                    "title": "Close the Gates?",
+                    "icon": "😷",
+                    "text": "The grey cough is in the next valley. Your steward begs leave to close the roads and burn the bedding of the sick; the merchants beg you not to.",
+                    "expires": 8,
+                    "ignore": { "result": "No order came. Some closed their doors, some did not.", "effects": { "happiness": -3 } },
+                    "choices": [
+                        { "id": "quarantine", "label": "Close the roads and burn the bedding", "effects": { "gold": -60, "happiness": -2, "court": { "severity": 1, "justice": 1 } }, "result": "The roads are chained. Trade suffers, but the cough stops at your border." },
+                        { "id": "open", "label": "Keep trade flowing", "effects": { "gold": 40, "happiness": 1, "court": { "generosity": -1 } }, "result": "The carts keep rolling — and some of them carry the cough." },
+                        { "id": "prayers", "label": "Order prayers in every chapel", "effects": { "faith": 4, "karma": 2, "court": { "piety": 2 } }, "result": "The bells ring for the sick from dawn to dusk." }
+                    ]
+                }
+            },
+            "chapters": {
+                "whispers": {
+                    "title": "The Censer-Bearers",
+                    "text": "A dry, grey cough spreads in the lanes of {settlement}. Hooded preachers swing censers of bitter smoke and say it is the judgement of {faith} on the wicked.",
+                    "rumor": "There's a cough in {settlement} that turns the spit grey. The hooded ones say only the faithful will be spared.",
+                    "days": [10, 16],
+                    "effects": [
+                        { "do": "event", "name": "The Grey Cough", "icon": "😷", "days": [25, 35], "scope": "kingdom", "effects": { "populationGrowth": -0.2, "morale": -5 }, "text": "A grey cough spreads in {kingdom}." },
+                        { "do": "heresy" }
+                    ],
+                    "actions": [
+                        { "id": "physicians", "label": "Consult the physicians of {settlement}", "text": "The physicians are certain of one thing: the cough came with the censer-smoke, and the censers came out of an old sealed hospice in the hills.", "requires": { "near": "settlement", "radius": 3 }, "cost": { "gold": 60 }, "flags": ["studied"], "effects": [ { "do": "reward", "deeds": { "learning": 1 } } ] }
+                    ],
+                    "next": [ { "to": "plague", "if": { "timeout": true } } ]
+                },
+                "plague": {
+                    "title": "Plague",
+                    "text": "The grey cough becomes a killing plague. Carts of the dead leave {settlement} at dawn; the {heresy} preach in the squares, and the old physicians whisper of a cure sealed in a ruined hospice nearby.",
+                    "rumor": "Plague in {kingdom}. A physician in {settlement} says the cure lies in the old sealed hospice outside town.",
+                    "public": true,
+                    "days": [30, 40],
+                    "effects": [
+                        { "do": "worldEvent", "id": "plague", "scope": "kingdom", "days": [45, 60] },
+                        { "do": "stability", "amount": -4, "scope": "kingdom" },
+                        { "do": "site", "poiType": "ruins", "name": "The Sealed Hospice", "icon": "⚕️", "at": "nearSettlement" },
+                        { "do": "petition", "id": "quarantine" },
+                        { "do": "quest", "title": "A Cure for the Grey Cough", "text": "Plague grips {kingdom}. Delve the Sealed Hospice near {settlement} for the cure the old physicians hid there — or fund a scholar to rediscover it.", "objective": "Find the cure", "rewards": { "gold": 250, "renown": 15, "karma": 5 } }
+                    ],
+                    "actions": [
+                        { "id": "scholar", "label": "Fund a scholar to rediscover the cure", "text": "You pay for books, a laboratory and a brave young physician. She works through the nights.", "requires": { "flag": "studied" }, "cost": { "gold": 400 }, "flags": ["scholar"], "effects": [ { "do": "reward", "deeds": { "learning": 2, "generosity": 1 } } ] },
+                        { "id": "censers", "label": "Break the censer-bearers' processions", "text": "Your men scatter the processions and smash the censers in the square. The smoke clears from the lanes.", "requires": { "near": "settlement", "radius": 2, "army": 5 }, "flags": ["censers_broken"], "effects": [ { "do": "suppressHeresy" }, { "do": "reward", "deeds": { "zeal": 1, "cruelty": 1 } } ] }
+                    ],
+                    "next": [
+                        { "to": "cured", "if": { "site": "delved" } },
+                        { "to": "the_scholar", "if": { "flag": "scholar" } },
+                        { "to": "spreads", "if": { "timeout": true } }
+                    ]
+                },
+                "the_scholar": {
+                    "title": "The Scholar's Vigil",
+                    "text": "In a borrowed cellar in {settlement} a young physician boils roots and reads crumbling herbals by candlelight, testing each draught on the dying.",
+                    "rumor": "Your scholar in {settlement} hasn't slept in days. They say she's close.",
+                    "days": [12, 20],
+                    "next": [
+                        { "to": "cured", "if": { "site": "delved" } },
+                        { "to": "cured", "if": { "timeout": true } }
+                    ]
+                },
+                "spreads": {
+                    "title": "The Cough Spreads",
+                    "text": "Nobody finds the cure. The plague leaps the border into {kingdom2}, and the two courts trade accusations as their dead are counted.",
+                    "rumor": "The plague has crossed into {kingdom2}. The hospice near {settlement} still stands sealed.",
+                    "public": true,
+                    "days": [25, 35],
+                    "effects": [
+                        { "do": "worldEvent", "id": "plague", "scope": "kingdom2", "days": [30, 40] },
+                        { "do": "relations", "amount": -10 },
+                        { "do": "stability", "amount": -3, "scope": "both" }
+                    ],
+                    "next": [
+                        { "to": "cured", "if": { "site": "delved" } },
+                        { "to": "the_scholar", "if": { "flag": "scholar" } },
+                        { "to": "burns_out", "if": { "timeout": true } }
+                    ]
+                },
+                "cured": {
+                    "title": "The Cure",
+                    "text": "The cure is found — a bitter draught of willow, hellebore and something stranger. Physicians carry it house to house; the carts stop running, and the {heresy} lose their congregations overnight.",
+                    "end": { "outcome": "triumph", "success": true },
+                    "effects": [
+                        { "do": "endEvents" },
+                        { "do": "cure" },
+                        { "do": "suppressHeresy" },
+                        { "do": "stability", "amount": 4, "scope": "kingdom" },
+                        { "do": "reward", "renown": 30, "prestige": 15, "karma": 10, "deeds": { "learning": 2, "mercy": 2 }, "reputation": 25, "chronicle": "{house} brought the cure for the Grey Cough to {kingdom}." }
+                    ]
+                },
+                "burns_out": {
+                    "title": "The Plague Burns Out",
+                    "text": "The plague burns itself out as plagues do, having taken whom it wanted. {kingdom} buries its dead; the {heresy} keep their converts.",
+                    "end": { "outcome": "tragedy", "success": false },
+                    "effects": [
+                        { "do": "endEvents" },
+                        { "do": "population", "pct": -0.06, "scope": "kingdom" },
+                        { "do": "piety", "amount": -8, "scope": "kingdom" },
+                        { "do": "reward", "if": { "flag": "censers_broken" }, "renown": 5, "deeds": { "zeal": 1 }, "chronicle": "{house} broke the censer-bearers of {settlement}, though the plague outran them." },
+                        { "do": "reward", "if": { "flag": "petition_quarantine" }, "renown": 5, "karma": 2, "chronicle": "{house} closed its roads to the Grey Cough, and its lands were spared." }
+                    ]
+                }
+            }
+        },
+
+        "lost_heir": {
+            "name": "The Lost Heir",
+            "icon": "👑",
+            "weight": 2,
+            "summary": "A child thought dead may sit the throne of {kingdom}.",
+            "anchor": "throne",
+            "fit": { "minKingdoms": 3 },
+            "start": "whispers",
+            "petitions": {
+                "audience": {
+                    "title": "An Envoy of the Pretender",
+                    "icon": "👑",
+                    "text": "A grey-cloaked envoy kneels before you with a letter sealed in purple. The one who claims the throne of a neighbouring realm asks for your friendship — and your gold.",
+                    "expires": 10,
+                    "ignore": { "result": "The envoy left without an answer, which is an answer.", "effects": { "renown": -1 } },
+                    "choices": [
+                        { "id": "support", "label": "Send gold and good wishes", "effects": { "gold": -120, "prestige": 3, "court": { "generosity": 1 } }, "result": "The envoy bows low. Your name will be remembered if the cause prospers." },
+                        { "id": "refuse", "label": "Refuse to meddle in another realm's quarrels", "effects": { "renown": 1, "court": { "justice": 1 } }, "result": "The envoy goes away grim-faced." },
+                        { "id": "arrest", "label": "Seize the envoy and send him to the king", "effects": { "renown": 2, "karma": -3, "court": { "severity": 2 } }, "result": "The envoy is sent in chains to the court he fled. The king will be grateful." }
+                    ]
+                }
+            },
+            "chapters": {
+                "whispers": {
+                    "title": "A Signet Ring",
+                    "text": "In the taverns of {kingdom} they whisper that the old king's grandchild, thought burned with the summer palace twenty years ago, lives — and wears the royal signet on a cord around their neck.",
+                    "rumor": "They say a lost heir of {kingdom} lives in hiding near {settlement}.",
+                    "days": [14, 20],
+                    "effects": [
+                        { "do": "stability", "amount": -2, "scope": "kingdom" }
+                    ],
+                    "actions": [
+                        { "id": "seek", "label": "Seek out the claimant near {settlement}", "text": "You find the claimant in a farmhouse: young, proud, and holding a ring that is either the true signet or a very good forgery.", "requires": { "near": "settlement", "radius": 4 }, "flags": ["met"], "effects": [ { "do": "reward", "deeds": { "travel": 1 } } ] }
+                    ],
+                    "next": [ { "to": "gathering", "if": { "timeout": true } } ]
+                },
+                "gathering": {
+                    "title": "Lords in the Night",
+                    "text": "Riders come and go from a farmhouse outside {settlement} by night. Lords of {kingdom} who have quarrelled with {ruler} are visiting the claimant one by one, and leaving with their minds made up.",
+                    "rumor": "Lords of {kingdom} are riding out to {settlement} by night to kneel to someone. The claimant is gathering a party.",
+                    "days": [12, 18],
+                    "effects": [
+                        { "do": "stability", "amount": -2, "scope": "kingdom" }
+                    ],
+                    "actions": [
+                        { "id": "seek2", "label": "Seek out the claimant near {settlement}", "text": "You are shown into a candle-lit room full of armed men. The claimant is young, proud, and holding a ring that is either the true signet or a very good forgery.", "requires": { "near": "settlement", "radius": 4, "notFlag": "met" }, "flags": ["met"], "effects": [ { "do": "reward", "deeds": { "travel": 1 } } ] },
+                        { "id": "warn", "label": "Warn {ruler} of the gathering", "text": "You send word to the court. {ruler}'s men ride out, but the farmhouse is empty when they arrive — and someone has noted your name.", "requires": { "near": "capital", "radius": 4 }, "flags": ["warned"], "effects": [ { "do": "reward", "reputation": 10, "deeds": { "honesty": 1 } }, { "do": "stability", "amount": 2, "scope": "kingdom" } ] }
+                    ],
+                    "next": [ { "to": "pretender", "if": { "timeout": true } } ]
+                },
+                "pretender": {
+                    "title": "The Pretender",
+                    "text": "{villain} comes forward at {settlement} bearing the royal signet and a story of fire and flight. Half the court of {ruler} kneels; the other half sharpens knives. {kingdom} is in crisis.",
+                    "rumor": "{villain} claims the throne of {kingdom}. You can back a claimant at court, if you have the coin.",
+                    "public": true,
+                    "days": [90, 100],
+                    "effects": [
+                        { "do": "crisis" },
+                        { "do": "stability", "amount": -6, "scope": "kingdom" },
+                        { "do": "petition", "id": "audience" },
+                        { "do": "quest", "title": "The Pretender's Throne", "text": "{villain} claims the throne of {kingdom}. Back the claim, wed the claimant, or expose a fraud — but see it ended.", "objective": "Settle the claim", "rewards": { "gold": 200, "renown": 15 } },
+                        { "do": "rival", "renown": 2, "news": "{rival} rides to {settlement} to swear a sword to {villain}." }
+                    ],
+                    "actions": [
+                        { "id": "expose", "label": "Expose {villain} as a fraud", "text": "Your agents find the goldsmith who cut the 'signet' and the actor who coached the story. You lay it all before the court.", "requires": { "flag": "met", "near": "capital", "radius": 4 }, "cost": { "gold": 150 }, "flags": ["exposed"], "effects": [ { "do": "reward", "deeds": { "honesty": 2, "cunning": 1 } } ] },
+                        { "id": "wed", "label": "Offer your hand to {villain}", "text": "A match is made: if {villain} is crowned, your House stands beside the throne — and holds a claim to it.", "requires": { "near": "settlement", "radius": 4, "prestige": 20 }, "cost": { "gold": 300 }, "flags": ["wed"], "effects": [ { "do": "claim", "strength": 20 }, { "do": "backPretender", "support": 25 } ] },
+                        { "id": "champion", "label": "Raise your banner for {villain}", "text": "You ride into {settlement} beneath your banner and the pretender's side by side. Lords who were wavering come over.", "requires": { "near": "settlement", "radius": 4, "army": 8 }, "flags": ["championed"], "effects": [ { "do": "backPretender", "support": 20 }, { "do": "reward", "deeds": { "valor": 1 } } ] }
+                    ],
+                    "next": [
+                        { "to": "exposed", "if": { "flag": "exposed" } },
+                        { "to": "crowned", "if": { "crisis": "won" } },
+                        { "to": "pretender_falls", "if": { "crisis": "lost" } },
+                        { "to": "pretender_falls", "if": { "timeout": true } }
+                    ]
+                },
+                "crowned": {
+                    "title": "Long Live the Heir",
+                    "text": "{villain} is crowned in {kingdom}, ring and story and all. Whether the blood is true no longer matters: the crown makes it so.",
+                    "end": { "outcome": "triumph", "success": true },
+                    "effects": [
+                        { "do": "stability", "amount": 3, "scope": "kingdom" },
+                        { "do": "reward", "if": { "flag": "wed" }, "prestige": 40, "renown": 20, "reputation": 30, "chronicle": "{house} was joined by marriage to {villain}, crowned in {kingdom}." },
+                        { "do": "reward", "if": { "flag": "championed", "notFlag": "wed" }, "prestige": 20, "renown": 15, "reputation": 25, "chronicle": "{house} rode beneath the banner of {villain}, and saw them crowned." },
+                        { "do": "reward", "if": { "notFlag": ["wed", "championed"] }, "renown": 5 },
+                        { "do": "reward", "if": { "flag": "petition_support", "notFlag": ["wed", "championed"] }, "prestige": 8, "reputation": 10 }
+                    ]
+                },
+                "pretender_falls": {
+                    "title": "The Pretender Falls",
+                    "text": "The court of {kingdom} closes ranks. {villain} is taken at a river ford and the signet is hammered flat in the castle forge.",
+                    "end": { "outcome": "tragedy", "success": false },
+                    "effects": [
+                        { "do": "stability", "amount": -2, "scope": "kingdom" },
+                        { "do": "reward", "if": { "flag": "wed" }, "prestige": -20, "reputation": -25, "chronicle": "{house} was betrothed to the pretender {villain}, and shared the shame of their fall." },
+                        { "do": "reward", "if": { "flag": "championed", "notFlag": "wed" }, "prestige": -10, "reputation": -20 },
+                        { "do": "reward", "if": { "flag": "petition_arrest" }, "renown": 5, "reputation": 15 }
+                    ]
+                },
+                "exposed": {
+                    "title": "The Fraud Unmasked",
+                    "text": "Before the whole court of {kingdom}, the goldsmith names his customer. {villain} flees in the night; {ruler} rewards the one who saved the throne.",
+                    "end": { "outcome": "triumph", "success": true },
+                    "effects": [
+                        { "do": "endCrisis" },
+                        { "do": "stability", "amount": 5, "scope": "kingdom" },
+                        { "do": "reward", "renown": 20, "prestige": 15, "gold": 300, "reputation": 30, "deeds": { "honesty": 1 }, "chronicle": "{house} unmasked the pretender {villain} before the court of {kingdom}." }
+                    ]
+                }
+            }
+        },
+
+        "long_winter": {
+            "name": "The Long Winter",
+            "icon": "❄️",
+            "weight": 3,
+            "summary": "The frost came early to {kingdom}, and the granaries are emptying.",
+            "anchor": "kingdom",
+            "fit": {},
+            "start": "early_frost",
+            "petitions": {
+                "bread": {
+                    "title": "Bread or the Gallows",
+                    "icon": "🍞",
+                    "text": "The bakers' guild has been caught selling bread cut with sawdust while the corn-chandlers hoard grain. The hungry crowd outside your hall wants someone hanged; the guild wants your protection.",
+                    "expires": 8,
+                    "ignore": { "result": "With no ruling, the crowd broke the bakers' windows itself.", "effects": { "happiness": -4, "court": { "justice": -1 } } },
+                    "choices": [
+                        { "id": "open_stores", "label": "Open your own stores to the hungry", "effects": { "gold": -100, "happiness": 5, "karma": 4, "court": { "generosity": 2, "mercy": 1 } }, "result": "Loaves go out from your kitchens. The crowd goes home fed and quiet." },
+                        { "id": "hang", "label": "Hang the worst of the hoarders", "effects": { "happiness": 3, "karma": -2, "court": { "severity": 2, "justice": 1 } }, "result": "A corn-chandler swings in the square. Strangely, grain appears in the market next morning." },
+                        { "id": "protect", "label": "Protect the guild — for a fee", "effects": { "gold": 120, "happiness": -5, "court": { "generosity": -2 } }, "result": "The guild pays handsomely. The crowd remembers." }
+                    ]
+                }
+            },
+            "chapters": {
+                "early_frost": {
+                    "title": "Early Frost",
+                    "text": "The frost comes early to {kingdom}, blackening the late harvest in the fields. The elders read hard signs in the geese flying south a month too soon.",
+                    "rumor": "The frost took half the late harvest in {kingdom}. Grain merchants are already smiling.",
+                    "days": [20, 30],
+                    "effects": [
+                        { "do": "event", "name": "Early Frost", "icon": "🥶", "days": [30, 40], "scope": "kingdom", "effects": { "farmProduction": -0.15, "foodPrices": 0.1 }, "text": "An early frost blackens the fields of {kingdom}." }
+                    ],
+                    "next": [ { "to": "hunger", "if": { "timeout": true } } ]
+                },
+                "hunger": {
+                    "title": "The Hungry Months",
+                    "text": "Winter will not end. The granaries of {kingdom} empty while corn-chandlers in {settlement} sit on locked barns, waiting for prices to climb higher. The thieves' guild is buying in.",
+                    "rumor": "Bread costs a day's wage in {settlement}. Everyone knows whose barns are full — and that the guild has a share.",
+                    "public": true,
+                    "days": [30, 40],
+                    "effects": [
+                        { "do": "worldEvent", "id": "famine", "scope": "kingdom", "days": [55, 70] },
+                        { "do": "event", "name": "Hoarded Granaries", "icon": "🔒", "days": [50, 60], "scope": "kingdom", "effects": { "foodPrices": 0.3, "stability": -4 }, "text": "Grain hoarders hold {kingdom} to ransom." },
+                        { "do": "petition", "id": "bread" },
+                        { "do": "quest", "title": "Bread for {settlement}", "text": "{settlement} is starving while hoarders sit on full barns. Bring food, or break the barns open.", "objective": "Relieve the famine", "rewards": { "gold": 150, "renown": 15, "karma": 5 } }
+                    ],
+                    "actions": [
+                        { "id": "relief", "label": "Give 40 food to the poor of {settlement}", "text": "You hand out food from carts in the square until there is none left. Nobody in {settlement} will forget it.", "requires": { "near": "settlement", "radius": 2 }, "cost": { "items": { "food": 40 } }, "flags": ["relief"], "effects": [ { "do": "reward", "deeds": { "generosity": 3, "popularity": 1 }, "karma": 5 } ] },
+                        { "id": "seize", "label": "Break open the hoarders' barns", "text": "Your men smash the locks and the grain pours out into the street. The guild will want a word with you.", "requires": { "near": "settlement", "radius": 2, "army": 3 }, "flags": ["seized"], "effects": [ { "do": "crime", "crime": "theft", "scale": 2 }, { "do": "reward", "deeds": { "valor": 1, "generosity": 1 } } ] },
+                        { "id": "profit", "label": "Buy into the hoarders' ring", "text": "You put up silver for a share of the locked barns. When the price peaks, you will be paid.", "requires": { "near": "settlement", "radius": 3 }, "cost": { "gold": 200 }, "flags": ["profiteer"], "effects": [ { "do": "reward", "deeds": { "greed": 2 }, "karma": -5 } ] }
+                    ],
+                    "next": [
+                        { "to": "thaw_relieved", "if": { "flag": "relief" } },
+                        { "to": "thaw_relieved", "if": { "flag": "seized" } },
+                        { "to": "thaw_relieved", "if": { "flag": "petition_open_stores" } },
+                        { "to": "thaw_profiteer", "if": { "flag": "profiteer", "timeout": true } },
+                        { "to": "bread_riots", "if": { "timeout": true } }
+                    ]
+                },
+                "bread_riots": {
+                    "title": "Bread Riots",
+                    "text": "The hungry storm the corn exchange of {settlement}. The watch fires into the crowd; barns burn with the grain still in them.",
+                    "rumor": "There were riots in {settlement}. They burned the barns rather than let them stay locked.",
+                    "public": true,
+                    "days": [15, 20],
+                    "effects": [
+                        { "do": "population", "pct": -0.05, "scope": "settlement" },
+                        { "do": "damage", "amount": 0.15, "scope": "settlement" },
+                        { "do": "event", "name": "Bread Riots", "icon": "🔥", "days": [15, 25], "scope": "kingdom", "effects": { "stability": -8, "taxIncome": -0.15 }, "text": "Bread riots shake {kingdom}." }
+                    ],
+                    "next": [
+                        { "to": "thaw_relieved", "if": { "flag": "relief" } },
+                        { "to": "thaw_profiteer", "if": { "flag": "profiteer", "timeout": true } },
+                        { "to": "thaw_bitter", "if": { "timeout": true } }
+                    ]
+                },
+                "thaw_relieved": {
+                    "title": "The Thaw",
+                    "text": "The thaw comes at last, and {settlement} lives to see it. The hoarders' prices collapse; their barns are opened by order of {ruler}, who is glad to have someone else to thank.",
+                    "end": { "outcome": "triumph", "success": true },
+                    "effects": [
+                        { "do": "endEvents" },
+                        { "do": "stability", "amount": 4, "scope": "kingdom" },
+                        { "do": "reward", "renown": 20, "prestige": 15, "karma": 5, "reputation": 25, "chronicle": "{house} fed {settlement} through the Long Winter." }
+                    ]
+                },
+                "thaw_profiteer": {
+                    "title": "A Fat Spring",
+                    "text": "Spring comes, the hoarders sell at the top of the market, and a share of the take comes to you. {kingdom} remembers the winter — and who grew rich on it.",
+                    "end": { "outcome": "mixed", "success": false },
+                    "effects": [
+                        { "do": "endEvents" },
+                        { "do": "population", "pct": -0.04, "scope": "kingdom" },
+                        { "do": "reward", "gold": 650, "karma": -8, "reputation": -15, "deeds": { "greed": 2 }, "chronicle": "{house} grew rich on the hunger of {kingdom} in the Long Winter." }
+                    ]
+                },
+                "thaw_bitter": {
+                    "title": "A Bitter Spring",
+                    "text": "The thaw comes too late for many. {kingdom} counts its graves, and the songs of the Long Winter are all about the hoarders.",
+                    "end": { "outcome": "tragedy", "success": false },
+                    "effects": [
+                        { "do": "endEvents" },
+                        { "do": "population", "pct": -0.06, "scope": "kingdom" },
+                        { "do": "stability", "amount": -3, "scope": "kingdom" }
+                    ]
+                }
+            }
+        },
+
+        "sea_reavers": {
+            "name": "Sea Reavers",
+            "icon": "🏴‍☠️",
+            "weight": 3,
+            "summary": "{villain} gathers a reaver fleet off the coast of {kingdom}.",
+            "anchor": "coast",
+            "villain": "reaver",
+            "fit": { "coast": true },
+            "start": "black_sails",
+            "petitions": {
+                "coast": {
+                    "title": "Fire Along the Coast",
+                    "icon": "🏴‍☠️",
+                    "text": "Fisherfolk whose village was burned by reavers crowd your hall. They want boats rebuilt, men to stand watch on the cliffs, or leave to arm themselves.",
+                    "expires": 9,
+                    "ignore": { "result": "The fisherfolk went back to the ashes of their village.", "effects": { "happiness": -3, "court": { "mercy": -1 } } },
+                    "choices": [
+                        { "id": "rebuild", "label": "Pay to rebuild their boats", "effects": { "gold": -90, "happiness": 3, "karma": 2, "court": { "generosity": 2 } }, "result": "New hulls go down the slipways within the month." },
+                        { "id": "arm", "label": "Let them arm and drill as a coast watch", "effects": { "gold": -30, "happiness": 2, "renown": 1, "court": { "justice": 1 } }, "result": "Beacon fires go up on the headlands, tended by men with spears." },
+                        { "id": "nothing", "label": "The sea is the king's concern, not yours", "effects": { "karma": -2, "happiness": -2, "court": { "severity": 1 } }, "result": "They go away to find a lord who owns a ship." }
+                    ]
+                }
+            },
+            "chapters": {
+                "black_sails": {
+                    "title": "Black Sails",
+                    "text": "Black sails off {settlement}. A reaver called {villain} has burned two fishing villages and is sending word to every cutthroat captain on the sea: come and get rich.",
+                    "rumor": "{villain} is gathering captains off {settlement}. Fishermen won't put out past the headland.",
+                    "days": [15, 22],
+                    "effects": [
+                        { "do": "unit", "type": "pirate", "role": "scout", "name": "{villain}'s Sloop", "icon": "🏴‍☠️", "strength": [20, 30], "at": "sea" },
+                        { "do": "event", "name": "Black Sails", "icon": "🏴‍☠️", "days": [30, 40], "scope": "kingdom", "effects": { "pirateSpawnRate": 0.5, "seaTradeIncome": -0.2 }, "text": "Reavers prowl the coast of {kingdom}." }
+                    ],
+                    "next": [ { "to": "fleet", "if": { "timeout": true } } ]
+                },
+                "fleet": {
+                    "title": "The Reaver Fleet",
+                    "text": "{villain} has a fleet now — a dozen hulls and a flagship with a gilded figurehead. Coastal towns of {kingdom} are raided by night; the price of everything that comes by sea climbs.",
+                    "rumor": "{villain}'s flagship has been seen off {settlement}. Sink it and the fleet scatters, they say.",
+                    "public": true,
+                    "days": [35, 45],
+                    "effects": [
+                        { "do": "unit", "type": "pirate", "role": "boss", "name": "{villain}'s Flagship", "icon": "☠️", "strength": [60, 85], "at": "sea" },
+                        { "do": "unit", "type": "pirate", "role": "fleet", "name": "Reaver Galley", "icon": "🏴‍☠️", "strength": [25, 40], "at": "sea", "count": 2 },
+                        { "do": "event", "name": "Reaver Fleet", "icon": "⚓", "days": [45, 60], "scope": "kingdom", "effects": { "seaTradeIncome": -0.4, "pirateSpawnRate": 1, "prices": 0.1 }, "text": "A reaver fleet blockades the coast of {kingdom}." },
+                        { "do": "petition", "id": "coast" },
+                        { "do": "quest", "title": "Sink {villain}'s Flagship", "text": "The reaver {villain} raids the coast of {kingdom}. Sink the flagship and the fleet will scatter.", "objective": "Sink the flagship", "rewards": { "gold": 400, "renown": 20 } }
+                    ],
+                    "daily": [
+                        { "do": "raid", "chance": 0.2, "near": "coast", "radius": 10, "population": -0.04, "damage": 0.08, "text": "Reavers came ashore at {target} by night." }
+                    ],
+                    "actions": [
+                        { "id": "tribute", "label": "Pay {villain} to raid elsewhere", "text": "A purse of gold goes out to the flagship in a rowing boat. {villain}'s answer comes back: a bow, and a promise to sail for richer coasts.", "requires": { "near": "settlement", "radius": 4 }, "cost": { "gold": 500 }, "flags": ["bought"], "effects": [ { "do": "reward", "deeds": { "cunning": 1 }, "karma": -2 } ] },
+                        { "id": "navy", "label": "Fund the royal fleet of {kingdom}", "text": "Your gold buys pitch, timber and crews for the royal fleet. Its admiral salutes you.", "requires": { "near": "settlement", "radius": 4 }, "cost": { "gold": 300 }, "flags": ["navy"], "effects": [ { "do": "treasury", "amount": 300, "scope": "kingdom" }, { "do": "reward", "deeds": { "seafaring": 1 }, "reputation": 10 } ] }
+                    ],
+                    "next": [
+                        { "to": "reavers_broken", "if": { "unit": "slain" } },
+                        { "to": "reavers_bought", "if": { "flag": "bought" } },
+                        { "to": "crown_victory", "if": { "unit": "gone" } },
+                        { "to": "sea_battle", "if": { "timeout": true } }
+                    ]
+                },
+                "sea_battle": {
+                    "title": "The Battle of the Headland",
+                    "text": "The royal fleet of {kingdom} sails out to meet {villain} off {settlement}. For two days the smoke of burning ships hangs over the water.",
+                    "rumor": "The king's ships have gone out against {villain}. Every widow in {settlement} is on the cliffs.",
+                    "public": true,
+                    "days": [6, 10],
+                    "next": [
+                        { "to": "reavers_broken", "if": { "unit": "slain" } },
+                        { "to": "crown_victory", "if": { "unit": "gone" } },
+                        { "to": "crown_victory", "if": { "timeout": true, "flag": "navy", "chance": 0.8 } },
+                        { "to": "crown_victory", "if": { "timeout": true, "chance": 0.4 } },
+                        { "to": "reaver_coast", "if": { "timeout": true } }
+                    ]
+                },
+                "reavers_broken": {
+                    "title": "The Flagship Burns",
+                    "text": "{villain}'s flagship goes down in flames, and the reaver fleet scatters like crows from a gunshot. Bells ring in every harbour of {kingdom}.",
+                    "end": { "outcome": "triumph", "success": true },
+                    "effects": [
+                        { "do": "removeUnits" },
+                        { "do": "endEvents" },
+                        { "do": "stability", "amount": 4, "scope": "kingdom" },
+                        { "do": "reward", "renown": 35, "prestige": 20, "gold": 300, "reputation": 25, "deeds": { "seafaring": 3, "valor": 2 }, "chronicle": "{house} sank the flagship of the reaver {villain} off {settlement}." }
+                    ]
+                },
+                "reavers_bought": {
+                    "title": "Paid to Go",
+                    "text": "{villain} takes the gold and sails away — to raid some other coast with ships your silver repaired. The harbours of {kingdom} reopen; elsewhere, others pay.",
+                    "end": { "outcome": "mixed", "success": true },
+                    "effects": [
+                        { "do": "removeUnits" },
+                        { "do": "endEvents" },
+                        { "do": "event", "name": "Emboldened Reavers", "icon": "🏴‍☠️", "days": [25, 35], "scope": "world", "effects": { "pirateSpawnRate": 0.3 }, "text": "Paid-off reavers roam the seas." },
+                        { "do": "reward", "renown": 5, "prestige": 5, "reputation": 10, "chronicle": "{house} paid the reaver {villain} to leave the coast of {kingdom}." }
+                    ]
+                },
+                "crown_victory": {
+                    "title": "The Crown's Victory",
+                    "text": "The royal fleet of {kingdom} breaks the reavers. {villain} is hanged from the yardarm of their own flagship, and the admiral is the hero of the hour.",
+                    "end": { "outcome": "triumph", "success": false },
+                    "effects": [
+                        { "do": "removeUnits" },
+                        { "do": "endEvents" },
+                        { "do": "stability", "amount": 5, "scope": "kingdom" },
+                        { "do": "reward", "if": { "flag": "navy" }, "renown": 15, "prestige": 10, "reputation": 15, "chronicle": "{house} paid for the ships that broke the reaver {villain}." }
+                    ]
+                },
+                "reaver_coast": {
+                    "title": "The Reaver Coast",
+                    "text": "The royal fleet is beaten. {villain} styles themself Lord of the Reaver Coast, and every ship that passes {settlement} pays toll or burns.",
+                    "end": { "outcome": "tragedy", "success": false },
+                    "effects": [
+                        { "do": "removeUnits" },
+                        { "do": "endEvents" },
+                        { "do": "stability", "amount": -5, "scope": "kingdom" },
+                        { "do": "treasury", "pct": -0.1, "scope": "kingdom" },
+                        { "do": "event", "name": "The Reaver Coast", "icon": "☠️", "days": [100, 130], "scope": "kingdom", "effects": { "seaTradeIncome": -0.3, "pirateSpawnRate": 0.5 }, "text": "{villain} rules the sea-lanes off {kingdom}." },
+                        { "do": "reward", "if": { "flag": "petition_arm" }, "renown": 5, "chronicle": "The beacon-watch {house} raised kept the reavers of {villain} from its own shores." }
+                    ]
+                }
+            }
+        },
+
+        "sundering_faith": {
+            "name": "The Sundering Faith",
+            "icon": "⛪",
+            "weight": 2,
+            "summary": "A barefoot preacher is splitting the faith of {kingdom} in two.",
+            "anchor": "faith",
+            "villain": "preacher",
+            "fit": { "faith": true },
+            "start": "preacher",
+            "petitions": {
+                "council": {
+                    "title": "Which Altar?",
+                    "icon": "⛪",
+                    "text": "Two delegations wait in your hall: the bishop's clerks with a writ against the new preaching, and a crowd of the preacher's followers with a petition of their own. Each wants your name on their side.",
+                    "expires": 10,
+                    "ignore": { "result": "You signed nothing. Both sides took it as an insult.", "effects": { "happiness": -2, "renown": -1 } },
+                    "choices": [
+                        { "id": "bishops", "label": "Sign the bishops' writ", "effects": { "faith": 3, "happiness": -2, "court": { "piety": 2, "severity": 1 } }, "result": "The preacher's followers are turned out of your chapels." },
+                        { "id": "reformers", "label": "Sign the reformers' petition", "effects": { "happiness": 3, "faith": -2, "court": { "mercy": 1, "justice": 1 } }, "result": "The reformers cheer your name in the streets. The bishop does not." },
+                        { "id": "both", "label": "Sign neither, and call for a council", "effects": { "renown": 2, "gold": -40, "court": { "justice": 2 } }, "result": "You pay for a hall and a feast. Both sides come, if only to argue." }
+                    ]
+                }
+            },
+            "chapters": {
+                "preacher": {
+                    "title": "The Barefoot Preacher",
+                    "text": "{villain} walks barefoot into {settlement} and preaches against the gold of the {faith} bishops. Thousands come to hear; the bishops call it the {heresy}.",
+                    "rumor": "There's a preacher called {villain} in {settlement} telling folk the bishops have sold {faith} for gold.",
+                    "days": [15, 22],
+                    "effects": [
+                        { "do": "heresy" },
+                        { "do": "piety", "amount": -5, "scope": "kingdom" }
+                    ],
+                    "actions": [
+                        { "id": "listen", "label": "Hear {villain} preach", "text": "You stand in the crowd. {villain} speaks plainly and well — and much of it is true.", "requires": { "near": "settlement", "radius": 3 }, "flags": ["heard_preacher"], "effects": [ { "do": "reward", "deeds": { "piety": 1 } } ] }
+                    ],
+                    "next": [ { "to": "schism", "if": { "timeout": true } } ]
+                },
+                "schism": {
+                    "title": "Schism",
+                    "text": "The council of {kingdom} splits. Half the lords take {villain}'s side; the bishops excommunicate them all. In {kingdom2}, the faithful of {faith} watch and choose sides.",
+                    "rumor": "{kingdom} is split over {villain}. A council could heal it — if anyone had the standing to call one.",
+                    "public": true,
+                    "days": [30, 40],
+                    "effects": [
+                        { "do": "stability", "amount": -6, "scope": "kingdom" },
+                        { "do": "event", "name": "Schism", "icon": "⛪", "days": [40, 50], "scope": "kingdom", "effects": { "stability": -8, "heresySpread": 0.5, "piety": -0.1 }, "text": "Schism tears at the faith of {kingdom}." },
+                        { "do": "petition", "id": "council" },
+                        { "do": "quest", "title": "Heal the Schism", "text": "The faith of {kingdom} is splitting over {villain}. Call a council of reconciliation, or see one side win.", "objective": "End the schism", "rewards": { "gold": 200, "renown": 15, "karma": 3 } }
+                    ],
+                    "actions": [
+                        { "id": "reform", "label": "Champion {villain}'s reforms", "text": "You declare for the reformers. {villain} embraces you before the crowd.", "requires": { "near": "settlement", "radius": 4, "notFlag": ["orthodox", "reform"] }, "flags": ["reform"], "effects": [ { "do": "reward", "deeds": { "piety": 1, "mercy": 1 } } ] },
+                        { "id": "orthodox", "label": "Stand with the bishops", "text": "You kneel to the bishops and swear to defend the old order. Your men are at their disposal.", "requires": { "near": "capital", "radius": 4, "notFlag": ["reform", "orthodox"] }, "flags": ["orthodox"], "effects": [ { "do": "reward", "deeds": { "zeal": 2 } } ] },
+                        { "id": "council", "label": "Call a council of reconciliation", "text": "You pay for the great hall, the feast and the guards, and you sit at the head of the table while bishops and reformers shout at each other for nine days. On the tenth, they agree.", "requires": { "near": "capital", "radius": 4, "renown": 40 }, "cost": { "gold": 300 }, "flags": ["council"], "effects": [ { "do": "reward", "deeds": { "piety": 1, "popularity": 1 } } ] }
+                    ],
+                    "next": [
+                        { "to": "reconciled", "if": { "flag": "council" } },
+                        { "to": "strife", "if": { "timeout": true } }
+                    ]
+                },
+                "strife": {
+                    "title": "Holy Strife",
+                    "text": "Mobs of reformers and loyalists fight in the streets of {settlement}. Churches burn; {kingdom2} sends priests and silver to the bishops, and relations between the realms sour.",
+                    "rumor": "They're burning churches in {settlement}. {kingdom2} is backing the bishops.",
+                    "public": true,
+                    "days": [20, 30],
+                    "effects": [
+                        { "do": "event", "name": "Holy Strife", "icon": "🔥", "days": [25, 35], "scope": "kingdom", "effects": { "stability": -10, "taxIncome": -0.2 }, "text": "Holy strife burns in {kingdom}." },
+                        { "do": "population", "pct": -0.03, "scope": "settlement" },
+                        { "do": "relations", "amount": -12 }
+                    ],
+                    "actions": [
+                        { "id": "council2", "label": "Force a truce between the factions", "text": "With your soldiers between the mobs and your gold in the bishops' coffers, a truce is sworn on the cathedral steps.", "requires": { "near": "settlement", "radius": 3, "army": 8 }, "cost": { "gold": 250 }, "flags": ["council"], "effects": [ { "do": "reward", "deeds": { "valor": 1 } } ] }
+                    ],
+                    "next": [
+                        { "to": "reconciled", "if": { "flag": "council" } },
+                        { "to": "reconciled", "if": { "timeout": true, "flag": "petition_both", "chance": 0.5 } },
+                        { "to": "reformed", "if": { "timeout": true, "flag": "reform" } },
+                        { "to": "orthodoxy", "if": { "timeout": true, "flag": "orthodox" } },
+                        { "to": "reformed", "if": { "timeout": true, "chance": 0.5 } },
+                        { "to": "orthodoxy", "if": { "timeout": true } }
+                    ]
+                },
+                "reconciled": {
+                    "title": "The Council of Reconciliation",
+                    "text": "Bishops and reformers kneel side by side. The worst of the bishops' gold goes to the poor; {villain} is made an abbot and told to stop walking barefoot. {kingdom} is whole again.",
+                    "end": { "outcome": "triumph", "success": true },
+                    "effects": [
+                        { "do": "endEvents" },
+                        { "do": "suppressHeresy" },
+                        { "do": "stability", "amount": 8, "scope": "kingdom" },
+                        { "do": "piety", "amount": 8, "scope": "kingdom" },
+                        { "do": "reward", "renown": 30, "prestige": 25, "karma": 5, "reputation": 25, "deeds": { "piety": 2, "mercy": 1 }, "chronicle": "{house} healed the schism of {kingdom} at the Council of Reconciliation." }
+                    ]
+                },
+                "reformed": {
+                    "title": "The Reformation",
+                    "text": "The reformers win. The bishops' palaces are sold, {villain} is hailed a saint in their own lifetime, and the faith of {kingdom} is plainer, poorer, and fiercer.",
+                    "end": { "outcome": "mixed", "success": false },
+                    "effects": [
+                        { "do": "endEvents" },
+                        { "do": "suppressHeresy" },
+                        { "do": "piety", "amount": 10, "scope": "kingdom" },
+                        { "do": "stability", "amount": 2, "scope": "kingdom" },
+                        { "do": "reward", "if": { "flag": "reform" }, "renown": 15, "prestige": 15, "reputation": 20, "chronicle": "{house} stood with {villain} and the reformers of {kingdom}, and won." },
+                        { "do": "reward", "if": { "flag": "orthodox" }, "prestige": -10, "reputation": -20 }
+                    ]
+                },
+                "orthodoxy": {
+                    "title": "The Bonfire",
+                    "text": "The bishops win. {villain} is burned in the square at {settlement} and the {heresy} is driven underground, where it will smoulder for a generation.",
+                    "end": { "outcome": "tragedy", "success": false },
+                    "effects": [
+                        { "do": "endEvents" },
+                        { "do": "suppressHeresy" },
+                        { "do": "stability", "amount": 3, "scope": "kingdom" },
+                        { "do": "reward", "if": { "flag": "orthodox" }, "renown": 15, "prestige": 15, "reputation": 20, "deeds": { "zeal": 2 }, "chronicle": "{house} stood with the bishops of {kingdom} when {villain} was burned." },
+                        { "do": "reward", "if": { "flag": "reform" }, "prestige": -10, "reputation": -20, "karma": 2 }
+                    ]
+                }
+            }
+        },
+
+        "iron_company": {
+            "name": "The Iron Company",
+            "icon": "⚔️",
+            "weight": 3,
+            "summary": "The unpaid sellswords of {kingdom} are turning on their masters.",
+            "anchor": "kingdom",
+            "villain": "captain",
+            "fit": { "minKingdoms": 2 },
+            "start": "unpaid",
+            "petitions": {
+                "tolls": {
+                    "title": "Tolls on the King's Road",
+                    "icon": "⚔️",
+                    "text": "Merchants complain that sellswords of the Iron Company have set up a toll-chain on the road to your gates and take a tenth of every cart. They want an escort, or a lord with the stomach to clear the road.",
+                    "expires": 8,
+                    "ignore": { "result": "The merchants paid the toll, and charged you for it in their prices.", "effects": { "gold": -20, "happiness": -2 } },
+                    "choices": [
+                        { "id": "escort", "label": "Hire escorts for the merchant carts", "effects": { "gold": -70, "happiness": 2, "court": { "generosity": 1 } }, "result": "Carts move under your guards' spears. The sellswords watch, and let them pass." },
+                        { "id": "pay_toll", "label": "Pay the Company to lift the chain", "effects": { "gold": -40, "renown": -1, "court": { "mercy": 1 } }, "result": "The chain comes down. For now." },
+                        { "id": "levy", "label": "Raise a levy to clear the road", "effects": { "renown": 3, "happiness": -2, "court": { "severity": 1, "justice": 1 } }, "result": "Your levy marches out with pitchforks and old spears. The toll-chain is gone by evening." }
+                    ]
+                }
+            },
+            "chapters": {
+                "unpaid": {
+                    "title": "Wages in Arrears",
+                    "text": "The Iron Company — three hundred sellswords in the pay of {kingdom} — have not been paid since the spring. Their captain, {villain}, has begun to speak of 'taking wages in kind'.",
+                    "rumor": "The Iron Company's men are drinking on credit in {settlement}. {villain} says the crown owes them, and they'll collect.",
+                    "days": [12, 18],
+                    "effects": [
+                        { "do": "stability", "amount": -2, "scope": "kingdom" }
+                    ],
+                    "actions": [
+                        { "id": "pay_arrears", "label": "Pay the Company's arrears yourself", "text": "You count out the Company's back-pay on a drumhead. {villain} bites a coin, grins, and swears the Company to your name.", "requires": { "near": "settlement", "radius": 4 }, "cost": { "gold": 400 }, "flags": ["hired"], "effects": [ { "do": "reward", "deeds": { "generosity": 1, "cunning": 1 } } ] }
+                    ],
+                    "next": [
+                        { "to": "company_hired", "if": { "flag": "hired" } },
+                        { "to": "rogue", "if": { "timeout": true } }
+                    ]
+                },
+                "rogue": {
+                    "title": "The Company Goes Rogue",
+                    "text": "The Iron Company tears up its contract. {villain} leads three hundred veterans out of {settlement}, chaining roads, burning the farms of anyone who will not pay, and daring the crown of {kingdom} to stop them.",
+                    "rumor": "The Iron Company has turned bandit around {settlement}. {villain} will take a new contract — at a price.",
+                    "public": true,
+                    "days": [35, 45],
+                    "effects": [
+                        { "do": "unit", "type": "raider", "role": "boss", "name": "The Iron Company", "icon": "⚔️", "strength": [80, 110], "at": "settlement" },
+                        { "do": "event", "name": "The Free Company", "icon": "⚔️", "days": [40, 55], "scope": "kingdom", "effects": { "stability": -6, "landTradeIncome": -0.3, "raiderSpawnRate": 0.5 }, "text": "The Iron Company plunders {kingdom}." },
+                        { "do": "petition", "id": "tolls" },
+                        { "do": "quest", "title": "Break the Iron Company", "text": "The rogue Iron Company plunders {kingdom}. Beat them in the field, or buy their swords.", "objective": "Deal with the Iron Company", "rewards": { "gold": 350, "renown": 20 } },
+                        { "do": "rival", "renown": 1, "news": "{rival} has been seen drinking with {villain}'s officers." }
+                    ],
+                    "daily": [
+                        { "do": "raid", "chance": 0.25, "near": "boss", "radius": 5, "population": -0.04, "damage": 0.08, "text": "The Iron Company plundered {target}." }
+                    ],
+                    "actions": [
+                        { "id": "negotiate", "label": "Buy the Company's contract", "text": "You meet {villain} in a burned farmhouse. The price is steep, but three hundred veterans will march under your banner — for a while.", "requires": { "near": "boss", "radius": 3 }, "cost": { "gold": 600 }, "flags": ["hired"], "effects": [ { "do": "reward", "deeds": { "cunning": 1 } } ] }
+                    ],
+                    "next": [
+                        { "to": "broken", "if": { "unit": "slain" } },
+                        { "to": "company_hired", "if": { "flag": "hired" } },
+                        { "to": "broken_by_crown", "if": { "unit": "gone" } },
+                        { "to": "sack", "if": { "timeout": true } }
+                    ]
+                },
+                "sack": {
+                    "title": "The Sack of {settlement}",
+                    "text": "The Iron Company storms {settlement}. For three days they loot it street by street; the crown of {kingdom} pays a ransom to make them leave.",
+                    "rumor": "{settlement} has been sacked by the Iron Company. They're heading for the border with {kingdom2}.",
+                    "public": true,
+                    "days": [10, 15],
+                    "effects": [
+                        { "do": "population", "pct": -0.1, "scope": "settlement" },
+                        { "do": "damage", "amount": 0.3, "scope": "settlement" },
+                        { "do": "treasury", "pct": -0.1, "scope": "kingdom" },
+                        { "do": "stability", "amount": -5, "scope": "kingdom" }
+                    ],
+                    "next": [
+                        { "to": "broken", "if": { "unit": "slain" } },
+                        { "to": "broken_by_crown", "if": { "unit": "gone" } },
+                        { "to": "moves_on", "if": { "timeout": true } }
+                    ]
+                },
+                "broken": {
+                    "title": "The Company Broken",
+                    "text": "The Iron Company is broken in the field. {villain} dies with a sword in hand; the survivors scatter or sign on with honest masters. The roads of {kingdom} open again.",
+                    "end": { "outcome": "triumph", "success": true },
+                    "effects": [
+                        { "do": "removeUnits" },
+                        { "do": "endEvents" },
+                        { "do": "stability", "amount": 5, "scope": "kingdom" },
+                        { "do": "reward", "renown": 35, "prestige": 20, "gold": 250, "reputation": 25, "deeds": { "valor": 2 }, "chronicle": "{house} broke the Iron Company and slew its captain, {villain}." }
+                    ]
+                },
+                "company_hired": {
+                    "title": "A New Paymaster",
+                    "text": "The Iron Company has a new paymaster, and it is you. {villain} keeps the Company in good order; {kingdom} breathes again and wonders what you mean to do with three hundred swords.",
+                    "end": { "outcome": "mixed", "success": true },
+                    "effects": [
+                        { "do": "removeUnits" },
+                        { "do": "endEvents" },
+                        { "do": "stability", "amount": 2, "scope": "kingdom" },
+                        { "do": "reward", "prestige": 15, "renown": 15, "reputation": 10, "deeds": { "cunning": 1 }, "chronicle": "{house} bought the swords of the Iron Company and its captain, {villain}." }
+                    ]
+                },
+                "broken_by_crown": {
+                    "title": "The King's Justice",
+                    "text": "The Iron Company is cut down by the crown's soldiers. {villain}'s head goes up over the gate of {settlement}.",
+                    "end": { "outcome": "triumph", "success": false },
+                    "effects": [
+                        { "do": "removeUnits" },
+                        { "do": "endEvents" },
+                        { "do": "stability", "amount": 4, "scope": "kingdom" },
+                        { "do": "reward", "if": { "flag": "petition_levy" }, "renown": 5, "deeds": { "valor": 1 } }
+                    ]
+                },
+                "moves_on": {
+                    "title": "Over the Border",
+                    "text": "Rich with plunder, the Iron Company crosses into {kingdom2}. Each court blames the other for letting them pass.",
+                    "end": { "outcome": "tragedy", "success": false },
+                    "effects": [
+                        { "do": "removeUnits" },
+                        { "do": "endEvents" },
+                        { "do": "relations", "amount": -10 },
+                        { "do": "event", "name": "The Free Company", "icon": "⚔️", "days": [20, 30], "scope": "kingdom2", "effects": { "stability": -4, "landTradeIncome": -0.2 }, "text": "The Iron Company plunders {kingdom2}." }
+                    ]
+                }
+            }
+        },
+
+        "the_comet": {
+            "name": "The Comet",
+            "icon": "☄️",
+            "weight": 2,
+            "summary": "A comet with a forked tail hangs over the world, and a seer reads doom in it.",
+            "anchor": "faith",
+            "villain": "prophet",
+            "fit": {},
+            "start": "omen",
+            "chapters": {
+                "omen": {
+                    "title": "The Forked Star",
+                    "text": "A comet with a forked tail hangs in the night sky, brighter every evening. Astrologers argue; farmers bury coins at the crossroads for luck.",
+                    "rumor": "Have you seen the star with two tails? The priests of {faith} say it is a warning.",
+                    "public": true,
+                    "days": [10, 15],
+                    "effects": [
+                        { "do": "event", "name": "The Forked Star", "icon": "☄️", "days": [30, 40], "scope": "world", "effects": { "piety": 0.05 }, "text": "A forked comet hangs in the sky." }
+                    ],
+                    "actions": [
+                        { "id": "study", "label": "Pay an astrologer to chart the comet", "text": "Your astrologer works out the comet's path with brass and patience. It will pass, she says — and a piece of it may already have fallen, near {settlement}.", "cost": { "gold": 50 }, "flags": ["studied"], "effects": [ { "do": "reward", "deeds": { "learning": 2 } } ] }
+                    ],
+                    "next": [ { "to": "prophecy", "if": { "timeout": true } } ]
+                },
+                "prophecy": {
+                    "title": "The Prophecy",
+                    "text": "{villain}, a seer of {settlement}, prophesies that when the comet turns red the line of {ruler} will end. A cult gathers to wait for the day; they call themselves the {heresy}.",
+                    "rumor": "{villain} says the comet will turn red and {ruler}'s line will end. They say a piece of the star fell near {settlement}.",
+                    "days": [20, 30],
+                    "effects": [
+                        { "do": "heresy" },
+                        { "do": "event", "name": "Star Cult", "icon": "🔮", "days": [35, 45], "scope": "kingdom", "effects": { "stability": -5, "heresySpread": 0.3 }, "text": "A star cult waits for doom in {kingdom}." },
+                        { "do": "site", "poiType": "ruins", "name": "Starfall Crater", "icon": "☄️", "at": "nearSettlement" },
+                        { "do": "quest", "title": "The Riddle of the Comet", "text": "{villain} prophesies doom for {kingdom}. Find what fell from the sky near {settlement}, or prove the seer wrong.", "objective": "Solve the riddle of the comet", "rewards": { "gold": 200, "renown": 12 } }
+                    ],
+                    "actions": [
+                        { "id": "debate", "label": "Debate {villain} before the cult", "text": "You lay your astrologer's charts before the crowd: the comet's colour is the dust of its tail, and it will pass in a month. {villain} has no answer.", "requires": { "flag": "studied", "near": "settlement", "radius": 3 }, "flags": ["debunked"], "effects": [ { "do": "reward", "deeds": { "learning": 1, "honesty": 1 } } ] }
+                    ],
+                    "next": [
+                        { "to": "starfall", "if": { "site": "delved" } },
+                        { "to": "debunked", "if": { "flag": "debunked" } },
+                        { "to": "reddening", "if": { "timeout": true } }
+                    ]
+                },
+                "reddening": {
+                    "title": "The Red Star",
+                    "text": "The comet turns red as blood. Panic in {kingdom}: the cult dances in the streets of {settlement}, merchants hoard, and {ruler} doubles the guard.",
+                    "rumor": "The comet's gone red. The cult of {villain} says the end is days away.",
+                    "public": true,
+                    "days": [10, 15],
+                    "effects": [
+                        { "do": "stability", "amount": -4, "scope": "kingdom" },
+                        { "do": "event", "name": "The Red Star", "icon": "🩸", "days": [15, 20], "scope": "kingdom", "effects": { "prices": 0.15, "morale": -10 }, "text": "Panic grips {kingdom} under a red star." }
+                    ],
+                    "actions": [
+                        { "id": "debate2", "label": "Debate {villain} before the cult", "text": "Even under a red sky, your charts carry the day. The comet is already fading.", "requires": { "flag": "studied", "near": "settlement", "radius": 3 }, "flags": ["debunked"], "effects": [ { "do": "reward", "deeds": { "learning": 1, "honesty": 1 } } ] }
+                    ],
+                    "next": [
+                        { "to": "starfall", "if": { "site": "delved" } },
+                        { "to": "debunked", "if": { "flag": "debunked" } },
+                        { "to": "cult_rises", "if": { "timeout": true, "chance": 0.5 } },
+                        { "to": "fades", "if": { "timeout": true } }
+                    ]
+                },
+                "starfall": {
+                    "title": "The Star-Iron",
+                    "text": "In the crater lies a lump of black star-iron, warm to the touch. Displayed in {settlement}, it shows the comet for what it is: a stone from the sky. The cult of {villain} melts away.",
+                    "end": { "outcome": "triumph", "success": true },
+                    "effects": [
+                        { "do": "endEvents" },
+                        { "do": "suppressHeresy" },
+                        { "do": "stability", "amount": 4, "scope": "kingdom" },
+                        { "do": "reward", "renown": 25, "prestige": 15, "items": { "ancient_artifact": 1, "gems": 3 }, "deeds": { "learning": 2 }, "chronicle": "{house} found the star-iron that fell with the Forked Comet." }
+                    ]
+                },
+                "debunked": {
+                    "title": "The Seer Confounded",
+                    "text": "{villain} is laughed out of {settlement}. The comet fades from the sky on the night you predicted, and astrologers across {kingdom} quote your charts.",
+                    "end": { "outcome": "triumph", "success": true },
+                    "effects": [
+                        { "do": "endEvents" },
+                        { "do": "suppressHeresy" },
+                        { "do": "stability", "amount": 4, "scope": "kingdom" },
+                        { "do": "reward", "renown": 15, "prestige": 10, "reputation": 15, "deeds": { "learning": 1 }, "chronicle": "{house} confounded the seer {villain} and charted the Forked Comet." }
+                    ]
+                },
+                "cult_rises": {
+                    "title": "The Cult of the Red Star",
+                    "text": "The comet fades, but the cult does not. {villain}'s followers say the doom was only delayed, and their numbers grow in {kingdom}.",
+                    "end": { "outcome": "tragedy", "success": false },
+                    "effects": [
+                        { "do": "endEvents" },
+                        { "do": "heresy", "strength": 15 },
+                        { "do": "piety", "amount": -10, "scope": "kingdom" },
+                        { "do": "stability", "amount": -3, "scope": "kingdom" }
+                    ]
+                },
+                "fades": {
+                    "title": "The Star Fades",
+                    "text": "The comet fades. Nothing falls, no line ends. {villain} quietly leaves {settlement}, and in a year no one admits to having believed.",
+                    "end": { "outcome": "mixed", "success": false },
+                    "effects": [
+                        { "do": "endEvents" },
+                        { "do": "suppressHeresy" }
+                    ]
+                }
+            }
+        }
+    }
+}

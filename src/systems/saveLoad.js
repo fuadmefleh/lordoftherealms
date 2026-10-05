@@ -22,6 +22,7 @@ import { Underworld } from './underworld.js';
 import { Throne } from './throne.js';
 import { Holdings } from './holdings.js';
 import { Rivals } from './rivals.js';
+import { Sagas } from './sagas.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 
 
@@ -370,6 +371,8 @@ export const SaveLoad = {
             holdings: Holdings.serialize(player),
             // Rival adventurers: the cast, their attitude/memory, news, partner, race (systems/rivals.js)
             rivals: Rivals.serialize(player),
+            // Sagas: running and concluded storylines, what the player heard (systems/sagas.js)
+            sagas: Sagas.serialize(player),
         };
     },
 
@@ -559,6 +562,8 @@ export const SaveLoad = {
         Holdings.loadState(player, world);
         // Rival adventurers — older saves get a blank record (the cast arrives next day)
         Rivals.loadState(player);
+        // Sagas — older saves get a blank record (the first saga starts on schedule)
+        Sagas.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

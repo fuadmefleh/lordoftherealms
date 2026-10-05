@@ -3,6 +3,7 @@ import { ActionMenu } from './_ref.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, Seasons, SeasonalWork } from './_imports.js';
 import { MinigameHost, startForge } from '../minigames/index.js';
 import { Ailments } from '../../systems/ailments.js';
+import { Foraging } from '../../player/foraging.js';
 
 Object.assign(ActionMenu, {
     // ============================================================
@@ -813,25 +814,14 @@ Object.assign(ActionMenu, {
             description: 'Search the area for useful plants and materials.',
             baseRewardText: '1 random foraged item',
             onSkip: () => {
-                // Base reward: 1 random item from loot table
-                const intBonus = 1 + intStat * 0.05;
-                let entry = null;
-                for (let attempt = 0; attempt < 5; attempt++) {
-                    const roll = Math.random();
-                    let cumChance = 0;
-                    for (const e of lootTable) {
-                        cumChance += e.chance * intBonus * 0.6;
-                        if (roll < cumChance) { entry = e; break; }
-                    }
-                    if (entry) break;
-                }
-                if (!entry) entry = lootTable[0];
-                const sellPrice = entry.sell || 5;
-                const forageAdd = PlayerInventory.addItem(player, entry.item, 1);
-                if (forageAdd.success) {
+                // Base reward: 1 random item from the loot table (player/foraging.js)
+                const res = Foraging.quickForage(player, tile, forageData);
+                const entry = res.entry;
+                const sellPrice = entry.sell || entry.sellPrice || 5;
+                if (res.added) {
                     game.ui.showNotification('🌿 Foraging', `Quick search — found ${entry.icon || '🌿'} ${entry.name || entry.item} (~${sellPrice}g).`, 'success');
                 } else {
-                    game.ui.showNotification('🌿 Foraging', `You found ${entry.icon || '🌿'} ${entry.name || entry.item} but had to leave it. ${forageAdd.reason}`, 'warning');
+                    game.ui.showNotification('🌿 Foraging', `You found ${entry.icon || '🌿'} ${entry.name || entry.item} but had to leave it. ${res.reason}`, 'warning');
                 }
                 game.ui.updateStats(player, game.world);
                 game.endDay();

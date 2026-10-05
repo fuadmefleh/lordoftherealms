@@ -240,7 +240,9 @@ export class Player {
     /**
      * Food types that can sustain travel (best consumed first for efficiency)
      */
-    static FOOD_TYPES = ['cooked_meat', 'cooked_fish', 'bread', 'preserved_fish', 'fish', 'grain', 'food'];
+    // Proper rations first; wild foods (foraged or hunted) are eaten last
+    static FOOD_TYPES = ['cooked_meat', 'cooked_fish', 'bread', 'preserved_fish', 'fish', 'grain', 'food',
+        'fruit', 'honey', 'game_meat', 'crabs', 'berries', 'mushrooms', 'truffles', 'cactus_fruit', 'seaweed'];
 
     /**
      * Get total food count across all food types

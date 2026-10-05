@@ -28,6 +28,9 @@ export const DAILY_RATION_HUNGER = 35;
 /** Hunger restored by a deliberate meal (Eat a Meal action), by food type. */
 export const MEAL_HUNGER = {
     cooked_meat: 40, cooked_fish: 30, bread: 25, preserved_fish: 25, fish: 20, grain: 15, food: 20,
+    // Wild foods: they keep you alive, they don't fill you up
+    fruit: 15, honey: 15, game_meat: 15, crabs: 12, berries: 10, mushrooms: 10, truffles: 12,
+    cactus_fruit: 10, seaweed: 8,
 };
 
 export const PlayerNeedsMethods = {

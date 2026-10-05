@@ -42,7 +42,7 @@
         },
         "sources": {
             "exposure": { "perHealthLost": 0.04, "byWeather": { "heatwave": "heatstroke" }, "disease": "chill" },
-            "rawFood": { "foods": ["fish", "grain", "food"], "chance": 0.006, "disease": "flux" },
+            "rawFood": { "foods": ["fish", "grain", "food", "game_meat", "crabs"], "chance": 0.006, "disease": "flux" },
             "swamp": {
                 "terrains": { "swamp": 0.02, "tropical_rainforest": 0.012 },
                 "season": { "Spring": 1, "Summer": 1.6, "Autumn": 1, "Winter": 0.3 },

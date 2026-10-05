@@ -9,7 +9,7 @@ import { Technology } from '../../systems/technology.js';
 import { Housing } from '../../systems/housing.js';
 import { Religion } from '../../systems/religion.js';
 import { SettlementServices } from '../settlementServices.js';
-import { DAILY_RATION_HUNGER } from './needs.js';
+import { DAILY_RATION_HUNGER, MEAL_HUNGER } from './needs.js';
 import { PlayerMilitary } from '../playerMilitary.js';
 
 export const PlayerLifecycleMethods = {
@@ -19,8 +19,8 @@ export const PlayerLifecycleMethods = {
     consumeFood() {
         this._lastFood = null;
         if (!this.inventory) return false;
-        // Same list (and order) as Player.FOOD_TYPES — cooked food goes first
-        for (const food of ['cooked_meat', 'cooked_fish', 'bread', 'preserved_fish', 'fish', 'grain', 'food']) {
+        // Player.FOOD_TYPES order — cooked food first, wild foods last
+        for (const food of (this.constructor && this.constructor.FOOD_TYPES) || Object.keys(MEAL_HUNGER)) {
             if (this.inventory[food] && this.inventory[food] > 0) {
                 this.inventory[food]--;
                 if (this.inventory[food] <= 0) delete this.inventory[food];

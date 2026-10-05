@@ -221,7 +221,7 @@ Object.assign(PlayerMilitary, {
             return { success: false, reason: `Need ${offer.hireCost} gold to hire ${offer.name}.` };
         }
 
-        const companyId = `merc_${Date.now()}_${Math.floor(Utils.random() * 999)}`;
+        const companyId = `merc_${Utils.nextId()}_${Math.floor(Utils.random() * 999)}`;
         const company = {
             id: companyId,
             templateId: offer.templateId,

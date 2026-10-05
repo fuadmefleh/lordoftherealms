@@ -955,7 +955,7 @@ function _generateProceduralBuilding(lot, gd) {
     if (metaIdx >= 0) metaArr.splice(metaIdx, 1);
     metaArr.push({ q: doorQ, r: doorR, door: true });
 
-    const uid = `proc_${Date.now()}_${Math.floor(Utils.random() * 0xffff).toString(16)}`;
+    const uid = `proc_${Utils.nextId()}_${Math.floor(Utils.random() * 0xffff).toString(16)}`;
     return {
         id:           uid,
         name:         'House',

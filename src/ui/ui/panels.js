@@ -798,7 +798,7 @@ Object.assign(UI.prototype, {
      */
     /** Accept an offered quest from the journal (max 5 active). */
     acceptQuest(questId) {
-        const result = Quests.acceptQuest(this.game.player, questId);
+        const result = Quests.acceptQuest(this.game.player, questId, this.game.world);
         if (result.success) {
             this.showNotification('📜 Quest Accepted', result.quest.title, 'success');
         } else {

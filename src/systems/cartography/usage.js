@@ -273,7 +273,7 @@ Object.assign(Cartography, {
             const kingdom = world.getKingdom(tile.kingdom);
             if (kingdom && kingdom.capital) {
                 map = {
-                    id: `stolen_${Date.now()}_${Utils.randInt(0, 9999)}`,
+                    id: `stolen_${Utils.nextId()}_${Utils.randInt(0, 9999)}`,
                     type: 'kingdom',
                     name: `Stolen Map of ${kingdom.name}`,
                     icon: '🗡️',
@@ -300,7 +300,7 @@ Object.assign(Cartography, {
             const q = tile.q || Utils.randInt(0, world.width - 1);
             const r = tile.r || Utils.randInt(5, world.height - 6);
             map = {
-                id: `stolen_${Date.now()}_${Utils.randInt(0, 9999)}`,
+                id: `stolen_${Utils.nextId()}_${Utils.randInt(0, 9999)}`,
                 type: 'regional',
                 name: `Stolen Regional Map`,
                 icon: '🗡️',

@@ -23,10 +23,8 @@ Object.assign(Characters, {
     // ────────────────────────────────────────────────────────────────────
     //  Utility / Private
     // ────────────────────────────────────────────────────────────────────
-    _idCounter: 0,
-
     _generateId() {
-        return `char_${Date.now()}_${Characters._idCounter++}`;
+        return `char_${Utils.nextId()}`;
     },
 
     _rollSkill(base) {

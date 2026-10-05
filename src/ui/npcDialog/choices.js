@@ -204,7 +204,7 @@ export function _handleChoice(action) {
                 const hook = mem.pendingHook;
                 const game = dialogState._game;
                 const npc = dialogState._npc;
-                const result = game && game.player ? Quests.createNpcTask(game.player, hook, npc) : { success: false };
+                const result = game && game.player ? Quests.createNpcTask(game.player, hook, npc, game.world) : { success: false };
                 if (!result.success && result.reason && result.reason.startsWith('Too many')) {
                     // Keep the offer open — the player can come back once they've room.
                     responseText = "You look stretched thin already. Come back when you've time for me.";

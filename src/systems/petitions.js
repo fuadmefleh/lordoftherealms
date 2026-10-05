@@ -56,7 +56,7 @@ const DEFAULT_CONFIG = {
 };
 
 const COURT_AXES = ['mercy', 'severity', 'justice', 'piety', 'generosity'];
-const HOLDING_KINDS = ['settlement', 'office', 'house'];
+const HOLDING_KINDS = ['settlement', 'office', 'house', 'crown'];
 const REQUIREMENT_KEYS = ['holding', 'minPopulation', 'maxPopulation', 'season', 'war', 'faith',
     'playerReligion', 'peoples', 'colony', 'rivals', 'office', 'minPrestige'];
 const CHOICE_REQUIREMENT_KEYS = ['gold', 'prestige', 'faith', 'playerReligion', 'office'];
@@ -243,6 +243,33 @@ const EFFECTS = {
         },
         describe: () => 'a merchant charter for your House',
     },
+    // ── The crown (holding kind 'crown': royal petitions while the player rules a realm) ──
+    treasury: {
+        apply(c, v) { if (c.kingdom) c.kingdom.treasury = Math.max(0, (c.kingdom.treasury || 0) + v); },
+        describe: (v, ctx) => ctx.kind === 'crown' ? `${signed(v)} royal treasury` : null,
+    },
+    military: {
+        apply(c, v) { if (c.kingdom) c.kingdom.military = Math.max(0, (c.kingdom.military || 0) + v); },
+        describe: (v, ctx) => ctx.kind === 'crown' ? `${signed(v)} royal army` : null,
+    },
+    // Every vassal's favour (systems/kingship.js keeps them on player.throne.ruling.court)
+    vassalOpinion: {
+        apply(c, v) {
+            const court = c.player.throne && c.player.throne.ruling && c.player.throne.ruling.court;
+            for (const lord of (court && court.vassals) || []) {
+                if (!lord.rebel) lord.favour = (lord.favour || 0) + v;
+            }
+        },
+        describe: (v, ctx) => ctx.kind === 'crown' ? `your lords' favour ${signed(v)}` : null,
+    },
+    rivalRelations: {
+        apply(c, v) { Petitions._shiftRealmRelations(c, c.ctx.rivalRealmId, v); },
+        describe: (v, ctx) => ctx.rivalRealmId ? `${ctx.rivalRealm} relations ${signed(v)}` : null,
+    },
+    friendRelations: {
+        apply(c, v) { Petitions._shiftRealmRelations(c, c.ctx.friendRealmId, v); },
+        describe: (v, ctx) => ctx.friendRealmId ? `${ctx.friendRealm} relations ${signed(v)}` : null,
+    },
     rivalFeud: {
         apply(c, v) {
             const id = c.ctx.rivalId || Petitions._topRivalId(c.player);
@@ -375,7 +402,33 @@ export const Petitions = {
             else if (k) out.push({ kind: 'office', kingdomId: k.id });
         }
         if (Petitions._houseQualifies(player)) out.push({ kind: 'house' });
+        // The realm the player rules: royal petitions come to its capital
+        const ruled = Petitions._ruledKingdom(player, world);
+        if (ruled) {
+            const cap = ruled.capital;
+            const tile = cap && world.getTile ? world.getTile(cap.q, cap.r) : null;
+            if (tile && tile.settlement) out.push({ kind: 'crown', q: cap.q, r: cap.r, settlement: tile.settlement, kingdomId: ruled.id });
+            else out.push({ kind: 'crown', kingdomId: ruled.id });
+        }
         return out;
+    },
+
+    /** The living kingdom the player rules (player.throne.ruling, systems/throne.js), or null. */
+    _ruledKingdom(player, world) {
+        const r = player && player.throne && player.throne.ruling;
+        const k = r && world && world.getKingdom ? world.getKingdom(r.kingdomId) : null;
+        return k && k.isAlive ? k : null;
+    },
+
+    /** Both crowns' regard for each other shifts (royal petitions). */
+    _shiftRealmRelations(c, otherId, v) {
+        const k = c.kingdom;
+        const o = otherId && c.world && c.world.getKingdom ? c.world.getKingdom(otherId) : null;
+        if (!k || !o) return;
+        if (!k.relations) k.relations = {};
+        if (!o.relations) o.relations = {};
+        o.relations[k.id] = clamp((o.relations[k.id] || 0) + v, -100, 100);
+        k.relations[o.id] = clamp((k.relations[o.id] || 0) + Math.round(v / 2), -100, 100);
     },
 
     /** Does the player rule anything petitioners would come to? */
@@ -391,6 +444,8 @@ export const Petitions = {
         if ((player.properties || []).some(at)) return true;
         if ((player.houses || []).some(at)) return true;
         if (player.currentTitle && tile.settlement && player.allegiance && tile.settlement.kingdom === player.allegiance) return true;
+        const ruled = Petitions._ruledKingdom(player, world);
+        if (ruled && tile.settlement && tile.settlement.kingdom === ruled.id) return true;
         return false;
     },
 
@@ -472,6 +527,20 @@ export const Petitions = {
             rival: rival ? rival.name : null,
             prior: null,
             priorChoice: null,
+            ...(base.kind === 'crown' ? Petitions._crownCtx(world, kingdom) : {}),
+        };
+    },
+
+    /** A royal petition's foreign courts: the crown's worst and best relations (deterministic). */
+    _crownCtx(world, kingdom) {
+        const others = ((world && world.kingdoms) || []).filter(o => o.isAlive && kingdom && o.id !== kingdom.id);
+        const rel = o => (kingdom.relations && kingdom.relations[o.id]) || 0;
+        const byRel = others.slice().sort((a, b) => rel(a) - rel(b) || String(a.id).localeCompare(String(b.id)));
+        const rival = byRel[0] || null;
+        const friend = byRel.length > 1 ? byRel[byRel.length - 1] : null;
+        return {
+            rivalRealmId: rival ? rival.id : null, rivalRealm: rival ? rival.name : null,
+            friendRealmId: friend ? friend.id : null, friendRealm: friend ? friend.name : null,
         };
     },
 
@@ -487,6 +556,7 @@ export const Petitions = {
             house: c.house || 'your House',
             rival: c.rival || 'a rival House',
             prior: c.prior || 'the petitioner', priorChoice: c.priorChoice || 'your ruling',
+            rivalRealm: c.rivalRealm || 'a rival crown', friendRealm: c.friendRealm || 'a friendly crown',
         };
         return String(text || '').replace(/\{(\w+)\}/g, (m, k) => (map[k] != null ? map[k] : m));
     },

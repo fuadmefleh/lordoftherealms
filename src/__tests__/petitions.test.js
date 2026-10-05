@@ -67,6 +67,7 @@ const BASES = (world) => ({
     settlement: { kind: 'settlement', q: 1, r: 1, settlement: world.getTile(1, 1).settlement },
     office: { kind: 'office', q: 5, r: 5, settlement: world.getTile(5, 5).settlement, kingdomId: 'k1' },
     house: { kind: 'house' },
+    crown: { kind: 'crown', q: 5, r: 5, settlement: world.getTile(5, 5).settlement, kingdomId: 'k1' },
 });
 
 function forceSpawn(player, world, defId) {
@@ -91,7 +92,7 @@ function allEffectBlocks(def) {
 
 describe('petition registry (data/petitions.json)', () => {
     const defs = () => Petitions.defs();
-    const TOKENS = new Set(['name', 'name2', 'settlement', 'kingdom', 'people', 'rivalPeople', 'faith', 'house', 'rival', 'prior', 'priorChoice']);
+    const TOKENS = new Set(['name', 'name2', 'settlement', 'kingdom', 'people', 'rivalPeople', 'faith', 'house', 'rival', 'prior', 'priorChoice', 'rivalRealm', 'friendRealm']);
 
     it('has at least 25 petitions that can arrive on their own, plus chained follow-ups', () => {
         const all = Object.values(defs());

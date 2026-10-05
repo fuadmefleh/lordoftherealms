@@ -741,6 +741,102 @@
         { "id": "denounce", "label": "Denounce him as a liar", "effects": { "prestige": -2, "rivalFeud": 4, "renown": 1 }, "result": "A war of words. Neither side wins." },
         { "id": "ignore_him", "label": "Let {rival} keep him", "effects": { "prestige": -3, "rivalFeud": 2 }, "result": "Let them have the fool." }
       ]
+    },
+
+    "royal_succession_worries": {
+      "title": "Who Comes After?", "icon": "👑",
+      "text": "The great lords of {kingdom} gather in the hall, and {name}, the eldest of them, speaks for all: the realm worries for the succession. Will the crown name its heir before the lords and swear them to it?",
+      "requires": { "holding": ["crown"] }, "weight": 2, "expires": 12,
+      "ignore": { "result": "The question hangs unanswered over the court, and the lords draw their own conclusions.", "effects": { "vassalOpinion": -4, "stability": -2 } },
+      "choices": [
+        { "id": "oath", "label": "Have every lord swear to your heir", "effects": { "prestige": -5, "vassalOpinion": 5, "stability": 3 }, "result": "One by one the lords kneel and swear. The realm breathes easier.", "notable": true },
+        { "id": "feast", "label": "Answer with a feast for the heir", "effects": { "treasury": -300, "vassalOpinion": 8, "renown": 5 }, "result": "The heir is toasted until dawn. The lords go home well fed and reassured." },
+        { "id": "rebuke", "label": "The succession is the crown's affair", "effects": { "vassalOpinion": -6, "prestige": 3, "court": { "severity": 2 } }, "result": "The lords bow stiffly and say no more — aloud." }
+      ]
+    },
+
+    "royal_foreign_envoy": {
+      "title": "An Envoy from {rivalRealm}", "icon": "🎺",
+      "text": "An envoy of {rivalRealm} presents himself at court with a scroll of grievances: old border raids, slights to his master's honour. He hints that gold would soothe them — and that a refusal will be remembered.",
+      "requires": { "holding": ["crown"] }, "weight": 2, "expires": 8,
+      "ignore": { "result": "The envoy left unheard. {rivalRealm} takes it as an insult.", "effects": { "rivalRelations": -10 } },
+      "choices": [
+        { "id": "pay", "label": "Pay for peace (400g from the treasury)", "effects": { "treasury": -400, "rivalRelations": 20, "vassalOpinion": -3 }, "result": "The envoy departs mollified. Your lords mutter that the crown buys its peace." },
+        { "id": "refuse", "label": "Refuse with courtesy", "effects": { "rivalRelations": -8, "prestige": 2 }, "result": "The envoy bows and leaves. Nothing is settled, but nothing is lost." },
+        { "id": "insult", "label": "Send him home without his beard", "effects": { "rivalRelations": -30, "renown": 10, "vassalOpinion": 4, "court": { "severity": 2 } }, "result": "The court roars with laughter. {rivalRealm} will not." }
+      ]
+    },
+
+    "royal_alliance_offer": {
+      "title": "A Pact Offered by {friendRealm}", "icon": "🤝",
+      "text": "Envoys of {friendRealm} bring gifts and a proposal: a closer friendship between the two crowns, sealed with royal favour on both sides.",
+      "requires": { "holding": ["crown"] }, "weight": 2, "expires": 10,
+      "ignore": { "result": "The envoys tired of waiting and sailed home.", "effects": { "friendRelations": -6 } },
+      "choices": [
+        { "id": "embrace", "label": "Embrace the friendship (gifts in return)", "effects": { "treasury": -200, "friendRelations": 20, "renown": 3 }, "result": "Gifts are exchanged and toasts drunk. The two crowns draw closer." },
+        { "id": "courteous", "label": "Thank them, promise nothing", "effects": { "friendRelations": 6 }, "result": "Warm words, no oaths. {friendRealm} hoped for more." },
+        { "id": "spurn", "label": "The crown needs no friends", "effects": { "friendRelations": -15, "prestige": 2 }, "result": "The envoys leave cold. Your lords admire the pride; your merchants less so." }
+      ]
+    },
+
+    "royal_border_dispute": {
+      "title": "A Border Dispute with {rivalRealm}", "icon": "🗺️",
+      "text": "Shepherds of {rivalRealm} graze a disputed valley on the march, and their lord has raised a tower there. Your marcher lords demand you answer it.",
+      "requires": { "holding": ["crown"] }, "weight": 2, "expires": 10,
+      "ignore": { "result": "The tower stands, and your marcher lords think their king weak.", "effects": { "vassalOpinion": -5, "prestige": -2 } },
+      "choices": [
+        { "id": "press", "label": "Send the royal host to tear it down", "effects": { "military": -20, "rivalRelations": -20, "vassalOpinion": 6, "renown": 5 }, "result": "The tower comes down and the valley is yours. {rivalRealm} seethes." },
+        { "id": "arbitrate", "label": "Pay jurists to argue the old charters", "effects": { "treasury": -200, "rivalRelations": 5, "court": { "justice": 2 } }, "result": "The jurists find for you on paper. The tower is quietly abandoned." },
+        { "id": "cede", "label": "Let them have the valley", "effects": { "rivalRelations": 12, "vassalOpinion": -8, "prestige": -4 }, "result": "Peace on the march — and a grievance in every marcher hall." }
+      ]
+    },
+
+    "royal_plague": {
+      "title": "Plague in {settlement}", "icon": "☠️",
+      "text": "The sweating sickness has reached the capital. Physicians beg for a quarantine of the lower town; the guilds beg you not to close the markets.",
+      "requires": { "holding": ["crown"] }, "weight": 1, "expires": 6,
+      "ignore": { "result": "The sickness ran its course through the crowded streets.", "effects": { "population": -60, "stability": -5 } },
+      "choices": [
+        { "id": "quarantine", "label": "Close the lower town (300g)", "effects": { "treasury": -300, "population": -15, "stability": -1, "faction": { "merchants": -6 } }, "result": "The cordon holds. The dead are few; the merchants count their losses." },
+        { "id": "pray", "label": "Order processions and prayers", "effects": { "faith": 6, "population": -40, "stability": -2, "faction": { "clergy": 6 } }, "result": "The faithful pray in the streets. The sickness takes its toll regardless." },
+        { "id": "flee", "label": "The court withdraws to the country", "effects": { "population": -50, "stability": -6, "vassalOpinion": -3 }, "result": "The court is safe. The capital does not forget who left it." }
+      ]
+    },
+
+    "royal_levy_remission": {
+      "title": "The Lords Plead Poverty", "icon": "🌧️",
+      "text": "After a hard season, {name} speaks for the lesser lords: their tenants cannot meet the royal dues. They beg a remission of this year's levy.",
+      "requires": { "holding": ["crown"] }, "weight": 2, "expires": 10,
+      "ignore": { "result": "The dues were collected by force, and the lords remember it.", "effects": { "vassalOpinion": -5 } },
+      "choices": [
+        { "id": "remit", "label": "Remit the dues (−400 treasury)", "effects": { "treasury": -400, "vassalOpinion": 8, "court": { "generosity": 2 } }, "result": "The lords go home blessing your name." },
+        { "id": "half", "label": "Remit half", "effects": { "treasury": -200, "vassalOpinion": 3 }, "result": "A fair middle, grudgingly accepted." },
+        { "id": "collect", "label": "The dues are the dues", "effects": { "vassalOpinion": -8, "treasury": 100, "court": { "severity": 2 } }, "result": "The crown's collectors ride out. The lords pay, and resent it." }
+      ]
+    },
+
+    "royal_veterans": {
+      "title": "The Veterans' Arrears", "icon": "🛡️",
+      "text": "Old soldiers of the royal host crowd the palace gate: they were promised pay and land after the last campaign and have seen neither.",
+      "requires": { "holding": ["crown"] }, "weight": 2, "expires": 8,
+      "ignore": { "result": "The veterans dispersed — some to the taverns, some to the hills as bandits.", "effects": { "military": -25, "stability": -3 } },
+      "choices": [
+        { "id": "pay", "label": "Pay their arrears (350g)", "effects": { "treasury": -350, "military": 30, "faction": { "military": 6 } }, "result": "Paid and proud, many re-enlist on the spot." },
+        { "id": "land", "label": "Settle them on crown land", "effects": { "population": 40, "vassalOpinion": -3, "faction": { "commons": 4 } }, "result": "The veterans take up the plough. The lords grumble at the crown's generosity with land." },
+        { "id": "disperse", "label": "Have the guard disperse them", "effects": { "military": -15, "karma": -3, "faction": { "military": -8 }, "court": { "severity": 2 } }, "result": "The gate is cleared. The army hears of it." }
+      ]
+    },
+
+    "royal_tournament": {
+      "title": "A Royal Tournament", "icon": "🏇",
+      "text": "{name}, master of the royal lists, proposes a great tournament in honour of the crown: every lord's champion would ride, and the realm would talk of nothing else for a season.",
+      "requires": { "holding": ["crown"], "war": false }, "weight": 1, "expires": 12,
+      "ignore": { "result": "The lists stay empty this year.", "effects": { "vassalOpinion": -1 } },
+      "choices": [
+        { "id": "grand", "label": "A grand tournament (500g)", "effects": { "treasury": -500, "vassalOpinion": 8, "renown": 12, "stability": 2 }, "result": "Banners, lances and feasting for a week. The lords will speak of it for years.", "notable": true },
+        { "id": "modest", "label": "A modest one (200g)", "effects": { "treasury": -200, "vassalOpinion": 3, "renown": 4 }, "result": "A fine day of jousting, soon forgotten." },
+        { "id": "decline", "label": "The treasury has better uses", "effects": { "vassalOpinion": -3, "faction": { "merchants": 2 } }, "result": "The master of the lists sulks. The steward approves." }
+      ]
     }
   }
 }

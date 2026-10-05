@@ -20,6 +20,7 @@ import './court.js';
 import './delves.js';
 import './underworld.js';
 import './throne.js';
+import './royalCourt.js';
 import './holdings.js';
 import './holdingSieges.js';
 import './rivals.js';

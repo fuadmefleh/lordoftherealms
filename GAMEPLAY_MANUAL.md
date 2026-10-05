@@ -505,6 +505,7 @@ There are 34 petitions, and each one appears only where it makes sense:
 | Peoples | Quarrels between quarters and foreign rites need two or more peoples in the settlement |
 | Faith | Heretic preachers, temple requests, abbeys and pilgrims need a faith there (yours or the kingdom's) |
 | Office / House | Council seats and border lords come to office holders; cousins' debts, rival heralds and feud-crossing marriages come to the House |
+| Crown | Royal petitions come only to a reigning monarch, at the realm's capital (see [The Royal Court](#the-royal-court)) |
 | Colony | Colonists' charters come only from colonies |
 
 Each petition offers 2–4 choices, and every one has a price. The court panel lists what each choice will cost or gain before you choose:
@@ -1907,6 +1908,76 @@ As ruler you are the realm's sovereign, and the crown passes to your heir with t
 - **Abdicate**, and a ruler of the old dynasty takes the throne.
 
 Your stand-in on the throne never dies of NPC old age or court events. If the realm is conquered, the crown is lost.
+
+#### The Royal Court
+
+A crown is a realm to govern, not just a title. Open **🏛️ Royal Court** (an action at any settlement while you rule, or the button in Claims & Crowns). At the end of your first day as monarch the realm's lords come to swear fealty. The court has four tabs: **Council**, **Edicts**, **Vassals** (with their factions and any revolt) and **Realm** (treasury, army, stability, faith, wars, what the court adds to the realm, and the court's chronicle). Tunables live in `data/kingship.json`.
+
+**The royal council.** Five great offices, each filled from your **vassals**, the **old court's** great officers, your **family** (spouse, grown children at home) or your **companions**. Each holder has a **competence** (1–20) and a **loyalty** (0–100). An office's bonus is competence × a loyalty factor (0.25 + loyalty × 0.0125: ×1 at 60 loyalty, at most ×1.25). A vassal's loyalty follows his opinion of you; a child's comes from the House role loyalty (75 by default); a companion's is their approval.
+
+| Office | Competence from | Per point of competence |
+|--------|-----------------|-------------------------|
+| 📜 Chancellor | diplomacy (a child's diplomacy and charisma) | +2% diplomacy, +1% relations, +1% peace odds; at 12+ the court can enforce one more edict |
+| ⚔️ Marshal | martial (a child's combat and strength) | +5% army regrowth, +0.6% army size |
+| 💰 Steward | stewardship (a child's commerce and intelligence) | +1.2% treasury income, +0.5% construction. Below 25 loyalty the steward skims. |
+| 🗝️ Spymaster | intrigue (a child's stealth and intelligence) | +2% intrigue (fewer peasant rebellions), +1.2% a day to reveal each hidden faction (3% with no spymaster) |
+| 🙏 High Priest | learning, +5 if Pious (a child's diplomacy and faith) | +1.5% faith, and faith unity rises toward 50 + 2.5 × competence |
+
+A companion's competence is 7, +6 if their trade suits the office (a priest as High Priest, a knight as Marshal, a merchant as Steward…), +3 if devoted. One person holds one office. A lord on the council thinks better of you (+15); an ambitious lord (7+) resents family or companions in the great offices (−5).
+
+**Edicts** are realm-wide decrees. Proclaiming one costs the royal treasury; most cost daily **upkeep** until revoked, and lapse if the treasury cannot pay. The court can enforce 4 at once (5 with a Chancellor of 12+). Each edict shifts the kingdom's bonuses (and so its income, army, stability and AI), the **council factions** (half the shift is undone on repeal), and how your **vassals** see you: every lord whose goals it serves likes it (+8), every lord whose goals it offends hates it (−10).
+
+| Edict | Cost / upkeep | Effect | Factions | Lords who like / hate it |
+|-------|---------------|--------|----------|--------------------------|
+| ⚔️ Conscription | 150g | +15% army, +30% regrowth, −4 stability; −4 all lords | War Hawks +8, Commons −10 | domination, conquest / wealth, trade, peace |
+| 🛣️ Road-building programme | 200g, 30g/day | +12% trade, +15% construction, +5% expansion | Guilds +6, Commons +2 | trade, colonising |
+| 🤝 Religious tolerance | 100g | +3 stability, +4% trade, −8% faith; minorities' mood +2 a week; faith unity −0.05 a day | Clergy −10, Commons +4, Guilds +4 | trade / faith |
+| 🔥 Persecution of heretics | 100g, 10g/day | +15% faith, −5 stability, −4% trade; faith unity +0.1 a day; minorities' mood −3 a week | Clergy +10, Commons −6 | faith, fear / trade |
+| 📜 Merchant charters | 150g | +15% trade, +10% caravans, −4% taxes | Guilds +10, Nobility −5 | trade, wealth |
+| 🍞 Famine dole | 100g, 45g/day | +8 stability, +10% growth | Commons +10, Clergy +3 | justice, faith / wealth |
+| 💎 Crown monopolies | 200g | +15% treasury, −10% trade; −3 all lords | Guilds −12, Nobility −4 | — / wealth, trade |
+| ⚖️ Royal assizes | 150g, 20g/day | +5 stability, +5% loyalty; −3 all lords | Commons +5, Nobility −6 | justice / fear, domination |
+| 💰 Scutage | 100g | +8% treasury, −10% army; +4 all lords | War Hawks −8, Nobility +4 | wealth / domination, conquest |
+| 🎭 Royal patronage of the arts | 150g, 25g/day | +30% culture, +15% research, +5% diplomacy; +2 all lords | Nobility +4, Clergy +2 | alliance |
+| 🏰 Fortification of the marches | 200g, 35g/day | +15% defense; +2 all lords | War Hawks +4 | survival |
+
+Tolerance and persecution exclude each other, as do merchant charters and crown monopolies, and scutage and conscription.
+
+**Vassals.** One lord for each town of the realm other than the capital (up to 8; landless lords make up at least 3), each with an NPC lord's personality (traits, goals, ambition and honor) and a courtier's skills. New towns gain a lord within a month; a lord whose town is lost becomes landless; old lords die and their heirs inherit.
+
+- **Power** (0–100): 8, plus 0.6% of his town's people (up to 30), +10 for a city, +4 for a town, +1.2 per point of martial skill, +10 per grant of land and +5 per title. A landless lord starts from 6.
+- **Opinion** (−100 to 100) drifts each week 30% of the way toward a target built from his temperament (traits, honor, ambition), the royal levy (light +10, heavy −15), your edicts, a council seat, kinship with your House (+25), the realm's stability, your Prestige (up to +10), your wars (+4 each for a warlike lord, −4 for a peaceable one), and his **favours** (decay 10% a week) and **grudges** (5% a week). The Vassals tab shows each reason.
+
+Win them over:
+
+| Action | Cost | Effect |
+|--------|------|--------|
+| 💰 Gold | 250g from the treasury | +15 favour |
+| 🎖️ A title (up to 3) | 10 Prestige | +20 favour, +5 power |
+| 🌾 Crown land (up to 2) | the crown's own taxes −2% each | +30 favour, +10 power |
+| 💍 A marriage | 15 Prestige + 300g dowry, a grown unwed child (not your heir) | kinship: +25 opinion for good |
+| 🍖 A royal feast (every 30 days) | 500g from the treasury | +8 favour to every lord, +2 stability, +3 Prestige |
+| 🤝 A favour (every 14 days per lord) | 120g of your own | +10 favour; his nearest neighbour −4 |
+
+Or **break** a lord whose power is no more than half the crown's (a base of 30, plus 5% of the royal army, plus half the power of every loyal lord): he loses his lands and titles and 60% of his power, takes a −60 grudge and is cowed for 180 days (he joins no faction); every other lord takes a −5 grudge, the realm −3 stability, and you +5 Prestige.
+
+**Factions.** Each week a lord at −15 opinion or worse, not cowed, may join (or found) a faction behind a **demand** his goals suggest: a lighter levy, an edict passed (charters, persecution, assizes, conscription, fortification, roads) or one repealed (monopolies, tolerance, conscription, scutage, assizes). The chance grows with his ambition and his anger. A lord whose opinion climbs back to +10 leaves. A faction disbands the moment its demand is met.
+
+Factions form in **secret**. Each day each hidden faction has a 3% chance to be revealed, plus 1.2% per point of your Spymaster's competence. A **revealed** faction whose **threat** (its lords' power against the crown's) reaches 30% delivers an **ultimatum**: 15 days to meet its demand. You can **concede** (its lords +15 favour) or **arrest its leader** (if he could be broken; the others take a −6 grudge). If the ultimatum runs out, a faction at 45% threat or more **revolts**; a weaker one **refuses the levy** for 60 days (each lord's power withheld from your taxes and army, and a −10 grudge). A **hidden** faction at 45% threat may rise without warning (35% a week).
+
+**Revolt** is a civil war inside your realm. The rebel lords take their levies (1.5 per point of power) from the royal army and raise a host of 4 per point. While it lasts the realm loses 12 stability, the crown's taxes fall by half the rebel towns' share of the realm's people, and other crowns smell weakness.
+
+- About every 15 days the rebels send a **war host** (30% of their strength, 25–200) at the nearest loyal town. Taken, the town joins them (−15 momentum); repelled, the host scatters (+10). Meet a host in the field and break it: **+15** momentum.
+- The **royal army** meets the rebels in the field about one day in four (±8 momentum, losses on both sides).
+- **Besiege a rebel seat** with your own army (the realm sends no relief against itself). Taken by storm, surrender or sack, it returns to the crown and its lord is broken: **+20** momentum, **+40** for the leader's seat.
+- **Crushed** at momentum 100 (or once the rebels have no men or seats left): every rebel lord is broken, +25 Prestige, +6 stability.
+- **Conceded** at momentum −100, or if the rebels take the capital: their demand is forced on you, the leader gains a title, −30 Prestige, −10 stability.
+- **Parley** at any time: grant the demand and pay 3 gold per point of rebel strength from the treasury (−10 Prestige; the rebels +20 favour).
+- After 240 days it ends in whichever side's favour momentum stands.
+
+**Royal petitions.** As monarch you also hear the realm's own business at its capital: who comes after you (the succession), envoys from your worst-disposed rival crown, offers of friendship from your best-disposed one, border disputes, plague in the capital, lords pleading poverty, veterans' arrears and royal tournaments. Their choices move the royal treasury and army, your lords' favour and the relations of foreign crowns, as well as the usual Prestige, renown, stability and council factions.
+
+**Other crowns** treat your realm as a real power. Once a week each one weighs it: a neighbour (capitals within 28 hexes) envies a crown more than 1.2× its might (−2 relations, −3 for an ambitious lord); a peaceful or mercantile realm on good terms warms to a stronger one (+2); when yours is the mightiest realm, wary crowns ally against it; and a hostile neighbour (relations −20 or worse) declares a war of conquest when its might × its lord's war appetite exceeds 90% of yours, or only 60% while you face a revolt or a civil war or your stability is under 35.
 
 #### Founding your own kingdom
 

@@ -4,6 +4,7 @@
 
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
+import { DataLoader } from '../core/dataLoader.js';
 import { Economy, TradeRoutes } from './economy.js';
 import { Kingdom } from './kingdom.js';
 import { Religion } from '../systems/religion.js';
@@ -106,6 +107,10 @@ export const KingdomAI = {
         if (Utils.random() < personality.warChance * Seasons.campaignFactor(Seasons.today(world))) {
             KingdomAI.considerWar(kingdom, world);
         }
+
+        // A realm ruled by the player is a real power: rivals, balancing
+        // alliances and wars of conquest (no RNG draws unless one exists)
+        KingdomAI.considerPlayerRealm(kingdom, world);
 
         // Update military strength
         KingdomAI.updateMilitary(kingdom, world);
@@ -475,6 +480,83 @@ export const KingdomAI = {
         }
     },
 
+    /** The living kingdom the player rules (kingdom.crown, systems/throne.js), or null. */
+    playerRealm(world) {
+        return ((world && world.kingdoms) || []).find(k => k.isAlive && k.crown && k.crown.playerRuled) || null;
+    },
+
+    /** A realm's rough might: its army plus a tenth of its people. */
+    _might(kingdom) {
+        return (kingdom.military || 0) + (kingdom.population || 0) * 0.1;
+    },
+
+    /**
+     * Weekly regard for the player's realm (data/kingship.json → config.ai):
+     *  - envy: a stronger crown nearby sours relations (more so for an ambitious lord);
+     *  - bandwagoning: weaker peaceful or mercantile realms on good terms warm to it;
+     *  - balancing: when it is the mightiest realm, wary realms ally against it;
+     *  - conquest: a hostile neighbour marches on it when strong enough — and
+     *    sooner when it is weak (a revolt, a civil war, low stability).
+     * Draws no RNG unless the player rules a realm and it is this realm's day.
+     */
+    considerPlayerRealm(kingdom, world) {
+        const realm = KingdomAI.playerRealm(world);
+        if (!realm || realm === kingdom || !kingdom.isAlive) return;
+        const A = (DataLoader.kingship && DataLoader.kingship.config && DataLoader.kingship.config.ai) || {};
+        const cadence = A.cadence || 7;
+        const idx = world.kingdoms.indexOf(kingdom);
+        if (((world.day || 0) + idx) % cadence !== 0) return;
+        if (!kingdom.relations) kingdom.relations = {};
+        if (!realm.relations) realm.relations = {};
+        const rel = kingdom.relations[realm.id] || 0;
+        const ours = KingdomAI._might(kingdom) * LordInfluence.warAppetite(kingdom);
+        const theirs = KingdomAI._might(realm);
+        const ratio = theirs / Math.max(1, KingdomAI._might(kingdom));
+        const near = kingdom.capital && realm.capital
+            && Hex.wrappingDistance(kingdom.capital.q, kingdom.capital.r, realm.capital.q, realm.capital.r, world.width) <= (A.nearCapitals || 28);
+        const allied = (kingdom.allies || []).includes(realm.id);
+        const atWar = (kingdom.wars || []).includes(realm.id);
+        const shift = (v) => { kingdom.relations[realm.id] = Utils.clamp((kingdom.relations[realm.id] || 0) + v, -100, 100); };
+
+        if (!allied && !atWar && near && ratio > (A.envyRatio || 1.2)) {
+            shift((A.envy || -2) + (LordInfluence.lean(kingdom, 'ambition') > 0 ? (A.ambitionEnvy || -1) : 0));
+        }
+        const pid = KingdomAI.personalityId(kingdom);
+        if (!atWar && ratio > 1 && rel > (A.bandwagonRelations || 20) && (pid === 'peaceful' || pid === 'mercantile')) {
+            shift(A.bandwagon || 2);
+        }
+        // Balance of power: ally with a like-minded realm against the mightiest crown
+        if (!allied && rel < 0 && theirs >= Math.max(...world.kingdoms.filter(k => k.isAlive).map(KingdomAI._might))
+            && ratio > (A.balanceRatio || 1.3)) {
+            const partner = world.kingdoms
+                .filter(k => k.isAlive && k !== kingdom && k !== realm && !(kingdom.allies || []).includes(k.id)
+                    && !(kingdom.wars || []).includes(k.id) && (k.relations && (k.relations[realm.id] || 0) < 0)
+                    && (kingdom.relations[k.id] || 0) >= (A.balanceMinRelations || 10))
+                .sort((a, b) => (kingdom.relations[b.id] || 0) - (kingdom.relations[a.id] || 0))[0];
+            if (partner && Utils.random() < (A.balanceChance || 0.2)) {
+                kingdom.allies.push(partner.id);
+                partner.allies.push(kingdom.id);
+                kingdom.relations[partner.id] = Math.max(kingdom.relations[partner.id] || 0, 60);
+                if (!partner.relations) partner.relations = {};
+                partner.relations[kingdom.id] = Math.max(partner.relations[kingdom.id] || 0, 60);
+                world.events.push({ text: `🤝 ${kingdom.name} and ${partner.name} ally against the might of ${realm.name}.`, type: 'diplomatic' });
+            }
+        }
+        // Wars of conquest against the player's crown
+        if (atWar || allied || !near || KingdomAI.hasTruce(kingdom, realm, world) || (kingdom.wars || []).length >= 2) return;
+        if ((kingdom.relations[realm.id] || 0) >= (A.warRelations || -20)) return;
+        const crown = realm.crown || {};
+        const weak = !!crown.revolt || !!crown.civilWar || (typeof realm.stability === 'number' && realm.stability < (A.weakStability || 35));
+        const need = weak ? (A.weakWarRatio || 0.6) : (A.warRatio || 0.9);
+        if (ours > theirs * need && Utils.random() < (A.warChance || 0.25)) {
+            KingdomAI.startWar(kingdom, realm, world);
+            world.events.push({
+                text: weak ? `⚔️ Scenting weakness, ${kingdom.name} marches on ${realm.name}!` : `⚔️ ${kingdom.name} declares a war of conquest on ${realm.name}!`,
+                type: 'military', kingdom: realm.id,
+            });
+        }
+    },
+
     /**
      * End a war between two kingdoms (pious lords sue for peace). Called by
      * NPCLords' 'peace' goal — it was referenced but never defined.
@@ -779,8 +861,10 @@ export const KingdomAI = {
                 // Recruitment refills the ranks, never past what the realm
                 // supports; good recruiting ground and drilled militaristic
                 // realms refill them faster
+                // ...and a royal Marshal or conscription (kingdom.crown, systems/kingship.js)
                 const regen = Math.min(1, KingdomAI.WAR.regen * KingdomAI.personalityValue(kingdom, 'regen')
-                    * (1 + recruiting * Economy.effectScale('armyRegen')));
+                    * (1 + recruiting * Economy.effectScale('armyRegen'))
+                    * Math.max(0.2, 1 + KingdomBonuses.get(kingdom, 'militaryRegen')));
                 kingdom.military = cur;
                 Kingdom.recruitTroops(kingdom, (cap - cur) * regen);
             } else {

@@ -91,7 +91,7 @@ Object.assign(ActionMenu, {
                     html += _btn(`🎁 Royal gifts (${cfg.ruling.giftCost}g)`, `window._throne.gift('${d.kingdom.id}')`, (ruled.treasury || 0) >= cfg.ruling.giftCost);
                 }
             }
-            html += `<div style="margin-top:8px;">${_btn('Abdicate', 'window._throne.abdicate()', true, BTN_RED)}</div>`;
+            html += `<div style="margin-top:8px;">${_btn('🏛️ Open the Royal Court', 'window._throne.court()')} ${_btn('Abdicate', 'window._throne.abdicate()', true, BTN_RED)}</div>`;
             html += '</div>';
         }
 
@@ -218,6 +218,7 @@ Object.assign(ActionMenu, {
             ally: (id) => result('🤝 Alliance', Throne.proposeAlliance(player, world, id)),
             gift: (id) => result('🎁 Royal Gifts', Throne.sendRoyalGifts(player, world, id)),
             abdicate: () => result('👑 Abdication', Throne.abdicate(player, world)),
+            court: () => ActionMenu.showRoyalCourt(game, tile),
             match: (id) => result('💍 Royal Match', Throne.arrangeRoyalMatch(player, world, id)),
             forge: (id) => result('📜 Forgery', Throne.forgeClaim(player, world, id)),
             buy: (id) => result('🛡️ Heralds', Throne.purchaseClaim(player, world, id)),

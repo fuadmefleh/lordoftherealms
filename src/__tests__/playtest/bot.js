@@ -25,6 +25,7 @@ import { Ships } from '../../systems/ships.js';
 import { Petitions } from '../../systems/petitions.js';
 import { Delves } from '../../systems/delves.js';
 import { Throne } from '../../systems/throne.js';
+import { Kingship } from '../../systems/kingship.js';
 import { Espionage } from '../../systems/espionage.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Companions } from '../../systems/companions.js';
@@ -460,6 +461,7 @@ function throne(game, stats) {
             const opts = Object.keys((Throne.policies()[axis] || {}).options || {});
             if (opts.length && Throne.setPolicy(player, world, axis, Utils.randPick(opts)).success) count(stats, 'policiesSet');
         }
+        royalCourt(game, stats);
         return;
     }
     // A royal match for a claim by marriage
@@ -495,6 +497,32 @@ function throne(game, stats) {
     if (Throne.canPress(player, world, k.id, { armyStrength }).ok) {
         if (Throne.pressClaim(player, world, k.id, { armyStrength }).success) count(stats, 'claimsPressed');
     }
+}
+
+/** Rule the realm's court: fill the council, proclaim an edict, answer factions and revolts. */
+function royalCourt(game, stats) {
+    const { player, world } = game;
+    const court = Kingship.court(player);
+    if (!court || !court.initialized) return;
+    for (const office of Kingship.OFFICES) {
+        if (court.council[office]) continue;
+        const best = Kingship.candidates(player, world, office).find(c => !c.office);
+        if (best && Kingship.appoint(player, world, office, best.kind, best.id).success) count(stats, 'councilAppointed');
+    }
+    if (Utils.random() < 0.1) {
+        const open = Object.keys(Kingship.edicts()).filter(id => Kingship.canPass(player, world, id).ok);
+        if (open.length && Kingship.passEdict(player, world, Utils.randPick(open)).success) count(stats, 'edictsPassed');
+    }
+    for (const f of Kingship.factions(player, world, { revealedOnly: true })) {
+        if (!f.faction.ultimatum) continue;
+        const res = Utils.random() < 0.5 ? Kingship.arrestLeader(player, world, f.faction.id) : { success: false };
+        if (res.success) count(stats, 'factionLeadersArrested');
+        else if (Kingship.concede(player, world, f.faction.id).success) count(stats, 'factionsConceded');
+    }
+    if (court.revolt && Utils.random() < 0.05 && Kingship.parley(player, world).success) count(stats, 'revoltParleys');
+    if (Utils.random() < 0.03 && Kingship.holdFeast(player, world).success) count(stats, 'royalFeasts');
+    const unhappy = court.vassals.find(v => !v.rebel && v.opinion < -20);
+    if (unhappy && Utils.random() < 0.05 && Kingship.grantGold(player, world, unhappy.id).success) count(stats, 'vassalGrants');
 }
 
 function treasures(game, stats) {

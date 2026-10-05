@@ -353,6 +353,14 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             icon: '👑',
             description: ruled ? `Rule ${ruled.name}: policies, levy and diplomacy` : 'Your claims on thrones, succession crises and the war for a crown',
         });
+        if (ruled) {
+            actions.push({
+                type: 'royal_court',
+                label: 'Royal Court',
+                icon: '🏛️',
+                description: `${ruled.name}'s council, edicts, vassals and factions`,
+            });
+        }
     }
 
     // Renounce Allegiance (at any settlement, if aligned)

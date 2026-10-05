@@ -248,6 +248,9 @@ export const SaveLoad = {
         'mapDeceptions', 'marriageAllianceKingdom', 'cultureIncomeCarry',
         'foragingTrips', 'huntingTrips', 'jobsCompleted', 'performancesGiven',
         'plantingContracts', 'voyageStats', 'lastTournamentDay',
+        // Theatres, academies, … the player built (systems/culture.js): their
+        // daily income, construction and the Patron of the Arts achievement
+        'culturalBuildings',
         // "Pretender to X", "Exile", an office's title — a fresh Player says "Nobody"
         'title',
     ],
@@ -432,6 +435,8 @@ export const SaveLoad = {
         if (!quests) return null;
 
         return {
+            // Every other field (the board's refresh day and its cooldowns) as is
+            ...quests,
             active: quests.active,
             completed: quests.completed,
             available: quests.available,

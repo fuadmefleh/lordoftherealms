@@ -731,7 +731,10 @@ export const MerchantHouses = {
             if (!s.monopolies) continue;
             for (const [good, mono] of Object.entries(s.monopolies)) {
                 const lapsed = mono && mono.untilDay != null && day >= mono.untilDay;
-                const orphan = mono && (gone.has(mono.holder) || (mono.holder === 'player' && !MerchantHouses.hasCompany(player)));
+                // A crown monopoly outlives neither the edict nor the town's place in the realm
+                const crownGone = mono && mono.holder === 'crown'
+                    && !(s.kingdom === mono.kingdomId && world.getKingdom && KingdomBonuses.crownEffect(world.getKingdom(s.kingdom), 'crownMonopoly') > 0);
+                const orphan = mono && (crownGone || gone.has(mono.holder) || (mono.holder === 'player' && !MerchantHouses.hasCompany(player)));
                 if (!mono || lapsed || orphan) { delete s.monopolies[good]; n++; }
             }
             if (!Object.keys(s.monopolies).length) delete s.monopolies;

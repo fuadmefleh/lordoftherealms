@@ -1951,14 +1951,17 @@ A companion's competence is 7, +6 if their trade suits the office (a priest as H
 | 🤝 Religious tolerance | 100g | +3 stability, +4% trade, −8% faith; minorities' mood +2 a week; faith unity −0.05 a day | Clergy −10, Commons +4, Guilds +4 | trade / faith |
 | 🔥 Persecution of heretics | 100g, 10g/day | +15% faith, −5 stability, −4% trade; faith unity +0.1 a day; minorities' mood −3 a week | Clergy +10, Commons −6 | faith, fear / trade |
 | 📜 Merchant charters | 150g | +15% trade, +10% caravans, −4% taxes; a trading-company charter from the realm costs half | Guilds +10, Nobility −5 | trade, wealth |
-| 🍞 Famine dole | 100g, 45g/day | +8 stability, +10% growth | Commons +10, Clergy +3 | justice, faith / wealth |
-| 💎 Crown monopolies | 200g | +15% treasury, −10% trade; −3 all lords; rival merchant houses earn 1% a week less per post in the realm | Guilds −12, Nobility −4 | — / wealth, trade |
+| 🍞 Famine dole | 100g, 8g/day + grain | +2 stability; feeds hungry towns (below) | Commons +10, Clergy +3 | justice, faith / wealth |
+| 💎 Crown monopolies | 200g | +15% treasury, −10% trade; −3 all lords; real monopolies on salt, iron, wine, tools, weapons and liquor in every town of the realm (below); rival merchant houses earn 1% a week less per post in the realm | Guilds −12, Nobility −4 | — / wealth, trade |
 | ⚖️ Royal assizes | 150g, 20g/day | +5 stability, +5% loyalty; −3 all lords | Commons +5, Nobility −6 | justice / fear, domination |
 | 💰 Scutage | 100g | +8% treasury, −10% army; +4 all lords | War Hawks −8, Nobility +4 | wealth / domination, conquest |
 | 🎭 Royal patronage of the arts | 150g, 25g/day | +30% culture, +15% research, +5% diplomacy; +2 all lords | Nobility +4, Clergy +2 | alliance |
 | 🏰 Fortification of the marches | 200g, 35g/day | +15% defense; +2 all lords; your holdings in the realm (and your own colonies) face a siege with +0.15 walls | War Hawks +4 | survival |
 
 Tolerance and persecution exclude each other, as do merchant charters and crown monopolies, and scutage and conscription.
+
+- **Crown monopolies** are real town monopolies. Every town of the realm gets one on each crown good it does not already have a guild's or merchant house's monopoly on. While they stand, the town's market asks **30% more** for those goods. You may still buy them, and the markup you pay goes into the **royal treasury** each day. No trading company, including your own, may buy or sell them there. They are lifted when you repeal the edict, when the town leaves the realm, or when you lose the crown. The Deeds ledger counts the money they bring in.
+- **The famine dole** responds to real hunger. Each day it ships grain to every town of the realm that is short of food. A town counts as short in the **lean weeks** (or while lean-season unrest is still felt) if it has less than 5 days of stores, and in any town a **Hungry Months** famine reaches. Grain tops the town up to 5 days of stores (8 in a famine; a town in famine gets at least a day's bread). Each town gets at most 60 units a day, at **0.6g a unit** from the royal treasury, so the cost follows the hunger. A fed town gets back up to 1 point a day of the happiness it lost to the lean season. In a famine, the dole also returns the people the famine would have cost the town and adds up to +2 stability a day across the realm. If the treasury can pay for only part of the grain, the relief shrinks to match, and you are warned once that the dole is running short. In good times it costs only its upkeep.
 
 **Vassals.** One lord for each town of the realm other than the capital (up to 8; landless lords make up at least 3), each with an NPC lord's personality (traits, goals, ambition and honor) and a courtier's skills. New towns gain a lord within a month; a lord whose town is lost becomes landless; old lords die and their heirs inherit.
 
@@ -2197,7 +2200,7 @@ The House adds 40 per generation and 1 per point of Prestige.
 |---|---|
 | ⚔️ Arms & House | battles won, quests, titles, settlements taken, noble marriages, ambition milestones |
 | 👑 The Throne | crowns won, claims held, succession crises and civil wars underway, reigning, throne chronicle entries |
-| 🏛️ The Royal Court | vassal lords and edicts in force; edicts proclaimed, royal feasts, grants and favours, plots uncovered, revolts (crushed and conceded), lords broken |
+| 🏛️ The Royal Court | vassal lords and edicts in force; edicts proclaimed, royal feasts, grants and favours, plots uncovered, revolts (crushed and conceded), lords broken, crown monopoly revenue, grain given in the famine dole, crowns lost or set down, days ruled under them. These tallies include every crown your House has worn and lost, so they don't reset when a crown goes |
 | 🏯 Holdings Besieged | under siege now; sieges endured, relieved, held, saved by terms, bought off, lifted by peace, fallen |
 | 🏰 Holdings | holdings ruled, projects built, raids repelled and suffered, rebellions and rebellions crushed, holdings lost, governors who betrayed you |
 | ⚖️ Petitions & Court | petitions ruled and ignored |
@@ -2212,7 +2215,12 @@ The House adds 40 per generation and 1 per point of Prestige.
 | 🧭 Discoveries | lands found and named, exotic hauls, charts sold, colonies, naval contests, lands rivals found first |
 | ⛵ Voyages | voyages completed, days at sea, events at sea, longest voyage |
 | 🩹 Wounds & Sickness | wounds, diseases, recoveries, festered wounds, scars, treatments |
+| 📯 The Heralds | news proclaimed in the world and proclamations you heard, with the last five that reached you (including any the heralds' daily limit kept quiet) |
 | 🌿 Living off the Land | foraging trips and hunts, with your forager's and hunter's craft rank |
+
+Below the sections, the ledger lists your **achievements** by tier, each with the day it was won, and the name of every quest you completed.
+
+**A lost crown's record.** When you abdicate, or your realm falls, the reign's royal-court record goes into the House's crown ledger: the realm, the days ruled, how the reign ended, the edicts in force, the lords and every court tally. A line is also added to the House chronicle. In the House Chronicle, each ruler's card shows the court they kept (edicts, feasts, plots uncovered, revolts crushed and conceded, lords broken, monopoly revenue, dole grain) and any crown they lost. The ledger is saved with the House.
 
 A reign that began in a save from before the ledger existed is counted from the House's beginning. The voyage record is saved with your character.
 
@@ -2444,7 +2452,9 @@ The game features **68 quest templates** (plus artifact quests) across 5 categor
 
 ### The Quest Board
 
-Open the **Quest Journal** to see up to **5 offered quests** and press **Accept** to take one on (at most 5 active at once). Accepting refills the board. Offers are drawn from the whole catalogue, and harder tiers unlock as you prove yourself:
+Open the **Quest Journal** to see up to **5 offered quests** and press **Accept** to take one on (at most 5 active at once). Accepting refills the board. The board is also refreshed **every week**. A posting stays up for **30 days** (the journal shows "Posted until day N"), then comes down and isn't posted again for another 30 days. Any empty places are refilled from the catalogue. Artifact quests stay posted while you hold the fragment.
+
+**Favours for townsfolk.** A task you accept from someone in conversation becomes a quest, and completing it pays its reward. A "reputation" task also earns **+8 reputation** with the realm you were in when you accepted it, and a "favour" task earns +3. The person who asked remembers it: the next time you speak with them, they thank you and like you more (+15 disposition). Offers are drawn from the whole catalogue, and harder tiers unlock as you prove yourself:
 
 | Tier | Unlocks after |
 |------|---------------|
@@ -2562,7 +2572,7 @@ Ask an NPC whether they need help and they may make a request. If you accept, it
 
 ## 23. Achievements
 
-The game tracks **91 achievements** across multiple categories with Bronze, Silver, Gold and Legendary tiers. They are checked at the end of every day; each one reads something the game really records (a counter in Deeds & Records, a system's live state, or an event counter), so every one can be earned.
+The game tracks **91 achievements** across multiple categories with Bronze, Silver, Gold and Legendary tiers. They are checked at the end of every day; each one reads something the game really records (a counter in Deeds & Records, a system's live state, or an event counter), so every one can be earned. **Journal → Deeds & Records** lists the achievements you have won by tier, each with the day it was won, and your overall progress.
 
 ### Selected Achievements
 

@@ -41,6 +41,8 @@ export const DEED_SECTIONS = [
         ['kingship.edictsPassed', 'Edicts proclaimed'], ['kingship.feasts', 'Royal feasts'], ['kingship.grants', 'Grants and favours'],
         ['kingship.plotsRevealed', 'Plots uncovered'], ['kingship.revolts', 'Revolts'], ['kingship.revoltsCrushed', 'Revolts crushed'],
         ['kingship.revoltsConceded', 'Revolts conceded'], ['kingship.lordsBroken', 'Lords broken'],
+        ['kingship.monopolyRevenue', 'Crown monopoly revenue'], ['kingship.doleGrain', 'Grain given in the famine dole'],
+        ['kingship.reignsEnded', 'Crowns lost or set down'], ['kingship.daysRuled', 'Days ruled (crowns since lost)'],
     ] },
     { id: 'holdingSieges', title: 'Holdings Besieged', icon: '🏯', rows: [
         ['holdingSieges.active', 'Under siege now', true], ['holdingSieges.besieged', 'Sieges endured'], ['holdingSieges.relieved', 'Relieved'],
@@ -100,6 +102,9 @@ export const DEED_SECTIONS = [
         ['ailments.wounds', 'Wounds taken'], ['ailments.diseases', 'Diseases caught'], ['ailments.healed', 'Recoveries'],
         ['ailments.infections', 'Wounds that festered'], ['ailments.scars', 'Lasting scars'], ['ailments.treatments', 'Treatments received'],
     ] },
+    { id: 'heralds', title: 'The Heralds', icon: '📯', rows: [
+        ['heralds.proclaimed', 'News proclaimed in the world'], ['heralds.cried', 'Proclamations heard'],
+    ] },
     { id: 'land', title: 'Living off the Land', icon: '🌿', rows: [
         ['land.foragingTrips', 'Foraging trips'], ['land.huntingTrips', 'Hunts'],
     ] },
@@ -127,8 +132,16 @@ export const Deeds = {
         out['throne.events'] = Array.isArray(throne.history) ? throne.history.length : 0;
 
         // The royal court rides inside the crown (systems/kingship.js)
+        // — plus every crown the House wore and lost, filed in house.crownLedger
+        // (Throne._archiveReign), so the tallies outlive the court
         const court = _obj(_obj(throne.ruling).court);
-        put('kingship', court.stats, ['edictsPassed', 'feasts', 'grants', 'plotsRevealed', 'revolts', 'revoltsCrushed', 'revoltsConceded', 'lordsBroken']);
+        const ledger = _obj(_obj(house.crownLedger).totals);
+        const liveStats = _obj(court.stats);
+        for (const k of ['edictsPassed', 'feasts', 'grants', 'plotsRevealed', 'revolts', 'revoltsCrushed', 'revoltsConceded', 'lordsBroken', 'monopolyRevenue', 'doleGrain', 'doleGold']) {
+            out[`kingship.${k}`] = _num(liveStats[k]) + _num(ledger[k]);
+        }
+        out['kingship.reignsEnded'] = _num(ledger.reignsEnded);
+        out['kingship.daysRuled'] = _num(ledger.daysRuled);
         out['kingship.vassals'] = Array.isArray(court.vassals) ? court.vassals.filter(v => v && !v.rebel).length : 0;
         out['kingship.edictsInForce'] = Object.keys(_obj(court.edicts)).length;
 
@@ -170,6 +183,7 @@ export const Deeds = {
         put('discovery', _obj(player.discovery).stats, ['found', 'named', 'gathered', 'sold', 'colonies', 'contestsWon', 'contestsLost', 'rivalFinds']);
         put('voyages', player.voyageStats, ['voyages', 'daysAtSea', 'events', 'longest']);
         put('ailments', _obj(player.ailments).stats, ['wounds', 'diseases', 'healed', 'infections', 'scars', 'treatments']);
+        put('heralds', _obj(player.heralds).stats, ['proclaimed', 'cried']);
         out['land.foragingTrips'] = _num(player.foragingTrips);
         out['land.huntingTrips'] = _num(player.huntingTrips);
         return out;

@@ -278,11 +278,14 @@ export const Quests = {
         bounty:               { stat: 'battles_won', target: 1, text: 'Bring the bounty target to heel' },
     },
 
-    /** Reward package per NPC reward kind. */
+    /**
+     * Reward package per NPC reward kind. `reputation` is standing with the
+     * realm the task was given in (createNpcTask pins it to that kingdom).
+     */
     NPC_TASK_REWARDS: {
         gold:       { gold: 200, renown: 3 },
-        reputation: { renown: 15, gold: 50 },
-        favor:      { gold: 100, renown: 5 },
+        reputation: { renown: 10, gold: 50, reputation: 8 },
+        favor:      { gold: 100, renown: 5, reputation: 3 },
         blessing:   { karma: 5, renown: 5 },
         equipment:  { gold: 120, renown: 5, items: { weapons: 1 } },
         gratitude:  { karma: 4, renown: 8 },
@@ -313,12 +316,19 @@ export const Quests = {
         if (player.quests.active.some(q => q.id === id)) return { success: false, reason: 'Already working on it' };
         const who = (npc && npc.name) || 'a local';
         const rewards = { ...(Quests.NPC_TASK_REWARDS[hook.reward] || Quests.NPC_TASK_REWARDS.gold) };
+        // Standing is earned with the realm the giver lives in (none outside one)
+        const tile = world && typeof world.getTile === 'function' ? world.getTile(player.q, player.r) : null;
+        const kingdomId = tile ? (tile.kingdom || (tile.settlement && tile.settlement.kingdom) || null) : null;
+        if (rewards.reputation) {
+            if (kingdomId) rewards.reputation = { kingdomId, amount: rewards.reputation };
+            else delete rewards.reputation;
+        }
         const quest = {
             id,
             title: `A Favour for ${who}`,
             description: hook.text,
             type: 'npc_task',
-            giver: { id: npc ? npc.id : null, name: who },
+            giver: { id: npc ? npc.id : null, name: who, kingdomId },
             objectives: [{
                 type: 'counter_since', stat: objDef.stat, baseline: Quests._counter(player, objDef.stat),
                 target: objDef.target, current: 0, text: objDef.text,
@@ -339,6 +349,7 @@ export const Quests = {
         if (rewards.gold) parts.push(`${rewards.gold} gold`);
         if (rewards.renown) parts.push(`${rewards.renown} renown`);
         if (rewards.karma) parts.push(`${rewards.karma} karma`);
+        if (rewards.reputation && rewards.reputation.amount) parts.push(`${rewards.reputation.amount} reputation`);
         for (const [item, n] of Object.entries(rewards.items || {})) parts.push(`${n} ${item.replace(/_/g, ' ')}`);
         return parts.join(', ');
     },
@@ -385,6 +396,16 @@ export const Quests = {
     MAX_AVAILABLE: 5,
 
     /**
+     * The board is refreshed every BOARD_REFRESH_DAYS: postings older than
+     * OFFER_TTL_DAYS come down (artifact quests stay while the fragment is
+     * held) and are not posted again for EXPIRED_COOLDOWN_DAYS, and a short
+     * board is refilled from the catalogue.
+     */
+    BOARD_REFRESH_DAYS: 7,
+    OFFER_TTL_DAYS: 30,
+    EXPIRED_COOLDOWN_DAYS: 30,
+
+    /**
      * Difficulty tiers unlock as the player proves themselves: easy always,
      * medium after 2 completed quests or 25 renown, hard after 5 or 100,
      * legendary after 10 or 300.
@@ -422,8 +443,12 @@ export const Quests = {
         }
 
         const tiers = Quests._unlockedDifficulties(player);
+        // A posting that came down stale isn't put straight back up
+        const day = world && typeof world.day === 'number' ? world.day : null;
+        const cooling = player.quests.expired || {};
+        const resting = (id) => day != null && typeof cooling[id] === 'number' && cooling[id] > day;
         const pool = Object.entries(Quests.QUEST_TEMPLATES).filter(([, t]) =>
-            !Quests._artifactOf(t) && !t.starter && tiers.includes(t.difficulty || 'easy')
+            !Quests._artifactOf(t) && !t.starter && tiers.includes(t.difficulty || 'easy') && !resting(t.id)
             && !(t.objectives || []).some(o => Quests.UNTRACKABLE_OBJECTIVES.includes(o.type))
             && Quests.isReachable(t, player, world)
             && !taken(t.id) && !offered.some(o => o.id === t.id));
@@ -436,7 +461,16 @@ export const Quests = {
             const q = Quests.createQuest(pool.shift()[0], player);
             if (q) offered.push(q);
         }
+        // Date the new postings (only when the day is known; old ones are dated at the next refresh)
+        if (day != null) for (const q of offered) Quests._stampPosting(q, day);
         player.quests.available = offered;
+    },
+
+    /** Give an offer its posting date and, unless it is an artifact quest, the day it comes down. */
+    _stampPosting(q, day) {
+        if (!q || typeof q.postedDay === 'number') return;
+        q.postedDay = day;
+        if (!Quests._artifactOf(q)) q.expiresDay = day + Quests.OFFER_TTL_DAYS;
     },
 
     /**
@@ -482,6 +516,8 @@ export const Quests = {
 
         const quest = player.quests.available[questIndex];
         quest.status = 'active';
+        delete quest.postedDay; // a taken quest no longer comes down with the board
+        delete quest.expiresDay;
         quest.startedAt = world ? world.day : 0;
         // "Since" objectives count only what is done from now on
         let deeds = null;
@@ -727,11 +763,27 @@ export const Quests = {
      */
     _tidyBoard(player, world) {
         if (!world || !Array.isArray(player.quests.available)) return;
-        const before = player.quests.available.length;
-        const kept = player.quests.available.filter(q => q && Quests.isReachable(q, player, world));
-        if (kept.length === before) return;
-        player.quests.available = kept;
-        Quests.generateAvailableQuests(player, world);
+        const q = player.quests;
+        const before = q.available.length;
+        let kept = q.available.filter(o => o && Quests.isReachable(o, player, world));
+        let changed = kept.length !== before;
+        // The weekly refresh: stale postings come down, a short board refills
+        const day = typeof world.day === 'number' ? world.day : null;
+        if (day != null && !(day - (typeof q.lastBoardDay === 'number' ? q.lastBoardDay : -Infinity) < Quests.BOARD_REFRESH_DAYS)) {
+            q.lastBoardDay = day;
+            if (!q.expired || typeof q.expired !== 'object') q.expired = {};
+            for (const [id, until] of Object.entries(q.expired)) if (!(until > day)) delete q.expired[id];
+            for (const o of kept) Quests._stampPosting(o, day);
+            const fresh = kept.filter(o => !(typeof o.expiresDay === 'number' && day >= o.expiresDay));
+            for (const o of kept) if (!fresh.includes(o)) q.expired[o.id] = day + Quests.EXPIRED_COOLDOWN_DAYS;
+            if (fresh.length !== kept.length) changed = true;
+            kept = fresh;
+            if (kept.length < Quests.MAX_AVAILABLE) changed = true;
+        }
+        if (!changed) return;
+        q.available = kept;
+        // Draws RNG only when there is room on the board
+        if (kept.length < Quests.MAX_AVAILABLE) Quests.generateAvailableQuests(player, world);
     },
 
     /**
@@ -752,6 +804,22 @@ export const Quests = {
             player.renown += rewards.renown;
         }
 
+        // Standing with the realm an NPC's task was given in
+        const rep = rewards.reputation;
+        if (rep && rep.kingdomId && rep.amount) {
+            if (!player.reputation) player.reputation = {};
+            player.reputation[rep.kingdomId] = Utils.clamp((player.reputation[rep.kingdomId] || 0) + rep.amount, -100, 100);
+        }
+
+        // The NPC who asked owes the player thanks (Quests.collectThanks, on next speaking)
+        if (quest.type === 'npc_task' && quest.giver && quest.giver.id != null && player.quests) {
+            const owed = player.quests.thanksOwed && typeof player.quests.thanksOwed === 'object' ? player.quests.thanksOwed : {};
+            owed[quest.giver.id] = { name: quest.giver.name, title: quest.title };
+            const keys = Object.keys(owed);
+            for (const k of keys.slice(0, Math.max(0, keys.length - 20))) delete owed[k];
+            player.quests.thanksOwed = owed;
+        }
+
         if (rewards.items) {
             // Goods that won't fit in full packs are sold on the spot
             const res = PlayerInventory.addOrSell(player, rewards.items);
@@ -759,6 +827,19 @@ export const Quests = {
         }
 
         return rewards;
+    },
+
+    /**
+     * The player speaks again with an NPC whose task they finished: the
+     * thanks owed (or null), consumed. Matched by id and name.
+     */
+    collectThanks(player, npc) {
+        const owed = player && player.quests && player.quests.thanksOwed;
+        if (!owed || !npc || npc.id == null) return null;
+        const t = owed[npc.id];
+        if (!t || (t.name && npc.name && t.name !== npc.name)) return null;
+        delete owed[npc.id];
+        return t;
     },
 
     /** Terrain that counts for "explore mountain tiles" objectives. */

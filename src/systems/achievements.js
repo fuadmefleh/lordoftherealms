@@ -706,6 +706,9 @@ export const Achievements = {
                 // Check if achievement is unlocked
                 if (achievement.check(player, world)) {
                     player.achievements.unlocked.push(id);
+                    // The day it was won, for the Achievements list (Achievements.listing)
+                    if (!player.achievements.progress || typeof player.achievements.progress !== 'object') player.achievements.progress = {};
+                    player.achievements.progress[id] = { day: (world && world.day) || 0 };
                     newAchievements.push(achievement);
                 }
             }
@@ -730,6 +733,26 @@ export const Achievements = {
      */
     getByTier(tier) {
         return Object.values(Achievements.ACHIEVEMENTS).filter(a => a.tier === tier);
+    },
+
+    TIERS: ['bronze', 'silver', 'gold', 'legendary'],
+
+    /**
+     * The Achievements list (Journal → Deeds & Records): per tier, every
+     * achievement with whether it is won and the day it was (when known).
+     * @returns {{ progress, tiers: [{ tier, items: [{ key, name, description, icon, unlocked, day }] }] }}
+     */
+    listing(player) {
+        const st = (player && player.achievements) || { unlocked: [], progress: {} };
+        const won = new Set(st.unlocked || []);
+        const tiers = Achievements.TIERS.map(tier => ({
+            tier,
+            items: Object.entries(Achievements.ACHIEVEMENTS).filter(([, a]) => a.tier === tier).map(([key, a]) => ({
+                key, name: a.name, description: a.description, icon: a.icon, unlocked: won.has(key),
+                day: st.progress && st.progress[key] && typeof st.progress[key].day === 'number' ? st.progress[key].day : null,
+            })),
+        }));
+        return { progress: Achievements.getProgress(player), tiers };
     },
 
     /**

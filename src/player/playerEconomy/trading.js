@@ -118,7 +118,9 @@ export const Trading = {
      */
     monopolyBlock(settlement, goodId) {
         const holder = Economy.monopolyHolder(settlement, goodId);
-        if (!holder || holder === 'player') return null;
+        // The crown's monopoly (systems/kingship.js) is the player's own: it
+        // raises the price instead of barring the trade
+        if (!holder || holder === 'player' || holder === 'crown') return null;
         const m = settlement.monopolies[goodId];
         return `${m.holderName || 'A chartered guild'} holds the monopoly on ${goodId.replace(/_/g, ' ')} in ${settlement.name || 'this town'}.`;
     },
@@ -147,6 +149,13 @@ export const Trading = {
         }
 
         player.gold -= totalCost;
+
+        // The crown's markup on a monopoly good is owed to the royal treasury
+        // (swept in by Kingship.syncCrownMonopolies)
+        const mono = settlement && settlement.monopolies && settlement.monopolies[good.id];
+        if (mono && mono.holder === 'crown' && mono.markup > 0) {
+            mono.revenue = (mono.revenue || 0) + totalCost * mono.markup / (1 + mono.markup);
+        }
 
         // Add to player inventory
         PlayerInventory.addItem(player, good.id, quantity);

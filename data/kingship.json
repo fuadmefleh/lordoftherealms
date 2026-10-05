@@ -210,19 +210,21 @@
       "blurb": "Free towns and guild charters. Trade booms; the crown's dues are lighter, and a company charter from the realm costs half."
     },
     "famine_dole": {
-      "label": "Famine dole", "icon": "🍞", "upkeep": 45, "passCost": 100,
-      "mods": { "stability": 0.08, "population": 0.1 },
+      "label": "Famine dole", "icon": "🍞", "upkeep": 8, "passCost": 100,
+      "mods": { "stability": 0.02 },
       "factions": { "commons": 10, "clergy": 3 },
       "vassalOpinion": 0, "likes": ["justice", "faith"], "hates": ["wealth"],
-      "blurb": "Royal granaries open to the hungry. The realm grows and steadies — at a price every day."
+      "dole": { "reserveDays": 5, "famineReserveDays": 8, "maxPerTown": 60, "grainPrice": 0.6, "moodRelief": 1, "stabilityRelief": 0.25, "growthRelief": 1 },
+      "blurb": "Royal granaries open to the hungry. In the lean weeks and in famine the crown ships grain to every town short of stores — paid from the treasury by the cartload — easing hunger, unrest and the famine's toll on the people. In good times it costs little."
     },
     "crown_monopolies": {
       "label": "Crown monopolies", "icon": "💎", "upkeep": 0, "passCost": 200, "excludes": ["merchant_charters"],
       "mods": { "treasury": 0.15, "tradeBonus": -0.1 },
       "factions": { "merchants": -12, "nobility": -4 },
       "vassalOpinion": -3, "likes": [], "hates": ["wealth", "trade"],
-      "effects": { "rivalPostReturn": -0.01 },
-      "blurb": "Salt, iron and wine are the crown's alone. The treasury swells; merchants and greedy lords resent it, and rival merchant houses earn less from their posts in the realm."
+      "effects": { "rivalPostReturn": -0.01, "crownMonopoly": 1 },
+      "monopoly": { "goods": ["salt", "iron", "wine", "tools", "weapons", "liquor"], "markup": 0.3 },
+      "blurb": "Salt, iron and wine — and the tools, weapons and liquor made from them — are the crown's alone. Every town of the realm sells them only through the crown's factors, 30% dearer, and the markup goes to the royal treasury; no trading company may deal in them there. Merchants and greedy lords resent it, and rival merchant houses earn less from their posts in the realm."
     },
     "royal_assizes": {
       "label": "Royal assizes", "icon": "⚖️", "upkeep": 20, "passCost": 150,

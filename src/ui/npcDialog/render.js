@@ -4,6 +4,7 @@ import { ActionMenu } from '../actionMenu.js';
 import { NpcFamily } from '../../systems/npcFamily.js';
 import { NpcBrain } from '../../systems/npcBrain.js';
 import { NpcDisposition } from '../../systems/npcDisposition.js';
+import { Quests } from '../../systems/quests.js';
 import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS, RUMORS, FAREWELLS, THREAT_RESPONSES, THREAT_SUCCESS, FLATTER_RESPONSES, FLATTER_SUCCESS, TIME_COMMENTS, WEATHER_COMMENTS, NPC_QUEST_HOOKS, LOCATION_INFO, KINGDOM_INFO } from '../npcDialog.data.js';
 import { dialogState } from './shared.js';
 import { NpcDialog } from './index.js'; // call-time facade ref (ESM cycle-safe)
@@ -17,6 +18,14 @@ export function _buildConversation(npc) {
     mem.timesSpoken++;
 
     let greeting = _getGreeting(npc);
+    // A task done for this NPC (systems/quests.js) is remembered warmly
+    const player = dialogState._game && dialogState._game.player;
+    const thanks = player ? Quests.collectThanks(player, npc) : null;
+    if (thanks) {
+        NpcDisposition.adjustDisposition(npc, 15, player);
+        mem.questAccepted = false;
+        greeting = 'You kept your word — I won\'t forget what you did for me! ' + greeting;
+    }
     if (titleNews.changed && !mem.grudge && !mem.threatened) {
         greeting = `I hear you're ${titleNews.title} now — congratulations! ` + greeting;
     }

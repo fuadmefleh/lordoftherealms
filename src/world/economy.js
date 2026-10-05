@@ -294,6 +294,10 @@ export const Economy = {
         // the lean months, furs dear in winter (world/seasons.js)
         price *= Seasons.priceMultiplier(good.id, Seasons.today(world));
 
+        // A monopoly that carries a markup (the crown's, systems/kingship.js)
+        // makes the good dearer in this market
+        price *= 1 + Economy.monopolyMarkup(settlement, good.id, world ? world.day : null);
+
         return Math.floor(price);
     },
 
@@ -323,6 +327,13 @@ export const Economy = {
         if (!m) return null;
         if (day != null && m.untilDay != null && day >= m.untilDay) return null;
         return m.holder || null;
+    },
+
+    /** The price markup (fraction) a running monopoly on `goodId` puts on this market, or 0. */
+    monopolyMarkup(settlement, goodId, day = null) {
+        if (!Economy.monopolyHolder(settlement, goodId, day)) return 0;
+        const v = settlement.monopolies[goodId].markup;
+        return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0;
     },
 
     /** The tile a settlement object stands on (settlements carry q/r once the world has stamped them). */

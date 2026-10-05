@@ -1142,11 +1142,66 @@ export const Throne = {
         return { success: true, message: `Gifts from the royal treasury warm ${t.name} toward you (+${R.giftRelations}).` };
     },
 
+    /**
+     * The House's record of every crown it has worn and lost
+     * (player.house.crownLedger: { records: [...], totals: {...} }), created
+     * on use. Saved with the House. Read by Deeds (lifetime royal-court
+     * counters) and Legacy (each reign's court record).
+     */
+    crownLedger(player) {
+        const house = player && player.house;
+        if (!house) return null;
+        if (!house.crownLedger || typeof house.crownLedger !== 'object') house.crownLedger = { records: [], totals: {} };
+        const L = house.crownLedger;
+        if (!Array.isArray(L.records)) L.records = [];
+        if (!L.totals || typeof L.totals !== 'object') L.totals = {};
+        return L;
+    },
+
+    /**
+     * File the reign's royal-court record (systems/kingship.js court.stats,
+     * the edicts in force, the vassals, days ruled) with the House before the
+     * crown goes — the court itself rides inside player.throne.ruling and is
+     * dropped with it. `how`: 'abdicated' | 'fell'. Returns the record.
+     */
+    _archiveReign(player, world, how, kingdom = null) {
+        const st = Throne.state(player);
+        const r = st.ruling;
+        const L = Throne.crownLedger(player);
+        if (!r || !L) return null;
+        const court = (r.court && typeof r.court === 'object') ? r.court : {};
+        const day = (world && world.day) || 0;
+        const stats = {};
+        for (const [key, v] of Object.entries(court.stats || {})) if (typeof v === 'number' && Number.isFinite(v)) stats[key] = v;
+        const rec = {
+            kingdomId: r.kingdomId, kingdomName: kingdom ? kingdom.name : (Throne._kingdom(world, r.kingdomId) || { name: r.kingdomId }).name,
+            ruler: player.name || null, since: r.since || 0, until: day, days: Math.max(0, day - (r.since || 0)), how,
+            founded: !!r.founded, levyTotal: Math.round(r.levyTotal || 0),
+            edicts: Object.keys(court.edicts || {}), vassals: Array.isArray(court.vassals) ? court.vassals.length : 0,
+            stats,
+        };
+        L.records.push(rec);
+        if (L.records.length > 20) L.records = L.records.slice(-20);
+        for (const [key, v] of Object.entries(stats)) L.totals[key] = (L.totals[key] || 0) + v;
+        L.totals.daysRuled = (L.totals.daysRuled || 0) + rec.days;
+        L.totals.reignsEnded = (L.totals.reignsEnded || 0) + 1;
+        if (player.house) {
+            const bits = [`${rec.days} days`];
+            if (stats.edictsPassed) bits.push(`${stats.edictsPassed} edict(s) proclaimed`);
+            if (stats.revoltsCrushed) bits.push(`${stats.revoltsCrushed} revolt(s) crushed`);
+            if (stats.revoltsConceded) bits.push(`${stats.revoltsConceded} conceded`);
+            if (stats.lordsBroken) bits.push(`${stats.lordsBroken} lord(s) broken`);
+            House._chronicle(player.house, world, `The reign over ${rec.kingdomName} ends (${how}): ${bits.join(', ')}.`, ['throne', 'court']);
+        }
+        return rec;
+    },
+
     /** Step down: a new ruler of the realm's old dynasty takes the throne. */
     abdicate(player, world) {
         const st = Throne.state(player);
         const k = Throne.ruledKingdom(player, world);
         if (!k) return { success: false, reason: 'You rule no realm.' };
+        Throne._archiveReign(player, world, 'abdicated', k);
         st.ruling = null;
         const heir = Characters.generateCharacter({
             culture: k.culture, age: Utils.randInt(25, 45),
@@ -1176,6 +1231,7 @@ export const Throne = {
         const r = st.ruling;
         const k = Throne._kingdom(world, r.kingdomId);
         if (!k || !k.isAlive) {
+            Throne._archiveReign(player, world, 'fell', k);
             st.ruling = null;
             if (player.allegiance === r.kingdomId) { player.allegiance = null; player.kingdomTitle = null; player.title = 'Deposed'; }
             const name = k ? k.name : 'your realm';

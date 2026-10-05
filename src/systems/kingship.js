@@ -56,6 +56,9 @@ import { Relationships } from './relationships.js';
 import { Upbringing } from './upbringing.js';
 import { RealmWars } from './realmWars.js';
 import { Holdings } from './holdings.js';
+import { Economy } from '../world/economy.js';
+import { Seasons } from '../world/seasons.js';
+import { WorldEvents } from '../world/worldEvents.js';
 
 const OFFICES = ['chancellor', 'marshal', 'steward', 'spymaster', 'highPriest'];
 const TAX_STEPS = ['heavy', 'standard', 'light'];
@@ -95,7 +98,7 @@ export const Kingship = {
         return {
             council, edicts: {}, vassals: [], factions: [], revolt: null,
             mods: {}, peaceChance: 0, lastFeastDay: -999, nextId: 1, lastNewVassalDay: 0,
-            stats: { plotsRevealed: 0, revolts: 0, revoltsCrushed: 0, revoltsConceded: 0, edictsPassed: 0, feasts: 0, lordsBroken: 0, grants: 0 },
+            stats: { plotsRevealed: 0, revolts: 0, revoltsCrushed: 0, revoltsConceded: 0, edictsPassed: 0, feasts: 0, lordsBroken: 0, grants: 0, monopolyRevenue: 0, doleGrain: 0, doleGold: 0 },
             log: [], initialized: false,
         };
     },
@@ -489,6 +492,7 @@ export const Kingship = {
         Kingship._log(court, world, `${def.icon} The edict of ${def.label} is proclaimed.`);
         Throne._log(player, world, `${def.icon} ${k.name}: the edict of ${def.label} is proclaimed.`);
         Kingship.refresh(player, world);
+        if (def.monopoly) Kingship.syncCrownMonopolies(player, world);
         return { success: true, message: `${def.label} is now the law of ${k.name}. ${def.blurb || ''}`.trim() };
     },
 
@@ -501,6 +505,7 @@ export const Kingship = {
         Kingship._shiftFactions(player, def.factions, -_num(R.revokeFactionShare));
         if (!opts.quiet) Kingship._log(court, world, `${def.icon} The edict of ${def.label} is ${opts.lapse ? 'lapsed — the treasury could not pay for it' : 'repealed'}.`);
         Kingship.refresh(player, world);
+        if (def.monopoly) Kingship.syncCrownMonopolies(player, world);
         return { success: true, message: `${def.label} is ${opts.lapse ? 'lapsed' : 'repealed'}.` };
     },
 
@@ -1197,6 +1202,157 @@ export const Kingship = {
         };
     },
 
+    // ── Crown monopolies and the famine dole ────────────────────
+
+    /**
+     * Keep the crown's monopolies (settlement.monopolies[good], holder
+     * 'crown') in step with the Crown monopolies edict: every town of the
+     * realm gets one on each of the edict's goods (a guild's or a merchant
+     * house's charter already there stands), and they go when the edict is
+     * repealed, the town leaves the realm or the crown is lost (also swept by
+     * MerchantHouses.expireMonopolies). While they stand, the town's market
+     * charges `markup` more for those goods (Economy.marketPrice), no trading
+     * company may deal in them there (Economy.monopolyHolder), and what the
+     * player pays over the odds (Trading.buyGoods → monopoly.revenue) is
+     * swept into the royal treasury here. Deterministic; no RNG.
+     * @returns {{ set:number, cleared:number, revenue:number }}
+     */
+    syncCrownMonopolies(player, world) {
+        const res = { set: 0, cleared: 0, revenue: 0 };
+        if (!world || typeof world.getSettlementViews !== 'function') return res;
+        const court = Kingship.court(player);
+        const k = Kingship._realm(player, world);
+        const M = (Kingship.edicts().crown_monopolies || {}).monopoly || {};
+        const goods = Array.isArray(M.goods) ? M.goods : [];
+        const active = !!(court && k && court.edicts.crown_monopolies);
+        const day = _day(world);
+        let revenue = 0;
+        for (const s of world.getSettlementViews()) {
+            if (!s) continue;
+            const own = active && s.kingdom === k.id;
+            if (s.monopolies) {
+                for (const [good, m] of Object.entries(s.monopolies)) {
+                    if (!m || m.holder !== 'crown') continue;
+                    if (k && m.kingdomId === k.id) revenue += _num(m.revenue);
+                    m.revenue = 0;
+                    if (!own || !goods.includes(good)) { delete s.monopolies[good]; res.cleared++; }
+                }
+            }
+            if (own) {
+                for (const good of goods) {
+                    if (s.monopolies && s.monopolies[good]) continue;
+                    if (!s.monopolies) s.monopolies = {};
+                    s.monopolies[good] = {
+                        holder: 'crown', holderName: `the Crown of ${k.name}`, kingdomId: k.id,
+                        sinceDay: day, untilDay: null, markup: _num(M.markup), revenue: 0,
+                    };
+                    res.set++;
+                }
+            }
+            if (s.monopolies && !Object.keys(s.monopolies).length) delete s.monopolies;
+        }
+        res.revenue = Math.round(revenue);
+        if (res.revenue > 0 && k && court) {
+            k.treasury = _num(k.treasury) + res.revenue;
+            court.stats.monopolyRevenue += res.revenue;
+        }
+        return res;
+    },
+
+    /**
+     * How hungry a realm town ({ q, r, tile, settlement }) is today: 'famine'
+     * (a Hungry Months event reaches it), 'lean' (the lean weeks, or lean
+     * unrest still felt, with thin stores) or null.
+     */
+    hunger(world, entry) {
+        const s = entry && entry.settlement;
+        if (!s || !(_num(s.population) > 0)) return null;
+        const tile = entry.tile || (world && world.getTile ? world.getTile(entry.q, entry.r) : null);
+        const famine = ((world && world.activeEvents) || []).some(ev => ev && ev.id === 'famine' && WorldEvents._eventReaches(ev, tile));
+        if (famine) return 'famine';
+        const D = (Kingship.edicts().famine_dole || {}).dole || {};
+        const need = _num(D.reserveDays) || 5;
+        if ((Seasons.isLean(_day(world)) || _num(s.leanMood) > 0) && Economy.foodReserveDays(s) < need) return 'lean';
+        return null;
+    },
+
+    /**
+     * The famine dole, daily while the edict is law: every hungry town of the
+     * realm (Kingship.hunger) is shipped grain up to `reserveDays` of stores
+     * (`famineReserveDays` in a famine), at most `maxPerTown` a day, paid
+     * from the royal treasury at `grainPrice` a unit — no hunger, no cost.
+     * A fed town's lean-season unrest eases (`moodRelief` points a day of
+     * its settlement.leanMood given back as happiness); in a famine the dole
+     * also gives back the event's population loss (`growthRelief` × the
+     * KingdomAI drift) and steadies the realm (`stabilityRelief` per town).
+     * Relief scales with the share of the grain the treasury could pay for.
+     * Deterministic; no RNG. @returns {{ towns, grain, gold, short }}
+     */
+    _famineDole(player, world, court, k, out) {
+        const res = { towns: 0, grain: 0, gold: 0, short: false };
+        if (!court.edicts.famine_dole) return res;
+        const D = (Kingship.edicts().famine_dole || {}).dole || {};
+        const price = _num(D.grainPrice) || 0.6;
+        let stab = 0;
+        for (const e of Throne._settlementsOf(world, k)) {
+            const kind = Kingship.hunger(world, e);
+            if (!kind) continue;
+            const s = e.settlement;
+            if (!s.economy) Economy.initSettlement(s);
+            const reserve = Economy.foodReserveDays(s);
+            const days = kind === 'famine' ? (_num(D.famineReserveDays) || 8) : (_num(D.reserveDays) || 5);
+            // A day's market need, from what the stores are worth in days (Economy.foodReserveDays)
+            const perDay = Number.isFinite(reserve) && reserve > 0 && _num(s.economy.food) > 0
+                ? _num(s.economy.food) / reserve
+                : _num(s.population) * _num(Economy.FOOD && Economy.FOOD.perCapita) * 0.25;
+            let want = Math.ceil(Math.max(0, days - (Number.isFinite(reserve) ? reserve : days)) * perDay);
+            // In a famine the crown's bread goes out every day, stocked granary or not
+            if (kind === 'famine') want = Math.max(want, Math.ceil(perDay));
+            want = Math.min(want, _num(D.maxPerTown) || 60);
+            if (!(want > 0)) continue;
+            const afford = Math.floor(_num(k.treasury) / price);
+            const grain = Math.max(0, Math.min(want, afford));
+            if (want > afford) res.short = true;
+            if (grain > 0) {
+                const cost = Math.ceil(grain * price);
+                k.treasury = _num(k.treasury) - cost;
+                s.economy.food = _num(s.economy.food) + grain;
+                res.grain += grain;
+                res.gold += cost;
+            }
+            // Relief in proportion to the grain shipped
+            const share = grain / want;
+            if (share <= 0) continue;
+            res.towns++;
+            const mood = Math.min(_num(s.leanMood), (_num(D.moodRelief) || 1) * share);
+            if (mood > 0) {
+                s.leanMood = Math.round((_num(s.leanMood) - mood) * 100) / 100;
+                if (s.leanMood <= 0) delete s.leanMood;
+                s.happiness = Utils.clamp((typeof s.happiness === 'number' ? s.happiness : 50) + mood, 0, 100);
+            }
+            if (kind === 'famine') {
+                stab += _num(D.stabilityRelief) * share;
+                // KingdomAI drifts a town by eventGrowth × 0.001 a day; give the famine's toll back
+                const toll = -Math.min(0, WorldEvents.getModifier(world, 'populationGrowth', e.tile)) * 0.001;
+                const back = _num(s.population) * toll * _num(D.growthRelief) * share + _num(s.doleCarry);
+                const whole = Math.floor(back);
+                s.doleCarry = Math.round((back - whole) * 1000) / 1000;
+                if (whole > 0) s.population = _num(s.population) + whole;
+            }
+        }
+        if (stab > 0) k.stability = Utils.clamp(_num(k.stability) + Math.min(2, stab), 0, 100);
+        court.stats.doleGrain += res.grain;
+        court.stats.doleGold += res.gold;
+        if (res.short && !court.doleShortNoted) {
+            court.doleShortNoted = true;
+            Kingship._note(out, '🍞', 'The Dole Runs Short', `The royal treasury cannot buy grain enough for every hungry town of ${k.name}.`, 'warning');
+        } else if (!res.short) {
+            court.doleShortNoted = false;
+        }
+        court.lastDole = { day: _day(world), towns: res.towns, grain: res.grain, gold: res.gold };
+        return res;
+    },
+
     // ── Daily ───────────────────────────────────────────────────
 
     _validateCouncil(player, world, court, out) {
@@ -1396,6 +1552,8 @@ export const Kingship = {
         }
         Kingship._validateCouncil(player, world, court, out);
         Kingship._payUpkeep(player, world, court, k, out);
+        Kingship._famineDole(player, world, court, k, out);
+        Kingship.syncCrownMonopolies(player, world);
         Kingship._faithDay(player, world, court, k);
         Kingship._revealPlots(player, world, court, out);
         Kingship._resolveUltimatums(player, world, court, k, out);

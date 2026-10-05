@@ -254,6 +254,15 @@ Object.assign(ActionMenu, {
                 ['🔥', r.rebellionsCrushed, 'rebellions crushed'], ['🏚️', r.holdingsLost, 'holdings lost'],
             ].filter(x => x[1] > 0);
             if (deeds.length) html += `<div style="font-size:11px; color:#bbb; margin-top:2px;">${deeds.map(([i, v, l]) => `<span title="${l}">${i} ${v} ${l}</span>`).join(' · ')}</div>`;
+            // The royal court this ruler kept, and crowns lost in the reign
+            const c = r.court || {};
+            const court = [
+                ['📜', c.edictsPassed, 'edicts proclaimed'], ['🍖', c.feasts, 'royal feasts'], ['🗝️', c.plotsRevealed, 'plots uncovered'],
+                ['👑', c.revoltsCrushed, 'revolts crushed'], ['🥀', c.revoltsConceded, 'revolts conceded'], ['⛓️', c.lordsBroken, 'lords broken'],
+                ['💎', c.monopolyRevenue, 'g from crown monopolies'], ['🍞', c.doleGrain, 'grain given in the dole'],
+            ].filter(x => x[1] > 0);
+            if (court.length) html += `<div style="font-size:11px; color:#c9b27a;">🏛️ ${court.map(([i, v, l]) => `${i} ${v} ${l}`).join(' · ')}</div>`;
+            for (const lost of r.crownsLost || []) html += `<div style="font-size:11px; color:#c88;">👑 The crown of ${_esc(lost.kingdomName)} ${lost.how === 'abdicated' ? 'set down' : 'lost'} after ${lost.days} days</div>`;
             if (r.prestigeGained) html += `<div style="font-size:11px; color:#bbb;">⭐ ${r.prestigeGained > 0 ? '+' : ''}${r.prestigeGained} Prestige</div>`;
             for (const n of r.notableRulings || []) html += `<div style="font-size:11px; color:#aab;">⚖️ ${_esc(n.text)}</div>`;
             for (const h of r.highlights || []) html += `<div style="font-size:11px; color:#999;">· ${_esc(h.text)}</div>`;

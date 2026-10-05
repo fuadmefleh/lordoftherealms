@@ -999,6 +999,7 @@ Object.assign(UI.prototype, {
                         <div style="display: flex; gap: 8px; align-items: center; font-size: 11px;">
                             <span style="background: rgba(255,215,0,0.1); padding: 2px 6px; border-radius: 4px; color: var(--gold);">Rewards: ${rewards}</span>
                             ${quest.difficulty ? `<span style="color: var(--text-muted); text-transform: capitalize;">${quest.difficulty}</span>` : ''}
+                            ${typeof quest.expiresDay === 'number' ? `<span style="color: var(--text-muted);" title="Stale postings come down; the board is refreshed weekly">Posted until day ${quest.expiresDay}</span>` : ''}
                             <button data-ui-act="acceptQuest" data-ui-args='["${quest.id}"]' style="margin-left: auto; padding: 4px 12px; border: none; border-radius: 4px; background: linear-gradient(135deg, var(--gold-dark), var(--gold)); color: #1a1207; font-weight: 700; cursor: pointer;">Accept</button>
                         </div>
                     </div>
@@ -1011,7 +1012,7 @@ Object.assign(UI.prototype, {
         // Completed quests
         if (player.quests && player.quests.completed && player.quests.completed.length > 0) {
             html += `<h4 style="margin-top: 24px; color:var(--text-primary); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">Completed (${player.quests.completed.length})</h4>`;
-            html += '<div style="font-size: 13px; color: var(--text-secondary);">Check your achievements panel for history of completed quests.</div>';
+            html += '<div style="font-size: 13px; color: var(--text-secondary);">Journal → Deeds &amp; Records lists every quest completed and your achievements.</div>';
         }
 
         this.showCustomPanel('Quest Journal', html);

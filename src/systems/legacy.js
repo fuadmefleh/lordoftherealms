@@ -186,6 +186,18 @@ export const Legacy = {
             prestigeGained: Math.round(now.prestige - _num(was.prestige)),
             highlights,
         };
+        // The royal court this ruler kept (Deeds' kingship tallies include
+        // crowns since lost — house.crownLedger — so a deposed or succeeded
+        // king's record survives), and the crowns lost in this reign
+        const deed = k => Math.max(0, _num(now.deeds && now.deeds[k]) - _num(was.deeds && was.deeds[k]));
+        rec.court = {};
+        for (const k of ['edictsPassed', 'feasts', 'plotsRevealed', 'revolts', 'revoltsCrushed', 'revoltsConceded', 'lordsBroken', 'monopolyRevenue', 'doleGrain']) {
+            const v = deed(`kingship.${k}`);
+            if (v) rec.court[k] = v;
+        }
+        rec.crownsLost = (((house.crownLedger || {}).records) || [])
+            .filter(c => _num(c.until) >= r.startDay && _num(c.until) <= day)
+            .map(c => ({ kingdomName: c.kingdomName, how: c.how, days: c.days }));
         rec.epithet = Legacy.epithet(rec);
         rec.score = Legacy.reignScore(rec);
         return rec;

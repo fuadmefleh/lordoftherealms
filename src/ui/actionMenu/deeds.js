@@ -4,6 +4,8 @@
 // Logic lives in systems/deeds.js; this panel presents it.
 import { ActionMenu } from './_ref.js';
 import { Deeds } from '../../systems/deeds.js';
+import { Achievements } from '../../systems/achievements.js';
+import { Heralds } from '../../systems/heralds.js';
 import { Foraging, Hunting } from '../../player/foraging.js';
 
 const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 6px 10px; margin: 6px 0;';
@@ -46,6 +48,13 @@ Object.assign(ActionMenu, {
                 const reign = r.reign == null ? '<span style="color:#666;">now</span>' : _fmt(r.reign);
                 html += `<div style="${ROW}"><span>${_esc(r.label)}</span><span style="display:flex; gap:12px;"><span style="width:56px; text-align:right; color:#ddd;">${_fmt(r.lifetime)}</span><span style="width:56px; text-align:right; color:${r.reign ? '#7fd07f' : '#888'};">${reign}</span></span></div>`;
             }
+            if (sec.id === 'heralds') {
+                // What the heralds cried lately — the toast is gone, the news isn't
+                // (only news that has reached the player, including any the daily throttle kept quiet)
+                for (const p of Heralds.recent(player, 40).filter(x => x.delivered).slice(0, 5)) {
+                    html += `<div style="font-size:11px; color:#aab; padding:1px 0;">· Day ${_fmt(p.day || 0)}: ${_esc(p.text)}</div>`;
+                }
+            }
             if (sec.id === 'land') {
                 html += _craftLine('🌿 Forager', Foraging.skill(player));
                 html += _craftLine('🏹 Hunter', Hunting.skill(player));
@@ -53,6 +62,22 @@ Object.assign(ActionMenu, {
             html += '</div>';
         }
         if (quiet.length) html += `<div style="color:#777; font-size:11px; margin-top:6px;">No record yet: ${quiet.map(_esc).join(' · ')}</div>`;
+
+        // Achievements, by tier (systems/achievements.js)
+        const ach = Achievements.listing(player);
+        html += `<div style="${CARD}"><div style="${HEAD}">🏆 Achievements — ${ach.progress.unlocked}/${ach.progress.total} (${ach.progress.percentage}%)</div>`;
+        for (const t of ach.tiers) {
+            const won = t.items.filter(i => i.unlocked);
+            html += `<div style="font-size:11px; color:#c9b27a; margin-top:3px; text-transform:capitalize;">${_esc(t.tier)} · ${won.length}/${t.items.length}</div>`;
+            for (const i of won) html += `<div style="${ROW}"><span>${i.icon} ${_esc(i.name)} <span style="color:#888;">— ${_esc(i.description)}</span></span><span style="color:#888;">${i.day != null ? `day ${_fmt(i.day)}` : ''}</span></div>`;
+        }
+        // The quests finished, by name
+        const done = (player.quests && player.quests.completed) || [];
+        if (done.length) {
+            html += `<div style="font-size:11px; color:#c9b27a; margin-top:3px;">📜 Quests completed · ${done.length}</div>`;
+            html += `<div style="font-size:11px; color:#aaa;">${done.slice(-30).map(q => _esc(q.title || q.id)).join(' · ')}</div>`;
+        }
+        html += '</div>';
         html += '</div>';
         game.ui.showCustomPanel('📖 Deeds & Records', html);
     },

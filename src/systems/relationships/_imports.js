@@ -4,3 +4,5 @@ export { Utils } from '../../core/utils.js';
 export { Characters } from '../../world/characters.js';
 export { House } from '../house.js';
 export { Traits } from '../traits.js';
+export { Upbringing } from '../upbringing.js';
+export { Legacy } from '../legacy.js';

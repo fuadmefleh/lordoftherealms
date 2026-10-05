@@ -1,0 +1,338 @@
+{
+    "_comment": "Heirs, upbringing and legacy. Read lazily by systems/upbringing.js, systems/heirs.js and systems/legacy.js through DataLoader.upbringing. Focus/tutor rates are per year of childhood (relationships.json heirSettings.daysPerYear days). Seeds are points toward an earned trait (data/traits.json ids); a seed at or above config.seedThreshold is a childhood trait, and childhood traits become real earned traits at coming of age.",
+    "config": {
+        "startAge": 6,
+        "comeOfAgeAge": 16,
+        "growthCadence": 30,
+        "eventCadence": 40,
+        "eventChance": 0.45,
+        "pendingDays": 20,
+        "unfocusedSkillRate": 0.12,
+        "statCap": 14,
+        "skillCap": 8,
+        "seedThreshold": 3,
+        "seedCap": 12,
+        "maxChildhoodTraits": 3,
+        "parentRubOffChancePerYear": 0.35,
+        "parentRubOff": 1,
+        "mismatchTutorFactor": 0.3,
+        "companionQuality": 1.2,
+        "companionMatchQuality": 1.7,
+        "historyCap": 12,
+        "noticeCap": 20,
+        "chronicleNotable": true
+    },
+    "focuses": {
+        "martial": {
+            "name": "Martial", "icon": "⚔️",
+            "blurb": "Arms, horses and the drill yard. Raises strength, combat and leadership; breeds bravery.",
+            "stats": { "strength": 0.4 },
+            "skills": { "combat": 0.5, "leadership": 0.2 },
+            "seeds": { "brave": 0.6 },
+            "role": "marshal"
+        },
+        "stewardship": {
+            "name": "Stewardship", "icon": "💰",
+            "blurb": "Ledgers, granaries and estates. Raises intelligence, commerce and leadership.",
+            "stats": { "intelligence": 0.25, "luck": 0.1 },
+            "skills": { "commerce": 0.5, "leadership": 0.25 },
+            "seeds": { "honest": 0.3, "greedy": 0.2 },
+            "role": "steward"
+        },
+        "diplomacy": {
+            "name": "Diplomacy", "icon": "🤝",
+            "blurb": "Manners, letters and the art of the feast. Raises charisma and diplomacy.",
+            "stats": { "charisma": 0.4 },
+            "skills": { "diplomacy": 0.5, "leadership": 0.15 },
+            "seeds": { "generous": 0.3, "honest": 0.3 },
+            "role": "chancellor"
+        },
+        "learning": {
+            "name": "Learning", "icon": "📜",
+            "blurb": "Tutors, libraries and the stars. Raises intelligence, cartography and diplomacy; breeds scholars.",
+            "stats": { "intelligence": 0.45 },
+            "skills": { "cartography": 0.4, "diplomacy": 0.2, "commerce": 0.1 },
+            "seeds": { "scholar": 0.6 },
+            "role": "chancellor"
+        },
+        "intrigue": {
+            "name": "Intrigue", "icon": "🦊",
+            "blurb": "Whispers, ciphers and locked doors. Raises stealth and wits; breeds cunning (and lies).",
+            "stats": { "intelligence": 0.2, "luck": 0.2 },
+            "skills": { "stealth": 0.5, "diplomacy": 0.15 },
+            "seeds": { "cunning": 0.6, "deceitful": 0.15 },
+            "role": "spymaster"
+        },
+        "piety": {
+            "name": "Piety", "icon": "🙏",
+            "blurb": "Chapel, scripture and alms. Raises faith and charisma; breeds piety and mercy.",
+            "stats": { "faith": 0.45, "charisma": 0.1 },
+            "skills": { "diplomacy": 0.25, "leadership": 0.1 },
+            "seeds": { "pious": 0.6, "merciful": 0.25 }
+        }
+    },
+    "tutors": [
+        { "id": "hedge_tutor", "name": "Hedge Tutor", "icon": "🧑‍🏫", "focus": null, "quality": 1.25, "hireCost": 40, "wage": 6, "blurb": "A poor scholar who teaches a little of everything." },
+        { "id": "master_at_arms", "name": "Master-at-Arms", "icon": "🛡️", "focus": "martial", "quality": 1.8, "hireCost": 150, "wage": 20, "seeds": { "brave": 0.3 }, "blurb": "A grizzled veteran of a dozen campaigns." },
+        { "id": "court_steward", "name": "Retired Steward", "icon": "📒", "focus": "stewardship", "quality": 1.8, "hireCost": 140, "wage": 18, "seeds": { "honest": 0.2 }, "blurb": "Ran a duke's household for thirty years." },
+        { "id": "court_envoy", "name": "Court Envoy", "icon": "🎩", "focus": "diplomacy", "quality": 1.8, "hireCost": 160, "wage": 20, "seeds": { "generous": 0.2 }, "blurb": "Has carried treaties between three crowns." },
+        { "id": "court_scholar", "name": "Court Scholar", "icon": "🔭", "focus": "learning", "quality": 1.9, "hireCost": 170, "wage": 18, "seeds": { "scholar": 0.3 }, "blurb": "Corresponds with every library in the realms." },
+        { "id": "whisperer", "name": "Whisperer", "icon": "🕯️", "focus": "intrigue", "quality": 1.8, "hireCost": 180, "wage": 22, "seeds": { "cunning": 0.3, "deceitful": 0.15 }, "blurb": "Nobody remembers hiring them. Everybody remembers what they knew." },
+        { "id": "chaplain", "name": "House Chaplain", "icon": "⛪", "focus": "piety", "quality": 1.8, "hireCost": 120, "wage": 14, "seeds": { "pious": 0.3 }, "blurb": "Gentle, patient, and absolutely certain." }
+    ],
+    "companionOccupations": {
+        "knight": "martial", "guard": "martial", "hunter": "martial", "general": "martial", "blacksmith": "martial",
+        "merchant": "stewardship", "merchant prince": "stewardship", "miller": "stewardship", "farmer": "stewardship", "artisan": "stewardship", "baker": "stewardship", "tavern keeper": "stewardship",
+        "diplomat": "diplomacy", "noble": "diplomacy", "weaver": "diplomacy",
+        "scholar": "learning", "court scholar": "learning", "healer": "learning", "herbalist": "learning",
+        "spymaster": "intrigue", "woodcutter": "intrigue", "shepherd": "intrigue",
+        "priest": "piety"
+    },
+    "companionValueSeeds": {
+        "honour": { "honest": 0.3, "brave": 0.15 },
+        "piety": { "pious": 0.35 },
+        "greed": { "greedy": 0.3 },
+        "compassion": { "merciful": 0.3, "generous": 0.15 },
+        "ambition": { "cunning": 0.25 },
+        "freedom": { "wanderer": 0.3 },
+        "loyalty_kingdom": { "honest": 0.15 },
+        "loyalty_faith": { "zealous": 0.3 }
+    },
+    "events": [
+        {
+            "id": "bully", "title": "The Bully", "icon": "👊", "minAge": 6, "maxAge": 12, "weight": 1.2,
+            "focusWeight": { "martial": 1.5, "piety": 1.2 },
+            "text": "{child} comes home with a split lip. An older page has been tormenting {them} in the yard for weeks.",
+            "default": "counsel",
+            "choices": [
+                { "id": "fight", "label": "Teach {them} to hit back", "result": "{child} bloodies the bully's nose. Nobody tries again.", "effects": { "skills": { "combat": 1 }, "seeds": { "brave": 2 } } },
+                { "id": "counsel", "label": "Counsel forgiveness", "result": "{child} offers the bully a hand. Some laugh; others remember.", "effects": { "stats": { "charisma": 1 }, "seeds": { "merciful": 2 } } },
+                { "id": "punish", "label": "Have the bully's family punished", "cost": 20, "result": "The page's father loses his post. {child} learns what power is for.", "effects": { "seeds": { "cruel": 2, "cunning": 0.5 } } }
+            ]
+        },
+        {
+            "id": "fever", "title": "A Fever", "icon": "🤒", "minAge": 6, "maxAge": 15, "weight": 1,
+            "text": "{child} burns with a fever that will not break.",
+            "default": "rest",
+            "choices": [
+                { "id": "physician", "label": "Send for a physician", "cost": 60, "result": "The physician's draughts do their work. {child} recovers.", "effects": {} },
+                { "id": "pray", "label": "Keep vigil and pray", "result": "The family prays through the night.", "effects": { "seeds": { "pious": 1.5 }, "stats": { "faith": 1 } },
+                  "risk": { "chance": 0.3, "result": "The fever breaks, but leaves {child} frail.", "effects": { "maxHealth": -10 } } },
+                { "id": "rest", "label": "Let it run its course", "result": "{child} sweats it out.", "effects": {},
+                  "risk": { "chance": 0.35, "result": "The fever leaves {child} weakened for life.", "effects": { "maxHealth": -15, "stats": { "strength": -1 } }, "deathChance": 0.06, "deathResult": "The fever takes {child}. The House mourns." } }
+            ]
+        },
+        {
+            "id": "prodigy", "title": "A Prodigy Moment", "icon": "✨", "minAge": 7, "maxAge": 15, "weight": 0.8,
+            "text": "{child} astonishes the household: {focusFeat}",
+            "default": "praise",
+            "choices": [
+                { "id": "praise", "label": "Praise {them} before the court", "result": "{child} glows with pride.", "effects": { "focusBoost": 2, "seeds": { "beloved": 0.5 } } },
+                { "id": "push", "label": "Push {them} harder", "result": "{child} works twice as hard, and smiles half as often.", "effects": { "focusBoost": 3, "seeds": { "cruel": 0.5 } } },
+                { "id": "humble", "label": "Keep {them} humble", "result": "{child} learns that talent is a duty, not a crown.", "effects": { "focusBoost": 1, "seeds": { "honest": 1.5 } } }
+            ]
+        },
+        {
+            "id": "scandal", "title": "A Scandal", "icon": "🗞️", "minAge": 11, "maxAge": 15, "weight": 0.8,
+            "text": "Servants whisper that {child} was caught in the cellars with a stable hand and a stolen cask of wine.",
+            "default": "deny",
+            "choices": [
+                { "id": "punish", "label": "Punish {them} publicly", "result": "{child} is whipped before the household. The gossip dies; so does some of {their} warmth.", "effects": { "seeds": { "honest": 1, "cruel": 0.5 }, "stats": { "charisma": -1 } } },
+                { "id": "deny", "label": "Deny everything", "result": "The House denies it. {child} learns that a lie told firmly is a kind of truth.", "effects": { "seeds": { "deceitful": 1.5, "cunning": 1 } } },
+                { "id": "laugh", "label": "Laugh it off", "result": "You laugh, and the court laughs with you. {child} develops a taste for wine.", "effects": { "seeds": { "drunkard": 1.5, "beloved": 0.5 }, "prestige": -2 } }
+            ]
+        },
+        {
+            "id": "duel", "title": "A Duel Challenge", "icon": "🤺", "minAge": 12, "maxAge": 15, "weight": 0.9,
+            "focusWeight": { "martial": 2 },
+            "text": "A rival lord's son challenges {child} to a duel with blunted blades before the whole tourney field.",
+            "default": "decline",
+            "choices": [
+                { "id": "accept", "label": "Let {them} accept", "result": "Steel rings across the field.",
+                  "contest": { "stat": "strength", "skill": "combat", "base": 0.25, "per": 0.05,
+                      "win": { "result": "{child} wins! The crowd roars the House's name.", "effects": { "seeds": { "brave": 2, "champion": 1.5 }, "prestige": 3, "renown": 3 } },
+                      "lose": { "result": "{child} is beaten in the dust, but rises with a scar and a grudge.", "effects": { "seeds": { "brave": 1 }, "maxHealth": -5 } } } },
+                { "id": "champion", "label": "Name a champion in {their} place", "cost": 30, "result": "A hired sword fights for {child}. People notice.", "effects": { "seeds": { "craven": 1.5, "cunning": 0.5 } } },
+                { "id": "decline", "label": "Decline politely", "result": "{child} bows out with grace.", "effects": { "seeds": { "craven": 0.5 }, "stats": { "charisma": 1 } } }
+            ]
+        },
+        {
+            "id": "calling", "title": "A Religious Calling", "icon": "⛪", "minAge": 9, "maxAge": 15, "weight": 0.8,
+            "focusWeight": { "piety": 2.5 },
+            "text": "{child} says {they} dreamed of a burning light and wishes to spend the summer at a monastery.",
+            "default": "allow",
+            "choices": [
+                { "id": "allow", "label": "Let {them} go", "result": "{child} returns quiet, certain, and changed.", "effects": { "stats": { "faith": 2 }, "seeds": { "pious": 2.5 } } },
+                { "id": "zeal", "label": "Send {them} to the fiercest preachers", "result": "{child} returns with fire in {their} eyes and opinions about heretics.", "effects": { "stats": { "faith": 2 }, "seeds": { "zealous": 3 } } },
+                { "id": "forbid", "label": "Forbid it: duty first", "result": "{child} stays. The light fades, mostly.", "effects": { "focusBoost": 1, "seeds": { "cunning": 0.5 } } }
+            ]
+        },
+        {
+            "id": "first_hunt", "title": "The First Hunt", "icon": "🦌", "minAge": 10, "maxAge": 14, "weight": 0.9,
+            "focusWeight": { "martial": 1.5 },
+            "text": "{child} rides out on {their} first hunt. A wounded boar breaks from the brush.",
+            "default": "spare",
+            "choices": [
+                { "id": "kill", "label": "Urge {them} to finish it", "result": "{child} plants the spear.",
+                  "contest": { "stat": "strength", "skill": "combat", "base": 0.45, "per": 0.05,
+                      "win": { "result": "{child} kills the boar and is blooded by the huntsmen.", "effects": { "seeds": { "brave": 1.5 }, "skills": { "combat": 1 } } },
+                      "lose": { "result": "The boar's tusk opens {child}'s leg before the huntsmen kill it.", "effects": { "maxHealth": -8, "seeds": { "brave": 0.5 } } } } },
+                { "id": "spare", "label": "Let the huntsmen take it", "result": "{child} watches, and learns.", "effects": { "skills": { "leadership": 1 } } },
+                { "id": "wander", "label": "Let {them} chase the deer into the hills", "result": "{child} comes home two days late, scratched and delighted.", "effects": { "seeds": { "wanderer": 2 }, "skills": { "cartography": 1 } } }
+            ]
+        },
+        {
+            "id": "beggar", "title": "A Beggar at the Gate", "icon": "🥣", "minAge": 6, "maxAge": 13, "weight": 1,
+            "text": "{child} finds a starving family at the castle gate and asks what should be done.",
+            "default": "work",
+            "choices": [
+                { "id": "feed", "label": "Let {them} feed them from the kitchens", "cost": 10, "result": "{child} serves the bread {themself}.", "effects": { "seeds": { "generous": 2, "merciful": 1 }, "karma": 2 } },
+                { "id": "work", "label": "Offer the father work", "result": "{child} learns that charity can be a bargain.", "effects": { "skills": { "commerce": 1 }, "seeds": { "honest": 1 } } },
+                { "id": "chase", "label": "Have the guards chase them off", "result": "{child} watches them go and says nothing.", "effects": { "seeds": { "greedy": 1.5, "cruel": 0.5 } } }
+            ]
+        },
+        {
+            "id": "library", "title": "The Locked Library", "icon": "📚", "minAge": 8, "maxAge": 15, "weight": 0.8,
+            "focusWeight": { "learning": 2, "intrigue": 1.5 },
+            "text": "{child} has been picking the lock of the old library at night to read forbidden histories.",
+            "default": "reward",
+            "choices": [
+                { "id": "reward", "label": "Give {them} the key", "result": "{child} disappears into the stacks for a season.", "effects": { "stats": { "intelligence": 1 }, "seeds": { "scholar": 2 } } },
+                { "id": "praise_lock", "label": "Praise the lockpicking", "result": "{child} grins. Locks will never stop {them} again.", "effects": { "skills": { "stealth": 1 }, "seeds": { "cunning": 2 } } },
+                { "id": "scold", "label": "Scold {them} for sneaking", "result": "{child} apologises and, for once, means it.", "effects": { "seeds": { "honest": 1.5 } } }
+            ]
+        },
+        {
+            "id": "dice", "title": "Dice in the Stables", "icon": "🎲", "minAge": 10, "maxAge": 15, "weight": 0.7,
+            "text": "{child} has been winning the stable boys' wages at dice. Some say the dice are loaded.",
+            "default": "return",
+            "choices": [
+                { "id": "return", "label": "Make {them} return the coin", "result": "{child} hands it back, red-faced.", "effects": { "seeds": { "honest": 1.5, "generous": 0.5 } } },
+                { "id": "keep", "label": "Let {them} keep the winnings", "result": "{child} keeps the coin and the habit.", "effects": { "stats": { "luck": 1 }, "seeds": { "gambler": 2, "greedy": 0.5 } } },
+                { "id": "teach", "label": "Show {them} how the cheat works", "result": "{child} learns how a trick is done, and how to spot one.", "effects": { "skills": { "stealth": 1 }, "seeds": { "deceitful": 1, "cunning": 1 } } }
+            ]
+        },
+        {
+            "id": "mock_court", "title": "The Children's Court", "icon": "⚖️", "minAge": 8, "maxAge": 13, "weight": 0.8,
+            "focusWeight": { "diplomacy": 2, "stewardship": 1.5 },
+            "text": "The castle children hold a mock court, and {child} is chosen to judge a quarrel over a stolen puppy.",
+            "default": "fair",
+            "choices": [
+                { "id": "fair", "label": "Encourage a fair hearing", "result": "{child} hears both sides and finds a compromise.", "effects": { "skills": { "diplomacy": 1 }, "seeds": { "honest": 1.5 } } },
+                { "id": "harsh", "label": "Encourage a harsh sentence", "result": "{child} sentences the thief to the stocks. The other children fear {them} a little.", "effects": { "skills": { "leadership": 1 }, "seeds": { "cruel": 1.5 } } },
+                { "id": "bribe", "label": "Suggest {they} take the puppy's biscuits as a fee", "result": "{child} rules for whoever brings sweets.", "effects": { "skills": { "commerce": 1 }, "seeds": { "greedy": 1.5 } } }
+            ]
+        },
+        {
+            "id": "sea_dream", "title": "Dreams of the Sea", "icon": "⚓", "minAge": 9, "maxAge": 15, "weight": 0.6,
+            "text": "{child} spends every spare hour at the docks, begging captains for stories, and asks to sail with the next ship.",
+            "default": "stay",
+            "choices": [
+                { "id": "sail", "label": "Let {them} sail a short voyage", "cost": 25, "result": "{child} comes back sunburnt, salt-crusted and full of charts.", "effects": { "skills": { "cartography": 1 }, "seeds": { "sea_wolf": 2.5, "wanderer": 1 } } },
+                { "id": "stay", "label": "Keep {them} home", "result": "{child} sulks for a week, then returns to {their} studies.", "effects": { "focusBoost": 1 } }
+            ]
+        },
+        {
+            "id": "sibling_feud", "title": "A Sibling Feud", "icon": "⚔️", "minAge": 8, "maxAge": 15, "weight": 0.9, "requires": { "siblings": true },
+            "text": "{child} and {sibling} have come to blows over who will one day rule the House.",
+            "default": "reconcile",
+            "choices": [
+                { "id": "reconcile", "label": "Make them swear friendship", "result": "The siblings embrace, if stiffly.", "effects": { "skills": { "diplomacy": 1 }, "seeds": { "honest": 1 } } },
+                { "id": "favour", "label": "Take {child}'s side", "result": "{child} wins. {sibling} does not forget.", "effects": { "skills": { "leadership": 1 }, "seeds": { "cunning": 1 }, "siblingSeeds": { "cunning": 1.5 } } },
+                { "id": "let_fight", "label": "Let them settle it themselves", "result": "Only one of them walks away smiling.",
+                  "contest": { "stat": "strength", "skill": "combat", "base": 0.5, "per": 0.03,
+                      "win": { "result": "{child} comes out on top.", "effects": { "seeds": { "brave": 1, "cruel": 0.5 } } },
+                      "lose": { "result": "{sibling} gets the better of {child}.", "effects": { "seeds": { "craven": 0.5, "cunning": 1 } } } } }
+            ]
+        },
+        {
+            "id": "stranger_mentor", "title": "A Wandering Mentor", "icon": "🧙", "minAge": 9, "maxAge": 15, "weight": 0.6,
+            "text": "A grey-cloaked traveller offers to teach {child} for a season in exchange for room and board.",
+            "default": "decline",
+            "choices": [
+                { "id": "accept", "label": "Take the stranger in", "cost": 20, "result": "The stranger teaches strange things, and leaves without a word.", "effects": { "focusBoost": 2, "stats": { "intelligence": 1 }, "seeds": { "wanderer": 1 } },
+                  "risk": { "chance": 0.25, "result": "The stranger leaves with the House silver.", "effects": { "gold": -60, "seeds": { "cunning": 1 } } } },
+                { "id": "decline", "label": "Send them on their way", "result": "The stranger shrugs and walks on.", "effects": {} }
+            ]
+        },
+        {
+            "id": "lie_caught", "title": "Caught in a Lie", "icon": "🎭", "minAge": 6, "maxAge": 12, "weight": 0.9,
+            "focusWeight": { "intrigue": 1.5 },
+            "text": "{child} swore that the broken vase was the cat's doing. The cat was outside all day.",
+            "default": "talk",
+            "choices": [
+                { "id": "talk", "label": "Talk about honesty", "result": "{child} confesses, tearfully.", "effects": { "seeds": { "honest": 2 } } },
+                { "id": "admire", "label": "Admire the nerve", "result": "{child} learns that a good story is worth more than a vase.", "effects": { "seeds": { "deceitful": 1.5, "cunning": 1 } } },
+                { "id": "thrash", "label": "Thrash {them}", "result": "{child} never lies to you again. To others, more carefully.", "effects": { "seeds": { "cruel": 0.5, "deceitful": 0.5 }, "stats": { "strength": 1 } } }
+            ]
+        },
+        {
+            "id": "festival_feast", "title": "The Harvest Feast", "icon": "🍖", "minAge": 8, "maxAge": 15, "weight": 0.7,
+            "focusWeight": { "diplomacy": 1.8 },
+            "text": "{child} asks to host the village children at the harvest feast with {their} own purse.",
+            "default": "refuse",
+            "choices": [
+                { "id": "allow", "label": "Pay for a grand feast", "cost": 40, "result": "The village sings {child}'s name for weeks.", "effects": { "stats": { "charisma": 1 }, "seeds": { "beloved": 2, "generous": 1 }, "prestige": 1 } },
+                { "id": "modest", "label": "Let {them} host a modest one", "cost": 10, "result": "A pleasant evening. {child} learns to count the cost.", "effects": { "skills": { "commerce": 1, "diplomacy": 1 } } },
+                { "id": "refuse", "label": "Refuse: the House is not a tavern", "result": "{child} hoards {their} purse instead.", "effects": { "seeds": { "greedy": 1 } } }
+            ]
+        }
+    ],
+    "focusFeats": {
+        "martial": "{child} disarmed the master-at-arms in a practice bout.",
+        "stewardship": "{child} found a 200-gold error in the steward's ledgers.",
+        "diplomacy": "{child} talked a visiting envoy out of a sulk and into a toast.",
+        "learning": "{child} corrected the court astronomer's star chart.",
+        "intrigue": "{child} learned the castle's secret passages, all of them.",
+        "piety": "{child} recited the whole Book of Hours from memory.",
+        "none": "{child} learned to read, ride and reckon in a single summer."
+    },
+    "placements": {
+        "allianceDowry": 200,
+        "allianceReputation": 15,
+        "allianceMinReputation": 0,
+        "alliancePrestige": 4,
+        "royalClaim": 15,
+        "royalReputation": 20,
+        "wardDays": 120,
+        "wardReputation": 10,
+        "wardSkills": { "leadership": 1, "diplomacy": 1 },
+        "wardLordTraits": {
+            "brave": "brave", "brilliant_strategist": "brave", "cowardly": "craven",
+            "devout": "pious", "pious": "pious", "mystic": "zealous",
+            "cruel": "cruel", "tyrannical": "cruel", "wrathful": "cruel",
+            "greedy": "greedy", "frugal": "greedy",
+            "cunning": "cunning", "silver_tongue": "cunning", "paranoid": "cunning",
+            "scholar": "scholar", "wise": "scholar",
+            "just_ruler": "honest", "healer": "merciful", "patron_of_arts": "generous",
+            "drunkard": "drunkard", "decadent": "drunkard", "explorer": "wanderer", "charismatic": "beloved"
+        }
+    },
+    "legacy": {
+        "weights": {
+            "generation": 40, "yearRuled": 2, "prestige": 1, "crown": 150, "title": 20, "settlement": 25,
+            "battle": 3, "quest": 2, "ambitionMilestone": 10, "ambitionCapstone": 60, "delveCleared": 6,
+            "rivalBested": 5, "petitionRuled": 1, "child": 5, "earnedTrait": 4, "nobleMarriage": 10
+        },
+        "ranks": [
+            { "min": 0, "label": "A Forgotten Line", "icon": "🕯️" },
+            { "min": 150, "label": "A Minor House", "icon": "🛡️" },
+            { "min": 400, "label": "A Respected House", "icon": "🏰" },
+            { "min": 900, "label": "A Great House", "icon": "👑" },
+            { "min": 1800, "label": "A Legendary Dynasty", "icon": "🌟" }
+        ],
+        "epithets": [
+            { "field": "crownsWon", "min": 1, "epithet": "the Crowned" },
+            { "field": "settlements", "min": 3, "epithet": "the Conqueror" },
+            { "field": "battles", "min": 15, "epithet": "the Warlike" },
+            { "field": "delvesCleared", "min": 5, "epithet": "the Delver" },
+            { "field": "rivalsBested", "min": 5, "epithet": "the Duellist" },
+            { "field": "petitionsRuled", "min": 25, "epithet": "the Judge" },
+            { "field": "quests", "min": 20, "epithet": "the Questing" },
+            { "field": "years", "min": 40, "epithet": "the Old" }
+        ],
+        "highlightTags": ["throne", "ambition", "capstone", "war", "court", "companion", "marriage", "upbringing", "rival", "succession", "heirs"],
+        "highlightCap": 8,
+        "notableRulingCap": 3
+    }
+}

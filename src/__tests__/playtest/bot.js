@@ -28,6 +28,7 @@ import { Throne } from '../../systems/throne.js';
 import { Espionage } from '../../systems/espionage.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Companions } from '../../systems/companions.js';
+import { Upbringing } from '../../systems/upbringing.js';
 import { travelTo } from './harness.js';
 
 const FOOD = ['grain', 'bread'];
@@ -422,6 +423,24 @@ function chooseDestination(game) {
     return near.length ? Utils.randPick(near) : null;
 }
 
+/** Raise the children: a focus each, a cheap tutor when rich, answer their dilemmas. */
+function family(game, stats) {
+    const { player, world } = game;
+    const focuses = Object.keys(Upbringing.focuses());
+    (player.children || []).forEach((child, i) => {
+        if (child.isAlive === false) return;
+        const up = Upbringing.ensure(child);
+        if (up.comeOfAge) return;
+        if (!up.focus && focuses.length && Upbringing.setFocus(player, child.id, focuses[i % focuses.length], world).success) count(stats, 'focusesSet');
+        if (!up.tutor && player.gold > 2500 && Upbringing.hireCourtTutor(player, world, child.id, 'hedge_tutor').success) count(stats, 'tutorsHired');
+        const ev = Upbringing.pendingEvent(player, child);
+        if (ev) {
+            const pick = ev.choices.find(c => c.affordable && !c.risky) || ev.choices.find(c => c.affordable);
+            if (pick && Upbringing.resolveEvent(player, world, child.id, pick.id).success) count(stats, 'childEvents');
+        }
+    });
+}
+
 /** One day of the bot's play (before the harness ends the day). */
 export function botDay(game, stats) {
     const { player, world } = game;
@@ -483,6 +502,7 @@ export function botDay(game, stats) {
         }
     }
     if (player.needs && player.needs.hunger < 60 && player.getFoodCount() > 0) player.eatMeal();
+    if ((player.children || []).length) family(game, stats);
     booked(game, 'court', () => court(game, stats));
     booked(game, 'throne', () => throne(game, stats));
     booked(game, 'treasures', () => treasures(game, stats));

@@ -9,6 +9,7 @@ import { Ailments } from '../../systems/ailments.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Holdings } from '../../systems/holdings.js';
 import { Rivals } from '../../systems/rivals.js';
+import { Upbringing } from '../../systems/upbringing.js';
 
 export function onPlayerArrived() {
     const tile = this.world.getTile(this.player.q, this.player.r);
@@ -370,6 +371,9 @@ export function endDay() {
                         this.ui.showNotification('🎂 Birthday', `You are now ${agingResult.age} years old.`, 'info');
                     }
                 }
+
+                // Raising the heirs — growth, tutors, childhood events, coming of age
+                this._reportUpbringing(Upbringing.processDay(this.player, this.world));
 
                 // Prepare relationship data for save
                 Relationships.prepareForSave(this.player);
@@ -1003,6 +1007,19 @@ export function _reportAilments(out) {
         else if (c.event === 'sailorDied') n('⚓ Burial at Sea', `A sailor of the ${c.name} has died of ${c.disease.toLowerCase()}.`, 'warning');
         else if (c.event === 'over') n('⚓ Crew Recovered', `The sickness aboard the ${c.name} has run its course.`, 'info');
     }
+}
+
+/** Notices for the heirs' upbringing (systems/upbringing.js). */
+export function _reportUpbringing(out) {
+    if (!out) return;
+    const n = (title, text, type) => this.ui.showNotification(title, text, type);
+    for (const e of out.events || []) {
+        if (e.event) n(`${e.event.icon} ${e.child.firstName}: ${e.event.title}`, `${e.event.text} Decide from Dynasty → ${e.child.firstName} within ${Math.max(0, e.event.expires - this.world.day)} days.`, 'info');
+    }
+    for (const r of out.resolved || []) n(`${r.event.icon || '📜'} ${r.child.firstName}`, `Left to the household: ${r.text}`, r.died ? 'error' : 'info');
+    for (const t of out.tutorsLeft || []) n('🧑‍🏫 Tutor Gone', t.text, 'warning');
+    for (const c of out.comeOfAge || []) n('🎓 Coming of Age', `${c.text} Give them an office, a match or a wardship from the Dynasty menu.`, 'success');
+    for (const w of out.wardsReturned || []) n('🏰 A Ward Returns', w.text, 'success');
 }
 
 /** Tell the player when what they see contradicts a doctored map they trusted. */

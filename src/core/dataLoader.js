@@ -513,6 +513,12 @@ export const DataLoader = {
             DataLoader.rivals = rivalsData;
         }
 
+        // ── Heirs, upbringing and legacy (read lazily by systems/upbringing.js, heirs.js, legacy.js) ──
+        const upbringingData = data['upbringing.json'];
+        if (upbringingData) {
+            DataLoader.upbringing = upbringingData;
+        }
+
         // ── Gossip / Rumor System ──
         const gossipData = data['gossip.json'];
         if (gossipData) {

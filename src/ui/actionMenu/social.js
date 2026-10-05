@@ -2,6 +2,7 @@
 import { ActionMenu } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
 import { CompanionsPanel } from '../companionsPanel.js';
+import { Upbringing } from '../../systems/upbringing.js';
 import { PlayerActions, PlayerEconomy, PlayerEffects, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, House, Schemes, RealmWars, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMapRenderer } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -828,6 +829,7 @@ Object.assign(ActionMenu, {
             html += `<button data-am-act="openTileMenu" data-am-args='["showHousePanel"${tile ? `, ${tile.q}, ${tile.r}` : ''}]' style="width:100%; padding:8px; margin-bottom:10px; background: var(--gold); border:none; border-radius:4px; cursor:pointer; font-weight:bold; color:#000;">🛡️ Manage ${house.name}</button>`;
         }
         html += `<button data-am-act="openTileMenu" data-am-args='["showClaimsPanel"${tile ? `, ${tile.q}, ${tile.r}` : ''}]' style="width:100%; padding:8px; margin-bottom:10px; background:#7a1f1f; border:none; border-radius:4px; cursor:pointer; font-weight:bold; color:#ffd700;">👑 Claims & Crowns</button>`;
+        html += `<button data-am-act="showHouseChronicle" style="width:100%; padding:8px; margin-bottom:10px; background:#3d3424; border:1px solid rgba(255,215,0,0.3); border-radius:4px; cursor:pointer; font-weight:bold; color:var(--gold);">📜 House Chronicle</button>`;
 
         // Children
         if (!player.children || player.children.length === 0) {
@@ -850,7 +852,9 @@ Object.assign(ActionMenu, {
                 html += `<strong>${child.firstName} ${child.dynasty}</strong> ${genderIcon}`;
                 if (isHeir) html += ` <span style="color: var(--gold);">👑 Designated Heir</span>`;
                 html += `<div style="font-size: 11px; color: #aaa;">Age ${child.age} · ${child.culture}</div>`;
-                html += `<div style="font-size: 11px; margin-top: 2px;">Traits: ${traitStr}</div>`;
+                html += `<div style="font-size: 11px; margin-top: 2px;">Born: ${traitStr}</div>`;
+                html += `<div style="font-size: 11px; margin-top: 2px; color: #c9b27a;">${Upbringing.summary(player, child)}</div>`;
+                if (child.upbringing && child.upbringing.pending) html += `<div style="font-size: 11px; color: #f5c542;">⚠️ A matter awaits your decision</div>`;
                 html += `</div>`;
                 html += `</div>`;
 
@@ -877,6 +881,7 @@ Object.assign(ActionMenu, {
 
                 // Actions
                 html += `<div style="margin-top: 6px; display: flex; gap: 4px;">`;
+                html += `<button data-am-act="showChildPanel" data-am-args='["${child.id}"]' style="padding: 4px 10px; background: #355; border: none; border-radius: 3px; cursor: pointer; color: #dff; font-size: 11px;">📖 ${child.upbringing && child.upbringing.comeOfAge ? 'Profile & Place' : 'Upbringing'}</button>`;
                 if (!isHeir) {
                     html += `<button onclick="window._designateHeir('${child.id}')" style="padding: 4px 10px; background: #664; border: none; border-radius: 3px; cursor: pointer; color: var(--gold); font-size: 11px;">👑 Designate Heir</button>`;
                 }
@@ -1261,7 +1266,8 @@ Object.assign(ActionMenu, {
                 html += `<div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin-bottom: 6px; ${isDesignated ? 'border: 1px solid var(--gold);' : ''}">`;
                 html += `<strong>${heir.firstName} ${heir.dynasty}</strong> ${genderIcon} · Age ${heir.age}`;
                 if (isDesignated) html += ` <span style="color: var(--gold);">👑 Designated</span>`;
-                html += `<div style="font-size: 11px; color: #aaa;">STR ${heir.strength} · CHA ${heir.charisma} · INT ${heir.intelligence} · Traits: ${traitStr}</div>`;
+                html += `<div style="font-size: 11px; color: #aaa;">Born: ${traitStr}</div>`;
+                html += `<div style="text-align: left;">${ActionMenu._heirProfileHtml(player, heir)}</div>`;
                 html += `<button onclick="window._succeedAsHeir('${heir.id}')" style="width: 100%; padding: 8px; margin-top: 6px; background: ${isDesignated ? 'var(--gold)' : '#555'}; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: ${isDesignated ? '#000' : '#ccc'};">Play as ${heir.firstName}</button>`;
                 html += `</div>`;
             }
@@ -1276,11 +1282,11 @@ Object.assign(ActionMenu, {
                 html += '<h4 style="color: var(--gold);">A Regency?</h4>';
                 html += `<p style="font-size: 12px; color: #aaa;">No heir has come of age. You may install a regency to raise <strong>${r.firstName}</strong> (age ${r.age}) to the throne — but the House will emerge weaker, shedding holdings.</p>`;
                 html += `<button onclick="window._succeedViaRegency('${r.id}')" style="width: 100%; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color:#000; margin-top: 6px;">Install Regency for ${r.firstName}</button>`;
-                html += `<button onclick="location.reload();" style="width: 100%; padding: 8px; background: #a33; border: none; border-radius: 4px; cursor: pointer; color: #fff; margin-top: 6px;">Let the Dynasty End</button>`;
+                html += `<button onclick="window._endDynasty()" style="width: 100%; padding: 8px; background: #a33; border: none; border-radius: 4px; cursor: pointer; color: #fff; margin-top: 6px;">Let the Dynasty End</button>`;
             } else {
                 html += '<h4 style="color: #a33;">No Eligible Heirs</h4>';
                 html += '<p style="font-size: 12px; color: #aaa;">Without an heir, your dynasty ends here.</p>';
-                html += `<button onclick="location.reload();" style="width: 100%; padding: 12px; background: #a33; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: #fff; margin-top: 10px;">Start New Game</button>`;
+                html += `<button onclick="window._endDynasty()" style="width: 100%; padding: 12px; background: #a33; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: #fff; margin-top: 10px;">🕯️ Read the Epitaph</button>`;
             }
             html += '</div>';
         }
@@ -1290,7 +1296,7 @@ Object.assign(ActionMenu, {
 
         const finishSuccession = (childId, extraOpts) => {
             const chk = document.getElementById('secureSuccessionChk');
-            const opts = { secure: !!(chk && chk.checked), ...(extraOpts || {}) };
+            const opts = { secure: !!(chk && chk.checked), cause: cause || 'old age', ...(extraOpts || {}) };
             const result = Relationships.succeedAsHeir(player, childId, game.world, opts);
             if (result.success) {
                 // Clear death animation state
@@ -1319,6 +1325,8 @@ Object.assign(ActionMenu, {
                 }
                 // Traits aren't inherited — but the realm remembers the late ruler
                 const echoNames = (result.traitEcho || []).map(e => Traits.TRAITS[e.id]).filter(Boolean).map(d => `${d.icon} ${d.name}`);
+                const raised = (result.heirTraits || []).map(id => Traits.TRAITS[id]).filter(Boolean).map(d => `${d.icon} ${d.name}`);
+                if (raised.length) successHtml += `<div style="color:#9fd19f;">Your upbringing made you ${raised.join(', ')}.</div>`;
                 if (echoNames.length) successHtml += `<div style="color:#c9b27a;">The realm still remembers ${result.oldName} as ${echoNames.join(' and ')}. That reputation clings to your House for a while.</div>`;
                 successHtml += '</div>';
                 successHtml += `<button data-am-act="closePanelAndRefresh" style="width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;">Begin Your Story</button>`;
@@ -1333,5 +1341,9 @@ Object.assign(ActionMenu, {
 
         window._succeedAsHeir = (childId) => finishSuccession(childId, {});
         window._succeedViaRegency = (childId) => finishSuccession(childId, { regency: true });
+        window._endDynasty = () => {
+            game.ui.hideCustomPanel();
+            ActionMenu.showEpitaph(game, cause || 'old age');
+        };
     },
 });

@@ -47,6 +47,7 @@ import { Cartography } from '../../systems/cartography.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Rivals } from '../../systems/rivals.js';
 import { Holdings } from '../../systems/holdings.js';
+import { Upbringing } from '../../systems/upbringing.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
 
 export const WORLD_W = 80;
@@ -230,6 +231,8 @@ export function endDay(game) {
         out.died = 'old age';
         return out;
     }
+    Upbringing.processDay(player, world);
+    mark(game, 'Upbringing.processDay');
     Relationships.prepareForSave(player);
     mark(game, 'Relationships.prepareForSave');
 

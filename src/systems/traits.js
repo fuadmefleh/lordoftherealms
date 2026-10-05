@@ -288,6 +288,28 @@ export const Traits = {
         return echo;
     },
 
+    /**
+     * Grant traits outright (an heir's upbringing — systems/upbringing.js).
+     * Each trait starts at its threshold, so it holds but is not yet deeply
+     * set. A trait whose opposite is already held is skipped. Returns the
+     * ids granted.
+     */
+    grantTraits(player, ids) {
+        if (!player || !Array.isArray(ids)) return [];
+        const st = Traits.getState(player);
+        const granted = [];
+        for (const id of ids) {
+            const def = Traits.TRAITS[id];
+            if (!def || st.earned[id]) continue;
+            if (def.opposite && st.earned[def.opposite]) continue;
+            st.progress[id] = Math.max(_num(st.progress[id]), def.threshold || 1);
+            st.earned[id] = { since: _num(st.day) };
+            Traits._notice(st, 'gained', id);
+            granted.push(id);
+        }
+        return granted;
+    },
+
     _fadeEcho(player) {
         const house = player && player.house;
         if (!house || !Array.isArray(house.traitEcho) || !house.traitEcho.length) return;

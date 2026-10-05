@@ -18,9 +18,11 @@ World simulation systems. Each system manages a distinct aspect of the game worl
 | `espionage.js` | — | Spy networks, sabotage, counterintelligence |
 | `festivals.js` | — | Festival hosting, contests, diplomatic events |
 | `gossip.js` | — | Settlement gossip propagation |
+| `heirs.js` | ~190 | Placing grown children: alliance marriages, royal matches (claim via `Throne.grantClaim`) and wardships at a ruler's court (`data/upbringing.json` placements) |
 | `holdings.js` | ~1170 | Holdings development: building projects in the player's settlements (slots by population tier, `data/holdings.json`), cached as `settlement.holding.fx` and read by Taxation, Economy, PlayerMilitary, RealmWars, Ships, Colonization and Petitions; governors (companion/family/steward, loyalty and skim), garrisons, unrest, rebellion and bandit raids; `processDay(player, world)` |
 | `housing.js` | — | Player-owned houses, upgrades, condition decay |
 | `infrastructure.js` | — | Roads, bridges, improvements, travel bonuses |
+| `legacy.js` | ~300 | The House Chronicle: one record per reign (years, traits, titles, crowns, battles, wars, delves, rivals bested, petitions, highlights) measured as deltas of existing counters; epitaph + legacy score when the line ends |
 | `legendaryArtifacts.js` | — | Artifact discovery and recovery quests |
 | `marketDynamics.js` | — | Supply/demand shifts, price volatility |
 | `modStore.js` | — | Mod loading and custom asset injection |
@@ -39,6 +41,7 @@ World simulation systems. Each system manages a distinct aspect of the game worl
 | `throne.js` | ~1400 | Claims & Crowns: claims on thrones (royal marriage, forgery, office, conquest, heralds), succession crises, civil wars to press a claim, ruling a realm (levy, policies via `kingdom.crown`, diplomacy), founding a kingdom (`data/throne.json`) |
 | `titles.js` | ~620 | Nobility titles, duties, rank requirements |
 | `traits.js` | ~430 | Earned character traits: deed counters → traits (data/traits.json), opposites, erosion, effects, dynasty echo on succession |
+| `upbringing.js` | ~560 | Raising heirs (ages 6–16): education focus, court/companion tutors, data-driven childhood dilemmas, trait seeds from focus/tutor/events/parent → adult traits at 16 (`Traits.grantTraits` on succession), ward returns; `processDay(player, world)` |
 | `underworld.js` | ~1180 | The Underworld: per-kingdom heat (guard searches, wanted posters/warrants via Gossip), the Thieves' Guild (ranks, jobs, heists, rackets, Guildmaster's cut), contraband by culture/faith (`data/underworld.json`), black market, hot goods and fences |
 
 ## Turn Processing

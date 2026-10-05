@@ -12,6 +12,8 @@ import { BountyHunting } from './bountyHunting.js';
 import { Gossip } from './gossip.js';
 import { Ships } from './ships.js';
 import { Traits } from './traits.js';
+import { Upbringing } from './upbringing.js';
+import { Legacy } from './legacy.js';
 import { Petitions } from './petitions.js';
 import { Companions } from './companions.js';
 import { Delves } from './delves.js';
@@ -565,6 +567,10 @@ export const SaveLoad = {
         // Companions: backfill bookkeeping, and a deterministic personality (hash of
         // the id) for companions recruited before personalities existed
         Companions.loadState(player);
+        // Heirs: every child gets an upbringing record (grown ones count as of
+        // age); the House gets its reign records (systems/legacy.js)
+        Upbringing.loadState(player);
+        Legacy.ensure(player, world);
 
         if (player.landTaxBonus == null) player.landTaxBonus = 0;
         if (player.mount === undefined) player.mount = null;

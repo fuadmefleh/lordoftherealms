@@ -1,6 +1,6 @@
 // Relationships — family members (split from the original monolith).
 import { Relationships } from './_ref.js';
-import { DataLoader, Utils, Characters, House, Traits } from './_imports.js';
+import { DataLoader, Utils, Characters, House, Traits, Upbringing, Legacy } from './_imports.js';
 
 Object.assign(Relationships, {
     // ────────────────────────────────────────────────────────────────────
@@ -258,8 +258,14 @@ Object.assign(Relationships, {
             }
         }
 
+        // Upbringing record (systems/upbringing.js) — focus, tutor, seeds of character
+        Upbringing.ensure(child);
+
         if (!player.children) player.children = [];
         player.children.push(child);
+        if (player.house) {
+            House._chronicle(player.house, world, `${child.firstName} is born to ${player.name}.`, ['heirs', 'birth']);
+        }
 
         // Auto-designate first child as heir if no heir set
         if (!player.heir) {
@@ -274,30 +280,11 @@ Object.assign(Relationships, {
      */
     ageChildren(player, world) {
         if (!player.children) return;
-        const settings = Relationships._getHeirSettings();
-
+        // Growth in skills and stats comes from the child's upbringing
+        // (systems/upbringing.js: focus, tutor and childhood events).
         for (const child of player.children) {
             if (!child.isAlive) continue;
             child.age++;
-
-            // Skill growth as children age
-            if (child.age >= 8 && child.age <= 18) {
-                const growthChance = 0.3;
-                const skillKeys = Object.keys(child.skills);
-                for (const skill of skillKeys) {
-                    if (Utils.random() < growthChance) {
-                        child.skills[skill] = Math.min(child.skills[skill] + 1, 5);
-                    }
-                }
-            }
-
-            // Older children can get stronger stats
-            if (child.age >= 14) {
-                if (Utils.random() < 0.2) {
-                    const stat = Utils.randPick(['strength', 'charisma', 'intelligence', 'faith', 'luck']);
-                    child[stat] = (child[stat] || 5) + 1;
-                }
-            }
         }
     },
 
@@ -402,6 +389,8 @@ Object.assign(Relationships, {
         // Store old player info for history
         const oldName = player.name;
         const oldAge = player.age;
+        // File the late ruler's reign in the House Chronicle (systems/legacy.js)
+        const reign = player.house ? Legacy.closeReign(player, world, { cause: opts.cause || null }) : null;
 
         // Transfer heir stats to player
         player.firstName = child.firstName;
@@ -492,6 +481,14 @@ Object.assign(Relationships, {
 
         // Traits are not inherited; the House remembers the strongest two
         const traitEcho = Traits.onSuccession(player, world, oldName);
+        // ...but the heir brings the character their upbringing gave them
+        const heirTraits = Upbringing.applyHeirTraits(player, child, world);
+        if (player.house) {
+            for (const r of House.ROLE_IDS) {
+                if (player.house.roles && player.house.roles[r] === childId) player.house.roles[r] = null;
+            }
+            Legacy.openReign(player, world);
+        }
 
         return {
             success: true,
@@ -501,6 +498,8 @@ Object.assign(Relationships, {
             heir: child,
             house: houseResult,
             traitEcho,
+            heirTraits,
+            reign,
         };
     },
 

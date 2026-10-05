@@ -260,7 +260,9 @@ Your character becomes someone through what they do. Every notable deed is count
 
 ### Death & Succession
 
-Your character has a natural lifespan of 55–85 years (randomized). After your maximum age, there is a 15% chance of death per year that increases over time. If you die with an heir aged 16+, you continue playing as your heir, who inherits 75% of your gold, 50% of your renown, and 30% of your reputation. Without an heir, the game ends. Traits are **not** inherited. Instead your House keeps a *reputation of the dynasty*: the late ruler's two strongest traits at half strength. This echo only affects how others react to you (goodwill, lords, intimidation, reputation, council factions), and it fades by about a quarter of a percent a day until it is gone.
+Your character has a natural lifespan of 55–85 years (randomized). After your maximum age, there is a 15% chance of death per year that increases over time. If you die with a child aged 16+, you choose which of them to continue as. The death screen shows each heir's profile: stats, skills, education and traits. The heir inherits 75% of your gold, 50% of your renown, and 30% of your reputation, and starts with the stats, skills and traits their upbringing gave them (see [Children & Heirs](#children--heirs)). With only younger children you may install a regency. Without any heir, the line ends and the **epitaph** screen scores your House's legacy (see [The House Chronicle and Legacy](#the-house-chronicle-and-legacy)).
+
+The late ruler's own traits are **not** inherited. Instead your House keeps a *reputation of the dynasty*: the late ruler's two strongest traits at half strength. This echo only affects how others react to you (goodwill, lords, intimidation, reputation, council factions), and it fades by about a quarter of a percent a day until it is gone.
 
 You can also die in combat (health reduced to 0), from starvation, or from sickness and festering wounds (see [Wounds, Sickness & Medicine](#wounds-sickness--medicine)). The late ruler's wounds and diseases die with them: an heir starts hale.
 
@@ -1791,10 +1793,82 @@ Gifts come from a list — Wildflowers (5g), Silver Necklace (50g), Gold Ring (1
 
 ### Children & Heirs
 
-- Children can be born each year (25% probability).
-- Each child receives a random trait: Gifted (+1 all), Strong (+2 STR), Clever (+2 INT), Charming (+2 CHA), and others.
-- Maximum 6 children. Designate one as your **heir**.
-- Heirs become playable at age 16 if you die, inheriting 75% gold, 50% renown, and 30% reputation.
+- Children can be born each year (25% probability), up to 6. Each is born with a random birth trait: Gifted (+1 all), Strong (+2 STR), Clever (+2 INT), Charming (+2 CHA), and others.
+- Designate one as your **heir**. When you die you may still choose any child aged 16+.
+- Open **Dynasty → 📖 Upbringing** on a child to raise them.
+
+**Education focus (ages 6–16).** Choose one focus per child. Every 30 days the child grows toward it (a year is 120 days). Without a focus a child picks up a little of every skill (+0.12 a year) and no particular character.
+
+| Focus | Grows per year | Breeds |
+|---|---|---|
+| ⚔️ Martial | +0.4 strength, +0.5 combat, +0.2 leadership | Brave |
+| 💰 Stewardship | +0.25 intelligence, +0.1 luck, +0.5 commerce, +0.25 leadership | Honest, Greedy |
+| 🤝 Diplomacy | +0.4 charisma, +0.5 diplomacy, +0.15 leadership | Generous, Honest |
+| 📜 Learning | +0.45 intelligence, +0.4 cartography, +0.2 diplomacy, +0.1 commerce | Scholar |
+| 🦊 Intrigue | +0.2 intelligence, +0.2 luck, +0.5 stealth, +0.15 diplomacy | Cunning (a little Deceitful) |
+| 🙏 Piety | +0.45 faith, +0.1 charisma, +0.25 diplomacy, +0.1 leadership | Pious, Merciful |
+
+Stats cap at 14 and skills at 8 during childhood.
+
+**Tutors.** A tutor multiplies the growth. The full bonus applies when their subject matches the focus; otherwise only 30% of it does.
+
+- *Court tutors* cost gold up front plus a monthly wage, paid every 30 days. An unpaid tutor leaves. The Hedge Tutor teaches all subjects (×1.25, 40g + 6g a month). The Master-at-Arms, Retired Steward, Court Envoy, Court Scholar, Whisperer and House Chaplain each teach one focus (×1.8–1.9, 120–180g + 14–22g a month). Each also passes on some of their own character: the Master-at-Arms breeds bravery, the Whisperer cunning.
+- *A companion* travelling with you teaches for free. Their occupation decides the subject: knights and guards teach martial arts, merchants stewardship, scholars and healers learning, priests piety, and so on. Their mood scales the bonus (×1.7 at best when they have a subject, ×1.2 otherwise), and their values rub off: an honourable companion breeds honesty, a greedy one greed. They stop teaching when they leave your party.
+
+**Childhood events.** Every 40 days, each child aged 6–15 has a 45% chance of a dilemma for you to decide. The dilemmas are a bully, a fever, a prodigy moment, a scandal, a duel challenge, a religious calling, the first hunt, a beggar at the gate, the locked library, dice in the stables, the children's court, dreams of the sea, a sibling feud, a wandering mentor, a lie, and a harvest feast. Each choice shapes the child's skills, stats and character. Some choices cost gold and some are risky (⚠️): a fever left to run its course can weaken a child for life, or rarely kill them. Duels and hunts are contests of strength and combat skill. An event left unanswered for 20 days resolves itself with the household's default choice.
+
+**Character.** A child's personality grows from four sources: the focus, the tutor, your choices in their dilemmas, and **your example**. Each of your own earned traits has a 35% chance a year to rub off on each child. Once a tendency is strong enough it shows as a **childhood trait**. A child holds up to three, and of two opposites only the stronger counts. The panel also shows the traits still forming.
+
+**Coming of age (16).** The child's childhood traits become fixed **adult traits**, their tutor is released, and the House chronicle records it. A grown child can then:
+
+- hold a **House office** (Steward, Marshal, Chancellor, Spymaster, Heir), which uses their skills;
+- make an **alliance match** into a kingdom's nobility: a 200 gold dowry, for +15 reputation with that kingdom and +4 Prestige;
+- make a **royal match** with an unwed prince or princess: 500 gold and 20 Prestige (needs 20 reputation), for +20 reputation and a claim of 15 on that throne;
+- be sent as a **ward** to a ruler's court for 120 days. A ward cannot hold an office while away. They return with +1 leadership, +1 diplomacy, +10 reputation with that realm, and often one of the host's traits: a devout ruler teaches piety, a cunning one cunning. Each child can be fostered once.
+
+Married and fostered children stay in the line of succession.
+
+**Succession.** The heir takes over with their own stats and skills, and their adult traits become real earned traits. A regency heir keeps the childhood traits they had. Like any earned trait, these can later be eroded by contrary deeds.
+
+### The House Chronicle and Legacy
+
+**Dynasty → 📜 House Chronicle** tells your House's story one ruler at a time. Each reign shows:
+
+- its years, the ruler's age and cause of death, and their earned traits;
+- any title or crown held;
+- what happened in it: crowns won, settlements taken, battles won, wars fought, quests, titles gained, delves cleared, rival adventurers bested (duels, races, rivals slain), petitions ruled (with the notable rulings), children born, ambition milestones and Prestige gained;
+- the chronicle's most important entries.
+
+Each ruler also earns an epithet from their deeds ("the Crowned", "the Conqueror", "the Warlike", "the Delver", "the Duellist", "the Judge"), or else from their first trait ("the Brave").
+
+**Legacy score.** Each reign scores:
+
+| Deed | Points |
+|---|---|
+| Year ruled | 2 |
+| Crown won | 150 |
+| Ambition fulfilled | 60 |
+| Settlement taken | 25 |
+| Title gained | 20 |
+| Ambition milestone, noble marriage | 10 each |
+| Delve cleared | 6 |
+| Rival bested, child born | 5 each |
+| Earned trait | 4 |
+| Battle won | 3 |
+| Quest | 2 |
+| Petition ruled | 1 |
+
+The House adds 40 per generation and 1 per point of Prestige.
+
+**The line ends.** If you die with no heir, or let the dynasty end rather than install a regency, the epitaph screen shows your House's sigil and motto, its generations, years and crowns, every reign, and its rank:
+
+| Score | Rank |
+|---|---|
+| Under 150 | A Forgotten Line |
+| 150+ | A Minor House |
+| 400+ | A Respected House |
+| 900+ | A Great House |
+| 1,800+ | A Legendary Dynasty |
 
 ---
 

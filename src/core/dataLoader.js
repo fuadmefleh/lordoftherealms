@@ -540,6 +540,9 @@ export const DataLoader = {
             const pe = data['playerEconomy.json'];
             if (pe && pe.GOODS) Discovery.registerGoods(pe.GOODS, discoveryData.goods);
         }
+        // Wild goods found foraging and hunting (truffles, crabs, bear pelts…)
+        // join the GOODS table after the exotic ones, so they sell like any good
+        if (peData && peData.GOODS && earlyJobsData) DataLoader.registerWildGoods(peData.GOODS, earlyJobsData);
 
         // ── Gossip / Rumor System ──
         const gossipData = data['gossip.json'];
@@ -589,5 +592,27 @@ export const DataLoader = {
      */
     clearCache() {
         this._cache = {};
-    }
+    },
+
+    /**
+     * Foraging and hunting loot (data/earlyJobs.json) names goods the GOODS
+     * table may not have (truffles, crabs, bear pelts…). Each missing one is
+     * added as a wild good priced so a market's 70% sale fetches about the
+     * loot entry's sellPrice. Existing goods are never overwritten.
+     */
+    registerWildGoods(goodsTable, earlyJobs) {
+        if (!goodsTable || !earlyJobs) return;
+        for (const kind of ['foraging', 'hunting']) {
+            const tables = (earlyJobs[kind] && earlyJobs[kind].loot_table) || {};
+            for (const table of Object.values(tables)) {
+                for (const e of Array.isArray(table) ? table : []) {
+                    if (!e || !e.item) continue;
+                    const key = String(e.item).toUpperCase();
+                    if (goodsTable[key]) continue;
+                    const sell = e.sellPrice || e.sell || 3;
+                    goodsTable[key] = { id: e.item, name: e.name || e.item, icon: e.icon || '🌿', basePrice: Math.max(1, Math.round(sell / 0.7)), wild: true };
+                }
+            }
+        }
+    },
 };

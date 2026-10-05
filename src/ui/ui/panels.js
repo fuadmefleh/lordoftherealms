@@ -47,6 +47,7 @@ Object.assign(UI.prototype, {
                 <div style="font-size:48px; margin-bottom:8px;">👤</div>
                 <div style="font-family:var(--font-display); font-size:20px; color:var(--gold);">${player.name}</div>
                 <div style="font-size:12px; color:var(--text-secondary);">${player.title}</div>
+                <button data-ui-act="_openDeeds" data-ui-args='[]' style="margin-top:6px; font-size:11px; padding:3px 10px; border-radius:4px; border:1px solid rgba(245,197,66,0.4); background:rgba(245,197,66,0.08); color:var(--gold); cursor:pointer;">🏅 Deeds &amp; Records</button>
             </div>
 
             <div class="info-section-title">Vitals</div>
@@ -185,6 +186,11 @@ Object.assign(UI.prototype, {
             }
         }
         return html;
+    },
+
+    /** Character panel → Deeds & Records (ui/actionMenu/deeds.js). */
+    _openDeeds() {
+        if (this.game) ActionMenu.showDeeds(this.game);
     },
 
     /** Use a remedy from the pack on a condition (Character panel buttons). */

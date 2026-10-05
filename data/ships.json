@@ -345,8 +345,8 @@
             "choices": [
                 { "id": "wait", "label": "Wait for the wind", "text": "You lie becalmed for a day while the water casks run low.", "delay": 1, "morale": -3 },
                 { "id": "sweeps", "label": "Man the sweeps", "requires": { "crew": 4 }, "text": "The crew rows you through the doldrums, cursing every stroke.", "morale": -6 },
-                { "id": "whistle", "label": "Whistle for a wind", "chance": {
-                    "p": 0.5,
+                { "id": "whistle", "label": "Whistle for a wind (luck)", "chance": {
+                    "p": 0.5, "stat": "luck", "per": 0.06,
                     "pass": { "text": "A breeze answers before the tune is done. The hands grin.", "morale": 3 },
                     "fail": { "text": "No wind comes, and the old hands mutter that you have angered the sea.", "delay": 1, "morale": -4 }
                 } }

@@ -49,8 +49,10 @@ describe('inventory cap is respected by every gain path', () => {
         uses('ui/actionMenu/build.js', /PlayerInventory\.addItem\(game\.player, 'wood'/);
         uses('ui/actionMenu/build.js', /PlayerInventory\.addItem\(game\.player, 'stone'/);
         uses('ui/actionMenu/jobs.js', /Foraging\.quickForage\(player, tile/);
-        uses('player/foraging.js', /PlayerInventory\.addItem\(player, entry\.item/);
-        uses('ui/actionMenu/jobs.js', /huntAdd = PlayerInventory\.addItem/);
+        uses('player/foraging.js', /PlayerInventory\.addItem\(player, f\.entry\.item/);
+        uses('ui/actionMenu/jobs.js', /Hunting\.quickHunt\(player, lootTable/);
+        uses('ui/actionMenu/jobs.js', /Foraging\.finishTrip\(player, found/);
+        uses('ui/actionMenu/jobs.js', /Hunting\.finishTrip\(player, Hunting\.strikeLoot/);
         uses('ui/actionMenu/skills.js', /PlayerInventory\.addItem\(player, 'horse'/);
         uses('ui/actionMenu/skills.js', /PlayerInventory\.addItem\(player, 'cooked_fish'/);
         uses('ui/actionMenu/skills.js', /PlayerInventory\.addItem\(player, 'cooked_meat'/);

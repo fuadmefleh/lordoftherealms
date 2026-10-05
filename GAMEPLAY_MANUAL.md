@@ -211,7 +211,7 @@ Where wounds come from: being robbed or ambushed with no army (25%), a beast (35
 | 🦟 Marsh Fever | Nights in swamps and tropical jungle, worst in summer. A settlement, inn or house helps a lot. | Shivers → Marsh Fever (deadly) | no |
 | 🐀 Plague | Standing where a Plague Outbreak rages. Crowded cities and capitals are the worst, and the wild is the least risky. Plague resistance techs cut the chance. | Buboes → Black Death (very deadly) | highly |
 | 🦠 Famine Fever | The lean season, much worse when you are hungry or starving, and in crowded towns | Hunger Fever → Famine Fever (deadly) | yes |
-| 🦷 Scurvy | More than 28 days aboard ship without fresh food. Carrying fruit or berries prevents it (you eat one every 3 days at sea). | Sea Weariness → Scurvy (deadly). It recovers much faster ashore with fresh food. | no |
+| 🦷 Scurvy | More than 28 days aboard ship without fresh food. Carrying fruit or berries prevents it (you eat one every 3 days at sea). | Sea Weariness → Scurvy (deadly). It recovers much faster ashore with fresh food or in a town: each day ashore counts as three, and it is far less likely to worsen. | no |
 | 🔥 Wound Fever | An infected wound festering | Fester → Wound Fever (deadly) | no |
 
 A strong constitution (strength above 5) lowers the chance to catch anything.
@@ -373,6 +373,15 @@ While in the wilderness, you can:
 | Ice Fishing | Winter, frozen river or lakeside | Fish, sometimes a large fish |
 | Clear Trees | Forest terrain | Gain wood, clear land for building |
 | Terraform | Hills (no structures) | Flatten to grassland (costs gold + AP) |
+
+**Foraging and hunting** pay in goods, not coin: what you find goes into your packs (packs permitting; finds that don't fit are left behind), to eat or sell. Every wild find is a market good: truffles, crabs, a bear pelt and the rest sell at about the price the search screen shows. Each loot entry comes in its usual bundle (berries 2–5, herbs 1–3, a truffle 1), on the quick path too.
+
+- **Forage** (quick): one find in its bundle. **Search the patches** (minigame): a 4×4 field. You get 4 searches + Intelligence ÷ 3, and numbers show how many finds lie next door.
+- **Hunt** (quick): one quarry in its usual yield. **Track → Stalk → Strike** (minigame): a clean shot yields each kind of game the land offers, in its qty range (at least one).
+- **Intelligence** widens a forager's search: more finds and a better chance of an extra one in each bundle. **Combat** and **Strength** steady a hunter's aim and raise the yield.
+- **Luck** favours the rare finds (anything 10% or rarer: truffles, pearls, fossils, a bear pelt, ivory) by +8% for each point above 5, and gives a 4% chance per point above 5 of one more in each bundle.
+- **Craft rank.** Every outing counts, and so does every hunt, hit or miss, and every trap line. Foraging: 🌱 Novice → 🌿 Gatherer (5 trips) → 🍄 Woodwise (15) → 🌺 Herb-wise (35) → 🏵️ Master Forager (60). Hunting: Novice → 🐾 Tracker → 🏹 Huntsman → 🦌 Stalker → 🐗 Master of the Hunt, at the same counts. Each rank adds +8% to the odds of a find or a drop and a 10% chance of one more in each bundle. Woodwise and Master Foragers get an extra search, and each hunting rank lowers the accuracy a shot needs by 2. Your rank shows on the search screen and in **Deeds & Records**.
+- A forager who finds 3 or more things in one outing gains +1 renown.
 
 ---
 
@@ -1518,7 +1527,7 @@ On each day of a voyage there is a 30% chance of an event. Each offers choices; 
 
 | Event | Choices |
 |-------|---------|
-| 🌫️ Becalmed | Wait (a day lost) · Man the sweeps (morale) · Whistle for a wind (luck) |
+| 🌫️ Becalmed | Wait (a day lost) · Man the sweeps (morale) · Whistle for a wind (luck: 50%, ±6% per point of luck above or below 5) |
 | ⛵ Sail Ho! | Hail her (news, or pirates) · Run (may be caught) · Run her down: piracy costs karma, reputation and heat |
 | 🏚️ A Derelict | Board her (a day; loot, or the flux aboard) · Strip her timbers (hull repair, timber) · Pass by |
 | 🐍 Coils in the Swell | Hunt the serpent (a hard fight: renown and Valor) · Steer wide (a day) · Laugh it off |
@@ -2032,7 +2041,7 @@ Married and fostered children stay in the line of succession.
 
 - its years, the ruler's age and cause of death, and their earned traits;
 - any title or crown held;
-- what happened in it: crowns won (taken or founded), settlements taken, battles won (war hosts, raiders, pirates, monsters and saga beasts), wars fought, quests, titles gained, delves cleared, rival adventurers bested (duels, races, rivals slain), petitions ruled (with the notable rulings), children born, ambition milestones and Prestige gained;
+- what happened in it: crowns won (taken or founded), settlements taken, battles won (war hosts, raiders, pirates, monsters and saga beasts), wars fought, quests, titles gained, delves cleared, rival adventurers bested (duels, races, rivals slain), petitions ruled (with the notable rulings), children born, ambition milestones, holding projects built, raids repelled, rebellions crushed, holdings lost and Prestige gained;
 - the chronicle's most important entries.
 
 Each ruler also earns an epithet from their deeds ("the Crowned", "the Conqueror", "the Warlike", "the Delver", "the Duellist", "the Judge"), or else from their first trait ("the Brave").
@@ -2050,11 +2059,38 @@ Each ruler also earns an epithet from their deeds ("the Crowned", "the Conqueror
 | Delve cleared | 6 |
 | Rival bested, child born | 5 each |
 | Earned trait | 4 |
-| Battle won | 3 |
+| Rebellion crushed | 6 |
+| Raid repelled | 4 |
+| Battle won, holding project built | 3 each |
 | Quest | 2 |
 | Petition ruled | 1 |
 
 The House adds 40 per generation and 1 per point of Prestige.
+
+### Deeds & Records
+
+**Journal → 🏅 Deeds & Records** (also the button under your name on the **Character Sheet**) gathers every record the realm keeps on you into one ledger, grouped by system. Two columns: **House**, the lifetime total of your line, and **Reign**, the current ruler's share since they took the mantle. Present-tense facts (holdings ruled, claims held, your hunter rank, guild rank, trading posts, company capital, companions travelling with you) show as "now". A section with nothing in it yet is folded into a "No record yet" line.
+
+| Section | Records |
+|---|---|
+| ⚔️ Arms & House | battles won, quests, titles, settlements taken, noble marriages, ambition milestones |
+| 👑 The Throne | crowns won, claims held, succession crises and civil wars underway, reigning, throne chronicle entries |
+| 🏰 Holdings | holdings ruled, projects built, raids repelled and suffered, rebellions and rebellions crushed, holdings lost, governors who betrayed you |
+| ⚖️ Petitions & Court | petitions ruled and ignored |
+| 🛡️ Sieges | towns besieged, taken, sacked, terms accepted, sieges lifted and broken, relief armies beaten |
+| 📜 Sagas | sagas begun, joined, won and ended; saga beasts slain and their bounty gold |
+| 🎯 Bounty Hunting | hunter rank, bounties completed, outlaws turned in or recruited, captures botched, saga beasts on notice |
+| 🕳️ Delves | delves entered, chambers explored, delves cleared, deepest chamber, retreats, collapses |
+| 🗡️ Rival Adventurers | duels and races won and lost, rivals slain and sabotaged, partnerships, hires |
+| 🤝 Companions | travelling with you, devoted, fallen, deserted, betrayed you |
+| 🌑 The Underworld | guild rank, crimes, times caught, gold from crime |
+| 🏦 Trading Company | posts, capital, contracts fulfilled and failed, posts robbed, convoys lost |
+| 🧭 Discoveries | lands found and named, exotic hauls, charts sold, colonies, naval contests, lands rivals found first |
+| ⛵ Voyages | voyages completed, days at sea, events at sea, longest voyage |
+| 🩹 Wounds & Sickness | wounds, diseases, recoveries, festered wounds, scars, treatments |
+| 🌿 Living off the Land | foraging trips and hunts, with your forager's and hunter's craft rank |
+
+A reign that began in a save from before the ledger existed is counted from the House's beginning. The voyage record is saved with your character.
 
 **The line ends.** If you die with no heir, or let the dynasty end rather than install a regency, the epitaph screen shows your House's sigil and motto, its generations, years and crowns, every reign, and its rank:
 
@@ -2188,7 +2224,7 @@ A project costs gold, materials and days. Materials come out of your packs. Anyt
 | ⛪ Temple (replaces the Shrine, village+) | 550g, 35 stone, 10 wood | 12 | +6 happiness, spreads your faith (1% a day), calms unrest more |
 | ⚔️ Barracks | 350g, 20 wood, 8 iron | 9 | +10 militia defence, +50% recruits a day and 10% cheaper recruits here, garrison upkeep −25% |
 | ⚓ Harbour (beside the water only) | 450g, 35 wood, 10 stone | 12 | +8% tax, 8% better port-market prices for you, free repairs (+5% a day) for your ships docked there, +2 days of food, +1.5% growth |
-| 🗼 Watchtower | 180g, 10 wood, 10 stone | 5 | 40% fewer raids, your underworld heat in the town's realm cools 0.5 a day faster, +5% defence |
+| 🗼 Watchtower | 180g, 10 wood, 10 stone | 5 | 40% fewer raids, your underworld heat in the town's realm (for an independent town, the nearest realm) cools 0.5 a day faster, +5% defence |
 | 🔨 Workshop Quarter (village+) | 400g, 20 wood, 10 iron, 4 tools | 10 | +20% goods produced, +6% tax |
 | 🍺 Tavern and Inn | 250g, 20 wood | 7 | +4 happiness, +1.5% growth, +10% daily chance of settlers arriving at a young colony, +3% tax |
 | 🏛️ Moot Hall (village+) | 320g, 15 stone, 10 wood | 8 | petitioners from the town wait 4 days longer, +2 happiness, calms unrest most |
@@ -2498,6 +2534,21 @@ Beyond single events, the world tells **sagas**: storylines in 3–5 chapters th
 | ⚔️ **The Iron Company** | A kingdom | Wages in Arrears → The Company Goes Rogue (a company of strength 80–110 plunders the land) → The Sack (a town is sacked and the treasury pays a ransom) | Pay their arrears (400g) or buy their contract (600g, beside them); beat them in battle | **The Company Broken**; **A New Paymaster** (you); **The King's Justice**; or they cross into the neighbouring realm |
 | ☄️ **The Comet** | Everywhere, with a seer in one realm | The Forked Star → The Prophecy (a star cult, and a Starfall Crater delve site) → The Red Star (panic, prices rise) | Pay an astrologer to chart it (50g); debate the seer (after charting); delve the crater | **The Star-Iron** (an artifact and gems); **The Seer Confounded**; the cult rises; or the star simply fades |
 
+### Bounties on saga beasts
+
+The wyrm, the reaver flagship and her galleys, and the Iron Company carry a price on their heads, paid by the realm they threaten. Kill one in your own battle and, at the end of the day, you get:
+
+| Beast | Bounty | Renown | Reputation | Prestige | Taken from it |
+|-------|--------|--------|------------|----------|---------------|
+| 🐉 The Wyrm | 600g | +25 | +15 | +5 | 1–2 dragon scales, 2–5 gems; 30% an ancient artifact |
+| ☠️ The reaver flagship | 400g | +18 | +12 | +3 | an enchanted weapon, 2–4 luxuries, 3–6 rum; 35% a treasure map |
+| 🏴‍☠️ A reaver sloop or galley | 60–90g | +3–4 | +3 | — | 2–4 rum |
+| ⚔️ The Iron Company | 475g | +20 | +15 | +3 | 4–8 weapons, 1–3 leather armour; 30% an enchanted weapon |
+
+The gold comes out of the realm's treasury. A realm that can't pay in full still scrapes together half, and a realm that has fallen leaves half, passed round the villages. Goods that don't fit in your packs are sold on the spot. The kill counts as valour and is written in the House chronicle. The bounty comes on top of whatever the saga's ending pays (Wyrmslayer's three scales, and so on). A beast killed by anyone else pays nothing.
+
+While a wyrm, flagship or company roams, every **notice board** within 28 hexes posts it as a legendary bounty: where it was last seen, the price, and the realm that pays. Take the notice and the board tracks the beast for up to 120 days. When you kill it, you earn a **hunter's fee** on top of the realm's bounty: 25% more, plus your hunter rank's pay bonus. It counts as a bounty completed and toward your hunter rank. If the beast leaves the story (flies off, sails away, crosses into another realm), the notice lapses. Rival bounty hunters leave saga beasts to you.
+
 Saga monsters and fleets are named world units. A kingdom patrol cannot bring down the wyrm or the Iron Company, but royal war fleets do hunt reavers; if one sinks the flagship, the crown gets the credit. Everything a saga changes is saved with your game: its events, sites, crises and heresies with the world, and the saga itself with you. Its monsters return to the map when you load.
 
 ---
@@ -2576,7 +2627,7 @@ Track and capture wanted criminals across the map for gold and renown. Available
 
 ### Hunter Ranks
 
-Every 3 criminals you bring in raise your rank. Each rank above the first adds +1 capture power and +10% bounty pay (up to +4 / +40%).
+Every 3 criminals you bring in raise your rank. A saga beast slain on a notice you took counts too (see [Bounties on saga beasts](#bounties-on-saga-beasts)), and it also offsets botched arrests. Each rank above the first adds +1 capture power and +10% bounty pay (up to +4 / +40%).
 
 | Rank | Title |
 |------|-------|
@@ -2642,6 +2693,10 @@ Rivals don't walk the map. They travel from place to place at about 6 hexes a da
 - **Contests.** They win jousts and archery contests in the towns, and enter yours by name.
 - **Thrones.** An ambitious rival with 70+ renown proclaims a claim to a throne. In a succession crisis (Claims & Crowns) they back a claimant: your claimant if they like you, the other one if they hate you, with double weight in the realm they claim.
 
+**Faith** lights their way in the tombs. In a tomb delve, each point of faith above 5 cuts a rival's risk of dying by 6% and adds 2% to their chance of clearing it outright, so Pious Crusaders (faith 7–10) are the ones who empty the barrows.
+
+**Gold.** Rivals earn gold from delves, bounties, commissions, contests, races and ambushes, and they spend it between ventures. They keep 60g back. With more than that, they first buy **finer arms** (+1 prowess, up to 10, for 150g + 60g × their current prowess). Once their arms are as good as they get, they **hire swords** for 40 days (120g each, up to 2). Each sword adds 1.5 to their fighting power and +4% to their manhunts. A nemesis hiring swords near you gets a warning. A rich rival grows dangerous.
+
 Notable deeds within about 14 hexes of you, and anything that touches you, arrive as end-of-day notices. Every deed goes into the **Tales of the Road** news.
 
 ### Meeting Them
@@ -2651,7 +2706,7 @@ When you arrive in a town where a rival is resting, you meet them and hear a lin
 | Deed | AP | Effect |
 |------|----|--------|
 | 💬 Talk | 0 | A line that matches their mood toward you |
-| ⚔️ Duel | 4 | A fight to first blood. Your power is combat ×2 + strength + luck, scaled by trait, mood and treasure bonuses, against their prowess and level. The winner gains renown and the loser harm (armour reduces yours). Once a day per rival. |
+| ⚔️ Duel | 4 | A fight to first blood. Your power is combat ×2 + strength + luck, scaled by trait, mood and treasure bonuses, against their prowess, level and hired swords. Faith steels both sides: ±0.3 per point of faith above or below 5. A devout rival (faith 7+) holds back 2 against a Pious player, unless they are your nemesis. The winner gains renown and the loser harm (armour reduces yours). Once a day per rival. |
 | 💀 To the death | 4 | Only with someone who already dislikes you. If you win, they die. If you lose, you take heavy harm. |
 | 🤝 Team up | 1 | Treasure hunters, sellswords, crusaders and merchants delve with you for 7 days: about +10% to every delve check, for 25% of the gold you find. A fair split warms them. |
 | 💰 Hire | 1 | Sellswords, bounty hunters, treasure hunters, merchants and duelists join your army for 10 days, paid up front (60g + 35g per level). If they are lost from your ranks, they either die or leave to recover from their wounds. |

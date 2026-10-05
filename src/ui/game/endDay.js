@@ -836,6 +836,14 @@ export function endDay() {
                     this.ui.showNotification('Bounty Escalated', `${update.targetName} has grown more dangerous (difficulty ${update.difficulty}).`, 'warning');
                 }
             }
+            // Saga beasts on the hunter's list (systems/bountyHunting.js)
+            for (const b of (playerResults.bountyTracking && playerResults.bountyTracking.beasts) || []) {
+                if (b.outcome === 'slain') {
+                    this.ui.showNotification('🎯 Notice Honoured', `You took the notice on ${b.targetName}: +${b.bonus} gold as the hunter's fee.${b.promoted ? ` Promoted to ${b.promoted.title}!` : ''}`, 'success');
+                } else {
+                    this.ui.showNotification('🎯 Notice Lapsed', `${b.targetName} is beyond reach now; the notice is taken down.`, 'info');
+                }
+            }
 
             // Bounties expired
             if (playerResults.bountiesExpired && playerResults.bountiesExpired.length > 0) {

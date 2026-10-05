@@ -223,6 +223,8 @@ const EFFECTS = {
                 strength: Math.max(1, _roll(e.strength || [40, 60])),
                 q: at.q, r: at.r,
                 slain: false, gone: false,
+                // What the threatened realm pays for its head, and what it carries
+                bounty: e.bounty ? JSON.parse(JSON.stringify(e.bounty)) : null,
             };
             saga.units.push(rec);
             Sagas._spawnUnit(world, rec);
@@ -527,7 +529,7 @@ export const Sagas = {
     // ──────────── STATE ────────────
 
     _blank() {
-        return { nextStartDay: null, nextUid: 1, active: [], done: [], used: {}, lastDay: null, stats: { started: 0, ended: 0, joined: 0, won: 0 } };
+        return { nextStartDay: null, nextUid: 1, active: [], done: [], used: {}, lastDay: null, stats: { started: 0, ended: 0, joined: 0, won: 0, beastsSlain: 0, bountyGold: 0 } };
     },
 
     state(player) {
@@ -708,7 +710,7 @@ export const Sagas = {
     },
 
     /** Track saga units: who killed them, where they went; re-spawn them after a load. */
-    _syncUnits(world, saga, player = null) {
+    _syncUnits(world, saga, player = null, notify = null) {
         if (!Array.isArray(world.units)) world.units = [];
         const map = _liveMap(world);
         for (const rec of saga.units) {
@@ -721,7 +723,10 @@ export const Sagas = {
             if (unit && unit.destroyed) {
                 if (unit.slainByPlayer) {
                     rec.slain = true;
-                    if (player) Sagas._involve(player, saga);
+                    if (player) {
+                        Sagas._involve(player, saga);
+                        Sagas._payBounty(player, world, saga, rec, notify);
+                    }
                 } else rec.gone = true;
                 map.delete(rec.key);
                 continue;
@@ -733,6 +738,160 @@ export const Sagas = {
             rec.q = unit.q;
             rec.r = unit.r;
         }
+    },
+
+    // ──────────── BOUNTIES ────────────
+    // A saga beast (the wyrm, the reaver flagship and her galleys, the Iron
+    // Company) carries a bounty from the realm it threatens: gold out of that
+    // realm's treasury, renown, standing at its court, Prestige, and what can
+    // be cut from the carcass or the wreck (data/sagas.json → unit.bounty).
+    // Paid when the player's own battle kills it (WorldUnit.slainByPlayer);
+    // bosses with `post` are cried on the notice boards nearby while they roam
+    // (BountyHunting.generateBoardOffers → Sagas.bountyOffers).
+
+    /** A unit record's bounty block (old saves: looked up from the template). */
+    _unitBounty(saga, rec) {
+        if (rec && rec.bounty) return rec.bounty;
+        const tmpl = Sagas.template(saga.id);
+        for (const ch of Object.values((tmpl && tmpl.chapters) || {})) {
+            const all = [...(ch.effects || []), ...(ch.daily || []), ...(ch.actions || []).flatMap(a => a.effects || [])];
+            const e = all.find(x => x && x.do === 'unit' && (x.role || 'unit') === rec.role && x.bounty);
+            if (e) return e.bounty;
+        }
+        return null;
+    },
+
+    /** The posted price on a unit's head (the midpoint of its range; no roll). */
+    bountyPrice(saga, rec) {
+        const b = rec && Sagas._unitBounty(saga, rec);
+        if (!b) return 0;
+        const g = Array.isArray(b.gold) ? (b.gold[0] + b.gold[1]) / 2 : _num(b.gold);
+        return Math.round(g);
+    },
+
+    /**
+     * Pay out a slain saga unit's bounty (once). The realm pays from its
+     * treasury; a realm that is gone or broke leaves half, passed round the
+     * villages. Returns the payout summary or null.
+     */
+    _payBounty(player, world, saga, rec, notify = null) {
+        if (!player || !rec || rec.bountyPaid) return null;
+        const b = Sagas._unitBounty(saga, rec);
+        if (!b) return null;
+        rec.bountyPaid = true;
+        const day = _day(world);
+        const st = Sagas.state(player);
+        const kingdom = _kingdom(world, saga.anchor.kingdomId);
+        const realm = (kingdom && kingdom.name) || saga.anchor.kingdomName || 'the countryside';
+        const posted = Sagas.bountyPrice(saga, rec);
+        let gold = posted;
+        if (kingdom) {
+            const treasury = _num(kingdom.treasury);
+            const paid = Math.min(gold, Math.max(Math.floor(gold / 2), treasury));
+            kingdom.treasury = Math.max(0, treasury - paid);
+            gold = paid;
+        } else {
+            gold = Math.floor(gold / 2);
+        }
+        const parts = [];
+        if (gold > 0) {
+            player.gold = _num(player.gold) + gold;
+            parts.push(`${gold} gold from ${realm}`);
+        }
+        if (b.renown) {
+            player.renown = Math.max(0, _num(player.renown) + _num(b.renown));
+            parts.push(`+${b.renown} renown`);
+        }
+        if (b.reputation && saga.anchor.kingdomId) {
+            if (!player.reputation) player.reputation = {};
+            const kid = saga.anchor.kingdomId;
+            player.reputation[kid] = (player.reputation[kid] || 0) + _num(b.reputation);
+            parts.push(`+${b.reputation} reputation in ${realm}`);
+        }
+        if (b.prestige && player.house) {
+            House.award(player.house, _num(b.prestige), `slew ${rec.name}`, day);
+            parts.push(`+${b.prestige} Prestige`);
+        }
+        const items = {};
+        for (const [item, n] of Object.entries(b.loot || {})) {
+            const q = Math.max(0, _roll(n));
+            if (q > 0) items[item] = (items[item] || 0) + q;
+        }
+        for (const [item, chance] of Object.entries(b.rare || {})) {
+            if (Utils.random() < _num(chance)) items[item] = (items[item] || 0) + 1;
+        }
+        if (Object.keys(items).length) {
+            const res = PlayerInventory.addOrSell(player, items);
+            parts.push(Object.entries(items).map(([item, n]) => `${n} ${item.replace(/_/g, ' ')}`).join(', '));
+            if (res && res.gold > 0) parts.push(`(${res.gold} gold for what would not fit)`);
+        }
+        Traits.recordDeeds(player, { valor: b.post ? 3 : 1 });
+        st.stats.beastsSlain = _num(st.stats.beastsSlain) + 1;
+        st.stats.bountyGold = _num(st.stats.bountyGold) + gold;
+        rec.bountyGold = gold;
+        if (b.post && player.house) House._chronicle(player.house, world, `${player.name || 'The head of the House'} slew ${rec.name} and claimed the bounty of ${realm}.`, ['saga', saga.id]);
+        const text = `${rec.icon || '💰'} ${rec.name} is dead. The bounty: ${parts.join(', ')}.`;
+        saga.rewards.push(`Bounty on ${rec.name}: ${parts.join(', ')}`);
+        if (notify) notify('💰', 'Bounty Claimed', text, 'success');
+        return { gold, posted, items, text };
+    },
+
+    /** Live saga units by key: { saga, rec } — for bounty tracking. */
+    unitRecord(player, key) {
+        for (const saga of Sagas.state(player).active) {
+            const rec = (saga.units || []).find(u => u.key === key);
+            if (rec) return { saga, rec };
+        }
+        for (const saga of Sagas.state(player).done || []) {
+            const rec = (saga.units || []).find(u => u.key === key);
+            if (rec) return { saga, rec };
+        }
+        return null;
+    },
+
+    /**
+     * Notice-board offers for the posted saga beasts roaming within reach of
+     * this settlement. Plain data; no RNG. Accepted offers live in
+     * player.activeBounties (type 'saga_beast') and are tracked by
+     * BountyHunting.processDaily.
+     */
+    bountyOffers(player, world, tile) {
+        const out = [];
+        if (!player || !world || !tile) return out;
+        const radius = Sagas.config().tavernRadius;
+        for (const saga of Sagas.state(player).active) {
+            for (const rec of saga.units || []) {
+                if (rec.slain || rec.gone) continue;
+                const b = Sagas._unitBounty(saga, rec);
+                if (!b || !b.post) continue;
+                if (_dist(world, tile.q, tile.r, rec.q, rec.r) > radius) continue;
+                const pay = Sagas.bountyPrice(saga, rec);
+                const realm = saga.anchor.kingdomName || 'the countryside';
+                out.push({
+                    id: `saga_${rec.key}`,
+                    type: 'saga_beast',
+                    icon: rec.icon || '🐉',
+                    name: `Bounty: ${rec.name}`,
+                    targetName: rec.name,
+                    sagaUid: saga.uid,
+                    sagaKey: rec.key,
+                    notoriety: 'legendary',
+                    difficulty: Math.min(10, Math.max(5, Math.round(_num(rec.strength) / 12))),
+                    actualPay: pay,
+                    daysLimit: 120,
+                    daysElapsed: 0,
+                    fromSettlement: (tile.settlement && tile.settlement.name) || 'Unknown Settlement',
+                    fromQ: tile.q, fromR: tile.r,
+                    targetQ: rec.q, targetR: rec.r,
+                    lastKnownQ: rec.q, lastKnownR: rec.r,
+                    status: 'active',
+                    canRecruit: false,
+                    targetBackstory: `Part of the saga "${saga.name}". Strength about ${rec.strength}: bring an army.`,
+                    description: `${realm} pays ${pay}g for ${rec.name}, last seen near (${rec.q}, ${rec.r}). Defeat it in battle; a hunter who takes the notice earns a quarter more.`,
+                });
+            }
+        }
+        return out;
     },
 
     _crisis(player, saga) {
@@ -956,7 +1115,7 @@ export const Sagas = {
     },
 
     _tick(player, world, saga, notify) {
-        Sagas._syncUnits(world, saga, player);
+        Sagas._syncUnits(world, saga, player, notify);
         Sagas._checkHooks(player, world, saga, notify);
         const def = Sagas.chapterDef(saga);
         if (!def) return;

@@ -250,6 +250,8 @@ Object.assign(ActionMenu, {
                 ['🔥', r.wars, 'wars'], ['📜', r.quests, 'quests'], ['🎖️', r.titles, 'titles gained'],
                 ['🕳️', r.delvesCleared, 'delves cleared'], ['🗡️', r.rivalsBested, 'rivals bested'], ['⚖️', r.petitionsRuled, 'petitions ruled'],
                 ['👶', r.children, 'children born'], ['🏛️', r.ambitionMilestones, 'ambition milestones'],
+                ['🏗️', r.holdingProjects, 'holding projects built'], ['🛡️', r.raidsRepelled, 'raids repelled'],
+                ['🔥', r.rebellionsCrushed, 'rebellions crushed'], ['🏚️', r.holdingsLost, 'holdings lost'],
             ].filter(x => x[1] > 0);
             if (deeds.length) html += `<div style="font-size:11px; color:#bbb; margin-top:2px;">${deeds.map(([i, v, l]) => `<span title="${l}">${i} ${v} ${l}</span>`).join(' · ')}</div>`;
             if (r.prestigeGained) html += `<div style="font-size:11px; color:#bbb;">⭐ ${r.prestigeGained > 0 ? '+' : ''}${r.prestigeGained} Prestige</div>`;

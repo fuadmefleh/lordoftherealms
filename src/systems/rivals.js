@@ -63,6 +63,10 @@ const DEFAULT_CONFIG = {
     sabotage: { cost: 50, base: 0.35, perStealth: 0.06, guildBonus: 0.15, delayDays: [3, 6] },
     nemesis: { slanderChance: 0.12, huntWeight: 3, ambushRadius: 3 },
     usurp: { claimRenown: 70, support: [5, 14] },
+    // Faith: conviction in a fight, and a lamp in the tombs
+    faith: { duelPerPoint: 0.3, piousRestraint: 2, devoutAt: 7, tombRiskPerPoint: 0.06, tombClearPerPoint: 0.02 },
+    // What rivals do with their gold between ventures
+    spend: { keep: 60, gearBase: 150, gearPerProwess: 60, maxProwess: 10, retainerCost: 120, retainerDays: 40, maxRetainers: 2, retainerPower: 1.5, retainerBounty: 0.04 },
 };
 
 const FALLBACK_ARCHETYPE = {
@@ -183,6 +187,9 @@ export const Rivals = {
         if (typeof r.renown !== 'number') r.renown = 0;
         if (typeof r.attitude !== 'number') r.attitude = 0;
         if (typeof r.gold !== 'number') r.gold = 0;
+        if (typeof r.gear !== 'number') r.gear = 0;
+        if (typeof r.retainers !== 'number') r.retainers = 0;
+        if (typeof r.retainersUntil !== 'number') r.retainersUntil = 0;
         if (!Array.isArray(r.memory)) r.memory = [];
         if (!r.deeds || typeof r.deeds !== 'object') r.deeds = {};
         for (const k of ['delves', 'bounties', 'quests', 'tournaments', 'duelsWon', 'duelsLost']) {
@@ -477,6 +484,7 @@ export const Rivals = {
             if (rival.task) {
                 if (day >= rival.task.arriveDay) Rivals._resolveTask(player, world, rival, notify);
             } else if (day >= rival.restUntil) {
+                Rivals._spend(player, world, rival, notify);
                 Rivals._chooseTask(player, world, rival);
             }
             // A nemesis spreads tales about you
@@ -501,6 +509,46 @@ export const Rivals = {
             st.nextArrivalDay = null;
         }
         return out;
+    },
+
+    /**
+     * Between ventures a rival spends what they have won: better arms
+     * (+1 prowess, dearer each time) or a few hired blades for a season
+     * (retainers: more fighting power, surer manhunts). Retainers whose term
+     * runs out go home. No RNG.
+     */
+    _spend(player, world, rival, notify = () => {}) {
+        const cfg = Rivals.config().spend;
+        const day = _day(world);
+        if (rival.retainers > 0 && day >= _num(rival.retainersUntil)) {
+            rival.retainers = 0;
+        }
+        const purse = _num(rival.gold) - cfg.keep;
+        const gearCost = cfg.gearBase + rival.stats.prowess * cfg.gearPerProwess;
+        if (rival.stats.prowess < cfg.maxProwess && purse >= gearCost) {
+            rival.gold -= gearCost;
+            rival.stats.prowess += 1;
+            rival.gear = _num(rival.gear) + 1;
+            rival.level = Math.max(1, Math.round((rival.stats.prowess + rival.stats.cunning) / 4));
+            Rivals._news(player, world, rival, '🛡️', `${rival.name} spent ${gearCost} gold on finer arms in ${Rivals._whereName(world, rival)}.`, rival.q, rival.r);
+            return 'gear';
+        }
+        if (rival.retainers < cfg.maxRetainers && purse >= cfg.retainerCost) {
+            rival.gold -= cfg.retainerCost;
+            rival.retainers += 1;
+            rival.retainersUntil = day + cfg.retainerDays;
+            Rivals._news(player, world, rival, '⚔️', `${rival.name} hired ${rival.retainers === 1 ? 'a sword' : 'more swords'} in ${Rivals._whereName(world, rival)}.`, rival.q, rival.r);
+            if (Rivals.isNemesis(rival) && Rivals._nearPlayer(player, world, rival.q, rival.r)) {
+                notify('⚔️', 'A Rival Arms', `${rival.name} is hiring swords nearby. They mean you no good.`, 'warning');
+            }
+            return 'retainer';
+        }
+        return null;
+    },
+
+    _whereName(world, rival) {
+        const tile = world && world.getTile ? world.getTile(rival.q, rival.r) : null;
+        return (tile && tile.settlement && tile.settlement.name) || (rival.home && rival.home.name) || 'town';
     },
 
     _rest(rival, world) {
@@ -730,13 +778,16 @@ export const Rivals = {
             return;
         }
         const name = poi.name || 'a ruin';
-        // The depths can kill
-        const risk = cfg.deathChance * Math.max(0.3, 1.6 - rival.stats.prowess / 10);
+        // The depths can kill. In a tomb, faith is a lamp against the restless dead
+        const fcfg = Rivals.config().faith;
+        const tomb = Delves.kindFor(tile) === 'tomb';
+        const faithEdge = tomb ? rival.stats.faith - 5 : 0;
+        const risk = cfg.deathChance * Math.max(0.3, 1.6 - rival.stats.prowess / 10) * Math.max(0.4, 1 - faithEdge * fcfg.tombRiskPerPoint);
         if (Utils.random() < risk) {
             Rivals._kill(player, world, rival, `never came back up from ${name}`, notify, task.q, task.r);
             return;
         }
-        const full = Utils.random() < cfg.fullClearBase + rival.stats.prowess * cfg.fullClearPerProwess
+        const full = Utils.random() < cfg.fullClearBase + rival.stats.prowess * cfg.fullClearPerProwess + Math.max(0, faithEdge) * fcfg.tombClearPerPoint
             || (poi.rivalLooted && _num(poi.rivalLooted.share) >= 0.5);
         const gain = _roll(cfg.renown) + (full ? 3 : 0);
         rival.renown += gain;
@@ -783,7 +834,8 @@ export const Rivals = {
         if (!hit) return; // you got there first
         const b = hit.b;
         delete b.rivalHunter;
-        const chance = Utils.clamp(cfg.base + rival.stats.prowess * cfg.perProwess - _num(b.difficulty) * cfg.perDifficulty, 0.1, 0.9);
+        const chance = Utils.clamp(cfg.base + rival.stats.prowess * cfg.perProwess - _num(b.difficulty) * cfg.perDifficulty
+            + _num(rival.retainers) * Rivals.config().spend.retainerBounty, 0.1, 0.9);
         if (Utils.random() < chance) {
             if (hit.accepted) player.activeBounties = player.activeBounties.filter(x => x !== b);
             else player.bountyHunter.boardOffers = player.bountyHunter.boardOffers.filter(x => x !== b);
@@ -1083,14 +1135,30 @@ export const Rivals = {
     },
 
     rivalPower(rival) {
-        return rival.stats.prowess * 2 + rival.level + rival.stats.cunning * 0.3;
+        return rival.stats.prowess * 2 + rival.level + rival.stats.cunning * 0.3
+            + _num(rival.retainers) * Rivals.config().spend.retainerPower;
+    },
+
+    /**
+     * Faith in a fight: each side's conviction ((faith − 5) × 0.3), and a
+     * devout rival (faith 7+) holds back against a Pious player — they will
+     * not strike a fellow believer in earnest (except a nemesis).
+     * Returns { player, rival } roll adjustments.
+     */
+    faithEdge(player, rival) {
+        const cfg = Rivals.config().faith;
+        const p = (_num(player.faith || 5) - 5) * cfg.duelPerPoint;
+        let r = (_num(rival.stats.faith) - 5) * cfg.duelPerPoint;
+        if (rival.stats.faith >= cfg.devoutAt && Traits.has(player, 'pious') && !Rivals.isNemesis(rival)) r -= cfg.piousRestraint;
+        return { player: p, rival: r };
     },
 
     /** A fight between the player and a rival (duel or ambush). */
     _fight(player, world, rival, { toDeath = false, ambush = false } = {}) {
         const cfg = Rivals.config().duel;
-        const pRoll = Rivals.playerPower(player) + Utils.randInt(1, 8) - (ambush ? 2 : 0);
-        const rRoll = Rivals.rivalPower(rival) + Utils.randInt(1, 8);
+        const faith = Rivals.faithEdge(player, rival);
+        const pRoll = Rivals.playerPower(player) + faith.player + Utils.randInt(1, 8) - (ambush ? 2 : 0);
+        const rRoll = Rivals.rivalPower(rival) + faith.rival + Utils.randInt(1, 8);
         const playerWon = pRoll >= rRoll;
         const res = { playerWon, harm: 0, renown: 0, rivalDied: false, goldLost: 0, wound: null };
         const st = Rivals.state(player);

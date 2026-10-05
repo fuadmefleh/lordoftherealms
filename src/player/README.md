@@ -13,7 +13,7 @@ Everything controlled by or owned by the player character. This is the player's 
 | `tavern/` | ~2017 | Intelligence gathering, rumors, informants, Sims-style needs |
 | `playerReligion.js` | 379 | Found a religion, build holy sites, perform miracles |
 | `inventory.js` | — | Carrying capacity (`maxInventory` slots) and the `addItem` gain path |
-| `foraging.js` | ~45 | `Foraging.quickForage`: the plain forage roll (UI skip path, headless play); wild foods it finds are edible |
+| `foraging.js` | ~290 | `Foraging` / `Hunting`: every forage and hunt roll for the quick paths and the minigames (seeded, qty ranges, int/luck/combat bonuses), paid in goods via `PlayerInventory.addItem`; craft ranks from `foragingTrips` / `huntingTrips`; wild foods are edible |
 | `seasonalWork.js` | ~210 | `SeasonalWork`: spring planting contracts (paid at harvest), seasonal odd jobs, winter fur trapping and ice fishing |
 | `index.js` | — | Barrel re-export of all public player APIs |
 

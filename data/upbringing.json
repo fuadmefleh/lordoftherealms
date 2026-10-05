@@ -313,7 +313,8 @@
         "weights": {
             "generation": 40, "yearRuled": 2, "prestige": 1, "crown": 150, "title": 20, "settlement": 25,
             "battle": 3, "quest": 2, "ambitionMilestone": 10, "ambitionCapstone": 60, "delveCleared": 6,
-            "rivalBested": 5, "petitionRuled": 1, "child": 5, "earnedTrait": 4, "nobleMarriage": 10
+            "rivalBested": 5, "petitionRuled": 1, "child": 5, "earnedTrait": 4, "nobleMarriage": 10,
+            "holdingProject": 3, "raidRepelled": 4, "rebellionCrushed": 6
         },
         "ranks": [
             { "min": 0, "label": "A Forgotten Line", "icon": "🕯️" },

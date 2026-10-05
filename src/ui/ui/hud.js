@@ -36,6 +36,8 @@ Object.assign(UI.prototype, {
         document.getElementById('btnSagas')?.addEventListener('click', () => ActionMenu.showSagasJournal(this.game));
         // Discoveries log: uncharted lands (systems/discovery.js)
         document.getElementById('btnDiscoveries')?.addEventListener('click', () => ActionMenu.showDiscoveries(this.game));
+        // Deeds & Records: every system's counters, House and reign (systems/deeds.js)
+        document.getElementById('btnDeeds')?.addEventListener('click', () => ActionMenu.showDeeds(this.game));
 
         // Event Log button
         const btnEventLog = document.getElementById('btnEventLog');

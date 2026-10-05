@@ -3,6 +3,8 @@ import { Tavern } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Discovery } from '../../systems/discovery.js';
+import { Chatter } from '../../systems/chatter.js';
+import { Heralds } from '../../systems/heralds.js';
 import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Religion, Gossip, Quests, Peoples, Sagas } from './_imports.js';
 
 Object.assign(Tavern, {
@@ -443,12 +445,13 @@ Object.assign(Tavern, {
         Traits.recordDeeds(player, { drinking: 1.5, generosity: 0.5 }); // a round for the house
         const rumors = [];
         const numRumors = Utils.randInt(1, 3);
+        // When something is happening in the region, the drinkers talk of it most
+        const types = ['kingdom_gossip', 'character_gossip', 'price_hint', 'trade_tip', 'local_rumor', 'war_rumor'];
+        if (Chatter.regionalFacts(world, player, tile).length) types.push('regional_news', 'regional_news', 'regional_news');
 
         for (let i = 0; i < numRumors; i++) {
-            const rumorType = Utils.randPick([
-                'kingdom_gossip', 'character_gossip', 'price_hint', 'trade_tip', 'local_rumor', 'war_rumor'
-            ]);
-            const rumor = Tavern._generateRumor(rumorType, tile, world, Tavern.RELIABILITY.TAVERN_GOSSIP);
+            const rumorType = Utils.randPick(types);
+            const rumor = Tavern._generateRumor(rumorType, tile, world, Tavern.RELIABILITY.TAVERN_GOSSIP, player);
             if (rumor) rumors.push(rumor);
         }
 
@@ -707,6 +710,20 @@ Object.assign(Tavern, {
             });
         }
 
+        // The heralds' proclamations, nailed to the board (systems/heralds.js)
+        for (const p of Heralds.heardAt(player, world, tile.q, tile.r).slice(0, 3)) {
+            rumors.push({
+                category: Tavern.CATEGORIES.KINGDOM_AFFAIRS,
+                icon: '📯',
+                title: 'Proclamation',
+                text: p.text,
+                reliability: Tavern.RELIABILITY.INFORMANT,
+                accurate: true,
+                day: p.day,
+                source: tile.settlement.name,
+            });
+        }
+
         // Talk of lands on no map (systems/discovery.js)
         for (const d of Discovery.tavernRumors(player, world, tile)) {
             rumors.push({
@@ -841,7 +858,7 @@ Object.assign(Tavern, {
                 rumors.push({
                     category: Tavern.CATEGORIES.RUMORS_GOSSIP,
                     icon: item.icon || '🗣️',
-                    title: `${item.freshness}: ${item.hasBounty ? '⚠️ ' : ''}Crime Rumor`,
+                    title: item.deed ? `${item.freshness}: Talk of Your Deeds` : `${item.freshness}: ${item.hasBounty ? '⚠️ ' : ''}Crime Rumor`,
                     text,
                     reliability: Tavern.RELIABILITY.TAVERN_GOSSIP,
                     day: world.day,

@@ -556,6 +556,12 @@ export const DataLoader = {
             DataLoader.gossip = gossipData;
         }
 
+        // ── Townsfolk talk & the heralds (read lazily by systems/chatter.js, systems/heralds.js) ──
+        const chatterData = data['chatter.json'];
+        if (chatterData) {
+            DataLoader.chatter = chatterData;
+        }
+
         // ── Earned character traits ──
         const traitsData = data['traits.json'];
         if (traitsData) {

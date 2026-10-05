@@ -240,9 +240,11 @@ export const NpcBrain = {
         const disposition = context.disposition != null ? context.disposition : 'neutral';
         const topic = context.topic || 'a greeting';
         const traits = (npc && npc.traits ? npc.traits.map(t => t.name || t).join(', ') : '') || 'unremarkable';
+        // The same world facts the template lines are chosen from (systems/chatter.js)
+        const world = context.worldContext ? `\nWhat is going on around you: ${context.worldContext}\nLet it colour what you say.` : '';
         return [
             { role: 'system', content: 'You voice a medieval townsperson. Reply with ONE short line of in-character dialogue, no quotes, no narration.' },
-            { role: 'user', content: NpcBrain._noThink(`You are ${name} (${traits}), feeling ${disposition} toward the player. Say ${topic}.`) },
+            { role: 'user', content: NpcBrain._noThink(`You are ${name} (${traits}), feeling ${disposition} toward the player. Say ${topic}.${world}`) },
         ];
     },
 
@@ -288,7 +290,14 @@ export const NpcBrain = {
         return `narrate:${kind}:${r.name || ''}:${h.generation || 0}`;
     },
     _lineKey(npc, ctx) {
-        return `line:${(npc && (npc.id || npc.firstName)) || 'npc'}:${ctx.topic || 'greet'}`;
+        // The world context is part of the key: when the news changes, so does the line
+        const w = ctx.worldContext ? `:${NpcBrain._hash(ctx.worldContext)}` : '';
+        return `line:${(npc && (npc.id || npc.firstName)) || 'npc'}:${ctx.topic || 'greet'}${w}`;
+    },
+    _hash(str) {
+        let h = 2166136261;
+        for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+        return (h >>> 0).toString(36);
     },
 
     // ── Test helpers ────────────────────────────────────────────

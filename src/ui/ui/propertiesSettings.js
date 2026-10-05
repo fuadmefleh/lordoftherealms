@@ -768,6 +768,9 @@ Object.assign(UI.prototype, {
         // Store notification duration for use in showNotification
         this._notifDuration = (settings.notificationDuration || 4) * 1000;
         this._confirmEndDay = settings.confirmEndDay || false;
+        // Heralds' proclamations and overheard town talk (systems/heralds.js, systems/chatter.js)
+        this._heralds = settings.heralds !== false;
+        this._townChatter = settings.townChatter !== false;
 
         // Wire (or unwire) the local LLM NPC brain per settings.
         if (typeof NpcBrain !== 'undefined') {
@@ -817,6 +820,20 @@ Object.assign(UI.prototype, {
                     <label>Confirm End Day</label>
                     <label class="gs-toggle">
                         <input type="checkbox" id="gsConfirmEndDay" ${s.confirmEndDay ? 'checked' : ''}>
+                        <span class="gs-toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="gs-row">
+                    <label>Heralds' Proclamations<br><span style="font-size:10px;color:var(--text-secondary);">Great news cried as it reaches you</span></label>
+                    <label class="gs-toggle">
+                        <input type="checkbox" id="gsHeralds" ${s.heralds !== false ? 'checked' : ''}>
+                        <span class="gs-toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="gs-row">
+                    <label>Overheard Town Talk<br><span style="font-size:10px;color:var(--text-secondary);">A passer-by's remark on arriving in a town</span></label>
+                    <label class="gs-toggle">
+                        <input type="checkbox" id="gsTownChatter" ${s.townChatter !== false ? 'checked' : ''}>
                         <span class="gs-toggle-slider"></span>
                     </label>
                 </div>
@@ -1169,6 +1186,8 @@ Object.assign(UI.prototype, {
             showDayCounter: getChecked('gsShowDayCounter'),
             showMinimap: getChecked('gsShowMinimap'),
             confirmEndDay: getChecked('gsConfirmEndDay'),
+            heralds: getChecked('gsHeralds'),
+            townChatter: getChecked('gsTownChatter'),
             llmEnabled: getChecked('gsLlmEnabled'),
             llmEndpoint: getVal('gsLlmEndpoint') || 'http://127.0.0.1:8080',
             llmModel: getVal('gsLlmModel') || 'local',
@@ -1224,6 +1243,8 @@ Object.assign(UI, {
             showDayCounter: true,
             showMinimap: true,
             confirmEndDay: false,
+            heralds: true,
+            townChatter: true,
             // Local LLM NPC brain (Spec 2) — off by default.
             llmEnabled: false,
             llmEndpoint: 'http://127.0.0.1:8080',

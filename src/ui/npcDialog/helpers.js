@@ -8,6 +8,7 @@ import { dialogState } from './shared.js';
 import { _buildConversation, _render, _typewrite, _skipTypewrite, _renderChoices, _hasGiftableInventory } from './render.js';
 import { _handleChoice, _showGiftSubmenu, _giveGoldGift, _giveItemGift, _showAskAboutSubmenu, _showSkillCheckResult, _animateDispositionChange, _updateDispositionBar, _createOverlay } from './choices.js';
 import { Traits } from '../../systems/traits.js';
+import { Chatter } from '../../systems/chatter.js';
 
 export function _mem(npc) {
     return NpcDisposition.getMemory(npc);
@@ -104,6 +105,16 @@ export function _getGreeting(npc) {
     const traitLine = Traits.greetingLine(dialogState._game?.player, Math.random(), Math.random());
     if (traitLine) return traitLine;
 
+    // Talk of what is happening in the world (systems/chatter.js): wars, sieges,
+    // plague, sagas, the player's deeds and name. Only from those not hostile.
+    if (mem.disposition >= 20) {
+        const day = dialogState._game?.world?.day || 0;
+        if (Chatter.hash(`${_npcKey(npc)}|greet|${day}|${mem.timesSpoken}`) < Chatter.config().greetChance) {
+            const chat = _chatterLine(npc, 'greet');
+            if (chat) return chat.text;
+        }
+    }
+
     // Check for family reaction first — if player treated a relative well/poorly
     const familyReaction = NpcFamily.getFamilyReactionLine(npc, InnerMap.npcs || []);
     if (familyReaction && Math.random() < 0.6) {
@@ -146,5 +157,51 @@ export function _getGreeting(npc) {
 }
 
 export function _getRumor(type) { return _pick(RUMORS[type] || RUMORS.villager); }
+
+function _npcKey(npc) {
+    return npc && (npc.id != null ? npc.id : npc.name) || 'npc';
+}
+
+/**
+ * A line about the world from this NPC (systems/chatter.js), chosen by the
+ * situation here, who they are and who the player is. Deterministic per NPC,
+ * day and conversation; avoids repeating what they already said. Null when
+ * nothing fits.
+ */
+export function _chatterLine(npc, purpose) {
+    const g = dialogState._game;
+    if (!g || !g.world || !g.player || !npc) return null;
+    const mem = _mem(npc);
+    if (!Array.isArray(mem.chatterSaid)) mem.chatterSaid = [];
+    const chat = Chatter.lineFor(g.world, g.player, {
+        q: g.player.q, r: g.player.r, npc, disposition: mem.disposition,
+        seed: `${_npcKey(npc)}|${purpose}|${mem.timesSpoken}|${mem.rumorsTold}`,
+        exclude: mem.chatterSaid,
+    });
+    if (chat) {
+        mem.chatterSaid.push(chat.id);
+        if (mem.chatterSaid.length > 12) mem.chatterSaid.shift();
+    }
+    return chat;
+}
+
+/** "What news?": the world's news first (most of the time), else the old rumour table. */
+export function _getNews(npc) {
+    const mem = _mem(npc);
+    const day = dialogState._game?.world?.day || 0;
+    if (Chatter.hash(`${_npcKey(npc)}|news|${day}|${mem.rumorsTold}`) < Chatter.config().newsChance) {
+        const chat = _chatterLine(npc, 'news');
+        if (chat) return chat.text;
+    }
+    return _getRumor(npc.type || 'villager');
+}
+
+/** The world around the NPC in plain sentences, for the LLM voice's prompt. */
+export function _worldContext(npc) {
+    const g = dialogState._game;
+    if (!g || !g.world || !g.player) return '';
+    const mem = _mem(npc);
+    return Chatter.promptFacts(Chatter.context(g.world, g.player, { q: g.player.q, r: g.player.r, npc, disposition: mem.disposition }));
+}
 
 export function _getFarewell(type) { return _pick(FAREWELLS[type] || FAREWELLS.villager); }

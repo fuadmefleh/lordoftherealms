@@ -1219,6 +1219,7 @@ export const Rivals = {
         const accept = Rivals.line(rival, 'duelAccept');
         const res = Rivals._fight(player, world, rival, { toDeath });
         const after = res.rivalDied ? '' : Rivals.line(rival, res.playerWon ? 'duelLose' : 'duelWin');
+        if (res.playerWon) Gossip.spreadDeed(player, world, 'duel_won', { q: player.q, r: player.r, victim: rival.name });
         return { success: true, ...res, accept, after, rival };
     },
 

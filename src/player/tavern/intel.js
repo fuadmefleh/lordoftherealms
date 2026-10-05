@@ -1,6 +1,7 @@
 // Tavern — intel members (split from the original monolith).
 import { Tavern } from './_ref.js';
 import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Religion, Gossip, Titles } from './_imports.js';
+import { Chatter } from '../../systems/chatter.js';
 
 Object.assign(Tavern, {
     // ────────────────────────────────────────────────────────────────────
@@ -9,13 +10,31 @@ Object.assign(Tavern, {
     /**
      * Generate a random rumor
      */
-    _generateRumor(type, tile, world, reliability) {
+    _generateRumor(type, tile, world, reliability, player = null) {
         const kingdoms = world.kingdoms.filter(k => k.isAlive);
         if (kingdoms.length === 0) return null;
 
         const accurate = Utils.random() < reliability.accuracy;
 
         switch (type) {
+            case 'regional_news': {
+                // What is happening in the region (systems/chatter.js): wars, a
+                // blockade, sieges, plague and famine, sagas, rivals, new rulers,
+                // revolts, proclamations. An inaccurate telling distorts it.
+                const news = Chatter.tavernNews(world, player, tile, { accurate, roll: Utils.random(), pick: Utils.random() });
+                if (!news) return null;
+                return {
+                    category: news.kind === 'war' || news.kind === 'siege' || news.kind === 'blockade' || news.kind === 'revolt'
+                        ? Tavern.CATEGORIES.MILITARY : Tavern.CATEGORIES.RUMORS_GOSSIP,
+                    icon: '🍺',
+                    title: 'Talk of the Region',
+                    text: news.text,
+                    reliability, accurate,
+                    day: world.day,
+                    source: tile.settlement.name,
+                };
+            }
+
             case 'kingdom_gossip': {
                 const k = Utils.randPick(kingdoms);
                 const templates = [

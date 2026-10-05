@@ -190,6 +190,87 @@ export const Gossip = {
     },
 
     // ══════════════════════════════════════════════
+    // DEEDS — the player's notable acts become talk
+    // ══════════════════════════════════════════════
+
+    /**
+     * Spread word of a notable deed of the player's (a sack, a famine dole, a
+     * pardon, a duel won): a rumour of a `deed: true` type that starts at the
+     * settlement where it happened (or the nearest one), spreads and fades like
+     * any rumour, but carries no bounty, reputation loss or guard hostility —
+     * the deed's own effects are applied by whoever reported it. Townsfolk talk
+     * about it (systems/chatter.js), the tavern repeats it. Draws no RNG.
+     * @param {Object} opts - { q, r, location, kingdom, victim }
+     * @returns {Object|null} the rumour
+     */
+    spreadDeed(player, world, deedType, opts = {}) {
+        if (!player) return null;
+        this.initializePlayer(player);
+        const data = this._getData();
+        const def = data && data.rumorTypes ? data.rumorTypes[deedType] : null;
+        if (!def || !def.deed) return null;
+
+        // Where the talk starts: the settlement itself, or the nearest one
+        let at = null;
+        if (world && opts.q != null) {
+            const tile = world.getTile ? world.getTile(opts.q, opts.r) : null;
+            if (tile && tile.settlement) at = { q: opts.q, r: opts.r, name: tile.settlement.name, kingdom: tile.settlement.kingdom };
+            else at = this._nearestSettlement(world, opts.q, opts.r, (data.spreadSettings && data.spreadSettings.maxSpreadDistance) || 3);
+        }
+        const day = (world && world.day) || 0;
+        const location = opts.location || (at && at.name) || 'the wilds';
+        // The same deed in the same place on the same day is one story
+        const dup = player.gossip.rumors.find(rm => !rm.expired && rm.type === deedType && rm.dayCreated === day && rm.locationName === location);
+        if (dup) return dup;
+
+        const credibility = def.credibility != null ? def.credibility : 0.9;
+        const rumor = {
+            id: player.gossip.nextRumorId++,
+            type: deedType,
+            deed: true,
+            perpetrator: player.name,
+            victim: { name: opts.victim || 'someone', type: 'deed', icon: def.icon || '🗣️' },
+            locationQ: at ? at.q : opts.q,
+            locationR: at ? at.r : opts.r,
+            locationName: location,
+            kingdom: opts.kingdom || (at && at.kingdom) || null,
+            dayCreated: day,
+            credibility,
+            severity: (def.baseSeverity || 20) * credibility,
+            witnessCount: 0,
+            witnessNames: [],
+            spreadTo: at ? [`${at.q},${at.r}`] : [],
+            consequencesApplied: {},
+            expired: false,
+        };
+        const maxRumors = data.maxActiveRumors || 100;
+        if (player.gossip.rumors.length >= maxRumors) player.gossip.rumors.shift();
+        player.gossip.rumors.push(rumor);
+        return rumor;
+    },
+
+    /** The nearest settlement to (q, r) within maxDist hexes: { q, r, name, kingdom } or null. */
+    _nearestSettlement(world, q, r, maxDist) {
+        let best = null;
+        let bestD = Infinity;
+        for (const kingdom of world.kingdoms || []) {
+            for (const s of kingdom.settlements || []) {
+                const d = Hex.wrappingDistance(q, r, s.q, s.r, world.width);
+                if (d <= maxDist && d < bestD) { best = { q: s.q, r: s.r, name: s.name, kingdom: s.kingdom || kingdom.id }; bestD = d; }
+            }
+        }
+        return best;
+    },
+
+    /** Is this rumour about one of the player's deeds (not a crime)? */
+    isDeed(rumor) {
+        if (!rumor) return false;
+        if (rumor.deed) return true;
+        const def = this._getRumorType(rumor.type);
+        return !!(def && def.deed);
+    },
+
+    // ══════════════════════════════════════════════
     // WITNESS DETECTION
     // ══════════════════════════════════════════════
 
@@ -291,6 +372,8 @@ export const Gossip = {
             }
 
             // ── Apply consequences at each settlement that has the rumor ──
+            // (deeds are talk, not crimes: no bounty, no reputation loss)
+            if (typeDef.deed) continue;
             const thresholds = data.consequenceThresholds || {};
             for (const settlementKey of rumor.spreadTo) {
                 if (rumor.consequencesApplied[settlementKey]) continue;
@@ -475,6 +558,7 @@ export const Gossip = {
         for (const rumor of player.gossip.rumors) {
             if (rumor.expired) continue;
             if (!rumor.spreadTo.includes(settlementKey)) continue;
+            if (this.isDeed(rumor)) continue; // talk of deeds doesn't set the guards on you
             // Settled with this crown's guards — no longer held against you here
             if (rumor.pardonedIn && rumor.pardonedIn.includes(kingdom)) continue;
 
@@ -589,6 +673,8 @@ export const Gossip = {
                 severity: rumor.severity,
                 hasBounty,
                 bountyGold: hasBounty ? player.gossip.bounties.find(b => b.rumorId === rumor.id)?.gold : 0,
+                deed: !!typeDef.deed,
+                label: typeDef.label || rumor.type,
                 known: player.gossip.knownRumors.includes(rumor.id),
             });
 
@@ -606,7 +692,7 @@ export const Gossip = {
      */
     getPlayerNotoriety(player) {
         this.initializePlayer(player);
-        const rumors = player.gossip.rumors.filter(r => !r.expired);
+        const rumors = player.gossip.rumors.filter(r => !r.expired && !this.isDeed(r));
         const bounties = player.gossip.bounties;
         const totalBounty = bounties.reduce((sum, b) => sum + b.gold, 0);
 

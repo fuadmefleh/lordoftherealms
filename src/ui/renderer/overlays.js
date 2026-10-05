@@ -303,6 +303,43 @@ Object.assign(Renderer.prototype, {
         ctx.restore();
     },
 
+    /**
+     * Places on no map until found (player.discovery, systems/discovery.js):
+     * found places with their name, a faint ❔ where a chart or rumour points.
+     */
+    renderDiscoveries(ctx) {
+        const st = this.player && this.player.discovery;
+        if (!st || !Array.isArray(st.sites) || !this.world) return;
+        const z = this.camera.zoom;
+        const size = this.hexSize * z;
+        const ICON = { island: '🏝️', cove: '🌊', valley: '⛰️', reef: '🐚' };
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (const site of st.sites) {
+            let q = site.q;
+            let r = site.r;
+            let icon = ICON[site.kind] || '❔';
+            if (!site.known) {
+                if (!site.hint) continue;
+                icon = '❔';
+                if (site.hint === 'rumoured') { q = site.hintQ; r = site.hintR; }
+            }
+            const pos = this.getHexPixelPos(q, r);
+            const s = this.camera.worldToScreen(pos.x, pos.y);
+            if (s.x < -60 || s.x > this.canvas.width + 60 || s.y < -60 || s.y > this.canvas.height + 60) continue;
+            ctx.globalAlpha = site.known ? 0.95 : 0.55;
+            ctx.font = `${Math.max(10, size * 0.55)}px serif`;
+            ctx.fillText(icon, s.x + size * 0.35, s.y - size * 0.35);
+            if (site.known && z > 0.6) {
+                ctx.font = `${Math.max(9, 10 * z)}px serif`;
+                ctx.fillStyle = site.claim && site.claim.by === 'player' ? 'rgba(160, 230, 160, 0.95)' : 'rgba(240, 220, 170, 0.95)';
+                ctx.fillText(site.name, s.x, s.y + size * 0.8);
+            }
+        }
+        ctx.restore();
+    },
+
     renderUnits(ctx) {
         if (!this.world || !this.world.units) return;
 

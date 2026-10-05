@@ -11,6 +11,7 @@ import { Holdings } from '../../systems/holdings.js';
 import { Rivals } from '../../systems/rivals.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { Sagas } from '../../systems/sagas.js';
+import { Discovery } from '../../systems/discovery.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 
 export function onPlayerArrived() {
@@ -456,6 +457,10 @@ export function endDay() {
             // Sagas — world storylines turning a chapter (systems/sagas.js)
             const sagaDay = Sagas.processDay(this.world, this.player);
             for (const n of sagaDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
+            // Uncharted lands — sightings at sea, finds close by, rivals' finds, claims (systems/discovery.js)
+            const discoveryDay = Discovery.processDay(this.world, this.player);
+            for (const n of discoveryDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Kingdoms at war with the player — ultimatums, war hosts, sieges
             const war = RealmWars.processDaily(this.player, this.world);

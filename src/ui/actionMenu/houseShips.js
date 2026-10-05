@@ -1,7 +1,7 @@
 // ActionMenu — houseShips methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
 import { beginVoyage } from './voyage.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMap, KingdomNavy } from './_imports.js';
+import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMap, KingdomNavy, Discovery } from './_imports.js';
 
 Object.assign(ActionMenu, {
     // ══════════════════════════════════════════════════════════
@@ -948,12 +948,16 @@ Object.assign(ActionMenu, {
             game.ui.showNotification('Not at Sea', 'You need to be aboard your ship on open water.', 'error');
             return;
         }
-        const result = Ships[run](player, player.boardedShip, game.world);
+        // Exploring can turn up an uncharted place (systems/discovery.js)
+        const result = run === 'exploreOcean'
+            ? Discovery.exploreOcean(player, player.boardedShip, game.world)
+            : Ships[run](player, player.boardedShip, game.world);
         if (!result.success) {
             game.ui.showNotification('At Sea', result.message, 'error');
             return;
         }
         game.ui.showNotification(result.icon || '🌊', result.title, result.type || 'info');
+        for (const n of (result.notices || []).filter(x => !x.title.startsWith('Discovery'))) game.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
         game.ui.updateStats(player, game.world);
     },
 
@@ -1220,6 +1224,21 @@ Object.assign(ActionMenu, {
             html += '<div style="padding:14px;border:1px dashed var(--border);border-radius:8px;text-align:center;font-size:12px;color:var(--text-secondary);">No port can be reached by sea from here.</div>';
         }
 
+        // Expeditions: into open sea, or after a rumour or a chart (systems/discovery.js)
+        const expeditions = Discovery.expeditionTargets(player, game.world, ship);
+        const spare = Discovery.config().expedition.victualDays;
+        if (expeditions.length) {
+            html += '<div style="font-size:11px;font-weight:bold;margin:4px 0;">🗺️ Expeditions — end at sea, you at the helm</div>';
+            for (const ex of expeditions) {
+                const days = Ships.voyageDays(player, ship, ex.leagues);
+                const need = Ships.provisionsNeeded(ship, days * 2 + spare);
+                html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;border:1px solid rgba(79,195,247,0.35);border-radius:8px;background:rgba(79,195,247,0.04);margin-bottom:6px;">`;
+                html += `<div><div style="font-size:12px;font-weight:bold;">Toward ${ex.name}</div><div style="font-size:10px;color:var(--text-secondary);">${ex.leagues} leagues · ~${days} day${days === 1 ? '' : 's'} out, as many back</div></div>`;
+                html += `<button onclick="window._doExpedition('${ship.id}', '${ex.id}', ${need > 0 ? days * 2 + spare : 0})" style="${btnPrimary}">${need > 0 ? `🍞 Victual & Sail (${need * price}g)` : 'Sail'}</button>`;
+                html += '</div>';
+            }
+        }
+
         for (const dest of routes) {
             const days = Ships.voyageDays(player, ship, dest.distance);
             const short = food !== Infinity && food < days + 1;
@@ -1246,6 +1265,10 @@ Object.assign(ActionMenu, {
         window._doSailTo = (sid, dq, dr, dname, victualDays) => {
             game.ui.hideCustomPanel();
             beginVoyage(game, sid, dq, dr, dname, victualDays);
+        };
+        window._doExpedition = (sid, targetId, victualDays) => {
+            game.ui.hideCustomPanel();
+            beginVoyage(game, sid, null, null, null, victualDays, () => Discovery.startExpedition(player, game.world, sid, targetId));
         };
     },
 

@@ -1147,6 +1147,8 @@ Object.assign(ActionMenu, {
         if (map.isAncient && map.sites && map.sites.length > 0) {
             msg += ` 📍 ${map.sites.length} ancient site(s) revealed!`;
         }
+        // An old map may mark a place on no other chart (systems/discovery.js)
+        if (result.discovery) msg += ` 🧭 ${result.discovery.text}`;
 
         game.ui.showNotification('Map Read', msg, 'success');
         game.ui.updateStats(game.player, game.world);

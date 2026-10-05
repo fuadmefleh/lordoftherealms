@@ -2,6 +2,7 @@
 import { Tavern } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
 import { Underworld } from '../../systems/underworld.js';
+import { Discovery } from '../../systems/discovery.js';
 import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Religion, Gossip, Quests, Peoples, Sagas } from './_imports.js';
 
 Object.assign(Tavern, {
@@ -699,6 +700,20 @@ Object.assign(Tavern, {
                 icon: s.icon,
                 title: s.title,
                 text: `${s.text} (Journal → Sagas)`,
+                reliability: Tavern.RELIABILITY.TAVERN_GOSSIP,
+                accurate: true,
+                day: world.day,
+                source: tile.settlement.name,
+            });
+        }
+
+        // Talk of lands on no map (systems/discovery.js)
+        for (const d of Discovery.tavernRumors(player, world, tile)) {
+            rumors.push({
+                category: Tavern.CATEGORIES.RUMORS_GOSSIP,
+                icon: d.icon,
+                title: d.title,
+                text: d.text,
                 reliability: Tavern.RELIABILITY.TAVERN_GOSSIP,
                 accurate: true,
                 day: world.day,

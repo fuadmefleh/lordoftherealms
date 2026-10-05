@@ -53,3 +53,4 @@ export { Delves } from '../../systems/delves.js';
 export { Holdings } from '../../systems/holdings.js';
 export { Rivals } from '../../systems/rivals.js';
 export { Sagas } from '../../systems/sagas.js';
+export { Discovery } from '../../systems/discovery.js';

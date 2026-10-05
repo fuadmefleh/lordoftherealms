@@ -35,6 +35,7 @@ import { LegendaryArtifacts } from '../systems/legendaryArtifacts.js';
 import { Traits } from '../systems/traits.js';
 import { Delves } from '../systems/delves.js';
 import { Ailments } from '../systems/ailments.js';
+import { Discovery } from '../systems/discovery.js';
 
 
 export const DataLoader = {
@@ -523,6 +524,15 @@ export const DataLoader = {
         const sagasData = data['sagas.json'];
         if (sagasData) {
             DataLoader.sagas = sagasData;
+        }
+
+        // ── Uncharted lands (read lazily by systems/discovery.js); its exotic
+        //    goods join the GOODS table — no market stocks them ──
+        const discoveryData = data['discovery.json'];
+        if (discoveryData) {
+            DataLoader.discovery = discoveryData;
+            const pe = data['playerEconomy.json'];
+            if (pe && pe.GOODS) Discovery.registerGoods(pe.GOODS, discoveryData.goods);
         }
 
         // ── Gossip / Rumor System ──

@@ -25,7 +25,7 @@ Object.assign(ActionMenu, {
             html += `<div style="${CARD} color:var(--text-secondary);">No petitioners wait today. New ones arrive every week or so while you hold lands, an office, or a House of standing.</div>`;
         }
         for (const p of pending) {
-            const def = Petitions.getDef(p.defId);
+            const def = Petitions.defOf(p);
             const days = Petitions.daysLeft(p, world);
             html += `<div style="${CARD}">`;
             html += `<div style="display:flex; justify-content:space-between; gap:8px;"><strong style="color:var(--gold);">${p.icon} ${p.title}</strong>`;

@@ -46,6 +46,7 @@ import { LegendaryArtifacts } from '../../systems/legendaryArtifacts.js';
 import { Cartography } from '../../systems/cartography.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Rivals } from '../../systems/rivals.js';
+import { Sagas } from '../../systems/sagas.js';
 import { Holdings } from '../../systems/holdings.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
 
@@ -243,6 +244,8 @@ export function endDay(game) {
     mark(game, 'Delves.processDay');
     Rivals.processDay(world, player);
     mark(game, 'Rivals.processDay');
+    Sagas.processDay(world, player);
+    mark(game, 'Sagas.processDay');
     RealmWars.processDaily(player, world);
     mark(game, 'RealmWars.processDaily');
     Throne.processDaily(player, world, { armyStrength: PlayerMilitary.getArmyStrength(player) });

@@ -32,6 +32,9 @@ Object.assign(UI.prototype, {
             btnIntel.addEventListener('click', () => ActionMenu.showIntelJournal(this.game));
         }
 
+        // Sagas journal button (systems/sagas.js)
+        document.getElementById('btnSagas')?.addEventListener('click', () => ActionMenu.showSagasJournal(this.game));
+
         // Event Log button
         const btnEventLog = document.getElementById('btnEventLog');
         if (btnEventLog) {

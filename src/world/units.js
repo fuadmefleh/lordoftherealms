@@ -416,7 +416,8 @@ export class WorldUnit {
 
         // Check for patrols nearby
         const patrol = world.units.find(u => u.type === 'patrol' && Hex.wrappingDistance(this.q, this.r, u.q, u.r, world.width) < 1);
-        if (patrol) {
+        // Saga creatures and companies (systems/sagas.js) are beyond a patrol
+        if (patrol && !this.sagaKey) {
             world.events.push({ text: `A ${this.name} was defeated by a ${patrol.name}!`, type: 'military' });
             this.destroyed = true;
         }

@@ -513,6 +513,12 @@ export const DataLoader = {
             DataLoader.rivals = rivalsData;
         }
 
+        // ── Sagas: world-scale storylines (read lazily by systems/sagas.js) ──
+        const sagasData = data['sagas.json'];
+        if (sagasData) {
+            DataLoader.sagas = sagasData;
+        }
+
         // ── Gossip / Rumor System ──
         const gossipData = data['gossip.json'];
         if (gossipData) {

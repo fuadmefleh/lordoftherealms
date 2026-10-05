@@ -2,7 +2,7 @@
 import { Tavern } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
 import { Underworld } from '../../systems/underworld.js';
-import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Religion, Gossip, Quests, Peoples } from './_imports.js';
+import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Religion, Gossip, Quests, Peoples, Sagas } from './_imports.js';
 
 Object.assign(Tavern, {
     // ── Cost & Configuration ───────────────────────────────────────────
@@ -691,6 +691,20 @@ Object.assign(Tavern, {
             day: world.day,
             source: tile.settlement.name,
         });
+
+        // Talk of the sagas unfolding within earshot (systems/sagas.js)
+        for (const s of Sagas.tavernRumors(player, world, tile)) {
+            rumors.push({
+                category: Tavern.CATEGORIES.KINGDOM_AFFAIRS,
+                icon: s.icon,
+                title: s.title,
+                text: `${s.text} (Journal → Sagas)`,
+                reliability: Tavern.RELIABILITY.TAVERN_GOSSIP,
+                accurate: true,
+                day: world.day,
+                source: tile.settlement.name,
+            });
+        }
 
         Tavern._storeRumors(player, rumors);
         return rumors;

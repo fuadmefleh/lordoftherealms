@@ -32,6 +32,7 @@ import { Gossip } from './gossip.js';
 import { Traits } from './traits.js';
 import { Ships } from './ships.js';
 import { Economy } from '../world/economy.js';
+import { Quests } from './quests.js';
 
 const LOG_CAP = 20;
 const SETTLEMENT_ORDER = ['village', 'town', 'city', 'capital'];
@@ -646,6 +647,7 @@ export const Underworld = {
         }
         Underworld.ensure(player).stats.earned += earned;
         Underworld.recordCrime(player, world, 'black_market', { kingdom: settlement.kingdom, scale });
+        if (blockade) Quests.track(player, 'blockade_runs');
         const text = `Sold ${qty} ${_label(goodId)} on the black market for ${earned}g${blockade ? ' — the blockade has the whole town paying double' : ''}.`;
         return { success: true, caught: false, earned, text };
     },

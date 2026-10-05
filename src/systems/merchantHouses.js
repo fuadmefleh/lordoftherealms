@@ -50,6 +50,7 @@ import { RealmWars } from './realmWars.js';
 import { HoldingSieges } from './holdingSieges.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { KingdomBonuses } from '../world/kingdomState.js';
+import { Quests } from './quests.js';
 
 const DEFAULT_CONFIG = {
     charter: { baseCost: 900, perSettlement: 60, maxCost: 2400, minReputation: 0 },
@@ -1058,6 +1059,7 @@ export const MerchantHouses = {
         if (!player.reputation) player.reputation = {};
         player.reputation[contract.kingdomId] = _clamp(_num(player.reputation[contract.kingdomId]) + cfg.kingdomReputation, -100, 100);
         c.stats.contractsDone++;
+        if ((MerchantHouses.contractDefs()[contract.defId] || {}).trigger === 'siege') Quests.track(player, 'siege_supplies_delivered');
         MerchantHouses._news(player, world, `${c.name} fulfils "${contract.title}" for ${contract.issuer}.`, '✅');
         if (out) out.notices.push({ icon: '✅', title: 'Contract Fulfilled', text: `"${contract.title}": ${contract.issuer} is satisfied (+${contract.reputation} company reputation).`, type: 'success' });
     },
@@ -1181,6 +1183,8 @@ export const MerchantHouses = {
             out.notices.push({ icon: convoy.mode === 'ship' ? '🌊' : '🏴‍☠️', title: 'Convoy Struck', text: `Your ${convoy.mode} to ${convoy.to} lost ${lost} ${_label(convoy.good)} on the way${convoy.mode === 'ship' ? ' to storm and pirates' : ' to bandits'}.`, type: 'warning' });
         }
         if (qty <= 0) return;
+        Quests.track(player, 'convoys_delivered');
+        if (convoy.mode === 'ship') Quests.track(player, 'convoys_by_sea');
         if (convoy.contractId) {
             const contract = MerchantHouses.getContract(player, convoy.contractId);
             let left = qty;

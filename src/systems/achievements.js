@@ -3,7 +3,12 @@
 // ============================================
 
 import { PlayerMilitary } from '../player/playerMilitary.js';
-
+import { Foraging, Hunting, FORAGE_RANKS, HUNT_RANKS } from '../player/foraging.js';
+import { Deeds } from './deeds.js';
+import { Traits } from './traits.js';
+import { Kingship } from './kingship.js';
+import { Legacy } from './legacy.js';
+import { Underworld } from './underworld.js';
 
 export const Achievements = {
     /**
@@ -431,14 +436,239 @@ export const Achievements = {
             check: (player) => Achievements._stat(player, 'close_calls') >= 5,
             tier: 'gold',
         },
+
+        // ── The newer systems: delves, rivals, companions, court, holdings,
+        // sieges, sagas, the throne, the underworld, the trading company,
+        // discovery and the sea, sickness, the land and the House. Each reads
+        // a counter those systems keep (Deeds.collect) or their live state; a
+        // few read event counters recorded with Quests.track().
+        INTO_THE_DARK: {
+            id: 'into_the_dark', name: 'Into the Dark', description: 'Finish your first delve', icon: '🕳️', tier: 'bronze',
+            check: (player) => Achievements._deed(player, 'delves.delves') >= 1,
+        },
+        DELVE_MASTER: {
+            id: 'delve_master', name: 'Delve Master', description: 'Clear 10 delves to the bottom', icon: '⛏️', tier: 'silver',
+            check: (player) => Achievements._deed(player, 'delves.cleared') >= 10,
+        },
+        SIX_CHAMBERS_DOWN: {
+            id: 'six_chambers_down', name: 'Six Chambers Down', description: 'Reach the sixth chamber of a delve', icon: '🕯️', tier: 'gold',
+            check: (player) => Achievements._deed(player, 'delves.deepest') >= 6,
+        },
+        EVERY_DARK_PLACE: {
+            id: 'every_dark_place', name: 'Every Dark Place', description: 'Clear a delve of every kind: sunken ruins, tomb, ruins, mine and cave', icon: '🗿', tier: 'gold',
+            check: (player) => Achievements.DELVE_KINDS.every(k => Achievements._stat(player, `delve_cleared_${k}`) >= 1),
+        },
+        DUELIST: {
+            id: 'duelist', name: 'Duelist', description: 'Best a rival adventurer in a duel', icon: '🤺', tier: 'bronze',
+            check: (player) => Achievements._deed(player, 'rivals.duelsWon') >= 1,
+        },
+        MASTER_DUELIST: {
+            id: 'master_duelist', name: 'Master Duelist', description: 'Win 10 duels against rival adventurers', icon: '⚔️', tier: 'silver',
+            check: (player) => Achievements._deed(player, 'rivals.duelsWon') >= 10,
+        },
+        BLOOD_FEUD: {
+            id: 'blood_feud', name: 'Blood Feud', description: 'Slay a rival adventurer', icon: '🩸', tier: 'silver',
+            check: (player) => Achievements._deed(player, 'rivals.slain') >= 1,
+        },
+        FRIEND_FOR_LIFE: {
+            id: 'friend_for_life', name: 'A Friend for Life', description: 'Win a companion\'s devotion', icon: '🤝', tier: 'bronze',
+            check: (player) => Achievements._deed(player, 'companions.devoted') >= 1,
+        },
+        BAND_OF_BROTHERS: {
+            id: 'band_of_brothers', name: 'Band of Brothers', description: 'Win the devotion of 3 companions', icon: '🛡️', tier: 'gold',
+            check: (player) => Achievements._deed(player, 'companions.devoted') >= 3,
+        },
+        MAGISTRATE: {
+            id: 'magistrate', name: 'Magistrate', description: 'Rule on 10 petitions', icon: '⚖️', tier: 'bronze',
+            check: (player) => Achievements._deed(player, 'petitions.ruled') >= 10,
+        },
+        WISDOM_OF_SOLOMON: {
+            id: 'wisdom_of_solomon', name: 'Wisdom of Solomon', description: 'Rule on 50 petitions', icon: '📜', tier: 'silver',
+            check: (player) => Achievements._deed(player, 'petitions.ruled') >= 50,
+        },
+        LORD_OF_THE_MANOR: {
+            id: 'lord_of_the_manor', name: 'Lord of the Manor', description: 'Rule a holding', icon: '🏡', tier: 'bronze',
+            check: (player) => Achievements._deed(player, 'holdings.held') >= 1,
+        },
+        IMPROVER_OF_LANDS: {
+            id: 'improver_of_lands', name: 'Improver of Lands', description: 'Complete 10 projects in your holdings', icon: '🏗️', tier: 'silver',
+            check: (player) => Achievements._deed(player, 'holdings.projects') >= 10,
+        },
+        IRON_FIST: {
+            id: 'iron_fist', name: 'Iron Fist', description: 'Crush a rebellion in one of your holdings', icon: '✊', tier: 'silver',
+            check: (player) => Achievements._deed(player, 'holdings.rebellionsCrushed') >= 1,
+        },
+        UNBROKEN_WALLS: {
+            id: 'unbroken_walls', name: 'Unbroken Walls', description: 'See a holding through an enemy siege: relieved or held', icon: '🏯', tier: 'silver',
+            check: (player) => {
+                const s = (player.realmWars && player.realmWars.siegeStats) || {};
+                return ((s.relieved || 0) + (s.held || 0)) >= 1;
+            },
+        },
+        THE_GATES_GIVE_WAY: {
+            id: 'the_gates_give_way', name: 'The Gates Give Way', description: 'Take a town by siege', icon: '🏰', tier: 'silver',
+            check: (player) => Achievements._deed(player, 'sieges.captured') >= 1,
+        },
+        BREAKER_OF_CITIES: {
+            id: 'breaker_of_cities', name: 'Breaker of Cities', description: 'Take 5 towns by siege', icon: '🔨', tier: 'gold',
+            check: (player) => Achievements._deed(player, 'sieges.captured') >= 5,
+        },
+        NO_RELIEF_COMING: {
+            id: 'no_relief_coming', name: 'No Relief Coming', description: 'Beat an army marching to relieve your siege', icon: '🚩', tier: 'silver',
+            check: (player) => Achievements._deed(player, 'sieges.reliefsBeaten') >= 1,
+        },
+        STUFF_OF_SAGAS: {
+            id: 'stuff_of_sagas', name: 'The Stuff of Sagas', description: 'Bring a saga you joined to a triumphant end', icon: '📖', tier: 'silver',
+            check: (player) => Achievements._deed(player, 'sagas.won') >= 1,
+        },
+        SAGA_OF_AGES: {
+            id: 'saga_of_ages', name: 'Saga of Ages', description: 'Win 3 sagas', icon: '🌠', tier: 'legendary',
+            check: (player) => Achievements._deed(player, 'sagas.won') >= 3,
+        },
+        WYRMSLAYER: {
+            id: 'wyrmslayer', name: 'Wyrmslayer', description: 'Slay the wyrm of "The Wyrm Wakes" saga', icon: '🐉', tier: 'legendary',
+            check: (player) => Achievements._stat(player, 'saga_slain_wyrm_wakes') >= 1,
+        },
+        MONSTER_HUNTER: {
+            id: 'monster_hunter', name: 'Monster Hunter', description: 'Claim the bounty on a saga beast cried on the notice boards', icon: '📯', tier: 'silver',
+            check: (player) => Achievements._deed(player, 'bounty.beasts') >= 1,
+        },
+        A_CLAIM_TO_THE_THRONE: {
+            id: 'a_claim_to_the_throne', name: 'A Claim to the Throne', description: 'Hold a claim on a throne', icon: '📜', tier: 'bronze',
+            check: (player) => Achievements._deed(player, 'throne.claims') >= 1,
+        },
+        KINGMAKER: {
+            id: 'kingmaker', name: 'Kingmaker', description: 'Back the claimant who wins a succession crisis', icon: '🎭', tier: 'gold',
+            check: (player) => Achievements._stat(player, 'kingmaker') >= 1,
+        },
+        UNEASY_LIES_THE_HEAD: {
+            id: 'uneasy_lies_the_head', name: 'Uneasy Lies the Head', description: 'Win a crown', icon: '👑', tier: 'gold',
+            check: (player) => Achievements._deed(player, 'house.crowned') >= 1,
+        },
+        THE_FULL_COUNCIL: {
+            id: 'the_full_council', name: 'The Full Council', description: 'Fill all five seats of your royal council', icon: '🏛️', tier: 'gold',
+            check: (player) => {
+                const court = Achievements._court(player);
+                return !!(court && court.council) && Kingship.OFFICES.every(o => court.council[o]);
+            },
+        },
+        LAWGIVER: {
+            id: 'lawgiver', name: 'Lawgiver', description: 'Pass 5 royal edicts', icon: '🖋️', tier: 'silver',
+            check: (player) => {
+                const court = Achievements._court(player);
+                return !!court && ((court.stats && court.stats.edictsPassed) || 0) >= 5;
+            },
+        },
+        LONG_REIGN: {
+            id: 'long_reign', name: 'Long Reign', description: 'Rule a realm for 10 years', icon: '⏳', tier: 'legendary',
+            check: (player, world) => {
+                const ruling = player.throne && player.throne.ruling;
+                if (!ruling || !world || typeof world.day !== 'number') return false;
+                return (world.day - (ruling.since || 0)) / Legacy._daysPerYear() >= Achievements.LONG_REIGN_YEARS;
+            },
+        },
+        ONE_OF_THE_GUILD: {
+            id: 'one_of_the_guild', name: 'One of the Guild', description: 'Join the Thieves\' Guild', icon: '🗝️', tier: 'bronze',
+            check: (player) => Achievements._guildMember(player),
+        },
+        PRINCE_OF_THIEVES: {
+            id: 'prince_of_thieves', name: 'Prince of Thieves', description: 'Rise to the top rank of the Thieves\' Guild', icon: '🌑', tier: 'gold',
+            check: (player) => Achievements._guildMember(player) && Underworld.isGuildmaster(player),
+        },
+        CHARTERED_COMPANY: {
+            id: 'chartered_company', name: 'Chartered Company', description: 'Found a trading company', icon: '🏦', tier: 'bronze',
+            check: (player) => !!(player.merchant && player.merchant.company),
+        },
+        MERCHANT_PRINCE_OF_THE_SEAS: {
+            id: 'merchant_prince_of_the_seas', name: 'Merchant Prince of the Seas', description: 'Run 5 trading posts and bring 10 company convoys in by ship', icon: '⛵', tier: 'legendary',
+            check: (player) => Achievements._deed(player, 'company.posts') >= 5 && Achievements._stat(player, 'convoys_by_sea') >= 10,
+        },
+        HOSTILE_TAKEOVER: {
+            id: 'hostile_takeover', name: 'Hostile Takeover', description: 'Buy out a rival merchant house', icon: '📈', tier: 'gold',
+            check: (player) => ((player.merchant && player.merchant.rivals) || []).some(r => r && r.status === 'bought'),
+        },
+        LAND_HO: {
+            id: 'land_ho', name: 'Land Ho!', description: 'Discover an uncharted land', icon: '🏝️', tier: 'bronze',
+            check: (player) => Achievements._deed(player, 'discovery.found') >= 1,
+        },
+        CARTOGRAPHER_OF_THE_UNKNOWN: {
+            id: 'cartographer_of_the_unknown', name: 'Cartographer of the Unknown', description: 'Name 5 lands you discovered', icon: '🧭', tier: 'gold',
+            check: (player) => Achievements._deed(player, 'discovery.named') >= 5,
+        },
+        SEA_LEGS: {
+            id: 'sea_legs', name: 'Sea Legs', description: 'Complete a voyage', icon: '🌊', tier: 'bronze',
+            check: (player) => Achievements._deed(player, 'voyages.voyages') >= 1,
+        },
+        OLD_SALT: {
+            id: 'old_salt', name: 'Old Salt', description: 'Spend 100 days at sea', icon: '⚓', tier: 'silver',
+            check: (player) => Achievements._deed(player, 'voyages.daysAtSea') >= 100,
+        },
+        ADMIRAL: {
+            id: 'admiral', name: 'Admiral', description: 'Command a fleet of 5 ships', icon: '🚢', tier: 'silver',
+            check: (player) => (player.ships || []).length >= 5,
+        },
+        SURVIVED_THE_BLACK_DEATH: {
+            id: 'survived_the_black_death', name: 'Survived the Black Death', description: 'Catch the plague and live', icon: '🐀', tier: 'gold',
+            check: (player) => Achievements._stat(player, 'recovered_plague') >= 1,
+        },
+        MASTER_FORAGER: {
+            id: 'master_forager', name: 'Master Forager', description: 'Reach the rank of Master Forager', icon: '🏵️', tier: 'gold',
+            check: (player) => Foraging.skill(player).level >= FORAGE_RANKS.length - 1,
+        },
+        MASTER_OF_THE_HUNT: {
+            id: 'master_of_the_hunt', name: 'Master of the Hunt', description: 'Reach the rank of Master of the Hunt', icon: '🐗', tier: 'gold',
+            check: (player) => Hunting.skill(player).level >= HUNT_RANKS.length - 1,
+        },
+        A_PERSON_OF_CHARACTER: {
+            id: 'a_person_of_character', name: 'A Person of Character', description: 'Earn 5 character traits', icon: '🎭', tier: 'silver',
+            check: (player) => Traits.getEarned(player).length >= 5,
+        },
+        RAISED_RIGHT: {
+            id: 'raised_right', name: 'Raised Right', description: 'Raise a child of your House to come of age', icon: '🎓', tier: 'silver',
+            check: (player) => (player.children || []).some(c => c && c.upbringing && c.upbringing.comeOfAge && c.upbringing.comeOfAgeDay != null),
+        },
+        BLOOD_ROYAL: {
+            id: 'blood_royal', name: 'Blood Royal', description: 'Marry a child of your House into a royal line', icon: '💍', tier: 'gold',
+            check: (player) => (player.children || []).some(c => c && c.upbringing && c.upbringing.placement && c.upbringing.placement.kind === 'royal'),
+        },
+        THE_LINE_ENDURES: {
+            id: 'the_line_endures', name: 'The Line Endures', description: 'Pass the House to an heir', icon: '🌳', tier: 'silver',
+            check: (player) => ((player.house && player.house.reigns) || []).length >= 1,
+        },
     },
 
     /** Terrain that counts as a mountain settlement. */
     MOUNTAIN_TERRAINS: ['mountain', 'hills', 'highlands', 'snow_peak'],
 
+    /** Delve kinds (data/delves.json → kinds) for Every Dark Place. */
+    DELVE_KINDS: ['sunken', 'tomb', 'ruins', 'mine', 'cave'],
+
+    /** Years on the throne for Long Reign (a year is Legacy's days-per-year). */
+    LONG_REIGN_YEARS: 10,
+
     /** An event counter recorded via Quests.track(). */
     _stat(player, stat) {
         return (player.quests && player.quests.stats && player.quests.stats[stat]) || 0;
+    },
+
+    /** Deeds.collect() of the player being checked (computed once per checkAchievements pass). */
+    _deedCache: null,
+
+    /** A counter another system keeps, read through Deeds & Records. */
+    _deed(player, key) {
+        const c = Achievements._deedCache;
+        const deeds = c && c.player === player ? c.deeds : Deeds.collect(player);
+        return deeds[key] || 0;
+    },
+
+    /** The royal court of the realm the player rules, or null (read-only). */
+    _court(player) {
+        const r = player && player.throne && player.throne.ruling;
+        return (r && r.court) || null;
+    },
+
+    _guildMember(player) {
+        return !!(player.underworld && player.underworld.guild && player.underworld.guild.member);
     },
 
     /**
@@ -467,15 +697,20 @@ export const Achievements = {
 
         const newAchievements = [];
 
-        for (const [id, achievement] of Object.entries(Achievements.ACHIEVEMENTS)) {
-            // Skip if already unlocked
-            if (player.achievements.unlocked.includes(id)) continue;
+        Achievements._deedCache = { player, deeds: Deeds.collect(player) };
+        try {
+            for (const [id, achievement] of Object.entries(Achievements.ACHIEVEMENTS)) {
+                // Skip if already unlocked
+                if (player.achievements.unlocked.includes(id)) continue;
 
-            // Check if achievement is unlocked
-            if (achievement.check(player, world)) {
-                player.achievements.unlocked.push(id);
-                newAchievements.push(achievement);
+                // Check if achievement is unlocked
+                if (achievement.check(player, world)) {
+                    player.achievements.unlocked.push(id);
+                    newAchievements.push(achievement);
+                }
             }
+        } finally {
+            Achievements._deedCache = null;
         }
 
         return newAchievements;

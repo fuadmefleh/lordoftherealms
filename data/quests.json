@@ -472,6 +472,315 @@
       ],
       "rewards": { "gold": 15000, "karma": 30, "renown": 100 },
       "difficulty": "legendary"
+    },
+    "PHYSICIANS_HERBS": {
+      "id": "physicians_herbs",
+      "title": "A Physician's Herbs",
+      "description": "The town physician has run out of herbs for poultices and fever draughts. Gather them in the wild and bring them to her.",
+      "type": "exploration",
+      "objectives": [
+        { "type": "deed_since", "key": "land.foragingTrips", "target": 2, "current": 0, "text": "Go foraging twice" },
+        { "type": "deliver_item", "item": "herbs", "target": 6, "current": 0, "text": "Bring 6 herbs (handed over on completion)" }
+      ],
+      "rewards": { "gold": 150, "renown": 5, "karma": 2 },
+      "difficulty": "easy"
+    },
+    "FURS_FOR_WINTER": {
+      "id": "furs_for_winter",
+      "title": "Furs for the Winter",
+      "description": "The furrier's racks are bare and the cold months are coming. Hunt the wilds and bring back pelts.",
+      "type": "exploration",
+      "objectives": [
+        { "type": "deed_since", "key": "land.huntingTrips", "target": 3, "current": 0, "text": "Go hunting 3 times" },
+        { "type": "deliver_item", "item": "pelts", "target": 4, "current": 0, "text": "Bring 4 pelts (handed over on completion)" }
+      ],
+      "rewards": { "gold": 220, "renown": 5 },
+      "difficulty": "easy"
+    },
+    "TOMB_OF_THE_OLD_KINGS": {
+      "id": "tomb_of_the_old_kings",
+      "title": "Tomb of the Old Kings",
+      "description": "A scholar will pay for an account of a buried tomb, taken all the way down to the burial chamber.",
+      "type": "exploration",
+      "objectives": [
+        { "type": "counter_since", "stat": "delve_cleared_tomb", "target": 1, "current": 0, "text": "Clear a Buried Tomb delve to the bottom" }
+      ],
+      "rewards": { "gold": 900, "renown": 20 },
+      "difficulty": "medium"
+    },
+    "THE_DEEP_SEAM": {
+      "id": "the_deep_seam",
+      "title": "The Deep Seam",
+      "description": "The miners' guild wants to know whether an abandoned mine can be worked again. Go to the bottom and come back.",
+      "type": "exploration",
+      "objectives": [
+        { "type": "counter_since", "stat": "delve_cleared_mine", "target": 1, "current": 0, "text": "Clear an Abandoned Mine delve to the bottom" }
+      ],
+      "rewards": { "gold": 800, "renown": 15 },
+      "difficulty": "medium"
+    },
+    "THE_BLIND_DARK": {
+      "id": "the_blind_dark",
+      "title": "The Blind Dark",
+      "description": "Herders swear something lives at the bottom of the caves above the valley. Find out.",
+      "type": "exploration",
+      "objectives": [
+        { "type": "counter_since", "stat": "delve_cleared_cave", "target": 1, "current": 0, "text": "Clear a Deep Cave delve to the bottom" }
+      ],
+      "rewards": { "gold": 700, "renown": 15 },
+      "difficulty": "medium"
+    },
+    "THE_DROWNED_HALLS": {
+      "id": "the_drowned_halls",
+      "title": "The Drowned Halls",
+      "description": "Sunken ruins hold the treasures of a city the sea took. Few who go down reach the last hall.",
+      "type": "exploration",
+      "objectives": [
+        { "type": "counter_since", "stat": "delve_cleared_sunken", "target": 1, "current": 0, "text": "Clear a Sunken Ruins delve to the bottom" }
+      ],
+      "rewards": { "gold": 1500, "renown": 30 },
+      "difficulty": "hard"
+    },
+    "BREAD_FOR_THE_BESIEGED": {
+      "id": "bread_for_the_besieged",
+      "title": "Bread for the Besieged",
+      "description": "A town is shut in by a besieging host and its stores are running low. Get provisions through the lines.",
+      "type": "military",
+      "requires": "besieged",
+      "objectives": [
+        { "type": "counter_since", "stat": "siege_supplies_delivered", "target": 1, "current": 0, "text": "Get supplies into a besieged holding, or fulfil a siege-relief contract" }
+      ],
+      "rewards": { "gold": 900, "renown": 25, "karma": 3 },
+      "difficulty": "medium"
+    },
+    "CONVOY_ESCORT": {
+      "id": "convoy_escort",
+      "title": "Escort the Convoys",
+      "description": "Bandits and pirates prey on the trade roads. See your company's convoys safely to their posts and contract towns.",
+      "type": "economic",
+      "requires": "company",
+      "objectives": [
+        { "type": "counter_since", "stat": "convoys_delivered", "target": 3, "current": 0, "text": "Bring 3 company convoys in" }
+      ],
+      "rewards": { "gold": 1000, "renown": 15 },
+      "difficulty": "medium"
+    },
+    "COMPANY_CONTRACTS": {
+      "id": "company_contracts",
+      "title": "A Name for Reliability",
+      "description": "The great houses trust a company that delivers. Fulfil supply contracts in full.",
+      "type": "economic",
+      "requires": "company",
+      "objectives": [
+        { "type": "deed_since", "key": "company.contractsDone", "target": 2, "current": 0, "text": "Fulfil 2 company supply contracts" }
+      ],
+      "rewards": { "gold": 1500, "renown": 20 },
+      "difficulty": "medium"
+    },
+    "THE_RUMOURED_ISLE": {
+      "id": "the_rumoured_isle",
+      "title": "The Rumoured Isle",
+      "description": "Sailors in the taverns talk of an island no chart shows. Hear the rumour (or buy a chart) and find the place.",
+      "type": "exploration",
+      "requires": "seafarer",
+      "objectives": [
+        { "type": "counter_since", "stat": "hinted_lands_found", "target": 1, "current": 0, "text": "Discover a land a rumour or a chart spoke of" }
+      ],
+      "rewards": { "gold": 1200, "renown": 25 },
+      "difficulty": "medium"
+    },
+    "NAME_THE_NEW_LAND": {
+      "id": "name_the_new_land",
+      "title": "Name the New Land",
+      "description": "The royal cartographers will pay for a land no one has charted, and for the right to print its name.",
+      "type": "exploration",
+      "requires": "seafarer",
+      "objectives": [
+        { "type": "deed_since", "key": "discovery.found", "target": 1, "current": 0, "text": "Discover an uncharted land" },
+        { "type": "deed_since", "key": "discovery.named", "target": 1, "current": 0, "text": "Name it (Journal → Discoveries)" }
+      ],
+      "rewards": { "gold": 2000, "renown": 35 },
+      "difficulty": "hard"
+    },
+    "A_SEASONED_CREW": {
+      "id": "a_seasoned_crew",
+      "title": "A Seasoned Crew",
+      "description": "A green crew becomes a good one only at sea. Make real voyages, port to port.",
+      "type": "exploration",
+      "requires": "seafarer",
+      "objectives": [
+        { "type": "deed_since", "key": "voyages.voyages", "target": 3, "current": 0, "text": "Complete 3 voyages" }
+      ],
+      "rewards": { "gold": 900, "renown": 15 },
+      "difficulty": "medium"
+    },
+    "RUN_THE_BLOCKADE": {
+      "id": "run_the_blockade",
+      "title": "Run the Blockade",
+      "description": "An enemy fleet has closed a realm's harbours and its towns pay anything for goods. Smuggle a cargo past the patrols and sell it on the black market.",
+      "type": "economic",
+      "requires": "blockade",
+      "objectives": [
+        { "type": "counter_since", "stat": "blockade_runs", "target": 1, "current": 0, "text": "Sell goods on the black market in a blockaded realm" }
+      ],
+      "rewards": { "gold": 1500, "renown": 20 },
+      "difficulty": "hard"
+    },
+    "SLAY_THE_SAGA_BEAST": {
+      "id": "slay_the_saga_beast",
+      "title": "Slay the Beast of the Saga",
+      "description": "A creature out of the old songs walks the land and a realm has put a price on its head. Hunt it down.",
+      "type": "military",
+      "requires": "sagaBeast",
+      "objectives": [
+        { "type": "deed_since", "key": "sagas.beastsSlain", "target": 1, "current": 0, "text": "Slay a saga beast" }
+      ],
+      "rewards": { "gold": 2500, "renown": 40 },
+      "difficulty": "hard"
+    },
+    "SATISFACTION_DEMANDED": {
+      "id": "satisfaction_demanded",
+      "title": "Satisfaction Demanded",
+      "description": "A rival adventurer has been boasting in every tavern that you are a coward. Answer with steel.",
+      "type": "military",
+      "requires": "rivals",
+      "objectives": [
+        { "type": "deed_since", "key": "rivals.duelsWon", "target": 1, "current": 0, "text": "Win a duel against a rival adventurer" }
+      ],
+      "rewards": { "gold": 400, "renown": 10 },
+      "difficulty": "easy"
+    },
+    "THE_MERCIFUL_HAND": {
+      "id": "the_merciful_hand",
+      "title": "The Merciful Hand",
+      "description": "The priests say a lord is measured by the mercy shown to those who kneel. Rule with mercy when petitioners come.",
+      "type": "religious",
+      "requires": "court",
+      "objectives": [
+        { "type": "counter_since", "stat": "ruled_mercy", "target": 2, "current": 0, "text": "Rule on 2 petitions with mercy" }
+      ],
+      "rewards": { "gold": 600, "renown": 15, "karma": 5 },
+      "difficulty": "medium"
+    },
+    "THE_IRON_LAW": {
+      "id": "the_iron_law",
+      "title": "The Iron Law",
+      "description": "Your stewards complain that the folk think your law is soft. Show them its weight from the bench.",
+      "type": "diplomatic",
+      "requires": "court",
+      "objectives": [
+        { "type": "counter_since", "stat": "ruled_severity", "target": 2, "current": 0, "text": "Rule on 2 petitions with severity" }
+      ],
+      "rewards": { "gold": 700, "renown": 20 },
+      "difficulty": "medium"
+    },
+    "SCALES_OF_JUSTICE": {
+      "id": "scales_of_justice",
+      "title": "Scales of Justice",
+      "description": "A travelling jurist wants to see whether your court weighs a case fairly. Give a just ruling.",
+      "type": "diplomatic",
+      "requires": "court",
+      "objectives": [
+        { "type": "counter_since", "stat": "ruled_justice", "target": 1, "current": 0, "text": "Rule on a petition with justice" }
+      ],
+      "rewards": { "gold": 400, "renown": 10 },
+      "difficulty": "easy"
+    },
+    "WALLS_AND_WORKS": {
+      "id": "walls_and_works",
+      "title": "Walls and Works",
+      "description": "A holding that does not grow falls behind. Raise new works in your settlements.",
+      "type": "economic",
+      "requires": "holdings",
+      "objectives": [
+        { "type": "deed_since", "key": "holdings.projects", "target": 2, "current": 0, "text": "Complete 2 holding projects" }
+      ],
+      "rewards": { "gold": 1000, "renown": 20 },
+      "difficulty": "medium"
+    },
+    "RAIDERS_AT_THE_GATE": {
+      "id": "raiders_at_the_gate",
+      "title": "Raiders at the Gate",
+      "description": "Bandits have been probing the edges of your lands. Make sure the next raid breaks on your walls.",
+      "type": "military",
+      "requires": "holdings",
+      "objectives": [
+        { "type": "deed_since", "key": "holdings.raidsRepelled", "target": 1, "current": 0, "text": "Repel a raid on one of your holdings" }
+      ],
+      "rewards": { "gold": 900, "renown": 20 },
+      "difficulty": "medium"
+    },
+    "TAKE_THE_TOWN": {
+      "id": "take_the_town",
+      "title": "Take the Town",
+      "description": "A walled town will not open its gates to anything but a siege. Invest it, starve or storm it, and take it.",
+      "type": "military",
+      "requires": "army",
+      "objectives": [
+        { "type": "deed_since", "key": "sieges.captured", "target": 1, "current": 0, "text": "Take a town by siege" }
+      ],
+      "rewards": { "gold": 3000, "renown": 45 },
+      "difficulty": "hard"
+    },
+    "NO_RELIEF_FOR_THEM": {
+      "id": "no_relief_for_them",
+      "title": "No Relief for Them",
+      "description": "The besieged are waiting for their king's army. Meet it in the field before it reaches the walls.",
+      "type": "military",
+      "requires": "siegeCamp",
+      "objectives": [
+        { "type": "deed_since", "key": "sieges.reliefsBeaten", "target": 1, "current": 0, "text": "Beat a relief army marching on your siege" }
+      ],
+      "rewards": { "gold": 2000, "renown": 35 },
+      "difficulty": "hard"
+    },
+    "BY_ROYAL_DECREE": {
+      "id": "by_royal_decree",
+      "title": "By Royal Decree",
+      "description": "A new reign is judged by its first laws. Put an edict before your council and see it passed.",
+      "type": "diplomatic",
+      "requires": "ruler",
+      "objectives": [
+        { "type": "court_since", "stat": "edictsPassed", "target": 1, "current": 0, "text": "Pass a royal edict" }
+      ],
+      "rewards": { "gold": 1500, "renown": 25 },
+      "difficulty": "medium"
+    },
+    "THE_KINGMAKERS_WAGER": {
+      "id": "the_kingmakers_wager",
+      "title": "The Kingmaker's Wager",
+      "description": "A throne stands empty and the claimants are gathering. Back the one who will win it.",
+      "type": "diplomatic",
+      "requires": "crisis",
+      "objectives": [
+        { "type": "counter_since", "stat": "kingmaker", "target": 1, "current": 0, "text": "Back the winning claimant in a succession crisis" }
+      ],
+      "rewards": { "gold": 2500, "renown": 40 },
+      "difficulty": "hard"
+    },
+    "HONOUR_AMONG_THIEVES": {
+      "id": "honour_among_thieves",
+      "title": "Honour Among Thieves",
+      "description": "The Guild's contact wants to see what you can do before trusting you with more.",
+      "type": "economic",
+      "requires": "underworld",
+      "objectives": [
+        { "type": "deed_since", "key": "underworld.crimes", "target": 3, "current": 0, "text": "Commit 3 crimes (jobs, black-market deals, fencing, theft)" }
+      ],
+      "rewards": { "gold": 800, "renown": 10 },
+      "difficulty": "medium"
+    },
+    "A_FRIEND_INDEED": {
+      "id": "a_friend_indeed",
+      "title": "A Friend Indeed",
+      "description": "Those who travel with you follow for pay. Earn one companion's devotion.",
+      "type": "diplomatic",
+      "requires": "companions",
+      "objectives": [
+        { "type": "deed_since", "key": "companions.devoted", "target": 1, "current": 0, "text": "Win a companion's devotion" }
+      ],
+      "rewards": { "gold": 1200, "renown": 25 },
+      "difficulty": "hard"
     }
   }
 }

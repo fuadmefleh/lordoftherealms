@@ -41,6 +41,7 @@ import { Traits } from './traits.js';
 import { Technology } from './technology.js';
 import { Relationships } from './relationships.js';
 import { Companions } from './companions.js';
+import { Quests } from './quests.js';
 
 export const AILMENT_ATTRS = ['strength', 'charisma', 'intelligence', 'faith', 'luck'];
 export const AILMENT_SKILLS = ['combat', 'stealth', 'diplomacy', 'leadership', 'commerce', 'cartography'];
@@ -506,7 +507,8 @@ export const Ailments = {
             const before = player.movementRemaining;
             player.movementRemaining = Math.max(1, before - pen);
             out.movementLost = before - player.movementRemaining;
-        }
+            // A wounded day's full strength still carries one hex (Player.stepAlongPath)
+            if (_num(player._dayMovement) > player.movementRemaining) player._dayMovement = player.movementRemaining;        }
 
         // ── Companions and crews ──
         if (!out.died) {
@@ -533,6 +535,7 @@ export const Ailments = {
         Ailments._unapply(player, rec);
         const st = Ailments.getState(player);
         st.list = st.list.filter(a => a !== rec);
+        if (rec.kind === 'disease' && Ailments.def(rec.id)) Quests.track(player, `recovered_${rec.id}`); // lived through it
     },
 
     _woundDay(player, world, rec, def, env, out) {

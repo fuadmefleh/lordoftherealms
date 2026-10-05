@@ -724,6 +724,7 @@ export const Sagas = {
                 if (unit.slainByPlayer) {
                     rec.slain = true;
                     if (player) {
+                        if (rec.role === 'boss') Quests.track(player, `saga_slain_${saga.id}`); // Wyrmslayer
                         Sagas._involve(player, saga);
                         Sagas._payBounty(player, world, saga, rec, notify);
                     }

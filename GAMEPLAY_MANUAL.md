@@ -2440,7 +2440,7 @@ A dark, repeatable tavern action: earn a small amount of gold (5–10g) at the c
 
 ## 22. Quests
 
-The game features **42 quest templates** (plus artifact quests) across 5 categories with 4 difficulty tiers (Easy, Medium, Hard, Legendary).
+The game features **68 quest templates** (plus artifact quests) across 5 categories with 4 difficulty tiers (Easy, Medium, Hard, Legendary). 26 of them send you into the newer systems (see [Quests in the Newer Systems](#quests-in-the-newer-systems)).
 
 ### The Quest Board
 
@@ -2454,6 +2454,39 @@ Open the **Quest Journal** to see up to **5 offered quests** and press **Accept*
 | Legendary | 10 completed quests or 300 renown |
 
 Artifact quests appear as soon as you find a fragment of that artifact. Progress counts everything you've done since the start of the game — battles won, ruins explored, treasure dug up, roads built, taverns visited, trade revenue and so on — so a quest may complete the moment you accept it. Heresy Hunter counts heresies you suppress with Denounce Heresy; Alliance Broker counts alliances you broker from the Wars of the Realm panel.
+
+### Quests in the Newer Systems
+
+These quests are offered **only when their system is within your reach** — a sea quest only if you own a ship or stand in a port, a court quest only if you hold a holding (or have petitioners waiting), a siege-relief quest only while one of your holdings is besieged or your trading company has a siege-relief contract on offer, and so on. An offer whose system slips out of reach (the ship sold, the siege over) leaves the board at the end of the day. Unlike the older quests they count only what you do **after accepting**. Delivery objectives ask you to carry goods; they are taken from your packs when the quest completes.
+
+| Quest | Difficulty | Offered when | Objective | Reward |
+|-------|-----------|--------------|-----------|--------|
+| A Physician's Herbs | Easy | Always | Forage twice, bring 6 herbs | 150g, 5 renown, 2 karma |
+| Furs for the Winter | Easy | Always | Hunt 3 times, bring 4 pelts | 220g, 5 renown |
+| Satisfaction Demanded | Easy | Rival adventurers are abroad | Win a duel against a rival | 400g, 10 renown |
+| Scales of Justice | Easy | You hold court | Rule on a petition with justice | 400g, 10 renown |
+| Tomb of the Old Kings | Medium | Always | Clear a Buried Tomb delve | 900g, 20 renown |
+| The Deep Seam | Medium | Always | Clear an Abandoned Mine delve | 800g, 15 renown |
+| The Blind Dark | Medium | Always | Clear a Deep Cave delve | 700g, 15 renown |
+| Bread for the Besieged | Medium | A holding of yours is besieged, or a siege-relief contract is on offer | Get supplies into a besieged holding, or fulfil a siege-relief contract | 900g, 25 renown, 3 karma |
+| Escort the Convoys | Medium | You run a trading company | Bring 3 company convoys in | 1,000g, 15 renown |
+| A Name for Reliability | Medium | You run a trading company | Fulfil 2 supply contracts | 1,500g, 20 renown |
+| The Rumoured Isle | Medium | You own a ship or stand in a port | Discover a land a rumour or a chart spoke of | 1,200g, 25 renown |
+| A Seasoned Crew | Medium | Ship or port | Complete 3 voyages | 900g, 15 renown |
+| The Merciful Hand | Medium | You hold court | Rule on 2 petitions with mercy | 600g, 15 renown, 5 karma |
+| The Iron Law | Medium | You hold court | Rule on 2 petitions with severity | 700g, 20 renown |
+| Walls and Works | Medium | You rule a holding | Complete 2 holding projects | 1,000g, 20 renown |
+| Raiders at the Gate | Medium | You rule a holding | Repel a raid on a holding | 900g, 20 renown |
+| By Royal Decree | Medium | You rule a realm | Pass a royal edict | 1,500g, 25 renown |
+| Honour Among Thieves | Medium | You've met the Thieves' Guild | Commit 3 crimes | 800g, 10 renown |
+| The Drowned Halls | Hard | Always | Clear a Sunken Ruins delve | 1,500g, 30 renown |
+| Name the New Land | Hard | Ship or port | Discover an uncharted land and name it | 2,000g, 35 renown |
+| Run the Blockade | Hard | An enemy fleet blockades a realm | Sell goods on the black market in a blockaded realm | 1,500g, 20 renown |
+| Slay the Beast of the Saga | Hard | A saga beast roams | Slay a saga beast | 2,500g, 40 renown |
+| Take the Town | Hard | You lead 3+ units | Take a town by siege | 3,000g, 45 renown |
+| No Relief for Them | Hard | You are besieging a town | Beat a relief army | 2,000g, 35 renown |
+| The Kingmaker's Wager | Hard | A succession crisis is underway | Back the winning claimant | 2,500g, 40 renown |
+| A Friend Indeed | Hard | Companions travel with you | Win a companion's devotion | 1,200g, 25 renown |
 
 ### Favours for Townsfolk
 
@@ -2529,7 +2562,7 @@ Ask an NPC whether they need help and they may make a request. If you accept, it
 
 ## 23. Achievements
 
-The game tracks **41 achievements** across multiple categories with Bronze, Silver, and Gold tiers:
+The game tracks **91 achievements** across multiple categories with Bronze, Silver, Gold and Legendary tiers. They are checked at the end of every day; each one reads something the game really records (a counter in Deeds & Records, a system's live state, or an event counter), so every one can be earned.
 
 ### Selected Achievements
 
@@ -2560,6 +2593,56 @@ The game tracks **41 achievements** across multiple categories with Bronze, Silv
 | Spymaster | Silver | Maintain 10 informants |
 | Road Warrior | Silver | Build 50 road segments |
 | Bounty Hunter | Silver | Complete 10 bounty contracts |
+
+### Achievements of the Newer Systems
+
+| Achievement | Tier | Requirement |
+|-------------|------|-------------|
+| Into the Dark | Bronze | Finish your first delve |
+| Delve Master | Silver | Clear 10 delves to the bottom |
+| Six Chambers Down | Gold | Reach the sixth chamber of a delve |
+| Every Dark Place | Gold | Clear a delve of every kind: sunken ruins, tomb, ruins, mine and cave |
+| Duelist | Bronze | Best a rival adventurer in a duel |
+| Master Duelist | Silver | Win 10 duels against rival adventurers |
+| Blood Feud | Silver | Slay a rival adventurer |
+| A Friend for Life | Bronze | Win a companion's devotion |
+| Band of Brothers | Gold | Win the devotion of 3 companions |
+| Magistrate | Bronze | Rule on 10 petitions |
+| Wisdom of Solomon | Silver | Rule on 50 petitions |
+| Lord of the Manor | Bronze | Rule a holding |
+| Improver of Lands | Silver | Complete 10 projects in your holdings |
+| Iron Fist | Silver | Crush a rebellion in one of your holdings |
+| Unbroken Walls | Silver | See a holding through an enemy siege: relieved or held |
+| The Gates Give Way | Silver | Take a town by siege |
+| Breaker of Cities | Gold | Take 5 towns by siege |
+| No Relief Coming | Silver | Beat an army marching to relieve your siege |
+| The Stuff of Sagas | Silver | Bring a saga you joined to a triumphant end |
+| Saga of Ages | **Legendary** | Win 3 sagas |
+| Wyrmslayer | **Legendary** | Slay the wyrm of "The Wyrm Wakes" saga |
+| Monster Hunter | Silver | Claim the bounty on a saga beast cried on the notice boards |
+| A Claim to the Throne | Bronze | Hold a claim on a throne |
+| Kingmaker | Gold | Back the claimant who wins a succession crisis |
+| Uneasy Lies the Head | Gold | Win a crown |
+| The Full Council | Gold | Fill all five seats of your royal council |
+| Lawgiver | Silver | Pass 5 royal edicts |
+| Long Reign | **Legendary** | Rule a realm for 10 years |
+| One of the Guild | Bronze | Join the Thieves' Guild |
+| Prince of Thieves | Gold | Rise to the top rank of the Thieves' Guild |
+| Chartered Company | Bronze | Found a trading company |
+| Merchant Prince of the Seas | **Legendary** | Run 5 trading posts and bring 10 company convoys in by ship |
+| Hostile Takeover | Gold | Buy out a rival merchant house |
+| Land Ho! | Bronze | Discover an uncharted land |
+| Cartographer of the Unknown | Gold | Name 5 lands you discovered |
+| Sea Legs | Bronze | Complete a voyage |
+| Old Salt | Silver | Spend 100 days at sea |
+| Admiral | Silver | Command a fleet of 5 ships |
+| Survived the Black Death | Gold | Catch the plague and live |
+| Master Forager | Gold | Reach the rank of Master Forager |
+| Master of the Hunt | Gold | Reach the rank of Master of the Hunt |
+| A Person of Character | Silver | Earn 5 character traits |
+| Raised Right | Silver | Raise a child of your House to come of age |
+| Blood Royal | Gold | Marry a child of your House into a royal line |
+| The Line Endures | Silver | Pass the House to an heir |
 
 ---
 

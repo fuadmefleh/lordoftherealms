@@ -4,9 +4,26 @@ import { Terrain, Kingdom, WeatherSystem, NPCLords, Hex, Utils, WorldEvents, Wor
 
 Object.assign(World.prototype, {
     /**
-     * Generate the entire world
+     * Generate the entire world. Every world has a seed (drawn from the game
+     * RNG when none is given), kept in `generationParams` and saved with the
+     * game: generation runs on an RNG seeded from it, so reloading a save
+     * regenerates the same terrain, realms and sites beneath the saved state.
+     * The caller's RNG stream is restored afterwards.
      */
     generate(terrainParams = {}) {
+        const seed = terrainParams.seed || Utils.randInt(1, 2147483646);
+        this.generationParams = { ...terrainParams, seed };
+        const outerRng = Utils.getRng();
+        Utils.setSeed(typeof seed === 'string' ? Math.abs(Utils.hashStr(seed)) : seed);
+        try {
+            this._generateWorld(this.generationParams);
+            this.getAllSettlements(); // stamps each settlement with its q/r
+        } finally {
+            Utils.setRng(outerRng);
+        }
+    },
+
+    _generateWorld(terrainParams) {
         console.log('Generating terrain...');
         // Generate terrain
         this.tiles = Terrain.generateMap(this.width, this.height, terrainParams);

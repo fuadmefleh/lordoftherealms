@@ -101,6 +101,9 @@ export const SaveLoad = {
             warHistory: world.warHistory || [],
             warHistorySeq: world.warHistorySeq || 0,
             weather: world.weather && world.weather.serialize ? world.weather.serialize() : null,
+            // Terrain is regenerated on load, not saved: the seed and settings
+            // reproduce it (see World.generate)
+            generationParams: world.generationParams || null,
         };
     },
 

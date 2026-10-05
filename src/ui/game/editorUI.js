@@ -12,7 +12,8 @@ export function resumeGame() {
 
     // Reconstruct world
     this.world = new World(data.world.width, data.world.height);
-    this.world.generate(); // Regenerate terrain
+    // Regenerate the same terrain from the saved seed (older saves had none)
+    this.world.generate(data.world.generationParams || {});
     SaveLoad.restoreWorld(data.world, this.world);
 
     // Recalculate regions for routing (important for older saves)

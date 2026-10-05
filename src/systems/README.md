@@ -13,6 +13,7 @@ World simulation systems. Each system manages a distinct aspect of the game worl
 | `cartography/` | ~950 | Map making, map trading, propaganda maps, stolen maps |
 | `companions.js` | ~1050 | Travel companions with values & approval (react to deeds, rulings, piracy, karma, battles, wages), mood-scaled bonuses, raise demands/desertion/betrayal, personal quests (`data/companions.json`), bonds, death in battle |
 | `deeds.js` | ~190 | Deeds & Records: every system's player counters as one flat map (`collect`) and a sectioned view with lifetime and this-reign columns (`sections`, against Legacy's reign snapshot); read-only, no RNG |
+| `counsel.js` | ~730 | The Steward's Counsel: a read-only advisor. Data rules (`data/counsel.json`) name readers that turn player and world state into ranked threats, opportunities and goals, each with a severity, a line and an action hook (panel id and/or hex). Memoised per day; heavy rules run once a day. No RNG, no writes, tolerant of partial state. UI: `ui/actionMenu/counsel.js` |
 | `councils.js` | ~412 | Parliament voting — taxes, war declarations, faction management |
 | `culture.js` | — | Cultural spread, assimilation, hybrid traditions |
 | `delves.js` | ~880 | Delves into ruins and caves: 3–6 chambers per kind (sunken/tomb/ruins/mine/cave) from `data/delves.json`, choices tested by stats/skills/gear/companions/traits, depth-scaled loot through the inventory cap, fragments, lore, injuries, a cursed idol and awakened guardians; `processDay(world, player)` |

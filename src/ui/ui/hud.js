@@ -6,6 +6,7 @@ import { Traits } from '../../systems/traits.js';
 import { Companions } from '../../systems/companions.js';
 import { Ailments } from '../../systems/ailments.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
+import { updateCounselBadge } from '../actionMenu/counsel.js';
 
 Object.assign(UI.prototype, {
     setupEventListeners() {
@@ -344,6 +345,7 @@ Object.assign(UI.prototype, {
         this.updateObjectivePanel(player);
         this.updateRegionPanel(player, world);
         this.updateEventsPanel();
+        updateCounselBadge(this.game);
 
         // Show jail status if active
         let jailEl = document.getElementById('jailDisplay');
@@ -1197,6 +1199,7 @@ Object.assign(UI.prototype, {
         // Quests and Diplomacy are direct-action tabs.
         bind('navTabQuests', () => this.showQuestsPanel());
         bind('navTabDiplomacy', () => this._showDiplomacyPanel(game.player, game.world));
+        bind('navTabCounsel', () => ActionMenu.showCounsel(game));
 
         // Left rail
         bind('railOverview', () => this.showCharacterPanel());

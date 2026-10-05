@@ -17,6 +17,7 @@ import { Discovery } from '../../systems/discovery.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { Kingship } from '../../systems/kingship.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
+import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 
 export function onPlayerArrived() {
     const tile = this.world.getTile(this.player.q, this.player.r);
@@ -977,6 +978,9 @@ export function endDay() {
             }
 
             this.ui.showNotification('New Day', `Day ${((this.world.day - 1) % 30) + 1} of ${this.world.season}, Year ${this.world.year}`, 'default');
+            // The Steward's morning brief: the top three matters (setting: morningBrief)
+            showMorningBrief(this);
+            updateCounselBadge(this);
 
             // At sea: show the voyage log, then sail on or wait for orders (ui/actionMenu/voyage.js)
             if (this._voyageDay) {

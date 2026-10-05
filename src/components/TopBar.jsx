@@ -161,6 +161,13 @@ export default function TopBar() {
           </div>
         </div>
 
+        {/* COUNSEL (direct → ActionMenu.showCounsel via #navTabCounsel; badge = threat count) */}
+        <button className="civ-menu-btn hud-tab" id="navTabCounsel" title="The Steward's Counsel: what matters now" style={{position:'relative'}}>
+          <span className="civ-menu-icon">🗝️</span>
+          <span className="civ-menu-label">Counsel</span>
+          <span id="counselBadge" style={{display:'none', position:'absolute', top:'2px', right:'2px', minWidth:'15px', padding:'0 4px', borderRadius:'8px', background:'#b7791f', color:'#fff', fontSize:'10px', fontWeight:'bold', lineHeight:'15px', textAlign:'center'}}>0</span>
+        </button>
+
         {/* DIPLOMACY (direct → _showDiplomacyPanel via #navTabDiplomacy) */}
         <button className="civ-menu-btn hud-tab" id="navTabDiplomacy" title="Diplomacy">
           <span className="civ-menu-icon">🤝</span>

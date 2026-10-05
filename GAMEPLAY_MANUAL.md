@@ -44,6 +44,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
     - [Rival Adventurers](#rival-adventurers) — named rivals who delve, hunt bounties and compete with you; the Hall of Heroes
 29. [Saving & Loading](#29-saving--loading)
 30. [Controls & UI](#30-controls--ui)
+    - [The Steward's Counsel](#the-stewards-counsel): the advisor that ranks today's threats, opportunities and goals, with a morning brief
 31. [Tips & Strategies](#31-tips--strategies)
 
 ---
@@ -2879,6 +2880,24 @@ Click on your character or nearby hexes to open the **contextual radial action m
 - **Minimap**: Clickable for quick navigation.
 - **Notification Toasts**: Stacked alerts for events, achievements, and quest completions.
 - **Finance Panel**: Click your gold to see a 90-day financial breakdown.
+
+### The Steward's Counsel
+
+With some forty systems running at once, it is easy to miss what matters today. Your steward reads them all and sets the most pressing matters before you. Open the **🗝️ Counsel** tab in the top bar. Its badge counts the threats the steward sees and turns red when one is critical.
+
+The counsel ranks its items in three groups. Within a group, items are ordered by severity (critical, warning, notice, info) and then by priority:
+
+| Group | What the steward watches |
+|-------|--------------------------|
+| **Threats** | Holdings under siege (critical when stores fall to a week) · a revolt raging, or a revealed faction strong enough to issue an ultimatum · unrest in a holding (60+; critical at 75 or in rebellion) · enemy or rebel war hosts within 10 hexes or marching on you · a realm's war ultimatum · a disease at a stage that can kill · 3 or fewer days of food in your pack, or starving · a ship at sea with 3 or fewer days of provisions · underworld heat (watched, posters, warrant) · petitions about to lapse · mercenaries you cannot pay or who are wavering, crews whose wages exceed your purse, companions owed wages · a companion near desertion · a nemesis within 8 hexes · a known saga's chapter turning within 5 days nearby, or a saga beast within 5 hexes · the lean weeks within 15 days while you carry under 10 food · a realm contesting your discovery · a blockade of your realm or of the port you stand in |
+| **Opportunities** | A trading-company contract you already carry the goods for · cheap harvest food (20%+ under the usual price) · an unexplored delve site within 5 hexes · the bounty board in town, or a saga beast with a price on its head · a child come of age with no match or court · a royal match you can afford · an empty edict slot · a throne claim strong enough to press · a tournament you can hold here · a quest 75%+ done · a rumoured or charted uncharted land |
+| **Goals** | The next milestone of your House Ambition (or a nudge to choose one) · the trait you are closest to earning (50%+) · captures to your next hunter rank · guild standing to your next thieves' guild rank · your House's Legacy score and the next rank |
+
+Each item has a button that opens the panel to deal with it, such as the siege panel, the Royal Court, the physician, the petitions or the travel party. Items tied to a place also have a 📍 button that centres the map there. A panel that needs a town (the physician, the bounty board, a tournament) points you at the map when you are elsewhere.
+
+**Morning brief.** At the start of each new day, one notification lists the top three matters of notice or higher, threats first. On a quiet day there is none. Turn it off with **Settings → Steward's Morning Brief**.
+
+The counsel only reads: it never changes the game and never rolls dice. Its rules, wording, thresholds and priorities live in `data/counsel.json`, so new advice is a data entry.
 
 ---
 

@@ -768,6 +768,8 @@ Object.assign(UI.prototype, {
         // Store notification duration for use in showNotification
         this._notifDuration = (settings.notificationDuration || 4) * 1000;
         this._confirmEndDay = settings.confirmEndDay || false;
+        // The Steward's Counsel morning brief (ui/actionMenu/counsel.js)
+        this._morningBrief = settings.morningBrief !== false;
 
         // Wire (or unwire) the local LLM NPC brain per settings.
         if (typeof NpcBrain !== 'undefined') {
@@ -817,6 +819,13 @@ Object.assign(UI.prototype, {
                     <label>Confirm End Day</label>
                     <label class="gs-toggle">
                         <input type="checkbox" id="gsConfirmEndDay" ${s.confirmEndDay ? 'checked' : ''}>
+                        <span class="gs-toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="gs-row">
+                    <label title="One notification each new day with the Steward's top three matters">Steward's Morning Brief</label>
+                    <label class="gs-toggle">
+                        <input type="checkbox" id="gsMorningBrief" ${s.morningBrief !== false ? 'checked' : ''}>
                         <span class="gs-toggle-slider"></span>
                     </label>
                 </div>
@@ -1169,6 +1178,7 @@ Object.assign(UI.prototype, {
             showDayCounter: getChecked('gsShowDayCounter'),
             showMinimap: getChecked('gsShowMinimap'),
             confirmEndDay: getChecked('gsConfirmEndDay'),
+            morningBrief: getChecked('gsMorningBrief'),
             llmEnabled: getChecked('gsLlmEnabled'),
             llmEndpoint: getVal('gsLlmEndpoint') || 'http://127.0.0.1:8080',
             llmModel: getVal('gsLlmModel') || 'local',
@@ -1224,6 +1234,7 @@ Object.assign(UI, {
             showDayCounter: true,
             showMinimap: true,
             confirmEndDay: false,
+            morningBrief: true,
             // Local LLM NPC brain (Spec 2) — off by default.
             llmEnabled: false,
             llmEndpoint: 'http://127.0.0.1:8080',

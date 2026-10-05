@@ -508,6 +508,12 @@ export const DataLoader = {
             DataLoader.kingship = kingshipData;
         }
 
+        // ── The Steward's Counsel: advisor rules and text (read lazily by systems/counsel.js) ──
+        const counselData = data['counsel.json'];
+        if (counselData) {
+            DataLoader.counsel = counselData;
+        }
+
         // ── Holdings development: projects, governors, garrisons (read lazily by systems/holdings.js) ──
         const holdingsData = data['holdings.json'];
         if (holdingsData) {

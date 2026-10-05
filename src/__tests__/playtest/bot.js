@@ -523,6 +523,23 @@ export function botDay(game, stats) {
         const docked = (player.ships || []).find(s => s.status === 'docked');
         if (docked && Ships.sellShip(player, docked.id).success) count(stats, 'shipsSold');
     }
+    // Running out of food with money in the purse: make for the nearest town and buy some
+    if (player.getFoodCount() <= 2 && player.gold >= 50 && !player.boardedShip) {
+        const at = world.getTile(player.q, player.r);
+        if (at && at.settlement) {
+            booked(game, 'buyFood', () => buyFood(game, at, stats));
+        } else {
+            const town = nearest(world, player, settlementTiles(world), 1)[0];
+            if (town) {
+                game.dest = { q: town.q, r: town.r };
+                travelTo(game, town.q, town.r);
+                const now = world.getTile(player.q, player.r);
+                if (now && now.settlement) booked(game, 'buyFood', () => buyFood(game, now, stats));
+                count(stats, 'foodRuns');
+                return;
+            }
+        }
+    }
     // Broke and foodless: live off the land like anyone would — step out of
     // town onto forageable ground and spend the day searching it
     const forage = DataLoader.earlyJobs && DataLoader.earlyJobs.foraging;

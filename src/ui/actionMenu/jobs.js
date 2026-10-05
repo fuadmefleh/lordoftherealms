@@ -2,6 +2,7 @@
 import { ActionMenu } from './_ref.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, Seasons, SeasonalWork } from './_imports.js';
 import { MinigameHost, startForge } from '../minigames/index.js';
+import { Ailments } from '../../systems/ailments.js';
 
 Object.assign(ActionMenu, {
     // ============================================================
@@ -1448,6 +1449,9 @@ Object.assign(ActionMenu, {
                 player.health = Math.max(1, player.health - dmg);
                 huntResult = 'injured';
                 statusMsg = `Your arrow ricocheted! -${dmg} HP`;
+                // The startled beast may leave you with a lasting wound (systems/ailments.js)
+                const wound = Ailments.maybeWound(player, game.world, 'hunt');
+                if (wound) statusMsg += ` ${wound.icon} ${wound.name}.`;
                 phase = 'result';
             } else {
                 huntResult = 'missed';

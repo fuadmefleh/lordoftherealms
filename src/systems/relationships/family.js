@@ -427,6 +427,14 @@ Object.assign(Relationships, {
             stealth: Math.max(1, child.skills?.stealth || 0),
             cartography: child.skills?.cartography || 0,
         };
+        // The late ruler's wounds and sickness die with them (stats above are
+        // the heir's own, so nothing is given back) — systems/ailments.js
+        if (player.ailments && Array.isArray(player.ailments.list)) {
+            player.ailments.list = [];
+            player.ailments.party = {};
+            player.ailments.deathCause = null;
+        }
+        if (player.delves && Array.isArray(player.delves.injuries)) player.delves.injuries = [];
 
         // Health — full for young heir
         player.health = child.maxHealth || 100;

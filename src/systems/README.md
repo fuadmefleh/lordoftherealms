@@ -6,6 +6,7 @@ World simulation systems. Each system manages a distinct aspect of the game worl
 
 | File | Lines | Description |
 |------|-------|-------------|
+| `ailments.js` | ~1140 | Wounds, sickness and medicine: wounds from fights/delves (attribute, skill, movement and battle-power penalties, healing time, infection, permanent Scarred/Lame traits), staged diseases from exposure, raw food, swamps, plague, the lean season and long voyages; contagion to companions and ship crews; physicians, temple rites, remedies, prayer (`data/ailments.json`); `processDay(world, player, ctx)` reports death, the UI triggers it |
 | `achievements.js` | ~197 | 30+ achievements; checked after player actions |
 | `audio/` | ~1100 | Procedural Web Audio API music & SFX — no external files |
 | `bountyHunting.js` | ~305 | Criminal tracking, bounty boards, capture mechanics |

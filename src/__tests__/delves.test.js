@@ -7,6 +7,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Delves } from '../systems/delves.js';
+import { Ailments } from '../systems/ailments.js';
 import { SaveLoad } from '../systems/saveLoad.js';
 import { Traits } from '../systems/traits.js';
 import { Player } from '../player/player.js';
@@ -294,21 +295,46 @@ describe('inventory cap', () => {
 });
 
 describe('consequences', () => {
-    it('injuries lower an attribute until they mend', () => {
+    it('injuries are ailments: they lower an attribute until they mend', () => {
         Utils.setSeed(12);
         const w = makeWorld(10);
         const p = makePlayer();
         Delves.start(p, w, addPoi(w, 3, 3, 'ruins'));
         const stats0 = { strength: p.strength, intelligence: p.intelligence, charisma: p.charisma, faith: p.faith };
-        Delves._applyOutcome(p, w, { injury: 1 }, 0);
-        const inj = p.delves.injuries[0];
+        const out = Delves._applyOutcome(p, w, { injury: 1 }, 0);
+        expect(p.delves.injuries).toEqual([]);
+        const inj = Ailments.list(p)[0];
         expect(inj).toBeDefined();
-        expect(p[inj.stat]).toBe(stats0[inj.stat] - inj.amount);
+        expect(inj.kind).toBe('wound');
+        expect(inj.source).toBe('delve');
+        expect(out.lines.some(l => l.startsWith('Injured:'))).toBe(true);
+        const [stat, amount] = Object.entries(inj.applied.attrs)[0];
+        expect(p[stat]).toBe(stats0[stat] - amount);
         Delves.retreat(p, w);
-        w.day = inj.untilDay;
-        const out = Delves.processDay(w, p);
-        expect(out.healed).toContain(inj.name);
-        expect(p[inj.stat]).toBe(stats0[inj.stat]);
+        // Mend it day by day: an inn bed, and treated so it cannot fester
+        p._lastRestType = 'inn';
+        inj.treated = 1;
+        let healed = [];
+        for (let d = 0; d < 40 && Ailments.list(p).length; d++) {
+            w.day++;
+            healed = healed.concat(Ailments.processDay(w, p).healed);
+        }
+        expect(healed).toContain(inj.name);
+        expect(p[stat]).toBe(stats0[stat]);
+    });
+
+    it('legacy delve injuries are folded into ailments on load', () => {
+        const p = makePlayer();
+        p.strength = 4;
+        p.delves = { completed: [], injuries: [{ id: 'broken_arm', name: 'Broken Arm', stat: 'strength', amount: 1, untilDay: 20 }] };
+        Delves.loadState(p);
+        Ailments.loadState(p, makeWorld(10));
+        expect(p.delves.injuries).toEqual([]);
+        const rec = Ailments.list(p)[0];
+        expect(rec.id).toBe('broken_arm');
+        expect(rec.daysLeft).toBe(10);
+        Ailments.cureAll(p);
+        expect(p.strength).toBe(5);
     });
 
     it('a cursed idol clings even to full packs and saps health and karma daily', () => {

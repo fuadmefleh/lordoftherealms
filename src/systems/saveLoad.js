@@ -15,6 +15,7 @@ import { Traits } from './traits.js';
 import { Petitions } from './petitions.js';
 import { Companions } from './companions.js';
 import { Delves } from './delves.js';
+import { Ailments } from './ailments.js';
 import { Underworld } from './underworld.js';
 import { Throne } from './throne.js';
 import { Holdings } from './holdings.js';
@@ -351,6 +352,8 @@ export const SaveLoad = {
             companions: Companions.serialize(player),
             // Delves (an in-progress delve, delved sites, injuries, awakened guardians)
             delves: Delves.serialize(player),
+            // Wounds and sickness, sick companions and crews (systems/ailments.js)
+            ailments: Ailments.serialize(player),
             // Claims, crises, a civil war, a crown (systems/throne.js)
             throne: Throne.serialize(player),
             // Holdings ledger (per-settlement development is saved with the tiles)
@@ -536,6 +539,8 @@ export const SaveLoad = {
         else player.petitions = null;
         // Delves — older saves have none (backfills a blank record)
         Delves.loadState(player);
+        // Ailments — older saves have none; legacy delve injuries are folded in
+        Ailments.loadState(player, world);
         // Claims & Crowns — older saves get a blank record (and a crown if they
         // had founded a kingdom with the old Form Kingdom action)
         Throne.load(player, world);

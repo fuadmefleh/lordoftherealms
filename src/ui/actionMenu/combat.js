@@ -1,6 +1,7 @@
 // ActionMenu — combat methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
+import { Ailments } from '../../systems/ailments.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerEffects, Treasures } from './_imports.js';
 
 /** Battle-report lines for soldiers saved by surgeons and a slain enemy commander. */
@@ -20,7 +21,17 @@ function battleExtrasHtml(result) {
     if (result.commanderSlain) {
         html += `<div style="color: #ce93d8;">🗡️ Your assassins slew the enemy commander — their ranks broke!</div>`;
     }
+    if (result.personalWound) {
+        const w = result.personalWound;
+        html += `<div style="color: #e57373;">${w.icon} You were wounded in the fighting: ${w.name}${w.text ? ` (${w.text})` : ''}. See a physician.</div>`;
+    }
     return html;
+}
+
+/** You fought in the line yourself: maybe a wound (systems/ailments.js). */
+function _rollBattleWound(game, result) {
+    if (!result || result.noArmy || (result.success === false && result.reason)) return;
+    result.personalWound = Ailments.afterBattle(game.player, game.world, !!result.victory, { sea: result.theatre === 'sea' });
 }
 
 Object.assign(ActionMenu, {
@@ -159,6 +170,7 @@ Object.assign(ActionMenu, {
             game.ui.showNotification('Cannot Raid', result.reason, 'error');
             return;
         }
+        _rollBattleWound(game, result);
 
         let html = '<div style="padding: 10px; text-align: center;">';
         if (result.victory) {
@@ -201,6 +213,7 @@ Object.assign(ActionMenu, {
             game.ui.showNotification('Cannot Attack', result.reason, 'error');
             return;
         }
+        _rollBattleWound(game, result);
 
         let html = '<div style="padding: 10px;">';
 
@@ -342,6 +355,7 @@ Object.assign(ActionMenu, {
         }
 
         const result = PlayerMilitary.attackUnit(game.player, unit, game.world);
+        _rollBattleWound(game, result);
 
         let html = '<div style="padding:10px;">';
 
@@ -398,6 +412,7 @@ Object.assign(ActionMenu, {
                 html += `<div style="color:#ff6666; margin-top:4px;">⛓️ You have been captured into indentured servitude for ${result.servitudeDays} days!</div>`;
                 html += `<div style="color:#ffd700;">💰 ${result.goldConfiscated} gold confiscated.</div>`;
             }
+            html += battleExtrasHtml(result);
             html += `</div>`;
 
             if (result.tactics) {

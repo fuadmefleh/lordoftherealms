@@ -34,6 +34,7 @@ import { InnerMap } from '../world/innerMap.js';
 import { LegendaryArtifacts } from '../systems/legendaryArtifacts.js';
 import { Traits } from '../systems/traits.js';
 import { Delves } from '../systems/delves.js';
+import { Ailments } from '../systems/ailments.js';
 
 
 export const DataLoader = {
@@ -530,6 +531,13 @@ export const DataLoader = {
         if (delvesData) {
             DataLoader.delves = delvesData;
             Delves.load(delvesData);
+        }
+
+        // ── Ailments: wounds, sickness and medicine ──
+        const ailmentsData = data['ailments.json'];
+        if (ailmentsData) {
+            DataLoader.ailments = ailmentsData;
+            Ailments.load(ailmentsData);
         }
 
         // ── Legendary Artifacts ──

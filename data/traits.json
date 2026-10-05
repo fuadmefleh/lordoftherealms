@@ -32,7 +32,9 @@
         "dread":       { "name": "Dread",        "icon": "💀" },
         "travel":      { "name": "Travel",       "icon": "🧭" },
         "kinslaying":  { "name": "Kinslaying",   "icon": "🗡️" },
-        "tournament":  { "name": "Tournaments",  "icon": "🏆" }
+        "tournament":  { "name": "Tournaments",  "icon": "🏆" },
+        "scarring":    { "name": "Scars",        "icon": "🩹" },
+        "maiming":     { "name": "Lasting wounds", "icon": "🦵" }
     },
     "statDeeds": {
         "battles_won":                { "valor": 1 },
@@ -263,6 +265,26 @@
             "effects": { "battlePower": 0.03, "nobility": 6, "reputationGain": 0.05 },
             "lordAffinity": { "brave": 10, "ambitious": 5 },
             "greetings": ["*gasps* The champion of the lists! May I shake your hand?"]
+        },
+        "scarred": {
+            "name": "Scarred", "icon": "🩹",
+            "description": "An old wound left its mark across your face. Hard men respect it; most folk look away.",
+            "threshold": 1,
+            "deeds": { "scarring": 1 },
+            "erodedBy": {},
+            "effects": { "intimidation": -1, "npcWarmth": -0.15, "military": 3 },
+            "lordAffinity": { "brave": 5, "cruel": 5 },
+            "greetings": ["*stares at your scar, then quickly away* G-good day to you.", "*nods at the scar* Saw some fighting, eh?"]
+        },
+        "lame": {
+            "name": "Lame", "icon": "🦵",
+            "description": "A badly healed wound left you with a limp: one less hex on the road each day, and people pity you a little.",
+            "threshold": 1,
+            "deeds": { "maiming": 1 },
+            "erodedBy": {},
+            "effects": { "npcWarmth": -0.05, "intimidation": 1 },
+            "lordAffinity": {},
+            "greetings": ["*watches you limp in* Sit, sit — rest that leg."]
         }
     }
 }

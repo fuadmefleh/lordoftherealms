@@ -71,7 +71,7 @@ Object.assign(ActionMenu, {
         };
 
         const mapping = {
-            rest: 'general', eat_meal: 'general', explore_poi: 'general', delve: 'general', delve_resume: 'general', clear_trees: 'general', dig_treasure: 'general',
+            rest: 'general', eat_meal: 'general', seek_physician: 'general', explore_poi: 'general', delve: 'general', delve_resume: 'general', clear_trees: 'general', dig_treasure: 'general',
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general',
             trap_furs: 'general', ice_fish: 'general', planting_contract: 'commerce',
             prospect: 'general', tame_horse: 'general', craft_campfire: 'general',
@@ -375,6 +375,7 @@ Object.assign(ActionMenu, {
         view_relationships: 0, manage_dynasty: 0,
         manage_fleet: 0, manage_house: 0, manage_property: 0, manage_colony: 0,
         hold_court: 0, manage_holding: 0,
+        seek_physician: 0, // treatment costs gold, not time
         underworld: 0, // jobs inside the panel cost their own AP
 
         // Light actions (1 AP)
@@ -603,6 +604,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'collect_goods':
                 ActionMenu.collectGoods(game, tile);
+                break;
+            case 'seek_physician':
+                ActionMenu.showPhysicianMenu(game, tile);
                 break;
             case 'rest':
                 // Making camp on purpose beats collapsing by the roadside

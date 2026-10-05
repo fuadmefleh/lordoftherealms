@@ -150,7 +150,7 @@ export const BUILDING_FURNITURE_ACTIONS = {
         table: ['settle_record', 'notices'],
         rack:  ['drill'],
     },
-    church: { altar: ['pray', 'give_alms', 'blessing'] },
+    church: { altar: ['pray', 'give_alms', 'blessing', 'physician'] },
     barracks: {
         rack:  ['hire_troops', 'drill'],
         table: ['sit', 'notices'],
@@ -159,7 +159,7 @@ export const BUILDING_FURNITURE_ACTIONS = {
     granary:     { crate: ['shop'] },
     warehouse:   { crate: ['store'], chest: ['store'] },
     blacksmith:  { anvil: ['craft', 'hone_arms', 'shop'], rack: ['hone_arms', 'shop'] },
-    temple:      { altar: ['pray', 'give_alms', 'blessing'], statue: ['pray', 'blessing'], chest: ['give_alms'] },
+    temple:      { altar: ['pray', 'give_alms', 'blessing', 'physician'], statue: ['pray', 'blessing'], chest: ['give_alms'] },
 };
 
 /**

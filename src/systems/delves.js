@@ -38,6 +38,7 @@ import { Peoples } from './peoples.js';
 import { Cartography } from './cartography.js';
 import { Relationships } from './relationships.js';
 import { PlayerEffects } from '../player/playerEffects.js';
+import { Ailments } from './ailments.js';
 
 const DEFAULT_CONFIG = {
     minChambers: 3,
@@ -618,6 +619,12 @@ export const Delves = {
         const st = Delves.getState(player);
         const [lo, hi] = Delves.CONFIG.injuryDays;
         const days = Utils.randInt(lo, hi);
+        // Delve injuries are ailments (systems/ailments.js): one place for
+        // wounds, their effects, healing, infection and treatment
+        if (def.ailment && Ailments.def(def.ailment)) {
+            const rep = Ailments.inflict(player, world, def.ailment, { source: 'delve', days });
+            if (rep) return { name: rep.name, stat: rep.stat || def.stat, amount: rep.amount, days: rep.days };
+        }
         const until = _day(world) + days;
         const existing = st.injuries.find(i => i.id === id);
         if (existing) {

@@ -19,6 +19,7 @@ import { Religion } from '../systems/religion.js';
 import { Traits } from '../systems/traits.js';
 import { Companions } from '../systems/companions.js';
 import { Underworld } from '../systems/underworld.js';
+import { Ailments } from '../systems/ailments.js';
 
 /** Tenet effect of the player's own religion (0 without one). */
 function _tenet(player, key) {
@@ -296,6 +297,11 @@ export const PlayerEffects = {
     },
 
     // ──────────── EARNED TRAITS ────────────
+
+    /** Wounds and sickness weaken the commander: battle power / personal damage multiplier. */
+    ailmentBattleMultiplier(player) {
+        return Ailments.battleMultiplier(player);
+    },
 
     /** Battle power multiplier from earned traits (Brave, Craven, Sea Wolf, …). */
     traitBattleMultiplier(player) {

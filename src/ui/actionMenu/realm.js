@@ -1,5 +1,6 @@
 // ActionMenu — realm methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
+import { Ailments } from '../../systems/ailments.js';
 import { Throne, PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, Festivals, PlayerEffects, Rivals } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -397,6 +398,9 @@ Object.assign(ActionMenu, {
                         const dmg = Math.floor(Math.random() * 10) + 5;
                         healthLost += dmg;
                         resultHtml += `<div style="color: #f88;">✗ Lost to ${opp.name} (-${dmg} HP)</div>`;
+                        // A lost bout can leave a real wound (systems/ailments.js)
+                        const wound = Ailments.maybeWound(player, game.world, 'duel');
+                        if (wound) resultHtml += `<div style="color: #e57373; margin-left: 12px;">${wound.icon} ${wound.name} (${wound.text})</div>`;
                     }
                 }
 

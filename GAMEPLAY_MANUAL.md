@@ -32,6 +32,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 19. [Culture](#19-culture)
 20. [Colonization](#20-colonization)
     - [Developing Your Holdings](#developing-your-holdings) — projects, governors, garrisons, unrest and rebellion
+    - [Patronage & Great Works](#patronage--great-works) — clients, commissions, the gallery, cathedrals, libraries and wonders, the race with the kingdoms
 21. [Tavern & Intelligence](#21-tavern--intelligence)
 22. [Quests](#22-quests)
 23. [Achievements](#23-achievements)
@@ -2393,6 +2394,72 @@ Projects, governors, garrisons, unrest and rebellions are all saved with the gam
 
 ---
 
+## Patronage & Great Works
+
+Gold piles up; Patronage is where it goes to last. You can keep **clients** (artists, scholars, architects, physicians and chroniclers) who make works in your name, and raise **Great Works**: cathedrals, libraries and wonders that stand on the map for good and change how other parts of the game play. Open it from **Patronage & Great Works** in a town's action menu (the 🎨 social action), or from the Counsel.
+
+### Clients
+
+Every **town and capital** keeps a **salon** of three people looking for a patron. The salon changes each month, and the same town offers the same faces to anyone in the same month. Each candidate has:
+
+| | |
+|---|---|
+| **Profession** | 🎨 Artist (paintings, sculptures) · 📚 Scholar (treatises) · 📐 Architect (oversees a Great Work) · ⚕️ Physician (medical texts) · 📜 Chronicler (chronicles of your House) |
+| **Skill** (1–10) | How fast they work and how good the work is. Capitals draw better talent. |
+| **Temperament** | Diligent (fast, frets when idle) · Mercurial (slow, touched by genius) · Proud (costly, loyal to a great House) · Devoted (cheap and faithful) · Restless (quick, with a wandering eye) |
+| **Ambition** | Fame (wants works donated where people see them) · Wealth (wants a fat stipend, easy to poach) · Mastery (wants commissions, gains skill with each work) · Glory (wants to serve a House of 150+ Prestige) |
+| **Stipend** | Gold a week. Hiring costs two weeks up front. |
+
+You can keep **4 clients** (5 while you hold a royal office). Stipends are paid every 7 days. A client who goes **unpaid three weeks** leaves, and so does one whose **contentment** falls near zero. Contentment rises while they work and are paid, falls while they sit **idle** (after a two-week grace), and moves each month with their ambition. You can **raise a stipend** by a fifth to cheer someone up.
+
+**Commissions.** Set an idle client to work. The materials come out of your packs, and anything missing is bought for you at a markup. Each work comes out **modest**, **fine** or a **masterpiece**: skill, temperament and contentment decide which, and a masterpiece counts for about 1.6×.
+
+| Work | Takes | Materials | Effect |
+|------|-------|-----------|--------|
+| 🖼️ Painting | ~35 days | 2 dyes | +4 Prestige; goes to your **gallery** |
+| 🗿 Sculpture | ~55 days | 8 stone | +6 Prestige; goes to your gallery |
+| 📖 Treatise | ~40 days | 2 parchment | 6 days of progress on your **current research**. Days it can't use are banked and fed into later research one day at a time. |
+| ⚕️ Medical text | ~45 days | 4 herbs, 1 parchment | Sickness is less likely to worsen or kill (×0.94 per text, down to ×0.6), and wounds mend faster (+0.1 a day per text, up to +0.5) |
+| 📜 Chronicle | ~60 days | 3 parchment | +8 Prestige, an entry in the House chronicle, and +4 to the reign's **Legacy** score |
+
+**The gallery.** Keep paintings and sculptures, or **donate** one to the town you stand in. A town you rule grows happier: its happiness target rises by 1.5 per point of art, up to +8. A town elsewhere raises your standing with its realm by 3 per point. Each donation also gives +1 renown, and a client who seeks fame is glad of it.
+
+**Rival Houses poach.** Every couple of weeks a rival House (see *The House*) may court one of your clients. The chance is higher for skilled, restless or wealth-seeking clients, for unhappy ones, and when the feud with that House runs hot. You have **6 days** to **match the offer** (about ten weeks' stipend; the client stays on 25% more pay and is happier for it) or **let them go**. If you don't answer, the client decides alone, and a contented client usually stays. Every client lost to a rival inflames the feud.
+
+### Great Works
+
+A Great Work rises at a settlement **you rule** (a holding) or one where **you own a house** (your seat). You can raise up to two at once, one per town, and each kind only once.
+
+| Work | Needs | Stages | Grants (while the town is yours) |
+|------|-------|--------|----------------------------------|
+| ⛪ Grand Cathedral | town | 3 | Your faith converts +25% faster; town happiness +6 |
+| 🏛️ The Great Library *(unique)* | town | 3 | Research +20% faster; happiness +2 |
+| 🎓 University | town | 2 | The heirs of your House learn 35% faster; happiness +2 |
+| 🔭 The Royal Observatory *(unique)* | village | 2 | You see 1 hex further everywhere |
+| 🏟️ Hippodrome | town | 2 | +4 renown from every festival you host; happiness +5 |
+| 🌉 Grand Bridge | a river | 2 | Fording rivers costs half the effort, everywhere |
+| 🗽 The Colossus *(unique)* | a harbour | 3 | +6 House Prestige every month; happiness +3 |
+
+Finishing one also gives a large one-time Prestige award (40–100), renown, and a line in your House chronicle. It also scores **+40** on the reign's Legacy.
+
+**Building.** Each stage wants **goods** (stone, timber, iron, glass, parchment…) and **gold** delivered first. Goods in your packs can only be handed over **on site**. From anywhere you can have the rest **bought for you**, at a markup that is steeper when you're away. Once a stage is supplied, the masons work it for a set number of days, and their **wages** (6–12 gold a day) come out of your purse each day. Work goes faster in bigger towns and with an **architect** in charge (+5% per point of skill). It **slows by half** when the town's realm, or you, are at war. It **stops** in:
+
+- **winter**, for outdoor stages (foundations, walls, statues; interiors carry on)
+- a **famine** in the region
+- a **siege** of the town
+- when the purse **can't pay** the day's wages
+- when the town is **no longer yours**
+
+A finished work stands on the map with a gold ring. Its gifts last only while you hold the town, but they come back if you retake it.
+
+### The race for wonders
+
+Kingdoms build too. From about day 90 a realm with a full treasury may start a wonder at its capital and pay for it day by day. Winter and war slow it, and it stalls when the treasury runs dry. A finished wonder steadies the realm (its stability target rises). **Unique** works (the Great Library, the Royal Observatory, the Colossus) exist once in the world: **the first to finish claims it**. If a kingdom finishes yours first, your half-built works are sold off for half of what you spent. If you finish first, the kingdoms racing you give up. The heralds proclaim every wonder begun and finished, and townsfolk talk about them. The **Wonders** tab of the panel and the Counsel show how far each rival has got.
+
+**The Counsel** warns of rival offers, stalled works and races you might lose, and reminds you of idle clients and stages waiting for supplies. **Achievements:** Patron of the Arts, A Masterpiece, Great Builder, Wonder of the World, A Golden Age. **Deeds & Records** has a Patronage section.
+
+---
+
 ## 21. Tavern & Intelligence
 
 Visit taverns in cities and settlements to gather intelligence, hire informants, and more.
@@ -2562,7 +2629,7 @@ Ask an NPC whether they need help and they may make a request. If you accept, it
 
 ## 23. Achievements
 
-The game tracks **91 achievements** across multiple categories with Bronze, Silver, Gold and Legendary tiers. They are checked at the end of every day; each one reads something the game really records (a counter in Deeds & Records, a system's live state, or an event counter), so every one can be earned.
+The game tracks **96 achievements** across multiple categories with Bronze, Silver, Gold and Legendary tiers. They are checked at the end of every day; each one reads something the game really records (a counter in Deeds & Records, a system's live state, or an event counter), so every one can be earned.
 
 ### Selected Achievements
 
@@ -2643,6 +2710,11 @@ The game tracks **91 achievements** across multiple categories with Bronze, Silv
 | Raised Right | Silver | Raise a child of your House to come of age |
 | Blood Royal | Gold | Marry a child of your House into a royal line |
 | The Line Endures | Silver | Pass the House to an heir |
+| Patron of the Arts | Bronze | Take a client into your service |
+| A Masterpiece | Silver | Commission a masterpiece |
+| Great Builder | Gold | Complete a Great Work |
+| Wonder of the World | Legendary | Be first in the world to finish a unique Great Work |
+| A Golden Age | Legendary | Raise 3 Great Works and commission 12 works |
 
 ---
 

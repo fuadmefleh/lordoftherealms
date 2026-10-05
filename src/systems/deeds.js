@@ -4,7 +4,7 @@
 // Many systems keep counters about the player (delves, petitions, sagas,
 // companions, the underworld, holdings, ailments, rivals, sieges, the trading
 // company, discoveries, voyages, the throne and the royal court, sieges of the
-// player's holdings, bounties, foraging and hunting).
+// player's holdings, bounties, foraging and hunting, patronage).
 // Deeds gathers them into one flat map of numbers (collect) and a sectioned
 // view (sections) with two columns: the House's lifetime total, and this
 // reign's share — measured against the snapshot Legacy takes when a ruler
@@ -51,6 +51,14 @@ export const DEED_SECTIONS = [
         ['holdings.held', 'Holdings ruled', true], ['holdings.projects', 'Projects built'], ['holdings.raidsRepelled', 'Raids repelled'],
         ['holdings.raidsSuffered', 'Raids suffered'], ['holdings.rebellions', 'Rebellions'], ['holdings.rebellionsCrushed', 'Rebellions crushed'],
         ['holdings.holdingsLost', 'Holdings lost'], ['holdings.betrayals', 'Governors who betrayed you'],
+    ] },
+    { id: 'patronage', title: 'Patronage & Great Works', icon: '🎨', rows: [
+        ['patronage.clients', 'Clients in your service', true], ['patronage.hired', 'Clients taken on'], ['patronage.works', 'Works commissioned'],
+        ['patronage.masterpieces', 'Masterpieces'], ['patronage.treatises', 'Treatises written'], ['patronage.medicalTexts', 'Medical texts written'],
+        ['patronage.chronicles', 'Chronicles written'], ['patronage.donated', 'Works donated'], ['patronage.greatWorks', 'Great Works raised'],
+        ['patronage.uniqueWorks', 'Wonders of the world'], ['patronage.forestalled', 'Wonders lost to a rival realm'],
+        ['patronage.matched', 'Rival offers matched'], ['patronage.poached', 'Clients poached'], ['patronage.left', 'Clients who left'],
+        ['patronage.goldSpent', 'Gold spent on patronage'],
     ] },
     { id: 'court', title: 'Petitions & Court', icon: '⚖️', rows: [
         ['petitions.ruled', 'Petitions ruled'], ['petitions.ignored', 'Petitions ignored'],
@@ -140,6 +148,12 @@ export const Deeds = {
         const holdings = _obj(player.holdings);
         put('holdings', holdings.stats, ['projects', 'raidsRepelled', 'raidsSuffered', 'rebellions', 'rebellionsCrushed', 'holdingsLost', 'betrayals']);
         out['holdings.held'] = Array.isArray(holdings.keys) ? holdings.keys.length : 0;
+
+        // Patronage & Great Works (systems/patronage.js)
+        const pat = _obj(player.patronage);
+        put('patronage', pat.stats, ['hired', 'works', 'masterpieces', 'treatises', 'medicalTexts', 'chronicles', 'donated',
+            'greatWorks', 'uniqueWorks', 'forestalled', 'matched', 'poached', 'left', 'goldSpent']);
+        out['patronage.clients'] = Array.isArray(pat.clients) ? pat.clients.length : 0;
 
         put('petitions', _obj(player.petitions).stats, ['ruled', 'ignored']);
         put('sieges', _obj(player.sieges).stats, ['invested', 'captured', 'sacked', 'terms', 'lifted', 'broken', 'reliefsBeaten']);

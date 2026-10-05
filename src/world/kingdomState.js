@@ -409,6 +409,10 @@ export const KingdomStability = {
             t += add('Propaganda', Math.min(6, 2 * propaganda.length));
         }
         if ((kingdom.treasury || 0) <= 0) t += add('Empty treasury', -15);
+        // Wonders the realm has raised (systems/patronage.js → kingdom.greatWorks)
+        if (Array.isArray(kingdom.greatWorks) && kingdom.greatWorks.length) {
+            t += add('Great works', kingdom.greatWorks.reduce((s, g) => s + (g && Number.isFinite(g.stability) ? g.stability : 0), 0));
+        }
         if (kingdom.religion && typeof kingdom.religion.unity === 'number') {
             t += add('Faith unity', (kingdom.religion.unity - 50) * 0.1);
         }

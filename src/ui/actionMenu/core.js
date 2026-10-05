@@ -108,7 +108,7 @@ Object.assign(ActionMenu, {
             bless_settlement: 'social', hold_council: 'social',
             espionage_menu: 'social', manage_spies: 'social',
             hold_court: 'social', manage_holding: 'frontier',
-            rivals_here: 'social', hall_of_heroes: 'social',
+            rivals_here: 'social', hall_of_heroes: 'social', patronage: 'social',
             underworld: 'commerce',
         };
 
@@ -374,7 +374,7 @@ Object.assign(ActionMenu, {
         servitude_wait: 0, servitude_escape: 0, servitude_buy_freedom: 0,
         view_relationships: 0, manage_dynasty: 0,
         manage_fleet: 0, manage_house: 0, manage_property: 0, manage_colony: 0,
-        hold_court: 0, manage_holding: 0,
+        hold_court: 0, manage_holding: 0, patronage: 0,
         seek_physician: 0, // treatment costs gold, not time
         underworld: 0, // jobs inside the panel cost their own AP
 
@@ -816,6 +816,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'trading_company':
                 ActionMenu.showTradingCompany(game, tile);
+                break;
+            case 'patronage':
+                ActionMenu.showPatronage(game, tile);
                 break;
             case 'host_feast':
                 ActionMenu.showHostFeastMenu(game, tile);

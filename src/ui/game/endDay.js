@@ -18,6 +18,7 @@ import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { Kingship } from '../../systems/kingship.js';
 import { Chatter } from '../../systems/chatter.js';
 import { Heralds } from '../../systems/heralds.js';
+import { Patronage } from '../../systems/patronage.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 
@@ -550,6 +551,11 @@ export function endDay() {
             // The trading company — factors' weekly trade, convoys, contracts, rival houses, ventures
             const companyDay = MerchantHouses.processDay(this.player, this.world);
             for (const n of companyDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
+            // Patronage — clients' works, stipends, rival offers; Great Works and the
+            // kingdoms' wonders (systems/patronage.js)
+            const patronageDay = Patronage.processDay(this.world, this.player);
+            for (const n of patronageDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // The heralds cry the great news of the day as it reaches you (systems/heralds.js)
             const heraldDay = Heralds.processDay(this.world, this.player);

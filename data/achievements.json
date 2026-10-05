@@ -636,6 +636,41 @@
       "description": "Finish on the podium in 5 festival contests",
       "icon": "🏆",
       "tier": "bronze"
+    },
+    "PATRON_OF_THE_ARTS": {
+      "id": "patron_of_the_arts",
+      "name": "Patron of the Arts",
+      "description": "Take an artist, scholar, architect, physician or chronicler into your service",
+      "icon": "🎨",
+      "tier": "bronze"
+    },
+    "A_MASTERPIECE": {
+      "id": "a_masterpiece",
+      "name": "A Masterpiece",
+      "description": "Commission a masterpiece from one of your clients",
+      "icon": "🖼️",
+      "tier": "silver"
+    },
+    "GREAT_BUILDER": {
+      "id": "great_builder",
+      "name": "Great Builder",
+      "description": "Complete a Great Work",
+      "icon": "🏗️",
+      "tier": "gold"
+    },
+    "WONDER_OF_THE_WORLD": {
+      "id": "wonder_of_the_world",
+      "name": "Wonder of the World",
+      "description": "Be the first in the world to finish a unique Great Work",
+      "icon": "🏛️",
+      "tier": "legendary"
+    },
+    "A_GOLDEN_AGE": {
+      "id": "a_golden_age",
+      "name": "A Golden Age",
+      "description": "Raise 3 Great Works and commission 12 works",
+      "icon": "🌅",
+      "tier": "legendary"
     }
   }
 }

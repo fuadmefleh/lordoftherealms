@@ -43,6 +43,9 @@ Object.assign(Renderer.prototype, {
         // Render holy sites & cultural buildings
         this.renderHolySitesAndCulture(ctx);
 
+        // Render Great Works standing and rising (systems/patronage.js)
+        this.renderGreatWorks(ctx);
+
         // Render infrastructure (roads, bridges, irrigation)
         this.renderInfrastructure(ctx);
 

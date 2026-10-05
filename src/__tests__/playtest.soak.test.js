@@ -206,6 +206,9 @@ function snapshot(game) {
         markets: Utils.hashStr(JSON.stringify(MarketDynamics.regionalMarkets)),
         // The trading company, rival houses, contracts and the towns' monopolies
         merchant: Utils.hashStr(JSON.stringify(p.merchant || null)),
+        // Patronage: clients, commissions, Great Works; the world's wonders
+        patronage: Utils.hashStr(JSON.stringify(p.patronage || null)),
+        greatWorks: Utils.hashStr(JSON.stringify(game.world.greatWorks || null)),
         monopolies: game.world.getAllSettlements().filter(s => s.monopolies).map(s => `${s.q},${s.r}:${JSON.stringify(s.monopolies)}`).join(' '),
         idCounter: Utils.getIdCounter(),
     };

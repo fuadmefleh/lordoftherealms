@@ -4,7 +4,8 @@
 // Each day the bot looks at what PlayerActions offers on its tile and does a
 // handful of things a real player would: eats, trades, recruits, fights,
 // founds a colony, joins the Thieves' Guild, delves, rules on petitions, hires
-// companions, buys and crews a ship and sails it, and presses a claim. Where
+// companions, buys and crews a ship and sails it, presses a claim, and keeps
+// clients and raises a Great Work once rich. Where
 // an action is only reachable through a UI dialog it calls the system API the
 // dialog calls. All choices draw from the seeded Utils RNG, so a run is
 // reproducible from its seed.
@@ -36,6 +37,7 @@ import { HoldingSieges } from '../../systems/holdingSieges.js';
 import { Discovery } from '../../systems/discovery.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { Quests } from '../../systems/quests.js';
+import { Patronage } from '../../systems/patronage.js';
 import { travelTo } from './harness.js';
 
 const FOOD = ['grain', 'bread'];
@@ -536,6 +538,41 @@ function treasures(game, stats) {
     }
 }
 
+/** Patronage & Great Works: keep a couple of clients busy and raise a work once rich. */
+function patronage(game, tile, stats) {
+    const { player, world } = game;
+    const st = Patronage.state(player);
+    for (const o of st.offers.slice()) {
+        const answer = player.gold > o.counter * 4 ? 'match' : 'release';
+        if (Patronage.answerOffer(player, world, o.clientId, answer).success) count(stats, `patronOffer_${answer}`);
+    }
+    if (player.gold > 6000 && st.clients.length < 2) {
+        const cand = Patronage.salon(player, world, tile)[0];
+        if (cand && Patronage.hire(player, world, tile, cand.id).success) count(stats, 'clientsHired');
+    }
+    for (const c of st.clients) {
+        if (c.task || c.assignedTo) continue;
+        if (c.profession === 'architect') {
+            const p = st.projects[0];
+            if (p && Patronage.assignArchitect(player, world, c.id, p.id).success) count(stats, 'architectsAssigned');
+            continue;
+        }
+        const workId = (Patronage.professions()[c.profession] || {}).works?.[0];
+        if (workId && player.gold > 2500 && Patronage.commission(player, world, c.id, workId).success) count(stats, 'commissions');
+    }
+    for (const g of st.gallery.filter(x => !x.donatedTo)) {
+        if (Patronage.donate(player, world, tile, g.uid).success) count(stats, 'worksDonated');
+    }
+    if (player.gold > 8000 && !st.projects.length) {
+        for (const id of Object.keys(Patronage.greatWorks())) {
+            if (Patronage.found(player, world, tile.q, tile.r, id).success) { count(stats, 'greatWorksBegun'); break; }
+        }
+    }
+    for (const p of st.projects) {
+        if (p.status === 'supplying' && player.gold > 4000 && Patronage.deliver(player, world, p.id, { buyMissing: true }).success) count(stats, 'greatWorkDeliveries');
+    }
+}
+
 function settlementBusiness(game, stats) {
     const { player, world } = game;
     const tile = world.getTile(player.q, player.r);
@@ -554,6 +591,7 @@ function settlementBusiness(game, stats) {
     booked(game, 'sea', () => seaActivity(game, tile, stats));
     booked(game, 'heist', () => heist(game, tile, stats));
     booked(game, 'company', () => company(game, tile, stats));
+    booked(game, 'patronage', () => patronage(game, tile, stats));
 }
 
 // ── Out in the world ─────────────────────────────────────────
@@ -808,6 +846,10 @@ export function botDay(game, stats) {
         for (const id of [...(player.travelParty || [])]) {
             const npcId = typeof id === 'object' ? id.id : id;
             if (Companions.dismiss(player, npcId, world).success) count(stats, 'companionsDismissed');
+        }
+        // ...and the clients whose stipends it can't carry
+        for (const c of Patronage.state(player).clients.slice()) {
+            if (Patronage.dismiss(player, world, c.id).success) count(stats, 'clientsDismissed');
         }
         // ...and sell a ship whose upkeep and wages the purse can't carry
         const docked = (player.ships || []).find(s => s.status === 'docked');

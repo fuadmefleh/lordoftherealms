@@ -631,6 +631,27 @@ export const Achievements = {
             id: 'blood_royal', name: 'Blood Royal', description: 'Marry a child of your House into a royal line', icon: '💍', tier: 'gold',
             check: (player) => (player.children || []).some(c => c && c.upbringing && c.upbringing.placement && c.upbringing.placement.kind === 'royal'),
         },
+        // Patronage & Great Works (systems/patronage.js, counters via Deeds)
+        PATRON_OF_THE_ARTS: {
+            id: 'patron_of_the_arts', name: 'Patron of the Arts', description: 'Take an artist, scholar, architect, physician or chronicler into your service', icon: '🎨', tier: 'bronze',
+            check: (player) => Achievements._deed(player, 'patronage.hired') >= 1,
+        },
+        A_MASTERPIECE: {
+            id: 'a_masterpiece', name: 'A Masterpiece', description: 'Commission a masterpiece from one of your clients', icon: '🖼️', tier: 'silver',
+            check: (player) => Achievements._deed(player, 'patronage.masterpieces') >= 1,
+        },
+        GREAT_BUILDER: {
+            id: 'great_builder', name: 'Great Builder', description: 'Complete a Great Work', icon: '🏗️', tier: 'gold',
+            check: (player) => Achievements._deed(player, 'patronage.greatWorks') >= 1,
+        },
+        WONDER_OF_THE_WORLD: {
+            id: 'wonder_of_the_world', name: 'Wonder of the World', description: 'Be the first in the world to finish a unique Great Work', icon: '🏛️', tier: 'legendary',
+            check: (player) => Achievements._deed(player, 'patronage.uniqueWorks') >= 1,
+        },
+        A_GOLDEN_AGE: {
+            id: 'a_golden_age', name: 'A Golden Age', description: 'Raise 3 Great Works and commission 12 works', icon: '🌅', tier: 'legendary',
+            check: (player) => Achievements._deed(player, 'patronage.greatWorks') >= 3 && Achievements._deed(player, 'patronage.works') >= 12,
+        },
         THE_LINE_ENDURES: {
             id: 'the_line_endures', name: 'The Line Endures', description: 'Pass the House to an heir', icon: '🌳', tier: 'silver',
             check: (player) => ((player.house && player.house.reigns) || []).length >= 1,

@@ -20,6 +20,7 @@ import { Underworld } from '../../systems/underworld.js';
 import { Rivals } from '../../systems/rivals.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { Ailments } from '../../systems/ailments.js';
+import { Patronage } from '../../systems/patronage.js';
 
 export function addSettlementActions(actions, player, tile, world, ctx) {
     const { isCity, isVillage, isPlayerSettlement, playerSettlementCount, playerKingdom, hasPlayerFoundedKingdom } = ctx;
@@ -341,6 +342,22 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             description: company
                 ? `${company.name}: ${company.posts.length} post(s), ${Math.round(company.capital)}g capital${post ? ' — your factor here' : ''}. Orders, ledger, contracts, rivals, investments`
                 : 'Charter a merchant house: factors in towns, supply contracts, rival houses and royal ventures',
+        });
+    }
+
+    // Patronage & Great Works (systems/patronage.js) — a town's salon, your
+    // clients and Great Works, once there is a salon here or business to see to
+    const pat = player.patronage;
+    const patBusy = !!(pat && ((pat.clients || []).length || (pat.projects || []).length || (pat.gallery || []).some(g => !g.donatedTo)));
+    if (patBusy || Patronage.hasSalon(tile) || Patronage.siteAt(player, world, tile.q, tile.r)) {
+        const n = pat && pat.clients ? pat.clients.length : 0;
+        actions.push({
+            type: 'patronage',
+            label: 'Patronage & Great Works',
+            icon: '🎨',
+            description: n
+                ? `${n} client(s) in your service: commissions, Great Works, the gallery, the wonders of the world`
+                : 'Take artists, scholars, architects, physicians and chroniclers into your service, and raise Great Works',
         });
     }
 

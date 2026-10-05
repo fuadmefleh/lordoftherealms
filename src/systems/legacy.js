@@ -29,6 +29,8 @@ const DEFAULT_LEGACY = {
         ambitionMilestone: 10, ambitionCapstone: 60, delveCleared: 6, rivalBested: 5, petitionRuled: 1,
         child: 5, earnedTrait: 4, nobleMarriage: 10,
         holdingProject: 3, raidRepelled: 4, rebellionCrushed: 6,
+        // Patronage (systems/patronage.js): Great Works raised, chronicles written
+        greatWork: 40, chronicle: 4,
     },
     ranks: [{ min: 0, label: 'A Forgotten Line', icon: '🕯️' }],
     epithets: [],
@@ -172,6 +174,8 @@ export const Legacy = {
             ambitionMilestones: stat('ambitionMilestone'),
             ambitionCapstones: tagged('capstone').length,
             nobleMarriages: stat('nobleMarriage'),
+            greatWorks: stat('greatWork'),
+            chronicles: stat('chronicle'),
             wars: history.filter(h => (h.tags || []).includes('war') && /declares war/.test(h.text || '')).length,
             delves: Math.max(0, now.delves - _num(was.delves)),
             delvesCleared: Math.max(0, now.delvesCleared - _num(was.delvesCleared)),
@@ -210,7 +214,8 @@ export const Legacy = {
             + _num(rec.petitionsRuled) * w.petitionRuled + _num(rec.children) * w.child
             + (rec.traits || []).length * w.earnedTrait + _num(rec.nobleMarriages) * w.nobleMarriage
             + _num(rec.holdingProjects) * _num(w.holdingProject) + _num(rec.raidsRepelled) * _num(w.raidRepelled)
-            + _num(rec.rebellionsCrushed) * _num(w.rebellionCrushed));
+            + _num(rec.rebellionsCrushed) * _num(w.rebellionCrushed)
+            + _num(rec.greatWorks) * _num(w.greatWork) + _num(rec.chronicles) * _num(w.chronicle));
     },
 
     /** The ruler dies: close and file their reign. Returns the record. */

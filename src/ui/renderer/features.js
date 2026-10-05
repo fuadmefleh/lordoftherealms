@@ -391,6 +391,59 @@ Object.assign(Renderer.prototype, {
     },
 
     /**
+     * Render Great Works: finished wonders (world.greatWorks.built — the
+     * player's and the kingdoms') as a gold-ringed icon at the top of their
+     * town's hex, and the player's works still rising as faint scaffolding.
+     */
+    renderGreatWorks(ctx) {
+        const world = this.world;
+        const gw = world && world.greatWorks;
+        const built = gw && Array.isArray(gw.built) ? gw.built : [];
+        const rising = (this.player && this.player.patronage && Array.isArray(this.player.patronage.projects)) ? this.player.patronage.projects : [];
+        if (!built.length && !rising.length) return;
+        const renderSize = this.hexSize * this.camera.zoom;
+        const perHex = {};
+        const draw = (q, r, icon, name, finished) => {
+            const tile = world.getTile(q, r);
+            if (!tile || !tile.explored) return;
+            const pos = this.getHexPixelPos(q, r);
+            const screen = this.camera.worldToScreen(pos.x, pos.y);
+            if (screen.x < -60 || screen.x > this.canvas.width + 60) return;
+            if (screen.y < -60 || screen.y > this.canvas.height + 60) return;
+            const key = `${q},${r}`;
+            const slot = perHex[key] = (perHex[key] || 0) + 1;
+            const x = screen.x + renderSize * (0.42 - 0.34 * (slot - 1));
+            const y = screen.y - renderSize * 0.5;
+            const radius = Math.max(7, renderSize * 0.24);
+            ctx.save();
+            ctx.globalAlpha = finished ? 1 : 0.55;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = finished ? 'rgba(30, 22, 8, 0.85)' : 'rgba(40, 40, 40, 0.7)';
+            ctx.fill();
+            ctx.lineWidth = Math.max(1.5, renderSize * 0.04);
+            ctx.strokeStyle = finished ? '#f5c542' : '#9a9a9a';
+            if (finished) { ctx.shadowColor = '#f5c542'; ctx.shadowBlur = renderSize * 0.3; }
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            ctx.font = `${Math.max(9, radius * 1.3)}px serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(finished ? icon : '🏗️', x, y + 1);
+            ctx.restore();
+            if (finished && this.camera.zoom > 0.9) {
+                const fsize = Math.max(8, 9 * this.camera.zoom);
+                this.addLabel(name, x, y - radius - 2, 6, {
+                    font: `700 ${fsize}px 'Cinzel', serif`, fillStyle: '#f5c542',
+                    shadowColor: 'rgba(0,0,0,0.9)', textAlign: 'center', textBaseline: 'bottom',
+                });
+            }
+        };
+        for (const b of built) if (b) draw(b.q, b.r, b.icon || '🏛️', b.name, true);
+        for (const p of rising) if (p) draw(p.q, p.r, '🏗️', '', false);
+    },
+
+    /**
      * Render infrastructure (roads, bridges, irrigation channels)
      */
     renderInfrastructure(ctx) {

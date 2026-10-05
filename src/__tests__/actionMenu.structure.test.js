@@ -31,7 +31,7 @@ import { DataLoader } from '../core/dataLoader.js';
 // plus showHoldingPanel (holdings development) = 244, plus showRivalsPanel and
 // showHallOfHeroes (rival adventurers) = 246, plus showPhysicianMenu (wounds, sickness
 // and medicine) = 247, plus the heirs panels (showChildPanel, showHouseChronicle,
-// showEpitaph, _heirProfileHtml, _reignsHtml) = 252, plus showSagasJournal (world storylines) = 253, plus showDiscoveries (uncharted lands) = 254, plus showTradingCompany (merchant houses) = 255, plus showHoldingSiegesPanel and holdingSiegeAct (holdings under siege) = 259, plus showDeeds (Deeds & Records) = 260, plus showRoyalCourt (kingship) = 261, plus showCounsel and counselGo (the Steward's Counsel) = 263.
+// showEpitaph, _heirProfileHtml, _reignsHtml) = 252, plus showSagasJournal (world storylines) = 253, plus showDiscoveries (uncharted lands) = 254, plus showTradingCompany (merchant houses) = 255, plus showHoldingSiegesPanel and holdingSiegeAct (holdings under siege) = 259, plus showDeeds (Deeds & Records) = 260, plus showRoyalCourt (kingship) = 261, plus showCounsel and counselGo (the Steward's Counsel) = 263, plus showPatronage and patronageAct (patronage & great works) = 265.
 const EXPECTED_KEYS = [
     'showCourtPanel', 'showDelvePanel', 'showClaimsPanel', 'showHoldingPanel',
     'showRivalsPanel', 'showHallOfHeroes', 'showPhysicianMenu',
@@ -42,6 +42,7 @@ const EXPECTED_KEYS = [
     'showHoldingSiegesPanel', 'holdingSiegeAct',
     'showDeeds',
     'showCounsel', 'counselGo',
+    'showPatronage', 'patronageAct',
     'showUnderworldPanel',
     '_resourceSourceNames', '_constructionHint', 'meetingPresentTreasure',
     'doTrapFurs', 'doIceFish', 'doPlantingContract',
@@ -111,8 +112,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 263 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(263);
+    it('has 265 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(265);
     });
 
     it('every member except the known data props is a function', () => {

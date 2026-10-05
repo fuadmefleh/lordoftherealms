@@ -532,6 +532,12 @@ export const DataLoader = {
             DataLoader.merchantHouses = merchantHousesData;
         }
 
+        // ── Patronage & Great Works: clients, works, wonders (read lazily by systems/patronage.js) ──
+        const patronageData = data['patronage.json'];
+        if (patronageData) {
+            DataLoader.patronage = patronageData;
+        }
+
         // ── Heirs, upbringing and legacy (read lazily by systems/upbringing.js, heirs.js, legacy.js) ──
         const upbringingData = data['upbringing.json'];
         if (upbringingData) {

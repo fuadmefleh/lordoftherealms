@@ -266,6 +266,11 @@ export const Ailments = {
         return Math.max(0.4, m);
     },
 
+    /** A deadly stage only kills at or below this share of max health. */
+    DEATH_HEALTH_FRACTION: 0.4,
+    /** Above it, the crisis is a heavy blow instead (share of max health). */
+    CRISIS_BLOW_FRACTION: 0.2,
+
     /** Daily health a record drains. */
     _drain(rec) {
         let d = _num(Ailments._effectsOf(rec).healthDrain);
@@ -597,10 +602,18 @@ export const Ailments = {
         const stage = stages[rec.stage] || stages[0];
         if (!stage) { Ailments._remove(player, rec); return; }
         const care = Ailments.careFactor(player, world, rec).mult;
-        // The deadly stage
+        // The deadly stage. Sickness kills the weakened: while the body is
+        // strong it only wears it down, giving time to find a physician
         if (_num(stage.deathChance) > 0 && Utils.random() < _num(stage.deathChance) * care) {
-            out.died = { cause: 'illness', name: stage.name || def.name, icon: stage.icon || def.icon };
-            return;
+            const max = _num(player.maxHealth) || 100;
+            if (_num(player.health) <= max * Ailments.DEATH_HEALTH_FRACTION) {
+                out.died = { cause: 'illness', name: stage.name || def.name, icon: stage.icon || def.icon };
+                return;
+            }
+            const blow = Math.round(max * Ailments.CRISIS_BLOW_FRACTION);
+            player.health = Math.max(1, _num(player.health) - blow);
+            out.drained = _num(out.drained) + blow;
+            out.crises = (out.crises || []).concat([{ name: stage.name || def.name, blow }]);
         }
         rec.dayInStage = _num(rec.dayInStage) + 1;
         if (rec.dayInStage < _num(rec.stageDays)) return;

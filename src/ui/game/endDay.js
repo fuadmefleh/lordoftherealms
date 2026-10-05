@@ -1005,6 +1005,7 @@ export function _reportAilments(out) {
         const from = c.from ? ` (from ${c.from})` : '';
         n(`${c.icon} ${c.name}`, `${SOURCE[c.source] || 'You have fallen ill'}${from}: ${c.text}. Rest indoors and see a physician.`, 'warning');
     }
+    for (const c of out.crises || []) n('💀 A Bad Crisis', `Your ${c.name.toLowerCase()} nearly took you in the night (−${c.blow} health). Once you are weakened, the next crisis may kill. See a physician.`, 'error');
     for (const w of out.worsened || []) n(`${w.icon} ${w.stage}`, `Your ${w.name.toLowerCase()} has worsened. Rest at an inn or at home, and get it treated.`, 'error');
     for (const name of out.healed || []) n('🩹 Recovered', `Your ${name.toLowerCase()} has passed.`, 'success');
     for (const name of out.infected || []) n('🧫 Infection', `Your ${name.toLowerCase()} has turned infected and stopped mending. A physician or a healing salve can save it.`, 'error');

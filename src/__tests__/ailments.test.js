@@ -246,6 +246,15 @@ describe('diseases', () => {
         let out = Ailments.processDay(w, p);
         expect(out.worsened[0].stage).toBe('Doom');
         expect(p.strength).toBe(str);
+        // A strong body survives the crisis: a heavy blow, not death
+        p.health = p.maxHealth || 100;
+        w.day++;
+        out = Ailments.processDay(w, p);
+        expect(out.died).toBeNull();
+        expect(out.crises[0].name).toBe('Doom');
+        expect(p.health).toBeLessThan(p.maxHealth || 100);
+        // Weakened, the next crisis kills
+        p.health = Math.floor((p.maxHealth || 100) * Ailments.DEATH_HEALTH_FRACTION);
         w.day++;
         out = Ailments.processDay(w, p);
         expect(out.died).toEqual({ cause: 'illness', name: 'Doom', icon: '☠️' });

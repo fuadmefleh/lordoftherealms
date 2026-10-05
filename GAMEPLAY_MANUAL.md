@@ -200,7 +200,7 @@ Where wounds come from: being robbed or ambushed with no army (25%), a beast (35
 
 **Lasting marks.** A head wound, slashed face or bite can heal into a scar, which gives you the **🩹 Scarred** trait: intimidation is 1 easier, townsfolk warm 15% slower, +3 military faction, and brave or cruel lords respect it. An arrow in the leg can leave a limp, which gives you the **🦵 Lame** trait: −1 movement every day, intimidation 1 harder, and townsfolk warm 5% slower. Treated wounds scar half as often. These marks are permanent, but your heir does not inherit them.
 
-**Sickness.** A disease runs through stages. At the end of each stage it either passes or gets worse. The last stage of a serious disease can kill.
+**Sickness.** A disease runs through stages. At the end of each stage it either passes or gets worse. The last stage of a serious disease can kill, but only once it has worn you down: while you are above 40% health, a deadly crisis instead costs a fifth of your health. Get treated before the next one.
 
 | Disease | Caught from | Stages | Contagious |
 |---|---|---|---|

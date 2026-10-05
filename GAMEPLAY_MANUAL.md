@@ -459,7 +459,7 @@ Failing to repay on time has severe consequences. The Merchant Guild tech reduce
 
 ### Tax Collection
 
-You can set tax rates if you govern settlements of your own, or hold the office of **King**, **Chancellor** or **Tax Collector**. Officials sworn to a kingdom need a council vote to *raise* taxes; an independent lord does not. Taxes are collected from your settlements every 7 days.
+You can set tax rates if you govern settlements of your own, or hold the office of **King**, **Chancellor** or **Tax Collector**. Officials sworn to a kingdom need a council vote to *raise* taxes; an independent lord does not. Taxes are collected from your settlements every 7 days: **0.25 gold per inhabitant** × the rate, so a town of 2,000 at moderate taxes yields about 75g a week.
 
 | Tax Level | Rate | Happiness target | Growth per year |
 |-----------|------|------------------|-----------------|
@@ -600,45 +600,45 @@ Properties are the backbone of your economy. Build them on appropriate terrain t
 
 | Property | Cost | Build Time | Produces | Upkeep | Where |
 |----------|------|-----------|----------|--------|-------|
-| 🌾 Farm | 500g | 5 days | Grain (10/day) | 5g/day | Plains, Grassland |
-| 🐑 Pasture | 500g | 4 days | Wool (8/day) | 5g/day | Plains, Grassland, Hills |
-| 🪓 Logging Camp | 400g | 3 days | Wood (6/day) | 5g/day | Forests |
-| ⛏️ Mine | 1000g | 10 days | Iron (5/day) | 15g/day | Resource: Iron/Gold Ore/Gems/Stone |
+| 🌾 Farm | 700g | 5 days | Grain (6/day) | 6g/day | Plains, Grassland |
+| 🐑 Pasture | 800g | 4 days | Wool (3/day) | 5g/day | Plains, Grassland, Hills |
+| 🪓 Logging Camp | 700g | 3 days | Wood (4/day) | 6g/day | Forests |
+| ⛏️ Mine | 1800g | 10 days | Iron (3/day) | 15g/day | Resource: Iron/Gold Ore/Gems/Stone |
 | ⚓ Fishing Wharf | 800g | 8 days | Raw Fish | 10g/day | Coast, Beach |
-| ⛰️ Quarry | 700g | 8 days | Stone (8/day) | 10g/day | Resource: Stone |
-| 🧂 Salt Pans | 350g | 4 days | Salt (6/day) | 5g/day | Coast, Beach |
-| 🐝 Apiary | 300g | 3 days | Honey (5/day) | 4g/day | Plains, Grassland, Forest, Woodland, Hills |
-| 🍎 Orchard | 400g | 5 days | Fresh Fruit (8/day) | 5g/day | Plains, Grassland, Hills, Woodland |
-| 🌿 Hemp Farm | 350g | 4 days | Hemp Fiber (8/day) | 4g/day | Plains, Grassland |
-| 🟫 Clay Pit | 300g | 3 days | Raw Clay (8/day) | 4g/day | In or next to a settlement |
-| 🧀 Dairy | 450g | 4 days | Aged Cheese (4/day) | 6g/day | Plains, Grassland |
-| 🏹 Hunting Lodge | 450g | 4 days | Hide (5/day) | 5g/day | Forests |
-| 🐄 Cattle Ranch | 550g | 5 days | Meat (8/day) | 6g/day | Plains, Grassland, Savanna |
-| 🌱 Herb Garden | 350g | 3 days | Herbs (7/day) | 4g/day | Forests, plains & hills |
+| ⛰️ Quarry | 900g | 8 days | Stone (5/day) | 8g/day | Resource: Stone |
+| 🧂 Salt Pans | 800g | 4 days | Salt (2/day) | 6g/day | Coast, Beach |
+| 🐝 Apiary | 1000g | 3 days | Honey (2/day) | 6g/day | Plains, Grassland, Forest, Woodland, Hills |
+| 🍎 Orchard | 700g | 5 days | Fresh Fruit (6/day) | 6g/day | Plains, Grassland, Hills, Woodland |
+| 🌿 Hemp Farm | 600g | 4 days | Hemp Fiber (5/day) | 5g/day | Plains, Grassland |
+| 🟫 Clay Pit | 450g | 3 days | Raw Clay (6/day) | 4g/day | In or next to a settlement |
+| 🧀 Dairy | 800g | 4 days | Aged Cheese (2/day) | 6g/day | Plains, Grassland |
+| 🏹 Hunting Lodge | 650g | 4 days | Hide (4/day) | 5g/day | Forests |
+| 🐄 Cattle Ranch | 750g | 5 days | Meat (6/day) | 6g/day | Plains, Grassland, Savanna |
+| 🌱 Herb Garden | 500g | 3 days | Herbs (5/day) | 4g/day | Forests, plains & hills |
 | 🐎 Horse Ranch | 1100g | 10 days | Horses (1/day) | 12g/day | Plains, Grassland, Savanna |
-| 🫐 Forager's Hut | 250g | 2 days | Berries (8/day) | 3g/day | Forests |
+| 🫐 Forager's Hut | 450g | 2 days | Berries (8/day) | 3g/day | Forests |
 
 #### Processing buildings (recipe-based)
 
 | Property | Cost | Build Time | Produces | Upkeep | Where |
 |----------|------|-----------|----------|--------|-------|
-| 🔨 Workshop | 800g | 7 days | Any recipe | 10g/day | In or next to a settlement |
+| 🔨 Workshop | 800g | 7 days | Any recipe (3 output/day) | 10g/day | In or next to a settlement |
 | 🍺 Brewery | 700g | 6 days | Beer / Liquor | 8g/day | In or next to a settlement |
 | 🌬️ Mill | 600g | 6 days | Flour | 6g/day | Plains, Grassland, Hills, Woodland, Savanna |
 | 🍞 Bakery | 700g | 7 days | Bread | 8g/day | In or next to a settlement |
 | 🔥 Forge | 1000g | 9 days | Tools / Weapons | 12g/day | In or next to a settlement |
-| 🦺 Tannery | 650g | 6 days | Leather Armor / Parchment | 8g/day | In or next to a settlement |
+| 🦺 Tannery | 1100g | 6 days | Leather Armor / Parchment | 8g/day | In or next to a settlement |
 | 🪚 Sawmill | 500g | 5 days | Firewood | 7g/day | Forests, plains & hills |
 | 🍖 Smokehouse | 500g | 5 days | Smoked Fish / Dried Meat | 6g/day | In or next to a settlement |
 | 🥩 Butcher | 400g | 3 days | Dried Meat | 5g/day | In or next to a settlement |
 | 🪢 Rope Walk | 350g | 3 days | Rope | 5g/day | In or next to a settlement |
-| 🏺 Pottery Kiln | 400g | 4 days | Pottery | 5g/day | In or next to a settlement |
-| 🧵 Weaver | 500g | 5 days | Textiles / Clothes | 6g/day | In or next to a settlement |
-| 🍷 Winery | 700g | 7 days | Fine Wine / Mead | 8g/day | In or next to a settlement |
+| 🏺 Pottery Kiln | 700g | 4 days | Pottery | 5g/day | In or next to a settlement |
+| 🧵 Weaver | 900g | 5 days | Textiles / Clothes | 6g/day | In or next to a settlement |
+| 🍷 Winery | 1200g | 7 days | Fine Wine / Mead | 8g/day | In or next to a settlement |
 | ⚗️ Apothecary | 600g | 6 days | Healing Salve / Strange Potion | 8g/day | In or next to a settlement |
-| 🏹 Fletcher | 450g | 4 days | Arrows / Bow | 6g/day | In or next to a settlement |
+| 🏹 Fletcher | 700g | 4 days | Arrows / Bow | 6g/day | In or next to a settlement |
 | 💍 Jeweler | 900g | 8 days | Amulet / Luxuries | 10g/day | In or next to a settlement |
-| 🎨 Dye Works | 450g | 4 days | Dyes | 6g/day | In or next to a settlement |
+| 🎨 Dye Works | 900g | 4 days | Dyes | 6g/day | In or next to a settlement |
 | 🕯️ Chandlery | 350g | 3 days | Candles | 5g/day | In or next to a settlement |
 | 🔮 Glassworks | 750g | 7 days | Glass / Lantern | 10g/day | In or next to a settlement |
 | 📖 Scriptorium | 600g | 5 days | Parchment / Rare Book | 8g/day | In or next to a settlement |
@@ -650,7 +650,9 @@ Properties are the backbone of your economy. Build them on appropriate terrain t
 | Property | Cost | Build Time | Produces | Upkeep | Where |
 |----------|------|-----------|----------|--------|-------|
 | 🏪 Trading Post | 600g | 6 days | Attracts merchants | 5g/day | Settlement |
-| 🍻 Tavern | 900g | 8 days | Gold from patrons | 12g/day | Settlement |
+| 🍻 Tavern | 1200g | 8 days | Gold from patrons | 8g/day | Settlement |
+
+A raw producer or a tavern repays its building in roughly **30–60 days** at first (a village tavern far slower), and faster as your Commerce skill, upgrades and techs raise its output (see `docs/economy-balance.md`). A **tavern** takes 14g a day in a village, 18g in a town or city and 22g in a capital, +2g per 250 inhabitants (up to +16), before your Commerce bonus, its level, and beer, liquor and gambling tables.
 
 A tile can hold **one of each property type** — a Farm, a Mill and a Bakery can all share a hex. When you manage a tile with several properties, pick which one from the list.
 
@@ -684,10 +686,10 @@ Upgrade cost = base cost × 0.5 × (current level + 1). Each level adds +10% pro
 
 | Level | Farm Upgrade Cost | Production Bonus |
 |-------|------------------|-----------------|
-| 2 | 375g | +10% |
-| 3 | 500g | +20% |
-| 4 | 625g | +30% |
-| 5 | 750g | +40% |
+| 2 | 525g | +10% |
+| 3 | 700g | +20% |
+| 4 | 875g | +30% |
+| 5 | 1050g | +40% |
 
 ---
 
@@ -730,9 +732,9 @@ Dispatch a caravan to sell goods at a distant settlement for higher prices.
 - **Cost**: 200g to dispatch.
 - **Speed**: 2 tiles per day.
 - **Max Distance**: 20 tiles.
-- **Profit Formula**: Base price × (1 + distance × 0.05) × settlement multiplier.
+- **Revenue**: what the destination market pays for the goods (70% of its price there, with the season), × (1 + distance × 0.025) × settlement multiplier × (1 + Commerce × 0.05).
 
-Settlement multipliers: Village (0.8×), Town (1.0×), City (1.2×), Capital (1.5×).
+Settlement multipliers: Village and Town (1.0×), City (1.1×), Capital (1.2×). Goods bought cheaply at a capital and hauled 20 hexes to another sell for about half again what they cost; a short haul between towns barely covers the 200g hire.
 
 Caravans appear as physical units on the map and can be raided by bandits or enemy forces.
 
@@ -769,7 +771,7 @@ Caravans and routes are trade you run yourself. In the mid and late game you can
 **Founding.** Put in at least 500 gold of capital. The company's capital is separate from your purse: use **Pay in** and **Draw out** on the Ledger tab to move gold between them. Capital moved in or out does not count as profit or loss. The company starts with 30 reputation, which drifts back up by 1 a week while it is below 30.
 
 **Posts and factors.** In any town, open a **post** (350g, or ×1.5 for a foreign licence in a realm whose charter you lack; up to 6 posts) by hiring one of three factor candidates. Each candidate has:
-- **Skill** (2–9): units handled per week = 20 + 8 × skill. The wage is 10g + 3g × skill per week, plus 8g rent for the post.
+- **Skill** (2–9): units handled per week = 30 + 8 × skill. The wage is 10g + 3g × skill per week, plus 5g rent for the post.
 - **Honesty**, which is hidden. You see only the references people give, and they are not always right. A factor with honesty below 0.7 **skims** part of each week's turnover. After a few weeks of skimming the books "look thin". An **audit** (60g) finds the skim 85% of the time and claws back half of it. You can then replace the factor from the town's candidates while you are there.
 - A factor who goes unpaid for 2 weeks quits, and the post sits idle.
 
@@ -784,17 +786,19 @@ Each post's warehouse holds 300 units. When you stand at a post you can **store*
 Food a factor sells goes into the town's granary. Contraband is never on a factor's books.
 
 **Competition and theft.**
-- A rival house with a post in the same town takes custom: your factor sells only 60% of his volume there, unless you hold the monopoly.
-- Thieves rob a post's warehouse now and then, taking 25–60% of the stock. Robberies are likelier in towns where the guild operates, rarer behind strong walls, and likelier still with a crooked factor inside. If you are a Thieves' Guild member of rank 2 or above, the guild mostly leaves your posts alone (×0.3).
+- A rival house with a post in the same town takes custom: your factor sells only 75% of his volume there, unless you hold the monopoly.
+- Thieves rob a post's warehouse now and then, taking 20–50% of the stock (about a 3% chance a week, 5% where the guild operates, less behind strong walls). Robberies are likelier in towns where the guild operates, rarer behind strong walls, and likelier still with a crooked factor inside. If you are a Thieves' Guild member of rank 2 or above, the guild mostly leaves your posts alone (×0.3).
 
 **Convoys.** From a post, **dispatch** goods to another post or to a contract town. The convoy goes by **ship** when both ends are ports (9 hexes a day, 0.6% risk a day) and by **caravan** otherwise (5 hexes a day, 1.2% risk a day). It costs about 0.08g per unit per day, minimum 5g. A struck convoy loses 40–100% of its load to bandits, storms or pirates.
 
 **Supply contracts.** Each week the crowns post contracts on the company's board. Each one names a good, a quantity, a price per unit (1.25–2× the good's base price) and a deadline:
-- **Bread for a town** short of food: during a famine, drought, blizzard or plague, and in the lean weeks.
+- **Bread (or meat) for a town** short of food: during a famine, drought, blizzard or plague, and in the lean weeks.
 - **Relief for a besieged town**: at a war premium.
-- **Timber, rope or hemp** for a realm with a fleet.
-- **Iron, weapons or arrows** for a realm at war.
-- **Stone for new walls**, or **luxuries for a court wedding**.
+- **Timber, rope, hemp or rock oil** for a realm with a fleet.
+- **Iron, weapons, arrows, horses or coal** for a realm at war.
+- **Stone for new walls**, or **luxuries, gems or liquor for a court wedding**.
+
+Most contract goods (rope, hemp, candles, shields, …) are never sold in a market: you make them in your own workshops and store them at a post. Others (weapons, gems, liquor, horses, meat, coal, rock oil) are sold only in some towns, so a post in the right market can buy them and convoy them on. A well-placed post at a capital, buying bread after the harvest and selling it in the lean months, and taking only contracts it can source, turns a modest profit (see `docs/economy-balance.md`).
 
 The contract town never sells the good itself or next door, so the goods must be brought in. You can deliver by hand from your packs, from a docked ship's hold, from your post in that town, or by convoy. If a market there has since started selling the good, the pay drops below what the good costs there.
 
@@ -1073,7 +1077,7 @@ Take military contracts at settlements for steady gold income:
 | Siege Support | 500g | 10 days | 100 | 50% |
 | Pirate Raid | 600g | 8 days | 70 | 45% |
 | Monster Hunt | 800g | 7 days | 80 | 60% |
-| Assassination | 1,000g | 3 days | 15 | 70% |
+| Assassination | 400g | 6 days | 45 | 70% |
 
 Risk represents the chance of taking casualties (10–30% of your army). Successful contracts grant +10 XP per unit and +0.5 combat skill.
 
@@ -1422,7 +1426,7 @@ In any **town, city or capital** tavern, *ask the barkeep about "special work"* 
 | Job | AP | Reward |
 |-----|----|--------|
 | Work the Crowd | 2 | 6–28g, more in well-guarded towns |
-| Burgle a Merchant's House | 4 | 20–70g plus goods — **hot** |
+| Burgle a Merchant's House | 4 | 30–90g plus goods — **hot** |
 | Protection Racket | 3 | A weekly payment from the town (4% of its population, 20–160g); one racket per rank. Heat 70+ in that realm risks the watch breaking it up |
 | Heist | 6 | Hundreds of gold and rare loot (hot) — see below |
 
@@ -1442,6 +1446,8 @@ Each kingdom bans or tariffs goods according to its **culture and faith**:
 The legal market **refuses** banned goods and pays **25% less** for tariffed ones (the crown's cut). The panel lists what is banned and tariffed in the realm you are in.
 
 The **black market** (open once you have a guild contact) buys anything you carry that isn't hot, at a premium: ×1.05 for legal goods, ×1.35 tariffed, ×1.9 banned. A **blockaded** realm pays +0.5 more (+0.75 more again where its port is sealed by enemy fleets); in the **lean season** food fetches +0.35 and contraband +0.15. Each deal costs 1 AP and risks a raid — likelier with bigger garrisons, higher heat and under blockade, less likely with Stealth and a cunning character. Under blockade, deals raise twice the heat.
+
+**Smuggling by hand** (Smuggle in a town, Stealth 2+) sells one unit per deal for 2 AP at 1.3× the black-market price, but never more than half what the goods cost on open sale here or next door. The odds are 50% + 6% per Stealth point, at most 90%. Getting caught costs the goods, a fine of half the price and jail that grows with each offence.
 
 ### Hot Goods & Fences
 
@@ -2628,8 +2634,10 @@ At cities, you can spend gold to host celebrations:
 | Event | Cost | Requirements | Effects |
 |-------|------|-------------|---------|
 | Host a Feast | 200g | City | Boost renown & reputation |
-| Hold Tournament | 300g | City, combat skill ≥2 or army | Renown, gold prizes, combat XP |
+| Hold Tournament | 200g (300g at a capital) | City, combat skill ≥2 or army | Renown, gold prizes, combat XP |
 | Host Festival | 260g | City | Seasonal celebration with contests |
+
+**Tournaments.** Compete in three bouts: win all three to take the prize pool (3× the fee), two to take 40% of it. Losing a bout costs health and may leave a wound. The lists can be called once every 10 days.
 
 Festivals provide morale boosts, diplomatic bonuses (rival kingdoms may attend), and opportunities for renown. Some include minigames like jousting and archery contests.
 

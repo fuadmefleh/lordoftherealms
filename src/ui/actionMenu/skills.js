@@ -627,11 +627,12 @@ Object.assign(ActionMenu, {
             return;
         }
 
-        const basePrices = {
-            herbs: 8, pelts: 12, meat: 6, berries: 4, mushrooms: 5,
-            hide: 15, antler: 20, feather: 10, fish: 5, ore: 25,
-            gems: 80, stone: 8, horse: 120, wood: 3
-        };
+        // A smuggler gets a premium over the black market, but never more than
+        // what the goods cost on open sale here or next door (Underworld.openSaleCap):
+        // buying in the square and smuggling it straight back is no money loop
+        const smugglePriceOf = (item) => Math.min(
+            Math.floor(Underworld.blackMarketPrice(game.world, tile, item) * 1.3),
+            Underworld.openSaleCap(game.world, tile, item));
 
         // Step 1: Choose item to smuggle
         let html = '<div style="max-width: 420px;">';
@@ -640,8 +641,8 @@ Object.assign(ActionMenu, {
         html += `<p style="font-size: 11px; color: #aaa;">Stealth: ${player.skills?.stealth || 1} | AP: ${player.actionPoints || 0} (costs 2 per deal)</p>`;
 
         for (const g of goods) {
-            const basePrice = basePrices[g.item] || 10;
-            const smugglePrice = Math.floor(basePrice * 2.5);
+            const smugglePrice = smugglePriceOf(g.item);
+            if (!(smugglePrice > 1)) continue;
             html += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">`;
             html += `<span>${g.item} (x${g.qty})</span>`;
             html += `<span style="color: var(--gold);">${smugglePrice}g each</span>`;
@@ -670,10 +671,10 @@ Object.assign(ActionMenu, {
                 title: '🏴‍☠️ Smuggle ' + itemName,
                 icon: '🏴‍☠️',
                 description: `Sneak past guards to sell ${itemName} for ${price}g.`,
-                baseRewardText: `~${Math.floor(50 + stealthSkill * 6)}% success chance (simple roll)`,
+                baseRewardText: `~${Math.min(90, Math.floor(50 + stealthSkill * 6))}% success chance (simple roll)`,
                 onSkip: () => {
                     // Old instant-roll mechanic
-                    const successChance = 0.5 + stealthSkill * 0.06;
+                    const successChance = Math.min(0.9, 0.5 + stealthSkill * 0.06);
                     if (Math.random() < successChance) {
                         player.inventory[itemName]--;
                         if (player.inventory[itemName] <= 0) delete player.inventory[itemName];

@@ -513,6 +513,9 @@ export const Banking = {
 // ============================================
 
 export const Taxation = {
+    /** Weekly tax base per inhabitant, before the rate. */
+    TAX_PER_HEAD: 0.25,
+
     TAX_RATES: {
         VERY_LOW: { id: 'very_low', name: 'Very Low (5%)', rate: 0.05, happinessBonus: 10, growthBonus: 0.05 },
         LOW: { id: 'low', name: 'Low (10%)', rate: 0.10, happinessBonus: 5, growthBonus: 0.02 },
@@ -585,7 +588,9 @@ export const Taxation = {
             const tile = world.getTile(ref.q, ref.r);
             const settlement = ref.settlement;
             const happiness = Taxation.getHappiness(settlement);
-            const taxBase = Math.floor(settlement.population * 0.1); // 0.1 gold per person base
+            // A quarter of a gold piece per head a week before the rate: a town of
+            // 2,000 at moderate taxes yields ~75g a week (docs/economy-balance.md)
+            const taxBase = Math.floor(settlement.population * Taxation.TAX_PER_HEAD);
             const landBonus = 1 + (player.landTaxBonus || 0);
             // Rebellions and crises cut collections; gold rushes swell them
             const eventMult = Math.max(0, 1 + WorldEvents.getModifier(world, 'taxIncome', tile));

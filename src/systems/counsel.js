@@ -495,7 +495,7 @@ R.sagas = (ctx, p) => {
         if (Number.isFinite(s.chapterEnds) && s.chapterEnds - ctx.day <= _num(p.days, 5) && near) {
             out.push({
                 key: `${s.uid}:ch`, q: site ? site.q : undefined, r: site ? site.r : undefined,
-                saga: t.name || t.title || 'A saga', chapter: ch.title || s.chapter || 'its chapter',
+                saga: t.name || t.title || 'A saga', chapter: ch.title ? Sagas.fill(ch.title, s) : (s.chapter || 'its chapter'),
                 left: _days(s.chapterEnds - ctx.day), place: (site && site.name) || 'your path',
             });
         }

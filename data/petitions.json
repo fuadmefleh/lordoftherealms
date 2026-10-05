@@ -51,9 +51,23 @@
       "expires": 10,
       "ignore": { "result": "The guild takes your silence as contempt.", "effects": { "faction": { "merchants": -4 } } },
       "choices": [
-        { "id": "grant", "label": "Grant the monopoly and take the purse", "effects": { "gold": 150, "happiness": -4, "faction": { "merchants": 8, "commons": -6 }, "court": { "generosity": -1 } }, "result": "The guild's purse is heavy. The price of cloth will soon be heavier.", "followUp": { "options": [{ "id": "guild_overreach", "weight": 1 }], "delay": [12, 20], "chance": 0.7 } },
-        { "id": "limited", "label": "Grant a five-year charter for a fee", "effects": { "gold": 70, "happiness": -1, "faction": { "merchants": 3 } }, "result": "A charter with an end date — the guild grumbles at the terms and pays." },
+        { "id": "grant", "label": "Grant the monopoly and take the purse", "effects": { "gold": 150, "happiness": -4, "faction": { "merchants": 8, "commons": -6 }, "court": { "generosity": -1 }, "monopoly": { "good": "textiles", "holder": "guild", "holderName": "The clothiers' guild" } }, "result": "The guild's purse is heavy. The price of cloth will soon be heavier.", "followUp": { "options": [{ "id": "guild_overreach", "weight": 1 }], "delay": [12, 20], "chance": 0.7 } },
+        { "id": "limited", "label": "Grant a five-year charter for a fee", "effects": { "gold": 70, "happiness": -1, "faction": { "merchants": 3 }, "monopoly": { "good": "textiles", "holder": "guild", "holderName": "The clothiers' guild", "days": 600 } }, "result": "A charter with an end date — the guild grumbles at the terms and pays." },
         { "id": "refuse", "label": "Refuse: the market stays open", "effects": { "happiness": 3, "faction": { "merchants": -6, "commons": 4 }, "court": { "justice": 1 } }, "result": "The peddlers cheer. The guild masters do not." }
+      ]
+    },
+    "merchant_venturers": {
+      "title": "The Merchant Venturers",
+      "icon": "⚖️",
+      "text": "{name}, spokesman of the merchant venturers of {settlement}, asks that your House charter a trading company under its own seal — posts, factors and contracts in your name — rather than leave the trade to foreign houses.",
+      "requires": { "holding": ["settlement", "office"], "minPopulation": 250 },
+      "weight": 1,
+      "expires": 12,
+      "ignore": { "result": "The venturers took their ledgers to a rival house.", "effects": { "faction": { "merchants": -3 } } },
+      "choices": [
+        { "id": "charter", "label": "Seal a charter for your own company", "effects": { "charter": true, "faction": { "merchants": 5 } }, "result": "The charter is sealed. Your House may found a trading company (Trading Company, in any town).", "notable": true },
+        { "id": "sell", "label": "Sell the venturers a charter of their own", "effects": { "gold": 120, "faction": { "merchants": 3 } }, "result": "The venturers pay handsomely and trade under their own seal." },
+        { "id": "refuse", "label": "Trade is no business of a lord", "effects": { "faction": { "merchants": -4 } }, "result": "The venturers bow stiffly and leave." }
       ]
     },
     "famine_plea": {
@@ -695,7 +709,7 @@
       "expires": 8,
       "ignore": { "result": "The guild kept squeezing.", "effects": { "happiness": -5, "faction": { "commons": -3 } } },
       "choices": [
-        { "id": "revoke", "label": "Revoke the monopoly", "effects": { "faction": { "merchants": -10, "commons": 6 }, "happiness": 5, "court": { "justice": 2 } }, "result": "The peddlers return. The guild masters are livid." },
+        { "id": "revoke", "label": "Revoke the monopoly", "effects": { "faction": { "merchants": -10, "commons": 6 }, "happiness": 5, "court": { "justice": 2 }, "monopoly": { "good": "textiles", "revoke": true } }, "result": "The peddlers return. The guild masters are livid." },
         { "id": "tax", "label": "Tax their windfall", "effects": { "gold": 80, "faction": { "merchants": -4 }, "happiness": -2 }, "result": "If the guild must be rich, the crown will share it." },
         { "id": "tolerate", "label": "A charter is a charter", "effects": { "happiness": -5, "faction": { "merchants": 4, "commons": -4 } }, "result": "The guild thanks you. The town does not." }
       ]

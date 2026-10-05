@@ -208,7 +208,11 @@ export const PlayerMovementMethods = {
             // tired for the next hex: queue the rest of the way for tomorrow,
             // as running out exactly on a step does (it used to drop the trip)
             const moveCost = this._hexMoveCost(tile);
-            if (this.movementRemaining < moveCost || (this.actionPoints || 0) < 1) {
+            // A whole day's strength always carries you one hex, however rough
+            // the ground — a starving traveller weakened below a hill's cost
+            // would otherwise never reach the town next door
+            const freshDay = this._dayMovement > 0 && this.movementRemaining >= this._dayMovement;
+            if ((this.movementRemaining < moveCost && !freshDay) || (this.actionPoints || 0) < 1) {
                 this.queuedPath = this.path;
                 this.queuedPathIndex = this.pathIndex;
                 this.isMoving = false;
@@ -234,7 +238,7 @@ export const PlayerMovementMethods = {
                 currentTile.visible = true;
             }
 
-            this.movementRemaining -= moveCost;
+            this.movementRemaining = Math.max(0, this.movementRemaining - moveCost);
             this.actionPoints = Math.max(0, (this.actionPoints || 0) - 1);
 
             // Reveal area

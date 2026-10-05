@@ -75,7 +75,7 @@ Object.assign(ActionMenu, {
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general',
             trap_furs: 'general', ice_fish: 'general', planting_contract: 'commerce',
             prospect: 'general', tame_horse: 'general', craft_campfire: 'general',
-            disembark: 'general', row_ashore: 'general', row_to_ship: 'general', ship_hold: 'commerce', port_market: 'commerce', explore_ocean: 'general', hunt_pirates: 'military', commit_piracy: 'military', explore_inner_map: 'general',
+            disembark: 'general', row_ashore: 'general', row_to_ship: 'general', ship_hold: 'commerce', port_market: 'commerce', explore_ocean: 'general', make_for_port: 'general', hunt_pirates: 'military', commit_piracy: 'military', explore_inner_map: 'general',
             trade: 'commerce', contract: 'commerce', ship_passage: 'commerce',
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
             odd_jobs: 'commerce', bounty_board: 'commerce', busking: 'commerce', gambling: 'commerce',
@@ -412,7 +412,7 @@ Object.assign(ActionMenu, {
 
         // Combat / Major ship operations (8 AP)
         attack_unit: 8, attack_settlement: 8, siege_camp: 0,
-        board_ship: 8, visit_shipyard: 1, row_ashore: 4, row_to_ship: 4, ship_hold: 0, port_market: 0, explore_ocean: 6, hunt_pirates: 10, commit_piracy: 10,
+        board_ship: 8, visit_shipyard: 1, row_ashore: 4, row_to_ship: 4, ship_hold: 0, port_market: 0, explore_ocean: 6, make_for_port: 0, hunt_pirates: 10, commit_piracy: 10,
 
         // Title actions
         seek_title: 1, view_title_status: 0, resign_title: 1,
@@ -654,6 +654,9 @@ Object.assign(ActionMenu, {
             case 'port_market':
                 ActionMenu.showPortMarketMenu(game);
                 break;
+            case 'make_for_port':
+                if (game.player.boardedShip) ActionMenu._showSailToMenu(game, tile, game.player.boardedShip);
+                break;
             case 'explore_ocean':
             case 'hunt_pirates':
             case 'commit_piracy':
@@ -807,6 +810,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'hall_of_heroes':
                 ActionMenu.showHallOfHeroes(game, tile);
+                break;
+            case 'trading_company':
+                ActionMenu.showTradingCompany(game, tile);
                 break;
             case 'host_feast':
                 ActionMenu.showHostFeastMenu(game, tile);

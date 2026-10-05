@@ -50,6 +50,30 @@
             "spreadChance": 0.6,
             "description": "{victim} tells anyone who will listen that {perpetrator} is a coward and a cheat ({location})"
         },
+        "merchant_slander": {
+            "label": "Merchant Slander",
+            "icon": "⚖️",
+            "baseSeverity": 12,
+            "reputationPenalty": 0,
+            "renownPenalty": 0,
+            "karmaPenalty": 0,
+            "bountyGold": 0,
+            "decayDays": 18,
+            "spreadChance": 0.5,
+            "description": "{victim} warn the market that {perpetrator}'s company pays late and sells short weight ({location})"
+        },
+        "contract_broken": {
+            "label": "Broken Contract",
+            "icon": "📜",
+            "baseSeverity": 14,
+            "reputationPenalty": 0,
+            "renownPenalty": 0,
+            "karmaPenalty": 0,
+            "bountyGold": 0,
+            "decayDays": 25,
+            "spreadChance": 0.45,
+            "description": "{perpetrator} promised {victim} goods for {location} and never delivered"
+        },
         "child_murder": {
             "label": "Child Murder",
             "icon": "👶💀",

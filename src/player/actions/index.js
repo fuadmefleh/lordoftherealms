@@ -159,6 +159,7 @@ export const PlayerActions = {
         // Activities on the open sea
         if (player.boardedShip && Ships.isWaterTile(tile)) {
             actions.push(
+                { type: 'make_for_port', label: 'Make for Port', icon: '⚓', description: 'Plot a voyage from here to a port — the passage runs day by day at full sail' },
                 { type: 'explore_ocean', label: 'Explore the Waters', icon: '🧭', description: 'Search for wrecks, islands and trouble' },
                 { type: 'hunt_pirates', label: 'Hunt Pirates', icon: '⚔️', description: 'Patrol for pirates — bounty, renown and karma if you win' },
                 { type: 'commit_piracy', label: 'Turn Pirate', icon: '🏴‍☠️', description: 'Raid a merchant ship — gold, but karma and reputation suffer' }

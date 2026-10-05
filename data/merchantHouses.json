@@ -1,0 +1,96 @@
+{
+    "config": {
+        "charter": { "baseCost": 900, "perSettlement": 60, "maxCost": 2400, "minReputation": 0 },
+        "found": { "minCapital": 500, "startReputation": 30 },
+        "post": { "openCost": 350, "foreignMult": 1.5, "foreignMinReputation": -10, "maxPosts": 6, "capacity": 300, "weeklyRent": 8, "maxOrders": 4, "reserveWeeks": 2 },
+        "factor": {
+            "baseWage": 10, "wagePerSkill": 3, "volumeBase": 20, "volumePerSkill": 8,
+            "skill": [2, 9], "honesty": [0.35, 1.0], "candidates": 3,
+            "skimRate": 0.18, "dishonestBelow": 0.7, "suspicionPerSkim": 4, "suspicionShown": 12,
+            "auditCost": 60, "auditFindChance": 0.85, "auditRecover": 0.5,
+            "unpaidQuitWeeks": 2
+        },
+        "robbery": { "base": 0.035, "guildTown": 0.04, "perGuard": 0.006, "minChance": 0.01, "guildFriendRank": 2, "guildFriendMult": 0.3, "insiderMult": 1.5, "stockLoss": [0.25, 0.6] },
+        "contracts": {
+            "maxBoard": 5, "spawnPerWeek": [1, 2], "minReputation": 10,
+            "reputationReward": 6, "reputationPenalty": 10, "kingdomReputation": 3,
+            "rivalBidAfter": [6, 14]
+        },
+        "convoy": { "hexesPerDay": 5, "shipHexesPerDay": 9, "feePerUnitPerDay": 0.08, "minFee": 5, "riskPerDay": 0.012, "shipRiskPerDay": 0.006, "lossShare": [0.4, 1.0] },
+        "rivals": {
+            "count": [3, 5], "minActive": 3, "weeklyReturn": [-0.035, 0.05], "contestedDrag": 0.006,
+            "dividendShare": 0.5, "sharePremium": 1.15, "sellDiscount": 0.85, "ruinCapital": 400,
+            "expandChance": 0.2, "maxPosts": 6, "lobbyChance": 0.07, "slanderChance": 0.12, "slanderRivalry": 50,
+            "undercutVolume": 0.6, "newcomerChance": 0.25,
+            "priceWar": { "minSpend": 200, "damage": [0.9, 1.5], "reputationCost": 3, "rivalry": 25 },
+            "openRivalry": 10, "contractRivalry": 5
+        },
+        "monopoly": { "lobbyBase": 600, "perPopulation": 0.4, "minReputation": 40, "minKingdomReputation": 10, "days": 120, "chance": 0.55, "perReputation": 0.004, "ownHoldingMult": 0.5, "sellVolumeBonus": 0.25, "rivalBribe": [80, 220] },
+        "ventures": { "maxOpen": 3, "spawnChance": 0.3, "minStake": 100, "maxStakeShare": 0.1, "maxStake": 4000 },
+        "ledgerCap": 80, "newsCap": 30, "weeksCap": 12
+    },
+    "names": {
+        "companyFirst": ["Golden", "Silver", "Northern", "Eastern", "Western", "Royal", "Free", "Crown", "Lantern", "Anchor", "Salt", "Amber", "River"],
+        "companySecond": ["Company", "Venturers", "Trading Company", "Merchant Adventurers", "Staple", "Fellowship of Traders", "Hanse"],
+        "factorGiven": ["Aldo", "Bertil", "Cosima", "Dario", "Edda", "Fenna", "Gaspard", "Hilde", "Ivo", "Jorun", "Kasimir", "Lotte", "Matteo", "Nell", "Osric", "Pia", "Quint", "Rasmus", "Sabine", "Tobias", "Ulla", "Viggo", "Wenna", "Ysolde"],
+        "factorFamily": ["Ambry", "Brask", "Coin", "Dunmore", "Ellery", "Fisk", "Grey", "Hallow", "Ingot", "Jessel", "Kettle", "Lisle", "Marten", "Noll", "Orme", "Penny", "Quarrel", "Rook", "Stave", "Tallow", "Underhill", "Vane", "Wick"]
+    },
+    "rivalHouses": [
+        { "id": "medrano", "name": "House Medrano", "icon": "🦁", "temperament": "aggressive", "specialty": ["wine", "spices", "silk"], "capital": [3000, 6000] },
+        { "id": "vanterpool", "name": "The Vanterpool Staple", "icon": "⚓", "temperament": "cautious", "specialty": ["fish", "salt", "wood"], "capital": [2500, 5000] },
+        { "id": "orsini", "name": "Orsini & Sons", "icon": "🦅", "temperament": "cunning", "specialty": ["textiles", "dyes", "luxuries"], "capital": [2000, 4500] },
+        { "id": "grauwacke", "name": "Grauwacke Ironmongers", "icon": "⚒️", "temperament": "aggressive", "specialty": ["iron", "tools", "weapons"], "capital": [2500, 5500] },
+        { "id": "lilywhite", "name": "The Lilywhite Fellowship", "icon": "🌸", "temperament": "cautious", "specialty": ["grain", "bread", "beer"], "capital": [1800, 4000] },
+        { "id": "karsk", "name": "Karsk Fur & Amber", "icon": "🦊", "temperament": "cunning", "specialty": ["pelts", "hide", "honey"], "capital": [1500, 3500] },
+        { "id": "saffron", "name": "The Saffron Road Company", "icon": "🐫", "temperament": "aggressive", "specialty": ["exotic_spices", "tea", "perfume"], "capital": [2000, 5000] }
+    ],
+    "temperaments": {
+        "aggressive": { "returnBias": 0.004, "expand": 1.5, "lobby": 1.6, "slander": 1.5, "bid": 1.3 },
+        "cautious": { "returnBias": 0.002, "expand": 0.7, "lobby": 0.6, "slander": 0.4, "bid": 0.8 },
+        "cunning": { "returnBias": 0.003, "expand": 1.0, "lobby": 1.2, "slander": 1.2, "bid": 1.0 }
+    },
+    "contracts": {
+        "famine_relief": {
+            "title": "Bread for {town}", "icon": "🌾", "trigger": "famine",
+            "goods": ["grain", "bread", "preserved_fish", "dried_meat", "flour", "cheese"],
+            "qty": [25, 60], "premium": [1.45, 1.8], "days": [18, 32], "reputation": 8,
+            "text": "{issuer} pays well for food delivered to {town}, where the granaries run low."
+        },
+        "siege_relief": {
+            "title": "Relieve {town}", "icon": "🏰", "trigger": "siege",
+            "goods": ["grain", "preserved_fish", "dried_meat", "arrows", "healing_salve"],
+            "qty": [20, 45], "premium": [1.6, 2.0], "days": [12, 22], "reputation": 10,
+            "text": "{issuer} will pay a war premium for supplies run into {town} while the enemy is at the walls."
+        },
+        "fleet_timber": {
+            "title": "Timber for the Fleet", "icon": "⛵", "trigger": "fleet",
+            "goods": ["wood", "rope", "hemp"],
+            "qty": [40, 90], "premium": [1.3, 1.6], "days": [25, 45], "reputation": 6,
+            "text": "The royal shipwrights of {issuer} need {good} at {town} to build and refit the fleet."
+        },
+        "war_iron": {
+            "title": "Iron for the War", "icon": "⚔️", "trigger": "war",
+            "goods": ["iron", "weapons", "arrows", "iron_ingot", "shield", "tools"],
+            "qty": [15, 40], "premium": [1.35, 1.7], "days": [20, 35], "reputation": 7,
+            "text": "{issuer}'s armouries at {town} want {good} for the war."
+        },
+        "walls_stone": {
+            "title": "Stone for the Walls", "icon": "🧱", "trigger": "any",
+            "goods": ["stone", "wood", "tools", "clay"],
+            "qty": [40, 80], "premium": [1.25, 1.5], "days": [25, 45], "reputation": 5,
+            "text": "The masons of {town} are raising new walls for {issuer} and need {good}."
+        },
+        "court_luxuries": {
+            "title": "A Court Wedding", "icon": "💍", "trigger": "any",
+            "goods": ["wine", "silk", "luxuries", "perfume", "mead", "candles"],
+            "qty": [8, 25], "premium": [1.3, 1.6], "days": [20, 35], "reputation": 5,
+            "text": "{issuer}'s court celebrates at {town} and orders {good} for the feast."
+        }
+    },
+    "ventures": [
+        { "id": "spice_fleet", "name": "Spice Fleet to the Far Isles", "icon": "⛵", "requires": "port", "days": [40, 70], "success": 0.55, "returnMult": [1.6, 2.3], "salvage": [0.0, 0.3], "text": "{kingdom} fits out a fleet for the spice islands and sells shares in the cargo." },
+        { "id": "whaling", "name": "The Northern Whaling Voyage", "icon": "🐋", "requires": "port", "days": [30, 55], "success": 0.62, "returnMult": [1.4, 1.9], "salvage": [0.1, 0.4], "text": "{kingdom}'s whalers sail north and want investors for the oil." },
+        { "id": "silver_mine", "name": "The Crown Silver Mine", "icon": "⛏️", "requires": "any", "days": [35, 60], "success": 0.6, "returnMult": [1.4, 2.0], "salvage": [0.1, 0.35], "text": "{kingdom} opens a deep silver working and offers shares in the first seams." },
+        { "id": "caravan_east", "name": "The Long Caravan East", "icon": "🐫", "requires": "any", "days": [45, 80], "success": 0.5, "returnMult": [1.7, 2.5], "salvage": [0.0, 0.25], "text": "{kingdom} sends a great caravan over the eastern passes and sells shares in what it brings back." }
+    ]
+}

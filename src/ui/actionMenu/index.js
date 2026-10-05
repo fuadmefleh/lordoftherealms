@@ -25,6 +25,7 @@ import './rivals.js';
 import './heirs.js';
 import './sagas.js';
 import './discovery.js';
+import './merchantHouses.js';
 
 // Expose ActionMenu globally so inline onclick handlers in dynamic HTML can access it
 window.ActionMenu = ActionMenu;

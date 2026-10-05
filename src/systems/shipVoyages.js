@@ -95,11 +95,16 @@ export const VoyageMethods = {
     /**
      * Units of provisions to buy so the hold feeds the crew for `days`. The
      * captain eats from the hold too once their own packs run dry, so their
-     * ration is counted unless `captain: false`.
+     * ration is counted (unless `captain: false`) — for every day, or, given
+     * the `player`, only for the days their pack food won't cover.
      */
-    provisionsNeeded(ship, days, { captain = true } = {}) {
-        const perDay = this.getDailyRations(ship) + (captain ? 1 : 0);
-        return Math.max(0, Math.ceil(days * perDay) - this.getProvisions(ship));
+    provisionsNeeded(ship, days, { captain = true, player = null } = {}) {
+        let captainDays = 0;
+        if (captain) {
+            const packs = player && typeof player.getFoodCount === 'function' ? player.getFoodCount() : 0;
+            captainDays = Math.max(0, days - packs);
+        }
+        return Math.max(0, Math.ceil(days * this.getDailyRations(ship) + captainDays) - this.getProvisions(ship));
     },
 
     /** What a port's ship's chandler charges for one unit of provisions. */
@@ -314,9 +319,16 @@ export const VoyageMethods = {
     startVoyage(player, world, shipId, destQ, destR, destName) {
         const ship = this.getShipById(player, shipId);
         if (!ship) return { success: false, message: 'Ship not found.' };
-        if (ship.status !== 'docked') return { success: false, message: 'Ship must be docked.' };
-        if (ship.q !== player.q || ship.r !== player.r) return { success: false, message: 'You must be aboard — go to where she is docked.' };
-        if (player.boardedShip) return { success: false, message: 'You are already aboard a ship.' };
+        // From the helm on open water (after heaving to or an expedition): make for port
+        const atHelm = player.boardedShip === ship.id && !ship.voyage && ship.status !== 'docked';
+        if (!atHelm) {
+            if (ship.status !== 'docked') return { success: false, message: 'Ship must be docked.' };
+            if (ship.q !== player.q || ship.r !== player.r) return { success: false, message: 'You must be aboard — go to where she is docked.' };
+            if (player.boardedShip) return { success: false, message: 'You are already aboard a ship.' };
+        } else {
+            ship.q = player.q;
+            ship.r = player.r;
+        }
         const noCrew = this.crewSailReason(ship);
         if (noCrew) return { success: false, message: noCrew };
         if (ship.q === destQ && ship.r === destR) return { success: false, message: 'You are already there.' };
@@ -325,7 +337,7 @@ export const VoyageMethods = {
 
         const days = this.voyageDays(player, ship, route.length);
         const tile = world.getTile(ship.q, ship.r);
-        const from = (tile && tile.settlement && tile.settlement.name) || ship.dockedAt || 'port';
+        const from = (tile && tile.settlement && tile.settlement.name) || ship.dockedAt || (atHelm ? 'the open sea' : 'port');
         ship.status = 'at_sea';
         ship.dockedAt = null;
         ship.voyage = {

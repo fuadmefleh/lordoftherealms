@@ -113,6 +113,17 @@ export const Trading = {
 
 
     /**
+     * Why the player may not trade `goodId` here — someone else (a guild or
+     * a rival merchant house) holds the town's monopoly on it — or null.
+     */
+    monopolyBlock(settlement, goodId) {
+        const holder = Economy.monopolyHolder(settlement, goodId);
+        if (!holder || holder === 'player') return null;
+        const m = settlement.monopolies[goodId];
+        return `${m.holderName || 'A chartered guild'} holds the monopoly on ${goodId.replace(/_/g, ' ')} in ${settlement.name || 'this town'}.`;
+    },
+
+    /**
      * Buy goods from a settlement
      */
     buyGoods(player, good, quantity, settlement) {
@@ -126,6 +137,9 @@ export const Trading = {
         if (quantity > good.quantity) {
             return { success: false, reason: 'Not enough in stock' };
         }
+
+        const blocked = Trading.monopolyBlock(settlement, good.id);
+        if (blocked) return { success: false, reason: blocked };
 
         // Carrying capacity: a new kind of good needs a free slot
         if (!PlayerInventory.canAdd(player, good.id)) {
@@ -165,6 +179,9 @@ export const Trading = {
         }
 
         if (!good) return { success: false, reason: 'Invalid good' };
+
+        const blocked = Trading.monopolyBlock(settlement, goodId);
+        if (blocked) return { success: false, reason: blocked };
 
         // Hot (stolen) goods go only to a fence; contraband only to the black
         // market; tariffed goods pay the crown its cut (systems/underworld.js)

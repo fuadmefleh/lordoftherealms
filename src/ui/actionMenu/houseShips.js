@@ -610,7 +610,7 @@ Object.assign(ActionMenu, {
         if (ship.status === 'docked' && crew > 0) {
             html += `<button onclick="window._dismissCrew('${ship.id}')" style="flex:1;${btnSecondary}">👋 Pay off 1 sailor</button>`;
         }
-        const victual = ship.status === 'docked' && Ships.isPortTile(game.world, ship.q, ship.r) ? Ships.provisionsNeeded(ship, 10) : 0;
+        const victual = ship.status === 'docked' && Ships.isPortTile(game.world, ship.q, ship.r) ? Ships.provisionsNeeded(ship, 10, { player }) : 0;
         if (victual > 0) {
             const price = Ships.provisionPrice(game.world, ship.q, ship.r);
             html += `<button onclick="window._provisionShip('${ship.id}', ${victual})" style="flex:1;${btnPrimary}">🍞 Provision for 10 days (${victual} × ${price}g)</button>`;
@@ -1205,8 +1205,11 @@ Object.assign(ActionMenu, {
         const btnPrimary = `${btnBase}border:1px solid rgba(245,197,66,0.55);background:linear-gradient(180deg,#f6cf57,#d9a92a);color:#1a1a1a;`;
         const btnSecondary = `${btnBase}border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);`;
 
-        // Ports this ship can reach by sea, nearest first
-        const routes = Ships.seaRoutes(game.world, ship.q, ship.r).slice(0, 24);
+        // Ports this ship can reach by sea, nearest first (from the helm: where you are now)
+        const atHelm = player.boardedShip === ship.id;
+        const fromQ = atHelm ? player.q : ship.q;
+        const fromR = atHelm ? player.r : ship.r;
+        const routes = Ships.seaRoutes(game.world, fromQ, fromR).slice(0, 24);
         const speed = Ships.getSailingSpeed(player, ship);
         const food = Ships.getProvisionDays(ship);
         const price = Ships.provisionPrice(game.world, ship.q, ship.r);
@@ -1231,7 +1234,7 @@ Object.assign(ActionMenu, {
             html += '<div style="font-size:11px;font-weight:bold;margin:4px 0;">🗺️ Expeditions — end at sea, you at the helm</div>';
             for (const ex of expeditions) {
                 const days = Ships.voyageDays(player, ship, ex.leagues);
-                const need = Ships.provisionsNeeded(ship, days * 2 + spare);
+                const need = Ships.provisionsNeeded(ship, days * 2 + spare, { player });
                 html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;border:1px solid rgba(79,195,247,0.35);border-radius:8px;background:rgba(79,195,247,0.04);margin-bottom:6px;">`;
                 html += `<div><div style="font-size:12px;font-weight:bold;">Toward ${ex.name}</div><div style="font-size:10px;color:var(--text-secondary);">${ex.leagues} leagues · ~${days} day${days === 1 ? '' : 's'} out, as many back</div></div>`;
                 html += `<button onclick="window._doExpedition('${ship.id}', '${ex.id}', ${need > 0 ? days * 2 + spare : 0})" style="${btnPrimary}">${need > 0 ? `🍞 Victual & Sail (${need * price}g)` : 'Sail'}</button>`;
@@ -1242,7 +1245,7 @@ Object.assign(ActionMenu, {
         for (const dest of routes) {
             const days = Ships.voyageDays(player, ship, dest.distance);
             const short = food !== Infinity && food < days + 1;
-            const need = Ships.provisionsNeeded(ship, days + 2);
+            const need = Ships.provisionsNeeded(ship, days + 2, { player });
             const safeName = dest.name.replace(/'/g, "\\'");
             html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:6px;">`;
             html += `<div><div style="font-size:12px;font-weight:bold;">${dest.name} <span style="font-weight:normal;color:var(--text-secondary);">(${dest.type})</span></div>`;

@@ -17,6 +17,7 @@ import { PlayerEconomy, Trading } from '../player/playerEconomy.js';
 import { Ships } from '../systems/ships.js';
 import { Underworld } from '../systems/underworld.js';
 import { MarketDynamics } from '../systems/marketDynamics.js';
+import { MerchantHouses } from '../systems/merchantHouses.js';
 import { WorldUnit } from '../world/units.js';
 import { loadData, newGame, endDay, roundTrip } from './playtest/harness.js';
 import { botDay } from './playtest/bot.js';
@@ -55,6 +56,17 @@ function checkInvariants(game, phase) {
     if (player.gold > GOLD_CAP) problems.push(`${where}: runaway economy, player gold ${Math.round(player.gold)}`);
     if (player.gold < 0) problems.push(`${where}: negative gold ${player.gold} — trace ${JSON.stringify(game.trace || [])}`);
     if (player.house && !finite(player.house.prestige)) problems.push(`${where}: house prestige = ${player.house.prestige}`);
+    // The trading company's books: its capital is money too
+    const company = MerchantHouses.company(player);
+    if (company) {
+        if (!finite(company.capital) || company.capital < 0) problems.push(`${where}: company capital = ${company.capital}`);
+        if (company.capital > GOLD_CAP) problems.push(`${where}: runaway company, capital ${Math.round(company.capital)}`);
+        for (const post of company.posts) {
+            for (const [id, qty] of Object.entries(post.stock)) {
+                if (!finite(qty) || qty < 0) problems.push(`${where}: post ${post.name} stock ${id} = ${qty}`);
+            }
+        }
+    }
     for (const k of world.kingdoms) {
         if (!k.isAlive) continue;
         for (const key of ['treasury', 'military']) {
@@ -96,6 +108,9 @@ function checkInvariants(game, phase) {
  * fence, black market, port), for more.
  * Run for the player as they are and for a trade-buffed version of them
  * (trade agreements with every realm), since bonuses are what open loops.
+ * A trading company's factor buys and sells here by the same rules, so a
+ * post here (or next door) is an outlet too, and so is a supply contract
+ * the company could deliver to on this tile or next door.
  */
 function probeArbitrage(game) {
     const { player, world } = game;
@@ -121,6 +136,11 @@ function probeArbitrage(game) {
             const price = Ships.provisionPrice(world, tile.q, tile.r);
             if (!buys[item] || price < buys[item].price) buys[item] = { price, via: 'chandler' };
         }
+        // A factor's buying price at a post here
+        for (const g of Trading.getAvailableGoods(tile.settlement, tile, world)) {
+            const unit = MerchantHouses.factorBuyUnit(p, world, tile, g.id);
+            if (unit != null && (!buys[g.id] || unit < buys[g.id].price)) buys[g.id] = { price: unit, via: 'post' };
+        }
         // Sell back here, or one hex away (settlements next door)
         const outlets = [tile, ...Hex.neighbors(tile.q, tile.r)
             .map(n => world.getTile(Hex.wrapQ(n.q, world.width), n.r))
@@ -135,6 +155,12 @@ function probeArbitrage(game) {
                 const atPort = at === tile ? port : Ships.isPortTile(world, at.q, at.r) ? Ships.getPortMarket(world, at.q, at.r) : [];
                 const e = atPort.find(x => x.id === id);
                 if (e) offers.push({ via: 'port', price: Ships.portSaleUnitPrice(p, world, at.q, at.r, e) });
+                // A factor selling at a post there, and contracts wanting it delivered there
+                offers.push({ via: 'post', price: MerchantHouses.factorSaleUnit(p, world, at, id) });
+                const contracts = [...MerchantHouses.board(player), ...((MerchantHouses.company(player) || {}).contracts || [])];
+                for (const ct of contracts) {
+                    if (ct.good === id && ct.q === at.q && ct.r === at.r) offers.push({ via: 'contract', price: MerchantHouses.contractUnitPay(world, ct) });
+                }
                 for (const o of offers) {
                     if (o.price > buy.price) {
                         found.push(`${who} ${id}: buy ${buy.price} (${buy.via}) at ${tile.settlement.name} → sell ${Math.round(o.price * 100) / 100} (${o.via}) at ${at.settlement.name}`);
@@ -178,6 +204,9 @@ function snapshot(game) {
         // ...and the player's caravans still find their units
         caravanUnits: (p.caravans || []).filter(c => c.unitId).map(c => game.world.units.some(u => u.id === c.unitId)),
         markets: Utils.hashStr(JSON.stringify(MarketDynamics.regionalMarkets)),
+        // The trading company, rival houses, contracts and the towns' monopolies
+        merchant: Utils.hashStr(JSON.stringify(p.merchant || null)),
+        monopolies: game.world.getAllSettlements().filter(s => s.monopolies).map(s => `${s.q},${s.r}:${JSON.stringify(s.monopolies)}`).join(' '),
         idCounter: Utils.getIdCounter(),
     };
 }
@@ -250,6 +279,11 @@ describe('headless playtest soak', () => {
                     days, died, gold: Math.round(game.player.gold), stats, ledger: game.ledger,
                     history: died ? history.map(h => h.join(' ')) : undefined,
                     uw: uw && { guild: uw.guild, rackets: uw.rackets, stats: uw.stats },
+                    company: MerchantHouses.company(game.player) && (({ capital, reputation, posts, stats: cs, contracts }) => ({
+                        capital: Math.round(capital), reputation, posts: posts.map(p => `${p.name}: ${JSON.stringify(p.stock)} ${JSON.stringify(p.lastWeek)}`),
+                        stats: cs, contracts: contracts.length, pnl: MerchantHouses.profitAndLoss(game.player),
+                        rivals: MerchantHouses.rivals(game.player).map(r => `${r.name} ${r.status} ${Math.round(r.capital)}`),
+                    }))(MerchantHouses.company(game.player)),
                     arbitrage: arbitrage.slice(0, 20),
                 };
                 process.stdout.write(`seed ${seed} ${JSON.stringify(report, null, 1)}\n`);
@@ -269,7 +303,8 @@ describe('headless playtest soak', () => {
 
     it('the bot reached the systems it is meant to exercise', () => {
         for (const key of ['foodBought', 'recruited', 'sales', 'coloniesFounded', 'guildJoined', 'delvesStarted',
-            'petitionsRuled', 'companionsHired', 'shipsBought', 'crewHired', 'voyages', 'daysAtSea', 'propertiesBuilt']) {
+            'petitionsRuled', 'companionsHired', 'shipsBought', 'crewHired', 'voyages', 'daysAtSea', 'propertiesBuilt',
+            'companyFounded', 'postsOpened', 'ordersSet']) {
             expect(totals[key] || 0, `the bot never did "${key}" — ${JSON.stringify(totals)}`).toBeGreaterThan(0);
         }
     });

@@ -62,7 +62,7 @@ export function beginVoyage(game, shipId, destQ, destR, destName, victualDays = 
     const world = game.world;
     if (victualDays > 0) {
         const ship = Ships.getShipById(player, shipId);
-        const want = ship ? Ships.provisionsNeeded(ship, victualDays) : 0;
+        const want = ship ? Ships.provisionsNeeded(ship, victualDays, { player }) : 0;
         if (want > 0) {
             const bought = Ships.buyProvisions(player, world, shipId, want);
             game.ui.showNotification(bought.success ? '🍞 Provisioned' : 'Provisions', bought.message, bought.success ? 'success' : 'warning');

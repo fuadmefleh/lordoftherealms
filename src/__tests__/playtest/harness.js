@@ -51,6 +51,7 @@ import { Sieges } from '../../systems/sieges.js';
 import { Discovery } from '../../systems/discovery.js';
 import { Holdings } from '../../systems/holdings.js';
 import { Upbringing } from '../../systems/upbringing.js';
+import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
 
 export const WORLD_W = 80;
@@ -262,6 +263,8 @@ export function endDay(game) {
     mark(game, 'Sieges.processDay');
     Holdings.processDay(player, world);
     mark(game, 'Holdings.processDay');
+    MerchantHouses.processDay(player, world);
+    mark(game, 'MerchantHouses.processDay');
     MarketDynamics.updatePrices(world);
     mark(game, 'MarketDynamics.updatePrices');
 

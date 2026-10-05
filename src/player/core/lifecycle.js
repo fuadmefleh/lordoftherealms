@@ -147,6 +147,8 @@ export const PlayerLifecycleMethods = {
         if (mood.effects.movementPenalty) {
             this.movementRemaining = Math.max(1, this.movementRemaining + mood.effects.movementPenalty);
         }
+        // The day's full strength (stepAlongPath lets it carry you one hex, however rough)
+        this._dayMovement = this.movementRemaining;
 
         // Reset daily need tracking
         this.resetDailyNeedTracking();

@@ -24,7 +24,7 @@ const topLevel = [
     'ships', 'tavern', 'technology', 'terrain', 'titles', 'units', 'worldEvents',
     'gossip', 'traits', 'petitions', 'companions', 'delves',
     'underworld', 'throne', 'holdings', 'rivals', 'ailments', 'upbringing',
-    'sagas', 'discovery'
+    'sagas', 'discovery', 'merchantHouses'
 ];
 
 const merged = {};

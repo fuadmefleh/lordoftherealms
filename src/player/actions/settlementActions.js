@@ -18,6 +18,7 @@ import { PlayerReligion } from '../playerReligion.js';
 import { SeasonalWork } from '../seasonalWork.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Rivals } from '../../systems/rivals.js';
+import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { Ailments } from '../../systems/ailments.js';
 
 export function addSettlementActions(actions, player, tile, world, ctx) {
@@ -325,6 +326,21 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             label: 'Hall of Heroes',
             icon: '🏆',
             description: 'Your renown ranked against the rival adventurers of the realm, and their latest deeds',
+        });
+    }
+
+    // The trading company (systems/merchantHouses.js) — once there's one, a
+    // charter or an office, or the purse to think about it
+    const company = MerchantHouses.company(player);
+    if (company || MerchantHouses.hasCharter(player) || MerchantHouses.officeCharter(player) || (player.gold || 0) >= 1500) {
+        const post = company && MerchantHouses.postAt(player, tile.q, tile.r);
+        actions.push({
+            type: 'trading_company',
+            label: company ? 'Trading Company' : 'Found a Trading Company',
+            icon: '⚖️',
+            description: company
+                ? `${company.name}: ${company.posts.length} post(s), ${Math.round(company.capital)}g capital${post ? ' — your factor here' : ''}. Orders, ledger, contracts, rivals, investments`
+                : 'Charter a merchant house: factors in towns, supply contracts, rival houses and royal ventures',
         });
     }
 

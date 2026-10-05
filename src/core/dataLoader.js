@@ -514,6 +514,12 @@ export const DataLoader = {
             DataLoader.rivals = rivalsData;
         }
 
+        // ── Merchant houses: the trading company, contracts, rival houses (read lazily by systems/merchantHouses.js) ──
+        const merchantHousesData = data['merchantHouses.json'];
+        if (merchantHousesData) {
+            DataLoader.merchantHouses = merchantHousesData;
+        }
+
         // ── Heirs, upbringing and legacy (read lazily by systems/upbringing.js, heirs.js, legacy.js) ──
         const upbringingData = data['upbringing.json'];
         if (upbringingData) {

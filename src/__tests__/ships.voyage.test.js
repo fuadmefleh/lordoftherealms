@@ -433,3 +433,23 @@ describe('save and load', () => {
         expect(days[days.length - 1].voyage.arrived).toBe(true);
     });
 });
+
+describe('making for port from the helm', () => {
+    it('a captain hove to on open water can plot a voyage to a port', () => {
+        const w = twoPorts();
+        const s = ship('cog', { cargo: { preserved_fish: 20 } });
+        const p = captain(s);
+        const routes = Ships.seaRoutes(w, s.q, s.r);
+        const dest = routes[0];
+        expect(Ships.startVoyage(p, w, s.id, dest.q, dest.r, dest.name).success).toBe(true);
+        expect(Ships.heaveTo(p, w).success).toBe(true);
+        expect(p.boardedShip).toBe(s.id);
+        expect(Ships.getVoyage(p)).toBeNull();
+        // Still aboard at the helm: a new voyage starts from where she lies
+        const back = Ships.seaRoutes(w, p.q, p.r)[0];
+        const res = Ships.startVoyage(p, w, s.id, back.q, back.r, back.name);
+        expect(res.success).toBe(true);
+        expect(Ships.getVoyage(p)).toBeTruthy();
+        expect(p.boardedShip).toBe(s.id);
+    });
+});

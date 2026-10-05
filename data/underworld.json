@@ -85,7 +85,7 @@
             "name": "Burgle a Merchant's House", "icon": "🏚️", "rank": 1, "ap": 4,
             "description": "Slip into a merchant's townhouse by night. Coin and goods — the goods will be hot.",
             "base": 0.5, "stat": "intelligence", "caughtShare": 0.55,
-            "gold": [20, 70], "goldPerGuard": 15, "standing": 5,
+            "gold": [30, 90], "goldPerGuard": 15, "standing": 5,
             "loot": ["silk", "perfume", "fine_wine", "spices", "candles", "amulet", "ancient_coin", "luxuries", "gems", "tea"],
             "lootQty": [1, 3]
         },

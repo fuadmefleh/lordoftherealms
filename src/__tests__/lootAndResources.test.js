@@ -254,8 +254,8 @@ describe('coal, oil and cattle', () => {
             return PlayerEconomy.produceGoods(player, world).meat || 0;
         };
         const plain = produce({});
-        expect(produce({ '3,4': 'cattle' })).toBe(Math.floor(8 * 1.3));
-        expect(plain).toBe(8);
+        expect(produce({ '3,4': 'cattle' })).toBe(Math.floor(6 * 1.3));
+        expect(plain).toBe(6);
     });
 
     it('a coal-fired forge turns out more from the same iron', () => {

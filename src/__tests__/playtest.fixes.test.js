@@ -97,7 +97,10 @@ describe('taverns', () => {
         PlayerEconomy.produceGoods(player, world);
         const net = player.gold - before;
         expect(net).toBeGreaterThan(0);
-        expect(prop.todayIncome).toBeLessThanOrEqual(Math.ceil((35 + 40) * 1.5));
+        expect(prop.todayIncome).toBeLessThanOrEqual(Math.ceil((22 + 16) * 1.5));
+        // ...and it takes a season or more of takings to repay the building
+        // (docs/economy-balance.md)
+        expect(PlayerEconomy.getPropertyDef('TAVERN').cost / net).toBeGreaterThan(30);
     });
 });
 
@@ -179,5 +182,36 @@ describe('save and load', () => {
         again.generate(saved.generationParams);
         const ids = (w) => w.tiles.map(row => row.map(t => t.terrain.id).join(',')).join('|');
         expect(ids(again)).toBe(ids(world));
+    });
+});
+
+describe('one-off caravans', () => {
+    it('arrive and pay what the destination market pays, with a modest haulage premium', () => {
+        const from = { name: 'Ashford', type: 'capital', population: 5000, q: 1, r: 5 };
+        const to = { name: 'Crown', type: 'capital', population: 5000, q: 10, r: 5 };
+        const land = {};
+        for (let q = 0; q < 12; q++) land[`${q},5`] = { terrain: GRASS };
+        land['1,5'].settlement = from;
+        land['10,5'].settlement = to;
+        const world = makeWorld(land, { size: 24 });
+        world.units = [];
+        world.getAllSettlements = () => [from, to];
+        const player = new Player();
+        player.gold = 1000;
+        player.inventory = { tools: 20 };
+        const res = PlayerEconomy.startCaravan(player, { q: 1, r: 5, name: 'Ashford' }, to, { tools: 20 }, world);
+        expect(res.success).toBe(true);
+        const before = player.gold;
+        let paid = null;
+        for (let d = 0; d < 20 && !paid; d++) {
+            paid = PlayerEconomy.updateCaravans(player, world).find(c => c.finalProfit != null);
+        }
+        expect(paid).toBeTruthy();
+        const got = player.gold - before;
+        // 20 tools cost about 20 x 28 at a capital; nine hexes on they sell for a
+        // little more, nowhere near the old 2-3x their whole value
+        const base = PlayerEconomy.GOODS.TOOLS.basePrice;
+        expect(got).toBeGreaterThan(20 * base * 0.7);
+        expect(got).toBeLessThan(20 * base * 1.4);
     });
 });

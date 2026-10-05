@@ -287,9 +287,9 @@
       "id": "assassination",
       "name": "Assassination Contract",
       "icon": "🎭",
-      "payment": 1000,
-      "duration": 3,
-      "minStrength": 15,
+      "payment": 400,
+      "duration": 6,
+      "minStrength": 45,
       "risk": 0.70,
       "description": "Eliminate a high-value target — extremely dangerous"
     }

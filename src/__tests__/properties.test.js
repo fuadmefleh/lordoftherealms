@@ -88,11 +88,11 @@ describe('Mill and same-tile supply chains', () => {
 
         const production = PlayerEconomy.produceGoods(player, world);
 
-        // Farm makes 10 grain; the mill (rate 8 → 4 runs of 2→2) takes 8 of it
-        expect(production.grain).toBe(10);
-        expect(production.flour).toBe(8);
-        expect(farm.storage).toBe(2);
-        expect(mill.storage).toBe(8);
+        // Farm makes 6 grain; the mill (rate 8 → up to 4 runs of 2→2) takes all 6
+        expect(production.grain).toBe(6);
+        expect(production.flour).toBe(6);
+        expect(farm.storage).toBe(0);
+        expect(mill.storage).toBe(6);
     });
 
     it('a Mill on a river gets the water-wheel bonus', () => {
@@ -133,9 +133,9 @@ describe('Several properties on one tile', () => {
 
         const production = PlayerEconomy.produceGoods(player, world);
 
-        expect(production).toEqual({ grain: 10, meat: 8 });
-        expect(farm.storage).toBe(10);
-        expect(ranch.storage).toBe(8);
+        expect(production).toEqual({ grain: 6, meat: 6 });
+        expect(farm.storage).toBe(6);
+        expect(ranch.storage).toBe(6);
     });
 
     it('collects every property\'s goods but never a tavern\'s earnings tally', () => {

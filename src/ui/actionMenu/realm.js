@@ -328,7 +328,13 @@ Object.assign(ActionMenu, {
         if (!settlement) return;
 
         const entryFee = settlement.type === 'capital' ? 300 : 200;
-        const prizePool = entryFee * 4;
+        // The champion takes three times the fee; the lists are called once a
+        // season-tenth (TOURNAMENT_COOLDOWN days), not every day (docs/economy-balance.md)
+        const prizePool = entryFee * 3;
+        const TOURNAMENT_COOLDOWN = 10;
+        const day = (game.world && game.world.day) || 0;
+        const sinceLast = typeof player.lastTournamentDay === 'number' ? day - player.lastTournamentDay : Infinity;
+        const cooling = sinceLast < TOURNAMENT_COOLDOWN ? TOURNAMENT_COOLDOWN - sinceLast : 0;
 
         let html = '<div>';
         html += '<h4 style="margin-top: 0;">⚔️ Hold a Tournament</h4>';
@@ -341,7 +347,9 @@ Object.assign(ActionMenu, {
         html += `</div>`;
         html += `<p style="font-size: 11px; color: #aaa;">You may compete yourself, or simply host and watch.</p>`;
 
-        if (player.gold >= entryFee) {
+        if (cooling > 0) {
+            html += `<p style="color: #ff6666; font-size: 12px;">The knights are still mending from your last tournament. Call the lists again in ${cooling} day${cooling === 1 ? '' : 's'}.</p>`;
+        } else if (player.gold >= entryFee) {
             html += `<button onclick="window._doTournament(true)" style="width: 100%; padding: 10px; background: #c97d32; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-bottom: 6px;">Compete (${entryFee}g)</button>`;
             html += `<button onclick="window._doTournament(false)" style="width: 100%; padding: 8px; background: #555; border: none; border-radius: 4px; cursor: pointer; color: #ccc;">Just Host & Spectate (${Math.floor(entryFee * 0.6)}g)</button>`;
         } else {
@@ -352,6 +360,7 @@ Object.assign(ActionMenu, {
         game.ui.showCustomPanel('Tournament', html);
 
         window._doTournament = (compete) => {
+            if (cooling > 0) return;
             if (!ActionMenu.commitPendingAP(game)) return;
             const cost = compete ? entryFee : Math.floor(entryFee * 0.6);
             if (player.gold < cost) {
@@ -360,6 +369,7 @@ Object.assign(ActionMenu, {
             }
 
             player.gold -= cost;
+            player.lastTournamentDay = day;
             if (player.financeToday) {
                 player.financeToday.expenses = player.financeToday.expenses || {};
                 player.financeToday.expenses.tournament = (player.financeToday.expenses.tournament || 0) + cost;

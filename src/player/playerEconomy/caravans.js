@@ -40,17 +40,11 @@ Object.assign(PlayerEconomy, {
             const good = PlayerEconomy.GOODS[goodId] || PlayerEconomy.GOODS[goodType]; // Try both
 
             if (good) {
-                let price = good.basePrice;
-                // Distant settlements pay more
-                price *= (1 + dist * 0.05);
-                // Settlement size bonus
-                const sizeMultiplier = {
-                    village: 0.8,
-                    town: 1.0,
-                    city: 1.2,
-                    capital: 1.5,
-                };
-                price *= sizeMultiplier[toSettlement.type] || 1.0;
+                // What the destination pays (a sale: Trading.SELL_SHARE of the
+                // price), more the farther the goods travel and the bigger the town
+                let price = good.basePrice * Trading.SELL_SHARE;
+                price *= PlayerEconomy.caravanDistanceMultiplier(dist);
+                price *= PlayerEconomy.caravanSizeMultiplier(toSettlement.type);
                 expectedProfit += Math.floor(price * quantity);
             }
         }
@@ -224,6 +218,21 @@ Object.assign(PlayerEconomy, {
     /**
      * Update all player caravans
      */
+    /**
+     * A caravan's premium for hauling goods `dist` hexes: 2.5% a hex. With the
+     * size bonus below, goods bought at a capital (0.8x base) and carried 20
+     * hexes to another sell for about 1.26x base; a short haul between towns
+     * barely covers the hire (docs/economy-balance.md).
+     */
+    caravanDistanceMultiplier(dist) {
+        return 1 + Math.max(0, dist || 0) * 0.025;
+    },
+
+    /** Bigger markets pay a caravan more. */
+    caravanSizeMultiplier(type) {
+        return { capital: 1.2, city: 1.1 }[type] || 1.0;
+    },
+
     updateCaravans(player, world) {
         const completed = [];
         PlayerEconomy.ensureEconomyState(player);
@@ -326,21 +335,19 @@ Object.assign(PlayerEconomy, {
                 } else {
                     // ... (existing commercial logic)
                     // Recalculate based on current market prices
+                    // What the destination market pays for the goods today (its
+                    // price, with the season and events): a sale, so Trading.SELL_SHARE of it
                     let marketValue = 0;
                     for (const [goodId, qty] of Object.entries(caravan.goods)) {
-                        const currentPrice = MarketDynamics.getPrice(goodId);
-                        marketValue += currentPrice * qty;
+                        const currentPrice = MarketDynamics.getPrice(goodId, caravan.toPos.q, caravan.toPos.r, world);
+                        marketValue += currentPrice * Trading.SELL_SHARE * qty;
                     }
 
                     const dist = Hex.wrappingDistance(caravan.fromPos.q, caravan.fromPos.r, caravan.toPos.q, caravan.toPos.r, world.width);
-                    const distanceMultiplier = 1 + (dist * 0.05); // 5% per hex
+                    const distanceMultiplier = PlayerEconomy.caravanDistanceMultiplier(dist);
 
                     const targetTile = world.getTile(caravan.toPos.q, caravan.toPos.r);
-                    let settlementMultiplier = 1.0;
-                    if (targetTile && targetTile.settlement) {
-                        if (targetTile.settlement.type === 'capital') settlementMultiplier = 1.5;
-                        else if (targetTile.settlement.type === 'city') settlementMultiplier = 1.2;
-                    }
+                    const settlementMultiplier = PlayerEconomy.caravanSizeMultiplier(targetTile && targetTile.settlement && targetTile.settlement.type);
 
                     let grossRevenue = Math.floor(marketValue * distanceMultiplier * settlementMultiplier);
                     // A road the whole way means cheaper haulage and fresher goods

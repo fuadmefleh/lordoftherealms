@@ -1,0 +1,139 @@
+# Economy balance — baseline (2026-10 pass)
+
+This is the first side-by-side comparison of the game's income sources. Use it as a
+baseline: re-measure against these numbers before you add or retune a source.
+
+## How it was measured
+
+- **Harness.** Throwaway vitest scripts drove the headless harness
+  (`src/__tests__/playtest/harness.js`) with scripted, focused strategies. The random
+  bot was not used. The player was kept fed so each run measured income rather than
+  survival.
+- **Seeds and length.** Seeds 101, 202 and 303 (plus 404 and 505 for the company).
+  Properties ran for 120 days (one game year), the trading company for 360.
+- **Early vs late.** "Early" is a fresh character. "Late" is a seasoned one: Commerce,
+  Combat and Stealth 6, the main stats 7.
+- **Units.**
+  - **g/day** is gold per day of the player's time. For passive sources (properties,
+    contracts) it is net gold per day of ownership.
+  - **Payback** is build cost ÷ net g/day.
+  - The player has 10 AP a day; a full-day job uses the whole day.
+- **Sources too UI-bound to script.** Odd jobs, busking, the minigames, tournaments and
+  smuggling by hand are worked out from their formulas, with a typical 60% minigame
+  score.
+- **Noise.** A weak early character on the road gets robbed, which adds noise to
+  passive runs. Where a run was distorted that way, the table uses the formula, which
+  the clean runs matched to within about 10%.
+
+## Target progression
+
+| Tier | Examples | g/day of player time |
+|---|---|---|
+| Early, safe | Odd jobs, busking, foraging, fishing, planting contracts | 10–60 |
+| Skilled or risky | Delves, sea trade, bounties, guild heists, piracy | 100–350, with real risk |
+| Capital investment | Properties, taverns, caravans, the trading company | Repays the stake over a season or more (30–60 days early, 22–50 days late), not in days |
+| Endgame | Holdings, royal levy, sieges | Large but slow, and costly to reach |
+
+Two further rules: nothing dominates everything, and nothing is useless.
+
+## Results
+
+Notes on reading the table:
+- Payback is in days; one game year is 120 days and one season is 30.
+- A **bold** source was changed in this pass.
+
+| Source | Before | After | Rationale |
+|---|---|---|---|
+| Odd jobs (village / town / capital) | 15–20 / 25–35 / 45–60 g/day | unchanged | Day labour, scaled by town size |
+| Busking (village / town / capital) | 10 / 23 / 40 g/day early, about 60 late at a capital | unchanged | Same band as odd jobs |
+| Foraging / hunting / fishing | 5–40 g per outing (3–4 AP) | unchanged | Early filler. The minigames are being reworked separately |
+| Planting contracts | 8–15 g advance plus 45–100 g at harvest, up to 3 a spring | unchanged | A small seasonal bonus |
+| **Raw producers** (farm, apiary, salt pans, pasture, …) | Repaid in **3–20 days**: apiary 66–77 g/day for 255 g, salt pans 55–75 g/day | Repaid in **30–55 days** early, **22–50** late: apiary 22 g/day (28 late) for about 850 g, salt pans 14–15 g/day for about 740 g | A 300 g building was repaid in under a week and dominated everything. Build costs are up 1.4–3.3×, output is down 25–60%, and some upkeep went up (`data/playerEconomy.json`) |
+| **Mine** | Iron 55 g/day, gems about 200 g/day, for 1,000 g | 3/day for 1,800 g: iron about 27 g/day (about 50 days), gold ore about 70, gems about 110 | Gem and gold mines stay the prize sites. Stone and coal belong in a quarry |
+| **Processing buildings** (outliers) | Tannery, winery, fletcher, dye works and weaver repaid in **7–10 days** | Repaid in about **25–45 days** | Lower output per day and higher cost. Arrows: 4 per run, was 8. Workshop rate 3, apothecary 2, brewery 4 |
+| **Tavern** (capital / town / village) | 70–88 / 26–35 / about 7 g/day for 900 g, repaid in about 12 days at a capital | About 31 / 19–27 / 8 g/day for 1,200 g, repaid in **35–60 days** at a town or capital. A village tavern is a slow investment (about 140 days) | Lower takings: 14 / 18 / 22 g base, and +2 per 250 people up to +16 (`property.js`). Upkeep is down from 12 g to 8 g so a village tavern still pays its way |
+| **Caravans (one-off and routes)** | **Crashed on arrival.** `MarketDynamics.getPrice` was called with no world. The formula paid 2–3× the cargo's whole value | Pays what the destination market pays (70% of its price) × (1 + 2.5%/hex) × 1.2 at a capital or 1.1 at a city: about +50% on a long capital-to-capital haul, about break-even on a short one | Fixes the crash, and removes a money loop the crash had hidden |
+| Land trading (buy here, sell there) | Loses about 12% except on resource-cheap goods and with the season | unchanged | Seasonal timing is the lever: food bought after the harvest sells about 60% dearer in the lean months |
+| Sea trade (cog, best-margin route) | 66–161 g/day early, 76–154 late | unchanged | Skilled and capital-heavy, with ship upkeep and wages. In the right band |
+| **Trading company** (scripted: one capital post, seasonal bread, only contracts the posts can source, expanding to a market that sells a contract's good) | 5 seeds over 360 days on 5,000 capital: +336, +112, −1,028, +1,979, +2,343 (mean **+750**) | +5,102, −501, +4,126, −837, +1,459 (mean **+1,870**, about +5 g/day) | See [The trading company](#the-trading-company) |
+| Royal ventures | Expected return about 1.11–1.14× over 30–80 days | unchanged | A modest gamble, as designed |
+| Delves | About 140–180 g per delve early (gold plus items), 230–360 late | unchanged | Risky, limited sites, one day each. Right where risky play should be |
+| Bounty hunting | 175–305 g per capture at difficulty 3, rising with rank; about 50–80 g/day including the travel | unchanged | |
+| Thieves' guild jobs | Pickpocket about 5 g/day net, burglary −8 to +6 g/day, after fines and jail | **Burglary pays 30–90 g** (was 20–70). Pickpocketing unchanged | Petty crime stays poor. Heat and jail are the price. Rackets, heists and the guildmaster's cut are where the guild pays |
+| Heists | Royal treasury 600–1,400 g against a plan of up to 460 g | unchanged | |
+| **Smuggling by hand** (Underworld → Smuggle) | Fixed price list × 2.5: gems sold for 200 g against 54 g in the square, with success up to 104% as Stealth rose. **A same-tile money loop** | 1.3× the black-market price, capped at the open-sale cap (`Underworld.openSaleCap`, half the local ask). Success capped at 90% | Closes the loop with the same rule as the fence and black market |
+| Smuggling routes | ×1.35 on the route formula, with catch risk | Inherits the new caravan formula | |
+| **Tournaments** | Fee 200/300 g, pool 4× the fee, repeatable **every day**. With Combat 8 or more you always win: **+500 to +900 g/day** | Pool 3× the fee, once every 10 days (`player.lastTournamentDay`, saved) | A daily jackpot for a strong fighter dominated every other source |
+| Festivals | Always a net gold cost (260–820 g) | unchanged | A prestige and diplomacy sink, by design |
+| **Mercenary contracts** | Passive while you do other things: guard duty about 23 g/day, monster hunt about 70, **assassination 308 g/day with a 15-strength army** | Assassination 400 g over 6 days, needs 45 strength: about 40 g/day. Others unchanged | Assassination paid 4× the next contract and stacked with everything else |
+| **Holdings: taxes** | 0.1 g per head a week × rate: a 2,000-person town at moderate tax gave about 30 g a week, which did not cover a governor | 0.25 g per head (`Taxation.TAX_PER_HEAD`): about 75 g a week | A holding should at least pay its steward. Projects (market square +12% and so on) scale from here |
+| Holdings: projects | Market square 300 g, +12% tax, +4% sale price | unchanged | |
+| Royal levy (ruling) | 15% of the treasury's daily gain, at most 200 g/day. The bot averaged about 73 g/day over 800 days | unchanged | The endgame payoff for taking a crown |
+| Throne and claims | Royal match 500 g, forged claim 300 g, pressing a claim 300 g | unchanged | Sinks priced against the levy |
+| Discoveries | Exotic gather about 4 units × 115 × 0.7, about 320 g a good, regrowing 1 per 4 days. Charts 150–400 g, once per realm | unchanged | One-off exploration rewards |
+| Sieges | Ransom about population × 1.06 g; storm plunder population × 1–3; sack population × 3–6, which costs karma and reputation | unchanged | War booty behind an army big enough to win |
+| Piracy / pirate hunting | Piracy 50–300 g per 10 AP, costing reputation with every realm; hunting about 65 g loot plus a prize chance | unchanged | |
+
+## The trading company
+
+The bot's companies lost 25,000–48,000 g over 800 days. Its own strategy caused most
+of that:
+- three posts with random standing orders that sold at +15% and so rarely sold;
+- royal ventures and monopoly lobbying;
+- robbery of stock left sitting in guild towns.
+
+**A sensible strategy did make money before this pass, but thinly.** The strategy:
+- one post at a capital (0.8× prices);
+- bread bought below 76% of the capital's price after the harvest and sold in the lean
+  months, for about 3.6 g a loaf;
+- only the contracts a post can source at a profit.
+
+It made a mean of +750 g over 360 days, and 1 of 5 seeds lost money.
+
+**What held it back.**
+- **Few contracts could be sourced.** Every market sells grain and bread, and towns sell
+  wood, stone and tools. Contracts only ask for goods the town can't buy at home or next
+  door, so nearly every contract good (rope, hemp, clay, candles, shields, …) was
+  something no market sells.
+- **Thin margins.** Robbery (7.5% a week in guild towns, which is most towns, taking
+  25–60% of the stock) and 8 g of rent a week ate the seasonal margin.
+
+**Changes** (`data/merchantHouses.json`, with matching code defaults):
+- **Contracts** can also ask for goods some markets sell but the contract town can't
+  buy:
+  - meat for famine and siege relief;
+  - rock oil for the fleet;
+  - horses and coal for the war;
+  - gems and liquor for a court wedding.
+
+  This gives the company a real "move goods" business. Contract pay is still capped
+  below anything bought on the spot (`contractUnitPay`).
+- **Robbery:**
+
+  | | Before | After |
+  |---|---|---|
+  | Base chance a week | 3.5% | 3% |
+  | Extra in a guild town | +4% | +2% |
+  | Stock taken | 25–60% | 20–50% |
+- **Post rent:** 8 g a week, now 5 g.
+- **Factor volume:** 20 + 8 × skill, now 30 + 8 × skill.
+- **A rival in town** now leaves the factor 75% of his selling volume (was 60%).
+
+**Result:** a mean of +1,870 g over 360 days on 5,000 g, about 12% a year. Two of five
+seeds still lose money in a year with no sourceable contracts.
+
+**What did not change:**
+- Every same-tile and adjacent arbitrage cap: `Trading.saleUnitCap`,
+  `Ships.nearbyAsks`, `Underworld.openSaleCap`, factors buying and selling by the
+  player's own prices, `contractUnitPay`.
+- The soak's arbitrage probe stays green.
+
+## Re-measuring
+
+- **Long soak.** `SOAK=1 SOAK_VERBOSE=1 npx vitest run playtest.soak` prints each
+  run's gold ledger by system.
+- **Focused strategies.** Write a throwaway test next to the harness, as this pass did:
+  `newGame(seed)`, a scripted daily loop, then `endDay`.
+- **Settle formulas first.** Start with the payback-days column. A building that repays
+  itself in under 20 days at Commerce 0, or a repeatable action paying over 300 g a day
+  without real risk, is an outlier.

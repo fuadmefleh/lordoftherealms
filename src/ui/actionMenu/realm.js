@@ -1,6 +1,6 @@
 // ActionMenu — realm methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { Throne, PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, Festivals, PlayerEffects } from './_imports.js';
+import { Throne, PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, Festivals, PlayerEffects, Rivals } from './_imports.js';
 
 Object.assign(ActionMenu, {
     // ============================================
@@ -379,6 +379,9 @@ Object.assign(ActionMenu, {
                     { name: 'Traveling Knight', power: 6 + Math.random() * 7 },
                     { name: 'Arena Veteran', power: 8 + Math.random() * 8 },
                 ];
+                // Rival adventurers nearby enter the lists by name (systems/rivals.js)
+                const rivalEntrants = Rivals.tournamentEntrants(player, game.world, tile, 2);
+                rivalEntrants.forEach((r, i) => { opponents[i] = { name: r.name, power: r.power + Math.random() * 4, rivalId: r.id }; });
 
                 let wins = 0;
                 let healthLost = 0;
@@ -386,6 +389,7 @@ Object.assign(ActionMenu, {
 
                 for (const opp of opponents) {
                     const won = playerPower + Math.random() * 3 > opp.power;
+                    if (opp.rivalId) Rivals.recordBout(player, game.world, opp.rivalId, won);
                     if (won) {
                         wins++;
                         resultHtml += `<div style="color: #8f8;">✓ Defeated ${opp.name}!</div>`;
@@ -569,6 +573,17 @@ Object.assign(ActionMenu, {
             const lc = result.localCustoms;
             if (lc && (lc.custom || lc.sentimentGain)) {
                 summary += `<div style="font-size: 12px; color: #c5e1a5; margin-bottom: 10px;">🎊 ${lc.custom ? `The locals fold in their ${lc.custom}` : 'The local peoples join in'}${lc.renownBonus ? ` (+${lc.renownBonus} renown)` : ''} · every people here +${lc.sentimentGain} mood</div>`;
+            }
+
+            // Rival adventurers nearby enter the contest by name (systems/rivals.js)
+            const rivalRows = Rivals.festivalContest(player, game.world, tile, result.contestResult.tier, result.contest && result.contest.id);
+            if (rivalRows.length > 0) {
+                summary += '<div style="font-size: 11px; text-transform: uppercase; color: var(--gold); letter-spacing: 1px; margin-bottom: 4px;">Rival Contestants</div>';
+                for (const row of rivalRows) {
+                    summary += row.beatPlayer
+                        ? `<div style="font-size: 12px; color:#f0b7aa;">${row.icon} ${row.name} outshone you in the ${row.contest}.</div>`
+                        : `<div style="font-size: 12px; color:#c5e1a5;">${row.icon} You bested ${row.name} in the ${row.contest} (+1 renown).</div>`;
+                }
             }
 
             if (result.reputations.length > 0) {

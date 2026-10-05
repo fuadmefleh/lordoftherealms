@@ -17,6 +17,7 @@ import { Companions } from './companions.js';
 import { Delves } from './delves.js';
 import { Underworld } from './underworld.js';
 import { Throne } from './throne.js';
+import { Rivals } from './rivals.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 
 
@@ -351,6 +352,8 @@ export const SaveLoad = {
             delves: Delves.serialize(player),
             // Claims, crises, a civil war, a crown (systems/throne.js)
             throne: Throne.serialize(player),
+            // Rival adventurers: the cast, their attitude/memory, news, partner, race (systems/rivals.js)
+            rivals: Rivals.serialize(player),
         };
     },
 
@@ -533,6 +536,8 @@ export const SaveLoad = {
         // Claims & Crowns — older saves get a blank record (and a crown if they
         // had founded a kingdom with the old Form Kingdom action)
         Throne.load(player, world);
+        // Rival adventurers — older saves get a blank record (the cast arrives next day)
+        Rivals.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

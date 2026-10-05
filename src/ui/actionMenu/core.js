@@ -108,6 +108,7 @@ Object.assign(ActionMenu, {
             bless_settlement: 'social', hold_council: 'social',
             espionage_menu: 'social', manage_spies: 'social',
             hold_court: 'social',
+            rivals_here: 'social', hall_of_heroes: 'social',
             underworld: 'commerce',
         };
 
@@ -419,6 +420,10 @@ Object.assign(ActionMenu, {
 
         // Espionage actions
         espionage_menu: 0, manage_spies: 0,
+
+        // Rival adventurers (each deed inside the panel pays its own AP)
+        rivals_here: 0, hall_of_heroes: 0,
+        rival_duel: 4, rival_race: 1, rival_sabotage: 2, rival_hire: 1, rival_team_up: 1,
     },
 
     /**
@@ -792,6 +797,12 @@ Object.assign(ActionMenu, {
                 break;
             case 'claims_crowns':
                 ActionMenu.showClaimsPanel(game, tile);
+                break;
+            case 'rivals_here':
+                ActionMenu.showRivalsPanel(game, tile);
+                break;
+            case 'hall_of_heroes':
+                ActionMenu.showHallOfHeroes(game, tile);
                 break;
             case 'host_feast':
                 ActionMenu.showHostFeastMenu(game, tile);

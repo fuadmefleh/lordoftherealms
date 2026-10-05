@@ -253,6 +253,11 @@ export const Delves = {
             haul: { gold: 0, items: {}, leftBehind: {}, renown: 0, karma: 0, lore: [], maps: [], fragments: [], injuries: [], curse: false, guardian: null },
             log: [],
         };
+        // Partly looted by a rival adventurer: thinner hauls (systems/rivals.js)
+        if (poi.rivalLooted && poi.rivalLooted.lootFactor > 0) {
+            st.active.lootFactor = poi.rivalLooted.lootFactor;
+            st.active.lootedBy = poi.rivalLooted.by || null;
+        }
         if (poi.type === 'ruins') Quests.track(player, 'ruins_explored');
         return { success: true, delve: st.active };
     },
@@ -321,6 +326,8 @@ export const Delves = {
         }
         p -= depth * cfg.depthRisk;
         p += _num(insight);
+        // A rival adventurer delving at your side (systems/rivals.js team-up)
+        p += Delves.partnerBonus(player);
         if (Delves.isCursed(player)) p -= cfg.cursePenalty;
         return Math.max(cfg.minChance, Math.min(cfg.maxChance, p));
     },
@@ -470,7 +477,8 @@ export const Delves = {
         const a = player.delves.active;
         const haul = a.haul;
         const lines = [];
-        const mult = Delves._rewardMult(depth);
+        // A site a rival adventurer already picked over yields less (systems/rivals.js)
+        const mult = Delves._rewardMult(depth) * (a.lootFactor > 0 ? a.lootFactor : 1);
         const out = { lines, collapse: false };
 
         if (o.gold) {
@@ -750,9 +758,33 @@ export const Delves = {
                 summary.extra.push(`Lore discovered (year ${entry.year})`);
             }
         }
+        // A rival adventurer who delved at your side takes their share of the gold
+        const partner = Delves._partner(player);
+        if (partner && a.haul.gold > 0) {
+            const cut = Math.min(_num(player.gold), Math.round(a.haul.gold * _num(partner.share)));
+            if (cut > 0) {
+                player.gold = _num(player.gold) - cut;
+                partner.earned = _num(partner.earned) + cut;
+                summary.extra.push(`${partner.name} takes a ${Math.round(_num(partner.share) * 100)}% share: ${cut} gold`);
+            }
+            partner.delves = _num(partner.delves) + 1;
+            partner.lastSite = a.name;
+        }
         if (_num(player.health) < 1) player.health = 1;
         st.active = null;
         return summary;
+    },
+
+    /** An active delving partner (a rival adventurer — systems/rivals.js), or null. */
+    _partner(player) {
+        const p = player && player.rivals && player.rivals.partner;
+        return p && p.id ? p : null;
+    },
+
+    /** Check bonus from a delving partner at your side. */
+    partnerBonus(player) {
+        const p = Delves._partner(player);
+        return p ? _num(p.bonus) : 0;
     },
 
     // ──────────── DAILY ────────────

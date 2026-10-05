@@ -152,6 +152,10 @@ Object.assign(ActionMenu, {
             html += `<div style="text-align:center; font-size:42px; margin:4px 0;">${site.icon}</div>`;
             html += `<div style="text-align:center; color:#aaa; margin-bottom:6px;">${_esc(site.name)}</div>`;
             html += `<div style="color:#ddd; line-height:1.5; margin-bottom:8px;">${_esc(site.intro || '')}</div>`;
+            const picked = tile.improvement.rivalLooted;
+            if (picked && picked.by) {
+                html += `<div style="${CARD} border-color: rgba(224,138,80,0.4); color:#e0a070; font-size:11px;">🕯️ Fresh tracks and cold campfires: ${_esc(picked.by)} has already plundered part of this place (day ${picked.day}). Its hauls will be thinner (×${picked.lootFactor}).</div>`;
+            }
             html += `<div style="${CARD} font-size:11px; color:#bbb; line-height:1.5;">A delve is 3–6 chambers deep; the last is the deep heart of the place. Each chamber offers choices that test your attributes, skills, gear, companions and character, and cost stamina and health. Between chambers you may turn back and keep everything you found. The deeper you go, the greater the danger — and the reward. You can delve here only once.</div>`;
             html += _statusHtml(player);
             html += `<button onclick="window._delve.descend()" style="${BTN_GOLD} text-align:center;">Descend (${ActionMenu.getAPCost('delve')} AP)</button>`;

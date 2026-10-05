@@ -38,6 +38,18 @@
             "spreadChance": 0.35,
             "description": "{perpetrator} stole from {victim} in {location}"
         },
+        "slander": {
+            "label": "Slander",
+            "icon": "🗣️",
+            "baseSeverity": 22,
+            "reputationPenalty": 0,
+            "renownPenalty": 0,
+            "karmaPenalty": 0,
+            "bountyGold": 0,
+            "decayDays": 20,
+            "spreadChance": 0.6,
+            "description": "{victim} tells anyone who will listen that {perpetrator} is a coward and a cheat ({location})"
+        },
         "child_murder": {
             "label": "Child Murder",
             "icon": "👶💀",

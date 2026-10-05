@@ -23,6 +23,7 @@ import { Ships } from '../../systems/ships.js';
 import { Petitions } from '../../systems/petitions.js';
 import { Delves } from '../../systems/delves.js';
 import { Throne } from '../../systems/throne.js';
+import { Espionage } from '../../systems/espionage.js';
 import { Underworld } from '../../systems/underworld.js';
 import { travelTo } from './harness.js';
 
@@ -44,11 +45,14 @@ function booked(game, label, fn) {
     return out;
 }
 
+// Settlement positions per world, refreshed every 30 days (realms found and lose towns)
+const _settlementCache = new WeakMap();
 function settlementTiles(world) {
-    if (!world._botSettlements) {
-        world._botSettlements = world.getAllSettlements().map(s => ({ q: s.q, r: s.r }));
-    }
-    return world._botSettlements;
+    const cached = _settlementCache.get(world);
+    if (cached && world.day - cached.day < 30) return cached.list;
+    const list = world.getAllSettlements().map(s => ({ q: s.q, r: s.r }));
+    _settlementCache.set(world, { day: world.day, list });
+    return list;
 }
 
 function nearest(world, from, list, n = 6) {
@@ -137,7 +141,7 @@ function properties(game, tile, stats) {
         const got = PlayerEconomy.collectGoods(player, world);
         if (got && Object.keys(got.collected || got || {}).length) count(stats, 'collections');
     }
-    if ((player.properties || []).length >= 4 || player.gold < 3000) return;
+    if ((player.properties || []).length >= 4 || player.gold < 4500) return;
     for (const type of ['TAVERN', 'FARM', 'TRADING_POST', 'BREWERY', 'BAKERY', 'FISHING_WHARF', 'LOGGING_CAMP']) {
         if (PlayerEconomy.buildProperty(player, type, tile, world).success) { count(stats, 'propertiesBuilt'); return; }
     }
@@ -201,6 +205,42 @@ function ships(game, tile, stats) {
     }
 }
 
+/** Board, put out to open water, explore / hunt pirates / turn pirate, come back in. */
+function seaActivity(game, tile, stats) {
+    const { player, world } = game;
+    if (!Ships.isPortTile(world, tile.q, tile.r) || Utils.random() > 0.2) return;
+    const ship = (player.ships || []).find(s => s.status === 'docked' && s.q === tile.q && s.r === tile.r && !Ships.crewSailReason(s));
+    if (!ship || !Ships.boardShip(player, ship.id).success) return;
+    const water = Hex.neighbors(tile.q, tile.r)
+        .map(n => ({ q: Hex.wrapQ(n.q, world.width), r: n.r }))
+        .find(n => n.r >= 0 && n.r < world.height && Ships.isWaterTile(world.getTile(n.q, n.r)));
+    if (water) travelTo(game, water.q, water.r);
+    const act = Utils.random() < 0.1 ? 'commitPiracy' : Utils.randPick(['exploreOcean', 'huntPirates']);
+    const res = Ships[act](player, ship.id, world);
+    if (res && res.success) count(stats, `sea_${act}`);
+    travelTo(game, tile.q, tile.r);
+    if (Ships.disembark(player, world).success) count(stats, 'disembarked');
+}
+
+/** Plan and pull a heist once the guild trusts the bot with one. */
+function heist(game, tile, stats) {
+    const { player, world } = game;
+    const st = Underworld.ensure(player);
+    if (!st.guild.member) return;
+    if (!st.heist) {
+        const target = Underworld.heistTargets(tile.settlement)[0];
+        if (target && Utils.random() < 0.3 && Underworld.startHeist(player, world, tile, target.id).success) count(stats, 'heistsPlanned');
+        return;
+    }
+    const plan = Underworld.heistPlan(player);
+    if (!plan || plan.key !== `${tile.q},${tile.r}`) return;
+    for (const step of plan.open) {
+        if (Underworld.planStep(player, world, tile, step.id).success) count(stats, 'heistSteps');
+    }
+    const res = Underworld.executeHeist(player, world, tile);
+    if (res.success) count(stats, `heist_${res.outcome}`);
+}
+
 function sail(game, tile, stats) {
     const { player, world } = game;
     if (!Ships.isPortTile(world, tile.q, tile.r) || Utils.random() > 0.25) return false;
@@ -220,11 +260,57 @@ function throne(game, stats) {
     const { player, world } = game;
     const armyStrength = PlayerMilitary.getArmyStrength(player);
     const st = Throne.state(player);
-    if (st.civilWar || st.ruling) return;
+    if (st.civilWar) {
+        // Meet the loyalists in the field
+        if (armyStrength > 0 && Utils.random() < 0.4) {
+            const k = world.getKingdom(st.civilWar.kingdomId);
+            const t = world.getTile(player.q, player.r);
+            const battle = PlayerMilitary.combat(player, Throne.loyalistVanguard(player, world), `${k ? k.name : 'Crown'} loyalists`,
+                { world, terrainId: t && t.terrain && t.terrain.id });
+            if (!battle.reason && Throne.recordThroneBattle(player, world, battle.victory).success) count(stats, 'throneBattles');
+        }
+        return;
+    }
+    if (st.ruling) {
+        // Rule: try a policy now and then
+        const axes = Throne.POLICY_AXES || [];
+        if (axes.length && Utils.random() < 0.05) {
+            const axis = Utils.randPick(axes);
+            const opts = Object.keys((Throne.policies()[axis] || {}).options || {});
+            if (opts.length && Throne.setPolicy(player, world, axis, Utils.randPick(opts)).success) count(stats, 'policiesSet');
+        }
+        return;
+    }
+    // A royal match for a claim by marriage
+    if (!player.spouse && player.gold > 3000 && Utils.random() < 0.05) {
+        const target = Throne.claimableKingdoms(player, world)[0];
+        if (target && Throne.arrangeRoyalMatch(player, world, target.id).success) count(stats, 'royalMatches');
+    }
     const kingdoms = Throne.claimableKingdoms(player, world);
     if (!kingdoms.length) return;
-    const k = kingdoms.reduce((a, b) => ((player.reputation || {})[b.id] || 0) > ((player.reputation || {})[a.id] || 0) ? b : a);
+    // Stick to one target realm once chosen
+    let k = game.claimTarget && kingdoms.find(x => x.id === game.claimTarget);
+    if (!k) {
+        k = kingdoms.reduce((a, b) => ((player.reputation || {})[b.id] || 0) > ((player.reputation || {})[a.id] || 0) ? b : a);
+        game.claimTarget = k.id;
+    }
     if (Throne.purchaseClaim(player, world, k.id).success) count(stats, 'claimsBought');
+    // Spies cost wages every day: let them go once the claim is made, or when money is short
+    if (player.espionage && player.espionage.spies.length && (player.gold < 1500 || Throne.claimStrength(player, k.id) >= 30)) {
+        for (const spy of player.espionage.spies.slice()) {
+            if (Espionage.dismissSpy(player, spy.id).success) count(stats, 'spiesDismissed');
+        }
+    }
+    // A spy to forge genealogies, once there is money for it
+    if (player.gold > 6000 && Throne.claimStrength(player, k.id) < 30) {
+        Espionage.initPlayer(player);
+        if (!player.espionage.spies.length) {
+            const spy = Espionage.generateSpy(player, world);
+            if (Espionage.recruitSpy(player, spy, world).success) count(stats, 'spiesHired');
+        }
+        const forged = Throne.forgeClaim(player, world, k.id);
+        if (forged.success) count(stats, forged.failed ? 'forgeriesExposed' : 'claimsForged');
+    }
     if (Throne.canPress(player, world, k.id, { armyStrength }).ok) {
         if (Throne.pressClaim(player, world, k.id, { armyStrength }).success) count(stats, 'claimsPressed');
     }
@@ -255,6 +341,8 @@ function settlementBusiness(game, stats) {
     booked(game, 'work', () => work(game, tile, stats));
     booked(game, 'properties', () => properties(game, tile, stats));
     booked(game, 'ships', () => ships(game, tile, stats));
+    booked(game, 'sea', () => seaActivity(game, tile, stats));
+    booked(game, 'heist', () => heist(game, tile, stats));
 }
 
 // ── Out in the world ─────────────────────────────────────────

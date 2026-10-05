@@ -20,7 +20,7 @@ import { botDay } from './playtest/bot.js';
 
 const ENV = (typeof process !== 'undefined' && process.env) || {};
 const LONG = !!ENV.SOAK;
-const SEEDS = LONG ? [101, 202, 303, 404, 505] : [101, 202];
+const SEEDS = ENV.SOAK_SEEDS ? ENV.SOAK_SEEDS.split(',').map(Number) : LONG ? [101, 202, 303, 404, 505] : [101, 202];
 const DAYS = LONG ? 800 : 150;
 const SAVE_AT = Math.floor(DAYS / 2);
 const TIMEOUT = LONG ? 600000 : 60000;
@@ -71,6 +71,18 @@ function checkInvariants(game, phase) {
     }
     for (const u of player.army || []) {
         if (!finite(u.strength)) problems.push(`${where}: army unit ${u.type} strength = ${u.strength}`);
+    }
+    if (player.health > (player.maxHealth || 100)) problems.push(`${where}: health ${player.health} over max ${player.maxHealth}`);
+    // The world's books, every tenth day (a full scan)
+    if (world.day % 10 === 0) {
+        for (const k of world.kingdoms) {
+            if (k.isAlive && (!finite(k.population) || k.population < 0)) problems.push(`${where}: kingdom ${k.name}.population = ${k.population}`);
+        }
+        for (const s of world.getAllSettlements()) {
+            if (!finite(s.population) || s.population < 0) problems.push(`${where}: settlement ${s.name}.population = ${s.population}`);
+            const loyalty = s.colony && s.colony.loyalty;
+            if (s.colony && !finite(loyalty)) problems.push(`${where}: colony ${s.name}.loyalty = ${loyalty}`);
+        }
     }
     return problems;
 }

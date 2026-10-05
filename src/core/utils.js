@@ -72,6 +72,22 @@ export const Utils = {
     },
 
     /**
+     * Run fn with every Utils.random draw taken from `rng` instead, then put
+     * the caller's stream back. Unlike setRng it leaves the noise table
+     * alone, so a system can draw from its own seeded stream (seededRandom)
+     * without reshuffling everyone else's dice or the terrain noise.
+     */
+    withRng(rng, fn) {
+        const outer = _rng;
+        _rng = rng;
+        try {
+            return fn();
+        } finally {
+            _rng = outer;
+        }
+    },
+
+    /**
      * Restore the default (non-deterministic) Math.random source.
      * Tests call this between cases so RNG state never leaks across them.
      */

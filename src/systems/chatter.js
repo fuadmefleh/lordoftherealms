@@ -36,7 +36,7 @@ import { Traits } from './traits.js';
 import { Heralds } from './heralds.js';
 
 const DEFAULT_CONFIG = {
-    localRadius: 8, eventRadius: 10, sagaRadius: 14, siegeRadius: 6, rivalRadius: 6,
+    localRadius: 8, eventRadius: 10, sagaRadius: 14, siegeRadius: 6, rivalRadius: 6, outlawRadius: 10,
     rivalDays: 12, newRulerDays: 30, courtThreshold: 5,
     greetChance: 0.45, newsChance: 0.8, ambientCooldownDays: 3, tavernRadius: 20, specificityBonus: 1,
 };
@@ -44,7 +44,7 @@ const DEFAULT_CONFIG = {
 /** Every condition a group may use, by the kind of value it takes. */
 const CONDITIONS = {
     war: 'bool', playerWar: 'bool', blockade: 'bool', siege: 'bool', revolt: 'bool',
-    rival: 'bool', newRuler: 'bool', lean: 'bool',
+    rival: 'bool', newRuler: 'bool', lean: 'bool', outlaws: 'bool',
     event: 'list', season: 'list', trait: 'list', court: 'list', title: 'list',
     occupation: 'list', personality: 'list',
     saga: 'boolOrList', proclamation: 'boolOrList', deed: 'boolOrList',
@@ -63,6 +63,7 @@ const TOKEN_NEEDS = {
     enemy: 'war', blockader: 'blockade', siegeTown: 'siege', eventPlace: 'event', eventName: 'event',
     saga: 'saga', villain: 'saga', rival: 'rival', rivalNews: 'rival', oldRuler: 'newRuler',
     proclamation: 'proclamation', deedPlace: 'deed', deedVictim: 'deed',
+    lair: 'outlaws', leader: 'outlaws',
 };
 const ALWAYS_TOKENS = ['settlement', 'kingdom', 'ruler', 'player', 'house', 'season', 'title'];
 
@@ -155,7 +156,7 @@ export const Chatter = {
             war: false, enemy: null, playerWar: false,
             blockade: false, blockader: null,
             siege: false, siegeTown: null,
-            events: [], revolt: false, sagas: [], rival: null, newRuler: false, oldRuler: null,
+            events: [], revolt: false, sagas: [], rival: null, newRuler: false, oldRuler: null, outlaws: null,
             proclamations: [], deeds: [],
             traits: [], court: [], titles: [], titleLabel: '',
             houseGen: house ? _num(house.generation) || 1 : 0,
@@ -219,6 +220,16 @@ export const Chatter = {
             const close = (kid != null && a.kingdomId === kid) || (p && _dist(world, q, r, p.q, p.r) <= rad('sagaRadius'));
             if (close) ctx.sagas.push({ id: s.id, name: s.name || 'the saga', villain: a.villain || 'a stranger' });
         }
+
+        // An outlaw lair preying on the country nearby (systems/outlawLairs.js)
+        const lairs = player && player.outlawLairs && Array.isArray(player.outlawLairs.lairs) ? player.outlawLairs.lairs : [];
+        let lairBest = null;
+        for (const l of lairs) {
+            if (!l || l.status !== 'active' || l.q == null) continue;
+            const d = _dist(world, q, r, l.q, l.r);
+            if (d <= rad('outlawRadius') && (!lairBest || d < lairBest.d)) lairBest = { d, l };
+        }
+        if (lairBest) ctx.outlaws = { name: lairBest.l.name, leader: (lairBest.l.leader && lairBest.l.leader.name) || 'their chief' };
 
         // A rival adventurer who passed through lately
         const rivals = player && player.rivals;
@@ -299,6 +310,7 @@ export const Chatter = {
             case 'war': case 'playerWar': case 'blockade': case 'siege': case 'revolt': case 'newRuler': case 'lean':
                 return !!ctx[key] === !!v;
             case 'rival': return !!ctx.rival === !!v;
+            case 'outlaws': return !!ctx.outlaws === !!v;
             case 'event': return Chatter._anyIn(v, ctx.events.map(e => e.id));
             case 'saga': return v === true ? ctx.sagas.length > 0 : v === false ? ctx.sagas.length === 0 : Chatter._anyIn(v, ctx.sagas.map(s => s.id));
             case 'proclamation': return v === true ? ctx.proclamations.length > 0 : v === false ? ctx.proclamations.length === 0 : Chatter._anyIn(v, ctx.proclamations.map(p => p.kind));
@@ -345,6 +357,7 @@ export const Chatter = {
             oldRuler: ctx.oldRuler,
             proclamation: pr && pr.text,
             deedPlace: deed && deed.place, deedVictim: deed && deed.victim,
+            lair: ctx.outlaws && ctx.outlaws.name, leader: ctx.outlaws && ctx.outlaws.leader,
         };
         return String(text).replace(/\{(\w+)\}/g, (m, k) => (map[k] != null ? map[k] : m));
     },
@@ -477,6 +490,7 @@ export const Chatter = {
         for (const ev of ctx.events.slice(0, 3)) f.push(`There is ${ev.name} at ${ev.place}.`);
         if (ctx.revolt) f.push('Lords or peasants are in revolt in the realm.');
         for (const s of ctx.sagas) f.push(`Everyone talks of "${s.name}".`);
+        if (ctx.outlaws) f.push(`Outlaws led by ${ctx.outlaws.leader} hold ${ctx.outlaws.name} nearby and raid the roads.`);
         if (ctx.rival) f.push(`The adventurer ${ctx.rival.name} passed through recently.`);
         if (ctx.newRuler) f.push(`${ctx.ruler} has newly taken the throne from ${ctx.oldRuler}.`);
         if (ctx.proclamations.length) f.push(`The heralds proclaimed: ${ctx.proclamations[0].text}`);

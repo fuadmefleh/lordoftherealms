@@ -149,7 +149,7 @@ export const Heralds = {
 
     /** Keys of the day-stamped records Heralds reads: [{ key, day, ... }] per kind. */
     _records(player) {
-        const out = { sagas: [], sieges: [], holdings: [] };
+        const out = { sagas: [], sieges: [], holdings: [], lairs: [] };
         for (const s of (player && player.sagas && Array.isArray(player.sagas.done)) ? player.sagas.done : []) {
             if (s && s.ended) out.sagas.push({ key: `saga:${s.uid}`, day: _num(s.ended.day), s });
         }
@@ -158,6 +158,10 @@ export const Heralds = {
         }
         for (const h of (player && player.realmWars && player.realmWars.siegeHistory) || []) {
             if (h) out.holdings.push({ key: `held:${h.day}:${h.name}:${h.outcome}`, day: _num(h.day), h });
+        }
+        // Outlaw lairs grown infamous, and lairs cleared (systems/outlawLairs.js)
+        for (const h of (player && player.outlawLairs && Array.isArray(player.outlawLairs.history)) ? player.outlawLairs.history : []) {
+            if (h && h.key) out.lairs.push({ key: h.key, day: _num(h.day), h });
         }
         return out;
     },
@@ -171,7 +175,7 @@ export const Heralds = {
             if (s && s.discovered) st.seen[`d:${s.id}`] = true;
         }
         const rec = Heralds._records(player);
-        for (const x of [...rec.sagas, ...rec.sieges, ...rec.holdings]) st.seen[x.key] = x.day;
+        for (const x of [...rec.sagas, ...rec.sieges, ...rec.holdings, ...rec.lairs]) st.seen[x.key] = x.day;
     },
 
     _capital(world, k) {
@@ -318,6 +322,16 @@ export const Heralds = {
             const kind = h.outcome === 'fallen' ? 'siege_won' : (h.outcome === 'relieved' || h.outcome === 'held') ? 'siege_lost' : null;
             if (!kind) continue;
             Heralds._proclaim(st, world, kind, { place: h.name, by: h.kingdomName || 'the enemy', days: _num(h.days) }, Heralds._placeByName(world, h.name), { own: true });
+        }
+
+        // Outlaws: a lair grown infamous, a lair burned out
+        for (const x of rec.lairs.filter(fresh)) {
+            st.seen[x.key] = x.day;
+            const h = x.h;
+            const kind = h.kind === 'cleared' ? 'lair_cleared' : h.kind === 'risen' ? 'lair_risen' : null;
+            if (!kind) continue;
+            Heralds._proclaim(st, world, kind, { place: h.name, leader: h.leader || 'the chief', by: h.by || 'the wardens', kingdom: h.kingdom || 'the realm' },
+                { q: h.q, r: h.r }, { kingdomId: h.kingdomId, own: !!h.own });
         }
 
         st.snapshot = now;

@@ -7,7 +7,7 @@ Low-level utilities shared by every other module. Has no dependencies on game sy
 | File | Description |
 |------|-------------|
 | `hex.js` | Hex grid math: coordinates, distance, neighbors, range, A* pathfinding, world-wrap. Contains a `MinHeap` for efficient pathfinding. |
-| `utils.js` | General helpers: seeded RNG (`Utils.seededRandom`), Perlin noise, array shuffling, number formatting. |
+| `utils.js` | General helpers: seeded RNG (`Utils.seededRandom`; `Utils.withRng(rng, fn)` runs fn on a separate seeded stream without disturbing the main one), Perlin noise, array shuffling, number formatting. |
 | `dataLoader.js` | Loads `data/gamedata.json` (merged game data) and optional editor-override JSON files. All systems read config from here. |
 
 ## Key APIs

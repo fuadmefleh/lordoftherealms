@@ -86,7 +86,7 @@ describe('chatter data', () => {
         expect(Chatter.lineCount()).toBeGreaterThanOrEqual(150);
         const keys = new Set(Chatter.groups().flatMap(g => Object.keys(g.when || {})));
         for (const k of ['war', 'playerWar', 'blockade', 'siege', 'season', 'lean', 'event', 'revolt', 'saga', 'rival',
-            'newRuler', 'proclamation', 'deed', 'trait', 'court', 'title', 'houseGen', 'occupation', 'personality']) {
+            'newRuler', 'proclamation', 'deed', 'trait', 'court', 'title', 'houseGen', 'occupation', 'personality', 'outlaws']) {
             expect(keys.has(k), k).toBe(true);
         }
     });
@@ -101,6 +101,7 @@ describe('chatter data', () => {
             rival: { name: 'Kael', news: 'Kael looted a tomb.' },
             proclamations: [{ kind: 'peace', text: 'Peace!' }],
             deeds: [{ type: 'sack', place: 'Brindle', victim: 'Kael' }],
+            outlaws: { name: 'Crowmoor Camp', leader: 'Captain Hask the Red' },
         };
         for (const g of Chatter.groups()) {
             for (const line of g.lines) {

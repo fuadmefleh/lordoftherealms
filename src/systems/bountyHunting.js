@@ -5,6 +5,7 @@
 import { Utils } from '../core/utils.js';
 import { Traits } from './traits.js';
 import { Sagas } from './sagas.js';
+import { OutlawLairs } from './outlawLairs.js';
 
 /** A hunter who took the notice on a saga beast earns this much over the realm's bounty. */
 const SAGA_NOTICE_BONUS = 0.25;
@@ -39,6 +40,7 @@ export const BountyHunting = {
                 capturesRecruited: 0,
                 failedCaptures: 0,
                 beastsSlain: 0,
+                outlawChiefs: 0,
                 nextTargetId: 1,
                 boardRefreshDay: 0,
                 boardSettlementKey: '',
@@ -52,6 +54,7 @@ export const BountyHunting = {
         if (typeof state.capturesRecruited !== 'number') state.capturesRecruited = 0;
         if (typeof state.failedCaptures !== 'number') state.failedCaptures = 0;
         if (typeof state.beastsSlain !== 'number') state.beastsSlain = 0;
+        if (typeof state.outlawChiefs !== 'number') state.outlawChiefs = 0;
         if (typeof state.nextTargetId !== 'number') state.nextTargetId = 1;
         if (typeof state.boardRefreshDay !== 'number') state.boardRefreshDay = 0;
         if (typeof state.boardSettlementKey !== 'string') state.boardSettlementKey = '';
@@ -172,6 +175,8 @@ export const BountyHunting = {
         // Saga beasts roaming nearby are cried on every board (systems/sagas.js);
         // they are never cached, so a slain or departed beast drops off at once
         const beasts = this.sagaOffers(player, world, tile);
+        // Outlaw chiefs of the lairs near this town (systems/outlawLairs.js), never cached either
+        beasts.push(...this.lairOffers(player, world, tile));
 
         const mustRefresh = state.boardSettlementKey !== settlementKey || day >= state.boardRefreshDay;
         if (!mustRefresh && state.boardOffers.length > 0) {
@@ -195,6 +200,12 @@ export const BountyHunting = {
     sagaOffers(player, world, tile) {
         const taken = new Set((player.activeBounties || []).map(b => b && b.id));
         return Sagas.bountyOffers(player, world, tile).filter(o => !taken.has(o.id));
+    },
+
+    /** Posted outlaw chiefs near this board that the player has not already taken. */
+    lairOffers(player, world, tile) {
+        const taken = new Set((player.activeBounties || []).map(b => b && b.id));
+        return OutlawLairs.bountyOffers(player, world, tile).filter(o => !taken.has(o.id));
     },
 
     getBountyTargetAtPlayer(player) {
@@ -306,7 +317,7 @@ export const BountyHunting = {
 
     _recalculateRank(player) {
         const state = player.bountyHunter;
-        const total = state.capturesTurnedIn + state.capturesRecruited + (state.beastsSlain || 0);
+        const total = state.capturesTurnedIn + state.capturesRecruited + (state.beastsSlain || 0) + (state.outlawChiefs || 0);
         const before = state.rank;
         state.rank = 1 + Math.floor(total / 3);
         return state.rank > before ? this.getRankInfo(player) : null;
@@ -314,7 +325,31 @@ export const BountyHunting = {
 
     processDaily(player, world) {
         this.initialize(player);
-        const updates = { escaped: [], moved: [], escalated: [], beasts: [] };
+        const updates = { escaped: [], moved: [], escalated: [], beasts: [], chiefs: [] };
+
+        // Outlaw chiefs on the hunter's list (systems/outlawLairs.js): the notice
+        // shows the lair; the realm pays when the player killed the chief —
+        // storming the lair or striking alone — and lapses otherwise
+        for (const bounty of (player.activeBounties || []).slice()) {
+            if (bounty.type !== 'lair_leader' || bounty.status !== 'active') continue;
+            OutlawLairs.reveal(player, bounty.lairId);
+            const fate = OutlawLairs.bountyStatus(player, bounty);
+            if (fate === 'slain') {
+                const pay = Math.round(_num(bounty.actualPay) * (1 + Math.max(0, this.getRankInfo(player).payBonus)));
+                player.gold = (player.gold || 0) + pay;
+                player.renown = (player.renown || 0) + 3;
+                player.bountyHunter.outlawChiefs += 1;
+                player.bountiesCompleted = (player.bountiesCompleted || 0) + 1;
+                bounty.status = 'completed';
+                this._removeBounty(player, bounty.id);
+                const promoted = this._recalculateRank(player);
+                updates.chiefs.push({ bountyId: bounty.id, targetName: bounty.targetName, outcome: 'slain', pay, promoted });
+            } else if (fate === 'gone') {
+                bounty.status = 'lapsed';
+                this._removeBounty(player, bounty.id);
+                updates.chiefs.push({ bountyId: bounty.id, targetName: bounty.targetName, outcome: 'gone' });
+            }
+        }
 
         // Saga beasts on the hunter's list: follow the beast's trail; when it
         // falls to the player, the notice pays its bonus (the realm's own

@@ -56,6 +56,7 @@ import { Upbringing } from '../../systems/upbringing.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { Heralds } from '../../systems/heralds.js';
 import { Patronage } from '../../systems/patronage.js';
+import { OutlawLairs } from '../../systems/outlawLairs.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
 
 export const WORLD_W = 80;
@@ -99,6 +100,7 @@ function checkHostileEncounters(game) {
     if (PlayerReligion.isInSanctuary(player, player.q, player.r, world.width)) return null;
     const hostiles = world.units.filter(u =>
         !u.destroyed &&
+        !u.sparesPlayer &&
         WorldUnit.HOSTILE_TYPES.includes(u.type) &&
         Hex.wrappingDistance(u.q, u.r, player.q, player.r, world.width) <= 1);
     if (hostiles.length === 0) return null;
@@ -257,6 +259,8 @@ export function endDay(game) {
     mark(game, 'Rivals.processDay');
     Sagas.processDay(world, player);
     mark(game, 'Sagas.processDay');
+    OutlawLairs.processDay(world, player);
+    mark(game, 'OutlawLairs.processDay');
     game.discoveryDay = Discovery.processDay(world, player);
     mark(game, 'Discovery.processDay');
     RealmWars.processDaily(player, world);

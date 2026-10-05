@@ -550,6 +550,12 @@ export const DataLoader = {
             DataLoader.sagas = sagasData;
         }
 
+        // ── Outlaw lairs (read lazily by systems/outlawLairs.js) ──
+        const outlawLairsData = data['outlawLairs.json'];
+        if (outlawLairsData) {
+            DataLoader.outlawLairs = outlawLairsData;
+        }
+
         // ── Uncharted lands (read lazily by systems/discovery.js); its exotic
         //    goods join the GOODS table — no market stocks them ──
         const discoveryData = data['discovery.json'];

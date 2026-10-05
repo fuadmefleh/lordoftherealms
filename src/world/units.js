@@ -297,7 +297,8 @@ export class WorldUnit {
         }
 
         // Check for raiders nearby
-        const raider = world.units.find(u => (u.type === 'raider' || u.type === 'pirate') && Hex.wrappingDistance(this.q, this.r, u.q, u.r, world.width) < 1);
+        const raider = world.units.find(u => (u.type === 'raider' || u.type === 'pirate') && Hex.wrappingDistance(this.q, this.r, u.q, u.r, world.width) < 1
+            && !(this.playerOwned && u.sparesPlayer)); // a lair paid off leaves the player's caravans be
         // Road wardens see off half the robbers on a road-linked journey (player caravans)
         if (raider && !(this.roadLinked && Utils.random() < 0.5)) {
             // Transfer caravan's inventory to the raider
@@ -324,9 +325,11 @@ export class WorldUnit {
         const sanctuary = player && player.sanctuary;
         const inSanctuary = !!(sanctuary && sanctuary.days > 0 &&
             Hex.wrappingDistance(sanctuary.q, sanctuary.r, player.q, player.r, world.width) <= sanctuary.radius);
-        if (player && !player.indenturedServitude && !inSanctuary) {
+        // A lair's riders keep a bargain struck with the player (systems/outlawLairs.js)
+        if (player && !player.indenturedServitude && !inSanctuary && !this.sparesPlayer) {
             const playerDist = Hex.wrappingDistance(this.q, this.r, player.q, player.r, world.width);
-            const detectionRange = isShip ? 6 : 5;
+            // A lair's raiding party bound for a town only waylays travellers on its path (pursuitRange)
+            const detectionRange = Number.isFinite(this.pursuitRange) ? this.pursuitRange : (isShip ? 6 : 5);
 
             // Only pursue if player is within detection range
             if (playerDist <= detectionRange && playerDist > 0) {

@@ -15,6 +15,7 @@ import { PlayerEconomy } from '../playerEconomy.js';
 import { SeasonalWork } from '../seasonalWork.js';
 import { Delves } from '../../systems/delves.js';
 import { Sieges } from '../../systems/sieges.js';
+import { OutlawLairs } from '../../systems/outlawLairs.js';
 
 export function addWildernessActions(actions, player, tile, world) {
     // Meditate / Pray (anywhere on passable terrain)
@@ -160,6 +161,19 @@ export function addWildernessActions(actions, player, tile, world) {
                 description: 'Search this location for treasure, knowledge, or danger'
             });
         }
+    }
+
+    // An outlaw lair here or next door (systems/outlawLairs.js)
+    const lair = OutlawLairs.lairNear(player, world, tile.q, tile.r, 1);
+    if (lair) {
+        const kind = OutlawLairs.kind(lair.kind) || {};
+        actions.push({
+            type: 'outlaw_lair',
+            label: `Outlaw Lair: ${lair.name}`,
+            icon: kind.icon || '🏕️',
+            description: `${lair.leader.slain ? 'A leaderless band' : lair.leader.name} — scout it, storm it, strike at the chief${kind.parley ? ', or bargain' : ''}`,
+            lairId: lair.id,
+        });
     }
 
     // Clear Trees (forest tiles without buildings)

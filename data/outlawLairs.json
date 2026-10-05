@@ -1,0 +1,620 @@
+{
+    "_comment": "Outlaw Lairs (src/systems/outlawLairs.js): persistent strongholds of bandits, smugglers, deserters, beasts and cultists that form in poorly policed country, grow, send real raiding parties (world units) and are put down by realm expeditions or the player. config tunes formation, growth, raids, expeditions and the player's dealings; kinds give each lair type its terrain, strength, party and raid effects; leaders name the men and beasts who run them.",
+    "config": {
+        "initialLairs": 2,
+        "firstFormDay": 12,
+        "formEvery": 14,
+        "maxLairs": 6,
+        "maxPerKingdom": 2,
+        "minTownDist": 3,
+        "maxTownDist": 8,
+        "roadRadius": 2,
+        "lairSpacing": 9,
+        "stabilityLine": 70,
+        "candidatePool": 12,
+        "growth": {
+            "base": 0.3,
+            "lowStability": 0.4,
+            "warBonus": 0.2,
+            "lawfulDrag": 0.5,
+            "hoardPer": 400,
+            "hoardCap": 2000,
+            "goldPerMan": 100
+        },
+        "notoriety": {
+            "perRaid": 5,
+            "perSack": 8,
+            "perVictory": 10,
+            "decay": 0.12,
+            "rumourAt": 25,
+            "feared": 50,
+            "infamousAt": 80
+        },
+        "raids": {
+            "every": [
+                7,
+                13
+            ],
+            "radius": 9,
+            "partyShare": 0.35,
+            "minGarrison": 12,
+            "minParty": 8,
+            "maxParty": 36,
+            "maxParties": 3,
+            "partyPer": 45,
+            "daysOut": 18,
+            "notorietySpeedup": 0.4,
+            "caravanRadius": 6,
+            "restDays": 30,
+            "minGap": 5,
+            "pursuitRange": 2
+        },
+        "realm": {
+            "eventAt": 20,
+            "stabilityPer": 0.08,
+            "stabilityCap": 8,
+            "tradePer": 0.0025,
+            "tradeCap": 0.2,
+            "eventDays": 3
+        },
+        "expedition": {
+            "checkEvery": 10,
+            "baseChance": 0.06,
+            "lawfulWeight": 0.35,
+            "notorietyWeight": 0.004,
+            "minNotoriety": 20,
+            "minTreasury": 300,
+            "cost": 150,
+            "militaryShare": 0.25,
+            "minStrength": 25,
+            "maxStrength": 220,
+            "speed": 4,
+            "defenseBonus": 1.25,
+            "lossShare": 0.5,
+            "winNotoriety": 12,
+            "maxDays": 40,
+            "menPer": 5,
+            "minOdds": 1.1,
+            "sizing": 1.7
+        },
+        "sight": {
+            "radius": 2,
+            "scoutRadius": 2
+        },
+        "scout": {
+            "ap": 3,
+            "base": 0.55,
+            "stealthWeight": 0.05,
+            "cunningPenalty": 0.15,
+            "caughtHealth": [
+                4,
+                10
+            ],
+            "assaultBonus": 0.15
+        },
+        "assault": {
+            "ap": 8,
+            "stages": [
+                {
+                    "id": "palisade",
+                    "name": "the outer palisade",
+                    "share": 0.4
+                },
+                {
+                    "id": "camp",
+                    "name": "the camp",
+                    "share": 0.6
+                },
+                {
+                    "id": "hold",
+                    "name": "the leader's hold",
+                    "share": 0.5,
+                    "leader": true
+                }
+            ],
+            "fortify": 1.15,
+            "leaderStrength": 10,
+            "stageLoss": 0.45
+        },
+        "strike": {
+            "ap": 4,
+            "base": 0.25,
+            "stealthWeight": 0.05,
+            "combatWeight": 0.04,
+            "cunningPenalty": 0.12,
+            "scoutedBonus": 0.1,
+            "failHealth": [
+                12,
+                25
+            ],
+            "leaderlessLoss": 0.35,
+            "newLeaderDays": [
+                18,
+                32
+            ]
+        },
+        "tribute": {
+            "ap": 1,
+            "base": 60,
+            "perStrength": 4,
+            "perNotoriety": 2,
+            "days": 60,
+            "greedy": 1.4,
+            "honourable": 0.8,
+            "reputation": -2,
+            "growthShare": 0.5
+        },
+        "ally": {
+            "ap": 1,
+            "karmaMax": -15,
+            "cost": 100,
+            "cutShare": 0.15,
+            "cutEvery": 7,
+            "heatPerWeek": 3,
+            "standing": 2,
+            "exposedHeat": 25,
+            "cutMax": 200
+        },
+        "clear": {
+            "renown": 10,
+            "renownPerNotoriety": 0.25,
+            "prestigeScale": 1.5,
+            "reputation": 8,
+            "reputationPerNotoriety": 0.1,
+            "goldShare": 1
+        },
+        "bounty": {
+            "postAt": 30,
+            "base": 80,
+            "perNotoriety": 6,
+            "radius": 24,
+            "daysLimit": 120,
+            "bonusShare": 0.25
+        },
+        "chatterRadius": 10,
+        "tavernRadius": 20,
+        "historyCap": 30
+    },
+    "kindOrder": [
+        "smugglers_den",
+        "deserter_fort",
+        "cultist_grotto",
+        "beast_den",
+        "bandit_camp"
+    ],
+    "kinds": {
+        "bandit_camp": {
+            "name": "Bandit Camp",
+            "icon": "🏕️",
+            "terrains": [
+                "woodland",
+                "seasonal_forest",
+                "boreal_forest",
+                "temperate_rainforest",
+                "plains",
+                "grassland",
+                "savanna",
+                "hills"
+            ],
+            "needsRoad": true,
+            "strength": [
+                22,
+                34
+            ],
+            "maxStrength": 160,
+            "growth": 1,
+            "party": {
+                "type": "raider",
+                "name": "{leader}'s Cutthroats",
+                "icon": "🏇"
+            },
+            "raid": {
+                "damage": 0.08,
+                "population": 0.02,
+                "food": 0.2,
+                "loot": [
+                    30,
+                    80
+                ]
+            },
+            "hoard": {
+                "gold": [
+                    40,
+                    90
+                ],
+                "goods": {
+                    "stolen_goods": [
+                        2,
+                        5
+                    ],
+                    "weapons": [
+                        1,
+                        3
+                    ]
+                }
+            },
+            "parley": true,
+            "ally": true,
+            "nouns": [
+                "Camp",
+                "Hollow",
+                "Lair",
+                "Den"
+            ],
+            "titles": [
+                "Captain",
+                "Chief",
+                "Boss"
+            ],
+            "intro": "Smoke from a dozen cookfires, a lookout in the treetops, and a road below where nobody travels alone anymore."
+        },
+        "smugglers_den": {
+            "name": "Smugglers' Den",
+            "icon": "⚓",
+            "terrains": [
+                "beach",
+                "swamp",
+                "island",
+                "plains",
+                "grassland",
+                "woodland"
+            ],
+            "needsWater": true,
+            "strength": [
+                16,
+                26
+            ],
+            "maxStrength": 110,
+            "growth": 0.9,
+            "party": {
+                "type": "raider",
+                "name": "{leader}'s Runners",
+                "icon": "🛶"
+            },
+            "raid": {
+                "damage": 0.04,
+                "population": 0.01,
+                "food": 0.1,
+                "loot": [
+                    40,
+                    100
+                ]
+            },
+            "hoard": {
+                "gold": [
+                    60,
+                    130
+                ],
+                "goods": {
+                    "stolen_goods": [
+                        3,
+                        6
+                    ],
+                    "rum": [
+                        2,
+                        5
+                    ],
+                    "silk": [
+                        0,
+                        2
+                    ]
+                }
+            },
+            "parley": true,
+            "ally": true,
+            "underworld": true,
+            "nouns": [
+                "Den",
+                "Cove",
+                "Landing",
+                "Cellars"
+            ],
+            "titles": [
+                "Master",
+                "Mother",
+                "Skipper"
+            ],
+            "intro": "Lantern signals over the water, crates without marks, and men who stop talking when you come near."
+        },
+        "deserter_fort": {
+            "name": "Deserters' Fort",
+            "icon": "🏚️",
+            "terrains": [
+                "hills",
+                "highlands",
+                "mountain",
+                "plains",
+                "grassland",
+                "savanna"
+            ],
+            "needsRoad": true,
+            "warBonus": 3,
+            "strength": [
+                30,
+                44
+            ],
+            "maxStrength": 200,
+            "growth": 1.1,
+            "party": {
+                "type": "raider",
+                "name": "{leader}'s Free Company",
+                "icon": "🗡️"
+            },
+            "raid": {
+                "damage": 0.1,
+                "population": 0.025,
+                "food": 0.3,
+                "loot": [
+                    30,
+                    70
+                ]
+            },
+            "hoard": {
+                "gold": [
+                    30,
+                    70
+                ],
+                "goods": {
+                    "weapons": [
+                        3,
+                        6
+                    ],
+                    "shield": [
+                        1,
+                        3
+                    ]
+                }
+            },
+            "parley": true,
+            "ally": true,
+            "nouns": [
+                "Fort",
+                "Redoubt",
+                "Stockade",
+                "Keep"
+            ],
+            "titles": [
+                "Sergeant",
+                "Captain",
+                "Marshal"
+            ],
+            "intro": "A ruined watch-fort re-roofed with stolen timber. The men drill like soldiers, because they were."
+        },
+        "cultist_grotto": {
+            "name": "Cultist Grotto",
+            "icon": "🕯️",
+            "terrains": [
+                "hills",
+                "highlands",
+                "mountain",
+                "swamp",
+                "temperate_rainforest",
+                "tropical_rainforest"
+            ],
+            "strength": [
+                14,
+                24
+            ],
+            "maxStrength": 120,
+            "growth": 0.8,
+            "party": {
+                "type": "raider",
+                "name": "the Hooded of {lair}",
+                "icon": "🕯️"
+            },
+            "raid": {
+                "damage": 0.05,
+                "population": 0.03,
+                "food": 0.1,
+                "loot": [
+                    10,
+                    40
+                ],
+                "unity": 3
+            },
+            "hoard": {
+                "gold": [
+                    20,
+                    60
+                ],
+                "goods": {
+                    "relics": [
+                        1,
+                        3
+                    ],
+                    "incense": [
+                        2,
+                        5
+                    ],
+                    "candles": [
+                        2,
+                        6
+                    ]
+                }
+            },
+            "parley": true,
+            "ally": false,
+            "nouns": [
+                "Grotto",
+                "Caves",
+                "Sanctum",
+                "Pit"
+            ],
+            "titles": [
+                "Prophet",
+                "Hierophant",
+                "Mother"
+            ],
+            "intro": "Chanting under the hill at night, missing pilgrims, and strange marks cut into the waystones."
+        },
+        "beast_den": {
+            "name": "Beast Den",
+            "icon": "🐺",
+            "terrains": [
+                "woodland",
+                "boreal_forest",
+                "seasonal_forest",
+                "tropical_rainforest",
+                "temperate_rainforest",
+                "mountain",
+                "highlands",
+                "hills",
+                "tundra"
+            ],
+            "beasts": true,
+            "strength": [
+                18,
+                30
+            ],
+            "maxStrength": 130,
+            "growth": 1,
+            "party": {
+                "type": "beast",
+                "name": "{leader}'s Pack",
+                "icon": "🐺"
+            },
+            "raid": {
+                "damage": 0.02,
+                "population": 0.03,
+                "food": 0.35,
+                "loot": [
+                    0,
+                    0
+                ]
+            },
+            "hoard": {
+                "gold": [
+                    20,
+                    60
+                ],
+                "goods": {
+                    "pelts": [
+                        3,
+                        7
+                    ],
+                    "ancient_coin": [
+                        0,
+                        2
+                    ]
+                }
+            },
+            "parley": false,
+            "ally": false,
+            "nouns": [
+                "Den",
+                "Warren",
+                "Lair",
+                "Hollow"
+            ],
+            "titles": [
+                "the Beast"
+            ],
+            "intro": "Gnawed bones at the cave mouth, trails into the woods, and the lowing of stolen cattle that stops at dusk."
+        }
+    },
+    "leaders": {
+        "first": [
+            "Hask",
+            "Bregga",
+            "Tomlin",
+            "Marrow",
+            "Vesk",
+            "Iddo",
+            "Cald",
+            "Ysolde",
+            "Grem",
+            "Orrin",
+            "Sabel",
+            "Dunstan",
+            "Kettle",
+            "Fenna",
+            "Rook",
+            "Ansel",
+            "Mag",
+            "Corvin",
+            "Tamsin",
+            "Wulf"
+        ],
+        "epithets": [
+            "the Red",
+            "Half-Hand",
+            "Gallowsbait",
+            "the Smiling",
+            "Blackthorn",
+            "One-Eye",
+            "the Tithe",
+            "Crowfoot",
+            "the Grey",
+            "Ironjaw",
+            "Saltbeard",
+            "the Quiet",
+            "Ninefingers",
+            "the Widow",
+            "Longknife"
+        ],
+        "beasts": [
+            "Gnashtooth",
+            "the Grey Matriarch",
+            "Old Ruin",
+            "Bloodmuzzle",
+            "the Pale Sow",
+            "Hollowback",
+            "Scarhide",
+            "the Night-Howler"
+        ],
+        "traits": {
+            "cruel": {
+                "label": "Cruel",
+                "raidHarm": 1.4,
+                "desc": "burns what he cannot carry"
+            },
+            "cunning": {
+                "label": "Cunning",
+                "scoutPenalty": true,
+                "defense": 1.15,
+                "desc": "sees an ambush coming"
+            },
+            "greedy": {
+                "label": "Greedy",
+                "lootMult": 1.4,
+                "tributeMult": 1.4,
+                "desc": "can be bought, at a price"
+            },
+            "honourable": {
+                "label": "Honourable",
+                "raidHarm": 0.7,
+                "tributeMult": 0.8,
+                "desc": "keeps a bargain once struck"
+            },
+            "savage": {
+                "label": "Savage",
+                "raidHarm": 1.2,
+                "defense": 1.1,
+                "desc": "a beast past fear",
+                "beastOnly": true
+            }
+        }
+    },
+    "places": [
+        "Crowmoor",
+        "Gallow Fen",
+        "Blackbriar",
+        "Thornwick",
+        "Wolfsgate",
+        "Ashcombe",
+        "Mirewater",
+        "Hangman's",
+        "Ravenscar",
+        "Coldhollow",
+        "Saltmarsh",
+        "Brokenoak",
+        "Grimstone",
+        "Duskwood",
+        "Stagbone",
+        "Weeping Rock",
+        "Cutpurse",
+        "Old Gibbet",
+        "Fogmere",
+        "Redbank"
+    ]
+}

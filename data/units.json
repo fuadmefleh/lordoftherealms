@@ -150,6 +150,15 @@
             "strength": { "min": 8, "max": 15 },
             "inventoryTheme": "diplomatic",
             "domain": "land"
+        },
+        "lair_expedition": {
+            "icon": "🛡️",
+            "name": "Realm Wardens",
+            "speed": 4,
+            "population": { "min": 100, "max": 300 },
+            "strength": { "min": 25, "max": 60 },
+            "inventoryTheme": null,
+            "domain": "land"
         }
     },
     "inventoryThemes": {

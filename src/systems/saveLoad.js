@@ -28,6 +28,7 @@ import { Sieges } from './sieges.js';
 import { HoldingSieges } from './holdingSieges.js';
 import { Discovery } from './discovery.js';
 import { Heralds } from './heralds.js';
+import { OutlawLairs } from './outlawLairs.js';
 import { MerchantHouses } from './merchantHouses.js';
 import { Patronage } from './patronage.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
@@ -432,6 +433,8 @@ export const SaveLoad = {
             heralds: Heralds.serialize(player),
             // Patronage: clients, commissions, the gallery, Great Works under way (systems/patronage.js)
             patronage: Patronage.serialize(player),
+            // Outlaw lairs: strongholds, their leaders, parties, hoards, bargains; realm expeditions (systems/outlawLairs.js)
+            outlawLairs: OutlawLairs.serialize(player),
         };
     },
 
@@ -671,6 +674,8 @@ export const SaveLoad = {
         Heralds.loadState(player);
         // Patronage — older saves get a blank record (no clients, no works)
         Patronage.loadState(player);
+        // Outlaw lairs — older saves get a blank record (lairs take root on the next tick)
+        OutlawLairs.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

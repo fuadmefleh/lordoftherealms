@@ -34,6 +34,9 @@ import { MerchantHouses } from './merchantHouses.js';
 import { MerchantPrince } from './merchantPrince.js';
 import { Guilds } from './guilds.js';
 import { PriceKnowledge } from './priceKnowledge.js';
+import { EconomyChronicle } from './economyChronicle.js';
+import { EconomyIndex } from '../world/economyIndex.js';
+import { Fashions } from '../world/fashions.js';
 import { Patronage } from './patronage.js';
 import { MerchantCaravans } from './merchantCaravans.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
@@ -148,6 +151,11 @@ export const SaveLoad = {
             tradePolicy: TradePolicy.serialize(world),
             // Great Works raised and rising, the wonders claimed (systems/patronage.js)
             greatWorks: Patronage.serializeWorld(world),
+            // The realms' weekly economic indices and the heralds' price news; the
+            // fashions at court (world/economyIndex.js, world/fashions.js — each town's
+            // fashion factors travel with its labour record)
+            economy: EconomyIndex.serialize(world),
+            fashions: Fashions.serialize(world),
             // Ids for characters, maps, spies, ... keep counting from here
             idCounter: Utils.getIdCounter(),
         };
@@ -468,6 +476,8 @@ export const SaveLoad = {
             priceBook: PriceKnowledge.serialize(player),
             // Trade policy as a merchant: goods booked by the realm they were bought in, crown licences (systems/tradePolicy.js)
             tradePolicy: TradePolicy.serializePlayer(player),
+            // The gazettes read, the fashions heard of, net worth week by week (systems/economyChronicle.js)
+            econ: EconomyChronicle.serialize(player),
         };
     },
 
@@ -568,6 +578,9 @@ export const SaveLoad = {
         Labour.restore(saveData.labour, world);
         // Trade policy news (older saves: none; realms set their policy on their next turn)
         TradePolicy.restore(saveData.tradePolicy, world);
+        // The economic indices and the fashions (older saves: none yet — measured on the next week)
+        EconomyIndex.restore(saveData.economy, world);
+        Fashions.restore(saveData.fashions, world);
         // Never hand out an id the save already used
         if (typeof saveData.idCounter === 'number') {
             Utils.setIdCounter(Math.max(Utils.getIdCounter(), saveData.idCounter));
@@ -735,6 +748,8 @@ export const SaveLoad = {
         PriceKnowledge.loadState(player);
         // Trade policy — older saves have no ledger (goods already carried count as home-bought)
         TradePolicy.loadPlayer(player);
+        // The Economic Chronicle — older saves start a blank record (the gazette is read on the next market visit)
+        EconomyChronicle.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

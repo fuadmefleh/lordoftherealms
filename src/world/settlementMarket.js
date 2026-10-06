@@ -188,18 +188,18 @@ export const SettlementMarket = {
         const lab = settlement.labour;
         const lcfg = TownLabour.config();
         if (sh && sh.pop === pop && sh.type === type && sh.cfg === C && sh.lab === lab && sh.lcfg === lcfg
-            && (!lab || (sh.mk === lab.mk && sh.lsh === lab.sh))) return sh;
+            && (!lab || (sh.mk === lab.mk && sh.lsh === lab.sh && sh.fk === lab.fk))) return sh;
         // ...and the class mix: nobles buy wine, peasants grain (world/townLabour.js)
         const dm = TownLabour.demandMults(settlement, C);
         if (sh && sh.pop === pop && sh.type === type && sh.cfg === C && sh.dm === dm) {
-            sh.lab = lab; sh.lcfg = lcfg; sh.mk = lab ? lab.mk : undefined; sh.lsh = lab ? lab.sh : undefined;
+            sh.lab = lab; sh.lcfg = lcfg; sh.mk = lab ? lab.mk : undefined; sh.lsh = lab ? lab.sh : undefined; sh.fk = lab ? lab.fk : undefined;
             return sh;
         }
         const n = C.goodIds.length;
         sh = {
             pop, type, cfg: C, dm, used: {}, need: {}, target: {},
             usedA: new Uint8Array(n), needA: new Float64Array(n), targetA: new Float64Array(n),
-            lab, lcfg, mk: lab ? lab.mk : undefined, lsh: lab ? lab.sh : undefined,
+            lab, lcfg, mk: lab ? lab.mk : undefined, lsh: lab ? lab.sh : undefined, fk: lab ? lab.fk : undefined,
         };
         const rank = Number.isFinite(C.typeRank[type]) ? C.typeRank[type] : 0;
         const td = _num(C.typeDemand[type], 1) || 1;
@@ -606,7 +606,19 @@ export const SettlementMarket = {
             * Seasons.priceMultiplier(goodId, Seasons.today(world))
             * SettlementMarket.coldFactor(world, tile, goodId)
             * SettlementMarket.eventFactor(world, tile, goodId)
-            * Coinage.priceMultiplier(world, settlement); // a debased coin buys less (world/coinage.js)
+            * Coinage.priceMultiplier(world, settlement) // a debased coin buys less (world/coinage.js)
+            * SettlementMarket.fashionFactor(settlement, goodId); // the fashion at court, on goods no market keeps
+    },
+
+    /**
+     * What the fashion at court does to the price of a good no market keeps
+     * (exotics, silk, ivory: world/fashions.js sets it weekly on the town's
+     * labour record). 1 for goods the market keeps — their fashion moves the
+     * town's need, and the price follows the stock.
+     */
+    fashionFactor(settlement, goodId) {
+        if (!settlement || SettlementMarket.tracks(goodId)) return 1;
+        return TownLabour.fashionPrice(settlement, goodId);
     },
 
     /**

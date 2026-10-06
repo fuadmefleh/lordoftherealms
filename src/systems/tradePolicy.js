@@ -17,7 +17,8 @@
 //              selling goods booked as bought in another realm.
 //   RETALIATION per partner: extra import tariff on one realm's goods — a
 //              trade war.
-//   BANS       export bans by category (grain in a famine): nothing of it
+//   BANS       export bans by category (grain in a famine, or while the
+//              realm's food index is far above the world's): nothing of it
 //              leaves the realm along the trade links.
 //   EMBARGOES  on a realm: the links between the two cut both ways; the
 //              player can't sell that realm's goods openly — only smuggle them.
@@ -56,6 +57,8 @@ import { Throne } from './throne.js';
 import { Councils } from './councils.js';
 import { Underworld } from './underworld.js';
 import { House } from './house.js';
+import { Ledger } from './ledger.js';
+import { EconomyIndex } from '../world/economyIndex.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -93,7 +96,7 @@ const DEFAULTS = {
     jitter: 0.3, maxTariff: 0.35,
     crisis: { treasuryBelow: 300, debtRatio: 0.6, mult: 1.4, add: 0.03 },
     lobby: { perGuild: 0.006, cap: 0.05 },
-    ban: { category: 'staples', hungryShare: 0.25, minDays: 21 },
+    ban: { category: 'staples', hungryShare: 0.25, foodIndex: 1.35, liftIndex: 1.15, minDays: 21 },
     embargo: { rivalBelow: -50, chance: 0.2, liftAbove: -15, warLiftDays: 60, relation: -8, stability: -1 },
     treaty: { relationAt: 40, allyAt: 15, chance: 0.3, breakBelow: 10, linkBoost: 0.2, relation: 1, relationCap: 80, stability: 1 },
     tradeWar: { margin: 0.04, step: 0.04, cap: 0.2, chance: 0.5, relation: -3, stability: -1.5, calmAbove: 30, decay: 0.02 },
@@ -694,11 +697,15 @@ export const TradePolicy = {
         const B = TradePolicy.config().ban;
         const cat = B.category;
         const share = towns.length ? hungry.length / towns.length : 0;
-        if (!p.bans[cat] && share >= _num(B.hungryShare, 0.25) && towns.length) {
-            p.bans[cat] = { since: day, why: 'famine' };
+        // ...or its bread is far dearer than the world's (the weekly food index, world/economyIndex.js)
+        const food = EconomyIndex.relativeFood(world, k);
+        const dear = food != null && food >= _num(B.foodIndex, 1.35);
+        if (!p.bans[cat] && towns.length && (share >= _num(B.hungryShare, 0.25) || dear)) {
+            p.bans[cat] = { since: day, why: dear && share < _num(B.hungryShare, 0.25) ? 'dear' : 'famine' };
             TradePolicy._bump(world);
             TradePolicy._record(world, 'ban', { kingdomId: k.id, kingdom: k.name, cat, good: (TradePolicy.category(cat) || {}).label || cat });
-        } else if (p.bans[cat] && !hungry.length && day - _num(p.bans[cat].since) >= _num(B.minDays, 21)) {
+        } else if (p.bans[cat] && !hungry.length && !(food != null && food >= _num(B.liftIndex, 1.15))
+            && day - _num(p.bans[cat].since) >= _num(B.minDays, 21)) {
             delete p.bans[cat];
             TradePolicy._bump(world);
             TradePolicy._record(world, 'ban_lifted', { kingdomId: k.id, kingdom: k.name, cat, good: (TradePolicy.category(cat) || {}).label || cat });
@@ -1143,6 +1150,8 @@ export const TradePolicy = {
             const p = TradePolicy.realm(S);
             p.rev.week = _r3(p.rev.week + duty);
             st.stats.duties += duty;
+            // Paid inside the sale price: a memo line in the player's ledger (systems/ledger.js)
+            Ledger.record(player, 'saleDuties', -duty);
         }
         let heat = 0;
         const B = TradePolicy.config().player.breach;
@@ -1224,6 +1233,7 @@ export const TradePolicy = {
             player.gold = _num(player.gold) - fine;
             S.treasury = _num(S.treasury) + fine;
             st.stats.caught++;
+            Ledger.record(player, 'fines', -fine);
             Underworld.recordCrime(player, world, 'smuggling', { kingdom: S.id, caught: true, q: tile.q, r: tile.r });
             const arrest = Underworld._maybeArrest(player, world, s, 'smuggling past the embargo', _num(P.arrest, 0.25));
             return { success: true, caught: true, fine, arrested: !!arrest, text: `The watch of ${s.name} seized ${n} ${goodId.replace(/_/g, ' ')} at the gate and fined you ${fine}g.${arrest ? ` ${arrest.text}` : ''}` };
@@ -1232,9 +1242,7 @@ export const TradePolicy = {
         player.gold = _num(player.gold) + earned;
         SettlementMarket.add(s, goodId, n);
         st.stats.smuggled += n;
-        if (player.financeToday && player.financeToday.income) {
-            player.financeToday.income.smuggling = (player.financeToday.income.smuggling || 0) + earned;
-        }
+        Ledger.record(player, 'smuggling', earned);
         Underworld.recordCrime(player, world, 'smuggling', { kingdom: S.id, q: tile.q, r: tile.r });
         return { success: true, caught: false, earned, text: `${n} ${goodId.replace(/_/g, ' ')} slipped past the embargo for ${earned}g.` };
     },
@@ -1261,6 +1269,7 @@ export const TradePolicy = {
         if (_num(player.gold) < q.cost) return { success: false, reason: `The licence costs ${q.cost}g.` };
         const st = TradePolicy.playerState(player);
         player.gold -= q.cost;
+        Ledger.record(player, 'tariffs', -q.cost);
         q.kingdom.treasury = _num(q.kingdom.treasury) + q.cost;
         const from = Math.max(_day(world), _num(st.licences[q.kingdom.id]));
         st.licences[q.kingdom.id] = from + q.days;

@@ -20,6 +20,7 @@
 import { Utils } from '../core/utils.js';
 import { WorldEvents } from './worldEvents.js';
 import { Coinage } from './coinage.js';
+import { EconomyIndex } from './economyIndex.js';
 
 /** npcLords.json trait field that feeds each kingdom bonus key. */
 const LORD_KEYS = {
@@ -412,6 +413,8 @@ export const KingdomStability = {
         if ((kingdom.treasury || 0) <= 0) t += add('Empty treasury', -15);
         // Debased coin, a war levy, a recent default, heavy debt (world/coinage.js; 0 without a finance record)
         t += add('Crown finances', Coinage.stabilityMod(kingdom, world && Number.isFinite(world.day) ? world.day : null));
+        // Dear bread sours the realm, plenty sweetens it (world/economyIndex.js; 0 until measured)
+        t += add('Cost of living', EconomyIndex.stabilityMod(world, kingdom));
         // Wonders the realm has raised (systems/patronage.js → kingdom.greatWorks)
         if (Array.isArray(kingdom.greatWorks) && kingdom.greatWorks.length) {
             t += add('Great works', kingdom.greatWorks.reduce((s, g) => s + (g && Number.isFinite(g.stability) ? g.stability : 0), 0));

@@ -48,6 +48,8 @@ import { Throne } from './throne.js';
 import { Finance } from './finance.js';
 import { Taxation, MarketDynamics } from './marketDynamics.js';
 import { Guilds } from './guilds.js';
+import { PriceKnowledge } from './priceKnowledge.js';
+import { Ledger } from './ledger.js';
 
 const DEFAULTS = {
     industry: {
@@ -351,6 +353,7 @@ export const MerchantPrince = {
         const st = MerchantPrince.state(player);
         const s = tile.settlement;
         player.gold -= q.gold;
+        Ledger.record(player, 'worksBought', -q.gold);
         for (const [id, n] of Object.entries(q.materials)) {
             player.inventory[id] -= n;
             if (player.inventory[id] <= 0) delete player.inventory[id];
@@ -393,6 +396,7 @@ export const MerchantPrince = {
         if (!(cost > 0)) return { success: false, reason: 'The works are in good repair.' };
         if (_num(player.gold) < cost) return { success: false, reason: `Repairs cost ${cost} gold.` };
         player.gold -= cost;
+        Ledger.record(player, 'worksBought', -cost);
         w.cond = 1;
         inv.invested += cost;
         st.stats.repairs += cost;
@@ -412,6 +416,7 @@ export const MerchantPrince = {
         if (w) w.owner = 'town';
         st.investments = st.investments.filter(i => i !== inv);
         player.gold += gold;
+        Ledger.record(player, 'worksSold', gold);
         st.stats.salvage += gold;
         MerchantPrince._log(st, world, `Sold your stake in the works at ${inv.town} to the guild for ${gold}g.`);
         return { success: true, gold };
@@ -569,6 +574,7 @@ export const MerchantPrince = {
         const fee = _num(sz.keyFee);
         if (_num(player.gold) < fee) return { success: false, reason: `The key fee is ${fee} gold.` };
         player.gold -= fee;
+        Ledger.record(player, 'warehouseRent', -fee);
         st.stats.rent += fee;
         if (have) {
             have.size = sizeId;
@@ -588,6 +594,7 @@ export const MerchantPrince = {
         if (_num(w.arrears) > 0) {
             if (_num(player.gold) < w.arrears) return { success: false, reason: `Pay the ${w.arrears}g you owe first.` };
             player.gold -= w.arrears;
+            Ledger.record(player, 'warehouseRent', -w.arrears);
             st.stats.rent += w.arrears;
         }
         st.warehouses = st.warehouses.filter(x => x !== w);
@@ -656,6 +663,7 @@ export const MerchantPrince = {
         if (mono && mono.holder === 'crown' && mono.markup > 0) mono.revenue = _num(mono.revenue) + cost * mono.markup / (1 + mono.markup);
         SettlementMarket.take(x.s, goodId, n);
         x.w.goods[goodId] = _round2(_num(x.w.goods[goodId]) + n);
+        PriceKnowledge.recordBuy(player, x.s, goodId, n, cost, 'storeRooms');
         return { success: true, qty: n, spent: cost };
     },
 
@@ -689,6 +697,7 @@ export const MerchantPrince = {
         player.gold += earned;
         SettlementMarket.add(x.s, goodId, n);
         Guilds.onSale(player, x.s, goodId, n, earned);
+        PriceKnowledge.recordSale(player, x.s, goodId, n, earned, 'storeRooms');
         return { success: true, qty: n, earned };
     },
 
@@ -873,6 +882,7 @@ export const MerchantPrince = {
         f.paid += pay;
         st.stats.forwardIncome += pay;
         SettlementMarket.add(s, f.good, n);
+        PriceKnowledge.recordSale(player, s, f.good, n, pay, 'forwards');
         let done = false;
         if (f.delivered >= f.qty) {
             done = true;
@@ -893,6 +903,7 @@ export const MerchantPrince = {
             const penalty = Math.ceil(left * f.unitPrice * _num(F.penaltyShare, 0.25));
             const paid = Math.min(Math.max(0, _num(player.gold)), penalty);
             player.gold -= paid;
+            Ledger.record(player, 'forwardPenalties', -paid);
             st.stats.penalties += paid;
             st.stats.forwardsFailed++;
             st.forwards = st.forwards.filter(x => x !== f);

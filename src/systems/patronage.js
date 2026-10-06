@@ -48,6 +48,8 @@ import { House } from './house.js';
 import { Holdings } from './holdings.js';
 import { HoldingSieges } from './holdingSieges.js';
 import { Ships } from './ships.js';
+import { Fashions } from '../world/fashions.js';
+import { Ledger } from './ledger.js';
 
 const TYPE_RANK = { hamlet: 0, village: 1, town: 2, city: 3, capital: 3 };
 const FX_KEYS = ['research', 'conversion', 'education', 'vision', 'festivalRenown', 'riverCross', 'monthlyPrestige', 'care', 'woundHeal'];
@@ -236,6 +238,73 @@ export const Patronage = {
         const st = Patronage.state(player);
         player.gold = _num(player.gold) - gold;
         st.stats.goldSpent += gold;
+        Ledger.record(player, 'patronage', -gold);
+    },
+
+    // ──────────── FASHION ────────────
+    // A patron with standing at a court can set its fashion (world/fashions.js):
+    // a season's feasts, gifts and commissions that make the nobles want silks,
+    // spiced wine or jewels — and a merchant who knows it first can stock up.
+
+    /** The capital on this tile and its realm, or null. */
+    _court(world, tile) {
+        const s = tile && tile.settlement;
+        if (!s || s.kingdom == null) return null;
+        const k = _kingdom(world, s.kingdom);
+        if (!k || k.isAlive === false || !k.capital || k.capital.q !== tile.q || k.capital.r !== tile.r) return null;
+        return { settlement: s, kingdom: k };
+    },
+
+    /**
+     * Can the player set `fashionId` at the court here? → { ok, reason,
+     * prestige, gold, def, court, patron }. Needs: standing at that court
+     * (reputation, or the crown is yours), House Prestige and gold (halved
+     * with an artist or architect in your pay), the cooldown since the last.
+     */
+    fashionQuote(player, world, tile, fashionId) {
+        const P = Fashions.config().playerSet;
+        const def = Fashions.def(fashionId);
+        const out = { ok: false, reason: '', prestige: 0, gold: 0, def, court: null, patron: null };
+        if (!player || !world) return { ...out, reason: 'No court.' };
+        if (!def) return { ...out, reason: 'No such fashion.' };
+        const court = Patronage._court(world, tile);
+        if (!court) return { ...out, reason: "Fashions are set at a royal court: stand in a realm's capital." };
+        out.court = court;
+        if (!Patronage._present(player, tile.q, tile.r)) return { ...out, reason: `You must be at the court of ${court.kingdom.name}.` };
+        const ruling = player.throne && player.throne.ruling;
+        const ours = !!(ruling && ruling.kingdomId === court.kingdom.id);
+        const rep = _num(player.reputation && player.reputation[court.kingdom.id]);
+        if (!ours && rep < _num(P.minReputation, 20)) return { ...out, reason: `The court of ${court.kingdom.name} pays you no heed (standing ${Math.round(rep)}, ${_num(P.minReputation, 20)} needed).` };
+        const patron = Patronage.state(player).clients.find(c => c && (c.profession === 'artist' || c.profession === 'architect')) || null;
+        out.patron = patron;
+        const mult = patron ? _num(P.patronDiscount, 0.5) : 1;
+        out.prestige = Math.ceil(_num(P.prestige, 40) * mult);
+        out.gold = Math.ceil(_num(P.gold, 400) * mult);
+        const econ = player.econ;
+        const last = econ && Number.isFinite(econ.setDay) ? econ.setDay : null;
+        if (last != null && _day(world) - last < _num(P.cooldown, 60)) return { ...out, reason: `The court tires of novelty: try again in ${_num(P.cooldown, 60) - (_day(world) - last)} days.` };
+        if (Fashions.active(world).some(f => f.id === fashionId)) return { ...out, reason: `${def.name} is already the fashion somewhere.` };
+        if (!player.house || _num(player.house.prestige) < out.prestige) return { ...out, reason: `It takes ${out.prestige} House Prestige to set the court's taste.` };
+        if (_num(player.gold) < out.gold) return { ...out, reason: `The feasts and gifts cost ${out.gold} gold.` };
+        return { ...out, ok: true };
+    },
+
+    /** Set the court's fashion here (spends Prestige and gold). */
+    setFashion(player, world, tile, fashionId) {
+        const q = Patronage.fashionQuote(player, world, tile, fashionId);
+        if (!q.ok) return { success: false, reason: q.reason };
+        if (!House.spend(player.house, q.prestige, `set the fashion: ${q.def.name}`, _day(world))) return { success: false, reason: 'Not enough Prestige.' };
+        Patronage._spend(player, q.gold);
+        const f = Fashions.start(world, fashionId, { q: tile.q, r: tile.r, name: q.court.settlement.name },
+            { by: 'player', kingdomId: q.court.kingdom.id, place: q.court.settlement.name });
+        if (!f) return { success: false, reason: 'The court will not have it.' };
+        if (!player.econ || typeof player.econ !== 'object') player.econ = {};
+        player.econ.setDay = _day(world);
+        if (!player.econ.fashions || typeof player.econ.fashions !== 'object') player.econ.fashions = {};
+        player.econ.fashions[f.uid] = _day(world);
+        const text = `${q.patron ? `With ${q.patron.name}'s eye for it, ` : ''}${q.def.text || q.def.name} at the court of ${q.court.kingdom.name}: it will spread from ${q.court.settlement.name} in the coming weeks.`;
+        Patronage._log(player, world, text.charAt(0).toUpperCase() + text.slice(1));
+        return { success: true, fashion: f, text: text.charAt(0).toUpperCase() + text.slice(1), prestige: q.prestige, gold: q.gold };
     },
 
     // ──────────── PLACES ────────────

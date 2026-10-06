@@ -213,7 +213,8 @@ export const Trading = {
             // The town's guild: an outsider pays its toll, a master's goods carry its mark (systems/guilds.js)
             value = sum * Trading.sellShare(settlement) * (1 + tradeBonus) * priceMult * Guilds.saleFactor(player, settlement, good.id);
         } else {
-            value = Trading.getSellPrice(good, world) * q * (1 + tradeBonus) * priceMult;
+            // (a fashion at court lifts what goods no market keeps fetch: exotics — world/fashions.js)
+            value = Trading.getSellPrice(good, world) * q * (1 + tradeBonus) * priceMult * SettlementMarket.fashionFactor(settlement, good.id);
         }
         return Math.min(value, Trading.saleUnitCap(player, good.id, settlement, world, null, q) * q) / q;
     },

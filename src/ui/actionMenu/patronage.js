@@ -6,6 +6,7 @@
 // data-am-act → ActionMenu.patronageAct.
 import { ActionMenu } from './_ref.js';
 import { Patronage } from '../../systems/patronage.js';
+import { Fashions } from '../../world/fashions.js';
 
 const BTN = 'padding: 5px 9px; margin: 3px 4px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
 const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
@@ -13,7 +14,7 @@ const BTN_DIM = BTN + 'background: rgba(255,255,255,0.08); color: var(--text-sec
 const BTN_PLAIN = BTN + 'background: rgba(255,255,255,0.12); color: var(--text-primary);';
 const BTN_RED = BTN + 'background: #7a3030; color: #eee;';
 const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
-const TABS = [['clients', '🎨 Clients'], ['works', '🏗️ Great Works'], ['gallery', '🖼️ Gallery'], ['world', '🌍 Wonders']];
+const TABS = [['clients', '🎨 Clients'], ['works', '🏗️ Great Works'], ['gallery', '🖼️ Gallery'], ['world', '🌍 Wonders'], ['fashion', '👗 Fashion at Court']];
 
 let _tab = 'clients';
 
@@ -100,6 +101,31 @@ function clientsTab(player, world, tile) {
             html += act(`Take into service (${fee}g)`, ['hire', cand.id], BTN_GOLD, !full && player.gold >= fee, full ? 'You keep as many clients as you can.' : '');
             html += '</div>';
         }
+    }
+    return html;
+}
+
+/** Set the court's fashion (systems/patronage.js setFashion → world/fashions.js). */
+function fashionTab(player, world, tile) {
+    const P = Fashions.config().playerSet;
+    let html = `<div style="font-size:11px; color:#bbb;">A patron with standing at a royal court can set its fashion for a season: feasts, gifts and commissions that make the nobles and merchants want silks, spiced wine or jewels. It spreads from the capital to the towns around, and whoever has the goods sells them dear. It costs ${P.prestige} House Prestige and ${P.gold} gold (half with an artist or architect in your pay), needs standing ${P.minReputation} at that court (or its crown), and the court tolerates one of yours every ${P.cooldown} days.</div>`;
+    const running = Fashions.active(world);
+    if (running.length) {
+        html += '<h5 style="margin:10px 0 4px;">In fashion now</h5>';
+        for (const f of running) {
+            const def = Fashions.def(f.id) || {};
+            html += `<div style="font-size:11px;">${def.icon || '👗'} <b>${esc(def.name || f.id)}</b> from ${esc(f.place)}${f.by === 'player' ? ' (yours)' : ''}: ${Fashions.stage(f, world.day)}, ${Fashions.daysLeft(f, world.day)} days left</div>`;
+        }
+    }
+    html += '<h5 style="margin:10px 0 4px;">Set a fashion here</h5>';
+    for (const def of Fashions.config().list) {
+        const q = Patronage.fashionQuote(player, world, tile, def.id);
+        const goods = Fashions.goods({ id: def.id }).map(g => `${g.icon} ${g.name}${g.mult < 1 ? ' (less)' : ''}`).join(', ');
+        html += `<div style="${CARD} padding:6px 8px;"><b>${def.icon || '👗'} ${esc(def.name)}</b> <small style="color:#aaa;">${esc(def.text || '')}</small>`;
+        html += `<div style="font-size:11px; color:#9fd59f;">${esc(goods)}</div>`;
+        html += act(`Set it (${q.prestige || P.prestige} Prestige, ${q.gold || P.gold}g)`, ['fashion', def.id], BTN_GOLD, q.ok, q.ok ? '' : q.reason);
+        if (!q.ok && q.reason) html += `<div style="font-size:11px; color:#e0b040;">${esc(q.reason)}</div>`;
+        html += '</div>';
     }
     return html;
 }
@@ -235,6 +261,7 @@ Object.assign(ActionMenu, {
         if (_tab === 'works') html += worksTab(player, world, here);
         else if (_tab === 'gallery') html += galleryTab(player, world, here);
         else if (_tab === 'world') html += worldTab(player, world);
+        else if (_tab === 'fashion') html += fashionTab(player, world, here);
         else html += clientsTab(player, world, here);
         html += '</div>';
         game.ui.showCustomPanel('🎨 Patronage & Great Works', html);
@@ -259,6 +286,7 @@ Object.assign(ActionMenu, {
             case 'found': res = Patronage.found(player, world, tile.q, tile.r, a); title = '🏗️ Great Work'; break;
             case 'deliver': res = Patronage.deliver(player, world, a, { buyMissing: !!b }); title = '🧱 Delivery'; break;
             case 'abandon': res = Patronage.abandon(player, world, a); title = '🏗️ Great Work'; break;
+            case 'fashion': res = Patronage.setFashion(player, world, tile, a); title = '👗 The Fashion at Court'; break;
             default: return;
         }
         if (res) {

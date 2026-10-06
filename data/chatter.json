@@ -35,7 +35,8 @@
             "market_fair": 4, "market_dearth": 5, "market_glut": 3,
             "labour_refugees": 5, "labour_strike": 4, "labour_boom": 3,
             "guild_strike": 5, "guild_election": 3, "guild_chartered": 3, "guild_abolished": 5,
-            "trade_embargo": 4, "trade_treaty": 3, "trade_war": 4, "trade_ban": 5, "trade_granary": 3
+            "trade_embargo": 4, "trade_treaty": 3, "trade_war": 4, "trade_ban": 5, "trade_granary": 3,
+            "econ_dear": 5, "econ_inflation": 4, "fashion": 3
         },
         "icons": {
             "coronation": "👑", "realm_fallen": "🏴", "realm_restored": "🚩", "peace": "🕊️", "war": "⚔️",
@@ -44,7 +45,8 @@
             "bank_failed": "🏚️", "crown_default": "📛", "coin_debased": "💱", "caravan_taken": "🐫",
             "market_fair": "🎪", "market_dearth": "🥖", "market_glut": "🌾",
             "labour_refugees": "🧳", "labour_strike": "✊", "labour_boom": "🏗️", "guild_strike": "✊", "guild_election": "🗳️", "guild_chartered": "📜", "guild_abolished": "⚖️",
-            "trade_embargo": "⛔", "trade_treaty": "🤝", "trade_war": "📈", "trade_ban": "🌾", "trade_granary": "🍞"
+            "trade_embargo": "⛔", "trade_treaty": "🤝", "trade_war": "📈", "trade_ban": "🌾", "trade_granary": "🍞",
+            "econ_dear": "🍞", "econ_inflation": "💰", "fashion": "👗"
         },
         "templates": {
             "guild_strike": [
@@ -88,6 +90,21 @@
                 "Hear ye! The royal granaries of {kingdom} are opened: {n} measures of grain for the hungry towns.",
                 "The crown of {kingdom} feeds its people from the royal stores. Bless the good years that filled them!",
                 "Grain carts from the royal granaries roll into the hungry towns of {kingdom}. No one starves this season."
+            ],
+            "econ_dear": [
+                "Hear ye! Bread is dear in {kingdom}: food costs {pct}% more than in {since}. The crown's criers bid the carters make haste.",
+                "The criers of {kingdom} cry the price of bread: up {pct}% since {since}, and the poor feel it first.",
+                "Dear bread in {kingdom}! Food fetches {food}% of its worth, {pct}% more than in {since}. Grain bought cheap elsewhere will sell well there."
+            ],
+            "econ_inflation": [
+                "Hear ye! Prices in {kingdom} have climbed {pct}% since {since}. The goodwives blame the bakers, the bakers blame the coin.",
+                "The criers of {kingdom} confess it: everything costs {pct}% more than it did in {since}.",
+                "Prices rise in {kingdom}: {pct}% since {since}. A purse of silver buys less each week."
+            ],
+            "fashion": [
+                "Hear ye! At the court of {place}, {text}: {goods} fetch a premium wherever the fashion reaches.",
+                "News from {place}: {text}. Whoever has {goods} to sell should make for the courts.",
+                "The criers bring word from {place}: {text}, and the merchants scramble for {goods}."
             ],
             "labour_refugees": [
                 "Hear ye! {n} souls have fled {place} for fear of {why}, and crowd the roads to {to}. Charity, good people!",
@@ -206,6 +223,14 @@
     },
 
     "tavern": {
+        "fashion": {
+            "true": ["A merchant back from {fashionPlace} swears {fashionText}: {fashionGoods} are fetching a premium wherever the fashion has reached.", "The pedlars say {fashionGoods} sell for twice their worth since the court at {fashionPlace} took them up."],
+            "false": ["They say the court at {fashionPlace} is sick of {fashionGoods} already. Nobody wants them now.", "A drunk swears the new fashion is wooden shoes. Nobody believes him, but nobody knows better."]
+        },
+        "prices": {
+            "true": ["Bread in {kingdom} is up {pricePct}% since {sinceSeason}, the gazette says. Grain carters are doing well.", "The gazette nailed up at the market says prices in {kingdom} are {pricePct}% above {sinceSeason}'s."],
+            "false": ["Prices are falling in {kingdom}, they say. The gazette must be wrong.", "Some say bread will be cheap again by the next market day. Some say a lot of things."]
+        },
         "war": {
             "true": ["{kingdom} and {enemy} are at each other's throats. The levies left last week.", "A soldier home on leave says the war with {enemy} is going hard for {kingdom}."],
             "false": ["Word is {kingdom} and {enemy} have signed a truce already.", "A drover swears the war with {enemy} is over. He sounded very sure."]
@@ -883,6 +908,34 @@
         ]},
         { "id": "renowned_traveler", "when": { "renownMin": 80, "occupation": ["traveler"] }, "weight": 2, "lines": [
             "Your name's known three kingdoms over, {player}. I heard it in a tavern by the sea."
+        ]},
+        { "id": "prices_dear_food", "when": { "prices": ["dear_food"] }, "weight": 2, "lines": [
+            "Bread is dear in {kingdom}: up {pricePct}% since {sinceSeason}. My children eat porridge twice a day now.",
+            "A loaf costs what a pie did in {sinceSeason}. {pricePct}% more, the baker says, and he's not lying.",
+            "Food's {pricePct}% dearer than in {sinceSeason}. Bring grain to {kingdom} and you'll sell it before you unload."
+        ]},
+        { "id": "prices_dear_food_merchant", "when": { "prices": ["dear_food"], "occupation": ["merchant", "farmer"] }, "weight": 2, "lines": [
+            "Grain's fetching {pricePct}% more than in {sinceSeason}. A cart from a glutted town would pay for itself twice.",
+            "I've never seen bread so dear in {kingdom}. Whoever's sitting on a granary is a rich man this season."
+        ]},
+        { "id": "prices_inflation", "when": { "prices": ["inflation"] }, "weight": 2, "lines": [
+            "Everything costs {pricePct}% more than in {sinceSeason}. My wages don't.",
+            "Prices in {kingdom} are up {pricePct}% since {sinceSeason}. Buy today, for tomorrow it costs more.",
+            "{pricePct}% dearer than in {sinceSeason}, and they tell us the coin is sound."
+        ]},
+        { "id": "prices_cheap_food", "when": { "prices": ["cheap_food"] }, "weight": 1, "lines": [
+            "Bread's cheap in {kingdom} this season. The farmers grumble, everyone else eats.",
+            "Food has never been so cheap. A good year, or a glut: depends whether you grow it or eat it."
+        ]},
+        { "id": "fashion_any", "when": { "fashion": true }, "weight": 2, "lines": [
+            "Have you heard? At {fashionPlace}, {fashionText}. Every lady wants {fashionGoods} now.",
+            "So they say at {fashionPlace}: {fashionText}. The merchants can't get {fashionGoods} fast enough.",
+            "The fashion from {fashionPlace} is for {fashionGoods}. Sell them here and name your price."
+        ]},
+        { "id": "fashion_noble", "when": { "fashion": true, "occupation": ["noble", "merchant"] }, "weight": 3, "lines": [
+            "One must have {fashionGoods} this season. At {fashionPlace} {fashionText}, and I will not be thought provincial.",
+            "Everyone at {fashionPlace} wants {fashionGoods}. I paid twice their worth and was glad of it.",
+            "If you deal in {fashionGoods}, the courts will pay a premium until the fashion passes. It always passes."
         ]}
     ]
 }

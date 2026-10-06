@@ -389,6 +389,8 @@ describe('the player as a merchant', () => {
         expect(res.success).toBe(true);
         expect(res.duty).toBeGreaterThan(0);
         expect(f.k2.treasury).toBe(t0 + res.duty);
+        // The player's books show it, inside the sale price (systems/ledger.js)
+        expect(f.player.financeToday.income.saleDuties).toBe(-res.duty);
         // The ledger draws down with the sale
         expect(TradePolicy.playerState(f.player).ledger.tools.k1).toBeCloseTo(5, 1);
         // Home-bought goods pay nothing at home
@@ -447,6 +449,7 @@ describe('the player as a merchant', () => {
         expect(res.success).toBe(true);
         expect(f.player.gold).toBe(g0 - q.cost);
         expect(f.k2.treasury).toBe(t0 + q.cost);
+        expect(f.player.financeToday.expenses.tariffs).toBe(q.cost);
         f.player.inventory.tools = 4;
         TradePolicy.onBuy(f.player, f.a, 'tools', 4);
         expect(TradePolicy.saleCheck(f.player, f.world, f.b, 'tools', 4).rate).toBe(0);

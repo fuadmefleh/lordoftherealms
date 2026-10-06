@@ -59,6 +59,8 @@ import { Councils } from './councils.js';
 import { Petitions } from './petitions.js';
 import { Taxation } from './marketDynamics.js';
 import { Trading } from '../player/playerEconomy.js';
+import { PriceKnowledge } from './priceKnowledge.js';
+import { Ledger } from './ledger.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -470,6 +472,8 @@ export const Guilds = {
             }
             if (f < 1 && earned > 0) {
                 const toll = Math.round(earned * (1 - f) / f);
+                // Paid inside the sale price: a memo line in the player's ledger
+                Ledger.record(player, 'guildTolls', -toll);
                 g.treasury = _num(g.treasury) + toll;
                 g.week.toll = _num(g.week.toll) + toll;
                 st.stats.tolls += toll;
@@ -608,6 +612,7 @@ export const Guilds = {
         if (_num(player.gold) < fee) return { success: false, reason: `The entry fee is ${fee} gold.` };
         const st = Guilds.state(player);
         player.gold -= fee;
+        Ledger.record(player, 'guildDues', -fee);
         g.treasury = _num(g.treasury) + fee;
         st.memberships[Guilds._key(s, gid)] = {
             key: Guilds._key(s, gid), q: s.q, r: s.r, town: s.name, guild: gid, rank: 0, standing: 0,
@@ -676,6 +681,7 @@ export const Guilds = {
         const m = Guilds.membership(player, s, gid);
         const st = Guilds.state(player);
         player.gold -= q.fee;
+        Ledger.record(player, 'guildDues', -q.fee);
         g.treasury = _num(g.treasury) + q.fee;
         for (const [id, n] of Object.entries(q.goods)) {
             player.inventory[id] -= n;
@@ -788,6 +794,7 @@ export const Guilds = {
         c.escrow -= pay;
         c.delivered += n;
         player.gold += pay;
+        PriceKnowledge.recordSale(player, s, c.good, n, pay, 'guildContracts');
         st.stats.contractIncome += pay;
         if (c.delivered >= c.qty) {
             st.contracts = st.contracts.filter(x => x !== c);

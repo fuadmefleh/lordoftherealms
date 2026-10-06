@@ -2,6 +2,7 @@
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
 import { TownLabour } from '../../world/townLabour.js';
+import { Ledger } from '../../systems/ledger.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerEffects, PlayerInventory, WEATHER_EFFECTS, Economy, Seasons } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
@@ -147,8 +148,10 @@ Object.assign(PlayerEconomy, {
 
         const prop = check.property;
 
-        // Deduct cost
-        player.gold -= PlayerEconomy.getBuildCost(player, prop, tile, world);
+        // Deduct cost (kept on the property: its book value in the ledger's net worth)
+        const buildCost = PlayerEconomy.getBuildCost(player, prop, tile, world);
+        player.gold -= buildCost;
+        Ledger.record(player, 'propertyBought', -buildCost);
 
         // Determine what this property produces
         let produces = prop.produces;
@@ -165,6 +168,7 @@ Object.assign(PlayerEconomy, {
             produces,
             productionRate: prop.productionRate,
             upkeep: prop.upkeep || 0,
+            cost: buildCost,
             level: 1,
             daysOwned: 0,
             storage: 0,
@@ -336,6 +340,7 @@ Object.assign(PlayerEconomy, {
                     // Prosperity miracle and a House Steward
                     baseIncome = Math.floor(baseIncome * PlayerEffects.propertyIncomeMultiplier(player));
                     player.gold += baseIncome;
+                    Ledger.record(player, 'properties', baseIncome);
                     property.storage = (property.storage || 0) + baseIncome; // Track total earnings in storage
                     property.todayIncome = baseIncome;
                     production['tavern_income'] = (production['tavern_income'] || 0) + baseIncome;
@@ -509,6 +514,7 @@ Object.assign(PlayerEconomy, {
                     const income = Math.floor(sellAmount * good.basePrice * 0.5
                         * Seasons.priceMultiplier(good.id, Seasons.today(world)));
                     player.gold += income;
+                    Ledger.record(player, 'properties', income);
                     property.storage = 0;
                 }
             }

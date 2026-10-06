@@ -34,7 +34,8 @@ const topLevel = [
     'labour',
     'guilds',
     'priceKnowledge',
-    'hinterland'
+    'hinterland',
+    'chronicle'
 ];
 
 const merged = {};

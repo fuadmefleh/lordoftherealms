@@ -282,10 +282,14 @@ export const TownLabour = {
         const cfg = TownLabour.config();
         const type = TownLabour._type(settlement.type);
         const key = Number.isFinite(lab.mk) ? lab.mk : (lab.mk = TownLabour._mixKey(lab.sh));
+        // A fashion at court moves what the fashionable strata buy (world/fashions.js → lab.fz)
+        const fk = _num(lab.fk);
+        const fz = fk ? _obj(lab.fz) : null;
         const hit = _demand.get(lab);
-        if (hit && hit.key === key && hit.type === type && hit.C === C && hit.cfg === cfg) return hit.arr;
+        if (hit && hit.key === key && hit.fk === fk && hit.type === type && hit.C === C && hit.cfg === cfg) return hit.arr;
         const base = cfg.shares[type];
         const B = cfg.baskets || {};
+        const FW = fz ? TownLabour._fashionWeights() : null;
         const ids = C.goodIds;
         const arr = new Float64Array(ids.length);
         // From the mix as the key sees it (half-percent steps), so the table
@@ -294,16 +298,69 @@ export const TownLabour = {
         for (const s of STRATA) q[s] = Math.round(_num(lab.sh[s]) * 200) / 200;
         for (let i = 0; i < ids.length; i++) {
             const id = ids[i];
+            const fm = fz && Number.isFinite(fz[id]) ? fz[id] : 1;
             let num = 0, den = 0;
             for (const s of STRATA) {
                 const w = B[s] && Number.isFinite(B[s][id]) ? B[s][id] : 1;
-                num += q[s] * w;
+                num += q[s] * (fm !== 1 ? w * Math.max(0, 1 + (fm - 1) * _num(FW[s])) : w);
                 den += base[s] * w;
             }
             arr[i] = den > 0 ? _clamp(num / den, 0.25, 4) : 1;
         }
-        _demand.set(lab, { key, type, C, cfg, arr });
+        _demand.set(lab, { key, fk, type, C, cfg, arr });
         return arr;
+    },
+
+    // ── Fashion (set weekly by world/fashions.js) ──────────
+
+    /** How much each stratum follows the fashion at court (data/chronicle.json → fashions.strata). */
+    _fashionWeights() {
+        const gd = DataLoader._gamedata;
+        const f = gd && gd.chronicle && gd.chronicle.fashions;
+        return (f && _obj(f.strata)) || { nobles: 1, merchants: 1, clergy: 0.3, artisans: 0.25 };
+    },
+
+    /**
+     * The fashions holding this town: `fz` multiplies the fashionable
+     * strata's basket for goods its market keeps ({ good: factor }), `fx`
+     * the price of goods no market keeps (exotics, silk, ivory). Empty maps
+     * clear them. The demand table follows (`fk`, a key of the factors).
+     */
+    setFashion(settlement, fz = null, fx = null) {
+        const lab = settlement && settlement.labour;
+        if (!lab || !lab.sh) return false;
+        const clean = (m) => {
+            let out = null;
+            for (const id in m || {}) {
+                const v = m[id];
+                if (Number.isFinite(v) && Math.abs(v - 1) >= 0.005) (out || (out = {}))[id] = _r3(v);
+            }
+            return out;
+        };
+        // A key of the factors (0 for none): the demand table and the change check read it
+        const key = (m) => {
+            if (!m) return 0;
+            let k = 7;
+            for (const id of Object.keys(m).sort()) {
+                for (let i = 0; i < id.length; i++) k = (k * 31 + id.charCodeAt(i)) % 1000003;
+                k = (k * 1009 + Math.round(m[id] * 1000)) % 1000003;
+            }
+            return k || 1;
+        };
+        const z = clean(fz), x = clean(fx);
+        const fk = key(z), xk = key(x);
+        const changed = fk !== _num(lab.fk) || xk !== _num(lab.xk);
+        if (!changed) return false;
+        if (z) { lab.fz = z; lab.fk = fk; } else { delete lab.fz; delete lab.fk; }
+        if (x) { lab.fx = x; lab.xk = xk; } else { delete lab.fx; delete lab.xk; }
+        return true;
+    },
+
+    /** The fashion's factor on the price of a good no market keeps (1 when none). */
+    fashionPrice(settlement, goodId) {
+        const fx = settlement && settlement.labour && settlement.labour.fx;
+        const v = fx && fx[goodId];
+        return Number.isFinite(v) && v > 0 ? v : 1;
     },
 
     /** 1 for the goods craftsmen make (data/labour.json craftGoods), 0 for the land's — in market config order. */

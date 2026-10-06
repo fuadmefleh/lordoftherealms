@@ -17,6 +17,7 @@ import { Seasons } from '../world/seasons.js';
 import { Underworld } from './underworld.js';
 import { Ailments } from './ailments.js';
 import { VoyageMethods } from './shipVoyages.js';
+import { PriceKnowledge } from './priceKnowledge.js';
 
 /**
  * Ships System
@@ -1309,7 +1310,8 @@ export const Ships = {
             const t = (this._hash(q, r, i, period) % 1000) / 1000;
             const basePrice = kept
                 ? SettlementMarket.value(world, town, tile, g.id, this.tradeGoodBasePrice(g))
-                : this.tradeGoodBasePrice(g) * Seasons.priceMultiplier(g.id, seasonDay);
+                : this.tradeGoodBasePrice(g) * Seasons.priceMultiplier(g.id, seasonDay)
+                    * SettlementMarket.fashionFactor(town, g.id); // the fashion at court (world/fashions.js)
             const base = { id: g.id, name: g.name, icon: g.icon || '📦', basePrice: Math.round(basePrice) };
             if (roleRoll === 0) {
                 const buy = Math.max(2, Math.round(basePrice * lerp(P.export, t)));
@@ -1398,9 +1400,8 @@ export const Ships = {
         ship.cargo[goodId] = (ship.cargo[goodId] || 0) + n;
         // What the town has in store goes first (the rest comes off foreign hulls)
         if (portTown && portTown.settlement) SettlementMarket.take(portTown.settlement, goodId, n);
-        if (player.financeToday) {
-            player.financeToday.expenses.seaTrade = (player.financeToday.expenses.seaTrade || 0) + cost;
-        }
+        // The player's books: the lot's cost into the good's average, goods bought (systems/ledger.js)
+        PriceKnowledge.recordBuy(player, town || { name: 'a port' }, goodId, n, cost, 'portTrade');
         return { success: true, ship, bought: n, cost };
     },
 
@@ -1493,9 +1494,8 @@ export const Ships = {
         if (player.skills && Utils.random() < 0.2) {
             player.skills.commerce = Math.min(10, (player.skills.commerce || 1) + 0.1);
         }
-        if (player.financeToday) {
-            player.financeToday.income.seaTrade = (player.financeToday.income.seaTrade || 0) + revenue;
-        }
+        // The player's books: the margin against what the cargo cost, goods sold (systems/ledger.js)
+        PriceKnowledge.recordSale(player, (portTown && portTown.settlement) || { name: 'a port' }, goodId, n, revenue, 'portTrade');
         return { success: true, ship, sold: n, revenue };
     },
 

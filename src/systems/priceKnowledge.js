@@ -19,6 +19,11 @@
 // the player's trading profit and loss by good and route (Trading.buyGoods /
 // sellGoods report each deal: a sale is set against the average cost of what
 // was bought, and the route is where it was bought → where it was sold).
+// Every channel reports here — the stalls, the ports (Ships), the store-rooms
+// and forward contracts (MerchantPrince) and the caravans hailed on the road
+// (MerchantCaravans) — and each deal goes on to the player's ledger
+// (systems/ledger.js): the cash as goods bought / sold, the margin under its
+// channel.
 //
 // State on player.priceBook (systems/saveLoad.js; older saves backfill a blank
 // book). Small by design: maxTowns towns, history for historyTowns, routesCap
@@ -28,6 +33,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Economy } from '../world/economy.js';
+import { Ledger } from './ledger.js';
 
 const DEFAULTS = {
     maxTowns: 30, reportEvery: 3, historyTowns: 10, historySamples: 10, historyEvery: 3, hailRadius: 1,
@@ -398,9 +404,14 @@ export const PriceKnowledge = {
 
     // ── The player's own trading ───────────────────────────
 
-    /** A purchase at a town's stalls: the cost goes into the good's average cost, and where it was bought. */
-    recordBuy(player, settlement, goodId, qty, cost) {
+    /**
+     * A purchase (at a town's stalls, a port, into a store-room, from a
+     * trader on the road): the cost goes into the good's average cost, and
+     * where it was bought; the ledger has it as goods bought.
+     */
+    recordBuy(player, settlement, goodId, qty, cost, channel = 'stalls') {
         if (!player || !(qty > 0)) return;
+        Ledger.record(player, 'goodsBought', -_num(cost));
         const P = PriceKnowledge.state(player).pnl;
         const h = P.held[goodId] || (P.held[goodId] = { qty: 0, cost: 0, from: null });
         h.qty += qty;
@@ -411,9 +422,14 @@ export const PriceKnowledge = {
         g.spent = Math.round(g.spent + _num(cost));
     },
 
-    /** A sale: set against the average cost of the good bought (nothing for goods found or made), by good and route. */
-    recordSale(player, settlement, goodId, qty, earned) {
-        if (!player || !(qty > 0)) return;
+    /**
+     * A sale: set against the average cost of the good bought (nothing for
+     * goods found or made), by good and route; the ledger has the cash as
+     * goods sold and the margin under the sale's channel ('stalls',
+     * 'portTrade', 'storeRooms', 'forwards', 'caravanTrade'). Returns the margin.
+     */
+    recordSale(player, settlement, goodId, qty, earned, channel = 'stalls') {
+        if (!player || !(qty > 0)) return 0;
         const C = PriceKnowledge.config();
         const P = PriceKnowledge.state(player).pnl;
         const h = P.held[goodId];
@@ -427,6 +443,8 @@ export const PriceKnowledge = {
             if (!(h.qty > 0)) delete P.held[goodId];
         }
         const profit = Math.round(_num(earned) - basis);
+        Ledger.record(player, 'goodsSold', _num(earned));
+        Ledger.record(player, channel || 'stalls', profit);
         const g = P.goods[goodId] || (P.goods[goodId] = { bought: 0, spent: 0, sold: 0, earned: 0, profit: 0 });
         g.sold += qty;
         g.earned = Math.round(g.earned + _num(earned));
@@ -442,6 +460,18 @@ export const PriceKnowledge = {
             keys.sort((a, b) => Math.abs(P.routes[a].profit) - Math.abs(P.routes[b].profit) || (a < b ? -1 : 1));
             delete P.routes[keys[0] === route ? keys[1] : keys[0]];
         }
+        return profit;
+    },
+
+    /** What the book knows the stalls pay for a good at best (any town, any age), or null. */
+    bestBid(player, goodId) {
+        const st = PriceKnowledge.state(player);
+        let best = null;
+        for (const t of Object.values(st.towns)) {
+            const e = t.g[goodId];
+            if (e && e[1] > 0 && (best == null || e[1] > best)) best = e[1];
+        }
+        return best;
     },
 
     /** Trading profit and loss: { goods: [...], routes: [...], total }. */

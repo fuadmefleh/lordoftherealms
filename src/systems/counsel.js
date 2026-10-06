@@ -55,6 +55,8 @@ import { Guilds } from './guilds.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { TownLabour } from '../world/townLabour.js';
 import { Hinterland } from '../world/hinterland.js';
+import { EconomyIndex } from '../world/economyIndex.js';
+import { Fashions } from '../world/fashions.js';
 
 export const GROUPS = ['threat', 'opportunity', 'goal'];
 export const SEVERITIES = { critical: 3, warning: 2, notice: 1, info: 0 };
@@ -1193,6 +1195,64 @@ R.holdingIdle = (ctx, p) => {
             key: h.key, q: h.q, r: h.r, name: s.name || 'A holding',
             why: strike ? 'its artisans are on strike' : `${Math.round(idle * 100)}% of its hands have no work${_num(lab.refugees) >= 20 ? ` (${Math.round(_num(lab.refugees))} refugees came in)` : ''}: crime and unrest rise`,
             severity: strike || idle >= _num(p.criticalAt, 0.2) ? 'warning' : 'notice', boost: idle * 10,
+        });
+    }
+    return out;
+};
+
+/**
+ * Dear bread in a realm, as the gazettes the player read have it
+ * (systems/economyChronicle.js → player.econ; world/economyIndex.js): the
+ * realm they stand in and the realms of their holdings first.
+ */
+R.dearBread = (ctx, p) => {
+    const econ = _obj(ctx.player.econ);
+    const known = econ && _obj(econ.realms);
+    if (!known || !ctx.world) return [];
+    const here = ctx.tile(ctx.player.q, ctx.player.r);
+    const hereK = here && (here.settlement ? here.settlement.kingdom : here.kingdom);
+    const out = [];
+    for (const k of _arr(ctx.world.kingdoms)) {
+        if (!k || k.isAlive === false || known[k.id] == null) continue;
+        const asOf = known[k.id];
+        const now = EconomyIndex.latest(ctx.world, k.id, asOf);
+        const then = EconomyIndex.ago(ctx.world, k.id, EconomyIndex.config().changeWeeks, asOf);
+        if (!now || !then || !(then.food > 0) || now.food < _num(p.dearAt, 1.25)) continue;
+        const up = now.food / then.food - 1;
+        if (up < _num(p.minUp, 0.05)) continue;
+        const mine = k.id === hereK;
+        out.push({
+            key: `bread:${k.id}`, realm: k.name, pct: Math.round(up * 100), since: String(Seasons.seasonOf(then.day) || 'the last season').toLowerCase(),
+            day: now.day, severity: mine ? 'warning' : 'notice', boost: (mine ? 3 : 0) + up * 5,
+            q: k.capital && Number.isFinite(k.capital.q) ? k.capital.q : null, r: k.capital && Number.isFinite(k.capital.r) ? k.capital.r : null,
+        });
+    }
+    return out.sort((a, b) => b.boost - a.boost);
+};
+
+/** A fashion the player has heard of, and the goods it makes dear (more so when they hold some). */
+R.fashionGoods = (ctx) => {
+    const econ = _obj(ctx.player.econ);
+    const heard = econ && _obj(econ.fashions);
+    const fs = ctx.world && _obj(ctx.world.fashions);
+    if (!heard || !fs) return [];
+    const held = {};
+    for (const [id, n] of Object.entries(_obj(ctx.player.inventory) || {})) held[id] = _num(held[id]) + _num(n);
+    for (const sh of _arr(ctx.player.ships)) for (const [id, n] of Object.entries(_obj(sh && sh.cargo) || {})) held[id] = _num(held[id]) + _num(n);
+    const out = [];
+    for (const f of _arr(fs.active)) {
+        if (!f || heard[f.uid] == null) continue;
+        const stage = Fashions.stage(f, ctx.day);
+        if (stage === 'over') continue;
+        const goods = Fashions.goods(f).filter(g => g.mult > 1);
+        if (!goods.length) continue;
+        const have = goods.filter(g => _num(held[g.id]) >= 1);
+        const list = (have.length ? have : goods).map(g => g.name.toLowerCase());
+        const def = Fashions.def(f.id) || {};
+        out.push({
+            key: `fashion:${f.uid}`, fashion: def.name || f.id, stage, place: f.place || 'the capital',
+            goods: have.length ? `your ${list.join(', ')}` : list.join(', '),
+            severity: have.length ? 'notice' : 'info', boost: have.length ? 3 : 0, q: f.q, r: f.r,
         });
     }
     return out;

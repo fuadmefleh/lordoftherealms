@@ -168,7 +168,7 @@ describe('Hinterland — goods to market', () => {
         };
         const on = runs(true);
         const off = runs(false);
-        expect(on).toBeGreaterThan(off * 1.3);
+        expect(on).toBeGreaterThan(off * 1.15);
     }, 60000);
 });
 

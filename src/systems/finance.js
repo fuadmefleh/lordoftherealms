@@ -61,6 +61,7 @@ import { House } from './house.js';
 import { Gossip } from './gossip.js';
 import { Ships } from './ships.js';
 import { MerchantHouses } from './merchantHouses.js';
+import { Ledger } from './ledger.js';
 
 function _num(v, d = 0) {
     return typeof v === 'number' && Number.isFinite(v) ? v : d;
@@ -115,6 +116,10 @@ function _settlements(world) {
 
 function _round2(v) {
     return Math.round(v * 100) / 100;
+}
+
+function _clampShare(v) {
+    return Math.max(0, Math.min(1, v));
 }
 
 const CROWN_LENDER = 'crown:';
@@ -505,6 +510,7 @@ export const Finance = {
         st.loans.push(loan);
         bank.capital -= offer.amount;
         player.gold = _num(player.gold) + offer.amount;
+        Ledger.record(player, 'borrowed', offer.amount);
         st.stats.borrowed += offer.amount;
         return { success: true, loan, text: `${bank.name} lends you ${offer.amount}g: ${loan.totalOwed}g to repay over ${offer.duration} days (${loan.dailyPayment}g a day).` };
     },
@@ -518,11 +524,25 @@ export const Finance = {
         const owed = Math.ceil(_num(loan.totalOwed));
         if (_num(player.gold) < owed) return { success: false, reason: `Need ${owed} gold.` };
         player.gold -= owed;
+        Finance._bookPayment(player, loan, owed);
         Finance._payLender(player, world, loan, owed);
         st.loans.splice(i, 1);
         st.credit.repaid++;
         st.stats.interestPaid += Math.max(0, _num(loan.totalPaid) + owed - _num(loan.principal));
         return { success: true, amount: owed, text: `Paid ${owed}g: your debt to ${loan.lender} is cleared.` };
+    },
+
+    /**
+     * A payment on a loan in the player's ledger (systems/ledger.js): the
+     * interest share of it (the loan's flat interest over all it will cost)
+     * as loan interest, the rest as principal repaid.
+     */
+    _bookPayment(player, loan, pay) {
+        const whole = _num(loan.totalPaid) + _num(loan.totalOwed);
+        const share = whole > 0 ? _clampShare(1 - _num(loan.principal) / whole) : 0;
+        const interest = _round2(pay * share);
+        if (interest > 0) Ledger.record(player, 'loanInterest', -interest);
+        if (pay - interest > 0) Ledger.record(player, 'loanPrincipal', -(pay - interest));
     },
 
     _payLender(player, world, loan, amount) {
@@ -774,6 +794,7 @@ export const Finance = {
             if (!bank || bank.status !== 'open' || !acct) continue;
             const interest = _num(acct.balance) * Finance.depositApr(bank) / yd;
             if (interest <= 0) continue;
+            Ledger.record(player, 'depositInterest', interest);
             acct.balance = _round2(_num(acct.balance) + interest);
             acct.interest = _round2(_num(acct.interest) + interest);
             st.stats.interestEarned = _round2(_num(st.stats.interestEarned) + interest);
@@ -795,6 +816,7 @@ export const Finance = {
             const pay = Math.min(_num(loan.dailyPayment), Math.ceil(_num(loan.totalOwed)));
             if (_num(player.gold) >= pay) {
                 player.gold -= pay;
+                Finance._bookPayment(player, loan, pay);
                 loan.totalOwed = Math.max(0, _num(loan.totalOwed) - pay);
                 loan.totalPaid = _num(loan.totalPaid) + pay;
                 loan.remainingDays = Math.max(1, _num(loan.remainingDays) - 1);
@@ -1015,6 +1037,7 @@ export const Finance = {
                 if (coupon > 0 && _num(k.treasury) >= coupon) {
                     k.treasury -= coupon;
                     player.gold = _num(player.gold) + coupon;
+                    Ledger.record(player, 'bondInterest', coupon);
                     b.coupons = _num(b.coupons) + coupon;
                     st.stats.couponsEarned += coupon;
                 } else if (coupon > 0) {

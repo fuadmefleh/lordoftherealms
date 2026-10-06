@@ -46,6 +46,7 @@ import { MerchantPrince } from './merchantPrince.js';
 import { MerchantHouses } from './merchantHouses.js';
 import { Finance } from './finance.js';
 import { Throne } from './throne.js';
+import { Ledger } from './ledger.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -232,6 +233,8 @@ export const Concessions = {
         const add = fee - _num(a.bid);
         if (add > _num(player.gold)) return { success: false, reason: `You need ${add} gold for the bond on your bid.` };
         player.gold -= add;
+        // (the bond on a bid: the lease fee if it wins, back at the close if not — systems/ledger.js)
+        Ledger.record(player, 'concessions', -add);
         a.bid = fee;
         a.bidDay = _day(world);
         return { success: true, spent: add, ...out };
@@ -309,6 +312,7 @@ export const Concessions = {
         const refund = () => {
             if (a.bid > 0 && player) {
                 player.gold += a.bid;
+                Ledger.record(player, 'concessions', a.bid);
                 Concessions._log(world, `Your ${a.bid}g bond on the lease near ${where} comes back.`);
             }
         };
@@ -475,6 +479,7 @@ export const Concessions = {
         if (!q.ok) return { success: false, reason: q.reason };
         const st = Hinterland.state(world);
         player.gold -= q.cost;
+        Ledger.record(player, 'concessions', -q.cost);
         const p = { id: `P${st.seq++}`, q: tile.q, r: tile.r, town: tile.settlement.name, start: _day(world), due: _day(world) + q.days, cost: q.cost, status: 'digging' };
         st.prospects.push(p);
         const L = Concessions._ledger(world);
@@ -660,12 +665,14 @@ export const Concessions = {
                 if (net >= 0) {
                     const g = Math.floor(net);
                     player.gold += g;
+                    Ledger.record(player, 'concessions', g);
                     out.income += g;
                 } else {
                     // The hands and the crown are paid from the purse; what it can't cover is owed
                     const owe = Math.ceil(-net);
                     const can = Math.min(owe, Math.max(0, Math.floor(_num(player.gold))));
                     player.gold -= can;
+                    Ledger.record(player, 'concessions', -can);
                     out.wages += can;
                     if (owe > can) {
                         c.owed = _num(c.owed) + (owe - can);
@@ -677,6 +684,7 @@ export const Concessions = {
                 if (c.owed > 0 && net > 0 && player.gold > 0) {
                     const pay = Math.min(c.owed, Math.floor(player.gold));
                     player.gold -= pay;
+                    Ledger.record(player, 'concessions', -pay);
                     c.owed -= pay;
                     if (c.owed <= 0) { c.owed = 0; c.owedSince = null; }
                 }

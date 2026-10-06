@@ -54,6 +54,8 @@ import { SettlementMarket } from '../world/settlementMarket.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 import { OutlawLairs } from './outlawLairs.js';
 import { Underworld } from './underworld.js';
+import { PriceKnowledge } from './priceKnowledge.js';
+import { Ledger } from './ledger.js';
 
 export const TRADER_TYPES = ['trade_caravan', 'trade_ship'];
 const WATER = new Set(['ocean', 'deep_ocean', 'coast', 'lake', 'sea']);
@@ -849,6 +851,7 @@ export const MerchantCaravans = {
             const E = MerchantCaravans.config().escort;
             const pay = Math.round(_num(u.escort.pay, u.escortPay));
             player.gold = _num(player.gold) + pay;
+            Ledger.record(player, 'escorts', pay);
             player.renown = _num(player.renown) + _num(E.renown, 1);
             const kid = u.destKingdomId != null ? u.destKingdomId : u.kingdomId;
             if (kid != null) {
@@ -1061,6 +1064,8 @@ export const MerchantCaravans = {
         if (!(u.cargo[goodId] > 0.004)) delete u.cargo[goodId];
         u.purse = _num(u.purse) + cost;
         MerchantCaravans._syncInventory(u);
+        // The player's books (systems/ledger.js)
+        PriceKnowledge.recordBuy(player, { name: u.name || 'a trader' }, goodId, n, cost, 'caravanTrade');
         return { success: true, cost, qty: n };
     },
 
@@ -1082,6 +1087,7 @@ export const MerchantCaravans = {
         u.purse = _num(u.purse) - pay;
         u.cargo[goodId] = _round2(_num(u.cargo[goodId]) + n);
         MerchantCaravans._syncInventory(u);
+        PriceKnowledge.recordSale(player, { name: u.name || 'a trader' }, goodId, n, pay, 'caravanTrade');
         return { success: true, pay, qty: n };
     },
 

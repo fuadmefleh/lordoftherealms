@@ -183,6 +183,13 @@ Object.assign(UI.prototype, {
                 <div style="color:var(--text-secondary);font-size:11px;">Known prices, spreads, your trading</div>
             </div>
         </div>`;
+        html += `<div class="map-mode-option" data-action="economy" style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;">
+            <span style="font-size:18px;">📰</span>
+            <div>
+                <div style="color:var(--text-primary);font-size:13px;">Economic Chronicle</div>
+                <div style="color:var(--text-secondary);font-size:11px;">Realms' prices, fashions, your worth</div>
+            </div>
+        </div>`;
         html += `<div class="map-mode-option" data-action="compare" style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;">
             <span style="font-size:18px;">⚖️</span>
             <div>
@@ -212,6 +219,8 @@ Object.assign(UI.prototype, {
                     this.showEventLog();
                 } else if (el.dataset.action === 'ledger') {
                     ActionMenu.showMerchantLedger(this.game);
+                } else if (el.dataset.action === 'economy') {
+                    ActionMenu.showEconomy(this.game);
                 } else if (el.dataset.action === 'compare') {
                     this.showKingdomComparison();
                 }

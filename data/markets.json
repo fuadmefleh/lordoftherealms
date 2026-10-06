@@ -73,6 +73,8 @@
         "fishWater": 0.5, "fishResource": 0.25, "meatBase": 0.06, "meatPasture": 0.3, "meatResource": 0.25, "grainMin": 0.3
     },
     "_supply": "Other goods the land and craftsmen supply, as a share of the town's own need: base + share of each terrain class x weight. itemGoods: what each item of Economy.calculateDetailedProduction's breakdown (map resources, after the goods bonus and the peoples' crafts) brings to market, x resourceScale units per breakdown unit; the urban 'textiles' base counts at craftScale.",
+    "_supplyGems2026_10": "Gems 0.95 (was 0.8) and luxuries 0.7 (was 0.9): the craftsmen made most of a town's luxuries outright, so the stalls stood glutted with them (scarcity about 0.65) while gems ran short, and the jewellers (town trade and the player's works) had neither spare gems nor room to sell. Now more of the luxuries come from cutting gems (docs/economy-balance.md, Economic Chronicle).",
+    "_supplyHinterland2026_10": "Textiles 0 (was 0.65), tools 0.7 (was 1.0): the abstract craftsmen no longer make the cloth and a third of the tools from nothing. The weavers and smiths make them from the wool, iron and coal the hinterland's sheep runs, mines and coal pits bring in (data/hinterland.json), so towns without them buy cloth and tools from towns that have them (docs/economy-balance.md, The Hinterland).",
     "supply": {
         "firewood": { "base": 0.25, "forest": 0.9, "pasture": 0.15 },
         "wood":     { "base": 0.3, "forest": 1.4 },
@@ -94,9 +96,9 @@
         "horse":    { "base": 0.85, "pasture": 0.6 },
         "wine":     { "base": 0.95 },
         "cheese":   { "base": 0.75, "pasture": 0.8 },
-        "luxuries": { "base": 0.6 },
+        "luxuries": { "base": 0.7 },
         "spices":   { "base": 0.85 },
-        "gems":     { "base": 0.8 },
+        "gems":     { "base": 0.95 },
         "gold_ore": { "base": 0.8 },
         "iron":     { "base": 0.5, "upland": 0.8 }
     },

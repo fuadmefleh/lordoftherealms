@@ -28,6 +28,8 @@ import { Labour } from '../../systems/labour.js';
 import { Guilds } from '../../systems/guilds.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { Concessions } from '../../systems/concessions.js';
+import { EconomyChronicle } from '../../systems/economyChronicle.js';
+import { Ledger } from '../../systems/ledger.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 
@@ -619,6 +621,9 @@ export function endDay() {
                 holdings: Holdings.list(this.player, this.world),
                 traders: MerchantCaravans.traders(this.world),
             });
+            // The Economic Chronicle: the realms' weekly indices, the fashions at court,
+            // the gazette where the player stands, their net worth (systems/economyChronicle.js)
+            EconomyChronicle.processDay(this.world, this.player);
 
             // Process informants and expire old intel
             let intelResult = { cost: 0 };
@@ -1028,14 +1033,12 @@ export function endDay() {
             if (playerResults.upkeepCost > 0) dayFinance.expenses.armyUpkeep = playerResults.upkeepCost;
             if (holdingsDay.upkeep > 0) dayFinance.expenses.holdings = holdingsDay.upkeep;
             if (playerResults.mercenaryWages > 0) dayFinance.expenses.mercenaryWages = playerResults.mercenaryWages;
-            if (financeDay && financeDay.paid > 0) dayFinance.expenses.loanPayments = financeDay.paid;
+            // (loan payments are in the ledger as interest and principal: Finance records them)
             if (princeDay.income > 0) dayFinance.income.industry = princeDay.income;
             if (princeDay.rent > 0) dayFinance.expenses.warehouseRent = princeDay.rent;
             if (princeDay.wages > 0) dayFinance.expenses.worksWages = princeDay.wages;
             if (guildDay.income > 0) dayFinance.income.guilds = guildDay.income;
             if (guildDay.expenses > 0) dayFinance.expenses.guildDues = guildDay.expenses;
-            if (hinterlandDay.income > 0) dayFinance.income.concessions = hinterlandDay.income;
-            if (hinterlandDay.wages > 0) dayFinance.expenses.concessionWages = hinterlandDay.wages;
             if (typeof Tavern !== 'undefined' && intelResult && intelResult.cost > 0) dayFinance.expenses.informants = intelResult.cost;
 
             // Property upkeep (calculated from properties)
@@ -1051,17 +1054,9 @@ export function endDay() {
             }
             if (propertyUpkeep > 0) dayFinance.expenses.propertyUpkeep = propertyUpkeep;
 
-            // Calculate totals
-            dayFinance.totalIncome = Object.values(dayFinance.income).reduce((a, b) => a + b, 0);
-            dayFinance.totalExpenses = Object.values(dayFinance.expenses).reduce((a, b) => a + b, 0);
-            dayFinance.netChange = dayFinance.totalIncome - dayFinance.totalExpenses;
-
-            // Store — keep last 90 days
-            if (!this.player.financeHistory) this.player.financeHistory = [];
-            this.player.financeHistory.push(dayFinance);
-            if (this.player.financeHistory.length > 90) {
-                this.player.financeHistory = this.player.financeHistory.slice(-90);
-            }
+            // Close the day's books: every flow the systems recorded today joins the
+            // row, the totals are set and the last 120 days kept (systems/ledger.js)
+            Ledger.closeDay(this.player, this.world, dayFinance);
 
             // Reset inner map time if the day was ended while on the inner map
             if (this.innerMapMode && typeof InnerMap !== 'undefined') {

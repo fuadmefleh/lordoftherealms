@@ -2,6 +2,7 @@
 import { UI } from './core.js';
 import { Traits } from '../../systems/traits.js';
 import { Ailments } from '../../systems/ailments.js';
+import { Ledger } from '../../systems/ledger.js';
 import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability, Treasures, KingdomAI, KingdomNavy } from './_imports.js';
 
 Object.assign(UI.prototype, {
@@ -567,10 +568,15 @@ Object.assign(UI.prototype, {
         for (const entry of recent) {
             totalIncome += entry.totalIncome || 0;
             totalExpenses += entry.totalExpenses || 0;
+            // (operating flows only: stock, works and loan principal are capital — systems/ledger.js;
+            // a trading line that lost money is an expense)
             for (const [k, v] of Object.entries(entry.income || {})) {
-                incomeByType[k] = (incomeByType[k] || 0) + v;
+                if (Ledger.category(k).kind !== 'op') continue;
+                if (v >= 0) incomeByType[k] = (incomeByType[k] || 0) + v;
+                else expenseByType[k] = (expenseByType[k] || 0) - v;
             }
             for (const [k, v] of Object.entries(entry.expenses || {})) {
+                if (Ledger.category(k).kind !== 'op') continue;
                 expenseByType[k] = (expenseByType[k] || 0) + v;
             }
         }
@@ -630,7 +636,7 @@ Object.assign(UI.prototype, {
                 const pct = totalIncome > 0 ? Math.round(incomeByType[k] / totalIncome * 100) : 0;
                 html += `
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px;">
-                        <span style="color: var(--text-secondary);">${labels[k] || k}</span>
+                        <span style="color: var(--text-secondary);">${labels[k] || Ledger.category(k).name}</span>
                         <span style="display: flex; align-items: center; gap: 8px;">
                             <span style="width: 60px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; display: inline-block; overflow: hidden;">
                                 <span style="display: block; width: ${pct}%; height: 100%; background: #27ae60; border-radius: 3px;"></span>
@@ -652,7 +658,7 @@ Object.assign(UI.prototype, {
                 const pct = totalExpenses > 0 ? Math.round(expenseByType[k] / totalExpenses * 100) : 0;
                 html += `
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px;">
-                        <span style="color: var(--text-secondary);">${labels[k] || k}</span>
+                        <span style="color: var(--text-secondary);">${labels[k] || Ledger.category(k).name}</span>
                         <span style="display: flex; align-items: center; gap: 8px;">
                             <span style="width: 60px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; display: inline-block; overflow: hidden;">
                                 <span style="display: block; width: ${pct}%; height: 100%; background: #e74c3c; border-radius: 3px;"></span>

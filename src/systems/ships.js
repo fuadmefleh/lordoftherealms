@@ -1372,16 +1372,31 @@ export const Ships = {
         if (closedBuy) return { success: false, message: closedBuy };
         const entry = this.getPortMarket(world, player.q, player.r).find(e => e.id === goodId);
         if (!entry || entry.buy === null) return { success: false, message: 'This port does not sell that.' };
-        const n = Math.min(qty, this.getCargoFree(ship), Math.floor((player.gold || 0) / entry.buy));
+        // A big purchase of a good the town keeps drains its stores: each unit
+        // costs what the stock it leaves behind commands (as selling a lot
+        // floods them — see portSaleUnitPrice)
+        const portTown = world.getTile(player.q, player.r);
+        const town = portTown && portTown.settlement;
+        const kept = town && town.market && SettlementMarket.tracks(goodId);
+        const s0 = kept ? SettlementMarket.stock(town, goodId) : 0;
+        const unitCost = (j) => kept
+            ? Math.max(entry.buy, Math.ceil(entry.buy * SettlementMarket.levelFactor(town, goodId, Math.max(0, s0 - j))))
+            : entry.buy;
+        const limit = Math.min(qty, this.getCargoFree(ship));
+        let n = 0, cost = 0;
+        while (n < limit) {
+            const c = unitCost(n);
+            if (cost + c > (player.gold || 0)) break;
+            cost += c;
+            n++;
+        }
         if (n <= 0) {
             return { success: false, message: this.getCargoFree(ship) <= 0 ? 'The hold is full.' : 'You cannot afford any.' };
         }
-        const cost = n * entry.buy;
         player.gold -= cost;
         if (!ship.cargo) ship.cargo = {};
         ship.cargo[goodId] = (ship.cargo[goodId] || 0) + n;
         // What the town has in store goes first (the rest comes off foreign hulls)
-        const portTown = world.getTile(player.q, player.r);
         if (portTown && portTown.settlement) SettlementMarket.take(portTown.settlement, goodId, n);
         if (player.financeToday) {
             player.financeToday.expenses.seaTrade = (player.financeToday.expenses.seaTrade || 0) + cost;

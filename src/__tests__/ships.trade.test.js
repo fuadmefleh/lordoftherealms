@@ -83,6 +83,24 @@ describe('Port market', () => {
         expect(player.ships[0].cargo[good.id]).toBeUndefined();
     });
 
+    it('charges more per unit as a big purchase drains the town\'s stores', async () => {
+        const { SettlementMarket } = await import('../world/settlementMarket.js');
+        const settlement = { name: 'Saltmere', type: 'city', population: 3000 };
+        SettlementMarket.ensure(settlement);
+        const world = makeWorld({ '5,5': { terrain: GRASS, settlement } });
+        const good = Ships.getPortMarket(world, 5, 5)
+            .find(e => e.buy !== null && SettlementMarket.tracks(e.id) && SettlementMarket.stock(settlement, e.id) > 0);
+        expect(good).toBeTruthy();
+        const lot = Math.min(40, Math.floor(SettlementMarket.stock(settlement, good.id)));
+        const player = dockedPlayer();
+        player.gold = 1e6;
+        const bought = Ships.buyTradeGood(player, world, 's1', good.id, lot);
+        expect(bought.success).toBe(true);
+        expect(bought.bought).toBe(lot);
+        // The first unit costs the posted price; the lot as a whole costs more
+        expect(bought.cost).toBeGreaterThan(lot * good.buy);
+    });
+
     it('needs the ship docked at a port', () => {
         const world = makeWorld({ '5,5': { terrain: GRASS } });
         const player = dockedPlayer();

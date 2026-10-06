@@ -784,8 +784,9 @@ export const MerchantPrince = {
         const premium = Math.min(_num(F.premiumMax, 0.15), _num(F.premiumBase) + _num(F.premiumPerDay) * d);
         const spot = Trading.saleUnitPrice(player, g, s, world, 1, n);
         const cap = Trading.saleUnitCap(player, goodId, s, world, tile, n);
-        const unitPrice = Math.max(1, Math.floor(Math.min(spot * (1 + premium), cap)));
-        const total = unitPrice * n;
+        // (to the copper: a cheap good's premium would vanish in whole gold)
+        const unitPrice = Math.max(0.01, _round2(Math.floor(Math.min(spot * (1 + premium), cap) * 100) / 100));
+        const total = Math.floor(unitPrice * n);
         return {
             ok: n > 0 && unitPrice > 0, reason: '', good: goodId, qty: n, days: d, maxQty, spot: Math.floor(spot), premium,
             unitPrice, total, penalty: Math.ceil(total * _num(F.penaltyShare, 0.25)), dueDay: _day(world) + d,
@@ -837,7 +838,7 @@ export const MerchantPrince = {
             player.inventory[f.good] -= n;
             if (player.inventory[f.good] <= 0) delete player.inventory[f.good];
         }
-        const pay = n * f.unitPrice;
+        const pay = Math.floor(n * f.unitPrice);
         player.gold += pay;
         f.delivered += n;
         f.paid += pay;

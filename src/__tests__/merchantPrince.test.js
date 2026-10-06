@@ -326,7 +326,7 @@ describe('forward contracts', () => {
         const q = MerchantPrince.forwardQuote(player, world, tile, 'grain', 50, 30);
         expect(q.ok).toBe(true);
         const spot = Trading.saleUnitPrice(player, GOODS().GRAIN, capital, world, 1, 50);
-        expect(q.unitPrice).toBeGreaterThanOrEqual(Math.floor(spot));
+        expect(q.unitPrice).toBeGreaterThanOrEqual(Math.floor(spot * 100) / 100);
         expect(q.unitPrice).toBeLessThanOrEqual(Trading.saleUnitCap(player, 'grain', capital, world, tile, 50));
         // A scarcer town pays more for the same promise
         capital.market.stock.grain = SettlementMarket.target(capital, 'grain') * 0.3;
@@ -346,7 +346,7 @@ describe('forward contracts', () => {
         const gold = player.gold;
         const stock = SettlementMarket.stock(capital, 'grain');
         expect(MerchantPrince.deliverForward(player, world, f.id, 25).qty).toBe(25);
-        expect(player.gold).toBe(gold + 25 * f.unitPrice);
+        expect(player.gold).toBe(gold + Math.floor(25 * f.unitPrice));
         expect(SettlementMarket.stock(capital, 'grain')).toBeCloseTo(stock + 25, 1);
         // The rest from the store-room
         MerchantPrince.rentWarehouse(player, world, tile, 'small');
@@ -502,7 +502,7 @@ describe('in the game: save, determinism, no money loop', () => {
                 const entry = Trading.getAvailableGoods(s, tile, world).find(g => g.id === id);
                 if (!entry || entry.quantity < q.qty) continue;
                 const cost = Trading.buyCost(player, entry, q.qty, s);
-                expect(q.unitPrice * q.qty, id).toBeLessThan(cost);
+                expect(Math.floor(q.unitPrice * q.qty), id).toBeLessThan(cost);
             }
             // The works: three weeks of a great town's bakehouse and brewhouse repay well under the stake
             const invested = MerchantPrince.state(player).stats.invested;

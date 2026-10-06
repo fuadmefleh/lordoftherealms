@@ -55,7 +55,10 @@ Notes on reading the table:
 | **Caravans (one-off and routes)** | **Crashed on arrival.** `MarketDynamics.getPrice` was called with no world. The formula paid 2–3× the cargo's whole value | Pays what the destination market pays (70% of its price) × (1 + 2.5%/hex) × 1.2 at a capital or 1.1 at a city: about +50% on a long capital-to-capital haul, about break-even on a short one | Fixes the crash, and removes a money loop the crash had hidden |
 | **Caravans** (settlement-market pass, see below) | as the row above | 70% of what the load is worth at the destination's stock (a big load is valued as it floods the stalls) × (1 + **1%**/hex) × size × Commerce. Measured on 50-unit loads, capital to capital: median **+15–30%** net of the 200 g hire (+132 to +315 g on 500–1,000 g) early, +20–75% late. A glut-to-dearth haul pays +100–165% (fish or bread to a starving capital) until the loads fill the dearth | The regional price gap now does the work the flat 2.5%/hex premium did. That premium on top of real scarcity paid up to 3.7× on bread |
 | **Land trading** (buy here, sell there) | Loses about 12% except on resource-cheap goods and with the season | A greedy trader within 8 hexes: **+3 to +4 g/day** (8–27 trips in 120 days). The best single lots return +136–154%, but a village's or town's stock is shallow. Seasonal grain, bought at a town just after the harvest (day 88) and sold in the lean weeks (day 115): **+84%** at the dearest market within 6 hexes, +2 to +30% in the same town, and −15% in a glutted region | Prices follow each town's real stock, so the arbitrage is regional and seasonal. Buying pushes the price up and selling pushes it down along the same curve, so a trip's margin shrinks as it grows. Same-tile buy→sell-back stays impossible |
-| Sea trade (cog, best-margin route) | 66–161 g/day early, 76–154 late | unchanged | Skilled and capital-heavy, with ship upkeep and wages. In the right band |
+| **Sea trade** (cog, best-margin route; re-measured 2026-10, port prices follow stock) | 66–161 g/day early, 76–154 late | Median 116–169 g/day per port, p75 250–320, a tail to 400–700 on glut→dearth pairs | Skilled and capital-heavy, with ship upkeep and wages. The median is in the right band; the tail is left open (a port prices a whole lot at one unit's price). See [Merchant Prince](#merchant-prince-2026-10) |
+| **Industry shares** (works funded in a town, new) | — | One level repays in 41–63 days in a great town (bakehouse 640g → about 15 g/day). Spread towns take 58–164 days; extra levels saturate (3 levels of a bakehouse: 61 days) | Capital investment, sized by the town's spare inputs and appetite. Tithe, seizure, expropriation and raids are the risk |
+| **Warehouses** (new) | — | Harvest-to-lean grain speculation: median +9% to +48% in 30 days (p25 −49% to +20%) on a small stake | Speculation, not income. A same-tile buy→sell loses |
+| **Forward contracts** (new) | — | +3% + 0.2%/day over today's sale price (at most 15%), capped at the buy-back price. Failure costs 25% and reputation | A hedge or bet on the town's price. Filling one at once from the same stalls loses |
 | **Trading company** (scripted: one capital post, seasonal bread, only contracts the posts can source, expanding to a market that sells a contract's good) | 5 seeds over 360 days on 5,000 capital: +336, +112, −1,028, +1,979, +2,343 (mean **+750**) | +5,102, −501, +4,126, −837, +1,459 (mean **+1,870**, about +5 g/day) | See [The trading company](#the-trading-company) |
 | Royal ventures | Expected return about 1.11–1.14× over 30–80 days | unchanged | A modest gamble, as designed |
 | Delves | About 140–180 g per delve early (gold plus items), 230–360 late | unchanged | Risky, limited sites, one day each. Right where risky play should be |
@@ -250,6 +253,86 @@ Kingdom survival in the 1,080-day multi-seed sim is unchanged (see below).
 - Same-tile and next-door caps: a sale never pays more than buying the same units back here, at the stock the sale leaves (`Trading.saleUnitCap` walks the same curve), or next door.
 - Fences, the black market, ports and contracts are still capped by `Ships.nearbyAsks` / `Underworld.openSaleCap`.
 - The soak's arbitrage probe stays green.
+
+## Merchant Prince (2026-10)
+
+These are the player's levers on the settlement economy: industry, warehouses, forward contracts and fairs (`systems/merchantPrince.js`, `systems/marketFairs.js`, `data/merchantPrince.json`). See [the manual](../GAMEPLAY_MANUAL.md#merchant-prince-industry-warehouses-and-contracts).
+
+**How it was measured.** These are throwaway harness scripts on seeds 101, 202 and 303, with the player kept fed:
+- **Industry.** After 20 days, one level of a works was funded in each of 8 towns per seed, and the player's share (after the crown's 10% tithe) was banked for 120 days. "Great towns" means the 8 most populous towns that have the trade. "Spread" means 8 towns spaced evenly by size. Payback is gold invested ÷ g/day.
+- **Warehouses.** A store-room at every city and capital bought up to 100 grain on day 85 of the year (after the harvest) and sold it on day 115 (the lean weeks), net of key fee, rent and spoilage.
+- **Sea trade.** Every 15 days, each port's best route (a cog, 40 units, 3 hexes a day, upkeep and 8 sailors' wages) was priced from `Ships.getPortMarket`, which now reads each town's stock.
+
+**Industry: one level, foreign town, 40% share less a 10% tithe.**
+
+| Works | Price (gold + materials) | Great towns: g/day median (p25–p75) | Payback median (p25) | Spread towns: payback median |
+|---|---|---|---|---|
+| Bakehouse | 640 + 10 wood, 15 stone | 15.3 (9.7–22.9) | **43** (28) | 58 |
+| Brewhouse | 540 + 20 wood, 5 stone | 12.6 (9.4–18.7) | **44** (30) | 128 |
+| Charcoal kilns | 240 + 10 stone | 5.7 (3.4–9.2) | **44** (29) | idle in wooded country |
+| Distillery | 310 + 10 wood, 2 iron | 7.5 (5.3–9.0) | **41** (36) | 121 |
+| Armoury | 260 + 10 stone, 6 iron | 7.0 (3.8–8.1) | **41** (33) | 164 |
+| Grain mill | 160 + 10 wood, 5 stone | 3.8 (2.0–6.0) | **47** (34) | flour has a small market |
+| Creamery | 150 + 10 wood, 5 stone | 3.1 (2.5–4.9) | **49** (32) | |
+| Tailors' hall | 210 + 10 wood, 3 textiles | 4.6 (3.8–6.8) | **50** (35) | |
+| Jewellers' row | 300 + 10 stone, 3 tools | 5.0 (4.3–6.0) | **63** (53) | |
+| Weaving shed | 200 + 15 wood | 1.5 (1.0–2.0) | 132 (103) | starved of wool unless you bring it |
+| Smithy | 200 + 10 stone, 4 iron | 0.7 (0.1–2.5) | 358 (82) | starved of iron unless you bring it |
+
+- **Levels saturate.** Three levels of a bakehouse (2,670g) in a great town pay a median of 43.7 g/day, about 61 days to pay back. A brewhouse takes 93 days and a mill 214. More capacity than the town's stores can feed or absorb stands idle.
+- **Not offered.** The forge (iron + 2 firewood → 0.8 tools) adds no value at base prices, and the chandlery's rock oil is too rare.
+- **Why it is not a money loop.**
+  - The works can only process what the town has to spare: at least half the input's target stays for the townsfolk.
+  - Each run is valued at the town's own scarcity curve, so the works drive their own margin down. Their output gluts the stalls (and stops at twice its target), and their inputs grow dear.
+  - The crown's tithe (more at war or in a crisis), seizure, expropriation, raids and sieges put the stake at risk.
+  - Selling a stake back returns 40% of the price.
+  - The test suite checks that three weeks of a great town's bakehouse and brewhouse repay well under the stake.
+- **In the soak** (800 days, 5 seeds), the bot funded 6–16 works for 3,600–8,300g and drew 6,900–51,500g from them over the run. That is a season-scale payback, then a steady income, like properties.
+
+**Warehouses: harvest → lean-weeks grain, about 100 units, 30 days.**
+
+| Seed | ROI after key fee, rent and spoilage (p25 / median / p75) |
+|---|---|
+| 101 | −49% / +9% / +47% |
+| 202 | +19% / +43% / +143% |
+| 303 | +20% / +48% / +151% |
+
+- It is real speculation. A town that stays glutted into spring loses money.
+- The stake is small (100 grain is 300–600g), so the gold per day is 1–10. It belongs in the "skilled or risky" trading tier, not as an income source on its own.
+- Buying into store and selling straight back always loses: the curve and the 70% share see to it (tested).
+- Thefts (1–6% a week) and spoiling bread, fish and meat are the downside.
+
+**Forward contracts.**
+- The premium for the wait is 3% + 0.2% a day, at most 15%: about 9% on a 30-day contract, priced to the copper.
+- The price is capped at buying the lot back here (`Trading.saleUnitCap`). At capitals, which already buy close to their ask, the cap usually binds, so the premium is mostly paid in towns and villages.
+- Filling a fresh contract with goods bought on the spot loses (tested).
+- The forward pays when the town's price falls before delivery, or when you bring the goods from a glut. Missing the day forfeits 25% of the undelivered value and 4–8 reputation in the realm.
+
+**Fairs.**
+- A fair puts 30–50% of a target's worth of each fair good into the town's stores.
+- For 6–7 days it cuts the stalls' ask by 6–8% and raises what they pay to 75–76% of worth. Same-tile sales stay capped (tested).
+
+**Sea trade, re-measured.** Port prices now follow the town's stock (`Ships.getPortMarket` reads `SettlementMarket.value`). Each port's best cog route, net of upkeep and wages, in g/day:
+
+| Seed | p25 | Median | p75 | p90 |
+|---|---|---|---|---|
+| 101 | 100 | 169 | 322 | 682 |
+| 202 | 78 | 116 | 255 | 522 |
+| 303 | 108 | 166 | 252 | 392 |
+
+- The median sits in the skilled band, as before (66–161).
+- The tail is new. A port that exports a good from a glut and a port that imports it in a dearth can pay 400–700 g/day on paper, because a port prices a whole 40-unit lot at one unit's price.
+- **Left open:** walk port lots along the curve as town sales do.
+
+**Fuel and plenty** (`data/markets.json`, `_tuning2026_10b`).
+- **Fuel.**
+  - Firewood now holds at most 2× its target (was 4×), burns 3× in the cold (was 2.5×; coal 2×), and the land yields less of it.
+  - A fuel shortage (gauge above 0.1) went from 0.03% to 1.1% of town-days in a temperate world (seed 101). That is 7% of its cold days.
+  - In a cold world (seed 202) it went from 11.8% to 15.6% of town-days.
+- **Plenty.**
+  - Brewers now brew ahead of need while grain is in glut (`fill` 1.25), and `plentyMood` is 2.5.
+  - Mood is up by more than 0.25 on 22–30% of town-days: 42–53% in winter and 10–20% in spring.
+  - The mean lift is 0.1–0.4 points.
 
 ## Re-measuring
 

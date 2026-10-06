@@ -441,7 +441,7 @@ Every settlement keeps one store of goods: about thirty staples from grain, brea
   - Every settlement mills grain into flour, bakes it into bread, brews beer and burns charcoal.
   - Towns and larger also weave, tailor, distil and make cheese. Their smiths turn iron and coal into tools and weapons, or iron and firewood into tools.
   - Cities and capitals also have jewellers, who turn gems into luxuries.
-- **Consumes.** Its people eat, drink, burn and wear out goods every day, more of them in bigger towns. Cities and capitals also want wine, luxuries, spices, gems and quality horses. In cold weather they burn 2.5× the firewood and wear out more clothes. Food and fuel can stand in for each other: with no bread they eat porridge, with no firewood they burn coal. When a good runs short, people buy at most half of what's left, so a dear good stays on sale.
+- **Consumes.** Its people eat, drink, burn and wear out goods every day, more of them in bigger towns. Cities and capitals also want wine, luxuries, spices, gems and quality horses. In cold weather they burn 3× the firewood and wear out more clothes. A town holds at most twice its target of firewood, so a cold winter far from the forests is felt. Food and fuel can stand in for each other: with no bread they eat porridge, with no firewood they burn coal. When a good runs short, people buy at most half of what's left, so a dear good stays on sale.
 - **Spoils.** Bread, fish and meat go off within days, grain keeps for months, and iron never spoils. Each store can only hold so much.
 
 **Scarcity sets the price.** A good's scarcity is (stock ÷ (daily need × target days)) ^ −0.45. It is clamped between 0.6× (a glut) and 2.2× (a dearth). A good the town doesn't use is never dearer than its base. A town newly founded, or one from an older save, starts with its stores full and its prices at base.
@@ -471,7 +471,7 @@ A raid that reaches a town burns half the share of its stores that it burns of t
 | **Food** | Once a town goes without about a quarter of its food for weeks, it is in **dearth**. Its people eat harder into the granary (more consumption in the food model, so less growth and more hunger), and the crown sees it as hunger. Your famine dole ships it grain even outside the lean weeks, and the dole's grain reaches the market too. Tavern talk and townsfolk mention it. |
 | **Tools** | Up to a quarter of the town's goods and gold output is lost, and its trades slow down. |
 | **Fuel in cold weather** | Up to 6 happiness points are lost. |
-| **Plenty of beer, wine and fine things** | When every want is met and the stores run well past target, happiness rises by up to 2 points. |
+| **Plenty of beer, wine and fine things** | When every want is met and the stores run well past target, happiness rises by up to 2.5 points. Brewers brew ahead of need while grain is in glut, so beer runs past its target after the harvest: the mood lifts in about a quarter of town-days, mostly in autumn and winter. |
 
 Market mood moves half a point a day and is given back when the cause passes.
 
@@ -504,6 +504,64 @@ A taken cargo goes to the band's packs (a lair banks it in its hoard). It never 
 - **Trade.** Buy from its cargo, or sell it the goods it carries. The price runs from the good's value at the origin toward its value at the destination as the journey goes, plus 10% when you buy and minus 12% when you sell. What you buy never reaches that market. The merchant will not touch stolen goods.
 - **Escort.** Hire on for about 7% of the cargo's value (15–300 gold), paid on arrival. Stay within 6 hexes, or after 2 days the merchant hires other blades. Ride within 2 hexes and any ambush becomes your fight (your army against the attackers, the usual battle). Win and the caravan rides on. Arrival also brings renown and +3 standing with the destination's realm. You can guard one trader at a time, and a ship only from your own deck. The Steward's **Counsel** mentions an escort job within 4 hexes.
 - **Rob.** This is an attack on the trader. Win and its goods are **hot** (only a fence takes them). You also suffer a `caravan_robbery` crime (10 heat with its realm, 22 if wardens or a town saw it, which also reports the crime and can bring a bounty) and lose 15 reputation with the realm. The road is shunned and the destination goes without. A failed robbery still costs half the heat and reputation.
+
+### Merchant Prince: Industry, Warehouses and Contracts
+
+Beyond buying and selling, a rich trader can work a town's market from the inside. Open a town's **Trade** window and use its **🏭 Invest**, **📦 Warehouse** and **📜 Contracts** tabs (the **📒 Holdings** tab lists everything you own, anywhere). The Steward's Counsel warns of contracts falling due, rent owed, stock spoiling and works at risk. Tuned in `data/merchantPrince.json`.
+
+**Industry.** Fund works in a town: a grain mill, bakehouse, brewhouse, charcoal kilns, distillery, weaving shed, tailors' hall, creamery, smithy, armoury or jewellers' row. Each one is one of the town's own trades (the recipes above), and needs a big enough town. Each level costs gold plus building materials from your packs, adds a few runs a day, and costs 35% more than the last. A works can grow to 3 levels (the jewellers to 2).
+
+- **How it runs.** On market day the works run after the town's own trades, on the town's real stock:
+  - They take their inputs only while the town keeps at least half its target of them.
+  - They stop while their goods glut the stalls (twice the target).
+  - They stop when a run no longer adds value at today's prices.
+- **What it pays.** You get **40%** of the value the works added (the output's worth less the inputs', at the town's prices). The crown takes a **tithe** of that: 10%, +15% while the realm is at war, and +20% while its treasury is in crisis. If you rule a realm whose court enforces *Merchant charters*, foreign crowns take only half.
+- **Your own towns.** In a town you hold, works cost 15% less, pay you **60%**, and owe no tithe. There is no tithe anywhere in a realm you rule.
+- **Choosing a town.** The tab shows each trade's inputs and outputs with their stock labels, what a run adds at today's prices, and how much the town's own trade already works. A bakehouse in a great town with grain to spare repays itself in about 45 days. In a small town, or one short of grain, it may barely turn. Weaving sheds and smithies are starved of wool and iron unless you bring them in: sell the inputs into the town and the works will use them.
+- **Losing it.**
+  - A realm at war with you, or with the realm you are sworn to, seizes your works at once.
+  - A crown whose treasury is in crisis may seize them at its weekly reckoning.
+  - If your reputation in the realm stays below −30 for 10 days, the town's guilds expropriate them. The Counsel warns you below −20.
+  - Seized works keep running for their new owner.
+- **Damage.**
+  - A raid or sack that loots the town's stores also damages the works.
+  - A siege of the town idles them and wears them 3% a day.
+  - Storm and quake damage to the town slows them.
+  - Repairs cost half the works' price times the damage.
+  - You can sell your stake back to the guild for 40% of what you put in, times its repair.
+
+**Warehouses.** Rent a **store-room** (150 units, 40g key, 6g a week) or a **warehouse** (500 units, 120g key, 16g a week) in up to 5 towns. Its goods don't take slots in your packs.
+
+- **Filling it.** Buy straight from the stalls into store (the price climbs as usual), or store goods from your packs.
+- **Using it.** Take goods back into your packs, or sell them into *that* town's market at its price on the day. A sale never pays more than buying the same goods back would cost.
+- **Speculation.** Fill it with grain in the harvest glut and sell in the lean weeks, or hold goods for a dearth.
+- **Spoilage.** Goods keep twice as well as on a stall, but fish, meat and bread still spoil within weeks.
+- **Rent.** Rent is due every 7 days. After two unpaid weeks, the landlord sells your stock off and lets the room to another.
+- **Thieves.** They strike more often where the Thieves' Guild works, the more heat you carry in the realm, and with an outlaw lair or raiders nearby. A strong town watch and a guild rank of 2 or more protect you. A theft carries off 15–40% of the stock.
+
+**Forward contracts.** A town will agree today to buy a good its people use, for delivery by a day 10–60 days away, at a price fixed now.
+
+- **Price.** The price is what the lot fetches in the town today, plus a premium for the wait (3% + 0.2% a day, at most 15%). It is never more than buying the lot back here.
+- **Size.** At most 15 days of the town's need.
+- **Delivery.** Deliver in parts, from your packs or your store-room in the town. Each delivery is paid on the spot, and the goods join the town's stock.
+- **Limits.** You can hold at most 3 contracts.
+- **Missing the day.** A quarter of the undelivered value is forfeit, taken from your purse. You also lose reputation in the realm, and more of it if your purse can't cover the forfeit.
+- **The bet.** If the town's price falls before the day, you deliver at the old, higher price. If it rises, you have sold too cheap.
+
+### Market Fairs and Market News
+
+Four fairs are held each year at the great towns:
+
+| Fair | Day of the year | Where | Merchants bring |
+|---|---|---|---|
+| Spring Fair | 22, for 7 days | Capitals | Spices, luxuries, wine, clothes, tools, salt, horses |
+| Midsummer Fair | 48, for 6 days | Capitals and cities | Wine, spices, cheese, cloth, beer, luxuries |
+| Harvest Fair | 78, for 7 days | Capitals and cities | Grain, cheese, wool, hides, salt, horses |
+| Frost Fair | 100, for 6 days | Capitals | Firewood, coal, clothes, liquor, lamp oil, salt |
+
+Merchants from afar put their goods into the town's stores. The goods then sell, spoil and travel on like any other. While the fair is on, the stalls ask 6–8% less and pay **75–76%** of what goods are worth (not 70%). A sale still never beats buying the goods back. The heralds cry each fair, the tavern's merchants talk of fairs on or coming, and the Counsel points out one nearby.
+
+Every week the heralds also cry the world's worst **food dearth** (a town in dearth with a staple at least 60% over its worth). In the weeks after the harvest they cry the deepest **grain glut** at a city or capital. A town is not cried again within 40 days.
 
 ### Map Resources and Settlements
 

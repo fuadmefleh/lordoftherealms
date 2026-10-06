@@ -310,7 +310,7 @@ describe('headless playtest soak', () => {
     it('the bot reached the systems it is meant to exercise', () => {
         for (const key of ['foodBought', 'recruited', 'sales', 'coloniesFounded', 'guildJoined', 'delvesStarted',
             'petitionsRuled', 'companionsHired', 'shipsBought', 'crewHired', 'voyages', 'daysAtSea', 'propertiesBuilt',
-            'companyFounded', 'postsOpened', 'ordersSet']) {
+            'companyFounded', 'postsOpened', 'ordersSet', 'worksFunded']) {
             expect(totals[key] || 0, `the bot never did "${key}" — ${JSON.stringify(totals)}`).toBeGreaterThan(0);
         }
     });

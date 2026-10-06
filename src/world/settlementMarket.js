@@ -1101,6 +1101,10 @@ export const SettlementMarket = {
      * either: the margin of each direction is left on link.goldAB /
      * link.goldBA, and the caravan pays it to both towns on arrival
      * (MerchantCaravans) — a cargo lost on the road earns them nothing.
+     * Crown tariffs (link.dutyAB / dutyBA, per good, set by
+     * systems/tradePolicy.js) add to the friction a good must beat to move
+     * that way (Infinity: its export is banned); the duty on what moves is
+     * left on link.paidAB / paidBA for the treasuries.
      * @returns {{ moved:number, value:number, gold:number }}
      */
     flows(links, basePrices, day = null) {
@@ -1147,6 +1151,10 @@ export const SettlementMarket = {
             let movedA = 0, movedB = 0, goldLink = 0;
             const emb = link.embody === true;
             let cAB = null, cBA = null, gAB = 0, gBA = 0;
+            // Crown tariffs and export bans (systems/tradePolicy.js): extra friction on
+            // a→b / b→a goods (Infinity = banned); the duty paid is left on the link
+            const dAB = link.dutyAB || null, dBA = link.dutyBA || null;
+            let paidAB = 0, paidBA = 0;
             for (let i = 0; i < n; i++) {
                 if (!(budget > 0)) break;
                 const base = bases[i];
@@ -1162,15 +1170,16 @@ export const SettlementMarket = {
                     if (q < frR && q > 1 / frR) continue;
                 }
                 const sa = sc(stA, ta, sha.usedA[i]), sb = sc(stB, tb, shb.usedA[i]);
-                let xe, xi, se, si, tE, tI, aExports;
-                if (sb > sa * fr) { xe = xa; xi = xb; se = sa; si = sb; tE = ta; tI = tb; aExports = true; }
-                else if (sa > sb * fr) { xe = xb; xi = xa; se = sb; si = sa; tE = tb; tI = ta; aExports = false; }
+                const uAB = dAB !== null ? dAB[i] : 0, uBA = dBA !== null ? dBA[i] : 0;
+                let xe, xi, se, si, tE, tI, aExports, dut;
+                if (sb > sa * (fr + uAB)) { xe = xa; xi = xb; se = sa; si = sb; tE = ta; tI = tb; aExports = true; dut = uAB; }
+                else if (sa > sb * (fr + uBA)) { xe = xb; xi = xa; se = sb; si = sa; tE = tb; tI = ta; aExports = false; dut = uBA; }
                 else continue;
                 const surplus = xe[i] - tE * T.keepDays;
                 if (!(surplus > 0)) continue;
                 const room = tI - xi[i];
                 if (!(room > 0)) continue;
-                const gap = (si - se * fr) / si;
+                const gap = (si - se * (fr + dut)) / si;
                 let qty = Math.min(surplus * share, room * 0.5 * gap + 0.05, budget / (base * se));
                 if (!(qty >= 0.05)) continue;
                 qty = Math.round(qty * 100) / 100;
@@ -1182,10 +1191,13 @@ export const SettlementMarket = {
                 const g = qty * base * (si - se) * T.goldScale;
                 goldLink += g;
                 if (aExports) { movedA += qty; gAB += g; } else { movedB += qty; gBA += g; }
+                // (an embodied lot pays its duty as the caravan's border toll instead)
+                if (dut > 0 && !emb) { if (aExports) paidAB += qty * base * se * dut; else paidBA += qty * base * se * dut; }
                 out.moved += qty;
                 out.value += qty * base * se;
             }
             if (emb) { link.cargoAB = cAB; link.cargoBA = cBA; link.goldAB = gAB; link.goldBA = gBA; }
+            if (paidAB > 0 || paidBA > 0) { link.paidAB = _num(link.paidAB) + paidAB; link.paidBA = _num(link.paidBA) + paidBA; }
             if (movedA > 0 || movedB > 0) {
                 // An embodied link's margin rides with its caravans (paid on arrival)
                 if (!emb) {

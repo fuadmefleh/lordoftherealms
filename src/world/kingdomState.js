@@ -416,6 +416,8 @@ export const KingdomStability = {
         if (Array.isArray(kingdom.greatWorks) && kingdom.greatWorks.length) {
             t += add('Great works', kingdom.greatWorks.reduce((s, g) => s + (g && Number.isFinite(g.stability) ? g.stability : 0), 0));
         }
+        // Trade treaties, embargoes, trade wars and granary relief (systems/tradePolicy.js → kingdom.tradePolicy.stab)
+        if (kingdom.tradePolicy && Number.isFinite(kingdom.tradePolicy.stab)) t += add('Trade policy', kingdom.tradePolicy.stab);
         if (kingdom.religion && typeof kingdom.religion.unity === 'number') {
             t += add('Faith unity', (kingdom.religion.unity - 50) * 0.1);
         }

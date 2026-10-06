@@ -64,6 +64,7 @@ import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { Labour } from '../../systems/labour.js';
 import { Guilds } from '../../systems/guilds.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
+import { TradePolicy } from '../../systems/tradePolicy.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
 
 export const WORLD_W = 80;
@@ -302,6 +303,8 @@ function _endDay(game) {
     mark(game, 'MerchantCaravans.processDay');
     game.fairDay = MarketFairs.processDay(world, player);
     mark(game, 'MarketFairs.processDay');
+    game.tradePolicyDay = TradePolicy.processDay(world, player);
+    mark(game, 'TradePolicy.processDay');
     MarketDynamics.updatePrices(world, player);
     mark(game, 'MarketDynamics.updatePrices');
     game.labourDay = Labour.processDay(world, player);

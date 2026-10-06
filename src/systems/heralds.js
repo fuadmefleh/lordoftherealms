@@ -4,7 +4,8 @@
 // When something big happens — a coronation, a realm falling or rising
 // again, a war declared or a peace made, a saga ending, a revolt against a
 // crown (or its end), a peasant rebellion, a new land named on the charts, a
-// siege won or broken, a Great Work finished or begun — the heralds proclaim it. A proclamation starts where
+// siege won or broken, a Great Work finished or begun, an embargo, a trade
+// treaty or trade war, an export ban, a granary opened — the heralds proclaim it. A proclamation starts where
 // it happened and spreads outward `speed` hexes a day; every settlement it
 // has reached knows it (Chatter's `proclamation` condition and the tavern's
 // news read heardAt), and when it reaches the player it becomes a short
@@ -36,6 +37,9 @@ const MARKET_KINDS = { fair: 'market_fair', dearth: 'market_dearth', glut: 'mark
     guild_strike: 'guild_strike', guild_election: 'guild_election', guild_chartered: 'guild_chartered', guild_abolished: 'guild_abolished' };
 // Labour records (world.labour.history, systems/labour.js) and the proclamation each makes
 const LABOUR_KINDS = { refugees: 'labour_refugees', strike: 'labour_strike', boom: 'labour_boom' };
+// Trade-policy records (world.tradePolicy.history, systems/tradePolicy.js) and the proclamation each makes
+// (an embargo laid in wartime goes without saying: the war was cried already)
+const TRADE_KINDS = { embargo: 'trade_embargo', treaty: 'trade_treaty', trade_war: 'trade_war', ban: 'trade_ban', granary: 'trade_granary' };
 const LABOUR_WHY = { siege: 'siege', conquest: 'new masters', war: 'war', famine: 'hunger', danger: 'raiders' };
 
 const _num = v => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
@@ -196,6 +200,15 @@ export const Heralds = {
         for (const x of [...rec.sagas, ...rec.sieges, ...rec.holdings, ...rec.lairs, ...rec.finance, ...rec.market]) st.seen[x.key] = x.day;
         for (const x of Heralds._caravanRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._labourRecords(world)) st.seen[x.key] = x.day;
+        for (const x of Heralds._tradeRecords(world)) st.seen[x.key] = x.day;
+    },
+
+    /** Embargoes, treaties, trade wars, export bans and granary releases (world.tradePolicy.history, systems/tradePolicy.js). */
+    _tradeRecords(world) {
+        const t = world && world.tradePolicy;
+        return (t && Array.isArray(t.history) ? t.history : [])
+            .filter(h => h && h.key && TRADE_KINDS[h.kind] && !(h.kind === 'embargo' && h.why === 'war'))
+            .map(h => ({ key: h.key, day: _num(h.day), h }));
     },
 
     /** Refugee columns, strikes and booms (world.labour.history, systems/labour.js). */
@@ -410,6 +423,17 @@ export const Heralds = {
                 place: h.place || 'the town', to: h.to || 'the neighbouring towns', n: _num(h.n) || 'Hundreds', days: _num(h.days) || 7,
                 why: LABOUR_WHY[h.why] || 'war', kingdom: (_kingdom(world, h.kingdomId) || {}).name || 'the realm',
             }, { q: h.q, r: h.r }, { kingdomId: h.kingdomId != null ? h.kingdomId : null });
+        }
+
+        // The crowns' trade: embargoes, treaties, trade wars, export bans, granaries opened
+        for (const x of Heralds._tradeRecords(world).filter(fresh)) {
+            st.seen[x.key] = x.day;
+            const h = x.h;
+            const k = _kingdom(world, h.kingdomId);
+            Heralds._proclaim(st, world, TRADE_KINDS[h.kind], {
+                kingdom: h.kingdom || (k ? k.name : 'the realm'), other: h.otherName || 'its neighbour',
+                good: String(h.good || 'grain').toLowerCase(), n: _num(h.n) || 'Much',
+            }, Heralds._capital(world, k), { kingdomId: h.kingdomId != null ? h.kingdomId : null, own: !!h.own });
         }
 
         st.snapshot = now;

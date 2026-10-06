@@ -1,0 +1,64 @@
+{
+    "_comment": "Kingdom trade policy (src/systems/tradePolicy.js). Each realm keeps import and export tariffs per good category (imp/exp, shares of the goods' value), export bans, embargoes, trade treaties, retaliatory tariffs in trade wars and a state granary on kingdom.tradePolicy. Tariffs add to the friction of NPC trade between realms (world/settlementMarket.js flows) and are paid into the treasuries; caravans pay them as their border toll; the player pays them selling goods bought in another realm. NPC crowns decide on their weekly turn (turnDays, staggered by realm).",
+    "turnDays": 7,
+    "_policyEvery": "Tariffs, treaties, rival embargoes and trade wars are weighed every policyEvery turns (monthly); hunger (export bans), war embargoes and the granary every turn.",
+    "policyEvery": 4,
+    "_categories": "Good categories the crowns tariff. Goods not listed fall in `defaultCategory`.",
+    "categories": {
+        "staples": { "label": "Grain & bread", "icon": "🌾", "goods": ["grain", "flour", "bread"] },
+        "victuals": { "label": "Fish, meat & salt", "icon": "🍖", "goods": ["fish", "meat", "cheese", "salt"] },
+        "drink": { "label": "Beer & liquor", "icon": "🍺", "goods": ["beer", "liquor"] },
+        "fuel": { "label": "Fuel & oil", "icon": "🔥", "goods": ["firewood", "coal", "oil", "lamp_oil"] },
+        "raw": { "label": "Raw materials", "icon": "⛏️", "goods": ["wood", "stone", "wool", "hide", "iron", "gold_ore", "horses", "horse"] },
+        "wares": { "label": "Wares & tools", "icon": "🔨", "goods": ["textiles", "clothes", "leather", "tools", "weapons"] },
+        "luxury": { "label": "Luxuries", "icon": "💎", "goods": ["wine", "luxuries", "spices", "gems"] }
+    },
+    "defaultCategory": "wares",
+    "_stances": "A crown's leaning: base import (imp) and export (exp) tariff, scaled per category by catMult. The stance follows a protectionism score: personality + culture + a yearly hash jitter; below `free` → free trade, above `mercantilist` → mercantilist.",
+    "stances": {
+        "free_trade": { "label": "Free Trade", "icon": "🕊️", "imp": 0.02, "exp": 0, "treatyBias": 0.15 },
+        "moderate": { "label": "Moderate", "icon": "⚖️", "imp": 0.06, "exp": 0.01, "treatyBias": 0 },
+        "mercantilist": { "label": "Mercantilist", "icon": "🏰", "imp": 0.12, "exp": 0.03, "treatyBias": -0.15 }
+    },
+    "catMult": {
+        "imp": { "staples": 0.5, "victuals": 0.8, "drink": 1.2, "fuel": 0.6, "raw": 0.6, "wares": 1.4, "luxury": 1.6 },
+        "exp": { "staples": 1, "victuals": 0.6, "drink": 0.5, "fuel": 0.8, "raw": 1.6, "wares": 0.4, "luxury": 0.8 }
+    },
+    "personality": { "mercantile": -0.35, "peaceful": -0.15, "balanced": 0, "militaristic": 0.25, "aggressive": 0.3 },
+    "culture": { "Maritime": -0.2, "Desert": -0.1, "Imperial": 0.2, "Nordic": 0.1, "Mountain": 0.1, "Religious": 0.05 },
+    "stanceAt": { "free": -0.2, "mercantilist": 0.2 },
+    "jitter": 0.3,
+    "maxTariff": 0.35,
+    "_crisis": "An empty or indebted treasury raises tariffs: × mult + add while the treasury is under treasuryBelow, the debt over debtRatio, or payments are missed.",
+    "crisis": { "treasuryBelow": 300, "debtRatio": 0.6, "mult": 1.4, "add": 0.03 },
+    "_lobby": "Town guilds lobby their crown for protection: + perGuild import tariff on a category for each guild in the realm guarding its goods, at most cap.",
+    "lobby": { "perGuild": 0.006, "cap": 0.05 },
+    "_ban": "A crown bans the export of `category` while at least hungryShare of its towns go hungry (Kingship.hunger), for at least minDays.",
+    "ban": { "category": "staples", "hungryShare": 0.25, "minDays": 21 },
+    "_embargo": "War embargoes the enemy (lifted warLiftDays after peace once relations recover above liftAbove); a rival under rivalBelow is embargoed on a weekly roll; the other side's relations drop by `relation`; the realm's stability by `stability` while it lasts.",
+    "embargo": { "rivalBelow": -50, "chance": 0.2, "liftAbove": -15, "warLiftDays": 60, "relation": -8, "stability": -1 },
+    "_treaty": "Trading partners with relations at relationAt (or allies at allyAt) sign treaties on a weekly roll: tariffs waived both ways, the links' trade × (1 + linkBoost), relations + relation a week (to relationCap), stability + stability. Broken under breakBelow or by war.",
+    "treaty": { "relationAt": 40, "allyAt": 15, "chance": 0.3, "breakBelow": 10, "linkBoost": 0.2, "relation": 1, "relationCap": 50, "stability": 1 },
+    "_tradeWar": "When a partner's tariffs on a realm's goods exceed its own by margin, the realm retaliates (step more on that partner's goods, to cap); each step costs relations and stability. Calm (relations above calmAbove, or the partner backs down) eases it by decay a week.",
+    "tradeWar": { "margin": 0.04, "step": 0.04, "cap": 0.2, "chance": 0.5, "relation": -3, "stability": -1.5, "calmAbove": 30, "decay": 0.02 },
+    "revenue": { "scale": 1 },
+    "_granary": "State granaries: a realm with minTreasury buys grain where it is in glut (scarcity under buyBelow, buyShare of the surplus, maxBuy a town a week, in at most maxTowns towns) up to capPerHead × its people, and releases it in hungry towns (releaseDays of their need, maxRelease a town a week). spoil: share lost a week.",
+    "granary": { "minTreasury": 1500, "capPerHead": 0.08, "buyBelow": 0.85, "buyShare": 0.25, "maxBuy": 60, "maxTowns": 4, "releaseDays": 7, "maxRelease": 80, "spoil": 0.01, "stability": 0.5, "heraldMin": 150 },
+    "stabilityCap": 6,
+    "_player": "The player as a merchant. Goods bought in a realm are booked by origin; sold in another realm they pay its import tariff (licence: none). Goods from a realm the seller's realm embargoes can't be sold openly — smuggle them (catch odds, heat, fines). Selling abroad goods whose export the origin crown bans is a breach: heat there per unit. A licence (petitioned from a crown) waives its tariffs and bans for `days`. Brokering a treaty between two realms costs gifts and earns prestige.",
+    "player": {
+        "licence": { "base": 150, "perTown": 25, "days": 120, "minRep": -10, "goodRep": 25, "discount": 0.6, "maxHeat": 40 },
+        "smuggle": { "premium": 1.25, "sellShare": 0.7, "catchBase": 0.12, "perHeat": 0.004, "perGuard": 0.03, "stealth": 0.02, "fineShare": 0.5, "arrest": 0.25 },
+        "breach": { "heatPerUnit": 0.4, "maxHeat": 12 },
+        "broker": { "cost": 300, "minRelation": 10, "minRep": 10, "relation": 10, "rep": 5, "prestige": 15, "ap": 1 }
+    },
+    "_ruler": "The realm the player rules: tariff levels to choose from; the Guild Coalition (merchants faction) shifts by perTariff × the change (cut tariffs please them), lobbyPlease for protecting a lobbied category, and for embargoes, treaties, bans and the granary.",
+    "ruler": {
+        "levels": [0, 0.03, 0.06, 0.1, 0.15, 0.25],
+        "merchants": { "perTariff": -30, "lobbyPlease": 2, "embargo": -3, "treaty": 3, "ban": -2, "granary": 1 },
+        "embargoRelation": -10,
+        "cancelRelation": -5,
+        "chancellorPer": 1
+    },
+    "historyCap": 40
+}

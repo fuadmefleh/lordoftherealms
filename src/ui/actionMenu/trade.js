@@ -2,6 +2,8 @@
 import { ActionMenu } from './_ref.js';
 import { peopleLine } from './labour.js';
 import { Guilds } from '../../systems/guilds.js';
+import { TradePolicy } from '../../systems/tradePolicy.js';
+import { policyLine } from './tradePolicy.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, NpcDisposition, Seasons, SettlementMarket } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -909,7 +911,9 @@ Object.assign(ActionMenu, {
                 const good = PlayerEconomy.GOODS[goodId.toUpperCase()];
                 if (!good) continue;
                 // What this town pays for the first unit (its stock sets it)
-                const sellPrice = Math.floor(Trading.saleUnitPrice(game.player, good, tile.settlement, game.world));
+                // ...less the crown's duty on goods bought in another realm (systems/tradePolicy.js)
+                const policy = TradePolicy.saleCheck(game.player, game.world, tile.settlement, goodId, 1);
+                const sellPrice = Math.floor(Trading.saleUnitPrice(game.player, good, tile.settlement, game.world) * (policy.ok ? policy.mult : 1));
                 sellItems.push({ ...good, quantity, sellPrice });
             }
         }
@@ -922,6 +926,16 @@ Object.assign(ActionMenu, {
             const arrow = info.trend === 'rising' ? '▲' : info.trend === 'falling' ? '▼' : '';
             const days = info.days != null ? ` · ${info.days >= 99 ? '99+' : Math.floor(info.days)}d in store` : '';
             return `<div class="trade-meta" style="color:${info.color};" title="Stock ${Math.floor(info.stock)}${info.need > 0 ? `, the town uses ${Math.round(info.need * 10) / 10} a day` : ', the town does not use it'}. Buying raises the price, selling lowers it.">${info.label} ${pct >= 0 ? '+' : ''}${pct}%${arrow ? ` ${arrow}` : ''}${days}</div>`;
+        };
+        // ── The crown's trade policy on a good: duty on goods bought abroad, an embargo, an export ban (systems/tradePolicy.js) ──
+        const policyBadge = (goodId, selling) => {
+            const n = TradePolicy.goodNotice(game.player, game.world, tile.settlement, goodId);
+            if (!n) return '';
+            const out = [];
+            if (selling && n.embargoed > 0) out.push(`<span style="color:#e74c3c;" title="Goods from a realm this crown embargoes: only a smuggler moves them here (Tariffs tab)">⛔ ${n.embargoed} under embargo</span>`);
+            if (selling && n.foreign - n.embargoed > 0 && n.dutyRate > 0) out.push(`<span style="color:#e67e22;" title="${n.foreign} bought in another realm pay this crown's import duty">⚖️ Duty −${Math.round(n.dutyRate * 100)}%</span>`);
+            if (!selling && n.banned) out.push('<span style="color:#e67e22;" title="The crown bans its export: selling it in another realm is smuggling (heat here), unless you hold its licence">🚫 Export banned</span>');
+            return out.length ? `<div class="trade-meta">${out.join(' · ')}</div>` : '';
         };
         // ── The town's guild on a good you sell: its toll on outsiders, or a master's mark (systems/guilds.js) ──
         const guildBadge = (goodId) => {
@@ -1024,8 +1038,10 @@ Object.assign(ActionMenu, {
             <button class="trade-tab" data-am-act="showMerchantPrince" data-am-args='[null, "contracts"]' title="Forward contracts with this town">📜 Contracts</button>
             <button class="trade-tab" data-am-act="showTownPeople" data-am-args='[null]' title="The town's classes, work, wages and welfare">👥 People</button>
             ${tile.settlement && tile.settlement.guilds ? '<button class="trade-tab" data-am-act="showGuildhall" title="The town guilds: tolls, membership, contracts">⚒️ Guilds</button>' : ''}
+            <button class="trade-tab" data-am-act="showTradePolicy" data-am-args='["here"]' title="The crown's duties, export bans, embargoes and treaties (ui/actionMenu/tradePolicy.js)">⚖️ Tariffs</button>
             <button class="trade-tab" data-am-act="showMerchantLedger" data-am-args='["book"]' title="Known prices, best spreads, price history and your trading profit (ui/actionMenu/merchantLedger.js)">📒 Ledger</button>
         </div>
+        ${tile.settlement && tile.settlement.kingdom != null && game.world.getKingdom(tile.settlement.kingdom) ? `<div style="margin:-6px 0 10px; font-size:11px; color:var(--text-secondary);">⚖️ ${policyLine(game.world, game.world.getKingdom(tile.settlement.kingdom))}</div>` : ''}
         ${SettlementMarket.fair(tile.settlement) ? `<div style="margin:-6px 0 10px; font-size:12px; color:var(--gold);">🎪 The ${SettlementMarket.fair(tile.settlement).name} is on until day ${SettlementMarket.fair(tile.settlement).until}: the stalls ask less and buy dearer.</div>` : ''}
 
         <!-- BUY SECTION -->
@@ -1051,6 +1067,7 @@ Object.assign(ActionMenu, {
                         <div class="trade-name">${good.name}</div>
                         ${stockBadge(good.id)}
                         ${trendBadge(good.id)}
+                        ${policyBadge(good.id, false)}
                     </div>
                     <div class="trade-price">${isSoldOut ? '' : good.price + ' 💰'}
                         <span class="trade-qty">${isSoldOut ? '' : good.quantity + ' avail.'}</span>
@@ -1080,6 +1097,7 @@ Object.assign(ActionMenu, {
                         <div class="trade-name">${item.name}</div>
                         <div class="trade-meta">You have: ${item.quantity}</div>
                         ${guildBadge(item.id)}
+                        ${policyBadge(item.id, true)}
                         ${stockBadge(item.id)}
                         ${trendBadge(item.id)}
                     </div>

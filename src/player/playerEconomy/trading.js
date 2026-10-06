@@ -8,6 +8,7 @@ import { Underworld } from '../../systems/underworld.js';
 import { Ships } from '../../systems/ships.js';
 import { Guilds } from '../../systems/guilds.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
+import { TradePolicy } from '../../systems/tradePolicy.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, PlayerEffects, PlayerInventory, Economy, Seasons, SettlementMarket } from './_imports.js';
 
 export const Trading = {
@@ -272,6 +273,8 @@ export const Trading = {
 
         // Guild members' standing grows with trade in its goods (systems/guilds.js)
         if (settlement) Guilds.onBuy(player, settlement, good.id, quantity, totalCost);
+        // The goods are booked by the realm they were bought in (crown tariffs, embargoes — systems/tradePolicy.js)
+        if (settlement) TradePolicy.onBuy(player, settlement, good.id, quantity);
 
         // Increase commerce skill
         player.skills.commerce = Math.min(10, player.skills.commerce + 0.1);
@@ -311,7 +314,13 @@ export const Trading = {
         const legality = Underworld.legalSaleCheck(player, goodId, quantity, settlement, world);
         if (!legality.ok) return { success: false, reason: legality.reason };
 
-        const totalEarned = Math.floor(Trading.saleUnitPrice(player, good, settlement, world, legality.priceMult, quantity) * quantity);
+        // The crown's trade policy: goods bought in another realm pay its import
+        // duty; goods from a realm under embargo here only a smuggler moves (systems/tradePolicy.js)
+        const policy = TradePolicy.saleCheck(player, world, settlement, goodId, quantity);
+        if (!policy.ok) return { success: false, reason: policy.reason, embargoed: true };
+
+        const totalEarned = Math.floor(Trading.saleUnitPrice(player, good, settlement, world, legality.priceMult * policy.mult, quantity) * quantity);
+        const duty = TradePolicy.onSale(player, world, settlement, goodId, quantity, totalEarned, policy);
 
         player.inventory[goodId] -= quantity;
         player.gold += totalEarned;
@@ -335,6 +344,6 @@ export const Trading = {
         // ...and the sale, against what the goods cost (profit by good and route)
         PriceKnowledge.recordSale(player, settlement, goodId, quantity, totalEarned);
 
-        return { success: true, earned: totalEarned, tariff: legality.tariff || 0 };
+        return { success: true, earned: totalEarned, tariff: legality.tariff || 0, duty: duty.duty, breachHeat: duty.heat };
     },
 };

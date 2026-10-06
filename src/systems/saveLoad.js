@@ -40,6 +40,7 @@ import { KingdomNavy } from '../world/kingdomNavy.js';
 import { WorldUnit } from '../world/units.js';
 import { Terrain } from '../world/terrain.js';
 import { MarketDynamics } from './marketDynamics.js';
+import { TradePolicy } from './tradePolicy.js';
 import { Labour } from './labour.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Utils } from '../core/utils.js';
@@ -143,6 +144,8 @@ export const SaveLoad = {
             // Refugees, strikes and booms on record for the heralds (systems/labour.js;
             // each town's classes, wages and welfare travel with it: settlement.labour)
             labour: Labour.serialize(world),
+            // Trade-policy news for the heralds; each realm's policy travels with it (kingdom.tradePolicy, systems/tradePolicy.js)
+            tradePolicy: TradePolicy.serialize(world),
             // Great Works raised and rising, the wonders claimed (systems/patronage.js)
             greatWorks: Patronage.serializeWorld(world),
             // Ids for characters, maps, spies, ... keep counting from here
@@ -249,7 +252,9 @@ export const SaveLoad = {
                 // Wonders the realm has raised (systems/patronage.js; read by its stability)
                 'greatWorks',
                 // The crown's debts, coin purity, levy and defaults (systems/finance.js, world/coinage.js)
-                'finance']),
+                'finance',
+                // Tariffs, bans, embargoes, treaties, trade wars, the granary (systems/tradePolicy.js)
+                'tradePolicy']),
             ...(k.createdByPlayer ? {
                 foundedDay: k.foundedDay,
                 colorLight: k.colorLight,
@@ -461,6 +466,8 @@ export const SaveLoad = {
             guilds: Guilds.serialize(player),
             // The price book: known prices by town and their age, price history, trading P&L (systems/priceKnowledge.js)
             priceBook: PriceKnowledge.serialize(player),
+            // Trade policy as a merchant: goods booked by the realm they were bought in, crown licences (systems/tradePolicy.js)
+            tradePolicy: TradePolicy.serializePlayer(player),
         };
     },
 
@@ -559,6 +566,8 @@ export const SaveLoad = {
         MerchantCaravans.restore(saveData.merchantTrade, world);
         // The labour news (older saves: none)
         Labour.restore(saveData.labour, world);
+        // Trade policy news (older saves: none; realms set their policy on their next turn)
+        TradePolicy.restore(saveData.tradePolicy, world);
         // Never hand out an id the save already used
         if (typeof saveData.idCounter === 'number') {
             Utils.setIdCounter(Math.max(Utils.getIdCounter(), saveData.idCounter));
@@ -724,6 +733,8 @@ export const SaveLoad = {
         Guilds.loadState(player);
         // The price book — older saves start a blank one (filled on the next visit)
         PriceKnowledge.loadState(player);
+        // Trade policy — older saves have no ledger (goods already carried count as home-bought)
+        TradePolicy.loadPlayer(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

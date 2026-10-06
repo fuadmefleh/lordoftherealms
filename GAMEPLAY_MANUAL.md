@@ -12,6 +12,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 2. [Core Mechanics](#2-core-mechanics)
 3. [Movement & Exploration](#3-movement--exploration)
 4. [Economy & Trade](#4-economy--trade)
+    - [Kingdom Trade Policy](#kingdom-trade-policy) — tariffs, export bans, embargoes, treaties, trade wars, state granaries; smuggling, licences and brokered treaties
 5. [Properties & Production](#5-properties--production)
 6. [Crafting](#6-crafting)
 7. [Caravans & Trade Routes](#7-caravans--trade-routes)
@@ -496,7 +497,7 @@ Each trader belongs to a merchant house (one that deals in its main good). It ha
 
 A taken cargo goes to the band's packs (a lair banks it in its hoard). It never reaches the town waiting for it, so a dearth follows downstream. Merchants then shun the road for 12 days. A loss worth 150 gold or more is cried by the **heralds** ("the salt caravan bound for Tallow was taken by the Red Hand").
 
-**Tolls.** A trader crossing into another realm's land pays 3% of its cargo's value from its purse into that realm's treasury.
+**Tolls.** A trader crossing into another realm's land pays that realm's import duty on its cargo (never less than 3% of its value) from its purse into that realm's treasury. A trade treaty with the trader's realm waives it (see Kingdom Trade Policy).
 
 **Road wardens.** Every 15 days a realm with 2,500 gold or more in its treasury, or with a lawful lord, may send 💂 **Road Wardens** to ride up and down its busiest road for 30 days. The road it picks has the most caravans and kingdom trade routes, and preferably a road the whole way. The wardens cost 80 gold from the treasury. They ride down raider bands within 2 hexes, break any they can match (at most 4 companies of wardens ride at once), and fight alongside a caravan within 2 hexes.
 
@@ -670,6 +671,44 @@ The people who work a town's trades band together in **guilds**. A town bakes, b
 - **The ruler.** If you rule the town (your realm, or a holding), you may **grant a charter** to a guild (founding one if the town has the trade but none) or **abolish** it. A charter brings a fee into the treasury and pleases the merchants. Abolishing a guild sends half its hall to the treasury and ends its privileges and monopoly; the town grumbles and the merchants sulk. An abolished guild does not come back unless chartered again.
 
 The heralds cry strikes, elections, charters and abolitions. Townsfolk talk of a strike in their town. The Counsel points out guild contracts falling due, dues in arrears, a rank within reach and strikes nearby. There are achievements for becoming a journeyman, a master and a guildmaster.
+
+### Kingdom Trade Policy
+
+Every crown sets a **trade policy** for its realm: duties on what crosses its borders, bans on what may leave, embargoes on its enemies, treaties with its friends, and a state granary. You see it in the trade window (a line under the outlook, badges on each good, and the **⚖️ Tariffs** tab), and in the **Trade Policy** panel. Tuned in `data/tradePolicy.json`.
+
+**Duties (tariffs).** A realm charges an **import duty** and an **export duty** on each kind of goods: grain & bread, fish/meat/salt, beer & liquor, fuel, raw materials, wares & tools, and luxuries. Duties are a share of the goods' value.
+- **On the NPC trade.** The trade along the roads between two realms' towns must beat the duty as well as the haul. Less crosses, so the importing town stays shorter of the goods and pays more for them. The duty on what does cross goes into the treasuries: the import duty to the importer, the export duty to the exporter. Trade inside one realm pays nothing.
+- **On caravans.** A caravan or trading ship crossing into a realm pays that realm's import duty on its cargo as its toll (never less than the customary 3%). A treaty waives it. An embargo doubles it.
+- **On you.** The goods you buy are booked by the realm you bought them in. Sell them in another realm and you pay its import duty (the sell price shows it). Sell them at home and you pay nothing. Goods you came by otherwise (looted, crafted, from an old save) count as home goods.
+
+**How a crown chooses.** NPC crowns weigh their policy on a weekly turn and hold a trade council once a month.
+- **Stance.** A merchant or peaceful crown leans to **free trade** (about 2% on imports); a warlike or aggressive one to **mercantilism** (about 12%, more on wares and luxuries, with export duties on raw materials). Culture tips it (Maritime realms freer, Imperial ones more protective). It is reconsidered each year.
+- **Treasury crisis.** An empty treasury, a debt over 60% of its means, or missed payments push every duty up (× 1.4, +3 points).
+- **Guild lobbying.** Each guild in the realm's towns lobbies for its goods (+0.6 points of import duty per guild, at most +5).
+- **Export bans.** When famine or a market dearth grips a quarter of a realm's towns, its crown bans the export of grain & bread. Nothing of it leaves along the roads until the realm has been fed for three weeks.
+- **Embargoes.** A crown embargoes every realm it is at war with, and lifts the embargo two months after the peace, once relations are better than −15. A bitter rival (relations −50 or worse) may be embargoed too. An embargo cuts the trade links between the two realms both ways and sours the other side (−8 relations). The realm's merchants dislike an embargo in peacetime (−1 stability).
+- **Treaties.** Trading partners on good terms (relations 40, or allies at 15) sign **trade treaties**. Duties are waived both ways, their roads carry 20% more trade, relations warm a little each week (up to 50), and both realms are steadier (+1 stability). War or an embargo breaks a treaty; so do relations falling under 10.
+- **Trade wars.** When a partner's duties on a realm's goods are higher than the realm's own on the partner's, by 4 points or more, the realm retaliates: +4 points on that partner's goods (up to +20). Each step costs both sides 3 relations, and every trade war costs the realm 1.5 stability. Trade wars cool when relations recover (above 30) or the other side backs down.
+- **The state granary.** A crown with 1,500 gold or more buys grain where it is glutted (a quarter of the surplus, up to 60 in each of 4 towns a month), paying for it from the treasury. It stores up to 8 grain per 100 people (1% spoils each week). When its towns go hungry (a famine, the lean weeks with thin stores, a market dearth), it sends each of them a week's grain. Each fed town steadies the realm.
+
+The heralds cry embargoes, treaties, trade wars, export bans and granaries opened, and townsfolk talk of them.
+
+**As a merchant.**
+- **Duties** are taken from what you are paid when you sell goods bought in another realm (see above). The crown banks the duty.
+- **Embargoed goods.** Goods you bought in a realm that this realm embargoes (or that embargoes it) can't be sold on the open market here. **Smuggle** them from the Trade Policy panel (1 AP). They sell for 25% more than an honest sale, but the watch may catch you. The chance starts at 12% and rises with your heat in the realm and the town's guards, and falls with your stealth. Caught, you lose the goods, pay a fine of half their worth, gain heat and may be jailed. Even a run that works raises your heat a little.
+- **Export bans.** Selling abroad goods whose home crown bans their export (grain in a famine) is allowed, but word gets back: heat in that realm (0.4 per unit, at most 12 a sale).
+- **Licences.** Petition a crown for a **trading licence** (150 gold plus 25 per town of the realm, 40% off if your reputation there is 25 or more; refused under −10 reputation or with heat of 40). For 120 days you pay none of its duties and may carry its banned goods out. The fee goes into its treasury.
+- **Brokering treaties.** From the *All realms* tab, bring two realms that are not at war or under embargo, and are on speaking terms (relations 10 or better), to sign a treaty. You need reputation 10 with both. It costs 300 gold in gifts (split between the two treasuries) and 1 AP. You gain +15 House prestige and +5 reputation with each, and the two realms warm to each other (+10 relations).
+
+**As a ruler.** Your Royal Court's realm tab opens your crown's policy. NPC turns no longer touch your duties or bans.
+- **Duties.** Set the import and export duty on each kind of goods (0, 3, 6, 10, 15 or 25%). Cutting duties pleases the Guild Coalition (merchants faction) and raising them displeases it. The exception is raising the duty on goods your realm's guilds make (marked ⚒️): that wins their thanks. Your neighbours compare their duties with yours and answer high ones with their own trade wars. You hear of it, and so does the Steward.
+- **Bans.** Ban or allow the export of any kind of goods.
+- **Embargoes.** Lay or lift an embargo on any realm. Laying one costs 10 relations with that realm and annoys the Guild Coalition.
+- **Treaties.** Propose a treaty. The other crown signs if its relations with you reach 40 (15 if allied); a good Chancellor lowers the bar by their competence. You may end a treaty, at a cost of 5 relations.
+- **The granaries.** Tell them to fill, or stop buying. Grain already stored still feeds your hungry towns. This works alongside the famine dole.
+- **Revenue.** The panel shows the customs taken last week and in all.
+
+The Steward warns of embargoed goods in your packs, a licence about to run out, and, as a ruler, neighbours waging a trade war or laying an embargo on your realm.
 
 ### Price Knowledge: the Trade Map and the Merchant's Ledger
 

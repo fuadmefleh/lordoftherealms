@@ -27,6 +27,7 @@ import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { Labour } from '../../systems/labour.js';
 import { Guilds } from '../../systems/guilds.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
+import { TradePolicy } from '../../systems/tradePolicy.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 
@@ -586,6 +587,11 @@ export function endDay() {
             // Fairs open and close, and the week's market news goes to the heralds (systems/marketFairs.js)
             const fairDay = MarketFairs.processDay(this.world, this.player);
             for (const n of fairDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
+            // The crowns' trade policy: tariffs, export bans, embargoes, treaties,
+            // trade wars and granaries, each realm on its weekly turn (systems/tradePolicy.js)
+            const tradePolicyDay = TradePolicy.processDay(this.world, this.player);
+            for (const n of tradePolicyDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // The settlement markets' day: production, consumption, NPC trade
             // (world/settlementMarket.js; lairs and sieges disrupt the roads)

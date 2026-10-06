@@ -237,7 +237,14 @@ Kingdom survival in the 1,080-day multi-seed sim is unchanged (see below).
 | | Alive (of 10) | Wars |
 |---|---|---|
 | Before | 10, 8, 9, 8, 10 | 45, 84, 68, 23, 40 |
-| After | see the final report | see the final report |
+| After | 9, 9, 9, 8, 10 | 53, 89, 75, 40, 36 |
+
+**Cost per day.** Measured on the harness world (80×60, about 70–80 towns, the player kept alive, median over 150 days):
+
+| | Old supply/demand tick | New market tick |
+|---|---|---|
+| Market tick | 4.4–5.5 ms (every town's production worked out every day) | 1.4–2.5 ms (each market every 4th day, production profiles every 20 days, links every 30) |
+| `world.advanceDay` | about 6–10 ms | unchanged |
 
 **What did not change.**
 - Same-tile and next-door caps: a sale never pays more than buying the same units back here, at the stock the sale leaves (`Trading.saleUnitCap` walks the same curve), or next door.

@@ -181,9 +181,9 @@
             "productionRate": 2,
             "upkeep": 8,
             "requiredSettlement": true,
-            "allowedRecipes": ["LEATHER_ARMOR", "PARCHMENT"],
+            "allowedRecipes": ["TAN_LEATHER", "LEATHER_ARMOR", "PARCHMENT"],
             "recipeChangeCost": 150,
-            "description": "Processes animal hides into leather armor or cured hides. Upkeep: 8g/day"
+            "description": "Tans animal hides into leather, leather armor or parchment. Upkeep: 8g/day"
         },
         "SAWMILL": {
             "id": "sawmill",
@@ -636,6 +636,7 @@
         "MUSHROOMS": { "id": "mushrooms", "name": "Mushrooms", "icon": "🍄", "basePrice": 4 },
         "MEAT": { "id": "meat", "name": "Meat", "icon": "🥩", "basePrice": 6 },
         "HIDE": { "id": "hide", "name": "Hide", "icon": "🟤", "basePrice": 8 },
+        "LEATHER": { "id": "leather", "name": "Leather", "icon": "🟫", "basePrice": 18, "description": "Tanned hide. Townsfolk wear it out as boots, belts and harness; tanneries make it from hides." },
         "ANTLER": { "id": "antler", "name": "Antler", "icon": "🦌", "basePrice": 15 },
         "FEATHER": { "id": "feather", "name": "Feather", "icon": "🦅", "basePrice": 4 },
         "HORSE": { "id": "horse", "name": "Horse", "icon": "🐴", "basePrice": 120 },
@@ -721,6 +722,7 @@
         "POTTERY": { "id": "pottery", "name": "Fire Pottery", "input": "clay", "inputQty": 3, "output": "pottery", "outputQty": 2, "description": "Fire clay into pots and vessels." },
         "GLASS": { "id": "glass", "name": "Smelt Glass", "input": "stone", "inputQty": 3, "output": "glass", "outputQty": 2, "description": "Melt stone into clear glass." },
         "LANTERN": { "id": "lantern", "name": "Blow Lanterns", "input": "glass", "inputQty": 2, "output": "lantern", "outputQty": 1, "description": "Blow glass into oil lanterns." },
+        "TAN_LEATHER": { "id": "leather", "name": "Tan Leather", "input": "hide", "inputQty": 3, "output": "leather", "outputQty": 2, "description": "Cure hides into leather for the town's cobblers and saddlers." },
         "PARCHMENT": { "id": "parchment", "name": "Prepare Parchment", "input": "hide", "inputQty": 2, "output": "parchment", "outputQty": 3, "description": "Scrape hides into writing parchment." },
         "RARE_BOOK": { "id": "rare_book", "name": "Copy Rare Book", "input": "parchment", "inputQty": 3, "output": "rare_book", "outputQty": 1, "description": "Hand-copy illuminated manuscripts." },
         "DYES": { "id": "dyes", "name": "Extract Dyes", "input": "berries", "inputQty": 3, "output": "dyes", "outputQty": 2, "description": "Crush berries into natural dyes." },

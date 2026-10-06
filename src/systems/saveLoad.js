@@ -32,6 +32,7 @@ import { OutlawLairs } from './outlawLairs.js';
 import { Finance } from './finance.js';
 import { MerchantHouses } from './merchantHouses.js';
 import { MerchantPrince } from './merchantPrince.js';
+import { PriceKnowledge } from './priceKnowledge.js';
 import { Patronage } from './patronage.js';
 import { MerchantCaravans } from './merchantCaravans.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
@@ -450,6 +451,8 @@ export const SaveLoad = {
             finance: Finance.serialize(player),
             // Merchant Prince: works funded in towns, store-rooms and their goods, forward contracts, market news (systems/merchantPrince.js)
             merchantPrince: MerchantPrince.serialize(player),
+            // The price book: known prices by town and their age, price history, trading P&L (systems/priceKnowledge.js)
+            priceBook: PriceKnowledge.serialize(player),
         };
     },
 
@@ -704,6 +707,8 @@ export const SaveLoad = {
         Finance.loadState(player, world);
         // Merchant Prince — older saves have none (stays null until the first works, lease or contract)
         MerchantPrince.loadState(player);
+        // The price book — older saves start a blank one (filled on the next visit)
+        PriceKnowledge.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

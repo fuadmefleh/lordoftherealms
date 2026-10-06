@@ -61,6 +61,7 @@ import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 import { Finance } from '../../systems/finance.js';
 import { MarketFairs } from '../../systems/marketFairs.js';
 import { MerchantPrince } from '../../systems/merchantPrince.js';
+import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
 
 export const WORLD_W = 80;
@@ -293,6 +294,12 @@ export function endDay(game) {
     mark(game, 'MarketDynamics.updatePrices');
     game.princeDay = MerchantPrince.processDay(player, world);
     mark(game, 'MerchantPrince.processDay');
+    PriceKnowledge.processDay(player, world, {
+        posts: (MerchantHouses.company(player) || {}).posts || [],
+        holdings: Holdings.list(player, world),
+        traders: MerchantCaravans.traders(world),
+    });
+    mark(game, 'PriceKnowledge.processDay');
 
     Tavern.expireOldIntel(player, world.day);
     mark(game, 'Tavern.expireOldIntel');

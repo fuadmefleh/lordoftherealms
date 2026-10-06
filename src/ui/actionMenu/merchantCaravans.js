@@ -5,6 +5,7 @@
 // Buttons route through data-am-act.
 import { ActionMenu } from './_ref.js';
 import { MerchantCaravans, PlayerMilitary } from './_imports.js';
+import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 
 const BTN = 'padding: 4px 8px; margin: 2px 3px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
 const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
@@ -30,6 +31,8 @@ Object.assign(ActionMenu, {
             game.ui.showCustomPanel('🐫 On the Road', '<div style="padding:12px; color:#aaa;">The trader has moved on.</div>');
             return;
         }
+        // Hailing a trader: it tells what its goods were worth at both ends (the price book)
+        PriceKnowledge.learnFromTrader(player, world, u);
         const house = u.house || {};
         let html = '<div style="padding:8px;">';
         if (message) html += `<div style="${CARD} color:${message.ok ? '#7fd07f' : '#e08080'}; font-size:12px;">${_esc(message.text)}</div>`;

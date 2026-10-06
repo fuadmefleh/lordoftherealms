@@ -24,6 +24,7 @@ import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 import { Finance } from '../../systems/finance.js';
 import { MarketFairs } from '../../systems/marketFairs.js';
 import { MerchantPrince } from '../../systems/merchantPrince.js';
+import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 
@@ -589,6 +590,14 @@ export function endDay() {
             // spoilage, rent and thieves; forward contracts due (systems/merchantPrince.js)
             const princeDay = MerchantPrince.processDay(this.player, this.world);
             for (const n of princeDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
+            // The player's price book: the market they stand in, merchants met,
+            // their factors' and stewards' reports (systems/priceKnowledge.js)
+            PriceKnowledge.processDay(this.player, this.world, {
+                posts: (MerchantHouses.company(this.player) || {}).posts || [],
+                holdings: Holdings.list(this.player, this.world),
+                traders: MerchantCaravans.traders(this.world),
+            });
 
             // Process informants and expire old intel
             let intelResult = { cost: 0 };

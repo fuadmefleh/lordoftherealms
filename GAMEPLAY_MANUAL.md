@@ -439,6 +439,7 @@ Every settlement keeps one store of goods: about thirty staples from grain, brea
 - **Produces.** Food comes from the land around it. Farmland grows grain (fertility by terrain, a river helps), the waters give fish, and pastures give meat. Villages grow about twice what they eat, towns a little more than their own needs, and cities and capitals about their own. The food follows the agricultural year (much of the harvest comes in autumn), so grain is cheap after the harvest and dear before the next. Droughts and blights cut it. Forests give wood and firewood, hills give stone, and pastures give wool, hides and horses. Map resources add their goods: iron, coal, gems, gold ore, spices, rock oil, salt, timber, hides and horses. Craftsmen add a share of cloth, clothes, tools and weapons. A player property within 3 hexes adds a quarter of its output. A holding's Workshop Quarter raises the town's goods, and storm or quake damage lowers them.
 - **Works up goods.** Wherever the output runs short, its trades turn goods into others:
   - Every settlement mills grain into flour, bakes it into bread, brews beer and burns charcoal.
+  - Every settlement also tans hides into leather.
   - Towns and larger also weave, tailor, distil and make cheese. Their smiths turn iron and coal into tools and weapons, or iron and firewood into tools.
   - Cities and capitals also have jewellers, who turn gems into luxuries.
 - **Consumes.** Its people eat, drink, burn and wear out goods every day, more of them in bigger towns. Cities and capitals also want wine, luxuries, spices, gems and quality horses. In cold weather they burn 3× the firewood and wear out more clothes. A town holds at most twice its target of firewood, so a cold winter far from the forests is felt. Food and fuel can stand in for each other: with no bread they eat porridge, with no firewood they burn coal. When a good runs short, people buy at most half of what's left, so a dear good stays on sale.
@@ -446,7 +447,7 @@ Every settlement keeps one store of goods: about thirty staples from grain, brea
 
 **Scarcity sets the price.** A good's scarcity is (stock ÷ (daily need × target days)) ^ −0.45. It is clamped between 0.6× (a glut) and 2.2× (a dearth). A good the town doesn't use is never dearer than its base. A town newly founded, or one from an older save, starts with its stores full and its prices at base.
 
-**NPC trade.** Merchants move goods along the kingdoms' **trade routes** and between near neighbours: up to 4 partners each, by land within the same region (up to 7 hexes) or port to port by sea (up to 14). A good travels from the town where it's cheap to the one where it's dear, as long as the price gap beats the haul. The haul costs 3.5% a hex, 40% less along a road and half by sea. Each link carries a few hundred gold of goods each market day. More routes and bigger towns carry more. Prices even out along busy roads. Each town keeps half of the value gap of what moved as **trade income**, which is what kingdom trade routes earn now (there is no flat payment per route). Peoples' commerce and gems, spices and the like nearby still raise it.
+**NPC trade.** Merchants move goods along the kingdoms' **trade routes** and between near neighbours: up to 4 partners each, by land within the same region (up to 7 hexes) or port to port by sea (up to 14). A good travels from the town where it's cheap to the one where it's dear, as long as the price gap beats the haul. The haul costs 3.5% a hex, 40% less along a road and half by sea. Each link carries a few hundred gold of goods each market day. More routes and bigger towns carry more. Prices even out along busy roads. Each town keeps half of the value gap of what moved as **trade income**, which is what kingdom trade routes earn now (there is no flat payment per route). Goods that travel as a caravan or trading ship (below) earn their towns this income only **when they arrive**: a robbed cargo earns neither town anything, and a seized one earns the seizing realm's market. Peoples' commerce and gems, spices and the like nearby still raise it.
 
 **Disruption.**
 
@@ -509,7 +510,7 @@ A taken cargo goes to the band's packs (a lair banks it in its hoard). It never 
 
 Beyond buying and selling, a rich trader can work a town's market from the inside. Open a town's **Trade** window and use its **🏭 Invest**, **📦 Warehouse** and **📜 Contracts** tabs (the **📒 Holdings** tab lists everything you own, anywhere). The Steward's Counsel warns of contracts falling due, rent owed, stock spoiling and works at risk. Tuned in `data/merchantPrince.json`.
 
-**Industry.** Fund works in a town: a grain mill, bakehouse, brewhouse, charcoal kilns, distillery, weaving shed, tailors' hall, creamery, smithy, armoury or jewellers' row. Each one is one of the town's own trades (the recipes above), and needs a big enough town. Each level costs gold plus building materials from your packs, adds a few runs a day, and costs 35% more than the last. A works can grow to 3 levels (the jewellers to 2).
+**Industry.** Fund works in a town: a grain mill, bakehouse, brewhouse, charcoal kilns, distillery, weaving shed, tailors' hall, creamery, tannery, smithy, armoury or jewellers' row. Each one is one of the town's own trades (the recipes above), and needs a big enough town. Each level costs gold plus building materials from your packs, adds a few runs a day, and costs 35% more than the last. A works can grow to 3 levels (the jewellers to 2).
 
 - **How it runs.** On market day the works run after the town's own trades, on the town's real stock:
   - They take their inputs only while the town keeps at least half its target of them.
@@ -524,7 +525,7 @@ Beyond buying and selling, a rich trader can work a town's market from the insid
   - If your reputation in the realm stays below −30 for 10 days, the town's guilds expropriate them. The Counsel warns you below −20.
   - Seized works keep running for their new owner.
 - **Damage.**
-  - A raid or sack that loots the town's stores also damages the works.
+  - A raid or sack that loots the town's stores also damages the works. So does a bandit raid that gets into one of your holdings.
   - A siege of the town idles them and wears them 3% a day.
   - Storm and quake damage to the town slows them.
   - Repairs cost half the works' price times the damage.
@@ -563,6 +564,29 @@ Merchants from afar put their goods into the town's stores. The goods then sell,
 
 Every week the heralds also cry the world's worst **food dearth** (a town in dearth with a staple at least 60% over its worth). In the weeks after the harvest they cry the deepest **grain glut** at a city or capital. A town is not cried again within 40 days.
 
+### Price Knowledge: the Trade Map and the Merchant's Ledger
+
+You do not see every market's prices from afar. You know a town's prices only from:
+
+| Source | What you learn | How fresh |
+|---|---|---|
+| 👁️ Your visit | The whole market: asking price, what the stalls pay, stock | Each day you stand there |
+| 🏪 Your trading company's factor | The whole market of each post's town | A report every 3 days |
+| 🏰 Your steward | The whole market of each of your holdings | A report every 3 days |
+| 🐫 A merchant met on the road | What its goods were worth at its origin and destination | As of the day it set out |
+| 🍺 Tavern talk (bought, heard or from informants) | A few goods, as reported | As of the telling, and it may be wrong |
+
+Every price you know keeps its age ("12 days old"). Talk only says what a good is worth, so the asking price is estimated from the town's size and the stalls' pay is 70% of it. Your book keeps up to 30 towns (the stalest are forgotten first). Tuned in `data/priceKnowledge.json`.
+
+**The trade map.** Choose **📈 Trade Map** from the map modes (or press **M** until it comes up), then **G** to step through the goods (**Shift+G** back). Each town you know shows a marker with the good's last-known asking price, coloured by its stock (Glut blue to Dearth red), and the source and age of the news. Old news fades. Lines join the towns you know along the merchants' trade links: gold by land, blue by sea, thicker where caravans run often, and red and dashed where merchants shun a road after a loss. Caravans and trading ships in sight show the road ahead of them, bright if they carry the good.
+
+**The Merchant's Ledger** (**📒 Ledger** in a town's trade window, or from the map-mode menu) has four pages:
+
+- **📖 Price Book.** For each good, every known town's asking price, what its stalls pay, its stock, distance and the age and source of the news. **🗺️ Show on the trade map** opens the map on that good.
+- **⚖️ Best Spreads.** The best known buy-here, sell-there margin for each good between two towns within 3, 5, 8 or 12 days' travel (about 3 hexes a day). It uses only what you know, so stale news can mislead, and a big lot moves the price against you.
+- **📈 Price History.** The asking prices you saw in the 10 markets you visited last, a sample every 3 days.
+- **💹 Profit & Loss.** Your trading at the stalls: each sale against the average cost of what you bought of that good (goods found, looted or made count as free), by good and by route (where you bought it → where you sold it).
+
 ### Map Resources and Settlements
 
 Resources on or within 2 hexes of a settlement shape what it produces and how it works (a resource on the settlement's own hex counts in full, a nearby one at half; each effect is capped at +50%). Open a settlement's **Economic Breakdown** to see its "Resource Advantages".
@@ -591,6 +615,7 @@ Coal yields coal, oil yields rock oil, and cattle yield food and hides. Coal als
 | Beer | 12g | Grain (brewing) |
 | Liquor | 30g | Grain (distilling) |
 | Luxuries | 100g | Gold Ore (refining) |
+| Leather | 18g | Hides (tanning: 1½ hides → 1 leather in a town's tanneries, 3 hides → 2 leather in your Tannery) |
 
 ### Banks, Credit & Coin
 
@@ -808,7 +833,7 @@ Properties are the backbone of your economy. Build them on appropriate terrain t
 | 🌬️ Mill | 600g | 6 days | Flour | 6g/day | Plains, Grassland, Hills, Woodland, Savanna |
 | 🍞 Bakery | 700g | 7 days | Bread | 8g/day | In or next to a settlement |
 | 🔥 Forge | 1000g | 9 days | Tools / Weapons | 12g/day | In or next to a settlement |
-| 🦺 Tannery | 1100g | 6 days | Leather Armor / Parchment | 8g/day | In or next to a settlement |
+| 🦺 Tannery | 1100g | 6 days | Leather / Leather Armor / Parchment | 8g/day | In or next to a settlement |
 | 🪚 Sawmill | 500g | 5 days | Firewood | 7g/day | Forests, plains & hills |
 | 🍖 Smokehouse | 500g | 5 days | Smoked Fish / Dried Meat | 6g/day | In or next to a settlement |
 | 🥩 Butcher | 400g | 3 days | Dried Meat | 5g/day | In or next to a settlement |
@@ -2563,7 +2588,7 @@ A **rebellion** stops all taxes and building there. A garrison that grows strong
 
 If the rebels still hold the town at the deadline, it becomes a free town and is no longer yours.
 
-**Bandit raids.** Raider bands within 2 hexes of a holding may fall on it (about 6% a day per band, less with walls, a watchtower and a crafty governor, and at most once a week). If the town's defence beats the band, the band is destroyed. Otherwise the raiders burn 30% of its stored food, kill 3% of its people, cost 6 happiness and 8 unrest, and set back construction by 2 days.
+**Bandit raids.** Raider bands within 2 hexes of a holding may fall on it (about 6% a day per band, less with walls, a watchtower and a crafty governor, and at most once a week). If the town's defence beats the band, the band is destroyed. Otherwise the raiders burn 30% of its stored food (and 15% of the market's stores, which damages any works there), kill 3% of its people, cost 6 happiness and 8 unrest, and set back construction by 2 days.
 
 A holding you lose — to rebels or a war host — keeps only its walls. Its harbour, markets, workshops and other works stop serving you until you take it back.
 

@@ -70,7 +70,9 @@
             "happiness": 6,
             "populationLoss": 0.03,
             "unrest": 8,
-            "progressLoss": 2
+            "progressLoss": 2,
+            "_marketShare": "A raid that gets in burns marketShare x foodLoss of the town market's stores, which damages the player's works there (SettlementMarket.loot)",
+            "marketShare": 0.5
         },
         "materialPrices": { "wood": 8, "stone": 8, "iron": 20, "tools": 35 },
         "buyMarkup": 1.5,

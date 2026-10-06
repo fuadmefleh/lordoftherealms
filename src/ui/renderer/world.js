@@ -96,6 +96,9 @@ Object.assign(Renderer.prototype, {
         // Render caravans
         this.renderCaravans(ctx);
 
+        // The trade map: known prices of one good (map mode 'prices', renderer/tradeMap.js)
+        this.renderTradeMap(ctx);
+
         // Render weather
         this.renderWeather(ctx);
 

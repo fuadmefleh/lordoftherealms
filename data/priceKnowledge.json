@@ -1,0 +1,23 @@
+{
+    "_doc": "The player's price knowledge (systems/priceKnowledge.js): what the player knows of each town's prices, and since when. Nothing is omniscient: a town's prices are known from the player's own visits (the whole market, every day they stand there), the reports of their trading company's factors and their holdings' stewards (the whole market, every reportEvery days), merchant caravans and trading ships met on the road (the goods they carry, as priced at both ends when they set out) and tavern talk bought or heard (a few goods, possibly wrong). Every quote keeps the day it was true and its source; the trade map and the Merchant's Ledger show its age. A hearsay quote (a worth, not a stall price) is turned into an asking price by the town's size (askBySize) and into what the stalls pay by sellShare. Caps keep the book small: maxTowns towns (the stalest dropped first), a price history of historySamples samples (one every historyEvery days) for the historyTowns towns visited last, and routesCap trade routes in the profit-and-loss book. spreads: the best known buy-here, sell-there margins within maxTravelDays of travel at hexesPerDay.",
+    "maxTowns": 30,
+    "reportEvery": 3,
+    "historyTowns": 10,
+    "historySamples": 10,
+    "historyEvery": 3,
+    "hailRadius": 1,
+    "sellShare": 0.7,
+    "askBySize": { "village": 1.2, "town": 1.0, "city": 0.9, "capital": 0.8 },
+    "hexesPerDay": 3,
+    "maxTravelDays": 8,
+    "freshDays": 7,
+    "staleDays": 30,
+    "routesCap": 20,
+    "sources": {
+        "v": { "name": "your visit", "icon": "👁️" },
+        "f": { "name": "your factor", "icon": "🏪" },
+        "h": { "name": "your steward", "icon": "🏰" },
+        "c": { "name": "a passing merchant", "icon": "🐫" },
+        "t": { "name": "tavern talk", "icon": "🍺" }
+    }
+}

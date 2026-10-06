@@ -6,6 +6,7 @@
 import { PlayerEconomy } from './_ref.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Ships } from '../../systems/ships.js';
+import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, PlayerEffects, PlayerInventory, Economy, Seasons, SettlementMarket } from './_imports.js';
 
 export const Trading = {
@@ -260,6 +261,8 @@ export const Trading = {
 
         // Increase commerce skill
         player.skills.commerce = Math.min(10, player.skills.commerce + 0.1);
+        // The Merchant's Ledger books the cost (systems/priceKnowledge.js)
+        PriceKnowledge.recordBuy(player, settlement, good.id, quantity, totalCost);
 
         return { success: true, spent: totalCost };
     },
@@ -309,6 +312,8 @@ export const Trading = {
 
         // Increase commerce skill
         player.skills.commerce = Math.min(10, player.skills.commerce + 0.1);
+        // ...and the sale, against what the goods cost (profit by good and route)
+        PriceKnowledge.recordSale(player, settlement, goodId, quantity, totalEarned);
 
         return { success: true, earned: totalEarned, tariff: legality.tariff || 0 };
     },

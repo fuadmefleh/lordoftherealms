@@ -310,7 +310,9 @@ describe('headless playtest soak', () => {
     it('the bot reached the systems it is meant to exercise', () => {
         for (const key of ['foodBought', 'recruited', 'sales', 'coloniesFounded', 'guildJoined', 'delvesStarted',
             'petitionsRuled', 'companionsHired', 'shipsBought', 'crewHired', 'voyages', 'daysAtSea', 'propertiesBuilt',
-            'companyFounded', 'postsOpened', 'ordersSet', 'worksFunded']) {
+            'companyFounded', 'postsOpened', 'ordersSet', 'worksFunded',
+            // The long game also rides with (and now and then robs) the merchant caravans
+            ...(LONG ? ['escortsHired', 'escortsPaid', 'caravansRobbed'] : [])]) {
             expect(totals[key] || 0, `the bot never did "${key}" — ${JSON.stringify(totals)}`).toBeGreaterThan(0);
         }
     });

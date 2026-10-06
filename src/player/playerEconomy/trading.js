@@ -150,6 +150,12 @@ export const Trading = {
     /** Share of the base price a settlement pays for goods you sell it. */
     SELL_SHARE: 0.7,
 
+    /** Share of what a good is worth that this settlement pays: more while a fair is on (systems/marketFairs.js). */
+    sellShare(settlement) {
+        const f = SettlementMarket.fair(settlement);
+        return f && f.sell > Trading.SELL_SHARE ? Math.min(0.95, f.sell) : Trading.SELL_SHARE;
+    },
+
     /**
      * What a settlement pays per unit for a good you sell, before trade
      * bonuses: 70% of what it's worth there — base × the town's scarcity ×
@@ -162,7 +168,7 @@ export const Trading = {
         if (!good) return 0;
         if (settlement && settlement.market && SettlementMarket.tracks(good.id)) {
             const at = tile || Economy.settlementTile(world, settlement);
-            return Math.floor(SettlementMarket.value(world, settlement, at, good.id, good.basePrice) * Trading.SELL_SHARE);
+            return Math.floor(SettlementMarket.value(world, settlement, at, good.id, good.basePrice) * Trading.sellShare(settlement));
         }
         return Math.floor(good.basePrice * Trading.SELL_SHARE * Seasons.priceMultiplier(good.id, Seasons.today(world)));
     },
@@ -194,7 +200,7 @@ export const Trading = {
             const s0 = SettlementMarket.stock(settlement, good.id);
             let sum = 0;
             for (let j = 0; j < q; j++) sum += unitBase * SettlementMarket.scarcity(settlement, good.id, s0 + j);
-            value = sum * Trading.SELL_SHARE * (1 + tradeBonus) * priceMult;
+            value = sum * Trading.sellShare(settlement) * (1 + tradeBonus) * priceMult;
         } else {
             value = Trading.getSellPrice(good, world) * q * (1 + tradeBonus) * priceMult;
         }

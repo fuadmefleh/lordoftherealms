@@ -58,6 +58,8 @@ import { Heralds } from '../../systems/heralds.js';
 import { Patronage } from '../../systems/patronage.js';
 import { OutlawLairs } from '../../systems/outlawLairs.js';
 import { Finance } from '../../systems/finance.js';
+import { MarketFairs } from '../../systems/marketFairs.js';
+import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
 
 export const WORLD_W = 80;
@@ -282,8 +284,12 @@ export function endDay(game) {
     mark(game, 'Patronage.processDay');
     Heralds.processDay(world, player);
     mark(game, 'Heralds.processDay');
+    game.fairDay = MarketFairs.processDay(world, player);
+    mark(game, 'MarketFairs.processDay');
     MarketDynamics.updatePrices(world, player);
     mark(game, 'MarketDynamics.updatePrices');
+    game.princeDay = MerchantPrince.processDay(player, world);
+    mark(game, 'MerchantPrince.processDay');
 
     Tavern.expireOldIntel(player, world.day);
     mark(game, 'Tavern.expireOldIntel');

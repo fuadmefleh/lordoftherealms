@@ -40,6 +40,9 @@ import { Quests } from '../../systems/quests.js';
 import { Patronage } from '../../systems/patronage.js';
 import { OutlawLairs } from '../../systems/outlawLairs.js';
 import { Finance } from '../../systems/finance.js';
+import { MerchantPrince } from '../../systems/merchantPrince.js';
+import { SettlementMarket } from '../../world/settlementMarket.js';
+import { Seasons } from '../../world/seasons.js';
 import { travelTo } from './harness.js';
 
 const FOOD = ['grain', 'bread'];
@@ -602,6 +605,67 @@ function banking(game, tile, stats) {
     }
 }
 
+/** Buy what's missing of `materials` ({ goodId: n }) from the stalls here; true when all are in the packs. */
+function buyMaterials(game, tile, materials, stats) {
+    const { player, world } = game;
+    for (const [id, n] of Object.entries(materials)) {
+        const short = n - (player.inventory[id] || 0);
+        if (short <= 0) continue;
+        const entry = Trading.getAvailableGoods(tile.settlement, tile, world).find(g => g.id === id);
+        if (!entry || entry.quantity < short || Trading.buyCost(player, entry, short, tile.settlement) > player.gold - 500) return false;
+        if (!Trading.buyGoods(player, entry, short, tile.settlement).success) return false;
+        count(stats, 'materialsBought');
+    }
+    return true;
+}
+
+/** Merchant Prince: fund works in a big town, speculate on grain with a store-room, keep forward contracts. */
+function merchantPrince(game, tile, stats) {
+    const { player, world } = game;
+    const s = tile.settlement;
+    // Works: a bakehouse or brewhouse in a town of 3,000+, while there's money to spare
+    if (player.gold > 2200 && (s.population || 0) >= 2000) {
+        for (const id of ['bakery', 'brewery', 'charcoal', 'mill']) {
+            const q = MerchantPrince.investQuote(player, world, tile, id);
+            if (!q.lvl || q.lvl > 1 || !(q.margin && q.margin.perRun > 0) || player.gold < q.gold + 1800) continue;
+            if (!buyMaterials(game, tile, q.materials, stats)) continue;
+            if (MerchantPrince.invest(player, world, tile, id).success) { count(stats, 'worksFunded'); break; }
+        }
+    }
+    for (const x of MerchantPrince.investments(player, world)) {
+        if (x.repairCost > 0 && x.works && x.works.cond < 0.6 && player.gold > x.repairCost + 1000 && MerchantPrince.repair(player, world, x.inv.id).success) count(stats, 'worksRepaired');
+    }
+    // A store-room for grain: buy after the harvest, sell in the lean weeks
+    const doy = Seasons.dayOfYear(world.day);
+    let w = MerchantPrince.warehouseAt(player, tile.q, tile.r);
+    if (!w && player.gold > 8000 && ['city', 'capital'].includes(s.type) && doy >= 80 && doy <= 95
+        && MerchantPrince.state(player).warehouses.length < 2 && SettlementMarket.scarcity(s, 'grain') < 0.9) {
+        if (MerchantPrince.rentWarehouse(player, world, tile, 'small').success) count(stats, 'warehousesRented');
+        w = MerchantPrince.warehouseAt(player, tile.q, tile.r);
+    }
+    if (w) {
+        if (doy >= 80 && doy <= 95 && SettlementMarket.scarcity(s, 'grain') < 0.9 && player.gold > 5000) {
+            if (MerchantPrince.buyInto(player, world, w.id, 'grain', 60).success) count(stats, 'warehouseBuys');
+        }
+        for (const [id, qty] of Object.entries(w.goods)) {
+            if (qty >= 1 && (SettlementMarket.scarcity(s, id) > 1.1 || (doy >= 20 && doy < 80))) {
+                if (MerchantPrince.sellFrom(player, world, w.id, id, Math.floor(qty)).success) count(stats, 'warehouseSales');
+            }
+        }
+        if (MerchantPrince.used(w) < 1 && (doy < 80 || doy > 95) && MerchantPrince.closeWarehouse(player, world, w.id).success) count(stats, 'warehousesClosed');
+    }
+    // Forward contracts: promise grain we already store or carry, deliver when here
+    const st = MerchantPrince.state(player);
+    for (const f of st.forwards.slice()) {
+        const can = MerchantPrince.deliverable(player, world, f);
+        if (can.warehouse > 0 && MerchantPrince.deliverForward(player, world, f.id, f.qty, 'warehouse').success) count(stats, 'forwardDeliveries');
+        else if (can.inventory > 0 && MerchantPrince.deliverForward(player, world, f.id, f.qty, 'inventory').success) count(stats, 'forwardDeliveries');
+    }
+    if (w && !st.forwards.length && (w.goods.grain || 0) >= 30) {
+        if (MerchantPrince.signForward(player, world, tile, 'grain', 25, 20).success) count(stats, 'forwardsSigned');
+    }
+}
+
 function settlementBusiness(game, stats) {
     const { player, world } = game;
     const tile = world.getTile(player.q, player.r);
@@ -622,6 +686,7 @@ function settlementBusiness(game, stats) {
     booked(game, 'company', () => company(game, tile, stats));
     booked(game, 'patronage', () => patronage(game, tile, stats));
     booked(game, 'banking', () => banking(game, tile, stats));
+    booked(game, 'merchantPrince', () => merchantPrince(game, tile, stats));
 }
 
 // ── Out in the world ─────────────────────────────────────────

@@ -31,6 +31,7 @@ import { Heralds } from './heralds.js';
 import { OutlawLairs } from './outlawLairs.js';
 import { Finance } from './finance.js';
 import { MerchantHouses } from './merchantHouses.js';
+import { MerchantPrince } from './merchantPrince.js';
 import { Patronage } from './patronage.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { WorldUnit } from '../world/units.js';
@@ -442,6 +443,8 @@ export const SaveLoad = {
             outlawLairs: OutlawLairs.serialize(player),
             // Banks, Credit & Coin: the banking houses, deposits, loans, royal bonds, credit history (systems/finance.js)
             finance: Finance.serialize(player),
+            // Merchant Prince: works funded in towns, store-rooms and their goods, forward contracts, market news (systems/merchantPrince.js)
+            merchantPrince: MerchantPrince.serialize(player),
         };
     },
 
@@ -692,6 +695,8 @@ export const SaveLoad = {
         // Banks, Credit & Coin — older saves get a blank record and their banking
         // houses; loans from the old royal banks (player.loans) are folded in
         Finance.loadState(player, world);
+        // Merchant Prince — older saves have none (stays null until the first works, lease or contract)
+        MerchantPrince.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

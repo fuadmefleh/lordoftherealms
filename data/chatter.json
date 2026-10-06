@@ -31,15 +31,32 @@
             "coronation": 9, "realm_fallen": 10, "realm_restored": 8, "peace": 7, "war": 6,
             "saga_end": 6, "revolt": 8, "revolt_end": 7, "rebellion": 5, "discovery": 5,
             "siege_won": 6, "siege_lost": 7, "wonder": 7, "wonder_begun": 4, "lair_cleared": 5, "lair_risen": 5,
-            "bank_failed": 6, "crown_default": 7, "coin_debased": 5
+            "bank_failed": 6, "crown_default": 7, "coin_debased": 5,
+            "market_fair": 4, "market_dearth": 5, "market_glut": 3
         },
         "icons": {
             "coronation": "👑", "realm_fallen": "🏴", "realm_restored": "🚩", "peace": "🕊️", "war": "⚔️",
             "saga_end": "📜", "revolt": "🔥", "revolt_end": "🛡️", "rebellion": "🔥", "discovery": "🗺️",
             "siege_won": "🏰", "siege_lost": "🏳️", "wonder": "🏛️", "wonder_begun": "🏗️", "lair_cleared": "🛡️", "lair_risen": "🏕️",
-            "bank_failed": "🏚️", "crown_default": "📛", "coin_debased": "💱"
+            "bank_failed": "🏚️", "crown_default": "📛", "coin_debased": "💱",
+            "market_fair": "🎪", "market_dearth": "🥖", "market_glut": "🌾"
         },
         "templates": {
+            "market_fair": [
+                "Hear ye! The {fair} is open in {place} for {days} days. Merchants from far lands, and every stall dealing close!",
+                "Come one, come all to the {fair} at {place}: spices, wine and wares from beyond the sea, and the stalls buying dear.",
+                "By leave of the crown of {kingdom}, the {fair} is cried at {place}. Bring your goods and your purse!"
+            ],
+            "market_dearth": [
+                "Hear ye! {place} goes hungry: {good} fetches {pct}% over its worth. Whoever brings food will be paid well and blessed.",
+                "The criers of {kingdom} beg for {good}: {place} is in dearth and the poor queue at the bakers' doors.",
+                "Dearth in {place}! The granaries are low and {good} is dear. Let the carters make haste."
+            ],
+            "market_glut": [
+                "Hear ye! The harvest is in at {place}, and {good} goes begging at {pct}% under its worth.",
+                "A bumper harvest at {place}: the barns are full and {good} is cheap as chaff. Buy now, sell in the lean weeks.",
+                "{place} cannot eat all its {good}: the criers call for buyers before it rots in the barns."
+            ],
             "coronation": [
                 "Hear ye! {ruler} is crowned in {kingdom}. Long may they reign!",
                 "By order of the crown of {kingdom}: {ruler} sits the throne, and all oaths are owed anew.",

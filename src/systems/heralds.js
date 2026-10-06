@@ -30,6 +30,8 @@ import { Hex } from '../core/hex.js';
 const DEFAULT_CONFIG = { speed: 8, lifeDays: 40, minGapDays: 2, maxPerDay: 1, cap: 24 };
 const MAJOR = 9;
 const SIEGE_WON = ['captured', 'sacked', 'terms'];
+// Market records (player.merchantPrince.history) and the proclamation each makes
+const MARKET_KINDS = { fair: 'market_fair', dearth: 'market_dearth', glut: 'market_glut' };
 
 const _num = v => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -149,7 +151,7 @@ export const Heralds = {
 
     /** Keys of the day-stamped records Heralds reads: [{ key, day, ... }] per kind. */
     _records(player) {
-        const out = { sagas: [], sieges: [], holdings: [], lairs: [], finance: [] };
+        const out = { sagas: [], sieges: [], holdings: [], lairs: [], finance: [], market: [] };
         for (const s of (player && player.sagas && Array.isArray(player.sagas.done)) ? player.sagas.done : []) {
             if (s && s.ended) out.sagas.push({ key: `saga:${s.uid}`, day: _num(s.ended.day), s });
         }
@@ -167,6 +169,10 @@ export const Heralds = {
         for (const h of (player && player.finance && Array.isArray(player.finance.history)) ? player.finance.history : []) {
             if (h && h.key) out.finance.push({ key: h.key, day: _num(h.day), h });
         }
+        // Fairs opening, harvest gluts and dearths (systems/marketFairs.js)
+        for (const h of (player && player.merchantPrince && Array.isArray(player.merchantPrince.history)) ? player.merchantPrince.history : []) {
+            if (h && h.key && MARKET_KINDS[h.kind]) out.market.push({ key: h.key, day: _num(h.day), h });
+        }
         return out;
     },
 
@@ -179,7 +185,7 @@ export const Heralds = {
             if (s && s.discovered) st.seen[`d:${s.id}`] = true;
         }
         const rec = Heralds._records(player);
-        for (const x of [...rec.sagas, ...rec.sieges, ...rec.holdings, ...rec.lairs, ...rec.finance]) st.seen[x.key] = x.day;
+        for (const x of [...rec.sagas, ...rec.sieges, ...rec.holdings, ...rec.lairs, ...rec.finance, ...rec.market]) st.seen[x.key] = x.day;
     },
 
     _capital(world, k) {
@@ -351,6 +357,16 @@ export const Heralds = {
                 bank: h.bank || 'a banking house', place: h.place || (k ? k.name : 'the city'), kingdom: h.kingdom || (k ? k.name : 'the realm'),
                 purity: h.purity != null ? Math.round(h.purity * 100) : 90,
             }, at, { kingdomId: h.kingdomId != null ? h.kingdomId : null });
+        }
+
+        // The markets: a fair opening, a harvest glut, a dearth
+        for (const x of rec.market.filter(fresh)) {
+            st.seen[x.key] = x.day;
+            const h = x.h;
+            Heralds._proclaim(st, world, MARKET_KINDS[h.kind], {
+                place: h.place || 'the town', fair: h.fair || 'the fair', good: h.good || 'grain', days: _num(h.days) || 7,
+                pct: Math.abs(_num(h.pct)), kingdom: (_kingdom(world, h.kingdomId) || {}).name || 'the realm',
+            }, { q: h.q, r: h.r }, { kingdomId: h.kingdomId != null ? h.kingdomId : null });
         }
 
         st.snapshot = now;

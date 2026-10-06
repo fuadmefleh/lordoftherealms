@@ -80,10 +80,10 @@ function buildConfig(src) {
     const groupIdx = {};
     for (const [grp, gids] of Object.entries(groups)) groupIdx[grp] = Int32Array.from(gids.map(id => idx[id]));
     const toIdx = (o) => Object.entries(o || {}).filter(([id, per]) => idx[id] !== undefined && per > 0).map(([id, per]) => [idx[id], per]);
-    const recipesI = recipes.map(r => ({ rank: r.rank, cap: r.cap, inI: toIdx(r.in), outI: toIdx(r.out) }))
+    const recipesI = recipes.map(r => ({ id: r.id, fill: Math.max(0.5, _num(r.fill, 1)), rank: r.rank, cap: r.cap, inI: toIdx(r.in), outI: toIdx(r.out) }))
         .filter(r => r.inI.length && r.outI.length)
         .map(r => ({
-            rank: r.rank, cap: r.cap,
+            id: r.id, fill: r.fill, rank: r.rank, cap: r.cap,
             inIdx: Int32Array.from(r.inI.map(x => x[0])), inPer: Float64Array.from(r.inI.map(x => x[1])),
             outIdx: Int32Array.from(r.outI.map(x => x[0])), outPer: Float64Array.from(r.outI.map(x => x[1])),
         }));
@@ -131,6 +131,9 @@ function buildConfig(src) {
             lairRadius: 3, lairCut: 0.6, raiderRadius: 2, raiderCut: 0.35, warCut: 1, siegeCut: 1, atWarFactor: 0.75,
             ...(d.trade || {}),
         },
+        // Works the player built or funded (market.works; systems/merchantPrince.js)
+        works: { fill: 2, keep: 0.75, minMargin: 0.1, steps: 4, lootDamage: 0.6, ...(d.works || {}) },
+        recipeById: Object.fromEntries(recipesI.map(r => [r.id, r])),
         labels: Array.isArray(d.labels) && d.labels.length ? d.labels : [{ max: 99, label: 'Steady', color: '#aaa' }],
         tickDays: Number.isInteger(d.tickDays) && d.tickDays >= 1 ? d.tickDays : 1,
         // Identifies the goods list a market's tables were laid out for
@@ -339,6 +342,150 @@ export const SettlementMarket = {
         if (!m) return;
         const keep = 1 - _clamp(_num(share), 0, 1);
         for (const id in m.stock) m.stock[id] = _round2(Math.max(0, _num(m.stock[id])) * keep);
+        // ...and the mills and workshops in town take their share of the damage
+        SettlementMarket.damageWorks(settlement, _clamp(_num(share), 0, 1) * SettlementMarket.config().works.lootDamage);
+    },
+
+    // ── Works (industry the player built or funded) ───────
+
+    /** A local industry by recipe id (data/markets.json recipes): { id, rank, cap, fill, inIdx, ... } or null. */
+    recipe(recipeId) {
+        return SettlementMarket.config().recipeById[recipeId] || null;
+    },
+
+    /** The recipe's inputs or outputs as { goodId: units per run }. */
+    recipeGoods(recipeId, side = 'in') {
+        const rc = SettlementMarket.recipe(recipeId);
+        if (!rc) return {};
+        const ids = SettlementMarket.config().goodIds;
+        const idx = side === 'out' ? rc.outIdx : rc.inIdx, per = side === 'out' ? rc.outPer : rc.inPer;
+        const out = {};
+        for (let j = 0; j < idx.length; j++) out[ids[idx[j]]] = per[j];
+        return out;
+    },
+
+    /** Can this settlement have the trade (its size is at least the recipe's minType)? */
+    hasTrade(settlement, recipeId) {
+        const rc = SettlementMarket.recipe(recipeId);
+        return !!(rc && settlement && SettlementMarket._rank(settlement.type) >= rc.rank);
+    },
+
+    /** Runs a day the town's own trade can work at most (per 1000 people × its cap). */
+    tradeCapacity(settlement, recipeId) {
+        const rc = SettlementMarket.recipe(recipeId);
+        if (!rc || !SettlementMarket.hasTrade(settlement, recipeId)) return 0;
+        return rc.cap * SettlementMarket._pop(settlement) / 1000;
+    },
+
+    /** The works for a recipe at this settlement (market.works[recipeId]), or null. */
+    works(settlement, recipeId) {
+        const m = settlement && settlement.market;
+        const w = m && m.works && m.works[recipeId];
+        return w && typeof w === 'object' ? w : null;
+    },
+
+    /**
+     * Build or extend works: `cap` runs a day at full repair, `lvl` levels,
+     * `owner` who takes the profit ('player', 'crown', 'town'). Returns the entry.
+     */
+    setWorks(settlement, recipeId, fields) {
+        const m = SettlementMarket.ensure(settlement);
+        if (!m || !SettlementMarket.recipe(recipeId)) return null;
+        if (!m.works || typeof m.works !== 'object') m.works = {};
+        const w = m.works[recipeId] || (m.works[recipeId] = { cap: 0, lvl: 0, cond: 1, owner: 'player', runs: 0, va: 0, day: null });
+        Object.assign(w, fields || {});
+        w.cap = Math.max(0, _num(w.cap));
+        w.cond = _clamp(_num(w.cond, 1), 0, 1);
+        if (!(w.lvl > 0) || !(w.cap > 0)) delete m.works[recipeId];
+        if (!Object.keys(m.works).length) delete m.works;
+        return SettlementMarket.works(settlement, recipeId);
+    },
+
+    /** Knock `share` off the repair of every works in town (a raid, a sack, a bombardment). */
+    damageWorks(settlement, share) {
+        const m = settlement && settlement.market;
+        if (!m || !m.works || !(share > 0)) return;
+        for (const id in m.works) {
+            const w = m.works[id];
+            w.cond = _round2(_clamp(_num(w.cond, 1) * (1 - _clamp(share, 0, 1)), 0, 1));
+        }
+    },
+
+    /** Base prices of the traded goods in config order (data/playerEconomy.json GOODS), memoised. */
+    _bases() {
+        const C = SettlementMarket.config();
+        const G = DataLoader._gamedata && DataLoader._gamedata.playerEconomy ? DataLoader._gamedata.playerEconomy.GOODS : null;
+        if (C._bases && C._basesSrc === G) return C._bases;
+        const arr = new Float64Array(C.goodIds.length);
+        C.goodIds.forEach((id, i) => {
+            const g = G && G[id.toUpperCase()];
+            arr[i] = g && g.basePrice > 0 ? g.basePrice : 0;
+        });
+        C._bases = arr;
+        C._basesSrc = G;
+        return arr;
+    },
+
+    /**
+     * One turn of the player's works (from processSettlement, after the
+     * town's own trades): each runs up to cap × repair × `mult` runs while
+     * the town keeps `keep` of its target of the inputs, the output stays
+     * under `fill` × its target, and a run still adds `minMargin` of its
+     * output's worth at today's stock. Records the turn's runs and the
+     * value added (gold, at the town's scarcity) on the works.
+     */
+    _runWorks(m, st, sh, k, mult, day) {
+        const C = SettlementMarket.config();
+        const W = C.works;
+        const bases = SettlementMarket._bases();
+        const target = sh.targetA, needOf = sh.needA, used = sh.usedA;
+        const steps = Math.max(1, Math.floor(_num(W.steps, 4)));
+        for (const id in m.works) {
+            const w = m.works[id];
+            const rc = C.recipeById[id];
+            w.runs = 0;
+            w.va = 0;
+            if (day != null) w.day = day;
+            if (!rc || !(w.cap > 0)) continue;
+            let left = w.cap * _clamp(_num(w.cond, 1), 0, 1) * mult;
+            const oi = rc.outIdx, op = rc.outPer, ii = rc.inIdx, ip = rc.inPer;
+            let runs = 0, va = 0;
+            for (let s = 0; s < steps && left > 0.005; s++) {
+                let chunk = left / (steps - s);
+                for (let j = 0; j < oi.length; j++) chunk = Math.min(chunk, Math.max(0, target[oi[j]] * W.fill - st[oi[j]]) / op[j]);
+                for (let j = 0; j < ii.length; j++) {
+                    const keep = Math.max(needOf[ii[j]] * k, target[ii[j]] * W.keep);
+                    chunk = Math.min(chunk, Math.max(0, st[ii[j]] - keep) / ip[j]);
+                }
+                if (!(chunk > 0.005)) break;
+                // What a run adds at today's stock: its output's worth less its inputs'
+                let outV = 0, inV = 0;
+                for (let j = 0; j < oi.length; j++) outV += op[j] * bases[oi[j]] * SettlementMarket.curve(st[oi[j]] / target[oi[j]], used[oi[j]]);
+                for (let j = 0; j < ii.length; j++) inV += ip[j] * bases[ii[j]] * SettlementMarket.curve(st[ii[j]] / target[ii[j]], used[ii[j]]);
+                if (!(outV > 0) || outV - inV < outV * W.minMargin) break;
+                for (let j = 0; j < ii.length; j++) st[ii[j]] = Math.max(0, st[ii[j]] - chunk * ip[j]);
+                for (let j = 0; j < oi.length; j++) st[oi[j]] += chunk * op[j];
+                runs += chunk;
+                va += chunk * (outV - inV);
+                left -= chunk;
+            }
+            w.runs = _round2(runs);
+            w.va = _round2(va);
+        }
+    },
+
+    // ── Fairs ─────────────────────────────────────────────
+
+    /** The fair being held here ({ id, name, until, ask, sell }), or null (systems/marketFairs.js). */
+    fair(settlement) {
+        const m = settlement && settlement.market;
+        return m && m.fair && typeof m.fair === 'object' ? m.fair : null;
+    },
+
+    /** Factor on what the market asks while a fair is on (merchants from afar undercut the stalls). */
+    fairAsk(settlement) {
+        const f = SettlementMarket.fair(settlement);
+        return f ? _clamp(_num(f.ask, 1), 0.5, 1) : 1;
     },
 
     // ── Prices ────────────────────────────────────────────
@@ -742,12 +889,22 @@ export const SettlementMarket = {
             let runs = rc.cap * pop / 1000 * toolF * k;
             if (!(runs > 0)) continue;
             const oi = rc.outIdx, op = rc.outPer, ii = rc.inIdx, ip = rc.inPer;
-            for (let j = 0; j < oi.length; j++) runs = Math.min(runs, Math.max(0, target[oi[j]] - st[oi[j]] + needOf[oi[j]] * k) / op[j]);
+            // A trade with `fill` works ahead of need while its inputs are in glut (brewers
+            // brew the harvest's cheap grain): up to fill × target at twice the inputs' target
+            let fill = 1;
+            if (rc.fill > 1) {
+                let glut = 1;
+                for (let j = 0; j < ii.length; j++) glut = Math.min(glut, _clamp(st[ii[j]] / target[ii[j]] - 1, 0, 1));
+                fill = 1 + (rc.fill - 1) * glut;
+            }
+            for (let j = 0; j < oi.length; j++) runs = Math.min(runs, Math.max(0, target[oi[j]] * fill - st[oi[j]] + needOf[oi[j]] * k) / op[j]);
             for (let j = 0; j < ii.length; j++) runs = Math.min(runs, Math.max(0, st[ii[j]] - needOf[ii[j]] * k) / ip[j]);
             if (!(runs > 0.01)) continue;
             for (let j = 0; j < ii.length; j++) st[ii[j]] = Math.max(0, st[ii[j]] - runs * ip[j]);
             for (let j = 0; j < oi.length; j++) st[oi[j]] += runs * op[j];
         }
+        // Works the player built or funded here (market.works) run on after the town's own trades
+        if (m.works) SettlementMarket._runWorks(m, st, sh, k, toolF * k * _num(ctx.intact, 1) * _num(ctx.worksMult, 1), ctx.day);
 
         // Consumption; staples stand in for one another within a group
         // (bread short: they eat porridge; no firewood: they burn coal)

@@ -77,6 +77,8 @@ export const MarketDynamics = {
         const k = SettlementMarket.tickDays();
         const turn = Number.isFinite(day) ? ((day % k) + k) % k : 0;
         const lives = [];
+        // Works stand idle in a town under siege
+        const besieged = this._besieged(player);
         for (const s of views) {
             const tile = world.getTile(s.q, s.r);
             const live = tile && tile.settlement;
@@ -110,6 +112,7 @@ export const MarketDynamics = {
                 mineMult: Math.max(0, 1 + WorldEvents.getModifier(world, 'mineProduction', tile)),
                 intact: 1 - Math.min(0.9, Math.max(0, _num(live.damage))),
                 goodsMult: 1 + Economy.holdingFx(live, 'goods'),
+                worksMult: besieged.has(_key(s.q, s.r)) ? 0 : 1,
             });
         }
         const links = this._links(world, cache, lives, day);
@@ -323,10 +326,7 @@ export const MarketDynamics = {
         const T = SettlementMarket.config().trade;
         const W = world.width;
         const kingdomOf = (s) => (s.kingdom && typeof world.getKingdom === 'function' ? world.getKingdom(s.kingdom) : null);
-        const besieged = new Set();
-        const siege = player ? Sieges.active(player) : null;
-        if (siege && Number.isFinite(siege.q)) besieged.add(_key(siege.q, siege.r));
-        for (const hs of player ? HoldingSieges.list(player) : []) if (hs && Number.isFinite(hs.q)) besieged.add(_key(hs.q, hs.r));
+        const besieged = this._besieged(player);
         const lairs = player ? OutlawLairs.active(player).filter(l => Number.isFinite(l.q)) : [];
         const raiders = (world.units || []).filter(u => u && !u.destroyed && u.type === 'raider');
         const blockade = new Map();
@@ -383,6 +383,15 @@ export const MarketDynamics = {
                 for (const s of [a, b]) if (s.market && s.market.trade) s.market.trade.cut = _num(s.market.trade.cut) + 1;
             }
         }
+    },
+
+    /** 'q,r' of every town under siege (the player's siege, sieges of the player's holdings). */
+    _besieged(player) {
+        const besieged = new Set();
+        const siege = player ? Sieges.active(player) : null;
+        if (siege && Number.isFinite(siege.q)) besieged.add(_key(siege.q, siege.r));
+        for (const hs of player ? HoldingSieges.list(player) : []) if (hs && Number.isFinite(hs.q)) besieged.add(_key(hs.q, hs.r));
+        return besieged;
     },
 
     // ── Reports ───────────────────────────────────────────

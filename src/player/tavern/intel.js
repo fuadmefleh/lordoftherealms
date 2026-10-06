@@ -3,6 +3,7 @@ import { Tavern } from './_ref.js';
 import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Religion, Gossip, Titles } from './_imports.js';
 import { Chatter } from '../../systems/chatter.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
+import { MarketFairs } from '../../systems/marketFairs.js';
 
 Object.assign(Tavern, {
     // ────────────────────────────────────────────────────────────────────
@@ -85,6 +86,22 @@ Object.assign(Tavern, {
             }
 
             case 'trade_tip': {
+                // A fair on or coming soon nearby is the talk of every merchant (systems/marketFairs.js)
+                const fair = MarketFairs.fairsNear(world, tile.q, tile.r)[0];
+                if (fair && Utils.random() < 0.6) {
+                    return {
+                        category: Tavern.CATEGORIES.TRADE_OPPORTUNITIES,
+                        icon: '🎪',
+                        title: `${fair.name} at ${fair.town}`,
+                        text: fair.on
+                            ? `The ${fair.name} is on at ${fair.town} until day ${fair.until}: merchants from afar, and the stalls buying dear and selling cheap. Bring what you have.`
+                            : `The ${fair.name} opens at ${fair.town} in ${fair.inDays} day${fair.inDays === 1 ? '' : 's'}. The stalls deal closer while it's on, and the merchants from afar bring spices and fine goods.`,
+                        reliability, accurate,
+                        day: world.day,
+                        source: tile.settlement.name,
+                        relatedSettlement: { name: fair.town, q: fair.q, r: fair.r },
+                    };
+                }
                 // Merchants talk first about real dearths along the roads (world/settlementMarket.js)
                 const dearths = Tavern._knownDearths(tile, world);
                 if (dearths.length) {

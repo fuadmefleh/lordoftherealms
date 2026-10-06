@@ -28,7 +28,8 @@ const topLevel = [
     'patronage',
     'outlawLairs',
     'finance',
-    'markets'
+    'markets',
+    'merchantPrince'
 ];
 
 const merged = {};

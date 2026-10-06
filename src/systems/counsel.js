@@ -50,6 +50,8 @@ import { Holdings } from './holdings.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { Patronage } from './patronage.js';
 import { Finance } from './finance.js';
+import { MarketFairs } from './marketFairs.js';
+import { SettlementMarket } from '../world/settlementMarket.js';
 
 export const GROUPS = ['threat', 'opportunity', 'goal'];
 export const SEVERITIES = { critical: 3, warning: 2, notice: 1, info: 0 };
@@ -958,4 +960,71 @@ R.debtWarrant = (ctx) => {
         out.push({ key: `wanted:${kid}`, realm: k ? k.name : kid, amount: Math.ceil(_num(w && w.amount)) });
     }
     return out;
+};
+
+// ── MERCHANT PRINCE (systems/merchantPrince.js, systems/marketFairs.js) ──
+
+/** A forward contract falling due with goods still owed. */
+R.forwardDue = (ctx, p) => {
+    const st = _obj(ctx.player.merchantPrince);
+    const out = [];
+    for (const f of _arr(st && st.forwards)) {
+        const left = _num(f.qty) - _num(f.delivered);
+        const days = _num(f.dueDay) - ctx.day;
+        if (left <= 0 || days > _num(p.days, 5)) continue;
+        out.push({
+            key: `fwd:${f.id}`, q: f.q, r: f.r, qty: left, good: String(f.good || '').replace(/_/g, ' '), town: f.town, due: f.dueDay,
+            left: days <= 0 ? 'today' : `${days} day${days === 1 ? '' : 's'}`, severity: days <= 1 ? 'critical' : 'warning', boost: 5 - days,
+        });
+    }
+    return out;
+};
+
+/** Goods spoiling in a store-room (fish, meat, bread lose several percent a week). */
+R.spoilingStock = (ctx, p) => {
+    const st = _obj(ctx.player.merchantPrince);
+    const mult = _num(p.spoilMult, 0.5);
+    const out = [];
+    for (const w of _arr(st && st.warehouses)) {
+        for (const [id, qty] of Object.entries(_obj(w.goods) || {})) {
+            const g = SettlementMarket.good(id);
+            const weekly = g ? (1 - Math.pow(1 - g.spoil * mult, 7)) : 0;
+            if (weekly < _num(p.weekly, 0.05) || _num(qty) < _num(p.minQty, 10)) continue;
+            out.push({ key: `spoil:${w.id}:${id}`, q: w.q, r: w.r, good: id.replace(/_/g, ' '), town: w.town, qty: Math.floor(qty), pct: Math.round(weekly * 100) });
+        }
+    }
+    return out;
+};
+
+/** Rent owed on a store-room (the landlord sells the stock after two weeks). */
+R.warehouseRent = (ctx) => {
+    const st = _obj(ctx.player.merchantPrince);
+    return _arr(st && st.warehouses).filter(w => _num(w.arrears) > 0)
+        .map(w => ({ key: `rent:${w.id}`, q: w.q, r: w.r, town: w.town, owed: _num(w.arrears), severity: _num(w.unpaid) >= 1 ? 'warning' : 'notice' }));
+};
+
+/** Works in poor repair, or in a realm where the player's name is sinking toward expropriation. */
+R.worksAtRisk = (ctx, p) => {
+    const st = _obj(ctx.player.merchantPrince);
+    const out = [];
+    for (const inv of _arr(st && st.investments)) {
+        const t = ctx.tile(inv.q, inv.r);
+        const s = t && t.settlement;
+        const w = s && s.market && s.market.works && s.market.works[inv.recipe];
+        if (!w) continue;
+        const rep = s.kingdom ? _num(ctx.player.reputation && ctx.player.reputation[s.kingdom]) : 0;
+        if (s.kingdom && rep < _num(p.repBelow, -20)) {
+            out.push({ key: `exprop:${inv.id}`, q: inv.q, r: inv.r, town: inv.town, why: `your name there is ${Math.round(rep)}: the guilds talk of taking your works`, severity: 'warning', boost: 2 });
+        } else if (_num(w.cond, 1) < _num(p.condBelow, 0.6)) {
+            out.push({ key: `repair:${inv.id}`, q: inv.q, r: inv.r, town: inv.town, why: `the works stand at ${Math.round(_num(w.cond) * 100)}% repair`, severity: 'notice' });
+        }
+    }
+    return out;
+};
+
+/** A fair on, or opening soon, near the player. */
+R.fairs = (ctx, p) => {
+    if (!ctx.world || typeof ctx.world.getSettlementViews !== 'function') return [];
+    return MarketFairs.fairsNear(ctx.world, ctx.player.q, ctx.player.r, _num(p.radius, 12), _num(p.ahead, 6)).slice(0, 1)
+        .map(f => ({ key: `fair:${f.town}:${f.name}`, q: f.q, r: f.r, name: f.name, town: f.town, when: f.on ? `is on until day ${f.until}` : `opens in ${f.inDays} days`, dist: f.dist }));
 };

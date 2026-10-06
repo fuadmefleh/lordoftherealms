@@ -1,0 +1,90 @@
+{
+    "_doc": "Merchant Prince play (systems/merchantPrince.js, systems/marketFairs.js): the player's levers on the settlement goods economy (world/settlementMarket.js, data/markets.json). Industry: fund works in a town (mill, bakery, brewery, smithy, weaver...), keyed to the local industry recipes of data/markets.json; the works run in the town's market after its own trades and pay the investor a share of the value they add, at the town's own prices. Warehouses: rent store-rooms in a town to keep goods outside the packs, to sell into that town's market later. Forward contracts: promise a town N units by day D at a price fixed today. Fairs: seasonal fairs at the great towns, where merchants from afar bring stock and the stalls deal closer. News: heralds cry harvest gluts and dearths. Balance: docs/economy-balance.md, 'Merchant Prince'.",
+
+    "industry": {
+        "_doc": "kinds: one per recipe id of data/markets.json (the trade must exist in the town: minType). The forge (iron + firewood) adds no value at base prices and the chandlery's rock oil is too rare, so neither is offered. Prices are set so a level repays itself in about 45 days in one of the great towns (docs/economy-balance.md); the weaving shed and the smithy are starved of wool and iron unless you bring them in. runsPerLevel: runs a day each level adds (at full repair; works run on market day, tickDays at once). gold and materials (from your packs) per level; each level after the first costs levelCost x more gold. maxLevel per works. investorShare: share of the value added paid to a foreign investor (wages, the guild and the town keep the rest); ownShare in a town you rule (your holdings), where you also build at ownCost x the price and pay no tithe. Value added = what the run's output is worth at the town's stock less its inputs (SettlementMarket scarcity curve, before season and markup).",
+        "investorShare": 0.4,
+        "ownShare": 0.6,
+        "ownCost": 0.85,
+        "levelCost": 1.35,
+        "maxInvestments": 8,
+        "minReputation": -10,
+        "kinds": {
+            "mill":       { "name": "Grain Mill",     "icon": "⚙️", "runsPerLevel": 6,   "gold": 160, "materials": { "wood": 10, "stone": 5 },  "maxLevel": 3 },
+            "bakery":     { "name": "Bakehouse",      "icon": "🍞", "runsPerLevel": 6,   "gold": 640, "materials": { "wood": 10, "stone": 15 }, "maxLevel": 3 },
+            "brewery":    { "name": "Brewhouse",      "icon": "🍺", "runsPerLevel": 5,   "gold": 540, "materials": { "wood": 20, "stone": 5 },  "maxLevel": 3 },
+            "charcoal":   { "name": "Charcoal Kilns", "icon": "🔥", "runsPerLevel": 8,   "gold": 240, "materials": { "stone": 10 },             "maxLevel": 3 },
+            "distillery": { "name": "Distillery",     "icon": "🥃", "runsPerLevel": 2,   "gold": 310, "materials": { "wood": 10, "iron": 2 },   "maxLevel": 3 },
+            "weaver":     { "name": "Weaving Shed",   "icon": "🧶", "runsPerLevel": 3,   "gold": 200, "materials": { "wood": 15 },              "maxLevel": 3 },
+            "tailor":     { "name": "Tailors' Hall",  "icon": "👕", "runsPerLevel": 2.5, "gold": 210, "materials": { "wood": 10, "textiles": 3 }, "maxLevel": 3 },
+            "dairy":      { "name": "Creamery",       "icon": "🧀", "runsPerLevel": 3,   "gold": 150, "materials": { "wood": 10, "stone": 5 },  "maxLevel": 3 },
+            "smithy":     { "name": "Smithy",         "icon": "🔨", "runsPerLevel": 2.5, "gold": 200, "materials": { "stone": 10, "iron": 4 },  "maxLevel": 3 },
+            "armoury":    { "name": "Armoury",        "icon": "🗡️", "runsPerLevel": 1.5, "gold": 260, "materials": { "stone": 10, "iron": 6 },  "maxLevel": 3 },
+            "jeweller":   { "name": "Jewellers' Row", "icon": "💍", "runsPerLevel": 0.6, "gold": 300, "materials": { "stone": 10, "tools": 3 }, "maxLevel": 2 }
+        },
+        "_tithe": "The crown's cut of a foreign investor's share: base, more while the realm is at war, more again while its treasury is in crisis (data/finance.json crowns). None in a realm you rule or a town you hold. While your own court enforces 'Merchant charters' (systems/kingship.js edicts), foreign crowns honour your charters: chartersMult x the tithe.",
+        "tithe": { "base": 0.1, "war": 0.15, "crisis": 0.2, "chartersMult": 0.5 },
+        "_seizure": "A realm at war with you (or with the realm you are sworn to) seizes your works at once. A crown in financial crisis may seize them: crisisChance a week per works. If your reputation in the realm stays below expropriateBelow for graceDays the town expropriates them (warnBelow raises a counsel warning). Seized works keep running for their new owner.",
+        "seizure": { "crisisChance": 0.08, "expropriateBelow": -30, "warnBelow": -20, "graceDays": 10 },
+        "_damage": "A raid or sack that loots the town's stores knocks lootDamage (data/markets.json works) x the loot share off the works' repair; a siege idles them and wears siegeWear a day; storm and quake damage to the town slows them. Repair costs repairCost x the works' gold (all levels) x the damage. Selling a stake back to the guild pays salvage x what you put in x its repair.",
+        "damage": { "siegeWear": 0.03, "repairCost": 0.5, "salvage": 0.4, "warnBelow": 0.6 }
+    },
+
+    "warehouse": {
+        "_doc": "Rented store-rooms in a town, outside your packs. units: most goods held (all kinds together). keyFee once, rent every 7 days (unpaid twice running: the landlord sells the stock off to the market and ends the lease). Goods keep better than on a stall: spoilMult x the market's spoil rate a day. Theft, rolled weekly (no dice: a hash of the day and the lease): base + guildTown where the Thieves' Guild works + perHeat x your heat in the realm + an outlaw lair within lairRadius + raiders within raiderRadius, less perGuard per point of the town watch; a guild member of guildFriendRank or more is robbed guildFriendMult as often; a town you hold ownedMult. A theft carries off loss[0]..loss[1] of the stock.",
+        "maxLeases": 5,
+        "sizes": {
+            "small": { "name": "Store-room", "units": 150, "keyFee": 40, "rent": 6 },
+            "large": { "name": "Warehouse",  "units": 500, "keyFee": 120, "rent": 16 }
+        },
+        "spoilMult": 0.5,
+        "unpaidWeeks": 2,
+        "theft": {
+            "base": 0.01, "guildTown": 0.02, "perHeat": 0.0006, "lairRadius": 4, "lair": 0.03, "raiderRadius": 2, "raider": 0.02,
+            "perGuard": 0.003, "min": 0.004, "guildFriendRank": 2, "guildFriendMult": 0.3, "ownedMult": 0.5, "loss": [0.15, 0.4]
+        }
+    },
+
+    "forwards": {
+        "_doc": "Forward contracts: agree today to deliver qty units of a good the town uses by day D, paid on delivery at a unit price fixed today: what the town would pay for the lot now (Trading.saleUnitPrice, its real price curve) x (1 + premiumBase + premiumPerDay x lead days, at most premiumMax), never above buying the lot back here (Trading.saleUnitCap). qty at most maxNeedDays x the town's daily need (+ minQty). Deliver from your packs or your warehouse in the town, in parts. Missed: penaltyShare of the undelivered value is forfeit (taken from your purse) and reputation falls in the realm.",
+        "maxOpen": 3,
+        "minDays": 10,
+        "maxDays": 60,
+        "minQty": 5,
+        "maxNeedDays": 15,
+        "premiumBase": 0.03,
+        "premiumPerDay": 0.002,
+        "premiumMax": 0.15,
+        "penaltyShare": 0.25,
+        "reputationDone": 1,
+        "reputationFailed": 4,
+        "dueSoonDays": 5
+    },
+
+    "fairs": {
+        "_doc": "Seasonal fairs (systems/marketFairs.js). On day `day` of the 120-day year each fair opens for `days` days at its sites: 'capital' (every living realm's capital), 'city' (every city). Merchants from afar bring `goods`: share x the town's target stock of each good its people use (real stock that sells, spoils and travels on like any other). While the fair is on the stalls ask `ask` x and buy at `sell` of what goods are worth (instead of 70%), never above buying them back. The heralds cry it and the tavern talks of it.",
+        "list": [
+            { "id": "spring_fair",  "name": "Spring Fair",     "day": 22,  "days": 7, "sites": ["capital"],
+              "goods": { "spices": 0.5, "luxuries": 0.4, "wine": 0.4, "clothes": 0.3, "tools": 0.3, "salt": 0.3, "horses": 0.3 }, "ask": 0.93, "sell": 0.76 },
+            { "id": "midsummer_fair", "name": "Midsummer Fair", "day": 48, "days": 6, "sites": ["capital", "city"],
+              "goods": { "wine": 0.5, "spices": 0.4, "cheese": 0.4, "textiles": 0.3, "beer": 0.3, "luxuries": 0.3 }, "ask": 0.94, "sell": 0.75 },
+            { "id": "harvest_fair", "name": "Harvest Fair",     "day": 78, "days": 7, "sites": ["capital", "city"],
+              "goods": { "grain": 0.3, "cheese": 0.4, "wool": 0.4, "hide": 0.4, "salt": 0.4, "horses": 0.4 }, "ask": 0.92, "sell": 0.76 },
+            { "id": "frost_fair", "name": "Frost Fair",         "day": 100, "days": 6, "sites": ["capital"],
+              "goods": { "firewood": 0.5, "coal": 0.5, "clothes": 0.4, "liquor": 0.4, "lamp_oil": 0.4, "salt": 0.3 }, "ask": 0.93, "sell": 0.75 }
+        ]
+    },
+
+    "news": {
+        "_doc": "Market news the heralds cry (data/chatter.json heralds: market_fair, market_dearth, market_glut). Checked every `every` days: the worst food dearth in the world (a town in dearth, scarcity of a staple at least dearthScarcity, at least minType), and in the harvest window (days of the year) the deepest grain glut at a city or capital (scarcity at most glutScarcity). The same town is not cried again within repeatDays.",
+        "every": 7,
+        "dearthScarcity": 1.6,
+        "glutScarcity": 0.68,
+        "harvestWindow": [64, 96],
+        "minType": "town",
+        "repeatDays": 40,
+        "historyCap": 40,
+        "tavernRadius": 20,
+        "tavernAhead": 10
+    }
+}

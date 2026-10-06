@@ -21,6 +21,8 @@ import { Heralds } from '../../systems/heralds.js';
 import { Patronage } from '../../systems/patronage.js';
 import { OutlawLairs } from '../../systems/outlawLairs.js';
 import { Finance } from '../../systems/finance.js';
+import { MarketFairs } from '../../systems/marketFairs.js';
+import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 
@@ -569,9 +571,18 @@ export function endDay() {
                 for (const n of heraldDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             }
 
+            // Fairs open and close, and the week's market news goes to the heralds (systems/marketFairs.js)
+            const fairDay = MarketFairs.processDay(this.world, this.player);
+            for (const n of fairDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
             // The settlement markets' day: production, consumption, NPC trade
             // (world/settlementMarket.js; lairs and sieges disrupt the roads)
             MarketDynamics.updatePrices(this.world, this.player);
+
+            // Merchant Prince: the works' pay on market day, seizures; store-rooms'
+            // spoilage, rent and thieves; forward contracts due (systems/merchantPrince.js)
+            const princeDay = MerchantPrince.processDay(this.player, this.world);
+            for (const n of princeDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Process informants and expire old intel
             let intelResult = { cost: 0 };
@@ -982,6 +993,8 @@ export function endDay() {
             if (holdingsDay.upkeep > 0) dayFinance.expenses.holdings = holdingsDay.upkeep;
             if (playerResults.mercenaryWages > 0) dayFinance.expenses.mercenaryWages = playerResults.mercenaryWages;
             if (financeDay && financeDay.paid > 0) dayFinance.expenses.loanPayments = financeDay.paid;
+            if (princeDay.income > 0) dayFinance.income.industry = princeDay.income;
+            if (princeDay.rent > 0) dayFinance.expenses.warehouseRent = princeDay.rent;
             if (typeof Tavern !== 'undefined' && intelResult && intelResult.cost > 0) dayFinance.expenses.informants = intelResult.cost;
 
             // Property upkeep (calculated from properties)

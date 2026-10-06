@@ -279,6 +279,8 @@ export const Economy = {
             capital: 0.8,
         };
         price *= sizeMultiplier[settlement.type] || 1.0;
+        // A fair in town: merchants from afar undercut the stalls (systems/marketFairs.js)
+        price *= SettlementMarket.fairAsk(settlement);
 
         // Temperature based demand for Firewood and Warm Clothes (snow on the
         // ground makes it worse). `world` is null in headless/test contexts,

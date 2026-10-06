@@ -207,6 +207,8 @@ function snapshot(game) {
         markets: Utils.hashStr(JSON.stringify(game.world.getSettlementViews().map(s => [s.q, s.r, s.market || null]))),
         // The trading company, rival houses, contracts and the towns' monopolies
         merchant: Utils.hashStr(JSON.stringify(p.merchant || null)),
+        // Merchant Prince: works funded, store-rooms, forward contracts, market news
+        merchantPrince: Utils.hashStr(JSON.stringify(p.merchantPrince || null)),
         // Patronage: clients, commissions, Great Works; the world's wonders
         patronage: Utils.hashStr(JSON.stringify(p.patronage || null)),
         greatWorks: Utils.hashStr(JSON.stringify(game.world.greatWorks || null)),

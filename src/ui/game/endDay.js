@@ -20,6 +20,7 @@ import { Chatter } from '../../systems/chatter.js';
 import { Heralds } from '../../systems/heralds.js';
 import { Patronage } from '../../systems/patronage.js';
 import { OutlawLairs } from '../../systems/outlawLairs.js';
+import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 import { Finance } from '../../systems/finance.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
@@ -568,6 +569,11 @@ export function endDay() {
             if (this.ui._heralds !== false) {
                 for (const n of heraldDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             }
+
+            // Merchant caravans and trading ships on the roads: tolls, ambushes,
+            // escorts, road wardens; cargo lands on arrival (systems/merchantCaravans.js)
+            const caravanDay = MerchantCaravans.processDay(this.world, this.player);
+            for (const n of caravanDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // The settlement markets' day: production, consumption, NPC trade
             // (world/settlementMarket.js; lairs and sieges disrupt the roads)

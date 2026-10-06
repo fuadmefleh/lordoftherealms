@@ -596,6 +596,34 @@ R.delveSites = (ctx, p) => {
     return [{ key: `${best.q},${best.r}`, q: best.q, r: best.r, icon: info.icon, site: info.name || 'A ruin', dist: best.dist }];
 };
 
+/**
+ * A merchant caravan or trading ship near the player that would hire an
+ * escort (systems/merchantCaravans.js — raw reads of world.units): the
+ * nearest one not already guarded, while the player guards none.
+ */
+R.escortJobs = (ctx, p) => {
+    const units = _arr(ctx.world && ctx.world.units)
+        .filter(u => u && !u.destroyed && (u.type === 'trade_caravan' || u.type === 'trade_ship'));
+    if (units.some(u => u.escort && u.escort.by === 'player')) return [];
+    const radius = _num(p.radius, 4);
+    let best = null;
+    for (const u of units) {
+        if (u.escort || (u.type === 'trade_ship' && !(ctx.player && ctx.player.boardedShip))) continue;
+        const d = ctx.dist(u.q, u.r);
+        if (d <= radius && (!best || d < best.d)) best = { u, d };
+    }
+    if (!best) return [];
+    const u = best.u;
+    return [{
+        key: `escort:${u.id}`, q: u.q, r: u.r, dist: best.d,
+        house: (u.house && u.house.name) || 'A merchant house', pay: _num(u.escortPay),
+        cargo: String(u.mainGood || 'goods').replace(/_/g, ' '), carrier: u.carrier || 'caravan',
+        from: u.fromName || 'a town', to: u.toName || 'a town',
+        danger: u.danger ? ' (the road runs near outlaws)' : '',
+        boost: u.danger ? 2 : 0,
+    }];
+};
+
 // Outlaw lairs (systems/outlawLairs.js) — raw reads of player.outlawLairs
 function _lairsKnown(ctx) {
     const st = ctx.player.outlawLairs;

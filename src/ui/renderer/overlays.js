@@ -472,7 +472,9 @@ Object.assign(Renderer.prototype, {
 
                 let color = '#ffffff';
                 if (WorldUnit.HOSTILE_TYPES.includes(unit.type)) color = '#ff6666';
-                if (unit.type === 'patrol') color = '#66ccff';
+                if (unit.type === 'patrol' || unit.type === 'road_patrol') color = '#66ccff';
+                // NPC merchants (systems/merchantCaravans.js): gold, brighter when you guard them
+                if (unit.type === 'trade_caravan' || unit.type === 'trade_ship') color = unit.escort && unit.escort.by === 'player' ? '#ffe680' : '#e8c070';
                 if (unit.type === 'settler') color = '#ccff66';
 
                 // Add to label queue with medium-low priority

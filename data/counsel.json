@@ -90,6 +90,8 @@
           "text": "{name}, your {prof}, has been idle {idle}: commission a work", "params": { "minIdle": 3 } },
         { "id": "discovery_rumour", "group": "opportunity", "reader": "discoveryRumours", "priority": 42, "severity": "info", "icon": "🗺️", "panel": "discoveries",
           "text": "{how} uncharted land beyond the known world", "max": 2 },
+        { "id": "escort_job", "group": "opportunity", "reader": "escortJobs", "priority": 44, "severity": "info", "icon": "🛡️",
+          "text": "{house} would pay {pay}g for an escort: the {cargo} {carrier} from {from} to {to}, {dist} hexes off{danger}", "params": { "radius": 4 }, "max": 1 },
 
         { "id": "house_ambition", "group": "goal", "reader": "ambition", "priority": 50, "severity": "info", "icon": "🏛️", "panel": "house",
           "text": "{ambition} ({done}/{total}): next, {next}" },

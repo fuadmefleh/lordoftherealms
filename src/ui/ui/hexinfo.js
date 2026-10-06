@@ -404,6 +404,8 @@ Object.assign(UI.prototype, {
                         ${invStr}
                         ${originStr}
                         ${destStr}
+                        ${unit.tradeCaravan ? `<div style="font-size:11px; color:#e8c070; margin-left:22px;">${(unit.house && unit.house.icon) || '⚖️'} ${(unit.house && unit.house.name) || 'Free traders'} · cargo worth ~${unit.value || 0}g${unit.tollsPaid ? ` · ${unit.tollsPaid}g in tolls` : ''}${unit.escort && unit.escort.by === 'player' ? ' · 🛡️ under your guard' : ''}</div>` : ''}
+                        ${unit.type === 'road_patrol' ? `<div style="font-size:11px; color:#66ccff; margin-left:22px;">💂 Riding the road until day ${unit.untilDay}</div>` : ''}
                     </div>
                 `;
             }

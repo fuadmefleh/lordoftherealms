@@ -32,7 +32,8 @@
         "smuggling":       { "heat": 4,  "caughtHeat": 15, "deeds": { "deceit": 0.5, "cunning": 0.5 }, "karma": 0 },
         "smuggling_route": { "heat": 2,  "caughtHeat": 10, "deeds": { "cunning": 0.3 }, "karma": 0 },
         "piracy":          { "heat": 12, "caughtHeat": 0,  "deeds": {}, "karma": 0 },
-        "theft":           { "heat": 4,  "caughtHeat": 10, "deeds": {}, "karma": 0 }
+        "theft":           { "heat": 4,  "caughtHeat": 10, "deeds": {}, "karma": 0 },
+        "caravan_robbery": { "heat": 10, "caughtHeat": 22, "deeds": { "greed": 1.5, "cruelty": 1 }, "karma": -3 }
     },
     "guardStrength": {
         "village": 1,

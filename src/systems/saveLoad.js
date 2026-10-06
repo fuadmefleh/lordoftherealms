@@ -32,6 +32,7 @@ import { OutlawLairs } from './outlawLairs.js';
 import { Finance } from './finance.js';
 import { MerchantHouses } from './merchantHouses.js';
 import { Patronage } from './patronage.js';
+import { MerchantCaravans } from './merchantCaravans.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { WorldUnit } from '../world/units.js';
 import { Terrain } from '../world/terrain.js';
@@ -128,6 +129,10 @@ export const SaveLoad = {
             // pirates, delve guardians, war hosts, settlers, fishing boats...
             // as they stand — older saves regenerate them
             units: SaveLoad.serializeUnits(world.units),
+            // The roads' trade: caravan counters, shunned roads, losses for the
+            // heralds (systems/merchantCaravans.js; the traders and road
+            // wardens themselves are world units above)
+            merchantTrade: MerchantCaravans.serialize(world),
             // Settlement markets travel with their tiles (settlement.market);
             // the old regional table is kept empty for older readers
             markets: {},
@@ -536,6 +541,8 @@ export const SaveLoad = {
 
         // World units (older saves keep the ones the regenerated world spawned)
         if (Array.isArray(saveData.units)) world.units = SaveLoad.restoreUnits(saveData.units);
+        // The roads' trade record (older saves: a blank one; no traders on the road yet)
+        MerchantCaravans.restore(saveData.merchantTrade, world);
         // Never hand out an id the save already used
         if (typeof saveData.idCounter === 'number') {
             Utils.setIdCounter(Math.max(Utils.getIdCounter(), saveData.idCounter));

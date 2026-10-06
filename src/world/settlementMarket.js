@@ -858,6 +858,11 @@ export const SettlementMarket = {
      * importer's shortfall, within the link's capacity in gold. Both towns
      * keep goldScale × the value gap of what moved as trade income
      * (economy.tradeIncome, credited by Economy.processTrade).
+     * A link marked `embody` (systems/merchantCaravans.js picked it to send
+     * a caravan) takes the goods out of the exporter as usual but does not
+     * land them: they are left on link.cargoAB / link.cargoBA (typed arrays
+     * in config order, a→b and b→a) for the caravan to carry, and reach the
+     * importer only when it arrives.
      * @returns {{ moved:number, value:number, gold:number }}
      */
     flows(links, basePrices, day = null) {
@@ -901,6 +906,8 @@ export const SettlementMarket = {
             // Stock ratios further apart than this can't beat the friction (the curve is a power law)
             const frR = Math.pow(fr, 1 / P.elasticity);
             let movedA = 0, movedB = 0, goldLink = 0;
+            const emb = link.embody === true;
+            let cAB = null, cBA = null;
             for (let i = 0; i < n; i++) {
                 if (!(budget > 0)) break;
                 const base = bases[i];
@@ -926,13 +933,16 @@ export const SettlementMarket = {
                 if (!(qty >= 0.05)) continue;
                 qty = Math.round(qty * 100) / 100;
                 xe[i] -= qty;
-                xi[i] += qty;
+                if (!emb) xi[i] += qty;
+                else if (aExports) (cAB || (cAB = new Float64Array(n)))[i] += qty;
+                else (cBA || (cBA = new Float64Array(n)))[i] += qty;
                 budget -= qty * base * se;
                 goldLink += qty * base * (si - se) * T.goldScale;
                 if (aExports) movedA += qty; else movedB += qty;
                 out.moved += qty;
                 out.value += qty * base * se;
             }
+            if (emb) { link.cargoAB = cAB; link.cargoBA = cBA; }
             if (movedA > 0 || movedB > 0) {
                 income(a, goldLink / 2);
                 income(b, goldLink / 2);

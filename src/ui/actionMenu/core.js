@@ -427,6 +427,7 @@ Object.assign(ActionMenu, {
         rivals_here: 0, hall_of_heroes: 0,
 
         // Outlaw lairs (the panel is free; each deed inside pays its own AP)
+        meet_trader: 0,
         outlaw_lair: 0, lair_scout: 3, lair_assault: 8, lair_strike: 4, lair_parley: 1,
         rival_duel: 4, rival_race: 1, rival_sabotage: 2, rival_hire: 1, rival_team_up: 1,
     },
@@ -693,6 +694,9 @@ Object.assign(ActionMenu, {
             case 'delve':
             case 'delve_resume':
                 ActionMenu.showDelvePanel(game, tile);
+                break;
+            case 'meet_trader':
+                ActionMenu.showTrader(game, unitId);
                 break;
             case 'outlaw_lair': {
                 const lair = OutlawLairs.lairNear(game.player, game.world, tile.q, tile.r, 1);

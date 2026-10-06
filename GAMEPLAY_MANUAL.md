@@ -460,6 +460,8 @@ Every settlement keeps one store of goods: about thirty staples from grain, brea
 | A raider band within 2 hexes of the road | Down 35% |
 | World events on trade income | Raise or lower it |
 
+A road where a caravan was lost is shunned for 12 days and carries half its trade. A link whose goods travel as a caravan that turn is not thinned for lairs and raiders. The caravan meets them on the road instead (see below).
+
 A raid that reaches a town burns half the share of its stores that it burns of the granary. Sacking a town carries off 80% of its stores, and conquering it carries off half. A town cut off from its suppliers runs short.
 
 **Shortages matter.**
@@ -474,6 +476,34 @@ A raid that reaches a town burns half the share of its stores that it burns of t
 Market mood moves half a point a day and is given back when the cause passes.
 
 **News of the market.** Merchants in the tavern pass on real dearths along the roads: "a carter says Brindle has run short of grain — it fetches around 14g there". Their price reports and trade tips quote the real prices of the goods markets trade. Townsfolk grumble about a dearth ("Bring grain to Tallow and name your price") and point out a glut ("Wool is cheap as dirt here").
+
+#### Merchant Caravans and Trading Ships
+
+Some of that NPC trade travels the map as real units: 🐫 **caravans** on land, preferring roads, and ⛵ **trading ships** on sea links (`data/merchantCaravans.json`). On each market day up to 2 of the busiest links that are trading send their goods this way. The goods leave the exporting town as usual, but they reach the importing town **only when the trader arrives**. Everything else still moves in bulk, as described above.
+
+There are never more traders on the map than a quarter of the towns (at least 4, at most 24), and never two on the same link. A lot worth less than 50 gold at base price lands at once.
+
+Each trader belongs to a merchant house (one that deals in its main good). It has guards (4, plus more for a richer cargo) and a purse, and moves 3 hexes a day, or 4 along a road the whole way. A ship moves 6. The hex info shows its house, cargo, route and tolls.
+
+**Dangers on the road.**
+
+| Threat | What happens |
+|---|---|
+| A raider band (or a pirate, for ships) within a hex | It attacks. Lairs' raiding parties are bands too. The trader is taken with odds of attackers ÷ (attackers + guards + nearby wardens). |
+| An outlaw lair within 2 hexes | Each lair tries each passing caravan once. The chance is up to 30%, depending on the lair's strength, and half that with wardens nearby. |
+| Land of a realm at war with either of the trader's realms | 35% a day that it is seized. The cargo is sold in that realm's nearest market and the purse goes to its treasury. |
+
+A taken cargo goes to the band's packs (a lair banks it in its hoard). It never reaches the town waiting for it, so a dearth follows downstream. Merchants then shun the road for 12 days. A loss worth 150 gold or more is cried by the **heralds** ("the salt caravan bound for Tallow was taken by the Red Hand").
+
+**Tolls.** A trader crossing into another realm's land pays 3% of its cargo's value from its purse into that realm's treasury.
+
+**Road wardens.** Every 15 days a realm with 2,500 gold or more in its treasury, or with a lawful lord, may send 💂 **Road Wardens** to ride up and down its busiest road for 30 days. The road it picks has the most caravans and kingdom trade routes, and preferably a road the whole way. The wardens cost 80 gold from the treasury. They ride down raider bands within 2 hexes, break any they can match (at most 4 companies of wardens ride at once), and fight alongside a caravan within 2 hexes.
+
+**Meeting a trader.** Stand on or next to a trader and choose **Hail**:
+
+- **Trade.** Buy from its cargo, or sell it the goods it carries. The price runs from the good's value at the origin toward its value at the destination as the journey goes, plus 10% when you buy and minus 12% when you sell. What you buy never reaches that market. The merchant will not touch stolen goods.
+- **Escort.** Hire on for about 7% of the cargo's value (15–300 gold), paid on arrival. Stay within 6 hexes, or after 2 days the merchant hires other blades. Ride within 2 hexes and any ambush becomes your fight (your army against the attackers, the usual battle). Win and the caravan rides on. Arrival also brings renown and +3 standing with the destination's realm. You can guard one trader at a time, and a ship only from your own deck. The Steward's **Counsel** mentions an escort job within 4 hexes.
+- **Rob.** This is an attack on the trader. Win and its goods are **hot** (only a fence takes them). You also suffer a `caravan_robbery` crime (10 heat with its realm, 22 if wardens or a town saw it, which also reports the crime and can bring a bounty) and lose 15 reputation with the realm. The road is shunned and the destination goes without. A failed robbery still costs half the heat and reputation.
 
 ### Map Resources and Settlements
 

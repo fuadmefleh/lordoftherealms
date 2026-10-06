@@ -607,7 +607,9 @@ export const Chatter = {
         }
         // Heralds and tavern templates
         const H = Chatter.data().heralds || {};
-        const heraldTokens = ['ruler', 'kingdom', 'other', 'saga', 'title', 'leader', 'place', 'by', 'days', 'bank', 'purity'];
+        const heraldTokens = ['ruler', 'kingdom', 'other', 'saga', 'title', 'leader', 'place', 'by', 'days', 'bank', 'purity',
+            // caravans lost on the road (systems/merchantCaravans.js)
+            'good', 'carrier', 'from', 'house'];
         for (const [kind, list] of Object.entries(H.templates || {})) {
             if (!Array.isArray(list) || !list.length) problems.push(`heralds.${kind}: no templates`);
             for (const t of list || []) for (const [, tok] of String(t).matchAll(/\{(\w+)\}/g)) {

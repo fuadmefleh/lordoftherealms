@@ -30,9 +30,9 @@ import { HoldingSieges } from './holdingSieges.js';
 
 const _key = (q, r) => `${q},${r}`;
 /** Days a settlement's production profile holds before it is worked out again. */
-const PROFILE_DAYS = 5;
-/** Days the trade links hold before they are drawn again (new towns redraw them at once). */
-const LINK_DAYS = 10;
+const PROFILE_DAYS = 20;
+/** Days the trade links hold before they are drawn again (towns founded meanwhile join then). */
+const LINK_DAYS = 30;
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 
 /** Per-world caches rebuilt from world state (land around towns, trade links). */
@@ -205,8 +205,8 @@ export const MarketDynamics = {
         const T = SettlementMarket.config().trade;
         const n = lives.length;
         const bucket = Math.floor(_num(day) / LINK_DAYS);
-        const same = (c) => c && c.lives.length === n && c.lives.every((s, i) => lives[i] === s);
-        if (cache.links && cache.links.bucket === bucket && same(cache.links)) return cache.links.list;
+        // Towns founded meanwhile join the trade when the links are next drawn
+        if (cache.links && cache.links.bucket === bucket) return cache.links.list;
         const make = (a, b, d, sea, road, nRoutes) => {
             const friction = T.perHex * Math.max(1, d) * (road ? T.roadFactor : 1) * (sea ? T.seaFactor : 1);
             const base = T.capacity + T.perRoute * Math.min(nRoutes, T.maxRoutes);
@@ -217,7 +217,8 @@ export const MarketDynamics = {
         };
         // A loaded game picks up the links its towns were trading on (saved on
         // each market), so it carries on exactly as it would have
-        if (!cache.links && n > 0 && lives.every(s => s.market && s.market.linksAt === bucket && s.market.linksN === n)) {
+        const drawn = (s) => s.market && s.market.linksAt === bucket;
+        if (!cache.links && lives.some(drawn) && lives.every(s => drawn(s) || !s.market || s.market.linksAt === undefined)) {
             const at = new Map();
             lives.forEach(s => at.set(_key(s.q, s.r), s));
             const list = [];
@@ -307,7 +308,6 @@ export const MarketDynamics = {
             if (!s.market) continue;
             s.market.links = saved.get(s);
             s.market.linksAt = bucket;
-            s.market.linksN = n;
         }
         cache.links = { bucket, lives: lives.slice(), list };
         return list;
@@ -345,8 +345,11 @@ export const MarketDynamics = {
             const { a, b } = link;
             // Only the links taking their turn today
             if (turn !== null && link.slot !== turn) { link.factor = 0; continue; }
+            // A town razed or abandoned since the links were drawn trades no more
+            const ta = world.getTile(a.q, a.r), tb = world.getTile(b.q, b.r);
+            if (!ta || ta.settlement !== a || !tb || tb.settlement !== b) { link.factor = 0; continue; }
             // Bigger towns trade more
-            link.capacity = link.base * (0.5 + 0.5 * Math.min(2, (_num(a.population) + _num(b.population)) / 6000));
+            link.capacity = link.base * (0.5 + 0.5 * Math.min(_num(T.sizeMax, 3), (_num(a.population) + _num(b.population)) / _num(T.sizePop, 5000)));
             let f = 1;
             const ka = kingdomOf(a), kb = kingdomOf(b);
             if (ka && kb && ka !== kb && Array.isArray(ka.wars) && ka.wars.includes(kb.id)) f *= 1 - T.warCut;
@@ -357,7 +360,7 @@ export const MarketDynamics = {
                     if (bl) f *= bl.closed ? 0 : 0.5;
                 }
             }
-            if (besieged.has(_key(a.q, a.r)) || besieged.has(_key(b.q, b.r))) f *= 1 - T.siegeCut;
+            if (besieged.size && (besieged.has(_key(a.q, a.r)) || besieged.has(_key(b.q, b.r)))) f *= 1 - T.siegeCut;
             if (f > 0 && (lairs.length || raiders.length)) {
                 let dq = b.q - a.q;
                 if (W && Math.abs(dq) > W / 2) dq -= Math.sign(dq) * W;
@@ -371,7 +374,6 @@ export const MarketDynamics = {
                 }
             }
             if (f > 0 && Array.isArray(world.activeEvents) && world.activeEvents.length) {
-                const ta = world.getTile(a.q, a.r);
                 const mod = WorldEvents.getModifier(world, 'tradeIncome', ta)
                     + WorldEvents.getModifier(world, link.sea ? 'seaTradeIncome' : 'landTradeIncome', ta);
                 f *= Math.max(0, 1 + mod);

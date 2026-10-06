@@ -1020,6 +1020,8 @@ Object.assign(ActionMenu, {
             for (const good of items) {
                 const isSoldOut = good.quantity <= 0;
                 const canAfford = playerGold >= good.price;
+                // The price climbs as the stall empties: offer what the purse covers
+                const maxBuy = Math.max(1, Trading.affordable(game.player, good, tile.settlement));
                 html += `<div class="trade-row ${isSoldOut ? 'sold-out' : ''}">
                     <span class="trade-icon">${good.icon}</span>
                     <div>
@@ -1032,7 +1034,7 @@ Object.assign(ActionMenu, {
                     </div>
                     <div>${isSoldOut
                         ? '<span class="trade-sold-out">Sold Out</span>'
-                        : `<button class="trade-btn trade-btn-buy ${canAfford ? '' : 'trade-btn-disabled'}" title="The price rises as the stall empties" onclick="window._tradeBuy('${good.id}', ${good.price}, ${Math.max(1, Trading.affordable(game.player, good, tile.settlement))})">Buy</button>`
+                        : `<button class="trade-btn trade-btn-buy ${canAfford ? '' : 'trade-btn-disabled'}" title="The price rises as the stall empties" onclick="window._tradeBuy('${good.id}', ${good.price}, ${maxBuy})">Buy</button>`
                     }</div>
                 </div>`;
             }

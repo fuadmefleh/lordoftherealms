@@ -201,7 +201,9 @@ function company(game, tile, stats) {
     const { player, world } = game;
     let c = MerchantHouses.company(player);
     if (!c) {
-        if (player.gold < 4000 || Utils.random() > 0.3) return;
+        // (3,500: the purse runs a little thinner now that food and sales
+        // follow each town's real stock — world/settlementMarket.js)
+        if (player.gold < 3500 || Utils.random() > 0.3) return;
         if (!MerchantHouses.hasCharter(player) && !MerchantHouses.officeCharter(player)) {
             if (MerchantHouses.buyCharter(player, world, tile).success) count(stats, 'chartersBought');
         }
@@ -700,7 +702,7 @@ function chooseDestination(game) {
     if (roll < 0.2) {
         // A delve site nearby
         const sites = [];
-        for (const h of Hex.hexesInRange(player.q, player.r, 8)) {
+        for (const h of Hex.hexesInRange(player.q, player.r, 12)) {
             if (h.r < 0 || h.r >= world.height) continue;
             const q = Hex.wrapQ(h.q, world.width);
             const t = world.getTile(q, h.r);

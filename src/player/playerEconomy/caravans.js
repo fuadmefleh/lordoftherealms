@@ -41,8 +41,14 @@ Object.assign(PlayerEconomy, {
 
             if (good) {
                 // What the destination pays (a sale: Trading.SELL_SHARE of the
-                // price), more the farther the goods travel and the bigger the town
-                let price = good.basePrice * Trading.SELL_SHARE;
+                // price — of what its stock makes the load worth there, world/
+                // settlementMarket.js), more the farther the goods travel and the bigger the town
+                const destTile = world.getTile(toSettlement.q, toSettlement.r);
+                const dest = destTile && destTile.settlement;
+                const unitValue = dest && dest.market && SettlementMarket.tracks(good.id) && quantity > 0
+                    ? SettlementMarket.lotValue(world, dest, destTile, good.id, good.basePrice, quantity) / quantity
+                    : good.basePrice;
+                let price = unitValue * Trading.SELL_SHARE;
                 price *= PlayerEconomy.caravanDistanceMultiplier(dist);
                 price *= PlayerEconomy.caravanSizeMultiplier(toSettlement.type);
                 expectedProfit += Math.floor(price * quantity);
@@ -219,13 +225,14 @@ Object.assign(PlayerEconomy, {
      * Update all player caravans
      */
     /**
-     * A caravan's premium for hauling goods `dist` hexes: 2.5% a hex. With the
-     * size bonus below, goods bought at a capital (0.8x base) and carried 20
-     * hexes to another sell for about 1.26x base; a short haul between towns
-     * barely covers the hire (docs/economy-balance.md).
+     * A caravan's premium for hauling goods `dist` hexes: 1% a hex. The real
+     * profit is the gap between what the goods cost where they're plentiful
+     * and what they fetch where they're short (world/settlementMarket.js);
+     * between two markets at par a short haul doesn't cover the hire
+     * (docs/economy-balance.md).
      */
     caravanDistanceMultiplier(dist) {
-        return 1 + Math.max(0, dist || 0) * 0.025;
+        return 1 + Math.max(0, dist || 0) * 0.01;
     },
 
     /** Bigger markets pay a caravan more. */

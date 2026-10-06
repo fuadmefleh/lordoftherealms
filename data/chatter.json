@@ -14,6 +14,8 @@
         "newsChance": 0.8,
         "ambientCooldownDays": 3,
         "tavernRadius": 20,
+        "dearthScarcity": 1.8,
+        "glutScarcity": 0.65,
         "specificityBonus": 1
     },
 
@@ -276,6 +278,26 @@
         { "id": "farmer_spring", "when": { "season": ["Spring"], "occupation": ["farmer"] }, "weight": 2, "lines": [
             "Sowing time. If you've strong arms, there's work in the fields for a few coppers.",
             "Pray for gentle rain. A wet spring and a dry summer, that's what we want."
+        ]},
+        { "id": "dearth_any", "when": { "dearth": true }, "weight": 2, "lines": [
+            "There's no {dearthGood} to be had in {settlement}, not for love nor money. Well, money, if you've a lot of it.",
+            "The stalls ran out of {dearthGood} days ago. The carters say the roads are bad.",
+            "{dearthGood}? You'll pay twice what it's worth here, if you find any at all."
+        ]},
+        { "id": "dearth_merchant", "when": { "dearth": true, "occupation": ["merchant"] }, "weight": 2, "lines": [
+            "Bring {dearthGood} to {settlement} and name your price. We've none.",
+            "Whoever hauls {dearthGood} in here this week will go home rich."
+        ]},
+        { "id": "dearth_beggar", "when": { "dearth": true, "occupation": ["beggar", "child", "villager"] }, "weight": 1, "lines": [
+            "Everyone's short of {dearthGood}. The rich buy it all and the rest of us go without."
+        ]},
+        { "id": "glut_any", "when": { "glut": true }, "weight": 1, "lines": [
+            "{settlement} is drowning in {glutGood}. You could buy a cartload for a song.",
+            "Too much {glutGood} and nobody to sell it to. Prices have fallen through the floor."
+        ]},
+        { "id": "glut_merchant", "when": { "glut": true, "occupation": ["merchant"] }, "weight": 2, "lines": [
+            "{glutGood} is cheap as dirt here. Carry it where they're short and you'll do well.",
+            "I can't shift my {glutGood}. Take some off my hands, cheap."
         ]},
         { "id": "lean_any", "when": { "lean": true }, "weight": 2, "lines": [
             "These are the lean weeks. The granary's near empty and the new crop's a long way off.",

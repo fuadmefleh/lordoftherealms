@@ -34,6 +34,7 @@ import { KingdomNavy } from '../world/kingdomNavy.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { Traits } from './traits.js';
 import { Heralds } from './heralds.js';
+import { SettlementMarket } from '../world/settlementMarket.js';
 
 const DEFAULT_CONFIG = {
     localRadius: 8, eventRadius: 10, sagaRadius: 14, siegeRadius: 6, rivalRadius: 6, outlawRadius: 10,
@@ -44,7 +45,7 @@ const DEFAULT_CONFIG = {
 /** Every condition a group may use, by the kind of value it takes. */
 const CONDITIONS = {
     war: 'bool', playerWar: 'bool', blockade: 'bool', siege: 'bool', revolt: 'bool',
-    rival: 'bool', newRuler: 'bool', lean: 'bool', outlaws: 'bool',
+    rival: 'bool', newRuler: 'bool', lean: 'bool', outlaws: 'bool', dearth: 'bool', glut: 'bool',
     money: 'boolOrList',
     event: 'list', season: 'list', trait: 'list', court: 'list', title: 'list',
     occupation: 'list', personality: 'list',
@@ -66,7 +67,7 @@ const TOKEN_NEEDS = {
     enemy: 'war', blockader: 'blockade', siegeTown: 'siege', eventPlace: 'event', eventName: 'event',
     saga: 'saga', villain: 'saga', rival: 'rival', rivalNews: 'rival', oldRuler: 'newRuler',
     proclamation: 'proclamation', deedPlace: 'deed', deedVictim: 'deed',
-    lair: 'outlaws', leader: 'outlaws',
+    lair: 'outlaws', leader: 'outlaws', dearthGood: 'dearth', glutGood: 'glut',
     bank: 'money',
 };
 const ALWAYS_TOKENS = ['settlement', 'kingdom', 'ruler', 'player', 'house', 'season', 'title'];
@@ -235,6 +236,16 @@ export const Chatter = {
         }
         if (lairBest) ctx.outlaws = { name: lairBest.l.name, leader: (lairBest.l.leader && lairBest.l.leader.name) || 'their chief' };
 
+        // A dearth or a glut in the town's own market (world/settlementMarket.js)
+        ctx.dearth = null;
+        ctx.glut = null;
+        if (settlement && settlement.market) {
+            const short = SettlementMarket.worstShortage(settlement, _num(cfg.dearthScarcity) || 1.8);
+            const glut = SettlementMarket.biggestGlut(settlement, _num(cfg.glutScarcity) || 0.65);
+            if (short) ctx.dearth = { id: short.id, label: Chatter._goodLabel(short.id) };
+            if (glut) ctx.glut = { id: glut.id, label: Chatter._goodLabel(glut.id) };
+        }
+
         // Money talk: debased coin, a war levy, a crown's default, a run on the
         // bank or a broken one, or just the banking house in town (systems/finance.js)
         if (kingdom) {
@@ -310,6 +321,13 @@ export const Chatter = {
         return out;
     },
 
+    /** A good's name for townsfolk talk ('grain', 'warm clothes'...). */
+    _goodLabel(goodId) {
+        const pe = DataLoader._gamedata && DataLoader._gamedata.playerEconomy;
+        const g = pe && pe.GOODS && pe.GOODS[String(goodId).toUpperCase()];
+        return String((g && g.name) || goodId).replace(/_/g, ' ').toLowerCase();
+    },
+
     // ──────────── MATCHING ────────────
 
     /** Do all of a group's conditions hold in this context? */
@@ -331,6 +349,8 @@ export const Chatter = {
                 return !!ctx[key] === !!v;
             case 'rival': return !!ctx.rival === !!v;
             case 'outlaws': return !!ctx.outlaws === !!v;
+            case 'dearth': return !!ctx.dearth === !!v;
+            case 'glut': return !!ctx.glut === !!v;
             case 'money': { const m = ctx.money || []; return v === true ? m.length > 0 : v === false ? m.length === 0 : Chatter._anyIn(v, m.map(x => x.kind)); }
             case 'event': return Chatter._anyIn(v, ctx.events.map(e => e.id));
             case 'saga': return v === true ? ctx.sagas.length > 0 : v === false ? ctx.sagas.length === 0 : Chatter._anyIn(v, ctx.sagas.map(s => s.id));
@@ -380,6 +400,7 @@ export const Chatter = {
             proclamation: pr && pr.text,
             deedPlace: deed && deed.place, deedVictim: deed && deed.victim,
             lair: ctx.outlaws && ctx.outlaws.name, leader: ctx.outlaws && ctx.outlaws.leader,
+            dearthGood: ctx.dearth && ctx.dearth.label, glutGood: ctx.glut && ctx.glut.label,
             bank: money && money.bank,
         };
         return String(text).replace(/\{(\w+)\}/g, (m, k) => (map[k] != null ? map[k] : m));
@@ -513,6 +534,8 @@ export const Chatter = {
         for (const ev of ctx.events.slice(0, 3)) f.push(`There is ${ev.name} at ${ev.place}.`);
         if (ctx.revolt) f.push('Lords or peasants are in revolt in the realm.');
         for (const s of ctx.sagas) f.push(`Everyone talks of "${s.name}".`);
+        if (ctx.dearth) f.push(`The market here is short of ; prices are high.`);
+        if (ctx.glut) f.push(`The market here is glutted with ; it sells cheap.`);
         if (ctx.outlaws) f.push(`Outlaws led by ${ctx.outlaws.leader} hold ${ctx.outlaws.name} nearby and raid the roads.`);
         const MONEY = { debased: 'The coin of the realm has been debased and prices are rising.', levy: 'The crown has raised an extraordinary war levy.',
             default: 'The crown has refused to pay its debts.', bank_run: 'Depositors are running on the bank.', bank_failed: 'A banking house has failed.' };

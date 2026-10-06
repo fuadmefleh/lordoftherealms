@@ -2,6 +2,7 @@
 import { Tavern } from './_ref.js';
 import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Religion, Gossip, Titles } from './_imports.js';
 import { Chatter } from '../../systems/chatter.js';
+import { SettlementMarket } from '../../world/settlementMarket.js';
 
 Object.assign(Tavern, {
     // ────────────────────────────────────────────────────────────────────
@@ -84,7 +85,25 @@ Object.assign(Tavern, {
             }
 
             case 'trade_tip': {
-                const goodKeys = Object.keys(PlayerEconomy.GOODS);
+                // Merchants talk first about real dearths along the roads (world/settlementMarket.js)
+                const dearths = Tavern._knownDearths(tile, world);
+                if (dearths.length) {
+                    const pick = Utils.randPick(dearths);
+                    const g = PlayerEconomy.GOODS[pick.goodId.toUpperCase()];
+                    const realPrice = MarketDynamics.getPrice(pick.goodId, pick.q, pick.r, world);
+                    const reportedPrice = accurate ? realPrice : Math.floor(realPrice * Utils.randFloat(0.6, 1.5));
+                    return {
+                        category: Tavern.CATEGORIES.TRADE_OPPORTUNITIES,
+                        icon: '💡',
+                        title: `Dearth: ${g ? g.name : pick.goodId}`,
+                        text: `A carter says ${pick.name} has run short of ${g ? `${g.icon} ${g.name}` : pick.goodId} — it fetches around ${reportedPrice}g there${accurate ? '' : ', or so he claims'}. Whoever brings some in will do well.`,
+                        reliability, accurate,
+                        day: world.day,
+                        source: tile.settlement.name,
+                        relatedSettlement: { name: pick.name, q: pick.q, r: pick.r },
+                    };
+                }
+                const goodKeys = Tavern._marketGoodKeys();
                 const goodKey = Utils.randPick(goodKeys);
                 const good = PlayerEconomy.GOODS[goodKey];
 
@@ -168,6 +187,28 @@ Object.assign(Tavern, {
         return null;
     },
 
+    /** GOODS keys of the goods town markets trade (all GOODS if none are configured). */
+    _marketGoodKeys() {
+        const keys = Object.keys(PlayerEconomy.GOODS).filter(k => SettlementMarket.tracks(PlayerEconomy.GOODS[k].id));
+        return keys.length ? keys : Object.keys(PlayerEconomy.GOODS);
+    },
+
+    /**
+     * Towns within reach of `tile` (20 hexes, not this one) whose market is
+     * badly short of something its people use: [{ name, q, r, goodId, scarcity }].
+     */
+    _knownDearths(tile, world, radius = 20) {
+        const out = [];
+        if (!world || typeof world.getSettlementViews !== 'function') return out;
+        for (const s of world.getSettlementViews()) {
+            if (s.q === tile.q && s.r === tile.r) continue;
+            if (Math.abs(s.r - tile.r) > radius || Hex.wrappingDistance(tile.q, tile.r, s.q, s.r, world.width) > radius) continue;
+            const short = SettlementMarket.worstShortage(s, 1.8);
+            if (short) out.push({ name: s.name, q: s.q, r: s.r, goodId: short.id, scarcity: short.scarcity });
+        }
+        return out;
+    },
+
     /**
      * Generate price intel for a specific settlement
      */
@@ -176,7 +217,7 @@ Object.assign(Tavern, {
         const distance = Hex.wrappingDistance(fromTile.q, fromTile.r, dest.q, dest.r, world.width);
 
         // Pick 3-5 goods to report on
-        const goodKeys = Object.keys(PlayerEconomy.GOODS);
+        const goodKeys = Tavern._marketGoodKeys();
         const reportGoods = Utils.shuffle([...goodKeys]).slice(0, Utils.randInt(3, 5));
 
         const priceLines = [];
@@ -217,7 +258,7 @@ Object.assign(Tavern, {
         if (settlements.length === 0) return null;
 
         const dest = Utils.randPick(settlements);
-        const goodKeys = Object.keys(PlayerEconomy.GOODS);
+        const goodKeys = Tavern._marketGoodKeys();
         const goodKey = Utils.randPick(goodKeys);
         const good = PlayerEconomy.GOODS[goodKey];
 
@@ -246,7 +287,7 @@ Object.assign(Tavern, {
         let bestProfit = 0;
         let bestTip = null;
 
-        const goodKeys = Object.keys(PlayerEconomy.GOODS);
+        const goodKeys = Tavern._marketGoodKeys();
         for (const key of goodKeys) {
             const good = PlayerEconomy.GOODS[key];
             const localPrice = MarketDynamics.getPrice(good.id, fromTile.q, fromTile.r, world);

@@ -51,7 +51,7 @@ function buildConfig(src) {
         goods[id] = {
             perCapita: _num(g.perCapita), days: Math.max(1, _num(g.days, 20)), spoil: _clamp(_num(g.spoil), 0, 0.5),
             cap: Math.max(1, _num(g.cap, 4)), group: g.group || null, coldMult: _num(g.coldMult, 1) || 1,
-            minType: g.minType || 'village',
+            minType: g.minType || 'village', minStock: Math.max(0, _num(g.minStock)),
         };
     }
     const groups = {};
@@ -122,7 +122,7 @@ function buildConfig(src) {
         propertySpill: { radius: 3, share: 0.25, ...(d.propertySpill || {}) },
         recipes,
         shortage: {
-            alpha: 0.12, dearth: 0.25, foodStrain: 0.6, toolPenalty: 0.25, fuelMood: 6, plentyMood: 2, plentyAt: 0.9, moodStep: 0.5,
+            alpha: 0.12, dearth: 0.25, foodStrain: 0.6, toolPenalty: 0.25, fuelMood: 6, plentyMood: 2, plentyAt: 1.15, moodStep: 0.5, eatShare: 0.5,
             ...(d.shortage || {}),
         },
         trade: {
@@ -188,7 +188,8 @@ export const SettlementMarket = {
             const minRank = Number.isFinite(C.typeRank[g.minType]) ? C.typeRank[g.minType] : 0;
             const used = g.perCapita > 0 && rank >= minRank;
             const need = used ? pop * g.perCapita * td : 0;
-            const target = Math.max(0.05, need > 0 ? need : pop * g.perCapita * C.noNeedRef) * g.days;
+            // (a town keeps at least the good's minStock of what its people use)
+            const target = Math.max(Math.max(0.05, need > 0 ? need : pop * g.perCapita * C.noNeedRef) * g.days, used ? g.minStock : 0);
             sh.used[id] = used;
             sh.need[id] = need;
             sh.target[id] = target;
@@ -759,8 +760,12 @@ export const SettlementMarket = {
             need *= k;
             if (ctx.cold) need *= A.cold[i];
             needs[i] = need;
-            if (st[i] >= need) st[i] -= need;
-            else { unmet[i] = need - st[i]; st[i] = 0; }
+            // Short of a good, people make do rather than strip the stalls
+            // bare: they buy at most `eatShare` of what's left (the rest
+            // stays on sale, dear)
+            const avail = st[i] >= need ? need : st[i] * S.eatShare;
+            st[i] -= avail;
+            if (avail < need) unmet[i] = need - avail;
         }
         const cover = {};
         for (const grp of C.groupNames) {
@@ -783,7 +788,7 @@ export const SettlementMarket = {
 
         // Shortage gauges (moving averages of the unmet share)
         const a = 1 - Math.pow(1 - S.alpha, k);
-        const ema = (cur, x) => Math.round(((1 - a) * _num(cur) + a * _clamp(x, 0, 1)) * 1000) / 1000;
+        const ema = (cur, x, hi = 1) => Math.round(((1 - a) * _num(cur) + a * _clamp(x, 0, hi)) * 1000) / 1000;
         short.food = ema(short.food, 1 - (cover.food != null ? cover.food : 1));
         short.tools = ema(short.tools, 1 - (cover.tools != null ? cover.tools : 1));
         short.fuel = ema(short.fuel, 1 - (cover.fuel != null ? cover.fuel : 1));
@@ -801,11 +806,13 @@ export const SettlementMarket = {
                 luxN++;
             }
         }
-        m.plenty = ema(m.plenty, wantN && luxN ? Math.min(want / wantN, lux / luxN) : 0);
+        // (every want met: how far past their target the stores run, up to 1.5; else the share met)
+        const met = wantN ? want / wantN : 0;
+        m.plenty = ema(m.plenty, wantN && luxN ? (met >= 0.99 ? lux / luxN : Math.min(met, lux / luxN)) : 0, 1.5);
 
         // Mood: a cold hearth sours it, plenty lifts it (tracked so it's given back)
         const fuelPain = ctx.cold ? _num(short.fuel) * S.fuelMood : 0;
-        const plentyJoy = m.plenty > S.plentyAt ? (m.plenty - S.plentyAt) / Math.max(0.01, 1 - S.plentyAt) * S.plentyMood : 0;
+        const plentyJoy = m.plenty > S.plentyAt ? (m.plenty - S.plentyAt) / Math.max(0.01, 1.5 - S.plentyAt) * S.plentyMood : 0;
         const moodTarget = _round2(Math.min(S.plentyMood, plentyJoy) - fuelPain);
         const cur = _num(settlement.marketMood);
         const step = S.moodStep * k;

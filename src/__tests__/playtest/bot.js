@@ -41,6 +41,7 @@ import { Patronage } from '../../systems/patronage.js';
 import { OutlawLairs } from '../../systems/outlawLairs.js';
 import { Finance } from '../../systems/finance.js';
 import { MerchantPrince } from '../../systems/merchantPrince.js';
+import { Guilds } from '../../systems/guilds.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { Seasons } from '../../world/seasons.js';
 import { travelTo } from './harness.js';
@@ -666,6 +667,36 @@ function merchantPrince(game, tile, stats) {
     }
 }
 
+/** Town guilds: join the trades the bot deals in, climb the ladder, fill contracts, stand for guildmaster. */
+function guilds(game, tile, stats) {
+    const { player, world } = game;
+    const s = tile.settlement;
+    if (!s.guilds) return;
+    const mine = player.guilds ? Object.keys(player.guilds.memberships).length : 0;
+    if (mine < 2 && player.gold > 1500) {
+        for (const gid of ['bakers', 'brewers', 'millers', 'merchants', ...Object.keys(s.guilds)]) {
+            if (!s.guilds[gid] || Guilds.membership(player, s, gid)) continue;
+            if (Guilds.join(player, world, tile, gid).success) { count(stats, 'craftGuildJoined'); break; }
+        }
+    }
+    for (const gid of Object.keys(s.guilds || {})) {
+        const m = Guilds.membership(player, s, gid);
+        if (!m) continue;
+        const q = Guilds.advanceQuote(player, world, tile, gid);
+        const onlyGoods = q.needs.length && q.needs.every(n => n.met || /masterpiece/.test(n.label));
+        if (onlyGoods && player.gold > q.fee + 2500) buyMaterials(game, tile, q.goods, stats);
+        if (Guilds.advanceQuote(player, world, tile, gid).ok && player.gold > q.fee + 1500 && Guilds.advance(player, world, tile, gid).success) count(stats, 'guildRankUp');
+        if (m.rank >= 2 && !m.candidate) Guilds.stand(player, world, s, gid, true);
+        // A contract for what the bot carries
+        for (const o of Guilds.contractOffers(player, world, s, gid)) {
+            if ((player.inventory[o.good] || 0) >= o.qty && Guilds.takeContract(player, world, tile, gid, o.good).success) count(stats, 'guildContracts');
+        }
+    }
+    for (const c of (player.guilds && player.guilds.contracts) || []) {
+        if (c.q === tile.q && c.r === tile.r && Guilds.deliverContract(player, world, c.id).success) count(stats, 'guildDeliveries');
+    }
+}
+
 function settlementBusiness(game, stats) {
     const { player, world } = game;
     const tile = world.getTile(player.q, player.r);
@@ -687,6 +718,7 @@ function settlementBusiness(game, stats) {
     booked(game, 'patronage', () => patronage(game, tile, stats));
     booked(game, 'banking', () => banking(game, tile, stats));
     booked(game, 'merchantPrince', () => merchantPrince(game, tile, stats));
+    booked(game, 'guilds', () => guilds(game, tile, stats));
 }
 
 // ── Out in the world ─────────────────────────────────────────

@@ -334,6 +334,29 @@ These are the player's levers on the settlement economy: industry, warehouses, f
   - Mood is up by more than 0.25 on 22–30% of town-days: 42–53% in winter and 10–20% in spring.
   - The mean lift is 0.1–0.4 points.
 
+## Town guilds (2026-10)
+
+Craft and merchant guilds (`systems/guilds.js`, `data/guilds.json`; see [the manual](../GAMEPLAY_MANUAL.md#town-guilds)). Measured with throwaway harness runs on seeds 101, 202 and 303 (400 days, player kept fed) and the 800-day soak (5 seeds).
+
+- **The world.**
+  - 19–23 towns hold 159–177 guilds, about 8 per town. Each hall holds about 190–200g on average.
+  - 11–20 guilds win a royal charter and 16–19 win a guild monopoly by lobbying foreign crowns.
+- **Strikes.** With `strikeAt` 1.2, a 90-day cooldown and a 50% roll, there were 22–84 strikes per 400 days. That is 0.5–2% of guild-days on strike. Each strike idles the trade for 10–18 days, and bread, beer or tools run really short in that town.
+- **Player money flows.** In the soak, the bot joins 2 guilds and rises 2–4 ranks.
+  - Fees and contracts net −586 to +420g over the run.
+  - Dues are −240 to −1,396g over 800 days.
+  - The quality mark (+8%) and untolled sales show up in sale prices, not as a separate line.
+  - Guilds are a modest cost of doing business in a town, not an income source.
+- **The faucets are small and bounded.**
+  - A guildmaster's stipend is at most 30g a week from the hall.
+  - A lobbying purse is at most 200g, with one guild petition pending at a time.
+  - A charter's fee comes from the guild's hall. A guild founded by charter starts with an empty hall, so charter-then-abolish pays nothing (tested).
+- **No money loops (tested).**
+  - Buying at guild rates and selling back loses.
+  - A guild contract pays 85% of worth, below what the goods cost to buy here after every discount.
+  - The master's premium still sits under `Trading.saleUnitCap`, whose buy-back side now includes the guild floor and guild rates.
+- **Cost.** About 0.3 ms a day for the guild tick alone, warm (the fairs tick was about 0.12 ms on the same machine). In the full day loop it is about 0.65–0.9 ms against 5–8 ms for `MarketDynamics.updatePrices`. Each town's guilds take a weekly turn on its slot, and the industry check (formation and decline) runs monthly.
+
 ## Re-measuring
 
 - **Long soak.** `SOAK=1 SOAK_VERBOSE=1 npx vitest run playtest.soak` prints each

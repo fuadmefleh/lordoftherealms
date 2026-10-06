@@ -413,6 +413,8 @@ export const Finance = {
         const col = Finance.collateral(player, world);
         s += add('Collateral', Math.min(_num(C.collateralCap, 110), _num(C.collateralScale, 22) * Math.log2(1 + col.total / Math.max(1, _num(C.collateralUnit, 500)))));
         s += add('House Prestige', Math.min(_num(C.prestigeCap, 60), House.getPrestige(player) / Math.max(1, _num(C.prestigeDiv, 8))));
+        // A master's guild stands behind them (systems/guilds.js keeps player.guilds.backing)
+        s += add('Guild backing', _num(player && player.guilds && player.guilds.backing));
         const debt = Finance.totalDebt(player);
         const ratio = debt / Math.max(1, col.total + _num(player && player.gold));
         s += add('Debt load', -Math.min(_num(C.debtLoadCap, 120), ratio * _num(C.debtLoad, 80)));

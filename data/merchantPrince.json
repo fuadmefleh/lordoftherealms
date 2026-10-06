@@ -20,7 +20,9 @@
             "dairy":      { "name": "Creamery",       "icon": "🧀", "runsPerLevel": 3,   "gold": 150, "materials": { "wood": 10, "stone": 5 },  "maxLevel": 3 },
             "smithy":     { "name": "Smithy",         "icon": "🔨", "runsPerLevel": 2.5, "gold": 200, "materials": { "stone": 10, "iron": 4 },  "maxLevel": 3 },
             "armoury":    { "name": "Armoury",        "icon": "🗡️", "runsPerLevel": 1.5, "gold": 260, "materials": { "stone": 10, "iron": 6 },  "maxLevel": 3 },
-            "jeweller":   { "name": "Jewellers' Row", "icon": "💍", "runsPerLevel": 0.6, "gold": 300, "materials": { "stone": 10, "tools": 3 }, "maxLevel": 2 }
+            "jeweller":   { "name": "Jewellers' Row", "icon": "💍", "runsPerLevel": 0.6, "gold": 300, "materials": { "stone": 10, "tools": 3 }, "maxLevel": 2 },
+            "_chandler": "Guild-only works (systems/guilds.js): only a master (guildRank 2) of the town's Chandlers' Guild may fund a chandlery.",
+            "chandler":   { "name": "Chandlery", "icon": "🕯️", "runsPerLevel": 1.5, "gold": 220, "materials": { "wood": 10, "tools": 2 }, "maxLevel": 2, "guild": "chandlers", "guildRank": 2 }
         },
         "_tithe": "The crown's cut of a foreign investor's share: base, more while the realm is at war, more again while its treasury is in crisis (data/finance.json crowns). None in a realm you rule or a town you hold. While your own court enforces 'Merchant charters' (systems/kingship.js edicts), foreign crowns honour your charters: chartersMult x the tithe.",
         "tithe": { "base": 0.1, "war": 0.15, "crisis": 0.2, "chartersMult": 0.5 },

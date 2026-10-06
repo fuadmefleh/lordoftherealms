@@ -6,6 +6,7 @@
 import { PlayerEconomy } from './_ref.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Ships } from '../../systems/ships.js';
+import { Guilds } from '../../systems/guilds.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, PlayerEffects, PlayerInventory, Economy, Seasons, SettlementMarket } from './_imports.js';
 
 export const Trading = {
@@ -30,10 +31,13 @@ export const Trading = {
             const tracked = SettlementMarket.tracks(good.id);
             const askBase = Economy.marketAskBase(good, settlement, tile, world);
             const info = SettlementMarket.info(settlement, good.id);
+            // A town guild holds a floor under its goods' ask (systems/guilds.js)
+            const floor = Guilds.askFloor(settlement, good.id);
             goods.push({
                 ...good,
                 quantity: tracked ? SettlementMarket.available(settlement, good.id) : Math.floor((settlement.population || 0) * qtyMult),
-                price: Math.floor(askBase * info.scarcity),
+                price: Math.floor(askBase * Math.max(info.scarcity, floor)),
+                guildFloor: floor > info.scarcity ? floor : 0,
                 askBase,
                 stock: info.stock,
                 scarcity: info.scarcity,
@@ -70,14 +74,16 @@ export const Trading = {
      * commands, after the player's discount. One unit costs the listed price.
      */
     buyCost(player, entry, quantity, settlement) {
-        const disc = Math.max(0.5, 1 - Trading.buyDiscount(player, settlement));
+        // (a guild's members buy its inputs at guild rates — systems/guilds.js)
+        const disc = Math.max(0.5, 1 - Trading.buyDiscount(player, settlement)) * (1 - Guilds.inputDiscount(player, settlement, entry && entry.id));
         const q = Math.max(0, Math.floor(quantity));
         if (!(entry && entry.askBase > 0) || !settlement || !settlement.market || !SettlementMarket.tracks(entry.id)) {
             return Math.ceil(((entry && entry.price) || 0) * q * disc);
         }
         const s0 = SettlementMarket.stock(settlement, entry.id);
+        const floor = Guilds.askFloor(settlement, entry.id);
         let sum = 0;
-        for (let i = 0; i < q; i++) sum += Math.floor(entry.askBase * SettlementMarket.scarcity(settlement, entry.id, s0 - i));
+        for (let i = 0; i < q; i++) sum += Math.floor(entry.askBase * Math.max(floor, SettlementMarket.scarcity(settlement, entry.id, s0 - i)));
         return Math.ceil(sum * disc);
     },
 
@@ -136,9 +142,11 @@ export const Trading = {
         if (tracked) {
             const askBase = Economy.marketAskBase(good, here, at, world);
             const s0 = SettlementMarket.stock(here, goodId);
-            const d = discount(here);
+            // (as buyCost charges it: the guild's floor, the member's guild rates)
+            const d = discount(here) * (1 - Guilds.inputDiscount(player, here, goodId));
+            const floor = Guilds.askFloor(here, goodId);
             for (let j = 1; j <= q; j++) {
-                const own = Math.floor(askBase * SettlementMarket.scarcity(here, goodId, s0 + j) * d) - 1;
+                const own = Math.floor(askBase * Math.max(floor, SettlementMarket.scarcity(here, goodId, s0 + j)) * d) - 1;
                 total += Math.max(0, Math.min(flat, own));
             }
         } else {
@@ -200,7 +208,8 @@ export const Trading = {
             const s0 = SettlementMarket.stock(settlement, good.id);
             let sum = 0;
             for (let j = 0; j < q; j++) sum += unitBase * SettlementMarket.scarcity(settlement, good.id, s0 + j);
-            value = sum * Trading.sellShare(settlement) * (1 + tradeBonus) * priceMult;
+            // The town's guild: an outsider pays its toll, a master's goods carry its mark (systems/guilds.js)
+            value = sum * Trading.sellShare(settlement) * (1 + tradeBonus) * priceMult * Guilds.saleFactor(player, settlement, good.id);
         } else {
             value = Trading.getSellPrice(good, world) * q * (1 + tradeBonus) * priceMult;
         }
@@ -212,11 +221,13 @@ export const Trading = {
      * Why the player may not trade `goodId` here — someone else (a guild or
      * a rival merchant house) holds the town's monopoly on it — or null.
      */
-    monopolyBlock(settlement, goodId) {
+    monopolyBlock(settlement, goodId, player = null) {
         const holder = Economy.monopolyHolder(settlement, goodId);
         // The crown's monopoly (systems/kingship.js) is the player's own: it
         // raises the price instead of barring the trade
         if (!holder || holder === 'player' || holder === 'crown') return null;
+        // A guild's monopoly binds outsiders only: its journeymen and masters trade (systems/guilds.js)
+        if (holder === 'guild' && player && Guilds.monopolyMember(player, settlement, goodId)) return null;
         const m = settlement.monopolies[goodId];
         return `${m.holderName || 'A chartered guild'} holds the monopoly on ${goodId.replace(/_/g, ' ')} in ${settlement.name || 'this town'}.`;
     },
@@ -235,7 +246,7 @@ export const Trading = {
             return { success: false, reason: 'Not enough gold' };
         }
 
-        const blocked = Trading.monopolyBlock(settlement, good.id);
+        const blocked = Trading.monopolyBlock(settlement, good.id, player);
         if (blocked) return { success: false, reason: blocked };
 
         // Carrying capacity: a new kind of good needs a free slot
@@ -257,6 +268,9 @@ export const Trading = {
 
         // The goods leave the town's store (the price climbs)
         if (settlement) SettlementMarket.take(settlement, good.id, quantity);
+
+        // Guild members' standing grows with trade in its goods (systems/guilds.js)
+        if (settlement) Guilds.onBuy(player, settlement, good.id, quantity, totalCost);
 
         // Increase commerce skill
         player.skills.commerce = Math.min(10, player.skills.commerce + 0.1);
@@ -283,8 +297,11 @@ export const Trading = {
 
         if (!good) return { success: false, reason: 'Invalid good' };
 
-        const blocked = Trading.monopolyBlock(settlement, goodId);
+        const blocked = Trading.monopolyBlock(settlement, goodId, player);
         if (blocked) return { success: false, reason: blocked };
+        // The town's guild caps what an outsider may sell of its goods a week (systems/guilds.js)
+        const capped = settlement ? Guilds.saleCheck(player, settlement, goodId, quantity) : null;
+        if (capped) return { success: false, reason: capped };
 
         // Hot (stolen) goods go only to a fence; contraband only to the black
         // market; tariffed goods pay the crown its cut (systems/underworld.js)
@@ -297,8 +314,11 @@ export const Trading = {
         player.gold += totalEarned;
         Quests.track(player, 'trade_profit', totalEarned);
 
-        // The goods join the town's store (the price falls)
-        if (settlement) SettlementMarket.add(settlement, goodId, quantity);
+        // The goods join the town's store (the price falls); the guild takes its toll
+        if (settlement) {
+            SettlementMarket.add(settlement, goodId, quantity);
+            Guilds.onSale(player, settlement, goodId, quantity, totalEarned);
+        }
 
         // Food sold to a settlement also eases its granary — a town short of
         // stores in the lean season is glad of it (Economy.applyLeanSeason)

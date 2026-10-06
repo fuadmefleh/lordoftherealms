@@ -111,6 +111,7 @@ Object.assign(ActionMenu, {
             rivals_here: 'social', hall_of_heroes: 'social', patronage: 'social',
             bank: 'commerce',
             underworld: 'commerce',
+            guildhall: 'commerce',
         };
 
         for (const action of actions) {
@@ -378,6 +379,7 @@ Object.assign(ActionMenu, {
         hold_court: 0, manage_holding: 0, patronage: 0, bank: 0,
         seek_physician: 0, // treatment costs gold, not time
         underworld: 0, // jobs inside the panel cost their own AP
+        guildhall: 0,
 
         // Light actions (1 AP)
         trade: 1, collect_goods: 1, donate: 1,
@@ -933,6 +935,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'underworld':
                 ActionMenu.showUnderworldPanel(game, tile);
+                break;
+            case 'guildhall':
+                ActionMenu.showGuildhall(game, tile);
                 break;
             case 'hold_court':
                 ActionMenu.showCourtPanel(game, tile);

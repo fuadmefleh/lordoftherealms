@@ -1,0 +1,63 @@
+{
+    "_doc": "Town guilds (systems/guilds.js): craft guilds keyed to the industry recipes of data/markets.json and a merchants' guild in the great towns. Each lives on its settlement (settlement.guilds[id], saved with the tile): guildhall treasury, a named guildmaster, standing with the crown (-100..100), prosperity, the squeeze that drives strikes, an optional royal charter, and its market powers in its town — an outsider toll and a weekly sale cap on its goods for non-members, a price floor on the stalls' ask, a quality premium for its masters, guild rates on its inputs for journeymen. Precedence on one good in one town: a monopoly (one slot per good: the crown's by edict, a merchant house's, the player's company's or a guild's charter; a standing charter is never overridden, a crown edict fills empty slots) > the guild's own privileges > the open market. The thieves' guild is systems/underworld.js, not this.",
+    "_config": "tickDays: a town's guilds take their weekly turn on its slot. minRuns: the town's own trade capacity (runs a day, SettlementMarket.tradeCapacity summed over the guild's recipes) a guild needs to form; the industry is checked monthly and the guild dissolves after declineChecks checks below half of it. membersPerRun: guild members per run a day of capacity. dues: gold a member pays the guildhall a week (x prosperity). treasuryWeeks: the hall holds at most this many weeks of dues.",
+    "config": {
+        "tickDays": 7,
+        "minType": "town",
+        "membersPerRun": 3,
+        "dues": 0.5,
+        "treasuryWeeks": 30,
+        "declineChecks": 2,
+        "startTreasuryWeeks": 4,
+        "toll": { "base": 0.12, "chartered": 0.2, "chartersEdictMult": 0.5, "apprenticeMult": 0.5 },
+        "_outsiderCap": "Units of each guild good a non-member may sell in the town a week: needDays x the town's daily need of it, at least min.",
+        "outsiderCap": { "needDays": 5, "min": 8 },
+        "_floor": "The guild will not let its goods go on the stalls below floor x their base ask (a scarcity floor; chartered guilds hold a higher one).",
+        "floor": { "base": 0.8, "chartered": 0.9 },
+        "premium": 0.08,
+        "inputDiscount": 0.06,
+        "_squeeze": "Each week a guild adds up what squeezes it (wages = the cost of bread, taxes, war levies, competition) into an average; past strikeAt for `weeks` weeks running it strikes (a hash roll under strikeChance): its trades in town halt (settlement.market.idle) for `days` and the market runs short of their goods.",
+        "squeeze": {
+            "decay": 0.5, "strikeAt": 1.2, "weeks": 2, "strikeChance": 0.5, "days": [10, 18], "strikeCost": 1, "cooldown": 90,
+            "war": 0.25, "crisis": 0.4, "heavyTax": 0.35, "crownMonopoly": 0.7, "rivalMonopoly": 0.5,
+            "glut": 0.45, "glutBelow": 0.75, "inputDear": 0.35, "inputDearAbove": 1.6, "breadDear": 0.3, "breadDearAbove": 1.5,
+            "playerWorks": 0.25, "outsiderFlood": 0.3, "wages": 0.3, "wagesAbove": 1.2
+        },
+        "lobby": { "every": 28, "minTreasury": 350, "cost": 250, "chance": 0.45, "perStanding": 0.004, "monopolyDays": 120, "charterStanding": 20, "purse": 200, "factionShift": 3 },
+        "crown": { "startMax": 30, "strike": -12, "lobbyWin": 8, "lobbyFail": -3, "abolishBelow": -40, "abolishChance": 0.25, "charterFee": 200, "abolishFaction": -8, "charterFaction": 4, "abolishMood": -5 },
+        "election": { "every": 120, "playerBase": 20, "perContract": 4, "npcBase": 40, "npcSpread": 60, "backedBonus": 20 },
+        "feud": { "perWorks": 8, "perOutsiderFlood": 6, "companyMonopoly": 15, "strikebreak": 6, "sabotageAt": 50, "sabotage": [0.08, 0.2], "decay": 4 },
+        "contracts": { "maxOpen": 2, "days": [14, 28], "needDays": 6, "maxQty": 40, "minQty": 6, "valueShare": 0.85, "standing": 10, "failStanding": 15, "failFeud": 10 },
+        "loans": { "rate": 0.06, "weeks": 8, "maxShare": 0.5, "missedStanding": 8, "defaultAfter": 3 },
+        "backing": { "master": 15, "guildmaster": 30, "cap": 45 },
+        "standing": { "perGold": 0.02, "maxPerTrade": 4, "duesPaid": 1, "missedDues": 5, "expelAfter": 3, "perWorksRun": 0.15 },
+        "works": { "journeymanSeize": 0.5, "masterSeize": 0.35, "guildmasterSeize": 0.2, "graceMult": 2 },
+        "stipend": { "share": 0.01, "max": 30 }
+    },
+    "_ranks": "The membership ladder. fee: gold to enter the rank (to the guildhall), scaled by the town's size (typeFee). dues: gold a week. minDays: days at the rank below; minStanding: standing in this guild; skill: player.skills.commerce needed. toll: share of the outsider toll still paid. premium/inputs/loans/votes/protect: benefits held from this rank.",
+    "typeFee": { "town": 1, "city": 1.5, "capital": 2 },
+    "ranks": [
+        { "id": "apprentice", "name": "Apprentice", "icon": "🔰", "fee": 40, "dues": 2, "minDays": 0, "minStanding": 0, "skill": 0, "toll": 0.5, "premium": false, "inputs": false, "loans": false, "votes": false, "protect": false },
+        { "id": "journeyman", "name": "Journeyman", "icon": "⚒️", "fee": 120, "dues": 4, "minDays": 21, "minStanding": 20, "skill": 1, "toll": 0, "premium": false, "inputs": true, "loans": false, "votes": false, "protect": true },
+        { "id": "master", "name": "Master", "icon": "🏅", "fee": 400, "dues": 8, "minDays": 30, "minStanding": 50, "skill": 2, "masterpiece": true, "toll": 0, "premium": true, "inputs": true, "loans": true, "votes": true, "protect": true },
+        { "id": "guildmaster", "name": "Guildmaster", "icon": "👑", "fee": 0, "dues": 0, "elected": true, "toll": 0, "premium": true, "inputs": true, "loans": true, "votes": true, "protect": true }
+    ],
+    "_guilds": "Craft guilds by the recipes of data/markets.json they work (recipes), the goods they guard in town (goods: tolled, capped, floored, premium) and buy at guild rates (inputs). minRuns: the town's own trade capacity they need. masterpiece: goods a journeyman brings (from the packs) to be made master; they go to the town's market. A guild without recipes forms by population (minPop) — the merchants'.",
+    "guilds": {
+        "millers":   { "name": "Millers' Guild", "icon": "⚙️", "recipes": ["mill"], "goods": ["flour"], "inputs": ["grain"], "minRuns": 2, "masterpiece": { "grain": 40, "tools": 2 } },
+        "bakers":    { "name": "Bakers' Guild", "icon": "🍞", "recipes": ["bakery"], "goods": ["bread"], "inputs": ["grain"], "minRuns": 6, "masterpiece": { "grain": 30, "salt": 6 } },
+        "brewers":   { "name": "Brewers' Guild", "icon": "🍺", "recipes": ["brewery", "distillery"], "goods": ["beer", "liquor"], "inputs": ["grain"], "minRuns": 2, "masterpiece": { "grain": 40, "wood": 10 } },
+        "colliers":  { "name": "Colliers' Guild", "icon": "🔥", "recipes": ["charcoal"], "goods": ["firewood"], "inputs": ["wood"], "minRuns": 1.5, "masterpiece": { "wood": 40 } },
+        "weavers":   { "name": "Weavers' Guild", "icon": "🧶", "recipes": ["weaver"], "goods": ["textiles"], "inputs": ["wool"], "minRuns": 1, "masterpiece": { "wool": 25, "tools": 2 } },
+        "tailors":   { "name": "Tailors' Guild", "icon": "👕", "recipes": ["tailor"], "goods": ["clothes"], "inputs": ["textiles"], "minRuns": 1, "masterpiece": { "textiles": 12, "tools": 1 } },
+        "cheesewrights": { "name": "Cheesewrights' Guild", "icon": "🧀", "recipes": ["dairy"], "goods": ["cheese"], "inputs": ["meat"], "minRuns": 0.8, "masterpiece": { "meat": 15, "salt": 6 } },
+        "smiths":    { "name": "Smiths' Guild", "icon": "🔨", "recipes": ["smithy", "forge", "armoury"], "goods": ["tools", "weapons"], "inputs": ["iron", "coal"], "minRuns": 1, "masterpiece": { "iron": 12, "coal": 8 } },
+        "chandlers": { "name": "Chandlers' Guild", "icon": "🕯️", "recipes": ["chandler"], "goods": ["lamp_oil"], "inputs": ["oil"], "minRuns": 0.4, "masterpiece": { "oil": 8, "wood": 10 } },
+        "jewellers": { "name": "Jewellers' Guild", "icon": "💍", "recipes": ["jeweller"], "goods": ["luxuries"], "inputs": ["gems"], "minRuns": 0.25, "masterpiece": { "gems": 4, "tools": 2 } },
+        "merchants": { "name": "Merchants' Guild", "icon": "⚖️", "recipes": [], "goods": ["spices", "wine", "salt"], "inputs": ["spices", "wine", "salt"], "minType": "city", "minPop": 5000, "masterpiece": { "spices": 6, "wine": 6 } }
+    },
+    "names": {
+        "first": ["Alda", "Bertram", "Cuthbert", "Edda", "Godric", "Hilda", "Ivo", "Jocelyn", "Lambert", "Maud", "Osric", "Petronel", "Ralf", "Sibyl", "Thurstan", "Wymond", "Agnes", "Baldwin", "Emma", "Hugh"],
+        "last": ["Ashdown", "Barrow", "Cole", "Dunmore", "Fairweather", "Gray", "Hale", "Kemp", "Lowell", "Marsh", "Penny", "Reeve", "Stokes", "Thatcher", "Webb", "Wolde"]
+    }
+}

@@ -56,6 +56,7 @@ export const COUNSEL_PANELS = {
     merchantPrince: { label: 'Market', open: (g) => ActionMenu.showMerchantPrince(g, _here(g), 'ledger') },
     mpWarehouse: { label: 'Store-room', open: (g) => ActionMenu.showMerchantPrince(g, _here(g), 'warehouse') },
     mpContracts: { label: 'Contracts', open: (g) => ActionMenu.showMerchantPrince(g, _here(g), 'contracts') },
+    guilds: { label: 'Guildhall', open: (g) => ActionMenu.showGuildhall(g, _here(g)) },
     child: { label: 'Heir', open: (g, item) => ActionMenu.showChildPanel(g, item.action.arg) },
     tournament: { label: 'Tournament', settlement: true, open: (g) => ActionMenu.showTournamentMenu(g, _here(g)) },
     holding: { label: 'Holding', open: (g, item) => ActionMenu.showHoldingPanel(g, item && item.action.q !== null ? g.world.getTile(item.action.q, item.action.r) : _here(g)) },

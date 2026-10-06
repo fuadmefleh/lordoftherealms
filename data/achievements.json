@@ -665,6 +665,27 @@
       "icon": "🏛️",
       "tier": "legendary"
     },
+    "GUILD_JOURNEYMAN": {
+      "id": "guild_journeyman",
+      "name": "Journeyman",
+      "description": "Rise to journeyman in a town guild",
+      "icon": "⚒️",
+      "tier": "bronze"
+    },
+    "MASTER_OF_THE_CRAFT": {
+      "id": "master_of_the_craft",
+      "name": "Master of the Craft",
+      "description": "Have your masterpiece accepted and be made master of a town guild",
+      "icon": "🏅",
+      "tier": "silver"
+    },
+    "GUILDMASTER": {
+      "id": "guildmaster",
+      "name": "Guildmaster",
+      "description": "Be elected guildmaster of a town guild",
+      "icon": "👑",
+      "tier": "gold"
+    },
     "A_GOLDEN_AGE": {
       "id": "a_golden_age",
       "name": "A Golden Age",

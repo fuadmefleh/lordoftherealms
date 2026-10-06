@@ -652,6 +652,19 @@ export const Achievements = {
             id: 'a_golden_age', name: 'A Golden Age', description: 'Raise 3 Great Works and commission 12 works', icon: '🌅', tier: 'legendary',
             check: (player) => Achievements._deed(player, 'patronage.greatWorks') >= 3 && Achievements._deed(player, 'patronage.works') >= 12,
         },
+        // Town guilds (systems/guilds.js): the highest rank ever held in a craft or merchants' guild
+        GUILD_JOURNEYMAN: {
+            id: 'guild_journeyman', name: 'Journeyman', description: 'Rise to journeyman in a town guild', icon: '⚒️', tier: 'bronze',
+            check: (player) => Achievements._guildRank(player) >= 1,
+        },
+        MASTER_OF_THE_CRAFT: {
+            id: 'master_of_the_craft', name: 'Master of the Craft', description: 'Have your masterpiece accepted and be made master of a town guild', icon: '🏅', tier: 'silver',
+            check: (player) => Achievements._guildRank(player) >= 2,
+        },
+        GUILDMASTER: {
+            id: 'guildmaster', name: 'Guildmaster', description: 'Be elected guildmaster of a town guild', icon: '👑', tier: 'gold',
+            check: (player) => Achievements._guildRank(player) >= 3,
+        },
         THE_LINE_ENDURES: {
             id: 'the_line_endures', name: 'The Line Endures', description: 'Pass the House to an heir', icon: '🌳', tier: 'silver',
             check: (player) => ((player.house && player.house.reigns) || []).length >= 1,
@@ -686,6 +699,12 @@ export const Achievements = {
     _court(player) {
         const r = player && player.throne && player.throne.ruling;
         return (r && r.court) || null;
+    },
+
+    /** Highest rank the player has held in a town guild (-1 none; systems/guilds.js). */
+    _guildRank(player) {
+        const s = player && player.guilds && player.guilds.stats;
+        return s && Number.isFinite(s.bestRank) ? s.bestRank : -1;
     },
 
     _guildMember(player) {

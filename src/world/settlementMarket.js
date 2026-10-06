@@ -878,6 +878,19 @@ export const SettlementMarket = {
                 if (i !== undefined && prod[id] > 0) prodA[i] = prod[id];
             }
         }
+        // A trade on strike (market.idle[recipeId] = until-day, systems/guilds.js):
+        // its craftsmen bring nothing of their goods to market and its recipe stands idle
+        let idle = null;
+        if (m.idle) {
+            for (const rid in m.idle) {
+                const until = m.idle[rid];
+                if (ctx.day != null && !(until > ctx.day)) continue;
+                const rc = C.recipeById[rid];
+                if (!rc) continue;
+                (idle || (idle = {}))[rid] = true;
+                for (let j = 0; j < rc.outIdx.length; j++) prodA[rc.outIdx[j]] = 0;
+            }
+        }
         for (let i = 0; i < n; i++) {
             if (prodA[i] > 0) st[i] += prodA[i] * (A.food[i] ? foodMult : A.mined[i] ? minedMult : otherMult);
         }
@@ -885,7 +898,7 @@ export const SettlementMarket = {
         // Local industry: only where the output runs below target
         const rank = Number.isFinite(C.typeRank[settlement.type]) ? C.typeRank[settlement.type] : 0;
         for (const rc of C.recipesI) {
-            if (rank < rc.rank) continue;
+            if (rank < rc.rank || (idle && idle[rc.id])) continue;
             let runs = rc.cap * pop / 1000 * toolF * k;
             if (!(runs > 0)) continue;
             const oi = rc.outIdx, op = rc.outPer, ii = rc.inIdx, ip = rc.inPer;

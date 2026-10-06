@@ -342,9 +342,9 @@ Craft and merchant guilds (`systems/guilds.js`, `data/guilds.json`; see [the man
   - 19–23 towns hold 159–177 guilds, about 8 per town. Each hall holds about 190–200g on average.
   - 11–20 guilds win a royal charter and 16–19 win a guild monopoly by lobbying foreign crowns.
 - **Strikes.** With `strikeAt` 1.2, a 90-day cooldown and a 50% roll, there were 22–84 strikes per 400 days. That is 0.5–2% of guild-days on strike. Each strike idles the trade for 10–18 days, and bread, beer or tools run really short in that town.
-- **Player money flows.** In the soak, the bot joins 2 guilds and rises 2–4 ranks.
-  - Fees and contracts net −586 to +420g over the run.
-  - Dues are −240 to −1,396g over 800 days.
+- **Player money flows.** In the soak (the bot joins after day 100), the bot joins 2 guilds and rises 0–4 ranks.
+  - Fees, masterpiece goods and contracts net −2,387 to +1,263g over the run.
+  - Dues, loans and stipends net −102 to −1,168g over 800 days.
   - The quality mark (+8%) and untolled sales show up in sale prices, not as a separate line.
   - Guilds are a modest cost of doing business in a town, not an income source.
 - **The faucets are small and bounded.**
@@ -356,6 +356,27 @@ Craft and merchant guilds (`systems/guilds.js`, `data/guilds.json`; see [the man
   - A guild contract pays 85% of worth, below what the goods cost to buy here after every discount.
   - The master's premium still sits under `Trading.saleUnitCap`, whose buy-back side now includes the guild floor and guild rates.
 - **Cost.** About 0.3 ms a day for the guild tick alone, warm (the fairs tick was about 0.12 ms on the same machine). In the full day loop it is about 0.65–0.9 ms against 5–8 ms for `MarketDynamics.updatePrices`. Each town's guilds take a weekly turn on its slot, and the industry check (formation and decline) runs monthly.
+
+## Leftovers and the price book (2026-10)
+
+**Caravan trade income on arrival.** A link whose goods travel as a caravan or trading ship no longer banks its trade income when the goods leave. The margin rides on the unit (`unit.margin`, from `link.goldAB/BA` in `SettlementMarket.flows`): half to each town on arrival, nothing when raiders, lairs or the player rob it, and the whole of it to the seizing realm's market when a warring realm seizes it. Unembodied flows and lots too small for the road are credited at once, as before. The world's total trade income is the same, less what is lost on the road and a few days later.
+
+**Leather** (`data/markets.json`, `data/playerEconomy.json`, `data/merchantPrince.json`).
+- A new market good, `leather` (base 18g, 0.0003 a head a day). The craftsmen supply little of it (0.15 of need, +0.1 on pasture). The rest comes from the town's **tannery** recipe: 1.5 hides → 1 leather, 0.25 runs a day per 1,000 people, in every settlement.
+- Hides had to rise to feed the tanners: the land now gives 2.6× need (+2.0 on pasture, +0.8 in forest), was 0.7 / 0.8 / 0.4. Hides are cheaper than before; leather armour (still made from hides) costs a crafter less.
+- The player's Tannery property gains **Tan Leather** (3 hides → 2 leather).
+- **Tannery works** (merchant prince): 260g + 10 wood, 5 stone, 2 runs a day a level. Measured like the other works (seeds 101, 202, 303; one level in each of the 8 largest towns, 120 days, 40% share less the 10% tithe): a median of about 5.9 g/day, so **about 44 days** to repay; 3 of 24 towns sat nearly idle where the town's own tanners used up the hides. Before the hide change the works stood idle almost everywhere (a median under 0.1 g/day), starved of hides like the smithy is of iron.
+
+**Holdings' bandit raids** that get in now burn half as large a share of the market's stores as of the granary (15%), and that damages any works in town through `SettlementMarket.loot`, as a sack or a lair's raid already did.
+
+**The playtest bot** (`src/__tests__/playtest/bot.js`). Changes to make it sensible rather than to make the game easier:
+- **Seed 404.** With a slightly different run of luck (12 perturbations of the bot's dice measured), one run in 12 died broke on day 203. The bot had taken a 5,000g loan at about 5,000g in hand, spent it at once on a Great Work and a store-room, and spent 85 days repaying 70g a day while its guild jobs landed it in jail. It went to 1 gold and starved foraging barren ground. The bot now borrows at most half its purse and raises no Great Work while it owes a loan. All 12 perturbations of 404 then survive (and 11 of 12 on 101, 202, 303 and 505, the twelfth a late pauper's death the soak allows).
+- **Speculation** now buys only goods its price book knows sell for more than 1.2× today's ask within 8 days' travel, and holds goods it bought until a market pays their average cost (or its purse runs under 500g or its packs fill). It lost 13,000–36,000g over 800 days buying at random and selling wherever it stood.
+- **The trading company** waits until day 40 unless the bot has 9,000g: founding it from the starting purse left the bot short of bread money.
+- **Ships.** The bot leaves room in its hold for provisions when it buys a port's exports, sells cargo the port takes when the hold is too full to victual, and tries the other nearby ports when one can't be victualled for. With the hold full of trade goods it had stopped making voyages.
+- **Caravans.** The bot now takes escort jobs (a caravan within 4 hexes, an army of 10+, 20% a day) and, as a guild member with 2.5× the caravan's strength and little heat, robs one now and then. Over the 5-seed, 800-day soak it hired on 39 times, was paid every time and robbed 4 caravans. The long soak checks `escortsHired`, `escortsPaid` and `caravansRobbed`.
+
+**The price book** (`systems/priceKnowledge.js`) changes no prices. It caps itself at 30 towns, 10 towns' history of 10 samples and 20 P&L routes; a book filled from every town of a harness world is under 40KB of save.
 
 ## Re-measuring
 

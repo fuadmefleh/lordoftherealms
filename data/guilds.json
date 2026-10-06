@@ -50,6 +50,7 @@
         "colliers":  { "name": "Colliers' Guild", "icon": "🔥", "recipes": ["charcoal"], "goods": ["firewood"], "inputs": ["wood"], "minRuns": 1.5, "masterpiece": { "wood": 40 } },
         "weavers":   { "name": "Weavers' Guild", "icon": "🧶", "recipes": ["weaver"], "goods": ["textiles"], "inputs": ["wool"], "minRuns": 1, "masterpiece": { "wool": 25, "tools": 2 } },
         "tailors":   { "name": "Tailors' Guild", "icon": "👕", "recipes": ["tailor"], "goods": ["clothes"], "inputs": ["textiles"], "minRuns": 1, "masterpiece": { "textiles": 12, "tools": 1 } },
+        "tanners":   { "name": "Tanners' Guild", "icon": "🟫", "recipes": ["tannery"], "goods": ["leather"], "inputs": ["hide"], "minRuns": 0.75, "masterpiece": { "hide": 20, "salt": 4 } },
         "cheesewrights": { "name": "Cheesewrights' Guild", "icon": "🧀", "recipes": ["dairy"], "goods": ["cheese"], "inputs": ["meat"], "minRuns": 0.8, "masterpiece": { "meat": 15, "salt": 6 } },
         "smiths":    { "name": "Smiths' Guild", "icon": "🔨", "recipes": ["smithy", "forge", "armoury"], "goods": ["tools", "weapons"], "inputs": ["iron", "coal"], "minRuns": 1, "masterpiece": { "iron": 12, "coal": 8 } },
         "chandlers": { "name": "Chandlers' Guild", "icon": "🕯️", "recipes": ["chandler"], "goods": ["lamp_oil"], "inputs": ["oil"], "minRuns": 0.4, "masterpiece": { "oil": 8, "wood": 10 } },

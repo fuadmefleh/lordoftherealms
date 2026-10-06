@@ -25,6 +25,7 @@ import { Finance } from '../../systems/finance.js';
 import { MarketFairs } from '../../systems/marketFairs.js';
 import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { Guilds } from '../../systems/guilds.js';
+import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 
@@ -595,6 +596,13 @@ export function endDay() {
             // lobbying, feuds); the player's dues, guild loans and contracts (systems/guilds.js)
             const guildDay = Guilds.processDay(this.world, this.player);
             for (const n of guildDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // The player's price book: the market they stand in, merchants met,
+            // their factors' and stewards' reports (systems/priceKnowledge.js)
+            PriceKnowledge.processDay(this.player, this.world, {
+                posts: (MerchantHouses.company(this.player) || {}).posts || [],
+                holdings: Holdings.list(this.player, this.world),
+                traders: MerchantCaravans.traders(this.world),
+            });
 
             // Process informants and expire old intel
             let intelResult = { cost: 0 };

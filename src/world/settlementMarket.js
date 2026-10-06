@@ -1032,7 +1032,10 @@ export const SettlementMarket = {
      * a caravan) takes the goods out of the exporter as usual but does not
      * land them: they are left on link.cargoAB / link.cargoBA (typed arrays
      * in config order, a→b and b→a) for the caravan to carry, and reach the
-     * importer only when it arrives.
+     * importer only when it arrives. Its trade income is not credited here
+     * either: the margin of each direction is left on link.goldAB /
+     * link.goldBA, and the caravan pays it to both towns on arrival
+     * (MerchantCaravans) — a cargo lost on the road earns them nothing.
      * @returns {{ moved:number, value:number, gold:number }}
      */
     flows(links, basePrices, day = null) {
@@ -1077,7 +1080,7 @@ export const SettlementMarket = {
             const frR = Math.pow(fr, 1 / P.elasticity);
             let movedA = 0, movedB = 0, goldLink = 0;
             const emb = link.embody === true;
-            let cAB = null, cBA = null;
+            let cAB = null, cBA = null, gAB = 0, gBA = 0;
             for (let i = 0; i < n; i++) {
                 if (!(budget > 0)) break;
                 const base = bases[i];
@@ -1107,15 +1110,19 @@ export const SettlementMarket = {
                 else if (aExports) (cAB || (cAB = new Float64Array(n)))[i] += qty;
                 else (cBA || (cBA = new Float64Array(n)))[i] += qty;
                 budget -= qty * base * se;
-                goldLink += qty * base * (si - se) * T.goldScale;
-                if (aExports) movedA += qty; else movedB += qty;
+                const g = qty * base * (si - se) * T.goldScale;
+                goldLink += g;
+                if (aExports) { movedA += qty; gAB += g; } else { movedB += qty; gBA += g; }
                 out.moved += qty;
                 out.value += qty * base * se;
             }
-            if (emb) { link.cargoAB = cAB; link.cargoBA = cBA; }
+            if (emb) { link.cargoAB = cAB; link.cargoBA = cBA; link.goldAB = gAB; link.goldBA = gBA; }
             if (movedA > 0 || movedB > 0) {
-                income(a, goldLink / 2);
-                income(b, goldLink / 2);
+                // An embodied link's margin rides with its caravans (paid on arrival)
+                if (!emb) {
+                    income(a, goldLink / 2);
+                    income(b, goldLink / 2);
+                }
                 ma.trade.out = _round2(_num(ma.trade.out) + movedA);
                 ma.trade.in = _round2(_num(ma.trade.in) + movedB);
                 mb.trade.out = _round2(_num(mb.trade.out) + movedB);

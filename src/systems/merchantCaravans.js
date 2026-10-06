@@ -9,6 +9,9 @@
 // trading ship ('trade_ship', along a sea link) — a real world unit that
 // travels the route and lands its cargo in the destination market only when
 // it arrives. Everything else still moves in aggregate, so balance holds.
+// The trade income of an embodied lot rides with it too (unit.margin): both
+// towns bank half on arrival; a robbed cargo earns them nothing, a seized
+// one earns the seizer's market.
 //
 //   Sampling   A market turn embodies at most spawn.perTurn links, never more
 //              traders on the map than the cap (cap.perSettlement x towns,
@@ -184,7 +187,7 @@ export const MerchantCaravans = {
     _blank() {
         return {
             seq: 0, lastDay: null, fear: {}, traffic: {}, history: [],
-            stats: { spawned: 0, delivered: 0, landedAtOnce: 0, taken: 0, seized: 0, robbed: 0, tolls: 0, patrols: 0, raidersBroken: 0, escorts: 0, escortPay: 0 },
+            stats: { spawned: 0, delivered: 0, landedAtOnce: 0, taken: 0, seized: 0, robbed: 0, tolls: 0, patrols: 0, raidersBroken: 0, escorts: 0, escortPay: 0, marginPaid: 0, marginLost: 0, marginSeized: 0 },
         };
     },
 
@@ -347,6 +350,8 @@ export const MerchantCaravans = {
             if (l.embody) l.embody = false;
             if (l.cargoAB) l.cargoAB = null;
             if (l.cargoBA) l.cargoBA = null;
+            if (l.goldAB) l.goldAB = 0;
+            if (l.goldBA) l.goldBA = 0;
         }
         if (!world || !Array.isArray(world.units)) return 0;
         const C = MerchantCaravans.config();
@@ -401,8 +406,9 @@ export const MerchantCaravans = {
         let spawned = 0;
         for (const l of links) {
             if (!l || !l.embody) continue;
-            for (const [arr, from, to] of [[l.cargoAB, l.a, l.b], [l.cargoBA, l.b, l.a]]) {
+            for (const [arr, from, to, gold] of [[l.cargoAB, l.a, l.b, l.goldAB], [l.cargoBA, l.b, l.a, l.goldBA]]) {
                 if (!arr) continue;
+                const margin = Math.max(0, _num(gold));
                 let value = 0;
                 const cargo = {};
                 for (let i = 0; i < ids.length; i++) {
@@ -416,17 +422,29 @@ export const MerchantCaravans = {
                 if (!route) {
                     for (const [id, q] of Object.entries(cargo)) SettlementMarket.add(to, id, q);
                     MerchantCaravans.state(world).stats.landedAtOnce++;
+                    MerchantCaravans._credit(from, margin / 2);
+                    MerchantCaravans._credit(to, margin / 2);
                     continue;
                 }
-                MerchantCaravans._spawn(world, l, from, to, cargo, value, route, bases, day, player);
+                const unit = MerchantCaravans._spawn(world, l, from, to, cargo, value, route, bases, day, player);
+                if (unit) unit.margin = _round2(margin);
                 active++;
                 spawned++;
             }
             l.embody = false;
             l.cargoAB = null;
             l.cargoBA = null;
+            l.goldAB = 0;
+            l.goldBA = 0;
         }
         return spawned;
+    },
+
+    /** Bank trade income (economy.tradeIncome, paid out by Economy.processTrade) in a town. */
+    _credit(settlement, gold) {
+        if (!settlement || !settlement.economy || !(gold > 0)) return 0;
+        settlement.economy.tradeIncome = _round2(_num(settlement.economy.tradeIncome) + gold);
+        return gold;
     },
 
     /** The merchant house behind a trader: one dealing in its main good, else one picked by a hash. */
@@ -751,8 +769,16 @@ export const MerchantCaravans = {
                 if (d < bd) { bd = d; best = s; }
             }
             const t = best ? world.getTile(best.q, best.r) : null;
-            if (t && t.settlement) for (const [id, q] of Object.entries(cargo)) SettlementMarket.add(t.settlement, id, q);
+            if (t && t.settlement) {
+                for (const [id, q] of Object.entries(cargo)) SettlementMarket.add(t.settlement, id, q);
+                // The trade's margin goes to the seizer's market, not the towns it was meant for
+                st.stats.marginSeized = _round2(_num(st.stats.marginSeized) + MerchantCaravans._credit(t.settlement, _num(u.margin)));
+                u.margin = 0;
+            }
         }
+        // Robbers bank no trade income: the margin is lost with the cargo
+        if (_num(u.margin) > 0) st.stats.marginLost = _round2(_num(st.stats.marginLost) + _num(u.margin));
+        u.margin = 0;
         u.cargo = {};
         u.purse = 0;
         u.inventory = {};
@@ -807,7 +833,17 @@ export const MerchantCaravans = {
         if (s) {
             for (const [id, q] of Object.entries(u.cargo || {})) SettlementMarket.add(s, id, q);
             st.stats.delivered++;
+            // The trade's margin is earned on arrival, half to either town
+            const m = Math.max(0, _num(u.margin));
+            if (m > 0) {
+                const ft = world.getTile(u.sourceQ, u.sourceR);
+                const from = ft && ft.settlement;
+                MerchantCaravans._credit(s, from ? m / 2 : m);
+                if (from) MerchantCaravans._credit(from, m / 2);
+                st.stats.marginPaid = _round2(_num(st.stats.marginPaid) + m);
+            }
         }
+        u.margin = 0;
         if (u.escort && u.escort.by === 'player' && player) {
             const E = MerchantCaravans.config().escort;
             const pay = Math.round(_num(u.escort.pay, u.escortPay));
@@ -1123,6 +1159,9 @@ export const MerchantCaravans = {
         }
         if (C.robbery.fear !== false) st.fear[u.linkKey] = day + _num(C.fear.days, 12);
         st.stats.robbed++;
+        // The trade's margin is lost with the cargo: neither town earns it
+        if (_num(u.margin) > 0) st.stats.marginLost = _round2(_num(st.stats.marginLost) + _num(u.margin));
+        u.margin = 0;
         u.cargo = {};
         u.purse = 0;
         const dt = world.getTile(u.targetQ, u.targetR);

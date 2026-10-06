@@ -11,6 +11,7 @@
 // reproducible from its seed.
 
 import { Utils } from '../../core/utils.js';
+import { PlayerInventory } from '../../core/inventory.js';
 import { Hex } from '../../core/hex.js';
 import { WorldUnit } from '../../world/units.js';
 import { Colonization } from '../../world/colonization.js';
@@ -42,6 +43,8 @@ import { OutlawLairs } from '../../systems/outlawLairs.js';
 import { Finance } from '../../systems/finance.js';
 import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { Guilds } from '../../systems/guilds.js';
+import { MerchantCaravans } from '../../systems/merchantCaravans.js';
+import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { Seasons } from '../../world/seasons.js';
 import { travelTo } from './harness.js';
@@ -101,9 +104,17 @@ function buyFood(game, tile, stats) {
 
 function sellGoods(game, tile, stats) {
     const { player, world } = game;
+    const held = PriceKnowledge.state(player).pnl.held;
+    const crowded = PlayerInventory.getUsedSlots(player) > PlayerInventory.getCapacity(player) * 0.75;
     for (const [id, qty] of Object.entries({ ...player.inventory })) {
         if (FOOD.includes(id) || !(qty > 0) || id === 'gold') continue;
         if (Treasures.info(id) && Utils.random() < 0.5) continue;
+        // Goods bought to trade are held until a market pays what they cost
+        // (the price book's average cost), unless the purse is running dry or the packs fill
+        const lot = held[id];
+        const good = PlayerEconomy.GOODS[id.toUpperCase()];
+        if (lot && lot.qty > 0 && good && player.gold >= 500 && !crowded
+            && Trading.saleUnitPrice(player, good, tile.settlement, world, 1, qty) < (lot.cost / lot.qty) * 1.05) continue;
         const res = Trading.sellGoods(player, id, qty, tile.settlement, world);
         if (res.success) { count(stats, 'sales'); continue; }
         // Hot goods to a fence, contraband to the black market
@@ -116,11 +127,20 @@ function sellGoods(game, tile, stats) {
     }
 }
 
+/**
+ * Buy a lot to sell elsewhere — only when the price book (what the bot has
+ * seen or been told, systems/priceKnowledge.js) knows a market within a few
+ * days' travel paying well over today's asking price here.
+ */
 function speculate(game, tile, stats) {
     const { player, world } = game;
     if (player.gold < 4000 || Utils.random() > 0.25) return;
+    const here = `${tile.q},${tile.r}`;
+    const outlet = (g) => PriceKnowledge.known(player, world, g.id)
+        .some(k => k.key !== here && k.age <= 20 && k.bid > g.price * 1.2
+            && Hex.wrappingDistance(k.q, k.r, tile.q, tile.r, world.width) <= PriceKnowledge.config().hexesPerDay * 8);
     const goods = Trading.getAvailableGoods(tile.settlement, tile, world)
-        .filter(g => !FOOD.includes(g.id) && g.quantity > 0 && g.price > 0);
+        .filter(g => !FOOD.includes(g.id) && g.quantity > 0 && g.price > 0 && outlet(g));
     if (!goods.length) return;
     const g = Utils.randPick(goods);
     const qty = Math.min(Trading.affordable(player, g, tile.settlement, 5), Math.floor((player.gold * 0.05) / g.price));
@@ -207,7 +227,10 @@ function company(game, tile, stats) {
     if (!c) {
         // (3,500: the purse runs a little thinner now that food and sales
         // follow each town's real stock — world/settlementMarket.js)
+        // Not with the starting purse: a company founded in the first weeks
+        // starves the bot of bread money (it founds one once there's a cushion)
         if (player.gold < 3500 || Utils.random() > 0.3) return;
+        if (world.day < 40 && player.gold < 9000) return;
         if (!MerchantHouses.hasCharter(player) && !MerchantHouses.officeCharter(player)) {
             if (MerchantHouses.buyCharter(player, world, tile).success) count(stats, 'chartersBought');
         }
@@ -335,7 +358,9 @@ function ships(game, tile, stats) {
         const exp = market.filter(e => e.role === 'export' && e.buy);
         if (exp.length && player.gold > 1500 && Utils.random() < 0.6) {
             const e = Utils.randPick(exp);
-            if (Ships.buyTradeGood(player, world, ship.id, e.id, 10).success) count(stats, 'portBuys');
+            // ...leaving room in the hold for the provisions of a voyage
+            const room = Math.min(10, Ships.getCargoFree(ship) - 15);
+            if (room > 0 && Ships.buyTradeGood(player, world, ship.id, e.id, room).success) count(stats, 'portBuys');
         }
     }
 }
@@ -386,17 +411,27 @@ function sail(game, tile, stats) {
     const ports = settlementTiles(world).filter(t => Ships.isPortTile(world, t.q, t.r));
     const dest = nearest(world, tile, ports, 5);
     if (!dest.length) return false;
-    const d = Utils.randPick(dest);
-    const dTile = world.getTile(d.q, d.r);
-    // Victual the ship for the passage, with a few days in hand
-    const route = Ships.seaPath(world, tile, d);
-    if (!route) return false;
-    const voyageDays = Ships.voyageDays(player, ship, route.length) + 3;
-    const want = Ships.provisionsNeeded(ship, voyageDays, { player });
-    if (want > 0 && Ships.buyProvisions(player, world, ship.id, want).success) count(stats, 'provisioned');
-    if (Ships.provisionsNeeded(ship, voyageDays, { player }) > 0) { count(stats, 'voyageUnvictualled'); return false; }
-    const res = Ships.sailPlayerTo(player, ship.id, d.q, d.r, dTile.settlement.name, world);
-    if (res.success) { count(stats, 'voyages'); return true; }
+    // A port picked at random, else the nearest the ship can reach and be victualled for
+    const first = Utils.randPick(dest);
+    for (const d of [first, ...dest.filter(x => x !== first)]) {
+        const dTile = world.getTile(d.q, d.r);
+        const route = Ships.seaPath(world, tile, d);
+        if (!route || !dTile || !dTile.settlement) continue;
+        // Victual the ship for the passage, with a few days in hand
+        const voyageDays = Ships.voyageDays(player, ship, route.length) + 3;
+        const want = Ships.provisionsNeeded(ship, voyageDays, { player });
+        // A hold full of trade goods: sell what this port takes to make room for food
+        if (want > Ships.getCargoFree(ship)) {
+            const market = Ships.getPortMarket(world, tile.q, tile.r);
+            for (const [good, qty] of Object.entries({ ...(ship.cargo || {}) })) {
+                if (market.some(e => e.id === good) && Ships.sellTradeGood(player, world, ship.id, good, qty).success) count(stats, 'portSales');
+            }
+        }
+        if (want > 0 && Ships.buyProvisions(player, world, ship.id, want).success) count(stats, 'provisioned');
+        if (Ships.provisionsNeeded(ship, voyageDays, { player }) > 0) { count(stats, 'voyageUnvictualled'); continue; }
+        const res = Ships.sailPlayerTo(player, ship.id, d.q, d.r, dTile.settlement.name, world);
+        if (res.success) { count(stats, 'voyages'); return true; }
+    }
     return false;
 }
 
@@ -572,7 +607,9 @@ function patronage(game, tile, stats) {
     for (const g of st.gallery.filter(x => !x.donatedTo)) {
         if (Patronage.donate(player, world, tile, g.uid).success) count(stats, 'worksDonated');
     }
-    if (player.gold > 8000 && !st.projects.length) {
+    // A Great Work is a fortune sunk: not on borrowed money (seed 404's bot
+    // took a great loan, raised a work with it and starved repaying it)
+    if (player.gold > 8000 && !st.projects.length && !Finance.state(player).loans.length) {
         for (const id of Object.keys(Patronage.greatWorks())) {
             if (Patronage.found(player, world, tile.q, tile.r, id).success) { count(stats, 'greatWorksBegun'); break; }
         }
@@ -596,8 +633,10 @@ function banking(game, tile, stats) {
     const acct = st.accounts[bank.id];
     if (player.gold > 9000 && Finance.deposit(player, world, bank.id, 2000).success) count(stats, 'deposits');
     else if (player.gold < 300 && acct && acct.balance >= 100 && Finance.withdraw(player, world, bank.id, 500).success) count(stats, 'withdrawals');
-    if (!st.loans.length && Utils.random() < 0.05) {
-        const offer = Finance.loanOffers(player, world, bank.id).filter(o => o.available).pop();
+    // Borrow modestly, and only with money in hand to carry the payments: a
+    // great loan taken by a near-broke bot drained it to nothing (seed 404)
+    if (!st.loans.length && player.gold > 2000 && Utils.random() < 0.05) {
+        const offer = Finance.loanOffers(player, world, bank.id).filter(o => o.available && o.amount <= player.gold / 2).pop();
         if (offer && Finance.takeLoan(player, world, bank.id, offer.id).success) count(stats, `loan_${offer.id}`);
     }
     if (player.gold > 12000 && Utils.random() < 0.05) {
@@ -673,7 +712,9 @@ function guilds(game, tile, stats) {
     const s = tile.settlement;
     if (!s.guilds) return;
     const mine = player.guilds ? Object.keys(player.guilds.memberships).length : 0;
-    if (mine < 2 && player.gold > 1500) {
+    // (not in the first hundred days: guild fees early on starve the company and the ships of their capital)
+    const settled = world.day > 100;
+    if (mine < 2 && settled && player.gold > 1500) {
         for (const gid of ['bakers', 'brewers', 'millers', 'merchants', ...Object.keys(s.guilds)]) {
             if (!s.guilds[gid] || Guilds.membership(player, s, gid)) continue;
             if (Guilds.join(player, world, tile, gid).success) { count(stats, 'craftGuildJoined'); break; }
@@ -684,8 +725,8 @@ function guilds(game, tile, stats) {
         if (!m) continue;
         const q = Guilds.advanceQuote(player, world, tile, gid);
         const onlyGoods = q.needs.length && q.needs.every(n => n.met || /masterpiece/.test(n.label));
-        if (onlyGoods && player.gold > q.fee + 2500) buyMaterials(game, tile, q.goods, stats);
-        if (Guilds.advanceQuote(player, world, tile, gid).ok && player.gold > q.fee + 1500 && Guilds.advance(player, world, tile, gid).success) count(stats, 'guildRankUp');
+        if (onlyGoods && player.gold > q.fee + 4000) buyMaterials(game, tile, q.goods, stats);
+        if (Guilds.advanceQuote(player, world, tile, gid).ok && player.gold > q.fee + 3000 && Guilds.advance(player, world, tile, gid).success) count(stats, 'guildRankUp');
         if (m.rank >= 2 && !m.candidate) Guilds.stand(player, world, s, gid, true);
         // A contract for what the bot carries
         for (const o of Guilds.contractOffers(player, world, s, gid)) {
@@ -751,6 +792,54 @@ function outlaws(game, stats) {
     if (kind.parley && !OutlawLairs.sparesPlayer(lair, world.day) && player.gold > OutlawLairs.tributePrice(player, lair) * 4) {
         if (OutlawLairs.payTribute(player, world, lair.id).success) count(stats, 'lairTributes');
     }
+}
+
+/**
+ * Merchant caravans on the road (systems/merchantCaravans.js): ride with the
+ * trader the bot guards; now and then ride up to a caravan nearby and hire on
+ * as its escort; and, rarely, as a guild member with a much stronger army,
+ * rob one. Returns true while the day goes to the road.
+ */
+function caravans(game, stats) {
+    const { player, world } = game;
+    if (player.boardedShip) return false;
+    const job = MerchantCaravans.escortJob(world);
+    if (job) {
+        // Keep with the caravan (the merchant gives up on an escort who strays)
+        game.dest = { q: job.q, r: job.r };
+        travelTo(game, job.q, job.r);
+        count(stats, 'escortDays');
+        return true;
+    }
+    const strength = PlayerMilitary.getArmyStrength(player);
+    if (strength <= 0 || player.health < 60 || player.getFoodCount() < 12 || Sieges.active(player)) return false;
+    const dist = (u) => Hex.wrappingDistance(u.q, u.r, player.q, player.r, world.width);
+    const near = MerchantCaravans.traders(world).filter(u => u.type === 'trade_caravan' && !u.escort && dist(u) <= 4)
+        .sort((a, b) => dist(a) - dist(b) || (a.id < b.id ? -1 : 1));
+    if (!near.length) return false;
+    const u = near[0];
+    // A rare robbery: a guild member, a far stronger army, little heat with the realm
+    const uw = Underworld.ensure(player);
+    const kid = u.kingdomId;
+    if (uw.guild.member && strength > u.strength * 2.5 && Utils.random() < 0.04
+        && (kid == null || Underworld.getHeat(player, kid) < 30)) {
+        travelTo(game, u.q, u.r);
+        if (dist(u) <= 1) {
+            const res = PlayerMilitary.attackUnit(player, u, world);
+            count(stats, res && res.victory ? 'caravansRobbed' : 'robberiesFailed');
+            return true;
+        }
+        return false;
+    }
+    // Hire on as escort now and then, when the army can see off an ambush
+    if (strength >= 10 && Utils.random() < 0.2) {
+        travelTo(game, u.q, u.r);
+        if (MerchantCaravans.canEscort(player, world, u).ok && MerchantCaravans.hireEscort(player, world, u.id).success) {
+            count(stats, 'escortsHired');
+            return true;
+        }
+    }
+    return false;
 }
 
 function delve(game, stats) {
@@ -922,6 +1011,11 @@ export function botDay(game, stats) {
     const { player, world } = game;
     // Yesterday's finds (Discovery.processDay in the harness's endDay)
     if (game.discoveryDay && game.discoveryDay.found.length) count(stats, 'discovered', game.discoveryDay.found.length);
+    // ...and yesterday's road: an escort paid on arrival, or failed
+    for (const n of (game.caravanDay && game.caravanDay.notices) || []) {
+        if (n.title === 'Escort Paid') count(stats, 'escortsPaid');
+        else if (n.title === 'Escort Failed') count(stats, 'escortsFailed');
+    }
     if (player.jailState) {
         if (player.jailState.bailCost && player.gold > player.jailState.bailCost * 3) {
             player.gold -= player.jailState.bailCost;
@@ -1116,6 +1210,7 @@ export function botDay(game, stats) {
         return;
     }
     if (booked(game, 'colony', () => foundColony(game, stats))) return;
+    if (booked(game, 'caravans', () => caravans(game, stats))) return;
 
     if (!game.dest || (game.dest.q === player.q && game.dest.r === player.r) || Utils.random() < 0.05) {
         game.dest = chooseDestination(game);

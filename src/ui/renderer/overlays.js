@@ -707,6 +707,13 @@ Object.assign(Renderer.prototype, {
                 break;
             }
 
+            case 'prices': {
+                // The trade map: the land dimmed so the price markers stand out
+                color = tile.settlement ? '#2a2318' : '#07080f';
+                alpha = tile.settlement ? 0.25 : 0.4;
+                break;
+            }
+
             case 'culture': {
                 if (tile.culturalBuilding) {
                     const owner = tile.culturalBuilding.owner;
@@ -857,6 +864,9 @@ Object.assign(Renderer.prototype, {
                 if (tile.resource) return '#d4a017';
                 return tile.terrain.passable ? '#2a2520' : '#0a0a20';
             }
+
+            case 'prices':
+                return tile.settlement ? '#e08e45' : this.dimColor(tile.terrain.color, 0.35);
 
             case 'culture': {
                 if (tile.culturalBuilding) return '#9b59b6';

@@ -312,6 +312,7 @@ export const Economy = {
         // makes the good dearer in this market
         price *= 1 + Economy.monopolyMarkup(settlement, good.id, world ? world.day : null);
         price *= Coinage.priceMultiplier(world, settlement); // debased coin (world/coinage.js; 1 when pure)
+        price *= SettlementMarket.fashionFactor(settlement, good.id); // a fashion at court, on goods no market keeps
 
         return price;
     },

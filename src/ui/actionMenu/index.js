@@ -38,6 +38,7 @@ import './merchantPrince.js';
 import './labour.js';
 import './guilds.js';
 import './merchantLedger.js';
+import './economy.js';
 
 // Expose ActionMenu globally so inline onclick handlers in dynamic HTML can access it
 window.ActionMenu = ActionMenu;

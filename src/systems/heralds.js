@@ -26,6 +26,8 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
+import { EconomyIndex } from '../world/economyIndex.js';
+import { Fashions } from '../world/fashions.js';
 
 const DEFAULT_CONFIG = { speed: 8, lifeDays: 40, minGapDays: 2, maxPerDay: 1, cap: 24 };
 const MAJOR = 9;
@@ -196,6 +198,20 @@ export const Heralds = {
         for (const x of [...rec.sagas, ...rec.sieges, ...rec.holdings, ...rec.lairs, ...rec.finance, ...rec.market]) st.seen[x.key] = x.day;
         for (const x of Heralds._caravanRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._labourRecords(world)) st.seen[x.key] = x.day;
+        for (const x of Heralds._econRecords(world)) st.seen[x.key] = x.day;
+    },
+
+    /**
+     * Dear bread and rising prices in a realm (world.economy.news,
+     * world/economyIndex.js), and fashions taking a court (world/fashions.js).
+     */
+    _econRecords(world) {
+        const out = EconomyIndex.news(world).filter(h => h && h.key).map(h => ({ key: h.key, day: _num(h.day), h }));
+        const fs = world && world.fashions;
+        for (const f of (fs && Array.isArray(fs.active)) ? fs.active : []) {
+            if (f && f.uid != null) out.push({ key: `fashion:${f.uid}`, day: _num(f.start), h: { kind: 'fashion', f } });
+        }
+        return out;
     },
 
     /** Refugee columns, strikes and booms (world.labour.history, systems/labour.js). */
@@ -409,6 +425,28 @@ export const Heralds = {
             Heralds._proclaim(st, world, LABOUR_KINDS[h.kind], {
                 place: h.place || 'the town', to: h.to || 'the neighbouring towns', n: _num(h.n) || 'Hundreds', days: _num(h.days) || 7,
                 why: LABOUR_WHY[h.why] || 'war', kingdom: (_kingdom(world, h.kingdomId) || {}).name || 'the realm',
+            }, { q: h.q, r: h.r }, { kingdomId: h.kingdomId != null ? h.kingdomId : null });
+        }
+
+        // The cost of living and the fashions at court
+        for (const x of Heralds._econRecords(world).filter(fresh)) {
+            st.seen[x.key] = x.day;
+            const h = x.h;
+            if (h.kind === 'fashion') {
+                const f = h.f;
+                const def = Fashions.def(f.id) || {};
+                const goods = Fashions.goods(f).filter(g => g.mult > 1).map(g => g.name.toLowerCase());
+                Heralds._proclaim(st, world, 'fashion', {
+                    place: f.place || 'the capital', text: def.text || 'there is a new fashion',
+                    goods: goods.length > 1 ? `${goods.slice(0, -1).join(', ')} and ${goods[goods.length - 1]}` : (goods[0] || 'fine things'),
+                }, { q: f.q, r: f.r }, { kingdomId: f.kingdomId != null ? f.kingdomId : null, own: f.by === 'player' });
+                continue;
+            }
+            const kind = h.kind === 'dear' ? 'econ_dear' : h.kind === 'inflation' ? 'econ_inflation' : null;
+            if (!kind) continue;
+            Heralds._proclaim(st, world, kind, {
+                kingdom: h.kingdom || (_kingdom(world, h.kingdomId) || {}).name || 'the realm', pct: _num(h.pct), food: _num(h.food),
+                since: String(h.since || 'the last season').toLowerCase(),
             }, { q: h.q, r: h.r }, { kingdomId: h.kingdomId != null ? h.kingdomId : null });
         }
 

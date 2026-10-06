@@ -64,6 +64,8 @@ import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { Labour } from '../../systems/labour.js';
 import { Guilds } from '../../systems/guilds.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
+import { EconomyChronicle } from '../../systems/economyChronicle.js';
+import { Ledger } from '../../systems/ledger.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
 
 export const WORLD_W = 80;
@@ -290,7 +292,7 @@ function _endDay(game) {
     mark(game, 'Kingship.processDay');
     Sieges.processDay(world, player);
     mark(game, 'Sieges.processDay');
-    Holdings.processDay(player, world);
+    game.holdingsDay = Holdings.processDay(player, world);
     mark(game, 'Holdings.processDay');
     MerchantHouses.processDay(player, world);
     mark(game, 'MerchantHouses.processDay');
@@ -316,10 +318,12 @@ function _endDay(game) {
         traders: MerchantCaravans.traders(world),
     });
     mark(game, 'PriceKnowledge.processDay');
+    game.chronicleDay = EconomyChronicle.processDay(world, player);
+    mark(game, 'EconomyChronicle.processDay');
 
     Tavern.expireOldIntel(player, world.day);
     mark(game, 'Tavern.expireOldIntel');
-    Tavern.processInformants(player, world);
+    game.intelDay = Tavern.processInformants(player, world);
     mark(game, 'Tavern.processInformants');
     Espionage.processDaily(player, world);
     mark(game, 'Espionage.processDaily');
@@ -329,7 +333,7 @@ function _endDay(game) {
     mark(game, 'Gossip.processDaily');
     game.financeDay = Finance.processDay(world, player);
     mark(game, 'Finance.processDay');
-    if (world.day % 7 === 0) Taxation.collectTaxes(player, world);
+    game.taxDay = world.day % 7 === 0 ? Taxation.collectTaxes(player, world) : null;
     mark(game, 'Taxation.collectTaxes');
     if (player.queuedPath) player.resumeQueuedPath();
 
@@ -347,6 +351,11 @@ function _endDay(game) {
     mark(game, 'Underworld.processDay');
     Achievements.checkAchievements(player, world);
     mark(game, 'Achievements.checkAchievements');
+    // The day's books close (endDay.js's finance row, from the turn's results; systems/ledger.js)
+    Ledger.closeDay(player, world, Ledger.fromResults(world, player, {
+        princeDay: game.princeDay, guildDay: game.guildDay, holdingsDay: game.holdingsDay,
+        taxCollected: (game.taxDay && game.taxDay.collected) || 0, intelCost: (game.intelDay && game.intelDay.cost) || 0,
+    }));
     // A voyage that made port today lands the player there (endDay.js hands
     // the day's voyage report to ui/actionMenu/voyage.js, which does this)
     if (game.voyageDay && game.voyageDay.arrived) onArrived(game);

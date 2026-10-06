@@ -284,7 +284,7 @@ These are the player's levers on the settlement economy: industry, warehouses, f
 - **Before this pass** the payback was already 39–53 days in the great towns for ten of the twelve works (table's "Before" column, the code at the labour commit). The labour pass's note that bakehouses and brewhouses stood idle (median 0 g/day) and the craft works took 66–134 days did not reproduce under this methodology, with the works funded one kind at a time or all twelve together in the 8 largest cities. With all twelve together the grain works share the town's spare grain, and the brewhouse and distillery slow to 58–64 days, before and after (the bakehouse, 38 days, takes most of its runs from the town's bakers). The capture makes the income robust to the town's own trade filling its goods: without it a works stands idle whenever the trade leaves no room on top (tested).
 - **The tannery** became the outlier with the capture (leather grows dearer as the towns grow: 15 days late at 260g). Its price is up to 400g: 57 days early, 22 late.
 - **Right town, wrong town.** In the spread towns (8 spaced evenly by size) the brewhouse, mill, distillery, tannery and armoury take 90–400 days, and the charcoal kilns stand idle in wooded country. The bakehouse stays good anywhere with grain (52 days).
-- **Open.** The weaving shed and the smithy are still starved of wool and iron in every kind of town; they pay only when you sell those inputs into the town. The jewellers' row stands idle late in the game, when the nobles' and merchants' baskets (data/labour.json) have bought up the gems.
+- **Open.** The weaving shed and the smithy are still starved of wool and iron in every kind of town; they pay only when you sell those inputs into the town. The jewellers' row stood idle late in the game; fixed in the [Economic Chronicle](#economic-chronicle-2026-10) pass (the cause was a glut of luxuries and short gems, not the baskets).
 - **Levels saturate.** Three levels of a bakehouse (2,670g) in a great town pay a median of 43.6 g/day, about 65 days to pay back (69 before). A brewhouse takes 94 days (97), a mill 165 (182) and a tannery about 170. The capture's share shrinks as the works grow against the trade, and more capacity than the town's stores can feed or absorb stands idle.
 - **Not offered.** The forge (iron + 2 firewood → 0.8 tools) adds no value at base prices, and the chandlery's rock oil is too rare.
 - **Why it is not a money loop.**
@@ -470,6 +470,40 @@ What was cut (a CPU profile of the day turn, then each change checked to leave t
 - **NPC trade** (`SettlementMarket.flows`) skips a good before pricing it when neither town has a surplus for the other's shortfall (the checks after the prices would skip it anyway). Half of its time was `Math.pow` on goods that could not move.
 - **The labour turn** reads base wages and working shares from tables built with the config; the weekly strike check works out the artisans' real wage only where their welfare is low enough to strike.
 - **Left as they are.** The rest of the market tick (each town's turn, about 15–40 µs; trade along about 120 links) and the guilds' weekly turn are spread over many small costs with no single hot spot. The weekly migration pass costs about 1.5 ms (was about 2 ms).
+
+## Economic Chronicle (2026-10)
+
+The player's unified ledger (`systems/ledger.js`), the realms' weekly indices (`world/economyIndex.js`), the gazette and net worth (`systems/economyChronicle.js`) and fashions at court (`world/fashions.js`), all tuned in `data/chronicle.json`. See [the manual](../GAMEPLAY_MANUAL.md#the-economic-chronicle-the-gazette-your-books-and-fashions).
+
+**The ledger changes no money.** It records what the systems already pay: port trades, store-rooms, forwards, caravans hailed on the road and guild contracts as goods bought/sold plus the margin (through `PriceKnowledge.recordBuy`/`recordSale`), works funded/repaired/sold, property takings, key fees and rent, guild fees and the toll inside an outsider's sale price (a memo line), loan payments split into interest and principal, deposit interest and bond coupons, the trading company's profit and its dividends, patronage. `player.financeToday`, which many systems wrote into but nothing ever created, is now opened by the first flow and closed into `player.financeHistory` each night (120 days kept, was 90). The old `loanPayments` line is replaced by `loanInterest` (operating) and `loanPrincipal` (capital). The day's `totalIncome`/`totalExpenses` (the HUD's net) count operating flows only: buying stock is not an expense.
+
+**Indices.** Food and cost-of-living indices are population-weighted means of the towns' scarcity × season × coin (1 = base price). On seeds 101, 202 and 303 (bot, 300 days) the world's food index runs from 0.75–0.79 after the harvest to 1.56–1.88 in the spring lean weeks; cost of living about 0.95–1.2. A debasement step (purity −0.1) lifts the realm's cost of living by 9% the week it happens (tested at −0.3: +27%). The heralds' 'dear bread' needs the realm's food index at 1.3 or more, 8% above the world's and up 15% in four weeks (the lean weeks alone are no news): the three seeds made 7–10 dear-bread and 2–4 inflation records each in 300 days (across ten realms; the heralds cry at most one a day).
+
+**Crown readers.** Both read the realm's food against the world's (so the lean weeks, which raise everyone's bread together, move nobody): stability −30 per point above 1.1 (at most −6, 'Cost of living'), +2 below 0.9; war confidence × (1 − (rel − 1.1)), at least 0.8.
+
+**Kingdom survival (seeds 7–11, 1,080 days; `advanceDay` + market + labour, with and without the chronicle's weekly tick).**
+
+| | Alive (of 10) | Wars | Population at the end |
+|---|---|---|---|
+| Without the chronicle | 10, 8, 9, 8, 10 | 49, 87, 78, 30, 46 | 185,300–201,800 |
+| With it | 10, 7, 9, 7, 10 | 57, 83, 71, 31, 46 | 177,000–198,400 |
+
+The 'Cost of living' term averaged −0.7 to +0.1 over the realms and years (at most −6, in a hungry realm's worst weeks). The runs diverge from the first changed stability (the sim is chaotic: the labour pass moved them as much), and survival stays in the band the war-balance pass set (7–10 of 10).
+
+**Fashions.** A fashion starts most weeks with fewer than 3 running (30% a week from day 14); seeds 101, 202 and 303 saw 13–15 in 300 days, 2–3 at a time, at 6–9 different courts. At its height a fashion's goods are wanted 1.3–1.8× by the nobles and merchants (less with distance, none beyond 26 hexes), which moved the court town's need of them by a median of +14% to +19% (p90 +35% to +54%; p10 −11% to −16% under pious plainness) — the fashionable strata are a fifth to a quarter of the people — and the price follows the stock. Goods no market keeps (the uncharted lands' exotics, silk and ivory at the ports) fetch the factor outright: pearls ×1.6 at the court of a jewelled fashion. Both sides of a trade move together, so no same-tile loop opens. A player's fashion (40 Prestige + 400 gold, half with an artist or architect, standing 20, once in 60 days) is 1.25× as strong and lasts 1.5× as long.
+
+**The jewellers' gems.** Measured like the works above (one level in each of the 8 largest cities and capitals with the trade, 120 days, seeds 101, 202, 303; value added a day per level before the player's share, tithe and wages). Late in the game the jewellers stood idle: not because the nobles' and merchants' baskets bought up the gems (their gem demand factor measured 0.93–1.03 in those towns), but because the craftsmen made 0.9 of a town's luxuries outright, so luxuries sat glutted at about 0.65 (over the works' `fill` of 2× target: no room to sell) while gems ran short (scarcity 1.0–2.2: under the 75% the town keeps).
+
+| | Before: value added a day, median (min–max) | Idle market turns | After | Idle market turns |
+|---|---|---|---|---|
+| Funded on day 20 | 14.3 (10.0–19.8), 18.2 (11.9–24.9), 18.8 (8.5–34.4) | 119–149 of 240 | 20.4 (10.3–23.2), 23.1 (13.7–34.0), 26.3 (8.3–42.1) | 55–99 of 240 |
+| Funded on day 200 | 0.0 (0–6.6), 2.3 (0–4.2), 4.7 (0–11.2) | 218–233 of 240 | 10.1 (8.2–19.2), 17.2 (8.6–21.8), 19.6 (2.2–27.5) | 141–174 of 240 |
+
+- **Changes.** `data/markets.json` supply: luxuries 0.9 → 0.7, gems 0.8 → 0.95 (more of the luxuries now come from cutting gems). `data/labour.json` gem baskets: nobles 8 → 5, merchants 2 → 1.5, artisans 0.5 → 0.8 (the cutters' own trade buys gems), so a town's gem need swings less with its elite; the fashions (jewelled finery up, pious plainness down) move it for a season instead.
+- **Payback.** The player's net is about 45% of the value added less the hands' wages: about 9–11 g/day early (payback about 35 days for 300 g + 10 stone + 3 tools; it was about 52) and 5–8 g/day late (it was idle). Both inside the 30–55 day band.
+- A stronger variant (luxuries 0.6, gems 1.0) gave 17–24 late and was left aside as too generous early.
+
+**Cost per day** (harness, bot, 300 days, seeds 101/202/303, on a loaded machine where the market tick measured 5.4–5.8 ms against 2.2 in [Daily tick cost](#daily-tick-cost-2026-10)): `EconomyChronicle.processDay` 0.53–0.70 ms/day on average, about a tenth of the market tick. Warm, the weekly measure is 0.7–0.9 ms and the weekly fashion pass 0.4 ms (about 0.17 ms/day together); the daily gazette, fashion sighting and weekly net worth add about 0.1 ms/day. Scaled to the reference machine that is about 0.2–0.3 ms/day.
 
 ## Re-measuring
 

@@ -15,6 +15,7 @@ import { Seasons } from './seasons.js';
 import { KingdomBonuses, KingdomStability, KingdomCulture, LordInfluence } from './kingdomState.js';
 import { KingdomAtlas } from './kingdomAtlas.js';
 import { KingdomNavy } from './kingdomNavy.js';
+import { EconomyIndex } from './economyIndex.js';
 
 export const KingdomAI = {
     /**
@@ -469,7 +470,8 @@ export const KingdomAI = {
         // Campaign season: dry roads and full granaries embolden a realm in
         // summer and autumn; few march into the winter mud and snow
         const season = Seasons.campaignFactor(Seasons.today(world));
-        const confidence = 1 + (season - 1) * 0.5;
+        // ...and a realm whose bread is dear has little stomach for a war (world/economyIndex.js; 1 until measured)
+        const confidence = (1 + (season - 1) * 0.5) * EconomyIndex.warConfidence(world, kingdom);
         const reckless = KingdomAI.personalityValue(kingdom, 'recklessChance') * season;
         if (ourStrength * confidence > theirStrength * warRatio || Utils.random() < reckless) {
             KingdomAI.startWar(kingdom, target, world);

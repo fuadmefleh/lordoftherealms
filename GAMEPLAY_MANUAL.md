@@ -392,16 +392,18 @@ While in the wilderness, you can:
 
 ### Trading at Settlements
 
-Every settlement has a market where you can buy and sell goods. Prices vary by settlement type:
+Every settlement has a market where you can buy and sell goods. Each market keeps a **real store** of goods (see [Town Markets: Stock, Scarcity and Trade](#town-markets-stock-scarcity-and-trade)), and its prices follow that store. Prices vary by settlement type:
 
 | Settlement Type | Buy Price Modifier | Sell Price |
 |----------------|-------------------|-----------|
-| Village | 1.2× base price | 70% of base |
-| Town | 1.0× base price | 70% of base |
-| City | 0.9× base price | 70% of base |
-| Capital | 0.8× base price | 70% of base |
+| Village | 1.2× what the good is worth there | 70% of what it's worth there |
+| Town | 1.0× | 70% |
+| City | 0.9× | 70% |
+| Capital | 0.8× | 70% |
 
-Prices are also affected by local supply and demand, terrain resources, world events and **the season**: food is cheap after the harvest and dear in the lean months, furs dear in winter (see [Seasons & the Agricultural Year](#seasons--the-agricultural-year)). Both buy and sell prices move with the season. Each trade earns +0.1 Commerce skill.
+What a good is worth in a town is its base price × the town's **scarcity** of it × the season × cold-weather demand × world events (and a realm's debased coin). Food is cheap after the harvest and dear in the lean months, furs dear in winter (see [Seasons & the Agricultural Year](#seasons--the-agricultural-year)). Local resources still cut the asking price (grain on wheat land, metalwork on coal, …), and a monopoly's markup raises it. Each trade earns +0.1 Commerce skill.
+
+**Buying and selling move the stock.** Buying takes goods off the stalls, so each unit costs a little more than the last, and you can't buy more than the town holds. Selling puts them in store, so each unit fetches a little less. The trade window shows each good's stock label (Glut, Plenty, Steady, Scarce, Dearth), how far its price stands from base, which way it is moving (▲/▼) and how many days of the town's needs are in store. Its header notes the town's worst shortage, any glut, the day's trader traffic and disrupted roads. Nothing bought on a tile sells straight back there at a profit: a sale never pays more than buying the same units back would cost, here or in a settlement next door.
 
 **Carrying capacity.** Your packs hold **20 kinds of goods** (stacks are unlimited — 300 grain is one slot). A mount adds +5 slots and each house you own adds +3. When full, you can still add to goods you already carry, but new goods are refused (purchases fail without charging you; battle loot, gathered finds and ground items that don't fit are left behind; crafting is cancelled with ingredients returned). The Inventory panel shows `Packs: used/capacity`. Goods you're owed are never silently lost: quest rewards and stock returned from caravans or retooled workshops are sold on the spot at base price if they don't fit; an auction you win without room is refunded; collected property goods and ship cargo stay where they are; finished tech parts wait at the workshop until you make room.
 
@@ -428,6 +430,51 @@ The game features 26+ tradeable goods:
 | Coal | 10g | Mines (coal seams) |
 | Rock Oil | 22g | Pitch Works (oil seeps) |
 
+### Town Markets: Stock, Scarcity and Trade
+
+Every settlement keeps one store of goods: about thirty staples from grain, bread and beer to firewood, cloth, tools, iron, horses and luxuries (`data/markets.json`). That store is what you buy from and sell into. Caravans, ports, trading-company factors and tavern talk all read the same store.
+
+**Market day.** Each market takes its turn **every 4 days**. Markets are staggered by place, so a few towns hold market every day, and each one works four days at once. On its day a town:
+
+- **Produces.** Food comes from the land around it. Farmland grows grain (fertility by terrain, a river helps), the waters give fish, and pastures give meat. Villages grow about twice what they eat, towns a little more than their own needs, and cities and capitals about their own. The food follows the agricultural year (much of the harvest comes in autumn), so grain is cheap after the harvest and dear before the next. Droughts and blights cut it. Forests give wood and firewood, hills give stone, and pastures give wool, hides and horses. Map resources add their goods: iron, coal, gems, gold ore, spices, rock oil, salt, timber, hides and horses. Craftsmen add a share of cloth, clothes, tools and weapons. A player property within 3 hexes adds a quarter of its output. A holding's Workshop Quarter raises the town's goods, and storm or quake damage lowers them.
+- **Works up goods.** Wherever the output runs short, its trades turn goods into others:
+  - Every settlement mills grain into flour, bakes it into bread, brews beer and burns charcoal.
+  - Towns and larger also weave, tailor, distil and make cheese. Their smiths turn iron and coal into tools and weapons, or iron and firewood into tools.
+  - Cities and capitals also have jewellers, who turn gems into luxuries.
+- **Consumes.** Its people eat, drink, burn and wear out goods every day, more of them in bigger towns. Cities and capitals also want wine, luxuries, spices, gems and quality horses. In cold weather they burn 2.5× the firewood and wear out more clothes. Food and fuel can stand in for each other: with no bread they eat porridge, with no firewood they burn coal. When a good runs short, people buy at most half of what's left, so a dear good stays on sale.
+- **Spoils.** Bread, fish and meat go off within days, grain keeps for months, and iron never spoils. Each store can only hold so much.
+
+**Scarcity sets the price.** A good's scarcity is (stock ÷ (daily need × target days)) ^ −0.45. It is clamped between 0.6× (a glut) and 2.2× (a dearth). A good the town doesn't use is never dearer than its base. A town newly founded, or one from an older save, starts with its stores full and its prices at base.
+
+**NPC trade.** Merchants move goods along the kingdoms' **trade routes** and between near neighbours: up to 4 partners each, by land within the same region (up to 7 hexes) or port to port by sea (up to 14). A good travels from the town where it's cheap to the one where it's dear, as long as the price gap beats the haul. The haul costs 3.5% a hex, 40% less along a road and half by sea. Each link carries a few hundred gold of goods each market day. More routes and bigger towns carry more. Prices even out along busy roads. Each town keeps half of the value gap of what moved as **trade income**, which is what kingdom trade routes earn now (there is no flat payment per route). Peoples' commerce and gems, spices and the like nearby still raise it.
+
+**Disruption.**
+
+| Cause | Effect on trade along the link |
+|---|---|
+| War between the two realms | Closed |
+| Either realm at war with anyone | Down a quarter |
+| An enemy blockade of either port (sea legs) | Halved, or closed if the blockade is tight |
+| A siege of either town (yours, or of your holding) | Closed |
+| An outlaw lair within 3 hexes of the road | Thinned by up to 60%, depending on its strength |
+| A raider band within 2 hexes of the road | Down 35% |
+| World events on trade income | Raise or lower it |
+
+A raid that reaches a town burns half the share of its stores that it burns of the granary. Sacking a town carries off 80% of its stores, and conquering it carries off half. A town cut off from its suppliers runs short.
+
+**Shortages matter.**
+
+| Shortage | Effect |
+|---|---|
+| **Food** | Once a town goes without about a quarter of its food for weeks, it is in **dearth**. Its people eat harder into the granary (more consumption in the food model, so less growth and more hunger), and the crown sees it as hunger. Your famine dole ships it grain even outside the lean weeks, and the dole's grain reaches the market too. Tavern talk and townsfolk mention it. |
+| **Tools** | Up to a quarter of the town's goods and gold output is lost, and its trades slow down. |
+| **Fuel in cold weather** | Up to 6 happiness points are lost. |
+| **Plenty of beer, wine and fine things** | When every want is met and the stores run well past target, happiness rises by up to 2 points. |
+
+Market mood moves half a point a day and is given back when the cause passes.
+
+**News of the market.** Merchants in the tavern pass on real dearths along the roads: "a carter says Brindle has run short of grain — it fetches around 14g there". Their price reports and trade tips quote the real prices of the goods markets trade. Townsfolk grumble about a dearth ("Bring grain to Tallow and name your price") and point out a glut ("Wool is cheap as dirt here").
+
 ### Map Resources and Settlements
 
 Resources on or within 2 hexes of a settlement shape what it produces and how it works (a resource on the settlement's own hex counts in full, a nearby one at half; each effect is capped at +50%). Open a settlement's **Economic Breakdown** to see its "Resource Advantages".
@@ -436,7 +483,7 @@ Resources on or within 2 hexes of a settlement shape what it produces and how it
 |-------|------|--------|
 | Goods | iron, timber, stone, coal, cattle | More of every good the settlement makes |
 | Military | iron, horses, coal | Cheaper recruits for you (half the bonus); the realm's armies regrow faster |
-| Trade | gems, spices, salt, horses, oil | More trade-route income; caravans you send there earn half the bonus; sales there a quarter |
+| Trade | gems, spices, salt, horses, oil | More trade income from the goods merchants move through the town; caravans you send there earn half the bonus; sales there a quarter |
 | Construction | timber, stone | Your properties, tech buildings and infrastructure cost less and build faster (half the bonus each); damaged towns repair faster |
 
 Coal yields coal, oil yields rock oil, and cattle yield food and hides. Coal also fires forges, blacksmiths and glassworks on or beside it (+25% output), herds help cattle ranches, dairies and tanneries (+30%), and an oil seep helps a chandlery (+20%). Markets on coal, oil or cattle sell them cheaply.
@@ -778,9 +825,9 @@ Dispatch a caravan to sell goods at a distant settlement for higher prices.
 - **Cost**: 200g to dispatch.
 - **Speed**: 2 tiles per day.
 - **Max Distance**: 20 tiles.
-- **Revenue**: what the destination market pays for the goods (70% of its price there, with the season), × (1 + distance × 0.025) × settlement multiplier × (1 + Commerce × 0.05).
+- **Revenue**: what the destination market pays for the goods, × (1 + distance × 0.01) × settlement multiplier × (1 + Commerce × 0.05). The destination pays 70% of what each unit is worth there as the load lands in its stores, so a big load of something the town already has plenty of fetches less a unit (see [Town Markets](#town-markets-stock-scarcity-and-trade)). The goods then join the town's stock.
 
-Settlement multipliers: Village and Town (1.0×), City (1.1×), Capital (1.2×). Goods bought cheaply at a capital and hauled 20 hexes to another sell for about half again what they cost; a short haul between towns barely covers the 200g hire.
+Settlement multipliers: Village and Town (1.0×), City (1.1×), Capital (1.2×). The profit is in **carrying goods from where they're plentiful to where they're short**. Between two markets at par, a long haul to a capital about breaks even after the 200g hire. Luxuries or ironware hauled 10–20 hexes from a glut to a shortage repay 20–60%. A real dearth (bread or fish to a starving capital) can pay several times the cost, until your loads fill it.
 
 Caravans appear as physical units on the map and can be raided by bandits or enemy forces.
 
@@ -1612,7 +1659,7 @@ With a ship docked at a port, **Port Market** (free) buys trade goods — spices
 - **Imports** — the port doesn't sell it but pays a premium (115–150% of base).
 - **Local market** — buys and sells around the base price (90–110%), with a spread.
 
-Port prices are on the **same scale as the land economy**: each good's base price is its land base price (silk 80, spices, wine and ivory 45, gems 60, iron 20, timber and fish 8), moved by the season as on land. Roles are fixed per port; prices drift every 7 days. A town whose own market stocks a good (timber, gems) never imports it by sea. Buy where a good is exported, sail, and sell where it's imported. The margin comes from **distance and risk**: days of wages, upkeep and rations, storms, pirates and royal fleets, blockades and the season. The hold's cargo capacity caps how much each run carries. Carrying an export inland pays about what the land markets pay (70% of base), so it's no shortcut.
+Port prices are on the **same scale as the land economy**: each good's base price is its land base price (silk 80, spices, wine and ivory 45, gems 60, iron 20, timber and fish 8), moved by the season as on land. For goods the town keeps in its own store (fish, timber, iron, gems, spices, wine), the port starts from what the town's stock makes them worth. A town with a glut exports the good, and a town in dearth imports it. Cargo you buy comes out of the town's store first, and cargo you land goes into it, so a big cargo of something the town already has fetches less a unit. Other roles are fixed per port; prices drift every 7 days. A town whose own market stocks a good (timber, gems) never imports it by sea. Buy where a good is exported, sail, and sell where it's imported. The margin comes from **distance and risk**: days of wages, upkeep and rations, storms, pirates and royal fleets, blockades and the season. The hold's cargo capacity caps how much each run carries. Carrying an export inland pays about what the land markets pay (70% of base), so it's no shortcut.
 
 **No buy-and-sell-back.** No outlet (a port, the town market, a fence or the black market) pays more for a good than it costs to buy on the same tile **or in a settlement on the next hex**.
 

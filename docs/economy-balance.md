@@ -53,7 +53,8 @@ Notes on reading the table:
 | **Processing buildings** (outliers) | Tannery, winery, fletcher, dye works and weaver repaid in **7–10 days** | Repaid in about **25–45 days** | Lower output per day and higher cost. Arrows: 4 per run, was 8. Workshop rate 3, apothecary 2, brewery 4 |
 | **Tavern** (capital / town / village) | 70–88 / 26–35 / about 7 g/day for 900 g, repaid in about 12 days at a capital | About 31 / 19–27 / 8 g/day for 1,200 g, repaid in **35–60 days** at a town or capital. A village tavern is a slow investment (about 140 days) | Lower takings: 14 / 18 / 22 g base, and +2 per 250 people up to +16 (`property.js`). Upkeep is down from 12 g to 8 g so a village tavern still pays its way |
 | **Caravans (one-off and routes)** | **Crashed on arrival.** `MarketDynamics.getPrice` was called with no world. The formula paid 2–3× the cargo's whole value | Pays what the destination market pays (70% of its price) × (1 + 2.5%/hex) × 1.2 at a capital or 1.1 at a city: about +50% on a long capital-to-capital haul, about break-even on a short one | Fixes the crash, and removes a money loop the crash had hidden |
-| Land trading (buy here, sell there) | Loses about 12% except on resource-cheap goods and with the season | unchanged | Seasonal timing is the lever: food bought after the harvest sells about 60% dearer in the lean months |
+| **Caravans** (settlement-market pass, see below) | as the row above | 70% of what the load is worth at the destination's stock (a big load is valued as it floods the stalls) × (1 + **1%**/hex) × size × Commerce. Measured on 50-unit loads, capital to capital: median **+15–30%** net of the 200 g hire (+132 to +315 g on 500–1,000 g) early, +20–75% late. A glut-to-dearth haul pays +100–165% (fish or bread to a starving capital) until the loads fill the dearth | The regional price gap now does the work the flat 2.5%/hex premium did. That premium on top of real scarcity paid up to 3.7× on bread |
+| **Land trading** (buy here, sell there) | Loses about 12% except on resource-cheap goods and with the season | A greedy trader within 8 hexes: **+3 to +4 g/day** (8–27 trips in 120 days). The best single lots return +136–154%, but a village's or town's stock is shallow. Seasonal grain, bought at a town just after the harvest (day 88) and sold in the lean weeks (day 115): **+84%** at the dearest market within 6 hexes, +2 to +30% in the same town, and −15% in a glutted region | Prices follow each town's real stock, so the arbitrage is regional and seasonal. Buying pushes the price up and selling pushes it down along the same curve, so a trip's margin shrinks as it grows. Same-tile buy→sell-back stays impossible |
 | Sea trade (cog, best-margin route) | 66–161 g/day early, 76–154 late | unchanged | Skilled and capital-heavy, with ship upkeep and wages. In the right band |
 | **Trading company** (scripted: one capital post, seasonal bread, only contracts the posts can source, expanding to a market that sells a contract's good) | 5 seeds over 360 days on 5,000 capital: +336, +112, −1,028, +1,979, +2,343 (mean **+750**) | +5,102, −501, +4,126, −837, +1,459 (mean **+1,870**, about +5 g/day) | See [The trading company](#the-trading-company) |
 | Royal ventures | Expected return about 1.11–1.14× over 30–80 days | unchanged | A modest gamble, as designed |
@@ -196,6 +197,52 @@ rise together, so the same-tile arbitrage caps hold.
 
 **Soak.** `SOAK=1 npx vitest run src/__tests__/playtest.soak.test.js` passes: 5 seeds ×
 800 days, with the bot depositing, borrowing, repaying and buying bonds.
+
+## Settlement markets (2026-10)
+
+Every settlement keeps one goods store (`world/settlementMarket.js`, `data/markets.json`). It is filled by its land and resources, emptied by its people, and balanced by NPC trade between linked towns. Buy and sell prices, caravans, ports, factors and tavern talk all read the same store. See [the manual](../GAMEPLAY_MANUAL.md#town-markets-stock-scarcity-and-trade).
+
+**How it was measured.** These are throwaway harness scripts (seeds 101, 202 and 404) that keep the player fed, plus a world survey (seed 101, 240 days):
+- the greedy land trader;
+- seasonal grain;
+- capital-to-capital 50-unit caravans by the `updateCaravans` formula.
+
+**World health (seed 101, days 30–240).**
+- No town is in dearth.
+- Average scarcity by good:
+  - Grain swings with the year, from 0.7 after the harvest to 1.1–1.3 in spring.
+  - Fish is 1.4–1.6 (inland towns import it).
+  - Firewood and wood are 0.65–0.7 (most land is wooded).
+  - Tools, clothes, horses and salt drift up to 1.2–1.9 as towns grow.
+- Market mood is about 0 on average. Plenty and cold hearths are local, not universal.
+
+**Food the player buys.** The bot's food bill over 150 days was 926–1,287 g, against 790–1,032 g before:
+- Village stalls are shallow (each aims to hold at least 50 grain and 20 bread).
+- A 25–30 unit purchase climbs the curve.
+- Spring prices carry both the season and the stores running down.
+
+The harness bot now buys with `Trading.affordable`.
+
+**Kingdom trade income.**
+
+| | Trade income across the world | Kingdom treasuries |
+|---|---|---|
+| Before (flat 5–50 g per route a day) | About 26,000 g/day by day 120, growing without limit as routes piled up | 60,000–820,000 g at day 120 |
+| Now (half each of the value gap of the goods moved × 6) | 7,000–9,000 g/day, steady | 30,000–330,000 g at day 240 |
+
+Kingdom survival in the 1,080-day multi-seed sim is unchanged (see below).
+
+**Kingdom survival (seeds 7–11, 1,080 days).**
+
+| | Alive (of 10) | Wars |
+|---|---|---|
+| Before | 10, 8, 9, 8, 10 | 45, 84, 68, 23, 40 |
+| After | see the final report | see the final report |
+
+**What did not change.**
+- Same-tile and next-door caps: a sale never pays more than buying the same units back here, at the stock the sale leaves (`Trading.saleUnitCap` walks the same curve), or next door.
+- Fences, the black market, ports and contracts are still capped by `Ships.nearbyAsks` / `Underworld.openSaleCap`.
+- The soak's arbitrage probe stays green.
 
 ## Re-measuring
 

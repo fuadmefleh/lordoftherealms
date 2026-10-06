@@ -11,7 +11,7 @@ The world model: terrain generation, kingdoms, settlements, economy, NPCs, and e
 | `customBuildings.js` | ~310 | Inner-map building registry (sprite definitions, types) |
 | `customInteriors.js` | ~380 | Interior layout definitions (houses, shops, dungeons) |
 | `customObjects.js` | ~410 | Inner-map object registry (trees, rocks, crates, etc.) |
-| `economy/` | ~1200 | Settlement markets, production chains, trade networks |
+| `economy.js` | ~840 | `Economy`: settlement production (`calculateDetailedProduction`), the food model and lean season, what a market lists (`marketGoods`) and asks (`marketAskBase` × the store's scarcity = `marketPrice`), resource bonuses, monopolies, kingdom trade routes (`TradeRoutes`; `processTrade` banks the trade income NPC goods flows earned) |
 | `innerMap/` | ~2000 | Inner-map model: tile generation, object/building placement, pathfinding |
 | `kingdom.js` | ~440 | Kingdom templates, placement, initial relations |
 | `kingdomAI.js` | ~700 | Kingdom decision-making, expansion, diplomacy AI |
@@ -22,6 +22,7 @@ The world model: terrain generation, kingdoms, settlements, economy, NPCs, and e
 | `npcLords.js` | ~600 | Kingdom lords: generation, traits → goals, daily goal actions (trade, faith, justice, domination, fear, survive, …), succession |
 | `settlementGenerator.js` | ~800 | Settlement generation: size, buildings, population |
 | `terrain/` | ~1680 | Terrain types, world map generation (noise-based), rivers |
+| `settlementMarket.js` | ~950 | `SettlementMarket`: every settlement's one goods store (`settlement.market`: stock, trend, shortage gauges, production profile, trade links — saved with the tile). Production from land/resources (`production`), local industry (recipes), consumption with substitutes, spoilage; the one price model (`scarcity` = (stock ÷ need × days)^-e, `value` = base × scarcity × season × cold × events × coin — `Economy.marketPrice` adds size, local-resource discount and monopoly markup); stock moves (`take`/`add`/`loot`); NPC `flows` between linked towns paying `economy.tradeIncome`; shortage effects read by `Economy.produceDaily` (`foodStrain`, `toolFactor`), `Kingship.hunger` (`inDearth`), market mood. Pure, no RNG; tuned in `data/markets.json` |
 | `seasons.js` | ~330 | `Seasons`: the agricultural year — production curves (yearly mean 1), seasonal food/fur prices and trend arrows, the lean season, campaign season, seasonal event weights, the season outlook. Pure, draws no RNG; tuned in `data/economy.json` "seasons" |
 | `units.js` | ~500 | Military unit definitions, combat formulas |
 | `weather.js` | ~650 | Weather simulation, seasonal effects on movement/production |

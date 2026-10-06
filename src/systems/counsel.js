@@ -52,6 +52,7 @@ import { Patronage } from './patronage.js';
 import { Finance } from './finance.js';
 import { MarketFairs } from './marketFairs.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
+import { TownLabour } from '../world/townLabour.js';
 
 export const GROUPS = ['threat', 'opportunity', 'goal'];
 export const SEVERITIES = { critical: 3, warning: 2, notice: 1, info: 0 };
@@ -1046,6 +1047,65 @@ R.worksAtRisk = (ctx, p) => {
         } else if (_num(w.cond, 1) < _num(p.condBelow, 0.6)) {
             out.push({ key: `repair:${inv.id}`, q: inv.q, r: inv.r, town: inv.town, why: `the works stand at ${Math.round(_num(w.cond) * 100)}% repair`, severity: 'notice' });
         }
+    }
+    return out;
+};
+
+/** The player's works that can't find hands (the town's artisans are few, or on strike). */
+R.worksShortHands = (ctx, p) => {
+    const st = _obj(ctx.player.merchantPrince);
+    const out = [];
+    for (const inv of _arr(st && st.investments)) {
+        const t = ctx.tile(inv.q, inv.r);
+        const s = t && t.settlement;
+        if (!s || !s.labour) continue;
+        const strike = TownLabour.striking(s, ctx.day);
+        const fill = TownLabour.factors(s, ctx.day).craft;
+        if (!strike && fill >= _num(p.below, 0.85)) continue;
+        out.push({
+            key: `hands:${inv.id}`, q: inv.q, r: inv.r, town: inv.town,
+            why: strike ? 'the artisans are on strike and the works stand idle' : `the works can't find hands: only ${Math.round(fill * 100)}% of the places are filled, and wages are rising`,
+            severity: strike ? 'warning' : 'notice', boost: (1 - fill) * 3,
+        });
+    }
+    return out;
+};
+
+/** The player's properties short of hands in the town they hire from. */
+R.propertyHands = (ctx, p) => {
+    const out = [];
+    for (const ref of _arr(ctx.player.properties)) {
+        const t = ctx.tile(ref.q, ref.r);
+        const prop = t && _arr(t.playerProperties).find(x => x && x.type === ref.type);
+        const hire = prop && _obj(prop.hire);
+        if (!hire || prop.underConstruction) continue;
+        const fill = _num(hire.fill, 1);
+        const ratio = _num(hire.ratio, 1);
+        if (fill >= _num(p.below, 0.85) && ratio < _num(p.wageAbove, 1.4)) continue;
+        out.push({
+            key: `prop:${ref.q},${ref.r}:${ref.type}`, q: ref.q, r: ref.r, name: prop.name || ref.name || 'property', town: hire.town || 'the town',
+            why: fill < _num(p.below, 0.85) ? `only ${Math.round(fill * 100)}% staffed` : `wages there run ${Math.round(ratio * 100)}% of the usual`,
+            boost: (1 - fill) * 2,
+        });
+    }
+    return out;
+};
+
+/** A town the player rules with idle hands, refugees crowding in or a strike. */
+R.holdingIdle = (ctx, p) => {
+    const out = [];
+    for (const h of Holdings.list(ctx.player, ctx.world)) {
+        const s = h && h.settlement;
+        const lab = s && s.labour;
+        if (!lab) continue;
+        const idle = TownLabour.idle(s);
+        const strike = TownLabour.striking(s, ctx.day);
+        if (idle < _num(p.idleAt, 0.1) && !strike) continue;
+        out.push({
+            key: h.key, q: h.q, r: h.r, name: s.name || 'A holding',
+            why: strike ? 'its artisans are on strike' : `${Math.round(idle * 100)}% of its hands have no work${_num(lab.refugees) >= 20 ? ` (${Math.round(_num(lab.refugees))} refugees came in)` : ''}: crime and unrest rise`,
+            severity: strike || idle >= _num(p.criticalAt, 0.2) ? 'warning' : 'notice', boost: idle * 10,
+        });
     }
     return out;
 };

@@ -45,6 +45,7 @@ import { Companions } from './companions.js';
 import { Underworld } from './underworld.js';
 import { Ships } from './ships.js';
 import { House } from './house.js';
+import { TownLabour } from '../world/townLabour.js';
 
 const FALLBACK_CONFIG = {
     ungovernedDistance: 6,
@@ -1045,6 +1046,8 @@ export const Holdings = {
         if (loy !== null && loy < U.lowLoyalty) d += (U.lowLoyalty - loy) / U.lowLoyalty * U.loyaltyWeight;
         d += _num((U.highTax || {})[player.taxRate]);
         if (h.drifting) d += cfg.drift.unrest;
+        // Idle hands and crime in the streets (world/townLabour.js)
+        d += TownLabour.unrestPressure(s);
         if (present) d -= U.presentRelief;
         d -= _num(fx.order);
         const control = Holdings.garrisonStrength(h) / Math.max(cfg.garrison.controlMin, _num(s.population) * cfg.garrison.controlPerPop);

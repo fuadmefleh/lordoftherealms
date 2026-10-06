@@ -514,9 +514,10 @@ Beyond buying and selling, a rich trader can work a town's market from the insid
 - **How it runs.** On market day the works run after the town's own trades, on the town's real stock:
   - They take their inputs only while the town keeps at least half its target of them.
   - They stop while their goods glut the stalls (twice the target).
-  - They stop when a run no longer adds value at today's prices.
-- **What it pays.** You get **40%** of the value the works added (the output's worth less the inputs', at the town's prices). The crown takes a **tithe** of that: 10%, +15% while the realm is at war, and +20% while its treasury is in crisis. If you rule a realm whose court enforces *Merchant charters*, foreign crowns take only half.
-- **Your own towns.** In a town you hold, works cost 15% less, pay you **60%**, and owe no tithe. There is no tithe anywhere in a realm you rule.
+  - They stop when a run no longer adds value at today's prices, after the wages of its hands.
+  - They run only as far as the town's artisans can staff them, and stand idle while the artisans strike (see [Labour, Classes and Migration](#labour-classes-and-migration)).
+- **What it pays.** You get **52%** of the value the works added (the output's worth less the inputs', at the town's prices), and out of it you pay the hands the works hire at the town's craft wage. The crown takes a **tithe** of your share: 10%, +15% while the realm is at war, and +20% while its treasury is in crisis. If you rule a realm whose court enforces *Merchant charters*, foreign crowns take only half.
+- **Your own towns.** In a town you hold, works cost 15% less, pay you **72%** (less the wages), and owe no tithe. There is no tithe anywhere in a realm you rule.
 - **Choosing a town.** The tab shows each trade's inputs and outputs with their stock labels, what a run adds at today's prices, and how much the town's own trade already works. A bakehouse in a great town with grain to spare repays itself in about 45 days. In a small town, or one short of grain, it may barely turn. Weaving sheds and smithies are starved of wool and iron unless you bring them in: sell the inputs into the town and the works will use them.
 - **Losing it.**
   - A realm at war with you, or with the realm you are sworn to, seizes your works at once.
@@ -562,6 +563,57 @@ Four fairs are held each year at the great towns:
 Merchants from afar put their goods into the town's stores. The goods then sell, spoil and travel on like any other. While the fair is on, the stalls ask 6–8% less and pay **75–76%** of what goods are worth (not 70%). A sale still never beats buying the goods back. The heralds cry each fair, the tavern's merchants talk of fairs on or coming, and the Counsel points out one nearby.
 
 Every week the heralds also cry the world's worst **food dearth** (a town in dearth with a staple at least 60% over its worth). In the weeks after the harvest they cry the deepest **grain glut** at a city or capital. A town is not cried again within 40 days.
+
+### Labour, Classes and Migration
+
+Every town's people are of five kinds, and they want different things. Open a town's **Trade** window and use its **👥 People** tab (the trade window's outlook and the holdings panel show a one-line summary). Tuned in `data/labour.json`.
+
+| Class | Usual share (village → capital) | Works | Buys more of |
+|---|---|---|---|
+| 🌾 Peasants & labourers | 84% → 42% | The land, the mines, the woods, hauling | Grain, flour, beer, liquor, firewood, tools |
+| 🔨 Artisans | 8% → 28% | The town's trades and the works you fund | Bread, beer, clothes, tools, coal, iron, cloth |
+| ⚖️ Merchants | 3% → 15% | Its trade | Wine, spices, luxuries, cheese, meat, fine clothes, horses |
+| ⛪ Clergy | 3% → 7% | — | Wine, lamp oil, candles |
+| 👑 Nobility | 2% → 8% | — | Wine, luxuries, spices, gems, horses, weapons, fine clothes |
+
+A town's mix leans from the usual one by its **peoples** (crafty peoples raise more artisans, enterprising ones more merchants, pious ones more clergy), by the **works** funded in it and a holding's **Workshop Quarter**. Migration and refugees move it further; it drifts back slowly.
+
+**Demand.** What the town needs of each good is scaled by its mix against the usual one for its size. A town with the usual mix buys just what it always did. A court town full of nobles and merchants buys more wine and silk and less grain, and its prices follow.
+
+**Work and wages.** Each class that works has a number of places (jobs) and a number of hands (half the peasants and artisans, 45% of the merchants).
+
+- **Land.** The land takes every newcomer while it has room. It can employ a set number of people for the town's size, more on fertile ground; past that, each extra mouth finds only a third of a place.
+- **Trades and trade.** Workshops and counting-houses are sized by the economy the town has built up, which follows its population slowly. Newcomers find no place at first, and a town emptied by war or plague is short of hands until it shrinks. Busy trades and busy trade roads want more hands; a trade cut by war leaves merchants idle.
+- **Hiring.** Your works and your properties hire on top of that.
+- **Short of hands.** A sector short of hands makes less: the land reaps and mines less, and the craftsmen, the town's trades and your works run only as far as the hands go.
+- **Wages.** Wages float with the balance of places and hands (a third more where hands are scarce, less where they idle) and with the price of bread and fuel. Base wages run from 0.32g a day (a village labourer) to 1.04g (a capital merchant).
+
+**Your hands.**
+
+- **Properties** hire from the nearest town within 3 hexes (in the wild they bring their own). Half of a property's upkeep is its wage bill at that town's usual wage; it floats with the local wage. A town short of hands staffs it only as far as it can, and it produces that much less. Farms, mines and camps hire labourers; workshops, mills, bakeries, taverns and the like hire artisans.
+- **Works** you fund hire artisans (a bakehouse 14 hands a level, a brewhouse 11, a mill 5). They are paid the town's craft wage as the works run, and a run must earn its wages as well as its margin. A skeleton crew (15%) is kept on while the works stand idle. The wages come out of your share; when the works earn less than their wages, the hands are paid from your purse.
+
+**Idle hands** (more than about 6% out of work) sour the town's mood by up to 6 points, and breed **crime**, which also rises when the poor can't afford their bread.
+
+- Crime makes the thieves' guild's jobs easier (up to +8% odds) and robs store-rooms more often.
+- In a town you hold, crime and idle hands raise unrest every day.
+
+**Welfare.** Each class's welfare (shown from *Thriving* to *Desperate*) weighs:
+
+- its basket met: the food, drink, fuel, clothes, tools and luxuries the market stocks (a want the market doesn't stock counts as missing);
+- its work;
+- its wage against the price of bread;
+- safety: sieges, a recent conquest, a realm at war with a neighbour's, outlaw lairs and raiders nearby, fire and flood;
+- famine;
+- your taxes, in a town you rule (heavy taxes weigh most on the peasants).
+
+A town's welfare above or below the ordinary moves its mood by a point or two.
+
+**Migration.** Every week each class drifts along the trade roads toward the linked town where it fares better: at most 1% of a town a week, the clergy and nobles slowest. A town you rule (a holding or colony) with land to spare draws settlers as if it fared better. Newcomers crowd the workshops and the land, so the flow slows as the gap closes.
+
+**Refugees.** A town in danger or famine loses up to 5% of its people a week to linked towns that are safe, weighted by their size and welfare. The nobles flee first, the poor on foot. They remember home: once it is safe again, a quarter of them go back each week. A refugee column of 40 or more is cried by the heralds. A town crowded with refugees has idle hands and dear bread.
+
+**Strikes and booms.** Artisans whose wages no longer buy their bread may strike for 7 days (towns and larger; not again within 45 days). Most of the town's trades and your works stand idle, and the heralds cry it. A thriving town that draws newcomers booms, and the heralds cry that too. The tavern talks of idle hands, refugees, strikes, booms and hard times. The Steward's Counsel warns when your works or properties can't find hands, and when a town you rule has many idle hands or is on strike.
 
 ### Map Resources and Settlements
 
@@ -2554,6 +2606,7 @@ A governor's **loyalty** settles toward a base (family 80, a companion's approva
 - loyalty below 30, up to +0.8 a day
 - high taxes (+0.15 a day, very high +0.35)
 - neglect (+0.4 a day)
+- crime and idle hands (crime × 0.4, plus 2 × the share of hands idle beyond 6% — see [Labour, Classes and Migration](#labour-classes-and-migration))
 
 It is calmed by order from projects and the governor, by your troops, and by your presence (−0.5 a day while you are within a hex). From 60 you are warned. From 75, a holding whose garrison couldn't beat its rebels may rise in revolt (rebels number 10 + 4% of the population). At 100 it rises for certain. A strong enough garrison puts the riots down instead, losing some troops.
 

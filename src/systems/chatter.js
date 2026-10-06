@@ -35,6 +35,7 @@ import { WorldEvents } from '../world/worldEvents.js';
 import { Traits } from './traits.js';
 import { Heralds } from './heralds.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
+import { TownLabour } from '../world/townLabour.js';
 
 const DEFAULT_CONFIG = {
     localRadius: 8, eventRadius: 10, sagaRadius: 14, siegeRadius: 6, rivalRadius: 6, outlawRadius: 10,
@@ -46,7 +47,7 @@ const DEFAULT_CONFIG = {
 const CONDITIONS = {
     war: 'bool', playerWar: 'bool', blockade: 'bool', siege: 'bool', revolt: 'bool',
     rival: 'bool', newRuler: 'bool', lean: 'bool', outlaws: 'bool', dearth: 'bool', glut: 'bool',
-    money: 'boolOrList',
+    money: 'boolOrList', labour: 'boolOrList',
     event: 'list', season: 'list', trait: 'list', court: 'list', title: 'list',
     occupation: 'list', personality: 'list',
     saga: 'boolOrList', proclamation: 'boolOrList', deed: 'boolOrList',
@@ -57,6 +58,8 @@ const CONDITIONS = {
 export const SEASONS = ['Spring', 'Summer', 'Autumn', 'Winter'];
 /** What townsfolk say about money (systems/finance.js): the `money` condition's kinds. */
 export const MONEY_KINDS = ['debased', 'levy', 'default', 'bank_run', 'bank_failed', 'bank'];
+/** What townsfolk say about work and the people (world/townLabour.js): the `labour` condition's kinds. */
+export const LABOUR_KINDS = ['idle', 'refugees', 'strike', 'boom', 'hardship'];
 export const OCCUPATIONS = ['merchant', 'guard', 'farmer', 'priest', 'blacksmith_npc', 'villager', 'child', 'noble', 'traveler', 'beggar'];
 export const PERSONALITIES = ['kind', 'stern', 'jovial', 'quiet', 'bold', 'cautious', 'witty', 'generous', 'stubborn', 'curious'];
 export const COURT_AXES = ['mercy', 'severity', 'justice', 'piety', 'generosity'];
@@ -161,7 +164,7 @@ export const Chatter = {
             war: false, enemy: null, playerWar: false,
             blockade: false, blockader: null,
             siege: false, siegeTown: null,
-            events: [], revolt: false, sagas: [], rival: null, newRuler: false, oldRuler: null, outlaws: null, money: [],
+            events: [], revolt: false, sagas: [], rival: null, newRuler: false, oldRuler: null, outlaws: null, money: [], labour: [],
             proclamations: [], deeds: [],
             traits: [], court: [], titles: [], titleLabel: '',
             houseGen: house ? _num(house.generation) || 1 : 0,
@@ -237,6 +240,15 @@ export const Chatter = {
         if (lairBest) ctx.outlaws = { name: lairBest.l.name, leader: (lairBest.l.leader && lairBest.l.leader.name) || 'their chief' };
 
         // A dearth or a glut in the town's own market (world/settlementMarket.js)
+        // Work and the people: idle hands, refugees, a strike, a boom, hard times (world/townLabour.js)
+        const lab = settlement && settlement.labour;
+        if (lab && lab.sh) {
+            if (TownLabour.idle(settlement) >= 0.1) ctx.labour.push('idle');
+            if (_num(lab.refugees) >= 20) ctx.labour.push('refugees');
+            if (TownLabour.striking(settlement, day)) ctx.labour.push('strike');
+            if (_num(lab.all) >= (_num(TownLabour.config().strikes.boomAt) || 0.9) && lab.moved && _num(lab.moved.in) > _num(lab.moved.out)) ctx.labour.push('boom');
+            if (lab.wel && Number.isFinite(lab.wel.peasants) && lab.wel.peasants < 0.7) ctx.labour.push('hardship');
+        }
         ctx.dearth = null;
         ctx.glut = null;
         if (settlement && settlement.market) {
@@ -351,6 +363,7 @@ export const Chatter = {
             case 'outlaws': return !!ctx.outlaws === !!v;
             case 'dearth': return !!ctx.dearth === !!v;
             case 'glut': return !!ctx.glut === !!v;
+            case 'labour': { const l = ctx.labour || []; return v === true ? l.length > 0 : v === false ? l.length === 0 : Chatter._anyIn(v, l); }
             case 'money': { const m = ctx.money || []; return v === true ? m.length > 0 : v === false ? m.length === 0 : Chatter._anyIn(v, m.map(x => x.kind)); }
             case 'event': return Chatter._anyIn(v, ctx.events.map(e => e.id));
             case 'saga': return v === true ? ctx.sagas.length > 0 : v === false ? ctx.sagas.length === 0 : Chatter._anyIn(v, ctx.sagas.map(s => s.id));
@@ -540,6 +553,9 @@ export const Chatter = {
         const MONEY = { debased: 'The coin of the realm has been debased and prices are rising.', levy: 'The crown has raised an extraordinary war levy.',
             default: 'The crown has refused to pay its debts.', bank_run: 'Depositors are running on the bank.', bank_failed: 'A banking house has failed.' };
         for (const m of ctx.money || []) if (MONEY[m.kind]) f.push(MONEY[m.kind]);
+        const WORK = { idle: 'Many here are out of work.', refugees: 'Refugees have crowded into the town.', strike: 'The artisans are on strike over the price of bread.',
+            boom: 'Times are good: there is work for all and newcomers keep arriving.', hardship: 'The poor are hard-pressed: wages do not cover bread and fuel.' };
+        for (const k of ctx.labour || []) if (WORK[k]) f.push(WORK[k]);
         if (ctx.rival) f.push(`The adventurer ${ctx.rival.name} passed through recently.`);
         if (ctx.newRuler) f.push(`${ctx.ruler} has newly taken the throne from ${ctx.oldRuler}.`);
         if (ctx.proclamations.length) f.push(`The heralds proclaimed: ${ctx.proclamations[0].text}`);
@@ -573,7 +589,7 @@ export const Chatter = {
         const sagaIds = Object.keys((DataLoader.sagas && DataLoader.sagas.sagas) || {});
         const deedIds = Object.entries((DataLoader.gossip && DataLoader.gossip.rumorTypes) || {}).filter(([, d]) => d && d.deed).map(([id]) => id);
         const heraldKinds = Object.keys(((Chatter.data().heralds || {}).templates) || {});
-        const enums = { season: SEASONS, trait: traits, court: COURT_AXES, title: TITLES, occupation: OCCUPATIONS, personality: PERSONALITIES, event: eventIds, saga: sagaIds, deed: deedIds, proclamation: heraldKinds, money: MONEY_KINDS };
+        const enums = { season: SEASONS, trait: traits, court: COURT_AXES, title: TITLES, occupation: OCCUPATIONS, personality: PERSONALITIES, event: eventIds, saga: sagaIds, deed: deedIds, proclamation: heraldKinds, money: MONEY_KINDS, labour: LABOUR_KINDS };
         const seen = new Set();
         for (const g of Chatter.groups()) {
             const gid = g && g.id;
@@ -611,7 +627,9 @@ export const Chatter = {
             // caravans lost on the road (systems/merchantCaravans.js)
             'good', 'carrier', 'from', 'house',
             // market fairs, dearths and gluts (systems/marketFairs.js)
-            'fair', 'pct'];
+            'fair', 'pct',
+            // refugees, strikes and booms (systems/labour.js)
+            'to', 'n', 'why'];
         for (const [kind, list] of Object.entries(H.templates || {})) {
             if (!Array.isArray(list) || !list.length) problems.push(`heralds.${kind}: no templates`);
             for (const t of list || []) for (const [, tok] of String(t).matchAll(/\{(\w+)\}/g)) {

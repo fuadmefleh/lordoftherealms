@@ -33,6 +33,7 @@ import { Traits } from './traits.js';
 import { Ships } from './ships.js';
 import { Economy } from '../world/economy.js';
 import { Quests } from './quests.js';
+import { TownLabour } from '../world/townLabour.js';
 
 const LOG_CAP = 20;
 const SETTLEMENT_ORDER = ['village', 'town', 'city', 'capital'];
@@ -348,6 +349,8 @@ export const Underworld = {
             + Underworld.traitBonus(player)
             - Underworld.guardStrength(settlement, kingdom) * o.guardPenaltyPerPoint
             - Underworld.getHeat(player, settlement && settlement.kingdom) * o.heatPenaltyPerPoint
+            // Idle hands and hungry streets hide a thief (world/townLabour.js)
+            + TownLabour.crimeOdds(settlement)
             + extra;
         return _clamp(p, o.min, o.max);
     },

@@ -1,5 +1,6 @@
 // ActionMenu — trade methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
+import { peopleLine } from './labour.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, NpcDisposition, Seasons, SettlementMarket } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -931,6 +932,8 @@ Object.assign(ActionMenu, {
         if (mkt && mkt.trade && (mkt.trade.in > 0 || mkt.trade.out > 0)) storesParts.push(`<span>Traders: ${Math.round(mkt.trade.in)} in / ${Math.round(mkt.trade.out)} out today</span>`);
         if (mkt && mkt.trade && mkt.trade.cut > 0) storesParts.push('<span style="color:#e67e22;">Trade roads disrupted</span>');
         if (SettlementMarket.inDearth(tile.settlement)) storesParts.push('<span style="color:#e74c3c;">Dearth: the poor go hungry</span>');
+        // The town's people: welfare, idle hands, the artisans' wage (world/townLabour.js)
+        const people = tile.settlement ? peopleLine(tile.settlement, game.world.day) : '';
 
         // ── Season outlook and price-trend arrows (world/seasons.js) ──
         const outlook = Seasons.outlook(game.world.day);
@@ -952,6 +955,7 @@ Object.assign(ActionMenu, {
             <div style="color:var(--text-secondary); margin:2px 0 4px;">${outlook.note}</div>
             ${outlookParts.length ? `<div style="display:flex; flex-wrap:wrap; gap:10px;">${outlookParts.join('')}</div>` : ''}
             ${storesParts.length ? `<div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:4px;">🏚️ ${storesParts.join('')}</div>` : ''}
+            ${people ? `<div style="margin-top:4px;">👥 ${people}</div>` : ''}
         </div>`;
 
         // ── Render HTML ──
@@ -1007,6 +1011,7 @@ Object.assign(ActionMenu, {
             <button class="trade-tab" data-am-act="showMerchantPrince" data-am-args='[null, "invest"]' title="Fund works in this town">🏭 Invest</button>
             <button class="trade-tab" data-am-act="showMerchantPrince" data-am-args='[null, "warehouse"]' title="Rent a store-room here">📦 Warehouse</button>
             <button class="trade-tab" data-am-act="showMerchantPrince" data-am-args='[null, "contracts"]' title="Forward contracts with this town">📜 Contracts</button>
+            <button class="trade-tab" data-am-act="showTownPeople" data-am-args='[null]' title="The town's classes, work, wages and welfare">👥 People</button>
         </div>
         ${SettlementMarket.fair(tile.settlement) ? `<div style="margin:-6px 0 10px; font-size:12px; color:var(--gold);">🎪 The ${SettlementMarket.fair(tile.settlement).name} is on until day ${SettlementMarket.fair(tile.settlement).until}: the stalls ask less and buy dearer.</div>` : ''}
 

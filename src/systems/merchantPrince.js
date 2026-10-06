@@ -37,6 +37,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
+import { TownLabour } from '../world/townLabour.js';
 import { Seasons } from '../world/seasons.js';
 import { PlayerEconomy, Trading } from '../player/playerEconomy.js';
 import { PlayerInventory } from '../player/inventory.js';
@@ -49,7 +50,7 @@ import { Taxation, MarketDynamics } from './marketDynamics.js';
 
 const DEFAULTS = {
     industry: {
-        investorShare: 0.4, ownShare: 0.6, ownCost: 0.85, levelCost: 1.35, maxInvestments: 8, minReputation: -10, kinds: {},
+        investorShare: 0.52, ownShare: 0.72, ownCost: 0.85, levelCost: 1.35, maxInvestments: 8, minReputation: -10, kinds: {},
         tithe: { base: 0.1, war: 0.15, crisis: 0.2, chartersMult: 0.5 },
         seizure: { crisisChance: 0.08, expropriateBelow: -30, warnBelow: -20, graceDays: 10 },
         damage: { siegeWear: 0.03, repairCost: 0.5, salvage: 0.4, warnBelow: 0.6 },
@@ -139,7 +140,7 @@ export const MerchantPrince = {
             investments: [], warehouses: [], forwards: [], history: [], log: [], nextId: 1, lastDay: null,
             stats: {
                 invested: 0, earned: 0, tithe: 0, repairs: 0, salvage: 0, seized: 0, expropriated: 0,
-                rent: 0, spoiled: 0, stolen: 0, forfeited: 0, forwardsDone: 0, forwardsFailed: 0, forwardIncome: 0, penalties: 0,
+                rent: 0, spoiled: 0, stolen: 0, forfeited: 0, forwardsDone: 0, forwardsFailed: 0, forwardIncome: 0, penalties: 0, wages: 0,
             },
         };
     },
@@ -482,20 +483,36 @@ export const MerchantPrince = {
             }
             // A siege idles the works (SettlementMarket) and wears them
             if (besieged.has(`${inv.q},${inv.r}`)) w.cond = _round2(Math.max(0, _num(w.cond, 1) - _num(I.damage.siegeWear)));
-            // Market day: the investor's share of the value the works added
+            // Market day: the investor's share of the value the works added,
+            // less the wages of the hands they hired at the town's craft wage
+            // (world/townLabour.js; some are kept on even when the works idle)
             if (w.day === day && inv.paidDay !== day) {
                 inv.paidDay = day;
                 const gross = Math.max(0, _num(w.va)) * MerchantPrince.shareRate(player, world, s);
                 const tithe = gross * MerchantPrince.titheRate(player, world, s);
-                const net = Math.floor(gross - tithe);
+                const wages = TownLabour.worksWageBill(s, inv.recipe, w, SettlementMarket.tickDays());
+                const net = Math.floor(gross - tithe - wages);
                 inv.lastPay = net;
+                inv.lastWages = Math.round(wages * 100) / 100;
+                st.stats.wages = _num(st.stats.wages) + Math.round(wages);
+                if (gross > 0) {
+                    inv.tithe = _num(inv.tithe) + Math.round(tithe);
+                    st.stats.tithe += Math.round(tithe);
+                }
                 if (net > 0) {
                     player.gold += net;
                     inv.earned += net;
-                    inv.tithe = _num(inv.tithe) + Math.round(tithe);
                     st.stats.earned += net;
-                    st.stats.tithe += Math.round(tithe);
                     out.income += net;
+                } else if (net < 0) {
+                    // The works earned less than their wages: the hands are paid from the purse
+                    const owed = Math.min(-net, Math.max(0, Math.floor(_num(player.gold))));
+                    if (owed > 0) {
+                        player.gold -= owed;
+                        inv.earned -= owed;
+                        st.stats.earned -= owed;
+                        out.wages += owed;
+                    }
                 }
             }
         }
@@ -678,6 +695,8 @@ export const MerchantPrince = {
         const near = (q, r, rad) => Math.abs(r - w.r) <= rad && Hex.wrappingDistance(q, r, w.q, w.r, W) <= rad;
         if (OutlawLairs.active(player).some(l => Number.isFinite(l.q) && near(l.q, l.r, _num(T.lairRadius, 4)))) p += _num(T.lair);
         if ((world.units || []).some(u => u && !u.destroyed && u.type === 'raider' && near(u.q, u.r, _num(T.raiderRadius, 2)))) p += _num(T.raider);
+        // A town of idle hands breeds thieves (world/townLabour.js)
+        p += TownLabour.theftBonus(s);
         p = Math.max(_num(T.min), p);
         const g = player.underworld && player.underworld.guild;
         if (g && g.member && _num(g.rank) >= _num(T.guildFriendRank, 2)) p *= _num(T.guildFriendMult, 1);
@@ -886,7 +905,7 @@ export const MerchantPrince = {
      * → { notices, income, rent }
      */
     processDay(player, world) {
-        const out = { notices: [], income: 0, rent: 0 };
+        const out = { notices: [], income: 0, rent: 0, wages: 0 };
         if (!player || !world || !_obj(player.merchantPrince)) return out;
         const st = MerchantPrince.state(player);
         const day = _day(world);

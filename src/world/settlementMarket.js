@@ -29,6 +29,7 @@ import { Hex } from '../core/hex.js';
 import { Seasons } from './seasons.js';
 import { WorldEvents } from './worldEvents.js';
 import { Coinage } from './coinage.js';
+import { TownLabour } from './townLabour.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -177,11 +178,13 @@ export const SettlementMarket = {
         // Needs follow the population in steps of 25 people (so the table holds for days)
         const pop = Math.round(Math.max(0, _num(settlement.population)) / 25) * 25;
         const type = settlement.type;
+        // ...and the class mix: nobles buy wine, peasants grain (world/townLabour.js)
+        const dm = TownLabour.demandMults(settlement, C);
         let sh = _shapes.get(settlement);
-        if (sh && sh.pop === pop && sh.type === type && sh.cfg === C) return sh;
+        if (sh && sh.pop === pop && sh.type === type && sh.cfg === C && sh.dm === dm) return sh;
         const n = C.goodIds.length;
         sh = {
-            pop, type, cfg: C, used: {}, need: {}, target: {},
+            pop, type, cfg: C, dm, used: {}, need: {}, target: {},
             usedA: new Uint8Array(n), needA: new Float64Array(n), targetA: new Float64Array(n),
         };
         const rank = Number.isFinite(C.typeRank[type]) ? C.typeRank[type] : 0;
@@ -190,7 +193,7 @@ export const SettlementMarket = {
             const g = C.goods[id];
             const minRank = Number.isFinite(C.typeRank[g.minType]) ? C.typeRank[g.minType] : 0;
             const used = g.perCapita > 0 && rank >= minRank;
-            const need = used ? pop * g.perCapita * td : 0;
+            const need = used ? pop * g.perCapita * td * (dm ? dm[i] : 1) : 0;
             // (a town keeps at least the good's minStock of what its people use)
             const target = Math.max(Math.max(0.05, need > 0 ? need : pop * g.perCapita * C.noNeedRef) * g.days, used ? g.minStock : 0);
             sh.used[id] = used;
@@ -434,7 +437,7 @@ export const SettlementMarket = {
      * output's worth at today's stock. Records the turn's runs and the
      * value added (gold, at the town's scarcity) on the works.
      */
-    _runWorks(m, st, sh, k, mult, day) {
+    _runWorks(m, st, sh, k, mult, day, settlement = null) {
         const C = SettlementMarket.config();
         const W = C.works;
         const bases = SettlementMarket._bases();
@@ -449,6 +452,8 @@ export const SettlementMarket = {
             if (!rc || !(w.cap > 0)) continue;
             let left = w.cap * _clamp(_num(w.cond, 1), 0, 1) * mult;
             const oi = rc.outIdx, op = rc.outPer, ii = rc.inIdx, ip = rc.inPer;
+            // The hands' wages for a run (world/townLabour.js): a run must pay them too
+            const wageRun = settlement ? TownLabour.worksWagePerRun(settlement, id, w) : 0;
             let runs = 0, va = 0;
             for (let s = 0; s < steps && left > 0.005; s++) {
                 let chunk = left / (steps - s);
@@ -462,7 +467,7 @@ export const SettlementMarket = {
                 let outV = 0, inV = 0;
                 for (let j = 0; j < oi.length; j++) outV += op[j] * bases[oi[j]] * SettlementMarket.curve(st[oi[j]] / target[oi[j]], used[oi[j]]);
                 for (let j = 0; j < ii.length; j++) inV += ip[j] * bases[ii[j]] * SettlementMarket.curve(st[ii[j]] / target[ii[j]], used[ii[j]]);
-                if (!(outV > 0) || outV - inV < outV * W.minMargin) break;
+                if (!(outV > 0) || outV - inV - wageRun < outV * W.minMargin) break;
                 for (let j = 0; j < ii.length; j++) st[ii[j]] = Math.max(0, st[ii[j]] - chunk * ip[j]);
                 for (let j = 0; j < oi.length; j++) st[oi[j]] += chunk * op[j];
                 runs += chunk;
@@ -856,9 +861,14 @@ export const SettlementMarket = {
         const pop = Math.max(0, _num(settlement.population));
         const short = m.short || (m.short = { food: 0, tools: 0, fuel: 0 });
         const toolF = 1 - _clamp(_num(short.tools), 0, 1) * S.toolPenalty;
-        const foodMult = _num(ctx.foodMult, 1) * toolF * k;
+        // Hands at work (world/townLabour.js): a town short of peasants reaps
+        // less, one short of artisans makes less, a strike idles the trades
+        const lf = TownLabour.factors(settlement, ctx.day);
+        const craftMask = TownLabour.craftMask(C);
+        const foodMult = _num(ctx.foodMult, 1) * toolF * k * lf.land;
         const otherMult = _num(ctx.intact, 1) * _num(ctx.goodsMult, 1) * toolF * k;
-        const minedMult = otherMult * _num(ctx.mineMult, 1);
+        const minedMult = otherMult * _num(ctx.mineMult, 1) * lf.land;
+        const landMult = otherMult * lf.land, craftMult = otherMult * lf.craft;
         const sh = SettlementMarket._shape(settlement);
         const target = sh.targetA, needOf = sh.needA, used = sh.usedA;
         const B = C.buf;
@@ -879,15 +889,18 @@ export const SettlementMarket = {
             }
         }
         for (let i = 0; i < n; i++) {
-            if (prodA[i] > 0) st[i] += prodA[i] * (A.food[i] ? foodMult : A.mined[i] ? minedMult : otherMult);
+            if (prodA[i] > 0) st[i] += prodA[i] * (A.food[i] ? foodMult : A.mined[i] ? minedMult : craftMask[i] ? craftMult : landMult);
         }
 
         // Local industry: only where the output runs below target
         const rank = Number.isFinite(C.typeRank[settlement.type]) ? C.typeRank[settlement.type] : 0;
+        // (how busy the trades ran — read by the labour market as the artisans' work)
+        let runsAll = 0, capAll = 0;
         for (const rc of C.recipesI) {
             if (rank < rc.rank) continue;
-            let runs = rc.cap * pop / 1000 * toolF * k;
+            let runs = rc.cap * pop / 1000 * toolF * k * lf.craft;
             if (!(runs > 0)) continue;
+            capAll += runs;
             const oi = rc.outIdx, op = rc.outPer, ii = rc.inIdx, ip = rc.inPer;
             // A trade with `fill` works ahead of need while its inputs are in glut (brewers
             // brew the harvest's cheap grain): up to fill × target at twice the inputs' target
@@ -900,11 +913,13 @@ export const SettlementMarket = {
             for (let j = 0; j < oi.length; j++) runs = Math.min(runs, Math.max(0, target[oi[j]] * fill - st[oi[j]] + needOf[oi[j]] * k) / op[j]);
             for (let j = 0; j < ii.length; j++) runs = Math.min(runs, Math.max(0, st[ii[j]] - needOf[ii[j]] * k) / ip[j]);
             if (!(runs > 0.01)) continue;
+            runsAll += runs;
             for (let j = 0; j < ii.length; j++) st[ii[j]] = Math.max(0, st[ii[j]] - runs * ip[j]);
             for (let j = 0; j < oi.length; j++) st[oi[j]] += runs * op[j];
         }
+        m.util = capAll > 0 ? Math.round(Math.min(1, runsAll / capAll) * 1000) / 1000 : 0;
         // Works the player built or funded here (market.works) run on after the town's own trades
-        if (m.works) SettlementMarket._runWorks(m, st, sh, k, toolF * k * _num(ctx.intact, 1) * _num(ctx.worksMult, 1), ctx.day);
+        if (m.works) SettlementMarket._runWorks(m, st, sh, k, toolF * k * _num(ctx.intact, 1) * _num(ctx.worksMult, 1) * lf.craft, ctx.day, settlement);
 
         // Consumption; staples stand in for one another within a group
         // (bread short: they eat porridge; no firewood: they burn coal)
@@ -949,6 +964,12 @@ export const SettlementMarket = {
         short.food = ema(short.food, 1 - (cover.food != null ? cover.food : 1));
         short.tools = ema(short.tools, 1 - (cover.tools != null ? cover.tools : 1));
         short.fuel = ema(short.fuel, 1 - (cover.fuel != null ? cover.fuel : 1));
+        // How much of each want the market met (moving averages; the classes' welfare reads them)
+        const metG = m.met || (m.met = {});
+        for (const grp of C.groupNames) {
+            if (cover[grp] == null) { delete metG[grp]; continue; }
+            metG[grp] = Number.isFinite(metG[grp]) ? ema(metG[grp], cover[grp]) : Math.round(_clamp(cover[grp], 0, 1) * 1000) / 1000;
+        }
         // Plenty: the drink and fine things wanted today, and more than enough on hand
         let want = 0, wantN = 0, lux = 0, luxN = 0;
         for (const grp of PLENTY_GROUPS) {

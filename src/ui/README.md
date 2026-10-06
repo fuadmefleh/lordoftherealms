@@ -6,7 +6,7 @@ Rendering and input handling. This layer reads game state and draws it — it do
 
 | File | Lines | Description |
 |------|-------|-------------|
-| `actionMenu.js` | ~400 | Contextual action menu (renders action panel, handles clicks); panels in `actionMenu/*.js` — e.g. `merchantCaravans.js`: hail a caravan or trading ship on the road (trade, escort, rob); `merchantPrince.js`: the market's Invest / Warehouse / Contracts / Holdings sections (`showMerchantPrince`, `merchantPrinceAct`; opened from the trade window's tabs and the Counsel) |
+| `actionMenu.js` | ~400 | Contextual action menu (renders action panel, handles clicks); panels in `actionMenu/*.js` — e.g. `merchantCaravans.js`: hail a caravan or trading ship on the road (trade, escort, rob); `merchantPrince.js`: the market's Invest / Warehouse / Contracts / Holdings sections (`showMerchantPrince`, `merchantPrinceAct`; opened from the trade window's tabs and the Counsel); `labour.js`: a town's People — classes, work and wages, welfare, crime, refugees, strikes, the player's hands there (`showTownPeople`; the trade window's 👥 tab, the holdings panel, the Counsel; `peopleLine` for the trade outlook and holdings summary) |
 | `buildingCreator.js` | ~600 | In-world building placement UI |
 | `camera.js` | ~350 | Camera: pan, zoom, pixel↔hex conversion for the world map |
 | `companionsPanel.js` | ~150 | Travel-party roster (approval, mood, values, gripes, quests; talk/gift/pay/raise/dismiss), rendered inside `ActionMenu.showTravelPartyMenu` |

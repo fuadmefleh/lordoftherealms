@@ -1,0 +1,96 @@
+{
+    "_doc": "Labour, classes and migration (world/townLabour.js model, ticked by systems/labour.js on each town's market day). Every settlement's people are split into five strata (settlement.labour.sh, shares of settlement.population): peasants & labourers, artisans, merchants, clergy and nobility. Each stratum has its own basket (what it buys more or less of than the average townsman), so the town's daily need of each good in data/markets.json is scaled by its class mix against the usual mix for its size (a town with its usual mix buys exactly what it did before). Peasants work the land (and carry, dig and haul), artisans the town's trades and the works the player funds, merchants its trade. Hands, jobs and the wage of each sector float with the labour market; a sector short of hands caps its output, idle hands raise crime and unrest and sour the mood. Each stratum's welfare (its basket met, work, real wage, taxes, safety, famine) draws people slowly between linked towns; war, sieges, famine and conquest drive refugees to safer neighbours, who go home when the danger passes. Balance: docs/economy-balance.md 'Labour, classes and migration'.",
+
+    "_strata": "sector: the work the stratum does (land, craft, trade; none for the clergy and nobility, who live on tithes, rents and office). work: share of the stratum that works for wages (the rest are children, the old and wives at home). mobility: how readily it migrates (1 = peasants). refugeeShare: its share of a refugee column against its share at home (the nobles flee first and furthest, the poor on foot).",
+    "strata": {
+        "peasants":  { "name": "Peasants & labourers", "short": "Peasants",  "icon": "🌾", "sector": "land",  "work": 0.5,  "mobility": 1.0, "refugeeShare": 1.1 },
+        "artisans":  { "name": "Artisans",             "short": "Artisans",  "icon": "🔨", "sector": "craft", "work": 0.5,  "mobility": 0.8, "refugeeShare": 0.9 },
+        "merchants": { "name": "Merchants",            "short": "Merchants", "icon": "⚖️", "sector": "trade", "work": 0.45, "mobility": 0.9, "refugeeShare": 0.9 },
+        "clergy":    { "name": "Clergy",               "short": "Clergy",    "icon": "⛪", "sector": null,    "work": 0,    "mobility": 0.3, "refugeeShare": 0.5 },
+        "nobles":    { "name": "Nobility",             "short": "Nobles",    "icon": "👑", "sector": null,    "work": 0,    "mobility": 0.3, "refugeeShare": 0.8 }
+    },
+
+    "_shares": "The usual class mix of a settlement of each size. A town's own mix leans from it by its peoples (settlement.peoplesEffects: crafts -> artisans, enterprise and trade -> merchants, faith -> clergy, husbandry -> peasants; each point of an effect x the weight below), by the works funded in it (worksTilt artisans per level) and a holding's workshop quarter (holdingTilt x its goods effect). The mix then drifts toward that target by `drift` a market turn; migration and refugees move it off.",
+    "shares": {
+        "village": { "peasants": 0.84, "artisans": 0.08, "merchants": 0.03, "clergy": 0.03, "nobles": 0.02 },
+        "town":    { "peasants": 0.62, "artisans": 0.20, "merchants": 0.08, "clergy": 0.05, "nobles": 0.05 },
+        "city":    { "peasants": 0.50, "artisans": 0.26, "merchants": 0.12, "clergy": 0.06, "nobles": 0.06 },
+        "capital": { "peasants": 0.42, "artisans": 0.28, "merchants": 0.15, "clergy": 0.07, "nobles": 0.08 }
+    },
+    "peoples": { "goods": { "artisans": 1.0 }, "gold": { "merchants": 0.8 }, "trade": { "merchants": 0.8 }, "faith": { "clergy": 0.4 }, "food": { "peasants": 0.6 } },
+    "worksTilt": 0.004,
+    "holdingTilt": 0.15,
+    "drift": 0.03,
+
+    "_baskets": "What each stratum buys of a good against the average townsman (1 when not listed). A town's need of a good = the market's per-capita need x (sum of share x basket) / (the same sum at its size's usual mix).",
+    "baskets": {
+        "peasants":  { "grain": 1.2, "flour": 1.1, "bread": 0.9, "beer": 1.1, "liquor": 1.1, "wine": 0.1, "firewood": 1.15, "coal": 0.5, "clothes": 0.75, "cheese": 0.6, "meat": 0.8, "fish": 0.9, "tools": 1.1, "lamp_oil": 0.5, "luxuries": 0, "spices": 0.1, "gems": 0, "gold_ore": 0, "horse": 0.1, "horses": 0.8, "weapons": 0.6 },
+        "artisans":  { "bread": 1.15, "beer": 1.15, "clothes": 1.1, "tools": 1.3, "lamp_oil": 1.2, "coal": 1.3, "iron": 1.3, "textiles": 1.3, "wine": 0.5, "luxuries": 0.4, "spices": 0.4, "horse": 0.3, "gems": 0.5 },
+        "merchants": { "wine": 3, "luxuries": 3, "spices": 3, "clothes": 1.8, "cheese": 1.8, "meat": 1.6, "fish": 1.3, "lamp_oil": 2, "horse": 2.5, "horses": 1.5, "gems": 2, "grain": 0.6, "beer": 0.8 },
+        "clergy":    { "wine": 2.5, "lamp_oil": 3, "bread": 1.1, "clothes": 1.2, "luxuries": 1, "spices": 1, "beer": 0.6, "liquor": 0.4, "grain": 0.8 },
+        "nobles":    { "wine": 6, "luxuries": 8, "spices": 6, "gems": 8, "gold_ore": 6, "horse": 6, "horses": 3, "meat": 2.5, "fish": 1.5, "cheese": 2.5, "clothes": 3, "weapons": 3, "liquor": 1.5, "lamp_oil": 2.5, "grain": 0.5, "beer": 0.6 }
+    },
+
+    "_jobs": "Hands each sector wants (its jobs). The trades and the counting-houses are sized by the economy the town has built up (labour.base: its population, followed baseAlpha of the way each market turn), so new artisans and merchants find no place at first and a town emptied by war is short of them until it shrinks; the land takes every newcomer while it has land to spare: land = work x the usual peasant share x the people the land can employ (landCap[type] x fertility; past it each extra mouth finds only crowdSlope of a place); craft = work x the usual artisan share x pop x (craftBase + craftUtil x how busy the town's trades ran last turn); trade = work x the usual merchant share x pop x (tradeBase + tradeAct x the turn's trade volume / (pop x tradeRef), at most tradeMax). The player's works (works.hands per level) and properties (properties.wageShare of their upkeep at the base wage) hire on top. Goods by sector: craftGoods are the craftsmen's (the rest come off the land, the mines and the woods).",
+    "jobs": {
+        "landCap": { "village": 1300, "town": 4200, "city": 12000, "capital": 25000 },
+        "crowdSlope": 0.35,
+        "baseAlpha": 0.04,
+        "craftBase": 0.8, "craftUtil": 0.3,
+        "tradeBase": 0.9, "tradeAct": 0.1, "tradeRef": 0.0004, "tradeMax": 1.5
+    },
+    "craftGoods": ["flour", "bread", "beer", "liquor", "wine", "cheese", "textiles", "clothes", "tools", "weapons", "lamp_oil", "luxuries"],
+
+    "_wages": "Gold a day per hand at the usual balance of jobs and hands: base[sector] x typeMult[type]; x (jobs / hands) ^ elasticity, clamped to [min, max]; x the cost of living (the scarcity of the staples the poor buy) ^ colPow. Moves `alpha` of the way a market turn.",
+    "wages": {
+        "base": { "land": 0.4, "craft": 0.6, "trade": 0.8 },
+        "typeMult": { "village": 0.8, "town": 1.0, "city": 1.15, "capital": 1.3 },
+        "elasticity": 1.5, "min": 0.6, "max": 2.2, "colPow": 0.5, "alpha": 0.35,
+        "staples": ["grain", "bread", "beer", "firewood", "clothes"]
+    },
+
+    "_output": "A sector short of hands works less: land and mines at 1 - (1 - fill) x landSensitivity, the craftsmen's goods, the town's trades and the player's works at the craft fill. A strike idles strikeFill of the craft hands.",
+    "output": { "landSensitivity": 0.8, "strikeFill": 0.4, "minFill": 0.2 },
+
+    "_welfare": "Each stratum's welfare (0..1; about 0.87 is the ordinary lot of a town at peace with full stalls): weights x the share of its basket the market met (market.met: food, drink, fuel, clothes, luxury, tools; a want the market doesn't stock counts as missing), its work (1 - idle; the clergy and nobles take the town's), its real wage (0.5 + (wage / base wage / cost of living - 1) x 1.25; the clergy and nobles take the town's), safety (1 - danger) and the famine gauge; less taxes in a town the player rules ((rate - 0.15) x taxWeight[stratum]).",
+    "welfare": {
+        "weights": { "basket": 0.3, "work": 0.25, "wage": 0.2, "safety": 0.25, "famine": 0.35 },
+        "groups": {
+            "peasants":  { "food": 0.6, "fuel": 0.2, "drink": 0.1, "clothes": 0.1 },
+            "artisans":  { "food": 0.45, "fuel": 0.15, "drink": 0.15, "clothes": 0.15, "tools": 0.1 },
+            "merchants": { "food": 0.35, "drink": 0.15, "clothes": 0.2, "luxury": 0.2, "fuel": 0.1 },
+            "clergy":    { "food": 0.4, "drink": 0.2, "clothes": 0.2, "luxury": 0.1, "fuel": 0.1 },
+            "nobles":    { "food": 0.25, "luxury": 0.35, "drink": 0.2, "clothes": 0.2 }
+        },
+        "missing": 0.7,
+        "taxWeight": { "peasants": 1.2, "artisans": 1.0, "merchants": 1.0, "clergy": 0.3, "nobles": 0.6 },
+        "alpha": 0.3
+    },
+
+    "_danger": "What makes a town unsafe (0..1, summed and capped at 1): the player's siege or a siege of a holding (siege), a town taken by another crown within conquestDays (conquest), a realm at war with a linked neighbour's (border), outlaw lairs within lairRadius (lair each, at most lairMax), raiders within raiderRadius, damage from fire, flood or sack (damage x the town's damage).",
+    "danger": { "siege": 1.0, "conquest": 0.8, "conquestDays": 30, "border": 0.2, "lair": 0.12, "lairMax": 0.3, "lairRadius": 3, "raider": 0.1, "raiderRadius": 2, "damage": 0.6 },
+
+    "_mood": "Happiness: (town welfare - content) x perWelfare, less (idle - idleFree) x perIdle points, clamped to [min, max]; moves step points a day and is given back when the cause passes (settlement.labourMood).",
+    "mood": { "content": 0.87, "perWelfare": 8, "idleFree": 0.06, "perIdle": 20, "min": -6, "max": 2, "step": 0.5 },
+
+    "_crime": "Crime (0..1, a moving average): idle hands past idleFree x perIdle, plus the poor's misery (poorLine - peasants' welfare) x perMisery. Read by the thieves' guild (jobOdds: the town's crime x jobOdds on every job's odds), warehouse thieves (theft x crime on the weekly chance) and holdings unrest (unrest x crime + idle x unrestIdle points a day).",
+    "crime": { "idleFree": 0.04, "perIdle": 4, "poorLine": 0.65, "perMisery": 1.5, "alpha": 0.25, "jobOdds": 0.08, "theft": 0.02, "unrest": 0.4, "unrestIdle": 2 },
+
+    "_migration": "Weekly (every `every` days): along each trade link, each stratum moves from the town where it fares worse to the one where it fares better when the gap beats `threshold`: rate x (gap - threshold) x the stratum's mobility of its people a week, at most maxShare of the town in all. A town the player rules (a holding or colony) with land to spare draws settlers as if its welfare were colonyPull higher. People never leave a town below minPop.",
+    "migration": { "every": 7, "threshold": 0.035, "rate": 0.05, "maxShare": 0.01, "colonyPull": 0.06, "minPop": 60 },
+
+    "_refugees": "Weekly: a town in danger (danger above `from`) loses rate x danger of its people a week (at most maxShare) to linked towns in less danger (below `safe`), weighted by their welfare and size. They remember home (labour.from) and returnShare of them go back each week once it is safe (danger below `safe`) again. A column of at least newsMin is cried by the heralds.",
+    "refugees": { "from": 0.3, "rate": 0.03, "maxShare": 0.05, "safe": 0.2, "returnShare": 0.25, "keep": 4, "newsMin": 40, "decay": 0.85 },
+
+    "_strikes": "Weekly: artisans whose welfare is below `below` and whose real wage is below `wageBelow` may down tools: a hash roll under (below - welfare) x chance. A strike lasts `days` days (the craft fill falls to strikeFill), not again within `gap` days. A town booms when its welfare is at least boomAt and it gained people last week; the heralds cry it at most every boomGap days.",
+    "strikes": { "below": 0.65, "wageBelow": 0.85, "chance": 2.5, "days": 7, "gap": 45, "minType": "town", "boomAt": 0.9, "boomGap": 60 },
+
+    "_works": "Hands a level of the player's works (systems/merchantPrince.js) hires from the town's artisans, paid the local craft wage for the runs the works make (a run must earn its wages as well as its margin, or the works stand idle — SettlementMarket._runWorks; idlePay of them would be kept on as a skeleton crew while the works stand idle). The wages come out of the player's share of the value added (data/merchantPrince.json investorShare / ownShare were raised to carry them).",
+    "works": { "idlePay": 0, "hands": { "mill": 2, "bakery": 8, "brewery": 7, "charcoal": 3, "distillery": 4, "weaver": 4, "tailor": 3, "dairy": 3, "smithy": 2, "armoury": 4, "jeweller": 4 } },
+
+    "_properties": "The player's properties hire from the nearest town within `radius` hexes (none in the wild: they bring their own). wageShare of a property's upkeep is its wage bill at the base wage of that town; the bill floats with the local wage, and a town short of hands staffs it only as far as its fill. Properties of the craftCategories hire artisans, the rest (farms, mines, camps) peasants and labourers.",
+    "properties": { "radius": 3, "wageShare": 0.5, "craftCategories": ["crafts", "food", "commerce"] },
+
+    "_news": "Records kept for the heralds and the counsel (world.labour.history, at most `cap`).",
+    "news": { "cap": 30 }
+}

@@ -392,7 +392,18 @@ function sail(game, tile, stats) {
     if (!route) return false;
     const voyageDays = Ships.voyageDays(player, ship, route.length) + 3;
     const want = Ships.provisionsNeeded(ship, voyageDays, { player });
-    if (want > 0 && Ships.buyProvisions(player, world, ship.id, want).success) count(stats, 'provisioned');
+    if (want > 0) {
+        let pr = Ships.buyProvisions(player, world, ship.id, want);
+        // A hold full of unsold cargo: take it into the packs to make room for victuals
+        if (!pr.success && Ships.getCargoFree(ship) <= 0) {
+            for (const item of Object.keys(ship.cargo || {})) {
+                if (Ships.getCargoFree(ship) > 0) break;
+                if (Ships.unloadToPlayer(player, world, ship.id, item).success) count(stats, 'holdCleared');
+            }
+            pr = Ships.buyProvisions(player, world, ship.id, want);
+        }
+        if (pr.success) count(stats, 'provisioned');
+    }
     if (Ships.provisionsNeeded(ship, voyageDays, { player }) > 0) { count(stats, 'voyageUnvictualled'); return false; }
     const res = Ships.sailPlayerTo(player, ship.id, d.q, d.r, dTile.settlement.name, world);
     if (res.success) { count(stats, 'voyages'); return true; }
@@ -415,7 +426,18 @@ function expedition(game, tile, stats) {
     if (!t) return false;
     const days = Ships.voyageDays(player, ship, t.leagues) * 2 + 3;
     const want = Ships.provisionsNeeded(ship, days, { player });
-    if (want > 0 && Ships.buyProvisions(player, world, ship.id, want).success) count(stats, 'provisioned');
+    if (want > 0) {
+        let pr = Ships.buyProvisions(player, world, ship.id, want);
+        // A hold full of unsold cargo: take it into the packs to make room for victuals
+        if (!pr.success && Ships.getCargoFree(ship) <= 0) {
+            for (const item of Object.keys(ship.cargo || {})) {
+                if (Ships.getCargoFree(ship) > 0) break;
+                if (Ships.unloadToPlayer(player, world, ship.id, item).success) count(stats, 'holdCleared');
+            }
+            pr = Ships.buyProvisions(player, world, ship.id, want);
+        }
+        if (pr.success) count(stats, 'provisioned');
+    }
     // Heed the chandler's warning: no expedition without food for the way back
     if (Ships.provisionsNeeded(ship, days, { player }) > 0) { count(stats, 'expeditionUnvictualled'); return false; }
     if (!Discovery.startExpedition(player, world, ship.id, t.id).success) return false;

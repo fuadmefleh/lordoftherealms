@@ -1,6 +1,7 @@
 // PlayerEconomy — property members.
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
+import { TownLabour } from '../../world/townLabour.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerEffects, PlayerInventory, WEATHER_EFFECTS, Economy, Seasons } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
@@ -232,10 +233,15 @@ Object.assign(PlayerEconomy, {
         return 1 + overhead * Math.max(0, 1 - admin);
     },
 
-    /** Daily upkeep of one property, including administrative overhead. */
+    /**
+     * Daily upkeep of one property, including administrative overhead. Part
+     * of it is the wages of the hands it hires from the nearest town, paid
+     * at that town's wage (property.hire, kept by systems/labour.js —
+     * world/townLabour.js wageUpkeep): dearer where hands are scarce.
+     */
     getPropertyUpkeep(player, property) {
         const base = (property.upkeep || 0) * (property.level || 1);
-        return Math.round(base * PlayerEconomy.getAdministrationMultiplier(player));
+        return Math.round(TownLabour.wageUpkeep(base, property.hire) * PlayerEconomy.getAdministrationMultiplier(player));
     },
 
     /** Base goods a property can hold per level, before technology. */
@@ -325,6 +331,8 @@ Object.assign(PlayerEconomy, {
                     if (property.gamblingTables) {
                         baseIncome = Math.floor(baseIncome * (1 + property.gamblingTables * 0.15));
                     }
+                    // A town short of hands can't staff the taproom (world/townLabour.js)
+                    baseIncome = Math.floor(baseIncome * TownLabour.staffing(property.hire));
                     // Prosperity miracle and a House Steward
                     baseIncome = Math.floor(baseIncome * PlayerEffects.propertyIncomeMultiplier(player));
                     player.gold += baseIncome;
@@ -393,6 +401,8 @@ Object.assign(PlayerEconomy, {
 
             // Prosperity miracle and a House Steward
             amount *= PlayerEffects.propertyIncomeMultiplier(player);
+            // Only as many hands as the nearest town can spare (world/townLabour.js)
+            amount *= TownLabour.staffing(property.hire);
             // Bountiful Harvest miracle
             if (def && def.category === 'farming') amount *= PlayerEffects.farmProductionMultiplier(player);
 

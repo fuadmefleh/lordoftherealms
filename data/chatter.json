@@ -32,16 +32,33 @@
             "saga_end": 6, "revolt": 8, "revolt_end": 7, "rebellion": 5, "discovery": 5,
             "siege_won": 6, "siege_lost": 7, "wonder": 7, "wonder_begun": 4, "lair_cleared": 5, "lair_risen": 5,
             "bank_failed": 6, "crown_default": 7, "coin_debased": 5, "caravan_taken": 4,
-            "market_fair": 4, "market_dearth": 5, "market_glut": 3
+            "market_fair": 4, "market_dearth": 5, "market_glut": 3,
+            "labour_refugees": 5, "labour_strike": 4, "labour_boom": 3
         },
         "icons": {
             "coronation": "👑", "realm_fallen": "🏴", "realm_restored": "🚩", "peace": "🕊️", "war": "⚔️",
             "saga_end": "📜", "revolt": "🔥", "revolt_end": "🛡️", "rebellion": "🔥", "discovery": "🗺️",
             "siege_won": "🏰", "siege_lost": "🏳️", "wonder": "🏛️", "wonder_begun": "🏗️", "lair_cleared": "🛡️", "lair_risen": "🏕️",
             "bank_failed": "🏚️", "crown_default": "📛", "coin_debased": "💱", "caravan_taken": "🐫",
-            "market_fair": "🎪", "market_dearth": "🥖", "market_glut": "🌾"
+            "market_fair": "🎪", "market_dearth": "🥖", "market_glut": "🌾",
+            "labour_refugees": "🧳", "labour_strike": "✊", "labour_boom": "🏗️"
         },
         "templates": {
+            "labour_refugees": [
+                "Hear ye! {n} souls have fled {place} for fear of {why}, and crowd the roads to {to}. Charity, good people!",
+                "The roads out of {place} are thick with carts and bundles: {n} have fled the {why} for {to} and the towns beyond.",
+                "By order of the crown of {kingdom}: let {to} open its gates to the folk of {place}, who flee the {why}."
+            ],
+            "labour_strike": [
+                "Hear ye! The artisans of {place} have downed their tools: their wages buy no bread. The workshops stand cold for {days} days.",
+                "The guilds of {place} are out in the square, not at the bench: bread is dear and the masters pay the old rate.",
+                "No hammer rings in {place}: its craftsmen strike against the price of bread."
+            ],
+            "labour_boom": [
+                "Hear ye! {place} prospers: work for every hand and bread on every table, and newcomers arrive by the cartload.",
+                "Times are good in {place}: the workshops hire, the stalls are full and folk are flocking in from the villages.",
+                "{place} is the place to be, say the carters: good wages, full larders and a roof for all who come."
+            ],
             "market_fair": [
                 "Hear ye! The {fair} is open in {place} for {days} days. Merchants from far lands, and every stall dealing close!",
                 "Come one, come all to the {fair} at {place}: spices, wine and wares from beyond the sea, and the stalls buying dear.",
@@ -300,6 +317,28 @@
         { "id": "farmer_spring", "when": { "season": ["Spring"], "occupation": ["farmer"] }, "weight": 2, "lines": [
             "Sowing time. If you've strong arms, there's work in the fields for a few coppers.",
             "Pray for gentle rain. A wet spring and a dry summer, that's what we want."
+        ]},
+        { "id": "labour_idle", "when": { "labour": ["idle"] }, "weight": 2, "lines": [
+            "There's no work in {settlement}. Half the men on my street stand at the corner from dawn to dusk.",
+            "The masters aren't hiring. If you've a job going, there's a dozen strong backs here would take it.",
+            "Idle hands, they say. Well, there's a lot of idle hands in {settlement} these days, and purses going missing."
+        ]},
+        { "id": "labour_refugees", "when": { "labour": ["refugees"] }, "weight": 2, "lines": [
+            "Refugees, all over the square. Poor souls came with what they could carry.",
+            "We've folk sleeping in the church porch. They fled the fighting, they say. Bread's gone dearer since.",
+            "More mouths, same bread. The newcomers will work for anything, and the old hands don't like it."
+        ]},
+        { "id": "labour_strike", "when": { "labour": ["strike"] }, "weight": 3, "lines": [
+            "The guilds have downed tools. Not a hammer in {settlement} till the masters pay a wage that buys bread.",
+            "Strike's on. The workshops are cold and the journeymen are in the taverns, singing rude songs about the masters."
+        ]},
+        { "id": "labour_boom", "when": { "labour": ["boom"] }, "weight": 1, "lines": [
+            "Work for anyone who wants it in {settlement}. The workshops are hiring and the newcomers keep coming.",
+            "Good times. My cousin came in from the village last month and found a place the same week."
+        ]},
+        { "id": "labour_hardship", "when": { "labour": ["hardship"] }, "weight": 1, "lines": [
+            "A day's wage doesn't buy a day's bread any more. Something's got to give.",
+            "We work, and we still go hungry. My father says it wasn't like this in his day."
         ]},
         { "id": "dearth_any", "when": { "dearth": true }, "weight": 2, "lines": [
             "There's no {dearthGood} to be had in {settlement}, not for love nor money. Well, money, if you've a lot of it.",

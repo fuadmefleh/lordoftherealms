@@ -2,6 +2,7 @@
 // governor, garrison, unrest and rebellion). Logic lives in
 // systems/holdings.js; this panel presents it.
 import { ActionMenu } from './_ref.js';
+import { peopleLine } from './labour.js';
 import { Holdings, PlayerMilitary } from './_imports.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
 
@@ -77,6 +78,9 @@ Object.assign(ActionMenu, {
         html += stat('Growth', `${s.growth > 0 ? '+' : ''}${s.growth}%`, 'a year');
         html += stat('Governor', s.governor ? esc(s.governor.name.split(' (')[0]) : '<span style="color:#e8a040;">none</span>');
         html += '</div>';
+        // ── The people (world/townLabour.js) ──
+        const people = peopleLine(tile.settlement, world.day);
+        if (people) html += `<div style="margin:4px 0;">👥 ${people} <button data-am-act="showTownPeople" data-am-args='[null, ${q}, ${r}]' style="${BTN_PLAIN}">The people</button></div>`;
         if (s.drifting) {
             html += '<div style="color:#e8a040; font-size:11px;">⚠️ Ungoverned and far from you, the town drifts: happiness and loyalty slip and unrest grows each day. Appoint a governor or come back.</div>';
         }

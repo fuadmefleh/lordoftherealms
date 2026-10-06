@@ -32,6 +32,9 @@ const MAJOR = 9;
 const SIEGE_WON = ['captured', 'sacked', 'terms'];
 // Market records (player.merchantPrince.history) and the proclamation each makes
 const MARKET_KINDS = { fair: 'market_fair', dearth: 'market_dearth', glut: 'market_glut' };
+// Labour records (world.labour.history, systems/labour.js) and the proclamation each makes
+const LABOUR_KINDS = { refugees: 'labour_refugees', strike: 'labour_strike', boom: 'labour_boom' };
+const LABOUR_WHY = { siege: 'siege', conquest: 'new masters', war: 'war', famine: 'hunger', danger: 'raiders' };
 
 const _num = v => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -187,6 +190,13 @@ export const Heralds = {
         const rec = Heralds._records(player);
         for (const x of [...rec.sagas, ...rec.sieges, ...rec.holdings, ...rec.lairs, ...rec.finance, ...rec.market]) st.seen[x.key] = x.day;
         for (const x of Heralds._caravanRecords(world)) st.seen[x.key] = x.day;
+        for (const x of Heralds._labourRecords(world)) st.seen[x.key] = x.day;
+    },
+
+    /** Refugee columns, strikes and booms (world.labour.history, systems/labour.js). */
+    _labourRecords(world) {
+        const t = world && world.labour;
+        return (t && Array.isArray(t.history) ? t.history : []).filter(h => h && h.key && LABOUR_KINDS[h.kind]).map(h => ({ key: h.key, day: _num(h.day), h }));
     },
 
     /** Caravans and trading ships lost on the roads (world.merchantTrade.history, systems/merchantCaravans.js). */
@@ -383,6 +393,16 @@ export const Heralds = {
             Heralds._proclaim(st, world, MARKET_KINDS[h.kind], {
                 place: h.place || 'the town', fair: h.fair || 'the fair', good: h.good || 'grain', days: _num(h.days) || 7,
                 pct: Math.abs(_num(h.pct)), kingdom: (_kingdom(world, h.kingdomId) || {}).name || 'the realm',
+            }, { q: h.q, r: h.r }, { kingdomId: h.kingdomId != null ? h.kingdomId : null });
+        }
+
+        // The people on the move: refugees, strikes, boom towns
+        for (const x of Heralds._labourRecords(world).filter(fresh)) {
+            st.seen[x.key] = x.day;
+            const h = x.h;
+            Heralds._proclaim(st, world, LABOUR_KINDS[h.kind], {
+                place: h.place || 'the town', to: h.to || 'the neighbouring towns', n: _num(h.n) || 'Hundreds', days: _num(h.days) || 7,
+                why: LABOUR_WHY[h.why] || 'war', kingdom: (_kingdom(world, h.kingdomId) || {}).name || 'the realm',
             }, { q: h.q, r: h.r }, { kingdomId: h.kingdomId != null ? h.kingdomId : null });
         }
 

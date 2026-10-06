@@ -38,6 +38,7 @@ import { KingdomNavy } from '../world/kingdomNavy.js';
 import { WorldUnit } from '../world/units.js';
 import { Terrain } from '../world/terrain.js';
 import { MarketDynamics } from './marketDynamics.js';
+import { Labour } from './labour.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Utils } from '../core/utils.js';
 
@@ -137,6 +138,9 @@ export const SaveLoad = {
             // Settlement markets travel with their tiles (settlement.market);
             // the old regional table is kept empty for older readers
             markets: {},
+            // Refugees, strikes and booms on record for the heralds (systems/labour.js;
+            // each town's classes, wages and welfare travel with it: settlement.labour)
+            labour: Labour.serialize(world),
             // Great Works raised and rising, the wonders claimed (systems/patronage.js)
             greatWorks: Patronage.serializeWorld(world),
             // Ids for characters, maps, spies, ... keep counting from here
@@ -546,6 +550,8 @@ export const SaveLoad = {
         if (Array.isArray(saveData.units)) world.units = SaveLoad.restoreUnits(saveData.units);
         // The roads' trade record (older saves: a blank one; no traders on the road yet)
         MerchantCaravans.restore(saveData.merchantTrade, world);
+        // The labour news (older saves: none)
+        Labour.restore(saveData.labour, world);
         // Never hand out an id the save already used
         if (typeof saveData.idCounter === 'number') {
             Utils.setIdCounter(Math.max(Utils.getIdCounter(), saveData.idCounter));
@@ -567,6 +573,9 @@ export const SaveLoad = {
         MarketDynamics.regionalMarkets = {};
         if (!world || typeof world.getSettlementViews !== 'function') return;
         for (const s of world.getSettlementViews()) SettlementMarket.ensure(s);
+        // Each town's classes, wages and welfare travel with it (settlement.labour);
+        // towns from older saves derive theirs from their people on the next
+        // labour day (Labour.processDay → TownLabour.ensure)
     },
 
     /** Put back terrain the player cleared or levelled. */

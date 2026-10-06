@@ -24,6 +24,7 @@ import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 import { Finance } from '../../systems/finance.js';
 import { MarketFairs } from '../../systems/marketFairs.js';
 import { MerchantPrince } from '../../systems/merchantPrince.js';
+import { Labour } from '../../systems/labour.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 
@@ -585,6 +586,11 @@ export function endDay() {
             // (world/settlementMarket.js; lairs and sieges disrupt the roads)
             MarketDynamics.updatePrices(this.world, this.player);
 
+            // Labour: each town's classes, hands, wages and welfare on its market day;
+            // weekly migration, refugees, strikes and booms (systems/labour.js)
+            const labourDay = Labour.processDay(this.world, this.player);
+            for (const n of labourDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
             // Merchant Prince: the works' pay on market day, seizures; store-rooms'
             // spoilage, rent and thieves; forward contracts due (systems/merchantPrince.js)
             const princeDay = MerchantPrince.processDay(this.player, this.world);
@@ -1001,6 +1007,7 @@ export function endDay() {
             if (financeDay && financeDay.paid > 0) dayFinance.expenses.loanPayments = financeDay.paid;
             if (princeDay.income > 0) dayFinance.income.industry = princeDay.income;
             if (princeDay.rent > 0) dayFinance.expenses.warehouseRent = princeDay.rent;
+            if (princeDay.wages > 0) dayFinance.expenses.worksWages = princeDay.wages;
             if (typeof Tavern !== 'undefined' && intelResult && intelResult.cost > 0) dayFinance.expenses.informants = intelResult.cost;
 
             // Property upkeep (calculated from properties)
@@ -1009,7 +1016,8 @@ export function endDay() {
                 for (const prop of this.player.properties) {
                     const owned = PlayerEconomy.findPropertyAt(this.world.getTile(prop.q, prop.r), prop.type);
                     if (owned) {
-                        propertyUpkeep += (owned.upkeep || 0) * (owned.level || 1);
+                        // (wages at the local rate — world/townLabour.js — and the admin overhead)
+                        propertyUpkeep += PlayerEconomy.getPropertyUpkeep(this.player, owned);
                     }
                 }
             }

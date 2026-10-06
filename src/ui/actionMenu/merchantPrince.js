@@ -9,6 +9,7 @@ import { Trading } from './_imports.js';
 import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { MarketFairs } from '../../systems/marketFairs.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
+import { TownLabour } from '../../world/townLabour.js';
 
 const BTN = 'padding: 4px 8px; margin: 3px 4px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
 const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
@@ -63,7 +64,10 @@ function investTab(game, tile) {
         if (q.lvl) {
             const label = `${w ? 'Extend to level ' + q.lvl : 'Build'} (${g(q.gold)}${Object.keys(q.materials).length ? ` + ${goodsList(q.materials)}` : ''})`;
             html += act(label, ['invest', id], BTN_GOLD, q.ok, q.reason);
-            html += `<span style="${NOTE}"> +${q.runs} runs a day · your share ${pct(q.share)}${q.tithe > 0 ? `, the crown takes ${pct(q.tithe)} of it` : ''}</span>`;
+            const hands = TownLabour.worksHands(id, 1);
+            const lab = s.labour;
+            const wage = lab && lab.wage ? lab.wage.craft : TownLabour.baseWage(s.type, 'craft');
+            html += `<span style="${NOTE}"> +${q.runs} runs a day · your share ${pct(q.share)}${q.tithe > 0 ? `, the crown takes ${pct(q.tithe)} of it` : ''}${hands > 0 ? ` · hires ${hands} hands at ${wage.toFixed(2)}g a day${lab && lab.fill && lab.fill.craft < 0.95 ? ` (artisans are scarce here: ${pct(lab.fill.craft)} of places filled)` : ''}` : ''}</span>`;
         } else if (q.reason) html += `<div style="${NOTE}">${esc(q.reason)}</div>`;
         html += '</div>';
     }
@@ -181,13 +185,13 @@ function ledgerTab(game) {
     const { player, world } = game;
     const st = MerchantPrince.state(player);
     const s = st.stats;
-    let html = `<div style="${CARD}">Invested ${g(s.invested)} · earned ${g(s.earned)} (crown's tithe ${g(s.tithe)}) · repairs ${g(s.repairs)} · rent ${g(s.rent)} · forwards paid ${g(s.forwardIncome)}, penalties ${g(s.penalties)} · stolen ≈${g(s.stolen)}, spoiled ≈${g(s.spoiled)}</div>`;
+    let html = `<div style="${CARD}">Invested ${g(s.invested)} · earned ${g(s.earned)} (crown's tithe ${g(s.tithe)}, hands' wages ${g(s.wages || 0)}) · repairs ${g(s.repairs)} · rent ${g(s.rent)} · forwards paid ${g(s.forwardIncome)}, penalties ${g(s.penalties)} · stolen ≈${g(s.stolen)}, spoiled ≈${g(s.spoiled)}</div>`;
     html += '<h5 style="margin:8px 0 4px;">Works</h5>';
     const invs = MerchantPrince.investments(player, world);
     if (!invs.length) html += `<div style="${NOTE}">None yet. Fund a mill, bakehouse or brewhouse from a town's market.</div>`;
     for (const x of invs) {
         const w = x.works || {};
-        html += `<div style="font-size:12px; padding:3px 0; border-bottom:1px solid rgba(255,255,255,0.06);">${esc((x.def && x.def.icon) || '')} <b>${esc((x.def && x.def.name) || x.inv.recipe)}</b> in ${esc(x.inv.town)} · level ${w.lvl || 0} · repair ${pct(w.cond == null ? 1 : w.cond)} · put in ${g(x.inv.invested)}, earned ${g(x.inv.earned)} (last ${g(x.inv.lastPay || 0)})`;
+        html += `<div style="font-size:12px; padding:3px 0; border-bottom:1px solid rgba(255,255,255,0.06);">${esc((x.def && x.def.icon) || '')} <b>${esc((x.def && x.def.name) || x.inv.recipe)}</b> in ${esc(x.inv.town)} · level ${w.lvl || 0} · repair ${pct(w.cond == null ? 1 : w.cond)} · put in ${g(x.inv.invested)}, earned ${g(x.inv.earned)} (last ${g(x.inv.lastPay || 0)}${x.inv.lastWages ? ` after ${g(x.inv.lastWages)} wages` : ''})`;
         html += ` ${act(`Repair (${x.repairCost}g)`, ['repair', x.inv.id], BTN_PLAIN, x.repairCost > 0 && player.gold >= x.repairCost)}${act('Sell stake', ['sellStake', x.inv.id], BTN_RED)}</div>`;
     }
     const fairs = MarketFairs.fairsNear(world, player.q, player.r, 30, 20);

@@ -13,6 +13,7 @@ import { Heralds } from '../systems/heralds.js';
 import { Counsel } from '../systems/counsel.js';
 import { PlayerEconomy, Trading } from '../player/playerEconomy.js';
 import { loadData, newGame, endDay, roundTrip } from './playtest/harness.js';
+import { TownLabour } from '../world/townLabour.js';
 
 beforeAll(async () => {
     await loadData();
@@ -86,10 +87,12 @@ describe('industry: works in a town market', () => {
         expect(w.va).toBeGreaterThan(0);
         expect(capital.market.stock.bread).toBeGreaterThan(control.market.stock.bread);
         expect(capital.market.stock.grain).toBeLessThan(control.market.stock.grain);
-        // Market day pays the investor's share less the crown's tithe
+        // Market day pays the investor's share less the crown's tithe and the hands' wages
         const gold = player.gold;
         MerchantPrince.processDay(player, world);
-        const expected = Math.floor(w.va * 0.4 * (1 - 0.1));
+        const wages = TownLabour.worksWageBill(capital, 'bakery', w, SettlementMarket.tickDays());
+        expect(wages).toBeGreaterThan(0);
+        const expected = Math.floor(w.va * MerchantPrince.config().industry.investorShare * (1 - 0.1) - wages);
         expect(player.gold - gold).toBe(expected);
         expect(MerchantPrince.state(player).investments[0].earned).toBe(expected);
         // ...once per market day

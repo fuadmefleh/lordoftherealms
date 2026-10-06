@@ -1012,6 +1012,7 @@ Object.assign(ActionMenu, {
             <button class="trade-tab" data-am-act="showMerchantPrince" data-am-args='[null, "warehouse"]' title="Rent a store-room here">📦 Warehouse</button>
             <button class="trade-tab" data-am-act="showMerchantPrince" data-am-args='[null, "contracts"]' title="Forward contracts with this town">📜 Contracts</button>
             <button class="trade-tab" data-am-act="showTownPeople" data-am-args='[null]' title="The town's classes, work, wages and welfare">👥 People</button>
+            <button class="trade-tab" data-am-act="showMerchantLedger" data-am-args='["book"]' title="Known prices, best spreads, price history and your trading profit (ui/actionMenu/merchantLedger.js)">📒 Ledger</button>
         </div>
         ${SettlementMarket.fair(tile.settlement) ? `<div style="margin:-6px 0 10px; font-size:12px; color:var(--gold);">🎪 The ${SettlementMarket.fair(tile.settlement).name} is on until day ${SettlementMarket.fair(tile.settlement).until}: the stalls ask less and buy dearer.</div>` : ''}
 

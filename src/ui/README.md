@@ -7,6 +7,7 @@ Rendering and input handling. This layer reads game state and draws it — it do
 | File | Lines | Description |
 |------|-------|-------------|
 | `actionMenu.js` | ~400 | Contextual action menu (renders action panel, handles clicks); panels in `actionMenu/*.js` — e.g. `merchantCaravans.js`: hail a caravan or trading ship on the road (trade, escort, rob); `merchantPrince.js`: the market's Invest / Warehouse / Contracts / Holdings sections (`showMerchantPrince`, `merchantPrinceAct`; opened from the trade window's tabs and the Counsel); `labour.js`: a town's People — classes, work and wages, welfare, crime, refugees, strikes, the player's hands there (`showTownPeople`; the trade window's 👥 tab, the holdings panel, the Counsel; `peopleLine` for the trade outlook and holdings summary) |
+| `actionMenu.js` | ~400 | Contextual action menu (renders action panel, handles clicks); panels in `actionMenu/*.js` — e.g. `merchantCaravans.js`: hail a caravan or trading ship on the road (trade, escort, rob); `merchantPrince.js`: the market's Invest / Warehouse / Contracts / Holdings sections (`showMerchantPrince`, `merchantPrinceAct`; opened from the trade window's tabs and the Counsel); `merchantLedger.js`: the Merchant's Ledger — price book with ages, best known spreads, price history sparklines, trading P&L (`showMerchantLedger`, `merchantLedgerAct`; the trade window's 📒 Ledger tab and the map-mode menu) |
 | `buildingCreator.js` | ~600 | In-world building placement UI |
 | `camera.js` | ~350 | Camera: pan, zoom, pixel↔hex conversion for the world map |
 | `companionsPanel.js` | ~150 | Travel-party roster (approval, mood, values, gripes, quests; talk/gift/pay/raise/dismiss), rendered inside `ActionMenu.showTravelPartyMenu` |
@@ -19,7 +20,7 @@ Rendering and input handling. This layer reads game state and draws it — it do
 | `minimap.js` | ~450 | Minimap: renders a downscaled view of explored tiles |
 | `npcDialog.js` | ~850 | NPC dialogue trees, conversation UI, relationship responses |
 | `objectActions.js` | ~500 | Interaction handler for clickable world objects |
-| `renderer.js` | ~900 | **World hex renderer**: draws terrain, settlements, fog of war, overlays |
+| `renderer.js` | ~900 | **World hex renderer**: draws terrain, settlements, fog of war, overlays (`renderer/*.js`; `renderer/tradeMap.js` draws the 📈 Trade Map map mode `'prices'` — known prices of one good from `systems/priceKnowledge.js`, trade links, caravan roads, shunned roads; G cycles the good) |
 | `ui.js` | ~1100 | Main HUD: stats panel, resource bars, kingdom info, turn button |
 
 ## Rendering Pipeline

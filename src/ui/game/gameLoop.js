@@ -414,11 +414,17 @@ export function setupInputHandlers() {
     window.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
         if (e.key === 'm' || e.key === 'M') {
-            const modes = ['normal', 'political', 'religion', 'wealth', 'military', 'trade', 'culture'];
+            const modes = ['normal', 'political', 'religion', 'wealth', 'military', 'trade', 'prices', 'culture'];
             const current = this.renderer.mapMode;
             const idx = modes.indexOf(current);
             const next = modes[(idx + 1) % modes.length];
             this.ui.setMapMode(next);
+        }
+        // The trade map: G steps through the goods (Shift+G back)
+        if ((e.key === 'g' || e.key === 'G') && this.renderer.mapMode === 'prices') {
+            const id = this.renderer.cycleTradeMapGood(e.shiftKey ? -1 : 1);
+            if (this.minimap) this.minimap.invalidate();
+            this.ui.showNotification('📈 Trade Map', `Showing ${id}`, 'info');
         }
         if (e.key === 'Escape') {
             // Exit inner map mode

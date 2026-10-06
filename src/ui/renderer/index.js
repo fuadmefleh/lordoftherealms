@@ -6,5 +6,6 @@ import './assets.js';
 import './world.js';
 import './features.js';
 import './overlays.js';
+import './tradeMap.js';
 
 export { Renderer };

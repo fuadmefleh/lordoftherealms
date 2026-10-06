@@ -38,6 +38,7 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Economy } from '../world/economy.js';
+import { SettlementMarket } from '../world/settlementMarket.js';
 import { Taxation } from './marketDynamics.js';
 import { Religion } from './religion.js';
 import { Relationships } from './relationships.js';
@@ -72,7 +73,7 @@ const FALLBACK_CONFIG = {
     },
     raids: {
         radius: 2, chancePerRaider: 0.06, maxReduction: 0.85, foodLoss: 0.3, happiness: 6,
-        populationLoss: 0.03, unrest: 8, progressLoss: 2,
+        populationLoss: 0.03, unrest: 8, progressLoss: 2, marketShare: 0.5,
     },
     materialPrices: { wood: 8, stone: 8, iron: 20, tools: 35 },
     buyMarkup: 1.5,
@@ -1119,6 +1120,10 @@ export const Holdings = {
             return;
         }
         if (s.economy) s.economy.food = Math.floor(_num(s.economy.food) * (1 - R.foodLoss));
+        // The market's stores burn too (half the granary's share), and with
+        // them the mills and workshops in town (SettlementMarket.loot →
+        // damageWorks: merchant-prince works lose repair)
+        if (s.market) SettlementMarket.loot(s, _clamp(_num(R.foodLoss) * _num(R.marketShare, 0.5), 0, 0.9));
         s.happiness = _clamp(Taxation.getHappiness(s) - R.happiness, 0, 100);
         s.population = Math.max(10, Math.round(_num(s.population) * (1 - R.populationLoss)));
         h.unrest = _clamp(h.unrest + R.unrest, 0, 100);

@@ -4,6 +4,7 @@ import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Rel
 import { Chatter } from '../../systems/chatter.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { MarketFairs } from '../../systems/marketFairs.js';
+import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 
 Object.assign(Tavern, {
     // ────────────────────────────────────────────────────────────────────
@@ -118,6 +119,7 @@ Object.assign(Tavern, {
                         day: world.day,
                         source: tile.settlement.name,
                         relatedSettlement: { name: pick.name, q: pick.q, r: pick.r },
+                        quotes: [{ q: pick.q, r: pick.r, name: pick.name, good: pick.goodId, price: reportedPrice }],
                     };
                 }
                 const goodKeys = Tavern._marketGoodKeys();
@@ -142,6 +144,7 @@ Object.assign(Tavern, {
                     reliability, accurate,
                     day: world.day,
                     source: tile.settlement.name,
+                    quotes: [{ q: dest.q, r: dest.r, name: dest.name, type: dest.type || null, good: good.id, price: reportedPrice }],
                 };
             }
 
@@ -238,6 +241,7 @@ Object.assign(Tavern, {
         const reportGoods = Utils.shuffle([...goodKeys]).slice(0, Utils.randInt(3, 5));
 
         const priceLines = [];
+        const quotes = [];
         for (const key of reportGoods) {
             const good = PlayerEconomy.GOODS[key];
             const realPrice = MarketDynamics.getPrice(good.id, dest.q, dest.r, world);
@@ -252,6 +256,7 @@ Object.assign(Tavern, {
             const trendIcon = trend === 'rising' ? '📈' : trend === 'falling' ? '📉' : '➡️';
 
             priceLines.push(`${good.icon} ${good.name}: ~${reported}g ${trendIcon}`);
+            quotes.push({ q: dest.q, r: dest.r, name: dest.name, type: dest.type || null, good: good.id, price: reported });
         }
 
         return {
@@ -263,6 +268,7 @@ Object.assign(Tavern, {
             day: world.day,
             source: fromTile.settlement.name,
             relatedSettlement: { name: dest.name, q: dest.q, r: dest.r },
+            quotes,
         };
     },
 
@@ -293,6 +299,7 @@ Object.assign(Tavern, {
             reliability, accurate,
             day: world.day,
             source: tile.settlement.name,
+            quotes: [{ q: dest.q, r: dest.r, name: dest.name, type: dest.type || null, good: good.id, price: reported }],
         };
     },
 
@@ -336,6 +343,7 @@ Object.assign(Tavern, {
             accurate: true,
             day: world.day,
             source: fromTile.settlement.name,
+            quotes: [{ q: bestTip.dest.q, r: bestTip.dest.r, name: bestTip.dest.name, type: bestTip.dest.type || null, good: bestTip.good.id, price: bestTip.sellPrice }],
         };
     },
 
@@ -498,6 +506,8 @@ Object.assign(Tavern, {
         if (!player.intel.rumors) player.intel.rumors = [];
 
         for (const rumor of rumors) {
+            // Prices in the talk go into the player's price book (systems/priceKnowledge.js)
+            if (rumor && rumor.quotes) PriceKnowledge.learnFromRumor(player, rumor);
             // Deduplicate: if a rumor with the same category + title exists,
             // replace the old one with the newer version
             const dupeIdx = player.intel.rumors.findIndex(r =>

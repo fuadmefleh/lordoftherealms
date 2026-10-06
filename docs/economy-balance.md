@@ -334,6 +334,29 @@ These are the player's levers on the settlement economy: industry, warehouses, f
   - Mood is up by more than 0.25 on 22–30% of town-days: 42–53% in winter and 10–20% in spring.
   - The mean lift is 0.1–0.4 points.
 
+## Town guilds (2026-10)
+
+Craft and merchant guilds (`systems/guilds.js`, `data/guilds.json`; see [the manual](../GAMEPLAY_MANUAL.md#town-guilds)). Measured with throwaway harness runs on seeds 101, 202 and 303 (400 days, player kept fed) and the 800-day soak (5 seeds).
+
+- **The world.**
+  - 19–23 towns hold 159–177 guilds, about 8 per town. Each hall holds about 190–200g on average.
+  - 11–20 guilds win a royal charter and 16–19 win a guild monopoly by lobbying foreign crowns.
+- **Strikes.** With `strikeAt` 1.2, a 90-day cooldown and a 50% roll, there were 22–84 strikes per 400 days. That is 0.5–2% of guild-days on strike. Each strike idles the trade for 10–18 days, and bread, beer or tools run really short in that town.
+- **Player money flows.** In the soak (the bot joins after day 100), the bot joins 2 guilds and rises 0–4 ranks.
+  - Fees, masterpiece goods and contracts net −2,387 to +1,263g over the run.
+  - Dues, loans and stipends net −102 to −1,168g over 800 days.
+  - The quality mark (+8%) and untolled sales show up in sale prices, not as a separate line.
+  - Guilds are a modest cost of doing business in a town, not an income source.
+- **The faucets are small and bounded.**
+  - A guildmaster's stipend is at most 30g a week from the hall.
+  - A lobbying purse is at most 200g, with one guild petition pending at a time.
+  - A charter's fee comes from the guild's hall. A guild founded by charter starts with an empty hall, so charter-then-abolish pays nothing (tested).
+- **No money loops (tested).**
+  - Buying at guild rates and selling back loses.
+  - A guild contract pays 85% of worth, below what the goods cost to buy here after every discount.
+  - The master's premium still sits under `Trading.saleUnitCap`, whose buy-back side now includes the guild floor and guild rates.
+- **Cost.** About 0.3 ms a day for the guild tick alone, warm (the fairs tick was about 0.12 ms on the same machine). In the full day loop it is about 0.65–0.9 ms against 5–8 ms for `MarketDynamics.updatePrices`. Each town's guilds take a weekly turn on its slot, and the industry check (formation and decline) runs monthly.
+
 ## Leftovers and the price book (2026-10)
 
 **Caravan trade income on arrival.** A link whose goods travel as a caravan or trading ship no longer banks its trade income when the goods leave. The margin rides on the unit (`unit.margin`, from `link.goldAB/BA` in `SettlementMarket.flows`): half to each town on arrival, nothing when raiders, lairs or the player rob it, and the whole of it to the seizing realm's market when a warring realm seizes it. Unembodied flows and lots too small for the road are credited at once, as before. The world's total trade income is the same, less what is lost on the road and a few days later.
@@ -354,6 +377,64 @@ These are the player's levers on the settlement economy: industry, warehouses, f
 - **Caravans.** The bot now takes escort jobs (a caravan within 4 hexes, an army of 10+, 20% a day) and, as a guild member with 2.5× the caravan's strength and little heat, robs one now and then. Over the 5-seed, 800-day soak it hired on 39 times, was paid every time and robbed 4 caravans. The long soak checks `escortsHired`, `escortsPaid` and `caravansRobbed`.
 
 **The price book** (`systems/priceKnowledge.js`) changes no prices. It caps itself at 30 towns, 10 towns' history of 10 samples and 20 P&L routes; a book filled from every town of a harness world is under 40KB of save.
+
+## Labour, classes and migration (2026-10)
+
+Each town's people are split into five classes with their own baskets, a labour market per sector (land, craft, trade) with floating wages, welfare, crime, weekly migration and refugees (`world/townLabour.js`, `systems/labour.js`, `data/labour.json`). See [the manual](../GAMEPLAY_MANUAL.md#labour-classes-and-migration).
+
+**How it was measured.** Throwaway harness scripts (player kept fed, no bot) on seeds 101, 202 and 303, with the labour day switched off for the "before" runs. The kingdom survival sim ran `advanceDay` + `MarketDynamics.updatePrices` + `Labour.processDay` for 1,080 days, `generate({ kingdomCount: 10 })`.
+
+**Demand stays balanced.** A town with the usual class mix for its size has every good's need factor exactly 1 (tested). Deviations come from peoples, works, migration and refugees; the median town's mix stays within a few points of the usual one.
+
+**The labour market at rest** (days 40–360, every market turn):
+
+| | p10 | median | p90 |
+|---|---|---|---|
+| Hands idle (all sectors) | 0% | 0.4–1% | 4–5% |
+| Craft wage ÷ base | 0.81–0.85 | 0.97–0.99 | 1.08–1.18 |
+| Town welfare | 0.82–0.86 | 0.87–0.89 | 0.90 |
+| Crime | 0 | 0 | 0.01–0.02 |
+| Labour mood (happiness points) | −0.5 | 0 | +0.2 |
+
+Idle hands, crime and the mood bite only where something happened: a flood of refugees, a lost harvest, a town grown past its land, a trade road cut by war.
+
+**Population and migration (360 days).**
+
+| Seed | Population before → with labour | Moved (migration + refugees) | Refugees cried |
+|---|---|---|---|
+| 101 | 149,359 → 146,845 (−1.7%) | 1,394 | 101 |
+| 202 | 141,990 → 137,739 (−3.0%) | 5,286 | 700 |
+| 303 | 150,016 → 146,710 (−2.2%) | 4,946 | 978 |
+
+Migration moves about 1% of the world's people a year in peacetime; wars and famines add refugee columns. People flowing from small fast-growing villages to bigger towns, and refugees crowding safe towns, trim the world's growth a little (it still grows about 15–20% over the year). Total population is conserved by every move.
+
+**Kingdom survival (seeds 7–11, 1,080 days).**
+
+| | Alive (of 10) | Wars | Population at the end |
+|---|---|---|---|
+| Without labour | 10, 9, 9, 8, 10 | 54, 89, 80, 40, 36 | 175,600–206,200 |
+| With labour | 10, 8, 9, 8, 10 | 52, 85, 80, 23, 46 | 184,800–200,300 (0–3,200 refugees per run) |
+
+**Works payback (re-measured under the current economy).** One level funded in each of the 8 most populous towns with the trade, 3 seeds, 120 days, foreign town, after the tithe. The "before" column is the code before labour (40% share, no wages, no labour day); "with labour" pays the hands (`data/labour.json` works.hands at the town's craft wage, only for the runs made; a run must also earn its wages) out of a share raised to **52%** (72% in your own towns).
+
+| Works | Before: g/day median (payback) | With labour: g/day median (payback) | Wages as a share of value added |
+|---|---|---|---|
+| Jewellers' row | 4.6 (66 days) | 4.9 (61) | 14% |
+| Armoury | 3.6 (72) | 4.2 (62) | 19% |
+| Creamery | 1.7 (91) | 2.1 (73) | 15% |
+| Tailors' hall | 2.3 (95) | 2.4 (87) | 25% |
+| Charcoal kilns | 1.8 (134) | 1.6 (151) | 26% |
+| Bakehouse | 0 (median idle; p75 4.1) | 1.6 (398; p25 139) | 25% |
+| Brewhouse | 0 (median idle; p75 3.3) | 1.5 (366; p25 145) | 25% |
+| Distillery | 0 (median idle) | 0.8 (376) | 22% |
+| Grain mill | 0 (median idle) | 0.3 (468) | 20% |
+
+- Labour leaves the works where they were, or slightly better: the share rise more than covers the wages, and wages fall where artisans are idle.
+- **Open: the 30–60 day band no longer holds under the current economy, before or after labour.** The Merchant Prince table above (bakehouse 43 days) was measured before the caravan and price-book work merged; today the great towns' own bakers and brewers keep bread and beer near target, so a funded bakehouse mostly stands idle (median 0 g/day before labour). The craft works (jewellers, armoury, creamery, tailors) sit at 60–90 days. Retuning `runsPerLevel`/prices is a separate pass.
+
+**Properties.** Half of a property's upkeep is its wage bill at the hiring town's base wage, floating with the local wage. With local wages at 0.81–1.18 of base (p10–p90) and land and craft fill at 1 in almost every town, upkeep moves by −10% to +9% and output is unchanged, so the property paybacks in the table at the top (30–55 days early) hold to within a few days.
+
+**Cost per day** (harness, 80×60, 59–101 towns, 150 days): the labour day costs 0.6 ms on a quiet run (market tick 1.6 ms beside it, unchanged by labour) and 0.6–1.0 ms median, 1.0–1.3 ms mean, on a loaded machine (market 1.9–2.7 ms). Most of it is the market-day turns of a quarter of the towns (about 12 µs each); the weekly migration pass adds 2–3 ms once a week.
 
 ## Re-measuring
 

@@ -31,7 +31,9 @@ const DEFAULT_CONFIG = { speed: 8, lifeDays: 40, minGapDays: 2, maxPerDay: 1, ca
 const MAJOR = 9;
 const SIEGE_WON = ['captured', 'sacked', 'terms'];
 // Market records (player.merchantPrince.history) and the proclamation each makes
-const MARKET_KINDS = { fair: 'market_fair', dearth: 'market_dearth', glut: 'market_glut' };
+const MARKET_KINDS = { fair: 'market_fair', dearth: 'market_dearth', glut: 'market_glut',
+    // ...and the town guilds' strikes, elections, charters and abolitions (player.guilds.history, systems/guilds.js)
+    guild_strike: 'guild_strike', guild_election: 'guild_election', guild_chartered: 'guild_chartered', guild_abolished: 'guild_abolished' };
 // Labour records (world.labour.history, systems/labour.js) and the proclamation each makes
 const LABOUR_KINDS = { refugees: 'labour_refugees', strike: 'labour_strike', boom: 'labour_boom' };
 const LABOUR_WHY = { siege: 'siege', conquest: 'new masters', war: 'war', famine: 'hunger', danger: 'raiders' };
@@ -174,6 +176,9 @@ export const Heralds = {
         }
         // Fairs opening, harvest gluts and dearths (systems/marketFairs.js)
         for (const h of (player && player.merchantPrince && Array.isArray(player.merchantPrince.history)) ? player.merchantPrince.history : []) {
+            if (h && h.key && MARKET_KINDS[h.kind]) out.market.push({ key: h.key, day: _num(h.day), h });
+        }
+        for (const h of (player && player.guilds && Array.isArray(player.guilds.history)) ? player.guilds.history : []) {
             if (h && h.key && MARKET_KINDS[h.kind]) out.market.push({ key: h.key, day: _num(h.day), h });
         }
         return out;
@@ -393,7 +398,8 @@ export const Heralds = {
             Heralds._proclaim(st, world, MARKET_KINDS[h.kind], {
                 place: h.place || 'the town', fair: h.fair || 'the fair', good: h.good || 'grain', days: _num(h.days) || 7,
                 pct: Math.abs(_num(h.pct)), kingdom: (_kingdom(world, h.kingdomId) || {}).name || 'the realm',
-            }, { q: h.q, r: h.r }, { kingdomId: h.kingdomId != null ? h.kingdomId : null });
+                guild: h.guild || 'the guild', master: h.master || 'its master', reason: h.reason || 'hard times',
+            }, { q: h.q, r: h.r }, { kingdomId: h.kingdomId != null ? h.kingdomId : null, own: !!h.own });
         }
 
         // The people on the move: refugees, strikes, boom towns

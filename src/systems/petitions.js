@@ -228,6 +228,8 @@ const EFFECTS = {
             if (v.revoke) { delete c.settlement.monopolies[v.good]; return; }
             c.settlement.monopolies[v.good] = {
                 holder: v.holder || 'guild', holderName: v.holderName || null,
+                // (which town guild holds it — systems/guilds.js)
+                ...(v.guildId ? { guildId: v.guildId } : {}),
                 sinceDay: c.day, untilDay: v.days ? c.day + v.days : null,
             };
         },

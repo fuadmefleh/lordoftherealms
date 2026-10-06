@@ -46,7 +46,7 @@ const DEFAULT_CONFIG = {
 /** Every condition a group may use, by the kind of value it takes. */
 const CONDITIONS = {
     war: 'bool', playerWar: 'bool', blockade: 'bool', siege: 'bool', revolt: 'bool',
-    rival: 'bool', newRuler: 'bool', lean: 'bool', outlaws: 'bool', dearth: 'bool', glut: 'bool',
+    rival: 'bool', newRuler: 'bool', lean: 'bool', outlaws: 'bool', dearth: 'bool', glut: 'bool', strike: 'bool',
     money: 'boolOrList', labour: 'boolOrList',
     event: 'list', season: 'list', trait: 'list', court: 'list', title: 'list',
     occupation: 'list', personality: 'list',
@@ -70,7 +70,7 @@ const TOKEN_NEEDS = {
     enemy: 'war', blockader: 'blockade', siegeTown: 'siege', eventPlace: 'event', eventName: 'event',
     saga: 'saga', villain: 'saga', rival: 'rival', rivalNews: 'rival', oldRuler: 'newRuler',
     proclamation: 'proclamation', deedPlace: 'deed', deedVictim: 'deed',
-    lair: 'outlaws', leader: 'outlaws', dearthGood: 'dearth', glutGood: 'glut',
+    lair: 'outlaws', leader: 'outlaws', dearthGood: 'dearth', glutGood: 'glut', strikeGuild: 'strike', strikeGood: 'strike',
     bank: 'money',
 };
 const ALWAYS_TOKENS = ['settlement', 'kingdom', 'ruler', 'player', 'house', 'season', 'title'];
@@ -257,6 +257,11 @@ export const Chatter = {
             if (short) ctx.dearth = { id: short.id, label: Chatter._goodLabel(short.id) };
             if (glut) ctx.glut = { id: glut.id, label: Chatter._goodLabel(glut.id) };
         }
+        // A town guild on strike (settlement.guilds, systems/guilds.js)
+        ctx.strike = null;
+        for (const g of Object.values((settlement && settlement.guilds) || {})) {
+            if (g && g.strike) { ctx.strike = { guild: g.name, good: Chatter._goodLabel(g.strike.good || 'goods') }; break; }
+        }
 
         // Money talk: debased coin, a war levy, a crown's default, a run on the
         // bank or a broken one, or just the banking house in town (systems/finance.js)
@@ -364,6 +369,7 @@ export const Chatter = {
             case 'dearth': return !!ctx.dearth === !!v;
             case 'glut': return !!ctx.glut === !!v;
             case 'labour': { const l = ctx.labour || []; return v === true ? l.length > 0 : v === false ? l.length === 0 : Chatter._anyIn(v, l); }
+            case 'strike': return !!ctx.strike === !!v;
             case 'money': { const m = ctx.money || []; return v === true ? m.length > 0 : v === false ? m.length === 0 : Chatter._anyIn(v, m.map(x => x.kind)); }
             case 'event': return Chatter._anyIn(v, ctx.events.map(e => e.id));
             case 'saga': return v === true ? ctx.sagas.length > 0 : v === false ? ctx.sagas.length === 0 : Chatter._anyIn(v, ctx.sagas.map(s => s.id));
@@ -414,6 +420,7 @@ export const Chatter = {
             deedPlace: deed && deed.place, deedVictim: deed && deed.victim,
             lair: ctx.outlaws && ctx.outlaws.name, leader: ctx.outlaws && ctx.outlaws.leader,
             dearthGood: ctx.dearth && ctx.dearth.label, glutGood: ctx.glut && ctx.glut.label,
+            strikeGuild: ctx.strike && ctx.strike.guild, strikeGood: ctx.strike && ctx.strike.good,
             bank: money && money.bank,
         };
         return String(text).replace(/\{(\w+)\}/g, (m, k) => (map[k] != null ? map[k] : m));
@@ -549,6 +556,7 @@ export const Chatter = {
         for (const s of ctx.sagas) f.push(`Everyone talks of "${s.name}".`);
         if (ctx.dearth) f.push(`The market here is short of ; prices are high.`);
         if (ctx.glut) f.push(`The market here is glutted with ; it sells cheap.`);
+        if (ctx.strike) f.push(`The ${ctx.strike.guild} is on strike; ${ctx.strike.good} is short.`);
         if (ctx.outlaws) f.push(`Outlaws led by ${ctx.outlaws.leader} hold ${ctx.outlaws.name} nearby and raid the roads.`);
         const MONEY = { debased: 'The coin of the realm has been debased and prices are rising.', levy: 'The crown has raised an extraordinary war levy.',
             default: 'The crown has refused to pay its debts.', bank_run: 'Depositors are running on the bank.', bank_failed: 'A banking house has failed.' };
@@ -629,7 +637,9 @@ export const Chatter = {
             // market fairs, dearths and gluts (systems/marketFairs.js)
             'fair', 'pct',
             // refugees, strikes and booms (systems/labour.js)
-            'to', 'n', 'why'];
+            'to', 'n', 'why',
+            // town guilds' strikes, elections, charters (systems/guilds.js)
+            'guild', 'master', 'reason'];
         for (const [kind, list] of Object.entries(H.templates || {})) {
             if (!Array.isArray(list) || !list.length) problems.push(`heralds.${kind}: no templates`);
             for (const t of list || []) for (const [, tok] of String(t).matchAll(/\{(\w+)\}/g)) {

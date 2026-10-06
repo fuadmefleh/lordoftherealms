@@ -103,6 +103,8 @@ describe('the labour market', () => {
         for (let t = 0; t < 8; t++) TownLabour.update(capital, { day: 50 + t * 4, k: 4, hands: { craft: 800 } });
         expect(capital.labour.fill.craft).toBeLessThan(1);
         expect(capital.labour.wage.craft).toBeGreaterThan(base * 1.1);
+        // ...which the town guilds read as the wage index (1 = the customary wage at today's bread)
+        expect(capital.wageIndex).toBeGreaterThan(1.05);
         // A town flooded with newcomers: its workshops have no place for them yet
         const lt = TownLabour.ensure(town);
         TownLabour.update(town, { day: 50, k: 4 });

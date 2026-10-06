@@ -36,6 +36,7 @@ import './patronage.js';
 import './bank.js';
 import './merchantPrince.js';
 import './labour.js';
+import './guilds.js';
 import './merchantLedger.js';
 
 // Expose ActionMenu globally so inline onclick handlers in dynamic HTML can access it

@@ -51,6 +51,7 @@ import { KingdomNavy } from '../world/kingdomNavy.js';
 import { Patronage } from './patronage.js';
 import { Finance } from './finance.js';
 import { MarketFairs } from './marketFairs.js';
+import { Guilds } from './guilds.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { TownLabour } from '../world/townLabour.js';
 
@@ -1049,6 +1050,50 @@ R.worksAtRisk = (ctx, p) => {
         }
     }
     return out;
+};
+
+/** A guild contract falling due (systems/guilds.js). */
+R.guildContractDue = (ctx, p) => {
+    const st = _obj(ctx.player.guilds);
+    const out = [];
+    for (const c of _arr(st && st.contracts)) {
+        const left = _num(c.qty) - _num(c.delivered);
+        const days = _num(c.due) - ctx.day;
+        if (left <= 0 || days > _num(p.days, 5)) continue;
+        out.push({ key: `gc:${c.id}`, q: c.q, r: c.r, qty: left, good: String(c.good || '').replace(/_/g, ' '), town: c.town, due: c.due, severity: days <= 1 ? 'warning' : 'notice', boost: 5 - days });
+    }
+    return out;
+};
+
+/** Guild dues in arrears: three weeks and the guild strikes the player from its rolls. */
+R.guildDues = (ctx) => {
+    const st = _obj(ctx.player.guilds);
+    return Object.values(_obj(st && st.memberships) || {}).filter(m => _num(m.unpaid) > 0)
+        .map(m => ({ key: `gd:${m.key}`, q: m.q, r: m.r, town: m.town, guild: (Guilds.def(m.guild) || {}).name || 'guild', weeks: _num(m.unpaid), severity: _num(m.unpaid) >= 2 ? 'warning' : 'notice' }));
+};
+
+/** A rank within reach in one of the player's guilds (everything but the fee and the masterpiece goods in hand). */
+R.craftGuildRank = (ctx) => {
+    const out = [];
+    const st = _obj(ctx.player.guilds);
+    for (const m of Object.values(_obj(st && st.memberships) || {})) {
+        const t = ctx.tile(m.q, m.r);
+        if (!t || !t.settlement) continue;
+        const q = Guilds.advanceQuote(ctx.player, ctx.world, t, m.guild);
+        if (!q.needs.length) continue;
+        const blocking = q.needs.filter(n => !n.met && !/gold|masterpiece/.test(n.label));
+        if (blocking.length) continue;
+        const still = q.needs.filter(n => !n.met).map(n => n.label);
+        out.push({ key: `gr:${m.key}`, q: m.q, r: m.r, town: m.town, guild: (Guilds.def(m.guild) || {}).name || 'guild', rank: Guilds.rankName(q.rank), still: still.length ? `: bring ${still.join(', ')}` : ': go and take it' });
+    }
+    return out;
+};
+
+/** A guild on strike near the player: its goods are short there. */
+R.guildStrikes = (ctx, p) => {
+    if (!ctx.world || typeof ctx.world.getSettlementViews !== 'function') return [];
+    return Guilds.strikesNear(ctx.world, ctx.player.q, ctx.player.r, _num(p.radius, 12)).slice(0, 1)
+        .map(x => ({ key: `gs:${x.town}:${x.guild}`, q: x.q, r: x.r, guild: x.guild, town: x.town, goods: x.goods.map(g => g.replace(/_/g, ' ')).join(' and '), until: x.until, dist: x.dist }));
 };
 
 /** The player's works that can't find hands (the town's artisans are few, or on strike). */

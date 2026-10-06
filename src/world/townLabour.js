@@ -400,6 +400,9 @@ export const TownLabour = {
             lab.wage[sec] = Math.round((cur + (target - cur) * wa) * 100) / 100;
         }
         const idleShare = handsAll > 0 ? idleAll / handsAll : 0;
+        // The artisans' wage against the customary one at today's price of bread
+        // (1 = it buys what it always did) — read by the town guilds (systems/guilds.js)
+        settlement.wageIndex = Math.round(_num(lab.wage.craft) / Math.max(0.01, TownLabour.baseWage(type, 'craft') * col) * 1000) / 1000;
         lab.idleAll = _r3(idleShare);
 
         // Welfare of each stratum: basket met, work, real wage, safety, famine, taxes

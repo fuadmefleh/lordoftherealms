@@ -25,6 +25,7 @@ import { Finance } from '../../systems/finance.js';
 import { MarketFairs } from '../../systems/marketFairs.js';
 import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { Labour } from '../../systems/labour.js';
+import { Guilds } from '../../systems/guilds.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
@@ -597,6 +598,10 @@ export function endDay() {
             const princeDay = MerchantPrince.processDay(this.player, this.world);
             for (const n of princeDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            // Town guilds: each town's weekly turn (formation, dues, strikes, elections,
+            // lobbying, feuds); the player's dues, guild loans and contracts (systems/guilds.js)
+            const guildDay = Guilds.processDay(this.world, this.player);
+            for (const n of guildDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // The player's price book: the market they stand in, merchants met,
             // their factors' and stewards' reports (systems/priceKnowledge.js)
             PriceKnowledge.processDay(this.player, this.world, {
@@ -1017,6 +1022,8 @@ export function endDay() {
             if (princeDay.income > 0) dayFinance.income.industry = princeDay.income;
             if (princeDay.rent > 0) dayFinance.expenses.warehouseRent = princeDay.rent;
             if (princeDay.wages > 0) dayFinance.expenses.worksWages = princeDay.wages;
+            if (guildDay.income > 0) dayFinance.income.guilds = guildDay.income;
+            if (guildDay.expenses > 0) dayFinance.expenses.guildDues = guildDay.expenses;
             if (typeof Tavern !== 'undefined' && intelResult && intelResult.cost > 0) dayFinance.expenses.informants = intelResult.cost;
 
             // Property upkeep (calculated from properties)

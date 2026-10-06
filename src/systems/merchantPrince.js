@@ -47,6 +47,7 @@ import { RealmWars } from './realmWars.js';
 import { Throne } from './throne.js';
 import { Finance } from './finance.js';
 import { Taxation, MarketDynamics } from './marketDynamics.js';
+import { Guilds } from './guilds.js';
 
 const DEFAULTS = {
     industry: {
@@ -315,6 +316,9 @@ export const MerchantPrince = {
         if (!s) return { ...out, reason: 'There is no town here.' };
         if (!def) return { ...out, reason: 'No such trade.' };
         if (!SettlementMarket.hasTrade(s, recipeId)) return { ...out, reason: `${s.name} is too small for a ${def.name.toLowerCase()}.` };
+        // Guild-only works: only the guild's masters may build them (systems/guilds.js)
+        const guildOnly = Guilds.guildOnlyBlock(player, s, def);
+        if (guildOnly) return { ...out, reason: guildOnly };
         const w = SettlementMarket.works(s, recipeId);
         const inv = MerchantPrince.investmentAt(player, tile.q, tile.r, recipeId);
         if (w && w.owner !== 'player') return { ...out, reason: `The ${def.name.toLowerCase()} here belongs to ${w.owner === 'crown' ? 'the crown' : 'the town'} now.` };
@@ -460,6 +464,8 @@ export const MerchantPrince = {
                 continue;
             }
             const owned = MerchantPrince.holds(player, world, inv.q, inv.r);
+            // A guild man's works are harder to take (systems/guilds.js)
+            const shield = Guilds.worksShield(player, s, inv.recipe);
             if (!owned) {
                 // An enemy crown takes what it can reach
                 if (MerchantPrince.hostile(player, world, s)) {
@@ -468,14 +474,14 @@ export const MerchantPrince = {
                 }
                 // A crown in crisis looks for money anywhere (weekly)
                 if (day % 7 === 0 && !MerchantPrince.inOwnRealm(player, world, s) && MerchantPrince.crownInCrisis(world, s)
-                    && _roll(`seize:${inv.id}:${day}`) < _num(I.seizure.crisisChance)) {
+                    && _roll(`seize:${inv.id}:${day}`) < _num(I.seizure.crisisChance) * shield.seizeMult) {
                     MerchantPrince._seize(player, world, st, inv, 'crown', 'its treasury is empty and the king needs money', out);
                     continue;
                 }
                 // A town that has turned on the player takes the works back
                 if (s.kingdom && MerchantPrince.reputation(player, s) < _num(I.seizure.expropriateBelow, -30)) {
                     inv.lowRep = _num(inv.lowRep) + 1;
-                    if (inv.lowRep >= _num(I.seizure.graceDays, 10)) {
+                    if (inv.lowRep >= _num(I.seizure.graceDays, 10) * shield.graceMult) {
                         MerchantPrince._seize(player, world, st, inv, 'town', 'your name is hated there', out);
                         continue;
                     }
@@ -671,14 +677,18 @@ export const MerchantPrince = {
         const g = MerchantPrince._good(goodId);
         const n = Math.min(Math.floor(_num(qty)), Math.floor(_num(x.w.goods[goodId]) + 1e-9));
         if (!g || !(n > 0)) return { success: false, reason: 'There is none stored.' };
-        const blocked = Trading.monopolyBlock(x.s, goodId);
+        const blocked = Trading.monopolyBlock(x.s, goodId, player);
         if (blocked) return { success: false, reason: blocked };
+        // The town's guild caps an outsider's sales of its goods (systems/guilds.js)
+        const capped = Guilds.saleCheck(player, x.s, goodId, n);
+        if (capped) return { success: false, reason: capped };
         const legal = Underworld.legalSaleCheck(player, goodId, n, x.s, world);
         if (!legal.ok) return { success: false, reason: legal.reason };
         const earned = Math.floor(Trading.saleUnitPrice(player, g, x.s, world, legal.priceMult, n) * n);
         MerchantPrince._take(x.w, goodId, n);
         player.gold += earned;
         SettlementMarket.add(x.s, goodId, n);
+        Guilds.onSale(player, x.s, goodId, n, earned);
         return { success: true, qty: n, earned };
     },
 

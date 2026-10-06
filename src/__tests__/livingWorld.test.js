@@ -87,7 +87,7 @@ describe('chatter data', () => {
         const keys = new Set(Chatter.groups().flatMap(g => Object.keys(g.when || {})));
         for (const k of ['war', 'playerWar', 'blockade', 'siege', 'season', 'lean', 'event', 'revolt', 'saga', 'rival',
             'newRuler', 'proclamation', 'deed', 'trait', 'court', 'title', 'houseGen', 'occupation', 'personality', 'outlaws',
-            'dearth', 'glut']) {
+            'dearth', 'glut', 'strike']) {
             expect(keys.has(k), k).toBe(true);
         }
     });
@@ -105,6 +105,8 @@ describe('chatter data', () => {
             outlaws: { name: 'Crowmoor Camp', leader: 'Captain Hask the Red' },
             // A dearth and a glut in the town's own market (world/settlementMarket.js)
             dearth: { id: 'grain', label: 'grain' }, glut: { id: 'wool', label: 'wool' },
+            // A town guild on strike (systems/guilds.js)
+            strike: { guild: 'Bakers\' Guild of Tallow', good: 'bread' },
             money: [{ kind: 'debased' }, { kind: 'bank', bank: 'The Medrano Counting House' }, { kind: 'bank_run', bank: 'The Medrano Counting House' }, { kind: 'bank_failed', bank: 'The Aurelian Bank' }],
         };
         for (const g of Chatter.groups()) {

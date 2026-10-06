@@ -32,6 +32,7 @@ const topLevel = [
     'merchantCaravans',
     'merchantPrince',
     'labour',
+    'guilds',
     'priceKnowledge'
 ];
 

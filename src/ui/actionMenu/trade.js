@@ -1,6 +1,7 @@
 // ActionMenu — trade methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
 import { peopleLine } from './labour.js';
+import { Guilds } from '../../systems/guilds.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, NpcDisposition, Seasons, SettlementMarket } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -922,6 +923,16 @@ Object.assign(ActionMenu, {
             const days = info.days != null ? ` · ${info.days >= 99 ? '99+' : Math.floor(info.days)}d in store` : '';
             return `<div class="trade-meta" style="color:${info.color};" title="Stock ${Math.floor(info.stock)}${info.need > 0 ? `, the town uses ${Math.round(info.need * 10) / 10} a day` : ', the town does not use it'}. Buying raises the price, selling lowers it.">${info.label} ${pct >= 0 ? '+' : ''}${pct}%${arrow ? ` ${arrow}` : ''}${days}</div>`;
         };
+        // ── The town's guild on a good you sell: its toll on outsiders, or a master's mark (systems/guilds.js) ──
+        const guildBadge = (goodId) => {
+            const gd = tile.settlement && Guilds.guardOf(tile.settlement, goodId);
+            if (!gd) return '';
+            const f = Guilds.saleFactor(game.player, tile.settlement, goodId);
+            const room = Guilds.outsiderRoom(game.player, tile.settlement, goodId);
+            if (f > 1) return `<div class="trade-meta" style="color:#2ecc71;" title="Your goods carry the ${gd.name}'s mark">⚒️ Guild mark +${Math.round((f - 1) * 100)}%</div>`;
+            if (f < 1) return `<div class="trade-meta" style="color:#e67e22;" title="The ${gd.name} tolls goods sold by non-members${room !== Infinity ? `; outsiders may sell ${room} more this week` : ''}">⚒️ Guild toll −${Math.round((1 - f) * 100)}%${room !== Infinity ? ` · ${room} more this week` : ''}</div>`;
+            return '';
+        };
         const mkt = tile.settlement && tile.settlement.market;
         const dearth = tile.settlement && SettlementMarket.worstShortage(tile.settlement);
         const glut = tile.settlement && SettlementMarket.biggestGlut(tile.settlement);
@@ -1012,6 +1023,7 @@ Object.assign(ActionMenu, {
             <button class="trade-tab" data-am-act="showMerchantPrince" data-am-args='[null, "warehouse"]' title="Rent a store-room here">📦 Warehouse</button>
             <button class="trade-tab" data-am-act="showMerchantPrince" data-am-args='[null, "contracts"]' title="Forward contracts with this town">📜 Contracts</button>
             <button class="trade-tab" data-am-act="showTownPeople" data-am-args='[null]' title="The town's classes, work, wages and welfare">👥 People</button>
+            ${tile.settlement && tile.settlement.guilds ? '<button class="trade-tab" data-am-act="showGuildhall" title="The town guilds: tolls, membership, contracts">⚒️ Guilds</button>' : ''}
             <button class="trade-tab" data-am-act="showMerchantLedger" data-am-args='["book"]' title="Known prices, best spreads, price history and your trading profit (ui/actionMenu/merchantLedger.js)">📒 Ledger</button>
         </div>
         ${SettlementMarket.fair(tile.settlement) ? `<div style="margin:-6px 0 10px; font-size:12px; color:var(--gold);">🎪 The ${SettlementMarket.fair(tile.settlement).name} is on until day ${SettlementMarket.fair(tile.settlement).until}: the stalls ask less and buy dearer.</div>` : ''}
@@ -1067,6 +1079,7 @@ Object.assign(ActionMenu, {
                     <div>
                         <div class="trade-name">${item.name}</div>
                         <div class="trade-meta">You have: ${item.quantity}</div>
+                        ${guildBadge(item.id)}
                         ${stockBadge(item.id)}
                         ${trendBadge(item.id)}
                     </div>

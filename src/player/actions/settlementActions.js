@@ -587,6 +587,17 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
         }
     }
 
+    // The guildhall — the town's craft and merchant guilds (systems/guilds.js)
+    if (tile.settlement.guilds && Object.keys(tile.settlement.guilds).length) {
+        const n = Object.keys(tile.settlement.guilds).length;
+        actions.push({
+            type: 'guildhall',
+            label: 'Guildhall',
+            icon: '⚒️',
+            description: `The town's ${n} guild${n === 1 ? '' : 's'}: join, rise to master, contracts, loans and elections`
+        });
+    }
+
     // Train / Spar (at settlements with military)
     if (isCity) {
         actions.push({

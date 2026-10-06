@@ -31,7 +31,8 @@ import { DataLoader } from '../core/dataLoader.js';
 // plus showHoldingPanel (holdings development) = 244, plus showRivalsPanel and
 // showHallOfHeroes (rival adventurers) = 246, plus showPhysicianMenu (wounds, sickness
 // and medicine) = 247, plus the heirs panels (showChildPanel, showHouseChronicle,
-// showEpitaph, _heirProfileHtml, _reignsHtml) = 252, plus showSagasJournal (world storylines) = 253, plus showDiscoveries (uncharted lands) = 254, plus showTradingCompany (merchant houses) = 255, plus showHoldingSiegesPanel and holdingSiegeAct (holdings under siege) = 259, plus showDeeds (Deeds & Records) = 260, plus showRoyalCourt (kingship) = 261, plus showCounsel and counselGo (the Steward's Counsel) = 263, plus showPatronage and patronageAct (patronage & great works) = 265, plus showOutlawLairs (outlaw lairs) = 266, plus showBank and bankAct (banks, credit & coin) = 268, plus showTrader, traderBuy, traderSell, traderEscort, traderQuitEscort and traderRob (merchant caravans on the road) = 274, plus showMerchantPrince and merchantPrinceAct (invest, warehouse, contracts) = 276, plus showMerchantLedger and merchantLedgerAct (the Merchant's Ledger) = 278, plus showTownPeople (labour, classes & migration) = 279.
+// showEpitaph, _heirProfileHtml, _reignsHtml) = 252, plus showSagasJournal (world storylines) = 253, plus showDiscoveries (uncharted lands) = 254, plus showTradingCompany (merchant houses) = 255, plus showHoldingSiegesPanel and holdingSiegeAct (holdings under siege) = 259, plus showDeeds (Deeds & Records) = 260, plus showRoyalCourt (kingship) = 261, plus showCounsel and counselGo (the Steward's Counsel) = 263, plus showPatronage and patronageAct (patronage & great works) = 265, plus showOutlawLairs (outlaw lairs) = 266, plus showBank and bankAct (banks, credit & coin) = 268, plus showTrader, traderBuy, traderSell, traderEscort, traderQuitEscort and traderRob (merchant caravans on the road) = 274, plus showMerchantPrince and merchantPrinceAct (invest, warehouse, contracts) = 276, plus showGuildhall and guildAct (town guilds) = 278.
+// showEpitaph, _heirProfileHtml, _reignsHtml) = 252, plus showSagasJournal (world storylines) = 253, plus showDiscoveries (uncharted lands) = 254, plus showTradingCompany (merchant houses) = 255, plus showHoldingSiegesPanel and holdingSiegeAct (holdings under siege) = 259, plus showDeeds (Deeds & Records) = 260, plus showRoyalCourt (kingship) = 261, plus showCounsel and counselGo (the Steward's Counsel) = 263, plus showPatronage and patronageAct (patronage & great works) = 265, plus showOutlawLairs (outlaw lairs) = 266, plus showBank and bankAct (banks, credit & coin) = 268, plus showTrader, traderBuy, traderSell, traderEscort, traderQuitEscort and traderRob (merchant caravans on the road) = 274, plus showMerchantPrince and merchantPrinceAct (invest, warehouse, contracts) = 276, plus showMerchantLedger and merchantLedgerAct (the Merchant's Ledger) = 278, plus showTownPeople (labour, classes & migration) = 281.
 const EXPECTED_KEYS = [
     'showCourtPanel', 'showDelvePanel', 'showClaimsPanel', 'showHoldingPanel',
     'showRivalsPanel', 'showHallOfHeroes', 'showPhysicianMenu',
@@ -42,6 +43,7 @@ const EXPECTED_KEYS = [
     'showBank', 'bankAct',
     'showTrader', 'traderBuy', 'traderSell', 'traderEscort', 'traderQuitEscort', 'traderRob',
     'showMerchantPrince', 'merchantPrinceAct',
+    'showGuildhall', 'guildAct',
     'showMerchantLedger', 'merchantLedgerAct',
     'showTownPeople',
     'showTradingCompany',
@@ -118,8 +120,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 279 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(279);
+    it('has 281 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(281);
     });
 
     it('every member except the known data props is a function', () => {

@@ -525,6 +525,7 @@ Beyond buying and selling, a rich trader can work a town's market from the insid
   - A crown whose treasury is in crisis may seize them at its weekly reckoning.
   - If your reputation in the realm stays below −30 for 10 days, the town's guilds expropriate them. The Counsel warns you below −20.
   - Seized works keep running for their new owner.
+  - As a journeyman or better of the town guild of the works' craft (see Town Guilds), a crisis seizure is half as likely (a third for a master, a fifth for its guildmaster), and expropriation waits twice as long. As an outsider, the guild may feud with works that undercut it.
 - **Damage.**
   - A raid or sack that loots the town's stores also damages the works. So does a bandit raid that gets into one of your holdings.
   - A siege of the town idles them and wears them 3% a day.
@@ -615,6 +616,60 @@ A town's welfare above or below the ordinary moves its mood by a point or two.
 **Refugees.** A town in danger or famine loses up to 5% of its people a week to linked towns that are safe, weighted by their size and welfare. The nobles flee first, the poor on foot. They remember home: once it is safe again, a quarter of them go back each week. A refugee column of 40 or more is cried by the heralds. A town crowded with refugees has idle hands and dear bread.
 
 **Strikes and booms.** Artisans whose wages no longer buy their bread may strike for 7 days (towns and larger; not again within 45 days). Most of the town's trades and your works stand idle, and the heralds cry it. A thriving town that draws newcomers booms, and the heralds cry that too. The tavern talks of idle hands, refugees, strikes, booms and hard times. The Steward's Counsel warns when your works or properties can't find hands, and when a town you rule has many idle hands or is on strike.
+### Town Guilds
+
+The people who work a town's trades band together in **guilds**. A town bakes, brews and smiths (the recipes above), so it has a **Bakers' Guild**, **Brewers' Guild**, **Smiths' Guild** and so on. The great towns also have a **Merchants' Guild** for spices, wine and salt. Visit them through the town's **⚒️ Guildhall** action or the trade window's **⚒️ Guilds** tab. The thieves' guild is a different kind of guild (see the Underworld). Tuned in `data/guilds.json`.
+
+| Guild | Trades | Guards (its goods) | Buys at guild rates |
+|---|---|---|---|
+| Millers | mill | flour | grain |
+| Bakers | bakery | bread | grain |
+| Brewers | brewery, distillery | beer, liquor | grain |
+| Colliers | charcoal kilns | firewood | wood |
+| Weavers / Tailors | weaving / tailoring | textiles / clothes | wool / textiles |
+| Tanners | tannery | leather | hides |
+| Cheesewrights | dairy | cheese | meat |
+| Smiths | smithy, forge, armoury | tools, weapons | iron, coal |
+| Chandlers | chandlery | lamp oil | rock oil |
+| Jewellers (cities) | jewellers | luxuries | gems |
+| Merchants (cities of 5,000+) | — | spices, wine, salt | spices, wine, salt |
+
+**How a guild lives.** A guild forms in a town (not a village) whose own trade is big enough for it. Its size follows the town's industry, which is weighed once a month. When the trade shrinks below half of what the guild needs for two months running, the guild dissolves. Each guild has a guildhall treasury fed by its members' dues, a named guildmaster, a standing with the crown, and its prosperity: whether its materials are on hand and its goods fetch a fair price.
+
+**Its powers in its town.** These apply to the guild's own goods, in its own town:
+- **The outsider toll.** If you are not a member, the guild takes **12%** of what you are paid (20% if it holds a royal charter). The toll goes into its guildhall. An apprentice pays half; a journeyman pays none. If you rule a realm whose court enforces *Merchant charters*, the guilds there may only toll half as much.
+- **The sale cap.** An outsider may sell only about **5 days of the town's need** of the guild's goods a week. The guild's weekly turn resets the cap.
+- **The price floor.** The stalls never sell the guild's goods below **80%** of their base ask (90% if it holds a charter), however glutted the market.
+- **The guild's mark.** A master's goods carry the guild's mark and fetch **8%** more. No sale ever pays more than buying the goods back here.
+- **Guild rates.** Journeymen and up buy the guild's materials **6%** cheaper.
+- **Monopolies.** One monopoly can stand on a good in a town: the crown's (by the *Crown monopolies* edict), a merchant house's, your company's, or a guild's charter. Whoever holds it sets every guild's privileges on that good aside, except the holding guild's own. A charter already in place stands: a later crown edict fills only the empty slots. A guild's monopoly bars outsiders outright, but lets its journeymen and masters trade.
+
+**The ladder.**
+
+| Rank | Fee (× 1.5 city, × 2 capital) | Dues a week | To rise to it | What it brings |
+|---|---|---|---|---|
+| Apprentice | 40g | 2g | Join in the guild's town (reputation −10 or better, no feud) | Half the toll; contracts; standing |
+| Journeyman | 120g | 4g | 21 days as apprentice, standing 20, commerce 1 | No toll or sale cap; guild rates; your works there are protected |
+| Master | 400g | 8g | 30 days as journeyman, standing 50, commerce 2, and a **masterpiece** | The guild's mark; loans; votes; guild-only works; credit backing |
+| Guildmaster | — | — | Elected by the masters | A weekly stipend from the hall; call off a strike; more credit backing |
+
+- **Standing.** It grows as you buy and sell the guild's goods and materials in its town, pay your dues, fill its contracts and run works of its craft there. It falls when you miss dues or fail a contract.
+- **Dues.** They fall due on the guild's weekly turn. Three missed weeks and you are struck from its rolls.
+- **The masterpiece.** Bring the guild's chosen goods in your packs, for example 30 grain and 6 salt for the bakers, or 12 iron and 8 coal for the smiths. They go into the town's market.
+- **Contracts.** When the town is short of the guild's materials, the guild offers to buy 6 days of need (6–40 units) within 14–28 days. It pays 85% of what they are worth, and never as much as you would pay for them here. The hall sets the money aside when you sign. Fill the contract for +10 standing; fail it and you lose 15 standing and the guild grows sore with you.
+- **Loans.** A master may borrow up to half the hall's treasury, at 6% scaled by your bank credit score (the same scale the banking houses use), repaid weekly over 8 weeks. Paid on time, it counts toward your credit history. Missed payments count against it; three missed payments are a default, which gets you struck from the rolls and marks your credit. Being a master adds **Guild backing** (+15, +30 as guildmaster, at most +45) to your credit report.
+- **Elections.** Every 120 days the masters choose between the sitting guildmaster and a challenger. A master may back one of them (standing +5 if your side wins) or stand. Your chance rests on your standing and contracts, less any feud.
+- **Guild-only works.** Only a master of the Chandlers' Guild may fund a **chandlery** (Merchant Prince → Invest).
+
+**Guild politics.**
+- **The squeeze.** Each week a guild weighs what squeezes it: war levies (+0.25), the crown's empty treasury (+0.4), heavy royal taxes (+0.35), a crown monopoly on its goods (+0.7) or a rival's (+0.5), its goods glutting the stalls (+0.45), dear materials (+0.35), the price of bread (+0.3, standing in for wages), an outsider's works undercutting it (+0.25) and outsiders flooding the stalls (+0.3). The squeeze is a running average.
+- **Strikes.** After two weeks with the squeeze above 1, the guild may **strike**, for 10–18 days. Its trades in town stand idle and its craftsmen bring none of its goods to market, so the town really runs short: no bread in a bakers' strike, no tools in a smiths'. Prices climb, and whoever brings the goods in sells dear. A strike costs the hall each week and ends early if the hall runs dry. Each strike costs the guild crown standing. A crown that has lost patience may break a striking guild by edict.
+- **Lobbying.** About once a month a guild with money lobbies the crown. A foreign crown weighs the guild's purse and standing: it grants a **royal charter** (higher toll and floor) or a **monopoly** on one of its goods. In a town you rule or hold, the guild brings you a **petition** with a purse: grant it the monopoly, or refuse and the purse goes home. A squeezed guild in your own realm also sours the realm's merchants.
+- **Feuds.** If you are not a journeyman of the guild and your works in its town undercut it, especially while it strikes, it starts a feud with you. Flooding its stalls as an outsider, or your company holding a monopoly on its goods, does the same. A feud past 50 means its men wreck part of your works (8–20%). As a journeyman or better, your works are the guild's own. They are also harder for a crown to seize: half the chance (a third for a master), and twice the grace before expropriation.
+- **The ruler.** If you rule the town (your realm, or a holding), you may **grant a charter** to a guild (founding one if the town has the trade but none) or **abolish** it. A charter brings a fee into the treasury and pleases the merchants. Abolishing a guild sends half its hall to the treasury and ends its privileges and monopoly; the town grumbles and the merchants sulk. An abolished guild does not come back unless chartered again.
+
+The heralds cry strikes, elections, charters and abolitions. Townsfolk talk of a strike in their town. The Counsel points out guild contracts falling due, dues in arrears, a rank within reach and strikes nearby. There are achievements for becoming a journeyman, a master and a guildmaster.
+
 ### Price Knowledge: the Trade Map and the Merchant's Ledger
 
 You do not see every market's prices from afar. You know a town's prices only from:

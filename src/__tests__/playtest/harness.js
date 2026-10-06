@@ -62,6 +62,7 @@ import { Finance } from '../../systems/finance.js';
 import { MarketFairs } from '../../systems/marketFairs.js';
 import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { Labour } from '../../systems/labour.js';
+import { Guilds } from '../../systems/guilds.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
 
@@ -297,6 +298,8 @@ export function endDay(game) {
     mark(game, 'Labour.processDay');
     game.princeDay = MerchantPrince.processDay(player, world);
     mark(game, 'MerchantPrince.processDay');
+    game.guildDay = Guilds.processDay(world, player);
+    mark(game, 'Guilds.processDay');
     PriceKnowledge.processDay(player, world, {
         posts: (MerchantHouses.company(player) || {}).posts || [],
         holdings: Holdings.list(player, world),

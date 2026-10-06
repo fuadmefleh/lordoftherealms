@@ -57,3 +57,4 @@ export { MerchantHouses } from '../../systems/merchantHouses.js';
 export { Sagas } from '../../systems/sagas.js';
 export { Discovery } from '../../systems/discovery.js';
 export { OutlawLairs } from '../../systems/outlawLairs.js';
+export { MerchantCaravans } from '../../systems/merchantCaravans.js';

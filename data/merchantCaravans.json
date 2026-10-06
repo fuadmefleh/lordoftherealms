@@ -1,0 +1,20 @@
+{
+    "_comment": "Merchant caravans and trading ships (systems/merchantCaravans.js): a sampled share of the NPC trade flows (world/settlementMarket.js) travels the map as real units whose cargo lands only when they arrive. cap: concurrent traders (perSettlement x settlements, clamped). spawn: how many links a market turn may embody and the least cargo worth a caravan (minValue, gold at base price; smaller lots land at once). land/sea: unit stats (speed in hexes a day, roadSpeed on a road the whole way; guards = base + value x perValue). purse: coin the merchant carries (share of cargo value). trade: the player's buy markup and sell markdown on the cargo price (origin value toward destination value as the journey goes). escort: pay (share of cargo value), how near the player must ride (range), how far before the merchant gives up on them (leash, for graceDays), the counsel radius. ambush: interception radius of raiders and lairs, lair odds, a realm at war seizing traders in its land, the patrol radius that helps the guards. fear: days a road stays shunned after a caravan is taken and the share of its trade it loses. robbery: realm reputation, witnesses. tolls: share of cargo value paid to a realm whose border a trader crosses. patrols: realms with full treasuries or lawful lords riding the busy roads (upkeep from the treasury). notableValue: losses worth a herald's cry.",
+    "cap": { "perSettlement": 0.25, "min": 4, "max": 24 },
+    "spawn": { "perTurn": 2, "minValue": 50, "minDist": 3 },
+    "land": { "icon": "🐫", "name": "{good} Caravan", "carrier": "caravan", "speed": 3, "roadSpeed": 4, "guards": 4, "perValue": 0.012, "maxGuards": 26 },
+    "sea": { "icon": "⛵", "name": "{good} Trader", "carrier": "trader", "speed": 6, "roadSpeed": 6, "guards": 6, "perValue": 0.012, "maxGuards": 30 },
+    "purse": { "share": 0.3, "min": 25 },
+    "trade": { "markup": 0.1, "markdown": 0.12 },
+    "escort": { "share": 0.07, "min": 15, "max": 300, "range": 2, "leash": 6, "graceDays": 2, "reputation": 3, "renown": 1 },
+    "ambush": { "raiderRange": 1, "lairRange": 2, "lairChance": 0.3, "lairShare": 0.35, "warSeize": 0.35, "patrolRange": 2 },
+    "fear": { "days": 12, "cut": 0.5 },
+    "robbery": { "reputation": 15, "witnessRange": 4, "fear": true },
+    "tolls": { "rate": 0.03, "min": 1 },
+    "patrols": {
+        "every": 15, "chance": 0.25, "minTreasury": 2500, "lawfulBonus": 0.5, "cost": 80, "days": 30,
+        "strength": [16, 30], "speed": 4, "max": 4, "huntRange": 2, "icon": "💂", "name": "{kingdom} Road Wardens"
+    },
+    "notableValue": 150,
+    "historyCap": 30
+}

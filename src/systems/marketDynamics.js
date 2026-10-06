@@ -27,6 +27,7 @@ import { Infrastructure } from './infrastructure.js';
 import { OutlawLairs } from './outlawLairs.js';
 import { Sieges } from './sieges.js';
 import { HoldingSieges } from './holdingSieges.js';
+import { MerchantCaravans } from './merchantCaravans.js';
 
 const _key = (q, r) => `${q},${r}`;
 /** Days a settlement's production profile holds before it is worked out again. */
@@ -117,8 +118,14 @@ export const MarketDynamics = {
         }
         const links = this._links(world, cache, lives, day);
         for (const live of lives) if (live.market && live.market.trade) live.market.trade.cut = 0;
-        this._disrupt(world, player, links, k > 1 && Number.isFinite(day) ? turn : null);
-        const flow = SettlementMarket.flows(links, this._basePrices(), day);
+        const turnArg = k > 1 && Number.isFinite(day) ? turn : null;
+        // A few links' trade travels as real caravans and ships this turn
+        // (systems/merchantCaravans.js): their cargo lands only on arrival
+        MerchantCaravans.selectLinks(world, links, turnArg, day);
+        this._disrupt(world, player, links, turnArg);
+        const bases = this._basePrices();
+        const flow = SettlementMarket.flows(links, bases, day);
+        MerchantCaravans.dispatch(world, links, bases, day, player);
         // Independent towns have no realm treasury pass to bank their trade (KingdomAI.updateEconomy)
         for (const live of lives) if (!live.kingdom) Economy.processTrade(live);
         this.lastFlow = flow;
@@ -320,7 +327,10 @@ export const MarketDynamics = {
      * Today's disruption of each link (link.factor, 1 = open, 0 = cut):
      * war between the two realms, a realm at war at all, a blockade of
      * either port (sea legs), a siege of either town, outlaw lairs and
-     * raider bands near the road, and world events on trade.
+     * raider bands near the road, and world events on trade. A link whose
+     * trade travels as a caravan today (link.embody) is not thinned for the
+     * outlaws: the caravan meets them on the road instead. A road merchants
+     * shun after a caravan was lost there trades less for a while.
      */
     _disrupt(world, player, links, turn = null) {
         const T = SettlementMarket.config().trade;
@@ -361,7 +371,8 @@ export const MarketDynamics = {
                 }
             }
             if (besieged.size && (besieged.has(_key(a.q, a.r)) || besieged.has(_key(b.q, b.r)))) f *= 1 - T.siegeCut;
-            if (f > 0 && (lairs.length || raiders.length)) {
+            if (f > 0) f *= MerchantCaravans.fearFactor(world, link);
+            if (f > 0 && !link.embody && (lairs.length || raiders.length)) {
                 let dq = b.q - a.q;
                 if (W && Math.abs(dq) > W / 2) dq -= Math.sign(dq) * W;
                 const mid = { q: Math.round(a.q + dq / 2), r: Math.round((a.r + b.r) / 2) };

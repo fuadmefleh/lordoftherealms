@@ -57,6 +57,7 @@ import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { Heralds } from '../../systems/heralds.js';
 import { Patronage } from '../../systems/patronage.js';
 import { OutlawLairs } from '../../systems/outlawLairs.js';
+import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 import { Finance } from '../../systems/finance.js';
 import { MarketFairs } from '../../systems/marketFairs.js';
 import { MerchantPrince } from '../../systems/merchantPrince.js';
@@ -284,6 +285,8 @@ export function endDay(game) {
     mark(game, 'Patronage.processDay');
     Heralds.processDay(world, player);
     mark(game, 'Heralds.processDay');
+    game.caravanDay = MerchantCaravans.processDay(world, player);
+    mark(game, 'MerchantCaravans.processDay');
     game.fairDay = MarketFairs.processDay(world, player);
     mark(game, 'MarketFairs.processDay');
     MarketDynamics.updatePrices(world, player);

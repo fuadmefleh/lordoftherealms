@@ -186,6 +186,13 @@ export const Heralds = {
         }
         const rec = Heralds._records(player);
         for (const x of [...rec.sagas, ...rec.sieges, ...rec.holdings, ...rec.lairs, ...rec.finance, ...rec.market]) st.seen[x.key] = x.day;
+        for (const x of Heralds._caravanRecords(world)) st.seen[x.key] = x.day;
+    },
+
+    /** Caravans and trading ships lost on the roads (world.merchantTrade.history, systems/merchantCaravans.js). */
+    _caravanRecords(world) {
+        const t = world && world.merchantTrade;
+        return (t && Array.isArray(t.history) ? t.history : []).filter(h => h && h.key).map(h => ({ key: h.key, day: _num(h.day), h }));
     },
 
     _capital(world, k) {
@@ -342,6 +349,16 @@ export const Heralds = {
             if (!kind) continue;
             Heralds._proclaim(st, world, kind, { place: h.name, leader: h.leader || 'the chief', by: h.by || 'the wardens', kingdom: h.kingdom || 'the realm' },
                 { q: h.q, r: h.r }, { kingdomId: h.kingdomId, own: !!h.own });
+        }
+
+        // Caravans taken on the road, seized by a realm at war, or robbed (by the player too)
+        for (const x of Heralds._caravanRecords(world).filter(fresh)) {
+            st.seen[x.key] = x.day;
+            const h = x.h;
+            Heralds._proclaim(st, world, 'caravan_taken', {
+                good: h.good || 'goods', carrier: h.carrier || 'caravan', place: h.to || 'the town', from: h.from || 'the road',
+                by: h.by || 'robbers', house: h.house || 'free traders',
+            }, { q: h.q, r: h.r }, { kingdomId: h.kingdomId != null ? h.kingdomId : null, own: !!h.own });
         }
 
         // Money: a banking house failed, a crown repudiated its debts, a mint clipped its coin

@@ -4,6 +4,7 @@ import { Traits } from '../../systems/traits.js';
 import { Companions } from '../../systems/companions.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Kingship } from '../../systems/kingship.js';
+import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { Utils, Technology, House, Quests, RealmWars, Throne, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS, Economy } from './_imports.js';
 
@@ -716,7 +717,18 @@ Object.assign(PlayerMilitary, {
                     player.karma += karmaChange;
                     player.renown += renownChange;
                     break;
+                case 'trade_caravan':
+                case 'trade_ship': {
+                    // An NPC merchant's caravan or ship (systems/merchantCaravans.js):
+                    // hot goods, heat and a witnessed crime, the realm's displeasure
+                    const before = player.karma || 0;
+                    MerchantCaravans.onRobbed(player, world, worldUnit, inventoryLoot);
+                    karmaChange = (player.karma || 0) - before;
+                    Quests.track(player, 'piracy_committed');
+                    break;
+                }
                 case 'patrol':
+                case 'road_patrol':
                     karmaChange = -2;
                     Traits.recordAggression(player, worldUnit.kingdom, { dread: 1 });
                     player.karma += karmaChange;
@@ -758,6 +770,8 @@ Object.assign(PlayerMilitary, {
                 });
             }
         } else {
+            // Beaten off by a merchant's guards: they saw your face
+            if (MerchantCaravans.isTrader(worldUnit)) MerchantCaravans.onRobberyFailed(player, world, worldUnit);
             // Log defeat event
             if (world.events) {
                 world.events.push({

@@ -16,6 +16,7 @@ import { SeasonalWork } from '../seasonalWork.js';
 import { Delves } from '../../systems/delves.js';
 import { Sieges } from '../../systems/sieges.js';
 import { OutlawLairs } from '../../systems/outlawLairs.js';
+import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 
 export function addWildernessActions(actions, player, tile, world) {
     // Meditate / Pray (anywhere on passable terrain)
@@ -423,6 +424,18 @@ export function addWildernessActions(actions, player, tile, world) {
                 unitId: unit.id
             });
         }
+    }
+
+    // Merchant caravans and trading ships passing by (systems/merchantCaravans.js):
+    // trade with them, hire on as escort, or rob them
+    for (const trader of MerchantCaravans.meetable(player, world)) {
+        actions.push({
+            type: 'meet_trader',
+            label: `Hail the ${trader.name}`,
+            icon: trader.icon || '🐫',
+            description: `${(trader.house && trader.house.name) || 'Merchants'} bound for ${trader.toName}: trade, hire on as escort, or rob it`,
+            unitId: trader.id,
+        });
     }
 
     // Request meeting with NPC lord on same tile

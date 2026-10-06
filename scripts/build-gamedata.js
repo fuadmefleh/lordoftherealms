@@ -29,6 +29,7 @@ const topLevel = [
     'outlawLairs',
     'finance',
     'markets',
+    'merchantCaravans',
     'merchantPrince'
 ];
 

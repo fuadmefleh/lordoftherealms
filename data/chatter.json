@@ -31,14 +31,14 @@
             "coronation": 9, "realm_fallen": 10, "realm_restored": 8, "peace": 7, "war": 6,
             "saga_end": 6, "revolt": 8, "revolt_end": 7, "rebellion": 5, "discovery": 5,
             "siege_won": 6, "siege_lost": 7, "wonder": 7, "wonder_begun": 4, "lair_cleared": 5, "lair_risen": 5,
-            "bank_failed": 6, "crown_default": 7, "coin_debased": 5,
+            "bank_failed": 6, "crown_default": 7, "coin_debased": 5, "caravan_taken": 4,
             "market_fair": 4, "market_dearth": 5, "market_glut": 3
         },
         "icons": {
             "coronation": "👑", "realm_fallen": "🏴", "realm_restored": "🚩", "peace": "🕊️", "war": "⚔️",
             "saga_end": "📜", "revolt": "🔥", "revolt_end": "🛡️", "rebellion": "🔥", "discovery": "🗺️",
             "siege_won": "🏰", "siege_lost": "🏳️", "wonder": "🏛️", "wonder_begun": "🏗️", "lair_cleared": "🛡️", "lair_risen": "🏕️",
-            "bank_failed": "🏚️", "crown_default": "📛", "coin_debased": "💱",
+            "bank_failed": "🏚️", "crown_default": "📛", "coin_debased": "💱", "caravan_taken": "🐫",
             "market_fair": "🎪", "market_dearth": "🥖", "market_glut": "🌾"
         },
         "templates": {
@@ -134,6 +134,11 @@
             "coin_debased": [
                 "Know all: the mint of {kingdom} strikes new coin of {purity} parts silver in the hundred. Prices rise in every market.",
                 "The coin of {kingdom} is clipped and thinned. Merchants weigh it twice and ask for more."
+            ],
+            "caravan_taken": [
+                "Hear ye! The {good} {carrier} bound for {place} was taken by {by} on the road from {from}. Expect dear {good} in {place}.",
+                "Ill news on the roads: {by} fell on the {good} {carrier} of {house} between {from} and {place}.",
+                "The {good} {carrier} to {place} never came in. {by} have it, and the stalls of {place} stand empty."
             ]
         }
     },

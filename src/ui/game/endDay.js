@@ -20,6 +20,7 @@ import { Chatter } from '../../systems/chatter.js';
 import { Heralds } from '../../systems/heralds.js';
 import { Patronage } from '../../systems/patronage.js';
 import { OutlawLairs } from '../../systems/outlawLairs.js';
+import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 import { Finance } from '../../systems/finance.js';
 import { MarketFairs } from '../../systems/marketFairs.js';
 import { MerchantPrince } from '../../systems/merchantPrince.js';
@@ -570,6 +571,11 @@ export function endDay() {
             if (this.ui._heralds !== false) {
                 for (const n of heraldDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             }
+
+            // Merchant caravans and trading ships on the roads: tolls, ambushes,
+            // escorts, road wardens; cargo lands on arrival (systems/merchantCaravans.js)
+            const caravanDay = MerchantCaravans.processDay(this.world, this.player);
+            for (const n of caravanDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Fairs open and close, and the week's market news goes to the heralds (systems/marketFairs.js)
             const fairDay = MarketFairs.processDay(this.world, this.player);

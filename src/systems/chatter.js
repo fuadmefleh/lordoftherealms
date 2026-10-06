@@ -59,7 +59,7 @@ export const SEASONS = ['Spring', 'Summer', 'Autumn', 'Winter'];
 /** What townsfolk say about money (systems/finance.js): the `money` condition's kinds. */
 export const MONEY_KINDS = ['debased', 'levy', 'default', 'bank_run', 'bank_failed', 'bank'];
 /** What townsfolk say about work and the people (world/townLabour.js): the `labour` condition's kinds. */
-export const LABOUR_KINDS = ['idle', 'refugees', 'strike', 'boom', 'hardship'];
+export const LABOUR_KINDS = ['idle', 'refugees', 'strike', 'boom', 'hardship', 'mine_strike', 'mine_closed'];
 export const OCCUPATIONS = ['merchant', 'guard', 'farmer', 'priest', 'blacksmith_npc', 'villager', 'child', 'noble', 'traveler', 'beggar'];
 export const PERSONALITIES = ['kind', 'stern', 'jovial', 'quiet', 'bold', 'cautious', 'witty', 'generous', 'stubborn', 'curious'];
 export const COURT_AXES = ['mercy', 'severity', 'justice', 'piety', 'generosity'];
@@ -248,6 +248,14 @@ export const Chatter = {
             if (TownLabour.striking(settlement, day)) ctx.labour.push('strike');
             if (_num(lab.all) >= (_num(TownLabour.config().strikes.boomAt) || 0.9) && lab.moved && _num(lab.moved.in) > _num(lab.moved.out)) ctx.labour.push('boom');
             if (lab.wel && Number.isFinite(lab.wel.peasants) && lab.wel.peasants < 0.7) ctx.labour.push('hardship');
+        }
+        // The hills around it: a new strike, a mine worked out (world/hinterland.js)
+        if (settlement && world && world.hinterland && Array.isArray(world.hinterland.history)) {
+            for (const h of world.hinterland.history) {
+                if (!h || h.place !== settlement.name || _num(day) - _num(h.day) > 30) continue;
+                if (h.kind === 'strike' && !ctx.labour.includes('mine_strike')) ctx.labour.push('mine_strike');
+                if (h.kind === 'exhausted' && !ctx.labour.includes('mine_closed')) ctx.labour.push('mine_closed');
+            }
         }
         ctx.dearth = null;
         ctx.glut = null;
@@ -562,7 +570,8 @@ export const Chatter = {
             default: 'The crown has refused to pay its debts.', bank_run: 'Depositors are running on the bank.', bank_failed: 'A banking house has failed.' };
         for (const m of ctx.money || []) if (MONEY[m.kind]) f.push(MONEY[m.kind]);
         const WORK = { idle: 'Many here are out of work.', refugees: 'Refugees have crowded into the town.', strike: 'The artisans are on strike over the price of bread.',
-            boom: 'Times are good: there is work for all and newcomers keep arriving.', hardship: 'The poor are hard-pressed: wages do not cover bread and fuel.' };
+            boom: 'Times are good: there is work for all and newcomers keep arriving.', hardship: 'The poor are hard-pressed: wages do not cover bread and fuel.',
+            mine_strike: 'A new vein has been struck in the hills nearby; miners are coming in.', mine_closed: 'The mine nearby is worked out and its miners are leaving.' };
         for (const k of ctx.labour || []) if (WORK[k]) f.push(WORK[k]);
         if (ctx.rival) f.push(`The adventurer ${ctx.rival.name} passed through recently.`);
         if (ctx.newRuler) f.push(`${ctx.ruler} has newly taken the throne from ${ctx.oldRuler}.`);
@@ -639,7 +648,9 @@ export const Chatter = {
             // refugees, strikes and booms (systems/labour.js)
             'to', 'n', 'why',
             // town guilds' strikes, elections, charters (systems/guilds.js)
-            'guild', 'master', 'reason'];
+            'guild', 'master', 'reason',
+            // the hinterland's strikes, veins, worked-out mines (systems/concessions.js)
+            'site'];
         for (const [kind, list] of Object.entries(H.templates || {})) {
             if (!Array.isArray(list) || !list.length) problems.push(`heralds.${kind}: no templates`);
             for (const t of list || []) for (const [, tok] of String(t).matchAll(/\{(\w+)\}/g)) {

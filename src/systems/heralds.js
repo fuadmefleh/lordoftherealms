@@ -37,6 +37,8 @@ const MARKET_KINDS = { fair: 'market_fair', dearth: 'market_dearth', glut: 'mark
 // Labour records (world.labour.history, systems/labour.js) and the proclamation each makes
 const LABOUR_KINDS = { refugees: 'labour_refugees', strike: 'labour_strike', boom: 'labour_boom' };
 const LABOUR_WHY = { siege: 'siege', conquest: 'new masters', war: 'war', famine: 'hunger', danger: 'raiders' };
+// Hinterland records (world.hinterland.history, systems/concessions.js): new strikes, fresh veins, worked-out mines, pit accidents
+const HINTERLAND_KINDS = { strike: 'mine_strike', vein: 'mine_vein', exhausted: 'mine_exhausted', accident: 'mine_accident' };
 
 const _num = v => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -196,6 +198,13 @@ export const Heralds = {
         for (const x of [...rec.sagas, ...rec.sieges, ...rec.holdings, ...rec.lairs, ...rec.finance, ...rec.market]) st.seen[x.key] = x.day;
         for (const x of Heralds._caravanRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._labourRecords(world)) st.seen[x.key] = x.day;
+        for (const x of Heralds._hinterlandRecords(world)) st.seen[x.key] = x.day;
+    },
+
+    /** Strikes, veins, worked-out mines and pit accidents (world.hinterland.history, systems/concessions.js). */
+    _hinterlandRecords(world) {
+        const t = world && world.hinterland;
+        return (t && Array.isArray(t.history) ? t.history : []).filter(h => h && h.key && HINTERLAND_KINDS[h.kind]).map(h => ({ key: h.key, day: _num(h.day), h }));
     },
 
     /** Refugee columns, strikes and booms (world.labour.history, systems/labour.js). */
@@ -410,6 +419,17 @@ export const Heralds = {
                 place: h.place || 'the town', to: h.to || 'the neighbouring towns', n: _num(h.n) || 'Hundreds', days: _num(h.days) || 7,
                 why: LABOUR_WHY[h.why] || 'war', kingdom: (_kingdom(world, h.kingdomId) || {}).name || 'the realm',
             }, { q: h.q, r: h.r }, { kingdomId: h.kingdomId != null ? h.kingdomId : null });
+        }
+
+        // The hills: a new strike, a fresh vein, a mine worked out, a fall in a pit
+        for (const x of Heralds._hinterlandRecords(world).filter(fresh)) {
+            st.seen[x.key] = x.day;
+            const h = x.h;
+            Heralds._proclaim(st, world, HINTERLAND_KINDS[h.kind], {
+                place: h.place || 'the town', site: String(h.site || 'mine').toLowerCase(), n: _num(h.n) || 'Several',
+                to: h.to || 'the neighbouring towns', kingdom: (_kingdom(world, h.kingdomId) || {}).name || 'the realm',
+                good: String(h.good || 'ore').replace(/_/g, ' '),
+            }, { q: h.q, r: h.r }, { kingdomId: h.kingdomId != null ? h.kingdomId : null, own: !!h.own });
         }
 
         st.snapshot = now;

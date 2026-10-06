@@ -1,0 +1,64 @@
+{
+    "_doc": "The Hinterland: rural production sites around the towns (world/hinterland.js, driven by systems/concessions.js on each town's market day). Every hex within `reach` of a settlement belongs to its nearest one; the best of them become the town's rural sites by their map resource (an iron, coal, gem or gold deposit, a stone outcrop, timber, salt, a fish bank, horses, cattle) or, failing one, by the land (sheep on open pasture and hills). Sites are derived from the terrain only (no RNG, no world-generation draw): old saves derive theirs on load. Each market turn a site's output (perDay x the days of the turn x its yield x the home town's land hands, world/townLabour.js) goes half to its home settlement and half to the nearest market town within marketReach (village -> town supply), where the town's trades and the player's works take it up. Deposits (deposit: true) hold a finite reserve (units, a hash of the world seed and the hex within `reserve`), drawn down by what is dug; the yield falls once less than yieldKnee of it is left (to yieldMin at the bottom) and an empty mine closes: the downstream towns go short and its miners drift away. Balance: docs/economy-balance.md 'The Hinterland'.",
+
+    "reach": 3,
+    "marketReach": 6,
+    "homeShare": 0.5,
+    "maxSites": { "village": 2, "town": 3, "city": 4, "capital": 5 },
+    "maxPerKind": 2,
+    "_hidden": "Share of the hill and mountain hexes without a map resource that hide a vein the locals know of (a hash of the world seed and the hex; its kind by the terrain's prospecting weights below).",
+    "hidden": 0.2,
+    "_resync": "Days between passes that give newly founded towns their sites and re-home sites whose town is gone.",
+    "resyncDays": 60,
+
+    "_kinds": "name, icon; good: { goodId: units a day } at full yield and full hands; resource: the map resource that makes the site; terrain: land that makes it without a resource (sheep runs); priority: which sites a town works first; hands: labourers a concession hires at the town's land wage (a crown site's hands are the town's own peasants); deposit: finite reserve [min, max] units of the first good; leasable: the crown leases it as a concession.",
+    "kinds": {
+        "iron_mine":    { "name": "Iron mine",     "icon": "⛏️", "good": { "iron": 1.3 },              "resource": "iron",     "priority": 10, "hands": 14, "deposit": true, "reserve": [700, 2000], "leasable": true },
+        "gem_mine":     { "name": "Gem mine",      "icon": "💎", "good": { "gems": 0.25 },             "resource": "gems",     "priority": 11, "hands": 12, "deposit": true, "reserve": [120, 360],   "leasable": true },
+        "gold_mine":    { "name": "Gold diggings", "icon": "💰", "good": { "gold_ore": 0.25 },         "resource": "gold_ore", "priority": 9,  "hands": 12, "deposit": true, "reserve": [120, 360],  "leasable": true },
+        "coal_pit":     { "name": "Coal pit",      "icon": "⚫", "good": { "coal": 1.2 },              "resource": "coal",     "priority": 8,  "hands": 10, "deposit": true, "reserve": [700, 1800], "leasable": true },
+        "quarry":       { "name": "Quarry",        "icon": "🧱", "good": { "stone": 1.4 },             "resource": "stone",    "priority": 5,  "hands": 10, "deposit": true, "reserve": [1500, 4000], "leasable": true },
+        "salt_pan":     { "name": "Salt pans",     "icon": "🧂", "good": { "salt": 0.9 },              "resource": "salt",     "priority": 6,  "hands": 6,  "deposit": true, "reserve": [1200, 3000], "leasable": true },
+        "sheep_run":    { "name": "Sheep run",     "icon": "🐑", "good": { "wool": 1.0, "hide": 0.15 }, "terrain": ["grassland", "hills", "highlands", "plains"], "priority": 7, "hands": 8 },
+        "timber_camp":  { "name": "Timber camp",   "icon": "🪓", "good": { "wood": 1.0, "firewood": 0.3 }, "resource": "timber", "priority": 3,  "hands": 8 },
+        "fishery":      { "name": "Fishery",       "icon": "🎣", "good": { "fish": 1.0 },              "resource": "fish",     "priority": 2,  "hands": 8 },
+        "horse_stud":   { "name": "Horse stud",    "icon": "🐎", "good": { "horses": 0.08 },           "resource": "horses",   "priority": 4,  "hands": 6 },
+        "cattle_ranch": { "name": "Cattle ranch",  "icon": "🐄", "good": { "hide": 0.7 },              "resource": "cattle",   "priority": 2,  "hands": 6 }
+    },
+
+    "_yield": "A deposit's yield: 1 while at least `knee` of its reserve is left, then down in a line to `min` at the bottom.",
+    "yield": { "knee": 0.5, "min": 0.35 },
+
+    "_prospect": "Each settlement is searched once every `every` days (on its market day): with `chance` (a hash roll) a new vein is struck. A waning deposit (less than `wane` of its reserve left) is the first place they look: it gains [veinMin, veinMax] of its first reserve. Else a new deposit is found on a hill or mountain hex within reach that is no site yet (kind by the terrain's weights below), up to `extraSites` past the town's usual count. Miners follow a strike: strikeMigrants peasants from the nearest neighbour; an exhausted mine sends exhaustMigrants x its hands to the nearest town. The player may fund a search (systems/concessions.js prospect): `cost` gold, `days` to dig, `playerChance` of a strike, and the finder's right to lease it at the reserve price for `finderDays`.",
+    "prospect": {
+        "every": 60, "chance": 0.1, "wane": 0.4, "veinMin": 0.3, "veinMax": 0.7, "extraSites": 2,
+        "terrain": {
+            "mountain":  { "iron_mine": 4, "coal_pit": 3, "gem_mine": 2, "gold_mine": 1, "quarry": 1 },
+            "hills":     { "iron_mine": 4, "coal_pit": 4, "quarry": 2, "gem_mine": 1 },
+            "highlands": { "iron_mine": 2, "quarry": 3, "coal_pit": 1, "gem_mine": 1, "gold_mine": 0.5 },
+            "snow_peak": { "gem_mine": 1, "gold_mine": 1, "iron_mine": 1 }
+        },
+        "strikeMigrants": 12, "exhaustMigrants": 1.5,
+        "cost": 160, "days": 8, "playerChance": 0.6, "finderDays": 20, "minTier": "village"
+    },
+
+    "_concessions": "The crown leases its deposits (leasable kinds) as concessions. A holder (the player or an NPC merchant house) pays a lease fee for the term into the realm's treasury, then a royalty on every unit dug (royalty x the good's base price), and hires the hands at the home town's land wage (they are extra land jobs there, world/townLabour.js). A concession digs `boost` x the crown's rate (better found pits), at the rate the holder sets: light, normal or hard (hard digs more, wastes more of the vein, risks accidents that kill hands and stall the pit, and sours the town). Output is sold into the market town at `sellShare` of what the lot is worth there (its scarcity curve, the haulage and the factor's cut), or delivered to the holder's works within contractRange (a store beside the works, up to binDays of its runs) . Reserve price: reserveShare of the gross value of a term's output at the market town's prices today (royalties are on base prices). Auctions: each realm puts one site up every auctionEvery days (staggered by realm) for auctionDays; houses bid a share [houseBid] of their estimate of the term's net (x their temperament's bid), at most houseMax concessions each. Arrears (wages and royalties the holder cannot pay) past graceDays forfeit the lease. War with the realm, a declared default on its lenders (systems/finance.js), or a royal edict (a crown in crisis: edictChance a week) revoke it.",
+    "concessions": {
+        "termDays": 240, "royalty": 0.12, "boost": 1.3, "sellShare": 0.85, "reserveShare": 0.05,
+        "rates": {
+            "light":  { "label": "Light",  "out": 0.7, "wear": 0.9,  "hands": 0.7, "accident": 0,     "unrest": 0 },
+            "normal": { "label": "Steady", "out": 1.0, "wear": 1.0,  "hands": 1.0, "accident": 0.003, "unrest": 0 },
+            "hard":   { "label": "Hard",   "out": 1.4, "wear": 1.35, "hands": 1.3, "accident": 0.03,  "unrest": 0.4 }
+        },
+        "accident": { "killed": [2, 6], "idleDays": 6, "mood": 3, "reputation": 2 },
+        "contractRange": 6, "binDays": 20,
+        "auctionEvery": 30, "auctionDays": 10, "houseBid": [0.08, 0.2], "houseMax": 3, "minIncrement": 0.05,
+        "graceDays": 14, "defaultDays": 60, "edictChance": 0.05, "logCap": 30, "historyCap": 40
+    },
+
+    "_markers": "Map markers: sites show from this zoom; a deposit's bar is green above `low` of its reserve left, amber above `critical`, red below.",
+    "markers": { "minZoom": 0.5, "low": 0.5, "critical": 0.2 },
+
+    "_counsel": "Counsel hints: a vein running out (yield below `yieldBelow` or less than `reserveBelow` of the reserve left), auctions within `auctionRadius` hexes.",
+    "counsel": { "yieldBelow": 0.7, "reserveBelow": 0.3, "auctionRadius": 10 }
+}

@@ -27,6 +27,7 @@ import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { Labour } from '../../systems/labour.js';
 import { Guilds } from '../../systems/guilds.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
+import { Concessions } from '../../systems/concessions.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 
@@ -587,6 +588,12 @@ export function endDay() {
             const fairDay = MarketFairs.processDay(this.world, this.player);
             for (const n of fairDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            // The hinterland: the rural sites around the towns dig and send their goods to
+            // market on its day, deposits run down and veins are struck; mining leases
+            // are paid, auctioned and revoked (world/hinterland.js, systems/concessions.js)
+            const hinterlandDay = Concessions.processDay(this.world, this.player);
+            for (const n of hinterlandDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
             // The settlement markets' day: production, consumption, NPC trade
             // (world/settlementMarket.js; lairs and sieges disrupt the roads)
             MarketDynamics.updatePrices(this.world, this.player);
@@ -1027,6 +1034,8 @@ export function endDay() {
             if (princeDay.wages > 0) dayFinance.expenses.worksWages = princeDay.wages;
             if (guildDay.income > 0) dayFinance.income.guilds = guildDay.income;
             if (guildDay.expenses > 0) dayFinance.expenses.guildDues = guildDay.expenses;
+            if (hinterlandDay.income > 0) dayFinance.income.concessions = hinterlandDay.income;
+            if (hinterlandDay.wages > 0) dayFinance.expenses.concessionWages = hinterlandDay.wages;
             if (typeof Tavern !== 'undefined' && intelResult && intelResult.cost > 0) dayFinance.expenses.informants = intelResult.cost;
 
             // Property upkeep (calculated from properties)

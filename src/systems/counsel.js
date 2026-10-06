@@ -54,6 +54,7 @@ import { MarketFairs } from './marketFairs.js';
 import { Guilds } from './guilds.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { TownLabour } from '../world/townLabour.js';
+import { Hinterland } from '../world/hinterland.js';
 
 export const GROUPS = ['threat', 'opportunity', 'goal'];
 export const SEVERITIES = { critical: 3, warning: 2, notice: 1, info: 0 };
@@ -1131,6 +1132,48 @@ R.propertyHands = (ctx, p) => {
             key: `prop:${ref.q},${ref.r}:${ref.type}`, q: ref.q, r: ref.r, name: prop.name || ref.name || 'property', town: hire.town || 'the town',
             why: fill < _num(p.below, 0.85) ? `only ${Math.round(fill * 100)}% staffed` : `wages there run ${Math.round(ratio * 100)}% of the usual`,
             boost: (1 - fill) * 2,
+        });
+    }
+    return out;
+};
+
+/** The player's mining leases whose vein runs out (world/hinterland.js), or that owe wages and royalties. */
+R.veinRunningOut = (ctx, p) => {
+    const st = _obj(ctx.world.hinterland);
+    const out = [];
+    for (const c of _arr(st && st.concessions)) {
+        if (!c || c.holder !== 'player' || c.status !== 'active') continue;
+        const site = _arr(st.sites).find(s => s && s.id === c.site);
+        if (!site) continue;
+        const k = Hinterland.kind(site.kind);
+        const name = k ? k.name.toLowerCase() : 'mine';
+        if (_num(c.owed) > 0) {
+            out.push({ key: `owed:${c.id}`, q: site.q, r: site.r, site: name, why: `owes ${Math.ceil(_num(c.owed))}g in wages and royalties: pay it or ${c.realm || 'the crown'} forfeits the lease`, severity: 'warning', boost: 3 });
+            continue;
+        }
+        const res = Hinterland.reserveFrac(site), y = Hinterland.yieldOf(site);
+        if (res >= _num(p.reserveBelow, 0.3) && y >= _num(p.yieldBelow, 0.7)) continue;
+        out.push({ key: `vein:${c.id}`, q: site.q, r: site.r, site: name, why: `is running out: ${Math.round(res * 100)}% of the vein left, the yield at ${Math.round(y * 100)}%. Prospect for a new vein or ease the pace`, boost: 1 - res });
+    }
+    return out;
+};
+
+/** Mining leases on auction near the player (systems/concessions.js). */
+R.concessionAuctions = (ctx, p) => {
+    const st = _obj(ctx.world.hinterland);
+    const out = [];
+    const radius = _num(p.radius, 10);
+    for (const a of _arr(st && st.auctions)) {
+        if (!a || a.status !== 'open') continue;
+        const site = _arr(st.sites).find(s => s && s.id === a.site);
+        if (!site || Math.abs(site.r - ctx.player.r) > radius) continue;
+        const dist = Hex.wrappingDistance(site.q, site.r, ctx.player.q, ctx.player.r, ctx.world.width);
+        if (dist > radius) continue;
+        const k = Hinterland.kind(site.kind);
+        out.push({
+            key: `auc:${a.id}`, q: site.q, r: site.r, site: k ? k.name.toLowerCase() : 'mine', realm: a.realm || 'the crown', reserve: _num(a.reserve), closes: _num(a.closes), dist,
+            how: a.finder === 'player' ? 'is yours to lease first (your strike)' : a.bid > 0 ? `is up for auction: your bid stands at ${a.bid}g` : 'is up for auction',
+            severity: a.finder === 'player' ? 'notice' : 'info', boost: (a.finder === 'player' ? 3 : 0) - dist / 10,
         });
     }
     return out;

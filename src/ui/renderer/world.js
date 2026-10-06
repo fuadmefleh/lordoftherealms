@@ -87,6 +87,8 @@ Object.assign(Renderer.prototype, {
         this.renderDiscoveries(ctx);
         // Outlaw lairs you have found or heard of (systems/outlawLairs.js)
         this.renderOutlawLairs(ctx);
+        // Mines, quarries, sheep runs around the towns and their deposits (world/hinterland.js)
+        this.renderHinterland(ctx);
         // Your holdings under siege (systems/holdingSieges.js)
         this.renderHoldingSieges(ctx);
 

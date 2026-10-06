@@ -54,6 +54,8 @@
           "text": "Your {qty} {good} in {town} spoil {pct}% a week: sell them soon", "params": { "weekly": 0.05, "minQty": 10, "spoilMult": 0.5 }, "max": 2 },
         { "id": "works_at_risk", "group": "threat", "reader": "worksAtRisk", "priority": 64, "severity": "notice", "icon": "🏭", "panel": "merchantPrince",
           "text": "Your works in {town}: {why}", "params": { "repBelow": -20, "condBelow": 0.6 }, "max": 2 },
+        { "id": "vein_running_out", "group": "threat", "reader": "veinRunningOut", "priority": 57, "severity": "notice", "icon": "⛏️", "panel": "hinterland",
+          "text": "Your {site} lease {why}", "params": { "yieldBelow": 0.7, "reserveBelow": 0.3 }, "max": 2 },
         { "id": "works_short_hands", "group": "threat", "reader": "worksShortHands", "priority": 58, "severity": "notice", "icon": "🔨", "panel": "townPeople",
           "text": "Your works in {town}: {why}", "params": { "below": 0.85 }, "max": 2 },
         { "id": "property_hands", "group": "threat", "reader": "propertyHands", "priority": 46, "severity": "notice", "icon": "👷", "panel": "townPeople",
@@ -114,6 +116,8 @@
           "text": "{name}, your {prof}, has been idle {idle}: commission a work", "params": { "minIdle": 3 } },
         { "id": "discovery_rumour", "group": "opportunity", "reader": "discoveryRumours", "priority": 42, "severity": "info", "icon": "🗺️", "panel": "discoveries",
           "text": "{how} uncharted land beyond the known world", "max": 2 },
+        { "id": "concession_auction", "group": "opportunity", "reader": "concessionAuctions", "priority": 43, "severity": "info", "icon": "🔨", "panel": "hinterland",
+          "text": "The lease of a {site} from {realm} {how} (reserve {reserve}g, closes day {closes})", "params": { "radius": 10 }, "max": 1 },
         { "id": "escort_job", "group": "opportunity", "reader": "escortJobs", "priority": 44, "severity": "info", "icon": "🛡️",
           "text": "{house} would pay {pay}g for an escort: the {cargo} {carrier} from {from} to {to}, {dist} hexes off{danger}", "params": { "radius": 4 }, "max": 1 },
 

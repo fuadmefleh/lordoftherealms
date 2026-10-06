@@ -41,6 +41,7 @@ import { WorldUnit } from '../world/units.js';
 import { Terrain } from '../world/terrain.js';
 import { MarketDynamics } from './marketDynamics.js';
 import { Labour } from './labour.js';
+import { Hinterland } from '../world/hinterland.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Utils } from '../core/utils.js';
 
@@ -143,6 +144,9 @@ export const SaveLoad = {
             // Refugees, strikes and booms on record for the heralds (systems/labour.js;
             // each town's classes, wages and welfare travel with it: settlement.labour)
             labour: Labour.serialize(world),
+            // The rural sites around the towns (deposits, reserves), mining leases,
+            // auctions and prospectors (world/hinterland.js, systems/concessions.js)
+            hinterland: Hinterland.serialize(world),
             // Great Works raised and rising, the wonders claimed (systems/patronage.js)
             greatWorks: Patronage.serializeWorld(world),
             // Ids for characters, maps, spies, ... keep counting from here
@@ -559,6 +563,8 @@ export const SaveLoad = {
         MerchantCaravans.restore(saveData.merchantTrade, world);
         // The labour news (older saves: none)
         Labour.restore(saveData.labour, world);
+        // The hinterland (older saves: none — the sites are derived from the terrain on the next day)
+        Hinterland.restore(saveData.hinterland, world);
         // Never hand out an id the save already used
         if (typeof saveData.idCounter === 'number') {
             Utils.setIdCounter(Math.max(Utils.getIdCounter(), saveData.idCounter));

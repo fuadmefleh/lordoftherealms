@@ -418,6 +418,22 @@ export const SettlementMarket = {
         return SettlementMarket.works(settlement, recipeId);
     },
 
+    /**
+     * Deliver `n` units of an input into the works' own store (w.feed), up to
+     * `cap` units held; the works use it before the town's spare stock. The
+     * rest goes to the town's market. → units the works took.
+     */
+    feedWorks(settlement, recipeId, goodId, n, cap = Infinity) {
+        const w = SettlementMarket.works(settlement, recipeId);
+        if (!w || !(n > 0) || !(goodId in SettlementMarket.recipeGoods(recipeId, 'in'))) return 0;
+        if (!w.feed || typeof w.feed !== 'object') w.feed = {};
+        const room = Math.max(0, _num(cap, Infinity) - _num(w.feed[goodId]));
+        const took = Math.min(n, room);
+        if (took > 0) w.feed[goodId] = _round2(_num(w.feed[goodId]) + took);
+        if (n - took > 0) SettlementMarket.add(settlement, goodId, n - took);
+        return took;
+    },
+
     /** Knock `share` off the repair of every works in town (a raid, a sack, a bombardment). */
     damageWorks(settlement, share) {
         const m = settlement && settlement.market;
@@ -493,20 +509,38 @@ export const SettlementMarket = {
                     left -= n;
                 }
             }
+            // (inputs delivered to the works' own store — a concession's contract,
+            // systems/concessions.js — are used before the town's spare stock)
+            const feed = w.feed && typeof w.feed === 'object' ? w.feed : null;
             for (let s = 0; s < steps && left > 0.005; s++) {
                 let chunk = left / (steps - s);
                 for (let j = 0; j < oi.length; j++) chunk = Math.min(chunk, Math.max(0, target[oi[j]] * W.fill - st[oi[j]]) / op[j]);
                 for (let j = 0; j < ii.length; j++) {
                     const keep = Math.max(needOf[ii[j]] * k, target[ii[j]] * W.keep);
-                    chunk = Math.min(chunk, Math.max(0, st[ii[j]] - keep) / ip[j]);
+                    const fd = feed ? _num(feed[C.goodIds[ii[j]]]) : 0;
+                    chunk = Math.min(chunk, (Math.max(0, st[ii[j]] - keep) + fd) / ip[j]);
                 }
                 if (!(chunk > 0.005)) break;
                 // What a run adds at today's stock: its output's worth less its inputs'
+                // (an input from the works' own store — the holder's own ore — counts at
+                // no more than its base price, whatever the town pays for it)
                 let outV = 0, inV = 0;
                 for (let j = 0; j < oi.length; j++) outV += op[j] * bases[oi[j]] * SettlementMarket.curve(st[oi[j]] / target[oi[j]], used[oi[j]]);
-                for (let j = 0; j < ii.length; j++) inV += ip[j] * bases[ii[j]] * SettlementMarket.curve(st[ii[j]] / target[ii[j]], used[ii[j]]);
+                for (let j = 0; j < ii.length; j++) {
+                    const sc = SettlementMarket.curve(st[ii[j]] / target[ii[j]], used[ii[j]]);
+                    const own = feed && _num(feed[C.goodIds[ii[j]]]) >= chunk * ip[j];
+                    inV += ip[j] * bases[ii[j]] * (own ? Math.min(1, sc) : sc);
+                }
                 if (!(outV > 0) || outV - inV - wageRun < outV * W.minMargin) break;
-                for (let j = 0; j < ii.length; j++) st[ii[j]] = Math.max(0, st[ii[j]] - chunk * ip[j]);
+                for (let j = 0; j < ii.length; j++) {
+                    let use = chunk * ip[j];
+                    if (feed) {
+                        const gid = C.goodIds[ii[j]];
+                        const fd = Math.min(_num(feed[gid]), use);
+                        if (fd > 0) { feed[gid] = _round2(_num(feed[gid]) - fd); use -= fd; if (!(feed[gid] > 0)) delete feed[gid]; }
+                    }
+                    st[ii[j]] = Math.max(0, st[ii[j]] - use);
+                }
                 for (let j = 0; j < oi.length; j++) st[oi[j]] += chunk * op[j];
                 runs += chunk;
                 va += chunk * (outV - inV);

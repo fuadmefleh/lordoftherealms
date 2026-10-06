@@ -34,7 +34,8 @@
             "bank_failed": 6, "crown_default": 7, "coin_debased": 5, "caravan_taken": 4,
             "market_fair": 4, "market_dearth": 5, "market_glut": 3,
             "labour_refugees": 5, "labour_strike": 4, "labour_boom": 3,
-            "guild_strike": 5, "guild_election": 3, "guild_chartered": 3, "guild_abolished": 5
+            "guild_strike": 5, "guild_election": 3, "guild_chartered": 3, "guild_abolished": 5,
+            "mine_strike": 4, "mine_vein": 2, "mine_exhausted": 4, "mine_accident": 3
         },
         "icons": {
             "coronation": "👑", "realm_fallen": "🏴", "realm_restored": "🚩", "peace": "🕊️", "war": "⚔️",
@@ -42,9 +43,28 @@
             "siege_won": "🏰", "siege_lost": "🏳️", "wonder": "🏛️", "wonder_begun": "🏗️", "lair_cleared": "🛡️", "lair_risen": "🏕️",
             "bank_failed": "🏚️", "crown_default": "📛", "coin_debased": "💱", "caravan_taken": "🐫",
             "market_fair": "🎪", "market_dearth": "🥖", "market_glut": "🌾",
-            "labour_refugees": "🧳", "labour_strike": "✊", "labour_boom": "🏗️", "guild_strike": "✊", "guild_election": "🗳️", "guild_chartered": "📜", "guild_abolished": "⚖️"
+            "labour_refugees": "🧳", "labour_strike": "✊", "labour_boom": "🏗️", "guild_strike": "✊", "guild_election": "🗳️", "guild_chartered": "📜", "guild_abolished": "⚖️",
+            "mine_strike": "⛏️", "mine_vein": "💎", "mine_exhausted": "🕳️", "mine_accident": "💥"
         },
         "templates": {
+            "mine_strike": [
+                "Hear ye! A new {site} is struck in the hills near {place}. Miners and carters, there is work to be had!",
+                "Strike! The prospectors of {place} have found a {site}; {good} will come down from the hills before the season is out.",
+                "By leave of the crown of {kingdom}, a {site} is opened near {place}. Let honest men go dig."
+            ],
+            "mine_vein": [
+                "The old {site} near {place} has found a fresh vein: the pits will not close this year.",
+                "Good news from {place}: a new seam in the {site}, and {good} enough for years yet."
+            ],
+            "mine_exhausted": [
+                "Hear ye! The {site} near {place} is worked out and its pits are shut. {good} will be dear hereabouts.",
+                "The last cart of {good} has come down from the {site} near {place}. Its miners take the road to {to}.",
+                "No more {good} from the hills of {place}: the {site} is dug out, and the price has gone up already."
+            ],
+            "mine_accident": [
+                "Woe at {place}! A gallery has fallen in at the {site}: {n} miners are dead.",
+                "A fall at the {site} near {place} has killed {n}. The town blames the masters, who drive the men too hard."
+            ],
             "guild_strike": [
                 "Hear ye! The {guild} has downed tools over {reason}. There will be little {good} in {place} for {days} days.",
                 "The masters of the {guild} have shut their shops: {reason}, they say. Whoever brings {good} to {place} will sell it dear.",
@@ -353,6 +373,14 @@
         { "id": "labour_boom", "when": { "labour": ["boom"] }, "weight": 1, "lines": [
             "Work for anyone who wants it in {settlement}. The workshops are hiring and the newcomers keep coming.",
             "Good times. My cousin came in from the village last month and found a place the same week."
+        ]},
+        { "id": "labour_mine_strike", "when": { "labour": ["mine_strike"] }, "weight": 2, "lines": [
+            "They've struck a new vein up in the hills. Half the lads in {settlement} have gone up with a pick.",
+            "A new mine, they say. More hands wanted, more mouths to feed, more coin in the taverns."
+        ]},
+        { "id": "labour_mine_closed", "when": { "labour": ["mine_closed"] }, "weight": 2, "lines": [
+            "The mine's worked out. The miners are packing their carts; the smiths will pay through the nose for ore now.",
+            "Nothing left in those hills but holes. My brother dug there twenty years; now he's off to find work elsewhere."
         ]},
         { "id": "labour_hardship", "when": { "labour": ["hardship"] }, "weight": 1, "lines": [
             "A day's wage doesn't buy a day's bread any more. Something's got to give.",

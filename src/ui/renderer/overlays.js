@@ -1,6 +1,6 @@
 // Renderer — overlays methods.
 import { Renderer } from './core.js';
-import { Hex, Religion, Economy, Infrastructure, WorldUnit } from './_imports.js';
+import { Hex, Religion, Economy, Infrastructure, WorldUnit, Hinterland } from './_imports.js';
 
 Object.assign(Renderer.prototype, {
     /**
@@ -389,6 +389,63 @@ Object.assign(Renderer.prototype, {
                     ctx.fillStyle = 'rgba(220, 200, 190, 0.85)';
                     ctx.fillText(lair.leader.slain ? 'leaderless' : lair.leader.name, s.x, s.y + size * 1.15);
                 }
+            }
+        }
+        ctx.restore();
+    },
+
+    /**
+     * The hinterland's rural sites on explored hexes (world/hinterland.js):
+     * the site's icon, small, with a deposit's reserve as a bar beneath it
+     * (green, amber, red as it runs down), a grey cross over a worked-out
+     * mine and a gold ring round the player's own leases.
+     */
+    renderHinterland(ctx) {
+        const st = this.world && this.world.hinterland;
+        if (!st || !Array.isArray(st.sites) || !st.sites.length) return;
+        const z = this.camera.zoom;
+        const M = Hinterland.config().markers;
+        if (z < M.minZoom) return;
+        const size = this.hexSize * z;
+        const mine = new Set((st.concessions || []).filter(c => c.status === 'active' && c.holder === 'player').map(c => c.site));
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (const site of st.sites) {
+            const tile = this.world.getTile(site.q, site.r);
+            if (!tile || !tile.explored) continue;
+            const pos = this.getHexPixelPos(site.q, site.r);
+            const s = this.camera.worldToScreen(pos.x, pos.y);
+            if (s.x < -40 || s.x > this.canvas.width + 40 || s.y < -40 || s.y > this.canvas.height + 40) continue;
+            const k = Hinterland.kind(site.kind);
+            if (!k) continue;
+            const x = s.x + size * 0.38, y = s.y - size * 0.38;
+            ctx.globalAlpha = site.st === 'exhausted' ? 0.45 : 0.9;
+            ctx.font = `${Math.max(9, size * 0.36)}px serif`;
+            ctx.fillText(k.icon, x, y);
+            if (mine.has(site.id)) {
+                ctx.strokeStyle = 'rgba(240, 200, 70, 0.95)';
+                ctx.lineWidth = Math.max(1.2, 1.5 * z);
+                ctx.beginPath();
+                ctx.arc(x, y, size * 0.26, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            if (site.st === 'exhausted') {
+                ctx.strokeStyle = 'rgba(200, 200, 200, 0.9)';
+                ctx.lineWidth = Math.max(1, z);
+                const d = size * 0.15;
+                ctx.beginPath();
+                ctx.moveTo(x - d, y - d); ctx.lineTo(x + d, y + d);
+                ctx.moveTo(x + d, y - d); ctx.lineTo(x - d, y + d);
+                ctx.stroke();
+            } else if (site.res0 > 0) {
+                const f = Hinterland.reserveFrac(site);
+                const w = size * 0.4, h = Math.max(2, 2.5 * z);
+                ctx.globalAlpha = 0.85;
+                ctx.fillStyle = 'rgba(0,0,0,0.55)';
+                ctx.fillRect(x - w / 2, y + size * 0.2, w, h);
+                ctx.fillStyle = f > M.low ? '#5fbf6a' : f > M.critical ? '#e8a040' : '#e74c3c';
+                ctx.fillRect(x - w / 2, y + size * 0.2, w * f, h);
             }
         }
         ctx.restore();

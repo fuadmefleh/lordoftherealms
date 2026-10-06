@@ -617,6 +617,41 @@ A town's welfare above or below the ordinary moves its mood by a point or two.
 **Refugees.** A town in danger or famine loses up to 5% of its people a week to linked towns that are safe, weighted by their size and welfare. The nobles flee first, the poor on foot. They remember home: once it is safe again, a quarter of them go back each week. A refugee column of 40 or more is cried by the heralds. A town crowded with refugees has idle hands and dear bread.
 
 **Strikes and booms.** Artisans whose wages no longer buy their bread may strike for 7 days (towns and larger; not again within 45 days). Most of the town's trades and your works stand idle, and the heralds cry it. A thriving town that draws newcomers booms, and the heralds cry that too. The tavern talks of idle hands, refugees, strikes, booms and hard times. The Steward's Counsel warns when your works or properties can't find hands, and when a town you rule has many idle hands or is on strike.
+### The Hinterland: Mines, Leases and Prospecting
+
+The villages and countryside around every town specialise by their land. Open a town's **Trade** window and use its **⛏️ Hinterland** tab; the sites also show on the map as small icons beside their hexes (zoomed in), with a bar for what is left in a deposit and a gold ring round your own leases. Tuned in `data/hinterland.json`.
+
+**Rural sites.** Each hex within 3 of a settlement belongs to the nearest one, and a town works its best few (2 for a village, up to 5 for a capital). An iron, coal, gem or gold deposit makes a mine, stone a quarry, salt a salt pan, timber a logging camp, a fish bank a fishery, horses a stud, cattle a ranch. About one hill or mountain hex in five hides a vein the locals know of even where the map shows none. Open pasture and hills without a deposit run sheep.
+
+| Site | Gives (a day, full hands) | Deposit |
+|---|---|---|
+| ⛏️ Iron mine | 1.3 iron | 700–2,000 iron |
+| 💎 Gem mine | 0.25 gems | 120–360 gems |
+| 💰 Gold diggings | 0.25 gold ore | 120–360 |
+| ⚫ Coal pit | 1.2 coal | 700–1,800 |
+| 🧱 Quarry | 1.4 stone | 1,500–4,000 |
+| 🧂 Salt pans | 0.9 salt | 1,200–3,000 |
+| 🐑 Sheep run | 1 wool, 0.15 hides | — |
+| 🪓 Timber camp | 1 wood, 0.3 firewood | — |
+| 🎣 Fishery · 🐎 Horse stud · 🐄 Cattle ranch | 1 fish · 0.08 horses · 0.7 hides | — |
+
+On the home town's market day each site sends what it dug half to its home market and half to the nearest market town within 6 hexes, so the villages supply the towns. Output follows the home town's land hands: a village short of peasants digs less. The weaving sheds, smithies and jewellers' rows of the towns nearby live on this wool, iron, coal and gems. Fewer cloth, tools and fine things now come from nowhere, so towns without the raw goods buy them from those that have them.
+
+**Deposits run down.** Every unit dug comes out of the deposit. Past half the vein the yield falls, down to 35% at the bottom. An empty mine closes: its towns go short and the price climbs, and its miners leave for the nearest town. The heralds cry it and the tavern talks of it.
+
+**Prospecting.** Every 60 days each town's hills are searched. About one time in ten a vein is struck: a waning mine gets a fresh one, or a new deposit opens on a hill or mountain, and miners come in from the next town. You can also **fund a search** yourself (160g, 8 days, about a 60% chance). Your strike is yours to lease at the reserve price for 20 days before the merchant houses may bid.
+
+**Concessions.** The crown leases its deposits for 240 days.
+- **Auctions.** Each realm puts one deposit up for auction every 30 days for 10 days. You can also **petition** for a lease on a deposit beside the town you stand in. Bids are held in bond. At the close the merchant houses bid what they think the lease is worth, the highest bid wins, and the fee goes into the realm's treasury. A losing bid comes back.
+- **Running a lease.** You dig 1.3× the crown's rate, hire the hands at the home town's land wage (they are extra jobs there), and pay the crown a 12% royalty on every unit. Set the pace:
+  - **Light** digs less and spares the vein.
+  - **Steady** is the normal pace.
+  - **Hard** digs 40% more but wastes the vein faster. Its pits can collapse (miners killed, the pit idle for 6 days, the town and the crown angry), and the hard pace sours the town.
+- **Selling.** The ore is sold into the market town at 85% of what the lot is worth there on its scarcity curve. Or you can send it to **your own works** within 6 hexes (a smithy for iron, a jewellers' row for gems, a weaving shed for wool), which use it before the town's stock.
+- **Losing a lease.** You lose it at the end of its term, when the vein runs out, at war with the realm, after a default on its lenders, or when you cannot pay its wages and royalties for 14 days (that also counts as a missed payment on your credit). You also lose it when the town changes hands, or by royal edict if the crown's treasury is empty. A realm you rule can revoke a merchant house's lease.
+
+The Steward's Counsel warns when your vein is running out or a lease owes money, and points to auctions nearby.
+
 ### Town Guilds
 
 The people who work a town's trades band together in **guilds**. A town bakes, brews and smiths (the recipes above), so it has a **Bakers' Guild**, **Brewers' Guild**, **Smiths' Guild** and so on. The great towns also have a **Merchants' Guild** for spices, wine and salt. Visit them through the town's **⚒️ Guildhall** action or the trade window's **⚒️ Guilds** tab. The thieves' guild is a different kind of guild (see the Underworld). Tuned in `data/guilds.json`.

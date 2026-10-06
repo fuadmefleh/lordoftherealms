@@ -35,6 +35,7 @@ const topLevel = [
     'guilds',
     'priceKnowledge',
     'hinterland',
+    'tradePolicy',
     'chronicle'
 ];
 

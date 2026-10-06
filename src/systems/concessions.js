@@ -47,6 +47,7 @@ import { MerchantHouses } from './merchantHouses.js';
 import { Finance } from './finance.js';
 import { Throne } from './throne.js';
 import { Ledger } from './ledger.js';
+import { TradePolicy } from './tradePolicy.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -815,6 +816,16 @@ export const Concessions = {
                 Concessions._end(world, c, 'default');
                 say('Lease Revoked', `You defaulted on ${c.realm}'s lenders: the crown takes back your ${Hinterland.kind(site.kind).name.toLowerCase()} near ${home.name}.`);
                 continue;
+            }
+            // An embargo between the realm and the player's own (or sworn) crown (systems/tradePolicy.js)
+            if (weekly) {
+                const mineK = Throne.ruledKingdom(player, world) || (player && player.allegiance && typeof world.getKingdom === 'function' ? world.getKingdom(player.allegiance) : null);
+                const theirs = typeof world.getKingdom === 'function' ? world.getKingdom(c.kingdomId) : null;
+                if (mineK && theirs && mineK !== theirs && TradePolicy.embargoed(mineK, theirs)) {
+                    Concessions._end(world, c, 'embargo');
+                    say('Lease Revoked', `${c.realm} and ${mineK.name} trade no more: the crown takes back your ${Hinterland.kind(site.kind).name.toLowerCase()} near ${home.name}.`);
+                    continue;
+                }
             }
             if (c.owed > 0 && c.owedSince != null && day - c.owedSince > _num(C.graceDays, 14)) {
                 Concessions._end(world, c, 'arrears');

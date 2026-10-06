@@ -36,6 +36,7 @@
             "labour_refugees": 5, "labour_strike": 4, "labour_boom": 3,
             "guild_strike": 5, "guild_election": 3, "guild_chartered": 3, "guild_abolished": 5,
             "mine_strike": 4, "mine_vein": 2, "mine_exhausted": 4, "mine_accident": 3,
+            "trade_embargo": 4, "trade_treaty": 3, "trade_war": 4, "trade_ban": 5, "trade_granary": 3,
             "econ_dear": 5, "econ_inflation": 4, "fashion": 3
         },
         "icons": {
@@ -46,6 +47,7 @@
             "market_fair": "🎪", "market_dearth": "🥖", "market_glut": "🌾",
             "labour_refugees": "🧳", "labour_strike": "✊", "labour_boom": "🏗️", "guild_strike": "✊", "guild_election": "🗳️", "guild_chartered": "📜", "guild_abolished": "⚖️",
             "mine_strike": "⛏️", "mine_vein": "💎", "mine_exhausted": "🕳️", "mine_accident": "💥",
+            "trade_embargo": "⛔", "trade_treaty": "🤝", "trade_war": "📈", "trade_ban": "🌾", "trade_granary": "🍞",
             "econ_dear": "🍞", "econ_inflation": "💰", "fashion": "👗"
         },
         "templates": {
@@ -83,6 +85,31 @@
             "guild_abolished": [
                 "Hear ye! The {guild} is broken by order of the crown. Any man may now work its trade in {place}.",
                 "The guildhall at {place} is shut and its charter burned: the {guild} is no more."
+            ],
+            "trade_embargo": [
+                "Hear ye! By order of the crown of {kingdom}, no goods of {other} may be bought or sold in its markets.",
+                "The crown of {kingdom} closes its roads and harbours to the merchants of {other}. Smugglers rejoice.",
+                "Embargo! {kingdom} will have no trade with {other} until the crown says otherwise."
+            ],
+            "trade_treaty": [
+                "Hear ye! {kingdom} and {other} sign a treaty of trade: no duties between them, and safe roads for their merchants.",
+                "The seals are set: the merchants of {kingdom} and {other} may cross each other's borders without paying a copper.",
+                "A treaty of commerce between {kingdom} and {other}! The carters cheer and the toll-keepers sulk."
+            ],
+            "trade_war": [
+                "Hear ye! {kingdom} raises its duties on the goods of {other}, in answer to {other}'s own.",
+                "Duty upon duty: {kingdom} and {other} are at war over tariffs, and the merchants pay for both.",
+                "The customs men of {kingdom} have new orders: every cart from {other} pays dearer at the border."
+            ],
+            "trade_ban": [
+                "Hear ye! While the realm goes hungry, no {good} may leave {kingdom}, by order of the crown.",
+                "The crown of {kingdom} bans the sale of {good} across its borders. Let our own be fed first!",
+                "No {good} out of {kingdom}: the border posts are turning the wagons back."
+            ],
+            "trade_granary": [
+                "Hear ye! The royal granaries of {kingdom} are opened: {n} measures of grain for the hungry towns.",
+                "The crown of {kingdom} feeds its people from the royal stores. Bless the good years that filled them!",
+                "Grain carts from the royal granaries roll into the hungry towns of {kingdom}. No one starves this season."
             ],
             "econ_dear": [
                 "Hear ye! Bread is dear in {kingdom}: food costs {pct}% more than in {since}. The crown's criers bid the carters make haste.",
@@ -702,6 +729,19 @@
         { "id": "heard_siege_won", "when": { "proclamation": ["siege_won"] }, "lines": [
             "The herald brought news of a siege won. {proclamation}",
             "Walls fall and banners change. The crier tells it like a song."
+        ]},
+        { "id": "heard_trade_embargo", "when": { "proclamation": ["trade_embargo", "trade_war"] }, "lines": [
+            "Did you hear the crier? {proclamation} Prices will climb, mark my words.",
+            "Embargoes, duties... the merchants grumble and the smugglers grin.",
+            "My cousin hauls salt over that border. Now he hauls it by night."
+        ]},
+        { "id": "heard_trade_treaty", "when": { "proclamation": ["trade_treaty"] }, "lines": [
+            "The herald says there's a trade treaty signed. {proclamation}",
+            "No more duties at the border, they say. The carters will be glad of it."
+        ]},
+        { "id": "heard_trade_ban", "when": { "proclamation": ["trade_ban", "trade_granary"] }, "lines": [
+            "{proclamation} About time the crown thought of its own people.",
+            "Grain stays in the realm now, the crier says. The farmers near the border are furious."
         ]},
         { "id": "heard_siege_lost", "when": { "proclamation": ["siege_lost"] }, "lines": [
             "Bad news from the crier: {proclamation}",

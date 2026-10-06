@@ -27,8 +27,10 @@
 //              that waited for it: a dearth follows downstream. Merchants
 //              shun the road for fear.days (marketDynamics thins the link).
 //              Losses worth a herald's cry are recorded (Heralds reads them).
-//   Tolls      Crossing into another realm's land a trader pays tolls.rate of
-//              its cargo's value from its purse into that realm's treasury.
+//   Tolls      Crossing into another realm's land a trader pays that realm's
+//              import tariff on its cargo (systems/tradePolicy.js; never under
+//              tolls.rate, waived by a trade treaty) from its purse into the
+//              realm's treasury.
 //   Wardens    Realms with full treasuries (or lawful lords) send road
 //              patrols ('road_patrol') up and down their busiest roads, paid
 //              from the treasury; they break raider bands and guard traders.
@@ -54,6 +56,7 @@ import { SettlementMarket } from '../world/settlementMarket.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 import { OutlawLairs } from './outlawLairs.js';
 import { Underworld } from './underworld.js';
+import { TradePolicy } from './tradePolicy.js';
 import { PriceKnowledge } from './priceKnowledge.js';
 import { Ledger } from './ledger.js';
 
@@ -678,12 +681,16 @@ export const MerchantCaravans = {
         u.tolls.push(realm);
         const k = _kingdom(world, realm);
         if (!k || k.isAlive === false) return 0;
-        const due = Math.max(_num(T.min, 1), Math.round(_num(u.value) * _num(T.rate, 0.03)));
+        // The realm's import tariff on the cargo (never under the customary rate; waived by a treaty) — systems/tradePolicy.js
+        const rate = TradePolicy.tollRate(world, realm, u.kingdomId, u.mainGood, _num(T.rate, 0.03));
+        if (!(rate > 0)) return 0;
+        const due = Math.max(_num(T.min, 1), Math.round(_num(u.value) * rate));
         const paid = Math.min(Math.floor(_num(u.purse)), due);
         if (!(paid > 0)) return 0;
         u.purse = _num(u.purse) - paid;
         u.tollsPaid = _num(u.tollsPaid) + paid;
         k.treasury = _num(k.treasury) + paid;
+        TradePolicy.noteToll(world, realm, paid);
         st.stats.tolls += paid;
         MerchantCaravans._syncInventory(u);
         return paid;

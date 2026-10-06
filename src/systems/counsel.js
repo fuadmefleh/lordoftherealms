@@ -55,6 +55,7 @@ import { Guilds } from './guilds.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { TownLabour } from '../world/townLabour.js';
 import { Hinterland } from '../world/hinterland.js';
+import { TradePolicy } from './tradePolicy.js';
 import { EconomyIndex } from '../world/economyIndex.js';
 import { Fashions } from '../world/fashions.js';
 
@@ -1090,6 +1091,46 @@ R.craftGuildRank = (ctx) => {
         out.push({ key: `gr:${m.key}`, q: m.q, r: m.r, town: m.town, guild: (Guilds.def(m.guild) || {}).name || 'guild', rank: Guilds.rankName(q.rank), still: still.length ? `: bring ${still.join(', ')}` : ': go and take it' });
     }
     return out;
+};
+
+/** Goods in the player's packs from a realm under embargo where they stand (systems/tradePolicy.js). */
+R.tradeEmbargoed = (ctx) => {
+    const t = ctx.tile(ctx.player.q, ctx.player.r);
+    const s = t && t.settlement;
+    if (!s || s.kingdom == null) return [];
+    const out = [];
+    for (const [good, qty] of Object.entries(ctx.player.inventory || {})) {
+        if (!(qty > 0)) continue;
+        const n = TradePolicy.goodNotice(ctx.player, ctx.world, s, good);
+        if (n && n.embargoed > 0) out.push({ key: `tpe:${good}`, q: s.q, r: s.r, n: n.embargoed, good: good.replace(/_/g, ' '), realm: _kingdomName(ctx.world, s.kingdom) });
+    }
+    return out.slice(0, 2);
+};
+
+/** A crown's trading licence about to run out. */
+R.tradeLicence = (ctx, p) => {
+    const st = _obj(ctx.player.tradePolicy);
+    const out = [];
+    for (const [kid, until] of Object.entries((st && st.licences) || {})) {
+        const left = _num(until) - ctx.day;
+        if (left > 0 && left <= _num(p.days, 10)) out.push({ key: `tpl:${kid}`, realm: _kingdomName(ctx.world, kid), until, left });
+    }
+    return out;
+};
+
+/** The realm the player rules: neighbours' embargoes and trade wars against it. */
+R.tradeAgainstRealm = (ctx) => {
+    const k = Throne.ruledKingdom(ctx.player, ctx.world);
+    if (!k) return [];
+    const out = [];
+    for (const o of (ctx.world.kingdoms || [])) {
+        if (!o || o === k || o.isAlive === false) continue;
+        const po = o.tradePolicy;
+        if (!po) continue;
+        if (po.embargo && po.embargo[k.id] && po.embargo[k.id].why !== 'war') out.push({ key: `tpk:e:${o.id}`, realm: o.name, what: "has laid an embargo on your realm's goods", severity: 'warning' });
+        else if (po.retal && po.retal[k.id] > 0) out.push({ key: `tpk:w:${o.id}`, realm: o.name, what: `taxes your realm's goods ${Math.round(TradePolicy.avgImport(o, k.id) * 100)}% in a trade war — lower your own duties on its goods, or sign a treaty` });
+    }
+    return out.slice(0, 2);
 };
 
 /** A guild on strike near the player: its goods are short there. */

@@ -349,6 +349,16 @@ describe('Concessions — leases', () => {
         expect(s.c.status).toBe('default');
         // ...and no new lease for a defaulter
         expect(Concessions.leaseQuote(s.player, s.world, s.site.id).ok).toBe(false);
+        // an embargo between the realm and the player's sworn crown (systems/tradePolicy.js)
+        s = won();
+        const other = s.world.kingdoms.find(k => k.id !== s.realm.id && k.isAlive !== false);
+        s.player.allegiance = other.id;
+        other.tradePolicy = { ...(other.tradePolicy || {}), embargo: { [s.realm.id]: true } };
+        s.world.day += 1;
+        while (s.world.day % 7 !== 5) s.world.day += 1;
+        Concessions.processDay(s.world, s.player);
+        expect(s.c.status).toBe('embargo');
+        delete s.player.allegiance;
         // arrears: the purse can't pay the hands and the crown
         s = won();
         s.player.gold = 0;

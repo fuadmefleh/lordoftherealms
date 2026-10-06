@@ -65,6 +65,7 @@ import { Labour } from '../../systems/labour.js';
 import { Guilds } from '../../systems/guilds.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { Concessions } from '../../systems/concessions.js';
+import { TradePolicy } from '../../systems/tradePolicy.js';
 import { EconomyChronicle } from '../../systems/economyChronicle.js';
 import { Ledger } from '../../systems/ledger.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
@@ -307,6 +308,8 @@ function _endDay(game) {
     mark(game, 'MarketFairs.processDay');
     game.hinterlandDay = Concessions.processDay(world, player);
     mark(game, 'Concessions.processDay');
+    game.tradePolicyDay = TradePolicy.processDay(world, player);
+    mark(game, 'TradePolicy.processDay');
     MarketDynamics.updatePrices(world, player);
     mark(game, 'MarketDynamics.updatePrices');
     game.labourDay = Labour.processDay(world, player);

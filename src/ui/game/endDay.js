@@ -28,6 +28,7 @@ import { Labour } from '../../systems/labour.js';
 import { Guilds } from '../../systems/guilds.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { Concessions } from '../../systems/concessions.js';
+import { TradePolicy } from '../../systems/tradePolicy.js';
 import { EconomyChronicle } from '../../systems/economyChronicle.js';
 import { Ledger } from '../../systems/ledger.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
@@ -595,6 +596,10 @@ export function endDay() {
             // are paid, auctioned and revoked (world/hinterland.js, systems/concessions.js)
             const hinterlandDay = Concessions.processDay(this.world, this.player);
             for (const n of hinterlandDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // The crowns' trade policy: tariffs, export bans, embargoes, treaties,
+            // trade wars and granaries, each realm on its weekly turn (systems/tradePolicy.js)
+            const tradePolicyDay = TradePolicy.processDay(this.world, this.player);
+            for (const n of tradePolicyDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // The settlement markets' day: production, consumption, NPC trade
             // (world/settlementMarket.js; lairs and sieges disrupt the roads)

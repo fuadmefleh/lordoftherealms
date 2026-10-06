@@ -48,6 +48,7 @@
             "guilds": { "name": "Guild income", "group": "levies" },
             "guildTolls": { "name": "Guild tolls in your sale prices", "group": "levies", "kind": "memo" },
             "tariffs": { "name": "Tariffs", "group": "levies" },
+            "saleDuties": { "name": "Import duties in your sale prices", "group": "levies", "kind": "memo" },
             "roadTolls": { "name": "Road tolls", "group": "levies" },
             "fines": { "name": "Fines", "group": "levies" },
             "bail": { "name": "Bail", "group": "levies" },

@@ -8,7 +8,8 @@
 // along the kingdoms' trade routes and between near neighbours — cut by
 // war, blockades (world/kingdomNavy.js), sieges (systems/sieges.js,
 // systems/holdingSieges.js), outlaw lairs (systems/outlawLairs.js) and
-// raiders on the roads. getPrice / getPriceTrend / getMarketSummary report
+// raiders on the roads, and the crowns' trade policy (systems/tradePolicy.js:
+// embargoes, treaties, tariffs). getPrice / getPriceTrend / getMarketSummary report
 // the same prices to caravans, the tavern and the market screens.
 // Deterministic; draws no RNG.
 
@@ -28,6 +29,7 @@ import { OutlawLairs } from './outlawLairs.js';
 import { Sieges } from './sieges.js';
 import { HoldingSieges } from './holdingSieges.js';
 import { MerchantCaravans } from './merchantCaravans.js';
+import { TradePolicy } from './tradePolicy.js';
 
 const _key = (q, r) => `${q},${r}`;
 /** Days a settlement's production profile holds before it is worked out again. */
@@ -126,6 +128,8 @@ export const MarketDynamics = {
         this._disrupt(world, player, links, turnArg);
         const bases = this._basePrices();
         const flow = SettlementMarket.flows(links, bases, day);
+        // The duties the day's trade paid go to the crowns (systems/tradePolicy.js)
+        flow.duties = TradePolicy.collect(world, links);
         MerchantCaravans.dispatch(world, links, bases, day, player, lives.length);
         // Independent towns have no realm treasury pass to bank their trade (KingdomAI.updateEconomy)
         for (const live of lives) if (!live.kingdom) Economy.processTrade(live);
@@ -224,6 +228,8 @@ export const MarketDynamics = {
             return {
                 a, b, dist: d, sea, road, routes: nRoutes, friction, base, capacity: base, factor: 1,
                 slot: SettlementMarket.slot(a.q + b.q, a.r + b.r),
+                // Crown tariffs read and paid on the link (systems/tradePolicy.js; laid out here so every link keeps one shape)
+                dutyAB: null, dutyBA: null, impAB: 1, impBA: 1, paidAB: 0, paidBA: 0, _tp: null, _tpA: null, _tpB: null, _tpF: 1,
             };
         };
         // A loaded game picks up the links its towns were trading on (saved on
@@ -372,6 +378,8 @@ export const MarketDynamics = {
                 }
             }
             if (besieged.size && (besieged.has(_key(a.q, a.r)) || besieged.has(_key(b.q, b.r)))) f *= 1 - T.siegeCut;
+            // Crown trade policy: embargoes cut, treaties widen; tariffs and bans per good (systems/tradePolicy.js)
+            f *= TradePolicy.linkFactor(world, link, ka, kb);
             if (f > 0) f *= MerchantCaravans.fearFactor(world, link);
             if (f > 0 && !link.embody && (lairs.length || raiders.length)) {
                 let dq = b.q - a.q;

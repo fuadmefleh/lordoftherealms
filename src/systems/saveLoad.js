@@ -43,6 +43,7 @@ import { KingdomNavy } from '../world/kingdomNavy.js';
 import { WorldUnit } from '../world/units.js';
 import { Terrain } from '../world/terrain.js';
 import { MarketDynamics } from './marketDynamics.js';
+import { TradePolicy } from './tradePolicy.js';
 import { Labour } from './labour.js';
 import { Hinterland } from '../world/hinterland.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
@@ -150,6 +151,8 @@ export const SaveLoad = {
             // The rural sites around the towns (deposits, reserves), mining leases,
             // auctions and prospectors (world/hinterland.js, systems/concessions.js)
             hinterland: Hinterland.serialize(world),
+            // Trade-policy news for the heralds; each realm's policy travels with it (kingdom.tradePolicy, systems/tradePolicy.js)
+            tradePolicy: TradePolicy.serialize(world),
             // Great Works raised and rising, the wonders claimed (systems/patronage.js)
             greatWorks: Patronage.serializeWorld(world),
             // The realms' weekly economic indices and the heralds' price news; the
@@ -261,7 +264,9 @@ export const SaveLoad = {
                 // Wonders the realm has raised (systems/patronage.js; read by its stability)
                 'greatWorks',
                 // The crown's debts, coin purity, levy and defaults (systems/finance.js, world/coinage.js)
-                'finance']),
+                'finance',
+                // Tariffs, bans, embargoes, treaties, trade wars, the granary (systems/tradePolicy.js)
+                'tradePolicy']),
             ...(k.createdByPlayer ? {
                 foundedDay: k.foundedDay,
                 colorLight: k.colorLight,
@@ -473,6 +478,8 @@ export const SaveLoad = {
             guilds: Guilds.serialize(player),
             // The price book: known prices by town and their age, price history, trading P&L (systems/priceKnowledge.js)
             priceBook: PriceKnowledge.serialize(player),
+            // Trade policy as a merchant: goods booked by the realm they were bought in, crown licences (systems/tradePolicy.js)
+            tradePolicy: TradePolicy.serializePlayer(player),
             // The gazettes read, the fashions heard of, net worth week by week (systems/economyChronicle.js)
             econ: EconomyChronicle.serialize(player),
         };
@@ -575,6 +582,8 @@ export const SaveLoad = {
         Labour.restore(saveData.labour, world);
         // The hinterland (older saves: none — the sites are derived from the terrain on the next day)
         Hinterland.restore(saveData.hinterland, world);
+        // Trade policy news (older saves: none; realms set their policy on their next turn)
+        TradePolicy.restore(saveData.tradePolicy, world);
         // The economic indices and the fashions (older saves: none yet — measured on the next week)
         EconomyIndex.restore(saveData.economy, world);
         Fashions.restore(saveData.fashions, world);
@@ -743,6 +752,8 @@ export const SaveLoad = {
         Guilds.loadState(player);
         // The price book — older saves start a blank one (filled on the next visit)
         PriceKnowledge.loadState(player);
+        // Trade policy — older saves have no ledger (goods already carried count as home-bought)
+        TradePolicy.loadPlayer(player);
         // The Economic Chronicle — older saves start a blank record (the gazette is read on the next market visit)
         EconomyChronicle.loadState(player);
 

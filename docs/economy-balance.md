@@ -450,6 +450,29 @@ Migration moves about 1% of the world's people a year in peacetime; wars and fam
 
 **Cost per day** (harness, 80×60, 59–101 towns, 150 days): the labour day costs 0.6 ms on a quiet run (market tick 1.6 ms beside it, unchanged by labour) and 0.6–1.0 ms median, 1.0–1.3 ms mean, on a loaded machine (market 1.9–2.7 ms). Most of it is the market-day turns of a quarter of the towns (about 12 µs each); the weekly migration pass adds 2–3 ms once a week. See [Daily tick cost](#daily-tick-cost-2026-10) for the pass that trimmed it.
 
+## Kingdom trade policy (2026-10)
+
+Tariffs, export bans, embargoes, treaties, trade wars and state granaries (`systems/tradePolicy.js`, `data/tradePolicy.json`; see [the manual](../GAMEPLAY_MANUAL.md#kingdom-trade-policy)). Measured with throwaway harness runs: seeds 7–11 for 1,080 days and seeds 101/202/303 for 240–400 days, with the player kept fed so the market tick runs every day.
+
+- **Kingdom survival.** On seeds 7–11 at 1,080 days, 43 of 50 realms were alive with the policy on (10, 7, 9, 8, 9) and 45 of 50 with it off (10, 8, 9, 8, 10). Wars ran 27–83 per run with it on and 36–85 with it off. Both are within run-to-run noise.
+- **Customs.** Tariff and toll revenue came to about 25–58k gold over 1,080 days for all realms together, or 2–5k per realm. Treasuries end at 160–390k on average either way, so customs are a small line. They matter to a player-ruled realm's weekly budget, not to the war balance. `revenue.scale` (1) scales the duty paid on NPC trade.
+- **Why treasuries vary.** NPC trade income (`goldScale` × the price gap) dwarfs customs. Tariffs and embargoes widen price gaps, so the gold made on each unit that still moves rises while volume falls. Across seeds the two roughly cancel, and treasury sums land within the runs' own spread (for example 0.8–1.5M with the policy off versus 1.2–1.3M with it on at 240 days). This is chaos, not a loop.
+- **What happens in a run.** Over the last 40 records of a 1,080-day run: 5–21 embargoes (most at war, some on rivals), 1–4 treaties, 0–11 trade-war steps (they cool again: `trade_peace`), 1–2 famine export bans, and 1–8 granary releases. Treaty relations rise only to 50, below the alliance line of 70. An earlier cap of 80 would have made every treaty an alliance.
+- **No money loops (tested).**
+  - Duties only ever reduce what the player is paid.
+  - Customs go to crowns, never to the player.
+  - Smuggling pays about 0.875 × the town's value, about 1.25 × an honest sale, against catch odds, a fine and heat.
+  - A licence fee and brokering gifts go into treasuries.
+  - The granary is a pure crown cost: grain bought is not credited to the town's gold.
+- **Cost.**
+  - `TradePolicy.processDay` costs about 0.24–0.34 ms a day warm (seeds 101/202/303, 400 days, days 60+), and more under load from other processes.
+  - `linkFactor` plus `collect` add about 0.1 ms to the market tick.
+  - What keeps it cheap:
+    - The trade council (tariffs, treaties, rivals, trade wars) sits monthly. Hunger, war embargoes and granary releases are weekly, and granary buying is monthly in at most 4 towns.
+    - Duty tables are cached per realm pair and rebuilt only when a policy changes (`world.tradePolicy.ver`). Each link memoises what it read.
+    - Realm towns and partners are cached until the towns or the links change.
+    - The hunger check uses its own cheap version of `Kingship.hunger`.
+
 ## Daily tick cost (2026-10)
 
 Measured with the harness's per-step timing (`mark`), the playtest bot playing seeds 101, 202 and 303 for 200 days, three runs each, before and after (ms per day, averaged over the runs; days 10–200):

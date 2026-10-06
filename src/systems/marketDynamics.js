@@ -121,11 +121,12 @@ export const MarketDynamics = {
         const turnArg = k > 1 && Number.isFinite(day) ? turn : null;
         // A few links' trade travels as real caravans and ships this turn
         // (systems/merchantCaravans.js): their cargo lands only on arrival
-        MerchantCaravans.selectLinks(world, links, turnArg, day);
+        // (the caravan cap counts the towns: they are `lives`, no second scan of the map)
+        MerchantCaravans.selectLinks(world, links, turnArg, day, lives.length);
         this._disrupt(world, player, links, turnArg);
         const bases = this._basePrices();
         const flow = SettlementMarket.flows(links, bases, day);
-        MerchantCaravans.dispatch(world, links, bases, day, player);
+        MerchantCaravans.dispatch(world, links, bases, day, player, lives.length);
         // Independent towns have no realm treasury pass to bank their trade (KingdomAI.updateEconomy)
         for (const live of lives) if (!live.kingdom) Economy.processTrade(live);
         this.lastFlow = flow;

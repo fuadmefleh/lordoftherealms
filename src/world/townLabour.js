@@ -130,6 +130,15 @@ export const TownLabour = {
                 if (!_obj(map)) continue;
                 for (const [s, w] of Object.entries(map)) if (STRATA.includes(s) && _num(w)) c.peoplesList.push([eff, s, _num(w)]);
             }
+            // Base wages by size and sector, and each stratum's working share (read every market turn)
+            c.baseWageT = {};
+            const W = c.wages || {};
+            for (const type of Object.keys(c.shares)) {
+                c.baseWageT[type] = {};
+                for (const sec of SECTORS) c.baseWageT[type][sec] = _num(W.base && W.base[sec], 0.5) * _num(W.typeMult && W.typeMult[type], 1);
+            }
+            c.workOf = {};
+            for (const s of STRATA) c.workOf[s] = _num(c.strata[s] && c.strata[s].work);
             c.groupList = {};
             for (const s of STRATA) {
                 const g = _obj(c.welfare.groups && c.welfare.groups[s]) || { food: 1 };
@@ -197,8 +206,10 @@ export const TownLabour = {
 
     /** Base wage of a sector in a settlement of this size (gold a day per hand). */
     baseWage(type, sector) {
-        const W = TownLabour.config().wages;
-        return _num(W.base[sector], 0.5) * _num(W.typeMult[TownLabour._type(type)], 1);
+        const C = TownLabour.config();
+        const t = C.baseWageT[TownLabour._type(type)];
+        if (t && t[sector] !== undefined) return t[sector];
+        return _num(C.wages.base[sector], 0.5) * _num(C.wages.typeMult[TownLabour._type(type)], 1);
     },
 
     /**
@@ -363,6 +374,7 @@ export const TownLabour = {
         // artisans and merchants find no place at first and a town emptied by
         // war or plague is short of them until it shrinks
         const J = C.jobs;
+        const BW = C.baseWageT[type];
         const ba = 1 - Math.pow(1 - _clamp(_num(J.baseAlpha, 0.04), 0, 1), k / 4);
         lab.base = Math.round(Number.isFinite(lab.base) && lab.base > 0 ? lab.base + (pop - lab.base) * ba : pop);
         const bpop = lab.base;
@@ -373,19 +385,19 @@ export const TownLabour = {
         const util = _clamp(_num(m.util, 0.5), 0, 1);
         const vol = m.trade ? (_num(m.trade.in) + _num(m.trade.out)) / k : 0;
         const act = pop > 0 ? Math.min(_num(J.tradeMax, 1.6), vol / (pop * _num(J.tradeRef, 0.004))) : 0;
-        const wk = (s) => _num(C.strata[s] && C.strata[s].work);
+        const wk = C.workOf;
         const jobs = {
-            land: wk('peasants') * tgt.peasants * effPop + Math.max(0, _num(hire.land)),
-            craft: wk('artisans') * tgt.artisans * bpop * (_num(J.craftBase, 0.8) + _num(J.craftUtil, 0.3) * util) + Math.max(0, _num(hire.craft)),
-            trade: wk('merchants') * tgt.merchants * bpop * (_num(J.tradeBase, 0.75) + _num(J.tradeAct, 0.25) * act),
+            land: wk.peasants * tgt.peasants * effPop + Math.max(0, _num(hire.land)),
+            craft: wk.artisans * tgt.artisans * bpop * (_num(J.craftBase, 0.8) + _num(J.craftUtil, 0.3) * util) + Math.max(0, _num(hire.craft)),
+            trade: wk.merchants * tgt.merchants * bpop * (_num(J.tradeBase, 0.75) + _num(J.tradeAct, 0.25) * act),
         };
         const W = C.wages;
         const col = _clamp(_num(ctx.col, 1), 0.5, 2.5);
         const wa = 1 - Math.pow(1 - _clamp(_num(W.alpha, 0.35), 0, 1), k / 4);
         let handsAll = 0, idleAll = 0;
         for (const sec of SECTORS) {
-            const st = TownLabour.workersOf(sec);
-            const hands = wk(st) * lab.sh[st] * pop;
+            const st = C.workerOf[sec];
+            const hands = wk[st] * lab.sh[st] * pop;
             const want = jobs[sec];
             lab.jobs[sec] = Math.round(want);
             lab.hands[sec] = Math.round(hands);
@@ -395,14 +407,14 @@ export const TownLabour = {
             idleAll += Math.max(0, hands - want);
             // Wages float with the balance of jobs and hands, and the price of bread
             const tight = hands > 0 ? want / hands : W.max;
-            const target = TownLabour.baseWage(type, sec) * _clamp(Math.pow(Math.max(0.01, tight), _num(W.elasticity, 1.5)), W.min, W.max) * Math.pow(col, _num(W.colPow, 0.5));
-            const cur = _num(lab.wage[sec], TownLabour.baseWage(type, sec));
+            const target = BW[sec] * _clamp(Math.pow(Math.max(0.01, tight), _num(W.elasticity, 1.5)), W.min, W.max) * Math.pow(col, _num(W.colPow, 0.5));
+            const cur = _num(lab.wage[sec], BW[sec]);
             lab.wage[sec] = Math.round((cur + (target - cur) * wa) * 100) / 100;
         }
         const idleShare = handsAll > 0 ? idleAll / handsAll : 0;
         // The artisans' wage against the customary one at today's price of bread
         // (1 = it buys what it always did) — read by the town guilds (systems/guilds.js)
-        settlement.wageIndex = Math.round(_num(lab.wage.craft) / Math.max(0.01, TownLabour.baseWage(type, 'craft') * col) * 1000) / 1000;
+        settlement.wageIndex = Math.round(_num(lab.wage.craft) / Math.max(0.01, BW.craft * col) * 1000) / 1000;
         lab.idleAll = _r3(idleShare);
 
         // Welfare of each stratum: basket met, work, real wage, safety, famine, taxes
@@ -412,12 +424,12 @@ export const TownLabour = {
         const danger = _clamp(_num(ctx.danger), 0, 1);
         const famine = _clamp(_num(m.short && m.short.food), 0, 1);
         const realWage = (sec) => {
-            const ratio = _num(lab.wage[sec]) / Math.max(0.01, TownLabour.baseWage(type, sec) * col);
+            const ratio = _num(lab.wage[sec]) / Math.max(0.01, BW[sec] * col);
             return _clamp(0.5 + (ratio - 1) * 1.25, 0, 1);
         };
         let townWork = 0, townWage = 0, wn = 0;
         for (const sec of SECTORS) {
-            const st = TownLabour.workersOf(sec);
+            const st = C.workerOf[sec];
             const share = lab.sh[st];
             townWork += share * (1 - lab.idle[sec]);
             townWage += share * realWage(sec);

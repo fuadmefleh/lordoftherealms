@@ -50,6 +50,8 @@ import { Seasons } from '../../world/seasons.js';
 import { travelTo } from './harness.js';
 
 const FOOD = ['grain', 'bread'];
+// Bought only when there's no grain or bread for sale
+const FOOD_FALLBACK = ['fish'];
 
 function count(stats, key, n = 1) {
     stats[key] = (stats[key] || 0) + n;
@@ -100,6 +102,16 @@ function buyFood(game, tile, stats) {
         const res = Trading.buyGoods(player, g, qty, tile.settlement);
         if (res.success) { count(stats, 'foodBought', qty); return; }
     }
+    // No grain or bread to be had (a dearth, a guild's bread monopoly): anything edible
+    if (player.getFoodCount() > 2) return;
+    for (const id of FOOD_FALLBACK) {
+        const g = goods.find(x => x.id === id);
+        if (!g || g.quantity <= 0) continue;
+        const qty = Trading.affordable(player, g, tile.settlement, 20);
+        if (qty <= 0) continue;
+        const res = Trading.buyGoods(player, g, qty, tile.settlement);
+        if (res.success) { count(stats, 'foodBought', qty); return; }
+    }
 }
 
 function sellGoods(game, tile, stats) {
@@ -108,6 +120,7 @@ function sellGoods(game, tile, stats) {
     const crowded = PlayerInventory.getUsedSlots(player) > PlayerInventory.getCapacity(player) * 0.75;
     for (const [id, qty] of Object.entries({ ...player.inventory })) {
         if (FOOD.includes(id) || !(qty > 0) || id === 'gold') continue;
+        if (FOOD_FALLBACK.includes(id) && player.getFoodCount() <= 10) continue;
         if (Treasures.info(id) && Utils.random() < 0.5) continue;
         // Goods bought to trade are held until a market pays what they cost
         // (the price book's average cost), unless the purse is running dry or the packs fill

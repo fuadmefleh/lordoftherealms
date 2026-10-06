@@ -56,7 +56,7 @@ Notes on reading the table:
 | **Caravans** (settlement-market pass, see below) | as the row above | 70% of what the load is worth at the destination's stock (a big load is valued as it floods the stalls) × (1 + **1%**/hex) × size × Commerce. Measured on 50-unit loads, capital to capital: median **+15–30%** net of the 200 g hire (+132 to +315 g on 500–1,000 g) early, +20–75% late. A glut-to-dearth haul pays +100–165% (fish or bread to a starving capital) until the loads fill the dearth | The regional price gap now does the work the flat 2.5%/hex premium did. That premium on top of real scarcity paid up to 3.7× on bread |
 | **Land trading** (buy here, sell there) | Loses about 12% except on resource-cheap goods and with the season | A greedy trader within 8 hexes: **+3 to +4 g/day** (8–27 trips in 120 days). The best single lots return +136–154%, but a village's or town's stock is shallow. Seasonal grain, bought at a town just after the harvest (day 88) and sold in the lean weeks (day 115): **+84%** at the dearest market within 6 hexes, +2 to +30% in the same town, and −15% in a glutted region | Prices follow each town's real stock, so the arbitrage is regional and seasonal. Buying pushes the price up and selling pushes it down along the same curve, so a trip's margin shrinks as it grows. Same-tile buy→sell-back stays impossible |
 | **Sea trade** (cog, best-margin route; re-measured 2026-10, port prices follow stock) | 66–161 g/day early, 76–154 late | Median 116–169 g/day per port, p75 250–320, a tail to 400–700 on glut→dearth pairs | Skilled and capital-heavy, with ship upkeep and wages. The median is in the right band; the tail is left open (a port prices a whole lot at one unit's price). See [Merchant Prince](#merchant-prince-2026-10) |
-| **Industry shares** (works funded in a town, new) | — | One level repays in 41–63 days in a great town (bakehouse 640g → about 15 g/day). Spread towns take 58–164 days; extra levels saturate (3 levels of a bakehouse: 61 days) | Capital investment, sized by the town's spare inputs and appetite. Tithe, seizure, expropriation and raids are the risk |
+| **Industry shares** (works funded in a town, new; re-measured 2026-10 with the works' share of the town's trade) | — | One level repays in 33–57 days in a great town (bakehouse 640g → about 17 g/day, 40 days; 22–42 days once the towns have grown). Spread towns take 52–400 days; extra levels saturate (3 levels of a bakehouse: 65 days). The weaving shed and smithy stay starved of inputs (121 and 381 days) | Capital investment, sized by the town's trade, spare inputs and appetite. Tithe, seizure, expropriation and raids are the risk |
 | **Warehouses** (new) | — | Harvest-to-lean grain speculation: median +9% to +48% in 30 days (p25 −49% to +20%) on a small stake | Speculation, not income. A same-tile buy→sell loses |
 | **Forward contracts** (new) | — | +3% + 0.2%/day over today's sale price (at most 15%), capped at the buy-back price. Failure costs 25% and reputation | A hedge or bet on the town's price. Filling one at once from the same stalls loses |
 | **Trading company** (scripted: one capital post, seasonal bread, only contracts the posts can source, expanding to a market that sells a contract's good) | 5 seeds over 360 days on 5,000 capital: +336, +112, −1,028, +1,979, +2,343 (mean **+750**) | +5,102, −501, +4,126, −837, +1,459 (mean **+1,870**, about +5 g/day) | See [The trading company](#the-trading-company) |
@@ -263,31 +263,37 @@ These are the player's levers on the settlement economy: industry, warehouses, f
 - **Warehouses.** A store-room at every city and capital bought up to 100 grain on day 85 of the year (after the harvest) and sold it on day 115 (the lean weeks), net of key fee, rent and spoilage.
 - **Sea trade.** Every 15 days, each port's best route (a cog, 40 units, 3 hexes a day, upkeep and 8 sailors' wages) was priced from `Ships.getPortMarket`, which now reads each town's stock.
 
-**Industry: one level, foreign town, 40% share less a 10% tithe.**
+**Industry: one level, foreign town, 52% share less a 10% tithe and the hands' wages** (re-measured 2026-10, after the labour pass, with the works taking their share of the town's trade — see below). "Took" is the share of the works' capacity that came from the town's own trade. "Before" is the same measurement on the code before this pass. "Late" funds the works on day 200 instead of day 20.
 
-| Works | Price (gold + materials) | Great towns: g/day median (p25–p75) | Payback median (p25) | Spread towns: payback median |
-|---|---|---|---|---|
-| Bakehouse | 640 + 10 wood, 15 stone | 15.3 (9.7–22.9) | **43** (28) | 58 |
-| Brewhouse | 540 + 20 wood, 5 stone | 12.6 (9.4–18.7) | **44** (30) | 128 |
-| Charcoal kilns | 240 + 10 stone | 5.7 (3.4–9.2) | **44** (29) | idle in wooded country |
-| Distillery | 310 + 10 wood, 2 iron | 7.5 (5.3–9.0) | **41** (36) | 121 |
-| Armoury | 260 + 10 stone, 6 iron | 7.0 (3.8–8.1) | **41** (33) | 164 |
-| Grain mill | 160 + 10 wood, 5 stone | 3.8 (2.0–6.0) | **47** (34) | flour has a small market |
-| Creamery | 150 + 10 wood, 5 stone | 3.1 (2.5–4.9) | **49** (32) | |
-| Tailors' hall | 210 + 10 wood, 3 textiles | 4.6 (3.8–6.8) | **50** (35) | |
-| Jewellers' row | 300 + 10 stone, 3 tools | 5.0 (4.3–6.0) | **63** (53) | |
-| Weaving shed | 200 + 15 wood | 1.5 (1.0–2.0) | 132 (103) | starved of wool unless you bring it |
-| Smithy | 200 + 10 stone, 4 iron | 0.7 (0.1–2.5) | 358 (82) | starved of iron unless you bring it |
+| Works | Price (gold + materials) | Great towns: g/day median (p25–p75) | Payback median (p25) | Took | Before: payback | Late: payback | Spread towns: payback |
+|---|---|---|---|---|---|---|---|
+| Bakehouse | 640 + 10 wood, 15 stone | 16.8 (12.3–18.4) | **40** (35) | 65% | 46 | 34 | 52 |
+| Brewhouse | 540 + 20 wood, 5 stone | 11.2 (9.8–13.9) | **49** (39) | 36% | 50 | 38 | 129 |
+| Grain mill | 160 + 10 wood, 5 stone | 4.2 (2.4–5.2) | **44** (31) | 5% | 44 | 32 | 400 |
+| Distillery | 310 + 10 wood, 2 iron | 7.4 (5.8–8.7) | **44** (36) | 11% | 45 | 39 | 93 |
+| Charcoal kilns | 240 + 10 stone | 6.4 (3.6–8.3) | **41** (29) | 17% | 50 | 37 | idle in wooded country |
+| Tannery | **400** (was 260) + 10 wood, 5 stone | 7.0 (6.4–7.7) | **57** (52) | 45% | 43 | 22 | about 320 |
+| Jewellers' row | 300 + 10 stone, 3 tools | 6.0 (5.0–7.2) | **52** (42) | 0 | 52 | idle (gems bought up) | 52 (cities only) |
+| Armoury | 260 + 10 stone, 6 iron | 6.8 (2.7–8.3) | **38** (31) | 0 | 39 | 42 | 137 |
+| Creamery | 150 + 10 wood, 5 stone | 4.9 (3.1–5.7) | **33** (27) | 2% | 43 | 26 | 72 |
+| Tailors' hall | 210 + 10 wood, 3 textiles | 4.1 (3.7–5.6) | **53** (37) | 0 | 53 | 29 | 78 |
+| Weaving shed | 200 + 15 wood | 1.7 (1.0–2.1) | 121 (96) | 0 | 121 | idle | 649 — starved of wool unless you bring it |
+| Smithy | 200 + 10 stone, 4 iron | 0.7 (0.0–2.3) | 381 (86) | 0 | 381 | 304 | 667 — starved of iron unless you bring it |
 
-- **Levels saturate.** Three levels of a bakehouse (2,670g) in a great town pay a median of 43.7 g/day, about 61 days to pay back. A brewhouse takes 93 days and a mill 214. More capacity than the town's stores can feed or absorb stands idle.
+- **The works take a share of the town's trade** (`data/markets.json` works.capture, `SettlementMarket._runWorks`). On market day a works first takes over `capture` × its runs ÷ (its runs + the trade's capacity) of the runs the town's own trade made that turn, valued at the town's prices after the trade's work (a run must still clear `minMargin` and its hands' wages). The stores end exactly as the trade left them: only the margin changes hands. Then it runs on top as before, on the town's spare inputs. So a level of a big, busy trade (bread, beer, leather in a great town) earns even while the town's own trade keeps its goods at target and there is no room to run on top, and a works in a small or idle trade earns little. The craft works (jewellers, armoury, tailors, smithy, weavers) take nothing: their towns' own trades rarely run, and those works live on the spare inputs as before.
+- **Before this pass** the payback was already 39–53 days in the great towns for ten of the twelve works (table's "Before" column, the code at the labour commit). The labour pass's note that bakehouses and brewhouses stood idle (median 0 g/day) and the craft works took 66–134 days did not reproduce under this methodology, with the works funded one kind at a time or all twelve together in the 8 largest cities. With all twelve together the grain works share the town's spare grain, and the brewhouse and distillery slow to 58–64 days, before and after (the bakehouse, 38 days, takes most of its runs from the town's bakers). The capture makes the income robust to the town's own trade filling its goods: without it a works stands idle whenever the trade leaves no room on top (tested).
+- **The tannery** became the outlier with the capture (leather grows dearer as the towns grow: 15 days late at 260g). Its price is up to 400g: 57 days early, 22 late.
+- **Right town, wrong town.** In the spread towns (8 spaced evenly by size) the brewhouse, mill, distillery, tannery and armoury take 90–400 days, and the charcoal kilns stand idle in wooded country. The bakehouse stays good anywhere with grain (52 days).
+- **Open.** The weaving shed and the smithy are still starved of wool and iron in every kind of town; they pay only when you sell those inputs into the town. The jewellers' row stands idle late in the game, when the nobles' and merchants' baskets (data/labour.json) have bought up the gems.
+- **Levels saturate.** Three levels of a bakehouse (2,670g) in a great town pay a median of 43.6 g/day, about 65 days to pay back (69 before). A brewhouse takes 94 days (97), a mill 165 (182) and a tannery about 170. The capture's share shrinks as the works grow against the trade, and more capacity than the town's stores can feed or absorb stands idle.
 - **Not offered.** The forge (iron + 2 firewood → 0.8 tools) adds no value at base prices, and the chandlery's rock oil is too rare.
 - **Why it is not a money loop.**
-  - The works can only process what the town has to spare: at least half the input's target stays for the townsfolk.
+  - The works can only process what the town has to spare: at least half the input's target stays for the townsfolk. The runs they take over from the town's trade move no goods at all: they only pay the investor a share of a margin the trade made anyway.
   - Each run is valued at the town's own scarcity curve, so the works drive their own margin down. Their output gluts the stalls (and stops at twice its target), and their inputs grow dear.
   - The crown's tithe (more at war or in a crisis), seizure, expropriation, raids and sieges put the stake at risk.
   - Selling a stake back returns 40% of the price.
   - The test suite checks that three weeks of a great town's bakehouse and brewhouse repay well under the stake.
-- **In the soak** (800 days, 5 seeds), the bot funded 6–16 works for 3,600–8,300g and drew 6,900–51,500g from them over the run. That is a season-scale payback, then a steady income, like properties.
+- **In the soak** (800 days, 5 seeds), the bot funded 6–16 works for 3,600–8,300g and drew 6,900–51,500g from them over the run. Re-run with the works' share of the trade: 6–12 works, and the Merchant Prince ledger (works, store-rooms and forwards together) took in 11,400–88,400g, against 5–14 works and 23,600–102,900g for the code before (the bot's runs diverge, so compare the ranges). The short soak's seed 202 then found the bot on an island capital whose grain was in dearth and whose bread the Bakers' Guild holds by monopoly: it starved with 2,600g in its purse. The bot now buys fish when there is no grain or bread to be had. That is a season-scale payback, then a steady income, like properties.
 
 **Warehouses: harvest → lean-weeks grain, about 100 units, 30 days.**
 
@@ -365,7 +371,7 @@ Craft and merchant guilds (`systems/guilds.js`, `data/guilds.json`; see [the man
 - A new market good, `leather` (base 18g, 0.0003 a head a day). The craftsmen supply little of it (0.15 of need, +0.1 on pasture). The rest comes from the town's **tannery** recipe: 1.5 hides → 1 leather, 0.25 runs a day per 1,000 people, in every settlement.
 - Hides had to rise to feed the tanners: the land now gives 2.6× need (+2.0 on pasture, +0.8 in forest), was 0.7 / 0.8 / 0.4. Hides are cheaper than before; leather armour (still made from hides) costs a crafter less.
 - The player's Tannery property gains **Tan Leather** (3 hides → 2 leather).
-- **Tannery works** (merchant prince): 260g + 10 wood, 5 stone, 2 runs a day a level. Measured like the other works (seeds 101, 202, 303; one level in each of the 8 largest towns, 120 days, 40% share less the 10% tithe): a median of about 5.9 g/day, so **about 44 days** to repay; 3 of 24 towns sat nearly idle where the town's own tanners used up the hides. Before the hide change the works stood idle almost everywhere (a median under 0.1 g/day), starved of hides like the smithy is of iron.
+- **Tannery works** (merchant prince): 260g (400g since the works took a share of the town's trade — see [Merchant Prince](#merchant-prince-2026-10)) + 10 wood, 5 stone, 2 runs a day a level. Measured like the other works (seeds 101, 202, 303; one level in each of the 8 largest towns, 120 days, 40% share less the 10% tithe): a median of about 5.9 g/day, so **about 44 days** to repay; 3 of 24 towns sat nearly idle where the town's own tanners used up the hides. Before the hide change the works stood idle almost everywhere (a median under 0.1 g/day), starved of hides like the smithy is of iron.
 
 **Holdings' bandit raids** that get in now burn half as large a share of the market's stores as of the granary (15%), and that damages any works in town through `SettlementMarket.loot`, as a sack or a lair's raid already did.
 
@@ -430,11 +436,40 @@ Migration moves about 1% of the world's people a year in peacetime; wars and fam
 | Grain mill | 0 (median idle) | 0.3 (468) | 20% |
 
 - Labour leaves the works where they were, or slightly better: the share rise more than covers the wages, and wages fall where artisans are idle.
-- **Open: the 30–60 day band no longer holds under the current economy, before or after labour.** The Merchant Prince table above (bakehouse 43 days) was measured before the caravan and price-book work merged; today the great towns' own bakers and brewers keep bread and beer near target, so a funded bakehouse mostly stands idle (median 0 g/day before labour). The craft works (jewellers, armoury, creamery, tailors) sit at 60–90 days. Retuning `runsPerLevel`/prices is a separate pass.
+- **Superseded.** The "with labour" column above did not reproduce when re-measured on the labour commit itself (same method: 8 most populous towns with the trade, seeds 101/202/303, funded on day 20 or day 0, one kind at a time or all together): the great towns' bakehouse and brewhouse paid 12–14 g/day (46–50 days) and the craft works 39–53 days. The re-measured table and the works' new share of the town's trade are in [Merchant Prince](#merchant-prince-2026-10).
 
-**Properties.** Half of a property's upkeep is its wage bill at the hiring town's base wage, floating with the local wage. With local wages at 0.81–1.18 of base (p10–p90) and land and craft fill at 1 in almost every town, upkeep moves by −10% to +9% and output is unchanged, so the property paybacks in the table at the top (30–55 days early) hold to within a few days.
+**Properties.** Half of a property's upkeep is its wage bill at the hiring town's base wage, floating with the local wage. Re-measured (seeds 101, 202, 303, 120 days; one property each beside the 12 largest and the 12 smallest settlements: apiary, orchard, tannery, workshop, quarry, mine, herb garden):
 
-**Cost per day** (harness, 80×60, 59–101 towns, 150 days): the labour day costs 0.6 ms on a quiet run (market tick 1.6 ms beside it, unchanged by labour) and 0.6–1.0 ms median, 1.0–1.3 ms mean, on a loaded machine (market 1.9–2.7 ms). Most of it is the market-day turns of a quarter of the towns (about 12 µs each); the weekly migration pass adds 2–3 ms once a week.
+| Hiring town | Upkeep against its base, p10 / median / p90 | Staffing (output), p10 / median |
+|---|---|---|
+| The 12 largest | 0.98 / 1.03 / 1.10 | 0.99 / 1.00 |
+| The 12 smallest (villages) | 1.07 / 1.09 / 1.12 | 0.89 / 0.93 |
+
+- Beside a great town a property's net moves by about 1%. Beside a village it pays about 9% more upkeep and works 7% short-handed, so an apiary (about 22 g/day net for 850g, 39 days) nets about 19.5 (44 days). The paybacks in the table at the top stay in the 30–55 day band, a few days slower in the villages.
+- Several properties beside one village overwhelm its labour market: seven of them beside each of six villages paid +30% upkeep (p90 +58%) at 53% staffing (p10). Build beside a town that has the hands.
+
+**Cost per day** (harness, 80×60, 59–101 towns, 150 days): the labour day costs 0.6 ms on a quiet run (market tick 1.6 ms beside it, unchanged by labour) and 0.6–1.0 ms median, 1.0–1.3 ms mean, on a loaded machine (market 1.9–2.7 ms). Most of it is the market-day turns of a quarter of the towns (about 12 µs each); the weekly migration pass adds 2–3 ms once a week. See [Daily tick cost](#daily-tick-cost-2026-10) for the pass that trimmed it.
+
+## Daily tick cost (2026-10)
+
+Measured with the harness's per-step timing (`mark`), the playtest bot playing seeds 101, 202 and 303 for 200 days, three runs each, before and after (ms per day, averaged over the runs; days 10–200):
+
+| Step | Before: median / mean / p90 | After: median / mean / p90 |
+|---|---|---|
+| Whole day turn (sum of steps) | 19.1 / 20.2 / 26.7 | 18.2 / 19.1 / 25.4 |
+| `MarketDynamics.updatePrices` | 2.57 / 3.10 / 5.04 | 2.18 / 2.66 / 4.48 |
+| `Labour.processDay` | 0.90 / 1.20 / 2.29 | 0.75 / 1.00 / 1.90 |
+| `Guilds.processDay` | 0.41 / 0.50 / 0.92 | 0.39 / 0.47 / 0.83 |
+| `MarketFairs.processDay` | 0.18 / 0.25 / 0.47 | 0.07 / 0.11 / 0.18 |
+| `PriceKnowledge.processDay` | 0.54 / 0.86 / 2.32 | 0.43 / 0.78 / 2.22 |
+| `world.advanceDay` (untouched) | 8.4 / 9.0 / 12.4 | 8.5 / 9.2 / 12.6 |
+
+What was cut (a CPU profile of the day turn, then each change checked to leave the game identical: a hash of every town's market, labour and guilds, the player and the realms' treasuries after 150–200 bot days on seeds 101, 202 and 303 matched the old code's, and golden/soak tests are unchanged):
+- **The settlement scan.** Outside `advanceDay` every `getSettlementViews` rescanned the 4,800-tile map (about 50–90 µs, 23 times a day). The day turn now holds the scan advanceDay made until its systems are done (`World.holdSettlementScan`/`releaseSettlementScan`, in `ui/game/endDay.js` and the harness). Founding a settlement already invalidates it, and a vanished one is noticed, as inside advanceDay. The caravan cap also counts the towns the market tick already listed.
+- **The need table** (`SettlementMarket._shape`, read about 1,000 times a day) returns at once while the town's labour record and mix key are unchanged, without asking for the class demand again.
+- **NPC trade** (`SettlementMarket.flows`) skips a good before pricing it when neither town has a surplus for the other's shortfall (the checks after the prices would skip it anyway). Half of its time was `Math.pow` on goods that could not move.
+- **The labour turn** reads base wages and working shares from tables built with the config; the weekly strike check works out the artisans' real wage only where their welfare is low enough to strike.
+- **Left as they are.** The rest of the market tick (each town's turn, about 15–40 µs; trade along about 120 links) and the guilds' weekly turn are spread over many small costs with no single hot spot. The weekly migration pass costs about 1.5 ms (was about 2 ms).
 
 ## Re-measuring
 

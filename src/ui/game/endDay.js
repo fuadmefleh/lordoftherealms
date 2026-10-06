@@ -145,6 +145,7 @@ export function endDay() {
 
     // Use setTimeout to allow UI to update (show loading state) before heavy processing
     setTimeout(() => {
+        let heldScan = false;
         try {
             // Process player's daily activities
             const playerResults = PlayerActions.endDay(this.player, this.world);
@@ -191,6 +192,8 @@ export function endDay() {
             // Process world turn
             // Aqueducts/herbalism/plague prevention grow your colonies;
             // philosophy/printing press steady them
+            // (the day's settlement scan is kept for the systems below; released in finally)
+            if (typeof this.world.holdSettlementScan === 'function') { this.world.holdSettlementScan(); heldScan = true; }
             const result = this.world.advanceDay(this.player, {
                 playerBonuses: {
                     colonyGrowth: Technology.getEffectTotal(this.player, 'settlementGrowthBonus')
@@ -1074,6 +1077,7 @@ export function endDay() {
             console.error("Error ending day:", e);
             this.ui.showNotification('Error', 'Failed to end day. Check console.', 'error');
         } finally {
+            if (heldScan) this.world.releaseSettlementScan();
             this.isProcessingTurn = false;
             document.body.style.cursor = 'default';
         }

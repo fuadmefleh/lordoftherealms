@@ -142,8 +142,8 @@
         "lairRadius": 3, "lairCut": 0.6, "raiderRadius": 2, "raiderCut": 0.35,
         "warCut": 1.0, "siegeCut": 1.0, "atWarFactor": 0.75
     },
-    "_works": "Works the player built or funded (market.works, systems/merchantPrince.js): after the town's own trades each runs up to its runs a day x repair x tool shortage, while the town keeps `keep` of its target of every input, the output stays under `fill` x its target, and a run still adds `minMargin` of its output's worth at today's stock (the town's own scarcity curve: a glut of the output or a dearth of the input stops it). `steps`: price checks per turn. lootDamage: share of a raid's or sack's take knocked off the works' repair.",
-    "works": { "fill": 2.0, "keep": 0.5, "minMargin": 0.1, "steps": 4, "lootDamage": 0.6 },
+    "_works": "Works the player built or funded (market.works, systems/merchantPrince.js): after the town's own trades each runs up to its runs a day x repair x tool shortage. First it takes over a share of the runs the town's own trade made that turn: capture x the works' runs / (the works' runs + the trade's capacity) of them (the craftsmen bring their work to the better-found works: the stores are as the trade left them, only the margin goes to the works) — so a level pays where the trade is big and busy and little where it is small or idle. Then it runs on top while the town keeps `keep` of its target of every input, the output stays under `fill` x its target, and a run still adds `minMargin` of its output's worth at today's stock (the town's own scarcity curve: a glut of the output or a dearth of the input stops it). `steps`: price checks per turn. lootDamage: share of a raid's or sack's take knocked off the works' repair.",
+    "works": { "fill": 2.0, "keep": 0.5, "minMargin": 0.1, "steps": 4, "lootDamage": 0.6, "capture": 1.0 },
     "_ui": "Labels for stock levels by scarcity (ascending).",
     "labels": [
         { "max": 0.75, "label": "Glut", "color": "#3498db" },

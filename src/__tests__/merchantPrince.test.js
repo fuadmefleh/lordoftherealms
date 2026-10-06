@@ -106,14 +106,66 @@ describe('industry: works in a town market', () => {
         MerchantPrince.invest(player, world, world.getTile(5, 5), 'bakery');
         const m = capital.market;
         const keep = SettlementMarket.target(capital, 'grain') * SettlementMarket.config().works.keep;
+        // Grain short: the town's own bakers still bake what they can spare, and the works
+        // take their share of that work — but bake nothing more of their own: the stores
+        // end exactly as the town's trade alone would leave them
         m.stock.grain = keep * 0.9;
         m.stock.bread = 0;
+        const control = JSON.parse(JSON.stringify(capital));
+        delete control.market.works;
         marketDay(world, capital);
-        expect(SettlementMarket.works(capital, 'bakery').runs).toBe(0);
+        marketDay(world, control);
+        const w = SettlementMarket.works(capital, 'bakery');
+        expect(w.runs).toBeGreaterThan(0);
+        expect(w.took).toBe(w.runs);
+        expect(m.stock.grain).toBe(control.market.stock.grain);
+        expect(m.stock.bread).toBe(control.market.stock.bread);
+        // Bread in glut: the town's bakers stand idle, and so do the works
         m.stock.grain = SettlementMarket.target(capital, 'grain') * 2;
         m.stock.bread = SettlementMarket.target(capital, 'bread') * 2.5;
         marketDay(world, capital);
         expect(SettlementMarket.works(capital, 'bakery').runs).toBe(0);
+    });
+
+    it('takes a share of the town\'s own trade, by the works\' size against the trade\'s', () => {
+        const { world, player, capital, town } = fixture();
+        const W = SettlementMarket.config().works;
+        // Grain at the works' keep (no room to bake on top), bread short: only the trade bakes
+        const setStock = (s) => {
+            s.market.stock.grain = SettlementMarket.target(s, 'grain') * W.keep;
+            s.market.stock.bread = SettlementMarket.target(s, 'bread') * 0.5;
+        };
+        const fund = (s, q, r) => {
+            player.q = q; player.r = r;
+            expect(MerchantPrince.invest(player, world, world.getTile(q, r), 'bakery').success).toBe(true);
+            setStock(s);
+            marketDay(world, s);
+            const w = SettlementMarket.works(s, 'bakery');
+            expect(w.runs).toBeGreaterThan(0);
+            expect(w.took).toBe(w.runs);
+            return w;
+        };
+        const big = fund(capital, 5, 5);
+        const small = fund(town, 9, 5);
+        // A level takes more runs from the capital's big trade than from the town's small
+        // one, though a larger share of the small one; never more than its own capacity
+        const k = 4;
+        const level = MerchantPrince.kind('bakery').runsPerLevel * k;
+        const share = (s) => level / (level + SettlementMarket.tradeCapacity(s, 'bakery') * k);
+        expect(big.took).toBeGreaterThan(small.took);
+        expect(big.took).toBeLessThanOrEqual(level);
+        expect(share(town)).toBeGreaterThan(share(capital));
+        expect(big.va).toBeGreaterThan(0);
+        // Without the capture the works would stand idle here
+        const mk = DataLoader._gamedata.markets;
+        try {
+            DataLoader._gamedata.markets = { ...mk, works: { ...mk.works, capture: 0 } };
+            setStock(capital);
+            marketDay(world, capital);
+            expect(SettlementMarket.works(capital, 'bakery').runs).toBe(0);
+        } finally {
+            DataLoader._gamedata.markets = mk;
+        }
     });
 
     it('needs the player in town, the gold and the materials; extends by levels up to the cap', () => {
@@ -507,12 +559,14 @@ describe('in the game: save, determinism, no money loop', () => {
                 const cost = Trading.buyCost(player, entry, q.qty, s);
                 expect(Math.floor(q.unitPrice * q.qty), id).toBeLessThan(cost);
             }
-            // The works: three weeks of a great town's bakehouse and brewhouse repay well under the stake
+            // The works: three weeks of the world's greatest town's bakehouse and brewhouse repay
+            // well under the stake (the very best town repays in about a month; the great towns'
+            // median is 40-50 days — docs/economy-balance.md)
             const invested = MerchantPrince.state(player).stats.invested;
             for (let d = 0; d < 21; d++) { keep(game); endDay(game); }
             const earned = MerchantPrince.state(player).stats.earned;
             expect(earned).toBeGreaterThan(0);
-            expect(earned).toBeLessThan(invested * 0.75);
+            expect(earned).toBeLessThan(invested * 0.8);
         } finally { restore(); }
     }, 120000);
 });

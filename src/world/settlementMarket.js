@@ -83,13 +83,17 @@ function buildConfig(src) {
     const toIdx = (o) => Object.entries(o || {}).filter(([id, per]) => idx[id] !== undefined && per > 0).map(([id, per]) => [idx[id], per]);
     const recipesI = recipes.map(r => ({ id: r.id, fill: Math.max(0.5, _num(r.fill, 1)), rank: r.rank, cap: r.cap, inI: toIdx(r.in), outI: toIdx(r.out) }))
         .filter(r => r.inI.length && r.outI.length)
-        .map(r => ({
-            id: r.id, fill: r.fill, rank: r.rank, cap: r.cap,
+        .map((r, ix) => ({
+            id: r.id, ix, fill: r.fill, rank: r.rank, cap: r.cap,
             inIdx: Int32Array.from(r.inI.map(x => x[0])), inPer: Float64Array.from(r.inI.map(x => x[1])),
             outIdx: Int32Array.from(r.outI.map(x => x[0])), outPer: Float64Array.from(r.outI.map(x => x[1])),
         }));
     // Scratch buffers for the daily tick (reused: allocating typed arrays is slow)
-    const buf = { st: new Float64Array(n), prod: new Float64Array(n), needs: new Float64Array(n), unmet: new Float64Array(n) };
+    const buf = {
+        st: new Float64Array(n), prod: new Float64Array(n), needs: new Float64Array(n), unmet: new Float64Array(n),
+        // (each trade's runs and capacity this turn, for the works that take a share of them)
+        trRuns: new Float64Array(recipesI.length), trCap: new Float64Array(recipesI.length),
+    };
     const terrainClass = {};
     for (const [cls, ids] of Object.entries(d.terrain || {})) {
         if (!Array.isArray(ids)) continue;
@@ -133,7 +137,7 @@ function buildConfig(src) {
             ...(d.trade || {}),
         },
         // Works the player built or funded (market.works; systems/merchantPrince.js)
-        works: { fill: 2, keep: 0.75, minMargin: 0.1, steps: 4, lootDamage: 0.6, ...(d.works || {}) },
+        works: { fill: 2, keep: 0.75, minMargin: 0.1, steps: 4, lootDamage: 0.6, capture: 0, ...(d.works || {}) },
         recipeById: Object.fromEntries(recipesI.map(r => [r.id, r])),
         labels: Array.isArray(d.labels) && d.labels.length ? d.labels : [{ max: 99, label: 'Steady', color: '#aaa' }],
         tickDays: Number.isInteger(d.tickDays) && d.tickDays >= 1 ? d.tickDays : 1,
@@ -178,14 +182,24 @@ export const SettlementMarket = {
         // Needs follow the population in steps of 25 people (so the table holds for days)
         const pop = Math.round(Math.max(0, _num(settlement.population)) / 25) * 25;
         const type = settlement.type;
+        let sh = _shapes.get(settlement);
+        // (the same labour record at the same mix key gives the same class demand:
+        // skip asking for it — this is read hundreds of times a day)
+        const lab = settlement.labour;
+        const lcfg = TownLabour.config();
+        if (sh && sh.pop === pop && sh.type === type && sh.cfg === C && sh.lab === lab && sh.lcfg === lcfg
+            && (!lab || (sh.mk === lab.mk && sh.lsh === lab.sh))) return sh;
         // ...and the class mix: nobles buy wine, peasants grain (world/townLabour.js)
         const dm = TownLabour.demandMults(settlement, C);
-        let sh = _shapes.get(settlement);
-        if (sh && sh.pop === pop && sh.type === type && sh.cfg === C && sh.dm === dm) return sh;
+        if (sh && sh.pop === pop && sh.type === type && sh.cfg === C && sh.dm === dm) {
+            sh.lab = lab; sh.lcfg = lcfg; sh.mk = lab ? lab.mk : undefined; sh.lsh = lab ? lab.sh : undefined;
+            return sh;
+        }
         const n = C.goodIds.length;
         sh = {
             pop, type, cfg: C, dm, used: {}, need: {}, target: {},
             usedA: new Uint8Array(n), needA: new Float64Array(n), targetA: new Float64Array(n),
+            lab, lcfg, mk: lab ? lab.mk : undefined, lsh: lab ? lab.sh : undefined,
         };
         const rank = Number.isFinite(C.typeRank[type]) ? C.typeRank[type] : 0;
         const td = _num(C.typeDemand[type], 1) || 1;
@@ -431,13 +445,22 @@ export const SettlementMarket = {
 
     /**
      * One turn of the player's works (from processSettlement, after the
-     * town's own trades): each runs up to cap × repair × `mult` runs while
-     * the town keeps `keep` of its target of the inputs, the output stays
-     * under `fill` × its target, and a run still adds `minMargin` of its
-     * output's worth at today's stock. Records the turn's runs and the
-     * value added (gold, at the town's scarcity) on the works.
+     * town's own trades), up to cap × repair × `mult` runs:
+     *   - first they take over a share of the runs the town's own trade
+     *     made this turn (`trRuns`, its capacity `trCap`, by recipe index):
+     *     capture × works / (works + trade capacity) of them — the town's
+     *     craftsmen bring their work to the better-found works, so the
+     *     stores are as the trade left them and only the margin changes
+     *     hands. A big, busy trade gives a level its full share; a small or
+     *     idle one little;
+     *   - then they run on top while the town keeps `keep` of its target
+     *     of the inputs and the output stays under `fill` × its target.
+     * Every run must still add `minMargin` of its output's worth (and its
+     * hands' wages) at today's stock. Records the turn's runs (`runs`, of
+     * which `took` were the trade's) and the value added (gold, at the
+     * town's scarcity) on the works.
      */
-    _runWorks(m, st, sh, k, mult, day, settlement = null) {
+    _runWorks(m, st, sh, k, mult, day, settlement = null, trRuns = null, trCap = null) {
         const C = SettlementMarket.config();
         const W = C.works;
         const bases = SettlementMarket._bases();
@@ -454,7 +477,22 @@ export const SettlementMarket = {
             const oi = rc.outIdx, op = rc.outPer, ii = rc.inIdx, ip = rc.inPer;
             // The hands' wages for a run (world/townLabour.js): a run must pay them too
             const wageRun = settlement ? TownLabour.worksWagePerRun(settlement, id, w) : 0;
-            let runs = 0, va = 0;
+            let runs = 0, va = 0, took = 0;
+            // A share of the trade's own runs this turn (the stores already hold their output)
+            const tRuns = trRuns ? trRuns[rc.ix] : 0;
+            if (tRuns > 0 && W.capture > 0 && left > 0.005) {
+                const share = _clamp(W.capture, 0, 1) * left / (left + Math.max(0, trCap[rc.ix]));
+                const n = Math.min(left, tRuns * share);
+                let outV = 0, inV = 0;
+                for (let j = 0; j < oi.length; j++) outV += op[j] * bases[oi[j]] * SettlementMarket.curve(st[oi[j]] / target[oi[j]], used[oi[j]]);
+                for (let j = 0; j < ii.length; j++) inV += ip[j] * bases[ii[j]] * SettlementMarket.curve(st[ii[j]] / target[ii[j]], used[ii[j]]);
+                if (n > 0.005 && outV > 0 && outV - inV - wageRun >= outV * W.minMargin) {
+                    took = n;
+                    runs += n;
+                    va += n * (outV - inV);
+                    left -= n;
+                }
+            }
             for (let s = 0; s < steps && left > 0.005; s++) {
                 let chunk = left / (steps - s);
                 for (let j = 0; j < oi.length; j++) chunk = Math.min(chunk, Math.max(0, target[oi[j]] * W.fill - st[oi[j]]) / op[j]);
@@ -476,6 +514,8 @@ export const SettlementMarket = {
             }
             w.runs = _round2(runs);
             w.va = _round2(va);
+            if (took > 0) w.took = _round2(took);
+            else delete w.took;
         }
     },
 
@@ -909,11 +949,14 @@ export const SettlementMarket = {
         const rank = Number.isFinite(C.typeRank[settlement.type]) ? C.typeRank[settlement.type] : 0;
         // (how busy the trades ran — read by the labour market as the artisans' work)
         let runsAll = 0, capAll = 0;
+        const trRuns = m.works ? B.trRuns : null, trCap = m.works ? B.trCap : null;
+        if (trRuns) { trRuns.fill(0); trCap.fill(0); }
         for (const rc of C.recipesI) {
             if (rank < rc.rank || (idle && idle[rc.id])) continue;
             let runs = rc.cap * pop / 1000 * toolF * k * lf.craft;
             if (!(runs > 0)) continue;
             capAll += runs;
+            if (trCap) trCap[rc.ix] = runs;
             const oi = rc.outIdx, op = rc.outPer, ii = rc.inIdx, ip = rc.inPer;
             // A trade with `fill` works ahead of need while its inputs are in glut (brewers
             // brew the harvest's cheap grain): up to fill × target at twice the inputs' target
@@ -927,12 +970,13 @@ export const SettlementMarket = {
             for (let j = 0; j < ii.length; j++) runs = Math.min(runs, Math.max(0, st[ii[j]] - needOf[ii[j]] * k) / ip[j]);
             if (!(runs > 0.01)) continue;
             runsAll += runs;
+            if (trRuns) trRuns[rc.ix] = runs;
             for (let j = 0; j < ii.length; j++) st[ii[j]] = Math.max(0, st[ii[j]] - runs * ip[j]);
             for (let j = 0; j < oi.length; j++) st[oi[j]] += runs * op[j];
         }
         m.util = capAll > 0 ? Math.round(Math.min(1, runsAll / capAll) * 1000) / 1000 : 0;
         // Works the player built or funded here (market.works) run on after the town's own trades
-        if (m.works) SettlementMarket._runWorks(m, st, sh, k, toolF * k * _num(ctx.intact, 1) * _num(ctx.worksMult, 1) * lf.craft, ctx.day, settlement);
+        if (m.works) SettlementMarket._runWorks(m, st, sh, k, toolF * k * _num(ctx.intact, 1) * _num(ctx.worksMult, 1) * lf.craft, ctx.day, settlement, trRuns, trCap);
 
         // Consumption; staples stand in for one another within a group
         // (bread short: they eat porridge; no firewood: they burn coal)
@@ -1075,6 +1119,7 @@ export const SettlementMarket = {
             const v = Math.pow(stock / target, e);
             return v < lo ? lo : v > hi ? hi : v;
         };
+        const kd = T.keepDays;
         const ids = C.goodIds;
         const n = ids.length;
         const bases = new Float64Array(n);
@@ -1109,6 +1154,9 @@ export const SettlementMarket = {
                 const stA = xa[i], stB = xb[i];
                 if (stA <= 0 && stB <= 0) continue;
                 const ta = sha.targetA[i], tb = shb.targetA[i];
+                // Neither way can trade (no surplus over keepDays on one side with room under
+                // target on the other): skip before pricing — the checks below would anyway
+                if (!((stA - ta * kd > 0 && tb - stB > 0) || (stB - tb * kd > 0 && ta - stA > 0))) continue;
                 if (stA > 0 && stB > 0) {
                     const q = (stA / ta) / (stB / tb);
                     if (q < frR && q > 1 / frR) continue;

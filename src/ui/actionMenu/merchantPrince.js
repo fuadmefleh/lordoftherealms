@@ -50,7 +50,7 @@ function investTab(game, tile) {
     const { player, world } = game;
     const s = tile && tile.settlement;
     if (!s) return '<div style="color:#aaa;">Stand in a town to fund works there.</div>';
-    let html = `<div style="${NOTE}">Fund works in ${esc(s.name)}: they run in its market after the town's own trades, taking real inputs from its stores and selling real output, and pay you a share of the value they add at the town's prices. A works stands idle when its inputs run short or its goods glut the stalls; a war, an empty royal treasury or a ruined name can cost you it.</div>`;
+    let html = `<div style="${NOTE}">Fund works in ${esc(s.name)}: they take over a share of the town's own trade (more of a big, busy trade), then run on in its market with real inputs from its stores and real output, and pay you a share of the value they add at the town's prices. A works stands idle when the trade is idle and its inputs run short or its goods glut the stalls; a war, an empty royal treasury or a ruined name can cost you it.</div>`;
     const kinds = MerchantPrince.kinds();
     for (const [id, def] of Object.entries(kinds)) {
         if (!SettlementMarket.hasTrade(s, id)) continue;
@@ -60,7 +60,7 @@ function investTab(game, tile) {
         html += `<div style="${CARD}"><div><b>${esc(def.icon || '')} ${esc(def.name)}</b>${w ? ` · level ${w.lvl}${w.owner !== 'player' ? ` (${w.owner === 'crown' ? 'the crown\'s' : 'the town\'s'})` : ''} · repair ${pct(w.cond)}` : ''}</div>`;
         html += `<div style="${NOTE}">${goodsList(m.ins)} → ${goodsList(m.outs)} · a run adds <b style="color:${m.perRun > 0 ? '#2ecc71' : '#e74c3c'};">${m.perRun.toFixed(1)}g</b> at today's prices · the town's own trade works ${SettlementMarket.tradeCapacity(s, id).toFixed(1)} a day</div>`;
         html += `<div style="${NOTE}">${Object.keys(m.ins).map(x => stockLine(s, x)).join(' · ')} → ${Object.keys(m.outs).map(x => stockLine(s, x)).join(' · ')}</div>`;
-        if (w && w.owner === 'player') html += `<div style="font-size:11px;">Last market day: ${w.runs} runs, ${Math.round(w.va)}g added</div>`;
+        if (w && w.owner === 'player') html += `<div style="font-size:11px;">Last market day: ${w.runs} runs${w.took > 0 ? ` (${w.took} of the town's trade)` : ''}, ${Math.round(w.va)}g added</div>`;
         if (q.lvl) {
             const label = `${w ? 'Extend to level ' + q.lvl : 'Build'} (${g(q.gold)}${Object.keys(q.materials).length ? ` + ${goodsList(q.materials)}` : ''})`;
             html += act(label, ['invest', id], BTN_GOLD, q.ok, q.reason);

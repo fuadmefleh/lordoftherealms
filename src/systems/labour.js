@@ -429,10 +429,13 @@ export const Labour = {
             const key = _key(s.q, s.r);
             if ((RANK[s.type] || 0) >= (RANK[S.minType] || 1) && !TownLabour.striking(s, day) && day - _num(lab.lastStrike, -1e9) >= _num(S.gap, 45)) {
                 const wel = _num(lab.wel.artisans, 1);
-                const base = TownLabour.baseWage(s.type, 'craft') * Labour.costOfLiving(s);
-                const real = _num(lab.wage.craft, base) / Math.max(0.01, base);
+                // (the real wage is only worked out for artisans badly off)
+                const real = () => {
+                    const base = TownLabour.baseWage(s.type, 'craft') * Labour.costOfLiving(s);
+                    return _num(lab.wage.craft, base) / Math.max(0.01, base);
+                };
                 const p = (_num(S.below, 0.4) - wel) * _num(S.chance, 2.5);
-                if (wel < _num(S.below, 0.4) && real < _num(S.wageBelow, 0.85) && _roll(`strike:${key}:${day}`) < p) {
+                if (wel < _num(S.below, 0.4) && real() < _num(S.wageBelow, 0.85) && _roll(`strike:${key}:${day}`) < p) {
                     lab.strike = day + Math.max(1, _num(S.days, 7));
                     lab.lastStrike = day;
                     const h = Labour.record(world, { key: `strike:${key}:${day}`, kind: 'strike', place: s.name, q: s.q, r: s.r, kingdomId: s.kingdom || null, days: _num(S.days, 7) });

@@ -141,6 +141,15 @@ function mark(game, label) {
  * Returns { died } when the run would hand over to the death screen.
  */
 export function endDay(game) {
+    // (the settlement scan advanceDay makes is kept for the systems after it, as endDay.js does)
+    try {
+        return _endDay(game);
+    } finally {
+        if (typeof game.world.releaseSettlementScan === 'function' && game.world._scanHolds > 0) game.world.releaseSettlementScan();
+    }
+}
+
+function _endDay(game) {
     const { world, player } = game;
     const out = { died: null };
     game.trace = [];
@@ -150,6 +159,7 @@ export function endDay(game) {
     mark(game, 'PlayerActions.endDay');
     Councils.processDaily(player, world);
     mark(game, 'Councils.processDaily');
+    world.holdSettlementScan();
     const result = world.advanceDay(player, {
         playerBonuses: {
             colonyGrowth: Technology.getEffectTotal(player, 'settlementGrowthBonus')

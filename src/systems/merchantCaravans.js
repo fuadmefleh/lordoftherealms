@@ -342,9 +342,10 @@ export const MerchantCaravans = {
      * link.embody, which SettlementMarket.flows reads). Only links trading
      * today, never one already carrying a trader or shunned for fear, never
      * past the cap; the busiest first, with a hash of the seed and the day to
-     * vary it. Draws no RNG. @returns {number} links picked
+     * vary it. Draws no RNG. `towns`: the settlement count for the cap
+     * (counted from the world when not given). @returns {number} links picked
      */
-    selectLinks(world, links, turn = null, day = _day(world)) {
+    selectLinks(world, links, turn = null, day = _day(world), towns = null) {
         if (!Array.isArray(links)) return 0;
         for (const l of links) {
             if (l.embody) l.embody = false;
@@ -363,7 +364,7 @@ export const MerchantCaravans = {
             active++;
             busy.add(u.linkKey);
         }
-        let room = Math.min(MerchantCaravans.cap(world) - active, Math.floor(_num(C.spawn.perTurn, 3)));
+        let room = Math.min(MerchantCaravans.cap(world, towns) - active, Math.floor(_num(C.spawn.perTurn, 3)));
         if (room <= 0) return 0;
         const seed = _seed(world);
         const cands = [];
@@ -394,15 +395,15 @@ export const MerchantCaravans = {
     /**
      * After the flows: put each embodied link's cargo on the road (one trader
      * per direction), or land a lot too small for the trip (or over the cap)
-     * at once. `bases`: { goodId: base price }. `player` (optional) names the
+     * at once. `bases`: { goodId: base price }; `towns` as for selectLinks. `player` (optional) names the
      * merchant houses the player knows and the lairs on the way.
      */
-    dispatch(world, links, bases, day = _day(world), player = null) {
+    dispatch(world, links, bases, day = _day(world), player = null, towns = null) {
         if (!Array.isArray(links) || !world) return 0;
         const C = MerchantCaravans.config();
         const ids = SettlementMarket.config().goodIds;
         let active = MerchantCaravans.traders(world).length;
-        const cap = MerchantCaravans.cap(world);
+        const cap = MerchantCaravans.cap(world, towns);
         let spawned = 0;
         for (const l of links) {
             if (!l || !l.embody) continue;

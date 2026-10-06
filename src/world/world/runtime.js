@@ -36,9 +36,27 @@ Object.assign(World.prototype, {
         try {
             return this._advanceDay(player, opts);
         } finally {
-            this._settlementCache = null;
+            // (a caller holding the scan keeps it for the rest of its day turn)
+            if (!(this._scanHolds > 0)) this._settlementCache = null;
             this._dayMemo = null;
         }
+    },
+
+    /**
+     * Keep the settlement scan cached until releaseSettlementScan — for the
+     * day turn's systems that run after advanceDay (markets, labour, guilds,
+     * caravans... each lists the settlements). Founding a settlement calls
+     * invalidateSettlements and a vanished one is noticed, as inside
+     * advanceDay. Holds nest.
+     */
+    holdSettlementScan() {
+        this._scanHolds = (this._scanHolds || 0) + 1;
+        if (!this._settlementCache) this._settlementCache = { positions: null };
+    },
+
+    releaseSettlementScan() {
+        this._scanHolds = Math.max(0, (this._scanHolds || 0) - 1);
+        if (!this._scanHolds && !this._dayMemo) this._settlementCache = null;
     },
 
     /** True while advanceDay runs (the per-day caches are live). */

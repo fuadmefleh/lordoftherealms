@@ -140,7 +140,7 @@ const DEFAULTS = {
         caravan: { name: 'Goods on the road', icon: '🐫', attachDays: 1, base: 0.002, raiderRadius: 6, perRaider: 0.02, lairRadius: 8, perLair: 0.006, maxDaily: 0.25, convoyLoss: 0.7 },
         stock: { name: 'Stock in store', icon: '📦', attachDays: 2 },
         works: { name: 'Works & property', icon: '🏭', attachDays: 3, base: 0.0004, siegeWear: 0.03 },
-        crop: { name: 'Crops in the field', icon: '🌾', attachDays: 7, seasonShortfall: { Spring: 0.008, Summer: 0.014, Autumn: 0.006, Winter: 0.024 } },
+        crop: { name: 'Crops in the field', icon: '🌾', attachDays: 7, experienceWeight: 0.01, seasonShortfall: { Spring: 0.008, Summer: 0.014, Autumn: 0.006, Winter: 0.024 } },
     },
     guild: { count: 2, capitalBase: 9000, capitalJitter: [0.8, 1.3], failBelow: 0.15, recovery: [0.3, 0.6], refoundDays: 90, names: ['The Underwriters of {place}'] },
     book: { bookShare: 0.12, premium: 0.022, lossRatio: 0.6, noise: 0.45, warLoss: 0.25, blockadeLoss: 0.3, pirateLoss: 0.06, maxRatio: 6, catastrophe: { chance: 0.002, loss: [0.1, 0.25], winterMult: 2 } },
@@ -514,8 +514,10 @@ export const Underwriting = {
             if (!(value > 0)) continue;
             const model = Underwriting.harvestModel;
             const expected = model && typeof model.expected === 'function' ? model.expected(world, f) : null;
+            // The season's weather, or this field's own record if it is worse (experience rating), and any blight now
+            const seen = _num((((player.underwriting || {}).marks || {}).crop || {})[`${f.tile.q},${f.tile.r}`]);
             const rate = Number.isFinite(expected) ? expected
-                : _num((K.seasonShortfall || {})[season], 0.02) + Underwriting.cropShortfall(player, world, f, { eventsOnly: true });
+                : Math.max(_num((K.seasonShortfall || {})[season], 0.02), seen) + Underwriting.cropShortfall(player, world, f, { eventsOnly: true });
             items.push({ ref: `farm:${f.tile.q},${f.tile.r}:${f.prop.type}`, label: `${f.def.name} at ${f.tile.q},${f.tile.r}`, value: Math.round(value), loss: rate * value, farm: f });
         }
         return items;
@@ -790,8 +792,12 @@ export const Underwriting = {
     /** Farms under crop cover: the day's shortfall against a fair-weather crop. */
     _cropLosses(world, player, st) {
         if (!Underwriting.cover(player, 'crop')) return;
+        const marks = st.marks.crop = _obj(st.marks.crop) || {};
+        const w = _num(Underwriting.kind('crop').experienceWeight, 0.01);
         for (const f of Underwriting._farms(player, world)) {
             const short = Underwriting.cropShortfall(player, world, f);
+            const key = `${f.tile.q},${f.tile.r}`;
+            marks[key] = Math.round((_num(marks[key], _num((Underwriting.kind('crop').seasonShortfall || {})[_season(world)], 0.01)) * (1 - w) + (short - Underwriting.cropShortfall(player, world, f, { eventsOnly: true })) * w) * 1e5) / 1e5;
             if (!(short > 0)) continue;
             const value = Underwriting.farmDayValue(world, f) * short;
             if (value >= 1) LossBook.report(player, world, { kind: 'crop', cause: 'a poor day in the fields', value, ref: `farm:${f.tile.q},${f.tile.r}`, q: f.tile.q, r: f.tile.r });

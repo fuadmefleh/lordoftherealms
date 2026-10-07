@@ -95,11 +95,14 @@ const YEAR = 120;
 const WEEKS = YEAR / 7;
 
 const DEFAULTS = {
-    exchanges: 2, hurdle: 0.08, roeSlope: 2.5, minMult: 0.35, maxMult: 2.5, roeWeight: 0.08,
+    exchanges: 2, hurdle: 0.1, minMult: 0.4, maxMult: 3, roeWeight: 0.15,
+    slopes: { house: 0.5, bank: 0.35, company: 0.6, venture: 0.6, monopoly: 0.6 },
+    yields: { house: 0.12, bank: 0.08, company: 0.12, venture: 0.14, monopoly: 0.1 },
+    priors: { house: 0.5, bank: 0.075, company: 0.12, venture: 0.1, monopoly: 0.1 },
     sentimentVol: 0.018, sentimentRevert: 0.06, moodRevert: 0.04,
     spread: 0.03, commission: 0.01, minCommission: 2, impact: 0.5, impactDecay: 0.85,
     historyWeeks: 26, newsCap: 40, houseShares: 100, bankShares: 1000, ventureShares: 1000,
-    bankPayout: 0.5, venturePayout: 0.6, bankLowReserve: 0.8, panicDiscount: 0.55, crisisExposure: 0.5, fashionBonus: 0.12,
+    bankPayout: 0.5, venturePayout: 0.6, bankLowReserve: 0.8, panicDiscount: 0.55, crisisExposure: 0.5, fashionBonus: 0.12, reserveWeight: 0.25,
     float: { maxOutside: 49, discount: 0.1, fee: 0.03, minValue: 1500, payout: 0.5 },
     ventures: [],
     panics: { bank_failed: 0.85, crown_default: 0.88, war: 0.93, bank_run: 0.95 },
@@ -222,7 +225,7 @@ export const Bourse = {
             id: `lst${st.nextId++}`, kind: def.kind || 'venture', defId: def.id, ref: def.id,
             name: String(def.name || 'A Chartered Company').replace('{good}', good).replace('{kingdom}', k ? k.name : 'the Realm'),
             icon: def.icon || '🧭', good, kingdomId: ex.kingdomId, exchange: ex.name,
-            shares: _num(C.ventureShares, 1000), capital, baseCapital: capital, roe: _num(C.hurdle, 0.08), created: _day(world),
+            shares: _num(C.ventureShares, 1000), capital, baseCapital: capital, roe: Bourse.priorRoe(def.kind || 'venture'), created: _day(world),
         });
         l.book = capital / l.shares;
         st.listings.push(l);
@@ -238,7 +241,7 @@ export const Bourse = {
             if (!l && r.status === 'active') {
                 l = Bourse._backfillListing({
                     id: `lst${st.nextId++}`, kind: 'house', ref: r.id, name: r.name, icon: r.icon || '⚖️',
-                    kingdomId: Bourse._houseRealm(world, r), shares: _num(C.houseShares, 100), roe: _num(C.hurdle, 0.08), created: _day(world),
+                    kingdomId: Bourse._houseRealm(world, r), shares: _num(C.houseShares, 100), roe: Bourse.priorRoe('house'), created: _day(world),
                     lastWeek: r.lastWeek != null ? r.lastWeek : null,
                 });
                 l.book = _num(r.capital) / l.shares;
@@ -251,7 +254,7 @@ export const Bourse = {
             if (!l && b.status === 'open') {
                 l = Bourse._backfillListing({
                     id: `lst${st.nextId++}`, kind: 'bank', ref: b.id, name: b.name, icon: '🏦', kingdomId: b.kingdomId,
-                    shares: _num(C.bankShares, 1000), roe: _num(C.hurdle, 0.08), created: _day(world),
+                    shares: _num(C.bankShares, 1000), roe: Bourse.priorRoe('bank'), created: _day(world),
                 });
                 l.equity = Bourse.bankEquity(world, player, b);
                 l.book = l.equity / l.shares;
@@ -327,21 +330,40 @@ export const Bourse = {
         return Math.max(0, eq);
     },
 
-    /** The multiple of book a return on capital earns (1 at the hurdle). */
-    multiple(roe) {
+    /** The yield the market asks of a kind of share (a bank is safer than a venture). */
+    yieldFor(kind) {
         const C = Bourse.config();
-        return _clamp(1 + _num(C.roeSlope, 2.5) * (_num(roe) - _num(C.hurdle, 0.08)), _num(C.minMult, 0.35), _num(C.maxMult, 2.5));
+        return Math.max(0.01, _num((C.yields || {})[kind], _num(C.hurdle, 0.1)));
+    },
+
+    /** The return on capital the market expects of a kind before it has seen any (its prior). */
+    priorRoe(kind) {
+        const C = Bourse.config();
+        return _num((C.priors || {})[kind], Bourse.yieldFor(kind));
+    },
+
+    /**
+     * The multiple of book a return on capital earns: 1 at the yield the
+     * market asks of its kind, more above it (by the kind's slope: the market
+     * is wary of paying for growth it has not yet seen last), never less than
+     * minMult of book (what the receivers would find) nor more than maxMult.
+     */
+    multiple(roe, kind = 'house') {
+        const C = Bourse.config();
+        const k = _num((C.slopes || {})[kind], 0.6);
+        return _clamp(1 + k * (_num(roe) / Bourse.yieldFor(kind) - 1), _num(C.minMult, 0.4), _num(C.maxMult, 3));
     },
 
     /** A listing's fair value a share, from its book and return (and what else the market knows). */
     fairValue(world, player, l) {
         const C = Bourse.config();
-        let fair = Math.max(0, _num(l.book)) * Bourse.multiple(l.roe);
+        let fair = Math.max(0, _num(l.book)) * Bourse.multiple(l.roe, l.kind);
         if (l.kind === 'bank') {
             const b = Finance.bank(player, l.ref);
             if (b) {
                 const ratio = Finance.reserveRatio(b);
-                fair *= 0.5 + 0.5 * Math.min(1, ratio / Math.max(0.01, _num(C.bankLowReserve, 0.8)));
+                const rw = _num(C.reserveWeight, 0.25);
+                fair *= 1 - rw + rw * Math.min(1, ratio / Math.max(0.01, _num(C.bankLowReserve, 0.8)));
                 if (Finance.inPanic(b, _day(world))) fair *= _num(C.panicDiscount, 0.55);
                 const eq = Math.max(1, _num(l.equity));
                 fair *= 1 - _num(C.crisisExposure, 0.5) * Math.min(1, Bourse.crownLoans(world, b.id).crisis / eq);
@@ -366,8 +388,8 @@ export const Bourse = {
 
     _roeStep(l, weekly) {
         const C = Bourse.config();
-        const w = _num(C.roeWeight, 0.08);
-        l.roe = _r4(_clamp(_num(l.roe, _num(C.hurdle, 0.08)) * (1 - w) + _clamp(weekly, -0.5, 0.5) * WEEKS * w, -1, 1.5));
+        const w = _num(C.roeWeight, 0.15);
+        l.roe = _r4(_clamp(_num(l.roe, Bourse.priorRoe(l.kind)) * (1 - w) + _clamp(weekly, -0.5, 0.5) * WEEKS * w, -1, 1.5));
     },
 
     /** The weekly books: profits, dividends, book values. */
@@ -384,7 +406,7 @@ export const Bourse = {
             if (l.kind === 'house') {
                 const r = MerchantHouses.getRival(player, l.ref);
                 if (!r) continue;
-                // Its whole return: the week's trade, and whatever else it earns (concession leases, contracts)
+                // Its whole return: the week's trade and whatever else it earns (mining leases, contracts)
                 let div = 0;
                 if (r.lastWeek != null && r.lastWeek !== l.lastWeek) {
                     l.lastWeek = r.lastWeek;
@@ -767,7 +789,7 @@ export const Bourse = {
         const l = st.listings.find(x => x.kind === 'company' && x.status === 'listed');
         const book = MerchantHouses.companyValue(player) / 100;
         const roe = l ? l.roe : Bourse._companyRoe(c);
-        const fair = book * Bourse.multiple(roe);
+        const fair = book * Bourse.multiple(roe, 'company');
         const price = fair * (1 - _num(C.float.discount, 0.1));
         const k = Math.floor(_num(n));
         return { fair: _r2(fair), price: _r2(price), cash: Math.floor(k * price * (1 - _num(C.float.fee, 0.03))), outside: _num(c.float && c.float.outside), roe };

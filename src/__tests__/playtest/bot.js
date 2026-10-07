@@ -695,7 +695,7 @@ function bills(game, tile, stats) {
     const here = Finance.banksAt(player, world, tile);
     for (const b of Bills.held(player)) {
         if (b.status === 'stolen' && Bills.stop(player, world, b.id).success) count(stats, 'billsStopped');
-        else if (b.status === 'held' && (player.gold < 2000 || world.day > b.validUntil - 5) && Bills.present(player, world, b.id).success) count(stats, 'billsPresented');
+        else if (b.status === 'held' && Bills.present(player, world, b.id).success) count(stats, 'billsPresented');
     }
     if (!here.length || player.gold < 12000 || Bills.held(player).length >= 2) return;
     const to = Bills.payees(player, here[0].id)[0];

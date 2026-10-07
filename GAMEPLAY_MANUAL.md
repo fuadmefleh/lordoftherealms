@@ -871,6 +871,47 @@ Honest coin returns slowly once a crown is out of trouble, or at once if new sil
 
 The Steward's Counsel warns you of an overdue loan, of the next step it brings and when, of gold running short of your daily payments, of a run on a house that holds your deposits, of bonds with a crown in trouble, and of a debtors' prison waiting for you.
 
+### Underwriters, Bills & the Bourse
+
+Merchants who move fortunes insure them, send them as paper, and trade shares in each other's houses.
+
+**Underwriters.** Every banking house keeps an **insurance desk**, and an **underwriters' guild** sits at one or two of the great ports. Look for the **🛡️ Underwriters** action at a banking house, its branches, a guild's port, or any port of the guild's realm. You hold **open cover**, one policy for each kind of risk:
+
+| Cover | What it covers | How the premium is reckoned |
+|---|---|---|
+| ⛵ Hull & cargo | Your ships away from port: cargo washed overboard or seized, hull damage (at its repair bill) | The season's storms at sea, hostile squadrons near the ship and the odds she loses to them, pirates in those waters, events on a voyage, and a worn hull (below 50% she leaks, and storms take more cargo) |
+| 🐫 Goods on the road | Your caravans and your company's convoys | Raiders and outlaw lairs near each caravan (half on a road with wardens), a convoy's own risk |
+| 📦 Stock in store | Your store-rooms and your company's posts | Each one's own weekly theft chance (guild towns, heat, lairs and raiders, guards) |
+| 🏭 Works & property | Works damaged by a siege or a raid, or seized by a crown in crisis | Sieges, raiders, a crown in crisis |
+| 🌾 Crops in the field | Your farms, pastures and orchards: the day's crop short of a fair-weather one | The season's weather, and any drought or blight on the land now |
+
+Each day the cover bills a premium on what it actually covers that day: the expected loss, plus about a third. It pays each loss less a **10% deductible**. It attaches the day after you buy it (2 days for stock, 3 for works, 7 for crops), so you cannot insure a loss you already see coming. A claim over 800g goes to the assessors for a few days first. Each claim you have made in the last 120 days adds 12% to every premium. War is not covered: a realm at war with you seizing your works is a war risk, and so is a town that turns on you.
+
+Insurance is a fair bet that the house wins. Over a year it pays back about two-thirds of the premiums, so it is for sleeping at night, not for getting rich, and losing goods on purpose never pays (you get back 90% of a loss at best).
+
+Underwriters can **fail**. They also insure other merchants, and those books bleed in wars, blockades, pirate seasons and the rare great storm. A guild whose capital runs out shuts its doors: its covers are void and its claims are paid at 30–60%. A new guild opens about three months later. A banking house pays its claims from its reserves, so a ruinous season can empty its vaults and start a run.
+
+**False claims.** A member of the Thieves' Guild can buy forged protests of a loss on cover they hold: up to half of what is covered, at most 3,000g. The forger takes 20% up front. Every false claim is investigated. The assessors catch about 40% of them, less for a higher guild rank, more for each recent claim and for a claim near the cap. If you are caught, you get no pay and a fine as large as the claim, heat in the realm, your cover is cancelled, and the office will not insure you for 240 days.
+
+**Bills of exchange.** Anyone robbed without an army loses 15–40% of the gold they carry. At a banking house (the 🏦 bank's ✉️ Bills tab), pay gold in and take a **bill** payable at another house's seat or branches. The fee is 0.6% plus 0.03% for each hex between the two seats (at most 4%, at least 5g). A bill is payable "at sight" after the courier's days (about 1 day for every 8 hexes), and should be presented within 120 days, after which a 5% protest fee applies.
+- **Robbers take bills too.** Stop a stolen bill at a branch of the paying house (2%) before a forger cashes it (3–8 days), and it is yours again.
+- **A bill on a failed house** falls on the house that drew it. If both have failed, the receivers pay 30–60%.
+- **The guild's best hands** (rank 2 and above) can forge a bill on a house. Clerks see through about 40% of them, and one forgery a month is all the forger will do.
+
+**The Bourse.** An exchange sits in each of the two greatest capitals (the **📈 Bourse** action there). Shares trade in:
+- **the rival merchant houses** (100 shares each);
+- **the banking houses** (1,000 each);
+- **the chartered companies**: an overseas venture under a crown's charter, which lives by new lands (discoveries known to its crown, colonies) and dies by the sea (pirates, war, a fleet lost), and a crown's royal monopoly, whose rents follow its realm's trade and prices and which a crown in debt squeezes or, defaulting, may revoke;
+- **your own trading company**, once you float it.
+
+A share's worth is its **book value** times a multiple of its **return on capital**: a house earning more than about 8% a year trades above its books, one losing money below. For a banking house, book value is its equity (its reserves plus what the crowns owe it, less deposits), and low vaults, a run, or loans to crowns in crisis weigh on it. The price adds the crowd's mood, which drifts, sours in a **panic** (a house failing, a crown defaulting, war on the exchange's realm), and runs wild in a **mania**. A mania is rare: one listing is bid up two or three times its worth for weeks, the company sells new stock into it, and then the bubble bursts. The price falls well below its worth, the whole market's mood sours, and the bank that lent on the shares takes a loss. The heralds and the townsfolk talk of manias and crashes.
+
+**Dividends** are paid every week from real profit: a house's from its trade, a bank's from the growth of its equity (out of its own reserves), a chartered company's from its profit. Buying and selling costs the spread (3%) and the broker (1%), and your own buying moves the price for a few days, so pumping a holding costs more than it makes. You may hold at most a quarter of any stock. A house you hold shares in that is bought out pays you its book value plus 15%. Shares in a house that is ruined, or a bank that fails, are worthless. **Spies** in a listing's realm tell you what it is really worth, which is an edge.
+
+**Floating your company** (on the Bourse's ⚖️ Your Company tab) raises capital for it. The brokers buy shares at 10% under the company's worth and keep 3% of the proceeds. Outside shareholders then take 50% of each week's profit in proportion to their shares, and their part of anything you draw out: with 20 shares outside, drawing 800g costs the company 1,000g. You keep control up to 49 shares in 100, and you can buy them back on the floor.
+
+The Steward's Counsel warns of a ship at sea in dangerous waters with nothing insured, a bill to present before it lapses or a stolen one to stop, and shares of yours riding a mania.
+
 ### Tax Collection
 
 You can set tax rates if you govern settlements of your own, or hold the office of **King**, **Chancellor** or **Tax Collector**. Officials sworn to a kingdom need a council vote to *raise* taxes; an independent lord does not. Taxes are collected from your settlements every 7 days: **0.25 gold per inhabitant** × the rate, so a town of 2,000 at moderate taxes yields about 75g a week.

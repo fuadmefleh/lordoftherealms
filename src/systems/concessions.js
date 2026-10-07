@@ -347,6 +347,8 @@ export const Concessions = {
         }
         if (best) {
             Concessions._grant(world, site, realm, best.h.id, best.h.name, best.fee, a);
+            // The winning house pays its bid out of its capital (the fee goes to the crown in _grant)
+            if (best.h.rival) best.h.rival.capital = Math.max(0, _num(best.h.rival.capital) - best.fee);
             a.winner = best.h.id;
             a.price = best.fee;
         } else a.winner = null;

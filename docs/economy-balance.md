@@ -635,6 +635,76 @@ Closing the seams the economy passes left between their systems. Kingdom surviva
 - Ships bought or commissioned are the capital line *Ships bought and built* (`shipsBought`, kind `cap`), not upkeep. Repairs and fittings stay in *Ships*.
 - The playtest bot bids for mining leases. After day 120, with 3,500 gold, on a hash of the day and town (no RNG), it bids at the top of the houses' range (0.22 of the term's net) where the lease is worth at least 2.5× the bid, and holds at most 2. The long soak checks `leaseBids`.
 
+## Harvests (2026-10)
+
+Regional harvests from the growing season's weather, war, blights, hands and soil (`world/harvests.js`, `data/harvests.json`). See [the manual](../GAMEPLAY_MANUAL.md#harvests-good-years-and-bad).
+
+**How it was measured.**
+- Throwaway harness scripts, using the method of `docs/world-stability.md`: `newGame(seed)` with `kingdomCount: 10`, then `endDay` for 1,080 days, with the player kept fed.
+- **Seeds 7–26** for survival. Seeds 7–16 also ran with `Harvests.processDay` stubbed out ("off").
+- Grain price is a town's grain scarcity × the seasonal price factor (1 = base), sampled on days 45, 75, 100 and 115 of each year.
+- **"gf"** is a town's grain factor for the year (`Harvests.grainFactor`).
+
+**Yields.**
+- **Weather alone.** Seeds 7–9 over 10 years: mean 0.99, sd 0.10 with `gain` 2.4. `gain` was raised to 3.0, which gives sd about 0.12, a range of 0.45–1.30 and a 5–95% band of about 0.82–1.15.
+- **Whole harvest.** Including war, blights and soil, the region's headline yield over the last 4 years has an sd of 0.11–0.21 per world. Extremes are 0.27–1.30.
+- **Blights.** 15–68 per world in 9 years, counting each spread to a neighbour.
+- **Famine.** 1–9 Hungry Months started by failed harvests per world.
+- **Towns.** Their grain factor has an sd of 0.13–0.19.
+
+**Prices.** Grain price on day 115 (late winter), by the year's grain factor, seeds 7–16:
+
+| Year's grain factor | Price on day 115 |
+|---|---|
+| Below 0.8 | 1.16–1.80 (median about 1.5) |
+| 0.95–1.05 (a normal year) | 0.98–1.23 |
+| Above 1.15 (bumper) | Slightly below a normal year. Bumper towns are few, and trade evens them out. |
+
+- So a failed harvest makes grain about **40–60% dearer** in the lean weeks.
+- The town's food-shortage gauge stays near 0: neighbours' grain flows in along the trade links. Bad years hurt through price and the famine event, not through mass starvation.
+- **What happens more often** (seeds 7–8, 720 days, on vs off):
+  - The crowns' famine export bans: 9–15 against 4–6.
+  - 'Dear bread' news: 28–29 against 23–26.
+  - Granary releases: about the same.
+
+**Grain speculation.** Seeds 7–26, per town and year, after 8–13% spoilage:
+
+| Play | Result |
+|---|---|
+| **Classic:** buy on day 75 (after the harvest), sell on day 115 | Mean 1.46–1.71×, sd 0.15–0.56 (with harvests off: sd 0.15–0.33). It almost never loses (0–2% of trades), because the seasonal curve was already a safe trade. The harvest now widens it in bad years: buying after a failed harvest returns about 1.85×, after a bumper one about 1.4×. |
+| **Anticipation:** buy on day 45 where the forecast is below 85%, sell on day 115 | Mean 0.93–1.21× (median about 1.08), **loses 6–48% of the time (median about a third)**, p90 1.0–1.96×. This is the real but risky play. |
+| Buying on day 45 regardless of the forecast | Mean about 0.88×, loses about 60% of the time |
+
+The forecast is worth something, but it is not a sure thing. The best trade is still carrying grain from a bumper region to a failed one.
+
+**Kingdom survival.** Seeds 7–26, 1,080 days:
+
+| | Alive | Rate |
+|---|---|---|
+| Harvests on | 178/200 | 89% |
+| `docs/world-stability.md` baseline | 181/200 | 90.5% |
+| Seeds 7–16, harvests on | 92/100 | |
+| Seeds 7–16, baseline | 91/100 | |
+
+| Seed | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Alive | 10 | 10 | 9 | 8 | 10 | 9 | 8 | 9 | 10 | 9 | 9 | 10 | 10 | 9 | 10 | 8 | 8 | 10 | 6 | 6 |
+
+- The difference is within run-to-run noise (about 1 realm per seed).
+- **Population.** Every world still grows over the 3 years, from 107–136k to 129–188k.
+- **On the pre-merge code, seeds 7–16:** 85 alive with harvests on, 84 with them off. World population at the end was −0.5% against off.
+
+**Cost.**
+- `Harvests.processDay` cost 0.19–0.51 ms a day on a heavily loaded machine, where the market tick measured 5–17 ms against 2.2 on the reference machine. That is about 0.1 ms a day on the reference machine, under the 0.3 ms budget.
+- The climate normals are worked out once per sample town (6 years × 20 samples, about 0.1 s per world once).
+- Sampling is every third day of spring and summer. Sowing and the reckoning come once a year each.
+- No RNG is drawn: the golden snapshots are unchanged and the soak passes (`SOAK=1`).
+
+**Open.**
+- Crop insurance can read `Harvests.expectedYield`, `forecast` and `outcome`; another pass is building it.
+- The bot does not choose rotations or speculate on forecasts.
+- Flax adds linen as textiles; there is no separate linen good in `markets.json`.
+
 ## Re-measuring
 
 - **Long soak.** `SOAK=1 SOAK_VERBOSE=1 npx vitest run playtest.soak` prints each

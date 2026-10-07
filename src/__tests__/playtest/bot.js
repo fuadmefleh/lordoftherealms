@@ -1172,18 +1172,14 @@ export function botDay(game, stats) {
                 const now = world.getTile(player.q, player.r);
                 if (now && now.settlement) booked(game, 'buyFood', () => buyFood(game, now, stats));
                 count(stats, 'foodRuns');
-                // Stuck with no way to a town (cut off, no ship): live off the land below
-                game.stranded = from === `${player.q},${player.r}` && player.getFoodCount() === 0;
-                if (!game.stranded) return;
-                count(stats, 'stranded');
+                return;
             }
         }
     }
     // Broke and foodless: live off the land like anyone would — step out of
     // town onto forageable ground and spend the day searching it
     const forage = DataLoader.earlyJobs && DataLoader.earlyJobs.foraging;
-    if ((player.gold < 20 || game.stranded) && player.getFoodCount() === 0 && forage) {
-        game.stranded = false;
+    if (player.gold < 20 && player.getFoodCount() === 0 && forage) {
         // Ground where something edible grows (bare hills give only stone)
         const edible = (t) => {
             const table = t && !t.settlement && t.terrain.passable && Foraging.lootTableFor(t, forage);

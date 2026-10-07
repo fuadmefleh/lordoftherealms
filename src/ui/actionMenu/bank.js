@@ -5,6 +5,8 @@
 // data-am-act → ActionMenu.bankAct.
 import { ActionMenu } from './_ref.js';
 import { Finance } from '../../systems/finance.js';
+import { Bills } from '../../systems/bills.js';
+import { Underworld } from '../../systems/underworld.js';
 
 const BTN = 'padding: 5px 9px; margin: 3px 4px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
 const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
@@ -12,7 +14,7 @@ const BTN_DIM = BTN + 'background: rgba(255,255,255,0.08); color: var(--text-sec
 const BTN_PLAIN = BTN + 'background: rgba(255,255,255,0.12); color: var(--text-primary);';
 const BTN_RED = BTN + 'background: #7a3030; color: #eee;';
 const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
-const TABS = [['accounts', '🏦 Accounts'], ['loans', '📜 Loans'], ['bonds', '👑 Royal Bonds'], ['credit', '📊 Credit'], ['coin', '💱 Coin']];
+const TABS = [['accounts', '🏦 Accounts'], ['loans', '📜 Loans'], ['bills', '✉️ Bills'], ['bonds', '👑 Royal Bonds'], ['credit', '📊 Credit'], ['coin', '💱 Coin']];
 
 let _tab = 'accounts';
 
@@ -105,6 +107,45 @@ function loansTab(player, world, here) {
     return html;
 }
 
+function billsTab(player, world, here) {
+    const C = Bills.config();
+    const day = world.day || 0;
+    let html = `<div style="font-size:11px; color:#999;">Robbers take a share of any gold you carry. Pay it in here and carry a bill of exchange instead, payable at another house's seat or branches. The fee rises with the distance. A stolen bill can be stopped at the paying house before a forger cashes it (a few days); a bill on a failed house falls on the house that drew it.</div>`;
+    const held = Bills.held(player);
+    if (held.length) {
+        html += '<h5 style="margin:10px 0 4px;">Your bills</h5>';
+        for (const b of held) {
+            const payer = Bills.payer(player, b);
+            const canHere = payer && here.some(x => x.id === payer.id);
+            const when = day < b.payableFrom ? `payable from day ${b.payableFrom}` : day > b.validUntil ? '<span style="color:#e0a040;">overdue: protest fee</span>' : `good until day ${b.validUntil}`;
+            html += `<div style="font-size:12px; margin-top:4px;">✉️ <b>${b.amount}g</b> on ${esc(b.payName)} (${esc(b.payAt)}) · ${when}${b.protested ? ` · falls on ${esc(b.fromName)}` : ''}`;
+            if (b.status === 'stolen') html += ` · <span style="color:#e06060;">STOLEN: a forger cashes it about day ${b.cashDay}</span> ${act('Stop it', ['stopBill', b.id], BTN_RED, canHere)}`;
+            else html += ` ${act('Present', ['presentBill', b.id], BTN_GOLD, canHere && day >= b.payableFrom)}`;
+            html += '</div>';
+        }
+    }
+    for (const from of here) {
+        html += `<div style="${CARD}"><b>Draw a bill at ${esc(from.name)}</b>`;
+        for (const to of Bills.payees(player, from.id)) {
+            const t = Bills.terms(player, world, from.id, to.id, 1000);
+            html += `<div style="font-size:12px; margin-top:4px;">On ${esc(to.name)} (${esc(to.seat)}): fee ${(t.rate * 100).toFixed(1)}% (min ${C.minFee}g), payable after ${t.usance} day(s) `;
+            for (const amt of [500, 2000, 5000]) {
+                const tt = Bills.terms(player, world, from.id, to.id, amt);
+                html += act(`${amt}g (+${tt.fee}g)`, ['drawBill', from.id, to.id, amt], BTN_GOLD, player.gold >= amt + tt.fee);
+            }
+            html += '</div>';
+        }
+        html += '</div>';
+    }
+    const g = Underworld.ensure(player).guild;
+    if (g && g.member && g.rank >= C.forgery.minRank && here.length) {
+        html += `<div style="${CARD} border-color:rgba(224,96,96,0.4);">🗝️ The guild's forger can draw a bill on a house here (${Math.round(C.forgery.fee * 100)}% up front). Clerks hold bills to the light.<div>`;
+        for (const amt of [500, 1500]) html += act(`Forge ${amt}g on ${esc(here[0].name)}`, ['forgeBill', here[0].id, amt], BTN_RED);
+        html += '</div></div>';
+    }
+    return html;
+}
+
 function bondsTab(player, world) {
     const st = Finance.state(player);
     const D = Finance.cfg('bonds');
@@ -181,6 +222,7 @@ Object.assign(ActionMenu, {
         if (_tab === 'loans') html += loansTab(player, world, here);
         else if (_tab === 'bonds') html += here.length ? bondsTab(player, world) : '<div style="color:#aaa;">Royal bonds are sold through a banking house.</div>';
         else if (_tab === 'credit') html += creditTab(player, world);
+        else if (_tab === 'bills') html += billsTab(player, world, here);
         else if (_tab === 'coin') html += coinTab(player, world);
         else html += accountsTab(player, world, here);
         html += '</div>';
@@ -205,6 +247,10 @@ Object.assign(ActionMenu, {
             case 'royalBorrow': res = Finance.royalBorrow(player, world, a); break;
             case 'royalDebase': res = Finance.royalDebase(player, world); break;
             case 'royalDefault': res = Finance.royalDefault(player, world); break;
+            case 'drawBill': res = Bills.draw(player, world, a, b, c); break;
+            case 'presentBill': res = Bills.present(player, world, a); break;
+            case 'stopBill': res = Bills.stop(player, world, a); break;
+            case 'forgeBill': res = Bills.forge(player, world, a, b); break;
             default: return;
         }
         if (res) {

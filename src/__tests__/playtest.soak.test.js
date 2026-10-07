@@ -212,6 +212,10 @@ function snapshot(game) {
         // Patronage: clients, commissions, Great Works; the world's wonders
         patronage: Utils.hashStr(JSON.stringify(p.patronage || null)),
         greatWorks: Utils.hashStr(JSON.stringify(game.world.greatWorks || null)),
+        // Underwriters (covers, claims, guilds), bills of exchange, the Bourse (listings, holdings, manias)
+        underwriting: Utils.hashStr(JSON.stringify(p.underwriting || null)),
+        bills: Utils.hashStr(JSON.stringify(p.bills || null)),
+        bourse: Utils.hashStr(JSON.stringify(p.bourse || null)),
         monopolies: game.world.getAllSettlements().filter(s => s.monopolies).map(s => `${s.q},${s.r}:${JSON.stringify(s.monopolies)}`).join(' '),
         idCounter: Utils.getIdCounter(),
     };

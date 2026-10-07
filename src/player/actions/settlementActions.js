@@ -22,6 +22,8 @@ import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Patronage } from '../../systems/patronage.js';
 import { Finance } from '../../systems/finance.js';
+import { Underwriting } from '../../systems/underwriting.js';
+import { Bourse } from '../../systems/bourse.js';
 
 export function addSettlementActions(actions, player, tile, world, ctx) {
     const { isCity, isVillage, isPlayerSettlement, playerSettlementCount, playerKingdom, hasPlayerFoundedKingdom } = ctx;
@@ -376,6 +378,28 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             description: b
                 ? `Deposits, loans, royal bonds and your credit report${banksHere.length > 1 ? ` (${banksHere.length} houses here)` : ''}`
                 : 'You are behind on a loan: pay before the bailiffs come',
+        });
+    }
+
+    // Underwriters (systems/underwriting.js) — a banking house's desk or an
+    // underwriters' guild at a great port; the Bourse (systems/bourse.js) in the greatest capitals
+    const uwHere = Underwriting.underwritersAt(player, world, tile);
+    if (uwHere.length) {
+        const covers = Underwriting.summary(player, world).covers;
+        actions.push({
+            type: 'underwriter',
+            label: 'Underwriters',
+            icon: '🛡️',
+            description: covers ? `${covers} cover(s) held: quotes, claims and the offices` : `Insure ships, caravans, stock, works and crops with ${uwHere[0].name}`,
+        });
+    }
+    const exchange = Bourse.exchangeAt(player, world);
+    if (exchange) {
+        actions.push({
+            type: 'bourse',
+            label: `The Bourse of ${exchange.name}`,
+            icon: '📈',
+            description: 'Shares in the merchant houses, the banks and the chartered companies; float your own company',
         });
     }
 

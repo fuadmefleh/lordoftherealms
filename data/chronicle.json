@@ -43,6 +43,12 @@
             "depositInterest": { "name": "Deposit interest", "group": "finance" },
             "bondInterest": { "name": "Bond coupons", "group": "finance" },
             "loanPayments": { "name": "Loan payments", "group": "finance" },
+            "insurance": { "name": "Insurance premiums", "group": "finance" },
+            "insuranceClaims": { "name": "Insurance claims paid", "group": "finance" },
+            "billFees": { "name": "Bills of exchange: fees", "group": "finance" },
+            "shareDividends": { "name": "Share dividends (the Bourse)", "group": "finance" },
+            "brokerage": { "name": "Brokers at the Bourse", "group": "finance" },
+            "fraud": { "name": "Forgeries and false claims", "group": "other" },
 
             "guildDues": { "name": "Guild dues", "group": "levies" },
             "guilds": { "name": "Guild income", "group": "levies" },
@@ -95,7 +101,9 @@
             "houseSale": { "name": "Houses sold", "group": "capital", "kind": "cap" },
             "shipSale": { "name": "Ships sold", "group": "capital", "kind": "cap" },
             "borrowed": { "name": "Borrowed", "group": "capital", "kind": "cap" },
-            "loanPrincipal": { "name": "Loan principal repaid", "group": "capital", "kind": "cap" }
+            "loanPrincipal": { "name": "Loan principal repaid", "group": "capital", "kind": "cap" },
+            "bills": { "name": "Bills of exchange drawn and paid", "group": "capital", "kind": "cap" },
+            "shares": { "name": "Shares bought and sold", "group": "capital", "kind": "cap" }
         }
     },
 

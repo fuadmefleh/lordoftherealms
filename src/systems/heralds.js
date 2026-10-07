@@ -37,6 +37,8 @@ const SIEGE_WON = ['captured', 'sacked', 'terms'];
 const MARKET_KINDS = { fair: 'market_fair', dearth: 'market_dearth', glut: 'market_glut',
     // ...and the town guilds' strikes, elections, charters and abolitions (player.guilds.history, systems/guilds.js)
     guild_strike: 'guild_strike', guild_election: 'guild_election', guild_chartered: 'guild_chartered', guild_abolished: 'guild_abolished' };
+// Underwriting and Bourse records (player.underwriting.history, player.bourse.history) and the proclamation each makes
+const BOURSE_KINDS = { underwriter_failed: 'underwriter_failed', great_claim: 'great_claim', catastrophe: 'insured_catastrophe', mania: 'bourse_mania', crash: 'bourse_crash', panic: 'bourse_panic' };
 // Labour records (world.labour.history, systems/labour.js) and the proclamation each makes
 const LABOUR_KINDS = { refugees: 'labour_refugees', strike: 'labour_strike', boom: 'labour_boom' };
 // Trade-policy records (world.tradePolicy.history, systems/tradePolicy.js) and the proclamation each makes
@@ -164,7 +166,7 @@ export const Heralds = {
 
     /** Keys of the day-stamped records Heralds reads: [{ key, day, ... }] per kind. */
     _records(player) {
-        const out = { sagas: [], sieges: [], holdings: [], lairs: [], finance: [], market: [] };
+        const out = { sagas: [], sieges: [], holdings: [], lairs: [], finance: [], market: [], bourse: [] };
         for (const s of (player && player.sagas && Array.isArray(player.sagas.done)) ? player.sagas.done : []) {
             if (s && s.ended) out.sagas.push({ key: `saga:${s.uid}`, day: _num(s.ended.day), s });
         }
@@ -181,6 +183,13 @@ export const Heralds = {
         // Banks failed, crowns defaulted, coin debased (systems/finance.js)
         for (const h of (player && player.finance && Array.isArray(player.finance.history)) ? player.finance.history : []) {
             if (h && h.key) out.finance.push({ key: h.key, day: _num(h.day), h });
+        }
+        // Underwriters failing, ruinous claims and catastrophes; manias, crashes and panics at the Bourse
+        // (systems/underwriting.js, systems/bourse.js)
+        for (const src of [player && player.underwriting, player && player.bourse]) {
+            for (const h of (src && Array.isArray(src.history)) ? src.history : []) {
+                if (h && h.key && BOURSE_KINDS[h.kind]) out.bourse.push({ key: h.key, day: _num(h.day), h });
+            }
         }
         // Fairs opening, harvest gluts and dearths (systems/marketFairs.js)
         for (const h of (player && player.merchantPrince && Array.isArray(player.merchantPrince.history)) ? player.merchantPrince.history : []) {
@@ -201,7 +210,7 @@ export const Heralds = {
             if (s && s.discovered) st.seen[`d:${s.id}`] = true;
         }
         const rec = Heralds._records(player);
-        for (const x of [...rec.sagas, ...rec.sieges, ...rec.holdings, ...rec.lairs, ...rec.finance, ...rec.market]) st.seen[x.key] = x.day;
+        for (const x of [...rec.sagas, ...rec.sieges, ...rec.holdings, ...rec.lairs, ...rec.finance, ...rec.market, ...rec.bourse]) st.seen[x.key] = x.day;
         for (const x of Heralds._caravanRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._labourRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._hinterlandRecords(world)) st.seen[x.key] = x.day;
@@ -427,6 +436,18 @@ export const Heralds = {
                 bank: h.bank || 'a banking house', place: h.place || (k ? k.name : 'the city'), kingdom: h.kingdom || (k ? k.name : 'the realm'),
                 purity: h.purity != null ? Math.round(h.purity * 100) : 90,
             }, at, { kingdomId: h.kingdomId != null ? h.kingdomId : null });
+        }
+
+        // Underwriters and the Bourse: an office failing, a ruinous claim, a mania, a crash, a panic
+        for (const x of rec.bourse.filter(fresh)) {
+            st.seen[x.key] = x.day;
+            const h = x.h;
+            const k = _kingdom(world, h.kingdomId);
+            const at = h.place ? Heralds._placeByName(world, h.place) : Heralds._capital(world, k);
+            Heralds._proclaim(st, world, BOURSE_KINDS[h.kind], {
+                uw: h.uw || 'the underwriters', place: h.place || (k ? k.name : 'the city'), amount: _num(h.amount) || 'a great sum',
+                listing: h.listing || 'the stock', bank: h.bank || 'a banking house', kingdom: h.kingdom || (k ? k.name : 'the realm'),
+            }, at, { kingdomId: h.kingdomId != null ? h.kingdomId : null, own: !!h.own });
         }
 
         // The markets: a fair opening, a harvest glut, a dearth

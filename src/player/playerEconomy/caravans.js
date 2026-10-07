@@ -2,6 +2,7 @@
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
 import { Underworld } from '../../systems/underworld.js';
+import { LossBook } from '../../systems/lossBook.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerInventory, Economy, SettlementMarket } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
@@ -240,6 +241,15 @@ Object.assign(PlayerEconomy, {
         return { capital: 1.2, city: 1.1 }[type] || 1.0;
     },
 
+    /** A caravan lost on the road: the underwriters hear of it (systems/lossBook.js). */
+    _reportCaravanLoss(player, world, caravan, cause) {
+        const at = caravan.currentPos || caravan.fromPos || {};
+        LossBook.report(player, world, {
+            kind: 'caravan', cause, value: LossBook.saleValue(caravan.goods), ref: `car:${caravan.unitId || caravan.from}`,
+            place: `${caravan.from} → ${caravan.to}`, q: at.q, r: at.r,
+        });
+    },
+
     updateCaravans(player, world) {
         const completed = [];
         PlayerEconomy.ensureEconomyState(player);
@@ -263,6 +273,7 @@ Object.assign(PlayerEconomy, {
                         // Unit is gone! Likely destroyed by raiders or bug
                         // Check if it was robbed? World events would have logged it.
                         caravan.status = 'lost';
+                        PlayerEconomy._reportCaravanLoss(player, world, caravan, 'raided on the road');
                         if (caravan.routeId) {
                             const routeRef = PlayerEconomy._getRouteById(player, caravan.routeId, caravan.isSmugglingRoute);
                             if (routeRef) PlayerEconomy._recordRouteLoss(routeRef);
@@ -292,6 +303,7 @@ Object.assign(PlayerEconomy, {
                         unit.destroyed = true; // Remove the physical unit now
                     } else if (unit.destroyed) {
                         caravan.status = 'lost';
+                        PlayerEconomy._reportCaravanLoss(player, world, caravan, 'destroyed on the road');
                         if (caravan.routeId) {
                             const routeRef = PlayerEconomy._getRouteById(player, caravan.routeId, caravan.isSmugglingRoute);
                             if (routeRef) PlayerEconomy._recordRouteLoss(routeRef);

@@ -50,6 +50,7 @@ import { Taxation, MarketDynamics } from './marketDynamics.js';
 import { Guilds } from './guilds.js';
 import { PriceKnowledge } from './priceKnowledge.js';
 import { Ledger } from './ledger.js';
+import { LossBook } from './lossBook.js';
 
 const DEFAULTS = {
     industry: {
@@ -447,6 +448,12 @@ export const MerchantPrince = {
         const what = def ? def.name.toLowerCase() : 'works';
         if (by === 'crown') st.stats.seized++;
         else st.stats.expropriated++;
+        // The underwriters hear of it (systems/lossBook.js): a crown in crisis is an insured risk,
+        // a realm at war with you (war) or a town turning on you (expropriated) is not
+        LossBook.report(player, world, {
+            kind: 'works', cause: by === 'town' ? 'expropriated' : /war/.test(why) ? 'war' : 'crisis',
+            value: _num(inv.invested) * _clamp(_num(w && w.cond, 1), 0, 1) * 0.6, ref: inv.id, place: inv.town, q: inv.q, r: inv.r,
+        });
         const text = by === 'crown'
             ? `The crown has seized your ${what} in ${inv.town}: ${why}.`
             : `The guilds of ${inv.town} have expropriated your ${what}: ${why}.`;
@@ -793,6 +800,7 @@ export const MerchantPrince = {
                     }
                     if (lost.length) {
                         st.stats.stolen += value;
+                        LossBook.report(player, world, { kind: 'stock', cause: 'thieves', value: value * 0.7, ref: `wh:${w.id}`, place: w.town, q: w.q, r: w.r });
                         const text = `Thieves broke into your store-room in ${w.town} and carried off ${lost.join(', ')}.`;
                         MerchantPrince._log(st, world, text);
                         out.notices.push({ icon: '🗝️', title: 'Store-room Robbed', text, type: 'error' });

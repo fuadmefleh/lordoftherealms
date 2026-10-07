@@ -44,6 +44,10 @@ import { WorldUnit } from '../world/units.js';
 import { Terrain } from '../world/terrain.js';
 import { MarketDynamics } from './marketDynamics.js';
 import { TradePolicy } from './tradePolicy.js';
+import { Underwriting } from './underwriting.js';
+import { Bills } from './bills.js';
+import { Bourse } from './bourse.js';
+import { LossBook } from './lossBook.js';
 import { Labour } from './labour.js';
 import { Hinterland } from '../world/hinterland.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
@@ -482,6 +486,12 @@ export const SaveLoad = {
             tradePolicy: TradePolicy.serializePlayer(player),
             // The gazettes read, the fashions heard of, net worth week by week (systems/economyChronicle.js)
             econ: EconomyChronicle.serialize(player),
+            // Underwriters, bills & the Bourse: covers, claims, the guilds' books; bills held; listings,
+            // holdings and manias; losses not yet claimed (systems/underwriting.js, bills.js, bourse.js, lossBook.js)
+            underwriting: Underwriting.serialize(player),
+            bills: Bills.serialize(player),
+            bourse: Bourse.serialize(player),
+            lossBook: LossBook.serialize(player),
         };
     },
 
@@ -756,6 +766,11 @@ export const SaveLoad = {
         TradePolicy.loadPlayer(player);
         // The Economic Chronicle — older saves start a blank record (the gazette is read on the next market visit)
         EconomyChronicle.loadState(player);
+        // Underwriters, bills & the Bourse — older saves have none (set up on the next daily tick)
+        Underwriting.loadState(player, world);
+        Bills.loadState(player);
+        Bourse.loadState(player);
+        LossBook.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

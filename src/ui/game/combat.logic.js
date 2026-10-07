@@ -13,6 +13,7 @@ import { Utils } from '../../core/utils.js';
 import { PlayerMilitary } from '../../player/playerMilitary.js';
 import { PlayerEffects } from '../../player/playerEffects.js';
 import { Ailments } from '../../systems/ailments.js';
+import { Bills } from '../../systems/bills.js';
 
 /** " You suffer a Deep Gash." — the wound a fight left you with, if any. */
 function _woundText(wound) {
@@ -88,6 +89,9 @@ export function resolveHostileEncounter(player, attacker, world) {
             }
         }
 
+        // Bills of exchange go with the purse (systems/bills.js: stop them at the paying house)
+        const billsTaken = Bills.onRobbed(player, world);
+
         // Transfer stolen goods to attacker
         attacker.inventory['gold'] = (attacker.inventory['gold'] || 0) + goldStolen;
         for (const [item, qty] of Object.entries(stolenItems)) {
@@ -101,6 +105,7 @@ export function resolveHostileEncounter(player, attacker, world) {
             .map(([k, v]) => `${v} ${k}`)
             .join(', ');
         if (stolenList) msg += ` They also took: ${stolenList}.`;
+        if (billsTaken.length) msg += ` They took ${billsTaken.length === 1 ? 'a bill of exchange' : `${billsTaken.length} bills of exchange`} (${billsTaken.reduce((a, b) => a + b.amount, 0)}g): stop ${billsTaken.length === 1 ? 'it' : 'them'} at the paying house before a forger cashes ${billsTaken.length === 1 ? 'it' : 'them'}.`;
         msg += ` You lost ${healthLost} health.`;
         const wound = healthLost > 0 ? Ailments.maybeWound(player, world, 'ambush') : null;
         msg += _woundText(wound);

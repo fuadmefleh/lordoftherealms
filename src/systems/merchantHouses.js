@@ -52,6 +52,7 @@ import { HoldingSieges } from './holdingSieges.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { KingdomBonuses } from '../world/kingdomState.js';
 import { Quests } from './quests.js';
+import { LossBook } from './lossBook.js';
 
 const DEFAULT_CONFIG = {
     charter: { baseCost: 900, perSettlement: 60, maxCost: 2400, minReputation: 0 },
@@ -173,6 +174,8 @@ export const MerchantHouses = {
         if (!Array.isArray(r.specialty)) r.specialty = [];
         if (!r.shares || typeof r.shares !== 'object') r.shares = {};
         r.shares.player = _clamp(_num(r.shares.player), 0, 100);
+        // Shares the player holds in their own name on the Bourse (systems/bourse.js)
+        r.shares.purse = _clamp(_num(r.shares.purse), 0, 100);
         if (!r.status) r.status = 'active';
     },
 
@@ -408,11 +411,18 @@ export const MerchantHouses = {
         const c = MerchantHouses.company(player);
         const amt = Math.floor(_num(amount));
         if (!c) return { success: false, reason: 'No company.' };
-        if (amt <= 0 || amt > c.capital) return { success: false, reason: 'The company has not that much.' };
-        c.capital -= amt;
+        // A floated company (systems/bourse.js): the outside shareholders take their part of anything drawn
+        const outside = _clamp(_num(c.float && c.float.outside), 0, 99) / 100;
+        const theirs = outside > 0 ? Math.ceil(amt * outside / (1 - outside)) : 0;
+        if (amt <= 0 || amt + theirs > c.capital) return { success: false, reason: theirs ? `Drawing ${amt}g pays the shareholders ${theirs}g too: the company has not that much.` : 'The company has not that much.' };
+        c.capital -= amt + theirs;
         player.gold = _num(player.gold) + amt;
         MerchantHouses._book(c, world, 'expenses', 'drawn', amt, 'Drawn by the owner');
-        return { success: true, amount: amt };
+        if (theirs) {
+            c.flows.dividendsOut = _num(c.flows.dividendsOut) + theirs;
+            c.ledger.unshift({ day: _day(world), kind: 'expenses', cat: 'dividendsOut', amount: theirs, text: "The shareholders' part of the owner's draw" });
+        }
+        return { success: true, amount: amt, toShareholders: theirs };
     },
 
     // ── Rival houses ────────────────────────────────────────────
@@ -802,7 +812,7 @@ export const MerchantHouses = {
         const r = MerchantHouses.getRival(player, rivalId);
         const k = Math.floor(_num(n));
         if (!c || !r || r.status !== 'active') return { success: false, reason: 'No such house.' };
-        if (k <= 0 || r.shares.player + k > 100) return { success: false, reason: 'Not that many shares for sale.' };
+        if (k <= 0 || r.shares.player + _num(r.shares.purse) + k > 100) return { success: false, reason: 'Not that many shares for sale.' };
         const cost = Math.ceil(k * MerchantHouses.sharePrice(r) * MerchantHouses.config().rivals.sharePremium);
         if (c.capital < cost) return { success: false, reason: `${k} shares cost ${cost} gold.` };
         MerchantHouses._debit(c, world, cost, 'shares', `${k} shares in ${r.name}`);
@@ -1185,6 +1195,7 @@ export const MerchantHouses = {
             const lost = Math.max(1, Math.round(qty * Utils.randFloat(cfg.lossShare[0], cfg.lossShare[1])));
             qty -= Math.min(qty, lost);
             c.stats.convoysLost++;
+            LossBook.report(player, world, { kind: 'caravan', cause: convoy.mode === 'ship' ? 'storm and pirates' : 'bandits', value: LossBook.saleValue({ [convoy.good]: lost }), ref: `cv:${convoy.id}`, place: `${convoy.from} → ${convoy.to}`, q: convoy.q, r: convoy.r });
             out.notices.push({ icon: convoy.mode === 'ship' ? '🌊' : '🏴‍☠️', title: 'Convoy Struck', text: `Your ${convoy.mode} to ${convoy.to} lost ${lost} ${_label(convoy.good)} on the way${convoy.mode === 'ship' ? ' to storm and pirates' : ' to bandits'}.`, type: 'warning' });
         }
         if (qty <= 0) return;
@@ -1425,6 +1436,7 @@ export const MerchantHouses = {
         }
         if (!lost.length) return;
         c.stats.robberies++;
+        LossBook.report(player, world, { kind: 'stock', cause: 'thieves', value: Math.round(value), ref: `post:${post.id}`, place: post.name, q: post.q, r: post.r });
         MerchantHouses._book(c, world, 'expenses', 'robbery', value, `Thieves at ${post.name}: ${lost.join(', ')}`);
         out.notices.push({ icon: '🗝️', title: 'Post Robbed', text: `Thieves broke into the ${post.name} warehouse and carried off ${lost.join(', ')}.`, type: 'error' });
     },
@@ -1450,8 +1462,11 @@ export const MerchantHouses = {
             const delta = r.capital * rate;
             r.capital = Math.max(0, r.capital + delta);
             r.lastProfit = Math.round(delta);
+            r.lastWeek = day;
+            r.lastDividend = 0;
             if (delta > 0) {
                 const div = delta * cfg.dividendShare;
+                r.lastDividend = Math.round(div * 100) / 100;
                 r.capital -= div;
                 const mine = Math.floor(div * r.shares.player / 100);
                 if (mine > 0) MerchantHouses._credit(c, world, mine, 'dividends', `Dividend from ${r.name}`);
@@ -1498,6 +1513,31 @@ export const MerchantHouses = {
                 m.rivals.push(rival);
                 MerchantHouses._news(player, world, `${rival.name} opens its books in ${rival.seat ? rival.seat.name : 'the realm'}.`, rival.icon);
             }
+        }
+    },
+
+    /**
+     * The rival houses' week while the player has no company (the Bourse keeps
+     * their shares trading, systems/bourse.js): the return on capital, the
+     * dividend, ruin. Only the money side — no posts, lobbying or slander,
+     * which need a company to act against. The caller supplies the dice (the
+     * Bourse runs it on its own seeded stream).
+     */
+    quietWeek(player, world) {
+        const m = MerchantHouses.state(player);
+        if (m.company) return;
+        const cfg = MerchantHouses.config().rivals;
+        const day = _day(world);
+        for (const r of m.rivals) {
+            if (r.status !== 'active') continue;
+            const t = MerchantHouses.temperament(r);
+            const delta = r.capital * (Utils.randFloat(cfg.weeklyReturn[0], cfg.weeklyReturn[1]) + t.returnBias);
+            r.capital = Math.max(0, r.capital + delta);
+            r.lastProfit = Math.round(delta);
+            r.lastWeek = day;
+            r.lastDividend = delta > 0 ? Math.round(delta * cfg.dividendShare * 100) / 100 : 0;
+            r.capital -= r.lastDividend;
+            if (r.capital < cfg.ruinCapital) MerchantHouses._ruin(player, world, r, null);
         }
     },
 

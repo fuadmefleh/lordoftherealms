@@ -31,6 +31,9 @@ import { Concessions } from '../../systems/concessions.js';
 import { TradePolicy } from '../../systems/tradePolicy.js';
 import { EconomyChronicle } from '../../systems/economyChronicle.js';
 import { Ledger } from '../../systems/ledger.js';
+import { Underwriting } from '../../systems/underwriting.js';
+import { Bills } from '../../systems/bills.js';
+import { Bourse } from '../../systems/bourse.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 
@@ -702,6 +705,11 @@ export function endDay() {
                 this.ui.showNotification('Loan Payment', `-${financeDay.paid} gold`, 'default');
             }
             for (const n of financeDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Underwriters (premiums, claims on the day's losses, their books), bills of
+            // exchange (stolen ones cashed, failed houses), the Bourse (prices, dividends, manias)
+            for (const sys of [Underwriting, Bills, Bourse]) {
+                for (const n of sys.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            }
 
             // Collect taxes (every 7 days)
             let taxCollected = 0;

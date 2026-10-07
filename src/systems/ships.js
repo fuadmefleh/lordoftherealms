@@ -18,6 +18,7 @@ import { Underworld } from './underworld.js';
 import { Ailments } from './ailments.js';
 import { VoyageMethods } from './shipVoyages.js';
 import { PriceKnowledge } from './priceKnowledge.js';
+import { LossBook } from './lossBook.js';
 
 /**
  * Ships System
@@ -679,6 +680,29 @@ export const Ships = {
     },
 
     /* ── Ship repair ─────────────────────────────────────────── */
+
+    /** The repair bill for `pct` points of hull damage (getRepairCost's rate): what an underwriter pays for it. */
+    hullDamageValue(ship, pct) {
+        const st = this.getShipType(ship && ship.typeId);
+        const per = this._getSettings().repairCostPerPercent || 0.005;
+        return Math.max(0, (st ? st.baseCost : 200) * per * Math.max(0, pct || 0));
+    },
+
+    /** A hull worn below settings.leakBelow (50%) leaks: storms wash out up to twice the cargo. */
+    leakFactor(ship) {
+        const below = this._getSettings().leakBelow || 50;
+        const cond = typeof (ship && ship.condition) === 'number' ? ship.condition : 100;
+        return cond < below ? 1 + (below - cond) / below : 1;
+    },
+
+    /** Report a loss at sea to the underwriters (systems/lossBook.js; no RNG, no other effect). */
+    _reportSeaLoss(player, world, ship, hullPct, goods, cause) {
+        const pos = this._shipPosition(player, ship);
+        LossBook.report(player, world, {
+            kind: 'marine', cause, ref: ship.id, place: ship.name, q: pos.q, r: pos.r,
+            value: this.hullDamageValue(ship, hullPct) + LossBook.saleValue(goods),
+        });
+    },
 
     getRepairCost(ship) {
         const st = this.getShipType(ship.typeId);
@@ -1522,7 +1546,8 @@ export const Ships = {
             if (storm) storms[ship.id] = storm;
             if (storm) {
                 const damage = this.mitigateHullDamage(ship, Math.round(Utils.randInt(3, 8) * storm.danger));
-                ship.condition = Math.max(10, (ship.condition || 100) - damage);
+                const condBefore = ship.condition || 100;
+                ship.condition = Math.max(10, condBefore - damage);
                 const report = { shipId: ship.id, name: ship.name, weather: storm.type, damage, delayed: false, cargoLost: null };
                 if (ship.status === 'moving' && Utils.random() < 0.5 * storm.danger) {
                     ship.travelDaysLeft = (ship.travelDaysLeft || 0) + 1;
@@ -1532,11 +1557,13 @@ export const Ships = {
                 const goods = Object.keys(ship.cargo || {}).filter(g => ship.cargo[g] > 0);
                 if (goods.length > 0 && Utils.random() < 0.2 * storm.danger) {
                     const good = Utils.randPick(goods);
-                    const lost = Math.max(1, Math.floor(ship.cargo[good] * 0.2));
+                    // A worn, leaking hull loses more of it
+                    const lost = Math.min(ship.cargo[good], Math.max(1, Math.floor(ship.cargo[good] * 0.2 * this.leakFactor(ship))));
                     ship.cargo[good] -= lost;
                     if (ship.cargo[good] <= 0) delete ship.cargo[good];
                     report.cargoLost = { good, qty: lost };
                 }
+                this._reportSeaLoss(player, world, ship, condBefore - ship.condition, report.cargoLost ? { [report.cargoLost.good]: report.cargoLost.qty } : null, `a ${storm.type} at sea`);
                 // The crew is shaken, and a sailor may go over the side
                 this._ensureCrew(ship);
                 const crewCfg = this._getCrewSettings();
@@ -1680,7 +1707,8 @@ export const Ships = {
             report.text = `${ship.name} beat off a ${kingdom.name} squadron (strength ${detachment}) near their waters. +${I.renown} renown${war ? `, +${I.warScore} war score` : ''}.${toll.text}`;
         } else {
             report.damage = this.mitigateHullDamage(ship, Utils.randInt(8, 20));
-            ship.condition = Math.max(5, (ship.condition || 100) - report.damage);
+            const condBefore = ship.condition || 100;
+            ship.condition = Math.max(5, condBefore - report.damage);
             for (const [good, qty] of Object.entries(ship.cargo || {})) {
                 const taken = Math.floor(qty * I.cargoSeized);
                 if (taken <= 0) continue;
@@ -1688,6 +1716,7 @@ export const Ships = {
                 if (ship.cargo[good] <= 0) delete ship.cargo[good];
                 report.seized[good] = taken;
             }
+            this._reportSeaLoss(player, world, ship, condBefore - ship.condition, report.seized, `seized by a ${kingdom.name} squadron`);
             const seized = Object.entries(report.seized).map(([g, n]) => `${n} ${g}`).join(', ');
             report.text = `A ${kingdom.name} squadron (strength ${detachment}) ran down ${ship.name}: hull -${report.damage}%${seized ? `, seized ${seized}` : ''}.${toll.text}`;
         }

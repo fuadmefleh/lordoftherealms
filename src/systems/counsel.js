@@ -50,6 +50,9 @@ import { Holdings } from './holdings.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { Patronage } from './patronage.js';
 import { Finance } from './finance.js';
+import { Underwriting } from './underwriting.js';
+import { Bills } from './bills.js';
+import { Bourse } from './bourse.js';
 import { MarketFairs } from './marketFairs.js';
 import { Guilds } from './guilds.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
@@ -983,6 +986,45 @@ R.bondRisk = (ctx, p) => {
         out.push({ key: `bond:${b.id}`, realm: k.name, amount: Math.floor(_num(b.principal)), why: _num(b.missed) ? 'has missed payments to you' : `owes ${Math.round(ratio * 100)}% of what it can carry`, severity: 'notice' });
     }
     return out;
+};
+
+/** A ship at sea in dangerous waters with nothing insured (systems/underwriting.js). */
+R.uninsuredVoyage = (ctx, p) => {
+    if (!_arr(ctx.player.ships).some(s => s && ['at_sea', 'moving', 'anchored'].includes(s.status))) return [];
+    const out = [];
+    for (const it of Underwriting.uninsuredAtSea(ctx.player, ctx.world)) {
+        if (_num(it.loss) < _num(p.minLoss, 3) || _num(it.value) <= 0) continue;
+        out.push({ key: `uninsured:${it.ref}`, ship: it.label, value: it.value, loss: Math.round(_num(it.loss) * 10) / 10, severity: _num(it.loss) >= _num(p.warnLoss, 15) ? 'warning' : 'notice' });
+    }
+    return out.slice(0, 2);
+};
+
+/** Bills of exchange to present before they lapse, or stolen ones to stop (systems/bills.js). */
+R.billDue = (ctx, p) => {
+    const out = [];
+    for (const b of Bills.dueSoon(ctx.player, ctx.world, _num(p.days, 10))) {
+        const payer = Bills.payer(ctx.player, b);
+        if (b.status === 'stolen') {
+            out.push({ key: `bill:${b.id}`, amount: b.amount, bank: payer ? payer.name : b.payName, place: payer ? payer.seat : b.payAt,
+                what: `was stolen: stop it at {place} before a forger cashes it, about day ${b.cashDay}`, severity: 'warning' });
+        } else {
+            const left = b.validUntil - ctx.day;
+            out.push({ key: `bill:${b.id}`, amount: b.amount, bank: payer ? payer.name : b.payName, place: payer ? payer.seat : b.payAt,
+                what: left >= 0 ? `must be presented at {place} within ${left} day(s)` : 'is overdue: present it at {place} (less a protest fee)', severity: 'notice' });
+        }
+    }
+    return out.map(x => ({ ...x, what: x.what.replace('{place}', x.place) })).slice(0, 2);
+};
+
+/** Shares the player holds riding a mania (systems/bourse.js): the bubble may burst any week. */
+R.bourseMania = (ctx) => {
+    const out = [];
+    for (const pf of Bourse.portfolio(ctx.player)) {
+        const m = pf.listing.mania;
+        if (!m || m.burst) continue;
+        out.push({ key: `mania:${pf.listing.id}`, listing: pf.listing.name, shares: pf.shares, value: Math.round(pf.value) });
+    }
+    return out.slice(0, 1);
 };
 
 /** A defaulter is wanted for the debtors' prison in a realm. */

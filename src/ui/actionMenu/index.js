@@ -40,6 +40,8 @@ import './guilds.js';
 import './merchantLedger.js';
 import './hinterland.js';
 import './tradePolicy.js';
+import './underwriting.js';
+import './bourse.js';
 import './economy.js';
 
 // Expose ActionMenu globally so inline onclick handlers in dynamic HTML can access it

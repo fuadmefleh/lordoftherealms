@@ -838,6 +838,12 @@ Object.assign(ActionMenu, {
             case 'bank':
                 ActionMenu.showBank(game, tile);
                 break;
+            case 'underwriter':
+                ActionMenu.showUnderwriter(game, tile);
+                break;
+            case 'bourse':
+                ActionMenu.showBourse(game);
+                break;
             case 'host_feast':
                 ActionMenu.showHostFeastMenu(game, tile);
                 break;

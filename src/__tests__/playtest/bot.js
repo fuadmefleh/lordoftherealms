@@ -41,6 +41,9 @@ import { Quests } from '../../systems/quests.js';
 import { Patronage } from '../../systems/patronage.js';
 import { OutlawLairs } from '../../systems/outlawLairs.js';
 import { Finance } from '../../systems/finance.js';
+import { Underwriting, KINDS as COVER_KINDS } from '../../systems/underwriting.js';
+import { Bills } from '../../systems/bills.js';
+import { Bourse } from '../../systems/bourse.js';
 import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { Guilds } from '../../systems/guilds.js';
 import { MerchantCaravans } from '../../systems/merchantCaravans.js';
@@ -670,6 +673,50 @@ function banking(game, tile, stats) {
 }
 
 /** Buy what's missing of `materials` ({ goodId: n }) from the stalls here; true when all are in the packs. */
+/** Underwriters: cover what is exposed while there's money to carry the premiums; drop it when broke. No dice. */
+function insurance(game, tile, stats) {
+    const { player, world } = game;
+    for (const n of (game.underwritingDay && game.underwritingDay.notices) || []) if (n.title === 'Claim Paid') count(stats, 'claimsPaid');
+    const here = Underwriting.underwritersAt(player, world, tile);
+    for (const kind of COVER_KINDS) {
+        const held = Underwriting.cover(player, kind);
+        if (held && player.gold < 300) { if (Underwriting.cancelCover(player, world, kind).success) count(stats, 'coversCancelled'); continue; }
+        if (held || !here.length || player.gold < 1500) continue;
+        if (Underwriting.exposure(player, world, kind).length === 0 && !(kind === 'marine' && (player.ships || []).length)) continue;
+        const uw = here.find(u => !Underwriting.banned(player, u.id, world.day));
+        if (uw && Underwriting.openCover(player, world, uw.id, kind).success) count(stats, 'coversOpened');
+    }
+}
+
+/** Bills of exchange: carry a fortune as paper, and cash it where the paying house serves. */
+function bills(game, tile, stats) {
+    const { player, world } = game;
+    const here = Finance.banksAt(player, world, tile);
+    for (const b of Bills.held(player)) {
+        if (b.status === 'stolen' && Bills.stop(player, world, b.id).success) count(stats, 'billsStopped');
+        else if (b.status === 'held' && (player.gold < 2000 || world.day > b.validUntil - 5) && Bills.present(player, world, b.id).success) count(stats, 'billsPresented');
+    }
+    if (!here.length || player.gold < 12000 || Bills.held(player).length >= 2) return;
+    const to = Bills.payees(player, here[0].id)[0];
+    if (to && Bills.draw(player, world, here[0].id, to.id, 3000).success) count(stats, 'billsDrawn');
+}
+
+/** The Bourse: a few shares in the best-yielding houses and banks once rich; sell when short. No dice. */
+function bourse(game, tile, stats) {
+    const { player, world } = game;
+    if (!Bourse.exchangeAt(player, world)) return;
+    const held = Bourse.portfolio(player);
+    if (player.gold < 1500 && held.length) {
+        const p = held[0];
+        if (Bourse.sell(player, world, p.listing.id, p.shares).success) count(stats, 'sharesSoldBourse');
+        return;
+    }
+    if (player.gold < 6000 || Bourse.portfolioValue(player) > 4000) return;
+    const pick = Bourse.listed(player).filter(l => (l.kind === 'house' || l.kind === 'bank') && l.price > 0)
+        .sort((a, b) => b.lastDiv / b.price - a.lastDiv / a.price || a.id.localeCompare(b.id))[0];
+    if (pick && Bourse.buy(player, world, pick.id, Math.max(1, Math.min(10, Math.floor(1500 / pick.price)))).success) count(stats, 'sharesBoughtBourse');
+}
+
 function buyMaterials(game, tile, materials, stats) {
     const { player, world } = game;
     for (const [id, n] of Object.entries(materials)) {
@@ -782,6 +829,9 @@ function settlementBusiness(game, stats) {
     booked(game, 'company', () => company(game, tile, stats));
     booked(game, 'patronage', () => patronage(game, tile, stats));
     booked(game, 'banking', () => banking(game, tile, stats));
+    booked(game, 'insurance', () => insurance(game, tile, stats));
+    booked(game, 'bills', () => bills(game, tile, stats));
+    booked(game, 'bourse', () => bourse(game, tile, stats));
     booked(game, 'merchantPrince', () => merchantPrince(game, tile, stats));
     booked(game, 'guilds', () => guilds(game, tile, stats));
 }

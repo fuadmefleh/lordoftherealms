@@ -1,0 +1,127 @@
+{
+    "_comment": "Underwriters, bills of exchange and the Bourse (src/systems/underwriting.js, src/systems/bills.js, src/systems/bourse.js). Balance notes in docs/economy-balance.md; the rules in GAMEPLAY_MANUAL.md → 'Underwriters, Bills & the Bourse'.",
+
+    "underwriting": {
+        "_cover": "Open cover: one standing policy per kind, bought at an underwriter's office. Each day it bills a premium on what it covers that day (ships at sea, caravans on the road, stock in store, works, farms): the expected loss from the same inputs the loss sites use, times `loading`, times the claims surcharge. It attaches `attachDays` after it is opened and pays each covered loss less the deductible, up to `maxClaim` a loss.",
+        "loading": 1.35,
+        "deductible": 0.1,
+        "minClaim": 5,
+        "maxClaim": 20000,
+        "claimsMemoryDays": 120,
+        "surchargePerClaim": 0.12,
+        "maxSurcharge": 1.0,
+        "unpaidDays": 3,
+        "investigateAbove": 800,
+        "investigateDays": [3, 6],
+        "kinds": {
+            "marine": {
+                "name": "Hull & cargo", "icon": "⛵", "attachDays": 1,
+                "_risk": "Per day at sea. Storms: the season's chance of foul weather at sea × the hull damage (in repair cost) and cargo washed overboard they bring. Hostile squadrons near the ship: their chance of stopping it × the chance it loses × hull damage and cargo seized. Events at sea (on a voyage): ships.json's eventChance a day × the share of events that batter the hull (eventHullShare, eventHullPct) or put cargo over the side (eventCargoShare × eventCargoLoss). stormChance is the season's expected storm danger at sea (measured: storms and blizzards, weighted by their seaDanger). A worn hull (below ships.json settings.leakBelow, 50%) leaks: storms wash more cargo out of it.",
+                "stormChance": { "Spring": 0.035, "Summer": 0.038, "Autumn": 0.037, "Winter": 0.034 },
+                "stormHullPct": 5.5, "stormCargoChance": 0.2, "stormCargoShare": 0.2,
+                "loseFightChance": 0.5, "interceptHullPct": 14,
+                "eventHullShare": 0.15, "eventHullPct": 11, "eventCargoShare": 0.05, "eventCargoLoss": 0.22,
+                "blockadeExtra": 0.002,
+                "pirateRadius": 8, "piratePerShip": 0.002, "pirateMax": 3
+            },
+            "caravan": {
+                "name": "Goods on the road", "icon": "🐫", "attachDays": 1,
+                "_risk": "Per caravan per day: base, plus perRaider for each raider within raiderRadius of it and perLair for each outlaw lair within lairRadius; halved on a road-linked journey (wardens). Covers your caravans and your company's convoys.",
+                "base": 0.002, "raiderRadius": 6, "perRaider": 0.02, "lairRadius": 8, "perLair": 0.006, "maxDaily": 0.25,
+                "convoyRisk": 0.012, "shipConvoyRisk": 0.006, "convoyLoss": 0.7
+            },
+            "stock": {
+                "name": "Stock in store", "icon": "📦", "attachDays": 2,
+                "_risk": "Each store-room's and post's own weekly theft chance (MerchantPrince.theftChance, MerchantHouses.robberyChance) × the share thieves carry off × the stock's value, billed by the day."
+            },
+            "works": {
+                "name": "Works & property", "icon": "🏭", "attachDays": 3,
+                "_risk": "Per works per day: base × its value; a siege wears siegeWear a day (the repair bill); a crown in crisis may seize it (crisisChance a week × the salvage value). Seizure by a realm at war with you is a war risk no underwriter covers; neither is a town turning on you.",
+                "base": 0.0004, "siegeWear": 0.03
+            },
+            "crop": {
+                "name": "Crops in the field", "icon": "🌾", "attachDays": 7,
+                "_risk": "Per farm per day: the day's expected crop × the season's expected shortfall to weather (`seasonShortfall`) plus any blight or drought on the land now. Pays the shortfall of each day's crop against what the farm would bring in fair weather.",
+                "seasonShortfall": { "Spring": 0.008, "Summer": 0.014, "Autumn": 0.006, "Winter": 0.024 }
+            }
+        },
+
+        "guild": {
+            "_doc": "Underwriters' guilds at the great ports: their own capital pool. A guild whose capital falls below failBelow of what it started with fails: its covers lapse and its claims are paid at `recovery`. A new guild opens `refoundDays` later.",
+            "count": 2,
+            "capitalBase": 9000, "capitalJitter": [0.8, 1.3],
+            "failBelow": 0.15, "recovery": [0.3, 0.6], "refoundDays": 90,
+            "names": ["The Underwriters of {place}", "The {place} Assurance", "Society of Insurers at {place}", "The Mutual of {place}"]
+        },
+
+        "book": {
+            "_doc": "Each underwriter also writes covers for other merchants. Every week its book earns premium (premium × book) and pays claims: lossRatio of the premium in quiet times, more for each war, blockade, pirate fleet and great storm in its waters (warLoss, blockadeLoss, pirateLoss), with noise. A banking house's desk books it all on the house's reserves (systems/finance.js); a guild on its own capital.",
+            "bookShare": 0.12, "premium": 0.022, "lossRatio": 0.6, "noise": 0.45,
+            "warLoss": 0.25, "blockadeLoss": 0.3, "pirateLoss": 0.06, "maxRatio": 6,
+            "catastrophe": { "chance": 0.002, "loss": [0.1, 0.25], "winterMult": 2 }
+        },
+
+        "fraud": {
+            "_doc": "A false claim: forged protests of loss bought through the Thieves' Guild (rank minRank or above). The forger takes forgerFee of the claim at once. Every false claim is investigated: caught with `caught` chance, less perRank for each guild rank, more perClaim for each claim of yours in the last claimsMemoryDays and bigShare for a claim near the cap. Caught: no pay, the cover is cancelled, a fine of fineMult × the claim (from your purse; what you cannot pay becomes heat), heat in the realm, the office will not insure you for banDays.",
+            "minRank": 1, "forgerFee": 0.2, "maxShare": 0.5, "maxAmount": 3000,
+            "caught": 0.4, "perRank": 0.05, "perClaim": 0.08, "bigShare": 0.1, "minCaught": 0.15, "maxCaught": 0.9,
+            "fineMult": 1, "heat": 25, "banDays": 240
+        }
+    },
+
+    "bills": {
+        "_doc": "Bills of exchange: pay gold into one banking house and draw a bill payable at another house (or the same house's seat in another realm). fee = base + perHex × the distance between the two seats, min minFee; payable from usance days (the distance at usanceHexes a day); presented after validDays it is protested (protestFee). A thief who takes a bill can have it cashed by a forger after cashDays unless you stop it at a branch of the paying house first (stopFee). A bill on a failed house falls on the house that drew it; if that one failed too, the receivers pay `recovery`.",
+        "base": 0.006, "perHex": 0.0003, "maxFee": 0.04, "minFee": 5, "minAmount": 200, "maxHeld": 8,
+        "usanceHexes": 8, "validDays": 120, "protestFee": 0.05,
+        "stealChance": 0.5, "cashDays": [3, 8], "stopFee": 0.02,
+        "recovery": [0.3, 0.6],
+        "forgery": { "minRank": 2, "fee": 0.25, "max": 2500, "caught": 0.45, "perRank": 0.05, "heat": 30, "fineMult": 1 }
+    },
+
+    "bourse": {
+        "_doc": "The Bourse: an exchange in each of the `exchanges` greatest capitals. Shares in the rival merchant houses (100 each), the banking houses (1000), the player's company once floated (100) and the chartered companies (ventures and royal monopolies, 1000). Each share's fair value is its book value × a multiple of its return on capital (1 + roeSlope × (roe − hurdle), within [minMult, maxMult]); its price is fair × sentiment (a mean-reverting walk) × the market's mood × any mania, and the player's own trading moves it (impact, decaying by the day). Dividends are paid weekly from real profit.",
+        "exchanges": 2, "minPopulation": 0,
+        "hurdle": 0.08, "roeSlope": 2.5, "minMult": 0.35, "maxMult": 2.5, "roeWeight": 0.08,
+        "sentimentVol": 0.018, "sentimentRevert": 0.06, "moodRevert": 0.04,
+        "spread": 0.03, "commission": 0.01, "minCommission": 2,
+        "impact": 0.5, "impactDecay": 0.85,
+        "historyWeeks": 26, "newsCap": 40,
+        "houseShares": 100, "bankShares": 1000, "ventureShares": 1000,
+        "bankPayout": 0.5, "venturePayout": 0.6,
+        "bankLowReserve": 0.8, "panicDiscount": 0.55, "crisisExposure": 0.5,
+        "fashionBonus": 0.12,
+        "float": { "maxOutside": 49, "discount": 0.1, "fee": 0.03, "minValue": 1500, "payout": 0.5 },
+        "ventures": [
+            { "id": "far_isles", "kind": "venture", "name": "The Company of the Far Isles", "icon": "🧭", "capital": [9000, 15000],
+              "_doc": "An overseas venture under a crown's charter: it lives by new lands (Discovery: sites found and known to its crown, colonies claimed) and dies by the sea (pirates, war, a fleet lost).",
+              "base": 0.002, "noise": 0.02, "perSite": 0.0015, "perColony": 0.003, "maxSites": 8, "war": -0.008, "pirate": -0.002,
+              "fleetLost": { "chance": 0.025, "loss": [0.15, 0.35] } },
+            { "id": "royal_monopoly", "kind": "monopoly", "name": "The Royal {good} Farm of {kingdom}", "icon": "👑", "capital": [8000, 12000],
+              "_doc": "A crown's monopoly let to a company: its rents follow the realm's trade and prices (world/economyIndex.js); a crown deep in debt squeezes it, a crown that defaults may revoke it.",
+              "goods": ["Salt", "Wine", "Wool", "Alum", "Spice"],
+              "base": 0.003, "noise": 0.012, "tradeSlope": 0.01, "priceSlope": 0.006, "debtSqueeze": -0.006, "revokeOnDefault": 0.35, "revokeLoss": [0.4, 0.7] }
+        ],
+        "panics": {
+            "_doc": "Market-wide falls in mood: a banking house failing, a crown defaulting or a war on an exchange's realm.",
+            "bank_failed": 0.85, "crown_default": 0.88, "war": 0.93, "bank_run": 0.95
+        }
+    },
+
+    "manias": [
+        { "id": "isles_mania", "name": "The Isles Mania", "icon": "🎈", "targets": ["venture"], "chance": 0.008,
+          "riseDays": [25, 50], "peak": [2.2, 3.6], "burstDays": [20, 40], "trough": [0.45, 0.65], "issue": 0.15,
+          "bankHit": [0.02, 0.06], "mood": 0.82,
+          "start": "Fortunes are made overnight in {name} at the Bourse of {place}: every clerk and widow buys.",
+          "burst": "The {name} bubble has burst at the Bourse of {place}. {listing} falls by half in a morning; the banks call in their loans." },
+        { "id": "monopoly_mania", "name": "The {good} Craze", "icon": "📈", "targets": ["monopoly"], "chance": 0.005,
+          "riseDays": [20, 40], "peak": [1.8, 2.6], "burstDays": [20, 35], "trough": [0.55, 0.75], "issue": 0.1,
+          "bankHit": [0.01, 0.04], "mood": 0.88,
+          "start": "All {place} talks of {listing}: its shares change hands three times a day.",
+          "burst": "{listing} crashes at the Bourse of {place}: the craze is over and the speculators ruined." },
+        { "id": "house_mania", "name": "The Merchant Fever", "icon": "⚖️", "targets": ["house"], "chance": 0.004,
+          "riseDays": [20, 35], "peak": [1.6, 2.2], "burstDays": [15, 30], "trough": [0.6, 0.8], "issue": 0,
+          "bankHit": [0.01, 0.03], "mood": 0.9,
+          "start": "A fever for {listing} grips the Bourse of {place}; its shares are bid far above its books.",
+          "burst": "The fever breaks: {listing} tumbles at the Bourse of {place}." }
+    ]
+}

@@ -37,7 +37,8 @@
             "guild_strike": 5, "guild_election": 3, "guild_chartered": 3, "guild_abolished": 5,
             "mine_strike": 4, "mine_vein": 2, "mine_exhausted": 4, "mine_accident": 3,
             "trade_embargo": 4, "trade_treaty": 3, "trade_war": 4, "trade_ban": 5, "trade_granary": 3,
-            "econ_dear": 5, "econ_inflation": 4, "fashion": 3
+            "econ_dear": 5, "econ_inflation": 4, "fashion": 3,
+            "underwriter_failed": 5, "great_claim": 3, "insured_catastrophe": 4, "bourse_mania": 4, "bourse_crash": 6, "bourse_panic": 4
         },
         "icons": {
             "coronation": "👑", "realm_fallen": "🏴", "realm_restored": "🚩", "peace": "🕊️", "war": "⚔️",
@@ -48,9 +49,34 @@
             "labour_refugees": "🧳", "labour_strike": "✊", "labour_boom": "🏗️", "guild_strike": "✊", "guild_election": "🗳️", "guild_chartered": "📜", "guild_abolished": "⚖️",
             "mine_strike": "⛏️", "mine_vein": "💎", "mine_exhausted": "🕳️", "mine_accident": "💥",
             "trade_embargo": "⛔", "trade_treaty": "🤝", "trade_war": "📈", "trade_ban": "🌾", "trade_granary": "🍞",
-            "econ_dear": "🍞", "econ_inflation": "💰", "fashion": "👗"
+            "econ_dear": "🍞", "econ_inflation": "💰", "fashion": "👗",
+            "underwriter_failed": "🏚️", "great_claim": "🛡️", "insured_catastrophe": "🌊", "bourse_mania": "🎈", "bourse_crash": "📉", "bourse_panic": "😱"
         },
         "templates": {
+            "underwriter_failed": [
+                "Hear ye! {uw} of {place} cannot meet its claims and has shut its doors. Its policies are void.",
+                "{uw} is broken: too many ships lost, too many claims. Merchants of {place}, look to your cover."
+            ],
+            "great_claim": [
+                "{uw} pays {amount} gold on a single claim. The underwriters of {place} grumble over their ledgers.",
+                "A great loss is made good: {uw} of {place} pays out {amount} gold."
+            ],
+            "insured_catastrophe": [
+                "A great storm has sunk a fleet insured at {place}. {uw} must pay {amount} gold.",
+                "Ill news for {uw}: a whole fleet lost, and {amount} gold of claims to meet."
+            ],
+            "bourse_mania": [
+                "All {place} buys {listing}! Its shares double while you sleep, they say.",
+                "A fever for {listing} grips the Bourse of {place}. Cobblers sell their lasts to buy a share."
+            ],
+            "bourse_crash": [
+                "Hear ye! {listing} has crashed at the Bourse of {place}. Fortunes made in a season are gone in a morning.",
+                "The bubble is burst: {listing} falls by half at {place}, and {bank} counts its losses."
+            ],
+            "bourse_panic": [
+                "Panic at the Bourse of {place}! Every share falls as the news of {bank} spreads.",
+                "The floor at {place} is in uproar: sellers and no buyers."
+            ],
             "mine_strike": [
                 "Hear ye! A new {site} is struck in the hills near {place}. Miners and carters, there is work to be had!",
                 "Strike! The prospectors of {place} have found a {site}; {good} will come down from the hills before the season is out.",
@@ -621,6 +647,18 @@
         { "id": "money_bank_failed", "when": { "money": ["bank_failed"] }, "weight": 3, "lines": [
             "{bank} is broken. My savings with it. Thirty years at the loom, gone like smoke.",
             "The receivers of {bank} pay a third of what's owed, they say, and take a year to do it."
+        ]},
+        { "id": "money_mania", "when": { "money": ["mania"] }, "weight": 3, "lines": [
+            "My cousin put his savings in {listing}. Doubled in a month! I'm selling the mule to buy some.",
+            "Everyone's mad for {listing} at the Bourse. When the barber gives you tips on shares, sell."
+        ]},
+        { "id": "money_crash", "when": { "money": ["crash"] }, "weight": 3, "lines": [
+            "{listing}'s shares aren't worth the paper now. My cousin's selling his mule back to me, at half.",
+            "They hanged a broker in effigy outside the Bourse. {listing} took half the town's savings with it."
+        ]},
+        { "id": "money_insurers", "when": { "money": ["insurers_failed"] }, "weight": 2, "lines": [
+            "The underwriters went bust. Every ship that sails from here now sails at its owner's risk.",
+            "{bank} won't pay the claims, they say. Insured! Ha. Insured against the insurers, that's what you'd need."
         ]},
         { "id": "money_bank", "when": { "money": ["bank"], "occupation": ["merchant", "noble", "traveler"] }, "weight": 1, "lines": [
             "{bank} lends to kings and cobblers alike, at a price. Mind you pay it back. Their bailiffs don't knock twice.",

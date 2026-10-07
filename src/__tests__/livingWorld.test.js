@@ -107,7 +107,7 @@ describe('chatter data', () => {
             dearth: { id: 'grain', label: 'grain' }, glut: { id: 'wool', label: 'wool' },
             // A town guild on strike (systems/guilds.js)
             strike: { guild: 'Bakers\' Guild of Tallow', good: 'bread' },
-            money: [{ kind: 'debased' }, { kind: 'bank', bank: 'The Medrano Counting House' }, { kind: 'bank_run', bank: 'The Medrano Counting House' }, { kind: 'bank_failed', bank: 'The Aurelian Bank' }],
+            money: [{ kind: 'debased' }, { kind: 'bank', bank: 'The Medrano Counting House' }, { kind: 'bank_run', bank: 'The Medrano Counting House' }, { kind: 'bank_failed', bank: 'The Aurelian Bank' }, { kind: 'mania', listing: 'The Company of the Far Isles' }, { kind: 'crash', listing: 'The Company of the Far Isles' }, { kind: 'insurers_failed', bank: 'The Underwriters of Saltmere' }],
             // The cost of living and a fashion at court (world/economyIndex.js, world/fashions.js)
             prices: ['dear_food', 'inflation'], priceInfo: { pct: 22, foodPct: 22, goodsPct: 15, since: 'spring' },
             fashions: [{ id: 'court_silks', name: 'Silks at Court', text: 'silk is all the rage at court', place: 'Highmarket', goods: 'textiles and clothes' }],

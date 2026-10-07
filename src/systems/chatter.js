@@ -59,7 +59,7 @@ const CONDITIONS = {
 
 export const SEASONS = ['Spring', 'Summer', 'Autumn', 'Winter'];
 /** What townsfolk say about money (systems/finance.js): the `money` condition's kinds. */
-export const MONEY_KINDS = ['debased', 'levy', 'default', 'bank_run', 'bank_failed', 'bank'];
+export const MONEY_KINDS = ['debased', 'levy', 'default', 'bank_run', 'bank_failed', 'bank', 'mania', 'crash', 'insurers_failed'];
 /** What townsfolk say about work and the people (world/townLabour.js): the `labour` condition's kinds. */
 export const LABOUR_KINDS = ['idle', 'refugees', 'strike', 'boom', 'hardship', 'mine_strike', 'mine_closed'];
 /** What townsfolk say about the cost of living (world/economyIndex.js): the `prices` condition's kinds. */
@@ -75,7 +75,7 @@ const TOKEN_NEEDS = {
     saga: 'saga', villain: 'saga', rival: 'rival', rivalNews: 'rival', oldRuler: 'newRuler',
     proclamation: 'proclamation', deedPlace: 'deed', deedVictim: 'deed',
     lair: 'outlaws', leader: 'outlaws', dearthGood: 'dearth', glutGood: 'glut', strikeGuild: 'strike', strikeGood: 'strike',
-    bank: 'money',
+    bank: 'money', listing: 'money',
     pricePct: 'prices', sinceSeason: 'prices', fashionPlace: 'fashion', fashionText: 'fashion', fashionGoods: 'fashion',
 };
 const ALWAYS_TOKENS = ['settlement', 'kingdom', 'ruler', 'player', 'house', 'season', 'title'];
@@ -293,6 +293,17 @@ export const Chatter = {
             }
         }
 
+        // The Bourse's manias and crashes, and underwriters gone bust, in this realm (systems/bourse.js, underwriting.js)
+        if (kid != null && day != null) {
+            for (const h of (player && player.bourse && Array.isArray(player.bourse.history)) ? player.bourse.history : []) {
+                if (!h || h.kingdomId !== kid || day - _num(h.day) > 40) continue;
+                if (h.kind === 'mania' || h.kind === 'crash') ctx.money.push({ kind: h.kind, listing: h.listing });
+            }
+            for (const h of (player && player.underwriting && Array.isArray(player.underwriting.history)) ? player.underwriting.history : []) {
+                if (h && h.kind === 'underwriter_failed' && h.kingdomId === kid && day - _num(h.day) <= 60) ctx.money.push({ kind: 'insurers_failed', bank: h.uw });
+            }
+        }
+
         // The cost of living in the realm, as its weekly gazette has it (world/economyIndex.js)
         if (kid != null && world && world.economy) {
             const I = EconomyIndex.config();
@@ -446,7 +457,7 @@ export const Chatter = {
         const saga = Chatter._first(ctx.sagas, when.saga, 'id');
         const pr = Chatter._first(ctx.proclamations, when.proclamation, 'kind');
         const deed = Chatter._first(ctx.deeds, when.deed, 'type');
-        const money = Chatter._first((ctx.money || []).filter(m => m.bank), when.money, 'kind');
+        const money = Chatter._first((ctx.money || []).filter(m => m.bank || m.listing), when.money, 'kind');
         const map = {
             settlement: ctx.settlementName, kingdom: ctx.kingdomName, ruler: ctx.ruler,
             player: ctx.playerName, house: ctx.houseName, season: (ctx.season || 'the season').toLowerCase(),
@@ -461,7 +472,7 @@ export const Chatter = {
             lair: ctx.outlaws && ctx.outlaws.name, leader: ctx.outlaws && ctx.outlaws.leader,
             dearthGood: ctx.dearth && ctx.dearth.label, glutGood: ctx.glut && ctx.glut.label,
             strikeGuild: ctx.strike && ctx.strike.guild, strikeGood: ctx.strike && ctx.strike.good,
-            bank: money && money.bank,
+            bank: money && money.bank, listing: money && money.listing,
             pricePct: ctx.priceInfo && (Array.isArray(when.prices) && when.prices.includes('dear_food') ? ctx.priceInfo.foodPct : Array.isArray(when.prices) && when.prices.includes('inflation') ? ctx.priceInfo.goodsPct : ctx.priceInfo.pct),
             sinceSeason: ctx.priceInfo && ctx.priceInfo.since,
             fashionPlace: (Chatter._first(ctx.fashions || [], when.fashion, 'id') || {}).place,
@@ -698,7 +709,9 @@ export const Chatter = {
             // the hinterland's strikes, veins, worked-out mines (systems/concessions.js)
             'site',
             // the realms' cost of living and the fashions at court (world/economyIndex.js, world/fashions.js)
-            'food', 'since', 'text', 'goods'];
+            'food', 'since', 'text', 'goods',
+            // underwriters and the Bourse (systems/underwriting.js, systems/bourse.js)
+            'uw', 'amount', 'listing'];
         for (const [kind, list] of Object.entries(H.templates || {})) {
             if (!Array.isArray(list) || !list.length) problems.push(`heralds.${kind}: no templates`);
             for (const t of list || []) for (const [, tok] of String(t).matchAll(/\{(\w+)\}/g)) {

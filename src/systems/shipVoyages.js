@@ -665,8 +665,11 @@ export const VoyageMethods = {
         if (fx.karma) player.karma = (player.karma || 0) + fx.karma;
         if (fx.hull) {
             const dmg = this.mitigateHullDamage(ship, fx.hull);
-            ship.condition = Math.max(5, (ship.condition || 100) - dmg);
+            const condBefore = ship.condition || 100;
+            ship.condition = Math.max(5, condBefore - dmg);
             lines.push(`(hull −${dmg}%)`);
+            // The underwriters hear of it (systems/lossBook.js)
+            if (this._reportSeaLoss) this._reportSeaLoss(player, world, ship, condBefore - ship.condition, null, 'damage at sea');
         }
         if (fx.repair) ship.condition = Math.min(100, (ship.condition || 100) + fx.repair);
         if (fx.delay && v) v.delay = _num(v.delay) + fx.delay;
@@ -679,13 +682,16 @@ export const VoyageMethods = {
         }
         if (fx.loseCargo) {
             const foods = new Set(this._getProvisionSettings().foods);
+            const gone = {};
             for (const [good, qty] of Object.entries(ship.cargo || {})) {
                 if (foods.has(good)) continue;
                 const lost = Math.floor(qty * fx.loseCargo);
                 if (lost <= 0) continue;
                 ship.cargo[good] -= lost;
                 if (ship.cargo[good] <= 0) delete ship.cargo[good];
+                gone[good] = lost;
             }
+            if (this._reportSeaLoss) this._reportSeaLoss(player, world, ship, 0, gone, 'cargo lost at sea');
         }
         if (fx.provisions > 0) this._stowProvisions(ship, fx.provisions);
         if (fx.provisions < 0) this._eatFromHold(ship, -fx.provisions);

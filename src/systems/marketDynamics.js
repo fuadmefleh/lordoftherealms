@@ -30,6 +30,7 @@ import { Sieges } from './sieges.js';
 import { HoldingSieges } from './holdingSieges.js';
 import { MerchantCaravans } from './merchantCaravans.js';
 import { TradePolicy } from './tradePolicy.js';
+import { Harvests } from '../world/harvests.js';
 
 const _key = (q, r) => `${q},${r}`;
 /** Days a settlement's production profile holds before it is worked out again. */
@@ -76,6 +77,7 @@ export const MarketDynamics = {
         const cache = this._cache(world);
         const day = Seasons.today(world);
         const foodSeason = SettlementMarket.seasonalFood(day);
+        const harvestVer = Harvests.version(world);
         let spill = null;
         const k = SettlementMarket.tickDays();
         const turn = Number.isFinite(day) ? ((day % k) + k) % k : 0;
@@ -93,9 +95,10 @@ export const MarketDynamics = {
             // Markets take their turns (every tickDays, staggered by place)
             if (k > 1 && Number.isFinite(day) && SettlementMarket.slot(s.q, s.r) !== turn) continue;
             // What the town brings to market, worked out afresh every few days
-            // (kept on the market, so a loaded game carries on identically)
+            // (kept on the market, so a loaded game carries on identically), and
+            // when a sowing or a harvest changes its fields (world/harvests.js)
             const bucket = Math.floor(_num(day) / PROFILE_DAYS);
-            if (!Array.isArray(m.prod) || m.prodAt !== bucket || m.prod.length !== SettlementMarket.config().goodIds.length) {
+            if (!Array.isArray(m.prod) || m.prodAt !== bucket || _num(m.prodHv) !== harvestVer || m.prod.length !== SettlementMarket.config().goodIds.length) {
                 if (!spill) spill = this._propertySpill(world, views);
                 const land = this._land(world, cache, tile, day);
                 // The breakdown produceDaily stored today (kingdom towns), else worked out fresh
@@ -104,8 +107,11 @@ export const MarketDynamics = {
                 const rates = Economy.PRODUCTION_RATES[live.type] || Economy.PRODUCTION_RATES.village;
                 const foodBase = rates.baseFood * (1 + (_num(live.population) / 10000) * 0.5);
                 const prod = SettlementMarket.production(live, land, bd, foodBase, spill.get(_key(s.q, s.r)) || null);
+                // The harvest in force and the town's crop mix: grain, wine, linen, the herds
+                Harvests.applyToProduction(world, live, prod);
                 m.prod = SettlementMarket.productionList(prod);
                 m.prodAt = bucket;
+                if (harvestVer) m.prodHv = harvestVer;
             }
             SettlementMarket.processSettlement(live, m.prod, {
                 day,
@@ -602,7 +608,9 @@ export const Taxation = {
             // Holdings development (systems/holdings.js): markets, harbours and a
             // good steward raise the take; a skimming governor or a revolt cuts it
             const holdingMult = Taxation.holdingFx(settlement, 'taxMult', 1);
-            const taxCollected = Math.floor(taxBase * taxPolicy.rate * landBonus * Taxation.officeTaxMultiplier(player) * eventMult * moodMult * holdingMult);
+            // The tithe and the tenants' rents follow the harvest (world/harvests.js)
+            const harvestMult = Harvests.rentFactor(settlement);
+            const taxCollected = Math.floor(taxBase * taxPolicy.rate * landBonus * Taxation.officeTaxMultiplier(player) * eventMult * moodMult * holdingMult * harvestMult);
 
             totalCollected += taxCollected;
             const growthRate = Taxation.getGrowthRate(settlement, taxPolicy);
@@ -612,6 +620,7 @@ export const Taxation = {
                 q: ref.q,
                 r: ref.r,
                 collected: taxCollected,
+                harvest: harvestMult,
                 population: settlement.population,
                 happiness: Math.round(happiness),
                 peoplesMood: Taxation.peoplesMood(settlement),

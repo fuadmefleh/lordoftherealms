@@ -19,6 +19,7 @@ import { LossBook } from '../systems/lossBook.js';
 import { Heralds } from '../systems/heralds.js';
 import { PlayerEconomy } from '../player/playerEconomy.js';
 import { WorldUnit } from '../world/units.js';
+import { Harvests } from '../world/harvests.js';
 import { loadData, newGame, endDay, roundTrip } from './playtest/harness.js';
 
 let logSpy;
@@ -169,15 +170,20 @@ describe('quotes follow the real risk', () => {
         tile.playerProperty = prop;
         game.player.properties = [{ q: tile.q, r: tile.r, type: 'farm' }];
         const at = (day) => { game.world.day = day; return Underwriting.quote(game.player, game.world, 'crop'); };
-        const summer = at(45);
+        const autumn = at(75);
         const winter = at(105);
-        expect(summer.items.length).toBe(1);
-        // Winter's crop is small but its share lost to snow is large
-        expect(winter.expected / winter.value).toBeGreaterThan(summer.expected / summer.value);
-        game.world.day = 45;
+        expect(autumn.items.length).toBe(1);
+        // Winter's share lost to snow is the largest of the year
+        const K = Underwriting.kind('crop').seasonShortfall;
+        expect(K.Winter).toBeGreaterThan(K.Autumn);
+        expect(winter.expected).toBeGreaterThan(0);
+        // In the growing season the coming harvest is priced too (world/harvests.js)
+        const spring = at(20);
+        expect(spring.expected).toBeGreaterThan(Underwriting.expectedHarvestShortfall(game.world, { tile, prop, def: { produces: 'grain' } }) * Underwriting.farmBaseValue({ prop, def: { produces: 'grain', productionRate: 6 } }) * 120 / Underwriting.growing().len * 0.99);
+        game.world.day = 75;
         game.world.activeEvents = [{ id: 'drought', effects: { farmProduction: -0.4 }, global: true }];
         const dry = Underwriting.quote(game.player, game.world, 'crop');
-        expect(dry.expected).toBeGreaterThan(summer.expected * 5);
+        expect(dry.expected).toBeGreaterThan(autumn.expected * 5);
     });
 
     it('your own recent claims put a surcharge on every premium', () => {
@@ -246,6 +252,33 @@ describe('claims on real losses', () => {
         const claims = Underwriting.state(game.player).claims;
         expect(claims.length).toBe(1);
         expect(claims[0].cause).toBe('crisis');
+    });
+
+    it('a poor harvest is claimed when it is reckoned, for the share of the growing season covered', () => {
+        const game = fresh();
+        const tile = game.world.getSettlementViews().map(s => game.world.getTile(s.q + 1, s.r)).find(t => t && t.terrain.passable && !t.settlement);
+        const prop = { type: 'farm', productionRate: 6, level: 1, produces: 'grain' };
+        tile.playerProperty = prop;
+        game.player.properties = [{ q: tile.q, r: tile.r, type: 'farm' }];
+        game.world.day = 125; // spring of the second year
+        const cover = open(game, 'crop');
+        cover.attachDay = 120;
+        const year = Harvests.yearOf(game.world.day + 1);
+        const region = Harvests.regionOf(game.world, tile.q, tile.r);
+        cover.season = { year, days: 29, paid: false };
+        const out = { [region]: { name: 'the vale', y: 0.6, grain: 0.6, veg: 0.6, fibre: 1, vine: 1, fodder: 1, stock: 1 } };
+        game.world.harvests = { ...(game.world.harvests || {}), last: { year, day: game.world.day + 1, out }, past: [{ year, out }] };
+        const gold = game.player.gold;
+        tick(game, 1);
+        const claim = Underwriting.state(game.player).claims.find(c => /harvest/.test(c.cause));
+        expect(claim).toBeTruthy();
+        const g = Underwriting.growing();
+        const base = Underwriting.farmBaseValue({ prop, def: { produces: 'grain', productionRate: 6 } });
+        expect(claim.value).toBeCloseTo(0.4 * base * 120 * Math.min(1, 30 / g.len), 0);
+        if (claim.status === 'paid') expect(game.player.gold).toBeGreaterThan(gold);
+        // Paid once a year
+        tick(game, 1);
+        expect(Underwriting.state(game.player).claims.filter(c => /harvest/.test(c.cause)).length).toBe(1);
     });
 
     it('a big claim goes to the assessors first and is paid when they report', () => {
@@ -413,9 +446,17 @@ describe('a fair bet the house wins', () => {
         Finance.loadState(game.player, game.world);
         game.player.gold = 1e6;
         const ship = shipAtSea(game, { wine: 150, iron: 100, cloth: 80 }, { status: 'anchored' });
-        const tile = game.world.getSettlementViews().map(s => game.world.getTile(s.q + 1, s.r)).find(t => t && t.terrain.passable && !t.settlement);
-        tile.playerProperty = { type: 'farm', productionRate: 6, level: 1, produces: 'grain' };
-        game.player.properties = [{ q: tile.q, r: tile.r, type: 'farm' }];
+        // Farms in several regions, so a year's harvests average out
+        const seen = new Set();
+        game.player.properties = [];
+        for (const v of game.world.getSettlementViews()) {
+            const t = game.world.getTile(v.q + 1, v.r);
+            const region = t && Harvests.regionOf(game.world, t.q, t.r);
+            if (!t || !t.terrain.passable || t.settlement || seen.has(region) || seen.size >= 8) continue;
+            seen.add(region);
+            t.playerProperty = { type: 'farm', productionRate: 6, level: 1, produces: 'grain' };
+            game.player.properties.push({ q: t.q, r: t.r, type: 'farm' });
+        }
         const st = Underwriting.state(game.player);
         for (let i = 0; i < 360; i++) {
             game.player.health = 100;

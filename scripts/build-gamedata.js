@@ -36,6 +36,7 @@ const topLevel = [
     'priceKnowledge',
     'hinterland',
     'tradePolicy',
+    'harvests',
     'chronicle',
     'bourse'
 ];

@@ -1038,6 +1038,7 @@ Object.assign(ActionMenu, {
             <button class="trade-tab" data-am-act="showMerchantPrince" data-am-args='[null, "contracts"]' title="Forward contracts with this town">📜 Contracts</button>
             <button class="trade-tab" data-am-act="showTownPeople" data-am-args='[null]' title="The town's classes, work, wages and welfare">👥 People</button>
             <button class="trade-tab" data-am-act="showHinterland" data-am-args='[null]' title="The mines, quarries and sheep runs around the town; mining leases and prospecting (ui/actionMenu/hinterland.js)">⛏️ Hinterland</button>
+            <button class="trade-tab" data-am-act="showHarvests" data-am-args='[null]' title="The coming harvest here, the crop reports, the town's fields and your farms' rotation (ui/actionMenu/harvests.js)">🌾 Harvest</button>
             ${tile.settlement && tile.settlement.guilds ? '<button class="trade-tab" data-am-act="showGuildhall" title="The town guilds: tolls, membership, contracts">⚒️ Guilds</button>' : ''}
             <button class="trade-tab" data-am-act="showTradePolicy" data-am-args='["here"]' title="The crown's duties, export bans, embargoes and treaties (ui/actionMenu/tradePolicy.js)">⚖️ Tariffs</button>
             <button class="trade-tab" data-am-act="showMerchantLedger" data-am-args='["book"]' title="Known prices, best spreads, price history and your trading profit (ui/actionMenu/merchantLedger.js)">📒 Ledger</button>

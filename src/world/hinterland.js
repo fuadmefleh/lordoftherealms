@@ -28,6 +28,7 @@ import { Hex } from '../core/hex.js';
 import { Utils } from '../core/utils.js';
 import { SettlementMarket } from './settlementMarket.js';
 import { TownLabour } from './townLabour.js';
+import { Harvests } from './harvests.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -423,7 +424,9 @@ export const Hinterland = {
         const y = Hinterland.yieldOf(site);
         if (!(y > 0)) return out;
         const land = TownLabour.factors(home, day).land;
-        const f = y * land * Math.max(0, _num(mult, 1)) * Math.max(1, k);
+        // Herds follow the year's grazing, murrain and war (world/harvests.js)
+        const herd = Harvests.isHerdSite(site.kind) ? Harvests.stockFactor(home) : 1;
+        const f = y * land * herd * Math.max(0, _num(mult, 1)) * Math.max(1, k);
         for (let i = 0; i < kd.goods.length; i++) {
             const n = kd.goods[i][1] * f;
             if (n > 0) out.goods[kd.goods[i][0]] = n;

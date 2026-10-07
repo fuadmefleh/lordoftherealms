@@ -52,6 +52,7 @@ import { PlayerInventory } from '../core/inventory.js';
 import { Seasons } from '../world/seasons.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { WEATHER_EFFECTS } from '../world/weather.js';
+import { Harvests } from '../world/harvests.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { Finance } from './finance.js';
 import { Ships } from './ships.js';
@@ -140,7 +141,7 @@ const DEFAULTS = {
         caravan: { name: 'Goods on the road', icon: '🐫', attachDays: 1, base: 0.002, raiderRadius: 6, perRaider: 0.02, lairRadius: 8, perLair: 0.006, maxDaily: 0.25, convoyLoss: 0.7 },
         stock: { name: 'Stock in store', icon: '📦', attachDays: 2 },
         works: { name: 'Works & property', icon: '🏭', attachDays: 3, base: 0.0004, siegeWear: 0.03 },
-        crop: { name: 'Crops in the field', icon: '🌾', attachDays: 7, experienceWeight: 0.01, seasonShortfall: { Spring: 0.008, Summer: 0.014, Autumn: 0.006, Winter: 0.024 } },
+        crop: { name: 'Crops in the field', icon: '🌾', attachDays: 7, experienceWeight: 0.01, harvestPrior: 0.075, seasonShortfall: { Spring: 0.008, Summer: 0.014, Autumn: 0.006, Winter: 0.024 } },
     },
     guild: { count: 2, capitalBase: 9000, capitalJitter: [0.8, 1.3], failBelow: 0.15, recovery: [0.3, 0.6], refoundDays: 90, names: ['The Underwriters of {place}'] },
     book: { bookShare: 0.12, premium: 0.022, lossRatio: 0.6, noise: 0.45, warLoss: 0.25, blockadeLoss: 0.3, pirateLoss: 0.06, maxRatio: 6, catastrophe: { chance: 0.002, loss: [0.1, 0.25], winterMult: 2 } },
@@ -474,25 +475,21 @@ export const Underwriting = {
         return out;
     },
 
-    /** A farm's crop on a fair day, at its sale value (the season's curve included). */
-    farmDayValue(world, f) {
-        const day = Seasons.today(world);
-        const curve = Seasons.propertyCurve(f.prop.type) && day != null ? Seasons.propertyMultiplier(f.prop.type, day) : 1;
-        const units = _num(f.prop.productionRate, _num(f.def.productionRate)) * (1 + (_num(f.prop.level, 1) - 1) * 0.1) * curve;
+    /** A farm's base crop a day at its sale value, before the season and the harvest (the yearly mean). */
+    farmBaseValue(f) {
+        const units = _num(f.prop.productionRate, _num(f.def.productionRate)) * (1 + (_num(f.prop.level, 1) - 1) * 0.1);
         return units * (PlayerInventory.goodValue(f.def.produces) || 5) * 0.7;
     },
 
-    /**
-     * The share of today's crop the land loses: the blight, drought or flood
-     * on it (world events) and the day's weather. The harvest model can
-     * replace this (an adapter: `harvestModel`, see below).
-     */
+    /** A farm's crop today at its sale value: the base, the season's curve and this year's harvest (world/harvests.js). */
+    farmDayValue(world, f) {
+        const day = Seasons.today(world);
+        const curve = Seasons.propertyCurve(f.prop.type) && day != null ? Seasons.propertyMultiplier(f.prop.type, day) : 1;
+        return Underwriting.farmBaseValue(f) * curve * Harvests.propertyFactor(world, f.tile, f.prop);
+    },
+
+    /** The share of today's crop the weather and any blight or drought on the land take (as the farms' own day does). */
     cropShortfall(player, world, f, opts = {}) {
-        const model = Underwriting.harvestModel;
-        if (model && typeof model.shortfall === 'function') {
-            const v = model.shortfall(world, f, opts);
-            if (Number.isFinite(v)) return _clamp(v, 0, 1);
-        }
         let mod = WorldEvents.getModifier(world, 'farmProduction', f.tile);
         if (!opts.eventsOnly && world && world.weather) {
             const wx = world.weather.getWeather(f.tile.q, f.tile.r);
@@ -502,23 +499,53 @@ export const Underwriting = {
         return _clamp(-mod, 0, 1);
     },
 
-    /** Set by a harvest model (world/harvests.js) when there is one: { shortfall(world, farm), expected(world, farm) }. */
-    harvestModel: null,
+    /** The crop a farm grows in the harvest model ('grain', 'vine', 'stock', ...), or null. */
+    farmCrop(f) {
+        const crops = (Harvests.config() || {}).propertyCrops || {};
+        return crops[f.prop.type] || null;
+    },
+
+    /** The growing season (data/harvests.json → growing): { sow, settle, len } in days of the year. */
+    growing() {
+        const G = (Harvests.config() || {}).growing || {};
+        const sow = _num(G.sowDay, 1);
+        const settle = _num(G.settleDay, 60);
+        return { sow, settle, len: Math.max(1, settle - sow) };
+    },
+
+    /**
+     * The harvest shortfall the underwriters expect of a farm's region this
+     * year (Harvests.forecast): what the estimate already shows lost, as far
+     * as it is sure, and the usual spread of a year (harvestPrior) where not.
+     */
+    expectedHarvestShortfall(world, f) {
+        const crop = Underwriting.farmCrop(f);
+        if (!crop) return 0;
+        const fc = Harvests.forecast(world, Harvests.regionOf(world, f.tile.q, f.tile.r));
+        const prior = _num(Underwriting.kind('crop').harvestPrior, 0.075);
+        if (!fc || fc.settled) return prior;
+        const est = fc.yields && Number.isFinite(fc.yields[crop]) ? fc.yields[crop] : _num(fc.est, 1);
+        const conf = _clamp(_num(fc.conf), 0, 1);
+        return Math.max(0, 1 - est) * conf + prior * (1 - conf);
+    },
 
     _cropItems(player, world) {
         const K = Underwriting.kind('crop');
         const season = _season(world);
+        const g = Underwriting.growing();
+        const doy = Seasons.dayOfYear(_day(world));
+        const growing = doy >= g.sow && doy < g.settle;
         const items = [];
         for (const f of Underwriting._farms(player, world)) {
             const value = Underwriting.farmDayValue(world, f);
-            if (!(value > 0)) continue;
-            const model = Underwriting.harvestModel;
-            const expected = model && typeof model.expected === 'function' ? model.expected(world, f) : null;
-            // The season's weather, or this field's own record if it is worse (experience rating), and any blight now
+            // The day's weather: the season's, or this field's own record if worse (experience rating), and any blight now
             const seen = _num((((player.underwriting || {}).marks || {}).crop || {})[`${f.tile.q},${f.tile.r}`]);
-            const rate = Number.isFinite(expected) ? expected
-                : Math.max(_num((K.seasonShortfall || {})[season], 0.02), seen) + Underwriting.cropShortfall(player, world, f, { eventsOnly: true });
-            items.push({ ref: `farm:${f.tile.q},${f.tile.r}:${f.prop.type}`, label: `${f.def.name} at ${f.tile.q},${f.tile.r}`, value: Math.round(value), loss: rate * value, farm: f });
+            let loss = (Math.max(_num((K.seasonShortfall || {})[season], 0.02), seen) + Underwriting.cropShortfall(player, world, f, { eventsOnly: true })) * value;
+            // The year's harvest: a share of the year's crop for each day of the growing season covered
+            const yearly = Underwriting.farmBaseValue(f) * Seasons.DAYS_PER_YEAR;
+            if (growing && Underwriting.farmCrop(f)) loss += Underwriting.expectedHarvestShortfall(world, f) * yearly / g.len;
+            if (!(value > 0) && !(loss > 0)) continue;
+            items.push({ ref: `farm:${f.tile.q},${f.tile.r}:${f.prop.type}`, label: `${f.def.name} at ${f.tile.q},${f.tile.r}`, value: Math.round(Math.max(value, yearly / g.len)), loss, farm: f });
         }
         return items;
     },
@@ -789,18 +816,45 @@ export const Underwriting = {
         for (const id of Object.keys(marks)) if (!seen.has(id)) delete marks[id];
     },
 
-    /** Farms under crop cover: the day's shortfall against a fair-weather crop. */
+    /**
+     * Farms under crop cover: the day's shortfall against a fair-weather crop;
+     * and when the harvest is reckoned (world/harvests.js), the year's
+     * shortfall of each farm's region, for the share of the growing season the
+     * cover was in force.
+     */
     _cropLosses(world, player, st) {
-        if (!Underwriting.cover(player, 'crop')) return;
+        const cover = Underwriting.cover(player, 'crop');
+        if (!cover) return;
+        const day = _day(world);
         const marks = st.marks.crop = _obj(st.marks.crop) || {};
         const w = _num(Underwriting.kind('crop').experienceWeight, 0.01);
+        const g = Underwriting.growing();
+        const doy = Seasons.dayOfYear(day);
+        const year = Harvests.yearOf(day);
+        // Days of this year's growing season the cover has carried
+        if (day >= cover.attachDay && doy >= g.sow && doy < g.settle) {
+            if (!cover.season || cover.season.year !== year) cover.season = { year, days: 0, paid: false };
+            cover.season.days += 1;
+        }
+        const last = world.harvests && world.harvests.last;
+        const reckoned = !!(last && last.year === year && cover.season && cover.season.year === year && !cover.season.paid);
+        if (reckoned) cover.season.paid = true;
         for (const f of Underwriting._farms(player, world)) {
             const short = Underwriting.cropShortfall(player, world, f);
             const key = `${f.tile.q},${f.tile.r}`;
             marks[key] = Math.round((_num(marks[key], _num((Underwriting.kind('crop').seasonShortfall || {})[_season(world)], 0.01)) * (1 - w) + (short - Underwriting.cropShortfall(player, world, f, { eventsOnly: true })) * w) * 1e5) / 1e5;
-            if (!(short > 0)) continue;
-            const value = Underwriting.farmDayValue(world, f) * short;
-            if (value >= 1) LossBook.report(player, world, { kind: 'crop', cause: 'a poor day in the fields', value, ref: `farm:${f.tile.q},${f.tile.r}`, q: f.tile.q, r: f.tile.r });
+            if (short > 0) {
+                const value = Underwriting.farmDayValue(world, f) * short;
+                if (value >= 1) LossBook.report(player, world, { kind: 'crop', cause: 'a poor day in the fields', value, ref: `farm:${key}`, q: f.tile.q, r: f.tile.r });
+            }
+            const crop = Underwriting.farmCrop(f);
+            if (!reckoned || !crop) continue;
+            const o = Harvests.outcome(world, Harvests.regionOf(world, f.tile.q, f.tile.r), year);
+            const y = o ? _num(o[crop], 1) : 1;
+            if (!(y < 1)) continue;
+            const share = Math.min(1, cover.season.days / g.len);
+            const value = (1 - y) * Underwriting.farmBaseValue(f) * Seasons.DAYS_PER_YEAR * share;
+            LossBook.report(player, world, { kind: 'crop', cause: `a ${Math.round(y * 100)}% harvest`, value, ref: `harvest:${key}:${year}`, place: o.name || null, q: f.tile.q, r: f.tile.r });
         }
     },
 

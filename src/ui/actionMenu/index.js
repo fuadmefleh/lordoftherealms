@@ -40,6 +40,7 @@ import './guilds.js';
 import './merchantLedger.js';
 import './hinterland.js';
 import './tradePolicy.js';
+import './harvests.js';
 import './underwriting.js';
 import './bourse.js';
 import './economy.js';

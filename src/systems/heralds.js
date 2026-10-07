@@ -5,7 +5,8 @@
 // again, a war declared or a peace made, a saga ending, a revolt against a
 // crown (or its end), a peasant rebellion, a new land named on the charts, a
 // siege won or broken, a Great Work finished or begun, an embargo, a trade
-// treaty or trade war, an export ban, a granary opened — the heralds proclaim it. A proclamation starts where
+// treaty or trade war, an export ban, a granary opened, a harvest failing or a
+// blight in the fields — the heralds proclaim it. A proclamation starts where
 // it happened and spreads outward `speed` hexes a day; every settlement it
 // has reached knows it (Chatter's `proclamation` condition and the tavern's
 // news read heardAt), and when it reaches the player it becomes a short
@@ -29,6 +30,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
 import { EconomyIndex } from '../world/economyIndex.js';
 import { Fashions } from '../world/fashions.js';
+import { Harvests } from '../world/harvests.js';
 
 const DEFAULT_CONFIG = { speed: 8, lifeDays: 40, minGapDays: 2, maxPerDay: 1, cap: 24 };
 const MAJOR = 9;
@@ -47,6 +49,8 @@ const TRADE_KINDS = { embargo: 'trade_embargo', treaty: 'trade_treaty', trade_wa
 const LABOUR_WHY = { siege: 'siege', conquest: 'new masters', war: 'war', famine: 'hunger', danger: 'raiders' };
 // Hinterland records (world.hinterland.history, systems/concessions.js): new strikes, fresh veins, worked-out mines, pit accidents
 const HINTERLAND_KINDS = { strike: 'mine_strike', vein: 'mine_vein', exhausted: 'mine_exhausted', accident: 'mine_accident' };
+// Harvest records (world.harvests.history, world/harvests.js): a failing or bumper harvest, a blight, the harvest in
+const HARVEST_KINDS = { failing: 'harvest_failing', bumper: 'harvest_bumper', blight: 'harvest_blight', poor: 'harvest_poor', plenty: 'harvest_plenty' };
 
 const _num = v => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -214,6 +218,7 @@ export const Heralds = {
         for (const x of Heralds._caravanRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._labourRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._hinterlandRecords(world)) st.seen[x.key] = x.day;
+        for (const x of Heralds._harvestRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._tradeRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._econRecords(world)) st.seen[x.key] = x.day;
     },
@@ -222,6 +227,12 @@ export const Heralds = {
     _hinterlandRecords(world) {
         const t = world && world.hinterland;
         return (t && Array.isArray(t.history) ? t.history : []).filter(h => h && h.key && HINTERLAND_KINDS[h.kind]).map(h => ({ key: h.key, day: _num(h.day), h }));
+    },
+
+    /** Failing and bumper harvests, blights, the harvest in (world.harvests.history, world/harvests.js). */
+    _harvestRecords(world) {
+        const t = world && world.harvests;
+        return (t && Array.isArray(t.history) ? t.history : []).filter(h => h && h.key && HARVEST_KINDS[h.kind]).map(h => ({ key: h.key, day: _num(h.day), h }));
     },
 
     /** Embargoes, treaties, trade wars, export bans and granary releases (world.tradePolicy.history, systems/tradePolicy.js). */
@@ -480,6 +491,16 @@ export const Heralds = {
                 to: h.to || 'the neighbouring towns', kingdom: (_kingdom(world, h.kingdomId) || {}).name || 'the realm',
                 good: String(h.good || 'ore').replace(/_/g, ' '),
             }, { q: h.q, r: h.r }, { kingdomId: h.kingdomId != null ? h.kingdomId : null, own: !!h.own });
+        }
+
+        // The fields: a harvest failing or a bumper one, a blight, the harvest in
+        for (const x of Heralds._harvestRecords(world).filter(fresh)) {
+            st.seen[x.key] = x.day;
+            const h = x.h;
+            Heralds._proclaim(st, world, HARVEST_KINDS[h.kind], {
+                place: h.place || 'the realm', kingdom: (_kingdom(world, h.kingdomId) || {}).name || h.place || 'the realm',
+                pct: _num(h.pct) || 100, blight: Harvests.blightName(h.blight), from: h.from || 'the neighbouring lands',
+            }, { q: h.q, r: h.r }, { kingdomId: h.kingdomId != null ? h.kingdomId : null });
         }
 
         // The crowns' trade: embargoes, treaties, trade wars, export bans, granaries opened

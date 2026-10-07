@@ -9,6 +9,7 @@ import { Seasons } from './seasons.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { SettlementMarket } from './settlementMarket.js';
 import { Coinage } from './coinage.js';
+import { Harvests } from './harvests.js';
 
 export const Economy = {
     /**
@@ -630,8 +631,9 @@ export const Economy = {
 
         settlement.economy.gold += prod.gold;
         // The agricultural year: little comes to market at planting time and
-        // in winter, a glut at harvest (yearly mean 1 — world/seasons.js)
-        const seasonal = Seasons.settlementFoodMultiplier(Seasons.today(world));
+        // in winter, a glut at harvest (yearly mean 1 — world/seasons.js); the
+        // year's harvest sets how big (world/harvests.js: 1 in a normal year)
+        const seasonal = Seasons.settlementFoodMultiplier(Seasons.today(world)) * Harvests.foodFactor(world, live);
         prod.seasonalFood = Math.round(prod.food * seasonal);
         // Aqueducts feed the player's colonies
         const foodBonus = settlement.colony && settlement.colony.isPlayerColony ? (playerBonuses.colonyFood || 0) : 0;

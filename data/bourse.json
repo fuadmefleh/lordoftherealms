@@ -42,7 +42,9 @@
             "crop": {
                 "name": "Crops in the field", "icon": "🌾", "attachDays": 7,
                 "_risk": "Per farm per day: the day's expected crop × the season's expected shortfall to weather (`seasonShortfall`) plus any blight or drought on the land now. A field with a worse record of its own (an average of its days, experienceWeight) is priced on that instead. Pays the shortfall of each day's crop against what the farm would bring in fair weather.",
-                "seasonShortfall": { "Spring": 0.008, "Summer": 0.014, "Autumn": 0.006, "Winter": 0.024 }, "experienceWeight": 0.01
+                "seasonShortfall": { "Spring": 0.008, "Summer": 0.014, "Autumn": 0.006, "Winter": 0.024 }, "experienceWeight": 0.01,
+                "_harvest": "The year's harvest (world/harvests.js): through the growing season (harvests.json → growing) each day bills the expected shortfall of the farm's region over the season's length × the farm's yearly crop — the forecast's shortfall as far as it is sure (conf), harvestPrior (a usual year's expected shortfall) where it is not. When the harvest is reckoned, the region's shortfall in the farm's crop × its yearly crop is claimed, pro rata to the days of the season the cover carried.",
+                "harvestPrior": 0.075
             }
         },
 

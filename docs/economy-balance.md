@@ -635,6 +635,204 @@ Closing the seams the economy passes left between their systems. Kingdom surviva
 - Ships bought or commissioned are the capital line *Ships bought and built* (`shipsBought`, kind `cap`), not upkeep. Repairs and fittings stay in *Ships*.
 - The playtest bot bids for mining leases. After day 120, with 3,500 gold, on a hash of the day and town (no RNG), it bids at the top of the houses' range (0.22 of the term's net) where the lease is worth at least 2.5× the bid, and holds at most 2. The long soak checks `leaseBids`.
 
+## Harvests (2026-10)
+
+Regional harvests from the growing season's weather, war, blights, hands and soil (`world/harvests.js`, `data/harvests.json`). See [the manual](../GAMEPLAY_MANUAL.md#harvests-good-years-and-bad).
+
+**How it was measured.**
+- Throwaway harness scripts, using the method of `docs/world-stability.md`: `newGame(seed)` with `kingdomCount: 10`, then `endDay` for 1,080 days, with the player kept fed.
+- **Seeds 7–26** for survival. Seeds 7–16 also ran with `Harvests.processDay` stubbed out ("off").
+- Grain price is a town's grain scarcity × the seasonal price factor (1 = base), sampled on days 45, 75, 100 and 115 of each year.
+- **"gf"** is a town's grain factor for the year (`Harvests.grainFactor`).
+
+**Yields.**
+- **Weather alone.** Seeds 7–9 over 10 years: mean 0.99, sd 0.10 with `gain` 2.4. `gain` was raised to 3.0, which gives sd about 0.12, a range of 0.45–1.30 and a 5–95% band of about 0.82–1.15.
+- **Whole harvest.** Including war, blights and soil, the region's headline yield over the last 4 years has an sd of 0.11–0.21 per world. Extremes are 0.27–1.30.
+- **Blights.** 15–68 per world in 9 years, counting each spread to a neighbour.
+- **Famine.** 1–9 Hungry Months started by failed harvests per world.
+- **Towns.** Their grain factor has an sd of 0.13–0.19.
+
+**Prices.** Grain price on day 115 (late winter), by the year's grain factor, seeds 7–16:
+
+| Year's grain factor | Price on day 115 |
+|---|---|
+| Below 0.8 | 1.16–1.80 (median about 1.5) |
+| 0.95–1.05 (a normal year) | 0.98–1.23 |
+| Above 1.15 (bumper) | Slightly below a normal year. Bumper towns are few, and trade evens them out. |
+
+- So a failed harvest makes grain about **40–60% dearer** in the lean weeks.
+- The town's food-shortage gauge stays near 0: neighbours' grain flows in along the trade links. Bad years hurt through price and the famine event, not through mass starvation.
+- **What happens more often** (seeds 7–8, 720 days, on vs off):
+  - The crowns' famine export bans: 9–15 against 4–6.
+  - 'Dear bread' news: 28–29 against 23–26.
+  - Granary releases: about the same.
+
+**Grain speculation.** Seeds 7–26, per town and year, after 8–13% spoilage:
+
+| Play | Result |
+|---|---|
+| **Classic:** buy on day 75 (after the harvest), sell on day 115 | Mean 1.46–1.71×, sd 0.15–0.56 (with harvests off: sd 0.15–0.33). It almost never loses (0–2% of trades), because the seasonal curve was already a safe trade. The harvest now widens it in bad years: buying after a failed harvest returns about 1.85×, after a bumper one about 1.4×. |
+| **Anticipation:** buy on day 45 where the forecast is below 85%, sell on day 115 | Mean 0.93–1.21× (median about 1.08), **loses 6–48% of the time (median about a third)**, p90 1.0–1.96×. This is the real but risky play. |
+| Buying on day 45 regardless of the forecast | Mean about 0.88×, loses about 60% of the time |
+
+The forecast is worth something, but it is not a sure thing. The best trade is still carrying grain from a bumper region to a failed one.
+
+**Kingdom survival.** Seeds 7–26, 1,080 days:
+
+| | Alive | Rate |
+|---|---|---|
+| Harvests on | 178/200 | 89% |
+| `docs/world-stability.md` baseline | 181/200 | 90.5% |
+| Seeds 7–16, harvests on | 92/100 | |
+| Seeds 7–16, baseline | 91/100 | |
+
+| Seed | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Alive | 10 | 10 | 9 | 8 | 10 | 9 | 8 | 9 | 10 | 9 | 9 | 10 | 10 | 9 | 10 | 8 | 8 | 10 | 6 | 6 |
+
+- The difference is within run-to-run noise (about 1 realm per seed).
+- **Population.** Every world still grows over the 3 years, from 107–136k to 129–188k.
+- **On the pre-merge code, seeds 7–16:** 85 alive with harvests on, 84 with them off. World population at the end was −0.5% against off.
+
+**Cost.**
+- `Harvests.processDay` cost 0.19–0.51 ms a day on a heavily loaded machine, where the market tick measured 5–17 ms against 2.2 on the reference machine. That is about 0.1 ms a day on the reference machine, under the 0.3 ms budget.
+- The climate normals are worked out once per sample town (6 years × 20 samples, about 0.1 s per world once).
+- Sampling is every third day of spring and summer. Sowing and the reckoning come once a year each.
+- No RNG is drawn: the golden snapshots are unchanged and the soak passes (`SOAK=1`).
+
+**Open.**
+- Crop insurance can read `Harvests.expectedYield`, `forecast` and `outcome`; another pass is building it.
+- The bot does not choose rotations or speculate on forecasts.
+- Flax adds linen as textiles; there is no separate linen good in `markets.json`.
+
+## Underwriters, bills & the Bourse (2026-10)
+
+`systems/underwriting.js`, `systems/bills.js` and `systems/bourse.js`, with the losses reported through `systems/lossBook.js`. Everything is tuned in `data/bourse.json`. The rules are in [the manual](../GAMEPLAY_MANUAL.md#underwriters-bills--the-bourse).
+
+**The rules.**
+- Insurance loses money on average but evens out the bad years.
+- Bills cost less than the robbers would take on a long or dangerous road.
+- Shares return roughly what the business underneath earns, with real swings in price.
+- None of them is a money loop.
+
+### Insurance
+
+**How the premium is set.** Each day the premium is the expected loss from the same inputs the loss sites roll against, × `loading` (1.35), × the surcharge for your own claims. The inputs were measured where they could be:
+
+| Cover | What it was measured or derived from |
+|---|---|
+| Marine | Storm danger at sea, from 2 worlds × 240 days of sea tiles: about 0.034–0.038 a day in every season, so `stormChance` is nearly flat. Storm hull damage is 5.5 × danger %, at the repair rate. Voyage events: `eventChance` 0.3 a day, about 15% of them batter the hull (8–15%) and 5% put a fifth of the cargo over the side. Interceptions use `KingdomNavy` intercept odds × the chance of losing to the detachment. |
+| Crop (weather) | The weather's toll on the fields, measured on land tiles. Spring 0.008, summer 0.014, autumn 0.006, winter 0.024 of the day's crop. A field with a worse record of its own is priced on that instead. |
+| Crop (harvest) | `world/harvests.js`. The region's grain shortfall averaged E[max(0, 1 − y)] = 0.072–0.077 over 144 region-years (3 seeds), so `harvestPrior` is 0.075. The forecast replaces the prior as its confidence grows. The claim is pro rata to the share of the growing season the cover was in force, so cover bought late in a failing season does not pay. |
+| Stock | Exact: each store-room's and post's own weekly theft chance × the mean share stolen. |
+| Caravan | The raiders and lairs near each caravan, the convoy's own risk. Not measured head-on: the bot's caravans are too few. |
+
+**Loss ratios** (claims ÷ premiums). The test held constant exposure for 360 days: a cog anchored at sea with 330 units of cargo, three store-rooms with 120 units each, and a farm. Seeds 101 / 202 / 303:
+
+| Cover | 101 | 202 | 303 | Pooled |
+|---|---|---|---|---|
+| Hull & cargo | 0.04 | 1.27 | 0.51 | about 0.6 |
+| Stock | 0.71 | 0.71 | 0 | about 0.55 |
+| Crop | 0.57 | 0.25 | 0.41 | about 0.45 (before `harvestPrior` was raised from 0.06 to 0.075) |
+
+- The expected ratio is about 0.67 (1 ÷ 1.35 loading, less the 10% deductible).
+- Single seeds swing widely: insurance is for variance.
+- `underwriting.test.js` holds the line on a long run with 8 farms in 8 regions: claims are paid, and claims are below premiums for both marine and crop.
+
+**The bot over 800 days** (the long soak, seeds 101, 404 and 505, which opened cover):
+- premiums less claims: −3,000 to −5,500 g;
+- 3–9 claims paid per seed.
+
+**No money loops.**
+- A loss pays at most 90% of its value, so losing goods on purpose always costs money.
+- Cover attaches a day or more after it is bought (7 days for crops), and the harvest part is pro rata.
+- Each claim in the last 120 days adds 12% to every premium.
+- A false claim costs a 20% forger's fee up front. It is caught about 40% of the time (−5% for each guild rank, +8% for each recent claim). Caught means a fine as large as the claim, heat, the cover cancelled and a 240-day ban. A rank-1 rogue's expected return is about −0.2 × the claim. A rank-5 rogue's is about +0.1 × the claim, and that falls with each claim, so it is a crime with a real cost, not a loop.
+
+**The underwriters' own books.**
+- **Book size:** 12% of capital.
+- **Premium:** 2.2% of the book a week.
+- **Claims:**
+  - **Loss ratio:** 0.6 in quiet times. Each war adds 25%, a blockade 30%, and each pirate in the office's waters 6%.
+  - **Noise:** ×e^±0.45.
+  - **Great storm:** about 0.2% a week (doubled in winter), costing 10–25% of capital.
+- **Result:** about +1% of capital a year in peace, and a loss in a hard season. Over 240 days of seed 101 the six offices' books ran at loss ratios of 0.51–0.92.
+- A guild whose capital falls below 15% of what it started with fails. A bank's desk pays its claims from the house's reserves (`finance.js`), so a ruinous season can start a run.
+
+### Bills of exchange
+
+- **Carrying gold is already risky:** an ambush without an army takes 15–40% of the purse (`ui/game/combat.logic.js`).
+- **The fee** is 0.6% + 0.03% a hex (at most 4%, at least 5 g). A 40-hex trip costs 1.8%. That pays as soon as the chance of being robbed on the way is above about 6%.
+- **Theft:** a robbery takes each bill with a 50% chance. A stolen bill can be stopped for 2% within 3–8 days.
+- **Forgeries** (guild rank 2 and up) are caught about 40% of the time, more for each recent one. There is a 30-day cooldown and a 2,500 g cap.
+
+### The Bourse
+
+**Valuation.** fair = book × (1 + slope × (return on capital ÷ yield − 1)), within [0.4, 3] of book. Each kind has its own yield and slope:
+
+| Kind | Yield | Slope |
+|---|---|---|
+| House | 12% | 0.5 |
+| Bank | 8% | 0.35 |
+| Company | 12% | 0.6 |
+| Venture | 14% | 0.6 |
+| Monopoly | 10% | 0.6 |
+
+The return on capital is a running average (weight 0.15 a week) of the real weekly result:
+- **a house:** the change in its capital plus its dividend, which includes its mining leases;
+- **a bank:** the change in its equity, which is reserves + crown loans − deposits − bills it must pay;
+- **a chartered company:** its profit;
+- **your company:** its weekly net.
+
+**Price.** price = fair × sentiment × mood × mania × (1 + impact). Sentiment is an OU walk (σ 1.8% a day, reversion 6% a day). The round trip costs 3% spread + 1% commission each way, plus impact (0.5 × shares traded ÷ shares outstanding, fading 15% a day).
+
+**Returns.** Bought 10% of every listing on day 240, after the market had a year to learn, held 120 days (one game year), dividends included. Seeds 101 / 202 / 303:
+
+| Kind | Range | Median |
+|---|---|---|
+| Rival houses | −59% … +54% | +7% |
+| Banks | −69% … +321% (one small house whose equity grew 60%) | +7% |
+| Chartered venture | +14%, +24%, +20% | |
+| Royal monopoly | +20%, −2%, −5% | |
+
+Dividends were 2–6% of the stake a year for banks and houses.
+
+**Two things found while measuring.**
+- **Rival houses that won a mining lease paid nothing for it.** `concessions.js` sent the fee to the crown but never took it from the house. Houses with leases doubled their capital in a game year. The fee is now debited. The leases still pay their holders several times the fee (a house bids 10–22% of the expected net), so a house holding leases earns 30–80% a year on its books. With book × a multiple of ROE, buying at game start returned +200% to +800% in a year while the market caught up. Two fixes:
+  - the prior for houses is now a 50% return;
+  - the slope is damped, so the market pays only part of a high return up front.
+
+  With both, purchases after the first year return about what the houses earn, with wide spread. Raising the houses' bids (`hinterland.json` → `houseBid`) would cut this at the source. That is left to the hinterland's balance.
+- **Without a company, the rival houses never traded.** `MerchantHouses.quietWeek` now gives them their weekly return, dividend and ruin when the player has no company, on the Bourse's own stream.
+
+**No money loops.**
+- Buying and selling straight back always loses money (`bourse.test.js`).
+- Buying a holding to pump it fades within days.
+- No one holds more than a quarter of a stock.
+- A float sells at 10% under fair, less 3%. It owes 50% of the weekly profit × the outside share. The owner's draws pay the outsiders their part (20 shares outside: drawing 800 g costs the company 1,000 g).
+- A buy-back pays the ask. Floating and buying straight back costs about 16%.
+
+**Manias** are rare: per week, 0.8% for the venture, 0.5% for the monopoly and 0.4% for a house, at most one at a time.
+- A mania rises to 1.6–3.6× fair over 20–50 days. Near the top the company sells 10–15% new stock into it.
+- It then bursts to 0.45–0.8× fair, recovering over 15–40 days.
+- The burst cuts the market's mood by 10–18%, and the bank of the exchange's realm loses 1–6% of its reserves.
+
+**Panics:** a bank failing ×0.85, a crown defaulting ×0.88, a war on the exchange's realm ×0.93 (half as much elsewhere). The mood recovers 4% a day.
+
+### Tick cost
+
+Measured with the harness's `mark` timing, 361 days, seeds 101–303, with the player holding marine, stock and crop cover:
+
+| System | ms/day |
+|---|---|
+| `Underwriting.processDay` | 0.31–0.48 |
+| `Bourse.processDay` | 0.10–0.19 |
+| `Bills.processDay` | about 0.01 |
+
+- Without covers, underwriting is about 0.05–0.1 ms/day: the weekly books, the works marks, the lapse checks.
+- Most of the cost with covers is the daily quote: marine 0.09, stock 0.10, crop 0.06 ms.
+- The Bourse caches a house's fashion and a bank's crown loans by the week and the day. The daily walk is sentiment, banks' fair value and the price.
+
 ## Re-measuring
 
 - **Long soak.** `SOAK=1 SOAK_VERBOSE=1 npx vitest run playtest.soak` prints each

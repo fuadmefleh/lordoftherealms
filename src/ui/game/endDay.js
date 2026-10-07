@@ -28,6 +28,7 @@ import { Labour } from '../../systems/labour.js';
 import { Guilds } from '../../systems/guilds.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { Concessions } from '../../systems/concessions.js';
+import { Harvests } from '../../world/harvests.js';
 import { TradePolicy } from '../../systems/tradePolicy.js';
 import { EconomyChronicle } from '../../systems/economyChronicle.js';
 import { Ledger } from '../../systems/ledger.js';
@@ -593,6 +594,11 @@ export function endDay() {
             // Fairs open and close, and the week's market news goes to the heralds (systems/marketFairs.js)
             const fairDay = MarketFairs.processDay(this.world, this.player);
             for (const n of fairDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
+            // The harvests: the growing season's weather, war and blights; the harvest is
+            // reckoned at summer's end and sizes the towns' crops for the year (world/harvests.js)
+            const harvestDay = Harvests.processDay(this.world, this.player);
+            for (const n of harvestDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // The hinterland: the rural sites around the towns dig and send their goods to
             // market on its day, deposits run down and veins are struck; mining leases

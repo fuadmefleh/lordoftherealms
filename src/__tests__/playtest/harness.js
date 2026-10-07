@@ -65,6 +65,7 @@ import { Labour } from '../../systems/labour.js';
 import { Guilds } from '../../systems/guilds.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { Concessions } from '../../systems/concessions.js';
+import { Harvests } from '../../world/harvests.js';
 import { TradePolicy } from '../../systems/tradePolicy.js';
 import { EconomyChronicle } from '../../systems/economyChronicle.js';
 import { Ledger } from '../../systems/ledger.js';
@@ -309,6 +310,8 @@ function _endDay(game) {
     mark(game, 'MerchantCaravans.processDay');
     game.fairDay = MarketFairs.processDay(world, player);
     mark(game, 'MarketFairs.processDay');
+    game.harvestDay = Harvests.processDay(world, player);
+    mark(game, 'Harvests.processDay');
     game.hinterlandDay = Concessions.processDay(world, player);
     mark(game, 'Concessions.processDay');
     game.tradePolicyDay = TradePolicy.processDay(world, player);

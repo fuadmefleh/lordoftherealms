@@ -55,6 +55,7 @@ import { Guilds } from './guilds.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { TownLabour } from '../world/townLabour.js';
 import { Hinterland } from '../world/hinterland.js';
+import { Harvests } from '../world/harvests.js';
 import { TradePolicy } from './tradePolicy.js';
 import { EconomyIndex } from '../world/economyIndex.js';
 import { Fashions } from '../world/fashions.js';
@@ -1197,6 +1198,48 @@ R.veinRunningOut = (ctx, p) => {
         const res = Hinterland.reserveFrac(site), y = Hinterland.yieldOf(site);
         if (res >= _num(p.reserveBelow, 0.3) && y >= _num(p.yieldBelow, 0.7)) continue;
         out.push({ key: `vein:${c.id}`, q: site.q, r: site.r, site: name, why: `is running out: ${Math.round(res * 100)}% of the vein left, the yield at ${Math.round(y * 100)}%. Prospect for a new vein or ease the pace`, boost: 1 - res });
+    }
+    return out;
+};
+
+/**
+ * A failing harvest the player has heard of (world/harvests.js crop reports
+ * and local talk) within reach, in the weeks before grain turns dear there.
+ */
+R.harvestFailing = (ctx, p) => {
+    const H = Harvests.config().counsel;
+    const ps = _obj(ctx.player.harvests);
+    const doy = Seasons.dayOfYear(ctx.day);
+    if (!ps || !_obj(ps.known) || doy < _num(p.from, H.failingFrom) || doy > _num(p.until, H.failingUntil)) return [];
+    const out = [];
+    const Y = Harvests.yearOf(ctx.day);
+    for (const [id, k] of Object.entries(ps.known)) {
+        if (!k || _num(k.year, -1) !== Y || !(_num(k.est, 1) < _num(p.below, H.failingBelow))) continue;
+        out.push({
+            key: `harvest:${Y}:${id}`, place: k.name || 'a realm', pct: Math.round(_num(k.est) * 100),
+            src: k.src === 'local' ? 'seen with your own eyes' : `the crop report of day ${_num(k.day)}`,
+            why: k.settled ? 'grain will be dear there until next autumn: carry it in' : 'buy grain now, before the price there climbs',
+            boost: (1 - _num(k.est)) * 10,
+        });
+    }
+    return out;
+};
+
+/** The player's farms whose soil runs thin (world/harvests.js rotations). */
+R.farmSoil = (ctx, p) => {
+    const H = Harvests.config();
+    const out = [];
+    for (const ref of _arr(ctx.player.properties)) {
+        if (!ref || !H.propertyCrops[ref.type] || H.propertyCrops[ref.type] === 'stock') continue;
+        const tile = ctx.world.getTile(ref.q, ref.r);
+        const prop = tile && _arr(tile.playerProperties).find(x => x && x.type === ref.type);
+        if (!prop || !(_num(prop.soil, 1) < _num(p.below, H.counsel.soilBelow))) continue;
+        const rot = Harvests.rotation(prop);
+        out.push({
+            key: `soil:${ref.q},${ref.r}:${ref.type}`, q: ref.q, r: ref.r, name: prop.name || ref.type,
+            why: `the soil is down to ${Math.round(_num(prop.soil, 1) * 100)}% under ${rot.label.toLowerCase()}: rest it (long fallow) or its yield keeps falling`,
+            boost: 1 - _num(prop.soil, 1),
+        });
     }
     return out;
 };

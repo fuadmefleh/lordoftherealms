@@ -16,6 +16,7 @@ import { KingdomBonuses, KingdomStability, KingdomCulture, LordInfluence } from 
 import { KingdomAtlas } from './kingdomAtlas.js';
 import { KingdomNavy } from './kingdomNavy.js';
 import { EconomyIndex } from './economyIndex.js';
+import { Harvests } from './harvests.js';
 
 export const KingdomAI = {
     /**
@@ -1013,6 +1014,8 @@ export const KingdomAI = {
         const frontline = KingdomAI._pickFrontline(attacker, defender, world);
         const battleTile = frontline ? world.getTile(frontline.q, frontline.r) : null;
         const terrainId = battleTile?.terrain?.id;
+        // The fields where the armies meet are trampled and burned (world/harvests.js)
+        Harvests.noteBattle(world, defender.id);
 
         const attackerComp = KingdomAI._getKingdomComposition(attacker);
         const defenderComp = KingdomAI._getKingdomComposition(defender);

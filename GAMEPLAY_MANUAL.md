@@ -10,6 +10,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 
 1. [Getting Started](#1-getting-started)
 2. [Core Mechanics](#2-core-mechanics)
+    - [Harvests: Good Years and Bad](#harvests-good-years-and-bad) — regional harvests from weather, war and blights; crop mixes, soil and rotation; crop reports and grain speculation
 3. [Movement & Exploration](#3-movement--exploration)
 4. [Economy & Trade](#4-economy--trade)
     - [Kingdom Trade Policy](#kingdom-trade-policy) — tariffs, export bans, embargoes, treaties, trade wars, state granaries; smuggling, licences and brokered treaties
@@ -120,7 +121,7 @@ A year is **120 days**: Spring, Summer, Autumn and Winter, 30 days each. The sea
 
 The top bar shows the season (🌱 ☀️ 🍂 ❄️) and **Lean** during the lean weeks. Hover it to see the **season outlook**: what's producing, what's cheap or dear, and which way prices are heading. The settlement trade panel opens with the same outlook.
 
-**Harvest cycle.** Farms and food producers follow a seasonal curve. Each curve averages exactly 1 over the year, so **yearly totals don't change**. Only the timing does.
+**Harvest cycle.** Farms and food producers follow a seasonal curve. Each curve averages exactly 1 over the year, so in a normal year **yearly totals don't change**. Only the timing does. How big each year's harvest is depends on its weather, wars and blights (see [Harvests: Good Years and Bad](#harvests-good-years-and-bad)).
 
 | Producer | Spring | Summer | Autumn | Winter |
 |---|---|---|---|---|
@@ -158,6 +159,65 @@ Furs and hides are dearest in early winter (about +25%) and cheapest in summer (
 - **Winter: Ice Fishing** (3 AP, takes the day) on a frozen river or beside a frozen lake. You catch 2–5 fish and sometimes a large fish.
 
 "Cold ground" means tundra, snow or ice, or any tile whose winter temperature falls below freezing (cold northern and highland regions). Warm southern lands never freeze.
+
+### Harvests: Good Years and Bad
+
+The seasonal curve sets the **shape** of the year. The **harvest** sets its **size**, and no two years or regions are alike. A **region** is a realm's land; towns outside any realm share one per stretch of the map.
+
+**What makes a harvest.** It is reckoned on the **last day of summer** (day 60 of the year) from the growing season (spring and summer):
+
+| Factor | Effect |
+|---|---|
+| **Weather** | Each region's largest towns are watched every third day. Rain and cloud help. Heat waves, late snow and summer storms (which flatten the ripening crop) hurt. Each place is measured against **its own climate**, so a dry year in the desert is a bad year, not every year. The weather alone moves a harvest from about **45% to 130%** of a normal year. Most years land within ±12%. |
+| **War** | Each war the realm fights costs about 4% (levies off the land, foragers). Each battle on its land burns another 3%. Each raider or war host on its land costs about 4%. The total loss is at most 40%. A sacked town loses more of its own crop. |
+| **Blights** | **Grain rust** takes 25–45% of the grain. **Locusts** (warm lands only) take 30–50% of every crop. **Murrain** takes 25–45% of the herds. Each strikes about one region in 20–25 a year, and spreads to neighbouring regions while the season lasts, a little weaker each time. |
+| **Hands** | A town short of land hands at harvest leaves grain in the field. |
+| **Soil** | Over-cropped land yields less (see below). |
+
+**What a harvest does.** From the reckoning until the next one:
+- **Grain** brought to market is scaled by the harvest. **Wine** follows the vines, **linen** (as textiles) follows the flax, and **meat, cheese, hides, wool and horses** follow the herds and the hay.
+- The **food the people eat** follows at 70% of the swing.
+- The hinterland's **sheep runs, ranches and studs** follow the herds.
+- Your holdings' **tithes and rents** follow at half the swing.
+- **Planting contracts** pay a share of the real harvest.
+
+A failed harvest makes grain **dear all year**. In seed tests, grain in late winter cost about **+40–60%** more after a harvest under 80% than after a normal one. A bumper year gluts the market.
+
+**When a harvest fails.** In the lean months after a harvest under 72%, a realm may fall into the **Hungry Months** (the famine event). The chance grows the worse the harvest was. The crowns' famine export bans, the royal granaries and the famine dole then have real work to do.
+
+**The town's fields.** Each town divides its farmland between:
+- 🌾 grain
+- 🥕 vegetables and legumes (hardier: they feel only 60% of the weather's swing)
+- 🌿 flax
+- 🍇 vines and orchards
+- 🐑 fallow and hay
+
+The climate sets the usual mix. Warm lands grow vines, cool and wet lands flax, and pasture lands keep more fallow. Each spring the farmers move 30% of the way toward what **sells dear** in their market and what the climate favours. Grain short? They sow more grain. Wine glutted? Fewer vines.
+
+**Soil.** Fallow and legumes rest the soil. Cropping every field thins it (from 55% to 120% of normal), and every crop's yield is multiplied by it. Hungry towns that crop too hard pay for it in later years. When the soil runs thin, the farmers rest more land.
+
+**Your farms.** Your farms, orchards, apiaries, herb gardens and herds follow their region's harvest. Farms and orchards also choose a **rotation** in the 🌾 Harvest panel:
+
+| Rotation | Yield | Soil heads for |
+|---|---|---|
+| Intensive (no fallow) | ×1.15 | 70% |
+| **Three-field rotation** (default) | ×1.0 | 100% |
+| Long fallow | ×0.8 | 115% |
+
+The soil moves about a third of the way toward its target each harvest. Intensive cropping pays for two or three years, then the thin soil eats the gain. An irrigated farm feels only half of a bad year.
+
+**Knowing the harvest in advance.** The coming harvest becomes known as summer goes on:
+- **Where you stand**, you see your own region's fields every day.
+- **In a market town**, a **crop report** is posted weekly from day 20 of spring. It gives the estimate for every region.
+- The estimate firms up as the season is watched: at mid-spring it is a guess, by late summer it is nearly certain.
+- **The heralds** cry a failing harvest (under 82%, from day 10 of summer), a bumper one (over 114%, from day 20 of summer), every blight, and the harvest when it is in.
+- **Townsfolk and tavern talk** mention a failing or bumper crop, rust, locusts and murrain.
+- **The Steward** points at a failing harvest you have heard of within 40 hexes (from day 25 to day 80 of the year).
+- The 🌾 **Harvest** tab of the trade window shows all of this: the estimate here with its weather, war and blights; the crop reports you hold; the town's crop mix, soil and yields; and your farms with their rotation buttons.
+
+**Grain speculation.** Buying grain after the harvest and selling it in the lean weeks is still a safe trade, thanks to the seasonal price swing. The harvest now makes the spread bigger in bad years and smaller in bumper ones. The **risky play** is to buy in summer on a failing-harvest forecast, before the price moves, and sell in spring. When the harvest really fails, this pays about **1.5×**. When the forecast was wrong, the autumn price drop and spoilage turn it into a loss. Seed tests lost money **about a third** of the time. The best returns come from carrying grain from a bumper region to a failed one.
+
+For other systems such as crop insurance: `Harvests.expectedYield(world, region)`, `Harvests.forecast(world, region)`, `Harvests.outcome(world, region, year)` and `Harvests.regionOf(world, q, r)` (world/harvests.js).
 
 ### Food & Starvation
 

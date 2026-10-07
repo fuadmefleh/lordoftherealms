@@ -2,6 +2,7 @@
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
 import { TownLabour } from '../../world/townLabour.js';
+import { Harvests } from '../../world/harvests.js';
 import { Ledger } from '../../systems/ledger.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerEffects, PlayerInventory, WEATHER_EFFECTS, Economy, Seasons } from './_imports.js';
 
@@ -415,6 +416,8 @@ Object.assign(PlayerEconomy, {
             // reap in autumn, herds, orchards, lodges and fleets have their own
             // curves. Yearly mean 1; fractions carry over so totals hold.
             if (Seasons.propertyCurve(property.type)) {
+                // ...and the year's harvest in its region, its soil and rotation set its size (world/harvests.js)
+                amount *= Harvests.propertyFactor(world, tile, property);
                 amount = amount * Seasons.propertyMultiplier(property.type, Seasons.today(world)) + (property.seasonCarry || 0);
                 const whole = Math.floor(amount);
                 property.seasonCarry = Math.round((amount - whole) * 1000) / 1000;

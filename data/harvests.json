@@ -1,0 +1,83 @@
+{
+    "_doc": "Harvests & the agricultural year (world/harvests.js). Each year every region (a realm's land, or for free towns a zone of zoneCell hexes) grows a harvest. Through the growing season (doy 1..settleDay) the weather at up to samplePoints of its largest towns is sampled every sampleEvery days and scored against the place's own climate normal (the mean of the same days over normalYears calendar years: the weather is a pure function of the hex and the day), so a dry year in a desert is a bad year, not every year. War on the region's land (each war the realm fights, each battle fought on it, raiders and war hosts abroad on it), blights (hash-rolled per region and year, spreading to neighbouring regions) and short land hands cut it. On settleDay the harvest is reckoned; it scales the region's towns' grain, wine, linen and livestock output (and the player's farms) until the next one: the seasonal curve keeps its shape, the harvest sets its amplitude. Tuned against kingdom survival (seeds 7-16) in docs/economy-balance.md 'Harvests'.",
+
+    "_growing": "The growing season: weather, war and blights count from sowDay to settleDay (days of the year); the harvest is reckoned on settleDay (a market-profile boundary: the towns' output turns over that day).",
+    "growing": { "sowDay": 1, "settleDay": 60, "sampleEvery": 3, "samplePoints": 3 },
+
+    "_zoneCell": "Towns outside any realm share a harvest region per cell of [q, r] hexes.",
+    "zoneCell": [16, 12],
+    "_neighbourRange": "Regions are neighbours (blights spread between them) when any two of their towns lie within this many hexes.",
+    "neighbourRange": 9,
+
+    "_weather": "Score per sampled day by weather type (storms count summerStorm x in summer: they lay the ripening crop flat). The season's mean score against the climate normal sets the weather yield 1 + gain x (mean - normal), clamped to [min, max].",
+    "weather": {
+        "score": { "clear": 0, "cloudy": 0.15, "rain": 0.35, "storm": -0.5, "snow": -1.0, "blizzard": -1.6, "heatwave": -0.8 },
+        "summerStorm": 1.5,
+        "gain": 3.0,
+        "normalYears": 6,
+        "min": 0.45,
+        "max": 1.3
+    },
+
+    "_war": "Share of the crop lost to war, summed over the season: perWar per war the realm fights (levies off the land, foragers), perBattle per pitched battle fought on its land, perRaider per raider or war host abroad on it (averaged over the samples); at most max. A sacked town (settlement.damage) loses damage x townDamage of its own crop.",
+    "war": { "perWar": 0.04, "perBattle": 0.03, "perRaider": 0.04, "max": 0.4, "townDamage": 0.6 },
+
+    "_labour": "A town whose land hands (world/townLabour.js) fill less than `below` of the jobs at harvest loses (below - fill) x k of its crop in the fields.",
+    "labour": { "below": 0.95, "k": 0.6 },
+
+    "_blights": "Hash-rolled once per region and year: with `chance` a blight starts on a day in `start` (days of the year) and takes `severity` of the crops it `hits` (grain, veg, fibre, vine, fodder; stock = the herds: meat, cheese, hides, wool, horses). warmAbove: only where the region's mean temperature exceeds it. Each sample day an active blight may cross to a neighbouring region (spread a month, scaled to the sample interval), at decay x its severity.",
+    "blights": {
+        "rust": { "name": "grain rust", "icon": "🍂", "hits": ["grain"], "chance": 0.05, "start": [15, 50], "severity": [0.25, 0.45], "spread": 0.35, "decay": 0.8 },
+        "locusts": { "name": "locusts", "icon": "🦗", "hits": ["grain", "veg", "fibre", "vine", "fodder"], "chance": 0.04, "warmAbove": 0.55, "start": [25, 55], "severity": [0.3, 0.5], "spread": 0.5, "decay": 0.75 },
+        "murrain": { "name": "murrain", "icon": "🐄", "hits": ["stock"], "chance": 0.04, "start": [5, 50], "severity": [0.25, 0.45], "spread": 0.35, "decay": 0.8 }
+    },
+
+    "_crops": "A town's farmland splits into grain, veg (vegetables and legumes), fibre (flax), vine (vineyards and orchards) and fallow (and the hay and grazing on it). The climate sets each crop's weight (climate: base weight, x the factors where the land fits); each sowing the mix drifts `drift` of the way toward the climate weights x the town's prices (scarcity ^ elasticity: grain and veg follow grain, fibre textiles, vine wine, fallow meat and cheese). Thin soil makes the farmers rest more land (fallow x (1 + (1 - soil) x soilFallow)). veg is hardier: it feels vegDamp of the weather's swing; vegFood: veg as grain for the market.",
+    "crops": {
+        "climate": {
+            "grain": { "base": 1.0, "fertile": 1.1 },
+            "veg": { "base": 0.27, "river": 1.3 },
+            "fibre": { "base": 0.13, "cool": 1.5, "warm": 0.5, "river": 1.3 },
+            "vine": { "base": 0.09, "hot": 2.5, "warm": 1.2, "mild": 0.5, "cold": 0.1, "upland": 1.4 },
+            "fallow": { "base": 0.33, "pasture": 1.0 }
+        },
+        "_temperature": "Tile temperature bands for the climate factors: cool below cool, warm above warm, hot above hot, cold below cold (mild otherwise for vines).",
+        "temperature": { "cold": 0.4, "cool": 0.5, "warm": 0.5, "hot": 0.6 },
+        "drift": 0.3,
+        "elasticity": 0.8,
+        "minFallow": 0.06,
+        "soilFallow": 3,
+        "vegDamp": 0.6,
+        "vegFood": 0.8
+    },
+
+    "_soil": "Soil condition (1 = sound). Each sowing it moves `rate` of the way toward 1 + k x (rest - rest0) (rest = fallow + half the veg: legumes feed the soil; rest0 = the climate's usual), within [min, max]. Every crop's yield is x soil.",
+    "soil": { "rate": 0.35, "k": 1.6, "min": 0.55, "max": 1.2 },
+
+    "_effects": "How a harvest reaches the economy. grain: the town's market grain x (grain x yield + veg x vegFood x veg yield) / the same at its first mix, within [grainMin, grainMax]; econShare of that swing reaches the granary food the people eat (world/economy.js). wine x vine share x yield / its first, x (first vine / usual vine) ^ wineClimate (warm lands make more). linen: flax adds textiles (linen) = need x linen x fibre share / the usual x yield. Livestock goods x herds' yield x (1 + fodder x (fallow - first fallow)). rentShare of the swing reaches the tithe and rents of the player's holdings (Taxation.collectTaxes). The hinterland's sheep runs, ranches and studs follow the herds' yield.",
+    "effects": { "grainMin": 0.25, "grainMax": 1.7, "econShare": 0.7, "econMin": 0.4, "econMax": 1.35, "wineClimate": 0.5, "linen": 0.1, "fodder": 0.8, "stockGoods": ["meat", "cheese", "hide", "wool", "horses", "horse"], "rentShare": 0.5 },
+
+    "_rotations": "The player's farms choose a rotation: yield x their output, soil the target their soil drifts toward (rate as above) each harvest.",
+    "rotations": {
+        "intensive": { "label": "Intensive (no fallow)", "yield": 1.15, "soil": 0.7, "note": "Every field sown every year: more now, thinner soil later." },
+        "three_field": { "label": "Three-field rotation", "yield": 1.0, "soil": 1.0, "note": "Winter grain, spring legumes, a field at rest: the old way." },
+        "rest": { "label": "Long fallow", "yield": 0.8, "soil": 1.15, "note": "Half the land rests under clover and sheep: less now, rich soil later." }
+    },
+    "_propertyCrops": "Which harvest a player property follows (others are not harvests). Irrigated land feels irrigatedDamp of a bad year.",
+    "propertyCrops": { "farm": "grain", "irrigated_farm": "grain", "hemp_farm": "fibre", "orchard": "vine", "forager_hut": "veg", "apiary": "vine", "herb_garden": "veg", "pasture": "stock", "dairy": "stock", "cattle_ranch": "stock" },
+    "irrigatedDamp": 0.5,
+    "_herdSites": "Hinterland site kinds (data/hinterland.json) that are herds: their output follows the herds' yield at their home town.",
+    "herdSites": ["sheep_run", "cattle_ranch", "horse_stud"],
+
+    "_forecast": "The coming harvest becomes known as the season goes: the estimate is 1 + (the weather so far - 1) x the share of the season sampled, x the war and blights so far. Players learn their own region's estimate where they stand, and every region's at a market town's weekly crop report (from reportFrom, every reportEvery days). The heralds cry a failing harvest (estimate below failingBelow from heraldFrom), a bumper one (above bumperAbove from bumperFrom) and every blight; townsfolk talk of them (tavern `harvest` condition) from talkFrom to talkUntil (the reckoned harvest after settleDay).",
+    "forecast": { "reportFrom": 20, "reportEvery": 7, "failingBelow": 0.82, "bumperAbove": 1.14, "heraldFrom": 40, "bumperFrom": 50, "talkFrom": 20, "talkUntil": 110, "poorBelow": 0.85, "plentyAbove": 1.12 },
+
+    "_counsel": "The Steward points at a known failing harvest (estimate below failingBelow) within radius hexes from failingFrom to failingUntil (days of the year), and at the player's farms whose soil is below soilBelow.",
+    "counsel": { "failingBelow": 0.85, "failingFrom": 25, "failingUntil": 80, "radius": 40, "soilBelow": 0.8 },
+
+    "_famine": "The lean months after a failed harvest: on `day` (of the year) a realm whose harvest came in below `below` falls into the Hungry Months (worldEvents.json `event`) with chance (below - yield) x perPoint, at most max (a hash roll; the event's own dice come from a stream seeded by it, not the game's).",
+    "famine": { "event": "famine", "day": 100, "below": 0.72, "perPoint": 3, "max": 0.7 },
+
+    "historyCap": 40,
+    "pastYears": 4
+}

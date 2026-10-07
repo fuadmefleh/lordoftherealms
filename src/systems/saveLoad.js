@@ -46,6 +46,7 @@ import { MarketDynamics } from './marketDynamics.js';
 import { TradePolicy } from './tradePolicy.js';
 import { Labour } from './labour.js';
 import { Hinterland } from '../world/hinterland.js';
+import { Harvests } from '../world/harvests.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Utils } from '../core/utils.js';
 
@@ -153,6 +154,9 @@ export const SaveLoad = {
             hinterland: Hinterland.serialize(world),
             // Trade-policy news for the heralds; each realm's policy travels with it (kingdom.tradePolicy, systems/tradePolicy.js)
             tradePolicy: TradePolicy.serialize(world),
+            // The growing season, the harvests reckoned and their news (world/harvests.js;
+            // each town's fields travel with it: settlement.farm)
+            harvests: Harvests.serialize(world),
             // Great Works raised and rising, the wonders claimed (systems/patronage.js)
             greatWorks: Patronage.serializeWorld(world),
             // The realms' weekly economic indices and the heralds' price news; the
@@ -482,6 +486,8 @@ export const SaveLoad = {
             tradePolicy: TradePolicy.serializePlayer(player),
             // The gazettes read, the fashions heard of, net worth week by week (systems/economyChronicle.js)
             econ: EconomyChronicle.serialize(player),
+            // What the player has heard of each region's harvest (world/harvests.js)
+            harvests: Harvests.serializePlayer(player),
         };
     },
 
@@ -584,6 +590,8 @@ export const SaveLoad = {
         Hinterland.restore(saveData.hinterland, world);
         // Trade policy news (older saves: none; realms set their policy on their next turn)
         TradePolicy.restore(saveData.tradePolicy, world);
+        // The harvests (older saves: none — the next day sows and the towns derive their fields)
+        Harvests.restore(saveData.harvests, world);
         // The economic indices and the fashions (older saves: none yet — measured on the next week)
         EconomyIndex.restore(saveData.economy, world);
         Fashions.restore(saveData.fashions, world);

@@ -14,7 +14,7 @@ Everything controlled by or owned by the player character. This is the player's 
 | `playerReligion.js` | 379 | Found a religion, build holy sites, perform miracles |
 | `inventory.js` | — | Carrying capacity (`maxInventory` slots) and the `addItem` gain path |
 | `foraging.js` | ~290 | `Foraging` / `Hunting`: every forage and hunt roll for the quick paths and the minigames (seeded, qty ranges, int/luck/combat bonuses), paid in goods via `PlayerInventory.addItem`; craft ranks from `foragingTrips` / `huntingTrips`; wild foods are edible |
-| `seasonalWork.js` | ~210 | `SeasonalWork`: spring planting contracts (paid at harvest), seasonal odd jobs, winter fur trapping and ice fishing |
+| `seasonalWork.js` | ~210 | `SeasonalWork`: spring planting contracts (paid at harvest, × the town's real harvest — `world/harvests.js`), seasonal odd jobs, winter fur trapping and ice fishing. (The player's farms, orchards and herds follow their region's harvest, soil and rotation in `playerEconomy/property.js` via `Harvests.propertyFactor`.) |
 | `index.js` | — | Barrel re-export of all public player APIs |
 
 ## Key Objects

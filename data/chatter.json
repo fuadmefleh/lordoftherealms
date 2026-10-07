@@ -37,7 +37,8 @@
             "guild_strike": 5, "guild_election": 3, "guild_chartered": 3, "guild_abolished": 5,
             "mine_strike": 4, "mine_vein": 2, "mine_exhausted": 4, "mine_accident": 3,
             "trade_embargo": 4, "trade_treaty": 3, "trade_war": 4, "trade_ban": 5, "trade_granary": 3,
-            "econ_dear": 5, "econ_inflation": 4, "fashion": 3
+            "econ_dear": 5, "econ_inflation": 4, "fashion": 3,
+            "harvest_failing": 5, "harvest_bumper": 3, "harvest_blight": 4, "harvest_poor": 5, "harvest_plenty": 3
         },
         "icons": {
             "coronation": "👑", "realm_fallen": "🏴", "realm_restored": "🚩", "peace": "🕊️", "war": "⚔️",
@@ -48,7 +49,8 @@
             "labour_refugees": "🧳", "labour_strike": "✊", "labour_boom": "🏗️", "guild_strike": "✊", "guild_election": "🗳️", "guild_chartered": "📜", "guild_abolished": "⚖️",
             "mine_strike": "⛏️", "mine_vein": "💎", "mine_exhausted": "🕳️", "mine_accident": "💥",
             "trade_embargo": "⛔", "trade_treaty": "🤝", "trade_war": "📈", "trade_ban": "🌾", "trade_granary": "🍞",
-            "econ_dear": "🍞", "econ_inflation": "💰", "fashion": "👗"
+            "econ_dear": "🍞", "econ_inflation": "💰", "fashion": "👗",
+            "harvest_failing": "🥀", "harvest_bumper": "🌾", "harvest_blight": "🦗", "harvest_poor": "🥀", "harvest_plenty": "🌾"
         },
         "templates": {
             "mine_strike": [
@@ -120,6 +122,28 @@
                 "Hear ye! Prices in {kingdom} have climbed {pct}% since {since}. The goodwives blame the bakers, the bakers blame the coin.",
                 "The criers of {kingdom} confess it: everything costs {pct}% more than it did in {since}.",
                 "Prices rise in {kingdom}: {pct}% since {since}. A purse of silver buys less each week."
+            ],
+            "harvest_failing": [
+                "Hear ye! The harvest in {place} is failing: the fields promise barely {pct}% of a common year. Lay in grain while it is cheap.",
+                "Ill news from {place}: the crop withers in the fields, {pct}% of a fair harvest at best. Bread will be dear there by spring.",
+                "The reeves of {place} send word: a thin harvest is coming, {pct}% of the usual. The granaries will be wanted."
+            ],
+            "harvest_bumper": [
+                "Hear ye! The fields of {place} stand heavy: a bumper harvest is coming, {pct}% of a common year. Grain will be cheap there.",
+                "Good news from {place}: the finest crop in memory ripens, {pct}% of the usual. The brewers rejoice."
+            ],
+            "harvest_blight": [
+                "Hear ye! {blight} is in the fields of {place}. The farmers burn what they cannot save.",
+                "Woe to {place}: {blight} has come, out of {from}. Pray it stops at the river.",
+                "The criers of {place} bid all to watch their fields and herds: {blight} is abroad."
+            ],
+            "harvest_poor": [
+                "Hear ye! The harvest of {place} is in, and it is poor: {pct}% of a common year. Hard months lie ahead.",
+                "The last sheaves are in at {place}: a lean harvest, {pct}% of the usual. The bakers have raised their prices already."
+            ],
+            "harvest_plenty": [
+                "Hear ye! A rich harvest is gathered in {place}: {pct}% of a common year. The barns overflow and grain goes cheap.",
+                "Plenty in {place}! The harvest came in at {pct}% of the usual; the brewers and the poor alike give thanks."
             ],
             "fashion": [
                 "Hear ye! At the court of {place}, {text}: {goods} fetch a premium wherever the fashion reaches.",
@@ -954,6 +978,35 @@
         { "id": "prices_cheap_food", "when": { "prices": ["cheap_food"] }, "weight": 1, "lines": [
             "Bread's cheap in {kingdom} this season. The farmers grumble, everyone else eats.",
             "Food has never been so cheap. A good year, or a glut: depends whether you grow it or eat it."
+        ]},
+        { "id": "harvest_failing", "when": { "harvest": ["failing"] }, "weight": 3, "lines": [
+            "Have you seen the fields? Half the ears are empty. It'll be a thin harvest this year, mark me.",
+            "No rain when we wanted it, rain when we didn't. The crop is poor; buy your flour now, while it's cheap.",
+            "The reeve walked the fields and came back grey. Bread will be dear by spring."
+        ]},
+        { "id": "harvest_bumper", "when": { "harvest": ["bumper"] }, "weight": 2, "lines": [
+            "Never seen the wheat stand so tall. There'll be grain to spare this autumn, and cheap.",
+            "A fat year coming. The farmers say the barns won't hold it all."
+        ]},
+        { "id": "harvest_rust", "when": { "harvest": ["rust"] }, "weight": 3, "lines": [
+            "Rust in the wheat, red as a fox. The whole valley's got it.",
+            "They're burning the blighted fields out past the mill. The smoke's been up for days."
+        ]},
+        { "id": "harvest_locusts", "when": { "harvest": ["locusts"] }, "weight": 3, "lines": [
+            "Locusts! A cloud of them came over the ridge and ate the barley to the ground.",
+            "You can hear them at night, chewing. By morning there's nothing green left."
+        ]},
+        { "id": "harvest_murrain", "when": { "harvest": ["murrain"] }, "weight": 3, "lines": [
+            "Murrain among the cattle. The herdsmen are burning carcasses on the common.",
+            "Half my neighbour's sheep dead in a week. Meat will be dear, and wool."
+        ]},
+        { "id": "harvest_poor", "when": { "harvest": ["poor"] }, "weight": 2, "lines": [
+            "A poor harvest, and the winter not yet begun. Folk are counting every loaf.",
+            "The granary's half empty already. Pray the spring comes early."
+        ]},
+        { "id": "harvest_plenty", "when": { "harvest": ["plenty"] }, "weight": 2, "lines": [
+            "A rich harvest this year. Bread's cheap and the ale's flowing.",
+            "Barns full to the rafters. The farmers complain grain fetches nothing, but nobody goes hungry."
         ]},
         { "id": "fashion_any", "when": { "fashion": true }, "weight": 2, "lines": [
             "Have you heard? At {fashionPlace}, {fashionText}. Every lady wants {fashionGoods} now.",

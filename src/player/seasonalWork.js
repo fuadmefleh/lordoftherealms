@@ -17,6 +17,7 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { Seasons } from '../world/seasons.js';
 import { WorldEvents } from '../world/worldEvents.js';
+import { Harvests } from '../world/harvests.js';
 import { PlayerInventory } from './inventory.js';
 
 const range = (pair, fallback) => (Array.isArray(pair) && pair.length === 2 ? pair : fallback);
@@ -221,7 +222,8 @@ export const SeasonalWork = {
                 paid.push({ settlementName: c.settlementName, paid: 0, factor: 0, lost: true });
                 return false;
             }
-            const factor = Utils.clamp(1 + WorldEvents.getModifier(world, 'farmProduction', tile), 0.3, 1.6);
+            // ...and the share is of the year's real harvest there (world/harvests.js)
+            const factor = Utils.clamp((1 + WorldEvents.getModifier(world, 'farmProduction', tile)) * Harvests.grainFactor(tile.settlement), 0.3, 1.6);
             const gold = Math.round(c.payout * factor);
             player.gold = (player.gold || 0) + gold;
             if (player.financeToday && player.financeToday.income) {

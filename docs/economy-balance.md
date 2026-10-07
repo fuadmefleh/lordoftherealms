@@ -567,10 +567,10 @@ Rural sites around the towns (`world/hinterland.js`), finite deposits, prospecti
 |---|---|---|---|
 | At the reserve price (houses off), steady pace | 240g | 6.7 | **37 days** |
 | At the reserve price, hard pace | 240g | 9.8 (12 accidents across 23 leases) | 26 days |
-| At what the houses pay when they win (1.2–1.7× the reserve) | ≈ 350g | 6.7 | ≈ 52 days |
+| Outbidding the houses (they bid 0.3–0.5 of the term's net, 2026-10-06) | ≈ 500–800g (estimated) | 6.7 | ≈ 75–120 days (estimated) |
 
 - The estimate behind the reserve price and the houses' bids prices the output at the market town's scarcity. A glutted iron town makes a lease worth less. Royalties are on base prices.
-- The houses bid 0.08–0.2 of the term's net (× temperament), so a player who outbids them lands near 50 days.
+- The houses bid 0.3–0.5 of the term's net (× temperament); this was 0.08–0.2, which gave the houses 30–80% a year on their books from leases. Outbidding them is now a modest return over the 240-day term; the bargains are the reserve-price routes (petitioning beside your town, a prospector's finder's right). The new figures are estimated from the bid share, not re-measured.
 
 **Why it is not a money loop.**
 - A lease sells at 85% of the market town's value of the lot at the stock it leaves, and every unit sold lowers the price. The town's ask is higher still (tested).
@@ -803,7 +803,7 @@ Dividends were 2–6% of the stake a year for banks and houses.
   - the prior for houses is now a 50% return;
   - the slope is damped, so the market pays only part of a high return up front.
 
-  With both, purchases after the first year return about what the houses earn, with wide spread. Raising the houses' bids (`hinterland.json` → `houseBid`) would cut this at the source. That is left to the hinterland's balance.
+  With both, purchases after the first year return about what the houses earn, with wide spread. The houses' bids (`hinterland.json` → `houseBid`) were since raised from 0.08–0.2 to 0.3–0.5 of the term's net, cutting this at the source.
 - **Without a company, the rival houses never traded.** `MerchantHouses.quietWeek` now gives them their weekly return, dividend and ruin when the player has no company, on the Bourse's own stream.
 
 **No money loops.**

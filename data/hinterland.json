@@ -53,7 +53,7 @@
         },
         "accident": { "killed": [2, 6], "idleDays": 6, "mood": 3, "reputation": 2 },
         "contractRange": 6, "binDays": 20,
-        "auctionEvery": 30, "auctionDays": 10, "houseBid": [0.08, 0.2], "houseMax": 3, "minIncrement": 0.05,
+        "auctionEvery": 30, "auctionDays": 10, "houseBid": [0.3, 0.5], "houseMax": 3, "minIncrement": 0.05,
         "graceDays": 14, "defaultDays": 60, "edictChance": 0.05, "logCap": 30, "historyCap": 40
     },
 

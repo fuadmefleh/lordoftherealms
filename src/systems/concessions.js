@@ -63,7 +63,7 @@ const DEFAULTS = {
     termDays: 240, royalty: 0.12, boost: 1.3, sellShare: 0.85, reserveShare: 0.07,
     rates: { normal: { label: 'Steady', out: 1, wear: 1, hands: 1, accident: 0, unrest: 0 } },
     accident: { killed: [2, 6], idleDays: 6, mood: 3, reputation: 2 },
-    contractRange: 6, binDays: 20, auctionEvery: 30, auctionDays: 10, houseBid: [0.1, 0.22], houseMax: 3, minIncrement: 0.05,
+    contractRange: 6, binDays: 20, auctionEvery: 30, auctionDays: 10, houseBid: [0.3, 0.5], houseMax: 3, minIncrement: 0.05,
     graceDays: 14, defaultDays: 60, edictChance: 0.05, logCap: 30,
 };
 
@@ -321,7 +321,7 @@ export const Concessions = {
         const est = Concessions.estimate(world, site);
         let best = null;
         if (a.finder !== 'player') {
-            const [lo, hi] = Array.isArray(C.houseBid) ? C.houseBid : [0.1, 0.22];
+            const [lo, hi] = Array.isArray(C.houseBid) ? C.houseBid : [0.3, 0.5];
             const held = {};
             for (const c of st.concessions) if (c.status === 'active' && c.holder !== 'player') held[c.holder] = _num(held[c.holder]) + 1;
             for (const h of Concessions.houses(player, world)) {

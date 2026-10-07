@@ -18,6 +18,8 @@ import { Underworld } from './underworld.js';
 import { Ailments } from './ailments.js';
 import { VoyageMethods } from './shipVoyages.js';
 import { PriceKnowledge } from './priceKnowledge.js';
+import { Ledger } from './ledger.js';
+import { TradePolicy } from './tradePolicy.js';
 
 /**
  * Ships System
@@ -570,9 +572,8 @@ export const Ships = {
         // Remove from used market
         usedShips.splice(usedIndex, 1);
 
-        if (player.financeToday) {
-            player.financeToday.expenses.ships = (player.financeToday.expenses.ships || 0) + used.price;
-        }
+        // A hull bought is capital, not upkeep (systems/ledger.js)
+        Ledger.record(player, 'shipsBought', -used.price);
 
         const st = this.getShipType(used.typeId);
         return {
@@ -630,9 +631,8 @@ export const Ships = {
         player.ships.push(ship);
         this._applyOwnerPerks(player, validCustoms, 1);
 
-        if (player.financeToday) {
-            player.financeToday.expenses.ships = (player.financeToday.expenses.ships || 0) + totalCost;
-        }
+        // A new hull is capital, not upkeep (systems/ledger.js)
+        Ledger.record(player, 'shipsBought', -totalCost);
 
         return {
             success: true,
@@ -876,6 +876,9 @@ export const Ships = {
                     : 'The boat has made all its trips today — a port or jetty has no such limit.';
             return { success: false, message: why };
         }
+        // The goods' bookings by realm go aboard with them (systems/tradePolicy.js)
+        if (!ship.lots) ship.lots = {};
+        TradePolicy.addLots(ship.lots, itemId, TradePolicy.takePlayerLots(player, itemId, n));
         player.inventory[itemId] = have - n;
         if (player.inventory[itemId] <= 0) delete player.inventory[itemId];
         if (!ship.cargo) ship.cargo = {};
@@ -919,6 +922,7 @@ export const Ships = {
             if (take <= 0) continue;
             // A new kind of good needs a free slot in the packs; otherwise it stays aboard
             if (!PlayerInventory.addItem(player, item, take).success) { leftAboard[item] = qty; continue; }
+            if (ship.lots) TradePolicy.givePlayerLots(player, item, TradePolicy.takeLots(ship.lots, item, take, qty));
             ship.cargo[item] = qty - take;
             if (ship.cargo[item] <= 0) delete ship.cargo[item];
             moved[item] = take;
@@ -1379,6 +1383,9 @@ export const Ships = {
         // floods them — see portSaleUnitPrice)
         const portTown = world.getTile(player.q, player.r);
         const town = portTown && portTown.settlement;
+        // A hold filled at port is bound abroad: the realm's export ban holds it (systems/tradePolicy.js)
+        const banned = TradePolicy.exportBlock(player, world, town || portTown, null, goodId);
+        if (banned) return { success: false, message: banned };
         const kept = town && town.market && SettlementMarket.tracks(goodId);
         const s0 = kept ? SettlementMarket.stock(town, goodId) : 0;
         const unitCost = (j) => kept
@@ -1398,6 +1405,9 @@ export const Ships = {
         player.gold -= cost;
         if (!ship.cargo) ship.cargo = {};
         ship.cargo[goodId] = (ship.cargo[goodId] || 0) + n;
+        // Booked by the realm it was bought in: another realm's customs read it on landing
+        if (!ship.lots) ship.lots = {};
+        TradePolicy.book(ship.lots, town || portTown, goodId, n);
         // What the town has in store goes first (the rest comes off foreign hulls)
         if (portTown && portTown.settlement) SettlementMarket.take(portTown.settlement, goodId, n);
         // The player's books: the lot's cost into the good's average, goods bought (systems/ledger.js)
@@ -1483,12 +1493,19 @@ export const Ships = {
         if (!entry) return { success: false, message: 'Nobody here buys that.' };
         const n = Math.min(qty, (ship.cargo && ship.cargo[goodId]) || 0);
         if (n <= 0) return { success: false, message: 'None of that in the hold.' };
-        const revenue = Math.max(0, Math.floor(n * this.portSaleUnitPrice(player, world, player.q, player.r, entry, n)));
+        // Customs: cargo booked in another realm pays this one's import tariff;
+        // a realm under embargo here lands nothing openly (systems/tradePolicy.js)
+        const portTown = world.getTile(player.q, player.r);
+        const held = ship.cargo[goodId];
+        const policy = portTown && portTown.settlement
+            ? TradePolicy.consignCheck(player, world, ship.lots, held, portTown.settlement, goodId, n) : null;
+        if (policy && !policy.ok) return { success: false, message: policy.reason, embargoed: true };
+        const revenue = Math.max(0, Math.floor(n * this.portSaleUnitPrice(player, world, player.q, player.r, entry, n) * (policy ? policy.mult : 1)));
+        const duty = policy ? TradePolicy.consignSale(player, world, ship.lots, portTown.settlement, goodId, n, revenue, policy).duty : 0;
         ship.cargo[goodId] -= n;
         if (ship.cargo[goodId] <= 0) delete ship.cargo[goodId];
         player.gold = (player.gold || 0) + revenue;
         // The cargo lands in the town's stores
-        const portTown = world.getTile(player.q, player.r);
         if (portTown && portTown.settlement) SettlementMarket.add(portTown.settlement, goodId, n);
         Quests.track(player, 'trade_profit', revenue);
         if (player.skills && Utils.random() < 0.2) {
@@ -1496,7 +1513,7 @@ export const Ships = {
         }
         // The player's books: the margin against what the cargo cost, goods sold (systems/ledger.js)
         PriceKnowledge.recordSale(player, (portTown && portTown.settlement) || { name: 'a port' }, goodId, n, revenue, 'portTrade');
-        return { success: true, ship, sold: n, revenue };
+        return { success: true, ship, sold: n, revenue, duty };
     },
 
     /* ── Daily processing ────────────────────────────────────── */

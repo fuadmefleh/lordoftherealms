@@ -1109,61 +1109,191 @@ export const TradePolicy = {
      * @returns {{ ok, reason?, mult, rate, held, embargoed, breach: [{kid, share}] }}
      */
     saleCheck(player, world, settlement, goodId, qty) {
-        const out = { ok: true, mult: 1, rate: 0, held: 0, embargoed: 0, breach: [] };
-        if (!player || !world || !settlement) return out;
+        if (!player || !world || !settlement) return { ok: true, mult: 1, rate: 0, held: 0, embargoed: 0, breach: [] };
         const held = _num(player.inventory && player.inventory[goodId]);
-        out.held = held;
-        if (!(held > 0)) return out;
-        const row = TradePolicy._ledger(player, goodId);
+        return TradePolicy._assess(player, world, held > 0 ? TradePolicy._ledger(player, goodId) : {}, held, settlement, goodId, qty);
+    },
+
+    /**
+     * The crowns' view of selling `qty` of `held` units of a good booked by
+     * realm in `row` ({ realmKey: units }; unbooked units are the player's
+     * own and pay nothing) at `settlement`. With `embargo` 'double', units
+     * from a realm under embargo here pay twice the tariff (at least 10%: a
+     * caravan already on the road when the embargo fell) instead of barring
+     * the sale. @returns {{ ok, reason?, mult, rate, held, embargoed, breach }}
+     */
+    _assess(player, world, row, held, settlement, goodId, qty, embargo = 'block') {
+        const out = { ok: true, mult: 1, rate: 0, held: _num(held), embargoed: 0, breach: [] };
+        if (!world || !settlement || !(out.held > 0)) return out;
         const S = settlement.kingdom != null ? TradePolicy._kingdom(world, settlement.kingdom) : null;
         const cat = TradePolicy.categoryOf(goodId);
-        const licensed = S && TradePolicy.hasLicence(player, world, S.id);
+        const licensed = S && player && TradePolicy.hasLicence(player, world, S.id);
         let rateSum = 0, emb = 0;
         let embName = null;
-        for (const [key, units] of Object.entries(row)) {
+        for (const [key, units] of Object.entries(row || {})) {
             if (!(units > 0)) continue;
             const R = key === FREE ? null : TradePolicy._kingdom(world, key);
             if (S && R === S) continue;
-            if (S && R && TradePolicy.embargoed(S, R)) { emb += units; embName = embName || R.name; continue; }
-            if (R && TradePolicy.banned(R, cat) && !TradePolicy.hasLicence(player, world, R.id)) out.breach.push({ kid: R.id, share: units / held });
+            const barred = S && R && TradePolicy.embargoed(S, R);
+            if (barred && embargo === 'block') { emb += units; embName = embName || R.name; continue; }
+            if (R && player && TradePolicy.banned(R, cat) && !TradePolicy.hasLicence(player, world, R.id)) out.breach.push({ kid: R.id, share: units / out.held });
             if (!S || licensed || (R && TradePolicy.hasTreaty(S, R))) continue;
-            rateSum += units * TradePolicy.importTariff(S, cat, R ? R.id : FREE);
+            const t = TradePolicy.importTariff(S, cat, R ? R.id : FREE);
+            rateSum += units * (barred ? Math.max(0.1, 2 * t) : t);
         }
         out.embargoed = emb;
-        if (qty > held - emb + 1e-9) {
+        if (qty > out.held - emb + 1e-9) {
             return { ...out, ok: false, reason: `${Math.ceil(emb)} of your ${goodId.replace(/_/g, ' ')} come from ${embName}, under embargo in ${S ? S.name : 'this realm'}. Only a smuggler will move them here.` };
         }
-        out.rate = Math.min(0.9, rateSum / held);
+        out.rate = Math.min(0.9, rateSum / out.held);
         out.mult = 1 - out.rate;
         return out;
     },
 
-    /** After a sale: the duty to the treasury, the ledger drawn down, export-ban breaches as heat. */
-    onSale(player, world, settlement, goodId, qty, earned, check) {
-        if (!player || !check || !(check.held > 0)) return { duty: 0, heat: 0 };
-        const st = TradePolicy.playerState(player);
-        let duty = 0;
+    /** The import duty inside `earned` (paid at `check.rate`) into the importing realm's treasury; a memo line in the player's ledger. */
+    payDuty(player, world, settlement, earned, check) {
         const S = settlement && settlement.kingdom != null ? TradePolicy._kingdom(world, settlement.kingdom) : null;
-        if (S && check.rate > 0 && earned > 0) {
-            duty = Math.round(earned * check.rate / Math.max(0.1, 1 - check.rate));
-            S.treasury = _num(S.treasury) + duty;
-            const p = TradePolicy.realm(S);
-            p.rev.week = _r3(p.rev.week + duty);
-            st.stats.duties += duty;
+        if (!S || !check || !(check.rate > 0) || !(earned > 0)) return 0;
+        const duty = Math.round(earned * check.rate / Math.max(0.1, 1 - check.rate));
+        if (!(duty > 0)) return 0;
+        S.treasury = _num(S.treasury) + duty;
+        const p = TradePolicy.realm(S);
+        p.rev.week = _r3(p.rev.week + duty);
+        if (player) {
+            TradePolicy.playerState(player).stats.duties += duty;
             // Paid inside the sale price: a memo line in the player's ledger (systems/ledger.js)
             Ledger.record(player, 'saleDuties', -duty);
         }
-        let heat = 0;
+        return duty;
+    },
+
+    // ── Consignments: goods the player moves without carrying them ──
+    // Caravans and trade routes (player/playerEconomy), ships' holds
+    // (systems/ships.js) and the company's posts and convoys
+    // (systems/merchantHouses.js) keep their own bookings, `lots`:
+    // { goodId: { realmKey: units } }, moved along with the goods.
+
+    /** The realm key goods bought at `where` (a settlement, a tile or { kingdom }) are booked to. */
+    realmKey(where) {
+        return where && where.kingdom != null ? String(where.kingdom) : FREE;
+    },
+
+    /** Book `qty` of a good bought at `where` into `lots`. */
+    book(lots, where, goodId, qty) {
+        if (!_obj(lots) || !goodId || !(qty > 0)) return;
+        const row = lots[goodId] || (lots[goodId] = {});
+        const key = TradePolicy.realmKey(where);
+        row[key] = _r3(_num(row[key]) + qty);
+    },
+
+    /** Add a part ({ realmKey: units }) to `lots`. */
+    addLots(lots, goodId, part) {
+        if (!_obj(lots) || !_obj(part)) return;
+        for (const [k, v] of Object.entries(part)) {
+            if (!(v > 0)) continue;
+            const row = lots[goodId] || (lots[goodId] = {});
+            row[k] = _r3(_num(row[k]) + v);
+        }
+    },
+
+    /** Take `qty` of `held` units' bookings out of `lots` in proportion (unbooked units stay unbooked) → the part taken. */
+    takeLots(lots, goodId, qty, held) {
+        const row = _obj(lots) && lots[goodId];
+        const part = {};
+        if (!row || !(qty > 0)) return part;
+        let sum = 0;
+        for (const v of Object.values(row)) sum += _num(v);
+        const f = Math.min(1, qty / Math.max(_num(held), sum, 1e-9));
+        for (const k of Object.keys(row)) {
+            const v = _r3(_num(row[k]) * f);
+            if (v > 0) part[k] = v;
+            row[k] = _r3(_num(row[k]) - v);
+            if (!(row[k] > 0.01)) delete row[k];
+        }
+        if (!Object.keys(row).length) delete lots[goodId];
+        return part;
+    },
+
+    /** Take a share of the player's own bookings of a good (call before the units leave the packs). */
+    takePlayerLots(player, goodId, qty) {
+        if (!player) return {};
+        const held = _num(player.inventory && player.inventory[goodId]);
+        if (!(held > 0)) return {};
+        TradePolicy._ledger(player, goodId);
+        return TradePolicy.takeLots(TradePolicy.playerState(player).ledger, goodId, qty, held);
+    },
+
+    /** Return bookings to the player's packs (goods unloaded from a hold). */
+    givePlayerLots(player, goodId, part) {
+        if (!player) return;
+        TradePolicy.addLots(TradePolicy.playerState(player).ledger, goodId, part);
+    },
+
+    /** Selling consigned goods: the duty check of `qty` of `held` units booked in `lots` at `settlement` (see _assess). */
+    consignCheck(player, world, lots, held, settlement, goodId, qty, embargo = 'block') {
+        const row = (_obj(lots) && lots[goodId]) || {};
+        // Never more booked than is held (cargo lost to storms and thieves takes its bookings with it)
+        let sum = 0;
+        for (const v of Object.values(row)) sum += _num(v);
+        if (sum > _num(held) && sum > 0) {
+            const f = Math.max(0, _num(held)) / sum;
+            for (const k of Object.keys(row)) row[k] = _r3(_num(row[k]) * f);
+        }
+        return TradePolicy._assess(player, world, row, held, settlement, goodId, qty, embargo);
+    },
+
+    /**
+     * After a consigned sale: the duty (inside `earned`) to the crown, the
+     * bookings of the units sold drawn down, export-ban breaches as heat for
+     * the player. → { duty, heat }
+     */
+    consignSale(player, world, lots, settlement, goodId, qty, earned, check) {
+        if (!check) return { duty: 0, heat: 0 };
+        const duty = TradePolicy.payDuty(player, world, settlement, earned, check);
+        const heat = player ? TradePolicy.breachHeat(player, world, qty, check) : 0;
+        TradePolicy.takeLots(lots, goodId, qty, check.held);
+        return { duty, heat };
+    },
+
+    breachHeat(player, world, qty, check) {
+        const st = TradePolicy.playerState(player);
         const B = TradePolicy.config().player.breach;
-        for (const b of check.breach) {
-            const units = qty * b.share;
-            const h = Math.min(_num(B.maxHeat, 12), units * _num(B.heatPerUnit));
+        let heat = 0;
+        for (const b of check.breach || []) {
+            const h = Math.min(_num(B.maxHeat, 12), qty * b.share * _num(B.heatPerUnit));
             if (h > 0) {
                 Underworld.addHeat(player, b.kid, h, world);
                 heat += h;
                 st.stats.breaches++;
             }
         }
+        return heat;
+    },
+
+    /**
+     * Why goods bought at `from` may not leave its realm for `to` (a
+     * settlement or tile; null for the open sea), or null: an export ban on
+     * the category, waived by the player's licence. Checked when a ship's
+     * hold is filled, a caravan or route sets out, a convoy leaves.
+     */
+    exportBlock(player, world, from, to, goodId) {
+        if (!world || !from || from.kingdom == null) return null;
+        if (to && to.kingdom != null && String(to.kingdom) === String(from.kingdom)) return null;
+        const E = TradePolicy._kingdom(world, from.kingdom);
+        const cat = TradePolicy.categoryOf(goodId);
+        if (!E || !TradePolicy.banned(E, cat)) return null;
+        if (player && TradePolicy.hasLicence(player, world, E.id)) return null;
+        const label = String(TradePolicy.category(cat).label || cat).toLowerCase();
+        return `${E.name} bans the export of ${label}: no ${goodId.replace(/_/g, ' ')} leaves the realm without a licence.`;
+    },
+
+    /** After a sale: the duty to the treasury, the ledger drawn down, export-ban breaches as heat. */
+    onSale(player, world, settlement, goodId, qty, earned, check) {
+        if (!player || !check || !(check.held > 0)) return { duty: 0, heat: 0 };
+        const st = TradePolicy.playerState(player);
+        const S = settlement && settlement.kingdom != null ? TradePolicy._kingdom(world, settlement.kingdom) : null;
+        const duty = TradePolicy.payDuty(player, world, settlement, earned, check);
+        const heat = TradePolicy.breachHeat(player, world, qty, check);
         // Draw the ledger down (embargoed units stay booked: they can only be smuggled)
         const row = st.ledger[goodId];
         if (row) {

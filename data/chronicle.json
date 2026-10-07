@@ -94,6 +94,7 @@
             "propertyBought": { "name": "Properties built", "group": "capital", "kind": "cap" },
             "houseSale": { "name": "Houses sold", "group": "capital", "kind": "cap" },
             "shipSale": { "name": "Ships sold", "group": "capital", "kind": "cap" },
+            "shipsBought": { "name": "Ships bought and built", "group": "capital", "kind": "cap" },
             "borrowed": { "name": "Borrowed", "group": "capital", "kind": "cap" },
             "loanPrincipal": { "name": "Loan principal repaid", "group": "capital", "kind": "cap" }
         }

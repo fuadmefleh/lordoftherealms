@@ -446,7 +446,8 @@ export const KingdomAI = {
             k.id !== kingdom.id &&
             !kingdom.allies.includes(k.id) &&
             !kingdom.wars.includes(k.id) &&
-            !KingdomAI.hasTruce(kingdom, k, world)
+            !KingdomAI.hasTruce(kingdom, k, world) &&
+            !KingdomAI.foundingPeace(kingdom, k, world)
         );
         // A realm already fighting two wars doesn't open a third
         if (kingdom.wars.length >= 2) return;
@@ -589,9 +590,31 @@ export const KingdomAI = {
         capitalDefense: 1.5,      // defending the capital
         regen: 0.04,              // armies rebuild this share of the gap each day
         demob: 0.2,               // and shrink this fast when the realm can't support them
+        // A realm down to its last town fights for its life, and may yet buy
+        // its survival: when that town is about to fall it capitulates (the
+        // victor's terms, this share of its treasury as tribute) with this
+        // chance — less against an ambitious lord (docs/world-stability.md)
+        foundingPeace: [45, 120],   // days: the first peace between each pair of realms
+        lastStand: 1.5,
+        capitulate: 0.8,
+        capitulateTribute: 0.4,
     },
 
     _day(world) { return (world && world.day) || 0; },
+
+    /**
+     * The new crowns' first peace: no realm marches on another before day
+     * WAR.foundingPeace[0]–[1] (a hash of the pair, so the first wars come
+     * staggered), while the young realms of one or two towns found their
+     * villages. Draws no RNG.
+     */
+    foundingPeace(a, b, world) {
+        const [lo, hi] = KingdomAI.WAR.foundingPeace;
+        const day = KingdomAI._day(world);
+        if (day >= hi) return false;
+        const key = a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
+        return day < lo + ((Utils.hashStr(`peace:${key}`) >>> 0) % Math.max(1, hi - lo));
+    },
 
     /** True while a peace treaty forbids these two from fighting. */
     hasTruce(a, b, world) {
@@ -649,7 +672,7 @@ export const KingdomAI = {
         const victor = opts.victor || null;
         if (victor) {
             const loser = victor === a ? b : a;
-            tribute = Math.floor(Math.max(0, loser.treasury || 0) * KingdomAI.WAR.tribute);
+            tribute = Math.floor(Math.max(0, loser.treasury || 0) * (opts.tribute != null ? opts.tribute : KingdomAI.WAR.tribute));
             loser.treasury = (loser.treasury || 0) - tribute;
             victor.treasury = (victor.treasury || 0) + tribute;
         }
@@ -692,6 +715,24 @@ export const KingdomAI = {
             return KingdomAI.endWar(a, b, world);
         }
         return null;
+    },
+
+    /**
+     * A realm whose last town is about to fall sues for terms: with
+     * WAR.capitulate (less against an ambitious lord, more against an
+     * honourable one) the victor takes WAR.capitulateTribute of its treasury
+     * and a truce instead of the town. → true when the war ended so.
+     */
+    _capitulates(attacker, defender, world) {
+        const W = KingdomAI.WAR;
+        const chance = Utils.clamp(W.capitulate * (1 - LordInfluence.lean(attacker, 'ambition') * 0.3 + LordInfluence.lean(attacker, 'honor') * 0.2), 0, 0.9);
+        if (!(chance > 0) || Utils.random() >= chance) return false;
+        const town = (KingdomAI._settlementsOf(defender, world)[0] || {}).settlement;
+        KingdomAI.endWar(attacker, defender, world, {
+            victor: attacker, tribute: W.capitulateTribute,
+            text: `🏳️ Besieged in ${town ? town.name : 'its last town'}, ${defender.name} capitulates to ${attacker.name} and pays for its survival.`,
+        });
+        return true;
     },
 
     /** A defeated realm leaves every war; its last tiles pass to the conqueror. */
@@ -1042,9 +1083,13 @@ export const KingdomAI = {
         attackPower *= KingdomAtlas.campaignMultiplier(attacker, defender.id);
         defensePower *= KingdomAtlas.campaignMultiplier(defender, attacker.id);
         // Walls: towns, and above all the capital, are hard to take
+        let lastTown = false;
         if (battleTile && battleTile.settlement && battleTile.settlement.kingdom === defender.id) {
             const isCapital = defender.capital && defender.capital.q === frontline.q && defender.capital.r === frontline.r;
             defensePower *= isCapital ? KingdomAI.WAR.capitalDefense : KingdomAI.WAR.settlementDefense;
+            // ...and a realm's last town is defended to the last
+            lastTown = KingdomAI._settlementsOf(defender, world).length <= 1;
+            if (lastTown) defensePower *= KingdomAI.WAR.lastStand;
             // A port cut off by the attacker's fleet starves faster
             attackPower *= KingdomNavy.siegeMultiplier(attacker, defender, world, frontline.q, frontline.r);
         }
@@ -1069,7 +1114,11 @@ export const KingdomAI = {
         }
 
         // Determine winner
-        if (attackPower > defensePower) {
+        if (attackPower > defensePower && lastTown && KingdomAI._capitulates(attacker, defender, world)) {
+            // The last town opens its gates on terms: the realm survives, poorer
+            defender.military = Math.floor(defender.military * 0.85);
+            attacker.military = Math.floor(attacker.military * 0.95);
+        } else if (attackPower > defensePower) {
             // Attacker wins - take the contested tile
             const tile = frontline ? world.getTile(frontline.q, frontline.r) : null;
             if (tile && tile.kingdom === defender.id) {

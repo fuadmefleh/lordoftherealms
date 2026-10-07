@@ -635,6 +635,9 @@ export const SaveLoad = {
      */
     restorePlayer(saveData, player, world = null) {
         Object.assign(player, saveData);
+        // Today's tally is always open (older saves kept null: writes before the first close were lost)
+        if (!player.financeToday || typeof player.financeToday !== 'object') player.financeToday = {};
+        for (const side of ['income', 'expenses']) if (!player.financeToday[side] || typeof player.financeToday[side] !== 'object') player.financeToday[side] = {};
 
         // Backfill firstName/lastName from name for older saves
         if (!player.firstName && player.name) {

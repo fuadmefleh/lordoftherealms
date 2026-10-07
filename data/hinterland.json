@@ -6,16 +6,17 @@
     "homeShare": 0.5,
     "maxSites": { "village": 2, "town": 3, "city": 4, "capital": 5 },
     "maxPerKind": 2,
-    "_hidden": "Share of the hill and mountain hexes without a map resource that hide a vein the locals know of (a hash of the world seed and the hex; its kind by the terrain's prospecting weights below).",
-    "hidden": 0.2,
+    "_hidden": "Share of the hill and mountain hexes without a map resource that hide a vein the locals know of (a hash of the world seed and the hex; its kind by the terrain's prospecting weights below). 0.25 (was 0.2) since copper joined the weights: as many hidden iron and coal veins as before, plus the copper ones (no map resource makes copper: every copper mine is a vein the locals know of, or one prospecting strikes).",
+    "hidden": 0.25,
     "_resync": "Days between passes that give newly founded towns their sites and re-home sites whose town is gone.",
     "resyncDays": 60,
 
     "_kinds": "name, icon; good: { goodId: units a day } at full yield and full hands; resource: the map resource that makes the site; terrain: land that makes it without a resource (sheep runs); priority: which sites a town works first; hands: labourers a concession hires at the town's land wage (a crown site's hands are the town's own peasants); deposit: finite reserve [min, max] units of the first good; leasable: the crown leases it as a concession.",
     "kinds": {
-        "iron_mine":    { "name": "Iron mine",     "icon": "⛏️", "good": { "iron": 1.3 },              "resource": "iron",     "priority": 10, "hands": 14, "deposit": true, "reserve": [700, 2000], "leasable": true },
+        "iron_mine":    { "name": "Iron mine",     "icon": "⛏️", "good": { "iron": 1.5 },              "resource": "iron",     "priority": 10, "hands": 14, "deposit": true, "reserve": [700, 2000], "leasable": true },
         "gem_mine":     { "name": "Gem mine",      "icon": "💎", "good": { "gems": 0.25 },             "resource": "gems",     "priority": 11, "hands": 12, "deposit": true, "reserve": [120, 360],   "leasable": true },
         "gold_mine":    { "name": "Gold diggings", "icon": "💰", "good": { "gold_ore": 0.25 },         "resource": "gold_ore", "priority": 9,  "hands": 12, "deposit": true, "reserve": [120, 360],  "leasable": true },
+        "copper_mine":  { "name": "Copper mine",   "icon": "🟠", "good": { "copper": 1.0 },            "priority": 7.5, "hands": 12, "deposit": true, "reserve": [600, 1800], "leasable": true },
         "coal_pit":     { "name": "Coal pit",      "icon": "⚫", "good": { "coal": 1.2 },              "resource": "coal",     "priority": 8,  "hands": 10, "deposit": true, "reserve": [700, 1800], "leasable": true },
         "quarry":       { "name": "Quarry",        "icon": "🧱", "good": { "stone": 1.4 },             "resource": "stone",    "priority": 5,  "hands": 10, "deposit": true, "reserve": [1500, 4000], "leasable": true },
         "salt_pan":     { "name": "Salt pans",     "icon": "🧂", "good": { "salt": 0.9 },              "resource": "salt",     "priority": 6,  "hands": 6,  "deposit": true, "reserve": [1200, 3000], "leasable": true },
@@ -33,9 +34,9 @@
     "prospect": {
         "every": 60, "chance": 0.1, "wane": 0.4, "veinMin": 0.3, "veinMax": 0.7, "extraSites": 2,
         "terrain": {
-            "mountain":  { "iron_mine": 4, "coal_pit": 3, "gem_mine": 2, "gold_mine": 1, "quarry": 1 },
-            "hills":     { "iron_mine": 4, "coal_pit": 4, "quarry": 2, "gem_mine": 1 },
-            "highlands": { "iron_mine": 2, "quarry": 3, "coal_pit": 1, "gem_mine": 1, "gold_mine": 0.5 },
+            "mountain":  { "iron_mine": 4, "coal_pit": 3, "gem_mine": 2, "gold_mine": 1, "quarry": 1, "copper_mine": 2 },
+            "hills":     { "iron_mine": 4, "coal_pit": 4, "quarry": 2, "gem_mine": 1, "copper_mine": 3 },
+            "highlands": { "iron_mine": 2, "quarry": 3, "coal_pit": 1, "gem_mine": 1, "gold_mine": 0.5, "copper_mine": 2 },
             "snow_peak": { "gem_mine": 1, "gold_mine": 1, "iron_mine": 1 }
         },
         "strikeMigrants": 12, "exhaustMigrants": 1.5,

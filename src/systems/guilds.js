@@ -457,9 +457,11 @@ export const Guilds = {
     /**
      * A sale went through (Trading.sellGoods): the toll the player paid goes
      * to the guildhall, the outsider's units are counted against the week's
-     * cap, a member's standing grows with the trade.
+     * cap, a member's standing grows with the trade. The company's factors
+     * (systems/merchantHouses.js) sell as the player's outsiders too, with
+     * `standing: false`: their trade is the company's, not the player's.
      */
-    onSale(player, s, goodId, qty, earned) {
+    onSale(player, s, goodId, qty, earned, { standing = true } = {}) {
         if (!s || !s.guilds || !(qty > 0)) return;
         const g = Guilds.guardOf(s, goodId);
         if (g && !Guilds._monopolyOver(s, goodId, g.id)) {
@@ -481,7 +483,7 @@ export const Guilds = {
                 st.stats.premium += Math.round(earned * (f - 1) / f);
             }
         }
-        Guilds._tradeStanding(player, s, goodId, earned);
+        if (standing) Guilds._tradeStanding(player, s, goodId, earned);
     },
 
     /** A purchase went through (Trading.buyGoods): members' standing grows with trade in the guild's goods. */

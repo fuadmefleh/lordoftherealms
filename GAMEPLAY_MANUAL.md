@@ -502,7 +502,7 @@ Every settlement keeps one store of goods: about thirty staples from grain, brea
 - **Works up goods.** Wherever the output runs short, its trades turn goods into others:
   - Every settlement mills grain into flour, bakes it into bread, brews beer and burns charcoal.
   - Every settlement also tans hides into leather.
-  - Towns and larger also weave, tailor, distil and make cheese. Their smiths turn iron and coal into tools and weapons, or iron and firewood into tools.
+  - Towns and larger also weave, tailor, distil and make cheese. Their smiths turn iron and coal into tools and weapons, or iron and firewood into tools, and their founders cast copper (with a little coal) into bronze ware: pots, bells, lamps and fittings.
   - Cities and capitals also have jewellers, who turn gems into luxuries.
 - **Consumes.** Its people eat, drink, burn and wear out goods every day, more of them in bigger towns. Cities and capitals also want wine, luxuries, spices, gems and quality horses. In cold weather they burn 3× the firewood and wear out more clothes. A town holds at most twice its target of firewood, so a cold winter far from the forests is felt. Food and fuel can stand in for each other: with no bread they eat porridge, with no firewood they burn coal. When a good runs short, people buy at most half of what's left, so a dear good stays on sale.
 - **Spoils.** Bread, fish and meat go off within days, grain keeps for months, and iron never spoils. Each store can only hold so much.
@@ -572,7 +572,7 @@ A taken cargo goes to the band's packs (a lair banks it in its hoard). It never 
 
 Beyond buying and selling, a rich trader can work a town's market from the inside. Open a town's **Trade** window and use its **🏭 Invest**, **📦 Warehouse** and **📜 Contracts** tabs (the **📒 Holdings** tab lists everything you own, anywhere). The Steward's Counsel warns of contracts falling due, rent owed, stock spoiling and works at risk. Tuned in `data/merchantPrince.json`.
 
-**Industry.** Fund works in a town: a grain mill, bakehouse, brewhouse, charcoal kilns, distillery, weaving shed, tailors' hall, creamery, tannery, smithy, armoury or jewellers' row. Each one is one of the town's own trades (the recipes above), and needs a big enough town. Each level costs gold plus building materials from your packs, adds a few runs a day, and costs 35% more than the last. A works can grow to 3 levels (the jewellers to 2).
+**Industry.** Fund works in a town: a grain mill, bakehouse, brewhouse, charcoal kilns, distillery, weaving shed, tailors' hall, creamery, tannery, smithy, armoury, bronze foundry or jewellers' row. Each one is one of the town's own trades (the recipes above), and needs a big enough town. Each level costs gold plus building materials from your packs, adds a few runs a day, and costs 35% more than the last. A works can grow to 3 levels (the jewellers to 2).
 
 - **How it runs.** On market day the works run after the town's own trades, on the town's real stock:
   - First they take over a share of the work the town's own trade did that turn: the town's craftsmen bring their work to the better-found works. The share is the works' runs against the works' and the trade's together, so a level takes nearly its full capacity from a big, busy trade and only a little from a small or idle one. The stores end as the trade left them; only the margin is yours.
@@ -582,7 +582,7 @@ Beyond buying and selling, a rich trader can work a town's market from the insid
   - They run only as far as the town's artisans can staff them, and stand idle while the artisans strike (see [Labour, Classes and Migration](#labour-classes-and-migration)).
 - **What it pays.** You get **52%** of the value the works added (the output's worth less the inputs', at the town's prices), and out of it you pay the hands the works hire at the town's craft wage. The crown takes a **tithe** of your share: 10%, +15% while the realm is at war, and +20% while its treasury is in crisis. If you rule a realm whose court enforces *Merchant charters*, foreign crowns take only half.
 - **Your own towns.** In a town you hold, works cost 15% less, pay you **72%** (less the wages), and owe no tithe. There is no tithe anywhere in a realm you rule.
-- **Choosing a town.** The tab shows each trade's inputs and outputs with their stock labels, what a run adds at today's prices, and how much the town's own trade already works. A level in one of the great towns repays itself in about 35–55 days (a bakehouse about 40, a tannery about 55; a little faster once the towns have grown). In a small town, or one short of the inputs, it may barely turn: a brewhouse, mill, tannery or armoury in an ordinary town takes 100 days or more. Weaving sheds and smithies are starved of wool and iron unless you bring them in: sell the inputs into the town and the works will use them. The jewellers' row cuts gems into luxuries: the craftsmen make fewer luxuries outright than they used to, so the stalls are no longer glutted with them and there are gems to cut late in the game; a fashion for jewelled finery makes both dearer for a season, and pious plainness cheaper.
+- **Choosing a town.** The tab shows each trade's inputs and outputs with their stock labels, what a run adds at today's prices, and how much the town's own trade already works. A level in one of the great towns repays itself in about 35–55 days (a bakehouse about 40, a tannery about 55; a little faster once the towns have grown). In a small town, or one short of the inputs, it may barely turn: a brewhouse, mill, tannery or armoury in an ordinary town takes 100 days or more. Weaving sheds and smithies live on the wool and iron of the hinterland: a smithy in a town fed by an iron mine repays in about 15–55 days (the larger the town, the faster), in a small town with little use for tools 60–80. A bronze foundry needs a copper mine nearby. The jewellers' row cuts gems into luxuries: the craftsmen make fewer luxuries outright than they used to, so the stalls are no longer glutted with them and there are gems to cut late in the game; a fashion for jewelled finery makes both dearer for a season, and pious plainness cheaper.
 - **Losing it.**
   - A realm at war with you, or with the realm you are sworn to, seizes your works at once.
   - A crown whose treasury is in crisis may seize them at its weekly reckoning.
@@ -683,11 +683,12 @@ A town's welfare above or below the ordinary moves its mood by a point or two.
 
 The villages and countryside around every town specialise by their land. Open a town's **Trade** window and use its **⛏️ Hinterland** tab; the sites also show on the map as small icons beside their hexes (zoomed in), with a bar for what is left in a deposit and a gold ring round your own leases. Tuned in `data/hinterland.json`.
 
-**Rural sites.** Each hex within 3 of a settlement belongs to the nearest one, and a town works its best few (2 for a village, up to 5 for a capital). An iron, coal, gem or gold deposit makes a mine, stone a quarry, salt a salt pan, timber a logging camp, a fish bank a fishery, horses a stud, cattle a ranch. About one hill or mountain hex in five hides a vein the locals know of even where the map shows none. Open pasture and hills without a deposit run sheep.
+**Rural sites.** Each hex within 3 of a settlement belongs to the nearest one, and a town works its best few (2 for a village, up to 5 for a capital). An iron, coal, gem or gold deposit makes a mine, stone a quarry, salt a salt pan, timber a logging camp, a fish bank a fishery, horses a stud, cattle a ranch. About one hill or mountain hex in four hides a vein the locals know of even where the map shows none; **copper** is found only so (no map shows it), in hills, highlands and mountains. Open pasture and hills without a deposit run sheep.
 
 | Site | Gives (a day, full hands) | Deposit |
 |---|---|---|
-| ⛏️ Iron mine | 1.3 iron | 700–2,000 iron |
+| ⛏️ Iron mine | 1.5 iron | 700–2,000 iron |
+| 🟠 Copper mine | 1 copper | 600–1,800 copper |
 | 💎 Gem mine | 0.25 gems | 120–360 gems |
 | 💰 Gold diggings | 0.25 gold ore | 120–360 |
 | ⚫ Coal pit | 1.2 coal | 700–1,800 |
@@ -709,7 +710,7 @@ On the home town's market day each site sends what it dug half to its home marke
   - **Light** digs less and spares the vein.
   - **Steady** is the normal pace.
   - **Hard** digs 40% more but wastes the vein faster. Its pits can collapse (miners killed, the pit idle for 6 days, the town and the crown angry), and the hard pace sours the town.
-- **Selling.** The ore is sold into the market town at 85% of what the lot is worth there on its scarcity curve. Or you can send it to **your own works** within 6 hexes (a smithy for iron, a jewellers' row for gems, a weaving shed for wool), which use it before the town's stock.
+- **Selling.** The ore is sold into the market town at 85% of what the lot is worth there on its scarcity curve. Or you can send it to **your own works** within 6 hexes (a smithy for iron, a bronze foundry for copper, a jewellers' row for gems, a weaving shed for wool), which use it before the town's stock.
 - **Losing a lease.** You lose it at the end of its term, when the vein runs out, at war with the realm, under an embargo between it and the crown you rule or serve, after a default on its lenders, or when you cannot pay its wages and royalties for 14 days (that also counts as a missed payment on your credit). You also lose it when the town changes hands, or by royal edict if the crown's treasury is empty. A realm you rule can revoke a merchant house's lease.
 
 The Steward's Counsel warns when your vein is running out or a lease owes money, and points to auctions nearby.
@@ -727,7 +728,7 @@ The people who work a town's trades band together in **guilds**. A town bakes, b
 | Weavers / Tailors | weaving / tailoring | textiles / clothes | wool / textiles |
 | Tanners | tannery | leather | hides |
 | Cheesewrights | dairy | cheese | meat |
-| Smiths | smithy, forge, armoury | tools, weapons | iron, coal |
+| Smiths | smithy, forge, armoury, founder | tools, weapons, bronze ware | iron, coal, copper |
 | Chandlers | chandlery | lamp oil | rock oil |
 | Jewellers (cities) | jewellers | luxuries | gems |
 | Merchants (cities of 5,000+) | — | spices, wine, salt | spices, wine, salt |
@@ -736,7 +737,7 @@ The people who work a town's trades band together in **guilds**. A town bakes, b
 
 **Its powers in its town.** These apply to the guild's own goods, in its own town:
 - **The outsider toll.** If you are not a member, the guild takes **12%** of what you are paid (20% if it holds a royal charter). The toll goes into its guildhall. An apprentice pays half; a journeyman pays none. If you rule a realm whose court enforces *Merchant charters*, the guilds there may only toll half as much.
-- **The sale cap.** An outsider may sell only about **5 days of the town's need** of the guild's goods a week. The guild's weekly turn resets the cap.
+- **The sale cap.** An outsider may sell only about **5 days of the town's need** of the guild's goods a week. The guild's weekly turn resets the cap. Your trading company's factors sell as outsiders too: their sales count against the same cap (a post sells no more once it is reached) and pay the toll into the guildhall. A post closing down clears its stock past the cap, toll paid.
 - **The price floor.** The stalls never sell the guild's goods below **80%** of their base ask (90% if it holds a charter), however glutted the market.
 - **The guild's mark.** A master's goods carry the guild's mark and fetch **8%** more. No sale ever pays more than buying the goods back here.
 - **Guild rates.** Journeymen and up buy the guild's materials **6%** cheaper.
@@ -791,6 +792,11 @@ The heralds cry embargoes, treaties, trade wars, export bans and granaries opene
 
 **As a merchant.**
 - **Duties** are taken from what you are paid when you sell goods bought in another realm (see above). The crown banks the duty. Your books show it as *Import duties in your sale prices*. Licence fees show as *Tariffs*, smuggling takings as *Smuggling* and smuggling fines as *Fines*.
+- **However you sell.** The booking travels with the goods, so the duty is the same whichever way they reach the buyer:
+  - **Your caravans and trade routes** pay the destination realm's import duty out of their takings on arrival (twice it on goods from a realm the destination embargoed while the caravan was on the road). Smuggling routes dodge it, at their usual risk.
+  - **Your ships.** Cargo bought at a port is booked to the port's realm; goods loaded from your packs keep their booking, and it comes back with them when you unload. Landing it at another realm's port pays that realm's import duty. A port under embargo with the cargo's realm buys none of it.
+  - **Your trading company.** A factor's stock is booked to the realm it was bought in, and the booking goes with a convoy. A factor's sale pays the import duty on stock from another realm, and sells none of an embargoed realm's goods.
+- **Export bans at the source.** A realm that bans the export of a kind of goods also stops it leaving by your hand: no caravan, trade route or company convoy carries it across the border, and no ship's hold is filled with it at its ports (the open sea counts as abroad). A licence from that crown lets it go. A route stalls until the ban is lifted.
 - **Embargoed goods.** Goods you bought in a realm that this realm embargoes (or that embargoes it) can't be sold on the open market here. **Smuggle** them from the Trade Policy panel (1 AP). They sell for 25% more than an honest sale, but the watch may catch you. The chance starts at 12% and rises with your heat in the realm and the town's guards, and falls with your stealth. Caught, you lose the goods, pay a fine of half their worth, gain heat and may be jailed. Even a run that works raises your heat a little.
 - **Export bans.** Selling abroad goods whose home crown bans their export (grain in a famine) is allowed, but word gets back: heat in that realm (0.4 per unit, at most 12 a sale).
 - **Licences.** Petition a crown for a **trading licence** (150 gold plus 25 per town of the realm, 40% off if your reputation there is 25 or more; refused under −10 reputation or with heat of 40). For 120 days you pay none of its duties and may carry its banned goods out. The fee goes into its treasury.
@@ -2225,6 +2231,8 @@ Kingdom wars are fought for **goals**, not to the last man:
 - **Armies persist.** Losses stick; a realm's army rebuilds about 4% of the way back to what its land can support each day, and sheds men quickly when land is lost.
 - **How wars end.** When an aggressor reaches its war goal (3–8 tiles), the loser sues for peace and pays **20% of its treasury in tribute**. A badly outmatched side may sue early, and long wars end in a truce from sheer weariness.
 - **Truces.** Peace brings a **180-day truce**: neither side may declare war again until it runs out. A realm already fighting two wars won't open a third.
+- **The first peace.** The new crowns keep the peace for their first weeks: no realm declares war on another before day 45–120 (the day differs for each pair of realms), while the young realms of one or two towns found their villages.
+- **The last stand.** A realm's last town is defended at a further +50% on top of its walls. When it is about to fall, the realm usually **capitulates** instead (80% of the time, less against an ambitious lord, more against an honourable one): it pays **40% of its treasury** and signs a truce, and lives on. Otherwise the town is taken and the realm falls.
 - **Falling and rising.** A realm falls only when its **last town** does; if its capital is taken, its court flees to its largest remaining town. A fallen realm's old towns remember it: unless the occupier's realm is content (stability 75+), each old town has a small daily chance to throw off its rule and **restore the old kingdom**. The chance grows as the occupier's stability falls, and the restored realm goes straight to war with its occupier.
 
 **Wars of the Realm** (at any settlement, while a war or truce is on) lists every war with both sides' progress toward their goals, the truces in force, and the fallen realms. From there you can:

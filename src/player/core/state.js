@@ -182,7 +182,9 @@ export class Player {
 
         // Finance tracking — rolling history of daily income/expenses
         this.financeHistory = [];  // Array of { day, gold, income: {}, expenses: {} }
-        this.financeToday = null;  // Current day's running tally
+        // Today's running tally (systems/ledger.js): open from the first day, so
+        // flows written before the first close aren't lost
+        this.financeToday = { income: {}, expenses: {} };
     }
 
     /**

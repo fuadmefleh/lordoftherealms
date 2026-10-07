@@ -2,6 +2,7 @@
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
 import { Underworld } from '../../systems/underworld.js';
+import { TradePolicy } from '../../systems/tradePolicy.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerInventory, Economy, SettlementMarket } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
@@ -33,6 +34,16 @@ Object.assign(PlayerEconomy, {
             return { success: false, reason: 'Destination too far (max 20 tiles)' };
         }
 
+        // The crowns' trade policy (systems/tradePolicy.js): an export ban
+        // keeps the goods at home; goods from a realm under embargo at the
+        // destination only a smuggler moves
+        const fromTile = world.getTile(fromPos.q, fromPos.r);
+        const destTown = PlayerEconomy._caravanDest(world, toSettlement);
+        for (const [goodType, quantity] of Object.entries(goods)) {
+            const block = PlayerEconomy._caravanPolicyBlock(player, world, (fromTile && fromTile.settlement) || fromTile, destTown, goodType, quantity);
+            if (block) return { success: false, reason: block };
+        }
+
         // Calculate expected profit
         let expectedProfit = 0;
         for (const [goodType, quantity] of Object.entries(goods)) {
@@ -57,9 +68,11 @@ Object.assign(PlayerEconomy, {
         // Markets near gems, spices, salt, horses or oil draw more buyers
         expectedProfit = Math.floor(expectedProfit * Economy.caravanProfitMultiplier(world, toSettlement));
 
-        // Deduct cost and goods
+        // Deduct cost and goods (their bookings by realm go with them)
         player.gold -= cost;
+        const lots = {};
         for (const [goodType, quantity] of Object.entries(goods)) {
+            TradePolicy.addLots(lots, goodType, TradePolicy.takePlayerLots(player, goodType, quantity));
             player.inventory[goodType] -= quantity;
         }
 
@@ -75,6 +88,7 @@ Object.assign(PlayerEconomy, {
             expectedProfit,
             daysRemaining: Math.ceil(dist / (2 * (1 + Technology.getEffectTotal(player, 'caravanSpeedBonus')))), // ~2 tiles/day
             status: 'traveling',
+            lots,
         };
 
         PlayerEconomy._applyRoadLink(world, caravan, null);
@@ -118,6 +132,9 @@ Object.assign(PlayerEconomy, {
         );
 
         if (dist > 20) return { success: false, reason: 'Destination too far' };
+        // An export ban keeps the goods in the realm (systems/tradePolicy.js)
+        const banned = TradePolicy.exportBlock(player, world, tile, PlayerEconomy._caravanDest(world, toSettlement) || toSettlement, outputGood);
+        if (banned) return { success: false, reason: banned };
 
         // Calculate expected profit OR just mark as internal transfer
         let expectedProfit = 0;
@@ -144,8 +161,10 @@ Object.assign(PlayerEconomy, {
             }
         }
 
-        // Deduct cost and storage
+        // Deduct cost and storage (booked as goods of the realm they were made in)
         player.gold -= cost;
+        const lots = {};
+        TradePolicy.book(lots, tile, outputGood, property.storage);
         property.storage = 0;
 
         // Create caravan
@@ -162,7 +181,8 @@ Object.assign(PlayerEconomy, {
             status: 'traveling',
             isInternalTransfer,
             targetPropertyType: toSettlement.isPlayerProperty ? toSettlement.type : null,
-            unitId: null // To be filled
+            unitId: null, // To be filled
+            lots,
         };
 
         // Spawn physical unit
@@ -200,6 +220,45 @@ Object.assign(PlayerEconomy, {
             caravan.daysRemaining = Math.max(1, Math.ceil(caravan.daysRemaining * 2 / 3));
         }
         return true;
+    },
+
+    /** The settlement on a caravan's destination hex (it carries the realm), or null. */
+    _caravanDest(world, to) {
+        const t = to && world && typeof world.getTile === 'function' ? world.getTile(to.q, to.r) : null;
+        return (t && t.settlement) || null;
+    },
+
+    /**
+     * Why the crowns stop `qty` of a good setting out from `from` for `dest`
+     * (systems/tradePolicy.js), or null: the home realm's export ban, or
+     * goods booked from a realm the destination embargoes.
+     */
+    _caravanPolicyBlock(player, world, from, dest, goodId, qty) {
+        const banned = TradePolicy.exportBlock(player, world, from, dest, goodId);
+        if (banned) return banned;
+        if (!dest) return null;
+        const check = TradePolicy.saleCheck(player, world, dest, goodId, qty);
+        return check.ok ? null : check.reason;
+    },
+
+    /**
+     * The crowns' cut of a caravan's takings at its destination: each good
+     * pays the import tariff on the units booked in another realm (twice it
+     * on units from a realm the destination embargoed while it was on the
+     * road). → { mult, checks: [[goodId, qty, check]] }; mult is the
+     * value-weighted share the caravan keeps.
+     */
+    _caravanDuties(player, world, caravan, destTown, values) {
+        const checks = [];
+        let total = 0, kept = 0;
+        for (const [goodId, qty] of Object.entries(caravan.goods || {})) {
+            const v = Math.max(0, values[goodId] || 0);
+            const check = destTown ? TradePolicy.consignCheck(player, world, caravan.lots, qty, destTown, goodId, qty, 'double') : null;
+            total += v;
+            kept += v * (check ? check.mult : 1);
+            if (check) checks.push([goodId, qty, check]);
+        }
+        return { mult: total > 0 ? kept / total : 1, checks };
     },
 
     /**
@@ -349,16 +408,22 @@ Object.assign(PlayerEconomy, {
                     const targetTile = world.getTile(caravan.toPos.q, caravan.toPos.r);
                     const destTown = targetTile && targetTile.settlement;
                     let marketValue = 0;
+                    const values = {};
                     for (const [goodId, qty] of Object.entries(caravan.goods)) {
                         const good = PlayerEconomy.GOODS[String(goodId).toUpperCase()];
+                        let v;
                         if (destTown && destTown.market && good && SettlementMarket.tracks(goodId)) {
-                            marketValue += SettlementMarket.lotValue(world, destTown, targetTile, goodId, good.basePrice, qty) * Trading.SELL_SHARE;
+                            v = SettlementMarket.lotValue(world, destTown, targetTile, goodId, good.basePrice, qty) * Trading.SELL_SHARE;
                             SettlementMarket.add(destTown, goodId, qty);
                         } else {
                             const currentPrice = MarketDynamics.getPrice(goodId, caravan.toPos.q, caravan.toPos.r, world);
-                            marketValue += currentPrice * Trading.SELL_SHARE * qty;
+                            v = currentPrice * Trading.SELL_SHARE * qty;
                         }
+                        values[goodId] = (values[goodId] || 0) + v;
+                        marketValue += v;
                     }
+                    // Customs at the destination (systems/tradePolicy.js); smugglers dodge them
+                    const duties = caravan.isSmugglingRoute ? null : PlayerEconomy._caravanDuties(player, world, caravan, destTown, values);
 
                     const dist = Hex.wrappingDistance(caravan.fromPos.q, caravan.fromPos.r, caravan.toPos.q, caravan.toPos.r, world.width);
                     const distanceMultiplier = PlayerEconomy.caravanDistanceMultiplier(dist);
@@ -429,11 +494,20 @@ Object.assign(PlayerEconomy, {
                             + WorldEvents.getModifier(world, 'landTradeIncome', destTile);
                         finalProfit = Math.max(0, Math.floor(finalProfit * (1 + eventMod)));
                     }
+                    // The crown's import duty comes out of the takings (a memo line in the ledger)
+                    let duty = 0;
+                    if (duties && duties.mult < 1 && finalProfit > 0) {
+                        const kept = Math.floor(finalProfit * duties.mult);
+                        duty = TradePolicy.payDuty(player, world, destTown, kept, { rate: 1 - duties.mult });
+                        finalProfit = kept;
+                    }
+                    if (duties) for (const [, qty, check] of duties.checks) TradePolicy.breachHeat(player, world, qty, check);
                     player.gold += finalProfit;
                     if (finalProfit > 0) Quests.track(player, 'trade_profit', finalProfit);
                     completed.push({
                         ...caravan,
                         finalProfit,
+                        duty,
                         status: smuggleCaught ? 'smuggling_caught' : 'completed',
                         message: smuggleCaught
                             ? `${caravan.from} → ${caravan.to}: guards intercepted part of the shipment.`

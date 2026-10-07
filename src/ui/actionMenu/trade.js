@@ -888,8 +888,8 @@ Object.assign(ActionMenu, {
         // ── Categorise goods ──
         const CATEGORIES = {
             food:      { label: 'Food & Drink', icon: '🍞', keys: new Set(['grain','flour','bread','fish','preserved_fish','beer','liquor','meat','berries','mushrooms','small_fish','large_fish','crab','swordfish','lobster','golden_fish','cheese','dried_meat','honey','salt','tea','wine']) },
-            materials: { label: 'Materials',     icon: '⛏️', keys: new Set(['wood','firewood','stone','iron','ore','wool','hide','pelts','rope','candles','dyes','incense','pottery','lantern','arrows','compass']) },
-            crafted:   { label: 'Crafted Goods', icon: '🔧', keys: new Set(['tools','weapons','textiles','clothes','agri_parts','industry_parts','military_parts','infra_parts','commerce_parts','leather_armor','shield','bow']) },
+            materials: { label: 'Materials',     icon: '⛏️', keys: new Set(['wood','firewood','stone','iron','copper','ore','wool','hide','pelts','rope','candles','dyes','incense','pottery','lantern','arrows','compass']) },
+            crafted:   { label: 'Crafted Goods', icon: '🔧', keys: new Set(['tools','bronze','weapons','textiles','clothes','agri_parts','industry_parts','military_parts','infra_parts','commerce_parts','leather_armor','shield','bow']) },
             luxury:    { label: 'Luxury & Rare', icon: '💎', keys: new Set(['luxuries','gems','gold_ore','spices','exotic_spices','silk','perfume','horses','horse','herbs','antler','feather','healing_salve','potion','elixir','treasure_map','ancient_coin','rare_book','amulet','enchanted_ring']) },
         };
         function getCat(id) {
@@ -1215,8 +1215,8 @@ Object.assign(ActionMenu, {
         // Build goods list from NPC inventory
         const CATEGORIES = {
             food:      { label: 'Food & Drink',   icon: '🍞', keys: new Set(['grain','flour','bread','fish','preserved_fish','beer','liquor','meat','berries','mushrooms','cheese','dried_meat','honey','salt','tea','wine']) },
-            materials: { label: 'Materials',       icon: '⛏️', keys: new Set(['wood','firewood','stone','iron','ore','wool','hide','pelts','rope','candles','dyes','incense','pottery','lantern','arrows','compass']) },
-            crafted:   { label: 'Equipment',       icon: '⚔️', keys: new Set(['tools','weapons','textiles','clothes','leather_armor','shield','bow','agri_parts','industry_parts','military_parts','infra_parts','commerce_parts']) },
+            materials: { label: 'Materials',       icon: '⛏️', keys: new Set(['wood','firewood','stone','iron','copper','ore','wool','hide','pelts','rope','candles','dyes','incense','pottery','lantern','arrows','compass']) },
+            crafted:   { label: 'Equipment',       icon: '⚔️', keys: new Set(['tools','bronze','weapons','textiles','clothes','leather_armor','shield','bow','agri_parts','industry_parts','military_parts','infra_parts','commerce_parts']) },
             rare:      { label: 'Exotic & Rare',   icon: '✨', keys: new Set(['luxuries','gems','gold_ore','spices','exotic_spices','silk','perfume','horses','horse','herbs','antler','feather','healing_salve','potion','elixir','treasure_map','ancient_coin','rare_book','amulet','enchanted_ring']) },
         };
         function getCat(id) {

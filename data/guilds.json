@@ -52,7 +52,7 @@
         "tailors":   { "name": "Tailors' Guild", "icon": "👕", "recipes": ["tailor"], "goods": ["clothes"], "inputs": ["textiles"], "minRuns": 1, "masterpiece": { "textiles": 12, "tools": 1 } },
         "tanners":   { "name": "Tanners' Guild", "icon": "🟫", "recipes": ["tannery"], "goods": ["leather"], "inputs": ["hide"], "minRuns": 0.75, "masterpiece": { "hide": 20, "salt": 4 } },
         "cheesewrights": { "name": "Cheesewrights' Guild", "icon": "🧀", "recipes": ["dairy"], "goods": ["cheese"], "inputs": ["meat"], "minRuns": 0.8, "masterpiece": { "meat": 15, "salt": 6 } },
-        "smiths":    { "name": "Smiths' Guild", "icon": "🔨", "recipes": ["smithy", "forge", "armoury"], "goods": ["tools", "weapons"], "inputs": ["iron", "coal"], "minRuns": 1, "masterpiece": { "iron": 12, "coal": 8 } },
+        "smiths":    { "name": "Smiths' Guild", "icon": "🔨", "recipes": ["smithy", "forge", "armoury", "founder"], "goods": ["tools", "weapons", "bronze"], "inputs": ["iron", "coal", "copper"], "minRuns": 1, "masterpiece": { "iron": 12, "coal": 8 } },
         "chandlers": { "name": "Chandlers' Guild", "icon": "🕯️", "recipes": ["chandler"], "goods": ["lamp_oil"], "inputs": ["oil"], "minRuns": 0.4, "masterpiece": { "oil": 8, "wood": 10 } },
         "jewellers": { "name": "Jewellers' Guild", "icon": "💍", "recipes": ["jeweller"], "goods": ["luxuries"], "inputs": ["gems"], "minRuns": 0.25, "masterpiece": { "gems": 4, "tools": 2 } },
         "merchants": { "name": "Merchants' Guild", "icon": "⚖️", "recipes": [], "goods": ["spices", "wine", "salt"], "inputs": ["spices", "wine", "salt"], "minType": "city", "minPop": 5000, "masterpiece": { "spices": 6, "wine": 6 } }

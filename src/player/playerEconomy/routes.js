@@ -2,6 +2,7 @@
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, Economy } from './_imports.js';
+import { TradePolicy } from '../../systems/tradePolicy.js';
 
 Object.assign(PlayerEconomy, {
     /**
@@ -182,6 +183,18 @@ Object.assign(PlayerEconomy, {
             return { success: false, reason: 'Route endpoint is invalid' };
         }
 
+        // A legal route halts while the home realm bans the export or the
+        // destination embargoes where the goods were bought (systems/tradePolicy.js)
+        if (!route.isSmuggling) {
+            const block = PlayerEconomy._caravanPolicyBlock(player, world, fromTile.settlement || fromTile, toTile.settlement, route.goodId, route.quantity);
+            if (block) {
+                route.lastResult = 'stalled_policy';
+                route.stallReason = block;
+                return { success: false, reason: block };
+            }
+        }
+        route.stallReason = null;
+
         const goods = { [route.goodId]: route.quantity };
         const dist = Hex.wrappingDistance(route.fromPos.q, route.fromPos.r, route.toPos.q, route.toPos.r, world.width);
 
@@ -197,6 +210,9 @@ Object.assign(PlayerEconomy, {
         }
 
         player.gold -= dispatchCost;
+        // The goods' bookings by realm travel with them (customs on arrival)
+        const lots = {};
+        TradePolicy.addLots(lots, route.goodId, TradePolicy.takePlayerLots(player, route.goodId, route.quantity));
         player.inventory[route.goodId] -= route.quantity;
         if (player.inventory[route.goodId] <= 0) delete player.inventory[route.goodId];
 
@@ -213,6 +229,7 @@ Object.assign(PlayerEconomy, {
             status: 'traveling',
             routeId: route.id,
             isSmugglingRoute: !!route.isSmuggling,
+            lots,
         };
 
         const caravanUnit = new WorldUnit('caravan', route.fromPos.q, route.fromPos.r, route.toPos.q, route.toPos.r);

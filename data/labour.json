@@ -86,7 +86,7 @@
     "strikes": { "below": 0.65, "wageBelow": 0.85, "chance": 2.5, "days": 7, "gap": 45, "minType": "town", "boomAt": 0.9, "boomGap": 60 },
 
     "_works": "Hands a level of the player's works (systems/merchantPrince.js) hires from the town's artisans, paid the local craft wage for the runs the works make (a run must earn its wages as well as its margin, or the works stand idle — SettlementMarket._runWorks; idlePay of them would be kept on as a skeleton crew while the works stand idle). The wages come out of the player's share of the value added (data/merchantPrince.json investorShare / ownShare were raised to carry them).",
-    "works": { "idlePay": 0, "hands": { "mill": 2, "bakery": 8, "brewery": 7, "charcoal": 3, "distillery": 4, "weaver": 4, "tailor": 3, "dairy": 3, "smithy": 2, "armoury": 4, "jeweller": 4 } },
+    "works": { "idlePay": 0, "hands": { "mill": 2, "bakery": 8, "brewery": 7, "charcoal": 3, "distillery": 4, "weaver": 4, "tailor": 3, "dairy": 3, "smithy": 2, "armoury": 4, "founder": 3, "jeweller": 4 } },
 
     "_properties": "The player's properties hire from the nearest town within `radius` hexes (none in the wild: they bring their own). wageShare of a property's upkeep is its wage bill at the base wage of that town; the bill floats with the local wage, and a town short of hands staffs it only as far as its fill. Properties of the craftCategories hire artisans, the rest (farms, mines, camps) peasants and labourers.",
     "properties": { "radius": 3, "wageShare": 0.5, "craftCategories": ["crafts", "food", "commerce"] },

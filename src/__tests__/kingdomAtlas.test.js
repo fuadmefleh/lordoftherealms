@@ -135,7 +135,7 @@ describe('Charts at war', () => {
             const a = kingdom('a', { military: 1000, relations: { b: -80, c: -80, d: -80 } });
             const ks = [a, kingdom('b'), kingdom('c'), kingdom('d')];
             KingdomAtlas.recordChart(a, { kingdomId: 'c', accuracy: 0.7, day: 0 });
-            KingdomAI.considerWar(a, makeWorld(ks));
+            KingdomAI.considerWar(a, makeWorld(ks, 120)); // (past the realms' first peace, KingdomAI.foundingPeace)
             for (const w of a.wars) picks.add(w);
         }
         expect([...picks]).toEqual(['c']);

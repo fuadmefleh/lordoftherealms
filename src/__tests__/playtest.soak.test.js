@@ -316,7 +316,8 @@ describe('headless playtest soak', () => {
             'petitionsRuled', 'companionsHired', 'shipsBought', 'crewHired', 'voyages', 'daysAtSea', 'propertiesBuilt',
             'companyFounded', 'postsOpened', 'ordersSet', 'worksFunded',
             // The long game also rides with (and now and then robs) the merchant caravans
-            ...(LONG ? ['escortsHired', 'escortsPaid', 'caravansRobbed', 'craftGuildJoined', 'guildRankUp'] : [])]) {
+            // ...and bids for the crowns' mining leases (systems/concessions.js)
+            ...(LONG ? ['escortsHired', 'escortsPaid', 'caravansRobbed', 'craftGuildJoined', 'guildRankUp', 'leaseBids'] : [])]) {
             expect(totals[key] || 0, `the bot never did "${key}" — ${JSON.stringify(totals)}`).toBeGreaterThan(0);
         }
     });

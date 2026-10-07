@@ -371,7 +371,7 @@ describe('militaristic AI personality', () => {
             const a = mk('a', traits, 90);
             const b = mk('b', [], 100);
             a.relations.b = -80;
-            const world = { kingdoms: [a, b], events: [], day: 1 };
+            const world = { kingdoms: [a, b], events: [], day: 121 }; // day 1 of the second year: past the realms' first peace
             // Seed so the reckless roll fails for both (0.1 and 0.02 thresholds)
             Utils.setSeed(3);
             KingdomAI.considerWar(a, world);

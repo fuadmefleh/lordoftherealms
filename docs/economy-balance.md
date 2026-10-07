@@ -595,8 +595,45 @@ Rural sites around the towns (`world/hinterland.js`), finite deposits, prospecti
 
 **Open.**
 - Gem mines are rare on flat maps (seeds 101, 303 and 404 have none at the start; prospecting finds a few by day 200).
-- The bot does not bid for leases.
-- Copper has no good in the market, so there are no copper mines.
+- ~~The bot does not bid for leases.~~ Closed by [Integration gaps](#integration-gaps-2026-10).
+- ~~Copper has no good in the market, so there are no copper mines.~~ Closed by [Integration gaps](#integration-gaps-2026-10).
+
+## Integration gaps (2026-10)
+
+Closing the seams the economy passes left between their systems. Kingdom survival is in [world-stability.md](world-stability.md).
+
+**Duties wherever the player sells abroad** (`systems/tradePolicy.js` consignments). The player's goods were booked by the realm they were bought in, but only `Trading.sellGoods` read the booking. Now the booking travels with the goods (`lots`: `{ goodId: { realmKey: units } }`, moved in proportion, unbooked units stay the player's own):
+- **Caravans and trade routes** (`player/playerEconomy/caravans.js`, `routes.js`) take the player's bookings with the goods. On arrival each good pays the destination's import tariff on the units booked in another realm. The duty is taken from the final takings, after every bonus, as a value-weighted rate, and goes into the destination's treasury. Units from a realm the destination embargoed while the caravan was on the road pay twice the tariff, at least 10%. Smuggling routes pay none. An export ban at home, or an embargo at the destination on the goods' realm, refuses the caravan (a route stalls with `stalled_policy` until it lifts). A licence waives the ban.
+- **Ships** (`systems/ships.js`): a hold filled at port is booked to the port's realm. Goods loaded from the packs keep their booking, and it comes back when they are unloaded. `sellTradeGood` pays the port realm's import tariff (`ship.lots`) and refuses embargoed cargo. `buyTradeGood` refuses goods the port's realm bans for export: a hold is bound abroad.
+- **The company's factors** (`systems/merchantHouses.js`): post stock is booked to the realm it was bought in, convoys carry the booking, and factor sales (weekly orders, closing a post, convoy sell-offs) pay the import tariff and sell none of an embargoed realm's goods. A convoy will not carry banned goods out of the realm, or a realm's goods into one that embargoes it.
+- **Ledger.** Every duty is the memo line *Import duties in your sale prices* (`saleDuties`), as for stall sales.
+- **No money loop.** A duty only ever lowers what the player is paid (rate ≤ 0.9), never raises it. Duties go to crowns. The double rate under embargo is a cost, not a premium. Home-bought goods pay nothing at home, as before. Tested in `src/__tests__/econIntegration.test.js`.
+
+**Factors and the guilds.** A factor sells as the player's outsider. Weekly orders are capped by `Guilds.outsiderRoom`, count into the guild's week, and the toll inside the factor's price now reaches the guildhall (`Guilds.onSale(..., { standing: false })`: the player's own standing doesn't grow from the company's trade). Clearance sales (closing a post, a convoy with nowhere to go) pay the toll but ignore the cap.
+
+**Copper and bronze.**
+- `copper` (16 g) and `bronze` ware (42 g: pots, bells, lamps, buckles, ship's fittings) are new market goods. Bronze is cast without tin, from arsenical copper. Some copper (0.25 + 0.5 upland of a town's need) and bronze (0.4) still come from the craftsmen, so towns far from a mine aren't bare.
+- `founder` recipe: copper 1 + coal 0.3 → bronze 1, in towns and larger. It has a works (Bronze Foundry, 220 g + 10 stone, 4 copper), a player Forge recipe (Cast Bronze: 3 copper → 2 bronze) and the Smiths' Guild.
+- Copper mines (1 copper a day, 600–1,800 deposit, leasable) appear only as hidden veins and prospecting strikes, weighted 2–3 in hills, highlands and mountains. Copper is no map resource, so terrain generation and the golden snapshots don't change. `hidden` is 0.25 (was 0.2), which keeps about as many hidden iron and coal veins as before.
+- Seeds 101, 202 and 303 have 6–9 copper mines each. Copper and bronze average about 1.25–1.35 scarcity after 120 days.
+- **Not done:** copper in the coinage. Purity (`world/coinage.js`) is an abstract share that `systems/finance.js` debases. There is no mint step to hang a copper draw on without reworking finance, which another pass owns.
+
+**Tools and the smithy.** Measured as in The Hinterland: seeds 101, 202 and 303, player kept fed, one smithy level funded on day 20 in the 8 most populous smithy towns fed by an iron mine, 120 days.
+
+| | Towns with tools shortage > 0.1 at day 120 | Mean shortage gauge | Smithy payback, median (all 24) |
+|---|---|---|---|
+| Before | 11/76, 2/61, 10/77 | 0.012–0.057 | 61 days (15–121) |
+| Iron 1.5, smiths' cap 0.45, smithy 170 g | 11/76, 2/61, 10/77 | about the same | 48 days |
+| …and craftsmen's tools 0.8 (**chosen**) | 2/73, 1/58, 1/79 | 0.002–0.005 | **42 days** (16–258) |
+
+- The short towns were nearly all villages of 150–500 people with no smiths, plus a few capitals at the end of long supply lines. More iron and more town smithing didn't reach them. A bit more of the craftsmen's own tools (`supply.tools` 0.7 → 0.8) did. Tools average 1.15–1.2 scarcity, down from 1.13–1.38.
+- The smithy repays in 16–30 days in towns of 5,000 or more and 45–80 days in towns of 1,500–2,600. The outliers (159, 258) are towns under 2,100 people with little use for tools.
+- Changes: `data/hinterland.json` iron_mine 1.3 → 1.5 iron a day; `data/markets.json` smithy cap 0.35 → 0.45 and `supply.tools` 0.7 → 0.8; `data/merchantPrince.json` smithy 200 → 170 g.
+
+**Small fixes.**
+- `player.financeToday` is open from the first day: `player/core/state.js`, and `SaveLoad.restorePlayer` for older saves that kept `null`. Systems that only write into an open tally (housing, jobs, ships, ...) no longer lose the first day.
+- Ships bought or commissioned are the capital line *Ships bought and built* (`shipsBought`, kind `cap`), not upkeep. Repairs and fittings stay in *Ships*.
+- The playtest bot bids for mining leases. After day 120, with 3,500 gold, on a hash of the day and town (no RNG), it bids at the top of the houses' range (0.22 of the term's net) where the lease is worth at least 2.5× the bid, and holds at most 2. The long soak checks `leaseBids`.
 
 ## Re-measuring
 

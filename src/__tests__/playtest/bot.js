@@ -48,6 +48,7 @@ import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { Guilds } from '../../systems/guilds.js';
 import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
+import { Concessions } from '../../systems/concessions.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { Seasons } from '../../world/seasons.js';
 import { travelTo } from './harness.js';
@@ -809,6 +810,36 @@ function guilds(game, tile, stats) {
     }
 }
 
+/**
+ * Mining leases (systems/concessions.js): now and then, once settled and with
+ * money to spare, bid the least bid on an open auction of a realm's deposit
+ * near here when the lease looks like it repays its fee well inside the
+ * term. Picks by a hash of the day and the town, not the RNG, so the rest of
+ * the run's dice stay where they were.
+ */
+function concessions(game, tile, stats) {
+    const { player, world } = game;
+    const s = tile.settlement;
+    if (world.day < 120 || player.gold < 3500 || s.kingdom == null) return;
+    if (((world.day * 7 + tile.q * 13 + tile.r * 17) % 5) !== 0) return;
+    const held = Concessions.mine(player, world).length;
+    if (held >= 2) return;
+    for (const { a, site } of Concessions.auctionsNear(world, tile.q, tile.r, 8)) {
+        if (a.kingdomId !== s.kingdom) continue;
+        const q = Concessions.leaseQuote(player, world, site.id);
+        if (!q.ok || !q.est || !(q.est.net > 0)) continue;
+        // (the houses bid up to about a fifth of the term's net at the close: match the top of that)
+        const worth = q.est.net * q.est.term * q.est.cap;
+        const fee = Math.max(q.minBid, Math.round(worth * 0.22));
+        if (a.bid > 0 || worth < fee * 2.5 || player.gold < fee + 3000) continue;
+        if (Concessions.bid(player, world, a.id, fee).success) { count(stats, 'leaseBids'); break; }
+    }
+    // Leases won: count each once
+    for (const m of Concessions.mine(player, world)) {
+        if (!m.c.botSeen) { m.c.botSeen = true; count(stats, 'leasesHeld'); }
+    }
+}
+
 function settlementBusiness(game, stats) {
     const { player, world } = game;
     const tile = world.getTile(player.q, player.r);
@@ -834,6 +865,7 @@ function settlementBusiness(game, stats) {
     booked(game, 'bourse', () => bourse(game, tile, stats));
     booked(game, 'merchantPrince', () => merchantPrince(game, tile, stats));
     booked(game, 'guilds', () => guilds(game, tile, stats));
+    booked(game, 'concessions', () => concessions(game, tile, stats));
 }
 
 // ── Out in the world ─────────────────────────────────────────

@@ -166,9 +166,9 @@
             "productionRate": 5,
             "upkeep": 12,
             "requiredSettlement": true,
-            "allowedRecipes": ["TOOLS", "WEAPONS", "IRON_INGOT"],
+            "allowedRecipes": ["TOOLS", "WEAPONS", "IRON_INGOT", "CAST_BRONZE"],
             "recipeChangeCost": 200,
-            "description": "A dedicated smithy. Forges tools or weapons from iron. Upkeep: 12g/day"
+            "description": "A dedicated smithy. Forges tools or weapons from iron, or casts bronze ware from copper. Upkeep: 12g/day"
         },
         "TANNERY": {
             "id": "tannery",
@@ -612,6 +612,8 @@
         "TOOLS": { "id": "tools", "name": "Tools", "icon": "🔧", "basePrice": 35 },
         "WEAPONS": { "id": "weapons", "name": "Weapons", "icon": "⚔️", "basePrice": 60 },
         "GOLD_ORE": { "id": "gold_ore", "name": "Gold Ore", "icon": "💰", "basePrice": 40 },
+        "COPPER": { "id": "copper", "name": "Copper", "icon": "🟠", "basePrice": 16, "description": "Smelted copper from the hill mines. The founders cast it into bronze; tinkers and coppersmiths use the rest." },
+        "BRONZE": { "id": "bronze", "name": "Bronze Ware", "icon": "🔔", "basePrice": 42, "description": "Pots, bells, lamps, buckles and ship's fittings, cast from the copper of these hills (its own arsenic hardens it: no tin needed)." },
         "IRON_INGOT": { "id": "iron_ingot", "name": "Iron Ingot", "icon": "🔩", "basePrice": 75 },
         "GOLD_BAR": { "id": "gold_bar", "name": "Gold Bar", "icon": "🥇", "basePrice": 150 },
         "GEMS": { "id": "gems", "name": "Gems", "icon": "💎", "basePrice": 60 },
@@ -710,6 +712,7 @@
         "CLOTHES": { "id": "clothes", "name": "Tailor Clothes", "input": "textiles", "inputQty": 1, "output": "clothes", "outputQty": 2, "description": "Sew warm clothing." },
         "TOOLS": { "id": "tools", "name": "Forge Tools", "input": "iron", "inputQty": 1, "output": "tools", "outputQty": 2, "description": "Smith essential tools." },
         "WEAPONS": { "id": "weapons", "name": "Forge Weapons", "input": "iron", "inputQty": 2, "output": "weapons", "outputQty": 1, "description": "Forge weapons for war." },
+        "CAST_BRONZE": { "id": "bronze", "name": "Cast Bronze", "input": "copper", "inputQty": 3, "output": "bronze", "outputQty": 2, "description": "Melt copper (its own arsenic hardens it) and cast pots, bells and fittings." },
         "LUXURIES": { "id": "luxuries", "name": "Refine Luxuries", "input": "gold_ore", "inputQty": 2, "output": "luxuries", "outputQty": 1, "description": "Craft fine jewelry." },
         "BEER": { "id": "beer", "name": "Brew Beer", "input": "grain", "inputQty": 3, "output": "beer", "outputQty": 4, "description": "Brew ale from grain. Popular at taverns." },
         "LIQUOR": { "id": "liquor", "name": "Distill Liquor", "input": "grain", "inputQty": 5, "output": "liquor", "outputQty": 2, "description": "Distill strong spirits from grain. High value." },

@@ -53,6 +53,8 @@ import { KingdomNavy } from '../world/kingdomNavy.js';
 import { KingdomBonuses } from '../world/kingdomState.js';
 import { Quests } from './quests.js';
 import { LossBook } from './lossBook.js';
+import { TradePolicy } from './tradePolicy.js';
+import { Guilds } from './guilds.js';
 
 const DEFAULT_CONFIG = {
     charter: { baseCost: 900, perSettlement: 60, maxCost: 2400, minReputation: 0 },
@@ -158,6 +160,8 @@ export const MerchantHouses = {
         c.stats = { contractsDone: 0, contractsFailed: 0, robberies: 0, convoysLost: 0, ...(c.stats || {}) };
         for (const p of c.posts) {
             if (!p.stock || typeof p.stock !== 'object') p.stock = {};
+            // The stock's bookings by realm (systems/tradePolicy.js: customs on the factor's sales)
+            if (!p.lots || typeof p.lots !== 'object') p.lots = {};
             if (!Array.isArray(p.orders)) p.orders = [];
             p.skimmed = _num(p.skimmed);
             p.suspicion = _num(p.suspicion);
@@ -298,6 +302,37 @@ export const MerchantHouses = {
         const legality = Underworld.legalSaleCheck({ inventory: { [goodId]: qty } }, goodId, qty, s, world);
         if (!legality.ok) return 0;
         return Math.max(0, Trading.saleUnitPrice(player, good, s, world, legality.priceMult, qty));
+    },
+
+    /**
+     * A factor's sale of up to `qty` of `held` units booked in `lots` on
+     * `tile`, as the crowns and the guild allow it: an outsider's weekly cap
+     * on the guild's goods (systems/guilds.js), no units from a realm under
+     * embargo here, the import tariff on units bought in another realm
+     * (systems/tradePolicy.js). → { n, unit, earned, check } (n 0: nothing
+     * may be sold). Settle with _settleFactorSale once the sale is made.
+     */
+    _factorSale(player, world, tile, lots, held, goodId, qty, { cap = true } = {}) {
+        const s = tile && tile.settlement;
+        const none = { n: 0, unit: 0, earned: 0, check: null };
+        if (!s || !(qty > 0)) return none;
+        let n = Math.min(Math.floor(qty), cap ? Guilds.outsiderRoom(player, s, goodId) : Infinity);
+        let check = TradePolicy.consignCheck(player, world, lots, held, s, goodId, n);
+        if (!check.ok) {
+            n = Math.min(n, Math.floor(held - check.embargoed + 1e-9));
+            check = TradePolicy.consignCheck(player, world, lots, held, s, goodId, n);
+        }
+        if (!(n > 0) || !check.ok) return none;
+        const unit = MerchantHouses.factorSaleUnit(player, world, tile, goodId, n) * check.mult;
+        return { n, unit, earned: Math.floor(unit * n), check };
+    },
+
+    /** After a factor's sale: the duty to the crown, the bookings drawn down, the guild's toll and the outsider's cap. */
+    _settleFactorSale(player, world, s, lots, goodId, sale) {
+        if (!sale || !(sale.n > 0)) return 0;
+        const { duty } = TradePolicy.consignSale(player, world, lots, s, goodId, sale.n, sale.earned, sale.check);
+        Guilds.onSale(player, s, goodId, sale.n, sale.earned, { standing: false });
+        return duty;
     },
 
     // ── Charters & founding ─────────────────────────────────────
@@ -604,7 +639,7 @@ export const MerchantHouses = {
             q: tile.q, r: tile.r, name: tile.settlement.name, kingdom: tile.settlement.kingdom || null,
             openedDay: _day(world),
             factor: { ...factor, hiredDay: _day(world), unpaid: 0 },
-            stock: {}, orders: [], skimmed: 0, suspicion: 0, lastWeek: null,
+            stock: {}, lots: {}, orders: [], skimmed: 0, suspicion: 0, lastWeek: null,
         };
         c.posts.push(post);
         delete c.candidates[_key(tile.q, tile.r)];
@@ -638,8 +673,11 @@ export const MerchantHouses = {
         let earned = 0;
         for (const [id, qty] of Object.entries(post.stock)) {
             if (!(qty > 0)) continue;
-            const unit = MerchantHouses.factorSaleUnit(player, world, tile, id, qty);
-            earned += Math.floor(unit * qty);
+            // A clearance sale: the guild takes its toll but sets no cap; goods under embargo here are let go
+            const sale = MerchantHouses._factorSale(player, world, tile, post.lots, qty, id, qty, { cap: false });
+            if (!(sale.n > 0)) continue;
+            MerchantHouses._settleFactorSale(player, world, tile.settlement, post.lots, id, sale);
+            earned += sale.earned;
         }
         if (earned > 0) MerchantHouses._credit(c, world, earned, 'sales', `Stock sold off closing ${post.name}`);
         c.posts = c.posts.filter(p => p !== post);
@@ -1173,15 +1211,29 @@ export const MerchantHouses = {
             dest = { q: to.q, r: to.r, name: to.name, postId: to.id };
         } else return { success: false, reason: 'Send it where?' };
         if (n <= 0) return { success: false, reason: 'Nothing to send.' };
+        // The crowns' trade policy (systems/tradePolicy.js): an export ban keeps
+        // the goods in the realm; a realm under embargo at the far end takes none of its goods
+        const fromTile = world.getTile(post.q, post.r);
+        const destTile = world.getTile(dest.q, dest.r);
+        const banned = TradePolicy.exportBlock(player, world, (fromTile && fromTile.settlement) || fromTile, (destTile && destTile.settlement) || destTile, goodId);
+        if (banned) return { success: false, reason: banned };
+        if (destTile && destTile.settlement) {
+            const check = TradePolicy.consignCheck(player, world, post.lots, have, destTile.settlement, goodId, n);
+            if (!check.ok) return { success: false, reason: check.reason };
+        }
         const plan = MerchantHouses.convoyPlan(player, world, post, dest.q, dest.r, n);
         if (c.capital < plan.fee) return { success: false, reason: `The ${plan.mode} costs ${plan.fee} gold.` };
         MerchantHouses._debit(c, world, plan.fee, 'convoys', `${plan.mode === 'ship' ? 'Ship' : 'Caravan'}: ${n} ${_label(goodId)} ${post.name} → ${dest.name}`);
+        // The goods' bookings by realm travel with them
+        const lots = {};
+        TradePolicy.addLots(lots, goodId, TradePolicy.takeLots(post.lots, goodId, n, have));
         post.stock[goodId] -= n;
         if (post.stock[goodId] <= 0) delete post.stock[goodId];
         const convoy = {
             id: MerchantHouses._nextId(player, 'cv'), from: post.name, fromQ: post.q, fromR: post.r,
             to: dest.name, q: dest.q, r: dest.r, postId: dest.postId || null, contractId: dest.contractId || null,
             good: goodId, qty: n, mode: plan.mode, risk: plan.risk, departDay: _day(world), arriveDay: _day(world) + plan.days,
+            lots,
         };
         c.convoys.push(convoy);
         return { success: true, convoy, plan };
@@ -1205,21 +1257,24 @@ export const MerchantHouses = {
             const contract = MerchantHouses.getContract(player, convoy.contractId);
             let left = qty;
             if (contract) left -= MerchantHouses._deliver(player, world, contract, qty, `by ${convoy.mode}`, out);
-            if (left > 0) {
-                // A cancelled or overfilled contract: sell what's left in town
-                const tile = world.getTile(convoy.q, convoy.r);
-                const unit = MerchantHouses.factorSaleUnit(player, world, tile, convoy.good, left);
-                if (unit > 0) MerchantHouses._credit(c, world, unit * left, 'sales', `${left} ${_label(convoy.good)} sold off at ${convoy.to}`);
-            }
+            if (left > 0) MerchantHouses._sellOff(player, world, c, convoy, left);
             return;
         }
         const post = MerchantHouses.getPost(player, convoy.postId);
-        if (post) post.stock[convoy.good] = _num(post.stock[convoy.good]) + qty;
-        else {
-            const tile = world.getTile(convoy.q, convoy.r);
-            const unit = MerchantHouses.factorSaleUnit(player, world, tile, convoy.good, qty);
-            if (unit > 0) MerchantHouses._credit(c, world, unit * qty, 'sales', `${qty} ${_label(convoy.good)} sold off at ${convoy.to}`);
-        }
+        if (post) {
+            post.stock[convoy.good] = _num(post.stock[convoy.good]) + qty;
+            if (!post.lots) post.lots = {};
+            TradePolicy.addLots(post.lots, convoy.good, convoy.lots && convoy.lots[convoy.good]);
+        } else MerchantHouses._sellOff(player, world, c, convoy, qty);
+    },
+
+    /** A convoy with nowhere to go sells off in the town it reached (customs and the guild's toll paid; no outsider cap). */
+    _sellOff(player, world, c, convoy, qty) {
+        const tile = world.getTile(convoy.q, convoy.r);
+        const sale = MerchantHouses._factorSale(player, world, tile, convoy.lots, qty, convoy.good, qty, { cap: false });
+        if (!(sale.earned > 0)) return;
+        MerchantHouses._settleFactorSale(player, world, tile.settlement, convoy.lots, convoy.good, sale);
+        MerchantHouses._credit(c, world, sale.earned, 'sales', `${sale.n} ${_label(convoy.good)} sold off at ${convoy.to}`);
     },
 
     // ── Royal ventures ──────────────────────────────────────────
@@ -1344,11 +1399,15 @@ export const MerchantHouses = {
             // Rivals in town take some of the custom, unless the company holds the monopoly
             const share = holder === 'player' ? 1 + cfg.monopoly.sellVolumeBonus : (rivalHere ? cfg.rivals.undercutVolume : 1);
             const spare = _num(post.stock[good.id]) - order.keep;
-            const sellN = Math.min(order.sellQty, spare, Math.floor(sellVolume * share));
+            const wantN = Math.min(order.sellQty, spare, Math.floor(sellVolume * share));
+            // The guild's cap on an outsider's sales and the crowns' customs (systems/guilds.js, systems/tradePolicy.js)
+            const sale = wantN > 0 ? MerchantHouses._factorSale(player, world, tile, post.lots, _num(post.stock[good.id]), good.id, wantN) : null;
+            const sellN = sale ? sale.n : 0;
             if (sellN > 0) {
-                const unit = MerchantHouses.factorSaleUnit(player, world, tile, good.id, sellN);
+                const unit = sale.unit;
                 if (unit > 0 && unit >= order.sellAbove) {
-                    const earned = Math.floor(unit * sellN);
+                    const earned = sale.earned;
+                    MerchantHouses._settleFactorSale(player, world, s, post.lots, good.id, sale);
                     post.stock[good.id] -= sellN;
                     if (post.stock[good.id] <= 0) delete post.stock[good.id];
                     sellVolume -= sellN;
@@ -1375,6 +1434,8 @@ export const MerchantHouses = {
                     if (n > 0) {
                         purchases += MerchantHouses._debit(c, world, cost, 'purchases', `${post.name}: bought ${n} ${_label(good.id)} at ${Math.round(cost / n * 10) / 10}`);
                         post.stock[good.id] = _num(post.stock[good.id]) + n;
+                        if (!post.lots) post.lots = {};
+                        TradePolicy.book(post.lots, s, good.id, n);
                         SettlementMarket.take(s, good.id, n);
                         buyVolume -= n;
                     }

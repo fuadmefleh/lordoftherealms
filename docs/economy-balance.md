@@ -739,9 +739,10 @@ The forecast is worth something, but it is not a sure thing. The best trade is s
 - Single seeds swing widely: insurance is for variance.
 - `underwriting.test.js` holds the line on a long run with 8 farms in 8 regions: claims are paid, and claims are below premiums for both marine and crop.
 
-**The bot over 800 days** (the long soak, seeds 101, 404 and 505, which opened cover):
-- premiums less claims: −3,000 to −5,500 g;
-- 3–9 claims paid per seed.
+**The bot over 800 days** (the long soak; the four seeds whose bot opened cover):
+- premiums less claims: −1,100 to −5,600 g;
+- 2–11 claims paid per seed;
+- shares: −1,200 to −6,700 g of buying and selling against +60 to +2,900 g of dividends (the bot sells whenever it is short of gold).
 
 **No money loops.**
 - A loss pays at most 90% of its value, so losing goods on purpose always costs money.

@@ -964,7 +964,7 @@ function harvests(game, tile, stats) {
  * cloth put out here is collected; in autumn and winter wool or flax (bought
  * here when it is cheap) goes out to the cottagers at the fair rate; after
  * day 150, with gold to spare, the cheapest estate here or for sale nearby is
- * bought (two at most), its rent taken in kind when the tenants grow sullen
+ * bought (one; keeping 5,000g in hand for the rest of the trade), its rent taken in kind when the tenants grow sullen
  * and its fields drained when there is money for it. Picks by a hash of the
  * day and the town, not the RNG.
  */
@@ -992,9 +992,9 @@ function land(game, tile, stats) {
         }
     }
     const mine = LandMarket.mine(player, world);
-    if (world.day >= 150 && mine.length < 2 && ((world.day * 5 + tile.q * 3 + tile.r) % 4) === 0) {
+    if (world.day >= 150 && mine.length < 1 && ((world.day * 5 + tile.q * 3 + tile.r) % 4) === 0) {
         const ids = [...Estates.estatesOf(world, s.q, s.r).map(e => e.id), ...LandMarket.listingsNear(world, s.q, s.r, 12).map(x => x.e.id)];
-        const quotes = ids.map(id => LandMarket.buyQuote(player, world, id)).filter(q => q.ok && q.cost <= player.gold - 1500).sort((a, b) => a.cost - b.cost);
+        const quotes = ids.map(id => LandMarket.buyQuote(player, world, id)).filter(q => q.ok && q.cost <= player.gold - 5000).sort((a, b) => a.cost - b.cost);
         if (quotes.length && LandMarket.buy(player, world, quotes[0].estate.id).success) count(stats, 'estatesBought');
     }
     if (world.day % 7 === 0) {

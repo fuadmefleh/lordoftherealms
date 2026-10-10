@@ -16,6 +16,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
     - [Kingdom Trade Policy](#kingdom-trade-policy) — tariffs, export bans, embargoes, treaties, trade wars, state granaries; smuggling, licences and brokered treaties
     - [The Economic Chronicle](#the-economic-chronicle-the-gazette-your-books-and-fashions) — your books by source and net worth, the realms' weekly gazette, fashions at court
     - [Specie, Mints & the Price Level](#specie-mints--the-price-level) — each realm's coin, where it flows and what it does to prices; selling bullion, leasing a mint, recoinage, money changers, false coin
+    - [The Crown's Purse](#the-crowns-purse-taxes-wages--tax-farms) — every crown's budget: taxes out of its towns, wages back into them, arrears and desertion, tax levels, tax revolts, tax farms you can bid for, fiscal crises
 5. [Properties & Production](#5-properties--production)
 6. [Crafting](#6-crafting)
 7. [Caravans & Trade Routes](#7-caravans--trade-routes)
@@ -1010,6 +1011,70 @@ The crown's taxes follow the coin a little: a realm drained of coin collects up 
 **False coin.** A Thieves' Guild hand of rank 1 or above can buy a batch of silvered copper from the guild's coiners (the Mint's 🕯️ Coiners tab, in any realm's town): stake 100–600g of good coin and clear 55% more if it passes. The watch catches about 16% of batches, more if your name is hot in the realm and less as you rise in the guild, and clipped coin is easier to fake. Caught, you lose the stake and pay a fine as large again, your heat rises and you may be jailed. One batch a week. Every false coin passed swells the realm's coin a little.
 
 **News.** Heralds cry recoinages, coin shortages (prices well under the world's) and floods of coin. Townsfolk grumble about both, and merchants say where goods are cheap for want of coin. The Steward's Counsel tells you when a mint nearby would pay more for the bullion in your packs than the market, and, as a ruler, when your realm's coin is clipped, short or flooding.
+
+### The Crown's Purse: Taxes, Wages & Tax Farms
+
+Every crown keeps real books. Its gold is not conjured from its towns' prosperity: it is **taxed out of the towns' purses** (where their production and trade income lands), and its wages and upkeep **go back into them**. The treasury is what is left over.
+
+**Revenue.** Each town's collectors come round once a week and take every day's dues since:
+- **Land tax**: a share of the peasants' earnings (more in a bumper year, less in a failed one) and of the town's production gold.
+- **Hearth tax**: so much for every working head. Clergy and nobles are exempt; merchants pay half as much again.
+- **Excise**: a share of the artisans' earnings and the merchants' trade income.
+- **The demesne**: the crown's own estates, a share of the land's gold (the capital's counts double), and the crown's monopolies.
+- **Customs and tolls** (trade policy, public works), **seigniorage** (the mint), **tax farms sold**, an **extraordinary levy** while one runs, and **offices and crown land sold**.
+- How much reaches the chests depends on the steward, the realm's stability, blockades, events and the coin about, less what **corrupt officials** keep.
+
+**Spending.**
+- **Army wages**: every soldier is paid daily, at 1.6× in the field, plus a bounty for each recruit.
+- **Court and administration**: a base, more per town and per head.
+- **Roads and works**, **debt service**, the **famine dole and granaries**, and the **ruler's purse** (the royal levy).
+- Whatever else moves the treasury (events, tribute, temples, the fleet) shows as **Other**, so the books always balance.
+
+**Arrears.** What the chests can't pay is owed. Soldiers unpaid for more than a week desert: the army the realm can keep shrinks by about 1% a day, to 60% at worst. Each unpaid day also costs stability, and after three weeks the heralds cry a mutiny. Unpaid clerks raise **corruption**, which leaks taxes and weighs on the people. Back pay is paid first when money returns, and deserters return within days.
+
+**Tax levels.** There are four: Light (×0.75), Standard, Heavy (×1.3) and Crushing (×1.65).
+- Heavier taxes fill the chests but raise the **burden** the people feel. That lowers each class's welfare (so the poor drift to lighter realms), lowers the realm's stability ("Taxes & pay"), and breeds tax revolts.
+- NPC crowns review their level about monthly:
+  - Their temper sets the starting point: peaceful and mercantile realms tax lightly, aggressive ones heavily.
+  - They tax more at war, when the chests are low or the soldiers unpaid.
+  - They tax less when rich, when the realm is restless, or after a tax revolt.
+  - A rich court turns lavish, a broke one frugal and on half pay.
+
+**Tax revolts.** Each week, a heavily taxed town whose peasants are hard-pressed may drive out the collectors. Its taxes are withheld for 30 days, it loses happiness, and the realm loses stability. A tax farmer's squeeze makes revolts likelier.
+
+**Tax farming.** A crown short of money (low chests, weeks in deficit, at war, or its soldiers unpaid) may auction the taxes of one of its towns (never the capital) for 120 days.
+- The lot is reckoned at the town's recent taxes over the term. A banking house bids 82–92% of that, and the lot closes after a week.
+- The farmer collects the town's taxes in the crown's place, and squeezes: a house takes 1.25×.
+- **You can bid** from any town of that realm (🧾 Treasury → Tax farms). Your bid is held until the lot closes and returned if you are outbid or the auction is called off.
+- Choose how hard your collectors press. Your men take 5% for their trouble.
+
+| Squeeze | Take | Reputation in the realm | The town's happiness |
+|---|---|---|---|
+| Gentle | ×1.05 (you barely clear the stake) | none | none |
+| Firm | ×1.2 | −0.02 a day | −0.01 a day |
+| Harsh | ×1.4 (rich, and hated) | −0.06 a day | −0.05 a day |
+
+A conquered town's new masters do not honour your farm, and a tax revolt drives your men out for a month.
+
+**Fiscal crises.** A crown at war, in deficit or with its soldiers unpaid borrows from the banking houses (the Bank). It is in crisis when:
+- it misses debt payments,
+- its soldiers go two weeks unpaid,
+- its debt runs past its capacity (25 days of revenue), or
+- it spends eight weeks in deficit with the chests below a month's reserve.
+
+In crisis, it raises an extraordinary levy (an extra 30% tax for 60 days), debases its coin (the crown keeps the extra pieces struck), sells offices (20 days' revenue now, corruption for years), sells crown land (the demesne shrinks for good), or defaults.
+
+**As a ruler**, the 🧾 Treasury (from the Royal Court's Realm tab, or any town of your realm) shows:
+- the budget line by line, yesterday and last week;
+- the treasury's year as a sparkline;
+- the people's burden, corruption, arrears and the demesne.
+
+There you set:
+- each tax apart (land, hearth, excise);
+- the army's pay: half pay is cheap but the army shrinks to 88%; generous pay costs 25% more for a loyal 105% army;
+- the court: frugal breeds corruption, lavish adds stability.
+
+You can also put a town's taxes to auction, and sell offices or crown land. Your royal levy is a share of the crown's daily taxes. The 🏰 Realms tab compares every realm's purse.
 
 ### Tax Collection
 

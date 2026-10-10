@@ -127,7 +127,21 @@ export const Fiscal = {
     restore(saved, world) {
         if (!world) return;
         world.fiscal = _obj(saved) ? JSON.parse(JSON.stringify(saved)) : Fiscal._blank();
-        Fiscal.state(world);
+        const st = Fiscal.state(world);
+        // The towns' markers are derived from the books (a settlement saves only its own fields)
+        if (typeof world.getTile !== 'function') return;
+        for (const farm of st.farms) {
+            const tile = world.getTile(farm.q, farm.r);
+            const s = tile && tile.settlement;
+            if (s) s.taxFarm = { id: farm.id, holder: farm.holder, holderName: farm.holderName, squeeze: farm.squeeze, until: farm.until };
+        }
+        const days = _num(Fiscal.config().revolts.days, 30);
+        for (const h of st.history) {
+            if (!h || h.kind !== 'tax_revolt' || h.q == null) continue;
+            const tile = world.getTile(h.q, h.r);
+            const s = tile && tile.settlement;
+            if (s) s.taxRevolt = Math.max(_num(s.taxRevolt), _num(h.day) + days);
+        }
     },
 
     _record(world, st, rec) {
@@ -253,7 +267,7 @@ export const Fiscal = {
     _townsByRealm(world, day) {
         const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : world.getAllSettlements();
         const c = Fiscal._group;
-        if (c && c.world === world && c.views === views && day - c.day < 7 && day >= c.day) {
+        if (c && c.world === world && c.n === views.length && day - c.day < 7 && day >= c.day) {
             let ok = true;
             for (const [kid, arr] of c.byK) {
                 for (const t of arr) if (t.s.kingdom !== kid) { ok = false; break; }
@@ -271,7 +285,7 @@ export const Fiscal = {
             if (!arr) byK.set(s.kingdom, arr = []);
             arr.push({ q: v.q, r: v.r, s, key: _key(v.q, v.r) });
         }
-        Fiscal._group = { world, views, day, byK };
+        Fiscal._group = { world, n: views.length, day, byK };
         return byK;
     },
 

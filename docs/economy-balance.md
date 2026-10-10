@@ -922,7 +922,7 @@ Measured with the harness's `mark` timing, 361 days, seeds 101–303, with the p
 
 The price level is clamp((coin × velocity / people against the world's)^0.5, 0.9, 1.12), moving 20% of the way each week. Velocity: 12% hoarded at war, 10% more in a panic. `Coinage.priceMultiplier` = the purity term × the level.
 
-**Why the treasuries are only partly backed.** A crown's income is the daily growth of its towns' `economy.gold`, an accumulator that is never spent. Treasuries reach 30,000–350,000 g, 2–15 times the realm's circulating coin. Drawing taxes from the coin in circulation would drain it to nothing within weeks in every rich realm, so full conservation was not tried. Instead, the crown's gold is tied to the coin where it is reasonable:
+**Why the treasuries are only partly backed** (before the Crown's Purse: crowns now keep real books, see [below](#the-crowns-purse-2026-10)). A crown's income is the daily growth of its towns' `economy.gold`, an accumulator that is never spent. Treasuries reach 30,000–350,000 g, 2–15 times the realm's circulating coin. Drawing taxes from the coin in circulation would drain it to nothing within weeks in every rich realm, so full conservation was not tried. Instead, the crown's gold is tied to the coin where it is reasonable:
 - The tax yield follows the coin: `KingdomAI.incomeMultiplier` × level^0.3, clamped to 0.97–1.03.
 - The mint's seigniorage is real coin from real bullion.
 - Tribute, indemnities, crown loans and their repayment move circulating coin between realms.
@@ -1113,6 +1113,88 @@ A new game in the dev server (small map, 200 days, every economy panel and trade
 - The dealers' margin is notional: no gold moves.
 - The player cannot yet issue an edict against engrossers as a ruler. Their realm's council issues it like any crown's.
 - Rival merchant houses don't book engrossing on their capital.
+
+## The Crown's Purse (2026-10)
+
+`systems/fiscal.js`, `world/crownBooks.js`, `data/fiscal.json`. The rules are in [the manual](../GAMEPLAY_MANUAL.md#the-crowns-purse-taxes-wages--tax-farms).
+
+**What changed.**
+- **Before.** A crown's income was the daily growth of its towns' `economy.gold`. That accumulator was never spent, and the towns kept the gold too, so every tax was gold made twice. Treasuries reached 270,000–600,000 g by day 300. On seed 7 at day 300 they ran 51,000–301,000 g, summing to 1.7 M.
+- **Now.** Taxes come out of the towns' purses, and wages and court spending are paid back into them. The treasury is the balance.
+- `KingdomAI.updateEconomy` no longer credits the treasury. It leaves each town's production gold and trade income on `economy.fyProd` / `fyTrade` for the collectors.
+- War upkeep (`KingdomAI.warUpkeep`) and Finance's `warBurn` are switched off. The war's cost is now the army's field pay.
+
+**Revenue and spending at the standard level.**
+
+| Line | Rule |
+|---|---|
+| Land tax | 6% of the peasants' earnings (min(hands, jobs) × the land wage) × the harvest factor, + 6% × half the town's production gold |
+| Hearth tax | 0.0025 g per taxable head a day (peasants 1, artisans 1, merchants 1.5, clergy and nobles 0) |
+| Excise | 3.5% of the artisans' earnings and the merchants' trade income |
+| Demesne | 20% of the production gold (the capital's ×2) |
+| Army | 0.16 g per soldier a day (×1.6 at war, × the upkeep bonuses), + 1 g per recruit |
+| Court | 30 + 6 per town + 0.003 per head a day |
+
+- Levels multiply the taxes: light ×0.75, heavy ×1.3, crushing ×1.65.
+- Collection is × `KingdomAI.incomeMultiplier` (stewardship, events, stability, blockade, coin) × (1 − 0.35 × corruption).
+- Collectors visit each town once a week (staggered) and take every day's dues since.
+- A typical realm of 15,000–20,000 people raises about 300–600 g a day and spends about 250–500 g.
+- The books' 'other' line (events, tribute, temples, the fleet's builds) runs 0 to −400 g a day. Temples and fleets now spend down to what the books leave them.
+
+**Calibration.**
+- The first tuning had land 10%, hearth 0.004 g, excise 6% and demesne 35%. Treasuries still grew in every realm: day-300 treasuries were 28,000–87,000 g on seed 7, and most realms sat at light taxes in surplus.
+- The rates were cut by about 40%. Standard taxes now run a small peacetime surplus, war runs a deficit, and the NPC review keeps the chests near 30–160 days of spending.
+- A rich court goes lavish (×1.4).
+- The coin flow was first 60% of the week's net taxes. That drained every realm's coin as the chests filled: median coin fell to 2,000–8,000 g on seed 7, and the price level hit the floor. It is now 10%, at most 2% of the coin a week.
+- Revolts first ran at 0.12 × pressure (2,373 in 20 worlds) and farms sold whenever a crown was short (3,227). Both were cut: chance 0.06, at most 0.12 a week; farms need 15 days of reserve or 4 weeks in deficit, with a 42-day cooldown.
+
+**Measured** (seeds 7–26, `generate({kingdomCount: 10})`, 1,080 days, the player kept fed; the method of [world stability](world-stability.md); on the code merged with `refactor/editor-tooling` at e6babe35):
+
+| | Day 300 | Day 1,080 |
+|---|---|---|
+| Treasury p5 | 1,900 g | 70 g |
+| p25 | 8,600 g | 7,200 g |
+| Median | 13,200 g | 16,200 g |
+| p75 | 20,700 g | 26,600 g |
+| p95 | 41,500 g | 47,400 g |
+| Price level p5 / median / p95 | 0.90 / 1.00 / 1.10 | 0.90 / 1.01 / 1.12 |
+| Coin about (median) | 24,500 g | 26,700 g |
+
+- **Survival: 184 / 200 (92%).** The pre-merge run measured 184 too. The first tuning measured 180, against 178–181 for the earlier passes.
+
+| Seed | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Alive | 9 | 9 | 9 | 9 | 10 | 8 | 10 | 10 | 9 | 10 | 9 | 10 | 10 | 10 | 10 | 8 | 10 | 10 | 6 | 8 |
+
+- **Tax levels at day 1,080** (184 realms): 38 light, 92 standard, 39 heavy, 15 crushing. 4 realms had their soldiers unpaid.
+- **Over 20 worlds:** 1,343 tax farms sold (about 2 per realm per year), 977 tax revolts (about 1.6 per realm per year), 18 mutinies in the last records.
+- The p5 near 0 at day 1,080 is realms broke from long wars. They borrow, levy, debase or sell offices; a few default.
+
+**No money loops (tested in `src/__tests__/fiscal.test.js`).**
+- Over ten fiscal days, the sum of town purses, treasuries, bank capital, the player's gold and bids held is unchanged to the rounding of the purses. The towns' purses fall by exactly what the crown books as taxes.
+- The player's tax farm pays the town's taxes × the squeeze, less 5% to the collectors.
+  - At the house's discount (82–92% of the reckoned taxes) a firm farm returns about 1.2 × 0.95 / 0.9 ≈ 1.27× the stake over 120 days. A harsh one returns about 1.45×, against reputation, unrest and revolts that stop collection for 30 days.
+  - The lot's estimate follows the town's recent taxes, so outbidding the house raises the stake.
+- Bids are held by the crown and returned when outbid or called off. Both moves are booked in the ledger (`taxFarmBids`, `taxFarms`).
+
+**Tick cost.**
+- The machine was shared with other agents' runs throughout, about 6× slower than the quiet runs of earlier passes: `world.advanceDay` read 55 ms a day against 8.5.
+- Under that load, `Fiscal.processDay` read 3.4–3.6 ms a day in the harness, `Mints.processDay` 1.4 ms and Labour 7.9 ms.
+- A warm microbenchmark of the fiscal day with the settlement scan held read 0.3–0.4 ms.
+- Scaled by the load, the fiscal day is about **0.3–0.5 ms a day**. That may sit above the 0.3 ms target. Re-measure on a quiet machine.
+- What keeps it cheap:
+  - Town dues are collected weekly per town, staggered.
+  - The upkeep bonuses are re-read weekly.
+  - `KingdomAI.updateEconomy` leaves the income multiplier on the books.
+  - The books' pages are reused.
+  - The realms' towns are grouped once a week, or when the scan changes.
+  - Tax-farm lookups are indexed.
+
+**Open.**
+- The perf figure needs a quiet machine.
+- The 'other' line is large for some realms. Temples, the fleet's builds, colonies and events could get lines of their own.
+- The bot does not bid for tax farms.
+- `world/moneySupply.js` still notes the treasury as coin out of circulation. The 'fisc' flow ties the two only at 10% of the net.
 
 ## Re-measuring
 

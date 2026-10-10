@@ -399,50 +399,75 @@ Object.assign(UI.prototype, {
      * Show a custom panel with dynamic content
      */
     showCustomPanel(title, htmlContent) {
-        // Remove existing custom panel if any
+        // A tab bar (setPanelNav) holds while the player moves between its views:
+        // it survives re-renders made from inside the panel (or its dialogs), and
+        // drops when a panel is opened from elsewhere (the map, the action menu, the HUD)
+        const nav = this._panelNav;
+        if (nav && !this._panelNavFresh && this._clickInPanel === false) this._panelNav = null;
+        this._panelNavFresh = false;
+        const navHtml = this._panelNavHtml();
+        // A tabbed window keeps one title (the market of a town) whichever tab shows
+        if (this._panelNav && this._panelNav.title) title = this._panelNav.title;
+
         const existing = document.getElementById('customPanel');
         if (existing) {
             // If panel exists, just update the content body to prevent "blips"
+            const titleEl = existing.querySelector('.custom-panel-title');
+            const changed = titleEl && titleEl.textContent !== title;
+            if (titleEl) titleEl.textContent = title;
+            const navEl = existing.querySelector('.custom-panel-nav');
+            if (navEl) {
+                navEl.innerHTML = navHtml;
+                navEl.style.display = navHtml ? '' : 'none';
+            }
+            existing.classList.toggle('custom-panel--hub', !!navHtml);
             const contentBody = existing.querySelector('.custom-panel-body');
             if (contentBody) {
                 contentBody.innerHTML = htmlContent;
+                // A new view starts at its top; a refresh of the same view keeps its place
+                if (changed || this._panelNavSwitched) contentBody.scrollTop = 0;
             }
-            const titleEl = existing.querySelector('.custom-panel-title');
-            if (titleEl) {
-                titleEl.textContent = title;
-            }
+            this._panelNavSwitched = false;
             return; // Done update
         }
 
         const panel = document.createElement('div');
         panel.id = 'customPanel';
-        panel.className = 'modal-panel';
+        panel.className = 'modal-panel' + (navHtml ? ' custom-panel--hub' : '');
         panel.style.cssText = `
             position: fixed;
-            top: 50%;
+            top: 7.5vh;
             left: 50%;
-            transform: translate(-50%, -50%);
+            transform: translateX(-50%);
             background: rgba(20, 24, 32, 0.98);
             backdrop-filter: blur(10px);
             border: 2px solid var(--gold);
             border-radius: 8px;
             padding: 0;
-            min-width: 400px;
-            max-width: 700px;
+            width: min(720px, 94vw);
             max-height: 80vh;
             z-index: 1000;
             box-shadow: 0 10px 40px rgba(0,0,0,0.8);
             overflow: hidden;
             display: flex;
-            flex-direction: column; 
+            flex-direction: column;
         `;
 
         panel.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <style>
+                #customPanel.custom-panel--hub { height: 80vh; width: min(760px, 94vw) !important; }
+                #customPanel .custom-panel-nav { display:flex; flex-wrap:wrap; gap:2px 4px; padding:6px 12px 0; border-bottom:2px solid rgba(245,197,66,0.15); flex:0 0 auto; }
+                #customPanel .panel-nav-tab { padding:7px 10px; font-size:13px; font-weight:600; color:rgba(255,255,255,0.55); background:none; border:none; border-radius:4px 4px 0 0;
+                    border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; font-family:var(--font-body); white-space:nowrap; transition:color .12s, border-color .12s, background .12s; }
+                #customPanel .panel-nav-tab:hover { color:rgba(255,255,255,0.9); background:rgba(255,255,255,0.04); }
+                #customPanel .panel-nav-tab.active { color:var(--gold); border-bottom-color:var(--gold); background:rgba(245,197,66,0.08); }
+            </style>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); flex: 0 0 auto;">
                 <h3 class="custom-panel-title" style="margin: 0; font-family: var(--font-display); color: var(--gold);">${title}</h3>
                 <button id="closeCustomPanel" style="background: none; border: none; color: var(--text-primary); font-size: 20px; cursor: pointer;">✕</button>
             </div>
-            <div class="custom-panel-body" style="padding: 16px; overflow-y: auto; max-height: calc(80vh - 60px);">
+            <div class="custom-panel-nav" style="${navHtml ? '' : 'display:none;'}">${navHtml}</div>
+            <div class="custom-panel-body" style="padding: 16px; overflow-y: auto; flex: 1 1 auto; min-height: 0;">
                 ${htmlContent}
             </div>
         `;
@@ -455,11 +480,42 @@ Object.assign(UI.prototype, {
     },
 
     /**
+     * Give the custom panel a tab bar that stays put while the player moves
+     * between related views (the market's Buy, Sell, Invest, Ledger, ...).
+     * nav = { id, title?, active, items: [{ key, label, title?, run() }] }; call it just
+     * before the showCustomPanel that renders the active view.
+     */
+    setPanelNav(nav) {
+        this._panelNav = nav && Array.isArray(nav.items) && nav.items.length ? nav : null;
+        this._panelNavFresh = true;
+    },
+
+    /** A tab of the panel's tab bar was clicked (data-ui-act="panelNavGo"). */
+    panelNavGo(key) {
+        const nav = this._panelNav;
+        const item = nav && nav.items.find(i => i.key === key);
+        if (!item) return;
+        nav.active = key;
+        this._panelNavSwitched = true;
+        // The view's own render keeps the bar (setPanelNav may replace it)
+        this._panelNavFresh = true;
+        item.run();
+    },
+
+    _panelNavHtml() {
+        const nav = this._panelNav;
+        if (!nav) return '';
+        const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        return nav.items.map(i => `<button class="panel-nav-tab${i.key === nav.active ? ' active' : ''}" data-ui-act="panelNavGo" data-ui-args='${esc(JSON.stringify([i.key]))}'${i.title ? ` title="${esc(i.title)}"` : ''}>${i.label}</button>`).join('');
+    },
+
+    /**
      * Hide the custom panel
      */
     hideCustomPanel() {
         const panel = document.getElementById('customPanel');
         if (panel) panel.remove();
+        this._panelNav = null;
     },
 
     /**

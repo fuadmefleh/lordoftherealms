@@ -6,6 +6,32 @@ import { TradePolicy } from '../../systems/tradePolicy.js';
 import { policyLine } from './tradePolicy.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, NpcDisposition, Seasons, SettlementMarket } from './_imports.js';
 
+/**
+ * The market's tab bar: Buy and Sell here, and the town's other trade views
+ * (Invest, Warehouse, People, Harvest, Tariffs, Ledger, ...) as tabs of the same
+ * window, so moving between them keeps the bar and the window in place.
+ */
+export function setMarketNav(game, tile, active) {
+    if (!game || !game.ui || typeof game.ui.setPanelNav !== 'function' || !tile || !tile.settlement) return;
+    const go = (fn) => () => fn();
+    const items = [
+        { key: 'buy', label: '🛒 Buy', run: go(() => ActionMenu.showTradeMenu(game, tile, 'buy')) },
+        { key: 'sell', label: '💰 Sell', run: go(() => ActionMenu.showTradeMenu(game, tile, 'sell')) },
+        { key: 'invest', label: '🏭 Invest', title: 'Fund works in this town', run: go(() => ActionMenu.showMerchantPrince(game, null, 'invest')) },
+        { key: 'warehouse', label: '📦 Warehouse', title: 'Rent a store-room here', run: go(() => ActionMenu.showMerchantPrince(game, null, 'warehouse')) },
+        { key: 'contracts', label: '📜 Contracts', title: 'Forward contracts with this town', run: go(() => ActionMenu.showMerchantPrince(game, null, 'contracts')) },
+        { key: 'people', label: '👥 People', title: "The town's classes, work, wages and welfare", run: go(() => ActionMenu.showTownPeople(game, null)) },
+        { key: 'hinterland', label: '⛏️ Hinterland', title: 'The mines, quarries and sheep runs around the town; mining leases and prospecting', run: go(() => ActionMenu.showHinterland(game, null)) },
+        { key: 'harvest', label: '🌾 Harvest', title: "The coming harvest here, the crop reports, the town's fields", run: go(() => ActionMenu.showHarvests(game, null)) },
+    ];
+    if (tile.settlement.guilds) items.push({ key: 'guilds', label: '⚒️ Guilds', title: 'The town guilds: tolls, membership, contracts', run: go(() => ActionMenu.showGuildhall(game, null)) });
+    items.push(
+        { key: 'tariffs', label: '⚖️ Tariffs', title: "The crown's duties, export bans, embargoes and treaties", run: go(() => ActionMenu.showTradePolicy(game, 'here')) },
+        { key: 'ledger', label: '📒 Ledger', title: 'Known prices, best spreads, price history and your trading profit', run: go(() => ActionMenu.showMerchantLedger(game, 'book')) },
+    );
+    game.ui.setPanelNav({ id: 'market', title: `🏪 Market — ${tile.settlement.name || 'Market'}`, active, items });
+}
+
 Object.assign(ActionMenu, {
     /**
      * Show ship passage menu
@@ -883,7 +909,10 @@ Object.assign(ActionMenu, {
     /**
      * Show trade menu
      */
-    showTradeMenu(game, tile) {
+    showTradeMenu(game, tile, section = null) {
+        // Buy or Sell: the one asked for, else the one last shown (a purchase re-renders the window)
+        const tab = section === 'sell' || section === 'buy' ? section : (game.ui && game.ui._tradeTab === 'sell' ? 'sell' : 'buy');
+        if (game.ui) game.ui._tradeTab = tab;
         const goods = Trading.getAvailableGoods(tile.settlement, tile, game.world);
         const playerGold = game.player.gold || 0;
         const settlementName = tile.settlement?.name || 'Market';
@@ -1033,25 +1062,11 @@ Object.assign(ActionMenu, {
         </div>
         ${outlookHtml}
 
-        <div class="trade-tabs">
-            <button class="trade-tab active" data-trade-tab="buy">🛒 Buy</button>
-            <button class="trade-tab" data-trade-tab="sell">💰 Sell</button>
-            <!-- Merchant Prince sections (ui/actionMenu/merchantPrince.js) -->
-            <button class="trade-tab" data-am-act="showMerchantPrince" data-am-args='[null, "invest"]' title="Fund works in this town">🏭 Invest</button>
-            <button class="trade-tab" data-am-act="showMerchantPrince" data-am-args='[null, "warehouse"]' title="Rent a store-room here">📦 Warehouse</button>
-            <button class="trade-tab" data-am-act="showMerchantPrince" data-am-args='[null, "contracts"]' title="Forward contracts with this town">📜 Contracts</button>
-            <button class="trade-tab" data-am-act="showTownPeople" data-am-args='[null]' title="The town's classes, work, wages and welfare">👥 People</button>
-            <button class="trade-tab" data-am-act="showHinterland" data-am-args='[null]' title="The mines, quarries and sheep runs around the town; mining leases and prospecting (ui/actionMenu/hinterland.js)">⛏️ Hinterland</button>
-            <button class="trade-tab" data-am-act="showHarvests" data-am-args='[null]' title="The coming harvest here, the crop reports, the town's fields and your farms' rotation (ui/actionMenu/harvests.js)">🌾 Harvest</button>
-            ${tile.settlement && tile.settlement.guilds ? '<button class="trade-tab" data-am-act="showGuildhall" title="The town guilds: tolls, membership, contracts">⚒️ Guilds</button>' : ''}
-            <button class="trade-tab" data-am-act="showTradePolicy" data-am-args='["here"]' title="The crown's duties, export bans, embargoes and treaties (ui/actionMenu/tradePolicy.js)">⚖️ Tariffs</button>
-            <button class="trade-tab" data-am-act="showMerchantLedger" data-am-args='["book"]' title="Known prices, best spreads, price history and your trading profit (ui/actionMenu/merchantLedger.js)">📒 Ledger</button>
-        </div>
         ${tile.settlement && tile.settlement.kingdom != null && game.world.getKingdom(tile.settlement.kingdom) ? `<div style="margin:-6px 0 10px; font-size:11px; color:var(--text-secondary);">⚖️ ${policyLine(game.world, game.world.getKingdom(tile.settlement.kingdom))}</div>` : ''}
         ${SettlementMarket.fair(tile.settlement) ? `<div style="margin:-6px 0 10px; font-size:12px; color:var(--gold);">🎪 The ${SettlementMarket.fair(tile.settlement).name} is on until day ${SettlementMarket.fair(tile.settlement).until}: the stalls ask less and buy dearer.</div>` : ''}
 
         <!-- BUY SECTION -->
-        <div class="trade-section active" data-trade-section="buy">`;
+        <div class="trade-section${tab === 'buy' ? ' active' : ''}" data-trade-section="buy">`;
 
         const catOrder = ['food','materials','crafted','luxury'];
         let hasBuyGoods = false;
@@ -1093,7 +1108,7 @@ Object.assign(ActionMenu, {
         html += `</div>
 
         <!-- SELL SECTION -->
-        <div class="trade-section" data-trade-section="sell">`;
+        <div class="trade-section${tab === 'sell' ? ' active' : ''}" data-trade-section="sell">`;
 
         if (sellItems.length > 0) {
             for (const item of sellItems) {
@@ -1121,23 +1136,9 @@ Object.assign(ActionMenu, {
 
         html += '</div>';
 
+        setMarketNav(game, tile, tab);
         game.ui.showCustomPanel(`🏪 Trade — ${settlementName}`, html);
 
-        // ── Tab switching ──
-        setTimeout(() => {
-            const tabs = document.querySelectorAll('[data-trade-tab]');
-            const sections = document.querySelectorAll('[data-trade-section]');
-            tabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    tabs.forEach(t => t.classList.remove('active'));
-                    sections.forEach(s => s.classList.remove('active'));
-                    tab.classList.add('active');
-                    const target = tab.getAttribute('data-trade-tab');
-                    const sec = document.querySelector(`[data-trade-section="${target}"]`);
-                    if (sec) sec.classList.add('active');
-                });
-            });
-        }, 50);
 
         // ── Buy / Sell handlers ──
         window.currentTile = tile;

@@ -58,6 +58,20 @@ function _handleDelegatedClick(e) {
     routeDelegatedClick(_activeUI, e.target);
 }
 
+/**
+ * Was this click made inside the custom panel or one of the dialogs it opens?
+ * Read by showCustomPanel to keep a panel's tab bar (setPanelNav) across its
+ * own re-renders and drop it when a panel is opened from the map or a menu.
+ */
+export function isPanelClick(targetEl) {
+    if (!targetEl || !targetEl.closest) return false;
+    return !!targetEl.closest('#customPanel, #quantityInputModal, [role="dialog"]');
+}
+
+function _trackPanelClick(e) {
+    if (_activeUI) _activeUI._clickInPanel = isPanelClick(e.target);
+}
+
 export class UI {
     constructor(game) {
         this.game = game;
@@ -70,6 +84,8 @@ export class UI {
         if (!_delegationAttached && typeof document !== 'undefined' && document.addEventListener) {
             _delegationAttached = true;
             document.addEventListener('click', _handleDelegatedClick);
+            // Capture phase: recorded before any inline handler re-renders the panel
+            document.addEventListener('click', _trackPanelClick, true);
         }
 
         this.setupEventListeners();

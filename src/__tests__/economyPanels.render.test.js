@@ -159,6 +159,8 @@ function shell(game) {
     const ui = new Proxy({
         showCustomPanel: (title, html) => rec.panels.push({ title: String(title), html: String(html) }),
         showNotification: (title, msg) => rec.notices.push(`${title}: ${msg}`),
+        // The market window's tab bar (ui/ui/panels.js setPanelNav)
+        setPanelNav: (nav) => { rec.nav = nav; },
     }, {
         get(t, prop) {
             if (prop in t) return t[prop];
@@ -355,6 +357,12 @@ function panelsAt(game, tile) {
         ['showTradingCompany', () => ActionMenu.showTradingCompany(g, tile)],
         ['showCounsel', () => ActionMenu.showCounsel(g)],
         ['showTradeMenu', () => ActionMenu.showTradeMenu(g, tile)],
+        // Every tab of the market window, reached through its tab bar
+        ...['sell', 'invest', 'warehouse', 'contracts', 'people', 'hinterland', 'harvest', 'guilds', 'tariffs', 'ledger'].map(k => [`market tab ${k}`, () => {
+            ActionMenu.showTradeMenu(g, tile);
+            const item = g.rec.nav && g.rec.nav.items.find(i => i.key === k);
+            if (item) item.run();
+        }]),
         ['showPublicWorks', () => ActionMenu.showPublicWorks(g, tile)],
         ['showMint', () => ActionMenu.showMint(g, tile)],
     ];

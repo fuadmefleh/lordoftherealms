@@ -6,12 +6,8 @@
 import { ActionMenu } from './_ref.js';
 import { MerchantCaravans, PlayerMilitary } from './_imports.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
+import { BTN_GOLD, BTN_OFF, BTN_RED, CARD } from './uiKit.js';
 
-const BTN = 'padding: 4px 8px; margin: 2px 3px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
-const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
-const BTN_RED = BTN + 'background: #8a2c22; color: #eee;';
-const BTN_OFF = BTN + 'background: #333; color: #777; cursor: not-allowed;';
-const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
 
 function _esc(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');

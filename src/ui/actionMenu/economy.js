@@ -10,10 +10,8 @@ import { ActionMenu } from './_ref.js';
 import { EconomyChronicle } from '../../systems/economyChronicle.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { EconomyIndex } from '../../world/economyIndex.js';
+import { BTN_GOLD, BTN_PLAIN, panelTabs } from './uiKit.js';
 
-const BTN = 'padding: 4px 8px; margin: 3px 4px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
-const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
-const BTN_PLAIN = BTN + 'background: rgba(255,255,255,0.12); color: var(--text-primary);';
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TH = 'text-align:left; padding:3px 6px; color:var(--gold); font-weight:normal; border-bottom:1px solid rgba(255,255,255,0.12);';
 const TD = 'padding:3px 6px; border-bottom:1px solid rgba(255,255,255,0.05);';
@@ -171,8 +169,12 @@ Object.assign(ActionMenu, {
     /** The Economic Chronicle: realms, charts, shortages and gluts, fashions, your worth. */
     showEconomy(game, tab = null) {
         if (tab) view.tab = tab;
-        let html = '<div style="font-size:12px; max-height:620px; overflow-y:auto;">';
-        html += `<div style="margin:6px 0;">${TABS.map(([id, label]) => act(label, ['tab', id], view.tab === id ? BTN_GOLD : BTN_PLAIN)).join('')}</div>`;
+        let html = '<div style="font-size:12px;">';
+        html += panelTabs(game, {
+            id: 'economy', title: '📰 The Economic Chronicle', tabs: TABS, active: view.tab,
+            go: (k) => { ActionMenu.showEconomy(game, k); },
+            attrsFor: (k) => `data-am-act="economyAct" data-am-args='${esc(JSON.stringify(['tab', k]))}'`,
+        });
         if (view.tab === 'charts') html += chartsTab(game);
         else if (view.tab === 'markets') html += marketsTab(game);
         else if (view.tab === 'fashions') html += fashionsTab(game);

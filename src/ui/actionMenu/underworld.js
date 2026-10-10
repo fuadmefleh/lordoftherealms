@@ -3,12 +3,8 @@
 // systems/underworld.js; this panel presents it.
 import { ActionMenu } from './_ref.js';
 import { Underworld } from '../../systems/underworld.js';
+import { BTN_GOLD, BTN_DIM, BTN_RED, CARD } from './uiKit.js';
 
-const BTN = 'padding: 4px 9px; margin: 2px 2px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
-const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
-const BTN_RED = BTN + 'background: #8b0000; color: #fff;';
-const BTN_DIM = BTN + 'background: rgba(255,255,255,0.08); color: var(--text-secondary); cursor: default;';
-const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
 const LEVEL_COLOR = { clear: '#7fd07f', watched: '#e0b040', poster: '#e08040', warrant: '#e05050' };
 const LEVEL_LABEL = { clear: 'Clear', watched: 'Watched', poster: 'Wanted posters', warrant: 'Warrant' };
 const STATUS_COLOR = { illegal: '#e05050', tariff: '#e0b040', legal: '#7fd07f' };

@@ -16,10 +16,8 @@ import { DataLoader } from '../../core/dataLoader.js';
 import { Hex } from '../../core/hex.js';
 import { Ledger } from '../../systems/ledger.js';
 import { EconomyChronicle } from '../../systems/economyChronicle.js';
+import { BTN_GOLD, BTN_PLAIN, panelTabs } from './uiKit.js';
 
-const BTN = 'padding: 4px 8px; margin: 3px 4px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
-const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
-const BTN_PLAIN = BTN + 'background: rgba(255,255,255,0.12); color: var(--text-primary);';
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TH = 'text-align:left; padding:3px 6px; color:var(--gold); font-weight:normal; border-bottom:1px solid rgba(255,255,255,0.12);';
 const TD = 'padding:3px 6px; border-bottom:1px solid rgba(255,255,255,0.05);';
@@ -182,9 +180,13 @@ Object.assign(ActionMenu, {
     showMerchantLedger(game, tab = null) {
         if (tab) view.tab = tab;
         const { player } = game;
-        let html = '<div style="font-size:12px; max-height:620px; overflow-y:auto;">';
+        let html = '<div style="font-size:12px;">';
         html += `<p style="margin:0 0 6px; color:var(--text-secondary);">💰 ${Math.floor(player.gold).toLocaleString()} gold · news of ${PriceKnowledge.towns(player).length} towns ${act('📰 Economic Chronicle', ['economy'])}</p>`;
-        html += `<div style="margin:6px 0;">${TABS.map(([id, label]) => act(label, ['tab', id], view.tab === id ? BTN_GOLD : BTN_PLAIN)).join('')}</div>`;
+        html += panelTabs(game, {
+            id: 'ledger', title: "📒 Merchant's Ledger", tabs: TABS, active: view.tab,
+            go: (k) => { ActionMenu.showMerchantLedger(game, k); },
+            attrsFor: (k) => `data-am-act="merchantLedgerAct" data-am-args='${esc(JSON.stringify(['tab', k]))}'`,
+        });
         if (view.tab === 'spreads') html += spreadsTab(game);
         else if (view.tab === 'history') html += historyTab(game);
         else if (view.tab === 'pnl') html += pnlTab(game);

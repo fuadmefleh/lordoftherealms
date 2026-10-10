@@ -7,13 +7,8 @@ import { ActionMenu } from './_ref.js';
 import { Finance } from '../../systems/finance.js';
 import { Bills } from '../../systems/bills.js';
 import { Underworld } from '../../systems/underworld.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs } from './uiKit.js';
 
-const BTN = 'padding: 5px 9px; margin: 3px 4px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
-const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
-const BTN_DIM = BTN + 'background: rgba(255,255,255,0.08); color: var(--text-secondary); cursor: default;';
-const BTN_PLAIN = BTN + 'background: rgba(255,255,255,0.12); color: var(--text-primary);';
-const BTN_RED = BTN + 'background: #7a3030; color: #eee;';
-const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
 const TABS = [['accounts', '🏦 Accounts'], ['loans', '📜 Loans'], ['bills', '✉️ Bills'], ['bonds', '👑 Royal Bonds'], ['credit', '📊 Credit'], ['coin', '💱 Coin']];
 
 let _tab = 'accounts';
@@ -210,15 +205,17 @@ Object.assign(ActionMenu, {
         const t = tile || world.getTile(player.q, player.r);
         const here = Finance.banksAt(player, world, t);
         const s = Finance.summary(player, world);
-        let html = '<div style="font-size:12px; max-height:620px; overflow-y:auto;">';
+        let html = '<div style="font-size:12px;">';
         html += `<p style="margin:0 0 6px; color:var(--text-secondary);">Credit <b>${s.score}</b> (${esc(s.label)}) · deposits ${s.deposits}g · owed ${s.debt}g (${s.dailyDue}g a day) · bonds ${s.bonds}g · gold ${Math.floor(player.gold)}</p>`;
         if (!here.length) {
             const open = Finance.openBanks(player);
             html += `<div style="font-size:11px; color:#c9a;">No banking house serves this place: deposits, loans and bonds are arranged at ${open.length ? open.map(b => `${esc(b.name)} (${esc(b.seat)})`).join(', ') : 'a house in a great city'} or its branches in their realm's cities. You can still repay a loan from here.</div>`;
         }
-        html += '<div style="margin:6px 0;">';
-        for (const [id, label] of TABS) html += act(label, ['tab', id], _tab === id ? BTN_GOLD : BTN_PLAIN);
-        html += '</div>';
+        html += panelTabs(game, {
+            id: 'bank', title: '🏦 Banks, Credit & Coin', tabs: TABS, active: _tab,
+            go: (k) => { _tab = k; ActionMenu.showBank(game, t); },
+            attrsFor: (k) => `data-am-act="bankAct" data-am-args='${esc(JSON.stringify(['tab', k]))}'`,
+        });
         if (_tab === 'loans') html += loansTab(player, world, here);
         else if (_tab === 'bonds') html += here.length ? bondsTab(player, world) : '<div style="color:#aaa;">Royal bonds are sold through a banking house.</div>';
         else if (_tab === 'credit') html += creditTab(player, world);

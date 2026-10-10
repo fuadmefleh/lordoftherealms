@@ -3,12 +3,8 @@
 // investments. Logic lives in systems/merchantHouses.js; this presents it.
 import { ActionMenu } from './_ref.js';
 import { MerchantHouses, PlayerEconomy, Trading } from './_imports.js';
+import { BTN_GOLD, BTN_DARK, BTN_RED, CARD, panelTabs } from './uiKit.js';
 
-const BTN = 'padding: 4px 8px; margin: 3px 3px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
-const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
-const BTN_DARK = BTN + 'background: #444; color: #eee;';
-const BTN_RED = BTN + 'background: #7a2e2e; color: #fff;';
-const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
 const HEAD = 'font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); margin: 10px 0 4px;';
 const INPUT = 'width: 56px; background:#222; color:#eee; border:1px solid #555; border-radius:3px; padding:2px 4px; font-size:11px;';
 const TABS = [
@@ -37,7 +33,7 @@ Object.assign(ActionMenu, {
         const player = game.player;
         const world = game.world;
         const c = MerchantHouses.company(player);
-        let html = '<div style="max-height: 540px; overflow-y: auto; font-size: 12px;">';
+        let html = '<div style="font-size: 12px;">';
         if (message) html += `<div style="${CARD} border-color: ${message.color || 'rgba(245,197,66,0.4)'}; color:#eee;">${message.html}</div>`;
 
         if (!c) {
@@ -45,11 +41,11 @@ Object.assign(ActionMenu, {
         } else {
             html += `<div style="display:flex; justify-content:space-between; align-items:baseline;"><div><b style="font-size:14px;">${_esc(c.name)}</b> <span style="color:#999;">since day ${c.foundedDay}</span></div>`;
             html += `<div>💰 ${_g(c.capital)} · ⭐ ${Math.round(c.reputation)} rep · worth ${_g(MerchantHouses.companyValue(player))}</div></div>`;
-            html += '<div style="margin:6px 0;">';
-            for (const [id, label] of TABS) {
-                html += `<button onclick="window._company.tab('${id}')" style="${id === tab ? BTN_GOLD : BTN_DARK}">${label}</button>`;
-            }
-            html += '</div>';
+            html += panelTabs(game, {
+                id: 'tradingCompany', title: '⚖️ Trading Company', tabs: TABS, active: tab,
+                go: (id) => { ActionMenu.showTradingCompany(game, tile, id); },
+                attrsFor: (id) => `onclick="window._company.tab('${id}')"`,
+            });
             if (tab === 'posts') html += _companyPostsHtml(player, world, tile);
             else if (tab === 'contracts') html += _companyContractsHtml(player, world);
             else if (tab === 'rivals') html += _companyRivalsHtml(player, world);

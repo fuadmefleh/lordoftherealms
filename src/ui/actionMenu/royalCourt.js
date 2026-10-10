@@ -4,12 +4,12 @@
 import { ActionMenu } from './_ref.js';
 import { Kingship } from '../../systems/kingship.js';
 import { Throne, House } from './_imports.js';
+import { panelTabs } from './uiKit.js';
 
 const BTN = 'padding: 5px 9px; margin: 4px 4px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
 const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
 const BTN_RED = BTN + 'background: #8e2b2b; color: #fff;';
 const BTN_DIM = BTN + 'background: rgba(255,255,255,0.08); color: var(--text-secondary); cursor: default;';
-const BTN_TAB = BTN + 'background: #333; color: #ddd;';
 const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
 const MUTED = 'color: var(--text-secondary); font-size: 11px;';
 const TABS = [['council', '🏛️ Council'], ['edicts', '📜 Edicts'], ['vassals', '🛡️ Vassals'], ['realm', '👑 Realm']];
@@ -186,7 +186,11 @@ Object.assign(ActionMenu, {
         }
         const court = Kingship.court(player);
         let html = '<div style="font-size:12px;">';
-        html += `<div style="margin-bottom:6px;">${TABS.map(([id, label]) => `<button onclick="window._court.tab('${id}')" style="${id === tab ? BTN_GOLD : BTN_TAB}">${label}</button>`).join('')}</div>`;
+        html += panelTabs(game, {
+            id: 'royalCourt', title: `🏛️ The Royal Court of ${k.name}`, tabs: TABS, active: tab,
+            go: (id) => { ActionMenu.showRoyalCourt(game, tile, id); },
+            attrsFor: (id) => `onclick="window._court.tab('${id}')"`,
+        });
         if (!court.initialized) {
             html += `<div style="${MUTED}">The lords of ${_esc(k.name)} will come to swear fealty at the end of the day.</div>`;
         } else if (tab === 'edicts') html += _edictsTab(player, world);

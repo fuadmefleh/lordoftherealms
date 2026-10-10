@@ -1244,7 +1244,7 @@ Object.assign(UI.prototype, {
     /** Lightweight Diplomacy / Factions panel listing the realm's kingdoms. */
     _showDiplomacyPanel(player, world) {
         const kingdoms = (world.kingdoms || []).filter(k => k.isAlive !== false);
-        let html = '<div style="max-width: 640px;">';
+        let html = '<div>';
         if (kingdoms.length === 0) {
             html += '<p style="color: var(--text-secondary); text-align:center; padding: 24px;">No known realms.</p>';
         } else {
@@ -1267,7 +1267,7 @@ Object.assign(UI.prototype, {
     _showSettlementsPanel(player, world) {
         const settlements = (world.getAllSettlements ? world.getAllSettlements() : []);
         settlements.sort((a, b) => (b.population || 0) - (a.population || 0));
-        let html = '<div style="max-width: 640px;">';
+        let html = '<div>';
         if (settlements.length === 0) {
             html += '<p style="color: var(--text-secondary); text-align:center; padding: 24px;">No settlements discovered yet.</p>';
         } else {

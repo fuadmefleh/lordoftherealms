@@ -3,11 +3,8 @@
 // player/realmPolitics.js; these panels present it.
 import { ActionMenu } from './_ref.js';
 import { RealmPolitics, REALM_POLITICS, KingdomNavy } from './_imports.js';
+import { BTN_GOLD, BTN_DIM, CARD } from './uiKit.js';
 
-const BTN = 'padding: 6px 10px; margin: 4px 4px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
-const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
-const BTN_DIM = BTN + 'background: rgba(255,255,255,0.08); color: var(--text-secondary); cursor: default;';
-const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
 
 function _bar(gains, goal, color) {
     const pct = Math.min(100, Math.round((gains / Math.max(1, goal)) * 100));

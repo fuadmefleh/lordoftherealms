@@ -157,10 +157,15 @@ function leaksIn(text) {
 function shell(game) {
     const rec = { panels: [], notices: [] };
     const ui = new Proxy({
-        showCustomPanel: (title, html) => rec.panels.push({ title: String(title), html: String(html) }),
+        showCustomPanel: (title, html) => { rec.panels.push({ title: String(title), html: String(html) }); ui._panelNavFresh = false; },
         showNotification: (title, msg) => rec.notices.push(`${title}: ${msg}`),
-        // The market window's tab bar (ui/ui/panels.js setPanelNav)
-        setPanelNav: (nav) => { rec.nav = nav; },
+        // The window's tab bar (ui/ui/panels.js setPanelNav): every tab is crawled,
+        // and the bar stays up as if the player clicked inside the window, so a
+        // panel the bar hosts (uiKit.panelTabs) renders its sub-tab row
+        setPanelNav: (nav) => { rec.nav = nav; rec.navNew = true; ui._panelNav = nav; ui._panelNavFresh = true; },
+        _panelNav: null,
+        _panelNavFresh: false,
+        _clickInPanel: true,
     }, {
         get(t, prop) {
             if (prop in t) return t[prop];
@@ -216,6 +221,15 @@ function crawl(game, label, open, budget = 60) {
             DUMPED.set(dk, `\n===== ${where} — ${p.title}\n${body}`);
         }
         _inputs = readInputs(p.html);
+        // The tabs of a tab bar this render put up
+        if (rec.navNew && rec.nav) {
+            rec.navNew = false;
+            for (const item of rec.nav.items) {
+                const key = `nav:${rec.nav.id}:${item.key}`;
+                if (typeof item.run !== 'function') problems.push(`${where}: tab "${item.key}" of "${rec.nav.id}" has no run()`);
+                else if (!seen.has(key)) { seen.add(key); queue.push({ key, run: () => item.run() }); }
+            }
+        }
         // Buttons to click next
         for (const m of p.html.matchAll(/<[a-z]+\b([^>]*)>/g)) {
             const attrs = m[1];

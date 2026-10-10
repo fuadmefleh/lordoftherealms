@@ -1479,12 +1479,14 @@ body {
    ============================================ */
 
 .side-panel {
+    /* Docked beside the left icon rail (#hudLeftRail: left 12px, 84px wide),
+       above the character card, so the rail never shows through it */
     position: fixed;
-    top: 48px;
-    left: 16px;
+    top: 72px;
+    left: 108px;
     width: 300px;
-    max-height: calc(100vh - 180px);
-    background: var(--bg-panel);
+    max-height: calc(100vh - 72px - 132px);
+    background: var(--bg-panel-solid);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
     z-index: 150;
@@ -3855,8 +3857,83 @@ body {
     #simsBottomHUD { min-width: 540px; }
     .hud-rail-label { display: none; }
     #hudLeftRail { width: 56px; }
+    .side-panel { left: 80px; }
 }
 @media (max-width: 1080px) {
     #hudCharCard { width: 240px; }
     #hudRightRail { width: 232px; }
 }
+
+/* ============================================
+   CUSTOM PANEL (ui/ui/panels.js showCustomPanel) — shared panel kit
+   ============================================ */
+
+/* Sub-tabs: a panel's own tabs when it shows inside another window's tab bar
+   (ui/actionMenu/uiKit.js subTabsHtml), and in-content tab rows */
+#customPanel .panel-subtabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 0 0 10px;
+    padding: 3px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 6px;
+}
+#customPanel .panel-subtab {
+    padding: 5px 11px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--font-body);
+    color: rgba(255, 255, 255, 0.6);
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+#customPanel .panel-subtab:hover { color: rgba(255, 255, 255, 0.9); background: rgba(255, 255, 255, 0.05); }
+#customPanel .panel-subtab.active { color: var(--gold); background: rgba(245, 197, 66, 0.12); border-color: rgba(245, 197, 66, 0.35); }
+
+/* Readable floor: many panels hand-roll 9–11px inline type, unreadable on a
+   large screen. Lift the smallest sizes a notch inside the panel body. */
+#customPanel .custom-panel-body { font-size: 13px; }
+#customPanel .custom-panel-body [style*="font-size:9px"],
+#customPanel .custom-panel-body [style*="font-size: 9px"],
+#customPanel .custom-panel-body [style*="font-size:10px"],
+#customPanel .custom-panel-body [style*="font-size: 10px"],
+#customPanel .custom-panel-body [style*="font-size:10.5px"],
+#customPanel .custom-panel-body [style*="font-size: 10.5px"] { font-size: 11.5px !important; }
+#customPanel .custom-panel-body [style*="font-size:11px"],
+#customPanel .custom-panel-body [style*="font-size: 11px"] { font-size: 12px !important; }
+#customPanel .custom-panel-body img, #customPanel .custom-panel-body canvas, #customPanel .custom-panel-body svg { max-width: 100%; }
+#customPanel .custom-panel-body table { max-width: 100%; }
+
+/* Many panels wrap their whole content in a fixed-height scroll box
+   (max-height: 450–620px) inside the panel body, which scrolls too: two nested
+   scrollbars and a dead band under the box. The body is the one scroller. */
+#customPanel .custom-panel-body > div[style*="max-height"][style*="overflow-y"] {
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+/* The custom panel is anchored at the top (translateX(-50%) only): the shared
+   .modal-panel entrance animates translate(-50%, -50%), which threw the window
+   half its height up the screen and snapped it back down on every open. */
+#customPanel { animation: customPanelIn 0.18s ease; }
+@keyframes customPanelIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+    to { opacity: 1; transform: translateX(-50%); }
+}
+
+/* Themed scrollbars inside the panel (the OS default drew bright white bars) */
+#customPanel ::-webkit-scrollbar { width: 8px; height: 8px; }
+#customPanel ::-webkit-scrollbar-track { background: transparent; }
+#customPanel ::-webkit-scrollbar-thumb { background: rgba(245, 197, 66, 0.25); border-radius: 4px; }
+#customPanel ::-webkit-scrollbar-thumb:hover { background: rgba(245, 197, 66, 0.45); }
+#customPanel ::-webkit-scrollbar-corner { background: transparent; }
+#customPanel { scrollbar-color: rgba(245, 197, 66, 0.3) transparent; }
+
+/* Panels that filter or toggle their own content in place keep one height, so
+   the window does not shrink and grow as the list changes */
+#customPanel:has(.bp-menu), #customPanel:has(.tech-tab-content) { height: 80vh; }

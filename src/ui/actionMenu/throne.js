@@ -4,12 +4,12 @@
 import { ActionMenu } from './_ref.js';
 import { Sieges } from '../../systems/sieges.js';
 import { Throne, PlayerMilitary, House } from './_imports.js';
+import { CARD } from './uiKit.js';
 
 const BTN = 'padding: 5px 9px; margin: 4px 4px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
 const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
 const BTN_RED = BTN + 'background: #8e2b2b; color: #fff;';
 const BTN_DIM = BTN + 'background: rgba(255,255,255,0.08); color: var(--text-secondary); cursor: default;';
-const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
 const MUTED = 'color: var(--text-secondary); font-size: 11px;';
 const AP = { battle: 2 };
 

@@ -5,8 +5,8 @@
 import { ActionMenu } from './_ref.js';
 import { TownLabour } from '../../world/townLabour.js';
 import { Labour } from '../../systems/labour.js';
+import { CARD } from './uiKit.js';
 
-const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const SECTOR = { land: '🌾 Land, mines & hauling', craft: '🔨 Trades & works', trade: '⚖️ Trade' };
 

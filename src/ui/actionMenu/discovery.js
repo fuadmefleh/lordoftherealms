@@ -5,11 +5,8 @@
 // Logic lives in systems/discovery.js; this panel presents it.
 import { ActionMenu } from './_ref.js';
 import { Discovery } from './_imports.js';
+import { BTN_GOLD, BTN_DARK, CARD } from './uiKit.js';
 
-const BTN = 'padding: 5px 8px; margin: 3px 3px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
-const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
-const BTN_DARK = BTN + 'background: #3a3a3a; color: #ddd;';
-const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
 const HEAD = 'font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 10px 0 4px;';
 
 function _esc(s) {

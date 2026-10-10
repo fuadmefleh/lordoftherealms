@@ -5,12 +5,8 @@
 import { ActionMenu } from './_ref.js';
 import { Bourse } from '../../systems/bourse.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_DIM, CARD, panelTabs } from './uiKit.js';
 
-const BTN = 'padding: 4px 8px; margin: 3px 4px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
-const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
-const BTN_DIM = BTN + 'background: rgba(255,255,255,0.08); color: var(--text-secondary); cursor: default;';
-const BTN_PLAIN = BTN + 'background: rgba(255,255,255,0.12); color: var(--text-primary);';
-const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 7px 9px; margin: 6px 0;';
 const TABS = [['board', '📈 The Board'], ['portfolio', '💼 Portfolio'], ['company', '⚖️ Your Company'], ['news', '📰 News']];
 const KIND_LABEL = { house: 'Merchant house', bank: 'Banking house', company: 'Your company', venture: 'Chartered venture', monopoly: 'Royal monopoly' };
 
@@ -134,11 +130,13 @@ Object.assign(ActionMenu, {
         const world = game.world;
         const st = Bourse.state(player);
         const ex = Bourse.exchangeAt(player, world);
-        let html = '<div style="font-size:12px; max-height:640px; overflow-y:auto;">';
+        let html = '<div style="font-size:12px;">';
         html += `<p style="margin:0 0 6px; color:var(--text-secondary);">${ex ? `The floor of the Bourse of <b>${esc(ex.name)}</b>` : `The Bourse sits at ${st.exchanges.map(e => esc(e.name)).join(' and ') || 'the great capitals'}: trade there.`} · shares held ${Math.round(Bourse.portfolioValue(player))}g · gold ${Math.floor(player.gold)}</p>`;
-        html += '<div style="margin:6px 0;">';
-        for (const [id, label] of TABS) html += act(label, ['tab', id], _tab === id ? BTN_GOLD : BTN_PLAIN);
-        html += '</div>';
+        html += panelTabs(game, {
+            id: 'bourse', title: '📈 The Bourse', tabs: TABS, active: _tab,
+            go: (k) => { _tab = k; ActionMenu.showBourse(game); },
+            attrsFor: (k) => `data-am-act="bourseAct" data-am-args='${esc(JSON.stringify(['tab', k]))}'`,
+        });
         if (_tab === 'portfolio') html += portfolioTab(player);
         else if (_tab === 'company') html += companyTab(player, world, !!ex);
         else if (_tab === 'news') html += newsTab(player, world);

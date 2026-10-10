@@ -10,13 +10,8 @@ import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { MarketFairs } from '../../systems/marketFairs.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { TownLabour } from '../../world/townLabour.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs } from './uiKit.js';
 
-const BTN = 'padding: 4px 8px; margin: 3px 4px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
-const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
-const BTN_DIM = BTN + 'background: rgba(255,255,255,0.08); color: var(--text-secondary); cursor: default;';
-const BTN_PLAIN = BTN + 'background: rgba(255,255,255,0.12); color: var(--text-primary);';
-const BTN_RED = BTN + 'background: #7a3030; color: #eee;';
-const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TABS = [['invest', '🏭 Invest'], ['warehouse', '📦 Warehouse'], ['contracts', '📜 Contracts'], ['ledger', '📒 Holdings']];
 
@@ -216,11 +211,13 @@ Object.assign(ActionMenu, {
         const t = tile || world.getTile(player.q, player.r);
         if (tab) _tab = tab;
         const fair = t && t.settlement && SettlementMarket.fair(t.settlement);
-        let html = '<div style="font-size:12px; max-height:620px; overflow-y:auto;">';
+        let html = '<div style="font-size:12px;">';
         html += `<p style="margin:0 0 6px; color:var(--text-secondary);">💰 ${Math.floor(player.gold).toLocaleString()} gold${t && t.settlement ? ` · at ${esc(t.settlement.name)}` : ''}${fair ? ` · <b style="color:#f5c542;">🎪 the ${esc(fair.name)} is on until day ${fair.until}</b>` : ''}</p>`;
-        html += '<div style="margin:6px 0;">';
-        for (const [id, label] of TABS) html += act(label, ['tab', id], _tab === id ? BTN_GOLD : BTN_PLAIN);
-        html += '</div>';
+        html += panelTabs(game, {
+            id: 'merchantPrince', title: '🏭 Merchant Prince', tabs: TABS, active: _tab,
+            go: (k) => { _tab = k; ActionMenu.showMerchantPrince(game, t); },
+            attrsFor: (k) => `data-am-act="merchantPrinceAct" data-am-args='${esc(JSON.stringify(['tab', k]))}'`,
+        });
         if (_tab === 'warehouse') html += warehouseTab(game, t);
         else if (_tab === 'contracts') html += contractsTab(game, t);
         else if (_tab === 'ledger') html += ledgerTab(game);

@@ -29,7 +29,15 @@ export function setMarketNav(game, tile, active) {
         { key: 'tariffs', label: '⚖️ Tariffs', title: "The crown's duties, export bans, embargoes and treaties", run: go(() => ActionMenu.showTradePolicy(game, 'here')) },
         { key: 'ledger', label: '📒 Ledger', title: 'Known prices, best spreads, price history and your trading profit', run: go(() => ActionMenu.showMerchantLedger(game, 'book')) },
     );
-    game.ui.setPanelNav({ id: 'market', title: `🏪 Market — ${tile.settlement.name || 'Market'}`, active, items });
+    // Views with tabs of their own keep this bar and show theirs as sub-tabs
+    // (uiKit.panelTabs): the Merchant Prince's Invest/Warehouse/Contracts are
+    // this bar's tabs, the Ledger's and the Tariffs' sit under theirs
+    const hosts = {
+        merchantPrince: { invest: 'invest', warehouse: 'warehouse', contracts: 'contracts' },
+        ledger: { '*': 'ledger' },
+        tradePolicy: { '*': 'tariffs' },
+    };
+    game.ui.setPanelNav({ id: 'market', title: `🏪 Market — ${tile.settlement.name || 'Market'}`, active, items, hosts });
 }
 
 Object.assign(ActionMenu, {
@@ -1192,7 +1200,7 @@ Object.assign(ActionMenu, {
      * Show NPC personal trade menu (merchants, travelers, blacksmiths)
      * Uses the NPC's shopInventory instead of the settlement market.
      */
-    showNpcTradeMenu(game, npc) {
+    showNpcTradeMenu(game, npc, section = null) {
         if (!npc || !npc.shopInventory) {
             game.ui.showNotification('No Goods', `${npc?.name || 'This person'} has nothing to trade.`, 'info');
             return;
@@ -1216,6 +1224,11 @@ Object.assign(ActionMenu, {
             blacksmith_npc: 'Blacksmith',
         };
         const typeLabel = TYPE_LABELS[npcType] || 'Trader';
+        // Buy or Sell: the one asked for, else the one last shown to this trader (a sale re-renders the window)
+        const ui = game.ui || {};
+        const last = ui._npcTradeTab && ui._npcTradeTab.npc === npc ? ui._npcTradeTab.tab : 'buy';
+        const tab = section === 'sell' || section === 'buy' ? section : last;
+        ui._npcTradeTab = { npc, tab };
 
         // Build goods list from NPC inventory
         const CATEGORIES = {
@@ -1268,12 +1281,6 @@ Object.assign(ActionMenu, {
             .npc-trade-name { font-size:16px; font-weight:700; color:var(--text-primary); font-family:var(--font-display); }
             .npc-trade-type { font-size:11px; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:1px; }
             .npc-trade-purse { font-size:15px; font-weight:700; color:var(--gold); font-family:var(--font-display); white-space:nowrap; }
-            .npc-trade-tabs { display:flex; gap:0; border-bottom:2px solid rgba(245,197,66,0.15); margin-bottom:12px; }
-            .npc-trade-tab { padding:7px 16px; font-size:12px; font-weight:600; color:rgba(255,255,255,0.45); background:none; border:none;
-                             border-bottom:2px solid transparent; cursor:pointer; font-family:var(--font-display); letter-spacing:0.5px;
-                             transition:all .15s; margin-bottom:-2px; }
-            .npc-trade-tab:hover { color:rgba(255,255,255,0.7); }
-            .npc-trade-tab.active { color:var(--gold); border-bottom-color:var(--gold); }
             .npc-trade-section { display:none; }
             .npc-trade-section.active { display:block; }
             .npc-cat { margin-bottom:14px; }
@@ -1308,12 +1315,7 @@ Object.assign(ActionMenu, {
             🏷️ Prices ${priceMods.pct > 0 ? '+' : ''}${priceMods.pct}% · ${priceMods.reasons.map(r => `${r.label} ${r.pct > 0 ? '+' : ''}${r.pct}%`).join(', ')}
         </div>` : ''}
 
-        <div class="npc-trade-tabs">
-            <button class="npc-trade-tab active" data-npc-tab="buy">🛒 Buy</button>
-            <button class="npc-trade-tab" data-npc-tab="sell">💰 Sell to ${npcName}</button>
-        </div>
-
-        <div class="npc-trade-section active" data-npc-section="buy">`;
+        <div class="npc-trade-section${tab === 'buy' ? ' active' : ''}" data-npc-section="buy">`;
 
         const catOrder = ['food','materials','crafted','rare'];
         let hasGoods = false;
@@ -1336,7 +1338,7 @@ Object.assign(ActionMenu, {
         }
         if (!hasGoods) html += '<div class="npc-empty">This trader has nothing left to sell.</div>';
 
-        html += `</div><div class="npc-trade-section" data-npc-section="sell">`;
+        html += `</div><div class="npc-trade-section${tab === 'sell' ? ' active' : ''}" data-npc-section="sell">`;
 
         if (sellItems.length > 0) {
             for (const item of sellItems) {
@@ -1356,22 +1358,17 @@ Object.assign(ActionMenu, {
 
         html += '</div>';
 
-        game.ui.showCustomPanel(`${npcIcon} ${npcName} — ${typeLabel}`, html);
-
-        // Tab switching
-        setTimeout(() => {
-            const tabs = document.querySelectorAll('[data-npc-tab]');
-            const sections = document.querySelectorAll('[data-npc-section]');
-            tabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    tabs.forEach(t => t.classList.remove('active'));
-                    sections.forEach(s => s.classList.remove('active'));
-                    tab.classList.add('active');
-                    const sec = document.querySelector(`[data-npc-section="${tab.getAttribute('data-npc-tab')}"]`);
-                    if (sec) sec.classList.add('active');
-                });
+        // Buy / Sell are the window's tab bar (ui/ui/panels.js setPanelNav)
+        if (typeof game.ui.setPanelNav === 'function') {
+            game.ui.setPanelNav({
+                id: 'npcTrade', title: `${npcIcon} ${npcName} — ${typeLabel}`, active: tab,
+                items: [
+                    { key: 'buy', label: '🛒 Buy', run: () => ActionMenu.showNpcTradeMenu(game, npc, 'buy') },
+                    { key: 'sell', label: `💰 Sell to ${npcName}`, run: () => ActionMenu.showNpcTradeMenu(game, npc, 'sell') },
+                ],
             });
-        }, 50);
+        }
+        game.ui.showCustomPanel(`${npcIcon} ${npcName} — ${typeLabel}`, html);
 
         // Buy handler — deducts from NPC's shopInventory
         window._npcBuy = (itemId, price, maxQty) => {

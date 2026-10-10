@@ -402,9 +402,12 @@ Object.assign(UI.prototype, {
         // A tab bar (setPanelNav) holds while the player moves between its views:
         // it survives re-renders made from inside the panel (or its dialogs), and
         // drops when a panel is opened from elsewhere (the map, the action menu, the HUD)
+        // A button inside a tabbed view that opens some other panel (a different
+        // title, no setPanelNav of its own) also leaves the bar behind
         const nav = this._panelNav;
-        if (nav && !this._panelNavFresh && this._clickInPanel === false) this._panelNav = null;
+        if (nav && !this._panelNavFresh && (this._clickInPanel === false || (nav._viewTitle != null && nav._viewTitle !== title))) this._panelNav = null;
         this._panelNavFresh = false;
+        if (this._panelNav) this._panelNav._viewTitle = title;
         const navHtml = this._panelNavHtml();
         // A tabbed window keeps one title (the market of a town) whichever tab shows
         if (this._panelNav && this._panelNav.title) title = this._panelNav.title;
@@ -482,8 +485,10 @@ Object.assign(UI.prototype, {
     /**
      * Give the custom panel a tab bar that stays put while the player moves
      * between related views (the market's Buy, Sell, Invest, Ledger, ...).
-     * nav = { id, title?, active, items: [{ key, label, title?, run() }] }; call it just
-     * before the showCustomPanel that renders the active view.
+     * nav = { id, title?, active, items: [{ key, label, title?, run(), inPlace? }], hosts? };
+     * call it just before the showCustomPanel that renders the active view. An
+     * inPlace item's run() only toggles content already in the panel. hosts maps
+     * another panel's id to the tabs of this bar it shows under (ui/actionMenu/uiKit.js).
      */
     setPanelNav(nav) {
         this._panelNav = nav && Array.isArray(nav.items) && nav.items.length ? nav : null;
@@ -500,6 +505,17 @@ Object.assign(UI.prototype, {
         // The view's own render keeps the bar (setPanelNav may replace it)
         this._panelNavFresh = true;
         item.run();
+        // A tab that only toggles content already on the page ({ inPlace: true },
+        // no showCustomPanel): light the tab and start the view at its top
+        if (item.inPlace && this._panelNav === nav && typeof document !== 'undefined') {
+            this._panelNavSwitched = false;
+            this._panelNavFresh = false;
+            const panel = document.getElementById('customPanel');
+            const navEl = panel && panel.querySelector('.custom-panel-nav');
+            if (navEl) navEl.innerHTML = this._panelNavHtml();
+            const body = panel && panel.querySelector('.custom-panel-body');
+            if (body) body.scrollTop = 0;
+        }
     },
 
     _panelNavHtml() {

@@ -125,12 +125,15 @@ Object.assign(UI.prototype, {
 
         // ── Category Tabs ──
         const catKeys = Object.keys(Technology.CATEGORIES);
-        let tabsHtml = '<div style="display: flex; gap: 2px; margin-bottom: 12px; flex-wrap: wrap;">';
+        // The category shown survives the panel's re-renders (research, implement)
+        const catIds = catKeys.map(k => Technology.CATEGORIES[k].id);
+        const activeCat = catIds.includes(this._techTab) ? this._techTab : catIds[0];
+        let tabsHtml = '<div class="panel-subtabs">';
         for (let i = 0; i < catKeys.length; i++) {
             const cat = Technology.CATEGORIES[catKeys[i]];
-            const isActive = i === 0;
+            const isActive = cat.id === activeCat;
             const hasLab = Technology.hasLabForCategory(player, cat.id, world);
-            tabsHtml += `<button data-ui-act="openTechTab" data-ui-args='["${cat.id}"]' data-ui-el="1" class="tech-tab-btn" style="flex:1; min-width: 70px; padding:6px 4px; background:${isActive ? 'rgba(255,255,255,0.1)' : 'none'}; border:none; color:${isActive ? 'var(--gold)' : hasLab ? 'var(--text-secondary)' : '#666'}; cursor:pointer; border-bottom:2px solid ${isActive ? cat.color : 'transparent'}; font-size: 11px; font-weight: ${isActive ? 'bold' : 'normal'};">${cat.icon} ${cat.name}${!hasLab ? ' 🔒' : ''}</button>`;
+            tabsHtml += `<button data-ui-act="openTechTab" data-ui-args='["${cat.id}"]' data-ui-el="1" class="panel-subtab tech-tab-btn${isActive ? ' active' : ''}" style="flex:1 1 auto;${hasLab ? '' : ' opacity:0.6;'}">${cat.icon} ${cat.name}${!hasLab ? ' 🔒' : ''}</button>`;
         }
         tabsHtml += '</div>';
 
@@ -139,7 +142,7 @@ Object.assign(UI.prototype, {
         for (const catKey of catKeys) {
             const cat = Technology.CATEGORIES[catKey];
             const techs = categories[cat.id] || [];
-            const isFirst = catKey === catKeys[0];
+            const isFirst = cat.id === activeCat;
             const hasLab = Technology.hasLabForCategory(player, cat.id, world);
             const requiredPropType = Technology.getRequiredPropertyType(cat.id);
             const labConfig = Technology.LAB_CONFIG[requiredPropType];
@@ -334,27 +337,15 @@ Object.assign(UI.prototype, {
      * Open a tech tree category tab
      */
     openTechTab(tabId, btn) {
+        this._techTab = tabId;
         // Hide all tech tab contents
         document.querySelectorAll('.tech-tab-content').forEach(el => el.style.display = 'none');
-        document.querySelectorAll('.tech-tab-btn').forEach(el => {
-            el.style.background = 'none';
-            el.style.color = 'var(--text-secondary)';
-            el.style.borderBottom = '2px solid transparent';
-            el.style.fontWeight = 'normal';
-        });
+        document.querySelectorAll('.tech-tab-btn').forEach(el => el.classList.remove('active'));
 
         // Show selected tab
         const tabEl = document.getElementById('techTab_' + tabId);
         if (tabEl) tabEl.style.display = 'block';
-
-        // Find category color
-        const cat = Object.values(Technology.CATEGORIES).find(c => c.id === tabId);
-        if (btn) {
-            btn.style.background = 'rgba(255,255,255,0.1)';
-            btn.style.color = 'var(--gold)';
-            btn.style.borderBottom = `2px solid ${cat ? cat.color : 'var(--gold)'}`;
-            btn.style.fontWeight = 'bold';
-        }
+        if (btn) btn.classList.add('active');
     },
 
     /**
@@ -646,16 +637,17 @@ Object.assign(UI.prototype, {
 
         auctionHtml += `</div></div>`;
 
-        // Combine into simple tabs
+        // The five sections are tabs of the panel's tab bar: they only toggle
+        // content already rendered, and the one shown survives re-renders
+        const tabs = [['tabMarket', '💹 Market'], ['tabBank', '🏦 Bank'], ['tabTax', '⚖️ Taxes'], ['tabRoutes', '🛤️ Routes'], ['tabAuctions', '🔨 Auctions']];
+        const active = tabs.some(([k]) => k === this._treasuryTab) ? this._treasuryTab : 'tabMarket';
+        if (typeof this.setPanelNav === 'function') {
+            this.setPanelNav({
+                id: 'treasury', title: '💰 Royal Treasury', active,
+                items: tabs.map(([key, label]) => ({ key, label, inPlace: true, run: () => this.openTreasuryTab(key) })),
+            });
+        }
         const html = `
-            <div style="display:flex; border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:15px;">
-                <button data-ui-act="openTreasuryTab" data-ui-args='["tabMarket"]' data-ui-el="1" class="tab-btn active" style="flex:1; padding:10px; background:none; border:none; color:var(--text-primary); cursor:pointer; border-bottom:2px solid var(--gold); font-weight:bold;">Market</button>
-                <button data-ui-act="openTreasuryTab" data-ui-args='["tabBank"]' data-ui-el="1" class="tab-btn" style="flex:1; padding:10px; background:none; border:none; color:var(--text-secondary); cursor:pointer;">Bank</button>
-                <button data-ui-act="openTreasuryTab" data-ui-args='["tabTax"]' data-ui-el="1" class="tab-btn" style="flex:1; padding:10px; background:none; border:none; color:var(--text-secondary); cursor:pointer;">Taxes</button>
-                <button data-ui-act="openTreasuryTab" data-ui-args='["tabRoutes"]' data-ui-el="1" class="tab-btn" style="flex:1; padding:10px; background:none; border:none; color:var(--text-secondary); cursor:pointer;">Routes</button>
-                <button data-ui-act="openTreasuryTab" data-ui-args='["tabAuctions"]' data-ui-el="1" class="tab-btn" style="flex:1; padding:10px; background:none; border:none; color:var(--text-secondary); cursor:pointer;">Auctions</button>
-            </div>
-            
             ${marketHtml}
             ${bankHtml}
             ${taxHtml}
@@ -664,33 +656,18 @@ Object.assign(UI.prototype, {
         `;
 
         this.showCustomPanel('Royal Treasury', html);
+        if (active !== 'tabMarket') this.openTreasuryTab(active);
     },
 
     /**
      * Switch tabs in treasury panel
      */
-    openTreasuryTab(tabId, btn) {
-        // Hide all tabs
-        const tabs = document.getElementsByClassName('tab-content');
-        for (let i = 0; i < tabs.length; i++) {
-            tabs[i].style.display = 'none';
-        }
-
-        // Show selected tab
-        document.getElementById(tabId).style.display = 'block';
-
-        // Reset buttons
-        const btns = document.getElementsByClassName('tab-btn');
-        for (let i = 0; i < btns.length; i++) {
-            btns[i].style.color = 'var(--text-secondary)';
-            btns[i].style.borderBottom = 'none';
-            btns[i].style.fontWeight = 'normal';
-        }
-
-        // Highlight active button
-        btn.style.color = 'var(--text-primary)';
-        btn.style.borderBottom = '2px solid var(--gold)';
-        btn.style.fontWeight = 'bold';
+    openTreasuryTab(tabId) {
+        this._treasuryTab = tabId;
+        if (typeof document === 'undefined') return;
+        const panel = document.getElementById('customPanel');
+        if (!panel) return;
+        panel.querySelectorAll('.tab-content').forEach(el => { el.style.display = el.id === tabId ? 'block' : 'none'; });
     },
 
     /**

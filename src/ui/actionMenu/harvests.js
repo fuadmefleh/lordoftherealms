@@ -8,11 +8,8 @@ import { ActionMenu } from './_ref.js';
 import { Harvests } from '../../world/harvests.js';
 import { Seasons } from '../../world/seasons.js';
 import { Engrossing } from '../../systems/engrossing.js';
+import { BTN_GOLD, BTN_DIM, CARD } from './uiKit.js';
 
-const BTN = 'padding: 4px 8px; margin: 3px 4px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
-const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
-const BTN_DIM = BTN + 'background: rgba(255,255,255,0.08); color: var(--text-secondary); cursor: default;';
-const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const CROP_LABEL = { grain: '🌾 Grain', veg: '🥕 Vegetables & legumes', fibre: '🌿 Flax', vine: '🍇 Vines & orchards', fallow: '🐑 Fallow & hay' };
 

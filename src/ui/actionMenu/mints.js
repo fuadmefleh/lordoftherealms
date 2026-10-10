@@ -12,13 +12,8 @@ import { MoneySupply } from '../../world/moneySupply.js';
 import { Finance } from '../../systems/finance.js';
 import { Underworld } from '../../systems/underworld.js';
 import { PlayerInventory } from '../../core/inventory.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs } from './uiKit.js';
 
-const BTN = 'padding: 4px 8px; margin: 3px 4px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
-const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
-const BTN_DIM = BTN + 'background: rgba(255,255,255,0.08); color: var(--text-secondary); cursor: default;';
-const BTN_PLAIN = BTN + 'background: rgba(255,255,255,0.12); color: var(--text-primary);';
-const BTN_RED = BTN + 'background: #7a3030; color: #eee;';
-const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TH = 'text-align:left; padding:3px 6px; font-size:11px; color:var(--text-secondary); border-bottom:1px solid rgba(255,255,255,0.1);';
 const TD = 'padding:3px 6px; border-bottom:1px solid rgba(255,255,255,0.05);';
@@ -156,10 +151,13 @@ Object.assign(ActionMenu, {
             game.ui.showCustomPanel('💰 The Mint', `<div style="${NOTE}">The realms' mints are closed.</div>`);
             return;
         }
-        let html = '<div style="font-size:12px; max-height:640px; overflow-y:auto;">';
-        html += `<p style="margin:0 0 6px; color:var(--text-secondary);">Gold ${Math.floor(player.gold)}</p><div style="margin:6px 0;">`;
-        for (const [id, label] of TABS) html += act(label, ['tab', id], _tab === id ? BTN_GOLD : BTN_PLAIN);
-        html += '</div>';
+        let html = '<div style="font-size:12px;">';
+        html += `<p style="margin:0 0 6px; color:var(--text-secondary);">Gold ${Math.floor(player.gold)}</p>`;
+        html += panelTabs(game, {
+            id: 'mint', title: '💰 The Mint & the Coin', tabs: TABS, active: _tab,
+            go: (k) => { _tab = k; ActionMenu.showMint(game, t); },
+            attrsFor: (k) => `data-am-act="mintAct" data-am-args='${esc(JSON.stringify(['tab', k]))}'`,
+        });
         if (_tab === 'mint') html += mintTab(game, t);
         else if (_tab === 'crown') html += crownTab(game);
         else if (_tab === 'coiners') html += coinersTab(game, t);

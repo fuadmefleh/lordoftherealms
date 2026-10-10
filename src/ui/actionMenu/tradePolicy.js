@@ -9,13 +9,8 @@
 import { ActionMenu } from './_ref.js';
 import { TradePolicy } from '../../systems/tradePolicy.js';
 import { Throne } from '../../systems/throne.js';
+import { BTN_GOLD, BTN_DIM, BTN_PLAIN, BTN_RED, CARD, panelTabs } from './uiKit.js';
 
-const BTN = 'padding: 4px 8px; margin: 3px 4px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
-const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
-const BTN_DIM = BTN + 'background: rgba(255,255,255,0.08); color: var(--text-secondary); cursor: default;';
-const BTN_PLAIN = BTN + 'background: rgba(255,255,255,0.12); color: var(--text-primary);';
-const BTN_RED = BTN + 'background: #7a3030; color: #eee;';
-const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TABS = [['here', '📍 This realm'], ['realms', '🗺️ All realms'], ['crown', '👑 Your crown']];
 
@@ -163,8 +158,12 @@ Object.assign(ActionMenu, {
     showTradePolicy(game, tab = null, pick = null) {
         const ruler = !!Throne.ruledKingdom(game.player, game.world);
         const t = tab || (ruler ? 'crown' : 'here');
-        let html = '<div style="font-size:12px; max-height:620px; overflow-y:auto;">';
-        html += `<div style="margin-bottom:6px;">${TABS.filter(([id]) => id !== 'crown' || ruler).map(([id, label]) => `<button data-am-act="showTradePolicy" data-am-args='${esc(JSON.stringify([id]))}' style="${id === t ? BTN_GOLD : BTN_PLAIN}">${label}</button>`).join('')}</div>`;
+        let html = '<div style="font-size:12px;">';
+        html += panelTabs(game, {
+            id: 'tradePolicy', title: '⚖️ Trade Policy', tabs: TABS.filter(([id]) => id !== 'crown' || ruler), active: t,
+            go: (k) => { ActionMenu.showTradePolicy(game, k); },
+            attrsFor: (k) => `data-am-act="showTradePolicy" data-am-args='${esc(JSON.stringify([k]))}'`,
+        });
         html += t === 'realms' ? realmsTab(game, pick) : t === 'crown' ? crownTab(game) : hereTab(game);
         html += '</div>';
         game.ui.showCustomPanel('⚖️ Trade Policy', html);

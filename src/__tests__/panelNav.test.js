@@ -4,6 +4,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { isPanelClick } from '../ui/ui/core.js';
+import { panelTabs } from '../ui/actionMenu/uiKit.js';
 
 let UI;
 let saved;
@@ -109,6 +110,64 @@ describe('custom panel tab bar', () => {
         panel.parts['.custom-panel-body'].scrollTop = 200;
         ui.showCustomPanel('Ledger', '<p>book</p>');
         expect(panel.parts['.custom-panel-body'].scrollTop).toBe(200);
+    });
+
+    it('drops the bar when a button inside a tabbed view opens some other panel', () => {
+        const panel = fakePanel();
+        withPanel(panel);
+        const ui = Object.create(UI.prototype);
+        ui.setPanelNav(navOf([]));
+        ui.showCustomPanel('Bank', '<p>vaults</p>');
+        ui._clickInPanel = true;
+        ui.showCustomPanel('Bank', '<p>vaults, after a deposit</p>');
+        expect(panel.parts['.custom-panel-nav'].innerHTML).toContain('panelNavGo');
+        // "Open the town's people" from inside the bank: not one of its tabs
+        ui.showCustomPanel('People of the town', '<p>classes</p>');
+        expect(panel.parts['.custom-panel-nav'].innerHTML).toBe('');
+        expect(panel.parts['.custom-panel-title'].textContent).toBe('People of the town');
+    });
+
+    it('a tab that toggles content in place lights itself and starts at the top', () => {
+        const panel = fakePanel();
+        withPanel(panel);
+        const ran = [];
+        const ui = Object.create(UI.prototype);
+        ui.setPanelNav({ id: 'treasury', active: 'a', items: [
+            { key: 'a', label: 'A', inPlace: true, run: () => ran.push('a') },
+            { key: 'b', label: 'B', inPlace: true, run: () => ran.push('b') },
+        ] });
+        ui.showCustomPanel('Treasury', '<p>all tabs</p>');
+        panel.parts['.custom-panel-body'].scrollTop = 250;
+        ui.panelNavGo('b');
+        expect(ran).toEqual(['b']);
+        expect(panel.parts['.custom-panel-nav'].innerHTML).toMatch(/class="panel-nav-tab active"[^>]*>B</);
+        expect(panel.parts['.custom-panel-body'].scrollTop).toBe(0);
+    });
+
+    it('panelTabs: a panel puts its tabs in the bar, or under a bar that hosts it', () => {
+        const panel = fakePanel();
+        withPanel(panel);
+        const ui = Object.create(UI.prototype);
+        const game = { ui };
+        const shown = [];
+        const attrsFor = (k) => `data-am-act="x" data-am-args='["tab","${k}"]'`;
+        // Alone: its own bar, nothing in the content
+        const own = panelTabs(game, { id: 'ledger', title: 'Ledger', tabs: [['book', 'Book'], ['pnl', 'P&L']], active: 'book', go: (k) => shown.push(k), attrsFor });
+        expect(own).toBe('');
+        expect(ui._panelNav.id).toBe('ledger');
+        ui._panelNav.items[1].run();
+        expect(shown).toEqual(['pnl']);
+        // Under the market's bar, which hosts it: the market keeps its bar, Ledger lit
+        ui.setPanelNav({ id: 'market', active: 'buy', items: [{ key: 'buy', label: 'Buy', run() {} }, { key: 'ledger', label: 'Ledger', run() {} }], hosts: { ledger: { '*': 'ledger' } } });
+        ui.showCustomPanel('Market', '<p>stalls</p>');
+        ui._clickInPanel = true;
+        const sub = panelTabs(game, { id: 'ledger', title: 'Ledger', tabs: [['book', 'Book'], ['pnl', 'P&L']], active: 'pnl', go: () => {}, attrsFor });
+        expect(ui._panelNav.id).toBe('market');
+        expect(ui._panelNav.active).toBe('ledger');
+        expect(sub).toContain('panel-subtabs');
+        expect(sub).toMatch(/class="panel-subtab active"[^>]*>P&L</);
+        // Without a tab bar to use (a bare ui), the tabs are a row in the content
+        expect(panelTabs({ ui: {} }, { id: 'ledger', tabs: [['book', 'Book']], active: 'book', go() {}, attrsFor })).toContain('panel-subtab');
     });
 
     it('counts clicks in the panel and its dialogs, not on the map', () => {

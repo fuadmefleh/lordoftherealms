@@ -3,11 +3,8 @@
 // (Journal → Sagas). Logic lives in systems/sagas.js; this panel presents it.
 import { ActionMenu } from './_ref.js';
 import { Sagas } from './_imports.js';
+import { BTN_GOLD, BTN_OFF, CARD } from './uiKit.js';
 
-const BTN = 'padding: 5px 8px; margin: 3px 3px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
-const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
-const BTN_OFF = BTN + 'background: #333; color: #777; cursor: not-allowed;';
-const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
 const HEAD = 'font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 10px 0 4px;';
 const OUTCOME = { triumph: ['🏆', '#7fd07f'], mixed: ['⚖️', '#e0b040'], tragedy: ['🕯️', '#e08080'] };
 

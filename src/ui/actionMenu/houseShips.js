@@ -264,13 +264,17 @@ Object.assign(ActionMenu, {
         html += statPill('⚓ Docked', playerShipsHere.length);
         html += `</div>`;
 
-        html += '<div style="display:flex;gap:6px;margin-bottom:10px;">';
-        html += `<button id="shipTabBtn_used" onclick="window._shipTab('used')" style="flex:1;${btnTab}">🏷️ Used Ships</button>`;
-        html += `<button id="shipTabBtn_build" onclick="window._shipTab('build')" style="flex:1;${btnTab}">🔨 Build New</button>`;
-        if (playerShipsHere.length > 0) {
-            html += `<button id="shipTabBtn_docked" onclick="window._shipTab('docked')" style="flex:1;${btnTab}">⚓ My Ships (${playerShipsHere.length})</button>`;
+        // Used / Build / My Ships are the window's tab bar; the tab shown survives re-renders
+        const shipTabs = [['used', '🏷️ Used Ships'], ['build', '🔨 Build New']];
+        if (playerShipsHere.length > 0) shipTabs.push(['docked', `⚓ My Ships (${playerShipsHere.length})`]);
+        const ui = game.ui || {};
+        const shipTab = shipTabs.some(([k]) => k === ui._shipyardTab) ? ui._shipyardTab : 'used';
+        if (typeof ui.setPanelNav === 'function') {
+            ui.setPanelNav({
+                id: 'shipyard', title: `⚓ ${settlement.name} Shipyard`, active: shipTab,
+                items: shipTabs.map(([key, label]) => ({ key, label, inPlace: true, run: () => window._shipTab(key) })),
+            });
         }
-        html += '</div>';
 
         html += '<div id="shipTabUsed">';
         if (usedShips.length === 0) {
@@ -393,10 +397,11 @@ Object.assign(ActionMenu, {
         };
 
         window._shipTab = (tab) => {
+            ui._shipyardTab = tab;
             setShipTab(tab);
         };
 
-        setShipTab('used');
+        setShipTab(shipTab);
 
         window._buyUsedShip = (index) => {
             if (!ActionMenu.commitPendingAP(game)) return;

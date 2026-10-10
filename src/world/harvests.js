@@ -369,7 +369,7 @@ export const Harvests = {
     /**
      * Scale a town's production profile ({ goodId: units a day },
      * SettlementMarket.production) by its harvest in force and its crop mix:
-     * grain, wine, linen (textiles from flax) and the livestock goods.
+     * grain, wine, flax (linen; textiles where markets keep no flax) and the livestock goods.
      */
     applyToProduction(world, s, prod) {
         const f = s && _obj(s.farm);
@@ -383,8 +383,15 @@ export const Harvests = {
             const climate = Math.pow(_clamp(ref / Math.max(0.005, C.baseMix.vine), 0.1, 4), _num(E.wineClimate, 0.5));
             prod.wine *= _clamp(_num(f.mix.vine) * y.vine / ref * climate, 0.1, 3);
         }
-        // Flax: linen comes to market as textiles
-        if (_num(E.linen) > 0 && SettlementMarket.tracks('textiles') && SettlementMarket.uses(s, 'textiles')) {
+        // Flax: the flax fields bring flax to market (the linen weavers and the
+        // cottagers of the putting-out system make linen of it); without a flax
+        // good, linen comes to market as textiles
+        if (_num(E.flax) > 0 && SettlementMarket.tracks('flax')) {
+            const pop = Math.max(0, _num(s.population));
+            const td = _num(SettlementMarket.config().typeDemand[s.type], 1) || 1;
+            const n = pop * E.flax * td * (_num(f.mix.fibre) / Math.max(0.01, C.baseMix.fibre)) * y.fibre;
+            if (n > 0) prod.flax = (prod.flax || 0) + n;
+        } else if (_num(E.linen) > 0 && SettlementMarket.tracks('textiles') && SettlementMarket.uses(s, 'textiles')) {
             const need = SettlementMarket.need(s, 'textiles');
             const n = need * E.linen * (_num(f.mix.fibre) / Math.max(0.01, C.baseMix.fibre)) * y.fibre;
             if (n > 0) prod.textiles = (prod.textiles || 0) + n;
@@ -540,7 +547,7 @@ export const Harvests = {
         const grain = Math.pow(sc('grain'), e);
         w.grain *= grain;
         w.veg *= grain;
-        w.fibre *= Math.pow(sc('textiles'), e);
+        w.fibre *= Math.pow(SettlementMarket.tracks('flax') ? (sc('flax') + sc('linen')) / 2 : sc('textiles'), e);
         w.vine *= Math.pow(sc('wine'), e);
         w.fallow *= Math.pow((sc('meat') + sc('cheese')) / 2, e) * (1 + Math.max(0, 1 - f.soil) * _num(K.soilFallow, 3));
         const target2 = Harvests._normalise(w);

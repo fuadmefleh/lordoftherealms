@@ -24,11 +24,11 @@
 
     "_baskets": "What each stratum buys of a good against the average townsman (1 when not listed). A town's need of a good = the market's per-capita need x (sum of share x basket) / (the same sum at its size's usual mix). Gems (2026-10 economic chronicle pass): nobles 5 (was 8), merchants 1.5 (was 2), artisans 0.8 (was 0.5) — the gem cutters' and goldsmiths' own trade buys gems too, so a town's gem need swings less with its elite; fashions at court (data/chronicle.json, e.g. jewelled finery) move it for a season. With markets.json supply gems 0.95 (was 0.8) and luxuries 0.7 (was 0.9) the jewellers' row no longer stands idle late in the game (docs/economy-balance.md).",
     "baskets": {
-        "peasants":  { "grain": 1.2, "flour": 1.1, "bread": 0.9, "beer": 1.1, "liquor": 1.1, "wine": 0.1, "firewood": 1.15, "coal": 0.5, "clothes": 0.75, "cheese": 0.6, "meat": 0.8, "fish": 0.9, "tools": 1.1, "lamp_oil": 0.5, "luxuries": 0, "spices": 0.1, "gems": 0, "gold_ore": 0, "silver_ore": 0, "horse": 0.1, "horses": 0.8, "weapons": 0.6 },
-        "artisans":  { "bread": 1.15, "beer": 1.15, "clothes": 1.1, "tools": 1.3, "lamp_oil": 1.2, "coal": 1.3, "iron": 1.3, "textiles": 1.3, "wine": 0.5, "luxuries": 0.4, "spices": 0.4, "horse": 0.3, "gems": 0.8, "silver_ore": 0.6 },
-        "merchants": { "wine": 3, "luxuries": 3, "spices": 3, "clothes": 1.8, "cheese": 1.8, "meat": 1.6, "fish": 1.3, "lamp_oil": 2, "horse": 2.5, "horses": 1.5, "gems": 1.5, "silver_ore": 2, "grain": 0.6, "beer": 0.8 },
-        "clergy":    { "wine": 2.5, "lamp_oil": 3, "bread": 1.1, "clothes": 1.2, "luxuries": 1, "spices": 1, "beer": 0.6, "liquor": 0.4, "grain": 0.8 },
-        "nobles":    { "wine": 6, "luxuries": 8, "spices": 6, "gems": 5, "gold_ore": 6, "silver_ore": 4, "horse": 6, "horses": 3, "meat": 2.5, "fish": 1.5, "cheese": 2.5, "clothes": 3, "weapons": 3, "liquor": 1.5, "lamp_oil": 2.5, "grain": 0.5, "beer": 0.6 }
+        "peasants":  { "grain": 1.2, "flour": 1.1, "bread": 0.9, "beer": 1.1, "liquor": 1.1, "wine": 0.1, "firewood": 1.15, "coal": 0.5, "clothes": 0.75, "cheese": 0.6, "meat": 0.8, "fish": 0.9, "tools": 1.1, "lamp_oil": 0.5, "luxuries": 0, "spices": 0.1, "gems": 0, "gold_ore": 0, "silver_ore": 0, "horse": 0.1, "horses": 0.8, "weapons": 0.6, "linen": 0.6 },
+        "artisans":  { "bread": 1.15, "beer": 1.15, "clothes": 1.1, "tools": 1.3, "lamp_oil": 1.2, "coal": 1.3, "iron": 1.3, "textiles": 1.3, "linen": 1.1, "wine": 0.5, "luxuries": 0.4, "spices": 0.4, "horse": 0.3, "gems": 0.8, "silver_ore": 0.6 },
+        "merchants": { "wine": 3, "luxuries": 3, "spices": 3, "clothes": 1.8, "cheese": 1.8, "meat": 1.6, "fish": 1.3, "lamp_oil": 2, "horse": 2.5, "horses": 1.5, "gems": 1.5, "silver_ore": 2, "grain": 0.6, "beer": 0.8, "linen": 2 },
+        "clergy":    { "wine": 2.5, "lamp_oil": 3, "bread": 1.1, "clothes": 1.2, "luxuries": 1, "spices": 1, "beer": 0.6, "liquor": 0.4, "grain": 0.8, "linen": 2.5 },
+        "nobles":    { "wine": 6, "luxuries": 8, "spices": 6, "gems": 5, "gold_ore": 6, "silver_ore": 4, "horse": 6, "horses": 3, "meat": 2.5, "fish": 1.5, "cheese": 2.5, "clothes": 3, "weapons": 3, "liquor": 1.5, "lamp_oil": 2.5, "grain": 0.5, "beer": 0.6, "linen": 3 }
     },
 
     "_jobs": "Hands each sector wants (its jobs). The trades and the counting-houses are sized by the economy the town has built up (labour.base: its population, followed baseAlpha of the way each market turn), so new artisans and merchants find no place at first and a town emptied by war is short of them until it shrinks; the land takes every newcomer while it has land to spare: land = work x the usual peasant share x the people the land can employ (landCap[type] x fertility; past it each extra mouth finds only crowdSlope of a place); craft = work x the usual artisan share x pop x (craftBase + craftUtil x how busy the town's trades ran last turn); trade = work x the usual merchant share x pop x (tradeBase + tradeAct x the turn's trade volume / (pop x tradeRef), at most tradeMax). The player's works (works.hands per level) and properties (properties.wageShare of their upkeep at the base wage) hire on top. Goods by sector: craftGoods are the craftsmen's (the rest come off the land, the mines and the woods).",
@@ -39,7 +39,7 @@
         "craftBase": 0.8, "craftUtil": 0.3,
         "tradeBase": 0.9, "tradeAct": 0.1, "tradeRef": 0.0004, "tradeMax": 1.5
     },
-    "craftGoods": ["flour", "bread", "beer", "liquor", "wine", "cheese", "textiles", "clothes", "tools", "weapons", "lamp_oil", "luxuries"],
+    "craftGoods": ["flour", "bread", "beer", "liquor", "wine", "cheese", "textiles", "linen", "clothes", "tools", "weapons", "lamp_oil", "luxuries"],
 
     "_wages": "Gold a day per hand at the usual balance of jobs and hands: base[sector] x typeMult[type]; x (jobs / hands) ^ elasticity, clamped to [min, max]; x the cost of living (the scarcity of the staples the poor buy) ^ colPow. Moves `alpha` of the way a market turn.",
     "wages": {
@@ -86,7 +86,7 @@
     "strikes": { "below": 0.65, "wageBelow": 0.85, "chance": 2.5, "days": 7, "gap": 45, "minType": "town", "boomAt": 0.9, "boomGap": 60 },
 
     "_works": "Hands a level of the player's works (systems/merchantPrince.js) hires from the town's artisans, paid the local craft wage for the runs the works make (a run must earn its wages as well as its margin, or the works stand idle — SettlementMarket._runWorks; idlePay of them would be kept on as a skeleton crew while the works stand idle). The wages come out of the player's share of the value added (data/merchantPrince.json investorShare / ownShare were raised to carry them).",
-    "works": { "idlePay": 0, "hands": { "mill": 2, "bakery": 8, "brewery": 7, "charcoal": 3, "distillery": 4, "weaver": 4, "tailor": 3, "dairy": 3, "smithy": 2, "armoury": 4, "founder": 3, "jeweller": 4 } },
+    "works": { "idlePay": 0, "hands": { "mill": 2, "bakery": 8, "brewery": 7, "charcoal": 3, "distillery": 4, "weaver": 4, "linen_weaver": 3, "tailor": 3, "dairy": 3, "smithy": 2, "armoury": 4, "founder": 3, "jeweller": 4 } },
 
     "_properties": "The player's properties hire from the nearest town within `radius` hexes (none in the wild: they bring their own). wageShare of a property's upkeep is its wage bill at the base wage of that town; the bill floats with the local wage, and a town short of hands staffs it only as far as its fill. Properties of the craftCategories hire artisans, the rest (farms, mines, camps) peasants and labourers.",
     "properties": { "radius": 3, "wageShare": 0.5, "craftCategories": ["crafts", "food", "commerce"] },

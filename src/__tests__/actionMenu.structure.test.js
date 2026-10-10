@@ -32,7 +32,7 @@ import { DataLoader } from '../core/dataLoader.js';
 // showHallOfHeroes (rival adventurers) = 246, plus showPhysicianMenu (wounds, sickness
 // and medicine) = 247, plus the heirs panels (showChildPanel, showHouseChronicle,
 // showEpitaph, _heirProfileHtml, _reignsHtml) = 252, plus showSagasJournal (world storylines) = 253, plus showDiscoveries (uncharted lands) = 254, plus showTradingCompany (merchant houses) = 255, plus showHoldingSiegesPanel and holdingSiegeAct (holdings under siege) = 259, plus showDeeds (Deeds & Records) = 260, plus showRoyalCourt (kingship) = 261, plus showCounsel and counselGo (the Steward's Counsel) = 263, plus showPatronage and patronageAct (patronage & great works) = 265, plus showOutlawLairs (outlaw lairs) = 266, plus showBank and bankAct (banks, credit & coin) = 268, plus showTrader, traderBuy, traderSell, traderEscort, traderQuitEscort and traderRob (merchant caravans on the road) = 274, plus showMerchantPrince and merchantPrinceAct (invest, warehouse, contracts) = 276, plus showGuildhall and guildAct (town guilds) = 278.
-// showEpitaph, _heirProfileHtml, _reignsHtml) = 252, plus showSagasJournal (world storylines) = 253, plus showDiscoveries (uncharted lands) = 254, plus showTradingCompany (merchant houses) = 255, plus showHoldingSiegesPanel and holdingSiegeAct (holdings under siege) = 259, plus showDeeds (Deeds & Records) = 260, plus showRoyalCourt (kingship) = 261, plus showCounsel and counselGo (the Steward's Counsel) = 263, plus showPatronage and patronageAct (patronage & great works) = 265, plus showOutlawLairs (outlaw lairs) = 266, plus showBank and bankAct (banks, credit & coin) = 268, plus showTrader, traderBuy, traderSell, traderEscort, traderQuitEscort and traderRob (merchant caravans on the road) = 274, plus showMerchantPrince and merchantPrinceAct (invest, warehouse, contracts) = 276, plus showMerchantLedger and merchantLedgerAct (the Merchant's Ledger) = 278, plus showTownPeople (labour, classes & migration) = 281, plus showEconomy and economyAct (the Economic Chronicle) = 283, plus showTradePolicy and tradePolicyAct (kingdom trade policy) = 285, plus showHinterland and hinterlandAct (mines, leases and prospecting) = 287, plus showHarvests and harvestAct (harvests & the agricultural year) = 289, plus showUnderwriter, underwriterAct, showBourse and bourseAct (underwriters & the Bourse) = 293, plus showPublicWorks and publicWorksAct (roads, canals & public works) = 295, plus showMint and mintAct (specie, mints & the price level) = 297, plus showTreasury and treasuryAct (the Crown's Purse) = 299.
+// showEpitaph, _heirProfileHtml, _reignsHtml) = 252, plus showSagasJournal (world storylines) = 253, plus showDiscoveries (uncharted lands) = 254, plus showTradingCompany (merchant houses) = 255, plus showHoldingSiegesPanel and holdingSiegeAct (holdings under siege) = 259, plus showDeeds (Deeds & Records) = 260, plus showRoyalCourt (kingship) = 261, plus showCounsel and counselGo (the Steward's Counsel) = 263, plus showPatronage and patronageAct (patronage & great works) = 265, plus showOutlawLairs (outlaw lairs) = 266, plus showBank and bankAct (banks, credit & coin) = 268, plus showTrader, traderBuy, traderSell, traderEscort, traderQuitEscort and traderRob (merchant caravans on the road) = 274, plus showMerchantPrince and merchantPrinceAct (invest, warehouse, contracts) = 276, plus showMerchantLedger and merchantLedgerAct (the Merchant's Ledger) = 278, plus showTownPeople (labour, classes & migration) = 281, plus showEconomy and economyAct (the Economic Chronicle) = 283, plus showTradePolicy and tradePolicyAct (kingdom trade policy) = 285, plus showHinterland and hinterlandAct (mines, leases and prospecting) = 287, plus showHarvests and harvestAct (harvests & the agricultural year) = 289, plus showUnderwriter, underwriterAct, showBourse and bourseAct (underwriters & the Bourse) = 293, plus showPublicWorks and publicWorksAct (roads, canals & public works) = 295, plus showMint and mintAct (specie, mints & the price level) = 297, plus showTreasury and treasuryAct (the Crown's Purse) = 299, plus showEstates, estateAct, showPuttingOut and puttingOutAct (estates & the putting-out system) = 303.
 const EXPECTED_KEYS = [
     'showCourtPanel', 'showDelvePanel', 'showClaimsPanel', 'showHoldingPanel',
     'showRivalsPanel', 'showHallOfHeroes', 'showPhysicianMenu',
@@ -54,6 +54,7 @@ const EXPECTED_KEYS = [
     'showUnderwriter', 'underwriterAct', 'showBourse', 'bourseAct',
     'showMint', 'mintAct',
     'showTreasury', 'treasuryAct',
+    'showEstates', 'estateAct', 'showPuttingOut', 'puttingOutAct',
     'showTradingCompany',
     'showHoldingSiegesPanel', 'holdingSiegeAct',
     'showDeeds',
@@ -128,8 +129,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 299 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(299);
+    it('has 303 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(303);
     });
 
     it('every member except the known data props is a function', () => {

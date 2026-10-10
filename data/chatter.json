@@ -34,6 +34,7 @@
             "bank_failed": 6, "crown_default": 7, "coin_debased": 5, "caravan_taken": 4,
             "coin_recoinage": 4, "coin_shortage": 3, "coin_flood": 3,
             "tax_revolt": 5, "tax_farm": 3, "taxes_raised": 4, "army_unpaid": 6, "offices_sold": 4, "crown_land_sold": 4,
+            "estate_enclosure": 3, "estate_riot": 5, "estate_sold": 3, "estate_confiscated": 4, "estate_ceded": 4, "linen_glut": 3,
             "market_fair": 4, "market_dearth": 5, "market_glut": 3,
             "labour_refugees": 5, "labour_strike": 4, "labour_boom": 3,
             "guild_strike": 5, "guild_election": 3, "guild_chartered": 3, "guild_abolished": 5,
@@ -51,6 +52,7 @@
             "bank_failed": "🏚️", "crown_default": "📛", "coin_debased": "💱", "caravan_taken": "🐫",
             "coin_recoinage": "💰", "coin_shortage": "💰", "coin_flood": "💰",
             "tax_revolt": "🔥", "tax_farm": "📜", "taxes_raised": "💰", "army_unpaid": "⚔️", "offices_sold": "📜", "crown_land_sold": "🌾",
+            "estate_enclosure": "🐑", "estate_riot": "🔥", "estate_sold": "🌾", "estate_confiscated": "⚖️", "estate_ceded": "📜", "linen_glut": "👚",
             "market_fair": "🎪", "market_dearth": "🥖", "market_glut": "🌾",
             "labour_refugees": "🧳", "labour_strike": "✊", "labour_boom": "🏗️", "guild_strike": "✊", "guild_election": "🗳️", "guild_chartered": "📜", "guild_abolished": "⚖️",
             "mine_strike": "⛏️", "mine_vein": "💎", "mine_exhausted": "🕳️", "mine_accident": "💥",
@@ -89,6 +91,30 @@
                 "Hear ye! A new {site} is struck in the hills near {place}. Miners and carters, there is work to be had!",
                 "Strike! The prospectors of {place} have found a {site}; {good} will come down from the hills before the season is out.",
                 "By leave of the crown of {kingdom}, a {site} is opened near {place}. Let honest men go dig."
+            ],
+            "estate_enclosure": [
+                "Hear ye! {holder} has hedged the fields of {estate} near {place} and put them to sheep. {n} households are turned out and go to {to}.",
+                "Sheep eat men at {place}: {holder} encloses {estate}, and {n} families take the road to {to}."
+            ],
+            "estate_riot": [
+                "Riot at {place}! The cottagers of {estate} have torn down {holder}'s hedges and beaten the bailiff.",
+                "The peasants of {estate} near {place} have risen against {holder}. The sheriff's men ride out."
+            ],
+            "estate_sold": [
+                "{holder} has sold {estate} near {place} to {buyer} for {price} gold.",
+                "Land for sale no more: {estate} near {place} passes from {holder} to {buyer}, for {price} gold."
+            ],
+            "estate_confiscated": [
+                "By right of conquest {buyer} takes {estate} near {place}, the land of {holder}.",
+                "The new masters of {place} seize {estate} from {holder}."
+            ],
+            "estate_ceded": [
+                "By the terms of peace, {holder} cedes {estate} near {place} to {buyer}.",
+                "{estate} near {place} is given up to {buyer}: the price of a lost war for {holder}."
+            ],
+            "linen_glut": [
+                "Linen is cheap in {kingdom}: the cottage looms have flooded the markets of {place} and {n} towns besides.",
+                "The cottagers of {kingdom} weave more linen than the realm can wear: it goes for a song at {place}."
             ],
             "mine_vein": [
                 "The old {site} near {place} has found a fresh vein: the pits will not close this year.",
@@ -549,6 +575,26 @@
         { "id": "labour_mine_closed", "when": { "labour": ["mine_closed"] }, "weight": 2, "lines": [
             "The mine's worked out. The miners are packing their carts; the smiths will pay through the nose for ore now.",
             "Nothing left in those hills but holes. My brother dug there twenty years; now he's off to find work elsewhere."
+        ]},
+        { "id": "land_enclosure", "when": { "labour": ["enclosure"] }, "weight": 2, "lines": [
+            "The squire's hedged his fields for sheep. Where there were twenty hearths there's one shepherd and his dog.",
+            "Wool pays the lords better than tenants do. My uncle's family were turned out last spring; they went to the town."
+        ]},
+        { "id": "land_enclosure_riot", "when": { "labour": ["enclosure_riot"] }, "weight": 3, "lines": [
+            "They pulled the hedges down by night and drove the sheep into the river. The bailiff hasn't shown his face since.",
+            "A riot over the enclosures, and the sheriff's men out hunting the ringleaders. Bad times for honest folk."
+        ]},
+        { "id": "land_estate_sale", "when": { "labour": ["estate_sale"] }, "weight": 1, "lines": [
+            "There's an estate going hereabouts. The old lord's in debt to his ears, they say.",
+            "New landlord on the manor. We'll see if he keeps the old rents or raises them."
+        ]},
+        { "id": "land_putting_out", "when": { "labour": ["putting_out"] }, "weight": 1, "lines": [
+            "The merchant's man came round with wool again. Spinning by the fire pays better than sitting idle all winter.",
+            "My wife weaves for a clothier now, piece by piece. The guild men grumble, but they don't come out to the villages."
+        ]},
+        { "id": "land_putting_out_farmer", "when": { "labour": ["putting_out"], "occupation": ["farmer", "villager"] }, "weight": 2, "lines": [
+            "In winter there's spinning to be had for the merchants. Come harvest, though, the wheel stands still.",
+            "Wool in the winter, the fields in the summer. That's how a family gets by out here."
         ]},
         { "id": "labour_hardship", "when": { "labour": ["hardship"] }, "weight": 1, "lines": [
             "A day's wage doesn't buy a day's bread any more. Something's got to give.",
@@ -1109,6 +1155,10 @@
         { "id": "prices_dear_food_merchant", "when": { "prices": ["dear_food"], "occupation": ["merchant", "farmer"] }, "weight": 2, "lines": [
             "Grain's fetching {pricePct}% more than in {sinceSeason}. A cart from a glutted town would pay for itself twice.",
             "I've never seen bread so dear in {kingdom}. Whoever's sitting on a granary is a rich man this season."
+        ]},
+        { "id": "prices_linen_glut", "when": { "prices": ["linen_glut"] }, "weight": 1, "lines": [
+            "Linen's cheaper than it's been in years. Every cottage has a loom going.",
+            "You can't sell linen for what the flax cost. The cottagers weave it faster than folk can wear it out."
         ]},
         { "id": "prices_inflation", "when": { "prices": ["inflation"] }, "weight": 2, "lines": [
             "Everything costs {pricePct}% more than in {sinceSeason}. My wages don't.",

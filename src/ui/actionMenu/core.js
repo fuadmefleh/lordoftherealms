@@ -853,6 +853,12 @@ Object.assign(ActionMenu, {
             case 'treasury':
                 ActionMenu.showTreasury(game);
                 break;
+            case 'estates':
+                ActionMenu.showEstates(game, tile, 'here');
+                break;
+            case 'putting_out':
+                ActionMenu.showPuttingOut(game, tile);
+                break;
             case 'host_feast':
                 ActionMenu.showHostFeastMenu(game, tile);
                 break;

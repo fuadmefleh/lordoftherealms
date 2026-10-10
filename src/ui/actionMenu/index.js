@@ -44,6 +44,8 @@ import './harvests.js';
 import './underwriting.js';
 import './bourse.js';
 import './mints.js';
+import './estates.js';
+import './puttingOut.js';
 import './economy.js';
 import './publicWorks.js';
 import './treasury.js';

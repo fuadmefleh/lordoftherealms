@@ -27,6 +27,9 @@ import { Bourse } from '../../systems/bourse.js';
 import { Transport } from '../../world/transport.js';
 import { Mints } from '../../systems/mints.js';
 import { Fiscal } from '../../systems/fiscal.js';
+import { Estates } from '../../world/estates.js';
+import { LandMarket } from '../../systems/landMarket.js';
+import { PuttingOut } from '../../systems/puttingOut.js';
 
 export function addSettlementActions(actions, player, tile, world, ctx) {
     const { isCity, isVillage, isPlayerSettlement, playerSettlementCount, playerKingdom, hasPlayerFoundedKingdom } = ctx;
@@ -448,6 +451,29 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
                     : farms.length ? `Your tax farm(s) here: how hard your collectors press; the crown's budget` : 'The crown’s taxes, wages and debts line by line; every realm’s purse',
             });
         }
+    }
+
+    // Estates & land (world/estates.js, systems/landMarket.js): the estates about the town, the
+    // land market; the putting-out system (systems/puttingOut.js): the cottagers' spinning and weaving
+    if (Estates.enabled() && tile.settlement) {
+        const ests = Estates.estatesOf(world, tile.settlement.q != null ? tile.settlement.q : tile.q, tile.settlement.r != null ? tile.settlement.r : tile.r);
+        const forSale = ests.filter(e => LandMarket.listing(world, e.id)).length;
+        const mine = ests.filter(e => e.holder === 'player').length;
+        actions.push({
+            type: 'estates',
+            label: 'Estates & Land',
+            icon: '🌾',
+            description: ests.length
+                ? `${ests.length} estate(s) about the town${mine ? `, ${mine} yours` : ''}${forSale ? `, ${forSale} for sale` : ''}: tenants, rents, land values; buy, improve, enclose`
+                : 'The farmland about the town and who holds it',
+        });
+        const ready = PuttingOut.batches(player, tile.settlement.q, tile.settlement.r).filter(b => b.done).length;
+        actions.push({
+            type: 'putting_out',
+            label: 'Put Out Work',
+            icon: '🧶',
+            description: ready ? `Cloth ready to collect (${ready} batch(es))` : `Put out wool and flax to ${PuttingOut.households(tile.settlement)} cottage households to spin and weave for a piece rate`,
+        });
     }
 
     // Claims & Crowns — once there is a claim, a crisis, a war for a throne or a crown

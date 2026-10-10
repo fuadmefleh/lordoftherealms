@@ -34,6 +34,7 @@ import { Harvests } from '../world/harvests.js';
 import { Transport } from '../world/transport.js';
 import { PublicWorks } from './publicWorks.js';
 import { MoneySupply } from '../world/moneySupply.js';
+import { Estates } from '../world/estates.js';
 
 const _key = (q, r) => `${q},${r}`;
 /** Days a settlement's production profile holds before it is worked out again. */
@@ -101,7 +102,9 @@ export const MarketDynamics = {
             // (kept on the market, so a loaded game carries on identically), and
             // when a sowing or a harvest changes its fields (world/harvests.js)
             const bucket = Math.floor(_num(day) / PROFILE_DAYS);
-            if (!Array.isArray(m.prod) || m.prodAt !== bucket || _num(m.prodHv) !== harvestVer || m.prod.length !== SettlementMarket.config().goodIds.length) {
+            // (...and when its estates' holders change its fields: world/estates.js)
+            const esVer = Estates.townVersion(world, s.q, s.r);
+            if (!Array.isArray(m.prod) || m.prodAt !== bucket || _num(m.prodHv) !== harvestVer || _num(m.prodEs) !== esVer || m.prod.length !== SettlementMarket.config().goodIds.length) {
                 if (!spill) spill = this._propertySpill(world, views);
                 const land = this._land(world, cache, tile, day);
                 // The breakdown produceDaily stored today (kingdom towns), else worked out fresh
@@ -112,9 +115,12 @@ export const MarketDynamics = {
                 const prod = SettlementMarket.production(live, land, bd, foodBase, spill.get(_key(s.q, s.r)) || null);
                 // The harvest in force and the town's crop mix: grain, wine, linen, the herds
                 Harvests.applyToProduction(world, live, prod);
+                // ...and what its estates' holders changed: drained or enclosed land, the cottagers' draw
+                Estates.applyToProduction(world, live, prod, spill.get(_key(s.q, s.r)) || null);
                 m.prod = SettlementMarket.productionList(prod);
                 m.prodAt = bucket;
                 if (harvestVer) m.prodHv = harvestVer;
+                if (esVer) m.prodEs = esVer;
             }
             SettlementMarket.processSettlement(live, m.prod, {
                 day,

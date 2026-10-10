@@ -566,7 +566,8 @@ export const Colonization = {
 
         // Create the settlement
         const colonyName = name || Kingdom.generateCityName(
-            player.allegiance ? (world.getKingdom(player.allegiance)?.culture || 'Imperial') : 'Imperial'
+            player.allegiance ? (world.getKingdom(player.allegiance)?.culture || 'Imperial') : 'Imperial',
+            world,
         );
 
         tile.settlement = {
@@ -838,7 +839,8 @@ export const Colonization = {
         if (!tile || tile.settlement) return;
 
         const name = Kingdom.generateCityName(
-            player && player.allegiance ? (world.getKingdom(player.allegiance)?.culture || 'Imperial') : 'Imperial'
+            player && player.allegiance ? (world.getKingdom(player.allegiance)?.culture || 'Imperial') : 'Imperial',
+            world,
         );
 
         tile.settlement = {
@@ -899,7 +901,7 @@ export const Colonization = {
         const kingdom = world.getKingdom(settler.kingdomId);
         if (!kingdom || !kingdom.isAlive) return;
 
-        const name = Kingdom.generateCityName(kingdom.culture);
+        const name = Kingdom.generateCityName(kingdom.culture, world);
 
         tile.settlement = {
             type: 'village',

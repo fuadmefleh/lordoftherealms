@@ -7,6 +7,7 @@
 import { ActionMenu } from './_ref.js';
 import { Harvests } from '../../world/harvests.js';
 import { Seasons } from '../../world/seasons.js';
+import { Engrossing } from '../../systems/engrossing.js';
 
 const BTN = 'padding: 4px 8px; margin: 3px 4px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;';
 const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
@@ -33,7 +34,7 @@ function hereHtml(game, tile) {
     const name = Harvests.regionName(world, id);
     if (!f) return `<div style="${CARD}"><b>${esc(name)}</b><div style="${NOTE}">No harvest is reckoned here yet: the fields are sown at the turn of the year.</div></div>`;
     const doy = Seasons.dayOfYear(world.day);
-    let html = `<div style="${CARD}"><div><b>${esc(name)}</b> · ${f.settled ? `the harvest of year ${f.year + 1} is in` : `the crop in the fields (day ${doy} of the year)`}: <b style="color:${tone(f.est)};">${pct(f.est)}</b> of a normal year${f.settled ? '' : ` · ${pct(f.conf)} of the season seen`}</div>`;
+    let html = `<div style="${CARD}"><div><b>${esc(name)}</b> · ${f.settled ? `the harvest of year ${f.year + 1} is in` : `the crop of year ${f.year + 1} in the fields (day ${doy} of the year)`}: <b style="color:${tone(f.est)};">${pct(f.est)}</b> of a normal year${f.settled ? '' : ` · ${pct(f.conf)} of the season seen`}</div>`;
     const parts = [`weather ${pct(f.weather)}`];
     if (f.war > 0.005) parts.push(`war −${pct(f.war)}`);
     for (const b of f.blights || []) parts.push(`<span style="color:#e74c3c;">${esc(Harvests.blightName(b))}</span>`);
@@ -47,9 +48,24 @@ function townHtml(game, tile) {
     const farm = s && s.farm;
     if (!farm || !farm.mix) return '';
     const y = Harvests.townYield(s);
-    let html = `<div style="${CARD}"><div><b>The fields of ${esc(s.name)}</b> · soil ${pct(farm.soil || 1)} · grain to market ×${Harvests.grainFactor(s).toFixed(2)}</div><div style="${NOTE}">`;
-    html += Harvests.CROPS.map(c => `${CROP_LABEL[c]} ${pct(farm.mix[c] || 0)}${c !== 'fallow' ? ` (yield ${pct(y[c])})` : ''}`).join(' · ');
-    html += '</div><div style="' + NOTE + '">The farmers sow more of what sells dear here and what the climate favours; over-cropping thins the soil, fallow and legumes restore it.</div></div>';
+    const reaped = Harvests.townHarvestYear(s);
+    const f = Harvests.forecast(game.world, Harvests.regionOfTown(game.world, s));
+    let html = `<div style="${CARD}"><div><b>The fields of ${esc(s.name)}</b> · soil ${pct(farm.soil || 1)}</div>`;
+    html += `<div style="${NOTE}">Sown this year: ${Harvests.CROPS.map(c => `${CROP_LABEL[c]} ${pct(farm.mix[c] || 0)}`).join(' · ')}</div>`;
+    // The yields are the town's last reckoned harvest — the grain now in its
+    // markets — not the crop in the fields; say which year each figure is.
+    if (reaped == null) {
+        html += `<div style="${NOTE}">No harvest reaped here yet: the markets sell at a normal year's grain.</div>`;
+    } else {
+        html += `<div style="${NOTE}"><b>Last harvest (year ${reaped + 1}), now in the markets:</b> ${Harvests.CROPS.filter(c => c !== 'fallow').map(c => `${CROP_LABEL[c]} ${pct(y[c])}`).join(' · ')} · grain to market ×${Harvests.grainFactor(s).toFixed(2)}</div>`;
+    }
+    if (f && !f.settled) {
+        html += `<div style="${NOTE}"><b>This year's crop (year ${f.year + 1}), still in the fields:</b> the region's forecast <b style="color:${tone(f.est)};">${pct(f.est)}</b>${f.yields ? ` · grain ${pct(f.yields.grain)}` : ''} · it reaches the markets at the reckoning.</div>`;
+    }
+    const loft = Engrossing.held(s);
+    if (loft >= 1) html += `<div style="${NOTE}">🏚️ The grain dealers hold ${Math.round(loft)} grain in their lofts, bought against a poor harvest, to sell when bread is dearest.</div>`;
+    else if (s.kingdom != null && Engrossing.banned(game.world, s.kingdom)) html += `<div style="${NOTE}">📜 An edict of the crown forbids engrossing grain here.</div>`;
+    html += '<div style="' + NOTE + '">The farmers sow more of what sells dear here and what the climate favours; over-cropping thins the soil, fallow and legumes restore it.</div></div>';
     return html;
 }
 

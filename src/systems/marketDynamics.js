@@ -241,7 +241,7 @@ export const MarketDynamics = {
             return {
                 // fr0: the distance's friction; the roads' state sets the day's (world/transport.js applyLink)
                 a, b, dist: d, sea, road, routes: nRoutes, friction, fr0: friction, base, capacity: base, factor: 1,
-                perish: 0, loss: 0, toll: 0, tolls: null, val: 0, closed: false, _speed: 1, _tf: NaN,
+                perish: 0, loss: 0, toll: 0, tolls: null, val: 0, closed: false, _speed: 1, rate: 1, keep: 1, _tf: NaN,
                 slot: SettlementMarket.slot(a.q + b.q, a.r + b.r),
                 // Crown tariffs read and paid on the link (systems/tradePolicy.js; laid out here so every link keeps one shape)
                 dutyAB: null, dutyBA: null, impAB: 1, impBA: 1, paidAB: 0, paidBA: 0, valAB: 0, valBA: 0, _tp: null, _tpA: null, _tpB: null, _tpF: 1,

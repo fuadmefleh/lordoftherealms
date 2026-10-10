@@ -844,7 +844,7 @@ Measured with the harness's `mark` timing, 361 days, seeds 101–303, with the p
 - **Toll payback**: on day 60 the player funds a toll highway on the busiest road (the most traffic in gold a day). On day 30 the busiest river road loses its bridge and the player funds a toll bridge. Tolls are banked to day 240. Payback = gold spent ÷ the player's tolls a day (after the crown's 25%).
 - **Kingdom survival**: seeds 7–26, 1,080 days, as in [World stability](world-stability.md).
 
-**Dispersion** (mean |ln price ratio|, links in brackets):
+**Dispersion** (mean |ln price ratio|, links in brackets). *Superseded: good roads now tighten prices in every seed, see [Leftovers & market depth](#leftovers--market-depth-2026-10).*
 
 | Seed | Off: good roads | On: good roads | Off: poor links | On: poor links | Off: all | On: all |
 |---|---|---|---|---|---|---|
@@ -901,7 +901,7 @@ Measured with the harness's `mark` timing, 361 days, seeds 101–303, with the p
 **Open.**
 - The harness maps have few rivers (seed 101 has 3 river hexes), so bridges, fords and ferries rarely matter there. They will matter more on larger maps.
 - World units other than merchant caravans (war hosts, patrols) still move one hex a step whatever the road.
-- The bot does not fund works.
+- The bot does not fund works. *(Since done: see [Leftovers & market depth](#leftovers--market-depth-2026-10).)*
 ## Specie, Mints & the Price Level (2026-10)
 
 `world/moneySupply.js`, `systems/mints.js`, `data/mints.json`. See [the manual](../GAMEPLAY_MANUAL.md#specie-mints--the-price-level).
@@ -978,6 +978,141 @@ Mint output roughly replaces wear, so the world's coin holds steady.
 **Hinterland.** Silver veins have their own hash band (`hiddenExtra`: 6% of the hill, highland and mountain hexes) past `hidden`, so no existing vein changed kind. Silver mines rank 7.2, above sheep runs, so they replace only sheep runs and the odd quarry. On seed 202: 5 silver mines, sheep runs 24 → 21, quarries 5 → 3. On seed 101: 3 silver mines, sheep runs 19 → 16.
 
 **Tick cost.** The weekly pass costs 0.5–0.7 ms and the other days about 0.01–0.02 ms, about 0.1 ms a day on average. `Coinage.priceMultiplier` costs about 0.6–1 µs a call.
+
+## Leftovers & market depth (2026-10)
+
+Closing what the roads, harvests, Bourse and mints passes left open, and one new piece of market depth: the grain dealers' engrossing. Tests in `src/__tests__/economyDeepening.test.js` and `transport.test.js`.
+
+**Unique town names** (`world/kingdom.js`). `generateCityName` drew from a culture's list of 15 names with no memory, so a world could hold two Soulkeeps.
+- Over seeds 7–26 and 101/202/303 (23 worlds, 680 settlements), 61 settlements shared a name with an earlier one.
+- `Kingdom.dedupeSettlementNames(world)` runs once after the independent settlements are placed. In map order the first keeps its name. A later one takes a free name of its culture, then any culture, then an affixed variant ("New Soulkeep", "Upper Soulkeep"). The choice is a hash of the name, not a draw.
+- Towns founded later (kingdom expansion, pioneers, colonies, neutral villages) pass the world, so a taken name is swapped the same way.
+- `generateCityName` still makes exactly one `randPick` whatever happens, so the seeded stream is unchanged and the golden snapshots are identical. The goldens never capture settlement names, so none needed updating.
+
+**The Harvest panel** showed the region's forecast for this year beside the town's yields from the last reckoning, with no years on either. The town card now separates:
+- what was sown this year;
+- **"Last harvest (year N), now in the markets"**: the town's yields and grain factor, with `Harvests.townHarvestYear(s)`;
+- **"This year's crop (year N+1), still in the fields"**: the region's forecast, while the season runs.
+
+The region card names its year too. It also shows the grain the dealers hold, or an edict in force.
+
+### Roads and price dispersion
+
+**Why roads barely mattered.** Two things:
+- **A road in good repair was exactly the old flat road.** The road tier's friction was 0.6, the old `roadFactor`, so `applyLink` gave such a link a multiplier of 1. Only highways hauled cheaper. Meanwhile the model added friction elsewhere (tracks, mud, terrain), which raised dispersion everywhere.
+- **Friction hardly sets dispersion.** A breakdown of good-road links on seed 101 (days 120–180, every good) shows where the gap comes from:
+
+| Cause | Share of the gap |
+|---|---|
+| Inside the friction band | 4% |
+| The exporter has no surplus over `keepDays` | 20% |
+| The importer has no room | 24% |
+| Trading, but held back by the share of the surplus | 18% |
+| Trading, but held back by the `room × 0.5 × gap` term | 33% |
+
+The link's capacity never bound: raising it 50% changed nothing. So the price gap on a link is set by how fast it trades and how much stock merchants keep back, not by the friction.
+
+**The change** (`data/transport.json`):
+- **Tier friction.** Track 0.72, road 0.5, highway 0.36 (were 0.8, 0.6, 0.45). Canal 0.33 (was 0.4).
+- **A `haulage` section.** `applyLink` sets `link.rate = (speed / 0.75)^1` and `link.keep = (speed / 0.75)^−1`, clamped to 0.6–1.8 and 0.6–1.3. `SettlementMarket.flows` moves `rate` × the surplus share and the gap term, and the exporter keeps `keep × keepDays` in reserve.
+- **Open country is the reference** (speed 0.75), so it trades as before:
+
+| Link | rate | keep |
+|---|---|---|
+| Open country, or a ruined road | 1 | 1 |
+| Rutted road | 1.07 | 0.94 |
+| Road in good repair | 1.33 | 0.75 |
+| Highway | 1.73 | 0.6 |
+| Canal | 1.67 | 0.6 |
+
+- Sea links keep 1. Switched off, every link is back to 1 and the old friction.
+
+**Measured.** Seeds 101, 202 and 303, 240 days, model off against on, sampled weekly from day 120. "Matched" means links present in both runs, classed by their road in the on run.
+
+| Seed | Good roads, off → on (matched) | Open country, off → on (matched) | Raw good roads, off → on | Raw poor links, off → on |
+|---|---|---|---|---|
+| Before the change: 101 | +0.9% | +3.3% | 0.213 → 0.197 | 0.129 → 0.145 |
+| Before the change: 202 | +1.1% | +0.8% | 0.211 → 0.215 | 0.179 → 0.178 |
+| Before the change: 303 | +1.6% | +1.8% | 0.229 → 0.231 | 0.149 → 0.164 |
+| **Now: 101** | **−11.8%** (40 links) | −3.9% (14) | 0.207 → 0.196 | 0.135 → 0.143 |
+| **Now: 202** | **−13.1%** (30) | +1.1% (55) | 0.211 → 0.180 | 0.179 → 0.199 |
+| **Now: 303** | **−9.4%** (35) | +3.8% (71) | 0.229 → 0.210 | 0.149 → 0.163 |
+
+- Good roads now tighten prices by 9–13% in every seed. Poor links still drift apart (+6 to +11%).
+- Good-road links still have more dispersion in absolute terms than open-country ones in two of the three seeds. They are longer, and they join cities that differ more in what they make. The comparison that answers the question is off against on.
+- Variants tried, all seeds 101/202/303:
+
+| Variant | Good roads, matched |
+|---|---|
+| Friction only | −1% to +2% |
+| Capacity by speed | ±0 |
+| Pace only (`flowBySpeed`) | −1.5% to −4% |
+| Pace and keep (**chosen**) | −9% to −13% |
+
+- **Survival** (seeds 7–26, 1,080 days): 179/200 (89.5%) with the change, 176/200 (88%) with the roads model back at its old terms on the same code.
+
+### Coin: Bourse panics and the player's trade
+
+**Bourse panics** (`systems/bourse.js`). A crash, a house failing or a crown defaulting in an exchange's realm sets `st.panicDays[realm]`. `Bourse.panicRealms(world, player)` returns:
+- the realms with a panic in the last `flightDays` (21);
+- every exchange's realm while the market's mood is under `flightMood` (0.88).
+
+`Mints._panics` adds them to the bank runs it already passed to `MoneySupply.processDay`. A Bourse panic now costs the realm 1.5% of its coin a week to flight and hoards a tenth more (velocity), as a run does. Tested: over three weeks a panicking realm loses coin to flight and its velocity falls, while a calm one loses none.
+
+**The player's cross-realm trade** (`systems/tradePolicy.js`, `world/moneySupply.js`). `MoneySupply.noteTrade(world, from, to, value)` books goods into the week's trade book. `TradePolicy.onSale` (stall sales) and `consignSale` (caravans, routes, ships' holds, the company's factors) call it for the units booked in another realm. The weekly turn settles them like NPC trade: 35% of the net, in coin, from the importer to the exporter, capped at 6% of the payer's coin. Home goods sold at home move no coin. The hook is additive: the player's own gold is untouched.
+
+### The bot
+
+`src/__tests__/playtest/bot.js`. Both use hash gates, no RNG.
+- **Public works.** After day 150 and with 4,000 gold, the bot funds one work at a time within 6 hexes: a toll highway whose Steward's estimate repays inside 200 days, or failing that repairs on a worn road. It tops up a work stalled for funds.
+- **Bullion.** At a capital it sells its gold and silver ore and gold bars to the mint when the mint pays at least 95% of the market. Elsewhere, after day 120, it buys up to 6 units where ore sells under 80% of its fine worth.
+- The long soak now requires `publicWorksFunded` and `bullionSold`.
+
+### Engrossing: the grain dealers' speculation
+
+`systems/engrossing.js`, tuned in `data/harvests.json` → `engrossing`. The rules are in [the manual](../GAMEPLAY_MANUAL.md#harvests-good-years-and-bad).
+
+**Buying.** Weekly, on days 20–70 of the year, where a region's forecast is under 0.88 (with at least 30% of the season seen):
+- the dealers of its towns of 1,000 people and more buy 8% of the grain above 0.9 × the market's target;
+- they hold at most 0.5 × the target in their lofts (`settlement.engross`).
+
+**Selling.**
+- From day 85, 30% a week where grain scarcity is at least 1.3.
+- From day 105, 60% a week whatever the price.
+- Everything at the turn of the year.
+- 1% a week spoils in the lofts.
+
+**Edicts.** In the Hungry Months (or with a dealer's town in dearth), each week a crown rolls a hash against 0.5 × its personality (mercantile 0.5, peaceful 1.2). On a hit:
+- every loft in the realm opens at once;
+- its towns gain +3 happiness;
+- no dealer buys there for 120 days.
+
+**No money loop.** Grain only moves between the market and the lofts. Nothing is minted, and the only loss is the spoilage. Tested: bought − released − spoiled = 0. No RNG is drawn, and the state survives a save (`world.engrossing`, with each loft on its town).
+
+**Measured.** Seeds 7–26, 1,080 days, engrossing on against `enabled: false` (both on the final code):
+
+| | Engrossing on | Off |
+|---|---|---|
+| Realms alive | **181/200 (90.5%)** | 174/200 (87%) |
+| Grain bought into the lofts, per world in 3 years | 263–4,731 units (median about 1,900) | — |
+| Edicts, per world | 0–5 (21 in all) | — |
+| Mean grain scarcity on day 115, across towns and years | 1.012 | 1.007 |
+| Worst year's mean day-115 scarcity, per world | 0.89–1.71 | 0.89–1.70 |
+| Famine-event days (summed over the run) | 2,842 | 2,624 |
+
+- It does not amplify famines into collapse. Survival is as high or higher; the 7-realm gap is mostly seed 12 (10 alive against 6), where the two runs diverged.
+- The lean-month grain price is unchanged on average: dearer early, cheaper at the peak.
+- Famine days run 8% higher. The famine event is rolled from the harvest outcome, not from prices, and the runs diverge (other wars, other harvests), so this is not attributed to the dealers. Across seeds it is mixed: higher in 8, lower in 5, equal in 7.
+- **Cost.** 0.13 ms a day on average, harness timing on seed 8 over 480 days, on a shared machine where the world's day read 15 ms. The work is a weekly pass over the towns; other days return at once.
+
+### Browser smoke test
+
+A new game in the dev server (small map, 200 days, every economy panel and trade-window tab opened, the console watched) found one bug, outside the economy: `ui/game/gameSetup.js` called `DataLoader.reset()` before generating the world and never reloaded the data. In the browser every system that reads `DataLoader._gamedata` synchronously ran on its defaults or on nothing: the town markets stocked no goods, the terrain types fell back, the harvests, roads and mints ran on built-in numbers. The harness never resets, so the tests did not see it. It now awaits `DataLoader.initializeAll()` after the reset (a regression test reads the order). With the fix, every panel builds with no errors and no `undefined`/`NaN`.
+
+**Open.**
+- The dealers' margin is notional: no gold moves.
+- The player cannot yet issue an edict against engrossers as a ruler. Their realm's council issues it like any crown's.
+- Rival merchant houses don't book engrossing on their capital.
 
 ## Re-measuring
 

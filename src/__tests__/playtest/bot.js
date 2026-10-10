@@ -52,6 +52,9 @@ import { Concessions } from '../../systems/concessions.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { Seasons } from '../../world/seasons.js';
 import { Harvests } from '../../world/harvests.js';
+import { Transport } from '../../world/transport.js';
+import { PublicWorks } from '../../systems/publicWorks.js';
+import { Mints } from '../../systems/mints.js';
 import { travelTo } from './harness.js';
 
 const FOOD = ['grain', 'bread'];
@@ -842,6 +845,66 @@ function concessions(game, tile, stats) {
 }
 
 /**
+ * Public works (systems/publicWorks.js): once settled and with money to
+ * spare, fund one work at a time near here — a toll highway on a busy road
+ * whose Steward's estimate repays inside 200 days, or failing that repairs on
+ * a worn road of the realm (no toll: a gift to the town) — and top up a work
+ * stalled for funds. Picks by a hash of the day and the town (no RNG).
+ */
+function publicWorks(game, tile, stats) {
+    const { player, world } = game;
+    if (world.day < 150 || player.gold < 4000) return;
+    const mine = PublicWorks.playerWorks(world).filter(w => w.status === 'building' || w.status === 'stalled');
+    for (const w of mine) {
+        if (w.stall === 'funds' && player.gold > 5000 && PublicWorks.fund(world, player, w.id).success) count(stats, 'publicWorksTopped');
+    }
+    if (mine.length || ((world.day * 5 + tile.q * 3 + tile.r * 11) % 7) !== 0) return;
+    const near = Transport.segmentsNear(world, tile.q, tile.r, 6);
+    let pick = null;
+    for (const seg of near) {
+        const est = PublicWorks.tollEstimate(world, player, 'upgrade_highway', seg.key);
+        if (est && est.payback && est.payback <= 200 && est.cost < player.gold - 3000 && (!pick || est.payback < pick.est.payback)) pick = { kind: 'upgrade_highway', seg, est, toll: true };
+    }
+    if (!pick) {
+        for (const seg of near) {
+            const q = PublicWorks.quote(world, 'repair', seg.key);
+            if (q.ok && q.cost < player.gold - 3000 && Transport.band(Transport.segState(world, seg)) !== 'good') { pick = { kind: 'repair', seg, toll: false }; break; }
+        }
+    }
+    if (pick && PublicWorks.commission(world, player, pick.kind, pick.seg.key, { by: 'player', toll: pick.toll }).success) count(stats, 'publicWorksFunded');
+}
+
+/**
+ * Specie & mints (systems/mints.js): at a capital's mint, sell the gold and
+ * silver in the packs when the mint pays at least the market; elsewhere, now
+ * and then, buy a little ore where it is glutted (well under what a mint
+ * pays) to carry to one. Hash picks, no RNG.
+ */
+const BULLION = ['gold_ore', 'silver_ore', 'gold_bar'];
+function mints(game, tile, stats) {
+    const { player, world } = game;
+    if (Mints.mintAt(world, tile)) {
+        for (const id of BULLION) {
+            const have = Math.floor(player.inventory[id] || 0);
+            if (have <= 0) continue;
+            const q = Mints.bullionQuote(player, world, tile, id);
+            const good = PlayerEconomy.GOODS[id.toUpperCase()];
+            const market = good ? Trading.saleUnitPrice(player, good, tile.settlement, world, 1, have) : 0;
+            if (q.ok && q.unit >= market * 0.95 && Mints.sellBullion(player, world, tile, id, have).success) count(stats, 'bullionSold');
+        }
+        return;
+    }
+    if (world.day < 120 || player.gold < 4000 || ((world.day * 3 + tile.q * 7 + tile.r * 5) % 4) !== 0) return;
+    if (BULLION.some(id => (player.inventory[id] || 0) > 0)) return;
+    const fine = (Mints.config().mint || {}).fine || {};
+    for (const g of Trading.getAvailableGoods(tile.settlement, tile, world)) {
+        if (!BULLION.includes(g.id) || !(g.quantity >= 2) || !(g.price > 0) || !(g.price < (fine[g.id] || 0) * 0.8)) continue;
+        const qty = Math.min(6, Trading.affordable(player, g, tile.settlement, 6));
+        if (qty > 0 && Trading.buyGoods(player, g, qty, tile.settlement).success) { count(stats, 'bullionBought'); return; }
+    }
+}
+
+/**
  * The agricultural year (world/harvests.js): each farm's rotation follows
  * its soil (worn land rests, rich land is worked hard), and now and then a
  * crop report of a failing harvest elsewhere sends grain bought cheap here
@@ -900,6 +963,7 @@ function settlementBusiness(game, stats) {
     // Use the contextual list the action menu shows, as a sanity check that it builds
     PlayerActions.getAvailableActions(player, tile, world);
     booked(game, 'buyFood', () => buyFood(game, tile, stats));
+    booked(game, 'mints', () => mints(game, tile, stats));
     booked(game, 'sellGoods', () => sellGoods(game, tile, stats));
     booked(game, 'speculate', () => speculate(game, tile, stats));
     booked(game, 'recruit', () => recruit(game, tile, stats));
@@ -920,6 +984,7 @@ function settlementBusiness(game, stats) {
     booked(game, 'guilds', () => guilds(game, tile, stats));
     booked(game, 'concessions', () => concessions(game, tile, stats));
     booked(game, 'harvests', () => harvests(game, tile, stats));
+    booked(game, 'publicWorks', () => publicWorks(game, tile, stats));
 }
 
 // ── Out in the world ─────────────────────────────────────────

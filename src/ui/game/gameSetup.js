@@ -376,6 +376,10 @@ export async function _doStartNewGame(settingsOverride) {
 
     // Reset data pipeline so fresh gamedata (including ModStore edits) is reloaded
     DataLoader.reset();
+    // ...and reload it: without this every system that reads DataLoader._gamedata
+    // synchronously (the town markets, harvests, roads, mints, ...) ran on its
+    // built-in defaults or nothing at all — the markets stocked no goods
+    await DataLoader.initializeAll();
     CustomObjects.reset();
     CustomBuildings.reset();
     InnerMapRenderer.reset();

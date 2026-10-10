@@ -215,9 +215,13 @@ The soil moves about a third of the way toward its target each harvest. Intensiv
 - **The heralds** cry a failing harvest (under 82%, from day 10 of summer), a bumper one (over 114%, from day 20 of summer), every blight, and the harvest when it is in.
 - **Townsfolk and tavern talk** mention a failing or bumper crop, rust, locusts and murrain.
 - **The Steward** points at a failing harvest you have heard of within 40 hexes (from day 25 to day 80 of the year).
-- The 🌾 **Harvest** tab of the trade window shows all of this: the estimate here with its weather, war and blights; the crop reports you hold; the town's crop mix, soil and yields; and your farms with their rotation buttons.
+- The 🌾 **Harvest** tab of the trade window shows all of this: the estimate here with its weather, war and blights; the crop reports you hold; the town's crop mix and soil, its **last harvest** (the year it was reaped: the grain now in its markets) set apart from **this year's crop still in the fields** (the region's forecast, with its year); grain the dealers hold in their lofts; and your farms with their rotation buttons.
 
 **Grain speculation.** Buying grain after the harvest and selling it in the lean weeks is still a safe trade, thanks to the seasonal price swing. The harvest now makes the spread bigger in bad years and smaller in bumper ones. The **risky play** is to buy in summer on a failing-harvest forecast, before the price moves, and sell in spring. When the harvest really fails, this pays about **1.5×**. When the forecast was wrong, the autumn price drop and spoilage turn it into a loss. Seed tests lost money **about a third** of the time. The best returns come from carrying grain from a bumper region to a failed one.
+
+**The grain dealers engross.** You are not the only one reading the crop reports. When a region's forecast falls under 88% (with at least 30% of the season seen) the grain dealers of its market towns of 1,000 people and more buy into it, from day 20 to day 70 of the year: each week 8% of the grain above 90% of the market's target, up to half a target in their lofts. That tightens the market early: grain dears before the harvest is even in. They sell it back when bread is dearest: from day 85 of the year 30% a week wherever grain stands at 1.3× or more, from day 105 60% a week whatever the price, and all of it at the turn of the year. About 1% a week rots in the lofts. Speculation shifts grain from the autumn into the lean weeks, so it blunts the late-winter peak as much as it lifts the early price.
+
+**Edicts against engrossers.** In the Hungry Months, or with a town in dearth, a crown whose dealers hold grain may forbid engrossing (a weekly chance of about one in two; mercantile crowns are slower to act, peaceful ones quicker). Every loft in the realm is thrown open at once, its towns cheer (+3 happiness), and no dealer buys grain there for 120 days. The Harvest panel shows what the dealers hold, or the edict in force.
 
 For other systems such as crop insurance: `Harvests.expectedYield(world, region)`, `Harvests.forecast(world, region)`, `Harvests.outcome(world, region, year)` and `Harvests.regionOf(world, q, r)` (world/harvests.js).
 
@@ -978,13 +982,14 @@ The Steward's Counsel warns of a ship at sea in dangerous waters with nothing in
 
 Gold does not come from nowhere. Every realm has **coin in circulation**: the silver and gold in its people's purses, tills and strongboxes. The crown's chests and the banks' vaults hold more, but that coin moves no prices until it is spent. How much coin a realm has for its people sets its **price level**.
 
-**The price level.** Each week a realm's coin per head is set against the world's. A realm awash in coin is dear, one drained of it cheap: its price level runs from 90 to 112 (100 is the world's norm), and it moves only part of the way each week. It multiplies every price in the realm's markets, buying and selling alike, together with its coin's purity: clipped coin raises prices on top. The weekly gazette's cost of living shows it as inflation or deflation (the Economic Chronicle shows each realm's coin level beside its debt and silver). Hoarded coin buys nothing: a realm at war hoards about an eighth of its coin, and one in a panic (a run on its bank, a crown default) a tenth more, so its prices sag.
+**The price level.** Each week a realm's coin per head is set against the world's. A realm awash in coin is dear, one drained of it cheap: its price level runs from 90 to 112 (100 is the world's norm), and it moves only part of the way each week. It multiplies every price in the realm's markets, buying and selling alike, together with its coin's purity: clipped coin raises prices on top. The weekly gazette's cost of living shows it as inflation or deflation (the Economic Chronicle shows each realm's coin level beside its debt and silver). Hoarded coin buys nothing: a realm at war hoards about an eighth of its coin, and one in a panic (a run on its bank, a crown default, or a panic on its Bourse) a tenth more, so its prices sag.
 
 **Where the coin goes.** Each week:
 - **Trade.** When the realms' merchants carry goods across a border, part of the balance is paid in coin. A realm that buys more than it sells loses coin, its prices fall, its goods grow cheaper abroad, and the coin flows back. A persistent deficit settles a few points under the norm; a surplus a few over.
 - **Tribute and loans.** A realm that loses a war pays part of its tribute out of its people's purses. A banking house lending to a foreign crown sends its coin abroad, and the repayments bring it home.
 - **Bad money drives out good.** When a crown clips its coin, merchants hoard the old full-weight pieces and send them abroad: the debased realm loses a little of its coin every week to its sounder trading partners.
-- **Flight.** A run on a bank, or a crown that has just repudiated its debts, sends coin abroad to the soundest realm it trades with.
+- **Flight.** A run on a bank, or a crown that has just repudiated its debts, sends coin abroad to the soundest realm it trades with. So does a panic on a realm's Bourse: for 21 days after a bubble bursts, a house fails or the crown defaults there, and while the market's mood stands under 88% of its calm.
+- **Your own trade.** Goods you buy in one realm and sell in another, from your packs or by caravan, ship hold or the company's factors, settle in coin as the merchants' trade does: the realm that bought them pays part of their value to the one they came from.
 - **Wear.** Coin is worn, clipped, buried and carried off to far lands: a little is lost every week.
 
 **The mints.** Every realm's mint sits at its capital. Each week it buys the gold and silver ore that stands in the realm's markets above what the towns want (from its own mines, bought in or brought by the merchants), and strikes it into coin. A debased mint strikes more coin from the same silver. Foreign coin that came in is brought to the mint and restruck. The crown keeps the **seigniorage** (5% usually), and the rest goes into circulation. A realm with silver and gold mines pours out coin and spends it abroad; one without lives on its trade. Silver mines are veins the locals know of in the hills and mountains (no map resource shows them).
@@ -1899,9 +1904,9 @@ The world's roads are not all alike, and they do not stay as they were built (`w
 
 | Tier | Movement (× terrain) | Caravan speed | Haulage friction | Upkeep a hex a week |
 |---|---|---|---|---|
-| Track | ×0.6 | ×0.8 | ×0.8 | 0.6g |
-| Road | ×0.5 | ×1 | ×0.6 | 1.5g |
-| Paved highway | ×0.33 | ×1.3 | ×0.45 | 3g |
+| Track | ×0.6 | ×0.8 | ×0.72 | 0.6g |
+| Road | ×0.5 | ×1 | ×0.5 | 1.5g |
+| Paved highway | ×0.33 | ×1.3 | ×0.36 | 3g |
 
 A rutted road moves at ×1.5 its tier's cost (at most the terrain's), hauls at ×1.25 and slows caravans to ×0.8. In spring, tracks and rutted roads cost **+1** to cross on foot (mud). A snowbound pass costs **+3**. A ford costs +1 to wade (instead of +2 for an unbridged river) and a ferry costs +1 and a **2g fare**.
 
@@ -1910,12 +1915,13 @@ A rutted road moves at ×1.5 its tier's cost (at most the terrain's), hauls at �
 **Rivers and passes.** Bridges wash out in spring floods and storms, more often on a rutted road. Where a town is near, a ferry plies; elsewhere travellers ford. Fords flood in spring and close the road for a week. A road over mountain, highland, snow or tundra hexes is a **pass**: it closes when snow falls on it in winter, and for all of deep winter over the high mountains. The heralds cry washouts and closed passes; the townsfolk talk of them.
 
 **Trade and prices.** The NPC trade links between towns (see [Town Markets](#town-markets-stock-scarcity-and-trade)) pay a haulage friction by distance. Now it follows the roads:
-- **Road links**: the length-weighted friction of the segments on the way. A plain road in good repair keeps the old ×0.6. A highway hauls cheaper, a track or a rutted road dearer, and a ruined one as dear as open country. Fords and ferries add to it, and a closed pass or a flooded ford stops the link until it opens.
+- **Road links**: the length-weighted friction of the segments on the way. A plain road in good repair hauls at ×0.5, cheaper than the old flat ×0.6. A highway hauls cheaper still, a track or a rutted road dearer, and a ruined one as dear as open country. Fords and ferries add to it, and a closed pass or a flooded ford stops the link until it opens.
 - **Open-country links**: friction by the terrain on the straight line (plains ×1, forests about ×1.15, mountains up to ×1.45), ×1.15 in the spring mud and ×1.1 in winter (tracks and rutted roads suffer the winter too; roads in good repair, highways and canals are spared).
 - **Perishables** (fish, meat, bread, cheese) spoil on the way. The friction rises with the days of the haul, and 2% of what moves is lost per day of it (at most 35%). A highway or a canal brings them in fresh.
-- **Canals** cut a link's friction to ×0.4 and never close. **Harbour works** cut every sea link of their port by ×0.8.
+- **The pace of trade.** A good road also turns the carts round quicker. Each market turn a link moves a share of the price gap and of the exporter's surplus in proportion to its speed against open country: a road in good repair about a third more, a highway about 70% more, a rutted road a little more, a ruined road or open country the old pace. And the merchants at the exporting end hold back less stock against the next delivery on a reliable road (three quarters of the usual reserve on a road, three fifths on a highway). Sea links keep their pace.
+- **Canals** cut a link's friction to ×0.33 (against the old flat road) and never close. **Harbour works** cut every sea link of their port by ×0.8.
 
-Prices between towns on good roads draw together. Across ruined roads, closed passes and rough open country they drift apart (see `docs/economy-balance.md`, "Roads, canals & logistics", for the measured dispersion). Merchant caravans move faster on highways and slower on tracks and rutted roads. The hinterland's goods hauled to a market town over a ruined road lose a part of the load, and more over a closed pass.
+Prices between towns on good roads draw together: measured over three seeds, a good road's price gap falls 9–13% against a world without the road model, while open-country links barely move. Across ruined roads, closed passes and rough open country they drift apart (see `docs/economy-balance.md`, "Roads, canals & logistics", for the measured dispersion). Merchant caravans move faster on highways and slower on tracks and rutted roads. The hinterland's goods hauled to a market town over a ruined road lose a part of the load, and more over a closed pass.
 
 **Public works.** From the **🛣️ Roads & Public Works** action in any town (also from the Steward's Counsel), you can fund:
 
@@ -1925,7 +1931,7 @@ Prices between towns on good roads draw together. Across ruined roads, closed pa
 | Road (from a track) | 1 stone + 0.6 wood a hex | 40 × 0.8 a hex (min 4) | track → road, bridged | — |
 | Paved highway | 1.6 stone + 0.5 wood + 0.1 iron a hex | 40 × 1.2 a hex (min 6) | road → highway | 5% of goods carried, 2g a crossing |
 | Stone bridge | 10 stone, 6 wood, 1.5 iron | 24 × 8 days | a ford or ferry becomes a bridge | 8%, 3g a crossing |
-| Canal | 5 stone + 2 wood + 0.4 iron a hex | 120 × 3 a hex (min 20) | link friction ×0.4 | 5% |
+| Canal | 5 stone + 2 wood + 0.4 iron a hex | 120 × 3 a hex (min 20) | link friction ×0.33 | 5% |
 | Harbour works | 40 stone, 30 wood, 4 iron | 60 × 30 days | the port's sea links ×0.8 | — |
 
 - **Goods and labour are real.** A work buys its stone, timber and iron from its town's market, and from the town at the road's other end, at the going price. It takes at most 30% of a stock a day, so a bare market slows the work while its price climbs. It hires land hands in the town at the local wage, which tightens the labour market and lifts wages (see [Labour](#labour-classes-and-migration)). Materials short of the labour stall it, with the hands idle on half pay. Winter halves the pace of all works but repairs.

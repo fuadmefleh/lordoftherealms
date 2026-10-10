@@ -314,6 +314,12 @@ export const Harvests = {
         return out;
     },
 
+    /** The harvest year the town's yields (townYield) were reaped in, or null before its first harvest. */
+    townHarvestYear(s) {
+        const f = s && _obj(s.farm);
+        return f && _obj(f.y) && Number.isFinite(f.yr) ? f.yr : null;
+    },
+
     /**
      * The town's market grain against a normal year at its first mix: grain
      * and vegetables (hardier: vegDamp of the swing) × their yields.

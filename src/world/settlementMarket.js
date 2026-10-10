@@ -1196,6 +1196,11 @@ export const SettlementMarket = {
             const xa = arr(a), xb = arr(b);
             let budget = link.capacity * link.factor * (turn !== null ? k : 1);
             const fr = 1 + link.friction;
+            // The road's pace (world/transport.js applyLink: 1 = the old road)
+            const rate = link.rate > 0 ? link.rate : 1;
+            const shareR = Math.min(0.9, share * rate);
+            // ...and its merchants hold back less stock against the next delivery (link.keep, 1 = the old reserve)
+            const kdL = kd * (link.keep > 0 ? link.keep : 1);
             // Stock ratios further apart than this can't beat the friction (the curve is a power law)
             const frR = Math.pow(fr, 1 / P.elasticity);
             let movedA = 0, movedB = 0, goldLink = 0;
@@ -1218,7 +1223,7 @@ export const SettlementMarket = {
                 const ta = sha.targetA[i], tb = shb.targetA[i];
                 // Neither way can trade (no surplus over keepDays on one side with room under
                 // target on the other): skip before pricing — the checks below would anyway
-                if (!((stA - ta * kd > 0 && tb - stB > 0) || (stB - tb * kd > 0 && ta - stA > 0))) continue;
+                if (!((stA - ta * kdL > 0 && tb - stB > 0) || (stB - tb * kdL > 0 && ta - stA > 0))) continue;
                 if (stA > 0 && stB > 0) {
                     const q = (stA / ta) / (stB / tb);
                     if (q < frR && q > 1 / frR) continue;
@@ -1230,12 +1235,12 @@ export const SettlementMarket = {
                 if (sb > sa * (fr + uAB)) { xe = xa; xi = xb; se = sa; si = sb; tE = ta; tI = tb; aExports = true; dut = uAB; }
                 else if (sa > sb * (fr + uBA)) { xe = xb; xi = xa; se = sb; si = sa; tE = tb; tI = ta; aExports = false; dut = uBA; }
                 else continue;
-                const surplus = xe[i] - tE * T.keepDays;
+                const surplus = xe[i] - tE * kdL;
                 if (!(surplus > 0)) continue;
                 const room = tI - xi[i];
                 if (!(room > 0)) continue;
                 const gap = (si - se * (fr + dut)) / si;
-                let qty = Math.min(surplus * share, room * 0.5 * gap + 0.05, budget / (base * se));
+                let qty = Math.min(surplus * shareR, room * 0.5 * gap * rate + 0.05, budget / (base * se));
                 if (!(qty >= 0.05)) continue;
                 qty = Math.round(qty * 100) / 100;
                 xe[i] -= qty;

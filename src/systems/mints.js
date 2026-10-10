@@ -34,6 +34,7 @@ import { MoneySupply } from '../world/moneySupply.js';
 import { Coinage } from '../world/coinage.js';
 import { Economy } from '../world/economy.js';
 import { Finance } from './finance.js';
+import { Bourse } from './bourse.js';
 import { RealmWars } from './realmWars.js';
 import { Underworld } from './underworld.js';
 import { Ledger } from './ledger.js';
@@ -187,6 +188,8 @@ export const Mints = {
         const day = _day(world);
         const banks = player && player.finance && Array.isArray(player.finance.banks) ? player.finance.banks : [];
         for (const b of banks) if (b && b.status === 'open' && b.kingdomId != null && Finance.inPanic(b, day)) set.add(b.kingdomId);
+        // A crash or a panic on the Bourse does the same in its exchange's realm
+        for (const kid of Bourse.panicRealms(world, player)) set.add(kid);
         return set;
     },
 

@@ -54,9 +54,9 @@ const BAND_IDX = { good: 0, worn: 1, ruined: 2, closed: 3 };
 
 const DEFAULTS = {
     tiers: {
-        track: { name: 'Track', icon: '🟫', rank: 0, move: 0.6, speed: 0.8, friction: 0.8, decay: 4, repair: 4, upkeep: 0.6, crossing: 'ford', color: '#9a7b52', width: 1.5 },
-        road: { name: 'Road', icon: '🛤️', rank: 1, move: 0.5, speed: 1, friction: 0.6, decay: 3, repair: 4, upkeep: 1.5, crossing: 'bridge', color: '#c8a46a', width: 2.5 },
-        highway: { name: 'Paved highway', icon: '🛣️', rank: 2, move: 0.33, speed: 1.3, friction: 0.45, decay: 1.5, repair: 3, upkeep: 3, crossing: 'bridge', color: '#e8e0c8', width: 4 },
+        track: { name: 'Track', icon: '🟫', rank: 0, move: 0.6, speed: 0.8, friction: 0.72, decay: 4, repair: 4, upkeep: 0.6, crossing: 'ford', color: '#9a7b52', width: 1.5 },
+        road: { name: 'Road', icon: '🛤️', rank: 1, move: 0.5, speed: 1, friction: 0.5, decay: 3, repair: 4, upkeep: 1.5, crossing: 'bridge', color: '#c8a46a', width: 2.5 },
+        highway: { name: 'Paved highway', icon: '🛣️', rank: 2, move: 0.33, speed: 1.3, friction: 0.36, decay: 1.5, repair: 3, upkeep: 3, crossing: 'bridge', color: '#e8e0c8', width: 4 },
     },
     bands: { worn: 40, ruined: 15, ruttedMove: 1.5, ruttedFriction: 1.25, ruttedSpeed: 0.8, startMin: 62, startMax: 96 },
     weather: { winterDecay: 2, springDecay: 1, warDecay: 3, armyDamage: 6, mudFriction: 1.2, openMud: 1.15, winterFriction: 1.1 },
@@ -65,6 +65,7 @@ const DEFAULTS = {
     terrain: { base: 0.7, perMove: 0.15, min: 0.85, max: 1.45 },
     perish: { goods: ['fish', 'meat', 'bread', 'cheese'], perDay: 0.025, loss: 0.02, maxLoss: 0.35, landSpeed: 3, roadSpeed: 4, seaSpeed: 6, canalSpeed: 5 },
     upkeep: { floor: 400, maxDebt: 0.8, warShare: 0.5, freeRepair: 2 },
+    haulage: { flowBySpeed: 1, refSpeed: 0.75, minRate: 0.6, maxRate: 1.8, keepBySpeed: 1, minKeep: 0.6, maxKeep: 1.3 },
     works: {},
     build: { wageMult: 1, drawShare: 0.3, budgetPad: 0.15, crownShare: 0.25, maxPerRealm: 2, maxPlayer: 4, keepDone: 40 },
     realms: { repairAt: 1500, upgradeAt: 9000, canalAt: 30000, harbourAt: 20000, canalEvery: 360, maxDebt: 0.5, minWelfare: 0.35, personality: {} },
@@ -95,7 +96,7 @@ function _build(src) {
     return {
         tiers, order,
         bands: merge('bands'), weather: merge('weather'), passes: merge('passes'), rivers: merge('rivers'),
-        terrain: merge('terrain'), perish, perishSet: new Set(perish.goods || []), upkeep: merge('upkeep'),
+        terrain: merge('terrain'), perish, perishSet: new Set(perish.goods || []), upkeep: merge('upkeep'), haulage: merge('haulage'),
         works: _obj(d.works) || {}, build: merge('build'), realms: { ...merge('realms'), personality: { ...(_obj(d.realms) && d.realms.personality) || {} } },
         news: merge('news'), counsel: merge('counsel'), render: merge('render'),
         passSet: new Set(merge('passes').terrain || []), highSet: new Set(merge('passes').high || []),
@@ -600,7 +601,7 @@ export const Transport = {
      */
     applyLink(world, link, day = null) {
         if (!Number.isFinite(link.fr0)) link.fr0 = _num(link.friction);
-        link.perish = 0; link.loss = 0; link.toll = 0; link.tolls = null; link._speed = 1; link.closed = false;
+        link.perish = 0; link.loss = 0; link.toll = 0; link.tolls = null; link._speed = 1; link.rate = 1; link.keep = 1; link.closed = false;
         if (_off) { link.friction = link.fr0; return false; }
         const C = Transport.config();
         const rt = Transport.runtime(world);
@@ -677,6 +678,20 @@ export const Transport = {
         link.tolls = tolls;
         link._speed = speed;
         link.closed = closed;
+        // A faster road turns the carts round quicker: the link moves
+        // (speed / refSpeed)^flowBySpeed of the goods a market turn would
+        // (SettlementMarket.flows), so a good road closes a price gap sooner
+        // than a rutted one or open country. Sea links keep 1.
+        const H = C.haulage;
+        const fb = _num(H.flowBySpeed);
+        if (fb && !link.sea) {
+            link.rate = _clamp(Math.pow(speed / Math.max(0.1, _num(H.refSpeed, 1)), fb), _num(H.minRate, 0.6), _num(H.maxRate, 1.8));
+        }
+        // ...and its merchants keep less stock back against the next delivery
+        const kb = _num(H.keepBySpeed);
+        if (kb && !link.sea) {
+            link.keep = _clamp(Math.pow(speed / Math.max(0.1, _num(H.refSpeed, 1)), -kb), _num(H.minKeep, 0.6), _num(H.maxKeep, 1.3));
+        }
         return closed;
     },
 

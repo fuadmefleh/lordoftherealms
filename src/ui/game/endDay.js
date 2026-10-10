@@ -38,6 +38,7 @@ import { Bills } from '../../systems/bills.js';
 import { Bourse } from '../../systems/bourse.js';
 import { PublicWorks } from '../../systems/publicWorks.js';
 import { Mints } from '../../systems/mints.js';
+import { Engrossing } from '../../systems/engrossing.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 
@@ -602,6 +603,8 @@ export function endDay() {
             // reckoned at summer's end and sizes the towns' crops for the year (world/harvests.js)
             const harvestDay = Harvests.processDay(this.world, this.player);
             for (const n of harvestDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // The grain dealers buy into a failing harvest and sell at the peak; crowns may forbid it (systems/engrossing.js)
+            for (const n of Engrossing.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // The hinterland: the rural sites around the towns dig and send their goods to
             // market on its day, deposits run down and veins are struck; mining leases

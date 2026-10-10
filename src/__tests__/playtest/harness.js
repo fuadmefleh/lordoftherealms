@@ -75,6 +75,7 @@ import { Bourse } from '../../systems/bourse.js';
 import { PublicWorks } from '../../systems/publicWorks.js';
 import { Mints } from '../../systems/mints.js';
 import { Fiscal } from '../../systems/fiscal.js';
+import { Engrossing } from '../../systems/engrossing.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
 
 export const WORLD_W = 80;
@@ -315,6 +316,8 @@ function _endDay(game) {
     mark(game, 'MarketFairs.processDay');
     game.harvestDay = Harvests.processDay(world, player);
     mark(game, 'Harvests.processDay');
+    game.engrossDay = Engrossing.processDay(world, player);
+    mark(game, 'Engrossing.processDay');
     game.hinterlandDay = Concessions.processDay(world, player);
     mark(game, 'Concessions.processDay');
     game.tradePolicyDay = TradePolicy.processDay(world, player);

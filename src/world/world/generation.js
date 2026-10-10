@@ -116,6 +116,8 @@ Object.assign(World.prototype, {
         // Scatter some independent settlements
         const indepSettlementFreq = terrainParams.independentSettlements || 'normal';
         this.placeIndependentSettlements(indepSettlementFreq);
+        // Two towns drew the same name? Rename the later ones (hash, no RNG).
+        Kingdom.dedupeSettlementNames(this);
 
         console.log('Placing points of interest...');
         // Place some villages as points of interest
@@ -244,6 +246,7 @@ Object.assign(World.prototype, {
         NPCLords.initializeLords(this);
         if (typeof Characters !== 'undefined') Characters.initialize(this);
         this.placeIndependentSettlements('normal');
+        Kingdom.dedupeSettlementNames(this);
         this.placePointsOfInterest('normal');
         this.generateRoads();
         this.history = WorldEvents.generateHistory(this);

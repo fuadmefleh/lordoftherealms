@@ -9,8 +9,8 @@
         "victuals": { "label": "Fish, meat & salt", "icon": "🍖", "goods": ["fish", "meat", "cheese", "salt"] },
         "drink": { "label": "Beer & liquor", "icon": "🍺", "goods": ["beer", "liquor"] },
         "fuel": { "label": "Fuel & oil", "icon": "🔥", "goods": ["firewood", "coal", "oil", "lamp_oil"] },
-        "raw": { "label": "Raw materials", "icon": "⛏️", "goods": ["wood", "stone", "wool", "hide", "iron", "copper", "gold_ore", "silver_ore", "horses", "horse"] },
-        "wares": { "label": "Wares & tools", "icon": "🔨", "goods": ["textiles", "clothes", "leather", "tools", "weapons", "bronze"] },
+        "raw": { "label": "Raw materials", "icon": "⛏️", "goods": ["wood", "stone", "wool", "flax", "hide", "iron", "copper", "gold_ore", "silver_ore", "horses", "horse"] },
+        "wares": { "label": "Wares & tools", "icon": "🔨", "goods": ["textiles", "linen", "clothes", "leather", "tools", "weapons", "bronze"] },
         "luxury": { "label": "Luxuries", "icon": "💎", "goods": ["wine", "luxuries", "spices", "gems"] }
     },
     "defaultCategory": "wares",

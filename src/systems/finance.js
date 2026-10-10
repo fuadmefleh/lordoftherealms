@@ -57,6 +57,7 @@ import { Hex } from '../core/hex.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Coinage } from '../world/coinage.js';
 import { MoneySupply } from '../world/moneySupply.js';
+import { CrownBooks } from '../world/crownBooks.js';
 import { Technology } from './technology.js';
 import { House } from './house.js';
 import { Gossip } from './gossip.js';
@@ -1091,11 +1092,15 @@ export const Finance = {
         if (Array.isArray(k.wars) && k.wars.length) return 'war';
         const gw = world.greatWorks;
         if (gw && Array.isArray(gw.npc) && gw.npc.some(n => n && n.kingdomId === k.id)) return 'wonder';
+        // The Crown's Purse: a budget in deficit, or soldiers and officials owed their pay (systems/fiscal.js)
+        const fs = CrownBooks.enabled() ? k.fisc : null;
+        if (fs && (_num(fs.avg && fs.avg.exp) > _num(fs.avg && fs.avg.rev) * 1.02 || _num(fs.arrearsDays) > 0)) return 'deficit';
         return null;
     },
 
     _crownsDay(world, player, st, out) {
         const C = Finance.cfg('crowns');
+        const books = CrownBooks.enabled();
         const day = _day(world);
         const ruled = Finance._ruledId(player);
         const kingdoms = (world.kingdoms || []).filter(k => k && k.isAlive !== false && k.id != null)
@@ -1103,8 +1108,12 @@ export const Finance = {
         for (const k of kingdoms) {
             const f = Finance.kingdomState(k);
             const treasury = _num(k.treasury);
+            // The Crown's Purse keeps real books: the income is the budget's smoothed revenue
+            const fs = books ? CrownBooks.state(k) : null;
             // The crown's income: smoothed daily gain of the treasury before today's finance
-            if (f.lastTreasury == null) {
+            if (fs && _num(fs.avg.n) > 0) {
+                f.income = Math.round(Math.max(1, _num(fs.avg.rev)));
+            } else if (f.lastTreasury == null) {
                 f.income = Math.max(_num(f.income), Math.round(_num(k.population) * _num(C.incomePerHead, 0.06)));
             } else {
                 const a = _num(C.incomeSmoothing, 0.1);
@@ -1113,11 +1122,15 @@ export const Finance = {
             const need = Finance._crownNeed(world, k);
             const reserve = f.income * _num(C.reserveDays, 30);
             // War costs more than the realm brings in
-            const spend = need === 'war' ? Math.round(f.income * _num(C.warBurn, 1.6)) : 0;
+            // (with real books the war's cost is the army's field pay: systems/fiscal.js)
+            const spend = need === 'war' && !books ? Math.round(f.income * _num(C.warBurn, 1.6)) : 0;
             if (need && k.id !== ruled && _num(k.treasury) - spend < reserve) {
                 Finance._crownBorrow(world, player, st, k, reserve + spend * 7 - (_num(k.treasury) - spend), out);
             }
-            if (spend > 0) {
+            if (fs) {
+                // Days the soldiers and officials have gone unpaid
+                f.unpaid = _num(fs.arrearsDays);
+            } else if (spend > 0) {
                 const paid = Math.min(Math.max(0, _num(k.treasury)), spend);
                 k.treasury = _num(k.treasury) - paid;
                 f.unpaid = paid < spend ? f.unpaid + 1 : Math.max(0, f.unpaid - 1);
@@ -1129,14 +1142,17 @@ export const Finance = {
             if (f.debt.length && day % Math.max(1, _num(C.serviceEvery, 7)) === 0) Finance._crownService(world, player, st, k, out);
             f.debtRatio = _round2(Finance.crownDebt(k) / Finance.crownCapacity(k));
             // An extraordinary levy fills the coffers while it lasts
-            if (f.levy && _num(f.levy.until) >= day) k.treasury = _num(k.treasury) + Math.round(f.income * _num(f.levy.share, 0.3));
+            // (with real books the levy is an extra tax on the towns: systems/fiscal.js)
+            if (f.levy && _num(f.levy.until) >= day) { if (!books) k.treasury = _num(k.treasury) + Math.round(f.income * _num(f.levy.share, 0.3)); }
             else if (f.levy) f.levy = null;
             // Honest coin returns slowly once the crown is out of trouble
             const G = Finance.cfg('coinage');
             if (f.purity < 1 && f.debtRatio < _num(G.recoinMaxRatio, 0.3) && !f.levy) f.purity = Math.min(1, _round2((f.purity + _num(G.recoinPerDay, 0.001)) * 1000) / 1000);
             // Crisis: the crown chooses how to get out of it
             if (k.id !== ruled && day % 7 === 0
-                && (f.missed >= _num(C.crisisMissed, 2) || f.unpaid >= _num(C.crisisUnpaid, 14) || f.debtRatio > _num(C.crisisRatio, 1.2))) {
+                && (f.missed >= _num(C.crisisMissed, 2) || f.unpaid >= _num(C.crisisUnpaid, 14) || f.debtRatio > _num(C.crisisRatio, 1.2)
+                    // ...or a budget weeks in deficit with the chests below the reserve
+                    || (fs && fs.deficitWeeks >= _num(C.crisisDeficitWeeks, 8) && _num(k.treasury) < reserve))) {
                 Finance._crownCrisis(world, player, st, k, out);
             }
             f.lastTreasury = _num(k.treasury);
@@ -1167,6 +1183,7 @@ export const Finance = {
         const apr = Finance.crownApr(k, b, day);
         b.capital -= amount;
         k.treasury = _num(k.treasury) + amount;
+        CrownBooks.note(k, 'loans', amount);
         // Lent across a border, the coin leaves the house's realm (world/moneySupply.js)
         if (b.kingdomId != null && b.kingdomId !== k.id) MoneySupply.transfer(world, b.kingdomId, k.id, amount, 'loans');
         f.debt.push({ id: `D${st.nextId++}`, bankId: b.id, principal: amount, owed: amount, apr, day });
@@ -1186,6 +1203,7 @@ export const Finance = {
             const pay = Math.ceil(rich ? _num(d.owed) : Math.min(_num(d.owed), Math.max(_num(d.owed) * _num(C.serviceShare, 0.08), 1)));
             if (_num(k.treasury) >= pay) {
                 k.treasury -= pay;
+                CrownBooks.note(k, 'debt', pay);
                 d.owed = _round2(_num(d.owed) - pay);
                 if (bank) {
                     bank.capital = _num(bank.capital) + pay;
@@ -1211,6 +1229,12 @@ export const Finance = {
         if (f.levy) w.levy = 0;
         if (f.purity - _num(G.debaseStep, 0.1) < _num(G.floor, 0.5) - 1e-9) w.debase = 0;
         if (!f.debt.length) w.default = 0;
+        // The Crown's Purse adds two more ways out: sell offices (corruption after), sell crown land
+        const fs = CrownBooks.enabled() ? CrownBooks.state(k) : null;
+        if (!fs) { w.offices = 0; w.land = 0; } else {
+            w.offices = _num(w.offices) * (1 - _num(fs.corruption));
+            if (fs.demesne <= _num(CrownBooks.config().demesne.min, 0.05) + 1e-9) w.land = 0;
+        }
         if (_num(k.stability, 50) < 30) w.levy = _num(w.levy) * 0.3;
         const total = Object.values(w).reduce((s, v) => s + Math.max(0, _num(v)), 0);
         if (total <= 0) return null;
@@ -1222,6 +1246,8 @@ export const Finance = {
         }
         if (choice === 'levy') Finance._levy(world, player, st, k, out);
         else if (choice === 'debase') Finance.debase(world, player, k, out);
+        else if (choice === 'offices') Finance._sale(world, player, st, k, 'offices', out);
+        else if (choice === 'land') Finance._sale(world, player, st, k, 'land', out);
         else Finance.crownDefault(world, player, k, out);
         f.missed = 0;
         f.unpaid = 0;
@@ -1235,6 +1261,19 @@ export const Finance = {
         f.levy = { until: day + _num(C.levyDays, 60), share: _num(C.levyShare, 0.3), day };
         Finance._record(st, world, { kind: 'levy', kingdomId: k.id, kingdom: k.name });
         if (Finance._touches(player, k)) Finance._note(out, '💰', 'A War Levy', `The crown of ${k.name}, deep in debt, raises an extraordinary levy. The realm grumbles.`, 'warning');
+    },
+
+    /** Sell offices or crown land (the Crown's Purse, world/crownBooks.js): gold now, corruption or lost demesne after. */
+    _sale(world, player, st, k, kind, out) {
+        const gain = kind === 'offices' ? CrownBooks.sellOffices(k) : CrownBooks.sellLand(k);
+        if (!(gain > 0)) return 0;
+        Finance._record(st, world, { kind: kind === 'offices' ? 'offices_sold' : 'land_sold', kingdomId: k.id, kingdom: k.name, amount: gain });
+        if (Finance._touches(player, k)) {
+            Finance._note(out, kind === 'offices' ? '📜' : '🌾', kind === 'offices' ? 'Offices for Sale' : 'Crown Land Sold',
+                kind === 'offices' ? `The crown of ${k.name} sells judgeships and collectorships for ${gain}g. Their buyers mean to have it back.`
+                    : `The crown of ${k.name} sells royal manors to the great houses for ${gain}g. Its own rents will be the less.`, 'warning');
+        }
+        return gain;
     },
 
     /** Clip the coin: gold for the mint now, dearer markets and less trust after. */
@@ -1252,10 +1291,14 @@ export const Finance = {
         // The mint recoins the circulating coin at the lower standard: more pieces
         // from the same silver, and the realm's coin swells (world/moneySupply.js)
         const R = MoneySupply.realm(world, k.id);
+        const swell = R && f.purity > 0 ? R.coin * (before / f.purity - 1) : 0;
         if (R && f.purity > 0) MoneySupply.adjust(world, k.id, R.coin * (before / f.purity - 1) * _num(MoneySupply.config().debase.coinShare, 1), 'debase');
         f.lastDebaseDay = day;
-        const gain = Math.round(Math.max(_num(f.income), 200) * _num(G.mintDays, 15));
+        // With real books the crown keeps the extra pieces the recoinage strikes (no more)
+        const gain = CrownBooks.enabled() && swell > 0 ? Math.round(swell)
+            : Math.round(Math.max(_num(f.income), 200) * _num(G.mintDays, 15));
         k.treasury = _num(k.treasury) + gain;
+        CrownBooks.note(k, 'debase', gain);
         for (const b of st.banks) if (b.relations && b.relations[k.id] != null) b.relations[k.id] = Math.max(-100, b.relations[k.id] - _num(C.debaseRelation, 10));
         Finance._record(st, world, { kind: 'debased', kingdomId: k.id, kingdom: k.name, purity: f.purity });
         const text = `The mint of ${k.name} clips its coin to ${Math.round(f.purity * 100)}% silver: ${gain}g for the crown, and prices in its markets rise ${Math.round((Coinage.priceMultiplier(world, { kingdom: k.id }) - 1) * 100)}%.`;

@@ -60,6 +60,7 @@ import { Economy } from '../world/economy.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Seasons } from '../world/seasons.js';
 import { WorldEvents } from '../world/worldEvents.js';
+import { CrownBooks } from '../world/crownBooks.js';
 
 const OFFICES = ['chancellor', 'marshal', 'steward', 'spymaster', 'highPriest'];
 const TAX_STEPS = ['heavy', 'standard', 'light'];
@@ -1255,6 +1256,7 @@ export const Kingship = {
         res.revenue = Math.round(revenue);
         if (res.revenue > 0 && k && court) {
             k.treasury = _num(k.treasury) + res.revenue;
+            CrownBooks.note(k, 'demesne', res.revenue);
             court.stats.monopolyRevenue += res.revenue;
         }
         return res;
@@ -1319,6 +1321,7 @@ export const Kingship = {
             if (grain > 0) {
                 const cost = Math.ceil(grain * price);
                 k.treasury = _num(k.treasury) - cost;
+                CrownBooks.note(k, 'dole', cost);
                 s.economy.food = _num(s.economy.food) + grain;
                 // The dole's grain reaches the market too, easing a dearth
                 SettlementMarket.add(s, 'grain', grain);
@@ -1380,6 +1383,7 @@ export const Kingship = {
             if (!cost) continue;
             if (_num(k.treasury) >= cost) {
                 k.treasury -= cost;
+                CrownBooks.note(k, 'court', cost);
             } else {
                 Kingship.revokeEdict(player, world, id, { lapse: true });
                 Kingship._note(out, def.icon, 'Edict Lapses', `The royal treasury cannot pay for ${def.label}; it lapses.`, 'warning');

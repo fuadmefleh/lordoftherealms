@@ -39,8 +39,10 @@ import { TownLabour } from '../world/townLabour.js';
 import { EconomyIndex } from '../world/economyIndex.js';
 import { Fashions } from '../world/fashions.js';
 import { Harvests } from '../world/harvests.js';
+import { Estates } from '../world/estates.js';
 import { Transport } from '../world/transport.js';
 import { MoneySupply } from '../world/moneySupply.js';
+import { CrownBooks } from '../world/crownBooks.js';
 
 const DEFAULT_CONFIG = {
     localRadius: 8, eventRadius: 10, sagaRadius: 14, siegeRadius: 6, rivalRadius: 6, outlawRadius: 10,
@@ -62,11 +64,11 @@ const CONDITIONS = {
 
 export const SEASONS = ['Spring', 'Summer', 'Autumn', 'Winter'];
 /** What townsfolk say about money (systems/finance.js): the `money` condition's kinds. */
-export const MONEY_KINDS = ['debased', 'levy', 'default', 'bank_run', 'bank_failed', 'bank', 'mania', 'crash', 'insurers_failed', 'coin_short', 'coin_flood', 'recoinage'];
+export const MONEY_KINDS = ['debased', 'levy', 'default', 'bank_run', 'bank_failed', 'bank', 'mania', 'crash', 'insurers_failed', 'coin_short', 'coin_flood', 'recoinage', 'tax_revolt', 'tax_farm', 'heavy_taxes', 'army_unpaid'];
 /** What townsfolk say about work and the people (world/townLabour.js): the `labour` condition's kinds. */
-export const LABOUR_KINDS = ['idle', 'refugees', 'strike', 'boom', 'hardship', 'mine_strike', 'mine_closed'];
+export const LABOUR_KINDS = ['idle', 'refugees', 'strike', 'boom', 'hardship', 'mine_strike', 'mine_closed', 'enclosure', 'enclosure_riot', 'estate_sale', 'putting_out'];
 /** What townsfolk say about the cost of living (world/economyIndex.js): the `prices` condition's kinds. */
-export const PRICE_KINDS = ['dear_food', 'cheap_food', 'inflation'];
+export const PRICE_KINDS = ['dear_food', 'cheap_food', 'inflation', 'linen_glut'];
 /** What townsfolk say of the harvest in their region (world/harvests.js talk): the `harvest` condition's kinds (and the blights' ids). */
 export const HARVEST_KINDS = ['failing', 'bumper', 'poor', 'plenty'];
 /** What townsfolk say of the roads out of town (world/transport.js talk): the `roads` condition's kinds. */
@@ -270,6 +272,13 @@ export const Chatter = {
                 if (h.kind === 'exhausted' && !ctx.labour.includes('mine_closed')) ctx.labour.push('mine_closed');
             }
         }
+        // The land about the town: enclosed fields, a riot, an estate on the market, the cottagers'
+        // work; a linen glut in the realm (world/estates.js)
+        if (settlement && world) {
+            const land = Estates.talk(world, settlement);
+            for (const k of land.labour) if (!ctx.labour.includes(k)) ctx.labour.push(k);
+            for (const k of land.prices) if (!ctx.prices.includes(k)) ctx.prices.push(k);
+        }
         // The harvest in its region: failing or bumper, a blight; poor or plenty once it is in (world/harvests.js)
         if (settlement && world) ctx.harvest = Harvests.talk(world, settlement);
         // The roads out of town: a pass snowed shut, a bridge down, ruts and mud, a new highway, a canal (world/transport.js)
@@ -301,6 +310,11 @@ export const Chatter = {
             if (lv <= N.shortAt) ctx.money.push({ kind: 'coin_short' });
             else if (lv >= N.floodAt) ctx.money.push({ kind: 'coin_flood' });
             if (MoneySupply.recent(world, kid, 'recoinage', 60)) ctx.money.push({ kind: 'recoinage' });
+            // The crown's taxes here: a revolt, a tax farmer, heavy dues, soldiers unpaid (systems/fiscal.js)
+            if (settlement && day != null && _num(settlement.taxRevolt) > day) ctx.money.push({ kind: 'tax_revolt' });
+            if (settlement && settlement.taxFarm) ctx.money.push({ kind: 'tax_farm', bank: settlement.taxFarm.holderName || 'the farmer' });
+            if (CrownBooks.enabled() && kingdom.fisc && CrownBooks.taxIndex(kingdom) >= 1.25) ctx.money.push({ kind: 'heavy_taxes' });
+            if (kingdom.fisc && _num(kingdom.fisc.arrearsDays) >= 7) ctx.money.push({ kind: 'army_unpaid' });
             const banks = (player && player.finance && Array.isArray(player.finance.banks)) ? player.finance.banks : [];
             for (const b of banks) {
                 if (!b || b.kingdomId !== kid) continue;
@@ -645,9 +659,12 @@ export const Chatter = {
         for (const m of ctx.money || []) if (MONEY[m.kind]) f.push(MONEY[m.kind]);
         const WORK = { idle: 'Many here are out of work.', refugees: 'Refugees have crowded into the town.', strike: 'The artisans are on strike over the price of bread.',
             boom: 'Times are good: there is work for all and newcomers keep arriving.', hardship: 'The poor are hard-pressed: wages do not cover bread and fuel.',
-            mine_strike: 'A new vein has been struck in the hills nearby; miners are coming in.', mine_closed: 'The mine nearby is worked out and its miners are leaving.' };
+            mine_strike: 'A new vein has been struck in the hills nearby; miners are coming in.', mine_closed: 'The mine nearby is worked out and its miners are leaving.',
+            enclosure: 'A landlord nearby has hedged his fields for sheep and turned his tenants out.', enclosure_riot: 'The cottagers rioted over the enclosures and tore down the hedges.',
+            estate_sale: 'An estate nearby is up for sale, or has lately changed hands.', putting_out: 'The merchants put out wool and flax to the cottagers to spin and weave at home.' };
         for (const k of ctx.labour || []) if (WORK[k]) f.push(WORK[k]);
         if (ctx.priceInfo && (ctx.prices || []).includes('dear_food')) f.push(`Bread is dear: food costs ${ctx.priceInfo.foodPct}% more than in ${ctx.priceInfo.since}.`);
+        if ((ctx.prices || []).includes('linen_glut')) f.push('Linen is cheap: the cottage looms have flooded the markets.');
         if (ctx.priceInfo && (ctx.prices || []).includes('inflation')) f.push(`Prices have risen ${ctx.priceInfo.goodsPct}% since ${ctx.priceInfo.since}.`);
         for (const x of (ctx.fashions || []).slice(0, 1)) f.push(`The fashion at court, from ${x.place}: ${x.text} (${x.goods} are wanted).`);
         const CROP = { failing: 'The harvest hereabouts is failing; bread will be dear by spring.', bumper: 'A bumper harvest is coming; grain will be cheap.',
@@ -726,7 +743,7 @@ export const Chatter = {
         }
         // Heralds and tavern templates
         const H = Chatter.data().heralds || {};
-        const heraldTokens = ['ruler', 'kingdom', 'other', 'saga', 'title', 'leader', 'place', 'by', 'days', 'bank', 'purity',
+        const heraldTokens = ['ruler', 'kingdom', 'other', 'saga', 'title', 'leader', 'place', 'by', 'days', 'bank', 'purity', 'holder', 'level',
             // caravans lost on the road (systems/merchantCaravans.js)
             'good', 'carrier', 'from', 'house',
             // market fairs, dearths and gluts (systems/marketFairs.js)
@@ -744,7 +761,9 @@ export const Chatter = {
             // the roads: a ford or a ferry where a bridge was (world/transport.js)
             'crossing',
             // underwriters and the Bourse (systems/underwriting.js, systems/bourse.js)
-            'uw', 'amount', 'listing'];
+            'uw', 'amount', 'listing',
+            // the land: estates sold, enclosed, confiscated (systems/landMarket.js)
+            'estate', 'holder', 'buyer', 'price'];
         for (const [kind, list] of Object.entries(H.templates || {})) {
             if (!Array.isArray(list) || !list.length) problems.push(`heralds.${kind}: no templates`);
             for (const t of list || []) for (const [, tok] of String(t).matchAll(/\{(\w+)\}/g)) {

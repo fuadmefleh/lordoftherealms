@@ -41,6 +41,7 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
 import { Seasons } from './seasons.js';
+import { CrownBooks } from './crownBooks.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -833,6 +834,7 @@ export const Transport = {
             const cost = _r2(_num(T.upkeep) * seg.len * share * edict);
             if (cost > 0 && Transport._canPay(live, cost)) {
                 live.treasury = _num(live.treasury) - cost;
+                CrownBooks.note(live, 'works', cost);
                 st.stats.upkeep = _r2(_num(st.stats.upkeep) + cost);
                 const ks = String(live.id);
                 st.realms[ks] = _r2(_num(st.realms[ks]) + cost);

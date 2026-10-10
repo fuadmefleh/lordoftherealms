@@ -703,7 +703,7 @@ The forecast is worth something, but it is not a sure thing. The best trade is s
 **Open.**
 - Crop insurance can read `Harvests.expectedYield`, `forecast` and `outcome`; another pass is building it.
 - The bot does not choose rotations or speculate on forecasts.
-- Flax adds linen as textiles; there is no separate linen good in `markets.json`.
+- ~~Flax adds linen as textiles; there is no separate linen good in `markets.json`.~~ Closed by [Land, Estates & the Putting-Out System](#land-estates--the-putting-out-system-2026-10): flax and linen are market goods.
 
 ## Underwriters, bills & the Bourse (2026-10)
 
@@ -922,7 +922,7 @@ Measured with the harness's `mark` timing, 361 days, seeds 101–303, with the p
 
 The price level is clamp((coin × velocity / people against the world's)^0.5, 0.9, 1.12), moving 20% of the way each week. Velocity: 12% hoarded at war, 10% more in a panic. `Coinage.priceMultiplier` = the purity term × the level.
 
-**Why the treasuries are only partly backed.** A crown's income is the daily growth of its towns' `economy.gold`, an accumulator that is never spent. Treasuries reach 30,000–350,000 g, 2–15 times the realm's circulating coin. Drawing taxes from the coin in circulation would drain it to nothing within weeks in every rich realm, so full conservation was not tried. Instead, the crown's gold is tied to the coin where it is reasonable:
+**Why the treasuries are only partly backed** (before the Crown's Purse: crowns now keep real books, see [below](#the-crowns-purse-2026-10)). A crown's income is the daily growth of its towns' `economy.gold`, an accumulator that is never spent. Treasuries reach 30,000–350,000 g, 2–15 times the realm's circulating coin. Drawing taxes from the coin in circulation would drain it to nothing within weeks in every rich realm, so full conservation was not tried. Instead, the crown's gold is tied to the coin where it is reasonable:
 - The tax yield follows the coin: `KingdomAI.incomeMultiplier` × level^0.3, clamped to 0.97–1.03.
 - The mint's seigniorage is real coin from real bullion.
 - Tribute, indemnities, crown loans and their repayment move circulating coin between realms.
@@ -1113,6 +1113,171 @@ A new game in the dev server (small map, 200 days, every economy panel and trade
 - The dealers' margin is notional: no gold moves.
 - The player cannot yet issue an edict against engrossers as a ruler. Their realm's council issues it like any crown's.
 - Rival merchant houses don't book engrossing on their capital.
+
+## The Crown's Purse (2026-10)
+
+`systems/fiscal.js`, `world/crownBooks.js`, `data/fiscal.json`. The rules are in [the manual](../GAMEPLAY_MANUAL.md#the-crowns-purse-taxes-wages--tax-farms).
+
+**What changed.**
+- **Before.** A crown's income was the daily growth of its towns' `economy.gold`. That accumulator was never spent, and the towns kept the gold too, so every tax was gold made twice. Treasuries reached 270,000–600,000 g by day 300. On seed 7 at day 300 they ran 51,000–301,000 g, summing to 1.7 M.
+- **Now.** Taxes come out of the towns' purses, and wages and court spending are paid back into them. The treasury is the balance.
+- `KingdomAI.updateEconomy` no longer credits the treasury. It leaves each town's production gold and trade income on `economy.fyProd` / `fyTrade` for the collectors.
+- War upkeep (`KingdomAI.warUpkeep`) and Finance's `warBurn` are switched off. The war's cost is now the army's field pay.
+
+**Revenue and spending at the standard level.**
+
+| Line | Rule |
+|---|---|
+| Land tax | 6% of the peasants' earnings (min(hands, jobs) × the land wage) × the harvest factor, + 6% × half the town's production gold |
+| Hearth tax | 0.0025 g per taxable head a day (peasants 1, artisans 1, merchants 1.5, clergy and nobles 0) |
+| Excise | 3.5% of the artisans' earnings and the merchants' trade income |
+| Demesne | 20% of the production gold (the capital's ×2) |
+| Army | 0.16 g per soldier a day (×1.6 at war, × the upkeep bonuses), + 1 g per recruit |
+| Court | 30 + 6 per town + 0.003 per head a day |
+
+- Levels multiply the taxes: light ×0.75, heavy ×1.3, crushing ×1.65.
+- Collection is × `KingdomAI.incomeMultiplier` (stewardship, events, stability, blockade, coin) × (1 − 0.35 × corruption).
+- Collectors visit each town once a week (staggered) and take every day's dues since.
+- A typical realm of 15,000–20,000 people raises about 300–600 g a day and spends about 250–500 g.
+- The books' 'other' line (events, tribute, temples, the fleet's builds) runs 0 to −400 g a day. Temples and fleets now spend down to what the books leave them.
+
+**Calibration.**
+- The first tuning had land 10%, hearth 0.004 g, excise 6% and demesne 35%. Treasuries still grew in every realm: day-300 treasuries were 28,000–87,000 g on seed 7, and most realms sat at light taxes in surplus.
+- The rates were cut by about 40%. Standard taxes now run a small peacetime surplus, war runs a deficit, and the NPC review keeps the chests near 30–160 days of spending.
+- A rich court goes lavish (×1.4).
+- The coin flow was first 60% of the week's net taxes. That drained every realm's coin as the chests filled: median coin fell to 2,000–8,000 g on seed 7, and the price level hit the floor. It is now 10%, at most 2% of the coin a week.
+- Revolts first ran at 0.12 × pressure (2,373 in 20 worlds) and farms sold whenever a crown was short (3,227). Both were cut: chance 0.06, at most 0.12 a week; farms need 15 days of reserve or 4 weeks in deficit, with a 42-day cooldown.
+
+**Measured** (seeds 7–26, `generate({kingdomCount: 10})`, 1,080 days, the player kept fed; the method of [world stability](world-stability.md); on the code merged with `refactor/editor-tooling` at e6babe35):
+
+| | Day 300 | Day 1,080 |
+|---|---|---|
+| Treasury p5 | 1,900 g | 70 g |
+| p25 | 8,600 g | 7,200 g |
+| Median | 13,200 g | 16,200 g |
+| p75 | 20,700 g | 26,600 g |
+| p95 | 41,500 g | 47,400 g |
+| Price level p5 / median / p95 | 0.90 / 1.00 / 1.10 | 0.90 / 1.01 / 1.12 |
+| Coin about (median) | 24,500 g | 26,700 g |
+
+- **Survival: 184 / 200 (92%).** The pre-merge run measured 184 too. The first tuning measured 180, against 178–181 for the earlier passes.
+
+| Seed | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Alive | 9 | 9 | 9 | 9 | 10 | 8 | 10 | 10 | 9 | 10 | 9 | 10 | 10 | 10 | 10 | 8 | 10 | 10 | 6 | 8 |
+
+- **Tax levels at day 1,080** (184 realms): 38 light, 92 standard, 39 heavy, 15 crushing. 4 realms had their soldiers unpaid.
+- **Over 20 worlds:** 1,343 tax farms sold (about 2 per realm per year), 977 tax revolts (about 1.6 per realm per year), 18 mutinies in the last records.
+- The p5 near 0 at day 1,080 is realms broke from long wars. They borrow, levy, debase or sell offices; a few default.
+
+**No money loops (tested in `src/__tests__/fiscal.test.js`).**
+- Over ten fiscal days, the sum of town purses, treasuries, bank capital, the player's gold and bids held is unchanged to the rounding of the purses. The towns' purses fall by exactly what the crown books as taxes.
+- The player's tax farm pays the town's taxes × the squeeze, less 5% to the collectors.
+  - At the house's discount (82–92% of the reckoned taxes) a firm farm returns about 1.2 × 0.95 / 0.9 ≈ 1.27× the stake over 120 days. A harsh one returns about 1.45×, against reputation, unrest and revolts that stop collection for 30 days.
+  - The lot's estimate follows the town's recent taxes, so outbidding the house raises the stake.
+- Bids are held by the crown and returned when outbid or called off. Both moves are booked in the ledger (`taxFarmBids`, `taxFarms`).
+
+**Tick cost.**
+- The machine was shared with other agents' runs throughout, about 6× slower than the quiet runs of earlier passes: `world.advanceDay` read 55 ms a day against 8.5.
+- Under that load, `Fiscal.processDay` read 3.4–3.6 ms a day in the harness, `Mints.processDay` 1.4 ms and Labour 7.9 ms.
+- A warm microbenchmark of the fiscal day with the settlement scan held read 0.3–0.4 ms.
+- Scaled by the load, the fiscal day is about **0.3–0.5 ms a day**. That may sit above the 0.3 ms target. Re-measure on a quiet machine.
+- What keeps it cheap:
+  - Town dues are collected weekly per town, staggered.
+  - The upkeep bonuses are re-read weekly.
+  - `KingdomAI.updateEconomy` leaves the income multiplier on the books.
+  - The books' pages are reused.
+  - The realms' towns are grouped once a week, or when the scan changes.
+  - Tax-farm lookups are indexed.
+
+**Open.**
+- The perf figure needs a quiet machine.
+- The 'other' line is large for some realms. Temples, the fleet's builds, colonies and events could get lines of their own.
+- The bot does not bid for tax farms.
+- `world/moneySupply.js` still notes the treasury as coin out of circulation. The 'fisc' flow ties the two only at 10% of the net.
+## Land, Estates & the Putting-Out System (2026-10)
+
+`world/estates.js`, `systems/landMarket.js`, `systems/puttingOut.js`, `data/estates.json`. See [the manual](../GAMEPLAY_MANUAL.md#land-estates--the-putting-out-system).
+
+**No harvest counted twice.** An estate is a share of its town's farmland (estateShare 0.6 of it, split between 1–4 estates), so its crops are the town's own market profile. `Estates.applyToProduction` runs after `Harvests.applyToProduction` and changes the profile only by what holders changed: soil above 1 (drainage, marl), enclosed land (grain, flax and wine out, wool in), and the cottagers' draw on the fields out of season. With the cottagers' work switched off, the market profiles with and without the system are identical, bit for bit (tested). The fibre crop of `world/harvests.js` now brings **flax** to market instead of adding textiles (linen) directly; linen comes from the `linen_weaver` recipe (1.2 flax → 1 linen), the craftsmen's supply (0.75 of need) and the cottagers.
+
+**No money created.**
+- The player's rents come out of the town's `economy.gold`. The crown's income follows that accumulator, so a landlord's rent is a transfer from the crown's tax base, not new coin.
+- Piece wages and 80% of improvement costs go into the town's coin.
+- A purchase pays the seller (an NPC purse or a crown's treasury) and the crown's 3% duty. A sale is paid from the buyer's purse, and only a buyer with the purse for it can buy.
+- NPC holders' rents are notional: they are counted in the crowns' taxes already. Their purses only buy and sell land, so they move no coin anywhere but to sellers.
+- A round trip (buy, sell at once) loses the 3% duty and the 10% quick-sale discount, or the 5% listing discount (tested).
+
+**Measured.** Seeds 101, 202 and 303 at day 150; every estate, valued by `LandMarket.value`:
+
+| | Seed 101 | Seed 202 | Seed 303 |
+|---|---|---|---|
+| Village estate (p25 / median / p75) | 3,139 / 4,514 / 6,062g | 3,120 / 4,677 / 7,202g | 2,627 / 3,901 / 5,480g |
+| Town estate | 10,594 / 18,176 / 23,603g | 7,497 / 15,021 / 18,137g | 8,403 / 15,455 / 16,872g |
+| Capital estate | 30,822 / 36,353 / 48,539g | 30,192 / 48,116 / 48,901g | 24,819 / 42,456 / 50,653g |
+| Yearly return on a listing's price + duty (p5 / median / p95) | 5.3 / 5.7 / 8.7% | 5.3 / 5.3 / 8.7% | 5.3 / 6.3 / 6.7% |
+| On an offer (the holder's premium) | 4.6 / 4.9 / 7.3% | 4.4 / 4.9 / 7.6% | 4.4 / 5.6 / 6.0% |
+| Drainage: return on its cost (median) | 10.6% a year (payback 9.4 years) | 10.8% (9.2) | 10.7% (9.4) |
+| Enclosure: wool rent ÷ crop rent (p10 / median / p90) | 1.11 / 1.37 / 1.68 | 1.02 / 1.22 / 1.53 | 1.06 / 1.24 / 1.54 |
+
+- A year is 120 days (`Finance.yearDays`), so land repays its price in about 18 years: about 2,100 days at 5.5%. It is a store of value at the deposit and bond rate, safe from robbers. The upside comes from the land rate falling (the crown's credit improving) and from improvement and enclosure. It is not a quick earner: the works and leases still repay in 30–60 days.
+- The land rate is 5.5% + half the crown's bond rate over 6%, +1 point at war and +1 in unrest, within 4–9%. That keeps the return in "good times" (peace, a sound crown) at 5–6% on a listing, and 4–8% across the realms.
+- Drainage beats buying land: about 10.7% a year on its cost, and it raises the estate's worth by about twice what it cost. Buy, drain and sell is still no loop. Drainage costs about 5% of the estate's worth and adds 10%, but the round trip loses the 3% duty and 10% on a quick sale: about −9% of the price, or −3.6% if you list it and wait.
+- Enclosure pays 1.2–1.4× the crop rent at today's wool prices. In exchange the estate loses three tenant households in four to the nearest town, 15 loyalty, and risks a riot.
+
+**Putting-out.** 40 wool put out at the fair rate in each world's largest village (551–646 people, 87–112 cottage households) on winter's first day:
+
+| | Seed 101 | Seed 202 | Seed 303 |
+|---|---|---|---|
+| Days to finish | 6 | 5 | 7 |
+| Piece wages | 135g | 135g | 135g |
+| Textiles back (× quality) | 33 | 30 | 32 |
+| Margin at base prices (cloth − wool − wages) | +290g | +215g | +265g |
+
+- At harvest the same batch takes about seven times as long.
+- A guild workshop would charge about 270g for the same cloth.
+- Villages don't wear textiles, so the cloth sells at most at its base price there. Carried to a town, it sells into the town's own scarcity curve.
+- This is a trading margin on a stake of about 535g, worked in the slack season: the "skilled" tier.
+- The merchant houses put out work every week in 55–63 of the 61–77 towns, a median 0.9–1.5 units of fibre a week each: surplus wool and flax only, never in a chartered town.
+
+**Kingdom survival.** Seeds 7–26, 1,080 days, `generate({ kingdomCount: 10 })`, the method of [world stability](world-stability.md), on the code merged with refactor/editor-tooling at e6babe35. "Off" is `enabled: false` in `data/estates.json`: no estates, rents, land market or putting-out. Flax and linen stay in the markets either way.
+
+| | Alive (of 200) | Rate |
+|---|---|---|
+| Land & putting-out off | 176 | 88% |
+| **On** | **178** | **89%** |
+
+| Seed | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Off | 10 | 8 | 10 | 8 | 10 | 7 | 7 | 8 | 10 | 10 | 9 | 10 | 10 | 9 | 10 | 8 | 8 | 10 | 6 | 8 |
+| On | 9 | 10 | 10 | 8 | 10 | 6 | 10 | 8 | 10 | 9 | 8 | 10 | 10 | 10 | 10 | 8 | 7 | 10 | 6 | 9 |
+
+- The per-seed differences are war luck, within run-to-run noise: the land market moves money only between the NPC purses, crowns' sales, and the player.
+- **What happened per world over the 3 years** (records on `world.estates.history`):
+  - estates sold: 5–14
+  - ceded in a peace: 1–15
+  - confiscated on conquest: 0–14
+  - dowries: 0–9
+  - bequests: 0–3
+  - NPC enclosures: 0–4, with 0–2 riots
+  - estates enclosed at the end: 0–6
+  - linen gluts proclaimed: 7–24
+- A first tuning had nobles spend exactly their rents (debt at a quarter of their land's worth): 0–1 sales per world. They now spend 1.08× with ±50% swings, and sell at 8% debt.
+
+**Tick cost.**
+- `LandMarket.processDay` + `PuttingOut.processDay`: best of three rounds, 5–9% of the market tick (`MarketDynamics.updatePrices`). That is 0.11–0.2 ms a day on the reference machine's 2.2 ms tick, under the 0.3 ms budget. `estates.test.js` asserts under 30%.
+- What keeps it cheap:
+  - Each town has its month on one day of 30 (2–3 towns a day) and its putting-out week on one day of 7.
+  - The holders' estates are indexed, rebuilt when an estate changes hands.
+  - The cottagers' draw is reworked only where the work changed, or on a season's first day.
+  - A town's market profile is re-worked only when its own estates change (`Estates.townVersion`), not every town on every change.
+- No RNG is drawn: rolls are hashes of the seed. The golden snapshots are unchanged.
+
+**Open.**
+- The bot buys estates and puts work out (soak counters `estatesBought`, `workPutOut`), but it does not enclose, marl or trade in land.
+- NPC landlords never raise rents or drain their fields. Only the player's estates make the town sullen, cheer it or empty it.
+- Holding estates does not yet count toward noble titles.
+- The fiscal pass's tax farming could treat crown estates as part of the crown's revenue.
 
 ## Re-measuring
 

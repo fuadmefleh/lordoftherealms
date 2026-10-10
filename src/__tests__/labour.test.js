@@ -9,6 +9,9 @@ import { SettlementMarket } from '../world/settlementMarket.js';
 import { TownLabour, STRATA } from '../world/townLabour.js';
 import { Labour } from '../systems/labour.js';
 import { MarketDynamics } from '../systems/marketDynamics.js';
+import { TradePolicy } from '../systems/tradePolicy.js';
+import { PublicWorks } from '../systems/publicWorks.js';
+import { Transport } from '../world/transport.js';
 import { Underworld } from '../systems/underworld.js';
 import { Heralds } from '../systems/heralds.js';
 import { Chatter } from '../systems/chatter.js';
@@ -333,14 +336,21 @@ describe('in the whole game', () => {
             };
             const a = run(202, 12);
             const b = roundTrip(a);
+            // (the road segments are derived from the towns: a loaded game derives them afresh, so
+            // the old game does too — a town founded since its last derivation splits a road)
+            Transport.derive(a.world);
             const labs = (g) => JSON.stringify(g.world.getSettlementViews().map(s => [s.name, s.population, s.labour]));
             expect(labs(b)).toBe(labs(a));
             expect(JSON.stringify(b.world.labour)).toBe(JSON.stringify(a.world.labour));
             // The markets' and the labour days draw no dice, so both games carry on alike
-            // (the full endDay shares one RNG stream between them)
+            // (the full endDay shares one RNG stream between them). The crowns' tariffs and the
+            // roads' state are laid on the trade links by their own day (a link is not saved:
+            // a loaded game's links get them from TradePolicy and PublicWorks before its first market)
             for (let d = 0; d < 9; d++) {
                 for (const g of [a, b]) {
                     g.world.day++;
+                    TradePolicy.processDay(g.world, g.player);
+                    PublicWorks.processDay(g.world, g.player);
                     MarketDynamics.updatePrices(g.world, g.player);
                     Labour.processDay(g.world, g.player);
                 }

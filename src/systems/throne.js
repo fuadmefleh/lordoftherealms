@@ -32,6 +32,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Kingdom } from '../world/kingdom.js';
 import { KingdomAI } from '../world/kingdomAI.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
+import { CrownBooks } from '../world/crownBooks.js';
 import { NPCLords } from '../world/npcLords.js';
 import { Characters } from '../world/characters.js';
 import { House } from './house.js';
@@ -1254,11 +1255,14 @@ export const Throne = {
 
         // The royal levy: a share of what the treasury gained since yesterday
         const treasury = k.treasury || 0;
-        const gain = typeof r.lastTreasury === 'number' ? treasury - r.lastTreasury : 0;
+        // (with the Crown's Purse, a share of the crown's taxes and dues a day: systems/fiscal.js)
+        const gain = CrownBooks.enabled() ? CrownBooks.lastRevenue(k)
+            : typeof r.lastTreasury === 'number' ? treasury - r.lastTreasury : 0;
         const levy = Math.max(0, Math.min(R.levyCap, Math.floor(Math.max(0, gain) * Throne.levyRate(player)),
             Math.floor(treasury - R.levyReserve)));
         if (levy > 0) {
             k.treasury -= levy;
+            CrownBooks.note(k, 'purse', levy);
             player.gold = (player.gold || 0) + levy;
             r.levyTotal = (r.levyTotal || 0) + levy;
             if (player.financeToday && player.financeToday.income) {

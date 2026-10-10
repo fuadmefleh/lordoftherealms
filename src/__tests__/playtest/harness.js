@@ -65,6 +65,8 @@ import { Labour } from '../../systems/labour.js';
 import { Guilds } from '../../systems/guilds.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { Concessions } from '../../systems/concessions.js';
+import { LandMarket } from '../../systems/landMarket.js';
+import { PuttingOut } from '../../systems/puttingOut.js';
 import { Harvests } from '../../world/harvests.js';
 import { TradePolicy } from '../../systems/tradePolicy.js';
 import { EconomyChronicle } from '../../systems/economyChronicle.js';
@@ -74,6 +76,7 @@ import { Bills } from '../../systems/bills.js';
 import { Bourse } from '../../systems/bourse.js';
 import { PublicWorks } from '../../systems/publicWorks.js';
 import { Mints } from '../../systems/mints.js';
+import { Fiscal } from '../../systems/fiscal.js';
 import { Engrossing } from '../../systems/engrossing.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
 
@@ -319,6 +322,10 @@ function _endDay(game) {
     mark(game, 'Engrossing.processDay');
     game.hinterlandDay = Concessions.processDay(world, player);
     mark(game, 'Concessions.processDay');
+    game.landDay = LandMarket.processDay(world, player);
+    mark(game, 'LandMarket.processDay');
+    game.puttingOutDay = PuttingOut.processDay(world, player);
+    mark(game, 'PuttingOut.processDay');
     game.tradePolicyDay = TradePolicy.processDay(world, player);
     mark(game, 'TradePolicy.processDay');
     game.worksDay = PublicWorks.processDay(world, player);
@@ -350,6 +357,8 @@ function _endDay(game) {
     mark(game, 'Espionage.prepareForSave');
     Gossip.processDaily(player, world);
     mark(game, 'Gossip.processDaily');
+    game.fiscalDay = Fiscal.processDay(world, player);
+    mark(game, 'Fiscal.processDay');
     game.financeDay = Finance.processDay(world, player);
     mark(game, 'Finance.processDay');
     game.underwritingDay = Underwriting.processDay(world, player);

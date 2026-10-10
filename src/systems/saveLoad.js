@@ -30,6 +30,7 @@ import { Discovery } from './discovery.js';
 import { Heralds } from './heralds.js';
 import { OutlawLairs } from './outlawLairs.js';
 import { Finance } from './finance.js';
+import { Fiscal } from './fiscal.js';
 import { MerchantHouses } from './merchantHouses.js';
 import { MerchantPrince } from './merchantPrince.js';
 import { Guilds } from './guilds.js';
@@ -45,6 +46,8 @@ import { Terrain } from '../world/terrain.js';
 import { MarketDynamics } from './marketDynamics.js';
 import { TradePolicy } from './tradePolicy.js';
 import { Mints } from './mints.js';
+import { LandMarket } from './landMarket.js';
+import { Estates } from '../world/estates.js';
 import { Engrossing } from './engrossing.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { Underwriting } from './underwriting.js';
@@ -180,6 +183,10 @@ export const SaveLoad = {
             fashions: Fashions.serialize(world),
             // Each realm's coin, its flows, price level and mint (world/moneySupply.js)
             money: MoneySupply.serialize(world),
+            // Tax farms and their auctions, tax revolts and the books' news (systems/fiscal.js)
+            fiscal: Fiscal.serialize(world),
+            // The estates about the towns, their holders, the land market and the cottagers' work (world/estates.js)
+            estates: Estates.serialize(world),
             // Ids for characters, maps, spies, ... keep counting from here
             idCounter: Utils.getIdCounter(),
         };
@@ -286,7 +293,9 @@ export const SaveLoad = {
                 // The crown's debts, coin purity, levy and defaults (systems/finance.js, world/coinage.js)
                 'finance',
                 // Tariffs, bans, embargoes, treaties, trade wars, the granary (systems/tradePolicy.js)
-                'tradePolicy']),
+                'tradePolicy',
+                // The crown's books: tax levels, budget lines, arrears, corruption, demesne (world/crownBooks.js)
+                'fisc']),
             ...(k.createdByPlayer ? {
                 foundedDay: k.foundedDay,
                 colorLight: k.colorLight,
@@ -512,6 +521,8 @@ export const SaveLoad = {
             lossBook: LossBook.serialize(player),
             // Specie & mints: a mint lease, the realm whose coin the purse is in, false coin passed (systems/mints.js)
             mints: Mints.serialize(player),
+            // Land & putting-out: the cloth put out to the cottagers, the land log (systems/landMarket.js)
+            land: LandMarket.serializePlayer(player),
         };
     },
 
@@ -625,6 +636,10 @@ export const SaveLoad = {
         Fashions.restore(saveData.fashions, world);
         // The realms' coin (older saves: none — each realm is seeded afresh at the world's norm on the next week)
         MoneySupply.restore(saveData.money, world);
+        // The crowns' tax farms and news (older saves: none — every realm opens its books on the next day)
+        Fiscal.restore(saveData.fiscal, world);
+        // The estates (older saves: none — every town's estates are derived on the next day)
+        Estates.restore(saveData.estates, world);
         // Never hand out an id the save already used
         if (typeof saveData.idCounter === 'number') {
             Utils.setIdCounter(Math.max(Utils.getIdCounter(), saveData.idCounter));
@@ -804,6 +819,8 @@ export const SaveLoad = {
         LossBook.loadState(player);
         // Specie & mints — older saves have none (set up on the first dealing)
         Mints.loadState(player);
+        // Land & putting-out — older saves have none (a blank record)
+        LandMarket.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

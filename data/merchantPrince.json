@@ -16,6 +16,7 @@
             "charcoal":   { "name": "Charcoal Kilns", "icon": "🔥", "runsPerLevel": 8,   "gold": 240, "materials": { "stone": 10 },             "maxLevel": 3 },
             "distillery": { "name": "Distillery",     "icon": "🥃", "runsPerLevel": 2,   "gold": 310, "materials": { "wood": 10, "iron": 2 },   "maxLevel": 3 },
             "weaver":     { "name": "Weaving Shed",   "icon": "🧶", "runsPerLevel": 3,   "gold": 200, "materials": { "wood": 15 },              "maxLevel": 3 },
+            "linen_weaver": { "name": "Linen Loft", "icon": "👚", "runsPerLevel": 2.5, "gold": 190, "materials": { "wood": 12 }, "maxLevel": 3 },
             "tailor":     { "name": "Tailors' Hall",  "icon": "👕", "runsPerLevel": 2.5, "gold": 210, "materials": { "wood": 10, "textiles": 3 }, "maxLevel": 3 },
             "dairy":      { "name": "Creamery",       "icon": "🧀", "runsPerLevel": 3,   "gold": 150, "materials": { "wood": 10, "stone": 5 },  "maxLevel": 3 },
             "smithy":     { "name": "Smithy",         "icon": "🔨", "runsPerLevel": 2.5, "gold": 170, "materials": { "stone": 10, "iron": 4 },  "maxLevel": 3 },

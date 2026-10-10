@@ -9,6 +9,7 @@ import { Characters } from '../world/characters.js';
 import { KingdomAI } from '../world/kingdomAI.js';
 import { KingdomBonuses } from '../world/kingdomState.js';
 import { Throne } from '../systems/throne.js';
+import { CrownBooks } from '../world/crownBooks.js';
 import { House } from '../systems/house.js';
 import { RealmWars } from '../systems/realmWars.js';
 import { Relationships } from '../systems/relationships.js';
@@ -334,20 +335,23 @@ describe('Ruling a realm', () => {
     it('the levy fills the ruler\'s purse; diplomacy acts for the realm', () => {
         const world = makeWorld();
         const { player, k } = crowned(world);
-        k.treasury = 10000;
-        Throne.processDaily(player, world); // the first day sets the baseline
-        k.treasury = 11000; // the realm gained 1000 today
+        k.treasury = 11000;
+        // The levy is a share of yesterday's taxes and dues (the Crown's Purse, world/crownBooks.js)
+        const books = CrownBooks.state(k);
+        books.avg = { rev: 1000, exp: 0, n: 5 };
         const gold = player.gold;
         Throne.processDaily(player, world);
         const levy = player.gold - gold;
         expect(levy).toBe(Math.floor(1000 * Throne.levyRate(player)));
         expect(k.treasury).toBe(11000 - levy);
-        // A treasury that shrank pays nothing; the levy is capped
-        k.treasury -= 500;
+        expect(books.day.purse).toBe(levy);
+        // A day without taxes pays nothing; the levy is capped
+        books.avg.rev = 0;
         const g2 = player.gold;
         Throne.processDaily(player, world);
         expect(player.gold).toBe(g2);
-        k.treasury += 1e6;
+        k.treasury += 1e7;
+        books.avg.rev = 1e7;
         Throne.processDaily(player, world);
         expect(player.gold - g2).toBe(Throne.config().ruling.levyCap);
 

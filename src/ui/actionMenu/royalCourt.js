@@ -163,6 +163,8 @@ function _realmTab(player, world) {
     html += '</div>';
     // The crown's trade: duties, export bans, embargoes, treaties, the granaries (ui/actionMenu/tradePolicy.js)
     html += `<div style="${CARD}"><div style="font-weight:bold;">⚖️ Trade policy</div><div style="${MUTED}">Set duties on each kind of goods, ban exports, lay embargoes, sign treaties and fill the royal granaries.</div><button data-am-act="showTradePolicy" data-am-args='["crown"]' style="${BTN_GOLD}">Open the trade policy</button></div>`;
+    // The crown's books: taxes, the army's pay, the court, tax farms (ui/actionMenu/treasury.js)
+    html += `<div style="${CARD}"><div style="font-weight:bold;">🧾 The treasury</div><div style="${MUTED}">The budget line by line, the taxes, the army's pay and the court, tax farms, offices and crown land for sale.</div><button data-am-act="showTreasury" data-am-args='["crown"]' style="${BTN_GOLD}">Open the treasury</button></div>`;
     html += `<div style="${CARD}"><div style="font-weight:bold;">What the court adds to the realm</div><div style="${MUTED}">${_esc(_modsText(s.mods)) || 'Nothing yet — name a council and proclaim edicts.'}${s.peaceChance ? ` · peace odds +${Math.round(s.peaceChance * 100)}%` : ''}</div></div>`;
     const st = s.stats;
     html += `<div style="${MUTED}">Edicts proclaimed ${st.edictsPassed} · grants ${st.grants} · feasts ${st.feasts} · plots revealed ${st.plotsRevealed} · lords broken ${st.lordsBroken} · revolts ${st.revolts} (crushed ${st.revoltsCrushed}, conceded ${st.revoltsConceded})</div>`;

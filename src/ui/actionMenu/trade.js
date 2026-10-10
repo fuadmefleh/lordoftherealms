@@ -8,7 +8,7 @@ import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Bank
 
 /**
  * The market's tab bar: Buy and Sell here, and the town's other trade views
- * (Invest, Warehouse, People, Harvest, Tariffs, Ledger, ...) as tabs of the same
+ * (Invest, Warehouse, People, Harvest, Estates, Putting-out, Tariffs, Ledger, ...) as tabs of the same
  * window, so moving between them keeps the bar and the window in place.
  */
 export function setMarketNav(game, tile, active) {
@@ -23,6 +23,8 @@ export function setMarketNav(game, tile, active) {
         { key: 'people', label: '👥 People', title: "The town's classes, work, wages and welfare", run: go(() => ActionMenu.showTownPeople(game, null)) },
         { key: 'hinterland', label: '⛏️ Hinterland', title: 'The mines, quarries and sheep runs around the town; mining leases and prospecting', run: go(() => ActionMenu.showHinterland(game, null)) },
         { key: 'harvest', label: '🌾 Harvest', title: "The coming harvest here, the crop reports, the town's fields", run: go(() => ActionMenu.showHarvests(game, null)) },
+        { key: 'estates', label: '🏡 Estates', title: 'The estates about the town: tenants, rents, land values; buy, improve, enclose', run: go(() => ActionMenu.showEstates(game, null, 'here')) },
+        { key: 'puttingOut', label: '🧶 Putting-out', title: 'Put out wool and flax to the cottagers to spin and weave', run: go(() => ActionMenu.showPuttingOut(game, null)) },
     ];
     if (tile.settlement.guilds) items.push({ key: 'guilds', label: '⚒️ Guilds', title: 'The town guilds: tolls, membership, contracts', run: go(() => ActionMenu.showGuildhall(game, null)) });
     items.push(
@@ -36,6 +38,7 @@ export function setMarketNav(game, tile, active) {
         merchantPrince: { invest: 'invest', warehouse: 'warehouse', contracts: 'contracts' },
         ledger: { '*': 'ledger' },
         tradePolicy: { '*': 'tariffs' },
+        estates: { '*': 'estates' },
     };
     game.ui.setPanelNav({ id: 'market', title: `🏪 Market — ${tile.settlement.name || 'Market'}`, active, items, hosts });
 }

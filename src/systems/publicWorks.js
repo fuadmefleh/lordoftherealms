@@ -43,6 +43,7 @@ import { KingdomBonuses } from '../world/kingdomState.js';
 import { EconomyIndex } from '../world/economyIndex.js';
 import { Seasons } from '../world/seasons.js';
 import { Ledger } from './ledger.js';
+import { CrownBooks } from '../world/crownBooks.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -322,6 +323,7 @@ export const PublicWorks = {
             if (!k || k.isAlive === false) return false;
             if (_num(k.treasury) - amount < _num(Transport.config().upkeep.floor, 400)) return false;
             k.treasury = _num(k.treasury) - amount;
+            CrownBooks.note(k, 'works', amount);
         }
         w.spent = _r2(_num(w.spent) + amount);
         return true;
@@ -528,7 +530,7 @@ export const PublicWorks = {
             const k = _kingdom(world, w.kid);
             const foreign = k && k.id !== _ruledId(player);
             const cut = foreign ? amount * _num(Transport.config().build.crownShare, 0.25) : 0;
-            if (cut > 0 && k) k.treasury = _num(k.treasury) + cut;
+            if (cut > 0 && k) { k.treasury = _num(k.treasury) + cut; CrownBooks.note(k, 'customs', cut); }
             if (player) {
                 const mine = amount - cut;
                 player.gold = _num(player.gold) + mine;
@@ -537,7 +539,7 @@ export const PublicWorks = {
             return amount;
         }
         const k = _kingdom(world, w.owner);
-        if (k) k.treasury = _num(k.treasury) + amount;
+        if (k) { k.treasury = _num(k.treasury) + amount; CrownBooks.note(k, 'customs', amount); }
         return amount;
     },
 

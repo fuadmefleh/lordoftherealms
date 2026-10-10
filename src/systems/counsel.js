@@ -54,6 +54,8 @@ import { Underwriting } from './underwriting.js';
 import { Bills } from './bills.js';
 import { Bourse } from './bourse.js';
 import { Mints } from './mints.js';
+import { LandMarket } from './landMarket.js';
+import { PuttingOut } from './puttingOut.js';
 import { MarketFairs } from './marketFairs.js';
 import { Guilds } from './guilds.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
@@ -65,6 +67,7 @@ import { PublicWorks } from './publicWorks.js';
 import { TradePolicy } from './tradePolicy.js';
 import { EconomyIndex } from '../world/economyIndex.js';
 import { Fashions } from '../world/fashions.js';
+import { Fiscal } from './fiscal.js';
 
 export const GROUPS = ['threat', 'opportunity', 'goal'];
 export const SEVERITIES = { critical: 3, warning: 2, notice: 1, info: 0 };
@@ -1031,6 +1034,29 @@ R.bourseMania = (ctx) => {
     return out.slice(0, 1);
 };
 
+/** An estate on the market nearby at no more than its worth, within the purse (systems/landMarket.js). */
+R.estateSale = (ctx) => {
+    const t = LandMarket.saleTip(ctx.player, ctx.world);
+    if (!t) return [];
+    const WHY = { debts: 'its lord is in debt', crown: 'the crown needs the money', player: 'its holder sells' };
+    return [{ key: `estate:${t.e.id}`, q: t.live.q, r: t.live.r, estate: t.e.name, place: t.live.name, price: t.x.price, pct: Math.round(t.ratio * 100), dist: t.dist, why: WHY[t.x.reason] || 'a fair price' }];
+};
+
+/** The player's tenants restless: low loyalty, arrears (systems/landMarket.js). */
+R.estateUnrest = (ctx) => {
+    return LandMarket.restless(ctx.player, ctx.world).slice(0, 2).map(({ e, live }) => ({
+        key: `tenants:${e.id}`, q: live.q, r: live.r, estate: e.name, place: live.name,
+        what: e.arrears > 0 ? `owe ${e.arrears}g in arrears: lower the rent, or take it in kind` : `are sullen (loyalty ${e.loyalty}): high rents breed flight and riot`,
+    }));
+};
+
+/** Cloth the cottagers have finished, waiting to be collected (systems/puttingOut.js). */
+R.clothReady = (ctx) => {
+    const t = PuttingOut.readyTip(ctx.player, ctx.world);
+    if (!t) return [];
+    return [{ key: `cloth:${t.b.id}`, q: t.b.q, r: t.b.r, units: t.b.units, good: t.b.output, place: t.b.name, dist: t.dist }];
+};
+
 /** Bullion in the packs that a mint nearby would pay well for (systems/mints.js). */
 R.mintBullion = (ctx) => {
     const t = Mints.bullionTip(ctx.player, ctx.world);
@@ -1048,6 +1074,24 @@ R.ruledCoin = (ctx) => {
             ? `is short of coin (prices ${Math.round((1 - w.level) * 100)}% under the world's, the tax yield with them): a low seigniorage draws bullion to the mint`
             : `is awash with coin (prices ${Math.round((w.level - 1) * 100)}% over the world's)`;
     return [{ key: `coin:${w.kind}`, realm: w.kingdom, what, severity: w.kind === 'debased' ? 'warning' : 'notice' }];
+};
+
+/** The ruled realm's books: soldiers unpaid, or a budget in deficit with the chests running low (systems/fiscal.js). */
+R.ruledBudget = (ctx) => {
+    const w = Fiscal.ruledWarning(ctx.player, ctx.world);
+    if (!w) return [];
+    const what = w.kind === 'arrears'
+        ? `owes its soldiers and clerks ${w.owed}g (${w.days} days unpaid): unpaid men desert, unpaid clerks steal. Raise taxes, borrow, or sell offices`
+        : `spends ${w.gap}g a week more than it raises, with ${w.days} days of spending in the chests`;
+    return [{ key: `budget:${w.kind}`, realm: w.kingdom, what, severity: w.kind === 'arrears' ? 'warning' : 'notice' }];
+};
+
+/** Taxes at auction in the realm where the player stands (systems/fiscal.js). */
+R.taxFarmLot = (ctx) => {
+    const here = Fiscal._realmHere(ctx.player, ctx.world);
+    if (!here || Fiscal._ruledId(ctx.player) === here.id) return [];
+    return Fiscal.lots(ctx.world, here.id).filter(l => !l.player).slice(0, 1)
+        .map(l => ({ key: `taxlot:${l.id}`, town: l.town, kingdom: l.kingdom, est: l.est, min: Fiscal.minBid(l), closes: l.closes }));
 };
 
 /** A defaulter is wanted for the debtors' prison in a realm. */

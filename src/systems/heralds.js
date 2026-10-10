@@ -32,6 +32,7 @@ import { EconomyIndex } from '../world/economyIndex.js';
 import { Fashions } from '../world/fashions.js';
 import { Harvests } from '../world/harvests.js';
 import { MoneySupply } from '../world/moneySupply.js';
+import { Fiscal } from './fiscal.js';
 
 const DEFAULT_CONFIG = { speed: 8, lifeDays: 40, minGapDays: 2, maxPerDay: 1, cap: 24 };
 const MAJOR = 9;
@@ -57,6 +58,11 @@ const HARVEST_KINDS = { failing: 'harvest_failing', bumper: 'harvest_bumper', bl
 const ROAD_KINDS = { washout: 'road_washout', pass_closed: 'pass_closed', highway_opened: 'highway_opened', bridge_built: 'bridge_built', canal_opened: 'canal_opened', harbour_built: 'harbour_built' };
 // Coin records (world.money.news, world/moneySupply.js): a recoinage, a coin shortage, a flood of coin
 const MONEY_KINDS = { recoinage: 'coin_recoinage', coin_short: 'coin_shortage', coin_flood: 'coin_flood' };
+// The crowns' books (world.fiscal.history, systems/fiscal.js): tax revolts, tax farms sold, taxes raised, unpaid armies
+const FISCAL_KINDS = { tax_revolt: 'tax_revolt', tax_farm: 'tax_farm', tax_raise: 'taxes_raised', mutiny: 'army_unpaid' };
+// Land records (world.estates.history, systems/landMarket.js, systems/puttingOut.js): an enclosure and its riot, a rent
+// riot, a crown's or a debtor's estate sold, confiscated or ceded in a peace, a linen glut
+const ESTATE_KINDS = { enclosure: 'estate_enclosure', riot: 'estate_riot', sold: 'estate_sold', confiscated: 'estate_confiscated', ceded: 'estate_ceded', linen_glut: 'linen_glut' };
 
 const _num = v => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -229,6 +235,21 @@ export const Heralds = {
         for (const x of Heralds._tradeRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._econRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._moneyRecords(world)) st.seen[x.key] = x.day;
+        for (const x of Heralds._fiscalRecords(world)) st.seen[x.key] = x.day;
+        for (const x of Heralds._estateRecords(world)) st.seen[x.key] = x.day;
+    },
+
+    /** Tax revolts, tax farms, taxes raised, armies unpaid (world.fiscal.history, systems/fiscal.js). */
+    _fiscalRecords(world) {
+        return Fiscal.news(world).filter(h => h && h.key && FISCAL_KINDS[h.kind]).map(h => ({ key: h.key, day: _num(h.day), h }));
+    },
+
+    /** Enclosures and riots, notable estate sales, confiscations and cessions, linen gluts (world.estates.history). */
+    _estateRecords(world) {
+        const t = world && world.estates;
+        return (t && Array.isArray(t.history) ? t.history : [])
+            .filter(h => h && h.key && ESTATE_KINDS[h.kind] && (h.kind !== 'sold' || h.own || h.why === 'crown' || h.why === 'debts'))
+            .map(h => ({ key: h.key, day: _num(h.day), h }));
     },
 
     /** Recoinages, coin shortages and floods of coin (world.money.news, world/moneySupply.js). */
@@ -454,7 +475,7 @@ export const Heralds = {
         }
 
         // Money: a banking house failed, a crown repudiated its debts, a mint clipped its coin
-        const FIN = { bank_failed: 'bank_failed', crown_default: 'crown_default', debased: 'coin_debased' };
+        const FIN = { bank_failed: 'bank_failed', crown_default: 'crown_default', debased: 'coin_debased', offices_sold: 'offices_sold', land_sold: 'crown_land_sold' };
         for (const x of rec.finance.filter(fresh)) {
             st.seen[x.key] = x.day;
             const h = x.h;
@@ -464,7 +485,7 @@ export const Heralds = {
             const at = h.kind === 'bank_failed' ? Heralds._placeByName(world, h.place) : Heralds._capital(world, k);
             Heralds._proclaim(st, world, kind, {
                 bank: h.bank || 'a banking house', place: h.place || (k ? k.name : 'the city'), kingdom: h.kingdom || (k ? k.name : 'the realm'),
-                purity: h.purity != null ? Math.round(h.purity * 100) : 90,
+                purity: h.purity != null ? Math.round(h.purity * 100) : 90, amount: _num(h.amount) || 'a great sum',
             }, at, { kingdomId: h.kingdomId != null ? h.kingdomId : null });
         }
 
@@ -551,6 +572,29 @@ export const Heralds = {
             const k = _kingdom(world, h.kingdomId);
             Heralds._proclaim(st, world, MONEY_KINDS[h.kind], {
                 kingdom: h.kingdom || (k ? k.name : 'the realm'), pct: Math.abs(_num(h.pct)), purity: _num(h.purity) || 90,
+            }, h.q != null ? { q: h.q, r: h.r } : Heralds._capital(world, k), { kingdomId: h.kingdomId != null ? h.kingdomId : null, own: !!h.own });
+        }
+
+        // The crowns' books: a town rising against the taxes, a tax farm sold, taxes raised, an army unpaid
+        for (const x of Heralds._fiscalRecords(world).filter(fresh)) {
+            st.seen[x.key] = x.day;
+            const h = x.h;
+            const k = _kingdom(world, h.kingdomId);
+            const level = h.level ? ((Fiscal.config().levels[h.level] || {}).label || h.level).toLowerCase() : 'heavy';
+            Heralds._proclaim(st, world, FISCAL_KINDS[h.kind], {
+                kingdom: h.kingdom || (k ? k.name : 'the realm'), place: h.town || (k ? k.name : 'the town'),
+                holder: h.holder || 'a banking house', amount: _num(h.amount) || 'a great sum', level,
+            }, h.q != null ? { q: h.q, r: h.r } : Heralds._capital(world, k), { kingdomId: h.kingdomId != null ? h.kingdomId : null, own: !!h.own });
+        }
+
+        // The land: enclosures and riots, estates sold, confiscated or ceded, linen gluts
+        for (const x of Heralds._estateRecords(world).filter(fresh)) {
+            st.seen[x.key] = x.day;
+            const h = x.h;
+            const k = _kingdom(world, h.kingdomId);
+            Heralds._proclaim(st, world, ESTATE_KINDS[h.kind], {
+                place: h.place || 'the town', estate: h.estate || 'an estate', holder: h.holder || 'its lord', buyer: h.buyer || 'a new master',
+                kingdom: h.kingdom || (k ? k.name : 'the realm'), n: _num(h.n) || 'Many', to: h.to || 'the towns', price: _num(h.price) || 'a great sum',
             }, h.q != null ? { q: h.q, r: h.r } : Heralds._capital(world, k), { kingdomId: h.kingdomId != null ? h.kingdomId : null, own: !!h.own });
         }
 

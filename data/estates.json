@@ -1,0 +1,112 @@
+{
+    "_doc": "Land, Estates & the Putting-Out System (world/estates.js model, systems/landMarket.js land market, systems/puttingOut.js cottage industry). The farmland about every settlement (the grain, flax and vines of world/harvests.js and its market profile) is split into the peasants' own freeholds and commons (1 - estateShare) and a few estates (manors, granges, halls) held by the crown, noble houses, the church, the town's burghers or the merchant houses. An estate is a share of the town's farmland, not extra land: its crops are the town's own, already in its market, so an estate changes the market only by what its holder changes (drainage and marl raise its soil, enclosure turns its fields to sheep, the cottagers' winter work draws hands from the fields out of season). Tenants pay rent once a month: coin (a fixed sum on the estate's usual crop, the tenants bear a bad year) or a share of the crop (rent follows the harvest and its price). Land is valued at its expected net rent over the realm's land rate (systems/finance.js bond rates), and changes hands: indebted nobles and crowns in crisis sell, the merchant houses, burghers and church buy, war cedes and conquest confiscates, dowries and bequests pass estates on. Balance: docs/economy-balance.md 'Land, Estates & the Putting-Out System'.",
+    "enabled": true,
+
+    "_derive": "Estates per settlement by size (count); estateShare of the farmland is held in estates (the rest is freehold and commons, which no one sells); householdSize people to a household. Shares between a town's estates are a hash of the seed and the town (weights 0.6-1.4). Holders: the first estate of a capital is the crown's demesne; the rest by hash with weights by size (independent towns: the crown's weight goes to the burghers). nobles: noble houses per realm (names: hash of the realm and the house's number).",
+    "derive": {
+        "count": { "village": 1, "town": 2, "city": 3, "capital": 4 },
+        "estateShare": 0.6,
+        "householdSize": 5,
+        "holders": {
+            "village": { "crown": 0.2, "noble": 0.55, "church": 0.25 },
+            "town":    { "crown": 0.15, "noble": 0.4, "church": 0.15, "town": 0.15, "house": 0.15 },
+            "city":    { "crown": 0.15, "noble": 0.35, "church": 0.15, "town": 0.15, "house": 0.2 },
+            "capital": { "crown": 0.15, "noble": 0.35, "church": 0.15, "town": 0.15, "house": 0.2 }
+        },
+        "nobles": 4,
+        "resyncDays": 10,
+        "turnDays": 30
+    },
+
+    "_crops": "What an estate grows, valued at base price x sqrt(the town's scarcity) (clamped scarcity): the town's farm goods from its market profile (grain, flax, wine; the harvest in force already counted). Enclosed land runs sheep: wool = woolYield x the crops' base value / wool's base price a day, with sheepHands of the tenants kept on as shepherds.",
+    "crops": { "goods": ["grain", "flax", "wine"], "scarcityMin": 0.6, "scarcityMax": 1.6, "woolYield": 0.55, "sheepHands": 0.25 },
+
+    "_rent": "Share of the gross crop the tenants pay by rent level; enclosed land pays `enclosed` (a grazier's lease). capacity: most of a month's crop tenants can hand over (a coin rent above it falls into arrears). steward: the bailiff's and steward's cut. avgAlpha: how fast the usual crop a coin rent is fixed on follows the actual one (a month's step). Loyalty (0-100) drifts `loyaltyStep` of the way to its target each month: the level's target, +kindBonus for a share of the crop, -arrearsHit in a month of arrears, +putOutBonus where the cottagers earn piece wages, an enclosure costs enclosureHit. Collection: 70% of what is due at loyalty 0, all of it from loyalty 75; below strikeBelow a hash roll strikeChance withholds the month's rent. High rents drive households away: flight x (1 + (40 - loyalty)/40) of them a month, to the nearest town; mood: below sullenBelow the town loses sullenMood happiness a month, above contentAbove gains contentMood (the player's estates only; NPC landlords keep customary rents). Below riotBelow a hash roll riotChance raises a rent riot (riotMood).",
+    "rent": {
+        "levels": {
+            "low":       { "label": "Low",       "share": 0.18, "loyalty": 78, "flight": 0 },
+            "customary": { "label": "Customary", "share": 0.25, "loyalty": 55, "flight": 0 },
+            "high":      { "label": "High",      "share": 0.34, "loyalty": 26, "flight": 0.03 }
+        },
+        "enclosed": 0.6,
+        "capacity": 0.5,
+        "steward": 0.08,
+        "avgAlpha": 0.25,
+        "loyaltyStep": 0.35, "kindBonus": 6, "arrearsHit": 8, "putOutBonus": 5, "enclosureHit": 15, "drainBonus": 3,
+        "strikeBelow": 20, "strikeChance": 0.4,
+        "sullenBelow": 25, "sullenMood": 1.5, "contentAbove": 70, "contentMood": 0.5,
+        "riotBelow": 20, "riotChance": 0.25, "riotMood": 5
+    },
+
+    "_value": "Land price = expected yearly net rent (at the estate's own rent, mode and loyalty) / the land rate. Land rate = base + bondShare x (the realm's bond rate - bondRef) (systems/finance.js), +war while the realm fights, +unrest while its stability is under 35, within [min, max]; free towns pay `free`. Buyer's duty: the crown takes `duty` of a purchase. Offers for an estate not on the market: the holder asks value x premium (indebted holders x distressAsk); the church never sells (mortmain), a crown only to a buyer of at least crownRep reputation. A quick sale to the richest buyer about fetches quickSale x value; no buyer with the purse for it: it goes on the market at listAsk x value.",
+    "value": {
+        "base": 0.055, "bondShare": 0.5, "bondRef": 0.06, "war": 0.01, "unrest": 0.01, "min": 0.04, "max": 0.09, "free": 0.065,
+        "duty": 0.03,
+        "premium": { "noble": 1.15, "house": 1.1, "town": 1.2, "crown": 1.25, "church": null },
+        "distressAsk": 0.95, "crownRep": 10,
+        "quickSale": 0.9, "listAsk": 0.95
+    },
+
+    "_npc": "The holders' purses (notional: their rents are not drawn from anywhere, but every estate that changes hands between them, the player and the crowns moves real gold from the buyer's purse to the seller's, or a crown's treasury). Each month a holder spends spend[kind] of its rents (nobles x 1 +/- extravagance by a hash, + warLevy of them while their realm is at war); a shortfall is debt, carrying debtRate a month. Nobles live a little beyond their rents (spend 1.08). A holder whose debt passes distressAt x the value of its land puts its cheapest estate on the market at distressPrice x value. A crown deep in debt (its debt past crownSellAt x what it can carry, or its treasury empty at war) sells one with crownChance a month at crownPrice. Houses and burghers earn houseIncome / townIncome a day from trade besides their rents. Listings wait `wait` days for a buyer (the player first), then the richest purse of a house, burghers of the town, noble of the realm or (churchBuys of the time) the church takes it; unsold after `relist` days the price drops relistCut, withdrawn under withdrawAt x value. Yearly at sowing: bequest (a noble with two or more estates leaves one to the church), dowry (per realm: a noble estate passes to another noble house), and nobles and houses enclose where wool is dear (woolAbove) and grain cheap (grainBelow), npcEnclose a year.",
+    "npc": {
+        "purse": { "noble": [0.02, 0.15], "house": [1500, 5000], "town": [300, 2000], "church": [0.1, 0.4] },
+        "spend": { "noble": 1.08, "house": 0.6, "town": 0.85, "church": 0.85 },
+        "extravagance": 0.5, "warLevy": 0.15, "debtRate": 0.01,
+        "distressAt": 0.08, "distressPrice": 0.92,
+        "crownSellAt": 0.8, "crownChance": 0.3, "crownPrice": 0.95,
+        "houseIncome": 4, "townIncome": 0.002,
+        "wait": 7, "relist": 30, "relistCut": 0.92, "withdrawAt": 0.65, "churchBuys": 0.3,
+        "bequest": 0.05, "dowry": 0.25, "npcEnclose": 0.12, "woolAbove": 1.3, "grainBelow": 1.0
+    },
+
+    "_war": "Peace terms: a realm that loses a war cedes cedeChance of the time its best crown estate to the victor's crown. Conquest: when a town changes realm, the old realm's crown and noble estates there pass to the new crown; the player's are confiscated when their reputation with the new realm is under confiscateBelow or they are at war with it.",
+    "war": { "cedeChance": 0.5, "confiscateBelow": -20 },
+
+    "_works": "Improvements the player pays for (cost per tenant household, at least `min`; the hands' wages, wageShare of it, go to the town): drain (once: soil +soil), marl (soil +soil, wearing off `wear` a year; again once less than `again` is left), enclose (sheep: the households but sheepHands leave for the nearest town of its size or larger, an enclosure riot with chance (60 - loyalty)/60 within [riotMin, riotMax]), relet (undo an enclosure). Soil is capped at soilMax.",
+    "works": {
+        "drain":   { "label": "Drain the wet fields", "perHousehold": 12, "min": 60, "days": 30, "soil": 0.1, "once": true },
+        "marl":    { "label": "Marl the fields", "perHousehold": 5, "min": 30, "days": 15, "soil": 0.06, "wear": 0.02, "again": 0.03 },
+        "enclose": { "label": "Enclose for sheep", "perHousehold": 6, "min": 40, "days": 20, "riotMin": 0.1, "riotMax": 0.9 },
+        "relet":   { "label": "Re-let to tenants", "perHousehold": 3, "min": 30, "days": 20 },
+        "wageShare": 0.8,
+        "soilMax": 1.3
+    },
+
+    "_dowry": "Settling an estate on a realm's nobility as a dowry: reputation +value/perRep (at most maxRep) and House Prestige +value/perPrestige (at most maxPrestige). Holding land: +prestige a month per estate (at most prestigeMax), the House's standing as landed gentry.",
+    "dowry": { "perRep": 150, "maxRep": 25, "perPrestige": 500, "maxPrestige": 10 },
+    "holding": { "prestige": 1, "prestigeMax": 3 },
+
+    "_puttingOut": "The putting-out system (systems/puttingOut.js). Merchants (the NPC houses and the player) put out raw wool and flax to the cottagers about a town, who spin and weave at home for a piece rate: cheaper than a guild workshop (guildRate of the cloth's base price a unit), slower, and of varying quality. Rural households: the town's peasants / householdSize x rural[type]; slack[season]: the share who take work (winter idle, harvest busy); each spins and weaves perHousehold units of fibre a day. The player's batches share npcShare's remainder of the capacity. Goods: input -> output at ratio x quality (quality: a hash in [qMin, qMax] + rates[].quality). Rates: piece wage = share x the cloth's base price a unit (paid up front, to the town's households), speed (more take the work), quality. Out of winter the work draws hands from the fields: away[season] of the households' work is field time lost (the town's crops x 1 - drawn share x landSensitivity). Guilds: in a town whose weavers' guild holds a royal charter, collection risks the guild's officers (chartered.chance: they seize `seize` of the cloth and fine `fine` of its worth, the feud grows by feud); an unchartered guild only fines (open.*). Journeymen and up of the guild are let be. NPC putting-out: weekly per town (none where the guild is chartered): where the cloth fetches more than the fibre and the piece rate (minMargin of the cloth's worth), npcShare of the capacity works the fibre above npcKeep x its target, delivered a week later. Uncollected cloth waits holdDays.",
+    "puttingOut": {
+        "goods": { "wool": { "out": "textiles", "ratio": 0.9 }, "flax": { "out": "linen", "ratio": 0.9 } },
+        "rural": { "village": 1, "town": 0.6, "city": 0.4, "capital": 0.3 },
+        "slack": { "Winter": 1, "Spring": 0.3, "Summer": 0.15, "Autumn": 0.45 },
+        "away": { "Winter": 0, "Spring": 0.6, "Summer": 0.8, "Autumn": 0.6 },
+        "perHousehold": 0.15,
+        "landSensitivity": 0.8,
+        "npcShare": 0.5,
+        "rates": {
+            "mean":     { "label": "Mean", "share": 0.1, "speed": 0.8, "quality": -0.08 },
+            "fair":     { "label": "Fair", "share": 0.15, "speed": 1, "quality": 0 },
+            "generous": { "label": "Generous", "share": 0.22, "speed": 1.3, "quality": 0.05 }
+        },
+        "guildRate": 0.3,
+        "qMin": 0.85, "qMax": 1.03,
+        "chartered": { "chance": 0.4, "seize": 0.25, "fine": 0.1, "feud": 4 },
+        "open": { "chance": 0.15, "seize": 0, "fine": 0.05, "feud": 1 },
+        "minMargin": 0.1, "npcKeep": 1.0, "npcEvery": 7,
+        "minBatch": 5, "maxBatches": 6, "holdDays": 60,
+        "glut": { "below": 0.65, "towns": 4, "gapDays": 240 }
+    },
+
+    "names": {
+        "estate": ["Manor", "Grange", "Hall", "Court", "Farm", "Holding", "Fee", "Barton"],
+        "prefix": ["Ash", "Oak", "Elm", "Thorn", "Ald", "Brook", "Hay", "Wold", "Mill", "Stan", "Bram", "Cold", "Fen", "Long", "Red", "West", "East", "North", "South", "High"],
+        "suffix": ["ley", "ford", "ton", "worth", "field", "combe", "hurst", "stead", "by", "thorpe", "wick", "dale"],
+        "house": ["Ashby", "Beauchamp", "Carew", "Darnell", "Everard", "Fitzwalter", "Grey", "Harcourt", "Ingram", "Joscelin", "Kendal", "Lacy", "Mortain", "Neville", "Ormond", "Percival", "Quincy", "Redvers", "Stafford", "Talbot", "Umfrey", "Vere", "Warenne"]
+    },
+
+    "_counsel": "The Steward's Counsel: estates on the market within saleRadius hexes at no more than bargainAt x their value that the player can afford; the player's tenants restless under restlessBelow loyalty.",
+    "counsel": { "saleRadius": 12, "bargainAt": 1.0, "restlessBelow": 30 },
+    "historyCap": 40
+}

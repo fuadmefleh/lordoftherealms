@@ -100,7 +100,7 @@ describe('formation from industry', () => {
         Guilds.ensureTown(world, town, 50);
         expect(town.guilds.jewellers).toBeUndefined();
         expect(town.guilds.weavers).toBeTruthy();
-        town.population = 600; // its trades shrink below half what a guild needs
+        town.population = 500; // its trades (wool and linen weaving) shrink below half what a guild needs
         Guilds.ensureTown(world, town, 78);
         expect(town.guilds.weavers).toBeTruthy(); // one bad month is survived
         Guilds.ensureTown(world, town, 106);

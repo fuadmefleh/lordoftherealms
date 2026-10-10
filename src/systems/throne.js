@@ -410,7 +410,9 @@ export const Throne = {
 
     _settlementsOf(world, kingdom) {
         const out = [];
-        for (const s of (world.getAllSettlements ? world.getAllSettlements() : [])) {
+        // (read-only: the live views, not getAllSettlements' copies — same towns, same order)
+        const all = world.getSettlementViews ? world.getSettlementViews() : (world.getAllSettlements ? world.getAllSettlements() : []);
+        for (const s of all) {
             if (s.kingdom !== kingdom.id) continue;
             const tile = world.getTile(s.q, s.r);
             if (tile && tile.settlement) out.push({ q: s.q, r: s.r, tile, settlement: tile.settlement });

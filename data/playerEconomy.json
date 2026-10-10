@@ -10,7 +10,7 @@
             "produces": "grain",
             "productionRate": 6,
             "upkeep": 6,
-            "requiredTerrain": ["plains", "grassland"],
+            "requiredTerrain": ["plains", "grassland", "woodland", "savanna"],
             "description": "Produces grain that can be milled or sold. Upkeep: 6g/day"
         },
         "PASTURE": {
@@ -262,7 +262,7 @@
             "produces": "hemp",
             "productionRate": 5,
             "upkeep": 5,
-            "requiredTerrain": ["plains", "grassland"],
+            "requiredTerrain": ["plains", "grassland", "woodland", "savanna"],
             "description": "Grows hemp fiber for rope-making. Vital for ships and construction. Upkeep: 5g/day"
         },
         "CLAY_PIT": {
@@ -289,7 +289,7 @@
             "produces": "cheese",
             "productionRate": 2,
             "upkeep": 6,
-            "requiredTerrain": ["plains", "grassland"],
+            "requiredTerrain": ["plains", "grassland", "woodland", "hills"],
             "description": "Raises dairy cattle to produce aged cheese. Popular with traders. Upkeep: 6g/day"
         },
         "SMOKEHOUSE": {
@@ -540,7 +540,7 @@
             "produces": "meat",
             "productionRate": 6,
             "upkeep": 6,
-            "requiredTerrain": ["plains", "grassland", "savanna"],
+            "requiredTerrain": ["plains", "grassland", "savanna", "hills"],
             "description": "Raises cattle for meat. Pair with a Smokehouse or Butcher for dried provisions. Built on or beside a cattle herd it yields 30% more. Upkeep: 6g/day"
         },
         "HERB_GARDEN": {
@@ -566,7 +566,7 @@
             "produces": "horses",
             "productionRate": 1,
             "upkeep": 12,
-            "requiredTerrain": ["plains", "grassland", "savanna"],
+            "requiredTerrain": ["plains", "grassland", "savanna", "hills"],
             "description": "Breeds horses — slow to raise but prized by every army and merchant. Upkeep: 12g/day"
         },
         "PITCH_WORKS": {

@@ -51,6 +51,7 @@ import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { Concessions } from '../../systems/concessions.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { Seasons } from '../../world/seasons.js';
+import { Harvests } from '../../world/harvests.js';
 import { travelTo } from './harness.js';
 
 const FOOD = ['grain', 'bread'];
@@ -840,6 +841,58 @@ function concessions(game, tile, stats) {
     }
 }
 
+/**
+ * The agricultural year (world/harvests.js): each farm's rotation follows
+ * its soil (worn land rests, rich land is worked hard), and now and then a
+ * crop report of a failing harvest elsewhere sends grain bought cheap here
+ * toward that region, sold there above the bot's own bread. Picks by a hash
+ * of the day and the town, not the RNG.
+ */
+function harvests(game, tile, stats) {
+    const { player, world } = game;
+    const C = Harvests.config();
+    if (world.day % 7 === 0) {
+        for (const ref of player.properties || []) {
+            const crop = ref && C.propertyCrops[ref.type];
+            if (!crop || crop === 'stock') continue;
+            const t = world.getTile(ref.q, ref.r);
+            const prop = t && Array.isArray(t.playerProperties) ? t.playerProperties.find(p => p && p.type === ref.type) : null;
+            if (!prop) continue;
+            // Work good soil hard; rest it when it wears thin, until it's rich again
+            const soil = Number.isFinite(prop.soil) ? prop.soil : 1;
+            const cur = Harvests.rotation(prop).id;
+            const want = soil < 0.8 ? 'rest' : cur === 'rest' ? (soil >= 1.05 ? 'intensive' : 'rest') : soil >= 0.95 ? 'intensive' : cur;
+            if (cur !== want && Harvests.setRotation(player, world, ref.q, ref.r, ref.type, want).success) count(stats, 'rotationsSet');
+        }
+    }
+    // A cargo of grain carried to a failing harvest: sell it on arrival
+    const run = game.harvestRun;
+    if (run && (world.day - run.day > 40 || !(player.inventory.grain > 0))) game.harvestRun = null;
+    else if (run && run.q === tile.q && run.r === tile.r) {
+        const qty = Math.min(run.qty, Math.floor(player.inventory.grain) - 10);
+        if (qty > 0 && Trading.sellGoods(player, 'grain', qty, tile.settlement, world).success) count(stats, 'harvestSales');
+        game.harvestRun = null;
+        return;
+    }
+    if (game.harvestRun || player.gold < 3000 || ((world.day * 11 + tile.q * 7 + tile.r * 3) % 6) !== 0) return;
+    // ...bought where grain is plentiful, for a region the crop reports say is failing
+    const here = Harvests.regionOf(world, tile.q, tile.r);
+    const failing = new Set(Harvests.known(player, world)
+        .filter(k => k.id !== here && k.est < C.forecast.poorBelow && world.day - k.day <= 21).map(k => k.id));
+    if (!failing.size || SettlementMarket.scarcity(tile.settlement, 'grain') > 1) return;
+    const target = world.getSettlementViews()
+        .filter(s => failing.has(Harvests.regionOf(world, s.q, s.r)) && Hex.wrappingDistance(s.q, s.r, tile.q, tile.r, world.width) <= 25)
+        .sort((a, b) => Hex.wrappingDistance(a.q, a.r, tile.q, tile.r, world.width) - Hex.wrappingDistance(b.q, b.r, tile.q, tile.r, world.width))[0];
+    const g = target && Trading.getAvailableGoods(tile.settlement, tile, world).find(x => x.id === 'grain');
+    if (!g || g.quantity < 10 || !(g.price > 0)) return;
+    const qty = Math.min(Trading.affordable(player, g, tile.settlement, 30), Math.floor((player.gold * 0.03) / g.price));
+    if (qty >= 5 && Trading.buyGoods(player, g, qty, tile.settlement).success) {
+        count(stats, 'harvestTrades');
+        game.harvestRun = { q: target.q, r: target.r, qty, day: world.day };
+        game.dest = { q: target.q, r: target.r };
+    }
+}
+
 function settlementBusiness(game, stats) {
     const { player, world } = game;
     const tile = world.getTile(player.q, player.r);
@@ -866,6 +919,7 @@ function settlementBusiness(game, stats) {
     booked(game, 'merchantPrince', () => merchantPrince(game, tile, stats));
     booked(game, 'guilds', () => guilds(game, tile, stats));
     booked(game, 'concessions', () => concessions(game, tile, stats));
+    booked(game, 'harvests', () => harvests(game, tile, stats));
 }
 
 // ── Out in the world ─────────────────────────────────────────

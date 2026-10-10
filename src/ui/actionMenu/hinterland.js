@@ -58,10 +58,12 @@ function siteCard(game, site, here) {
         if (q.auction) {
             const a = q.auction;
             html += `<div style="margin-top:4px;">🔨 On auction until day ${a.closes}${a.finder === 'player' ? ' — <b style="color:var(--gold);">your finder\'s right</b>: the houses may not bid' : ''} · reserve ${a.reserve}g${a.bid > 0 ? ` · your bid <b>${a.bid}g</b>` : ''}</div>`;
-            html += act(`Bid ${q.minBid}g`, ['bid', a.id, q.minBid], BTN_GOLD, q.ok, q.reason);
+            // (a refused bidder still sees what a bid would take: the reserve, or the standing bid)
+            const minBid = q.minBid != null ? q.minBid : Math.max(a.reserve || 0, a.bid || 0);
+            html += act(`Bid ${minBid}g`, ['bid', a.id, minBid], BTN_GOLD, q.ok, q.reason);
             if (q.ok) html += act(`Bid ${Math.round(q.minBid * 1.25)}g`, ['bid', a.id, Math.round(q.minBid * 1.25)], BTN_PLAIN);
         } else if (here) {
-            html += act(`Petition for the lease (${q.minBid || est.reserve}g)`, ['petition', site.id, q.minBid || 0], BTN_GOLD, q.ok, q.reason);
+            html += act(`Petition for the lease (${q.minBid || (est ? est.reserve : 0)}g)`, ['petition', site.id, q.minBid || 0], BTN_GOLD, q.ok, q.reason);
             if (q.ok) html += act(`Bid ${Math.round(q.minBid * 1.3)}g`, ['petition', site.id, Math.round(q.minBid * 1.3)], BTN_PLAIN);
         } else if (!q.ok) html += `<div style="${NOTE}">${esc(q.reason)}</div>`;
     }

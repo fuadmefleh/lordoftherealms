@@ -167,7 +167,7 @@ Object.assign(ActionMenu, {
         if (!player.jailState) return;
         const bail = player.jailState.bailCost;
         if (player.gold < bail) {
-            game.ui.showNotification('Cannot Post Bail', `You need ${bail} gold (have ${player.gold}).`, 'error');
+            game.ui.showNotification('Cannot Post Bail', `You need ${bail} gold (have ${Math.floor(player.gold)}).`, 'error');
             return;
         }
         player.gold -= bail;

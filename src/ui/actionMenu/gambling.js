@@ -889,7 +889,7 @@ Object.assign(ActionMenu, {
             let html = '<div style="width: 100%; box-sizing: border-box; text-align: center;">';
             html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <button onclick="ActionMenu.showGamblingMenu(window._gambGame, window._gambTile)" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 13px;">← Back</button>
-                        <span style="color: var(--gold); font-weight: bold;">💰 ${game.player.gold}g</span>
+                        <span style="color: var(--gold); font-weight: bold;">💰 ${Math.floor(game.player.gold)}g</span>
                      </div>`;
             html += '<h4 style="margin: 0 0 4px;">🃏 High-Low</h4>';
             html += '<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">Guess if the next card is Higher or Lower. Keep your streak for bigger payouts!</p>';

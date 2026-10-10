@@ -22,7 +22,7 @@ Object.assign(ActionMenu, {
         let html = '<div>';
         html += '<h4 style="margin-top: 0;">💰 Make a Donation</h4>';
         html += `<p style="font-size: 12px; color: var(--text-secondary);">Donate gold to the people of <strong>${settlement ? settlement.name : 'this land'}</strong>. This earns you karma and reputation with ${kingdomName}.</p>`;
-        html += `<p style="font-size: 12px; color: var(--gold);">Your gold: ${player.gold}</p>`;
+        html += `<p style="font-size: 12px; color: var(--gold);">Your gold: ${Math.floor(player.gold)}</p>`;
         html += `<div style="margin: 12px 0;">`;
         html += `<label style="font-size: 12px;">Amount to donate:</label><br>`;
         html += `<input type="range" id="donateAmount" min="10" max="${maxDonate}" value="${Math.min(50, maxDonate)}" oninput="document.getElementById('donateLabel').textContent = this.value" style="width: 100%;">`;
@@ -545,7 +545,7 @@ Object.assign(ActionMenu, {
                 `;
             }
 
-            html += `<div style="font-size: 12px; color: ${canAfford ? '#bbb' : '#ff7878'}; margin: 8px 0;">Cost: ${currentTier.cost} gold · Your gold: ${player.gold}</div>`;
+            html += `<div style="font-size: 12px; color: ${canAfford ? '#bbb' : '#ff7878'}; margin: 8px 0;">Cost: ${currentTier.cost} gold · Your gold: ${Math.floor(player.gold)}</div>`;
             html += `<button onclick="window._beginFestival()" ${!canAfford ? 'disabled' : ''} style="width: 100%; padding: 10px; background: var(--gold); border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Begin Festival</button>`;
             html += '</div>';
 

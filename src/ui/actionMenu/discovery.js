@@ -78,7 +78,7 @@ Object.assign(ActionMenu, {
         const j = Discovery.journal(player);
         let html = '<div style="max-height: 560px; overflow-y: auto; font-size: 12px;">';
         if (message) html += `<div style="${CARD} border-color: rgba(245,197,66,0.4); color:#eee;">${_esc(message)}</div>`;
-        html += '<p style="margin:0 0 6px; color:var(--text-secondary);">Some places are on no map. Sail far from the ports, explore the open sea, follow rumours from tavern notice boards and old maps — before the other adventurers do. The finder names a place; its chart can be sold to a realm\'s archive or kept secret; a colony there keeps its riches for you.</div>';
+        html += '<p style="margin:0 0 6px; color:var(--text-secondary);">Some places are on no map. Sail far from the ports, explore the open sea, follow rumours from tavern notice boards and old maps — before the other adventurers do. The finder names a place; its chart can be sold to a realm\'s archive or kept secret; a colony there keeps its riches for you.</p>';
         html += `<div style="font-size:11px; color:#aaa;">Found ${j.stats.found} · named ${j.stats.named} · charts sold ${j.stats.sold} · gathered ${j.stats.gathered} · rivals' finds ${j.stats.rivalFinds} · still uncharted: ${j.uncharted}</div>`;
 
         html += `<div style="${HEAD} color: var(--gold);">Known Places</div>`;

@@ -244,7 +244,7 @@ export const PlayerReligion = {
 
         // Check gold
         if (player.gold < building.cost) {
-            return { success: false, reason: `Need ${building.cost} gold (have ${player.gold})` };
+            return { success: false, reason: `Need ${building.cost} gold (have ${Math.floor(player.gold)})` };
         }
 
         // Check if tile is suitable

@@ -80,7 +80,7 @@ function portfolioTab(player) {
         value += p.value;
         cost += p.cost;
         const gain = p.value - p.cost;
-        html += `<div style="font-size:12px; margin-top:4px;">${esc(p.listing.icon)} <b>${esc(p.listing.name)}</b>: ${p.shares} shares · worth ${Math.round(p.value)}g (paid ${Math.round(p.cost)}g, <span style="color:${gain >= 0 ? '#8fd18f' : '#e08080'};">${gain >= 0 ? '+' : ''}${Math.round(gain)}g</span>) · dividends ${Math.round(p.dividends)}g</div>`;
+        html += `<div style="font-size:12px; margin-top:4px;">${esc(p.listing.icon)} <b>${esc(p.listing.name)}</b>: ${p.shares} share${p.shares === 1 ? '' : 's'} · worth ${Math.round(p.value)}g (paid ${Math.round(p.cost)}g, <span style="color:${gain >= 0 ? '#8fd18f' : '#e08080'};">${gain >= 0 ? '+' : ''}${Math.round(gain)}g</span>) · dividends ${Math.round(p.dividends)}g</div>`;
     }
     html += `<div style="font-size:12px; margin-top:6px;"><b>Total ${Math.round(value)}g</b> for ${Math.round(cost)}g paid.</div>`;
     return html;

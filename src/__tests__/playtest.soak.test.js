@@ -27,7 +27,8 @@ const LONG = !!ENV.SOAK;
 const SEEDS = ENV.SOAK_SEEDS ? ENV.SOAK_SEEDS.split(',').map(Number) : LONG ? [101, 202, 303, 404, 505] : [101, 202];
 const DAYS = LONG ? 800 : 150;
 const SAVE_AT = Math.floor(DAYS / 2);
-const TIMEOUT = LONG ? 600000 : 60000;
+// (a short run takes ~30s alone; the full suite runs it beside the other heavy files)
+const TIMEOUT = LONG ? 600000 : 150000;
 const GOLD_CAP = 1e7;
 
 // The engine logs chattily (pathfinding, generation); keep the run quiet
@@ -319,7 +320,9 @@ describe('headless playtest soak', () => {
             // ...and bids for the crowns' mining leases (systems/concessions.js)
             ...(LONG ? ['escortsHired', 'escortsPaid', 'caravansRobbed', 'craftGuildJoined', 'guildRankUp', 'leaseBids',
                 // ...and insures, is paid on its claims and buys shares on the Bourse
-                'coversOpened', 'claimsPaid', 'sharesBoughtBourse'] : [])]) {
+                'coversOpened', 'claimsPaid', 'sharesBoughtBourse',
+                // ...and carries grain to where the crop reports say the harvest is failing
+                'harvestTrades'] : [])]) {
             expect(totals[key] || 0, `the bot never did "${key}" — ${JSON.stringify(totals)}`).toBeGreaterThan(0);
         }
     });

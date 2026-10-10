@@ -1116,7 +1116,7 @@ Properties are the backbone of your economy. Build them on appropriate terrain t
 
 | Property | Cost | Build Time | Produces | Upkeep | Where |
 |----------|------|-----------|----------|--------|-------|
-| 🌾 Farm | 700g | 5 days | Grain (6/day) | 6g/day | Plains, Grassland |
+| 🌾 Farm | 700g | 5 days | Grain (6/day) | 6g/day | Plains, Grassland, Woodland, Savanna |
 | 🐑 Pasture | 800g | 4 days | Wool (3/day) | 5g/day | Plains, Grassland, Hills |
 | 🪓 Logging Camp | 700g | 3 days | Wood (4/day) | 6g/day | Forests |
 | ⛏️ Mine | 1800g | 10 days | Iron (3/day) | 15g/day | Resource: Iron/Gold Ore/Gems/Stone |
@@ -1125,13 +1125,13 @@ Properties are the backbone of your economy. Build them on appropriate terrain t
 | 🧂 Salt Pans | 800g | 4 days | Salt (2/day) | 6g/day | Coast, Beach |
 | 🐝 Apiary | 1000g | 3 days | Honey (2/day) | 6g/day | Plains, Grassland, Forest, Woodland, Hills |
 | 🍎 Orchard | 700g | 5 days | Fresh Fruit (6/day) | 6g/day | Plains, Grassland, Hills, Woodland |
-| 🌿 Hemp Farm | 600g | 4 days | Hemp Fiber (5/day) | 5g/day | Plains, Grassland |
+| 🌿 Hemp Farm | 600g | 4 days | Hemp Fiber (5/day) | 5g/day | Plains, Grassland, Woodland, Savanna |
 | 🟫 Clay Pit | 450g | 3 days | Raw Clay (6/day) | 4g/day | In or next to a settlement |
-| 🧀 Dairy | 800g | 4 days | Aged Cheese (2/day) | 6g/day | Plains, Grassland |
+| 🧀 Dairy | 800g | 4 days | Aged Cheese (2/day) | 6g/day | Plains, Grassland, Woodland, Hills |
 | 🏹 Hunting Lodge | 650g | 4 days | Hide (4/day) | 5g/day | Forests |
-| 🐄 Cattle Ranch | 750g | 5 days | Meat (6/day) | 6g/day | Plains, Grassland, Savanna |
+| 🐄 Cattle Ranch | 750g | 5 days | Meat (6/day) | 6g/day | Plains, Grassland, Savanna, Hills |
 | 🌱 Herb Garden | 500g | 3 days | Herbs (5/day) | 4g/day | Forests, plains & hills |
-| 🐎 Horse Ranch | 1100g | 10 days | Horses (1/day) | 12g/day | Plains, Grassland, Savanna |
+| 🐎 Horse Ranch | 1100g | 10 days | Horses (1/day) | 12g/day | Plains, Grassland, Savanna, Hills |
 | 🫐 Forager's Hut | 450g | 2 days | Berries (8/day) | 3g/day | Forests |
 
 #### Processing buildings (recipe-based)

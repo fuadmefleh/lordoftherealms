@@ -4,7 +4,7 @@
  * and tavern talk; each quote ages; the book is capped; the ledger's spreads
  * use only what is known; the trading P&L; save round trip and determinism.
  */
-import { describe, it, expect, beforeAll, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
@@ -68,6 +68,20 @@ describe('where price knowledge comes from', () => {
         expect(PriceKnowledge.towns(player).map(t => t.name)).toEqual(['T0']);
         expect(PriceKnowledge.quote(player, world, towns[1].q, towns[1].r, 'grain')).toBe(null);
         expect(PriceKnowledge.known(player, world, 'grain').length).toBe(1);
+    });
+
+    it('no stall in the book pays more than it asks (a fair\'s generous stalls, a town that values a good dear)', () => {
+        const { world, player, towns } = fixture();
+        // (worth far more there than the stall asks: the book's "pays" still stops below the ask, as a sale does)
+        vi.spyOn(SettlementMarket, 'value').mockReturnValue(1000);
+        PriceKnowledge.processDay(player, world);
+        vi.restoreAllMocks();
+        const t = PriceKnowledge.towns(player)[0];
+        expect(t).toBeTruthy();
+        for (const id of SettlementMarket.config().goodIds) {
+            const q = PriceKnowledge.quote(player, world, towns[0].q, towns[0].r, id);
+            if (q && q.ask > 0) expect(q.bid, id).toBeLessThan(q.ask);
+        }
     });
 
     it('quotes age, and the book shows how old they are', () => {

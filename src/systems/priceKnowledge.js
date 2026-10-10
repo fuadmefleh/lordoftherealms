@@ -142,12 +142,18 @@ export const PriceKnowledge = {
         const fair = SettlementMarket.fair(s);
         const share = fair && fair.sell > C.sellShare ? fair.sell : C.sellShare;
         let n = 0;
+        // = Economy.marketAsk for each good, with the town's stall list read once
+        const at = tile || { q: s.q, r: s.r, settlement: s };
+        const listed = new Set(Economy.marketGoods(s, at).map(g => g.key));
+        const goods = Economy._goods();
         for (const id of SettlementMarket.config().goodIds) {
             const good = _good(id);
             if (!good) continue;
-            const ask = Economy.marketAsk(world, tile || { q: s.q, r: s.r, settlement: s }, id);
-            if (ask == null) continue;
-            const bid = Math.floor(SettlementMarket.value(world, s, tile, id, good.basePrice) * share);
+            const key = id.toUpperCase();
+            if (!goods[key] || !listed.has(key)) continue;
+            const ask = Economy.marketPrice(goods[key], s, at, world);
+            // (no stall pays more than it asks: a sale is capped below buying the unit back, Trading.saleUnitCap)
+            const bid = Math.min(Math.floor(SettlementMarket.value(world, s, tile, id, good.basePrice) * share), Math.round(ask) - 1);
             const sc = Math.round(SettlementMarket.scarcity(s, id) * 100);
             if (PriceKnowledge._put(t, id, [Math.max(0, Math.round(ask)), Math.max(0, bid), sc, day, src])) n++;
         }

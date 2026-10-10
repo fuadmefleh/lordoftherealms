@@ -299,7 +299,7 @@ Object.assign(PlayerMilitary, {
         if (!player.indenturedServitude.canBuyFreedom) return { success: false, reason: 'Captor refuses to negotiate' };
 
         const cost = player.indenturedServitude.freedomCost;
-        if (player.gold < cost) return { success: false, reason: `Need ${cost} gold (have ${player.gold})` };
+        if (player.gold < cost) return { success: false, reason: `Need ${cost} gold (have ${Math.floor(player.gold)})` };
 
         player.gold -= cost;
         Traits.recordDeed(player, 'honesty', 1); // paid the debt rather than fled

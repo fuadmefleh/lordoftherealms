@@ -64,7 +64,7 @@ Object.assign(PlayerEconomy, {
         // Check gold
         const cost = PlayerEconomy.getBuildCost(player, prop, tile, world);
         if (player.gold < cost) {
-            return { canBuild: false, reason: `Need ${cost} gold (have ${player.gold})` };
+            return { canBuild: false, reason: `Need ${cost} gold (have ${Math.floor(player.gold)})` };
         }
 
         // Check if already has THIS TYPE of property here (allow multiple different types)

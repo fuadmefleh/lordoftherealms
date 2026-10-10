@@ -831,7 +831,10 @@ export const MerchantPrince = {
         const spot = Trading.saleUnitPrice(player, g, s, world, 1, n);
         const cap = Trading.saleUnitCap(player, goodId, s, world, tile, n);
         // (to the copper: a cheap good's premium would vanish in whole gold)
-        const unitPrice = Math.max(0.01, _round2(Math.floor(Math.min(spot * (1 + premium), cap) * 100) / 100));
+        const raw = Math.min(spot * (1 + premium), cap);
+        // A glutted town whose stalls would pay next to nothing signs no forward (it once offered 0.01g a unit)
+        if (!(raw >= _num(F.minUnitPrice, 0.5))) return { ok: false, reason: `${s.name}'s stalls are full of ${g.name}: no one bids ahead for more.` };
+        const unitPrice = _round2(Math.floor(raw * 100) / 100);
         const total = Math.floor(unitPrice * n);
         return {
             ok: n > 0 && unitPrice > 0, reason: '', good: goodId, qty: n, days: d, maxQty, spot: Math.floor(spot), premium,

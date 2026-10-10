@@ -391,6 +391,17 @@ describe('forward contracts', () => {
         expect(MerchantPrince.forwardQuote(player, world, tile, 'grain', 1e6, 30).qty).toBe(q.maxQty);
     });
 
+    it('a town whose stalls would pay next to nothing signs no forward (not a contract at 0.01g a unit)', () => {
+        const { world, player } = fixture();
+        const tile = world.getTile(5, 5);
+        vi.spyOn(Trading, 'saleUnitCap').mockReturnValue(0);
+        const q = MerchantPrince.forwardQuote(player, world, tile, 'grain', 25, 20);
+        expect(q.ok).toBe(false);
+        expect(q.reason).toMatch(/stalls are full/);
+        expect(MerchantPrince.signForward(player, world, tile, 'grain', 25, 20).success).toBe(false);
+        vi.restoreAllMocks();
+    });
+
     it('fulfilled in parts: each delivery is paid at the fixed price and joins the town\'s stock', () => {
         const { world, player, capital } = fixture();
         const tile = world.getTile(5, 5);

@@ -542,7 +542,7 @@ export const Colonization = {
         if (player.gold < Colonization.COLONY_COST) return { can: false, reason: `Requires ${Colonization.COLONY_COST} gold.` };
 
         // Distance from existing settlements
-        const settlements = world.getAllSettlements();
+        const settlements = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : world.getAllSettlements();
         for (const s of settlements) {
             if (Hex.wrappingDistance(q, r, s.q, s.r, world.width) < Colonization.MIN_SETTLEMENT_DISTANCE) {
                 return { can: false, reason: 'Too close to an existing settlement.' };

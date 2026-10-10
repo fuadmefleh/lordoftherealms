@@ -1311,7 +1311,7 @@ Object.assign(ActionMenu, {
                 successHtml += `<p style="font-size: 14px;">You are now <strong>${result.newName}</strong>, heir of ${result.oldName}.</p>`;
                 successHtml += '<div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin: 10px 0; font-size: 12px; text-align: left;">';
                 successHtml += `<div>Age: ${result.heir.age}</div>`;
-                successHtml += `<div>Inherited ${player.gold} gold (${Math.round(Relationships._getHeirSettings().inheritanceGoldPercent * 100)}%)</div>`;
+                successHtml += `<div>Inherited ${Math.floor(player.gold)} gold (${Math.round(Relationships._getHeirSettings().inheritanceGoldPercent * 100)}%)</div>`;
                 if (player.house) successHtml += `<div>${player.house.name} · Prestige ${player.house.prestige || 0} · Generation ${hr.generation || player.house.generation || 1}</div>`;
                 if (hr.regency) successHtml += `<div style="color:#e0a030;">Ascended under a regency — a weaker start.</div>`;
                 if (hr.disputed) {

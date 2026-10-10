@@ -255,7 +255,7 @@ Object.assign(ActionMenu, {
         html += `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;">`;
         html += `<div><h4 style="margin:0;">⚓ ${settlement.name} Shipyard</h4>`;
         html += `<p style="font-size:12px;color:var(--text-secondary);margin:4px 0 0;">Buy a used vessel, commission a new ship, or manage your docked fleet.</p></div>`;
-        html += `<div style="font-size:12px;color:var(--gold);white-space:nowrap;background:rgba(245,197,66,0.12);padding:4px 8px;border-radius:6px;">💰 ${player.gold}g</div>`;
+        html += `<div style="font-size:12px;color:var(--gold);white-space:nowrap;background:rgba(245,197,66,0.12);padding:4px 8px;border-radius:6px;">💰 ${Math.floor(player.gold)}g</div>`;
         html += `</div>`;
 
         html += `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">`;
@@ -439,7 +439,7 @@ Object.assign(ActionMenu, {
         html += `<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:8px;">`;
         html += `<div><h4 style="margin:0;">🔨 Commission ${st.icon} ${st.name}</h4>`;
         html += `<div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">Configure the vessel before starting construction.</div></div>`;
-        html += `<div style="font-size:12px;color:var(--gold);white-space:nowrap;background:rgba(245,197,66,0.12);padding:4px 8px;border-radius:6px;">💰 ${player.gold}g</div>`;
+        html += `<div style="font-size:12px;color:var(--gold);white-space:nowrap;background:rgba(245,197,66,0.12);padding:4px 8px;border-radius:6px;">💰 ${Math.floor(player.gold)}g</div>`;
         html += '</div>';
 
         html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">';
@@ -733,7 +733,7 @@ Object.assign(ActionMenu, {
         let html = '<div style="max-height:460px;overflow-y:auto;">';
         html += `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">`;
         html += `<div><h4 style="margin:0;">⬆️ Upgrade ${st.icon} ${ship.name}</h4><div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">Install additional upgrades while docked.</div></div>`;
-        html += `<div style="font-size:12px;color:var(--gold);white-space:nowrap;background:rgba(245,197,66,0.12);padding:4px 8px;border-radius:6px;">💰 ${player.gold}g</div>`;
+        html += `<div style="font-size:12px;color:var(--gold);white-space:nowrap;background:rgba(245,197,66,0.12);padding:4px 8px;border-radius:6px;">💰 ${Math.floor(player.gold)}g</div>`;
         html += '</div>';
 
         if (upgrades.length === 0) {
@@ -995,7 +995,7 @@ Object.assign(ActionMenu, {
             }
             html += '</div>';
         }
-        html += `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">💰 ${player.gold}g · Hold: ${Ships.getCargoUsed(ship)} / ${stats.cargoCapacity} · Prices change in ${daysToDrift} day(s). Buy where a good is exported, sell where it is imported.</div>`;
+        html += `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">💰 ${Math.floor(player.gold)}g · Hold: ${Ships.getCargoUsed(ship)} / ${stats.cargoCapacity} · Prices change in ${daysToDrift} day(s). Buy where a good is exported, sell where it is imported.</div>`;
         if (blockade) {
             const by = blockade.blockaders.map(k => k.name).join(' and ');
             html += blockade.closed

@@ -102,6 +102,9 @@ function _deepMerge(base, over) {
     return out;
 }
 
+let _cfgCache = null;
+let _cfgSrc = null;
+
 export const MerchantHouses = {
 
     // ── Data ────────────────────────────────────────────────────
@@ -110,8 +113,14 @@ export const MerchantHouses = {
         return DataLoader.merchantHouses || (DataLoader.get && DataLoader.get('merchantHouses')) || {};
     },
 
+    /** The merged config, rebuilt only when the data object changes (a deep merge per call cost ~0.1 ms). Treat as read-only. */
     config() {
-        return _deepMerge(DEFAULT_CONFIG, MerchantHouses.data().config || {});
+        const src = MerchantHouses.data().config || null;
+        if (!_cfgCache || _cfgSrc !== src) {
+            _cfgCache = _deepMerge(DEFAULT_CONFIG, src || {});
+            _cfgSrc = src;
+        }
+        return _cfgCache;
     },
 
     _good(id) {
@@ -1081,16 +1090,41 @@ export const MerchantHouses = {
         return c ? c.contracts.find(x => x.id === contractId) || null : null;
     },
 
-    /** Hand over `qty` of the contract's good (from wherever it came); pays per unit. */
-    _deliver(player, world, contract, qty, how, out = null) {
+    /**
+     * Hand over `qty` of the contract's good (from wherever it came); pays per
+     * unit, less the town's crown's import duty on goods booked to another
+     * realm (systems/tradePolicy.js), as any sale there would pay. `src` names
+     * the goods' bookings: { lots, held } (a ship's hold, a post, a convoy) or
+     * { player: true } (the player's packs). Units from a realm under embargo
+     * there are refused (out.reason says why).
+     */
+    _deliver(player, world, contract, qty, how, out = null, src = null) {
         const c = MerchantHouses.company(player);
-        const n = Math.min(Math.floor(_num(qty)), contract.qty - contract.delivered);
+        let n = Math.min(Math.floor(_num(qty)), contract.qty - contract.delivered);
         if (n <= 0 || contract.status !== 'accepted') return 0;
-        const unit = MerchantHouses.contractUnitPay(world, contract);
-        contract.delivered += n;
-        MerchantHouses._credit(c, world, unit * n, 'contracts', `${n} ${_label(contract.good)} to ${contract.town} (${how})`);
-        // The goods reach the town's market (world/settlementMarket.js); food fills its granary too
         const tile = world.getTile(contract.q, contract.r);
+        const s = tile && tile.settlement;
+        // Customs at the town's gate
+        const assess = (k) => (!s || !src ? null
+            : src.player ? TradePolicy.saleCheck(player, world, s, contract.good, k)
+                : TradePolicy.consignCheck(player, world, src.lots, src.held, s, contract.good, k));
+        let check = assess(n);
+        if (check && !check.ok) {
+            n = Math.min(n, Math.floor(check.held - check.embargoed + 1e-9));
+            check = n > 0 ? assess(n) : check;
+            if (!(n > 0) || !check.ok) {
+                if (out) out.reason = check.reason;
+                return 0;
+            }
+        }
+        const unit = MerchantHouses.contractUnitPay(world, contract);
+        const earned = Math.floor(unit * n * (check ? check.mult : 1));
+        contract.delivered += n;
+        MerchantHouses._credit(c, world, earned, 'contracts', `${n} ${_label(contract.good)} to ${contract.town} (${how})`);
+        // (the duty inside `earned` to the crown; the units' bookings drawn down)
+        if (check && src.player) TradePolicy.onSale(player, world, s, contract.good, n, earned, check);
+        else if (check) TradePolicy.consignSale(player, world, src.lots, s, contract.good, n, earned, check);
+        // The goods reach the town's market (world/settlementMarket.js); food fills its granary too
         if (tile && tile.settlement) SettlementMarket.add(tile.settlement, contract.good, n);
         if (tile && tile.settlement && Seasons.priceGroup(contract.good) === 'food') {
             if (!tile.settlement.economy) Economy.initSettlement(tile.settlement);
@@ -1160,17 +1194,21 @@ export const MerchantHouses = {
         if (!opt) return { success: false, reason: `Nothing to deliver ${from === 'post' ? 'from a post' : 'here'}.` };
         const want = opts.qty == null ? opt.qty : Math.min(opt.qty, Math.floor(_num(opts.qty)));
         const out = { notices: [] };
-        const n = MerchantHouses._deliver(player, world, contract, want, from === 'ship' ? 'by ship' : from === 'post' ? 'from the post' : 'by hand', out);
-        if (n <= 0) return { success: false, reason: 'Nothing delivered.' };
+        // Where the goods' bookings by realm live (customs at the contract town)
+        const ship = from === 'ship' ? (player.ships || []).find(sh => sh.id === opt.shipId) : null;
+        const post = from === 'post' ? MerchantHouses.getPost(player, opt.postId) : null;
+        const src = ship ? { lots: ship.lots, held: _num(ship.cargo && ship.cargo[contract.good]) }
+            : post ? { lots: post.lots, held: _num(post.stock[contract.good]) }
+                : { player: true };
+        const n = MerchantHouses._deliver(player, world, contract, want, from === 'ship' ? 'by ship' : from === 'post' ? 'from the post' : 'by hand', out, src);
+        if (n <= 0) return { success: false, reason: out.reason || 'Nothing delivered.' };
         if (from === 'inventory') {
             player.inventory[contract.good] -= n;
             if (player.inventory[contract.good] <= 0) delete player.inventory[contract.good];
-        } else if (from === 'ship') {
-            const ship = (player.ships || []).find(s => s.id === opt.shipId);
+        } else if (ship) {
             ship.cargo[contract.good] -= n;
             if (ship.cargo[contract.good] <= 0) delete ship.cargo[contract.good];
         } else {
-            const post = MerchantHouses.getPost(player, opt.postId);
             post.stock[contract.good] -= n;
             if (post.stock[contract.good] <= 0) delete post.stock[contract.good];
         }
@@ -1256,7 +1294,7 @@ export const MerchantHouses = {
         if (convoy.contractId) {
             const contract = MerchantHouses.getContract(player, convoy.contractId);
             let left = qty;
-            if (contract) left -= MerchantHouses._deliver(player, world, contract, qty, `by ${convoy.mode}`, out);
+            if (contract) left -= MerchantHouses._deliver(player, world, contract, qty, `by ${convoy.mode}`, out, { lots: convoy.lots, held: qty });
             if (left > 0) MerchantHouses._sellOff(player, world, c, convoy, left);
             return;
         }

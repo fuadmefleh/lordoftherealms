@@ -61,7 +61,7 @@ Object.assign(ActionMenu, {
             return { canBuild: false, reason: 'Requires settlement' };
         }
         const cost = PlayerEconomy.getBuildCost(game.player, prop, tile, game.world);
-        if (game.player.gold < cost) return { canBuild: false, reason: `Need ${cost} gold (have ${game.player.gold})` };
+        if (game.player.gold < cost) return { canBuild: false, reason: `Need ${cost} gold (have ${Math.floor(game.player.gold)})` };
         return { canBuild: true };
     },
 
@@ -133,7 +133,7 @@ Object.assign(ActionMenu, {
         let html = '<div class="bp-menu">';
         // Search, tabs and filter stay pinned while the list scrolls with the panel
         html += '<div style="position: sticky; top: 0; z-index: 2; background: rgb(20, 24, 32); padding-bottom: 4px;">';
-        html += `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">💰 ${player.gold}g · ${buildableCount} of ${rows.length} can be built here${tile.hasRiver ? ' · 🌊 river tile (mills +50%)' : ''}</div>`;
+        html += `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">💰 ${Math.floor(player.gold)}g · ${buildableCount} of ${rows.length} can be built here${tile.hasRiver ? ' · 🌊 river tile (mills +50%)' : ''}</div>`;
         if (constructionHint) html += `<div style="font-size: 11px; color: #81c784; margin: -4px 0 8px;" title="Stone and timber within 2 hexes">${constructionHint}</div>`;
         html += `<input id="bpSearch" type="text" placeholder="Search by name or product… (e.g. flour, wool, forest)" value="${esc(state.query)}" oninput="window._bpFilter()" style="width: 100%; box-sizing: border-box; padding: 7px 10px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color, rgba(255,255,255,0.15)); border-radius: 6px; color: var(--text-primary); font-size: 13px;">`;
         html += '<div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;">';
@@ -1087,7 +1087,7 @@ Object.assign(ActionMenu, {
                     <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px;">
                         <div style="font-size: 11px; color: var(--text-muted);">COST</div>
                         <div style="font-size: 16px; font-weight: bold; color: ${canAfford ? 'var(--gold)' : '#e74c3c'};">${cost}g</div>
-                        <div style="font-size: 10px; color: var(--text-muted);">You have: ${game.player.gold}g</div>
+                        <div style="font-size: 10px; color: var(--text-muted);">You have: ${Math.floor(game.player.gold)}g</div>
                     </div>
                     <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px;">
                         <div style="font-size: 11px; color: var(--text-muted);">AP COST</div>

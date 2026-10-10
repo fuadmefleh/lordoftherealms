@@ -51,7 +51,7 @@
     },
     "contracts": {
         "famine_relief": {
-            "title": "Bread for {town}", "icon": "🌾", "trigger": "famine",
+            "title": "Food for {town}", "icon": "🌾", "trigger": "famine",
             "goods": ["grain", "bread", "preserved_fish", "dried_meat", "flour", "cheese", "meat"],
             "qty": [25, 60], "premium": [1.45, 1.8], "days": [18, 32], "reputation": 8,
             "text": "{issuer} pays well for food delivered to {town}, where the granaries run low."

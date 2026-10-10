@@ -770,6 +770,11 @@ Object.assign(ActionMenu, {
         if (!tile.playerProperty || tile.playerProperty.storage <= 0) {
             return '<div style="padding:16px; text-align:center; background:rgba(255,255,255,0.03); border-radius:4px; color:var(--text-secondary); font-style:italic; border:1px dashed rgba(255,255,255,0.1);">No goods in storage to transport.<br>wait for production or collect manually.</div>';
         }
+        // A tavern's takings (gold) and a workshop without a set output are not cargo
+        const good = PlayerEconomy.GOODS[String(tile.playerProperty.produces || '').toUpperCase()];
+        if (!good) {
+            return '<div style="padding:16px; text-align:center; background:rgba(255,255,255,0.03); border-radius:4px; color:var(--text-secondary); font-style:italic; border:1px dashed rgba(255,255,255,0.1);">Nothing here a caravan can carry to market.</div>';
+        }
 
         const settlements = game.world.getAllSettlements();
         let html = '';
@@ -791,7 +796,6 @@ Object.assign(ActionMenu, {
                 if (s.type === 'capital') multiplier = 1.5;
                 else if (s.type === 'city') multiplier = 1.2;
 
-                const good = PlayerEconomy.GOODS[tile.playerProperty.produces.toUpperCase()];
                 const basePrice = MarketDynamics.getPrice(good.id, s.q, s.r, game.world);
                 const trend = MarketDynamics.getPriceTrend(good.id, s.q, s.r, game.world);
 
@@ -1025,7 +1029,7 @@ Object.assign(ActionMenu, {
                 <span style="font-size:14px;font-weight:700;color:var(--text-primary);margin-left:4px;">${settlementName}</span>
                 <span class="trade-settlement-badge">(${settlementType})</span>
             </div>
-            <div class="trade-purse">💰 ${playerGold.toLocaleString()} gold</div>
+            <div class="trade-purse">💰 ${Math.floor(playerGold).toLocaleString()} gold</div>
         </div>
         ${outlookHtml}
 
@@ -1296,7 +1300,7 @@ Object.assign(ActionMenu, {
                 <div class="npc-trade-name">${npcName}</div>
                 <div class="npc-trade-type">${typeLabel}</div>
             </div>
-            <div class="npc-trade-purse">💰 ${playerGold.toLocaleString()}</div>
+            <div class="npc-trade-purse">💰 ${Math.floor(playerGold).toLocaleString()}</div>
         </div>
         ${priceMods.reasons.length > 0 ? `<div style="font-size:11px; margin:-6px 0 10px; color:${priceMods.pct > 0 ? '#ff8a65' : priceMods.pct < 0 ? '#66bb6a' : 'var(--text-secondary)'};"
             title="Disposition and personality change what this trader charges and pays">
@@ -1375,7 +1379,7 @@ Object.assign(ActionMenu, {
             ActionMenu.showQuantityInput(`Buy ${displayName}`, maxQty, (qty) => {
                 const totalCost = price * qty;
                 if (game.player.gold < totalCost) {
-                    game.ui.showNotification('Not Enough Gold', `You need ${totalCost} gold but only have ${game.player.gold}.`, 'error');
+                    game.ui.showNotification('Not Enough Gold', `You need ${totalCost} gold but only have ${Math.floor(game.player.gold)}.`, 'error');
                     return;
                 }
                 if (!PlayerInventory.canAdd(game.player, itemId)) {

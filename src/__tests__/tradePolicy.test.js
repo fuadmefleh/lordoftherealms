@@ -7,12 +7,13 @@
  * goods bought abroad, smuggling past embargoes and bans, licences, brokered
  * treaties), saving and backfill, determinism — and no money loop.
  */
-import { describe, it, expect, beforeAll, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { TradePolicy } from '../systems/tradePolicy.js';
 import { MerchantCaravans } from '../systems/merchantCaravans.js';
+import { MerchantHouses } from '../systems/merchantHouses.js';
 import { Underworld } from '../systems/underworld.js';
 import { Councils } from '../systems/councils.js';
 import { Heralds } from '../systems/heralds.js';
@@ -38,6 +39,7 @@ function patch(path, value) {
 afterEach(() => {
     if (_saved) DataLoader._gamedata.tradePolicy = _saved;
     _saved = null;
+    vi.restoreAllMocks();
 });
 
 const plains = (q, r, settlement = null, kingdom = null) => ({ q, r, kingdom, terrain: { id: 'plains', passable: true }, resource: null, settlement });
@@ -477,6 +479,49 @@ describe('the player as a merchant', () => {
         // Cold realms won't sit at one table
         f.k2.relations.k3 = -30;
         expect(TradePolicy.brokerQuote(f.player, f.world, 'k2', 'k3').ok).toBe(false);
+    });
+
+    it('a supply contract delivered from abroad pays the town\'s import duty, as a sale would; embargoed goods are refused', () => {
+        const f = fixture();
+        TradePolicy.realm(f.k2).imp.wares = 0.2;
+        const company = { name: 'Ash & Co', capital: 0, ledger: [], stats: {}, contracts: [], posts: [], convoys: [], flows: {}, pnl: { income: {}, expenses: {} }, week: {} };
+        f.player.merchant = { company };
+        vi.spyOn(MerchantHouses, 'contractUnitPay').mockReturnValue(10);
+        const contract = () => ({ id: `ctr${Utils.randInt(1, 1e9)}`, status: 'accepted', good: 'tools', qty: 40, delivered: 0, q: 9, r: 5, town: 'Brindle', kingdomId: 'k2', reputation: 1 });
+        // By hand, from the packs: bought in Aster (k1), delivered in Brindle (k2)
+        const c1 = contract();
+        company.contracts.push(c1);
+        f.player.inventory.tools = 10;
+        TradePolicy.onBuy(f.player, f.a, 'tools', 10);
+        const t0 = f.k2.treasury;
+        const res = MerchantHouses.deliverContract(f.player, f.world, c1.id, 'inventory');
+        expect(res.success).toBe(true);
+        expect(res.delivered).toBe(10);
+        expect(company.capital).toBeCloseTo(10 * 10 * 0.8, 5);
+        expect(f.k2.treasury - t0).toBe(20);
+        expect(TradePolicy.playerState(f.player).ledger.tools).toBeUndefined();
+        // From a post's warehouse: its own bookings
+        const c2 = contract();
+        company.contracts.push(c2);
+        const post = { id: 'post1', name: 'Brindle', q: 9, r: 5, stock: { tools: 10 }, lots: { tools: { k1: 5 } }, orders: [] };
+        company.posts.push(post);
+        const cap0 = company.capital;
+        expect(MerchantHouses.deliverContract(f.player, f.world, c2.id, 'post').success).toBe(true);
+        // half of it booked abroad: a 10% duty on the lot
+        expect(company.capital - cap0).toBeCloseTo(100 * 0.9, 5);
+        expect(post.lots.tools).toBeUndefined();
+        // A convoy's goods from a realm under embargo there are refused (and sold off elsewhere by the caller)
+        TradePolicy._embargo(f.world, f.k2, f.k1, 'rival');
+        const c3 = contract();
+        const out = { notices: [] };
+        expect(MerchantHouses._deliver(f.player, f.world, c3, 6, 'by caravan', out, { lots: { tools: { k1: 6 } }, held: 6 })).toBe(0);
+        expect(c3.delivered).toBe(0);
+        expect(out.reason).toMatch(/embargo/);
+        // Home-bought (or unbooked) goods pay nothing
+        const c4 = contract();
+        const cap1 = company.capital;
+        expect(MerchantHouses._deliver(f.player, f.world, c4, 6, 'by caravan', out, { lots: {}, held: 6 })).toBe(6);
+        expect(company.capital - cap1).toBe(60);
     });
 
     it('is no money loop: buying and selling back in one town never profits from the duty book', () => {

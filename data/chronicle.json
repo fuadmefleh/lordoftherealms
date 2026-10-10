@@ -97,6 +97,7 @@
             "goodsSold": { "name": "Goods sold", "group": "capital", "kind": "cap" },
             "worksBought": { "name": "Works funded and repaired", "group": "capital", "kind": "cap" },
             "worksSold": { "name": "Works' stakes sold", "group": "capital", "kind": "cap" },
+            "publicWorks": { "name": "Public works funded (and refunds)", "group": "capital", "kind": "cap" },
             "propertyBought": { "name": "Properties built", "group": "capital", "kind": "cap" },
             "houseSale": { "name": "Houses sold", "group": "capital", "kind": "cap" },
             "shipSale": { "name": "Ships sold", "group": "capital", "kind": "cap" },

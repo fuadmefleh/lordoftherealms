@@ -25,6 +25,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 11. [Religion & Faith](#11-religion--faith)
 12. [Technology & Research](#12-technology--research)
 13. [Infrastructure](#13-infrastructure)
+    - [Roads, Canals & Logistics](#roads-canals--logistics) — road tiers and repair, upkeep, washouts and snowbound passes, haulage and spoilage, public works, canals, harbours and tolls
 14. [Espionage](#14-espionage)
     - [The Underworld](#the-underworld) — heat, the thieves' guild, contraband, fences
 15. [Ships & Naval](#15-ships--naval)
@@ -349,9 +350,9 @@ The world features 24 terrain types. Movement cost determines how much stamina e
 | 5 (very hard) | Mountains |
 | Impassable | Deep Ocean, Ocean, Coastal Waters, Sea, Lake, Snow Peak |
 
-Roads reduce movement costs (see [Infrastructure](#13-infrastructure)).
+Roads reduce movement costs (see [Infrastructure](#13-infrastructure)). How much depends on the road: a track, a road or a paved highway, and its repair (see [Roads, Canals & Logistics](#roads-canals--logistics)).
 
-**Rivers:** entering a river hex on foot costs **+2** stamina on top of its terrain cost. A road (world-generated or built) or a Bridge on that hex carries you across with no penalty, and researching **Bridge Construction** halves the fording penalty to **+1** everywhere else. The hex info panel and Region Details show the river surcharge, and pathfinding routes around unbridged rivers when it's cheaper.
+**Rivers:** entering a river hex on foot costs **+2** stamina on top of its terrain cost. A road (world-generated or built) or a Bridge on that hex carries you across with no penalty (unless the road's bridge has washed out: then it is a ford, +1, or a ferry, +1 and a fare), and researching **Bridge Construction** halves the fording penalty to **+1** everywhere else. The hex info panel and Region Details show the river surcharge, and pathfinding routes around unbridged rivers when it's cheaper.
 
 ### Pathfinding
 
@@ -1852,6 +1853,54 @@ Build roads, bridges, and irrigation to improve your territory. Requires relevan
 Roads dramatically speed up travel and trade. Stone roads make every hex cost just 1 stamina — connect your properties and trade destinations for maximum efficiency.
 
 A caravan whose start and destination are joined by roads (the world's roads or ones you build) is **road-linked**: it earns **+15%**, its wagon moves one extra hex a day (a timer-only caravan arrives in two-thirds of the time), and road wardens drive off half of the robbers who come for it. Roads also halve weather travel penalties.
+
+### Roads, Canals & Logistics
+
+The world's roads are not all alike, and they do not stay as they were built (`world/transport.js`, `systems/publicWorks.js`, `data/transport.json`).
+
+**Road segments.** Each stretch of road between two neighbouring towns is a *segment* with:
+- a **tier**: a **track** (between two villages), a **road**, or a **paved highway** (between two cities or capitals of one realm, or paved later);
+- a **condition** from 0 to 100: in **good repair** at 40 and above, **rutted** below 40, **ruined** below 15 (no better than open country);
+- a **river crossing** where it meets a river: a **bridge**, a **ford**, or a **ferry**;
+- a **closure**: a mountain **pass snowed shut** in winter, or a **ford in flood** in spring.
+
+| Tier | Movement (× terrain) | Caravan speed | Haulage friction | Upkeep a hex a week |
+|---|---|---|---|---|
+| Track | ×0.6 | ×0.8 | ×0.8 | 0.6g |
+| Road | ×0.5 | ×1 | ×0.6 | 1.5g |
+| Paved highway | ×0.33 | ×1.3 | ×0.45 | 3g |
+
+A rutted road moves at ×1.5 its tier's cost (at most the terrain's), hauls at ×1.25 and slows caravans to ×0.8. In spring, tracks and rutted roads cost **+1** to cross on foot (mud). A snowbound pass costs **+3**. A ford costs +1 to wade (instead of +2 for an unbridged river) and a ferry costs +1 and a **2g fare**.
+
+**Wear and upkeep.** Every week a road loses condition: 1.5 (highway) to 4 (track), more in winter frost (+2) and the spring thaw (+1), and +3 in a realm at war. War hosts on the march grind down the road under them (−6 a day). The realm that holds most of a road pays its upkeep from the treasury each week and so repairs it (+3 to +4). A realm short of money (treasury under 400g, a missed payment, or a debt ratio over 0.8) lets its roads go; at war it pays half. Roads outside any realm are kept by their towns, poorly. A **Royal Road-Building** edict cuts the upkeep and the works in the player's realm.
+
+**Rivers and passes.** Bridges wash out in spring floods and storms, more often on a rutted road. Where a town is near, a ferry plies; elsewhere travellers ford. Fords flood in spring and close the road for a week. A road over mountain, highland, snow or tundra hexes is a **pass**: it closes when snow falls on it in winter, and for all of deep winter over the high mountains. The heralds cry washouts and closed passes; the townsfolk talk of them.
+
+**Trade and prices.** The NPC trade links between towns (see [Town Markets](#town-markets-stock-scarcity-and-trade)) pay a haulage friction by distance. Now it follows the roads:
+- **Road links**: the length-weighted friction of the segments on the way. A plain road in good repair keeps the old ×0.6. A highway hauls cheaper, a track or a rutted road dearer, and a ruined one as dear as open country. Fords and ferries add to it, and a closed pass or a flooded ford stops the link until it opens.
+- **Open-country links**: friction by the terrain on the straight line (plains ×1, forests about ×1.15, mountains up to ×1.45), ×1.15 in the spring mud and ×1.1 in winter (tracks and rutted roads suffer the winter too; roads in good repair, highways and canals are spared).
+- **Perishables** (fish, meat, bread, cheese) spoil on the way. The friction rises with the days of the haul, and 2% of what moves is lost per day of it (at most 35%). A highway or a canal brings them in fresh.
+- **Canals** cut a link's friction to ×0.4 and never close. **Harbour works** cut every sea link of their port by ×0.8.
+
+Prices between towns on good roads draw together. Across ruined roads, closed passes and rough open country they drift apart (see `docs/economy-balance.md`, "Roads, canals & logistics", for the measured dispersion). Merchant caravans move faster on highways and slower on tracks and rutted roads. The hinterland's goods hauled to a market town over a ruined road lose a part of the load, and more over a closed pass.
+
+**Public works.** From the **🛣️ Roads & Public Works** action in any town (also from the Steward's Counsel), you can fund:
+
+| Work | Goods | Hands × days | Effect | Toll |
+|---|---|---|---|---|
+| Road repairs | 0.4 stone + 0.2 wood a hex | 20 × ¼ day a hex (min 2) | condition back to 100 | — |
+| Road (from a track) | 1 stone + 0.6 wood a hex | 40 × 0.8 a hex (min 4) | track → road, bridged | — |
+| Paved highway | 1.6 stone + 0.5 wood + 0.1 iron a hex | 40 × 1.2 a hex (min 6) | road → highway | 5% of goods carried, 2g a crossing |
+| Stone bridge | 10 stone, 6 wood, 1.5 iron | 24 × 8 days | a ford or ferry becomes a bridge | 8%, 3g a crossing |
+| Canal | 5 stone + 2 wood + 0.4 iron a hex | 120 × 3 a hex (min 20) | link friction ×0.4 | 5% |
+| Harbour works | 40 stone, 30 wood, 4 iron | 60 × 30 days | the port's sea links ×0.8 | — |
+
+- **Goods and labour are real.** A work buys its stone, timber and iron from its town's market, and from the town at the road's other end, at the going price. It takes at most 30% of a stock a day, so a bare market slows the work while its price climbs. It hires land hands in the town at the local wage, which tightens the labour market and lifts wages (see [Labour](#labour-classes-and-migration)). Materials short of the labour stall it, with the hands idle on half pay. Winter halves the pace of all works but repairs.
+- **Paying for it.** As an investor you put up the estimate plus a 15% reserve. Work draws on it, the rest comes back when it is finished, and **Add funds** restarts a work that ran dry. **Abandon** returns what is left. A ruler can order works in their own realm from the treasury instead.
+- **Tolls.** A highway, bridge or canal you fund can be a toll work. NPC trade over it pays the toll rate on the value carried, out of the towns' trade income: a transfer, never new money. Merchant caravans pay at the gate, and travellers pay a fee to cross. Your tolls are booked in the Ledger as *Road tolls*. On another crown's land the crown takes 25% of them. You pay tolls on works you don't own, and none on your own.
+- **The crowns build too.** On its weekly turn a crown with the money (and no missed payments, a debt ratio under 0.5) rebuilds washed-out bridges and repairs ruined roads. At peace and with welfare at least 0.35, it also paves its busiest road (at most one every 120 days), builds harbour works at its great ports, and now and then digs a canal between two towns no good road joins. Mercantile crowns build sooner, aggressive ones later. Crowns in debt toll their new highways.
+
+**On the map.** Highways are drawn pale and broad, tracks thin and dashed, rutted roads orange, ruined ones red and broken, closed passes ice-blue with ❄️. Fords and ferries show 🌊 / ⛴️, toll gates 🪙, works under way 🚧, and canals are blue water lines between their towns. The trade map colours each land link by the worst stretch of road on it, and the *trade* map mode colours the roads by repair. The Steward points out a toll bridge or toll highway near you that would repay itself, your stalled works, and roads closed nearby.
 
 ---
 

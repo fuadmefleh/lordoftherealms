@@ -39,6 +39,7 @@
             "trade_embargo": 4, "trade_treaty": 3, "trade_war": 4, "trade_ban": 5, "trade_granary": 3,
             "econ_dear": 5, "econ_inflation": 4, "fashion": 3,
             "harvest_failing": 5, "harvest_bumper": 3, "harvest_blight": 4, "harvest_poor": 5, "harvest_plenty": 3,
+            "road_washout": 4, "pass_closed": 4, "highway_opened": 3, "bridge_built": 3, "canal_opened": 5, "harbour_built": 4,
             "underwriter_failed": 5, "great_claim": 3, "insured_catastrophe": 4, "bourse_mania": 4, "bourse_crash": 6, "bourse_panic": 4
         },
         "icons": {
@@ -52,6 +53,7 @@
             "trade_embargo": "⛔", "trade_treaty": "🤝", "trade_war": "📈", "trade_ban": "🌾", "trade_granary": "🍞",
             "econ_dear": "🍞", "econ_inflation": "💰", "fashion": "👗",
             "harvest_failing": "🥀", "harvest_bumper": "🌾", "harvest_blight": "🦗", "harvest_poor": "🥀", "harvest_plenty": "🌾",
+            "road_washout": "🌊", "pass_closed": "❄️", "highway_opened": "🛣️", "bridge_built": "🌉", "canal_opened": "🚣", "harbour_built": "⚓",
             "underwriter_failed": "🏚️", "great_claim": "🛡️", "insured_catastrophe": "🌊", "bourse_mania": "🎈", "bourse_crash": "📉", "bourse_panic": "😱"
         },
         "templates": {
@@ -148,6 +150,30 @@
                 "Hear ye! Prices in {kingdom} have climbed {pct}% since {since}. The goodwives blame the bakers, the bakers blame the coin.",
                 "The criers of {kingdom} confess it: everything costs {pct}% more than it did in {since}.",
                 "Prices rise in {kingdom}: {pct}% since {since}. A purse of silver buys less each week."
+            ],
+            "road_washout": [
+                "Hear ye! The bridge on the road from {place} to {other} is swept away by the flood; {crossing} until it is built again.",
+                "The river has taken the bridge between {place} and {other}. Carters wait at the water's edge; {crossing}."
+            ],
+            "pass_closed": [
+                "Hear ye! Snow has shut the pass between {place} and {other}. No carts will cross before the thaw.",
+                "The road over the mountains from {place} to {other} lies under snow. Traders turn back; prices on the far side will climb."
+            ],
+            "highway_opened": [
+                "Hear ye! {kingdom} has paved the road from {place} to {other}: a highway now, wagons roll in half the time.",
+                "The new highway between {place} and {other} is open. Merchants of {kingdom}, rejoice: cheaper carriage, swifter trade."
+            ],
+            "bridge_built": [
+                "Hear ye! A stone bridge now carries the road from {place} to {other} over the river.",
+                "The masons are done: the bridge between {place} and {other} stands. No more fording, no more waiting for the ferry."
+            ],
+            "canal_opened": [
+                "Hear ye! The canal from {place} to {other} is open: barges glide where carts once laboured.",
+                "Water joins {place} and {other} at last. The new canal carries grain and stone at a fraction of the old cost."
+            ],
+            "harbour_built": [
+                "Hear ye! The harbour works of {place} are finished: new quays, deeper berths, cheaper freight by sea.",
+                "{place} has its new harbour. Ships load faster there now, and the sea trade of {kingdom} will grow."
             ],
             "harvest_failing": [
                 "Hear ye! The harvest in {place} is failing: the fields promise barely {pct}% of a common year. Lay in grain while it is cheap.",
@@ -1016,6 +1042,38 @@
         { "id": "prices_cheap_food", "when": { "prices": ["cheap_food"] }, "weight": 1, "lines": [
             "Bread's cheap in {kingdom} this season. The farmers grumble, everyone else eats.",
             "Food has never been so cheap. A good year, or a glut: depends whether you grow it or eat it."
+        ]},
+        { "id": "roads_pass_closed", "when": { "roads": ["pass_closed"] }, "weight": 3, "lines": [
+            "The pass is shut with snow. Nothing comes over the mountains till the thaw, and you can taste it in the prices.",
+            "Two carters turned back at the pass yesterday. Drifts to the axles, they said."
+        ]},
+        { "id": "roads_washed_out", "when": { "roads": ["washed_out"] }, "weight": 3, "lines": [
+            "The flood took the bridge clean away. Now it's the ferryman's fare or wet boots.",
+            "Since the bridge went, the carts queue at the water. Someone ought to build it again, and charge for it too."
+        ]},
+        { "id": "roads_ruined", "when": { "roads": ["ruined", "rutted"] }, "weight": 2, "lines": [
+            "The road's a ruin: ruts to your knees, holes to break an axle. The crown's road-money goes elsewhere, it seems.",
+            "Takes a day longer to the next town than it did. Nobody mends the road any more."
+        ]},
+        { "id": "roads_mud", "when": { "roads": ["mud"], "season": ["Spring"] }, "weight": 2, "lines": [
+            "Spring mud. The carts sink to the hubs on the old track; wait a fortnight if you can.",
+            "Everything comes slow in the thaw. The roads are soup."
+        ]},
+        { "id": "roads_highway", "when": { "roads": ["highway"] }, "weight": 1, "lines": [
+            "Paved all the way now. A wagon makes the next town before noon.",
+            "The new highway's brought the merchants. Prices are fairer since: what's dear here is cheap there no longer."
+        ]},
+        { "id": "roads_canal", "when": { "roads": ["canal"] }, "weight": 2, "lines": [
+            "The barges come up the canal every morning. Stone, grain, fish still fresh: that's what water does.",
+            "Since they dug the canal the carters have little work, but bread's cheaper."
+        ]},
+        { "id": "roads_toll", "when": { "roads": ["toll"] }, "weight": 1, "lines": [
+            "There's a toll on the bridge now. Pay it or wade, and the river's cold.",
+            "Tolls, tolls. Every cartload pays at the gate, and the price of everything goes up a copper."
+        ]},
+        { "id": "roads_works", "when": { "roads": ["works"] }, "weight": 1, "lines": [
+            "The road gangs are hiring. Good wages, hard work, stone to haul.",
+            "Masons everywhere this season. The quarry can't cut stone fast enough; it's dear as anything."
         ]},
         { "id": "harvest_failing", "when": { "harvest": ["failing"] }, "weight": 3, "lines": [
             "Have you seen the fields? Half the ears are empty. It'll be a thin harvest this year, mark me.",

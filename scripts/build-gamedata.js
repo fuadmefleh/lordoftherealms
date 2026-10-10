@@ -38,7 +38,8 @@ const topLevel = [
     'tradePolicy',
     'harvests',
     'chronicle',
-    'bourse'
+    'bourse',
+    'transport'
 ];
 
 const merged = {};

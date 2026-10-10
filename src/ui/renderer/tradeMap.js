@@ -13,6 +13,7 @@ import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { DataLoader } from '../../core/dataLoader.js';
+import { Transport } from '../../world/transport.js';
 
 function goodDef(id) {
     const gd = DataLoader._gamedata;
@@ -75,9 +76,12 @@ Object.assign(Renderer.prototype, {
                 if (off(a) && off(b)) continue;
                 const shunned = Number.isFinite(fear[lk]) && day < fear[lk];
                 const busy = Math.min(6, traffic[lk] || 0);
-                ctx.strokeStyle = shunned ? 'rgba(231, 76, 60, 0.85)' : sea ? 'rgba(90, 160, 230, 0.5)' : 'rgba(245, 197, 66, 0.45)';
+                // The road's condition (world/transport.js): rutted orange, ruined dotted, closed ice-blue, a canal blue
+                const band = sea ? null : Transport.linkBand(world, t, { q, r });
+                const roadCol = band === 'closed' ? 'rgba(143, 180, 216, 0.9)' : band === 'ruined' ? 'rgba(176, 68, 58, 0.8)' : band === 'worn' ? 'rgba(208, 138, 58, 0.7)' : band === 'canal' ? 'rgba(74, 163, 223, 0.8)' : 'rgba(245, 197, 66, 0.45)';
+                ctx.strokeStyle = shunned ? 'rgba(231, 76, 60, 0.85)' : sea ? 'rgba(90, 160, 230, 0.5)' : roadCol;
                 ctx.lineWidth = Math.max(1, (1.5 + busy * 0.6) * z);
-                ctx.setLineDash(shunned ? [5 * z, 4 * z] : sea ? [8 * z, 5 * z] : []);
+                ctx.setLineDash(shunned ? [5 * z, 4 * z] : sea ? [8 * z, 5 * z] : band === 'ruined' || band === 'closed' ? [2 * z, 3 * z] : band === null ? [3 * z, 3 * z] : []);
                 ctx.beginPath();
                 ctx.moveTo(a.x, a.y);
                 ctx.lineTo(b.x, b.y);

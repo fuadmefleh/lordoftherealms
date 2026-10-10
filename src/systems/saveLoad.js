@@ -51,6 +51,7 @@ import { LossBook } from './lossBook.js';
 import { Labour } from './labour.js';
 import { Hinterland } from '../world/hinterland.js';
 import { Harvests } from '../world/harvests.js';
+import { Transport } from '../world/transport.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Utils } from '../core/utils.js';
 
@@ -161,6 +162,10 @@ export const SaveLoad = {
             // The growing season, the harvests reckoned and their news (world/harvests.js;
             // each town's fields travel with it: settlement.farm)
             harvests: Harvests.serialize(world),
+            // The roads' state (tier, repair, crossings, closures), public works, canals,
+            // harbours and tolls (world/transport.js, systems/publicWorks.js; the segments
+            // themselves are derived from the regenerated roads)
+            transport: Transport.serialize(world),
             // Great Works raised and rising, the wonders claimed (systems/patronage.js)
             greatWorks: Patronage.serializeWorld(world),
             // The realms' weekly economic indices and the heralds' price news; the
@@ -602,6 +607,8 @@ export const SaveLoad = {
         TradePolicy.restore(saveData.tradePolicy, world);
         // The harvests (older saves: none — the next day sows and the towns derive their fields)
         Harvests.restore(saveData.harvests, world);
+        // The roads (older saves: none — their state is derived from the roads on first use)
+        Transport.restore(saveData.transport, world);
         // The economic indices and the fashions (older saves: none yet — measured on the next week)
         EconomyIndex.restore(saveData.economy, world);
         Fashions.restore(saveData.fashions, world);

@@ -49,6 +49,9 @@ Object.assign(Renderer.prototype, {
         // Render infrastructure (roads, bridges, irrigation)
         this.renderInfrastructure(ctx);
 
+        // The roads' tier and repair, closed passes, fords, toll gates, canals, works (world/transport.js)
+        this.renderRoadState(ctx);
+
         // Render player-built structures (Farms, Mines, Temples)
         this.renderBuiltStructures(ctx);
 

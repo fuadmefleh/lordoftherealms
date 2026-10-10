@@ -24,6 +24,7 @@ import { Patronage } from '../../systems/patronage.js';
 import { Finance } from '../../systems/finance.js';
 import { Underwriting } from '../../systems/underwriting.js';
 import { Bourse } from '../../systems/bourse.js';
+import { Transport } from '../../world/transport.js';
 
 export function addSettlementActions(actions, player, tile, world, ctx) {
     const { isCity, isVillage, isPlayerSettlement, playerSettlementCount, playerKingdom, hasPlayerFoundedKingdom } = ctx;
@@ -391,6 +392,20 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             label: 'Underwriters',
             icon: '🛡️',
             description: covers ? `${covers} cover(s) held: quotes, claims and the offices` : `Insure ships, caravans, stock, works and crops with ${uwHere[0].name}`,
+        });
+    }
+    // Roads & Public Works (world/transport.js, systems/publicWorks.js): the roads out of
+    // town, repairs, highways, bridges, canals and harbour works, the player's toll works
+    if (world && tile.settlement) {
+        const roads = Transport.segmentsOf(world, tile.settlement.q != null ? tile.settlement.q : tile.q, tile.settlement.r != null ? tile.settlement.r : tile.r);
+        const bad = roads.filter(sg => Transport.band(Transport.segState(world, sg)) !== 'good').length;
+        actions.push({
+            type: 'public_works',
+            label: 'Roads & Public Works',
+            icon: '🛣️',
+            description: roads.length
+                ? `${roads.length} road(s) out of town${bad ? `, ${bad} in poor repair or closed` : ''}: fund repairs, highways, bridges, canals; collect tolls`
+                : 'No made road here: fund a canal or harbour works, see the roads of the realm',
         });
     }
     const exchange = Bourse.exchangeAt(player, world);

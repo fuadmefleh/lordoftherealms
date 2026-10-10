@@ -72,6 +72,7 @@ import { Ledger } from '../../systems/ledger.js';
 import { Underwriting } from '../../systems/underwriting.js';
 import { Bills } from '../../systems/bills.js';
 import { Bourse } from '../../systems/bourse.js';
+import { PublicWorks } from '../../systems/publicWorks.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
 
 export const WORLD_W = 80;
@@ -316,6 +317,8 @@ function _endDay(game) {
     mark(game, 'Concessions.processDay');
     game.tradePolicyDay = TradePolicy.processDay(world, player);
     mark(game, 'TradePolicy.processDay');
+    game.worksDay = PublicWorks.processDay(world, player);
+    mark(game, 'PublicWorks.processDay');
     MarketDynamics.updatePrices(world, player);
     mark(game, 'MarketDynamics.updatePrices');
     game.labourDay = Labour.processDay(world, player);

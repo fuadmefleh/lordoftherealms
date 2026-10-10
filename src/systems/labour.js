@@ -34,6 +34,7 @@ import { TownLabour, STRATA } from '../world/townLabour.js';
 import { MarketDynamics, Taxation } from './marketDynamics.js';
 import { OutlawLairs } from './outlawLairs.js';
 import { Hinterland } from '../world/hinterland.js';
+import { Transport } from '../world/transport.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -284,6 +285,8 @@ export const Labour = {
             for (const id in m.works || {}) hands.craft += TownLabour.worksHands(id, m.works[id] && m.works[id].lvl);
             // ...and the hands the concessions around it hire to dig (world/hinterland.js)
             hands.land += Hinterland.handsAt(world, v.q, v.r);
+            // ...and the road gangs and masons of the public works (systems/publicWorks.js)
+            hands.land += Transport.handsAt(world, v.q, v.r);
             const land = MarketDynamics._land(world, cache, tile, day);
             TownLabour.update(s, {
                 day, k, fertility: land ? land.fertility : 1,

@@ -7,6 +7,7 @@
 import { Hex } from '../../core/hex.js';
 import { Utils } from '../../core/utils.js';
 import { Infrastructure } from '../../systems/infrastructure.js';
+import { PublicWorks } from '../../systems/publicWorks.js';
 import { Titles } from '../../systems/titles.js';
 import { Technology } from '../../systems/technology.js';
 import { Housing } from '../../systems/housing.js';
@@ -243,6 +244,9 @@ export const PlayerMovementMethods = {
 
             this.movementRemaining = Math.max(0, this.movementRemaining - moveCost);
             this.actionPoints = Math.max(0, (this.actionPoints || 0) - 1);
+
+            // A toll gate or a ferry on the road (systems/publicWorks.js)
+            if (currentTile && (currentTile.tollGate || currentTile.roadCross === 'ferry')) PublicWorks.playerCrossing(world, this, currentTile);
 
             // Reveal area
             this.revealArea(world, 4);

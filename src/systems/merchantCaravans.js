@@ -59,6 +59,7 @@ import { Underworld } from './underworld.js';
 import { TradePolicy } from './tradePolicy.js';
 import { PriceKnowledge } from './priceKnowledge.js';
 import { Ledger } from './ledger.js';
+import { PublicWorks } from './publicWorks.js';
 
 export const TRADER_TYPES = ['trade_caravan', 'trade_ship'];
 const WATER = new Set(['ocean', 'deep_ocean', 'coast', 'lake', 'sea']);
@@ -517,7 +518,8 @@ export const MerchantCaravans = {
             carrier: D.carrier || (sea ? 'trader' : 'caravan'),
             q: from.q, r: from.r, sourceQ: from.q, sourceR: from.r, targetQ: to.q, targetR: to.r,
             path: [], route: path, step: 0,
-            speed: Math.max(1, Math.round(sea ? _num(D.speed, 6) : (link.road ? _num(D.roadSpeed, 4) : _num(D.speed, 3)))),
+            // (a highway speeds it, a track, a rutted road or a canal's barges change it: world/transport.js link._speed)
+            speed: Math.max(1, Math.round(sea ? _num(D.speed, 6) : (link.road ? _num(D.roadSpeed, 4) * (link._speed > 0 ? link._speed : 1) : _num(D.speed, 3)))),
             destroyed: false, age: 0, maxAge: 1e9,
             population: Math.round(guards * 1.5) + 3,
             strength: guards,
@@ -634,6 +636,8 @@ export const MerchantCaravans = {
             u.r = route[u.step * 2 + 1];
             const t = world.getTile(u.q, u.r);
             if (u.step >= last) break; // safe inside the gates
+            // A toll bridge, highway or canal lock (systems/publicWorks.js)
+            if (t && t.tollGate) PublicWorks.caravanToll(world, u, t, player);
             // Tolls at the border
             const realm = t && t.kingdom != null ? t.kingdom : null;
             if (realm != null && realm !== u.lastRealm) {

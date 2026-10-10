@@ -844,6 +844,9 @@ Object.assign(ActionMenu, {
             case 'bourse':
                 ActionMenu.showBourse(game);
                 break;
+            case 'public_works':
+                ActionMenu.showPublicWorks(game, tile);
+                break;
             case 'host_feast':
                 ActionMenu.showHostFeastMenu(game, tile);
                 break;

@@ -51,6 +51,9 @@ const LABOUR_WHY = { siege: 'siege', conquest: 'new masters', war: 'war', famine
 const HINTERLAND_KINDS = { strike: 'mine_strike', vein: 'mine_vein', exhausted: 'mine_exhausted', accident: 'mine_accident' };
 // Harvest records (world.harvests.history, world/harvests.js): a failing or bumper harvest, a blight, the harvest in
 const HARVEST_KINDS = { failing: 'harvest_failing', bumper: 'harvest_bumper', blight: 'harvest_blight', poor: 'harvest_poor', plenty: 'harvest_plenty' };
+// The roads' records (world.transport.history, world/transport.js and systems/publicWorks.js): a bridge washed
+// away, a pass snowed shut, a highway, bridge, canal or harbour finished
+const ROAD_KINDS = { washout: 'road_washout', pass_closed: 'pass_closed', highway_opened: 'highway_opened', bridge_built: 'bridge_built', canal_opened: 'canal_opened', harbour_built: 'harbour_built' };
 
 const _num = v => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -219,6 +222,7 @@ export const Heralds = {
         for (const x of Heralds._labourRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._hinterlandRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._harvestRecords(world)) st.seen[x.key] = x.day;
+        for (const x of Heralds._roadRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._tradeRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._econRecords(world)) st.seen[x.key] = x.day;
     },
@@ -227,6 +231,12 @@ export const Heralds = {
     _hinterlandRecords(world) {
         const t = world && world.hinterland;
         return (t && Array.isArray(t.history) ? t.history : []).filter(h => h && h.key && HINTERLAND_KINDS[h.kind]).map(h => ({ key: h.key, day: _num(h.day), h }));
+    },
+
+    /** Washouts, passes snowed shut, highways, bridges, canals and harbours opened (world.transport.history, world/transport.js). */
+    _roadRecords(world) {
+        const t = world && world.transport;
+        return (t && Array.isArray(t.history) ? t.history : []).filter(h => h && h.key && ROAD_KINDS[h.kind]).map(h => ({ key: h.key, day: _num(h.day), h }));
     },
 
     /** Failing and bumper harvests, blights, the harvest in (world.harvests.history, world/harvests.js). */
@@ -501,6 +511,17 @@ export const Heralds = {
                 place: h.place || 'the realm', kingdom: (_kingdom(world, h.kingdomId) || {}).name || h.place || 'the realm',
                 pct: _num(h.pct) || 100, blight: Harvests.blightName(h.blight), from: h.from || 'the neighbouring lands',
             }, { q: h.q, r: h.r }, { kingdomId: h.kingdomId != null ? h.kingdomId : null });
+        }
+
+        // The roads: a bridge washed away, a pass snowed shut, a highway, a bridge, a canal or a harbour opened
+        for (const x of Heralds._roadRecords(world).filter(fresh)) {
+            st.seen[x.key] = x.day;
+            const h = x.h;
+            Heralds._proclaim(st, world, ROAD_KINDS[h.kind], {
+                place: h.place || 'the town', other: h.other || 'the next town',
+                kingdom: (_kingdom(world, h.kingdomId) || {}).name || 'the realm',
+                crossing: h.ferry ? 'a ferry plies' : 'travellers must ford',
+            }, { q: h.q, r: h.r }, { kingdomId: h.kingdomId != null ? h.kingdomId : null, own: !!h.own });
         }
 
         // The crowns' trade: embargoes, treaties, trade wars, export bans, granaries opened

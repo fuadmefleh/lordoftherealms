@@ -35,6 +35,7 @@ import { Ledger } from '../../systems/ledger.js';
 import { Underwriting } from '../../systems/underwriting.js';
 import { Bills } from '../../systems/bills.js';
 import { Bourse } from '../../systems/bourse.js';
+import { PublicWorks } from '../../systems/publicWorks.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 
@@ -609,6 +610,10 @@ export function endDay() {
             // trade wars and granaries, each realm on its weekly turn (systems/tradePolicy.js)
             const tradePolicyDay = TradePolicy.processDay(this.world, this.player);
             for (const n of tradePolicyDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // The roads: wear, the realms' upkeep, washouts and snowbound passes; public works
+            // (roads, bridges, canals, harbours) buying their stone and hiring hands (systems/publicWorks.js)
+            const worksDay = PublicWorks.processDay(this.world, this.player);
+            for (const n of worksDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // The settlement markets' day: production, consumption, NPC trade
             // (world/settlementMarket.js; lairs and sieges disrupt the roads)

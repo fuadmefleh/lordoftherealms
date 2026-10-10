@@ -834,6 +834,75 @@ Measured with the harness's `mark` timing, 361 days, seeds 101–303, with the p
 - Most of the cost with covers is the daily quote: marine 0.09, stock 0.10, crop 0.06 ms.
 - The Bourse caches a house's fashion and a bank's crown loans by the week and the day. The daily walk is sentiment, banks' fair value and the price.
 
+## Roads, canals & logistics (2026-10)
+
+`world/transport.js` (road segments, their state, the haulage of the trade links) and `systems/publicWorks.js` (upkeep, works, tolls), tuned in `data/transport.json`. The rules are in [the manual](../GAMEPLAY_MANUAL.md#roads-canals--logistics).
+
+**How it was measured.**
+- Throwaway harness scripts, with the player kept fed (health 100, 40 bread, no starvation).
+- **Price dispersion**: seeds 101, 202 and 303, 240 days, the model switched off (every link at the old flat friction, no works) against on. The measure is the mean over a trade link's goods of |ln(scarcity_a / scarcity_b)| (`Transport.dispersion`). It was sampled weekly from day 120, by link class: *good* is a road link whose worst stretch is in good repair (or a canal), *poor* is open country or a rutted, ruined or closed road.
+- **Toll payback**: on day 60 the player funds a toll highway on the busiest road (the most traffic in gold a day). On day 30 the busiest river road loses its bridge and the player funds a toll bridge. Tolls are banked to day 240. Payback = gold spent ÷ the player's tolls a day (after the crown's 25%).
+- **Kingdom survival**: seeds 7–26, 1,080 days, as in [World stability](world-stability.md).
+
+**Dispersion** (mean |ln price ratio|, links in brackets):
+
+| Seed | Off: good roads | On: good roads | Off: poor links | On: poor links | Off: all | On: all |
+|---|---|---|---|---|---|---|
+| 101 | 0.194 (56) | **0.179** (41) | 0.138 (164) | **0.149** (179) | 0.152 | 0.155 |
+| 202 | 0.186 (44) | 0.207 (37) | 0.179 (112) | **0.210** (99) | 0.185 | 0.213 |
+| 303 | 0.216 (41) | 0.230 (36) | 0.150 (182) | **0.162** (191) | 0.169 | 0.175 |
+
+- Across poor links dispersion rises in every seed, by 8–17%. Prices drift apart where roads are ruined, passes close and rough country lies between.
+- Over good roads it falls in seed 101 (−8%) and rises less than over poor links in the others (+6%, +12%). The good roads' class is smaller with the model on: the worn ones move to *poor*.
+- Overall dispersion rises 2–15%. The model adds friction (terrain, mud, spoilage, wear) more than it removes it (highways, canals, harbours). The two runs also diverge (other wars, other links), so the per-seed numbers are noisy. The class comparison is the point.
+- The world's roads at day 1,080 (seeds 7–26): 74–91% of segments in good repair. Ruined roads cluster in realms long at war or broke: seed 25 has 14 ruined and 20 worn.
+
+**Toll payback (the player's share).**
+
+| Work | Seed | Cost | Tolls a day | Payback |
+|---|---|---|---|---|
+| Toll highway (busiest road) | 101 | 191g | 5.3g | 36 days |
+| Toll highway | 202 | 361g | 1.7g | 213 days |
+| Toll highway | 303 | 183g | 3.1g | 60 days |
+| Toll bridge over a washed-out ford | 202 | 302g | 2.9g | 105 days (before the bridge was cut to 10 stone, 6 wood, 1.5 iron, 24 hands: about 220g, ≈ 75 days) |
+| Toll bridge on a road nobody uses | 303 | 355g | 0 | never (its estimate said 0 too) |
+
+- The median toll highway repays in 60 days, in the 30–60+ day band of the other works. The tolls cut the trade over the road a little (they add to its friction), so the Steward's estimate (traffic × rate) can miss in either direction: 62 vs 36, 82 vs 213, 17 vs 60 days.
+- Toll rates: highway 5%, bridge 8%, canal 5% of the goods carried; 2g / 3g a crossing on foot.
+
+**Why it is not a money loop.**
+- NPC tolls are taken out of the two towns' trade income, which the flows already credited. It is a transfer, capped at that income, and it never creates gold (tested).
+- The player's budget is paid up front. Goods are bought at the going price and leave the market. Wages are a sink, and only the unspent budget comes back (tested).
+- Tolls add to the link's friction, so a toll on a road lowers the trade that pays it.
+
+**Survival** (seeds 7–26, 1,080 days): **180 / 200 (90%)**, against 181 for the world-stability pass.
+
+| Seed | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Alive | 10 | 9 | 9 | 9 | 10 | 10 | 10 | 8 | 9 | 9 | 9 | 10 | 10 | 9 | 10 | 8 | 8 | 10 | 7 | 6 |
+
+- The crowns paid 44,000–176,000g of road upkeep per world over the three years, and dug 3–7 canals. An earlier tuning gave 14–27 canals; canals are now limited to 6% of the towns and only between towns that no good road joins.
+
+**Tick cost.**
+- Microbenchmarks on a 100-day harness world (84 segments, 178 links):
+
+| Step | Cost |
+|---|---|
+| `Transport.tick` | 47 µs/day |
+| A crown's weekly turn | about 10 µs (1.4 a day) |
+| Works' progress | 7 µs a work a day |
+| `applyLink` | 1.1 µs a link (about 45 links a day) |
+| `afterFlows` | about 25 µs/day |
+
+- In total about 0.2 ms a day. Harness runs read 0.22–0.8 ms/day for `PublicWorks.processDay`, but the machine was shared and noisy: the market tick itself read 2.7–8 ms between identical runs.
+- Segments are derived once (6–13 ms), when the network is first read, and again every 60 days if towns came or went.
+- No RNG is drawn: rolls are hashes of the seed, the segment and the week. The golden snapshots are unchanged.
+
+**Open.**
+- The harness maps have few rivers (seed 101 has 3 river hexes), so bridges, fords and ferries rarely matter there. They will matter more on larger maps.
+- World units other than merchant caravans (war hosts, patrols) still move one hex a step whatever the road.
+- The bot does not fund works.
+
 ## Re-measuring
 
 - **Long soak.** `SOAK=1 SOAK_VERBOSE=1 npx vitest run playtest.soak` prints each

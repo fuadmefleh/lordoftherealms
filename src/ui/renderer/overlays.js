@@ -916,6 +916,12 @@ Object.assign(Renderer.prototype, {
             }
 
             case 'trade': {
+                // Roads by their state (world/transport.js bakes roadBand / roadTier)
+                if (tile.hasRoad && tile.roadBand && tile.roadBand !== 'good') {
+                    return tile.roadBand === 'closed' ? '#8fb4d8' : tile.roadBand === 'ruined' ? '#b0443a' : '#d08a3a';
+                }
+                if (tile.hasRoad && tile.roadTier === 'highway') return '#fff3b0';
+                if (tile.hasRoad && tile.roadTier === 'track') return '#b8954a';
                 if (tile.hasRoad || tile.infrastructure) return '#f5c542';
                 if (tile.settlement) return '#e08e45';
                 if (tile.resource) return '#d4a017';

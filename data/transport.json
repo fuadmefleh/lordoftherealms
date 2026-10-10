@@ -1,0 +1,56 @@
+{
+    "_doc": "Roads, canals & logistics (world/transport.js: the road segments, their quality and the haulage terms of the trade links; systems/publicWorks.js: upkeep, works, tolls). The world's roads (tile.hasRoad) are split into segments, each the road between two neighbouring settlements. A segment has a tier (track, road, paved highway), a condition 0..100, a river crossing (bridge, ford or ferry) and may be closed (a snowbound pass, a ford in flood). Nothing here draws RNG: initial conditions, washouts and closures are hashes of the world seed, the segment and the week.",
+
+    "_tiers": "move: multiplier on the terrain move cost of a road hex (the player; the generated road's 0.5 is 'road'). speed: caravan speed factor. friction: the trade link's haulage factor (the old roadFactor 0.6 is 'road'; 1 = no road). decay: condition lost a week; repair: condition the realm's upkeep restores a week; upkeep: gold per hex per week. crossing: the river crossing a new segment of this tier gets.",
+    "tiers": {
+        "track": { "name": "Track", "icon": "🟫", "rank": 0, "move": 0.6, "speed": 0.8, "friction": 0.8, "decay": 4, "repair": 4, "upkeep": 0.6, "crossing": "ford", "color": "#9a7b52", "width": 1.5 },
+        "road": { "name": "Road", "icon": "🛤️", "rank": 1, "move": 0.5, "speed": 1, "friction": 0.6, "decay": 3, "repair": 4, "upkeep": 1.5, "crossing": "bridge", "color": "#c8a46a", "width": 2.5 },
+        "highway": { "name": "Paved highway", "icon": "🛣️", "rank": 2, "move": 0.33, "speed": 1.3, "friction": 0.45, "decay": 1.5, "repair": 3, "upkeep": 3, "crossing": "bridge", "color": "#e8e0c8", "width": 4 }
+    },
+    "_tierOf": "The tier a generated segment starts at: highway between two cities or capitals of one realm, track between two villages, road otherwise.",
+
+    "_bands": "Condition bands: at or above `worn` a road works as its tier; between `ruined` and `worn` it is rutted (move x ruttedMove, friction x ruttedFriction, speed x ruttedSpeed); below `ruined` it is no better than open country.",
+    "bands": { "worn": 40, "ruined": 15, "ruttedMove": 1.5, "ruttedFriction": 1.25, "ruttedSpeed": 0.8, "startMin": 62, "startMax": 96 },
+
+    "_weather": "Weekly wear: winter frost and spring thaw add to the decay; a realm at war wears its roads (requisitions, no road gangs); each war host or relief host standing on a road hex grinds it down (armyDamage a day). Spring mud: tracks and rutted roads cost +1 to move and their friction x mudFriction; open country links x openMud. Winter: open-country links, tracks and rutted roads x winterFriction (roads in good repair, highways and canals spared).",
+    "weather": { "winterDecay": 2, "springDecay": 1, "warDecay": 3, "armyDamage": 6, "mudFriction": 1.2, "openMud": 1.15, "winterFriction": 1.1 },
+
+    "_passes": "A segment over mountain, highland, snow or tundra hexes (at least minHexes) is a pass. In winter it closes when snow falls on its highest hex on the weekly check, and for all of deep winter (dayInSeason >= deepFrom) when it crosses mountain or snow. A closed pass stops the trade links over it; the player wades through at +closedMove.",
+    "passes": { "terrain": ["mountain", "highlands", "snow", "tundra", "ice"], "high": ["mountain", "snow", "ice"], "minHexes": 1, "deepFrom": 8, "closedMove": 3 },
+
+    "_rivers": "Crossings: a bridge carries the road (no penalty); a ford costs the player fordMove and adds fordFriction to the link, and closes in a spring flood (floodChance a week); a ferry (a washed-out bridge within ferryRange of a town) costs ferryMove, a ferryFare and ferryFriction. Bridges wash out in a storm or a spring flood: washChance a week (x washRutted when the road is rutted).",
+    "rivers": { "fordMove": 1, "fordFriction": 0.12, "ferryMove": 1, "ferryFare": 2, "ferryFriction": 0.06, "ferryRange": 2, "floodChance": 0.12, "washChance": 0.025, "washStorm": 0.12, "washRutted": 2 },
+
+    "_terrain": "Links that are not on a road: haulage friction x (base + perMove x the mean move cost of the hexes on the straight line), clamped to [min, max] (plains = 1).",
+    "terrain": { "base": 0.7, "perMove": 0.15, "min": 0.85, "max": 1.45 },
+
+    "_perish": "Perishable goods spoil on the way: extra friction perDay x the haul's days, and loss x days of what moves never arrives (at most maxLoss). Haul days: distance / (landSpeed x the road's speed factor), or seaSpeed by sea, canalSpeed by canal.",
+    "perish": { "goods": ["fish", "meat", "bread", "cheese"], "perDay": 0.025, "loss": 0.02, "maxLoss": 0.35, "landSpeed": 3, "roadSpeed": 4, "seaSpeed": 6, "canalSpeed": 5 },
+
+    "_upkeep": "Each realm pays its roads' upkeep weekly (tier upkeep x hexes, x the Royal Road-Building edict's cost) when its treasury is above floor, it missed no payment and its debt ratio is under maxDebt; at war it pays warShare of it. A paid segment is repaired, an unpaid one only decays. Roads outside any realm are kept by their towns at freeRepair a week.",
+    "upkeep": { "floor": 400, "maxDebt": 0.8, "warShare": 0.5, "freeRepair": 2 },
+
+    "_works": "Public works (systems/publicWorks.js). goods per hex (road works) or per work; days per hex or per work; hands: land hands hired in the site town while it builds (world/townLabour.js), paid the town's land wage x wageMult a day. Goods are bought from the site town's market (and its link partners) at the going price, at most drawShare of a stock a day: a short market slows the work and its prices climb. toll: the toll rate on the value carried over it (NPC trade; caravans pay it at the gate), playerToll the fee the player pays crossing it. cond: the condition it leaves. Canals join two towns of one region within maxDist (one a port, or a river between them) and cut the link's friction to friction x; harbours cut sea links' friction x friction at either end.",
+    "works": {
+        "repair": { "name": "Road repairs", "icon": "🔧", "goods": { "stone": 0.4, "wood": 0.2 }, "perHex": true, "days": 0.25, "minDays": 2, "hands": 20 },
+        "upgrade_road": { "name": "Road (from a track)", "icon": "🛤️", "goods": { "stone": 1, "wood": 0.6 }, "perHex": true, "days": 0.8, "minDays": 4, "hands": 40, "from": "track", "to": "road" },
+        "upgrade_highway": { "name": "Paved highway", "icon": "🛣️", "goods": { "stone": 1.6, "wood": 0.5, "iron": 0.1 }, "perHex": true, "days": 1.2, "minDays": 6, "hands": 40, "from": "road", "to": "highway", "toll": 0.05, "playerToll": 2 },
+        "bridge": { "name": "Stone bridge", "icon": "🌉", "goods": { "stone": 10, "wood": 6, "iron": 1.5 }, "days": 8, "hands": 24, "toll": 0.08, "playerToll": 3 },
+        "canal": { "name": "Canal", "icon": "🚣", "goods": { "stone": 5, "wood": 2, "iron": 0.4 }, "perHex": true, "days": 3, "minDays": 20, "hands": 120, "toll": 0.05, "friction": 0.4, "maxDist": 10, "minDist": 3 },
+        "harbour": { "name": "Harbour works", "icon": "⚓", "goods": { "stone": 40, "wood": 30, "iron": 4 }, "days": 30, "hands": 60, "friction": 0.8 }
+    },
+    "_build": "wageMult: the hands' daily pay (x the town's land wage). drawShare: most of a market's stock a work buys in a day. budgetPad: what the player puts up front beyond the estimate (the rest is refunded on completion). crownShare: the crown's cut of a foreign investor's tolls. maxPerRealm / maxPlayer: works under way at once.",
+    "build": { "wageMult": 1, "drawShare": 0.3, "budgetPad": 0.15, "crownShare": 0.25, "maxPerRealm": 2, "maxPlayer": 4, "keepDone": 40 },
+
+    "_realms": "NPC crowns weigh their roads on their weekly turn: rebuild washed-out bridges and repair ruined roads when the treasury is above repairAt; upgrade their busiest road a tier above upgradeAt (x personality; at most one every upgradeEvery days, and only a road carrying upgradeTraffic gold a day, a track counting double); build harbour works above harbourAt and dig a canal above canalAt (each at most once per harbourEvery / canalEvery days per realm; canals only between towns no good road joins, and at most canalPerTowns of the world's towns). No new works at war (repairs only), in debt (debtRatio above maxDebt) or with welfare under minWelfare. personality: multiplier on the thresholds (lower = keener).",
+    "realms": { "repairAt": 1500, "upgradeAt": 9000, "upgradeEvery": 120, "upgradeTraffic": 30, "canalAt": 60000, "harbourAt": 40000, "canalEvery": 720, "canalPerTowns": 0.06, "harbourEvery": 360, "maxDebt": 0.5, "minWelfare": 0.35, "personality": { "mercantile": 0.7, "peaceful": 0.85, "balanced": 1, "militaristic": 1.3, "aggressive": 1.5 } },
+
+    "_news": "History kept for the heralds and the chatter (world.transport.history), at most cap records; chatterRange: hexes within which townsfolk talk of a road.",
+    "news": { "cap": 40, "chatterRange": 6 },
+
+    "_counsel": "The Steward points out a washed-out bridge or ford on a road carrying at least minTrade gold a market turn within radius hexes, with the estimated toll payback.",
+    "counsel": { "radius": 10, "minTrade": 60 },
+
+    "_render": "Map colours of a road's condition (the trade map and the world map's road overlay at minZoom and above).",
+    "render": { "minZoom": 0.45, "worn": "#d08a3a", "ruined": "#b0443a", "closed": "#8fb4d8", "canal": "#4aa3df" }
+}

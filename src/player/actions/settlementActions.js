@@ -24,6 +24,7 @@ import { Patronage } from '../../systems/patronage.js';
 import { Finance } from '../../systems/finance.js';
 import { Underwriting } from '../../systems/underwriting.js';
 import { Bourse } from '../../systems/bourse.js';
+import { Mints } from '../../systems/mints.js';
 
 export function addSettlementActions(actions, player, tile, world, ctx) {
     const { isCity, isVillage, isPlayerSettlement, playerSettlementCount, playerKingdom, hasPlayerFoundedKingdom } = ctx;
@@ -400,6 +401,17 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             label: `The Bourse of ${exchange.name}`,
             icon: '📈',
             description: 'Shares in the merchant houses, the banks and the chartered companies; float your own company',
+        });
+    }
+    // The realm's mint at its capital (systems/mints.js): sell bullion, lease it, the coin of every realm
+    const mintHere = Mints.enabled() ? Mints.mintAt(world, tile) : null;
+    if (mintHere) {
+        const pur = mintHere.kingdom.finance && mintHere.kingdom.finance.purity != null ? mintHere.kingdom.finance.purity : 1;
+        actions.push({
+            type: 'mint',
+            label: `The Mint of ${mintHere.kingdom.name}`,
+            icon: '💰',
+            description: `Coin of ${Math.round(pur * 100)}% silver: sell gold and silver to the mint, lease it, and see every realm's coin and prices`,
         });
     }
 

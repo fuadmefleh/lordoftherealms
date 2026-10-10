@@ -53,6 +53,7 @@ import { Finance } from './finance.js';
 import { Underwriting } from './underwriting.js';
 import { Bills } from './bills.js';
 import { Bourse } from './bourse.js';
+import { Mints } from './mints.js';
 import { MarketFairs } from './marketFairs.js';
 import { Guilds } from './guilds.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
@@ -1026,6 +1027,25 @@ R.bourseMania = (ctx) => {
         out.push({ key: `mania:${pf.listing.id}`, listing: pf.listing.name, shares: pf.shares, value: Math.round(pf.value) });
     }
     return out.slice(0, 1);
+};
+
+/** Bullion in the packs that a mint nearby would pay well for (systems/mints.js). */
+R.mintBullion = (ctx) => {
+    const t = Mints.bullionTip(ctx.player, ctx.world);
+    if (!t) return [];
+    return [{ key: `mint:${t.good}:${t.kingdom}`, q: t.q, r: t.r, qty: t.qty, good: t.good.replace(/_/g, ' '), kingdom: t.kingdom, unit: t.unit.toFixed(1), dist: t.dist }];
+};
+
+/** The ruled realm's coin: clipped, short or flooding (systems/mints.js, world/moneySupply.js). */
+R.ruledCoin = (ctx) => {
+    const w = Mints.ruledCoinWarning(ctx.player, ctx.world);
+    if (!w) return [];
+    const what = w.kind === 'debased'
+        ? `strikes clipped coin (${Math.round(w.purity * 100)}% silver)${w.recoin && w.recoin.ok ? `: a recoinage would cost the treasury ${w.recoin.cost}g and bring prices down` : ''}`
+        : w.kind === 'short'
+            ? `is short of coin (prices ${Math.round((1 - w.level) * 100)}% under the world's, the tax yield with them): a low seigniorage draws bullion to the mint`
+            : `is awash with coin (prices ${Math.round((w.level - 1) * 100)}% over the world's)`;
+    return [{ key: `coin:${w.kind}`, realm: w.kingdom, what, severity: w.kind === 'debased' ? 'warning' : 'notice' }];
 };
 
 /** A defaulter is wanted for the debtors' prison in a realm. */

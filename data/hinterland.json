@@ -8,6 +8,8 @@
     "maxPerKind": 2,
     "_hidden": "Share of the hill and mountain hexes without a map resource that hide a vein the locals know of (a hash of the world seed and the hex; its kind by the terrain's prospecting weights below). 0.25 (was 0.2) since copper joined the weights: as many hidden iron and coal veins as before, plus the copper ones (no map resource makes copper: every copper mine is a vein the locals know of, or one prospecting strikes).",
     "hidden": 0.25,
+    "_hiddenExtra": "Veins with a band of their own past `hidden` (share of the hexes whose terrain lists the kind in its prospecting weights), kept out of the usual pick so adding one never reshuffles the veins a world already had: silver (Specie & Mints pass; data/mints.json), which no map resource makes.",
+    "hiddenExtra": { "silver_mine": 0.06 },
     "_resync": "Days between passes that give newly founded towns their sites and re-home sites whose town is gone.",
     "resyncDays": 60,
 
@@ -17,6 +19,7 @@
         "gem_mine":     { "name": "Gem mine",      "icon": "💎", "good": { "gems": 0.25 },             "resource": "gems",     "priority": 11, "hands": 12, "deposit": true, "reserve": [120, 360],   "leasable": true },
         "gold_mine":    { "name": "Gold diggings", "icon": "💰", "good": { "gold_ore": 0.25 },         "resource": "gold_ore", "priority": 9,  "hands": 12, "deposit": true, "reserve": [120, 360],  "leasable": true },
         "copper_mine":  { "name": "Copper mine",   "icon": "🟠", "good": { "copper": 1.0 },            "priority": 7.5, "hands": 12, "deposit": true, "reserve": [600, 1800], "leasable": true },
+        "silver_mine":  { "name": "Silver mine",   "icon": "🥈", "good": { "silver_ore": 1.0 },        "priority": 7.2, "hands": 12, "deposit": true, "reserve": [300, 900],  "leasable": true },
         "coal_pit":     { "name": "Coal pit",      "icon": "⚫", "good": { "coal": 1.2 },              "resource": "coal",     "priority": 8,  "hands": 10, "deposit": true, "reserve": [700, 1800], "leasable": true },
         "quarry":       { "name": "Quarry",        "icon": "🧱", "good": { "stone": 1.4 },             "resource": "stone",    "priority": 5,  "hands": 10, "deposit": true, "reserve": [1500, 4000], "leasable": true },
         "salt_pan":     { "name": "Salt pans",     "icon": "🧂", "good": { "salt": 0.9 },              "resource": "salt",     "priority": 6,  "hands": 6,  "deposit": true, "reserve": [1200, 3000], "leasable": true },
@@ -34,10 +37,10 @@
     "prospect": {
         "every": 60, "chance": 0.1, "wane": 0.4, "veinMin": 0.3, "veinMax": 0.7, "extraSites": 2,
         "terrain": {
-            "mountain":  { "iron_mine": 4, "coal_pit": 3, "gem_mine": 2, "gold_mine": 1, "quarry": 1, "copper_mine": 2 },
-            "hills":     { "iron_mine": 4, "coal_pit": 4, "quarry": 2, "gem_mine": 1, "copper_mine": 3 },
-            "highlands": { "iron_mine": 2, "quarry": 3, "coal_pit": 1, "gem_mine": 1, "gold_mine": 0.5, "copper_mine": 2 },
-            "snow_peak": { "gem_mine": 1, "gold_mine": 1, "iron_mine": 1 }
+            "mountain":  { "iron_mine": 4, "coal_pit": 3, "gem_mine": 2, "gold_mine": 1, "quarry": 1, "copper_mine": 2, "silver_mine": 2.5 },
+            "hills":     { "iron_mine": 4, "coal_pit": 4, "quarry": 2, "gem_mine": 1, "copper_mine": 3, "silver_mine": 2 },
+            "highlands": { "iron_mine": 2, "quarry": 3, "coal_pit": 1, "gem_mine": 1, "gold_mine": 0.5, "copper_mine": 2, "silver_mine": 1.5 },
+            "snow_peak": { "gem_mine": 1, "gold_mine": 1, "iron_mine": 1, "silver_mine": 1 }
         },
         "strikeMigrants": 12, "exhaustMigrants": 1.5,
         "cost": 160, "days": 8, "playerChance": 0.6, "finderDays": 20, "minTier": "village"

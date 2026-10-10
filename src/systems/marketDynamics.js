@@ -31,6 +31,7 @@ import { HoldingSieges } from './holdingSieges.js';
 import { MerchantCaravans } from './merchantCaravans.js';
 import { TradePolicy } from './tradePolicy.js';
 import { Harvests } from '../world/harvests.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const _key = (q, r) => `${q},${r}`;
 /** Days a settlement's production profile holds before it is worked out again. */
@@ -136,6 +137,8 @@ export const MarketDynamics = {
         const flow = SettlementMarket.flows(links, bases, day);
         // The duties the day's trade paid go to the crowns (systems/tradePolicy.js)
         flow.duties = TradePolicy.collect(world, links);
+        // ...and what crossed a border, for the coin the realms settle in (world/moneySupply.js)
+        MoneySupply.collectTrade(world, links);
         MerchantCaravans.dispatch(world, links, bases, day, player, lives.length);
         // Independent towns have no realm treasury pass to bank their trade (KingdomAI.updateEconomy)
         for (const live of lives) if (!live.kingdom) Economy.processTrade(live);
@@ -235,7 +238,7 @@ export const MarketDynamics = {
                 a, b, dist: d, sea, road, routes: nRoutes, friction, base, capacity: base, factor: 1,
                 slot: SettlementMarket.slot(a.q + b.q, a.r + b.r),
                 // Crown tariffs read and paid on the link (systems/tradePolicy.js; laid out here so every link keeps one shape)
-                dutyAB: null, dutyBA: null, impAB: 1, impBA: 1, paidAB: 0, paidBA: 0, _tp: null, _tpA: null, _tpB: null, _tpF: 1,
+                dutyAB: null, dutyBA: null, impAB: 1, impBA: 1, paidAB: 0, paidBA: 0, valAB: 0, valBA: 0, _tp: null, _tpA: null, _tpB: null, _tpF: 1,
             };
         };
         // A loaded game picks up the links its towns were trading on (saved on

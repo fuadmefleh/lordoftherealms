@@ -44,6 +44,8 @@ import { WorldUnit } from '../world/units.js';
 import { Terrain } from '../world/terrain.js';
 import { MarketDynamics } from './marketDynamics.js';
 import { TradePolicy } from './tradePolicy.js';
+import { Mints } from './mints.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { Underwriting } from './underwriting.js';
 import { Bills } from './bills.js';
 import { Bourse } from './bourse.js';
@@ -168,6 +170,8 @@ export const SaveLoad = {
             // fashion factors travel with its labour record)
             economy: EconomyIndex.serialize(world),
             fashions: Fashions.serialize(world),
+            // Each realm's coin, its flows, price level and mint (world/moneySupply.js)
+            money: MoneySupply.serialize(world),
             // Ids for characters, maps, spies, ... keep counting from here
             idCounter: Utils.getIdCounter(),
         };
@@ -498,6 +502,8 @@ export const SaveLoad = {
             bills: Bills.serialize(player),
             bourse: Bourse.serialize(player),
             lossBook: LossBook.serialize(player),
+            // Specie & mints: a mint lease, the realm whose coin the purse is in, false coin passed (systems/mints.js)
+            mints: Mints.serialize(player),
         };
     },
 
@@ -605,6 +611,8 @@ export const SaveLoad = {
         // The economic indices and the fashions (older saves: none yet — measured on the next week)
         EconomyIndex.restore(saveData.economy, world);
         Fashions.restore(saveData.fashions, world);
+        // The realms' coin (older saves: none — each realm is seeded afresh at the world's norm on the next week)
+        MoneySupply.restore(saveData.money, world);
         // Never hand out an id the save already used
         if (typeof saveData.idCounter === 'number') {
             Utils.setIdCounter(Math.max(Utils.getIdCounter(), saveData.idCounter));
@@ -782,6 +790,8 @@ export const SaveLoad = {
         Bills.loadState(player);
         Bourse.loadState(player);
         LossBook.loadState(player);
+        // Specie & mints — older saves have none (set up on the first dealing)
+        Mints.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

@@ -56,6 +56,7 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Coinage } from '../world/coinage.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { Technology } from './technology.js';
 import { House } from './house.js';
 import { Gossip } from './gossip.js';
@@ -1166,6 +1167,8 @@ export const Finance = {
         const apr = Finance.crownApr(k, b, day);
         b.capital -= amount;
         k.treasury = _num(k.treasury) + amount;
+        // Lent across a border, the coin leaves the house's realm (world/moneySupply.js)
+        if (b.kingdomId != null && b.kingdomId !== k.id) MoneySupply.transfer(world, b.kingdomId, k.id, amount, 'loans');
         f.debt.push({ id: `D${st.nextId++}`, bankId: b.id, principal: amount, owed: amount, apr, day });
         f.borrowed = _num(f.borrowed) + amount;
         f.debtRatio = _round2(Finance.crownDebt(k) / Finance.crownCapacity(k));
@@ -1187,6 +1190,7 @@ export const Finance = {
                 if (bank) {
                     bank.capital = _num(bank.capital) + pay;
                     bank.relations[k.id] = Math.min(100, _num(bank.relations[k.id]) + _num(C.servicedRelation, 1));
+                    if (bank.kingdomId != null && bank.kingdomId !== k.id) MoneySupply.transfer(world, k.id, bank.kingdomId, pay, 'loans');
                 }
                 if (d.owed < 1) f.debt = f.debt.filter(x => x !== d);
             } else {
@@ -1242,8 +1246,13 @@ export const Finance = {
         const step = _num(G.debaseStep, 0.1);
         if (f.purity - step < _num(G.floor, 0.5) - 1e-9) return { success: false, reason: 'The coin is as base as it can be made.' };
         const day = _day(world);
+        const before = f.purity;
         f.purity = _round2(f.purity - step);
         f.debasements++;
+        // The mint recoins the circulating coin at the lower standard: more pieces
+        // from the same silver, and the realm's coin swells (world/moneySupply.js)
+        const R = MoneySupply.realm(world, k.id);
+        if (R && f.purity > 0) MoneySupply.adjust(world, k.id, R.coin * (before / f.purity - 1) * _num(MoneySupply.config().debase.coinShare, 1), 'debase');
         f.lastDebaseDay = day;
         const gain = Math.round(Math.max(_num(f.income), 200) * _num(G.mintDays, 15));
         k.treasury = _num(k.treasury) + gain;

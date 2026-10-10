@@ -43,6 +43,7 @@ import './tradePolicy.js';
 import './harvests.js';
 import './underwriting.js';
 import './bourse.js';
+import './mints.js';
 import './economy.js';
 
 // Expose ActionMenu globally so inline onclick handlers in dynamic HTML can access it

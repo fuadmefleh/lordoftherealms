@@ -184,8 +184,23 @@ export const Hinterland = {
         const res = tile.resource && tile.resource.id;
         if (res && C.byResource[res]) return C.byResource[res];
         const weights = _obj(C.prospect.terrain) && _obj(C.prospect.terrain[tile.terrain.id]);
-        if (weights && Number.isFinite(tile.q) && _roll(`hl:hid:${Hinterland.seed(world)}:${tile.q},${tile.r}`) < _num(C.hidden, 0)) {
-            return Hinterland._pickKind(weights, `hl:hidk:${Hinterland.seed(world)}:${tile.q},${tile.r}`);
+        if (weights && Number.isFinite(tile.q)) {
+            const roll = _roll(`hl:hid:${Hinterland.seed(world)}:${tile.q},${tile.r}`);
+            const hidden = _num(C.hidden, 0);
+            // Kinds with a band of their own (hiddenExtra, past `hidden`) are left out of the
+            // usual pick, so adding one never reshuffles the veins a world already had
+            const extra = _obj(C.hiddenExtra) || {};
+            if (roll < hidden) {
+                const usual = {};
+                for (const [id, w] of Object.entries(weights)) if (!(id in extra)) usual[id] = w;
+                return Hinterland._pickKind(usual, `hl:hidk:${Hinterland.seed(world)}:${tile.q},${tile.r}`);
+            }
+            let band = hidden;
+            for (const [id, share] of Object.entries(extra)) {
+                if (!(_num(weights[id]) > 0)) continue;
+                band += _num(share);
+                if (roll < band && Hinterland.kind(id)) return id;
+            }
         }
         return C.byTerrain[tile.terrain.id] || null;
     },

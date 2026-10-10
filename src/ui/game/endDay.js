@@ -35,6 +35,7 @@ import { Ledger } from '../../systems/ledger.js';
 import { Underwriting } from '../../systems/underwriting.js';
 import { Bills } from '../../systems/bills.js';
 import { Bourse } from '../../systems/bourse.js';
+import { Mints } from '../../systems/mints.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 
@@ -716,6 +717,9 @@ export function endDay() {
             for (const sys of [Underwriting, Bills, Bourse]) {
                 for (const n of sys.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             }
+            // Specie & mints: the realms' coin, its flows and price levels (weekly), recoinages,
+            // the player's mint lease, the money changers at a border (systems/mints.js, world/moneySupply.js)
+            for (const n of Mints.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Collect taxes (every 7 days)
             let taxCollected = 0;

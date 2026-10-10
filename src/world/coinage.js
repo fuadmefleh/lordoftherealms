@@ -11,10 +11,15 @@
 //     settlement's market prices (1 for pure coin, no world, or no realm).
 //   • stabilityMod(kingdom, day) — the stability target term for the crown's
 //     finances (debased coin, a war levy, a recent default, heavy debt).
-// State lives on kingdom.finance (saved with the kingdom); this module only
-// reads it and draws no randomness.
+// The multiplier is one coherent figure for what the realm's coin buys:
+// the purity term (silver taken out of each piece) × the quantity term (the
+// realm's coin per head against the world's, world/moneySupply.js: a realm
+// awash in coin is dear, one drained of it cheap).
+// State lives on kingdom.finance (saved with the kingdom) and world.money;
+// this module only reads them and draws no randomness.
 
 import { DataLoader } from '../core/dataLoader.js';
+import { MoneySupply } from './moneySupply.js';
 
 function _num(v, d = 0) {
     return typeof v === 'number' && Number.isFinite(v) ? v : d;
@@ -42,15 +47,27 @@ export const Coinage = {
     },
 
     /**
-     * What debased coin does to a settlement's prices: 1 + (1 − purity) ×
-     * elasticity. Exactly 1 for pure coin, with no world or outside a realm.
+     * What the realm's coin does to a settlement's prices: the purity term
+     * 1 + (1 − purity) × elasticity, times the realm's price level
+     * (MoneySupply.level: 1 until measured). Exactly 1 for pure coin at the
+     * world's norm, with no world or outside a realm.
      */
     priceMultiplier(world, settlement) {
         const k = Coinage.kingdomOf(world, settlement);
         if (!k) return 1;
-        const p = Coinage.purity(k);
+        return Coinage.purityFactor(k) * MoneySupply.level(world, k.id);
+    },
+
+    /** The purity term alone: 1 + (1 − purity) × elasticity (1 for pure coin). */
+    purityFactor(kingdom) {
+        const p = Coinage.purity(kingdom);
         if (p >= 1) return 1;
         return 1 + (1 - p) * _num(Coinage.config().elasticity, 0.9);
+    },
+
+    /** The quantity term alone: the realm's price level (world/moneySupply.js). */
+    level(world, kingdom) {
+        return kingdom ? MoneySupply.level(world, kingdom.id) : 1;
     },
 
     /** How far a realm's people trust its coin and its crown's word, 0–100. */

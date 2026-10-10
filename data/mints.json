@@ -1,0 +1,68 @@
+{
+    "_doc": "Specie, Mints & the Price Level (world/moneySupply.js, systems/mints.js). Every realm has coin in circulation (world.money.realms[id].coin), seeded at coinPerHead x its people. Each week (every `every` days) coin moves: the realms' NPC trade settles part of its balance in specie, tribute and crown loans move it, debased coin is driven out (Gresham), panics send it abroad, a little wears away, and the mints strike new coin from the gold and silver ore they buy in the realm's markets and from the player. The realm's price level follows its coin per head (x velocity: hoarding in war and panic) against the world's, smoothed and clamped, and multiplies every price in its markets together with the coin's purity (world/coinage.js). Set enabled false to switch the whole system off (every reader returns neutral). Balance: docs/economy-balance.md 'Specie, Mints & the Price Level'.",
+    "enabled": true,
+    "every": 7,
+    "coinPerHead": 2.0,
+
+    "_level": "Quantity term: the realm's price level target = (coin x velocity / people, against the world's) ^ elasticity, clamped to [min, max]; the level moves `smoothing` of the way there each week. Kept narrow on purpose: a whole-basket gap between two realms is a gap every trader can work.",
+    "level": { "elasticity": 0.5, "min": 0.9, "max": 1.12, "smoothing": 0.2 },
+
+    "_velocity": "Hoarding: a realm at war hoards `war` of its coin, one with a run on its bank or a fresh crown default `panic` more; velocity moves `adjust` of the way to its target each week (never below `floor`).",
+    "velocity": { "war": 0.12, "panic": 0.1, "adjust": 0.3, "floor": 0.6 },
+
+    "_trade": "Specie flows from trade: the NPC traders' goods crossing a border (their value at the exporter's price, left on each trade link by world/settlementMarket.js) are settled `specie` in coin, the rest in bills and kind. hume: the price-specie flow: a realm with less coin per head than a trading partner is cheaper, sells it more, and wins back hume x the gap in log coin per head (unclamped) x the smaller of the two realms' coin a week from it, so a drained realm recovers, a realm whose mines pour out coin spends it abroad, and a persistent deficit settles a few points under the norm. maxShare: most of a realm's coin that leaves it in one week by trade.",
+    "trade": { "specie": 0.35, "hume": 0.04, "maxShare": 0.06 },
+
+    "_transfers": "Share of a payment between crowns that moves coin in circulation: tribute and capitulation indemnities (raised from the people, spent by the victor), crown loans from a banking house in another realm (and their repayment). maxShare caps one transfer at that share of the payer's coin.",
+    "transfers": { "tribute": 0.15, "loans": 0.4, "maxShare": 0.1 },
+
+    "_gresham": "Bad money drives out good: a realm whose coin is debased loses rate x (1 - purity) of its coin a week to its sounder trading partners (merchants hoard and export the old full-weight pieces).",
+    "gresham": { "rate": 0.15 },
+
+    "_flight": "Coin flight: a realm with a run on one of its banks, or a crown default in the last `defaultDays`, loses `rate` of its coin a week to the soundest realm it trades with.",
+    "flight": { "rate": 0.015, "defaultDays": 30 },
+
+    "_wear": "Coin lost a week: worn, clipped, buried, carried off to far lands. The mints must keep striking to hold the level.",
+    "wear": 0.002,
+
+    "_drift": "The invisible balance: pilgrims, mercenaries' pay, smugglers and travellers carry coin from realms with much of it to realms with little, whether they trade or not. Each week a realm's coin moves by ratio ^ -drift (its coin per head against the world's), the total kept, so a realm with no trading partners is not stranded at the clamp.",
+    "drift": 0.04,
+
+    "_income": "The crown's tax yield follows the coin about (KingdomAI.incomeMultiplier x level ^ elasticity, clamped): a realm drained of coin collects less, one awash in it more. The crowns' daily income is otherwise a ledger of their realms' commerce; see docs/economy-balance.md for why it is only partly backed.",
+    "income": { "elasticity": 0.3, "min": 0.97, "max": 1.03 },
+
+    "_mint": "The mints. Each week every realm's mint buys gold and silver ore from its markets where the stock stands above `keep` x the market's target (at most weeklyFine of fine value, x the mint policy's draw), plus what the player sold it. fine: coin a unit of bullion holds at full purity (gold ore, 40g base, holds 36; silver ore, 18g, holds 16; a gold bar, 150g, 140): the mint is a deep buyer at about base price, better than the stalls when the metal is plentiful, worse when it is scarce. Coin struck = fine / purity (a debased mint strikes more coin from the same bullion); the crown keeps the seigniorage, the rest goes into circulation. The player is paid fine x (1 - seigniorage) x the realm's price multiplier, never more than `askCap` of the open market's ask for that good here (no buy-here-sell-to-the-mint loop), up to playerWeeklyFine a week per mint. remint: share of the foreign coin that came in during the week (trade, tribute, loans, Gresham, flight) brought to the mint to be restruck as the realm's own, for the same seigniorage: most of a mint's profit in a realm without mines.",
+    "mint": {
+        "fine": { "gold_ore": 36, "silver_ore": 16, "gold_bar": 140 },
+        "keep": 0.6,
+        "weeklyFine": 2500,
+        "playerWeeklyFine": 3000,
+        "askCap": 0.95,
+        "remint": 0.5,
+        "policies": {
+            "low":    { "label": "Low (2%)",    "seigniorage": 0.02, "draw": 1.25 },
+            "normal": { "label": "Usual (5%)",  "seigniorage": 0.05, "draw": 1.0 },
+            "high":   { "label": "High (10%)",  "seigniorage": 0.1,  "draw": 0.6 }
+        },
+        "seignHistory": 8
+    },
+
+    "_debase": "Debasement through the mint (systems/finance.js debase): the crown recoins the circulating coin at the lower standard and keeps the difference; the swollen coin raises prices on top of the purity term, and Gresham's law starts draining the good coin abroad. coinShare: share of the recoined surplus that enters circulation.",
+    "debase": { "coinShare": 1.0 },
+
+    "_recoinage": "A recoinage edict calls in the old coin and strikes it anew at full purity. Holders get back purity + crownShare x (1 - purity) of each piece (the coin in circulation shrinks: prices fall); the crown pays crownShare x (1 - purity) x the coin from its treasury, and the realm's stability moves `stability` (relief at honest coin less the grumbling at the exchange). A crown out of trouble (debt ratio under maxDebtRatio, treasury above treasuryCover x the cost) proclaims one by itself; the player as ruler may at any time. Not again within cooldown days.",
+    "recoinage": { "crownShare": 0.5, "stability": 2, "maxDebtRatio": 0.3, "treasuryCover": 4, "cooldown": 120, "minGap": 0.05 },
+
+    "_exchange": "Money changers: carrying gold into a realm whose coin is of another purity costs perPurity x the purity gap of the gold carried (at most max), when the purse holds at least minGold. Recorded as 'exchange' in the ledger. The rate shown between two coins is their silver content (purity) ratio.",
+    "exchange": { "perPurity": 0.25, "max": 0.05, "minGold": 50 },
+
+    "_concession": "Leasing a mint: the player pays fee = feeShare x the mint's average weekly seigniorage (last seignHistory weeks) x share x the term's weeks up front into the treasury, and takes `share` of the seigniorage each week for termDays. Not to be had while at war with the realm, from a mint that struck nothing, or while another lease runs.",
+    "concession": { "termDays": 120, "share": 0.5, "feeShare": 0.9, "minFee": 40 },
+
+    "_counterfeit": "Passing false coin (Thieves' Guild members of rank minRank and above, in a settlement of a realm): stake [minStake, maxStake] of good coin in silvered copper, passed for gain x the stake on success. Caught with chance base + heatPer x heat - rankCut x rank, x (looser + (1 - looser) x the coin's purity): a debased coin is easier to fake. Caught: the stake is lost, a fine of fineShare x the stake, heat +caughtHeat, and arrest with arrestChance. Passed: heat +passHeat, and the false coin swells the realm's coin. Once every cooldown days.",
+    "counterfeit": { "minRank": 1, "minStake": 100, "maxStake": 600, "gain": 0.55, "base": 0.16, "heatPer": 0.004, "rankCut": 0.02, "looser": 0.6, "fineShare": 1.0, "caughtHeat": 15, "passHeat": 4, "arrestChance": 0.5, "cooldown": 7 },
+
+    "_news": "The heralds and the townsfolk: a coin shortage (level at or below shortAt and falling) or a flood of coin (level at or above floodAt and rising) is news once per realm every gapWeeks; recoinages always. Counsel: warn the ruler when their realm's level is outside [shortAt, floodAt] or its coin is debased; tell the player when bullion in their packs would fetch at least bullionGain over the market at a mint within mintRadius hexes.",
+    "news": { "shortAt": 0.94, "floodAt": 1.07, "gapWeeks": 8, "cap": 30, "historyWeeks": 26 },
+    "counsel": { "bullionGain": 0.05, "mintRadius": 25 }
+}

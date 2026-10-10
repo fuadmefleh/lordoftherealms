@@ -18,7 +18,7 @@ const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TH = 'text-align:left; padding:3px 6px; color:var(--gold); font-weight:normal; border-bottom:1px solid rgba(255,255,255,0.12);';
 const TD = 'padding:3px 6px; border-bottom:1px solid rgba(255,255,255,0.05);';
 const TABS = [['realms', '🏛️ Realms'], ['charts', '📈 Charts'], ['markets', '🏪 Shortages & Gluts'], ['fashions', '👗 Fashions'], ['worth', '💰 Your Worth']];
-const SERIES = [['food', '🍞 Food'], ['goods', '🧺 Cost of living'], ['trade', '🐫 Trade'], ['short', '⚠️ Shortages'], ['idle', '✊ Idle hands'], ['welfare', '😊 Welfare'], ['treasury', '👑 Treasury'], ['debt', '📜 Debt ratio']];
+const SERIES = [['food', '🍞 Food'], ['goods', '🧺 Cost of living'], ['trade', '🐫 Trade'], ['short', '⚠️ Shortages'], ['idle', '✊ Idle hands'], ['welfare', '😊 Welfare'], ['treasury', '👑 Treasury'], ['debt', '📜 Debt ratio'], ['level', '💰 Price level (coin)'], ['coin', '💰 Coin about']];
 
 const view = { tab: 'realms', realm: null, series: 'food' };
 
@@ -55,6 +55,7 @@ function sparkline(points, { w = 260, h = 54, color = '#f5c542', fmt = (v) => St
 const SERIES_FMT = {
     food: (v) => `${Math.round(v * 100)}`, goods: (v) => `${Math.round(v * 100)}`, idle: (v) => `${Math.round(v * 100)}%`,
     welfare: (v) => `${Math.round(v * 100)}`, debt: (v) => `${Math.round(v * 100)}%`, treasury: (v) => `${Math.round(v).toLocaleString()}g`,
+    level: (v) => `${Math.round(v * 100)}`, coin: (v) => `${Math.round(v).toLocaleString()}g`,
 };
 
 // ── Realms ──────────────────────────────────────────────
@@ -64,7 +65,7 @@ function realmsTab(game) {
     if (!g.realms.length && !g.world) {
         return `<div style="${NOTE}">You have read no gazette yet. Every town with a market posts one each week: the realms' prices, trade, work and money. Stand in a market town to read it.</div>`;
     }
-    let html = `<div style="${NOTE}">From the gazettes you have read${g.at ? `, the last at ${esc(g.at)} on day ${g.read}` : ''}. Indices: 100 = goods at their base price (season, scarcity and debased coin all count). Your own realm's gazette is this week's; other realms' news is a week older. Changes are over the last ${EconomyIndex.config().changeWeeks} weeks.</div>`;
+    let html = `<div style="${NOTE}">From the gazettes you have read${g.at ? `, the last at ${esc(g.at)} on day ${g.read}` : ''}. Indices: 100 = goods at their base price (season, scarcity, debased coin and the coin about all count; 'coin' is the realm's price level from its coin in circulation, 100 = the world's norm). Your own realm's gazette is this week's; other realms' news is a week older. Changes are over the last ${EconomyIndex.config().changeWeeks} weeks.</div>`;
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;"><tr><th style="${TH}">Realm</th><th style="${TH}">Food</th><th style="${TH}">Cost of living</th><th style="${TH}">Change</th><th style="${TH}">Trade</th><th style="${TH}">Short / dearth</th><th style="${TH}">Idle</th><th style="${TH}">Treasury</th><th style="${TH}">Debt · coin</th><th style="${TH}">As of</th></tr>`;
     const row = (name, x, link) => {
         const n = x.now, t = x.then;
@@ -78,7 +79,7 @@ function realmsTab(game) {
             + `<td style="${TD}">${n.short} / ${n.dearth} <span style="${NOTE}">of ${n.towns}</span></td>`
             + `<td style="${TD}">${Math.round(n.idle * 100)}%</td>`
             + `<td style="${TD}">${n.treasury == null ? '—' : `${Math.round(n.treasury).toLocaleString()}g`}</td>`
-            + `<td style="${TD}">${n.debt == null ? '—' : `${Math.round(n.debt * 100)}%`}${n.purity != null && n.purity < 1 ? ` · <span style="color:#e67e22;">${Math.round(n.purity * 100)}% silver</span>` : ''}</td>`
+            + `<td style="${TD}">${n.debt == null ? '—' : `${Math.round(n.debt * 100)}%`}${n.purity != null && n.purity < 1 ? ` · <span style="color:#e67e22;">${Math.round(n.purity * 100)}% silver</span>` : ''}${n.level != null && Math.abs(n.level - 1) >= 0.02 ? ` · <span style="color:${n.level > 1 ? '#e8a040' : '#7cc4e0'};" title="Price level from the coin about (100 = the world's norm)">coin ${Math.round(n.level * 100)}</span>` : ''}</td>`
             + `<td style="${TD}">day ${x.asOf}</td></tr>`;
     };
     for (const r of g.realms) html += row(r.name, r, act(`${esc(r.name)}${r.alive ? '' : ' †'}`, ['realm', r.id], view.realm === r.id ? BTN_GOLD : BTN_PLAIN));

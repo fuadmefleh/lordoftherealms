@@ -40,6 +40,7 @@ import { EconomyIndex } from '../world/economyIndex.js';
 import { Fashions } from '../world/fashions.js';
 import { Harvests } from '../world/harvests.js';
 import { Transport } from '../world/transport.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const DEFAULT_CONFIG = {
     localRadius: 8, eventRadius: 10, sagaRadius: 14, siegeRadius: 6, rivalRadius: 6, outlawRadius: 10,
@@ -61,7 +62,7 @@ const CONDITIONS = {
 
 export const SEASONS = ['Spring', 'Summer', 'Autumn', 'Winter'];
 /** What townsfolk say about money (systems/finance.js): the `money` condition's kinds. */
-export const MONEY_KINDS = ['debased', 'levy', 'default', 'bank_run', 'bank_failed', 'bank', 'mania', 'crash', 'insurers_failed'];
+export const MONEY_KINDS = ['debased', 'levy', 'default', 'bank_run', 'bank_failed', 'bank', 'mania', 'crash', 'insurers_failed', 'coin_short', 'coin_flood', 'recoinage'];
 /** What townsfolk say about work and the people (world/townLabour.js): the `labour` condition's kinds. */
 export const LABOUR_KINDS = ['idle', 'refugees', 'strike', 'boom', 'hardship', 'mine_strike', 'mine_closed'];
 /** What townsfolk say about the cost of living (world/economyIndex.js): the `prices` condition's kinds. */
@@ -294,6 +295,12 @@ export const Chatter = {
             if (f && typeof f.purity === 'number' && f.purity < 1) ctx.money.push({ kind: 'debased' });
             if (f && f.levy && day != null && _num(f.levy.until) >= day) ctx.money.push({ kind: 'levy' });
             if (f && f.lastDefaultDay != null && day != null && day - f.lastDefaultDay <= 60) ctx.money.push({ kind: 'default' });
+            // The coin about: short or flooding, a recoinage lately (world/moneySupply.js)
+            const lv = MoneySupply.level(world, kid);
+            const N = MoneySupply.config().news;
+            if (lv <= N.shortAt) ctx.money.push({ kind: 'coin_short' });
+            else if (lv >= N.floodAt) ctx.money.push({ kind: 'coin_flood' });
+            if (MoneySupply.recent(world, kid, 'recoinage', 60)) ctx.money.push({ kind: 'recoinage' });
             const banks = (player && player.finance && Array.isArray(player.finance.banks)) ? player.finance.banks : [];
             for (const b of banks) {
                 if (!b || b.kingdomId !== kid) continue;
@@ -632,7 +639,9 @@ export const Chatter = {
         if (ctx.strike) f.push(`The ${ctx.strike.guild} is on strike; ${ctx.strike.good} is short.`);
         if (ctx.outlaws) f.push(`Outlaws led by ${ctx.outlaws.leader} hold ${ctx.outlaws.name} nearby and raid the roads.`);
         const MONEY = { debased: 'The coin of the realm has been debased and prices are rising.', levy: 'The crown has raised an extraordinary war levy.',
-            default: 'The crown has refused to pay its debts.', bank_run: 'Depositors are running on the bank.', bank_failed: 'A banking house has failed.' };
+            default: 'The crown has refused to pay its debts.', bank_run: 'Depositors are running on the bank.', bank_failed: 'A banking house has failed.',
+            coin_short: 'Coin is short in the realm: prices are low and silver hard to come by.', coin_flood: 'The realm is awash with coin, and prices are rising with it.',
+            recoinage: 'The crown has called in the clipped coin and struck it anew at full weight.' };
         for (const m of ctx.money || []) if (MONEY[m.kind]) f.push(MONEY[m.kind]);
         const WORK = { idle: 'Many here are out of work.', refugees: 'Refugees have crowded into the town.', strike: 'The artisans are on strike over the price of bread.',
             boom: 'Times are good: there is work for all and newcomers keep arriving.', hardship: 'The poor are hard-pressed: wages do not cover bread and fuel.',

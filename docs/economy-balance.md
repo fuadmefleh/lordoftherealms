@@ -902,6 +902,82 @@ Measured with the harness's `mark` timing, 361 days, seeds 101–303, with the p
 - The harness maps have few rivers (seed 101 has 3 river hexes), so bridges, fords and ferries rarely matter there. They will matter more on larger maps.
 - World units other than merchant caravans (war hosts, patrols) still move one hex a step whatever the road.
 - The bot does not fund works.
+## Specie, Mints & the Price Level (2026-10)
+
+`world/moneySupply.js`, `systems/mints.js`, `data/mints.json`. See [the manual](../GAMEPLAY_MANUAL.md#specie-mints--the-price-level).
+
+**The model.** Each realm has coin in circulation, seeded at 2 g per head (about 17,000–35,000 g a realm on the harness world). The crown's treasury and the banks' reserves are coin held out of circulation: shown as broad money, but they move no prices. Each week the coin moves:
+
+| Flow | Rule |
+|---|---|
+| Trade | 35% of the net value of NPC goods crossing a border is settled in coin (from `link.valAB/valBA`), at most 6% of the payer's coin a week |
+| Price-specie | 4% × the gap in log coin per head × the smaller coin, between trading partners |
+| Drift | Every realm's coin moves by ratio^−0.04, the total kept (travellers, pilgrims, mercenaries): no realm is stranded without partners |
+| Tribute | 15% of a war's tribute, at most 10% of the loser's coin |
+| Crown loans | 40% of a loan from a house in another realm, and of its repayments |
+| Gresham | 15% × (1 − purity) of a debased realm's coin a week, to sounder partners |
+| Flight | 1.5% a week from a realm with a bank run or a crown default in the last 30 days |
+| Wear | 0.2% a week |
+| Mint | Ore above 60% of the market's target in the realm's towns (at most 2,500 g fine a week) plus the player's bullion, struck at fine / purity; seigniorage 5%; half the foreign coin that came in is restruck for the same charge |
+
+The price level is clamp((coin × velocity / people against the world's)^0.5, 0.9, 1.12), moving 20% of the way each week. Velocity: 12% hoarded at war, 10% more in a panic. `Coinage.priceMultiplier` = the purity term × the level.
+
+**Why the treasuries are only partly backed.** A crown's income is the daily growth of its towns' `economy.gold`, an accumulator that is never spent. Treasuries reach 30,000–350,000 g, 2–15 times the realm's circulating coin. Drawing taxes from the coin in circulation would drain it to nothing within weeks in every rich realm, so full conservation was not tried. Instead, the crown's gold is tied to the coin where it is reasonable:
+- The tax yield follows the coin: `KingdomAI.incomeMultiplier` × level^0.3, clamped to 0.97–1.03.
+- The mint's seigniorage is real coin from real bullion.
+- Tribute, indemnities, crown loans and their repayment move circulating coin between realms.
+- Debasement recoins the circulating coin: its coin grows by 1/0.9 − 1 = 11% a step.
+- A recoinage costs the treasury half the missing silver and shrinks the coin.
+
+**Measured.** Seeds 7–26, 1,080 days, the method of [world stability](world-stability.md); the same runs with `enabled: false` as the baseline.
+
+| | Baseline (off) | Specie & mints |
+|---|---|---|
+| Realms alive (of 200) | 177 (88.5%) | **178 (89%)** |
+| Seconds per 1,080-day run | 139 | 125 (noise; the system costs about 0.1 ms a day) |
+
+Two earlier tunings measured 176 and 180 (income factor 0.94–1.05) and 173 (drift 0.02). The off run reproduced 177 exactly, so the sim is deterministic and the spread between tunings is the system's effect on which realms fall, not noise in the sim. The income factor was narrowed to 0.97–1.03 because a coin-drained loser of a war also lost tax yield.
+
+**Price levels at day 1,080** (178 living realms): p5 0.90, p25 0.96, median 1.00, p75 1.03, p95 1.10. 13 realms (7%) sit at the 0.90 floor (mostly small realms that paid tribute or ran deficits), 2 at the 1.12 ceiling. Without the drift term, 29 realms (16%) were stuck at the floor.
+
+**Coin moved per world over 1,080 days** (average of 20 seeds, in + out across realms):
+
+| Flow | In | Out |
+|---|---|---|
+| Trade | 81,500 | 76,300 |
+| Mint (struck less seigniorage) | 124,100 | 1,900 (brassage) |
+| Wear | — | 80,700 |
+| Drift | 50,700 | 55,200 |
+| Tribute (incl. fallen realms' coin to the conqueror) | 48,900 | 26,200 |
+| Crown loans | 26,900 | 30,000 |
+| Gresham | 22,300 | 21,100 |
+| Debasement | 15,300 | — |
+| Flight | 7,300 | 6,800 |
+| Recoinage | — | 4,000 |
+
+Mint output roughly replaces wear, so the world's coin holds steady.
+
+**The player** (seeds 101 and 202, day 180, every capital):
+
+| | Value |
+|---|---|
+| Mint price, gold ore | 31–39 g (fine 36 × 0.95 × the level), against market asks of 34–65 g where the capital's market sells it |
+| Mint price, silver ore | 10.5–17 g (capped at 95% of the ask where the market is glutted) |
+| Mint price, gold bar | 121–151 g |
+| A mint's seigniorage | 0–42 g a week (median about 11). Most of it comes from restriking foreign coin, the rest from bullion |
+| A mint lease | 40 g minimum; 90% of half the recent seigniorage over 120 days. A small, fair, passive return |
+| Money changers | 0 between coins of the same purity; 2.5% per 0.1 of purity gap, at most 5% of the purse |
+| Counterfeiting | 16% base catch chance at rank 1 and no heat. Expected value per batch is about +0.14 × the stake at no heat (0.84 × 0.55 gain against 0.16 × the stake and the fine), and it turns negative as heat builds (+4 a batch passed, +15 caught). Once a week, 600 g at most |
+
+**No money loops.**
+- The mint never pays more than 95% of the market's ask on the same tile, so buying ore and selling it to the mint loses.
+- Across realms, a whole-basket price gap is at most 0.90 to 1.12 (24%), plus the purity term. The changers charge for a purity gap. The mint takes at most 3,000 g of fine metal a week from the player.
+- A mint lease returns about 1.11× its fee if the seigniorage holds.
+- Counterfeiting carries a fine as large as the stake, plus heat and arrest.
+
+**Hinterland.** Silver veins have their own hash band (`hiddenExtra`: 6% of the hill, highland and mountain hexes) past `hidden`, so no existing vein changed kind. Silver mines rank 7.2, above sheep runs, so they replace only sheep runs and the odd quarry. On seed 202: 5 silver mines, sheep runs 24 → 21, quarries 5 → 3. On seed 101: 3 silver mines, sheep runs 19 → 16.
+
+**Tick cost.** The weekly pass costs 0.5–0.7 ms and the other days about 0.01–0.02 ms, about 0.1 ms a day on average. `Coinage.priceMultiplier` costs about 0.6–1 µs a call.
 
 ## Re-measuring
 

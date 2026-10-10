@@ -43,6 +43,7 @@ import './tradePolicy.js';
 import './harvests.js';
 import './underwriting.js';
 import './bourse.js';
+import './mints.js';
 import './economy.js';
 import './publicWorks.js';
 

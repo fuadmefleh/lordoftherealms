@@ -73,6 +73,7 @@ import { Underwriting } from '../../systems/underwriting.js';
 import { Bills } from '../../systems/bills.js';
 import { Bourse } from '../../systems/bourse.js';
 import { PublicWorks } from '../../systems/publicWorks.js';
+import { Mints } from '../../systems/mints.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
 
 export const WORLD_W = 80;
@@ -354,6 +355,8 @@ function _endDay(game) {
     mark(game, 'Bills.processDay');
     game.bourseDay = Bourse.processDay(world, player);
     mark(game, 'Bourse.processDay');
+    game.mintsDay = Mints.processDay(world, player);
+    mark(game, 'Mints.processDay');
     game.taxDay = world.day % 7 === 0 ? Taxation.collectTaxes(player, world) : null;
     mark(game, 'Taxation.collectTaxes');
     if (player.queuedPath) player.resumeQueuedPath();

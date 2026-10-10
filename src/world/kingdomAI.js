@@ -17,6 +17,7 @@ import { KingdomAtlas } from './kingdomAtlas.js';
 import { KingdomNavy } from './kingdomNavy.js';
 import { EconomyIndex } from './economyIndex.js';
 import { Harvests } from './harvests.js';
+import { MoneySupply } from './moneySupply.js';
 
 export const KingdomAI = {
     /**
@@ -220,7 +221,8 @@ export const KingdomAI = {
             + KingdomBonuses.get(kingdom, 'tax') + eventTax
             + LordInfluence.incomeBonus(kingdom); // the lord's own stewardship
         return Math.max(0.1, 1 + bonus) * KingdomStability.incomeMultiplier(kingdom)
-            * KingdomNavy.incomeFactor(kingdom); // a blockade strangles the port trade
+            * KingdomNavy.incomeFactor(kingdom) // a blockade strangles the port trade
+            * MoneySupply.incomeFactor(world, kingdom); // a realm drained of coin yields less tax (world/moneySupply.js)
     },
 
     /** Daily gold spent keeping armies in the field while at war. */
@@ -675,6 +677,8 @@ export const KingdomAI = {
             tribute = Math.floor(Math.max(0, loser.treasury || 0) * (opts.tribute != null ? opts.tribute : KingdomAI.WAR.tribute));
             loser.treasury = (loser.treasury || 0) - tribute;
             victor.treasury = (victor.treasury || 0) + tribute;
+            // The loser raises it from its people; the victor spends it: coin crosses the border (world/moneySupply.js)
+            if (tribute > 0 && world) MoneySupply.transfer(world, loser.id, victor.id, tribute, 'tribute');
         }
         // Recent war outcomes (the player's share of a liege's victory reads these)
         if (world) {

@@ -1152,6 +1152,8 @@ export const SettlementMarket = {
      * systems/tradePolicy.js) add to the friction a good must beat to move
      * that way (Infinity: its export is banned); the duty on what moves is
      * left on link.paidAB / paidBA for the treasuries.
+     * The value of the goods moved each way (at the exporter's price) is left
+     * on link.valAB / valBA for the coin the realms settle in (world/moneySupply.js).
      * @returns {{ moved:number, value:number, gold:number }}
      */
     flows(links, basePrices, day = null) {
@@ -1202,7 +1204,7 @@ export const SettlementMarket = {
             // Crown tariffs and export bans (systems/tradePolicy.js): extra friction on
             // a→b / b→a goods (Infinity = banned); the duty paid is left on the link
             const dAB = link.dutyAB || null, dBA = link.dutyBA || null;
-            let paidAB = 0, paidBA = 0;
+            let paidAB = 0, paidBA = 0, valAB = 0, valBA = 0;
             // Perishables spoil on the way (world/transport.js): more friction, part lost
             const per = link.perish > 0 ? link.perish : 0, lossP = link.loss > 0 ? link.loss : 0;
             const pm = per > 0 || lossP > 0 ? Transport.perishMask(ids) : null;
@@ -1243,7 +1245,7 @@ export const SettlementMarket = {
                 budget -= qty * base * se;
                 const g = qty * base * (si - se) * T.goldScale;
                 goldLink += g;
-                if (aExports) { movedA += qty; gAB += g; } else { movedB += qty; gBA += g; }
+                if (aExports) { movedA += qty; gAB += g; valAB += qty * base * se; } else { movedB += qty; gBA += g; valBA += qty * base * se; }
                 // (an embodied lot pays its duty as the caravan's border toll instead)
                 const duty = dut - (pm !== null && pm[i] === 1 ? per : 0);
                 if (duty > 0 && !emb) { if (aExports) paidAB += qty * base * se * duty; else paidBA += qty * base * se * duty; }
@@ -1255,6 +1257,8 @@ export const SettlementMarket = {
             link.val = valLink;
             if (emb) { link.cargoAB = cAB; link.cargoBA = cBA; link.goldAB = gAB; link.goldBA = gBA; }
             if (paidAB > 0 || paidBA > 0) { link.paidAB = _num(link.paidAB) + paidAB; link.paidBA = _num(link.paidBA) + paidBA; }
+            // What crossed each way, for the specie the realms settle in (world/moneySupply.js collectTrade)
+            if (valAB > 0 || valBA > 0) { link.valAB = _num(link.valAB) + valAB; link.valBA = _num(link.valBA) + valBA; }
             if (movedA > 0 || movedB > 0) {
                 // An embodied link's margin rides with its caravans (paid on arrival)
                 if (!emb) {

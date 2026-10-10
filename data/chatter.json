@@ -32,6 +32,7 @@
             "saga_end": 6, "revolt": 8, "revolt_end": 7, "rebellion": 5, "discovery": 5,
             "siege_won": 6, "siege_lost": 7, "wonder": 7, "wonder_begun": 4, "lair_cleared": 5, "lair_risen": 5,
             "bank_failed": 6, "crown_default": 7, "coin_debased": 5, "caravan_taken": 4,
+            "coin_recoinage": 4, "coin_shortage": 3, "coin_flood": 3,
             "market_fair": 4, "market_dearth": 5, "market_glut": 3,
             "labour_refugees": 5, "labour_strike": 4, "labour_boom": 3,
             "guild_strike": 5, "guild_election": 3, "guild_chartered": 3, "guild_abolished": 5,
@@ -47,6 +48,7 @@
             "saga_end": "📜", "revolt": "🔥", "revolt_end": "🛡️", "rebellion": "🔥", "discovery": "🗺️",
             "siege_won": "🏰", "siege_lost": "🏳️", "wonder": "🏛️", "wonder_begun": "🏗️", "lair_cleared": "🛡️", "lair_risen": "🏕️",
             "bank_failed": "🏚️", "crown_default": "📛", "coin_debased": "💱", "caravan_taken": "🐫",
+            "coin_recoinage": "💰", "coin_shortage": "💰", "coin_flood": "💰",
             "market_fair": "🎪", "market_dearth": "🥖", "market_glut": "🌾",
             "labour_refugees": "🧳", "labour_strike": "✊", "labour_boom": "🏗️", "guild_strike": "✊", "guild_election": "🗳️", "guild_chartered": "📜", "guild_abolished": "⚖️",
             "mine_strike": "⛏️", "mine_vein": "💎", "mine_exhausted": "🕳️", "mine_accident": "💥",
@@ -309,6 +311,18 @@
             "coin_debased": [
                 "Know all: the mint of {kingdom} strikes new coin of {purity} parts silver in the hundred. Prices rise in every market.",
                 "The coin of {kingdom} is clipped and thinned. Merchants weigh it twice and ask for more."
+            ],
+            "coin_recoinage": [
+                "Hear ye! By edict of the crown of {kingdom}, all clipped coin is called in to the mint and struck anew at full weight. Bring your purses.",
+                "The crown of {kingdom} calls in its light coin ({purity} parts silver in the hundred) and strikes honest money again. There will be less of it about."
+            ],
+            "coin_shortage": [
+                "Coin is short in {kingdom}: prices stand {pct}% under the world's, and the merchants cannot get paid in silver.",
+                "The criers of {kingdom} complain of want of coin. Goods are cheap there, {pct}% under the world's prices, for who has the silver to buy them?"
+            ],
+            "coin_flood": [
+                "Coin floods {kingdom}: every purse is full and every price {pct}% over the world's.",
+                "Silver runs like water in {kingdom}, and prices with it: {pct}% over the world's. Sell there, buy elsewhere."
             ],
             "caravan_taken": [
                 "Hear ye! The {good} {carrier} bound for {place} was taken by {by} on the road from {from}. Expect dear {good} in {place}.",
@@ -697,6 +711,26 @@
         { "id": "money_bank_failed", "when": { "money": ["bank_failed"] }, "weight": 3, "lines": [
             "{bank} is broken. My savings with it. Thirty years at the loom, gone like smoke.",
             "The receivers of {bank} pay a third of what's owed, they say, and take a year to do it."
+        ]},
+        { "id": "money_coin_short", "when": { "money": ["coin_short"] }, "weight": 2, "lines": [
+            "Nobody has any coin. The baker takes eggs, the smith takes grain, and the tax man takes what's left.",
+            "Prices are low, aye, but what's the use when there's not a penny in the town to pay them with?"
+        ]},
+        { "id": "money_coin_short_merchant", "when": { "money": ["coin_short"], "occupation": ["merchant", "traveler"] }, "weight": 3, "lines": [
+            "Goods are cheap in {kingdom} for want of coin. Bring silver and you can buy the market.",
+            "I sold on credit all season. The coin all went abroad to pay for the wine and the cloth."
+        ]},
+        { "id": "money_coin_flood", "when": { "money": ["coin_flood"] }, "weight": 2, "lines": [
+            "So much silver about and still I can't afford a ham. Everything costs more every market day.",
+            "New coin everywhere, bright as the moon, and it buys less every week."
+        ]},
+        { "id": "money_coin_flood_merchant", "when": { "money": ["coin_flood"], "occupation": ["merchant", "traveler"] }, "weight": 3, "lines": [
+            "{kingdom} pays well for everything: the coin is cheap here. Sell here, buy in the lean realms.",
+            "The mines and the mint keep pouring out coin. Good for a seller, hard on a buyer."
+        ]},
+        { "id": "money_recoinage", "when": { "money": ["recoinage"] }, "weight": 3, "lines": [
+            "They called in the old coin. I took ten clipped pennies to the mint and got nine good ones back. Honest money, they say.",
+            "The new coin rings true at last. Prices are coming down, though my purse is lighter for it."
         ]},
         { "id": "money_mania", "when": { "money": ["mania"] }, "weight": 3, "lines": [
             "My cousin put his savings in {listing}. Doubled in a month! I'm selling the mule to buy some.",

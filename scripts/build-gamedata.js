@@ -39,7 +39,8 @@ const topLevel = [
     'harvests',
     'chronicle',
     'bourse',
-    'transport'
+    'transport',
+    'mints'
 ];
 
 const merged = {};

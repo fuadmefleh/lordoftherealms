@@ -23,7 +23,7 @@ const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TH = 'text-align:left; padding:3px 6px; font-size:11px; color:var(--text-secondary); border-bottom:1px solid rgba(255,255,255,0.1);';
 const TD = 'padding:3px 6px; border-bottom:1px solid rgba(255,255,255,0.05);';
 const TABS = [['coin', '💰 Coin'], ['mint', '🏛️ The Mint'], ['crown', '👑 Your coin'], ['coiners', '🕯️ Coiners']];
-const FLOW_LABEL = { trade: 'Trade', tribute: 'Tribute', loans: 'Crown loans', gresham: 'Gresham', flight: 'Flight', mint: 'Mint', wear: 'Wear', debase: 'Debasement', recoin: 'Recoinage', counterfeit: 'False coin', player: 'Other', drift: 'Travellers & pilgrims' };
+const FLOW_LABEL = { trade: 'Trade', tribute: 'Tribute', loans: 'Crown loans', gresham: 'Gresham', flight: 'Flight', mint: 'Mint', wear: 'Wear', debase: 'Debasement', recoin: 'Recoinage', counterfeit: 'False coin', player: 'Other', drift: 'Travellers & pilgrims', fisc: 'Taxes & crown spending' };
 
 let _tab = 'coin';
 

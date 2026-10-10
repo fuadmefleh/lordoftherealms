@@ -30,6 +30,7 @@ import { Discovery } from './discovery.js';
 import { Heralds } from './heralds.js';
 import { OutlawLairs } from './outlawLairs.js';
 import { Finance } from './finance.js';
+import { Fiscal } from './fiscal.js';
 import { MerchantHouses } from './merchantHouses.js';
 import { MerchantPrince } from './merchantPrince.js';
 import { Guilds } from './guilds.js';
@@ -177,6 +178,8 @@ export const SaveLoad = {
             fashions: Fashions.serialize(world),
             // Each realm's coin, its flows, price level and mint (world/moneySupply.js)
             money: MoneySupply.serialize(world),
+            // Tax farms and their auctions, tax revolts and the books' news (systems/fiscal.js)
+            fiscal: Fiscal.serialize(world),
             // Ids for characters, maps, spies, ... keep counting from here
             idCounter: Utils.getIdCounter(),
         };
@@ -283,7 +286,9 @@ export const SaveLoad = {
                 // The crown's debts, coin purity, levy and defaults (systems/finance.js, world/coinage.js)
                 'finance',
                 // Tariffs, bans, embargoes, treaties, trade wars, the granary (systems/tradePolicy.js)
-                'tradePolicy']),
+                'tradePolicy',
+                // The crown's books: tax levels, budget lines, arrears, corruption, demesne (world/crownBooks.js)
+                'fisc']),
             ...(k.createdByPlayer ? {
                 foundedDay: k.foundedDay,
                 colorLight: k.colorLight,
@@ -620,6 +625,8 @@ export const SaveLoad = {
         Fashions.restore(saveData.fashions, world);
         // The realms' coin (older saves: none — each realm is seeded afresh at the world's norm on the next week)
         MoneySupply.restore(saveData.money, world);
+        // The crowns' tax farms and news (older saves: none — every realm opens its books on the next day)
+        Fiscal.restore(saveData.fiscal, world);
         // Never hand out an id the save already used
         if (typeof saveData.idCounter === 'number') {
             Utils.setIdCounter(Math.max(Utils.getIdCounter(), saveData.idCounter));

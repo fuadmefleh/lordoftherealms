@@ -35,6 +35,7 @@ import { MarketDynamics, Taxation } from './marketDynamics.js';
 import { OutlawLairs } from './outlawLairs.js';
 import { Hinterland } from '../world/hinterland.js';
 import { Transport } from '../world/transport.js';
+import { Fiscal } from './fiscal.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -291,7 +292,8 @@ export const Labour = {
             TownLabour.update(s, {
                 day, k, fertility: land ? land.fertility : 1,
                 danger: Labour.danger(world, s, dctx, day),
-                taxRate: ruled.has(key) ? taxRate : null,
+                // (a realm town: the crown's taxes, a tax farmer's squeeze — systems/fiscal.js; null when off)
+                taxRate: ruled.has(key) ? taxRate : Fiscal.townBurden(world, s),
                 col: Labour.costOfLiving(s),
                 hands,
             });

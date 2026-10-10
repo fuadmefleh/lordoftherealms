@@ -33,6 +33,7 @@
             "siege_won": 6, "siege_lost": 7, "wonder": 7, "wonder_begun": 4, "lair_cleared": 5, "lair_risen": 5,
             "bank_failed": 6, "crown_default": 7, "coin_debased": 5, "caravan_taken": 4,
             "coin_recoinage": 4, "coin_shortage": 3, "coin_flood": 3,
+            "tax_revolt": 5, "tax_farm": 3, "taxes_raised": 4, "army_unpaid": 6, "offices_sold": 4, "crown_land_sold": 4,
             "market_fair": 4, "market_dearth": 5, "market_glut": 3,
             "labour_refugees": 5, "labour_strike": 4, "labour_boom": 3,
             "guild_strike": 5, "guild_election": 3, "guild_chartered": 3, "guild_abolished": 5,
@@ -49,6 +50,7 @@
             "siege_won": "🏰", "siege_lost": "🏳️", "wonder": "🏛️", "wonder_begun": "🏗️", "lair_cleared": "🛡️", "lair_risen": "🏕️",
             "bank_failed": "🏚️", "crown_default": "📛", "coin_debased": "💱", "caravan_taken": "🐫",
             "coin_recoinage": "💰", "coin_shortage": "💰", "coin_flood": "💰",
+            "tax_revolt": "🔥", "tax_farm": "📜", "taxes_raised": "💰", "army_unpaid": "⚔️", "offices_sold": "📜", "crown_land_sold": "🌾",
             "market_fair": "🎪", "market_dearth": "🥖", "market_glut": "🌾",
             "labour_refugees": "🧳", "labour_strike": "✊", "labour_boom": "🏗️", "guild_strike": "✊", "guild_election": "🗳️", "guild_chartered": "📜", "guild_abolished": "⚖️",
             "mine_strike": "⛏️", "mine_vein": "💎", "mine_exhausted": "🕳️", "mine_accident": "💥",
@@ -323,6 +325,30 @@
             "coin_flood": [
                 "Coin floods {kingdom}: every purse is full and every price {pct}% over the world's.",
                 "Silver runs like water in {kingdom}, and prices with it: {pct}% over the world's. Sell there, buy elsewhere."
+            ],
+            "tax_revolt": [
+                "Hear ye! The people of {place} have driven out the tax collectors of {kingdom}. No coin will reach the crown from there this month.",
+                "Riot in {place}! The collectors of {kingdom} are stoned in the market and their ledgers burned."
+            ],
+            "tax_farm": [
+                "Know all: the crown of {kingdom} has sold the taxes of {place} to {holder} for {amount}g. The farmer's men ride out tomorrow.",
+                "The taxes of {place} are farmed to {holder}. Its people bar their doors and hide their purses."
+            ],
+            "taxes_raised": [
+                "By order of the crown of {kingdom}, the taxes are made {level}. Every hearth and every harvest shall pay more.",
+                "The crown of {kingdom} lays {level} taxes on land, hearth and market. The people grumble and count their coin."
+            ],
+            "army_unpaid": [
+                "The soldiers of {kingdom} have gone three weeks without their pay. They sell their arms and drift home.",
+                "Mutiny in the camps of {kingdom}! The crown owes its army {amount}g and the captains will march no more."
+            ],
+            "offices_sold": [
+                "Know all: judgeships and collectorships of {kingdom} are for sale ({amount}g raised). Their buyers mean to have it back.",
+                "The crown of {kingdom} sells its offices to whoever pays. Expect new fees at every gate and court."
+            ],
+            "crown_land_sold": [
+                "The crown of {kingdom} sells royal manors to the great houses for {amount}g. Its own rents will be the less.",
+                "Hear ye! The demesne of {kingdom} is sold off piece by piece, and the lords grow fat on it."
             ],
             "caravan_taken": [
                 "Hear ye! The {good} {carrier} bound for {place} was taken by {by} on the road from {from}. Expect dear {good} in {place}.",
@@ -687,6 +713,22 @@
             "Go round {lair} if you value your purse. {leader} takes a toll in coin or in blood."
         ]},
 
+        { "id": "money_tax_revolt", "when": { "money": ["tax_revolt"] }, "weight": 3, "lines": [
+            "We ran the tax men out of town last week. They will be back with soldiers, mark me.",
+            "Not a penny more to the crown! Half the street said it, and the other half threw stones."
+        ]},
+        { "id": "money_tax_farm", "when": { "money": ["tax_farm"] }, "weight": 3, "lines": [
+            "The crown sold our taxes to {bank}. Their bailiffs take twice what the king's men did.",
+            "A tax farmer's clerk came by with a ledger and two thugs. My hens are in his books now."
+        ]},
+        { "id": "money_heavy_taxes", "when": { "money": ["heavy_taxes"] }, "weight": 2, "lines": [
+            "Land, hearth and market: the crown taxes them all, and heavier every season.",
+            "My cousin went over the border. Lighter taxes there, he says, and the bread's no dearer."
+        ]},
+        { "id": "money_army_unpaid", "when": { "money": ["army_unpaid"] }, "weight": 3, "lines": [
+            "The garrison hasn't been paid in weeks. Half of them are selling their boots in the market.",
+            "Unpaid soldiers are worse than bandits. Lock your door tonight."
+        ]},
         { "id": "money_debased", "when": { "money": ["debased"] }, "weight": 2, "lines": [
             "Bite the new coin and your teeth go through it. The crown's clipped it again.",
             "Bread costs a third more than last year, and the baker swears it isn't his fault. It's the coin.",

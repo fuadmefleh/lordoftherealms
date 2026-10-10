@@ -41,6 +41,7 @@ import { Fashions } from '../world/fashions.js';
 import { Harvests } from '../world/harvests.js';
 import { Transport } from '../world/transport.js';
 import { MoneySupply } from '../world/moneySupply.js';
+import { CrownBooks } from '../world/crownBooks.js';
 
 const DEFAULT_CONFIG = {
     localRadius: 8, eventRadius: 10, sagaRadius: 14, siegeRadius: 6, rivalRadius: 6, outlawRadius: 10,
@@ -62,7 +63,7 @@ const CONDITIONS = {
 
 export const SEASONS = ['Spring', 'Summer', 'Autumn', 'Winter'];
 /** What townsfolk say about money (systems/finance.js): the `money` condition's kinds. */
-export const MONEY_KINDS = ['debased', 'levy', 'default', 'bank_run', 'bank_failed', 'bank', 'mania', 'crash', 'insurers_failed', 'coin_short', 'coin_flood', 'recoinage'];
+export const MONEY_KINDS = ['debased', 'levy', 'default', 'bank_run', 'bank_failed', 'bank', 'mania', 'crash', 'insurers_failed', 'coin_short', 'coin_flood', 'recoinage', 'tax_revolt', 'tax_farm', 'heavy_taxes', 'army_unpaid'];
 /** What townsfolk say about work and the people (world/townLabour.js): the `labour` condition's kinds. */
 export const LABOUR_KINDS = ['idle', 'refugees', 'strike', 'boom', 'hardship', 'mine_strike', 'mine_closed'];
 /** What townsfolk say about the cost of living (world/economyIndex.js): the `prices` condition's kinds. */
@@ -301,6 +302,11 @@ export const Chatter = {
             if (lv <= N.shortAt) ctx.money.push({ kind: 'coin_short' });
             else if (lv >= N.floodAt) ctx.money.push({ kind: 'coin_flood' });
             if (MoneySupply.recent(world, kid, 'recoinage', 60)) ctx.money.push({ kind: 'recoinage' });
+            // The crown's taxes here: a revolt, a tax farmer, heavy dues, soldiers unpaid (systems/fiscal.js)
+            if (settlement && day != null && _num(settlement.taxRevolt) > day) ctx.money.push({ kind: 'tax_revolt' });
+            if (settlement && settlement.taxFarm) ctx.money.push({ kind: 'tax_farm', bank: settlement.taxFarm.holderName || 'the farmer' });
+            if (CrownBooks.enabled() && kingdom.fisc && CrownBooks.taxIndex(kingdom) >= 1.25) ctx.money.push({ kind: 'heavy_taxes' });
+            if (kingdom.fisc && _num(kingdom.fisc.arrearsDays) >= 7) ctx.money.push({ kind: 'army_unpaid' });
             const banks = (player && player.finance && Array.isArray(player.finance.banks)) ? player.finance.banks : [];
             for (const b of banks) {
                 if (!b || b.kingdomId !== kid) continue;
@@ -726,7 +732,7 @@ export const Chatter = {
         }
         // Heralds and tavern templates
         const H = Chatter.data().heralds || {};
-        const heraldTokens = ['ruler', 'kingdom', 'other', 'saga', 'title', 'leader', 'place', 'by', 'days', 'bank', 'purity',
+        const heraldTokens = ['ruler', 'kingdom', 'other', 'saga', 'title', 'leader', 'place', 'by', 'days', 'bank', 'purity', 'holder', 'level',
             // caravans lost on the road (systems/merchantCaravans.js)
             'good', 'carrier', 'from', 'house',
             // market fairs, dearths and gluts (systems/marketFairs.js)

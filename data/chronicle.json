@@ -63,6 +63,8 @@
 
             "taxes": { "name": "Taxes collected", "group": "state" },
             "royalLevy": { "name": "Royal levy", "group": "state" },
+            "taxFarms": { "name": "Tax farms collected", "group": "state" },
+            "taxFarmBids": { "name": "Tax farms bought (and bids returned)", "group": "capital", "kind": "cap" },
             "faith": { "name": "Faith", "group": "state" },
             "culture": { "name": "Culture", "group": "state" },
             "diplomacy": { "name": "Tribute & diplomacy", "group": "state" },

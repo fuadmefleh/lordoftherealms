@@ -22,6 +22,7 @@ import { Patronage } from '../../systems/patronage.js';
 import { OutlawLairs } from '../../systems/outlawLairs.js';
 import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 import { Finance } from '../../systems/finance.js';
+import { Fiscal } from '../../systems/fiscal.js';
 import { MarketFairs } from '../../systems/marketFairs.js';
 import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { Labour } from '../../systems/labour.js';
@@ -708,6 +709,11 @@ export function endDay() {
                     }
                 }
             }
+
+            // The Crown's Purse — every realm's taxes, wages and books; tax farms,
+            // tax revolts and its tax review weekly (systems/fiscal.js; before Finance,
+            // which borrows, levies and debases on the books it closes)
+            for (const n of Fiscal.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Banks, Credit & Coin — deposit interest, loan payments and what a
             // missed one brings, bond coupons, the crowns' debts and coin, panics

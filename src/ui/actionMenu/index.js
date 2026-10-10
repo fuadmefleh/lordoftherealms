@@ -46,6 +46,7 @@ import './bourse.js';
 import './mints.js';
 import './economy.js';
 import './publicWorks.js';
+import './treasury.js';
 
 // Expose ActionMenu globally so inline onclick handlers in dynamic HTML can access it
 window.ActionMenu = ActionMenu;

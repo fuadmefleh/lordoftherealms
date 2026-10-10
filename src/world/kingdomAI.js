@@ -18,6 +18,9 @@ import { KingdomNavy } from './kingdomNavy.js';
 import { EconomyIndex } from './economyIndex.js';
 import { Harvests } from './harvests.js';
 import { MoneySupply } from './moneySupply.js';
+import { CrownBooks } from './crownBooks.js';
+
+const _fy = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 
 export const KingdomAI = {
     /**
@@ -132,6 +135,8 @@ export const KingdomAI = {
         let totalPopulation = 0;
 
         const settlements = KingdomAI._settlementCopiesOf(kingdom, world);
+        // The Crown's Purse (systems/fiscal.js) taxes the towns' real income instead
+        const books = CrownBooks.enabled();
 
         // Growth bonuses from healers/stewards; growth and food modifiers from events
         const growthBonus = KingdomBonuses.get(kingdom, 'population');
@@ -179,7 +184,13 @@ export const KingdomAI = {
             }
 
             // Process trade
-            Economy.processTrade(settlement);
+            const traded = Economy.processTrade(settlement);
+            // The day's taxable output for the Crown's Purse (systems/fiscal.js reads and clears it)
+            if (books && settlement.economy) {
+                const e = settlement.economy;
+                e.fyProd = Math.round((_fy(e.fyProd) + Math.max(0, (e.production && e.production.gold) || 0)) * 100) / 100;
+                e.fyTrade = Math.round((_fy(e.fyTrade) + Math.max(0, traded || 0)) * 100) / 100;
+            }
 
             // Accumulate totals
             if (settlement.economy) {
@@ -199,7 +210,11 @@ export const KingdomAI = {
         // stewardship, tax policy, events and stability, so spending elsewhere
         // (scandals, war upkeep, colonies, espionage) actually sticks.
         const mult = KingdomAI.incomeMultiplier(kingdom, world);
-        if (typeof kingdom.treasuryIncomeBase !== 'number') {
+        if (books) {
+            // (the treasury moves by its budget lines: taxes in, wages and upkeep out;
+            // the collectors' efficiency today is kept for systems/fiscal.js)
+            CrownBooks.state(kingdom).mult = mult;
+        } else if (typeof kingdom.treasuryIncomeBase !== 'number') {
             kingdom.treasury = Math.floor(totalGold * mult);
         } else {
             const income = totalGold - kingdom.treasuryIncomeBase;
@@ -208,7 +223,8 @@ export const KingdomAI = {
         kingdom.treasuryIncomeBase = totalGold;
 
         // Armies in the field cost money (frugal rulers spend less; war events more)
-        if (kingdom.wars && kingdom.wars.length > 0) {
+        // — with the Crown's Purse, their field pay is the budget's army line
+        if (!books && kingdom.wars && kingdom.wars.length > 0) {
             kingdom.treasury = Math.max(0, kingdom.treasury - KingdomAI.warUpkeep(kingdom, world));
         }
     },
@@ -891,6 +907,8 @@ export const KingdomAI = {
         military *= Math.max(0.1, 1 + LordInfluence.mod(kingdom, 'military'));
         // So does a militaristic realm
         military *= KingdomAI.personalityValue(kingdom, 'armySize');
+        // Unpaid soldiers desert (the Crown's Purse: world/crownBooks.js; 1 when paid)
+        military *= CrownBooks.armyFactor(kingdom);
 
         // Blizzards and the like thin the ranks (hardy traditions endure)
         const attrition = WorldEvents.getModifier(world, 'unitAttrition', { kingdom: kingdom.id });

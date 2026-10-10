@@ -129,7 +129,11 @@ describe('kingdom stability', () => {
 });
 
 describe('kingdom economy reads event effects', () => {
-    it('taxIncome scales treasury income, and spending elsewhere persists', () => {
+    it('taxIncome scales treasury income, and spending elsewhere persists (the old income, books off)', () => {
+        // With the Crown's Purse the treasury moves by its budget (fiscal.test.js); this is the fallback
+        const fiscal = DataLoader._gamedata.fiscal;
+        DataLoader._gamedata.fiscal = { ...fiscal, enabled: false };
+        try {
         const a = makeWorld();
         const b = makeWorld();
         KingdomAI.updateEconomy(a.k1, a);
@@ -147,6 +151,9 @@ describe('kingdom economy reads event effects', () => {
         expect(incomeA).toBeGreaterThan(0);
         expect(incomeB).toBeLessThan(incomeA * 0.8);
         expect(a.k1.treasury).toBeLessThan(a.k1.treasuryIncomeBase * 2); // ledger, not a reset
+        } finally {
+            DataLoader._gamedata.fiscal = fiscal;
+        }
     });
 
     it('growth and food-strain events move the real settlement population', () => {

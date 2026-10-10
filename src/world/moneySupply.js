@@ -40,6 +40,7 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { SettlementMarket } from './settlementMarket.js';
+import { CrownBooks } from './crownBooks.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -48,7 +49,7 @@ const _r2 = (v) => Math.round(v * 100) / 100;
 const _r4 = (v) => Math.round(v * 10000) / 10000;
 
 /** Flow kinds kept per realm per week (and in total). */
-export const FLOW_KINDS = ['trade', 'tribute', 'loans', 'gresham', 'flight', 'mint', 'wear', 'debase', 'recoin', 'counterfeit', 'player', 'drift'];
+export const FLOW_KINDS = ['trade', 'tribute', 'loans', 'gresham', 'flight', 'mint', 'wear', 'debase', 'recoin', 'counterfeit', 'player', 'drift', 'fisc'];
 /** Flows that bring foreign coin in (restruck at the realm's mint). */
 const FOREIGN = new Set(['trade', 'tribute', 'loans', 'gresham', 'flight']);
 
@@ -396,7 +397,10 @@ export const MoneySupply = {
             MoneySupply._note(R, 'mint', -brassage);
             seign = _r2(seign + brassage);
         }
-        if (seign > 0) k.treasury = _num(k.treasury) + Math.floor(seign);
+        if (seign > 0) {
+            k.treasury = _num(k.treasury) + Math.floor(seign);
+            CrownBooks.note(k, 'seigniorage', Math.floor(seign));
+        }
         R.mint.struck = _r2(R.mint.struck + struck);
         R.mint.seign = _r2(R.mint.seign + seign);
         R.mint.lastStruck = struck;

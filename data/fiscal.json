@@ -1,0 +1,87 @@
+{
+    "_doc": "The Crown's Purse (src/systems/fiscal.js, src/world/crownBooks.js). Each realm keeps real books: taxes come out of its towns' purses (economy.gold, where their production and trade income is credited) and wages and upkeep go back into them, so taxation moves gold, never makes it. Revenue lines: land tax (the peasants' earnings x the harvest, plus part of the town's production gold), poll or hearth tax (taxable heads: peasants, artisans, merchants; clergy and nobles exempt), excise (the artisans' earnings and the merchants' trade income), customs (systems/tradePolicy.js and the crown's tolls), the demesne (the crown's own estates: a share of production gold) and monopolies, seigniorage (world/moneySupply.js), tax farms sold, the extraordinary levy, offices and crown land sold. Expense lines: army wages (field pay at war), court and administration, roads and works (world/transport.js, systems/publicWorks.js), debt service (systems/finance.js), the famine dole and granaries, the ruler's purse (systems/throne.js). Everything else that moved the treasury lands under 'other'. Set enabled false to fall back to the old income (the growth of the towns' gold). Balance: docs/economy-balance.md 'The Crown's Purse'.",
+    "enabled": true,
+
+    "_levels": "Tax levels: each multiplies the base rates. NPC crowns pick one level for all three taxes; a ruler sets each tax apart in the Treasury panel.",
+    "levels": {
+        "light":    { "label": "Light",    "icon": "🍃", "mult": 0.75, "blurb": "The people prosper and stay; the chests fill slowly." },
+        "standard": { "label": "Standard", "icon": "⚖️", "mult": 1.0,  "blurb": "The customary dues." },
+        "heavy":    { "label": "Heavy",    "icon": "💰", "mult": 1.3,  "blurb": "The chests fill; the realm grumbles and the poor drift away." },
+        "crushing": { "label": "Crushing", "icon": "⛓️", "mult": 1.65, "blurb": "Every last penny: unrest, flight, tax revolts." }
+    },
+
+    "_rates": "Base rates at the standard level: land (share of the peasants' earnings and of landProd x the town's production gold), poll (gold per taxable head a day), excise (share of the artisans' earnings and the merchants' trade income).",
+    "rates": { "land": 0.06, "poll": 0.0025, "excise": 0.035, "landProd": 0.5 },
+    "_collectEvery": "The collectors come round each town once every collectEvery days (staggered by town) and take every day's dues since.",
+    "collectEvery": 7,
+    "pollWeights": { "peasants": 1, "artisans": 1, "merchants": 1.5, "clergy": 0, "nobles": 0 },
+    "_fallback": "Earnings per head a day for a town whose labour record is not set up yet.",
+    "fallback": { "landPerHead": 0.11, "craftPerHead": 0.05 },
+
+    "_demesne": "The crown's own estates: `share` of the towns' production gold (the capital's counts `capital` times). Selling crown land in a crisis gives up `crisis.land.share` of what is left for `crisis.land.days` of its yield; it never falls below `min`.",
+    "demesne": { "share": 0.2, "capital": 2, "min": 0.05 },
+
+    "_army": "Wages: pay a day per soldier (x warPay while at war, x the realm's upkeep bonuses and military-spending events), bounty per new recruit. Pay levels for a ruler (NPC crowns pay full, half when broke): mult on the wages, cap on the army the realm keeps, stability. Unpaid soldiers desert after desert.afterDays: the army the realm can keep falls capPerDay a day (never below capMin) until they are paid.",
+    "army": {
+        "pay": 0.16, "warPay": 1.6, "bounty": 1.0,
+        "levels": {
+            "half":     { "label": "Half pay", "mult": 0.6,  "cap": 0.88, "stability": -2, "blurb": "Cheap, and the men drift home." },
+            "full":     { "label": "Full pay", "mult": 1.0,  "cap": 1.0,  "stability": 0,  "blurb": "The soldiers' due." },
+            "generous": { "label": "Generous", "mult": 1.25, "cap": 1.05, "stability": 1,  "blurb": "Loyal regiments, and more men take the shilling." }
+        },
+        "desert": { "afterDays": 7, "capPerDay": 0.012, "capMin": 0.6, "notice": 7 }
+    },
+
+    "_court": "Court and administration a day: base + perTown x towns + perHead x people, x the court level. A frugal court breeds corruption (corruption a day), a lavish one is loved.",
+    "court": {
+        "base": 30, "perTown": 6, "perHead": 0.003,
+        "levels": {
+            "frugal":   { "label": "Frugal",   "mult": 0.7, "corruption": 0.002, "stability": 0,   "blurb": "Fewer clerks, and those who stay take their own cut." },
+            "standard": { "label": "Standard", "mult": 1.0, "corruption": 0,     "stability": 0,   "blurb": "The usual household and officers." },
+            "lavish":   { "label": "Lavish",   "mult": 1.4, "corruption": 0,     "stability": 1.5, "blurb": "Feasts, tourneys and well-paid judges." }
+        }
+    },
+
+    "_corruption": "0-1. Unpaid officials raise it unpaidGain a day; it decays `decay` a day while they are paid. It leaks `leak` x corruption of the taxes before they reach the treasury, and adds to the people's burden. Selling offices adds officesSale.",
+    "corruption": { "leak": 0.35, "unpaidGain": 0.004, "decay": 0.002, "officesSale": 0.12 },
+
+    "_burden": "The burden the people feel, on the labour model's scale (base 0.15 = the customary dues; world/townLabour.js welfare falls by (burden - 0.15) x taxWeight per stratum): base x the realm's tax index (land, poll and excise levels weighted), + farmPerSqueeze x (a farmer's squeeze - 1), + corruption x `corruption`.",
+    "burden": { "base": 0.15, "weights": { "land": 0.5, "poll": 0.25, "excise": 0.25 }, "farmPerSqueeze": 0.3, "corruption": 0.03 },
+
+    "_stability": "Stability target term 'Taxes & pay': -(tax index - 1) x perLevel, -arrearsPerDay a day the soldiers and officials go unpaid (at most arrearsCap), -corruption x `corruption`, plus the pay and court levels' own.",
+    "stability": { "perLevel": 12, "arrearsPerDay": 0.4, "arrearsCap": 10, "corruption": 10 },
+
+    "_npc": "NPC crowns review their taxes every `every` days (staggered): from the standard level, + bias by personality, + 1 at war, + 1 below reserveLow days of spending in the chests (+2 below lowDays), - 1 above reserveHigh (-2 above highDays), + 1 with soldiers unpaid, - 1 when stability is under unrestAt or a tax revolt broke out in the last revoltDays; they move one step a review. Below halfPayDays of spending with soldiers unpaid they go to half pay.",
+    "npc": {
+        "every": 28, "reserveLow": 30, "lowDays": 10, "reserveHigh": 160, "highDays": 320,
+        "bias": { "peaceful": -1, "mercantile": -1, "balanced": 0, "militaristic": 0, "aggressive": 1 },
+        "unrestAt": 35, "revoltDays": 60, "halfPayDays": 4
+    },
+
+    "_coin": "Taxes are paid in coin out of circulation and wages paid back into it (world/moneySupply.js 'fisc' flow): each week the realm's coin moves by -share x (collected - spent), at most maxShare of its coin.",
+    "coin": { "share": 0.1, "maxShare": 0.02 },
+
+    "_farms": "Tax farming. A crown short of money (below needDays of spending, deficitWeeks weeks in deficit, at war below warDays, or with its soldiers unpaid) auctions, at most once every `cooldown` days, the taxes of one town (not its capital; at most maxShare of its towns) for term days: the lot's estimate is the town's recent crown taxes x term; a banking house bids discount (a hash in the range) of it, the player may outbid by `outbid`; the lot closes after `close` days. The farmer collects the town's taxes x squeeze (less collectCost) in place of the crown. Player squeeze levels: mult, reputation lost in the realm a day, the town's happiness a day. A house squeezes `bankSqueeze`.",
+    "farms": {
+        "enabled": true, "term": 120, "close": 7, "discount": [0.82, 0.92], "reserve": 0.75, "outbid": 0.03,
+        "minEst": 400, "maxShare": 0.3, "needDays": 15, "warDays": 30, "deficitWeeks": 4, "cooldown": 42,
+        "bankSqueeze": 1.25, "collectCost": 0.05,
+        "squeeze": {
+            "gentle": { "label": "Gentle", "mult": 1.05, "rep": 0,    "happiness": 0,    "blurb": "Collect what is owed and no more." },
+            "firm":   { "label": "Firm",   "mult": 1.2,  "rep": 0.02, "happiness": 0.01, "blurb": "Every arrear chased down. Grumbling." },
+            "harsh":  { "label": "Harsh",  "mult": 1.4,  "rep": 0.06, "happiness": 0.05, "blurb": "Bailiffs and distraint. Hated, and rich." }
+        }
+    },
+
+    "_revolts": "Tax revolts, weekly per town (a hash roll, no RNG): pressure = (burden - burdenAt) x perBurden + (welfareAt - the peasants' welfare) x perWelfare + farmed (if farmed), each at least 0; chance = min(max, pressure x chance). A revolt withholds the town's taxes for `days`, costs it `happiness`, the realm `stability`, and drives a tax farmer's men out.",
+    "revolts": { "burdenAt": 0.17, "perBurden": 3, "welfareAt": 0.6, "perWelfare": 1.5, "farmed": 0.1, "chance": 0.06, "max": 0.12, "days": 30, "happiness": 5, "stability": 2 },
+
+    "_crisis": "Ways out of a fiscal crisis besides borrowing, the levy, debasement and default (systems/finance.js chooses): selling offices raises `offices.days` of revenue (corruption + corruption.officesSale); selling crown land raises `land.days` of the yield of `land.share` of the demesne.",
+    "crisis": { "offices": { "days": 20 }, "land": { "days": 120, "share": 0.3 } },
+
+    "_smoothing": "Daily smoothing of the books' average revenue and spending (the Finance tick's income and the reserve).",
+    "smoothing": 0.05,
+    "histWeeks": 52,
+    "history": 60,
+    "news": { "cap": 40 }
+}

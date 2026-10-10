@@ -357,6 +357,10 @@ function panelsAt(game, tile) {
         ['showTradeMenu', () => ActionMenu.showTradeMenu(g, tile)],
         ['showPublicWorks', () => ActionMenu.showPublicWorks(g, tile)],
         ['showMint', () => ActionMenu.showMint(g, tile)],
+        ['showTreasury(budget)', () => ActionMenu.showTreasury(g, 'budget')],
+        ['showTreasury(realms)', () => ActionMenu.showTreasury(g, 'realms')],
+        ['showTreasury(farms)', () => ActionMenu.showTreasury(g, 'farms')],
+        ['showTreasury(crown)', () => ActionMenu.showTreasury(g, 'crown')],
     ];
     if (Throne.ruledKingdom(g.player, g.world)) list.push(['showRoyalCourt', () => ActionMenu.showRoyalCourt(g, tile)]);
     const lair = (OutlawLairs.known ? OutlawLairs.known(g.player, g.world) : [])[0];

@@ -74,6 +74,7 @@ import { Bills } from '../../systems/bills.js';
 import { Bourse } from '../../systems/bourse.js';
 import { PublicWorks } from '../../systems/publicWorks.js';
 import { Mints } from '../../systems/mints.js';
+import { Fiscal } from '../../systems/fiscal.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
 
 export const WORLD_W = 80;
@@ -347,6 +348,8 @@ function _endDay(game) {
     mark(game, 'Espionage.prepareForSave');
     Gossip.processDaily(player, world);
     mark(game, 'Gossip.processDaily');
+    game.fiscalDay = Fiscal.processDay(world, player);
+    mark(game, 'Fiscal.processDay');
     game.financeDay = Finance.processDay(world, player);
     mark(game, 'Finance.processDay');
     game.underwritingDay = Underwriting.processDay(world, player);

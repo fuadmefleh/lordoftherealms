@@ -26,6 +26,7 @@ import { Underwriting } from '../../systems/underwriting.js';
 import { Bourse } from '../../systems/bourse.js';
 import { Transport } from '../../world/transport.js';
 import { Mints } from '../../systems/mints.js';
+import { Fiscal } from '../../systems/fiscal.js';
 
 export function addSettlementActions(actions, player, tile, world, ctx) {
     const { isCity, isVillage, isPlayerSettlement, playerSettlementCount, playerKingdom, hasPlayerFoundedKingdom } = ctx;
@@ -428,6 +429,25 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             icon: '💰',
             description: `Coin of ${Math.round(pur * 100)}% silver: sell gold and silver to the mint, lease it, and see every realm's coin and prices`,
         });
+    }
+
+    // The crown's treasury (systems/fiscal.js): at a capital, where its taxes are at auction,
+    // where you farm them, or in the realm you rule
+    if (world && Fiscal.enabled() && tile.settlement && tile.settlement.kingdom != null) {
+        const kid = tile.settlement.kingdom;
+        const lots = Fiscal.lots(world, kid);
+        const farms = Fiscal.playerFarms(world).filter(f => f.kid === kid);
+        const realm = world.getKingdom ? world.getKingdom(kid) : null;
+        const capital = realm && realm.capital && realm.capital.q === tile.q && realm.capital.r === tile.r;
+        if (capital || lots.length || farms.length || Fiscal.ruledKingdom(player, world) === realm) {
+            actions.push({
+                type: 'treasury',
+                label: `The Treasury of ${realm ? realm.name : 'the realm'}`,
+                icon: '🧾',
+                description: lots.length ? `${lots.length} town's taxes at auction: bid to farm them; the crown's budget line by line`
+                    : farms.length ? `Your tax farm(s) here: how hard your collectors press; the crown's budget` : 'The crown’s taxes, wages and debts line by line; every realm’s purse',
+            });
+        }
     }
 
     // Claims & Crowns — once there is a claim, a crisis, a war for a throne or a crown

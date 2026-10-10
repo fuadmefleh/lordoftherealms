@@ -32,6 +32,7 @@
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { Terrain } from './terrain.js';
+import { CrownBooks } from './crownBooks.js';
 
 /** Tuning; overridden from data/military.json → kingdomNavy. */
 const CONFIG = {
@@ -173,7 +174,7 @@ export const KingdomNavy = {
         // Upkeep — an unpaid fleet rots at its moorings
         const upkeep = Math.ceil(n.strength * CONFIG.upkeep);
         if (upkeep > 0) {
-            if ((kingdom.treasury || 0) >= upkeep) kingdom.treasury -= upkeep;
+            if ((kingdom.treasury || 0) >= upkeep) { kingdom.treasury -= upkeep; CrownBooks.note(kingdom, 'army', upkeep); }
             else n.strength = Math.floor(n.strength * (1 - CONFIG.unpaidDecay));
         }
 

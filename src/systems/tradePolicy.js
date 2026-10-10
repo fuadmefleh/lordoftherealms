@@ -59,6 +59,7 @@ import { Underworld } from './underworld.js';
 import { House } from './house.js';
 import { Ledger } from './ledger.js';
 import { EconomyIndex } from '../world/economyIndex.js';
+import { CrownBooks } from '../world/crownBooks.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -418,6 +419,7 @@ export const TradePolicy = {
         const credit = (k, g) => {
             if (!k || !(g > 0)) return;
             k.treasury = _num(k.treasury) + g;
+            CrownBooks.note(k, 'customs', g);
             const p = TradePolicy.realm(k);
             p.rev.week = _r3(p.rev.week + g);
             total += g;
@@ -461,6 +463,7 @@ export const TradePolicy = {
     noteToll(world, realmId, amount) {
         const k = TradePolicy._kingdom(world, realmId);
         if (!k || !(amount > 0)) return;
+        CrownBooks.note(k, 'customs', amount);
         const p = TradePolicy.realm(k);
         p.rev.tolls = _r3(p.rev.tolls + amount);
         p.rev.week = _r3(p.rev.week + amount);
@@ -917,6 +920,7 @@ export const TradePolicy = {
             const got = SettlementMarket.take(s, 'grain', qty);
             if (!(got > 0)) continue;
             k.treasury = _num(k.treasury) - cost;
+            CrownBooks.note(k, 'dole', cost);
             g.grain = _r3(g.grain + got);
             g.bought = _r3(g.bought + got);
             g.spent = _r3(g.spent + cost);
@@ -1157,6 +1161,7 @@ export const TradePolicy = {
         const duty = Math.round(earned * check.rate / Math.max(0.1, 1 - check.rate));
         if (!(duty > 0)) return 0;
         S.treasury = _num(S.treasury) + duty;
+        CrownBooks.note(S, 'customs', duty);
         const p = TradePolicy.realm(S);
         p.rev.week = _r3(p.rev.week + duty);
         if (player) {

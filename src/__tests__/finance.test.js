@@ -13,6 +13,7 @@ import { Economy } from '../world/economy.js';
 import { Coinage } from '../world/coinage.js';
 import { KingdomStability } from '../world/kingdomState.js';
 import { Finance, Banking } from '../systems/finance.js';
+import { Fiscal } from '../systems/fiscal.js';
 import { Technology } from '../systems/technology.js';
 import { Banking as BankingReexport } from '../systems/marketDynamics.js';
 import { House } from '../systems/house.js';
@@ -416,10 +417,16 @@ describe('crowns', () => {
         f.income = 1000;
         Finance._levy(game.world, game.player, game.player.finance, k, { notices: [] });
         expect(Coinage.stabilityMod(k, game.world.day)).toBeLessThan(0);
-        const t0 = k.treasury;
-        f.lastTreasury = k.treasury;
+        // With the Crown's Purse the levy is an extra tax on the towns (systems/fiscal.js)
         runDays(game, 1);
-        expect(k.treasury).toBeGreaterThan(t0);
+        for (const s of game.world.getAllSettlements()) {
+            const live = game.world.getTile(s.q, s.r).settlement;
+            if (live.kingdom === k.id) { Economy.initSettlement(live); live.economy.gold = 5000; }
+        }
+        game.world.day++;
+        Fiscal.processDay(game.world, game.player);
+        expect(k.fisc.last.levy).toBeGreaterThan(0);
+        expect(k.fisc.last.levy).toBeCloseTo((k.fisc.last.land + k.fisc.last.poll + k.fisc.last.excise) * 0.3, 0);
     });
 
     it('a default costs the lenders capital, the realm stability, and bondholders a haircut', () => {

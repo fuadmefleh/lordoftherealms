@@ -65,6 +65,7 @@ import { PublicWorks } from './publicWorks.js';
 import { TradePolicy } from './tradePolicy.js';
 import { EconomyIndex } from '../world/economyIndex.js';
 import { Fashions } from '../world/fashions.js';
+import { Fiscal } from './fiscal.js';
 
 export const GROUPS = ['threat', 'opportunity', 'goal'];
 export const SEVERITIES = { critical: 3, warning: 2, notice: 1, info: 0 };
@@ -1048,6 +1049,24 @@ R.ruledCoin = (ctx) => {
             ? `is short of coin (prices ${Math.round((1 - w.level) * 100)}% under the world's, the tax yield with them): a low seigniorage draws bullion to the mint`
             : `is awash with coin (prices ${Math.round((w.level - 1) * 100)}% over the world's)`;
     return [{ key: `coin:${w.kind}`, realm: w.kingdom, what, severity: w.kind === 'debased' ? 'warning' : 'notice' }];
+};
+
+/** The ruled realm's books: soldiers unpaid, or a budget in deficit with the chests running low (systems/fiscal.js). */
+R.ruledBudget = (ctx) => {
+    const w = Fiscal.ruledWarning(ctx.player, ctx.world);
+    if (!w) return [];
+    const what = w.kind === 'arrears'
+        ? `owes its soldiers and clerks ${w.owed}g (${w.days} days unpaid): unpaid men desert, unpaid clerks steal. Raise taxes, borrow, or sell offices`
+        : `spends ${w.gap}g a week more than it raises, with ${w.days} days of spending in the chests`;
+    return [{ key: `budget:${w.kind}`, realm: w.kingdom, what, severity: w.kind === 'arrears' ? 'warning' : 'notice' }];
+};
+
+/** Taxes at auction in the realm where the player stands (systems/fiscal.js). */
+R.taxFarmLot = (ctx) => {
+    const here = Fiscal._realmHere(ctx.player, ctx.world);
+    if (!here || Fiscal._ruledId(ctx.player) === here.id) return [];
+    return Fiscal.lots(ctx.world, here.id).filter(l => !l.player).slice(0, 1)
+        .map(l => ({ key: `taxlot:${l.id}`, town: l.town, kingdom: l.kingdom, est: l.est, min: Fiscal.minBid(l), closes: l.closes }));
 };
 
 /** A defaulter is wanted for the debtors' prison in a realm. */

@@ -53,12 +53,15 @@ import { Finance } from './finance.js';
 import { Underwriting } from './underwriting.js';
 import { Bills } from './bills.js';
 import { Bourse } from './bourse.js';
+import { Mints } from './mints.js';
 import { MarketFairs } from './marketFairs.js';
 import { Guilds } from './guilds.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { TownLabour } from '../world/townLabour.js';
 import { Hinterland } from '../world/hinterland.js';
 import { Harvests } from '../world/harvests.js';
+import { Transport } from '../world/transport.js';
+import { PublicWorks } from './publicWorks.js';
 import { TradePolicy } from './tradePolicy.js';
 import { EconomyIndex } from '../world/economyIndex.js';
 import { Fashions } from '../world/fashions.js';
@@ -1028,6 +1031,25 @@ R.bourseMania = (ctx) => {
     return out.slice(0, 1);
 };
 
+/** Bullion in the packs that a mint nearby would pay well for (systems/mints.js). */
+R.mintBullion = (ctx) => {
+    const t = Mints.bullionTip(ctx.player, ctx.world);
+    if (!t) return [];
+    return [{ key: `mint:${t.good}:${t.kingdom}`, q: t.q, r: t.r, qty: t.qty, good: t.good.replace(/_/g, ' '), kingdom: t.kingdom, unit: t.unit.toFixed(1), dist: t.dist }];
+};
+
+/** The ruled realm's coin: clipped, short or flooding (systems/mints.js, world/moneySupply.js). */
+R.ruledCoin = (ctx) => {
+    const w = Mints.ruledCoinWarning(ctx.player, ctx.world);
+    if (!w) return [];
+    const what = w.kind === 'debased'
+        ? `strikes clipped coin (${Math.round(w.purity * 100)}% silver)${w.recoin && w.recoin.ok ? `: a recoinage would cost the treasury ${w.recoin.cost}g and bring prices down` : ''}`
+        : w.kind === 'short'
+            ? `is short of coin (prices ${Math.round((1 - w.level) * 100)}% under the world's, the tax yield with them): a low seigniorage draws bullion to the mint`
+            : `is awash with coin (prices ${Math.round((w.level - 1) * 100)}% over the world's)`;
+    return [{ key: `coin:${w.kind}`, realm: w.kingdom, what, severity: w.kind === 'debased' ? 'warning' : 'notice' }];
+};
+
 /** A defaulter is wanted for the debtors' prison in a realm. */
 R.debtWarrant = (ctx) => {
     const st = _obj(ctx.player.finance);
@@ -1284,6 +1306,57 @@ R.farmSoil = (ctx, p) => {
         });
     }
     return out;
+};
+
+/** The player's public works stalled for funds or materials (systems/publicWorks.js). */
+R.publicWorksStalled = (ctx) => {
+    const st = _obj(ctx.world.transport);
+    const out = [];
+    for (const w of _arr(st && st.works)) {
+        if (!w || w.owner !== 'player' || (w.status !== 'stalled' && w.stall !== 'materials')) continue;
+        const why = w.stall === 'funds' ? `has stopped: its budget is spent (${Math.round(PublicWorks.progress(w) * 100)}% built). Add funds or abandon it`
+            : 'waits for stone and timber: the market there is bare, and the hands idle on half pay';
+        out.push({ key: `pw:${w.id}`, q: w.q, r: w.r, name: w.name, why, severity: w.stall === 'funds' ? 'warning' : 'notice', boost: w.stall === 'funds' ? 2 : 0 });
+    }
+    return out;
+};
+
+/** A road near the player closed by snow or flood, or with its bridge down (world/transport.js). */
+R.roadClosed = (ctx, p) => {
+    if (!_obj(ctx.world.transport)) return [];
+    const out = [];
+    for (const seg of Transport.segmentsNear(ctx.world, ctx.player.q, ctx.player.r, _num(p.radius, 8))) {
+        const s = ctx.world.transport.segs[seg.key];
+        if (!s || (!s.cl && !s.wash)) continue;
+        if (!s.cl && s.x === 'bridge') continue;
+        const why = s.cl === 'snow' ? 'is snowed shut at the pass: no trade crosses until it opens'
+            : s.cl === 'flood' ? 'is cut by the ford in flood'
+                : `has lost its bridge: ${s.x === 'ferry' ? 'a ferry plies' : 'travellers ford'}, and trade crawls. A toll bridge would pay`;
+        out.push({ key: `rc:${seg.key}:${s.cl || 'wash'}`, q: seg.a.q, r: seg.a.r, place: (seg.a.s && seg.a.s.name) || 'a town', other: (seg.b.s && seg.b.s.name) || 'a town', why });
+    }
+    return out;
+};
+
+/** A toll bridge or toll highway near the player that would repay itself soon (systems/publicWorks.js). */
+R.tollWorks = (ctx, p) => {
+    const st = _obj(ctx.world.transport);
+    if (!st || !_obj(st.traffic)) return [];
+    const out = [];
+    for (const seg of Transport.segmentsNear(ctx.world, ctx.player.q, ctx.player.r, _num(p.radius, 10))) {
+        const s = st.segs[seg.key];
+        if (!s || s.toll) continue;
+        const kind = seg.rivers.length && s.x !== 'bridge' ? 'bridge' : s.t === 'road' ? 'upgrade_highway' : null;
+        if (!kind) continue;
+        const est = PublicWorks.tollEstimate(ctx.world, ctx.player, kind, seg.key);
+        if (!est || !est.payback || est.payback > _num(p.maxPayback, 120)) continue;
+        out.push({
+            key: `tw:${seg.key}:${kind}`, q: seg.a.q, r: seg.a.r, what: kind === 'bridge' ? 'A toll bridge' : 'A paved toll highway',
+            place: (seg.a.s && seg.a.s.name) || 'a town', other: (seg.b.s && seg.b.s.name) || 'a town',
+            cost: est.cost, perDay: est.perDay, payback: est.payback, boost: 100 / est.payback,
+        });
+    }
+    out.sort((a, b) => a.payback - b.payback);
+    return out.slice(0, 1);
 };
 
 /** Mining leases on auction near the player (systems/concessions.js). */

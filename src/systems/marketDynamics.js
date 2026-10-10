@@ -31,6 +31,9 @@ import { HoldingSieges } from './holdingSieges.js';
 import { MerchantCaravans } from './merchantCaravans.js';
 import { TradePolicy } from './tradePolicy.js';
 import { Harvests } from '../world/harvests.js';
+import { Transport } from '../world/transport.js';
+import { PublicWorks } from './publicWorks.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const _key = (q, r) => `${q},${r}`;
 /** Days a settlement's production profile holds before it is worked out again. */
@@ -136,6 +139,10 @@ export const MarketDynamics = {
         const flow = SettlementMarket.flows(links, bases, day);
         // The duties the day's trade paid go to the crowns (systems/tradePolicy.js)
         flow.duties = TradePolicy.collect(world, links);
+        // Tolls over the public works, and the roads' traffic (systems/publicWorks.js)
+        flow.tolls = PublicWorks.afterFlows(world, links, player, day);
+        // ...and what crossed a border, for the coin the realms settle in (world/moneySupply.js)
+        MoneySupply.collectTrade(world, links);
         MerchantCaravans.dispatch(world, links, bases, day, player, lives.length);
         // Independent towns have no realm treasury pass to bank their trade (KingdomAI.updateEconomy)
         for (const live of lives) if (!live.kingdom) Economy.processTrade(live);
@@ -232,10 +239,12 @@ export const MarketDynamics = {
             const friction = T.perHex * Math.max(1, d) * (road ? T.roadFactor : 1) * (sea ? T.seaFactor : 1);
             const base = T.capacity + T.perRoute * Math.min(nRoutes, T.maxRoutes);
             return {
-                a, b, dist: d, sea, road, routes: nRoutes, friction, base, capacity: base, factor: 1,
+                // fr0: the distance's friction; the roads' state sets the day's (world/transport.js applyLink)
+                a, b, dist: d, sea, road, routes: nRoutes, friction, fr0: friction, base, capacity: base, factor: 1,
+                perish: 0, loss: 0, toll: 0, tolls: null, val: 0, closed: false, _speed: 1, _tf: NaN,
                 slot: SettlementMarket.slot(a.q + b.q, a.r + b.r),
                 // Crown tariffs read and paid on the link (systems/tradePolicy.js; laid out here so every link keeps one shape)
-                dutyAB: null, dutyBA: null, impAB: 1, impBA: 1, paidAB: 0, paidBA: 0, _tp: null, _tpA: null, _tpB: null, _tpF: 1,
+                dutyAB: null, dutyBA: null, impAB: 1, impBA: 1, paidAB: 0, paidBA: 0, valAB: 0, valBA: 0, _tp: null, _tpA: null, _tpB: null, _tpF: 1,
             };
         };
         // A loaded game picks up the links its towns were trading on (saved on
@@ -347,6 +356,7 @@ export const MarketDynamics = {
      */
     _disrupt(world, player, links, turn = null) {
         const T = SettlementMarket.config().trade;
+        const day = Seasons.today(world);
         const W = world.width;
         const kingdomOf = (s) => (s.kingdom && typeof world.getKingdom === 'function' ? world.getKingdom(s.kingdom) : null);
         const besieged = this._besieged(player);
@@ -374,6 +384,8 @@ export const MarketDynamics = {
             // Bigger towns trade more
             link.capacity = link.base * (0.5 + 0.5 * Math.min(_num(T.sizeMax, 3), (_num(a.population) + _num(b.population)) / _num(T.sizePop, 5000)));
             let f = 1;
+            // The road: its tier and repair, fords, tolls, mud and snow; a closed pass or a flooded ford stops it
+            if (Transport.applyLink(world, link, day)) f = 0;
             const ka = kingdomOf(a), kb = kingdomOf(b);
             if (ka && kb && ka !== kb && Array.isArray(ka.wars) && ka.wars.includes(kb.id)) f *= 1 - T.warCut;
             if ((ka && Array.isArray(ka.wars) && ka.wars.length) || (kb && Array.isArray(kb.wars) && kb.wars.length)) f *= T.atWarFactor;

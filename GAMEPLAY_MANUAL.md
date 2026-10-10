@@ -15,6 +15,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 4. [Economy & Trade](#4-economy--trade)
     - [Kingdom Trade Policy](#kingdom-trade-policy) — tariffs, export bans, embargoes, treaties, trade wars, state granaries; smuggling, licences and brokered treaties
     - [The Economic Chronicle](#the-economic-chronicle-the-gazette-your-books-and-fashions) — your books by source and net worth, the realms' weekly gazette, fashions at court
+    - [Specie, Mints & the Price Level](#specie-mints--the-price-level) — each realm's coin, where it flows and what it does to prices; selling bullion, leasing a mint, recoinage, money changers, false coin
 5. [Properties & Production](#5-properties--production)
 6. [Crafting](#6-crafting)
 7. [Caravans & Trade Routes](#7-caravans--trade-routes)
@@ -25,6 +26,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 11. [Religion & Faith](#11-religion--faith)
 12. [Technology & Research](#12-technology--research)
 13. [Infrastructure](#13-infrastructure)
+    - [Roads, Canals & Logistics](#roads-canals--logistics) — road tiers and repair, upkeep, washouts and snowbound passes, haulage and spoilage, public works, canals, harbours and tolls
 14. [Espionage](#14-espionage)
     - [The Underworld](#the-underworld) — heat, the thieves' guild, contraband, fences
 15. [Ships & Naval](#15-ships--naval)
@@ -349,9 +351,9 @@ The world features 24 terrain types. Movement cost determines how much stamina e
 | 5 (very hard) | Mountains |
 | Impassable | Deep Ocean, Ocean, Coastal Waters, Sea, Lake, Snow Peak |
 
-Roads reduce movement costs (see [Infrastructure](#13-infrastructure)).
+Roads reduce movement costs (see [Infrastructure](#13-infrastructure)). How much depends on the road: a track, a road or a paved highway, and its repair (see [Roads, Canals & Logistics](#roads-canals--logistics)).
 
-**Rivers:** entering a river hex on foot costs **+2** stamina on top of its terrain cost. A road (world-generated or built) or a Bridge on that hex carries you across with no penalty, and researching **Bridge Construction** halves the fording penalty to **+1** everywhere else. The hex info panel and Region Details show the river surcharge, and pathfinding routes around unbridged rivers when it's cheaper.
+**Rivers:** entering a river hex on foot costs **+2** stamina on top of its terrain cost. A road (world-generated or built) or a Bridge on that hex carries you across with no penalty (unless the road's bridge has washed out: then it is a ford, +1, or a ferry, +1 and a fare), and researching **Bridge Construction** halves the fording penalty to **+1** everywhere else. The hex info panel and Region Details show the river surcharge, and pathfinding routes around unbridged rivers when it's cheaper.
 
 ### Pathfinding
 
@@ -920,10 +922,10 @@ The interest is a flat charge for the term, repaid in equal daily payments. Your
 
 **Crowns in debt.** Every crown keeps a reserve of about a month's income. War costs more than a realm earns, and a crown at war (or raising a wonder) that drops below its reserve borrows from the friendliest house with coin to spare. It pays interest from its taxes and pays its debts down every week. A crown in crisis (missed payments, unpaid armies, or debts beyond what its income can carry) chooses one of three ways out:
 - **A war levy:** more gold for two months, and unrest (stability −6).
-- **Debasing the coin:** gold from the mint at once. Prices in all of the realm's markets rise (+9% for each tenth of silver taken out), stability falls, the houses think less of it, and trust in its coin drops.
+- **Debasing the coin:** gold from the mint at once. The mint recoins the coin about at the lower standard, so there is more of it (see [Specie, Mints & the Price Level](#specie-mints--the-price-level)). Prices in all of the realm's markets rise (+9% for each tenth of silver taken out, and more as the extra coin spreads), stability falls, the houses think less of it, trust in its coin drops, and the good coin starts leaving for sounder realms.
 - **Default:** its lenders lose capital and may face a run, and the realm loses stability (−10 at once, −8 while the memory lasts). No house lends to it for months.
 
-Honest coin returns slowly once a crown is out of trouble, or at once if new silver is found.
+Honest coin returns slowly once a crown is out of trouble, at once if new silver is found, or by a **recoinage** edict once the crown can pay for it.
 
 **Panics.** A run on a house is rare, but more likely when its vaults are low, after a crown defaults on it, or after a crown seizes its strongroom. During a run, withdrawals are rationed to a trickle a day and no loans are made. When the run ends, the house either stands, poorer, or **fails**. A new house opens at the seat about three months later. Heralds proclaim failed houses, crown defaults and debased coin, and townsfolk talk about clipped coin, levies and queues at the counting-house doors.
 
@@ -971,6 +973,38 @@ A share's worth is its **book value** times a multiple of its **return on capita
 **Floating your company** (on the Bourse's ⚖️ Your Company tab) raises capital for it. The brokers buy shares at 10% under the company's worth and keep 3% of the proceeds. Outside shareholders then take 50% of each week's profit in proportion to their shares, and their part of anything you draw out: with 20 shares outside, drawing 800g costs the company 1,000g. You keep control up to 49 shares in 100, and you can buy them back on the floor.
 
 The Steward's Counsel warns of a ship at sea in dangerous waters with nothing insured, a bill to present before it lapses or a stolen one to stop, and shares of yours riding a mania.
+
+### Specie, Mints & the Price Level
+
+Gold does not come from nowhere. Every realm has **coin in circulation**: the silver and gold in its people's purses, tills and strongboxes. The crown's chests and the banks' vaults hold more, but that coin moves no prices until it is spent. How much coin a realm has for its people sets its **price level**.
+
+**The price level.** Each week a realm's coin per head is set against the world's. A realm awash in coin is dear, one drained of it cheap: its price level runs from 90 to 112 (100 is the world's norm), and it moves only part of the way each week. It multiplies every price in the realm's markets, buying and selling alike, together with its coin's purity: clipped coin raises prices on top. The weekly gazette's cost of living shows it as inflation or deflation (the Economic Chronicle shows each realm's coin level beside its debt and silver). Hoarded coin buys nothing: a realm at war hoards about an eighth of its coin, and one in a panic (a run on its bank, a crown default) a tenth more, so its prices sag.
+
+**Where the coin goes.** Each week:
+- **Trade.** When the realms' merchants carry goods across a border, part of the balance is paid in coin. A realm that buys more than it sells loses coin, its prices fall, its goods grow cheaper abroad, and the coin flows back. A persistent deficit settles a few points under the norm; a surplus a few over.
+- **Tribute and loans.** A realm that loses a war pays part of its tribute out of its people's purses. A banking house lending to a foreign crown sends its coin abroad, and the repayments bring it home.
+- **Bad money drives out good.** When a crown clips its coin, merchants hoard the old full-weight pieces and send them abroad: the debased realm loses a little of its coin every week to its sounder trading partners.
+- **Flight.** A run on a bank, or a crown that has just repudiated its debts, sends coin abroad to the soundest realm it trades with.
+- **Wear.** Coin is worn, clipped, buried and carried off to far lands: a little is lost every week.
+
+**The mints.** Every realm's mint sits at its capital. Each week it buys the gold and silver ore that stands in the realm's markets above what the towns want (from its own mines, bought in or brought by the merchants), and strikes it into coin. A debased mint strikes more coin from the same silver. Foreign coin that came in is brought to the mint and restruck. The crown keeps the **seigniorage** (5% usually), and the rest goes into circulation. A realm with silver and gold mines pours out coin and spends it abroad; one without lives on its trade. Silver mines are veins the locals know of in the hills and mountains (no map resource shows them).
+
+**Selling bullion to the mint.** At a capital, the **💰 Mint** action shows the mint and every realm's coin. The mint buys gold ore, silver ore and gold bars at their fine worth (36g of coin in a unit of gold ore, 16g in silver ore, 140g in a gold bar: about their base price), less its seigniorage, at the realm's price level, and never for more than 95% of what the market there asks. It takes up to about 3,000g of fine metal from you a week. A mint where the coin is clipped or dear pays the most: bullion bought where coin is sound and cheap fetches its best price there, which is Gresham's law working for you, within the mint's weekly room and minus the changers' fee.
+
+**Money changers.** Each realm's coin is assayed at the border. Crossing into a realm whose coin is of another purity costs a quarter of the purity gap on the gold you carry (at most 5%; a purse under 50g passes free): from a realm of 100% silver into one of 80%, 5%. Coins of the same purity change free. The Mint's 💰 Coin tab lists the rate of every realm's coin against the one you stand in, and the changers' fee. Your Ledger shows what the changers have taken.
+
+**Leasing a mint.** At a capital you can lease its mint for 120 days: you pay up front 90% of half its recent seigniorage over the term (at least 40g), into the crown's treasury, and take half of its seigniorage each week. It is a small, steady income: most mints make 5–40g of seigniorage a week, and a mint in a mining realm, or one where foreign coin pours in, pays best. A war with the realm voids the lease.
+
+**As a ruler**, the Mint's 👑 Your coin tab runs the realm's mint:
+- **Seigniorage:** low (2%), usual (5%) or high (10%). A greedy mint keeps more of each piece, but sellers take their bullion elsewhere (it buys only 60% as much ore).
+- **Recoinage:** call in the clipped coin and strike it anew at full weight. The crown makes up half of the missing silver from the treasury, and the holders lose the rest: there is less coin about and prices fall. Honest coin also restores trust and some stability. Not again within 120 days. Crowns out of trouble (little debt, no levy, and a treasury four times the cost) proclaim one by themselves.
+- **Debasement:** clip the coin by a tenth (as in a crisis, see [Banks, Credit & Coin](#banks-credit--coin)).
+
+The crown's taxes follow the coin a little: a realm drained of coin collects up to 3% less, one awash in it up to 3% more.
+
+**False coin.** A Thieves' Guild hand of rank 1 or above can buy a batch of silvered copper from the guild's coiners (the Mint's 🕯️ Coiners tab, in any realm's town): stake 100–600g of good coin and clear 55% more if it passes. The watch catches about 16% of batches, more if your name is hot in the realm and less as you rise in the guild, and clipped coin is easier to fake. Caught, you lose the stake and pay a fine as large again, your heat rises and you may be jailed. One batch a week. Every false coin passed swells the realm's coin a little.
+
+**News.** Heralds cry recoinages, coin shortages (prices well under the world's) and floods of coin. Townsfolk grumble about both, and merchants say where goods are cheap for want of coin. The Steward's Counsel tells you when a mint nearby would pay more for the bullion in your packs than the market, and, as a ruler, when your realm's coin is clipped, short or flooding.
 
 ### Tax Collection
 
@@ -1852,6 +1886,54 @@ Build roads, bridges, and irrigation to improve your territory. Requires relevan
 Roads dramatically speed up travel and trade. Stone roads make every hex cost just 1 stamina — connect your properties and trade destinations for maximum efficiency.
 
 A caravan whose start and destination are joined by roads (the world's roads or ones you build) is **road-linked**: it earns **+15%**, its wagon moves one extra hex a day (a timer-only caravan arrives in two-thirds of the time), and road wardens drive off half of the robbers who come for it. Roads also halve weather travel penalties.
+
+### Roads, Canals & Logistics
+
+The world's roads are not all alike, and they do not stay as they were built (`world/transport.js`, `systems/publicWorks.js`, `data/transport.json`).
+
+**Road segments.** Each stretch of road between two neighbouring towns is a *segment* with:
+- a **tier**: a **track** (between two villages), a **road**, or a **paved highway** (between two cities or capitals of one realm, or paved later);
+- a **condition** from 0 to 100: in **good repair** at 40 and above, **rutted** below 40, **ruined** below 15 (no better than open country);
+- a **river crossing** where it meets a river: a **bridge**, a **ford**, or a **ferry**;
+- a **closure**: a mountain **pass snowed shut** in winter, or a **ford in flood** in spring.
+
+| Tier | Movement (× terrain) | Caravan speed | Haulage friction | Upkeep a hex a week |
+|---|---|---|---|---|
+| Track | ×0.6 | ×0.8 | ×0.8 | 0.6g |
+| Road | ×0.5 | ×1 | ×0.6 | 1.5g |
+| Paved highway | ×0.33 | ×1.3 | ×0.45 | 3g |
+
+A rutted road moves at ×1.5 its tier's cost (at most the terrain's), hauls at ×1.25 and slows caravans to ×0.8. In spring, tracks and rutted roads cost **+1** to cross on foot (mud). A snowbound pass costs **+3**. A ford costs +1 to wade (instead of +2 for an unbridged river) and a ferry costs +1 and a **2g fare**.
+
+**Wear and upkeep.** Every week a road loses condition: 1.5 (highway) to 4 (track), more in winter frost (+2) and the spring thaw (+1), and +3 in a realm at war. War hosts on the march grind down the road under them (−6 a day). The realm that holds most of a road pays its upkeep from the treasury each week and so repairs it (+3 to +4). A realm short of money (treasury under 400g, a missed payment, or a debt ratio over 0.8) lets its roads go; at war it pays half. Roads outside any realm are kept by their towns, poorly. A **Royal Road-Building** edict cuts the upkeep and the works in the player's realm.
+
+**Rivers and passes.** Bridges wash out in spring floods and storms, more often on a rutted road. Where a town is near, a ferry plies; elsewhere travellers ford. Fords flood in spring and close the road for a week. A road over mountain, highland, snow or tundra hexes is a **pass**: it closes when snow falls on it in winter, and for all of deep winter over the high mountains. The heralds cry washouts and closed passes; the townsfolk talk of them.
+
+**Trade and prices.** The NPC trade links between towns (see [Town Markets](#town-markets-stock-scarcity-and-trade)) pay a haulage friction by distance. Now it follows the roads:
+- **Road links**: the length-weighted friction of the segments on the way. A plain road in good repair keeps the old ×0.6. A highway hauls cheaper, a track or a rutted road dearer, and a ruined one as dear as open country. Fords and ferries add to it, and a closed pass or a flooded ford stops the link until it opens.
+- **Open-country links**: friction by the terrain on the straight line (plains ×1, forests about ×1.15, mountains up to ×1.45), ×1.15 in the spring mud and ×1.1 in winter (tracks and rutted roads suffer the winter too; roads in good repair, highways and canals are spared).
+- **Perishables** (fish, meat, bread, cheese) spoil on the way. The friction rises with the days of the haul, and 2% of what moves is lost per day of it (at most 35%). A highway or a canal brings them in fresh.
+- **Canals** cut a link's friction to ×0.4 and never close. **Harbour works** cut every sea link of their port by ×0.8.
+
+Prices between towns on good roads draw together. Across ruined roads, closed passes and rough open country they drift apart (see `docs/economy-balance.md`, "Roads, canals & logistics", for the measured dispersion). Merchant caravans move faster on highways and slower on tracks and rutted roads. The hinterland's goods hauled to a market town over a ruined road lose a part of the load, and more over a closed pass.
+
+**Public works.** From the **🛣️ Roads & Public Works** action in any town (also from the Steward's Counsel), you can fund:
+
+| Work | Goods | Hands × days | Effect | Toll |
+|---|---|---|---|---|
+| Road repairs | 0.4 stone + 0.2 wood a hex | 20 × ¼ day a hex (min 2) | condition back to 100 | — |
+| Road (from a track) | 1 stone + 0.6 wood a hex | 40 × 0.8 a hex (min 4) | track → road, bridged | — |
+| Paved highway | 1.6 stone + 0.5 wood + 0.1 iron a hex | 40 × 1.2 a hex (min 6) | road → highway | 5% of goods carried, 2g a crossing |
+| Stone bridge | 10 stone, 6 wood, 1.5 iron | 24 × 8 days | a ford or ferry becomes a bridge | 8%, 3g a crossing |
+| Canal | 5 stone + 2 wood + 0.4 iron a hex | 120 × 3 a hex (min 20) | link friction ×0.4 | 5% |
+| Harbour works | 40 stone, 30 wood, 4 iron | 60 × 30 days | the port's sea links ×0.8 | — |
+
+- **Goods and labour are real.** A work buys its stone, timber and iron from its town's market, and from the town at the road's other end, at the going price. It takes at most 30% of a stock a day, so a bare market slows the work while its price climbs. It hires land hands in the town at the local wage, which tightens the labour market and lifts wages (see [Labour](#labour-classes-and-migration)). Materials short of the labour stall it, with the hands idle on half pay. Winter halves the pace of all works but repairs.
+- **Paying for it.** As an investor you put up the estimate plus a 15% reserve. Work draws on it, the rest comes back when it is finished, and **Add funds** restarts a work that ran dry. **Abandon** returns what is left. A ruler can order works in their own realm from the treasury instead.
+- **Tolls.** A highway, bridge or canal you fund can be a toll work. NPC trade over it pays the toll rate on the value carried, out of the towns' trade income: a transfer, never new money. Merchant caravans pay at the gate, and travellers pay a fee to cross. Your tolls are booked in the Ledger as *Road tolls*. On another crown's land the crown takes 25% of them. You pay tolls on works you don't own, and none on your own.
+- **The crowns build too.** On its weekly turn a crown with the money (and no missed payments, a debt ratio under 0.5) rebuilds washed-out bridges and repairs ruined roads. At peace and with welfare at least 0.35, it also paves its busiest road (at most one every 120 days), builds harbour works at its great ports, and now and then digs a canal between two towns no good road joins. Mercantile crowns build sooner, aggressive ones later. Crowns in debt toll their new highways.
+
+**On the map.** Highways are drawn pale and broad, tracks thin and dashed, rutted roads orange, ruined ones red and broken, closed passes ice-blue with ❄️. Fords and ferries show 🌊 / ⛴️, toll gates 💰, works under way 🚧, and canals are blue water lines between their towns. The trade map colours each land link by the worst stretch of road on it, and the *trade* map mode colours the roads by repair. The Steward points out a toll bridge or toll highway near you that would repay itself, your stalled works, and roads closed nearby.
 
 ---
 

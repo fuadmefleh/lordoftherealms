@@ -46,6 +46,7 @@
         "gems":     { "perCapita": 0.00004, "days": 90, "spoil": 0.0,  "cap": 3, "minType": "city" },
         "gold_ore": { "perCapita": 0.00002, "days": 60, "spoil": 0.0,  "cap": 3, "minType": "capital" },
         "copper":   { "perCapita": 0.0001, "days": 30, "spoil": 0.0,   "cap": 4, "minType": "town" },
+        "silver_ore": { "perCapita": 0.00001, "days": 60, "spoil": 0.0, "cap": 3, "minType": "town" },
         "bronze":   { "perCapita": 0.00015, "days": 40, "spoil": 0.001, "cap": 4, "minType": "town" }
     },
     "noNeedRef": 0.25,
@@ -104,6 +105,7 @@
         "gold_ore": { "base": 0.8 },
         "iron":     { "base": 0.5, "upland": 0.8 },
         "copper":   { "base": 0.25, "upland": 0.5 },
+        "silver_ore": { "base": 0.15, "upland": 0.3 },
         "bronze":   { "base": 0.4 }
     },
     "resourceScale": 0.35,

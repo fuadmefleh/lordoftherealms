@@ -834,6 +834,151 @@ Measured with the harness's `mark` timing, 361 days, seeds 101–303, with the p
 - Most of the cost with covers is the daily quote: marine 0.09, stock 0.10, crop 0.06 ms.
 - The Bourse caches a house's fashion and a bank's crown loans by the week and the day. The daily walk is sentiment, banks' fair value and the price.
 
+## Roads, canals & logistics (2026-10)
+
+`world/transport.js` (road segments, their state, the haulage of the trade links) and `systems/publicWorks.js` (upkeep, works, tolls), tuned in `data/transport.json`. The rules are in [the manual](../GAMEPLAY_MANUAL.md#roads-canals--logistics).
+
+**How it was measured.**
+- Throwaway harness scripts, with the player kept fed (health 100, 40 bread, no starvation).
+- **Price dispersion**: seeds 101, 202 and 303, 240 days, the model switched off (every link at the old flat friction, no works) against on. The measure is the mean over a trade link's goods of |ln(scarcity_a / scarcity_b)| (`Transport.dispersion`). It was sampled weekly from day 120, by link class: *good* is a road link whose worst stretch is in good repair (or a canal), *poor* is open country or a rutted, ruined or closed road.
+- **Toll payback**: on day 60 the player funds a toll highway on the busiest road (the most traffic in gold a day). On day 30 the busiest river road loses its bridge and the player funds a toll bridge. Tolls are banked to day 240. Payback = gold spent ÷ the player's tolls a day (after the crown's 25%).
+- **Kingdom survival**: seeds 7–26, 1,080 days, as in [World stability](world-stability.md).
+
+**Dispersion** (mean |ln price ratio|, links in brackets):
+
+| Seed | Off: good roads | On: good roads | Off: poor links | On: poor links | Off: all | On: all |
+|---|---|---|---|---|---|---|
+| 101 | 0.194 (56) | **0.179** (41) | 0.138 (164) | **0.149** (179) | 0.152 | 0.155 |
+| 202 | 0.186 (44) | 0.207 (37) | 0.179 (112) | **0.210** (99) | 0.185 | 0.213 |
+| 303 | 0.216 (41) | 0.230 (36) | 0.150 (182) | **0.162** (191) | 0.169 | 0.175 |
+
+- Across poor links dispersion rises in every seed, by 8–17%. Prices drift apart where roads are ruined, passes close and rough country lies between.
+- Over good roads it falls in seed 101 (−8%) and rises less than over poor links in the others (+6%, +12%). The good roads' class is smaller with the model on: the worn ones move to *poor*.
+- Overall dispersion rises 2–15%. The model adds friction (terrain, mud, spoilage, wear) more than it removes it (highways, canals, harbours). The two runs also diverge (other wars, other links), so the per-seed numbers are noisy. The class comparison is the point.
+- The world's roads at day 1,080 (seeds 7–26): 74–91% of segments in good repair. Ruined roads cluster in realms long at war or broke: seed 25 has 14 ruined and 20 worn.
+
+**Toll payback (the player's share).**
+
+| Work | Seed | Cost | Tolls a day | Payback |
+|---|---|---|---|---|
+| Toll highway (busiest road) | 101 | 191g | 5.3g | 36 days |
+| Toll highway | 202 | 361g | 1.7g | 213 days |
+| Toll highway | 303 | 183g | 3.1g | 60 days |
+| Toll bridge over a washed-out ford | 202 | 302g | 2.9g | 105 days (before the bridge was cut to 10 stone, 6 wood, 1.5 iron, 24 hands: about 220g, ≈ 75 days) |
+| Toll bridge on a road nobody uses | 303 | 355g | 0 | never (its estimate said 0 too) |
+
+- The median toll highway repays in 60 days, in the 30–60+ day band of the other works. The tolls cut the trade over the road a little (they add to its friction), so the Steward's estimate (traffic × rate) can miss in either direction: 62 vs 36, 82 vs 213, 17 vs 60 days.
+- Toll rates: highway 5%, bridge 8%, canal 5% of the goods carried; 2g / 3g a crossing on foot.
+
+**Why it is not a money loop.**
+- NPC tolls are taken out of the two towns' trade income, which the flows already credited. It is a transfer, capped at that income, and it never creates gold (tested).
+- The player's budget is paid up front. Goods are bought at the going price and leave the market. Wages are a sink, and only the unspent budget comes back (tested).
+- Tolls add to the link's friction, so a toll on a road lowers the trade that pays it.
+
+**Survival** (seeds 7–26, 1,080 days): **180 / 200 (90%)**, against 181 for the world-stability pass.
+
+| Seed | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Alive | 10 | 9 | 9 | 9 | 10 | 10 | 10 | 8 | 9 | 9 | 9 | 10 | 10 | 9 | 10 | 8 | 8 | 10 | 7 | 6 |
+
+- The crowns paid 44,000–176,000g of road upkeep per world over the three years, and dug 3–7 canals. An earlier tuning gave 14–27 canals; canals are now limited to 6% of the towns and only between towns that no good road joins.
+
+**Tick cost.**
+- Microbenchmarks on a 100-day harness world (84 segments, 178 links):
+
+| Step | Cost |
+|---|---|
+| `Transport.tick` | 47 µs/day |
+| A crown's weekly turn | about 10 µs (1.4 a day) |
+| Works' progress | 7 µs a work a day |
+| `applyLink` | 1.1 µs a link (about 45 links a day) |
+| `afterFlows` | about 25 µs/day |
+
+- In total about 0.2 ms a day. Harness runs read 0.22–0.8 ms/day for `PublicWorks.processDay`, but the machine was shared and noisy: the market tick itself read 2.7–8 ms between identical runs.
+- Segments are derived once (6–13 ms), when the network is first read, and again every 60 days if towns came or went.
+- No RNG is drawn: rolls are hashes of the seed, the segment and the week. The golden snapshots are unchanged.
+
+**Open.**
+- The harness maps have few rivers (seed 101 has 3 river hexes), so bridges, fords and ferries rarely matter there. They will matter more on larger maps.
+- World units other than merchant caravans (war hosts, patrols) still move one hex a step whatever the road.
+- The bot does not fund works.
+## Specie, Mints & the Price Level (2026-10)
+
+`world/moneySupply.js`, `systems/mints.js`, `data/mints.json`. See [the manual](../GAMEPLAY_MANUAL.md#specie-mints--the-price-level).
+
+**The model.** Each realm has coin in circulation, seeded at 2 g per head (about 17,000–35,000 g a realm on the harness world). The crown's treasury and the banks' reserves are coin held out of circulation: shown as broad money, but they move no prices. Each week the coin moves:
+
+| Flow | Rule |
+|---|---|
+| Trade | 35% of the net value of NPC goods crossing a border is settled in coin (from `link.valAB/valBA`), at most 6% of the payer's coin a week |
+| Price-specie | 4% × the gap in log coin per head × the smaller coin, between trading partners |
+| Drift | Every realm's coin moves by ratio^−0.04, the total kept (travellers, pilgrims, mercenaries): no realm is stranded without partners |
+| Tribute | 15% of a war's tribute, at most 10% of the loser's coin |
+| Crown loans | 40% of a loan from a house in another realm, and of its repayments |
+| Gresham | 15% × (1 − purity) of a debased realm's coin a week, to sounder partners |
+| Flight | 1.5% a week from a realm with a bank run or a crown default in the last 30 days |
+| Wear | 0.2% a week |
+| Mint | Ore above 60% of the market's target in the realm's towns (at most 2,500 g fine a week) plus the player's bullion, struck at fine / purity; seigniorage 5%; half the foreign coin that came in is restruck for the same charge |
+
+The price level is clamp((coin × velocity / people against the world's)^0.5, 0.9, 1.12), moving 20% of the way each week. Velocity: 12% hoarded at war, 10% more in a panic. `Coinage.priceMultiplier` = the purity term × the level.
+
+**Why the treasuries are only partly backed.** A crown's income is the daily growth of its towns' `economy.gold`, an accumulator that is never spent. Treasuries reach 30,000–350,000 g, 2–15 times the realm's circulating coin. Drawing taxes from the coin in circulation would drain it to nothing within weeks in every rich realm, so full conservation was not tried. Instead, the crown's gold is tied to the coin where it is reasonable:
+- The tax yield follows the coin: `KingdomAI.incomeMultiplier` × level^0.3, clamped to 0.97–1.03.
+- The mint's seigniorage is real coin from real bullion.
+- Tribute, indemnities, crown loans and their repayment move circulating coin between realms.
+- Debasement recoins the circulating coin: its coin grows by 1/0.9 − 1 = 11% a step.
+- A recoinage costs the treasury half the missing silver and shrinks the coin.
+
+**Measured.** Seeds 7–26, 1,080 days, the method of [world stability](world-stability.md); the same runs with `enabled: false` as the baseline.
+
+| | Baseline (off) | Specie & mints |
+|---|---|---|
+| Realms alive (of 200) | 177 (88.5%) | **178 (89%)** |
+| Seconds per 1,080-day run | 139 | 125 (noise; the system costs about 0.1 ms a day) |
+
+Two earlier tunings measured 176 and 180 (income factor 0.94–1.05) and 173 (drift 0.02). The off run reproduced 177 exactly, so the sim is deterministic and the spread between tunings is the system's effect on which realms fall, not noise in the sim. The income factor was narrowed to 0.97–1.03 because a coin-drained loser of a war also lost tax yield.
+
+**Price levels at day 1,080** (178 living realms): p5 0.90, p25 0.96, median 1.00, p75 1.03, p95 1.10. 13 realms (7%) sit at the 0.90 floor (mostly small realms that paid tribute or ran deficits), 2 at the 1.12 ceiling. Without the drift term, 29 realms (16%) were stuck at the floor.
+
+**Coin moved per world over 1,080 days** (average of 20 seeds, in + out across realms):
+
+| Flow | In | Out |
+|---|---|---|
+| Trade | 81,500 | 76,300 |
+| Mint (struck less seigniorage) | 124,100 | 1,900 (brassage) |
+| Wear | — | 80,700 |
+| Drift | 50,700 | 55,200 |
+| Tribute (incl. fallen realms' coin to the conqueror) | 48,900 | 26,200 |
+| Crown loans | 26,900 | 30,000 |
+| Gresham | 22,300 | 21,100 |
+| Debasement | 15,300 | — |
+| Flight | 7,300 | 6,800 |
+| Recoinage | — | 4,000 |
+
+Mint output roughly replaces wear, so the world's coin holds steady.
+
+**The player** (seeds 101 and 202, day 180, every capital):
+
+| | Value |
+|---|---|
+| Mint price, gold ore | 31–39 g (fine 36 × 0.95 × the level), against market asks of 34–65 g where the capital's market sells it |
+| Mint price, silver ore | 10.5–17 g (capped at 95% of the ask where the market is glutted) |
+| Mint price, gold bar | 121–151 g |
+| A mint's seigniorage | 0–42 g a week (median about 11). Most of it comes from restriking foreign coin, the rest from bullion |
+| A mint lease | 40 g minimum; 90% of half the recent seigniorage over 120 days. A small, fair, passive return |
+| Money changers | 0 between coins of the same purity; 2.5% per 0.1 of purity gap, at most 5% of the purse |
+| Counterfeiting | 16% base catch chance at rank 1 and no heat. Expected value per batch is about +0.14 × the stake at no heat (0.84 × 0.55 gain against 0.16 × the stake and the fine), and it turns negative as heat builds (+4 a batch passed, +15 caught). Once a week, 600 g at most |
+
+**No money loops.**
+- The mint never pays more than 95% of the market's ask on the same tile, so buying ore and selling it to the mint loses.
+- Across realms, a whole-basket price gap is at most 0.90 to 1.12 (24%), plus the purity term. The changers charge for a purity gap. The mint takes at most 3,000 g of fine metal a week from the player.
+- A mint lease returns about 1.11× its fee if the seigniorage holds.
+- Counterfeiting carries a fine as large as the stake, plus heat and arrest.
+
+**Hinterland.** Silver veins have their own hash band (`hiddenExtra`: 6% of the hill, highland and mountain hexes) past `hidden`, so no existing vein changed kind. Silver mines rank 7.2, above sheep runs, so they replace only sheep runs and the odd quarry. On seed 202: 5 silver mines, sheep runs 24 → 21, quarries 5 → 3. On seed 101: 3 silver mines, sheep runs 19 → 16.
+
+**Tick cost.** The weekly pass costs 0.5–0.7 ms and the other days about 0.01–0.02 ms, about 0.1 ms a day on average. `Coinage.priceMultiplier` costs about 0.6–1 µs a call.
+
 ## Re-measuring
 
 - **Long soak.** `SOAK=1 SOAK_VERBOSE=1 npx vitest run playtest.soak` prints each

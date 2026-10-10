@@ -39,6 +39,8 @@ import { TownLabour } from '../world/townLabour.js';
 import { EconomyIndex } from '../world/economyIndex.js';
 import { Fashions } from '../world/fashions.js';
 import { Harvests } from '../world/harvests.js';
+import { Transport } from '../world/transport.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const DEFAULT_CONFIG = {
     localRadius: 8, eventRadius: 10, sagaRadius: 14, siegeRadius: 6, rivalRadius: 6, outlawRadius: 10,
@@ -50,7 +52,7 @@ const DEFAULT_CONFIG = {
 const CONDITIONS = {
     war: 'bool', playerWar: 'bool', blockade: 'bool', siege: 'bool', revolt: 'bool',
     rival: 'bool', newRuler: 'bool', lean: 'bool', outlaws: 'bool', dearth: 'bool', glut: 'bool', strike: 'bool',
-    money: 'boolOrList', labour: 'boolOrList', prices: 'boolOrList', fashion: 'boolOrList', harvest: 'boolOrList',
+    money: 'boolOrList', labour: 'boolOrList', prices: 'boolOrList', fashion: 'boolOrList', harvest: 'boolOrList', roads: 'boolOrList',
     event: 'list', season: 'list', trait: 'list', court: 'list', title: 'list',
     occupation: 'list', personality: 'list',
     saga: 'boolOrList', proclamation: 'boolOrList', deed: 'boolOrList',
@@ -60,13 +62,15 @@ const CONDITIONS = {
 
 export const SEASONS = ['Spring', 'Summer', 'Autumn', 'Winter'];
 /** What townsfolk say about money (systems/finance.js): the `money` condition's kinds. */
-export const MONEY_KINDS = ['debased', 'levy', 'default', 'bank_run', 'bank_failed', 'bank', 'mania', 'crash', 'insurers_failed'];
+export const MONEY_KINDS = ['debased', 'levy', 'default', 'bank_run', 'bank_failed', 'bank', 'mania', 'crash', 'insurers_failed', 'coin_short', 'coin_flood', 'recoinage'];
 /** What townsfolk say about work and the people (world/townLabour.js): the `labour` condition's kinds. */
 export const LABOUR_KINDS = ['idle', 'refugees', 'strike', 'boom', 'hardship', 'mine_strike', 'mine_closed'];
 /** What townsfolk say about the cost of living (world/economyIndex.js): the `prices` condition's kinds. */
 export const PRICE_KINDS = ['dear_food', 'cheap_food', 'inflation'];
 /** What townsfolk say of the harvest in their region (world/harvests.js talk): the `harvest` condition's kinds (and the blights' ids). */
 export const HARVEST_KINDS = ['failing', 'bumper', 'poor', 'plenty'];
+/** What townsfolk say of the roads out of town (world/transport.js talk): the `roads` condition's kinds. */
+export const ROAD_KINDS = ['pass_closed', 'flood', 'ruined', 'rutted', 'washed_out', 'ford', 'highway', 'toll', 'mud', 'canal', 'works'];
 export const OCCUPATIONS = ['merchant', 'guard', 'farmer', 'priest', 'blacksmith_npc', 'villager', 'child', 'noble', 'traveler', 'beggar'];
 export const PERSONALITIES = ['kind', 'stern', 'jovial', 'quiet', 'bold', 'cautious', 'witty', 'generous', 'stubborn', 'curious'];
 export const COURT_AXES = ['mercy', 'severity', 'justice', 'piety', 'generosity'];
@@ -173,7 +177,7 @@ export const Chatter = {
             blockade: false, blockader: null,
             siege: false, siegeTown: null,
             events: [], revolt: false, sagas: [], rival: null, newRuler: false, oldRuler: null, outlaws: null, money: [], labour: [],
-            prices: [], priceInfo: null, fashions: [], harvest: [],
+            prices: [], priceInfo: null, fashions: [], harvest: [], roads: [],
             proclamations: [], deeds: [],
             traits: [], court: [], titles: [], titleLabel: '',
             houseGen: house ? _num(house.generation) || 1 : 0,
@@ -268,6 +272,8 @@ export const Chatter = {
         }
         // The harvest in its region: failing or bumper, a blight; poor or plenty once it is in (world/harvests.js)
         if (settlement && world) ctx.harvest = Harvests.talk(world, settlement);
+        // The roads out of town: a pass snowed shut, a bridge down, ruts and mud, a new highway, a canal (world/transport.js)
+        if (settlement && world) ctx.roads = Transport.talk(world, settlement);
         ctx.dearth = null;
         ctx.glut = null;
         if (settlement && settlement.market) {
@@ -289,6 +295,12 @@ export const Chatter = {
             if (f && typeof f.purity === 'number' && f.purity < 1) ctx.money.push({ kind: 'debased' });
             if (f && f.levy && day != null && _num(f.levy.until) >= day) ctx.money.push({ kind: 'levy' });
             if (f && f.lastDefaultDay != null && day != null && day - f.lastDefaultDay <= 60) ctx.money.push({ kind: 'default' });
+            // The coin about: short or flooding, a recoinage lately (world/moneySupply.js)
+            const lv = MoneySupply.level(world, kid);
+            const N = MoneySupply.config().news;
+            if (lv <= N.shortAt) ctx.money.push({ kind: 'coin_short' });
+            else if (lv >= N.floodAt) ctx.money.push({ kind: 'coin_flood' });
+            if (MoneySupply.recent(world, kid, 'recoinage', 60)) ctx.money.push({ kind: 'recoinage' });
             const banks = (player && player.finance && Array.isArray(player.finance.banks)) ? player.finance.banks : [];
             for (const b of banks) {
                 if (!b || b.kingdomId !== kid) continue;
@@ -428,6 +440,7 @@ export const Chatter = {
             case 'prices': { const l = ctx.prices || []; return v === true ? l.length > 0 : v === false ? l.length === 0 : Chatter._anyIn(v, l); }
             case 'fashion': { const l = ctx.fashions || []; return v === true ? l.length > 0 : v === false ? l.length === 0 : Chatter._anyIn(v, l.map(x => x.id)); }
             case 'harvest': { const l = ctx.harvest || []; return v === true ? l.length > 0 : v === false ? l.length === 0 : Chatter._anyIn(v, l); }
+            case 'roads': { const l = ctx.roads || []; return v === true ? l.length > 0 : v === false ? l.length === 0 : Chatter._anyIn(v, l); }
             case 'event': return Chatter._anyIn(v, ctx.events.map(e => e.id));
             case 'saga': return v === true ? ctx.sagas.length > 0 : v === false ? ctx.sagas.length === 0 : Chatter._anyIn(v, ctx.sagas.map(s => s.id));
             case 'proclamation': return v === true ? ctx.proclamations.length > 0 : v === false ? ctx.proclamations.length === 0 : Chatter._anyIn(v, ctx.proclamations.map(p => p.kind));
@@ -626,7 +639,9 @@ export const Chatter = {
         if (ctx.strike) f.push(`The ${ctx.strike.guild} is on strike; ${ctx.strike.good} is short.`);
         if (ctx.outlaws) f.push(`Outlaws led by ${ctx.outlaws.leader} hold ${ctx.outlaws.name} nearby and raid the roads.`);
         const MONEY = { debased: 'The coin of the realm has been debased and prices are rising.', levy: 'The crown has raised an extraordinary war levy.',
-            default: 'The crown has refused to pay its debts.', bank_run: 'Depositors are running on the bank.', bank_failed: 'A banking house has failed.' };
+            default: 'The crown has refused to pay its debts.', bank_run: 'Depositors are running on the bank.', bank_failed: 'A banking house has failed.',
+            coin_short: 'Coin is short in the realm: prices are low and silver hard to come by.', coin_flood: 'The realm is awash with coin, and prices are rising with it.',
+            recoinage: 'The crown has called in the clipped coin and struck it anew at full weight.' };
         for (const m of ctx.money || []) if (MONEY[m.kind]) f.push(MONEY[m.kind]);
         const WORK = { idle: 'Many here are out of work.', refugees: 'Refugees have crowded into the town.', strike: 'The artisans are on strike over the price of bread.',
             boom: 'Times are good: there is work for all and newcomers keep arriving.', hardship: 'The poor are hard-pressed: wages do not cover bread and fuel.',
@@ -638,6 +653,11 @@ export const Chatter = {
         const CROP = { failing: 'The harvest hereabouts is failing; bread will be dear by spring.', bumper: 'A bumper harvest is coming; grain will be cheap.',
             poor: 'The harvest came in poor this year.', plenty: 'The harvest came in rich this year.' };
         for (const k of ctx.harvest || []) f.push(CROP[k] || `There is ${Harvests.blightName(k)} in the fields.`);
+        const ROAD = { pass_closed: 'Snow has shut the pass on the road out of town.', flood: 'The ford is in flood; no cart can cross.', ruined: 'The road out of town is ruined: potholes and washouts.',
+            rutted: 'The road is badly rutted and wants mending.', washed_out: 'The river took the bridge; travellers ford or take the ferry.', ford: 'There is no bridge: the road fords the river.',
+            highway: 'A paved highway runs from here: carts make good time.', toll: 'There is a toll on the road.', mud: 'The spring mud has the roads in its grip.',
+            canal: 'A canal joins this town to its neighbour.', works: 'Masons and road gangs are at work nearby.' };
+        for (const k of ctx.roads || []) if (ROAD[k]) f.push(ROAD[k]);
         if (ctx.rival) f.push(`The adventurer ${ctx.rival.name} passed through recently.`);
         if (ctx.newRuler) f.push(`${ctx.ruler} has newly taken the throne from ${ctx.oldRuler}.`);
         if (ctx.proclamations.length) f.push(`The heralds proclaimed: ${ctx.proclamations[0].text}`);
@@ -672,7 +692,7 @@ export const Chatter = {
         const deedIds = Object.entries((DataLoader.gossip && DataLoader.gossip.rumorTypes) || {}).filter(([, d]) => d && d.deed).map(([id]) => id);
         const heraldKinds = Object.keys(((Chatter.data().heralds || {}).templates) || {});
         const fashionIds = Fashions.config().list.map(x => x && x.id).filter(Boolean);
-        const enums = { season: SEASONS, trait: traits, court: COURT_AXES, title: TITLES, occupation: OCCUPATIONS, personality: PERSONALITIES, event: eventIds, saga: sagaIds, deed: deedIds, proclamation: heraldKinds, money: MONEY_KINDS, labour: LABOUR_KINDS, prices: PRICE_KINDS, fashion: fashionIds, harvest: [...HARVEST_KINDS, ...Harvests.config().blightIds] };
+        const enums = { season: SEASONS, trait: traits, court: COURT_AXES, title: TITLES, occupation: OCCUPATIONS, personality: PERSONALITIES, event: eventIds, saga: sagaIds, deed: deedIds, proclamation: heraldKinds, money: MONEY_KINDS, labour: LABOUR_KINDS, prices: PRICE_KINDS, fashion: fashionIds, harvest: [...HARVEST_KINDS, ...Harvests.config().blightIds], roads: ROAD_KINDS };
         const seen = new Set();
         for (const g of Chatter.groups()) {
             const gid = g && g.id;
@@ -721,6 +741,8 @@ export const Chatter = {
             'food', 'since', 'text', 'goods',
             // the harvests: a blight and where it came from (world/harvests.js)
             'blight',
+            // the roads: a ford or a ferry where a bridge was (world/transport.js)
+            'crossing',
             // underwriters and the Bourse (systems/underwriting.js, systems/bourse.js)
             'uw', 'amount', 'listing'];
         for (const [kind, list] of Object.entries(H.templates || {})) {

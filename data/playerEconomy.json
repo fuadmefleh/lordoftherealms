@@ -616,6 +616,7 @@
         "BRONZE": { "id": "bronze", "name": "Bronze Ware", "icon": "🔔", "basePrice": 42, "description": "Pots, bells, lamps, buckles and ship's fittings, cast from the copper of these hills (its own arsenic hardens it: no tin needed)." },
         "IRON_INGOT": { "id": "iron_ingot", "name": "Iron Ingot", "icon": "🔩", "basePrice": 75 },
         "GOLD_BAR": { "id": "gold_bar", "name": "Gold Bar", "icon": "🥇", "basePrice": 150 },
+        "SILVER_ORE": { "id": "silver_ore", "name": "Silver Ore", "icon": "🥈", "basePrice": 18, "description": "Argentiferous ore from the hill mines. Silversmiths work a little of it; the realms' mints buy the rest and strike it into coin." },
         "GEMS": { "id": "gems", "name": "Gems", "icon": "💎", "basePrice": 60 },
         "IVORY": { "id": "ivory", "name": "Ivory", "icon": "🦷", "basePrice": 45 },
         "SPICES": { "id": "spices", "name": "Spices", "icon": "🧂", "basePrice": 45 },

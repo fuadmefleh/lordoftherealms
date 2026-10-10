@@ -30,6 +30,7 @@ import { Seasons } from './seasons.js';
 import { WorldEvents } from './worldEvents.js';
 import { Coinage } from './coinage.js';
 import { TownLabour } from './townLabour.js';
+import { Transport } from './transport.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -1151,6 +1152,8 @@ export const SettlementMarket = {
      * systems/tradePolicy.js) add to the friction a good must beat to move
      * that way (Infinity: its export is banned); the duty on what moves is
      * left on link.paidAB / paidBA for the treasuries.
+     * The value of the goods moved each way (at the exporter's price) is left
+     * on link.valAB / valBA for the coin the realms settle in (world/moneySupply.js).
      * @returns {{ moved:number, value:number, gold:number }}
      */
     flows(links, basePrices, day = null) {
@@ -1183,6 +1186,7 @@ export const SettlementMarket = {
         };
         const income = (s, g) => { if (s.economy) s.economy.tradeIncome = _num(s.economy.tradeIncome) + g; };
         for (const link of links) {
+            link.val = 0;
             if (!(link.factor > 0)) continue;
             const a = link.a, b = link.b;
             if (turn !== null && link.slot !== undefined && link.slot !== turn) continue;
@@ -1200,7 +1204,11 @@ export const SettlementMarket = {
             // Crown tariffs and export bans (systems/tradePolicy.js): extra friction on
             // a→b / b→a goods (Infinity = banned); the duty paid is left on the link
             const dAB = link.dutyAB || null, dBA = link.dutyBA || null;
-            let paidAB = 0, paidBA = 0;
+            let paidAB = 0, paidBA = 0, valAB = 0, valBA = 0;
+            // Perishables spoil on the way (world/transport.js): more friction, part lost
+            const per = link.perish > 0 ? link.perish : 0, lossP = link.loss > 0 ? link.loss : 0;
+            const pm = per > 0 || lossP > 0 ? Transport.perishMask(ids) : null;
+            let valLink = 0;
             for (let i = 0; i < n; i++) {
                 if (!(budget > 0)) break;
                 const base = bases[i];
@@ -1216,7 +1224,8 @@ export const SettlementMarket = {
                     if (q < frR && q > 1 / frR) continue;
                 }
                 const sa = sc(stA, ta, sha.usedA[i]), sb = sc(stB, tb, shb.usedA[i]);
-                const uAB = dAB !== null ? dAB[i] : 0, uBA = dBA !== null ? dBA[i] : 0;
+                const sp = pm !== null && pm[i] === 1 ? per : 0;
+                const uAB = (dAB !== null ? dAB[i] : 0) + sp, uBA = (dBA !== null ? dBA[i] : 0) + sp;
                 let xe, xi, se, si, tE, tI, aExports, dut;
                 if (sb > sa * (fr + uAB)) { xe = xa; xi = xb; se = sa; si = sb; tE = ta; tI = tb; aExports = true; dut = uAB; }
                 else if (sa > sb * (fr + uBA)) { xe = xb; xi = xa; se = sb; si = sa; tE = tb; tI = ta; aExports = false; dut = uBA; }
@@ -1230,20 +1239,26 @@ export const SettlementMarket = {
                 if (!(qty >= 0.05)) continue;
                 qty = Math.round(qty * 100) / 100;
                 xe[i] -= qty;
-                if (!emb) xi[i] += qty;
+                if (!emb) xi[i] += pm !== null && pm[i] === 1 ? Math.round(qty * (1 - lossP) * 100) / 100 : qty;
                 else if (aExports) (cAB || (cAB = new Float64Array(n)))[i] += qty;
                 else (cBA || (cBA = new Float64Array(n)))[i] += qty;
                 budget -= qty * base * se;
                 const g = qty * base * (si - se) * T.goldScale;
                 goldLink += g;
-                if (aExports) { movedA += qty; gAB += g; } else { movedB += qty; gBA += g; }
+                if (aExports) { movedA += qty; gAB += g; valAB += qty * base * se; } else { movedB += qty; gBA += g; valBA += qty * base * se; }
                 // (an embodied lot pays its duty as the caravan's border toll instead)
-                if (dut > 0 && !emb) { if (aExports) paidAB += qty * base * se * dut; else paidBA += qty * base * se * dut; }
+                const duty = dut - (pm !== null && pm[i] === 1 ? per : 0);
+                if (duty > 0 && !emb) { if (aExports) paidAB += qty * base * se * duty; else paidBA += qty * base * se * duty; }
+                valLink += qty * base * se;
                 out.moved += qty;
                 out.value += qty * base * se;
             }
+            // What moved, for the tolls and the roads' traffic (systems/publicWorks.js)
+            link.val = valLink;
             if (emb) { link.cargoAB = cAB; link.cargoBA = cBA; link.goldAB = gAB; link.goldBA = gBA; }
             if (paidAB > 0 || paidBA > 0) { link.paidAB = _num(link.paidAB) + paidAB; link.paidBA = _num(link.paidBA) + paidBA; }
+            // What crossed each way, for the specie the realms settle in (world/moneySupply.js collectTrade)
+            if (valAB > 0 || valBA > 0) { link.valAB = _num(link.valAB) + valAB; link.valBA = _num(link.valBA) + valBA; }
             if (movedA > 0 || movedB > 0) {
                 // An embodied link's margin rides with its caravans (paid on arrival)
                 if (!emb) {

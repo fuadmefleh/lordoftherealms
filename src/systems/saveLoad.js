@@ -44,6 +44,8 @@ import { WorldUnit } from '../world/units.js';
 import { Terrain } from '../world/terrain.js';
 import { MarketDynamics } from './marketDynamics.js';
 import { TradePolicy } from './tradePolicy.js';
+import { Mints } from './mints.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { Underwriting } from './underwriting.js';
 import { Bills } from './bills.js';
 import { Bourse } from './bourse.js';
@@ -51,6 +53,7 @@ import { LossBook } from './lossBook.js';
 import { Labour } from './labour.js';
 import { Hinterland } from '../world/hinterland.js';
 import { Harvests } from '../world/harvests.js';
+import { Transport } from '../world/transport.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Utils } from '../core/utils.js';
 
@@ -161,6 +164,10 @@ export const SaveLoad = {
             // The growing season, the harvests reckoned and their news (world/harvests.js;
             // each town's fields travel with it: settlement.farm)
             harvests: Harvests.serialize(world),
+            // The roads' state (tier, repair, crossings, closures), public works, canals,
+            // harbours and tolls (world/transport.js, systems/publicWorks.js; the segments
+            // themselves are derived from the regenerated roads)
+            transport: Transport.serialize(world),
             // Great Works raised and rising, the wonders claimed (systems/patronage.js)
             greatWorks: Patronage.serializeWorld(world),
             // The realms' weekly economic indices and the heralds' price news; the
@@ -168,6 +175,8 @@ export const SaveLoad = {
             // fashion factors travel with its labour record)
             economy: EconomyIndex.serialize(world),
             fashions: Fashions.serialize(world),
+            // Each realm's coin, its flows, price level and mint (world/moneySupply.js)
+            money: MoneySupply.serialize(world),
             // Ids for characters, maps, spies, ... keep counting from here
             idCounter: Utils.getIdCounter(),
         };
@@ -498,6 +507,8 @@ export const SaveLoad = {
             bills: Bills.serialize(player),
             bourse: Bourse.serialize(player),
             lossBook: LossBook.serialize(player),
+            // Specie & mints: a mint lease, the realm whose coin the purse is in, false coin passed (systems/mints.js)
+            mints: Mints.serialize(player),
         };
     },
 
@@ -602,9 +613,13 @@ export const SaveLoad = {
         TradePolicy.restore(saveData.tradePolicy, world);
         // The harvests (older saves: none — the next day sows and the towns derive their fields)
         Harvests.restore(saveData.harvests, world);
+        // The roads (older saves: none — their state is derived from the roads on first use)
+        Transport.restore(saveData.transport, world);
         // The economic indices and the fashions (older saves: none yet — measured on the next week)
         EconomyIndex.restore(saveData.economy, world);
         Fashions.restore(saveData.fashions, world);
+        // The realms' coin (older saves: none — each realm is seeded afresh at the world's norm on the next week)
+        MoneySupply.restore(saveData.money, world);
         // Never hand out an id the save already used
         if (typeof saveData.idCounter === 'number') {
             Utils.setIdCounter(Math.max(Utils.getIdCounter(), saveData.idCounter));
@@ -782,6 +797,8 @@ export const SaveLoad = {
         Bills.loadState(player);
         Bourse.loadState(player);
         LossBook.loadState(player);
+        // Specie & mints — older saves have none (set up on the first dealing)
+        Mints.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

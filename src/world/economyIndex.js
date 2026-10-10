@@ -13,6 +13,9 @@
 //   dearth    towns in a food dearth
 //   idle      the share of hands with no work; welfare, how content they are
 //   treasury, debt ratio and coin purity of its crown (systems/finance.js)
+//   level     the realm's price level from its coin (world/moneySupply.js:
+//             1 = the world's norm; already inside food and goods), and
+//   coin      its coin in circulation
 // A history of historyWeeks samples is kept, and the big moves (bread
 // dear and rising, prices up since the season began) are recorded for the
 // heralds (systems/heralds.js) and the townsfolk (systems/chatter.js).
@@ -30,10 +33,11 @@ import { DataLoader } from '../core/dataLoader.js';
 import { SettlementMarket } from './settlementMarket.js';
 import { TownLabour } from './townLabour.js';
 import { Coinage } from './coinage.js';
+import { MoneySupply } from './moneySupply.js';
 import { Seasons } from './seasons.js';
 
 /** The fields of a history row, in order (rows are kept as arrays to keep saves small). */
-export const INDEX_FIELDS = ['day', 'food', 'goods', 'trade', 'short', 'dearth', 'idle', 'welfare', 'pop', 'treasury', 'debt', 'purity', 'towns'];
+export const INDEX_FIELDS = ['day', 'food', 'goods', 'trade', 'short', 'dearth', 'idle', 'welfare', 'pop', 'treasury', 'debt', 'purity', 'towns', 'level', 'coin'];
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -178,9 +182,10 @@ export const EconomyIndex = {
                 day, _r3(a.food / a.pop), _r3(a.goods / a.pop), Math.round(a.trade), a.short, a.dearth,
                 a.lpop > 0 ? _r3(a.idle / a.lpop) : 0, a.lpop > 0 ? _r3(a.wel / a.lpop) : 0, Math.round(a.pop),
                 kg ? Math.round(_num(kg.treasury)) : null, f ? _r3(_num(f.debtRatio)) : null, kg ? _r3(Coinage.purity(kg)) : null, a.towns,
+                kg ? _r3(Coinage.level(world, kg)) : null, kg ? MoneySupply.coin(world, kg.id) : null,
             ];
         }
-        if (!rows[WORLD]) rows[WORLD] = [day, 1, 1, 0, 0, 0, 0, 0, 0, null, null, null, 0];
+        if (!rows[WORLD]) rows[WORLD] = [day, 1, 1, 0, 0, 0, 0, 0, 0, null, null, null, 0, null, null];
         return rows;
     },
 

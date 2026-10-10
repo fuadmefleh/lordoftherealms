@@ -48,7 +48,9 @@
             "billFees": { "name": "Bills of exchange: fees", "group": "finance" },
             "shareDividends": { "name": "Share dividends (the Bourse)", "group": "finance" },
             "brokerage": { "name": "Brokers at the Bourse", "group": "finance" },
-            "fraud": { "name": "Forgeries and false claims", "group": "other" },
+            "fraud": { "name": "Forgeries, false claims and false coin", "group": "other" },
+            "exchange": { "name": "Money changers", "group": "finance" },
+            "mintLease": { "name": "Mint lease (fee and seigniorage)", "group": "enterprise" },
 
             "guildDues": { "name": "Guild dues", "group": "levies" },
             "guilds": { "name": "Guild income", "group": "levies" },
@@ -97,6 +99,7 @@
             "goodsSold": { "name": "Goods sold", "group": "capital", "kind": "cap" },
             "worksBought": { "name": "Works funded and repaired", "group": "capital", "kind": "cap" },
             "worksSold": { "name": "Works' stakes sold", "group": "capital", "kind": "cap" },
+            "publicWorks": { "name": "Public works funded (and refunds)", "group": "capital", "kind": "cap" },
             "propertyBought": { "name": "Properties built", "group": "capital", "kind": "cap" },
             "houseSale": { "name": "Houses sold", "group": "capital", "kind": "cap" },
             "shipSale": { "name": "Ships sold", "group": "capital", "kind": "cap" },

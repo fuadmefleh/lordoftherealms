@@ -257,8 +257,11 @@ export const Infrastructure = {
                 baseCost = Math.max(1, Math.ceil(baseCost * tile.infrastructure.moveCostReduction));
             }
         } else if (tile.hasRoad) {
-            // World-generated roads (connecting settlements) act like dirt roads
-            baseCost = Math.max(1, Math.ceil(baseCost * 0.5));
+            // World-generated roads (connecting settlements): ×0.5 by default; a
+            // track, a highway, a rutted or ruined road, spring mud and a pass in
+            // snow come from the road's state (world/transport.js bakes them)
+            const m = tile.roadMove > 0 ? tile.roadMove : 0.5;
+            baseCost = Math.max(1, Math.ceil(baseCost * m - 1e-9)) + (tile.roadExtra > 0 ? tile.roadExtra : 0);
         }
 
         return baseCost;
@@ -280,7 +283,8 @@ export const Infrastructure = {
                 !!infra.moveCostReduction;
             if (isRoute) return true;
         }
-        return !!tile.hasRoad;
+        // ...unless its bridge is down (a ford or a ferry: world/transport.js)
+        return !!tile.hasRoad && tile.roadCross !== 'ford' && tile.roadCross !== 'ferry';
     },
 
     /**
@@ -296,7 +300,9 @@ export const Infrastructure = {
         const reduction = player ? Technology.getEffectTotal(player, 'riverCrossReduction')
             + (pfx && Number.isFinite(pfx.riverCross) ? pfx.riverCross : 0) : 0;
         const factor = Math.max(0, 1 - Math.min(1, reduction));
-        return Math.round(Infrastructure.RIVER_CROSSING_PENALTY * factor);
+        // A road's ford or ferry is easier than wading where there is no road
+        const base = tile.hasRoad && Number.isFinite(tile.roadCrossMove) ? tile.roadCrossMove : Infrastructure.RIVER_CROSSING_PENALTY;
+        return Math.round(base * factor);
     },
 
     /**

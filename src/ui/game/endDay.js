@@ -35,6 +35,8 @@ import { Ledger } from '../../systems/ledger.js';
 import { Underwriting } from '../../systems/underwriting.js';
 import { Bills } from '../../systems/bills.js';
 import { Bourse } from '../../systems/bourse.js';
+import { PublicWorks } from '../../systems/publicWorks.js';
+import { Mints } from '../../systems/mints.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 
@@ -609,6 +611,10 @@ export function endDay() {
             // trade wars and granaries, each realm on its weekly turn (systems/tradePolicy.js)
             const tradePolicyDay = TradePolicy.processDay(this.world, this.player);
             for (const n of tradePolicyDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // The roads: wear, the realms' upkeep, washouts and snowbound passes; public works
+            // (roads, bridges, canals, harbours) buying their stone and hiring hands (systems/publicWorks.js)
+            const worksDay = PublicWorks.processDay(this.world, this.player);
+            for (const n of worksDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // The settlement markets' day: production, consumption, NPC trade
             // (world/settlementMarket.js; lairs and sieges disrupt the roads)
@@ -716,6 +722,9 @@ export function endDay() {
             for (const sys of [Underwriting, Bills, Bourse]) {
                 for (const n of sys.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             }
+            // Specie & mints: the realms' coin, its flows and price levels (weekly), recoinages,
+            // the player's mint lease, the money changers at a border (systems/mints.js, world/moneySupply.js)
+            for (const n of Mints.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Collect taxes (every 7 days)
             let taxCollected = 0;

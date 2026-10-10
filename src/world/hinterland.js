@@ -29,6 +29,7 @@ import { Utils } from '../core/utils.js';
 import { SettlementMarket } from './settlementMarket.js';
 import { TownLabour } from './townLabour.js';
 import { Harvests } from './harvests.js';
+import { Transport } from './transport.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -184,8 +185,23 @@ export const Hinterland = {
         const res = tile.resource && tile.resource.id;
         if (res && C.byResource[res]) return C.byResource[res];
         const weights = _obj(C.prospect.terrain) && _obj(C.prospect.terrain[tile.terrain.id]);
-        if (weights && Number.isFinite(tile.q) && _roll(`hl:hid:${Hinterland.seed(world)}:${tile.q},${tile.r}`) < _num(C.hidden, 0)) {
-            return Hinterland._pickKind(weights, `hl:hidk:${Hinterland.seed(world)}:${tile.q},${tile.r}`);
+        if (weights && Number.isFinite(tile.q)) {
+            const roll = _roll(`hl:hid:${Hinterland.seed(world)}:${tile.q},${tile.r}`);
+            const hidden = _num(C.hidden, 0);
+            // Kinds with a band of their own (hiddenExtra, past `hidden`) are left out of the
+            // usual pick, so adding one never reshuffles the veins a world already had
+            const extra = _obj(C.hiddenExtra) || {};
+            if (roll < hidden) {
+                const usual = {};
+                for (const [id, w] of Object.entries(weights)) if (!(id in extra)) usual[id] = w;
+                return Hinterland._pickKind(usual, `hl:hidk:${Hinterland.seed(world)}:${tile.q},${tile.r}`);
+            }
+            let band = hidden;
+            for (const [id, share] of Object.entries(extra)) {
+                if (!(_num(weights[id]) > 0)) continue;
+                band += _num(share);
+                if (roll < band && Hinterland.kind(id)) return id;
+            }
         }
         return C.byTerrain[tile.terrain.id] || null;
     },
@@ -459,13 +475,15 @@ export const Hinterland = {
         const share = toMarket || !market || market === home ? 0 : _clamp(_num(Hinterland.config().homeShare, 0.5), 0, 1);
         const mh = home ? SettlementMarket.ensure(home) : null;
         const mm = SettlementMarket.ensure(market || home);
+        // Hauled over rutted or closed roads, part of it never reaches the market (world/transport.js)
+        const haul = share < 1 && market && home && market !== home ? Transport.haulFactor(world, home, market) : 1;
         let n = 0;
         for (const g in goods) {
             const units = goods[g];
             if (!(units > 0) || !SettlementMarket.tracks(g)) continue;
             const h = units * share;
             if (h > 0 && mh) mh.stock[g] = Math.round((Math.max(0, _num(mh.stock[g])) + h) * 100) / 100;
-            if (units - h > 0 && mm) mm.stock[g] = Math.round((Math.max(0, _num(mm.stock[g])) + units - h) * 100) / 100;
+            if (units - h > 0 && mm) mm.stock[g] = Math.round((Math.max(0, _num(mm.stock[g])) + (units - h) * haul) * 100) / 100;
             n += units;
         }
         return n;

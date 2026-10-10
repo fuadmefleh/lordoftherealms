@@ -66,7 +66,7 @@ function roadsHtml(game, town) {
         const bits = [`condition ${d.cond}/100`];
         if (d.rivers) bits.push(CROSS[d.crossing] || 'a crossing');
         if (d.pass) bits.push('a mountain pass (closes in winter snow)');
-        if (d.toll) bits.push('🪙 tolled');
+        if (d.toll) bits.push('💰 tolled');
         bits.push(d.kingdom ? `kept by ${esc(d.kingdom)}` : 'kept by its towns');
         if (traffic) bits.push(`~${traffic}g of goods a day`);
         html += `<div style="${NOTE}">${bits.join(' · ')}</div>`;

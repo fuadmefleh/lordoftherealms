@@ -2,7 +2,7 @@
 // over each explored road coloured and sized by its tier and repair (a pale
 // broad highway, a thin dashed track, orange where rutted, red and broken
 // where ruined, ice-blue where a pass is snowed shut), ⛴️ / 🌊 where a
-// bridge is down, 🪙 at a toll gate, 🚧 where public works are under way,
+// bridge is down, 💰 at a toll gate, 🚧 where public works are under way,
 // and the canals as blue water lines between their towns. Drawn above the
 // road sprites from data/transport.json render.minZoom up.
 import { Renderer } from './core.js';
@@ -57,7 +57,7 @@ Object.assign(Renderer.prototype, {
             }
             if (st.toll && seg.gate >= 0) {
                 const p = Transport.hexOf(world, seg.gate);
-                if (explored(p)) icons.push([scr(p.q, p.r), '🪙']);
+                if (explored(p)) icons.push([scr(p.q, p.r), '💰']);
             }
         }
         ctx.setLineDash([]);

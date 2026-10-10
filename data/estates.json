@@ -47,12 +47,12 @@
         "quickSale": 0.9, "listAsk": 0.95
     },
 
-    "_npc": "The holders' purses (notional: their rents are not drawn from anywhere, but every estate that changes hands between them, the player and the crowns moves real gold from the buyer's purse to the seller's, or a crown's treasury). Each month a holder spends spend[kind] of its rents (nobles x 1 +/- extravagance by a hash, + warLevy of them while their realm is at war); a shortfall is debt, carrying debtRate a month. A holder whose debt passes distressAt x the value of its land puts its cheapest estate on the market at distressPrice x value. A crown deep in debt (its debt past crownSellAt x what it can carry, or its treasury empty at war) sells one with crownChance a month at crownPrice. Houses and burghers earn houseIncome / townIncome a day from trade besides their rents. Listings wait `wait` days for a buyer (the player first), then the richest purse of a house, burghers of the town, noble of the realm or (churchBuys of the time) the church takes it; unsold after `relist` days the price drops relistCut, withdrawn under withdrawAt x value. Yearly at sowing: bequest (a noble with two or more estates leaves one to the church), dowry (per realm: a noble estate passes to another noble house), and nobles and houses enclose where wool is dear (woolAbove) and grain cheap (grainBelow), npcEnclose a year.",
+    "_npc": "The holders' purses (notional: their rents are not drawn from anywhere, but every estate that changes hands between them, the player and the crowns moves real gold from the buyer's purse to the seller's, or a crown's treasury). Each month a holder spends spend[kind] of its rents (nobles x 1 +/- extravagance by a hash, + warLevy of them while their realm is at war); a shortfall is debt, carrying debtRate a month. Nobles live a little beyond their rents (spend 1.08). A holder whose debt passes distressAt x the value of its land puts its cheapest estate on the market at distressPrice x value. A crown deep in debt (its debt past crownSellAt x what it can carry, or its treasury empty at war) sells one with crownChance a month at crownPrice. Houses and burghers earn houseIncome / townIncome a day from trade besides their rents. Listings wait `wait` days for a buyer (the player first), then the richest purse of a house, burghers of the town, noble of the realm or (churchBuys of the time) the church takes it; unsold after `relist` days the price drops relistCut, withdrawn under withdrawAt x value. Yearly at sowing: bequest (a noble with two or more estates leaves one to the church), dowry (per realm: a noble estate passes to another noble house), and nobles and houses enclose where wool is dear (woolAbove) and grain cheap (grainBelow), npcEnclose a year.",
     "npc": {
-        "purse": { "noble": [0.05, 0.35], "house": [1500, 5000], "town": [300, 2000], "church": [0.1, 0.4] },
-        "spend": { "noble": 1.0, "house": 0.6, "town": 0.85, "church": 0.85 },
-        "extravagance": 0.3, "warLevy": 0.15, "debtRate": 0.01,
-        "distressAt": 0.25, "distressPrice": 0.92,
+        "purse": { "noble": [0.02, 0.15], "house": [1500, 5000], "town": [300, 2000], "church": [0.1, 0.4] },
+        "spend": { "noble": 1.08, "house": 0.6, "town": 0.85, "church": 0.85 },
+        "extravagance": 0.5, "warLevy": 0.15, "debtRate": 0.01,
+        "distressAt": 0.08, "distressPrice": 0.92,
         "crownSellAt": 0.8, "crownChance": 0.3, "crownPrice": 0.95,
         "houseIncome": 4, "townIncome": 0.002,
         "wait": 7, "relist": 30, "relistCut": 0.92, "withdrawAt": 0.65, "churchBuys": 0.3,
@@ -96,7 +96,7 @@
         "open": { "chance": 0.15, "seize": 0, "fine": 0.05, "feud": 1 },
         "minMargin": 0.1, "npcKeep": 1.0, "npcEvery": 7,
         "minBatch": 5, "maxBatches": 6, "holdDays": 60,
-        "glut": { "below": 0.7, "towns": 3, "gapDays": 120 }
+        "glut": { "below": 0.65, "towns": 4, "gapDays": 240 }
     },
 
     "names": {

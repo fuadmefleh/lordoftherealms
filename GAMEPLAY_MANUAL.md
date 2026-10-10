@@ -16,6 +16,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
     - [Kingdom Trade Policy](#kingdom-trade-policy) — tariffs, export bans, embargoes, treaties, trade wars, state granaries; smuggling, licences and brokered treaties
     - [The Economic Chronicle](#the-economic-chronicle-the-gazette-your-books-and-fashions) — your books by source and net worth, the realms' weekly gazette, fashions at court
     - [Specie, Mints & the Price Level](#specie-mints--the-price-level) — each realm's coin, where it flows and what it does to prices; selling bullion, leasing a mint, recoinage, money changers, false coin
+    - [Land, Estates & the Putting-Out System](#land-estates--the-putting-out-system) — the estates about the towns, rents and tenants, land values, buying and selling land, drainage and enclosure; putting out wool and flax to the cottagers; flax and linen
 5. [Properties & Production](#5-properties--production)
 6. [Crafting](#6-crafting)
 7. [Caravans & Trade Routes](#7-caravans--trade-routes)
@@ -177,7 +178,7 @@ The seasonal curve sets the **shape** of the year. The **harvest** sets its **si
 | **Soil** | Over-cropped land yields less (see below). |
 
 **What a harvest does.** From the reckoning until the next one:
-- **Grain** brought to market is scaled by the harvest. **Wine** follows the vines, **linen** (as textiles) follows the flax, and **meat, cheese, hides, wool and horses** follow the herds and the hay.
+- **Grain** brought to market is scaled by the harvest. **Wine** follows the vines, **flax** follows the flax fields (the linen weavers and the cottagers make linen of it: see [Land, Estates & the Putting-Out System](#land-estates--the-putting-out-system)), and **meat, cheese, hides, wool and horses** follow the herds and the hay.
 - The **food the people eat** follows at 70% of the swing.
 - The hinterland's **sheep runs, ranches and studs** follow the herds.
 - Your holdings' **tithes and rents** follow at half the swing.
@@ -1010,6 +1011,58 @@ The crown's taxes follow the coin a little: a realm drained of coin collects up 
 **False coin.** A Thieves' Guild hand of rank 1 or above can buy a batch of silvered copper from the guild's coiners (the Mint's 🕯️ Coiners tab, in any realm's town): stake 100–600g of good coin and clear 55% more if it passes. The watch catches about 16% of batches, more if your name is hot in the realm and less as you rise in the guild, and clipped coin is easier to fake. Caught, you lose the stake and pay a fine as large again, your heat rises and you may be jailed. One batch a week. Every false coin passed swells the realm's coin a little.
 
 **News.** Heralds cry recoinages, coin shortages (prices well under the world's) and floods of coin. Townsfolk grumble about both, and merchants say where goods are cheap for want of coin. The Steward's Counsel tells you when a mint nearby would pay more for the bullion in your packs than the market, and, as a ruler, when your realm's coin is clipped, short or flooding.
+
+### Land, Estates & the Putting-Out System
+
+**The farmland and its estates.** The grain, flax and vines a town brings to market grow on the farmland about it. About 40% of that land is the peasants' own freeholds and commons, which nobody sells. The rest is held in a few **estates**: one about a village, two about a town, three about a city, four about a capital (the first of a capital's is the crown's demesne). They are held by the crown, the realm's noble houses, the Church, the town's burghers or the merchant houses. The **🌾 Estates & Land** action in every settlement (also the 🏡 Estates tab of the market window and the Steward's Counsel) shows each estate: its holder, its share of the farmland, its tenant households, its soil, its crops a day and their worth, its rent, its tenants' loyalty and what it is worth.
+
+An estate is a share of the town's own fields, not extra land: its crops are already in the town's market. What a holder does to it changes the market. Drained or marled fields grow more, and the town reaps more. Enclosed fields grow wool instead of grain. When the cottagers spin out of season, fewer hands are in the fields. An estate left as it was changes nothing.
+
+**Rent.** The tenants pay once a month, on the town's own day:
+- **Level.** Low (18% of the crop), customary (25%) or high (34%). The tenants' loyalty heads toward 78, 55 or 26.
+- **In coin or in kind.** A coin rent is a fixed sum on the estate's usual crop. In a bad year it can be more than the tenants can hand over (half the month's crop at most), and the rest falls into arrears: loyalty falls. A **share of the crop** follows the harvest and its price, so the landlord carries the bad year; the tenants like it better (+6 loyalty).
+- **Loyalty.** Tenants at loyalty 0 pay 70% of what is due; from 75 they pay all of it. Under 20 they may withhold a month's rent (a rent strike) or riot. Under 25 they sour the town a little each month; over 70 they cheer it.
+- **High rents drive people away.** Each month about 3% of an estate's households leave for the nearest town, more as loyalty sinks. Pay piece wages in the town (below) and the tenants are more content.
+- **Where the gold comes from.** Your rents come out of the town's own coin, the wealth its crown taxes, so a landlord's rent is the town's money, not new money. A steward and bailiff keep 8%. The Ledger shows rents as *Estate rents*.
+
+**What land is worth.** An estate is priced at its expected yearly net rent over the realm's **land rate**. The land rate is 5.5% plus half of how far the crown's bond rate stands above 6% (Banks, Credit & Coin). It rises a point while the realm is at war and another while it is in unrest, and stays between 4% and 9%. Free towns' land goes at 6.5%. So land pays its buyer 4–8% a year, about the rate of a deposit or a royal bond, in rent instead of interest. It is safe from robbers and keeps its worth as prices rise. A village estate is worth about 1,500–7,000g (small hamlets less), a town's 7,500–24,000g, and a capital's 25,000–50,000g.
+
+**Buying and selling.** Land comes on the market when its holder needs money:
+- Noble houses live a little beyond their rents, and some years they spend far more. Once a house's debt passes 8% of its land's worth, its cheapest estate goes on the market at 92% of its worth.
+- A crown deep in debt, or with an empty treasury at war, sells a crown estate now and then (at 95%).
+- A listing waits a week for you. Then the richest purse able to pay takes it: a merchant house, the town's burghers, a noble of the realm, now and then the Church. If nobody buys, the price falls 8% a month.
+- You may also make an **offer** on an estate that is not for sale. Nobles ask 1.15× its worth, houses 1.1×, burghers 1.2×. The crown asks 1.25× and sells only to someone it trusts (reputation 10). Indebted holders ask 5% less. **The Church never sells.**
+- The crown takes a **3% duty** on every purchase.
+- To sell, take the quick price (90% of the worth) from the richest buyer about, or list the estate at 95% and wait. Buying and selling back at once always loses.
+
+**Improvements.** Paid up front; most of the cost is the hands' wages, which go to the town:
+
+| Works | Cost | Days | Effect |
+|---|---|---|---|
+| Drain the wet fields | 12g a household (at least 60g) | 30 | Soil +10%, once; tenants +3 loyalty |
+| Marl the fields | 5g a household (at least 30g) | 15 | Soil +6%, wearing off 2 points a year |
+| Enclose for sheep | 6g a household (at least 40g) | 20 | The fields run sheep: wool worth 55% of the crops at base prices, let at 60% to a grazier |
+| Re-let to tenants | 3g a household (at least 30g) | 20 | Undoes an enclosure |
+
+Soil is capped at 130%. **Enclosure** pays where wool is dear and grain cheap. Three households in four are turned out to the nearest town of the same size or larger, where they swell the labourers. The town reaps less grain and more wool. The tenants who stay lose 15 loyalty, and the cottagers may riot: the chance is (60 − loyalty) / 60, between 10% and 90%. Noble houses and merchant houses enclose too, at sowing, where wool is dear.
+
+**War, conquest and marriage.**
+- **Peace terms.** A realm that loses a war cedes its best crown estate to the victor half the time.
+- **Conquest.** When a town changes hands, the old crown's and nobles' estates there pass to the new crown. Yours are **confiscated** if your reputation with the new realm is under −20 or you are at war with it.
+- **Bequests and dowries.** Nobles leave estates to the Church, and estates pass between noble houses as dowries.
+- **Your own dowry.** You may settle one of your estates on a realm's nobility as a dowry: +1 reputation there for each 150g of its worth (at most +25), and House Prestige (+1 for each 500g, at most 10).
+- **Landed gentry.** Holding land brings the House a little Prestige each month (1 an estate, at most 3).
+
+**The putting-out system.** The **🧶 Put Out Work** action (or the market window's 🧶 Putting-out tab) puts out raw **wool** or **flax** that you carry. The cottagers about the town spin and weave it at home for a piece rate and hand back **textiles** or **linen**: 9 units of cloth for every 10 of fibre, times the work's quality (85–103%).
+- **Piece rates.** Mean (10% of the cloth's base price a unit: fewer take it, coarser work), fair (15%) or generous (22%: more hands, finer work). A guild workshop would charge about 30%. You pay the wages when you put the work out; they go to the town's households (rural incomes, and your tenants there grow more content).
+- **Seasons.** All the cottagers have time in winter, a third in spring, a sixth at harvest, nearly half in autumn. A village's households spin about 0.15 units a day each. Out of the slack season the work takes hands from the fields: the town's crops fall a little while it lasts.
+- **The guilds.** Where the town's weavers' guild holds a royal charter, its officers seize a quarter of the cloth 40% of the time and fine you a tenth of its worth. An unchartered guild only fines (5%, 15% of the time). Journeymen and masters of the guild are left alone. Villages have no guild, which is why the merchants went to the countryside.
+- **Collecting.** Come back for the cloth. Uncollected cloth is sold off in the town's market after 60 days. The fibre's cost carries into the cloth in your price book, so the stall margin when you sell it is honest.
+- **The merchant houses.** They put work out too. Every week, in each town without a chartered weavers' guild, they put out the wool and flax above the market's own need where the cloth fetches more than the fibre and the piece rate, and bring the cloth to market a week later.
+
+**Flax and linen.** The flax fields of the harvest (Harvests: Good Years and Bad) bring **flax** to market (9g base). The town linen weavers turn 1.2 flax into 1 linen. Craftsmen everywhere make some linen too, so towns far from flax aren't bare. **Linen** (30g) is worn by every class, the clergy, merchants and nobles most of all. The **Linen Loft** works can be funded like the other works, and the weavers' guild guards linen as it guards wool. When four or more of a realm's towns are awash with linen, the heralds cry a linen glut.
+
+**News.** The heralds cry enclosures, enclosure and rent riots, crown and distress sales of estates, confiscations, estates ceded in a peace, and linen gluts. Townsfolk talk of the enclosed fields, the riots, an estate up for sale, and the merchants who put out wool in the winter. The Steward's Counsel points to land for sale near you at or below its worth that you can afford, to your restless tenants and their arrears, and to cloth waiting to be collected.
 
 ### Tax Collection
 

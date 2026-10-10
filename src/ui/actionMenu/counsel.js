@@ -56,6 +56,8 @@ export const COUNSEL_PANELS = {
     underwriter: { label: 'Underwriters', open: (g) => ActionMenu.showUnderwriter(g, _here(g)) },
     bourse: { label: 'Bourse', open: (g) => ActionMenu.showBourse(g) },
     mint: { label: 'The Mint', open: (g) => ActionMenu.showMint(g) },
+    estates: { label: 'Estates', open: (g, item) => ActionMenu.showEstates(g, item && item.action.q !== null ? g.world.getTile(item.action.q, item.action.r) : _here(g)) },
+    puttingOut: { label: 'Putting-out', open: (g, item) => ActionMenu.showPuttingOut(g, item && item.action.q !== null ? g.world.getTile(item.action.q, item.action.r) : _here(g)) },
     merchantPrince: { label: 'Market', open: (g) => ActionMenu.showMerchantPrince(g, _here(g), 'ledger') },
     mpWarehouse: { label: 'Store-room', open: (g) => ActionMenu.showMerchantPrince(g, _here(g), 'warehouse') },
     mpContracts: { label: 'Contracts', open: (g) => ActionMenu.showMerchantPrince(g, _here(g), 'contracts') },

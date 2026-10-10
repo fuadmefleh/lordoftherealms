@@ -1359,7 +1359,7 @@ export const TradePolicy = {
         if (player.inventory[goodId] <= 0) delete player.inventory[goodId];
         const caught = Utils.random() < q.chance;
         if (caught) {
-            const fine = Math.min(_num(player.gold), Math.floor(q.price * n * _num(P.fineShare, 0.5)));
+            const fine = Math.min(Math.floor(_num(player.gold)), Math.floor(q.price * n * _num(P.fineShare, 0.5)));
             player.gold = _num(player.gold) - fine;
             S.treasury = _num(S.treasury) + fine;
             st.stats.caught++;

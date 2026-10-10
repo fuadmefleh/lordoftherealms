@@ -54,6 +54,8 @@ import { Underwriting } from './underwriting.js';
 import { Bills } from './bills.js';
 import { Bourse } from './bourse.js';
 import { Mints } from './mints.js';
+import { LandMarket } from './landMarket.js';
+import { PuttingOut } from './puttingOut.js';
 import { MarketFairs } from './marketFairs.js';
 import { Guilds } from './guilds.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
@@ -1029,6 +1031,29 @@ R.bourseMania = (ctx) => {
         out.push({ key: `mania:${pf.listing.id}`, listing: pf.listing.name, shares: pf.shares, value: Math.round(pf.value) });
     }
     return out.slice(0, 1);
+};
+
+/** An estate on the market nearby at no more than its worth, within the purse (systems/landMarket.js). */
+R.estateSale = (ctx) => {
+    const t = LandMarket.saleTip(ctx.player, ctx.world);
+    if (!t) return [];
+    const WHY = { debts: 'its lord is in debt', crown: 'the crown needs the money', player: 'its holder sells' };
+    return [{ key: `estate:${t.e.id}`, q: t.live.q, r: t.live.r, estate: t.e.name, place: t.live.name, price: t.x.price, pct: Math.round(t.ratio * 100), dist: t.dist, why: WHY[t.x.reason] || 'a fair price' }];
+};
+
+/** The player's tenants restless: low loyalty, arrears (systems/landMarket.js). */
+R.estateUnrest = (ctx) => {
+    return LandMarket.restless(ctx.player, ctx.world).slice(0, 2).map(({ e, live }) => ({
+        key: `tenants:${e.id}`, q: live.q, r: live.r, estate: e.name, place: live.name,
+        what: e.arrears > 0 ? `owe ${e.arrears}g in arrears: lower the rent, or take it in kind` : `are sullen (loyalty ${e.loyalty}): high rents breed flight and riot`,
+    }));
+};
+
+/** Cloth the cottagers have finished, waiting to be collected (systems/puttingOut.js). */
+R.clothReady = (ctx) => {
+    const t = PuttingOut.readyTip(ctx.player, ctx.world);
+    if (!t) return [];
+    return [{ key: `cloth:${t.b.id}`, q: t.b.q, r: t.b.r, units: t.b.units, good: t.b.output, place: t.b.name, dist: t.dist }];
 };
 
 /** Bullion in the packs that a mint nearby would pay well for (systems/mints.js). */

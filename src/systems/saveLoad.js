@@ -45,6 +45,8 @@ import { Terrain } from '../world/terrain.js';
 import { MarketDynamics } from './marketDynamics.js';
 import { TradePolicy } from './tradePolicy.js';
 import { Mints } from './mints.js';
+import { LandMarket } from './landMarket.js';
+import { Estates } from '../world/estates.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { Underwriting } from './underwriting.js';
 import { Bills } from './bills.js';
@@ -177,6 +179,8 @@ export const SaveLoad = {
             fashions: Fashions.serialize(world),
             // Each realm's coin, its flows, price level and mint (world/moneySupply.js)
             money: MoneySupply.serialize(world),
+            // The estates about the towns, their holders, the land market and the cottagers' work (world/estates.js)
+            estates: Estates.serialize(world),
             // Ids for characters, maps, spies, ... keep counting from here
             idCounter: Utils.getIdCounter(),
         };
@@ -509,6 +513,8 @@ export const SaveLoad = {
             lossBook: LossBook.serialize(player),
             // Specie & mints: a mint lease, the realm whose coin the purse is in, false coin passed (systems/mints.js)
             mints: Mints.serialize(player),
+            // Land & putting-out: the cloth put out to the cottagers, the land log (systems/landMarket.js)
+            land: LandMarket.serializePlayer(player),
         };
     },
 
@@ -620,6 +626,8 @@ export const SaveLoad = {
         Fashions.restore(saveData.fashions, world);
         // The realms' coin (older saves: none — each realm is seeded afresh at the world's norm on the next week)
         MoneySupply.restore(saveData.money, world);
+        // The estates (older saves: none — every town's estates are derived on the next day)
+        Estates.restore(saveData.estates, world);
         // Never hand out an id the save already used
         if (typeof saveData.idCounter === 'number') {
             Utils.setIdCounter(Math.max(Utils.getIdCounter(), saveData.idCounter));
@@ -799,6 +807,8 @@ export const SaveLoad = {
         LossBook.loadState(player);
         // Specie & mints — older saves have none (set up on the first dealing)
         Mints.loadState(player);
+        // Land & putting-out — older saves have none (a blank record)
+        LandMarket.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

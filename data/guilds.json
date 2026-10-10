@@ -48,7 +48,7 @@
         "bakers":    { "name": "Bakers' Guild", "icon": "🍞", "recipes": ["bakery"], "goods": ["bread"], "inputs": ["grain"], "minRuns": 6, "masterpiece": { "grain": 30, "salt": 6 } },
         "brewers":   { "name": "Brewers' Guild", "icon": "🍺", "recipes": ["brewery", "distillery"], "goods": ["beer", "liquor"], "inputs": ["grain"], "minRuns": 2, "masterpiece": { "grain": 40, "wood": 10 } },
         "colliers":  { "name": "Colliers' Guild", "icon": "🔥", "recipes": ["charcoal"], "goods": ["firewood"], "inputs": ["wood"], "minRuns": 1.5, "masterpiece": { "wood": 40 } },
-        "weavers":   { "name": "Weavers' Guild", "icon": "🧶", "recipes": ["weaver"], "goods": ["textiles"], "inputs": ["wool"], "minRuns": 1, "masterpiece": { "wool": 25, "tools": 2 } },
+        "weavers":   { "name": "Weavers' Guild", "icon": "🧶", "recipes": ["weaver", "linen_weaver"], "goods": ["textiles", "linen"], "inputs": ["wool", "flax"], "minRuns": 1, "masterpiece": { "wool": 25, "tools": 2 } },
         "tailors":   { "name": "Tailors' Guild", "icon": "👕", "recipes": ["tailor"], "goods": ["clothes"], "inputs": ["textiles"], "minRuns": 1, "masterpiece": { "textiles": 12, "tools": 1 } },
         "tanners":   { "name": "Tanners' Guild", "icon": "🟫", "recipes": ["tannery"], "goods": ["leather"], "inputs": ["hide"], "minRuns": 0.75, "masterpiece": { "hide": 20, "salt": 4 } },
         "cheesewrights": { "name": "Cheesewrights' Guild", "icon": "🧀", "recipes": ["dairy"], "goods": ["cheese"], "inputs": ["meat"], "minRuns": 0.8, "masterpiece": { "meat": 15, "salt": 6 } },

@@ -173,7 +173,7 @@ describe('Harvests — the harvest reaches the economy', () => {
         expect(f && f.mix).toBeTruthy();
         expect(Object.values(f.mix).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 2);
         const base = { grain: 10, wine: 2, meat: 3, cheese: 1 };
-        // Before any harvest: nothing changes but the flax's linen
+        // Before any harvest: nothing changes but the flax
         const p0 = Harvests.applyToProduction(w, s, { ...base });
         expect(p0.grain).toBe(10);
         expect(p0.meat).toBe(3);
@@ -185,7 +185,9 @@ describe('Harvests — the harvest reaches the economy', () => {
         expect(good.grain).toBeGreaterThan(11);
         expect(bad.wine).toBeLessThan(good.wine);
         expect(bad.meat).toBeCloseTo(3 * 0.7, 3);
-        expect(good.textiles || 0).toBeGreaterThan(bad.textiles || 0);
+        // (flax comes to market as flax for the linen weavers and the cottagers, not as textiles)
+        expect(good.flax || 0).toBeGreaterThan(bad.flax || 0);
+        expect(good.textiles || 0).toBe(0);
         // ...the granary food the people eat and the tithe follow, damped
         expect(Harvests.foodFactor(w, s)).toBeGreaterThan(1);
         expect(Harvests.foodFactor(w, s)).toBeLessThan(Harvests.grainFactor(s));

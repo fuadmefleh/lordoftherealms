@@ -40,7 +40,8 @@ const topLevel = [
     'chronicle',
     'bourse',
     'transport',
-    'mints'
+    'mints',
+    'estates'
 ];
 
 const merged = {};

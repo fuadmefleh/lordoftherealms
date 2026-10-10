@@ -850,6 +850,12 @@ Object.assign(ActionMenu, {
             case 'mint':
                 ActionMenu.showMint(game, tile);
                 break;
+            case 'estates':
+                ActionMenu.showEstates(game, tile, 'here');
+                break;
+            case 'putting_out':
+                ActionMenu.showPuttingOut(game, tile);
+                break;
             case 'host_feast':
                 ActionMenu.showHostFeastMenu(game, tile);
                 break;

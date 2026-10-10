@@ -29,6 +29,9 @@ import { Kingship } from '../systems/kingship.js';
 import { Holdings } from '../systems/holdings.js';
 import { Underworld } from '../systems/underworld.js';
 import { OutlawLairs } from '../systems/outlawLairs.js';
+import { LandMarket } from '../systems/landMarket.js';
+import { PuttingOut } from '../systems/puttingOut.js';
+import { Estates } from '../world/estates.js';
 import { PlayerEconomy, Trading } from '../player/playerEconomy.js';
 import { loadData, newGame, endDay } from './playtest/harness.js';
 import { botDay } from './playtest/bot.js';
@@ -357,6 +360,10 @@ function panelsAt(game, tile) {
         ['showTradeMenu', () => ActionMenu.showTradeMenu(g, tile)],
         ['showPublicWorks', () => ActionMenu.showPublicWorks(g, tile)],
         ['showMint', () => ActionMenu.showMint(g, tile)],
+        ['showEstates', () => ActionMenu.showEstates(g, tile, 'here')],
+        ['showEstates(mine)', () => ActionMenu.showEstates(g, tile, 'mine')],
+        ['showEstates(market)', () => ActionMenu.showEstates(g, tile, 'market')],
+        ['showPuttingOut', () => ActionMenu.showPuttingOut(g, tile)],
     ];
     if (Throne.ruledKingdom(g.player, g.world)) list.push(['showRoyalCourt', () => ActionMenu.showRoyalCourt(g, tile)]);
     const lair = (OutlawLairs.known ? OutlawLairs.known(g.player, g.world) : [])[0];
@@ -443,6 +450,10 @@ function tycoon(game) {
             if (t && PlayerEconomy.buildProperty(player, 'FARM', t, world).success) farmed = true;
         }
     }
+    // An estate here (the Estates panel's rents, works, sales, dowry) and wool put out to the cottagers
+    for (const e of Estates.estatesOf(world, tile.q, tile.r)) if (LandMarket.buy(player, world, e.id).success) break;
+    player.inventory.wool = (player.inventory.wool || 0) + 40;
+    PuttingOut.putOut(player, world, tile, 'wool', 20, 'fair');
     const ug = Underworld.ensure(player);
     if (ug.guild && !ug.guild.member) ug.guild.member = true;
     if (ug.guild) ug.guild.rank = Math.max(ug.guild.rank || 0, 3);

@@ -51,6 +51,8 @@
             "fraud": { "name": "Forgeries, false claims and false coin", "group": "other" },
             "exchange": { "name": "Money changers", "group": "finance" },
             "mintLease": { "name": "Mint lease (fee and seigniorage)", "group": "enterprise" },
+            "estateRents": { "name": "Estate rents", "group": "enterprise" },
+            "puttingOut": { "name": "Putting-out: piece wages", "group": "enterprise" },
 
             "guildDues": { "name": "Guild dues", "group": "levies" },
             "guilds": { "name": "Guild income", "group": "levies" },
@@ -107,7 +109,10 @@
             "borrowed": { "name": "Borrowed", "group": "capital", "kind": "cap" },
             "loanPrincipal": { "name": "Loan principal repaid", "group": "capital", "kind": "cap" },
             "bills": { "name": "Bills of exchange drawn and paid", "group": "capital", "kind": "cap" },
-            "shares": { "name": "Shares bought and sold", "group": "capital", "kind": "cap" }
+            "shares": { "name": "Shares bought and sold", "group": "capital", "kind": "cap" },
+            "estatesBought": { "name": "Estates bought (with the crown's duty)", "group": "capital", "kind": "cap" },
+            "estatesSold": { "name": "Estates sold", "group": "capital", "kind": "cap" },
+            "estateWorks": { "name": "Estate improvements (drainage, marl, enclosure)", "group": "capital", "kind": "cap" }
         }
     },
 

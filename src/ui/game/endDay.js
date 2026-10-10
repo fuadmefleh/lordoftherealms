@@ -28,6 +28,8 @@ import { Labour } from '../../systems/labour.js';
 import { Guilds } from '../../systems/guilds.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { Concessions } from '../../systems/concessions.js';
+import { LandMarket } from '../../systems/landMarket.js';
+import { PuttingOut } from '../../systems/puttingOut.js';
 import { Harvests } from '../../world/harvests.js';
 import { TradePolicy } from '../../systems/tradePolicy.js';
 import { EconomyChronicle } from '../../systems/economyChronicle.js';
@@ -607,6 +609,11 @@ export function endDay() {
             // are paid, auctioned and revoked (world/hinterland.js, systems/concessions.js)
             const hinterlandDay = Concessions.processDay(this.world, this.player);
             for (const n of hinterlandDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // The land: each town's month of rents, tenants and land values, estates changing
+            // hands; the cottagers' putting-out work (systems/landMarket.js, systems/puttingOut.js)
+            for (const sys of [LandMarket, PuttingOut]) {
+                for (const n of sys.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            }
             // The crowns' trade policy: tariffs, export bans, embargoes, treaties,
             // trade wars and granaries, each realm on its weekly turn (systems/tradePolicy.js)
             const tradePolicyDay = TradePolicy.processDay(this.world, this.player);

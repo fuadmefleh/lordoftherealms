@@ -57,6 +57,9 @@ const HARVEST_KINDS = { failing: 'harvest_failing', bumper: 'harvest_bumper', bl
 const ROAD_KINDS = { washout: 'road_washout', pass_closed: 'pass_closed', highway_opened: 'highway_opened', bridge_built: 'bridge_built', canal_opened: 'canal_opened', harbour_built: 'harbour_built' };
 // Coin records (world.money.news, world/moneySupply.js): a recoinage, a coin shortage, a flood of coin
 const MONEY_KINDS = { recoinage: 'coin_recoinage', coin_short: 'coin_shortage', coin_flood: 'coin_flood' };
+// Land records (world.estates.history, systems/landMarket.js, systems/puttingOut.js): an enclosure and its riot, a rent
+// riot, a crown's or a debtor's estate sold, confiscated or ceded in a peace, a linen glut
+const ESTATE_KINDS = { enclosure: 'estate_enclosure', riot: 'estate_riot', sold: 'estate_sold', confiscated: 'estate_confiscated', ceded: 'estate_ceded', linen_glut: 'linen_glut' };
 
 const _num = v => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -229,6 +232,15 @@ export const Heralds = {
         for (const x of Heralds._tradeRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._econRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._moneyRecords(world)) st.seen[x.key] = x.day;
+        for (const x of Heralds._estateRecords(world)) st.seen[x.key] = x.day;
+    },
+
+    /** Enclosures and riots, notable estate sales, confiscations and cessions, linen gluts (world.estates.history). */
+    _estateRecords(world) {
+        const t = world && world.estates;
+        return (t && Array.isArray(t.history) ? t.history : [])
+            .filter(h => h && h.key && ESTATE_KINDS[h.kind] && (h.kind !== 'sold' || h.own || h.why === 'crown' || h.why === 'debts'))
+            .map(h => ({ key: h.key, day: _num(h.day), h }));
     },
 
     /** Recoinages, coin shortages and floods of coin (world.money.news, world/moneySupply.js). */
@@ -551,6 +563,17 @@ export const Heralds = {
             const k = _kingdom(world, h.kingdomId);
             Heralds._proclaim(st, world, MONEY_KINDS[h.kind], {
                 kingdom: h.kingdom || (k ? k.name : 'the realm'), pct: Math.abs(_num(h.pct)), purity: _num(h.purity) || 90,
+            }, h.q != null ? { q: h.q, r: h.r } : Heralds._capital(world, k), { kingdomId: h.kingdomId != null ? h.kingdomId : null, own: !!h.own });
+        }
+
+        // The land: enclosures and riots, estates sold, confiscated or ceded, linen gluts
+        for (const x of Heralds._estateRecords(world).filter(fresh)) {
+            st.seen[x.key] = x.day;
+            const h = x.h;
+            const k = _kingdom(world, h.kingdomId);
+            Heralds._proclaim(st, world, ESTATE_KINDS[h.kind], {
+                place: h.place || 'the town', estate: h.estate || 'an estate', holder: h.holder || 'its lord', buyer: h.buyer || 'a new master',
+                kingdom: h.kingdom || (k ? k.name : 'the realm'), n: _num(h.n) || 'Many', to: h.to || 'the towns', price: _num(h.price) || 'a great sum',
             }, h.q != null ? { q: h.q, r: h.r } : Heralds._capital(world, k), { kingdomId: h.kingdomId != null ? h.kingdomId : null, own: !!h.own });
         }
 

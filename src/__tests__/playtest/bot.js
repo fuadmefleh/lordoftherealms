@@ -52,6 +52,9 @@ import { Concessions } from '../../systems/concessions.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { Seasons } from '../../world/seasons.js';
 import { Harvests } from '../../world/harvests.js';
+import { Estates } from '../../world/estates.js';
+import { LandMarket } from '../../systems/landMarket.js';
+import { PuttingOut } from '../../systems/puttingOut.js';
 import { travelTo } from './harness.js';
 
 const FOOD = ['grain', 'bread'];
@@ -893,6 +896,53 @@ function harvests(game, tile, stats) {
     }
 }
 
+/**
+ * Land and the cottage looms (systems/landMarket.js, systems/puttingOut.js):
+ * cloth put out here is collected; in autumn and winter wool or flax (bought
+ * here when it is cheap) goes out to the cottagers at the fair rate; after
+ * day 150, with gold to spare, the cheapest estate here or for sale nearby is
+ * bought (two at most), its rent taken in kind when the tenants grow sullen
+ * and its fields drained when there is money for it. Picks by a hash of the
+ * day and the town, not the RNG.
+ */
+function land(game, tile, stats) {
+    const { player, world } = game;
+    const s = tile.settlement;
+    if (!Estates.enabled()) return;
+    if (PuttingOut.batches(player, s.q, s.r).some(b => b.done)) {
+        const r = PuttingOut.collect(player, world, tile);
+        if (r.units > 0) count(stats, 'clothCollected');
+    }
+    const season = Seasons.seasonOf(world.day);
+    if ((season === 'Winter' || season === 'Autumn') && world.day > 60 && player.gold > 500 && ((world.day * 3 + tile.q + tile.r * 7) % 3) === 0) {
+        for (const input of ['wool', 'flax']) {
+            let have = Math.floor(player.inventory[input] || 0);
+            if (have < 10 && player.gold > 900) {
+                const g = Trading.getAvailableGoods(s, tile, world).find(x => x.id === input);
+                const base = (PlayerEconomy.GOODS[input.toUpperCase()] || {}).basePrice || 10;
+                if (g && g.quantity >= 15 && g.price > 0 && g.price <= base * 1.2) {
+                    const qty = Math.min(20, Trading.affordable(player, g, s, 20));
+                    if (qty >= 10 && Trading.buyGoods(player, g, qty, s).success) have = Math.floor(player.inventory[input] || 0);
+                }
+            }
+            if (have >= 10 && PuttingOut.putOut(player, world, tile, input, Math.min(have, 40), 'fair').success) { count(stats, 'workPutOut'); break; }
+        }
+    }
+    const mine = LandMarket.mine(player, world);
+    if (world.day >= 150 && mine.length < 2 && ((world.day * 5 + tile.q * 3 + tile.r) % 4) === 0) {
+        const ids = [...Estates.estatesOf(world, s.q, s.r).map(e => e.id), ...LandMarket.listingsNear(world, s.q, s.r, 12).map(x => x.e.id)];
+        const quotes = ids.map(id => LandMarket.buyQuote(player, world, id)).filter(q => q.ok && q.cost <= player.gold - 1500).sort((a, b) => a.cost - b.cost);
+        if (quotes.length && LandMarket.buy(player, world, quotes[0].estate.id).success) count(stats, 'estatesBought');
+    }
+    if (world.day % 7 === 0) {
+        for (const e of mine) {
+            if (e.loyalty < 35 && e.mode !== 'kind' && LandMarket.setRent(player, world, e.id, 'customary', 'kind').success) count(stats, 'rentsSet');
+            const q = LandMarket.worksQuote(player, world, e.id, 'drain');
+            if (q.ok && player.gold > q.cost + 2000 && LandMarket.improve(player, world, e.id, 'drain').success) count(stats, 'estateWorks');
+        }
+    }
+}
+
 function settlementBusiness(game, stats) {
     const { player, world } = game;
     const tile = world.getTile(player.q, player.r);
@@ -920,6 +970,7 @@ function settlementBusiness(game, stats) {
     booked(game, 'guilds', () => guilds(game, tile, stats));
     booked(game, 'concessions', () => concessions(game, tile, stats));
     booked(game, 'harvests', () => harvests(game, tile, stats));
+    booked(game, 'land', () => land(game, tile, stats));
 }
 
 // ── Out in the world ─────────────────────────────────────────

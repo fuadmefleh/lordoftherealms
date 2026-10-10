@@ -45,6 +45,7 @@ import { Terrain } from '../world/terrain.js';
 import { MarketDynamics } from './marketDynamics.js';
 import { TradePolicy } from './tradePolicy.js';
 import { Mints } from './mints.js';
+import { Engrossing } from './engrossing.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { Underwriting } from './underwriting.js';
 import { Bills } from './bills.js';
@@ -164,6 +165,8 @@ export const SaveLoad = {
             // The growing season, the harvests reckoned and their news (world/harvests.js;
             // each town's fields travel with it: settlement.farm)
             harvests: Harvests.serialize(world),
+            // The grain dealers' bans and news (systems/engrossing.js; each town's loft travels with it: settlement.engross)
+            engrossing: Engrossing.serialize(world),
             // The roads' state (tier, repair, crossings, closures), public works, canals,
             // harbours and tolls (world/transport.js, systems/publicWorks.js; the segments
             // themselves are derived from the regenerated roads)
@@ -613,6 +616,8 @@ export const SaveLoad = {
         TradePolicy.restore(saveData.tradePolicy, world);
         // The harvests (older saves: none — the next day sows and the towns derive their fields)
         Harvests.restore(saveData.harvests, world);
+        // The grain dealers (older saves: none)
+        Engrossing.restore(saveData.engrossing, world);
         // The roads (older saves: none — their state is derived from the roads on first use)
         Transport.restore(saveData.transport, world);
         // The economic indices and the fashions (older saves: none yet — measured on the next week)

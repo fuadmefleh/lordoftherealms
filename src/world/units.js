@@ -528,7 +528,7 @@ export class WorldUnit {
 
             // Default: build neutral village
             if (tile && !tile.settlement) {
-                const name = Kingdom.generateCityName(Utils.randPick(['Imperial', 'Woodland', 'Nomadic', 'Religious', 'Maritime']));
+                const name = Kingdom.generateCityName(Utils.randPick(['Imperial', 'Woodland', 'Nomadic', 'Religious', 'Maritime']), world);
                 tile.settlement = {
                     type: 'village',
                     name: name,

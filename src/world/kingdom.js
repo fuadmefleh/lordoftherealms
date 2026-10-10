@@ -323,10 +323,77 @@ export const Kingdom = {
      * Generate a city name based on culture
      * Uses data from Kingdom._cityNames (loaded from kingdoms.json)
      */
-    generateCityName(culture) {
+    generateCityName(culture, world = null) {
         const names = Kingdom._cityNames || {};
         const cultureNames = names[culture] || names.Imperial || ['Settlement'];
-        return Utils.randPick(cultureNames);
+        // Exactly one RNG draw whatever happens next: a reroll for a taken name
+        // is a hash, so the seeded stream (and every golden) is unchanged.
+        const picked = Utils.randPick(cultureNames);
+        if (!world || !world.tiles) return picked;
+        return Kingdom.uniqueCityName(picked, culture, Kingdom.settlementNames(world));
+    },
+
+    /** Every settlement name on the map (a Set). */
+    settlementNames(world) {
+        const taken = new Set();
+        for (const row of world.tiles || []) {
+            for (const t of row) if (t && t.settlement && t.settlement.name) taken.add(t.settlement.name);
+        }
+        return taken;
+    },
+
+    /**
+     * `name` if nobody uses it yet, otherwise a free one — chosen by a hash of
+     * the name and how many are taken (no RNG): an unused name of the same
+     * culture, then any culture, then an affixed variant ('New Soulkeep').
+     */
+    uniqueCityName(name, culture, taken) {
+        if (!taken.has(name)) return name;
+        const all = Kingdom._cityNames || {};
+        const h = Math.abs(Utils.hashStr(`${name}|${taken.size}`));
+        const pickFree = list => {
+            const free = list.filter(n => !taken.has(n));
+            return free.length ? free[h % free.length] : null;
+        };
+        const own = pickFree(all[culture] || []);
+        if (own) return own;
+        const any = pickFree([].concat(...Object.keys(all).sort().map(k => all[k])));
+        if (any) return any;
+        const affixes = ['New', 'Old', 'Upper', 'Lower', 'Great', 'Little', 'East', 'West', 'North', 'South'];
+        for (let i = 0; i < affixes.length; i++) {
+            const n = `${affixes[(h + i) % affixes.length]} ${name}`;
+            if (!taken.has(n)) return n;
+        }
+        for (let k = 2; ; k++) if (!taken.has(`${name} ${k}`)) return `${name} ${k}`;
+    },
+
+    /**
+     * Rename duplicate settlements in place, in map order (the first keeps its
+     * name). Runs once after world generation; draws no RNG.
+     */
+    dedupeSettlementNames(world) {
+        // `taken` starts with every name on the map, so a new name never
+        // collides with a settlement further along.
+        const taken = Kingdom.settlementNames(world);
+        const seen = new Set();
+        const cultureOf = s => {
+            const k = s.kingdom != null && (world.kingdoms || []).find(x => x.id === s.kingdom);
+            return (k && k.culture) || 'Imperial';
+        };
+        let renamed = 0;
+        for (const row of world.tiles || []) {
+            for (const t of row) {
+                const s = t && t.settlement;
+                if (!s || !s.name) continue;
+                if (seen.has(s.name)) {
+                    s.name = Kingdom.uniqueCityName(s.name, cultureOf(s), taken);
+                    taken.add(s.name);
+                    renamed++;
+                }
+                seen.add(s.name);
+            }
+        }
+        return renamed;
     },
 
     /**

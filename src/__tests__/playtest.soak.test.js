@@ -322,7 +322,9 @@ describe('headless playtest soak', () => {
                 // ...and insures, is paid on its claims and buys shares on the Bourse
                 'coversOpened', 'claimsPaid', 'sharesBoughtBourse',
                 // ...and carries grain to where the crop reports say the harvest is failing
-                'harvestTrades'] : [])]) {
+                'harvestTrades',
+                // ...and funds a public work and sells bullion to a mint (systems/publicWorks.js, systems/mints.js)
+                'publicWorksFunded', 'bullionSold'] : [])]) {
             expect(totals[key] || 0, `the bot never did "${key}" — ${JSON.stringify(totals)}`).toBeGreaterThan(0);
         }
     });

@@ -187,14 +187,17 @@ describe('movement and caravan speed', () => {
 });
 
 describe('link friction and price dispersion', () => {
-    it('the default road keeps the old friction; tiers, repair, season and terrain move it', () => {
+    it('a road in good repair hauls cheaper than the old flat road; tiers, repair, season and terrain move it', () => {
+        // (the old flat roadFactor was 0.6: a road in good repair is now its tier's friction against it)
+        const goodRoad = Transport.tier('road').friction / 0.6;
         const g = makeWorld();
         Transport.segments(g.world);
         const ab = seg(g.world, g.A, g.B);
         Transport.setSegment(g.world, ab, { t: 'road', c: 90 });
         const l = link(g.A, g.B);
         Transport.applyLink(g.world, l, 40);
-        expect(l.friction).toBeCloseTo(l.fr0, 6);
+        expect(l.friction).toBeCloseTo(l.fr0 * goodRoad, 6);
+        expect(goodRoad).toBeLessThan(1);
         Transport.setSegment(g.world, ab, { t: 'highway' });
         Transport.applyLink(g.world, l, 40);
         const hw = l.friction;
@@ -250,6 +253,54 @@ describe('link friction and price dispersion', () => {
         const after = g.A.market.stock.fish + g.B.market.stock.fish;
         expect(g.B.market.stock.fish).toBeGreaterThan(0);
         expect(after).toBeLessThan(before);
+    });
+
+    it('a good road trades at a quicker pace and holds back less stock than a ruined one or open country', () => {
+        const g = makeWorld();
+        Transport.segments(g.world);
+        const ab = seg(g.world, g.A, g.B);
+        const at = (fields, road = true) => {
+            if (road) Transport.setSegment(g.world, ab, fields);
+            const l = link(g.A, g.B, road);
+            Transport.applyLink(g.world, l, 40);
+            return l;
+        };
+        const good = at({ t: 'road', c: 90 });
+        const hw = at({ t: 'highway', c: 90 });
+        const ruined = at({ t: 'road', c: 5 });
+        const open = at({}, false);
+        // open country is the reference pace (1, the old reserve)
+        expect(open.rate).toBeCloseTo(1, 6);
+        expect(open.keep).toBeCloseTo(1, 6);
+        expect(good.rate).toBeGreaterThan(1.2);
+        expect(good.keep).toBeLessThan(0.8);
+        expect(hw.rate).toBeGreaterThan(good.rate);
+        expect(hw.keep).toBeLessThanOrEqual(good.keep);
+        expect(ruined.rate).toBeCloseTo(1, 6);
+        expect(ruined.keep).toBeCloseTo(1, 6);
+        // Switched off (measurement), every link trades at the old pace
+        Transport.setEnabled(false);
+        const off = at({ t: 'highway', c: 90 });
+        expect(off.rate).toBe(1);
+        expect(off.keep).toBe(1);
+        Transport.setEnabled(true);
+    });
+
+    it('the pace moves more goods over a link (SettlementMarket.flows reads link.rate and link.keep)', () => {
+        const run = (rate, keep) => {
+            const g = makeWorld();
+            const [a, b] = [g.A, g.B];
+            const target = SettlementMarket.target(a, 'grain');
+            a.market.stock.grain = target * 1.6;
+            b.market.stock.grain = target * 0.3;
+            const l = { ...link(a, b), rate, keep, friction: 0.05, capacity: 100000 };
+            SettlementMarket.flows([l], { grain: 10 });
+            return target * 1.6 - a.market.stock.grain;
+        };
+        const slow = run(1, 1);
+        const quick = run(1.33, 0.75);
+        expect(slow).toBeGreaterThan(0);
+        expect(quick).toBeGreaterThan(slow * 1.2);
     });
 
     it('a canal cuts the haulage between its towns', () => {
@@ -333,7 +384,7 @@ describe('public works: goods, labour, tolls', () => {
         const l = link(g.A, g.B);
         Transport.applyLink(g.world, l, 40);
         expect(l.toll).toBeCloseTo(0.08, 6);
-        expect(l.friction).toBeCloseTo(l.fr0 + 0.08, 6);
+        expect(l.friction).toBeCloseTo(l.fr0 * Transport.tier('road').friction / 0.6 + 0.08, 6);
         l.val = 500;
         g.A.economy.tradeIncome = 30; g.B.economy.tradeIncome = 30;
         const money0 = player.gold + g.A.economy.tradeIncome + g.B.economy.tradeIncome + g.kingdom.treasury;

@@ -78,6 +78,9 @@
     "_famine": "The lean months after a failed harvest: on `day` (of the year) a realm whose harvest came in below `below` falls into the Hungry Months (worldEvents.json `event`) with chance (below - yield) x perPoint, at most max (a hash roll; the event's own dice come from a stream seeded by it, not the game's).",
     "famine": { "event": "famine", "day": 100, "below": 0.72, "perPoint": 3, "max": 0.7 },
 
+    "_engrossing": "Speculation and hoarding (systems/engrossing.js). On its weekly turn (every), when a region's harvest forecast stands below buyBelow (with at least minConf of the season seen) between days buyFrom and buyUntil of the year, the grain dealers of its market towns (minPop and up) buy buyShare of the grain above keep x the market's target into their lofts, at most maxStore x the target. They sell it back when the price peaks: from releaseFrom when grain scarcity is at least releaseAt, releaseShare a week; from dumpFrom dumpShare a week whatever the price; what is left at the turn of the year all of it. spoil: the share lost a week in the lofts. edict: a crown whose realm is in the Hungry Months (or with a town in dearth) while dealers hold grain there may forbid engrossing — a hash roll each turn with chance x its personality: every loft in the realm is thrown open at once, its towns cheer (happiness), and no dealer buys there for banDays. No RNG is drawn.",
+    "engrossing": { "enabled": true, "every": 7, "buyFrom": 20, "buyUntil": 70, "buyBelow": 0.88, "minConf": 0.3, "buyShare": 0.08, "keep": 0.9, "maxStore": 0.5, "minPop": 1000, "releaseFrom": 85, "releaseAt": 1.3, "releaseShare": 0.3, "dumpFrom": 105, "dumpShare": 0.6, "spoil": 0.01, "edict": { "chance": 0.5, "banDays": 120, "happiness": 3, "personality": { "mercantile": 0.5, "peaceful": 1.2, "balanced": 1, "militaristic": 1, "aggressive": 0.8 } }, "historyCap": 30 },
+
     "historyCap": 40,
     "pastYears": 4
 }

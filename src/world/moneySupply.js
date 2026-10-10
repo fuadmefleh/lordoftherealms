@@ -333,6 +333,24 @@ export const MoneySupply = {
         return total;
     },
 
+    /**
+     * Book goods the player carried across a border into the week's trade
+     * book, as NPC trade is: `value` of goods from realm `fromKid` sold in
+     * realm `toKid` (the importer's coin settles part of it, weekly).
+     * @returns the value booked
+     */
+    noteTrade(world, fromKid, toKid, value) {
+        if (!world || !MoneySupply.enabled() || fromKid == null || toKid == null || String(fromKid) === String(toKid)) return 0;
+        const v = _num(value);
+        if (!(v > 0)) return 0;
+        const a = _kingdom(world, fromKid), b = _kingdom(world, toKid);
+        if (!a || !b || a.isAlive === false || b.isAlive === false) return 0;
+        const book = MoneySupply.state(world).trade;
+        const key = `${a.id}>${b.id}`;
+        book[key] = _r2(_num(book[key]) + v);
+        return v;
+    },
+
     // ── The mint ──────────────────────────────────────────
 
     policy(R) {

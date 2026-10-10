@@ -106,6 +106,9 @@ const DEFAULTS = {
     float: { maxOutside: 49, discount: 0.1, fee: 0.03, minValue: 1500, payout: 0.5 },
     ventures: [],
     panics: { bank_failed: 0.85, crown_default: 0.88, war: 0.93, bank_run: 0.95 },
+    // A panic or a crash on an exchange sends coin abroad and into strongboxes in its realm
+    // for flightDays (world/moneySupply.js, via systems/mints.js); so does a mood under flightMood
+    flightDays: 21, flightMood: 0.88,
 };
 
 let _cfgSrc;
@@ -146,7 +149,7 @@ export const Bourse = {
     _blank() {
         return {
             initialized: false, exchanges: [], listings: [], holdings: {}, mood: 1, manias: [], history: [],
-            seen: {}, wars: {}, nextId: 1, lastDay: null, lastWeek: null,
+            seen: {}, wars: {}, panicDays: {}, nextId: 1, lastDay: null, lastWeek: null,
             stats: { bought: 0, sold: 0, dividends: 0, fees: 0, floated: 0, outsideDividends: 0, buyBacks: 0, payouts: 0 },
         };
     },
@@ -160,7 +163,7 @@ export const Bourse = {
         const blank = Bourse._blank();
         if (typeof st.initialized !== 'boolean') st.initialized = false;
         for (const k of ['exchanges', 'listings', 'manias', 'history']) if (!Array.isArray(st[k])) st[k] = [];
-        for (const k of ['holdings', 'seen', 'wars']) if (!_obj(st[k])) st[k] = {};
+        for (const k of ['holdings', 'seen', 'wars', 'panicDays']) if (!_obj(st[k])) st[k] = {};
         st.mood = _num(st.mood, 1) || 1;
         if (!(st.nextId > 0)) st.nextId = 1;
         if (st.lastDay === undefined) st.lastDay = null;
@@ -594,6 +597,8 @@ export const Bourse = {
             m.burst = true;
             st.mood = _r4(st.mood * _num(def.mood, 0.85));
             const ex = st.exchanges.find(e => e.kingdomId === l.kingdomId) || st.exchanges[0] || {};
+            // The burst is a panic in the exchange's realm: coin flies and is hoarded (panicRealms)
+            if (ex.kingdomId != null) st.panicDays[ex.kingdomId] = day;
             // The house that lent on the shares
             const bank = Finance.openBanks(player).find(b => b.kingdomId === ex.kingdomId) || Finance.openBanks(player)[0];
             let hit = 0;
@@ -605,6 +610,27 @@ export const Bourse = {
             out.notices.push({ icon: '📉', title: 'The Bubble Bursts', text: Bourse._fill(def.burst, { name: Bourse._fill(def.name, { good: l.good || 'the' }), place: ex.name || 'the Bourse', listing: l.name }) + (bank && hit ? ` ${bank.name} loses ${hit}g it lent on the shares.` : ''), type: st.holdings[l.id] ? 'error' : 'warning' });
         }
         if (day >= m.endDay) l.mania = null;
+    },
+
+    /**
+     * The realms whose exchange is in a panic today: a crash, a house failing
+     * or a crown defaulting there within flightDays, or the market's mood
+     * under flightMood (every exchange's realm). world/moneySupply.js sends
+     * part of their coin abroad and hoards more of it (via systems/mints.js).
+     * @returns {Set} kingdom ids
+     */
+    panicRealms(world, player) {
+        const out = new Set();
+        const st = player && _obj(player.bourse);
+        if (!st || !st.initialized || !Array.isArray(st.exchanges)) return out;
+        const C = Bourse.config();
+        const day = _day(world);
+        const days = _num(C.flightDays, 21);
+        for (const [kid, d] of Object.entries(_obj(st.panicDays) || {})) {
+            if (day - _num(d, -1e9) <= days && day >= _num(d)) out.add(st.exchanges.find(e => String(e.kingdomId) === kid)?.kingdomId ?? kid);
+        }
+        if (_num(st.mood, 1) < _num(C.flightMood, 0.88)) for (const e of st.exchanges) if (e.kingdomId != null) out.add(e.kingdomId);
+        return out;
     },
 
     /** Panics: houses failing, crowns defaulting, runs, war on an exchange's realm (finance.history, kingdom.wars). */
@@ -623,6 +649,8 @@ export const Bourse = {
             const f = _num(P[h.kind], 1);
             if (f < 1) {
                 st.mood = _r4(st.mood * (exRealms.has(h.kingdomId) ? f : 1 - (1 - f) / 2));
+                // A failure or a default (not a mere run) is a panic on the floor of its realm's exchange
+                if ((h.kind === 'bank_failed' || h.kind === 'crown_default') && exRealms.has(h.kingdomId)) st.panicDays[h.kingdomId] = day;
                 if (h.kind === 'bank_failed' || h.kind === 'crown_default') Bourse._news(st, world, { kind: 'panic', why: h.kind, bank: h.bank || null, kingdom: h.kingdom || null, kingdomId: h.kingdomId, place: st.exchanges[0] && st.exchanges[0].name });
             }
         }

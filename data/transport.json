@@ -1,13 +1,16 @@
 {
     "_doc": "Roads, canals & logistics (world/transport.js: the road segments, their quality and the haulage terms of the trade links; systems/publicWorks.js: upkeep, works, tolls). The world's roads (tile.hasRoad) are split into segments, each the road between two neighbouring settlements. A segment has a tier (track, road, paved highway), a condition 0..100, a river crossing (bridge, ford or ferry) and may be closed (a snowbound pass, a ford in flood). Nothing here draws RNG: initial conditions, washouts and closures are hashes of the world seed, the segment and the week.",
 
-    "_tiers": "move: multiplier on the terrain move cost of a road hex (the player; the generated road's 0.5 is 'road'). speed: caravan speed factor. friction: the trade link's haulage factor (the old roadFactor 0.6 is 'road'; 1 = no road). decay: condition lost a week; repair: condition the realm's upkeep restores a week; upkeep: gold per hex per week. crossing: the river crossing a new segment of this tier gets.",
+    "_tiers": "move: multiplier on the terrain move cost of a road hex (the player; the generated road's 0.5 is 'road'). speed: caravan speed factor. friction: the trade link's haulage factor against the old flat roadFactor 0.6 (1 = no road): a road in good repair now hauls cheaper than the old flat road (0.5), a track dearer. decay: condition lost a week; repair: condition the realm's upkeep restores a week; upkeep: gold per hex per week. crossing: the river crossing a new segment of this tier gets.",
     "tiers": {
-        "track": { "name": "Track", "icon": "🟫", "rank": 0, "move": 0.6, "speed": 0.8, "friction": 0.8, "decay": 4, "repair": 4, "upkeep": 0.6, "crossing": "ford", "color": "#9a7b52", "width": 1.5 },
-        "road": { "name": "Road", "icon": "🛤️", "rank": 1, "move": 0.5, "speed": 1, "friction": 0.6, "decay": 3, "repair": 4, "upkeep": 1.5, "crossing": "bridge", "color": "#c8a46a", "width": 2.5 },
-        "highway": { "name": "Paved highway", "icon": "🛣️", "rank": 2, "move": 0.33, "speed": 1.3, "friction": 0.45, "decay": 1.5, "repair": 3, "upkeep": 3, "crossing": "bridge", "color": "#e8e0c8", "width": 4 }
+        "track": { "name": "Track", "icon": "🟫", "rank": 0, "move": 0.6, "speed": 0.8, "friction": 0.72, "decay": 4, "repair": 4, "upkeep": 0.6, "crossing": "ford", "color": "#9a7b52", "width": 1.5 },
+        "road": { "name": "Road", "icon": "🛤️", "rank": 1, "move": 0.5, "speed": 1, "friction": 0.5, "decay": 3, "repair": 4, "upkeep": 1.5, "crossing": "bridge", "color": "#c8a46a", "width": 2.5 },
+        "highway": { "name": "Paved highway", "icon": "🛣️", "rank": 2, "move": 0.33, "speed": 1.3, "friction": 0.36, "decay": 1.5, "repair": 3, "upkeep": 3, "crossing": "bridge", "color": "#e8e0c8", "width": 4 }
     },
     "_tierOf": "The tier a generated segment starts at: highway between two cities or capitals of one realm, track between two villages, road otherwise.",
+
+    "_haulage": "The pace of a link's trade (world/transport.js applyLink -> SettlementMarket.flows). rate = (speed / refSpeed)^flowBySpeed: the share of the surplus and of the price gap a market turn moves (speed: the road's caravan speed, 0.75 over open country, 1 on a road, 1.3 on a highway, 0.8 rutted; refSpeed 0.75 = open country moves as before). keep = (speed / refSpeed)^-keepBySpeed: the stock the exporter's merchants hold back (x markets.json trade.keepDays) — reliable carts on a good road mean less held against the next delivery. Clamped to [minRate, maxRate] and [minKeep, maxKeep]. Sea links keep 1. Measured in docs/economy-balance.md (Roads: dispersion).",
+    "haulage": { "flowBySpeed": 1, "refSpeed": 0.75, "minRate": 0.6, "maxRate": 1.8, "keepBySpeed": 1, "minKeep": 0.6, "maxKeep": 1.3 },
 
     "_bands": "Condition bands: at or above `worn` a road works as its tier; between `ruined` and `worn` it is rutted (move x ruttedMove, friction x ruttedFriction, speed x ruttedSpeed); below `ruined` it is no better than open country.",
     "bands": { "worn": 40, "ruined": 15, "ruttedMove": 1.5, "ruttedFriction": 1.25, "ruttedSpeed": 0.8, "startMin": 62, "startMax": 96 },
@@ -36,7 +39,7 @@
         "upgrade_road": { "name": "Road (from a track)", "icon": "🛤️", "goods": { "stone": 1, "wood": 0.6 }, "perHex": true, "days": 0.8, "minDays": 4, "hands": 40, "from": "track", "to": "road" },
         "upgrade_highway": { "name": "Paved highway", "icon": "🛣️", "goods": { "stone": 1.6, "wood": 0.5, "iron": 0.1 }, "perHex": true, "days": 1.2, "minDays": 6, "hands": 40, "from": "road", "to": "highway", "toll": 0.05, "playerToll": 2 },
         "bridge": { "name": "Stone bridge", "icon": "🌉", "goods": { "stone": 10, "wood": 6, "iron": 1.5 }, "days": 8, "hands": 24, "toll": 0.08, "playerToll": 3 },
-        "canal": { "name": "Canal", "icon": "🚣", "goods": { "stone": 5, "wood": 2, "iron": 0.4 }, "perHex": true, "days": 3, "minDays": 20, "hands": 120, "toll": 0.05, "friction": 0.4, "maxDist": 10, "minDist": 3 },
+        "canal": { "name": "Canal", "icon": "🚣", "goods": { "stone": 5, "wood": 2, "iron": 0.4 }, "perHex": true, "days": 3, "minDays": 20, "hands": 120, "toll": 0.05, "friction": 0.33, "maxDist": 10, "minDist": 3 },
         "harbour": { "name": "Harbour works", "icon": "⚓", "goods": { "stone": 40, "wood": 30, "iron": 4 }, "days": 30, "hands": 60, "friction": 0.8 }
     },
     "_build": "wageMult: the hands' daily pay (x the town's land wage). drawShare: most of a market's stock a work buys in a day. budgetPad: what the player puts up front beyond the estimate (the rest is refunded on completion). crownShare: the crown's cut of a foreign investor's tolls. maxPerRealm / maxPlayer: works under way at once.",

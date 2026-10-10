@@ -586,14 +586,20 @@ describe('the daily tick is cheap', () => {
     it('the land market and the cottage work cost a small share of the market tick', () => {
         const w = G.world;
         const p = G.player;
-        const t0 = performance.now();
-        for (let i = 0; i < 30; i++) MarketDynamics.updatePrices(w, p);
-        const mkt = (performance.now() - t0) / 30;
         const d0 = w.day;
-        const t1 = performance.now();
-        for (let i = 0; i < 60; i++) { w.day = d0 + i; LandMarket.processDay(w, p); PuttingOut.processDay(w, p); }
-        w.day = d0;
-        const land = (performance.now() - t1) / 60;
-        expect(land).toBeLessThan(Math.max(0.6, mkt * 0.35));
+        // (the best of three rounds, after a warm-up: the machine may be busy)
+        const round = () => {
+            const t0 = performance.now();
+            for (let i = 0; i < 20; i++) MarketDynamics.updatePrices(w, p);
+            const mkt = (performance.now() - t0) / 20;
+            const t1 = performance.now();
+            for (let i = 0; i < 60; i++) { w.day = d0 + i; LandMarket.processDay(w, p); PuttingOut.processDay(w, p); }
+            w.day = d0;
+            return { mkt, land: (performance.now() - t1) / 60 };
+        };
+        round();
+        const rs = [round(), round(), round()];
+        const best = Math.min(...rs.map(r => r.land / r.mkt));
+        expect(best).toBeLessThan(0.3);
     });
 });

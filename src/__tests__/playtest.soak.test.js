@@ -324,7 +324,9 @@ describe('headless playtest soak', () => {
                 // ...and carries grain to where the crop reports say the harvest is failing
                 'harvestTrades',
                 // ...and buys an estate and puts work out to the cottagers (systems/landMarket.js, systems/puttingOut.js)
-                'estatesBought', 'workPutOut'] : [])]) {
+                'estatesBought', 'workPutOut',
+                // ...and funds a public work and sells bullion to a mint (systems/publicWorks.js, systems/mints.js)
+                'publicWorksFunded', 'bullionSold'] : [])]) {
             expect(totals[key] || 0, `the bot never did "${key}" — ${JSON.stringify(totals)}`).toBeGreaterThan(0);
         }
     });

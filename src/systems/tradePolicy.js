@@ -59,6 +59,7 @@ import { Underworld } from './underworld.js';
 import { House } from './house.js';
 import { Ledger } from './ledger.js';
 import { EconomyIndex } from '../world/economyIndex.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -1251,7 +1252,9 @@ export const TradePolicy = {
         if (!check) return { duty: 0, heat: 0 };
         const duty = TradePolicy.payDuty(player, world, settlement, earned, check);
         const heat = player ? TradePolicy.breachHeat(player, world, qty, check) : 0;
-        TradePolicy.takeLots(lots, goodId, qty, check.held);
+        const part = TradePolicy.takeLots(lots, goodId, qty, check.held);
+        const S = settlement && settlement.kingdom != null ? TradePolicy._kingdom(world, settlement.kingdom) : null;
+        TradePolicy._coinFlow(world, S, part, qty, _num(earned) + duty);
         return { duty, heat };
     },
 
@@ -1299,15 +1302,34 @@ export const TradePolicy = {
         if (row) {
             const free = check.held - check.embargoed;
             const f = free > 0 ? Math.max(0, 1 - qty / free) : 1;
+            const sold = {};
             for (const key of Object.keys(row)) {
                 const R = key === FREE ? null : TradePolicy._kingdom(world, key);
                 if (S && R && R !== S && TradePolicy.embargoed(S, R)) continue;
+                sold[key] = _num(row[key]) * (1 - f);
                 row[key] = _r3(_num(row[key]) * f);
                 if (!(row[key] > 0.01)) delete row[key];
             }
             if (!Object.keys(row).length) delete st.ledger[goodId];
+            TradePolicy._coinFlow(world, S, sold, qty, _num(earned) + duty);
         }
         return { duty, heat };
+    },
+
+    /**
+     * The coin of a cross-border sale (world/moneySupply.js): the units of
+     * `part` ({ realmKey: units } of the `qty` sold) bought in another realm
+     * than the selling realm `S` book their share of `value` into the week's
+     * trade book, as NPC trade does.
+     */
+    _coinFlow(world, S, part, qty, value) {
+        if (!world || !S || !_obj(part) || !(qty > 0) || !(value > 0)) return 0;
+        let booked = 0;
+        for (const [key, units] of Object.entries(part)) {
+            if (key === FREE || !(units > 0) || String(key) === String(S.id)) continue;
+            booked += MoneySupply.noteTrade(world, key, S.id, value * Math.min(1, units / qty));
+        }
+        return booked;
     },
 
     /** What smuggling `goodId` here would pay and risk: { ok, reason?, units, price, chance }. */

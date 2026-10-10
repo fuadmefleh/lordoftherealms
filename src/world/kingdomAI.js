@@ -375,7 +375,7 @@ export const KingdomAI = {
         if (Utils.random() < 0.1 * Math.max(0.2, 1 + KingdomBonuses.get(kingdom, 'construction')) && !target.tile.settlement) {
             target.tile.settlement = {
                 type: 'village',
-                name: Kingdom.generateCityName(kingdom.culture),
+                name: Kingdom.generateCityName(kingdom.culture, world),
                 population: Utils.randInt(100, 500),
                 level: 0,
                 kingdom: kingdom.id,

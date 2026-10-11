@@ -130,7 +130,10 @@ export class MinigameHost {
     _pointerPos(e) {
         const rect = this.canvas.getBoundingClientRect();
         const src = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
-        return { x: (src.clientX - rect.left), y: (src.clientY - rect.top) };
+        // Rect is in screen px; the canvas may sit in a zoomed panel (--ui-zoom)
+        const sx = rect.width ? this.width / rect.width : 1;
+        const sy = rect.height ? this.height / rect.height : 1;
+        return { x: (src.clientX - rect.left) * sx, y: (src.clientY - rect.top) * sy };
     }
 
     _handleDown(e) {

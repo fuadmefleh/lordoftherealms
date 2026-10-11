@@ -7,6 +7,7 @@ import { Companions } from '../../systems/companions.js';
 import { Ailments } from '../../systems/ailments.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
 import { updateCounselBadge } from '../actionMenu/counsel.js';
+import { uiZoom } from '../uiScale.js';
 
 Object.assign(UI.prototype, {
     setupEventListeners() {
@@ -844,16 +845,17 @@ Object.assign(UI.prototype, {
             html += `<div class="srel-bar-bg"><div class="srel-bar-fill" style="width:${d.ttBar}%;background:${d.ttBarcolor};"></div></div>`;
             tooltip.innerHTML = html;
 
-            // Position above the tile
+            // Position above the tile (the tooltip is zoomed: rects → its own px)
+            const z = uiZoom();
             const rect = tile.getBoundingClientRect();
-            tooltip.style.left = Math.max(4, rect.left + rect.width / 2 - 100) + 'px';
-            tooltip.style.top = (rect.top - tooltip.offsetHeight - 8) + 'px';
+            tooltip.style.left = Math.max(4, (rect.left + rect.width / 2) / z - 100) + 'px';
+            tooltip.style.top = (rect.top / z - tooltip.offsetHeight - 8) + 'px';
 
             // Make visible and re-check position (may need to flip below)
             tooltip.classList.add('visible');
             const ttRect = tooltip.getBoundingClientRect();
             if (ttRect.top < 4) {
-                tooltip.style.top = (rect.bottom + 8) + 'px';
+                tooltip.style.top = (rect.bottom / z + 8) + 'px';
             }
         };
 

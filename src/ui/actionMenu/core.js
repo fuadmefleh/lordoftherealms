@@ -1,5 +1,6 @@
 // ActionMenu — core methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
+import { uiZoom } from '../uiScale.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerReligion, Gossip, OutlawLairs } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -155,8 +156,8 @@ Object.assign(ActionMenu, {
             font-family: var(--font-body);
             display: flex;
             flex-direction: column;
-            max-width: 92vw;
-            max-height: 90vh;
+            max-width: calc(92vw / var(--ui-zoom));
+            max-height: calc(90vh / var(--ui-zoom));
         `;
 
         // ── Header ──
@@ -263,15 +264,19 @@ Object.assign(ActionMenu, {
                 if (!desc) return;
                 tooltipEl.textContent = desc;
                 tooltipEl.style.display = 'block';
-                const rect = btn.getBoundingClientRect();
                 // Position tooltip to the right of the button, or left if near edge
-                let left = rect.right + 8;
-                let top = rect.top;
-                if (left + 270 > window.innerWidth) {
-                    left = rect.left - 270;
+                // (the tooltip is zoomed: work in its own px)
+                const z = uiZoom();
+                const rect = btn.getBoundingClientRect();
+                const viewW = window.innerWidth / z;
+                const viewH = window.innerHeight / z;
+                let left = rect.right / z + 8;
+                let top = rect.top / z;
+                if (left + 270 > viewW) {
+                    left = rect.left / z - 270;
                 }
-                if (top + 60 > window.innerHeight) {
-                    top = window.innerHeight - 60;
+                if (top + 60 > viewH) {
+                    top = viewH - 60;
                 }
                 tooltipEl.style.left = left + 'px';
                 tooltipEl.style.top = top + 'px';

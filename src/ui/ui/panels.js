@@ -1,5 +1,6 @@
 // UI — panels methods.
 import { UI } from './core.js';
+import { applyUiScale } from '../uiScale.js';
 import { Traits } from '../../systems/traits.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Ledger } from '../../systems/ledger.js';
@@ -439,7 +440,7 @@ Object.assign(UI.prototype, {
         panel.className = 'modal-panel' + (navHtml ? ' custom-panel--hub' : '');
         panel.style.cssText = `
             position: fixed;
-            top: 7.5vh;
+            top: calc(7.5vh / var(--ui-zoom));
             left: 50%;
             transform: translateX(-50%);
             background: rgba(20, 24, 32, 0.98);
@@ -447,8 +448,8 @@ Object.assign(UI.prototype, {
             border: 2px solid var(--gold);
             border-radius: 8px;
             padding: 0;
-            width: min(720px, 94vw);
-            max-height: 80vh;
+            width: min(720px, calc(94vw / var(--ui-zoom)));
+            max-height: var(--panel-max-h);
             z-index: 1000;
             box-shadow: 0 10px 40px rgba(0,0,0,0.8);
             overflow: hidden;
@@ -458,7 +459,7 @@ Object.assign(UI.prototype, {
 
         panel.innerHTML = `
             <style>
-                #customPanel.custom-panel--hub { height: 80vh; width: min(760px, 94vw) !important; }
+                #customPanel.custom-panel--hub { height: var(--panel-max-h); width: min(760px, calc(94vw / var(--ui-zoom))) !important; }
                 #customPanel .custom-panel-nav { display:flex; flex-wrap:wrap; gap:2px 4px; padding:6px 12px 0; border-bottom:2px solid rgba(245,197,66,0.15); flex:0 0 auto; }
                 #customPanel .panel-nav-tab { padding:7px 10px; font-size:13px; font-weight:600; color:rgba(255,255,255,0.55); background:none; border:none; border-radius:4px 4px 0 0;
                     border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; font-family:var(--font-body); white-space:nowrap; transition:color .12s, border-color .12s, background .12s; }
@@ -530,6 +531,8 @@ Object.assign(UI.prototype, {
      */
     hideCustomPanel() {
         const panel = document.getElementById('customPanel');
+        // Settings previews Interface Size live: closing it falls back to the saved size
+        if (panel && panel.querySelector('#gsUiScale')) applyUiScale(UI.loadSettings().uiScale);
         if (panel) panel.remove();
         this._panelNav = null;
     },

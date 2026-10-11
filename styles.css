@@ -28,6 +28,11 @@
 
     --border-color: rgba(245, 197, 66, 0.15);
     --border-bright: rgba(245, 197, 66, 0.35);
+    --border-subtle: rgba(245, 197, 66, 0.1);
+
+    /* Interface zoom, set by src/ui/uiScale.js from the screen size and the
+       "Interface Size" setting (see INTERFACE SCALE at the end of this file) */
+    --ui-zoom: 1;
 
     --shadow-dark: 0 8px 32px rgba(0, 0, 0, 0.6);
     --shadow-glow: 0 0 20px rgba(245, 197, 66, 0.15);
@@ -1485,7 +1490,7 @@ body {
     top: 72px;
     left: 108px;
     width: 300px;
-    max-height: calc(100vh - 72px - 132px);
+    max-height: calc(100vh / var(--ui-zoom) - 72px - 132px);
     background: var(--bg-panel-solid);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
@@ -1621,8 +1626,8 @@ body {
     left: 50%;
     transform: translate(-50%, -50%);
     width: 600px;
-    max-width: 90vw;
-    max-height: 80vh;
+    max-width: calc(90vw / var(--ui-zoom));
+    max-height: calc(80vh / var(--ui-zoom));
     background: var(--bg-panel-solid);
     border: 1px solid var(--border-bright);
     border-radius: var(--radius-xl);
@@ -1691,7 +1696,7 @@ body {
 .npc-dialog-box {
     position: relative;
     width: 560px;
-    max-width: 92vw;
+    max-width: calc(92vw / var(--ui-zoom));
     background: linear-gradient(180deg, rgba(16, 20, 28, 0.98) 0%, rgba(12, 18, 32, 0.98) 100%);
     border: 1px solid var(--border-bright);
     border-radius: 14px;
@@ -2399,8 +2404,8 @@ body {
 .cw-modal-panel {
     position: relative;
     width: 480px;
-    max-width: 90vw;
-    max-height: 70vh;
+    max-width: calc(90vw / var(--ui-zoom));
+    max-height: calc(70vh / var(--ui-zoom));
     background: var(--bg-panel-solid);
     border: 1px solid var(--border-bright);
     border-radius: var(--radius-xl);
@@ -2634,8 +2639,8 @@ body {
 
 #settingsContent {
     width: 1100px;
-    max-width: 95vw;
-    max-height: 90vh;
+    max-width: calc(95vw / var(--ui-zoom));
+    max-height: calc(90vh / var(--ui-zoom));
     overflow-y: auto;
     background: var(--bg-panel-solid);
     border: 2px solid var(--border-bright);
@@ -3562,7 +3567,7 @@ body {
     top: 72px;
     width: 306px;
     /* Stop above the bottom-right minimap (~200px tall + gutter). */
-    max-height: calc(100vh - 300px);
+    max-height: calc(100vh / var(--ui-zoom) - 300px);
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -3936,4 +3941,180 @@ body {
 
 /* Panels that filter or toggle their own content in place keep one height, so
    the window does not shrink and grow as the list changes */
-#customPanel:has(.bp-menu), #customPanel:has(.tech-tab-content) { height: 80vh; }
+#customPanel:has(.bp-menu), #customPanel:has(.tech-tab-content) { height: calc(80vh / var(--ui-zoom)); }
+
+/* ════════════════════════════════════════════════════════════════════
+   INTERFACE SCALE — every piece of chrome zooms by --ui-zoom; the map
+   canvas, the editors and the building creator (raw-pixel mouse math) never do.
+   Inside a zoomed element vh/vw are zoomed too: write calc(80vh / var(--ui-zoom)).
+   ════════════════════════════════════════════════════════════════════ */
+
+#app-root > :not(#gameCanvas):not(#editorOverlay):not(#worldEditorOverlay):not(#titleScreen):not(#settingsScreen),
+#titleContent,
+#customWorldModal .cw-modal-panel,
+#settingsContent,
+body > :not(#root):not(script):not(style):not(#buildingCreatorOverlay):not(a) {
+    zoom: var(--ui-zoom);
+}
+
+/* ── Readable floor: the HUD's smallest labels (8.5–10px) ── */
+.hud-tab.civ-menu-btn .civ-menu-label { font-size: 10.5px; }
+.hud-tab.civ-menu-btn .civ-menu-icon { font-size: 19px; }
+.hud-rail-label { font-size: 10px; }
+.hud-rail-icon { font-size: 22px; }
+#turnDisplay { font-size: 11px; }
+.tb-res-sub, .hud-bb-res-sub { font-size: 10px; }
+.hud-region-stat-label { font-size: 10px; }
+.hud-event-day { font-size: 10px; }
+.hud-mood-label { font-size: 11px; }
+.hud-activity-toggle { font-size: 11px; }
+.hud-card-header { font-size: 12px; }
+.hud-bb-date { font-size: 13px; }
+
+/* Keyboard focus is visible on every HUD control */
+.hud-tab:focus-visible, .hud-rail-btn:focus-visible, .tb-icon-btn:focus-visible,
+.hud-speed-btn:focus-visible, .hud-end-turn:focus-visible, .minimap-zoom-btn:focus-visible,
+.title-btn:focus-visible, .panel-nav-tab:focus-visible, .panel-subtab:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+}
+
+/* ── Title screen: a stacked menu with real presence ── */
+#titleScreen {
+    background:
+        radial-gradient(ellipse at 50% 42%, rgba(245, 197, 66, 0.07) 0%, transparent 55%),
+        radial-gradient(ellipse at 50% 120%, rgba(107, 214, 207, 0.06) 0%, transparent 60%),
+        var(--bg-dark);
+}
+#titleScreen::after {
+    /* vignette over the animated backdrop */
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 45%, rgba(0, 0, 0, 0.65) 100%);
+    z-index: 0;
+}
+#titleContent { gap: 14px; }
+#titleContent::before {
+    content: '♛';
+    font-size: 30px;
+    line-height: 1;
+    color: var(--gold);
+    text-shadow: 0 0 18px var(--gold-glow);
+    margin-bottom: -6px;
+}
+#titleText { font-size: clamp(40px, calc(6vw / var(--ui-zoom)), 76px); }
+#titleSubtext {
+    font-size: clamp(15px, calc(1.6vw / var(--ui-zoom)), 21px);
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+#titleSubtext::before, #titleSubtext::after {
+    content: '';
+    width: 64px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold-dark));
+}
+#titleSubtext::after { background: linear-gradient(90deg, var(--gold-dark), transparent); }
+#titleButtons {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    width: 300px;
+}
+.title-btn {
+    padding: 14px 36px;
+    font-size: 15px;
+    background: linear-gradient(180deg, rgba(20, 28, 45, 0.85), rgba(12, 17, 29, 0.9));
+    border-color: rgba(245, 197, 66, 0.3);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+.title-btn.primary {
+    background: linear-gradient(180deg, rgba(30, 60, 55, 0.92), rgba(18, 40, 36, 0.96));
+    border-color: var(--gold-dark);
+    color: var(--gold-light);
+    font-size: 16px;
+    box-shadow: 0 0 18px rgba(107, 214, 207, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.title-btn.primary:hover:not(:disabled) {
+    border-color: var(--hud-teal);
+    color: var(--gold-light);
+    box-shadow: 0 0 24px rgba(107, 214, 207, 0.35);
+}
+#titleButtonsSecondary {
+    margin-top: 14px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(245, 197, 66, 0.12);
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+}
+.title-btn.secondary {
+    padding: 9px 18px;
+    font-size: 11.5px;
+    opacity: 0.8;
+    background: rgba(12, 17, 29, 0.7);
+}
+#titleVersion { margin-top: 18px; font-size: 11px; opacity: 0.7; }
+
+/* New-game setup: the scrolling sheet keeps its Back / Forge row in reach */
+.settings-actions {
+    position: sticky;
+    bottom: -32px;
+    margin: 16px -32px -32px;
+    padding: 16px 32px 20px;
+    background: linear-gradient(180deg, rgba(12, 18, 32, 0.85), var(--bg-panel-solid) 40%);
+    border-top: 1px solid rgba(245, 197, 66, 0.15);
+    z-index: 2;
+}
+.settings-actions .title-btn { min-width: 170px; }
+
+/* Rail fits its longest label (SETTLEMENTS); panels docked beside it follow */
+#hudLeftRail { width: 92px; }
+.hud-rail-label { letter-spacing: 0.3px; white-space: nowrap; }
+.side-panel { left: 116px; }
+.hud-bb-datecol { min-width: 176px; }
+@media (max-width: 1320px) {
+    #hudLeftRail { width: 56px; }
+    .side-panel { left: 80px; }
+}
+
+/* Settings: the toggle is itself a <label>, so `.gs-row > label` stretched it */
+.gs-row > label.gs-toggle { min-width: 0; width: 42px; flex-shrink: 0; }
+
+/* Text fields in panels match the dark theme (were bare white boxes) */
+#customPanel input[type="text"],
+#customPanel input[type="number"],
+#customPanel input[type="search"],
+#customPanel textarea {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 13px;
+    padding: 6px 8px;
+    outline: none;
+    user-select: text;
+    -webkit-user-select: text;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+#customPanel input[type="text"]:focus,
+#customPanel input[type="number"]:focus,
+#customPanel input[type="search"]:focus,
+#customPanel textarea:focus {
+    border-color: var(--gold-dark);
+    box-shadow: 0 0 6px var(--gold-glow);
+}
+
+/* The custom panel stops above the bottom turn bar instead of covering it */
+:root { --panel-max-h: calc(92.5vh / var(--ui-zoom) - 150px); }
+#customPanel { max-height: var(--panel-max-h) !important; }
+#customPanel.custom-panel--hub,
+#customPanel:has(.bp-menu),
+#customPanel:has(.tech-tab-content) { height: var(--panel-max-h); }
+#simsBottomHUD { max-width: 800px; }
+.hud-bb-date { white-space: nowrap; }

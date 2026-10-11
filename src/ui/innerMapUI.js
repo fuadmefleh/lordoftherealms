@@ -366,7 +366,7 @@ Object.assign(InnerMapRenderer, {
 
         const menu = document.createElement('div');
         menu.id = 'innerMapContextMenu';
-        menu.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(16,20,28,0.97);backdrop-filter:blur(14px);border:1px solid rgba(245,197,66,0.35);border-radius:12px;z-index:1300;box-shadow:0 12px 48px rgba(0,0,0,0.85),0 0 0 1px rgba(245,197,66,0.08);overflow:hidden;font-family:var(--font-body,'Inter',sans-serif);display:flex;flex-direction:column;max-width:92vw;max-height:90vh;min-width:280px;`;
+        menu.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(16,20,28,0.97);backdrop-filter:blur(14px);border:1px solid rgba(245,197,66,0.35);border-radius:12px;z-index:1300;box-shadow:0 12px 48px rgba(0,0,0,0.85),0 0 0 1px rgba(245,197,66,0.08);overflow:hidden;font-family:var(--font-body,'Inter',sans-serif);display:flex;flex-direction:column;max-width:calc(92vw / var(--ui-zoom));max-height:calc(90vh / var(--ui-zoom));min-width:280px;`;
 
         const locationLabel = building ? `${building.icon} ${building.name}` : npcsHere.length > 0 ? `👥 People Here` : `${tile.subTerrain.icon} ${tile.subTerrain.name}`;
         const timeStr = InnerMap.getTimeString ? InnerMap.getTimeString() : '';

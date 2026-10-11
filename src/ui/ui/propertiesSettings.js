@@ -1,5 +1,6 @@
 // UI — propertiesSettings methods.
 import { UI } from './core.js';
+import { applyUiScale, UI_SCALE_OPTIONS } from '../uiScale.js';
 import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, House, NpcBrain } from './_imports.js';
 
 Object.assign(UI.prototype, {
@@ -772,6 +773,9 @@ Object.assign(UI.prototype, {
             this.game.innerMapCamera.zoomStep = settings.zoomSensitivity;
         }
 
+        // Interface size (zooms all HUD chrome; ui/uiScale.js)
+        applyUiScale(settings.uiScale);
+
         // Minimap
         const minimap = document.getElementById('minimapCanvas');
         if (minimap) {
@@ -816,6 +820,10 @@ Object.assign(UI.prototype, {
         ];
         const mapModeSelect = mapModeOptions.map(o =>
             `<option value="${o.value}" ${s.defaultMapMode === o.value ? 'selected' : ''}>${o.label}</option>`
+        ).join('');
+
+        const uiScaleSelect = UI_SCALE_OPTIONS.map(o =>
+            `<option value="${o.value}" ${String(s.uiScale) === o.value ? 'selected' : ''}>${o.label}</option>`
         ).join('');
 
         const html = `
@@ -910,6 +918,10 @@ Object.assign(UI.prototype, {
             <!-- Display -->
             <div class="gs-section">
                 <div class="gs-section-title">Display</div>
+                <div class="gs-row">
+                    <label>Interface Size<br><span style="font-size:10px;color:var(--text-secondary);">Scales menus, panels and the HUD; Auto fits your screen</span></label>
+                    <select id="gsUiScale" class="gs-select">${uiScaleSelect}</select>
+                </div>
                 <div class="gs-row">
                     <label>Show Resources</label>
                     <label class="gs-toggle">
@@ -1077,6 +1089,12 @@ Object.assign(UI.prototype, {
             }
         }
 
+        // Interface size previews live; Apply keeps it, closing without Apply reverts
+        const uiScaleEl = document.getElementById('gsUiScale');
+        if (uiScaleEl) {
+            uiScaleEl.addEventListener('change', () => applyUiScale(uiScaleEl.value));
+        }
+
         // Auto-save toggle enables/disables interval row
         const autoSaveCheck = document.getElementById('gsAutoSave');
         const intervalRow = document.getElementById('gsAutoSaveIntervalRow');
@@ -1206,6 +1224,7 @@ Object.assign(UI.prototype, {
             showResources: getChecked('gsShowResources'),
             showTerritories: getChecked('gsShowTerritories'),
             defaultMapMode: getVal('gsDefaultMapMode') || 'normal',
+            uiScale: getVal('gsUiScale') || 'auto',
             cameraSmoothSpeed: parseInt(getVal('gsSmoothSpeed')) || 6,
             panSpeed: parseInt(getVal('gsPanSpeed')) || 400,
             zoomSensitivity: parseFloat(getVal('gsZoomSens')) || 0.1,
@@ -1264,6 +1283,7 @@ Object.assign(UI, {
             showResources: true,
             showTerritories: false,
             defaultMapMode: 'normal',
+            uiScale: 'auto',
             cameraSmoothSpeed: 6,
             panSpeed: 400,
             zoomSensitivity: 0.1,

@@ -77,7 +77,7 @@ export const MODAL_STYLE = `
     backdrop-filter: blur(12px);
     border: 2px solid var(--gold, #f5c542);
     border-radius: 10px;
-    padding: 0; min-width: 360px; max-width: 480px; max-height: 80vh;
+    padding: 0; min-width: 360px; max-width: 480px; max-height: calc(80vh / var(--ui-zoom));
     z-index: 2000;
     box-shadow: 0 12px 48px rgba(0,0,0,0.85);
     display: flex; flex-direction: column;

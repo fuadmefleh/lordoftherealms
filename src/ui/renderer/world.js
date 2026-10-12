@@ -22,6 +22,9 @@ Object.assign(Renderer.prototype, {
 
         ctx.save();
 
+        // The cloud sea over the uncharted world (renderer/fog.js)
+        this.renderUncharted(ctx);
+
         // Render hex grid
         this.renderHexGrid(ctx);
 
@@ -58,6 +61,12 @@ Object.assign(Renderer.prototype, {
         // Render resources
         this.renderResources(ctx);
 
+        // Cloud banks along the edge of the known world (renderer/fog.js)
+        this.renderFrontierFog(ctx);
+
+        // The season's light over the land; units, labels and marks stay true-coloured (renderer/atmosphere.js)
+        this.renderSeasonGrade(ctx);
+
         // Render path preview
         if (this.player && this.player.path) {
             this.renderPath(ctx, this.player.path);
@@ -76,12 +85,12 @@ Object.assign(Renderer.prototype, {
 
         // Render hover highlight
         if (this.hoveredHex) {
-            this.renderHexHighlight(ctx, this.hoveredHex.q, this.hoveredHex.r, 'rgba(255,255,255,0.15)', 'rgba(255,255,255,0.4)');
+            this.renderHoverMark(ctx, this.hoveredHex.q, this.hoveredHex.r);
         }
 
         // Render selected highlight
         if (this.selectedHex) {
-            this.renderHexHighlight(ctx, this.selectedHex.q, this.selectedHex.r, 'rgba(245,197,66,0.15)', 'rgba(245,197,66,0.6)');
+            this.renderSelectionMark(ctx, this.selectedHex.q, this.selectedHex.r);
         }
 
         // What your (possibly doctored) maps claim about unseen land
@@ -104,8 +113,9 @@ Object.assign(Renderer.prototype, {
         // The trade map: known prices of one good (map mode 'prices', renderer/tradeMap.js)
         this.renderTradeMap(ctx);
 
-        // Render weather
+        // Render weather (renderer/atmosphere.js), then frame the map
         this.renderWeather(ctx);
+        this.renderVignette(ctx);
 
         // Render all labels (with collision detection)
         this.renderLabels(ctx);
@@ -149,15 +159,58 @@ Object.assign(Renderer.prototype, {
     getLabelBounds(ctx, label) {
         ctx.font = label.style.font;
         const metrics = ctx.measureText(label.text);
-        const width = metrics.width;
-        const height = parseInt(label.style.font) || 12; // Extract font size as height approximation
-        
+        // The font's pixel size (a leading weight like "700 13px" is not the size)
+        const m = /(\d+(?:\.\d+)?)px/.exec(label.style.font);
+        const height = m ? parseFloat(m[1]) : 12;
+        const pad = label.style.plaque ? height * 0.6 : 0;
+        const width = metrics.width + pad * 2;
+        const top = label.style.textBaseline === 'top' ? label.y - pad * 0.4 : label.y - height / 2 - pad * 0.4;
+
         return {
             left: label.x - width / 2,
             right: label.x + width / 2,
-            top: label.y - height / 2,
-            bottom: label.y + height / 2
+            top,
+            bottom: top + height + pad * 0.8
         };
+    },
+
+    /**
+     * A small banner behind a place name: dark plate, a gold hairline, the
+     * owning realm's colour down the left edge, and a crown for a capital.
+     */
+    drawLabelPlaque(ctx, b, plaque) {
+        const w = b.right - b.left, h = b.bottom - b.top;
+        const r = Math.min(4, h / 2);
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(b.left + r, b.top);
+        ctx.arcTo(b.right, b.top, b.right, b.bottom, r);
+        ctx.arcTo(b.right, b.bottom, b.left, b.bottom, r);
+        ctx.arcTo(b.left, b.bottom, b.left, b.top, r);
+        ctx.arcTo(b.left, b.top, b.right, b.top, r);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(12, 15, 22, 0.78)';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 4;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = plaque.capital ? 'rgba(245, 197, 66, 0.85)' : 'rgba(245, 197, 66, 0.35)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        if (plaque.accent) {
+            ctx.clip();
+            ctx.fillStyle = plaque.accent;
+            ctx.fillRect(b.left, b.top, Math.max(3, h * 0.18), h);
+        }
+        ctx.restore();
+        if (plaque.capital) {
+            ctx.save();
+            ctx.font = `${Math.round(h * 0.8)}px serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText('👑', (b.left + b.right) / 2, b.top + h * 0.2);
+            ctx.restore();
+        }
     },
 
     /**
@@ -190,6 +243,8 @@ Object.assign(Renderer.prototype, {
                 ctx.font = label.style.font;
                 ctx.textAlign = label.style.textAlign || 'center';
                 ctx.textBaseline = label.style.textBaseline || 'middle';
+
+                if (label.style.plaque) this.drawLabelPlaque(ctx, bounds, label.style.plaque);
 
                 // Draw shadow if specified
                 if (label.style.shadowColor) {
@@ -258,14 +313,8 @@ Object.assign(Renderer.prototype, {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
 
-            // Glowing effect
-            ctx.shadowColor = 'rgba(255, 215, 0, 0.8)';
-            ctx.shadowBlur = 10;
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText('🐪', screen.x, screen.y);
-
-            // Reset shadow
-            ctx.shadowBlur = 0;
+            // Your caravan: a merchant token with a gold halo
+            this.renderUnitToken(ctx, { type: 'trade_caravan', q: 0, r: 0, escort: { by: 'player' }, icon: '🐪' }, screen.x, screen.y, renderSize);
 
             // Draw Label
             if (this.camera.zoom > 0.6) {
@@ -312,6 +361,7 @@ Object.assign(Renderer.prototype, {
 
         const minR = Math.max(0, startRow);
         const maxR = Math.min(world.height - 1, endRow);
+        this._frontier = [];
 
         for (let r = minR; r <= maxR; r++) {
             // Apply Even-row offset (C# logic: y % 2 == 0 -> offset)
@@ -329,27 +379,14 @@ Object.assign(Renderer.prototype, {
                 const tile = world.tiles[r][wq];
 
                 if (!tile.explored) {
-                    // FOW: render dark fog hex instead of void
+                    // FOW: nothing is drawn here — the cloud sea beneath shows through,
+                    // and frontier hexes get a bank of cloud over the edge (renderer/fog.js)
                     const fpx = q * hexWidth + offsetX;
                     const fpy = r * rowHeight;
                     const fscreen = this.camera.worldToScreen(fpx, fpy);
                     if (fscreen.x < -hexWidth * this.camera.zoom || fscreen.x > this.canvas.width + hexWidth * this.camera.zoom) continue;
                     if (fscreen.y < -hexHeight * this.camera.zoom || fscreen.y > this.canvas.height + hexHeight * this.camera.zoom) continue;
-                    const fs = size * this.camera.zoom;
-                    const fX = 0.866 * fs;
-                    ctx.beginPath();
-                    ctx.moveTo(fscreen.x,      fscreen.y - 0.732 * fs);
-                    ctx.lineTo(fscreen.x + fX, fscreen.y - 0.305 * fs);
-                    ctx.lineTo(fscreen.x + fX, fscreen.y + 0.567 * fs);
-                    ctx.lineTo(fscreen.x,      fscreen.y + 1.000 * fs);
-                    ctx.lineTo(fscreen.x - fX, fscreen.y + 0.567 * fs);
-                    ctx.lineTo(fscreen.x - fX, fscreen.y - 0.305 * fs);
-                    ctx.closePath();
-                    ctx.fillStyle = '#0d1520';
-                    ctx.fill();
-                    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-                    ctx.lineWidth = 0.5;
-                    ctx.stroke();
+                    this.noteFrontierHex(q, r, wq, fscreen.x, fscreen.y);
                     continue;
                 }
 

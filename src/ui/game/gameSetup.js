@@ -2,6 +2,7 @@
 // GAME SETUP � audio controls, title screen, randomize settings, startNewGame
 // ============================================
 
+import { icon } from '../icons.js';
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog } from './_gameImports.js';
 
 export function _setupAudioControls() {
@@ -43,7 +44,7 @@ export function _setupAudioControls() {
     // Update mute state display
     if (audioManager.muted) {
         btn.classList.add('muted');
-        if (iconSpan) iconSpan.textContent = '🔇';
+        if (iconSpan) iconSpan.innerHTML = icon('mute');
     }
 
     // Toggle popup on click
@@ -65,7 +66,7 @@ export function _setupAudioControls() {
         audioManager.init();
         const muted = audioManager.toggleMute();
         btn.classList.toggle('muted', muted);
-        if (iconSpan) iconSpan.textContent = muted ? '🔇' : '🔊';
+        if (iconSpan) iconSpan.innerHTML = icon(muted ? 'mute' : 'sound');
     });
 
     // Wire sliders

@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useGame } from '../context/GameContext';
 import { ModStore } from '../systems/modStore';
+import Icon from './Icon';
 
 export default function TitleScreen() {
   const { setPhase, setGameState } = useGame();
@@ -77,26 +78,25 @@ export default function TitleScreen() {
             id="btnModTools"
             onClick={() => setPhase('editor')}
           >
-            🛠 Modding Tools
+            <Icon name="gear" /> Modding Tools
           </button>
           <button
             className="title-btn secondary"
             id="btnWorldEditor"
             onClick={() => setPhase('worldEditor')}
           >
-            🗺 World Editor
+            <Icon name="compass" /> World Editor
           </button>
           <button
             className="title-btn secondary"
             id="btnPlayCustom"
             onClick={handlePlayCustom}
           >
-            🎮 Play Custom World
+            <Icon name="castle" /> Play Custom World
           </button>
         </div>
         <div id="titleVersion">v0.3.0 — React + Vite</div>
       </div>
-      <canvas id="titleBgCanvas"></canvas>
 
       {/* Custom World Picker Modal */}
       {showWorldPicker && (

@@ -10,6 +10,10 @@ Rendering and input handling. This layer reads game state and draws it — it do
 | `actionMenu/uiKit.js` | ~90 | The panels' shared kit: button/card styles (`BTN_GOLD`, `BTN_PLAIN`, `CARD`, …) and `panelTabs()`, which puts a panel's tabs in the custom panel's tab bar (`UI.setPanelNav`, `ui/panels.js`) so switching tabs never moves or resizes the window; a panel shown as a tab of another window (the Ledger, Tariffs, Merchant Prince under the market's bar, via `nav.hosts`) shows its tabs as a sub-tab row instead. DOM-toggling tabs use `{ inPlace: true }` items (Royal Treasury, Shipyard) |
 | `buildingCreator.js` | ~600 | In-world building placement UI |
 | `camera.js` | ~350 | Camera: pan, zoom, pixel↔hex conversion for the world map |
+| `cloudTexture.js` | ~100 | Tileable cloud textures (hashed value noise) + a scrolling layer painter, shared by the title backdrop and the map fog |
+| `titleBackdrop.js` | ~230 | The living realm behind title/setup/loading: an endless procedural hex land in the game's sprites, a slow aerial camera, cloud shadow and high cloud |
+| `icons.js` | ~520 | The realm's engraved glyph set (24×24 line glyphs in currentColor): `icon(name)` for innerHTML panels, `glyphParts` for `components/Icon.jsx`, `drawGlyph(ctx, …)` for the map's unit tokens and markers; `titleCrest(title)` turns a panel title's leading emoji (or its keywords) into the crest on the custom panel's header, `glyphLabel` does the same for tab labels |
+| `dayBanner.js` | ~55 | The dawn of each day announced across the map (larger card for a new season or year); replaces the "New Day" toast |
 | `companionsPanel.js` | ~150 | Travel-party roster (approval, mood, values, gripes, quests; talk/gift/pay/raise/dismiss), rendered inside `ActionMenu.showTravelPartyMenu` |
 | `game.js` | ~1200 | **Main game loop**: `requestAnimationFrame`, input routing, day/turn control |
 | `hotbar.js` | ~280 | Hotbar: quick-access tool buttons |
@@ -20,7 +24,7 @@ Rendering and input handling. This layer reads game state and draws it — it do
 | `minimap.js` | ~450 | Minimap: renders a downscaled view of explored tiles |
 | `npcDialog.js` | ~850 | NPC dialogue trees, conversation UI, relationship responses |
 | `objectActions.js` | ~500 | Interaction handler for clickable world objects |
-| `renderer.js` | ~900 | **World hex renderer**: draws terrain, settlements, fog of war, overlays (`renderer/*.js`; `renderer/tradeMap.js` draws the 📈 Trade Map map mode `'prices'` — known prices of one good from `systems/priceKnowledge.js`, trade links, caravan roads, shunned roads, each land link coloured by its road's condition; G cycles the good; `renderer/transport.js` draws the roads' tier and repair, closed passes, fords and ferries, toll gates, works under way and canals) |
+| `renderer.js` | ~900 | **World hex renderer**: draws terrain, settlements, fog of war, overlays (`renderer/*.js`; `renderer/tradeMap.js` draws the 📈 Trade Map map mode `'prices'` — known prices of one good from `systems/priceKnowledge.js`, trade links, caravan roads, shunned roads, each land link coloured by its road's condition; G cycles the good; `renderer/transport.js` draws the roads' tier and repair, closed passes, fords and ferries, toll gates, works under way and canals; `renderer/fog.js` draws the uncharted world as a drifting cloud sea and softens the frontier with cloud banks; `renderer/atmosphere.js` animates rain/snow/lightning on charted land, grades the map's colour by season and frames it with a vignette) |
 | `ui.js` | ~1100 | Main HUD: stats panel, resource bars, kingdom info, turn button |
 
 ## Rendering Pipeline

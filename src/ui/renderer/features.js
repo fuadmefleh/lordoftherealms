@@ -195,10 +195,15 @@ Object.assign(Renderer.prototype, {
                         priority,
                         {
                             font: font,
-                            fillStyle: '#ffffff',
+                            fillStyle: settlement.type === 'capital' ? '#ffe9a8' : '#f4efe4',
                             shadowColor: 'rgba(0,0,0,0.9)',
                             textAlign: 'center',
-                            textBaseline: 'top'
+                            textBaseline: 'top',
+                            // A banner tinted by the owning realm (drawLabelPlaque in renderer/world.js)
+                            plaque: {
+                                accent: (tile.kingdom && this.world.getKingdom(tile.kingdom)?.color) || 'rgba(160,160,160,0.6)',
+                                capital: settlement.type === 'capital',
+                            },
                         }
                     );
                 }
@@ -739,12 +744,12 @@ Object.assign(Renderer.prototype, {
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
 
-                // Add shadow for visibility
-                ctx.shadowColor = 'rgba(0,0,0,0.8)';
-                ctx.shadowBlur = 4;
+                // A small struck plate under the resource, so every marker reads as one family
+                const px = screen.x + renderSize * 0.35, py = screen.y + renderSize * 0.35;
+                this.drawMarkerPlate(ctx, px, py, iconSize * 0.68);
                 ctx.fillStyle = '#ffffff';
-
-                ctx.fillText(tile.resource.icon || '📦', screen.x + renderSize * 0.35, screen.y + renderSize * 0.35);
+                ctx.font = `${iconSize * 0.82}px serif`;
+                ctx.fillText(tile.resource.icon || '📦', px, py + iconSize * 0.04);
 
                 // Reset shadow
                 ctx.shadowColor = 'transparent';
@@ -759,36 +764,81 @@ Object.assign(Renderer.prototype, {
     renderPath(ctx, path) {
         if (!path || path.length < 2) return;
 
-        const size = this.hexSize;
+        const z = this.camera.zoom;
+        const s = this.hexSize * z;
+        // Hex visual centres (sprites sit a little below the grid point)
+        const pts = path.map(h => {
+            const pos = this.getHexPixelPos(h.q, h.r);
+            const c = this.camera.worldToScreen(pos.x, pos.y);
+            return { x: c.x, y: c.y + 0.13 * s };
+        });
 
-        ctx.beginPath();
-        for (let i = 0; i < path.length; i++) {
-            const pos = this.getHexPixelPos(path[i].q, path[i].r);
-            const screen = this.camera.worldToScreen(pos.x, pos.y);
-
-            if (i === 0) {
-                ctx.moveTo(screen.x, screen.y);
-            } else {
-                ctx.lineTo(screen.x, screen.y);
+        // A smooth route: straight out of the start, curving through each step's midpoint
+        const trace = () => {
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            for (let i = 1; i < pts.length - 1; i++) {
+                const mx = (pts[i].x + pts[i + 1].x) / 2, my = (pts[i].y + pts[i + 1].y) / 2;
+                ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
             }
-        }
+            const last = pts[pts.length - 1];
+            ctx.lineTo(last.x, last.y);
+        };
 
-        ctx.strokeStyle = 'rgba(245, 197, 66, 0.6)';
-        ctx.lineWidth = 3 * this.camera.zoom;
-        ctx.setLineDash([8 * this.camera.zoom, 4 * this.camera.zoom]);
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        // Dark casing so the route reads over any terrain
+        trace();
+        ctx.strokeStyle = 'rgba(12, 10, 6, 0.55)';
+        ctx.lineWidth = 6 * z;
+        ctx.stroke();
+        // Marching gold dashes, walking toward the destination
+        trace();
+        ctx.strokeStyle = 'rgba(255, 214, 110, 0.95)';
+        ctx.lineWidth = 2.6 * z;
+        ctx.setLineDash([9 * z, 7 * z]);
+        ctx.lineDashOffset = -this.time * 22 * z;
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Destination marker
-        const lastHex = path[path.length - 1];
-        const lastPos = this.getHexPixelPos(lastHex.q, lastHex.r);
-        const lastScreen = this.camera.worldToScreen(lastPos.x, lastPos.y);
+        // A pip on each step along the way
+        ctx.fillStyle = 'rgba(255, 233, 168, 0.9)';
+        for (let i = 1; i < pts.length - 1; i++) {
+            ctx.beginPath();
+            ctx.arc(pts[i].x, pts[i].y, 2.6 * z, 0, Math.PI * 2);
+            ctx.fill();
+        }
 
-        const markerSize = 4 * this.camera.zoom;
+        // Destination: a pulsing ring and a pin
+        const d = pts[pts.length - 1];
+        const pulse = (this.time * 0.9) % 1;
         ctx.beginPath();
-        ctx.arc(lastScreen.x, lastScreen.y, markerSize, 0, Math.PI * 2);
+        ctx.ellipse(d.x, d.y + 0.15 * s, (0.2 + 0.35 * pulse) * s, (0.1 + 0.17 * pulse) * s, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 214, 110, ${(1 - pulse) * 0.8})`;
+        ctx.lineWidth = 2 * z;
+        ctx.stroke();
+        const bob = Math.sin(this.time * 3) * 2 * z;
+        const pinR = 0.17 * s;
+        const py = d.y - 0.32 * s + bob;
+        ctx.beginPath();
+        ctx.moveTo(d.x, d.y + 0.1 * s);
+        ctx.quadraticCurveTo(d.x - pinR * 1.1, py + pinR * 0.6, d.x - pinR, py);
+        ctx.arc(d.x, py, pinR, Math.PI, 0);
+        ctx.quadraticCurveTo(d.x + pinR * 1.1, py + pinR * 0.6, d.x, d.y + 0.1 * s);
         ctx.fillStyle = '#f5c542';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+        ctx.shadowBlur = 6 * z;
         ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#7a5410';
+        ctx.lineWidth = 1.2 * z;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(d.x, py, pinR * 0.42, 0, Math.PI * 2);
+        ctx.fillStyle = '#5a3c08';
+        ctx.fill();
+        ctx.restore();
     },
 
     /**
@@ -864,5 +914,69 @@ Object.assign(Renderer.prototype, {
         ctx.strokeStyle = strokeColor;
         ctx.lineWidth = 2 * this.camera.zoom;
         ctx.stroke();
+    },
+
+    /** The six sprite-measured corners of hex (q, r) on screen, inset by `inset` (0–1). */
+    hexScreenCorners(q, r, inset = 0) {
+        const pos = this.getHexPixelPos(q, r);
+        const c = this.camera.worldToScreen(pos.x, pos.y);
+        const s = this.hexSize * this.camera.zoom;
+        const cy = c.y + 0.134 * s;  // visual centre of the sprite hex
+        const k = 1 - inset;
+        const raw = [[0, -0.732], [0.866, -0.305], [0.866, 0.567], [0, 1], [-0.866, 0.567], [-0.866, -0.305]];
+        return raw.map(([dx, dy]) => ({ x: c.x + dx * s * k, y: cy + (dy - 0.134) * s * k }));
+    },
+
+    /** Hover: a fine light outline, softer over the uncharted. */
+    renderHoverMark(ctx, q, r) {
+        const row = this.world.tiles[r];
+        const tile = row ? row[Hex.wrapQ(q, this.world.width)] : null;
+        const charted = !tile || tile.explored;
+        const pts = this.hexScreenCorners(q, r, 0.04);
+        ctx.save();
+        ctx.beginPath();
+        pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+        ctx.closePath();
+        ctx.fillStyle = charted ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)';
+        ctx.fill();
+        ctx.setLineDash(charted ? [] : [4 * this.camera.zoom, 4 * this.camera.zoom]);
+        ctx.strokeStyle = charted ? 'rgba(255,255,255,0.55)' : 'rgba(220,230,255,0.35)';
+        ctx.lineWidth = 1.5 * this.camera.zoom;
+        ctx.stroke();
+        ctx.restore();
+    },
+
+    /** Selection: a breathing gold rim with corner brackets, like a cartographer's mark. */
+    renderSelectionMark(ctx, q, r) {
+        const z = this.camera.zoom;
+        const pulse = 0.5 + 0.5 * Math.sin(this.time * 3);
+        const pts = this.hexScreenCorners(q, r, 0.03);
+        ctx.save();
+        ctx.beginPath();
+        pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+        ctx.closePath();
+        ctx.fillStyle = `rgba(245,197,66,${(0.08 + 0.06 * pulse).toFixed(3)})`;
+        ctx.fill();
+        ctx.shadowColor = 'rgba(245,197,66,0.8)';
+        ctx.shadowBlur = (6 + 8 * pulse) * z;
+        ctx.strokeStyle = 'rgba(255,214,110,0.9)';
+        ctx.lineWidth = 2 * z;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        // Corner brackets just outside the rim
+        const out = this.hexScreenCorners(q, r, -0.1 - 0.03 * pulse);
+        ctx.strokeStyle = '#ffe9a8';
+        ctx.lineWidth = 2.5 * z;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const p = out[i], a = out[(i + 5) % 6], b = out[(i + 1) % 6];
+            const L = 0.22;
+            ctx.moveTo(p.x + (a.x - p.x) * L, p.y + (a.y - p.y) * L);
+            ctx.lineTo(p.x, p.y);
+            ctx.lineTo(p.x + (b.x - p.x) * L, p.y + (b.y - p.y) * L);
+        }
+        ctx.stroke();
+        ctx.restore();
     },
 });

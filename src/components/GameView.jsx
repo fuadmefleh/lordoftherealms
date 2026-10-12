@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useGame } from '../context/GameContext';
 import TopBar from './TopBar';
+import Icon from './Icon';
 import { Game } from '../ui/game';
 import { DataLoader } from '../core/dataLoader';
 
@@ -112,23 +113,23 @@ export default function GameView() {
       {/* ═══ Left icon rail ═══ */}
       <div id="hudLeftRail" className="hud-frame">
         <button className="hud-rail-btn active" id="railOverview" title="Overview">
-          <span className="hud-rail-icon">👑</span>
+          <span className="hud-rail-icon"><Icon name="crown" /></span>
           <span className="hud-rail-label">Overview</span>
         </button>
         <button className="hud-rail-btn" id="railArmies" title="Armies">
-          <span className="hud-rail-icon">⚔️</span>
+          <span className="hud-rail-icon"><Icon name="swords" /></span>
           <span className="hud-rail-label">Armies</span>
         </button>
         <button className="hud-rail-btn" id="railSettlements" title="Settlements">
-          <span className="hud-rail-icon">🏰</span>
+          <span className="hud-rail-icon"><Icon name="castle" /></span>
           <span className="hud-rail-label">Settlements</span>
         </button>
         <button className="hud-rail-btn" id="railResources" title="Resources">
-          <span className="hud-rail-icon">⛏️</span>
+          <span className="hud-rail-icon"><Icon name="pickaxe" /></span>
           <span className="hud-rail-label">Resources</span>
         </button>
         <button className="hud-rail-btn" id="railFactions" title="Factions">
-          <span className="hud-rail-icon">🛡️</span>
+          <span className="hud-rail-icon"><Icon name="shield" /></span>
           <span className="hud-rail-label">Factions</span>
         </button>
       </div>
@@ -144,7 +145,7 @@ export default function GameView() {
                 <div className="hud-obj-title" id="objectiveTitle">A New Beginning</div>
                 <div className="hud-obj-desc" id="objectiveDesc">Explore nearby lands, discover settlements, and grow your influence.</div>
               </div>
-              <div className="hud-obj-compass">🧭</div>
+              <div className="hud-obj-compass"><Icon name="compass" /></div>
             </div>
             <div className="hud-obj-progress-row">
               <span className="hud-obj-prog-label">◆ Explore hexes</span>
@@ -195,12 +196,12 @@ export default function GameView() {
           <div className="hud-char-name" id="charCardName">WANDERER</div>
           <div className="hud-char-alignment" id="charCardAlignment">Unaligned</div>
           <div className="hud-char-stat">
-            <span className="hud-char-stat-icon">❤️</span>
+            <span className="hud-char-stat-icon"><Icon name="heart" /></span>
             <span className="hud-char-stat-val" id="charCardMorale">100%</span>
             <span className="hud-char-stat-label">Morale</span>
           </div>
           <div className="hud-char-stat">
-            <span className="hud-char-stat-icon">⭐</span>
+            <span className="hud-char-stat-icon"><Icon name="banner" /></span>
             <span className="hud-char-stat-val" id="charCardStance">Neutral</span>
             <span className="hud-char-stat-label">Stance</span>
           </div>
@@ -211,7 +212,6 @@ export default function GameView() {
       <div id="minimapContainer" className="hud-frame">
         <div id="minimapLabel">World Map</div>
         <canvas id="minimapCanvas"></canvas>
-        <div id="minimapViewport"></div>
         <div className="minimap-zoom">
           <button className="minimap-zoom-btn" id="minimapZoomOut" title="Zoom Out">−</button>
           <button className="minimap-zoom-btn" id="minimapZoomReset" title="Center on You">⊕</button>
@@ -268,7 +268,7 @@ export default function GameView() {
         {/* Date + mood */}
         <div className="hud-bb-datecol">
           <div className="hud-bb-dateline">
-            <span className="hud-bb-sun">☀️</span>
+            <span className="hud-bb-sun"><Icon name="sun" /></span>
             <span className="hud-bb-date" id="hudBottomDate">Day 1 of Spring, Year 853</span>
           </div>
           <div className="hud-mood">
@@ -281,15 +281,15 @@ export default function GameView() {
           {/* Needs — filled by ui/ui/hud.js _updateSimsHUD; hidden while the needs system is off */}
           <div className="hud-needs" id="hudNeeds">
             {[
-              ['hunger', '🍖', 'simsHungerBar'],
-              ['energy', '💤', 'simsEnergyBar'],
-              ['social', '💬', 'simsSocialBar'],
-              ['fun', '🎭', 'simsFunBar'],
-              ['hygiene', '🧼', 'simsHygieneBar'],
-              ['comfort', '🪑', 'simsComfortBar'],
+              ['hunger', 'bread', 'simsHungerBar'],
+              ['energy', 'moon', 'simsEnergyBar'],
+              ['social', 'speech', 'simsSocialBar'],
+              ['fun', 'dice', 'simsFunBar'],
+              ['hygiene', 'droplet', 'simsHygieneBar'],
+              ['comfort', 'bed', 'simsComfortBar'],
             ].map(([need, icon, barId]) => (
               <div key={need} className="hud-need" title={need}>
-                <span className="hud-need-icon">{icon}</span>
+                <span className="hud-need-icon"><Icon name={icon} /></span>
                 <div className="hud-need-track"><div className="sims-need-bar-fill high" id={barId} style={{width:'100%'}}></div></div>
               </div>
             ))}
@@ -301,16 +301,16 @@ export default function GameView() {
         {/* Resources */}
         <div className="hud-bb-resources">
           <div className="hud-bb-res" title="Gold">
-            <span className="hud-bb-res-icon">💰</span>
+            <span className="hud-bb-res-icon"><Icon name="coins" /></span>
             <span className="hud-bb-res-val" id="simsGold">0</span>
             <span className="hud-bb-res-sub" id="incomePerDay">+0/d</span>
           </div>
           <div className="hud-bb-res" title="Renown">
-            <span className="hud-bb-res-icon">⭐</span>
+            <span className="hud-bb-res-icon"><Icon name="star" /></span>
             <span className="hud-bb-res-val" id="simsRenown">0</span>
           </div>
           <div className="hud-bb-res" title="Military Strength">
-            <span className="hud-bb-res-icon">🛡️</span>
+            <span className="hud-bb-res-icon"><Icon name="shield" /></span>
             <span className="hud-bb-res-val" id="bbShields">0</span>
           </div>
         </div>
@@ -320,23 +320,25 @@ export default function GameView() {
         {/* Playback + End Turn */}
         <div className="hud-bb-controls">
           <div className="hud-speed">
-            <button className="hud-speed-btn" id="simsTimePause" title="Pause (Space)">⏸</button>
-            <button className="hud-speed-btn active" id="simsTimePlay" title="Normal Speed (1)">▶</button>
-            <button className="hud-speed-btn" id="simsTimeFast" title="Fast (2)">⏩</button>
-            <button className="hud-speed-btn" id="simsTimeUltra" title="Ultra (3)">⏭️</button>
+            <button className="hud-speed-btn" id="simsTimePause" title="Pause (Space)"><Icon name="pause" /></button>
+            <button className="hud-speed-btn active" id="simsTimePlay" title="Normal Speed (1)"><Icon name="play" /></button>
+            <button className="hud-speed-btn" id="simsTimeFast" title="Fast (2)"><Icon name="fast" /></button>
+            <button className="hud-speed-btn" id="simsTimeUltra" title="Ultra (3)"><Icon name="ultra" /></button>
           </div>
           <button className="hud-end-turn" id="simsEndDay">
-            <span className="hud-end-turn-icon">🛡️</span>
+            <span className="hud-end-turn-icon"><Icon name="hourglass" /></span>
             <span>End Turn</span>
           </button>
         </div>
 
-        {/* Activity Log (collapsible) */}
+        {/* Activity Log — a strip along the bar's foot: the latest entries inline,
+            the full log opens upward (filled by ui/ui/hud.js updateEventsPanel) */}
         <div className="hud-activity">
-          <button className="hud-activity-toggle collapsed" id="activityLogToggle">
+          <button className="hud-activity-toggle collapsed" id="activityLogToggle" title="Show the activity log">
             <span className="hud-activity-caret">▾</span>
             <span>Activity Log</span>
           </button>
+          <div className="hud-activity-ticker" id="activityLogTicker"></div>
           <div className="hud-activity-body collapsed" id="activityLogBody"></div>
         </div>
       </div>

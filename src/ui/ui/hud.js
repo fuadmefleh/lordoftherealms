@@ -1011,7 +1011,8 @@ function hudEscHtml(s) {
     return String(s == null ? '' : s)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -1163,27 +1164,40 @@ Object.assign(UI.prototype, {
         if (this._lastEventLen === log.length) return;
         this._lastEventLen = log.length;
 
-        const recent = log.slice(-6).reverse();
         const typeIcons = { success: '✅', error: '⚠️', info: 'ℹ️', default: '📜' };
-        let rows = '';
-        if (recent.length === 0) {
-            rows = '<div class="hud-event-empty">No events yet. Your journey begins…</div>';
-        } else {
-            for (const e of recent) {
-                const icon = typeIcons[e.type] || typeIcons.default;
+        const iconOf = (e) => typeIcons[e.type] || typeIcons.default;
+        const eventRows = (entries) => {
+            if (entries.length === 0) return '<div class="hud-event-empty">No events yet. Your journey begins…</div>';
+            let rows = '';
+            for (const e of entries) {
                 rows += `<div class="hud-event">`
-                    + `<span class="hud-event-icon">${icon}</span>`
+                    + `<span class="hud-event-icon">${iconOf(e)}</span>`
                     + `<div class="hud-event-body">`
                     + `<span class="hud-event-head"><span class="hud-event-title">${hudEscHtml(e.title)}</span>`
                     + `<span class="hud-event-day">Day ${e.day}</span></span>`
                     + `<span class="hud-event-msg">${hudEscHtml(e.message)}</span>`
                     + `</div></div>`;
             }
-        }
+            return rows;
+        };
+
+        // The right rail shows the last few; the expanded log keeps a longer history.
         const list = document.getElementById('eventsList');
-        if (list) list.innerHTML = rows;
+        if (list) list.innerHTML = eventRows(log.slice(-6).reverse());
         const logBody = document.getElementById('activityLogBody');
-        if (logBody) logBody.innerHTML = rows;
+        if (logBody) logBody.innerHTML = eventRows(log.slice(-40).reverse());
+
+        // The bar's ticker: the two newest entries on one line.
+        const ticker = document.getElementById('activityLogTicker');
+        if (ticker) {
+            const latest = log.slice(-2).reverse();
+            ticker.innerHTML = latest.length === 0
+                ? '<span class="hud-ticker-empty">Your journey begins… the road awaits.</span>'
+                : latest.map(e => `<span class="hud-ticker-item" title="${hudEscHtml(e.title)}: ${hudEscHtml(e.message)}">`
+                    + `<span class="hud-ticker-day">Day ${e.day}</span>`
+                    + `<span class="hud-ticker-icon">${iconOf(e)}</span>`
+                    + `<span class="hud-ticker-msg">${hudEscHtml(e.message || e.title)}</span></span>`).join('');
+        }
     },
 
     /** Wire the redesigned top tabs, left rail, minimap zoom, and activity-log toggle. */

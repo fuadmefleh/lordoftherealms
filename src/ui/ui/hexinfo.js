@@ -146,8 +146,8 @@ Object.assign(UI.prototype, {
         // Add Actions button if player is here
         if (this.game.player.q === q && this.game.player.r === r) {
             html += `
-                <button data-ui-act="openActionMenu" style="width:100%; margin-top:8px; padding:8px; background:var(--gold); border:none; border-radius:4px; font-weight:bold; cursor:pointer; color:#1a1a1a;">
-                    Open Actions
+                <button data-ui-act="openActionMenu" class="hexinfo-actions-btn">
+                    <span>⚔</span> Open Actions
                 </button>
             `;
         }

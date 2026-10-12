@@ -193,45 +193,61 @@ export const Kingdom = {
             }
 
             if (bestTile) {
-                kingdom.capital = bestTile;
                 placedCapitals.push(bestTile);
-
-                // Claim territory around capital
-                const initialRadius = Utils.randInt(3, 5);
-                const claimedHexes = Hex.hexesInRange(bestTile.q, bestTile.r, initialRadius);
-
-                for (const hex of claimedHexes) {
-                    const wq = Hex.wrapQ(hex.q, mapWidth);
-                    const wr = hex.r;
-                    if (wr < 0 || wr >= mapHeight) continue;
-
-                    const tile = tiles[wr][wq];
-                    if (tile.terrain.passable && !tile.kingdom) {
-                        tile.kingdom = kingdom.id;
-                        kingdom.territory.push({ q: wq, r: wr });
-                    }
-                }
-
-                // Set capital tile
-                tiles[bestTile.r][bestTile.q].settlement = {
-                    type: 'capital',
-                    name: Kingdom.generateCityName(kingdom.culture),
-                    population: Utils.randInt(5000, 15000),
-                    level: 3,
-                    kingdom: kingdom.id,
-                    founded: Utils.randInt(300, 500),
-                };
-
-                // Place 1-2 towns nearby
-                const numTowns = Utils.randInt(1, 2);
-                for (let i = 0; i < numTowns; i++) {
-                    Kingdom.placeTown(kingdom, tiles, mapWidth, mapHeight);
-                }
-
-                // Initialize population and military from settlements
-                Kingdom.initializeKingdomStats(kingdom, tiles, mapWidth, mapHeight);
+                Kingdom.foundAt(kingdom, bestTile, tiles, mapWidth, mapHeight);
             }
         }
+    },
+
+    /**
+     * Seat a kingdom at `site`: its capital, its lands and its first towns.
+     * `opts.territory` ({q, r} list) gives it those lands instead of the
+     * usual 3-5 hex claim; `opts.towns: false` skips the 1-2 random towns
+     * (a hand-made map that placed its own). With no opts the RNG draws are
+     * exactly those placeKingdoms always made, so seeded worlds don't change.
+     */
+    foundAt(kingdom, site, tiles, mapWidth, mapHeight, opts = {}) {
+        kingdom.capital = { q: site.q, r: site.r };
+
+        const claim = (wq, wr) => {
+            if (wr < 0 || wr >= mapHeight) return;
+            const tile = tiles[wr][wq];
+            if (tile.terrain.passable && !tile.kingdom) {
+                tile.kingdom = kingdom.id;
+                kingdom.territory.push({ q: wq, r: wr });
+            }
+        };
+        if (Array.isArray(opts.territory) && opts.territory.length) {
+            claim(site.q, site.r);
+            for (const hex of opts.territory) claim(Hex.wrapQ(hex.q, mapWidth), hex.r);
+        } else {
+            // Claim territory around capital
+            const initialRadius = Utils.randInt(3, 5);
+            for (const hex of Hex.hexesInRange(site.q, site.r, initialRadius)) {
+                claim(Hex.wrapQ(hex.q, mapWidth), hex.r);
+            }
+        }
+
+        // Set capital tile
+        tiles[site.r][site.q].settlement = {
+            type: 'capital',
+            name: opts.capitalName || Kingdom.generateCityName(kingdom.culture),
+            population: Utils.randInt(5000, 15000),
+            level: 3,
+            kingdom: kingdom.id,
+            founded: Utils.randInt(300, 500),
+        };
+
+        if (opts.towns !== false) {
+            // Place 1-2 towns nearby
+            const numTowns = Utils.randInt(1, 2);
+            for (let i = 0; i < numTowns; i++) {
+                Kingdom.placeTown(kingdom, tiles, mapWidth, mapHeight);
+            }
+        }
+
+        // Initialize population and military from settlements
+        Kingdom.initializeKingdomStats(kingdom, tiles, mapWidth, mapHeight);
     },
 
     /**

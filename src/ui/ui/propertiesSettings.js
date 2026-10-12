@@ -1,4 +1,5 @@
 // UI — propertiesSettings methods.
+import { icon } from '../icons.js';
 import { UI } from './core.js';
 import { applyUiScale, UI_SCALE_OPTIONS } from '../uiScale.js';
 import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, House, NpcBrain } from './_imports.js';
@@ -1257,7 +1258,7 @@ Object.assign(UI.prototype, {
             if (btn) {
                 btn.classList.toggle('muted', audioManager.muted);
                 const iconSpan = btn.querySelector('.audio-icon');
-                if (iconSpan) iconSpan.textContent = audioManager.muted ? '🔇' : '🔊';
+                if (iconSpan) iconSpan.innerHTML = icon(audioManager.muted ? 'mute' : 'sound');
             }
         }
 

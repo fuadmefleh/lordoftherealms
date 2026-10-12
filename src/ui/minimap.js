@@ -18,9 +18,13 @@ export class Minimap {
         this.ctx = this.canvas.getContext('2d');
         this.needsRedraw = true;
 
-        // Set actual canvas resolution
-        this.canvas.width = 220;
-        this.canvas.height = 130;
+        // Drawing happens in logical units (w × h, width fixed at 220); the
+        // backing store follows the canvas's on-screen size × device pixels so
+        // the map stays sharp and unstretched at any interface scale.
+        this.w = 220;
+        this.h = 130;
+        this._backing = '';
+        this._syncResolution();
 
         // Click on minimap to navigate
         this.canvas.addEventListener('click', (e) => this.handleClick(e));
@@ -33,10 +37,52 @@ export class Minimap {
         this.needsRedraw = true;
     }
 
+    /** Match the backing store to the canvas's displayed size. */
+    _syncResolution() {
+        const rect = this.canvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) {
+            if (!this._backing) {
+                this.canvas.width = this.w;
+                this.canvas.height = this.h;
+                this._backing = 'fallback';
+            }
+            return;
+        }
+        const dpr = window.devicePixelRatio || 1;
+        const pxW = Math.round(rect.width * dpr);
+        const pxH = Math.round(rect.height * dpr);
+        const key = `${pxW}x${pxH}`;
+        if (key === this._backing) return;
+        this._backing = key;
+        this.h = Math.round(this.w * rect.height / rect.width);
+        this.canvas.width = pxW;
+        this.canvas.height = pxH;
+        this.ctx.setTransform(pxW / this.w, 0, 0, pxH / this.h, 0, 0);
+        this.needsRedraw = true;
+        this._innerLastDraw = 0;
+    }
+
+    /**
+     * Where the world sits on the minimap: tiles keep the hex grid's aspect
+     * (a row is 0.75 of a column, as in getHexPixelPos) and the map is centred.
+     * @returns {{tileW: number, tileH: number, ox: number, oy: number}}
+     */
+    _worldView(world) {
+        const tileW = Math.min(this.w / world.width, this.h / (world.height * 0.75));
+        const tileH = tileW * 0.75;
+        return {
+            tileW,
+            tileH,
+            ox: (this.w - tileW * world.width) / 2,
+            oy: (this.h - tileH * world.height) / 2,
+        };
+    }
+
     /**
      * Render minimap
      */
     render() {
+        this._syncResolution();
         const inner = this.game.innerMapMode && InnerMap.active;
         const label = document.getElementById('minimapLabel');
         if (label) {
@@ -55,38 +101,33 @@ export class Minimap {
 
         const ctx = this.ctx;
         const world = this.game.world;
-        const w = this.canvas.width;
-        const h = this.canvas.height;
+        const w = this.w;
+        const h = this.h;
 
         ctx.fillStyle = '#090d14';
         ctx.fillRect(0, 0, w, h);
 
         if (!world) return;
 
-        const tileW = w / world.width;
-        const tileH = h / world.height;
+        const view = this._worldView(world);
+        const { tileW, tileH, ox, oy } = view;
+        const cell = (q, r) => [
+            Math.floor(ox + q * tileW),
+            Math.floor(oy + r * tileH),
+            Math.ceil(tileW) + 1,
+            Math.ceil(tileH) + 1,
+        ];
 
-        // Draw terrain
+        // Draw terrain (unexplored tiles stay the background colour)
+        const renderer = this.game.renderer;
         for (let r = 0; r < world.height; r++) {
             for (let q = 0; q < world.width; q++) {
                 const tile = world.tiles[r][q];
-
-                if (!tile.explored) {
-                    // Unexplored tiles are dark
-                    ctx.fillStyle = '#090d14';
-                    ctx.fillRect(
-                        Math.floor(q * tileW),
-                        Math.floor(r * tileH),
-                        Math.ceil(tileW) + 1,
-                        Math.ceil(tileH) + 1
-                    );
-                    continue;
-                }
+                if (!tile.explored) continue;
 
                 let color = tile.terrain.color;
 
                 // If renderer has an active map mode, use its colour scheme
-                const renderer = this.game.renderer;
                 if (renderer && renderer.mapMode !== 'normal') {
                     color = renderer.getMapModeColor(tile);
                 } else if (tile.kingdom) {
@@ -98,22 +139,12 @@ export class Minimap {
                 }
 
                 ctx.fillStyle = color;
-                ctx.fillRect(
-                    Math.floor(q * tileW),
-                    Math.floor(r * tileH),
-                    Math.ceil(tileW) + 1,
-                    Math.ceil(tileH) + 1
-                );
+                ctx.fillRect(...cell(q, r));
 
                 // Dim explored-but-not-visible tiles (fog of war)
                 if (!tile.visible) {
                     ctx.fillStyle = 'rgba(9, 13, 20, 0.55)';
-                    ctx.fillRect(
-                        Math.floor(q * tileW),
-                        Math.floor(r * tileH),
-                        Math.ceil(tileW) + 1,
-                        Math.ceil(tileH) + 1
-                    );
+                    ctx.fillRect(...cell(q, r));
                 }
             }
         }
@@ -124,11 +155,12 @@ export class Minimap {
                 const tile = world.tiles[r][q];
                 if (!tile.settlement || !tile.explored) continue;
 
-                ctx.fillStyle = tile.settlement.type === 'capital' ? '#f5c542' : '#ffffff';
-                const dotSize = tile.settlement.type === 'capital' ? 3 : 1.5;
+                const capital = tile.settlement.type === 'capital';
+                ctx.fillStyle = capital ? '#f5c542' : '#ffffff';
+                const dotSize = capital ? 3 : 1.5;
                 ctx.fillRect(
-                    q * tileW - dotSize / 2,
-                    r * tileH - dotSize / 2,
+                    ox + (q + 0.5) * tileW - dotSize / 2,
+                    oy + (r + 0.5) * tileH - dotSize / 2,
                     dotSize,
                     dotSize
                 );
@@ -137,8 +169,8 @@ export class Minimap {
 
         // Draw player position
         const player = this.game.player;
-        const px = player.q * tileW;
-        const py = player.r * tileH;
+        const px = ox + (player.q + 0.5) * tileW;
+        const py = oy + (player.r + 0.5) * tileH;
 
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
@@ -151,8 +183,8 @@ export class Minimap {
         ctx.arc(px, py, 5, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Draw camera viewport indicator
-        this.renderViewportIndicator(ctx, tileW, tileH);
+        // Draw camera viewport indicator, clipped to the map's footprint
+        this.renderViewportIndicator(ctx, view, world);
     }
 
     // ══════════════════════════════════════════════
@@ -232,7 +264,7 @@ export class Minimap {
      * @returns {{scale: number, originQ: number, originR: number}}
      */
     _innerView() {
-        const w = this.canvas.width, h = this.canvas.height;
+        const w = this.w, h = this.h;
         const mapW = InnerMap.width, mapH = InnerMap.height;
         const fitScale = Math.min(w / mapW, h / mapH);
         const level = INNER_ZOOM_LEVELS[this._innerZoom ?? INNER_ZOOM_DEFAULT];
@@ -260,8 +292,8 @@ export class Minimap {
         this.needsRedraw = true; // the world view must repaint once we leave
 
         const ctx = this.ctx;
-        const w = this.canvas.width;
-        const h = this.canvas.height;
+        const w = this.w;
+        const h = this.h;
 
         ctx.fillStyle = '#090d14';
         ctx.fillRect(0, 0, w, h);
@@ -359,36 +391,29 @@ export class Minimap {
     /**
      * Render viewport rectangle on minimap
      */
-    renderViewportIndicator(ctx, tileW, tileH) {
+    renderViewportIndicator(ctx, view, world) {
         const camera = this.game.camera;
-        const renderer = this.game.renderer;
-        const world = this.game.world;
-        const hexSize = renderer.hexSize;
-        const hexWidth = Math.sqrt(3) * hexSize;
+        const hexWidth = Math.sqrt(3) * this.game.renderer.hexSize;
         const rowHeight = hexWidth * 0.75;
         const bounds = camera.getVisibleBounds();
+        const { tileW, tileH, ox, oy } = view;
 
-        // Convert world pixel bounds to offset grid coords (q, r)
-        // Inverse of getHexPixelPos:
-        // py = r * rowHeight => r = py / rowHeight
-        // px = q * hexWidth + offsetX => q = (px - offsetX) / hexWidth
+        // World pixels → minimap (inverse of getHexPixelPos)
+        const x1 = ox + (bounds.left / hexWidth) * tileW;
+        const y1 = oy + (bounds.top / rowHeight) * tileH;
+        const x2 = ox + (bounds.right / hexWidth) * tileW;
+        const y2 = oy + (bounds.bottom / rowHeight) * tileH;
 
-        const r1 = bounds.top / rowHeight;
-        const r2 = bounds.bottom / rowHeight;
-
-        // We take the average offsetX for the column calculation to keep the box rectangular on the minimap
-        // or just use columns derived from left/right
-        const q1 = (bounds.left) / hexWidth;
-        const q2 = (bounds.right) / hexWidth;
-
-        const x1 = q1 * tileW;
-        const y1 = r1 * tileH;
-        const x2 = q2 * tileW;
-        const y2 = r2 * tileH;
-
-        ctx.strokeStyle = 'rgba(245, 197, 66, 0.7)';
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(ox, oy, tileW * world.width, tileH * world.height);
+        ctx.clip();
+        ctx.fillStyle = 'rgba(245, 197, 66, 0.06)';
+        ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+        ctx.strokeStyle = 'rgba(245, 197, 66, 0.85)';
         ctx.lineWidth = 1;
-        ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+        ctx.strokeRect(x1 + 0.5, y1 + 0.5, x2 - x1 - 1, y2 - y1 - 1);
+        ctx.restore();
     }
 
     renderInnerViewportIndicator(ctx, view) {
@@ -412,8 +437,8 @@ export class Minimap {
      */
     handleClick(e) {
         const rect = this.canvas.getBoundingClientRect();
-        const mx = (e.clientX - rect.left) * (this.canvas.width / rect.width);
-        const my = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+        const mx = (e.clientX - rect.left) * (this.w / rect.width);
+        const my = (e.clientY - rect.top) * (this.h / rect.height);
 
         // Inner map mode: the camera is locked to the player, so a click
         // walks the player to that spot instead of panning.
@@ -433,8 +458,9 @@ export class Minimap {
         }
 
         const world = this.game.world;
-        const q = Math.floor((mx / this.canvas.width) * world.width);
-        const r = Math.floor((my / this.canvas.height) * world.height);
+        const { tileW, tileH, ox, oy } = this._worldView(world);
+        const q = Math.max(0, Math.min(world.width - 1, Math.floor((mx - ox) / tileW)));
+        const r = Math.max(0, Math.min(world.height - 1, Math.floor((my - oy) / tileH)));
 
         // Move camera to this position using the renderer's coordinate system
         const pos = this.game.renderer.getHexPixelPos(q, r);

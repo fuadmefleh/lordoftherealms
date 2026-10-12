@@ -8,5 +8,7 @@ import './features.js';
 import './overlays.js';
 import './tradeMap.js';
 import './transport.js';
+import './fog.js';
+import './atmosphere.js';
 
 export { Renderer };

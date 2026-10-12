@@ -11,6 +11,8 @@ React UI components. These are pure display/interaction shells — they read fro
 | `LoadingOverlay.jsx` | Loading spinner shown during world generation |
 | `SettingsScreen.jsx` | New game setup: character creation, world seed, difficulty |
 | `TitleScreen.jsx` | Title screen with New Game / Load Game / Editor buttons |
+| `Icon.jsx` | `<Icon name="…" />` — one engraved glyph from `ui/icons.js`, used across the HUD chrome |
+| `TitleBackdrop.jsx` | Canvas for `ui/titleBackdrop.js`; mounted once by `App` across title → settings → loading so the flight never cuts |
 | `TopBar.jsx` | In-game top bar: player stats, turn info, quick-access buttons |
 
 ## Notes

@@ -9,7 +9,9 @@
 // shown as a tab of another window (the Ledger as the market's 📒 tab), the
 // host's bar stays and the panel's tabs show as a sub-tab row instead.
 //
-// Pure string builders — no imports, no state.
+// Pure string builders, no state; tab labels lead with the realm's glyphs (ui/icons.js).
+
+import { glyphLabel } from '../icons.js';
 
 /** Base button: inline style strings, so panels can keep `style="${BTN_GOLD}"`. */
 export const BTN = 'padding: 5px 10px; margin: 3px 4px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; font-family: var(--font-body); line-height: 1.3;';
@@ -39,7 +41,7 @@ export function subTabsHtml(tabs, active, attrsFor) {
     const items = tabs.map(tabItem);
     if (!items.length) return '';
     return `<div class="panel-subtabs">${items.map(i =>
-        `<button class="panel-subtab${i.key === active ? ' active' : ''}" ${attrsFor(i.key)}${i.title ? ` title="${esc(i.title)}"` : ''}>${i.label}</button>`).join('')}</div>`;
+        `<button class="panel-subtab${i.key === active ? ' active' : ''}" ${attrsFor(i.key)}${i.title ? ` title="${esc(i.title)}"` : ''}>${glyphLabel(i.label)}</button>`).join('')}</div>`;
 }
 
 /** Will the custom panel's current tab bar survive the next showCustomPanel? (mirrors ui/ui/panels.js) */

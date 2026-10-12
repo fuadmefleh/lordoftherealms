@@ -3,6 +3,37 @@ import { ActionMenu } from './_ref.js';
 import { uiZoom } from '../uiScale.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerReligion, Gossip, OutlawLairs } from './_imports.js';
 
+const _escHtml = (v) => String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/**
+ * Paint the place card's backdrop: the live map around this hex, copied
+ * from the game canvas as the menu opens (so it shows exactly what is there).
+ */
+function paintPlaceView(game, tile, view) {
+    const r = game && game.renderer;
+    if (!view || !r || !r.canvas || tile.q == null) return;
+    const w = view.clientWidth, h = view.clientHeight;
+    if (!w || !h) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    view.width = Math.round(w * dpr);
+    view.height = Math.round(h * dpr);
+    const pos = r.getHexPixelPos(tile.q, tile.r);
+    const c = r.camera.worldToScreen(pos.x, pos.y);
+    const s = r.hexSize * r.camera.zoom;
+    // Crop about eight hexes wide, keeping the card's aspect, the hex a little right of centre
+    const cw = Math.min(r.canvas.width, s * 15);
+    const ch = cw * (h / w);
+    const sx = Math.max(0, Math.min(r.canvas.width - cw, c.x - cw * 0.62));
+    const sy = Math.max(0, Math.min(r.canvas.height - ch, c.y + 0.13 * s - ch / 2));
+    try {
+        view.getContext('2d').drawImage(r.canvas, sx, sy, cw, ch, 0, 0, view.width, view.height);
+        view.classList.add('painted');
+    } catch (e) {
+        // A tainted or unavailable canvas just leaves the plain card
+    }
+}
+
 Object.assign(ActionMenu, {
     // ── Delegated-click helpers ──
     // Panel buttons use data-am-act="<method>" (routed by routeDelegatedClick
@@ -160,32 +191,37 @@ Object.assign(ActionMenu, {
             max-height: calc(90vh / var(--ui-zoom));
         `;
 
-        // ── Header ──
-        let locationInfo = '';
+        // ── Header: a place card — the map itself around this hex, the place named over it ──
+        let placeName, placeKind;
         if (tile.settlement) {
-            locationInfo = `${tile.settlement.name} (${tile.settlement.type})`;
+            placeName = tile.settlement.name;
+            placeKind = tile.settlement.type;
         } else if (tile.improvement) {
-            locationInfo = tile.improvement.name;
+            placeName = tile.improvement.name;
+            placeKind = 'landmark';
         } else {
-            locationInfo = tile.terrain.name || tile.terrain.id;
+            placeName = tile.terrain.name || tile.terrain.id;
+            placeKind = 'wilds';
         }
+        const kingdom = tile.kingdom && game.world.getKingdom ? game.world.getKingdom(tile.kingdom) : null;
+        const placeSub = [tile.settlement || tile.improvement ? (tile.terrain.name || tile.terrain.id) : null,
+            kingdom ? kingdom.name : 'Unclaimed lands'].filter(Boolean).join(' · ');
 
         const ap = game.player.actionPoints != null ? game.player.actionPoints : 10;
         const maxAp = game.player.maxActionPoints || 10;
 
         let html = `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px;
-                border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(245,197,66,0.04); flex-shrink: 0;">
-                <div>
-                    <div style="font-family: var(--font-display); font-size: 14px; color: var(--gold); letter-spacing: 0.5px;">Actions</div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 1px;">${locationInfo}</div>
+            <div class="am-place">
+                <canvas class="am-place-view"></canvas>
+                <div class="am-place-shade"></div>
+                <div class="am-place-text">
+                    <div class="am-place-kicker">Actions · ${_escHtml(placeKind)}</div>
+                    <div class="am-place-name">${_escHtml(placeName)}</div>
+                    <div class="am-place-sub">${_escHtml(placeSub)}</div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <span style="font-size: 11px; color: #f39c12; background: rgba(243,156,18,0.12); padding: 2px 8px; border-radius: 4px;">⚡ ${ap}/${maxAp} AP</span>
-                    <button id="closeActionMenu" style="background: none; border: none; color: rgba(255,255,255,0.4);
-                        font-size: 18px; cursor: pointer; padding: 4px 6px; line-height: 1;
-                        transition: color 0.15s;"
-                        onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">✕</button>
+                <div class="am-place-side">
+                    <span class="am-place-ap" title="Action points left today">⚡ ${ap}/${maxAp} AP</span>
+                    <button id="closeActionMenu" class="am-place-close" title="Close">✕</button>
                 </div>
             </div>
         `;
@@ -231,6 +267,7 @@ Object.assign(ActionMenu, {
 
         menu.innerHTML = html;
         document.body.appendChild(menu);
+        paintPlaceView(game, tile, menu.querySelector('.am-place-view'));
 
         // ── Event listeners ──
         document.getElementById('closeActionMenu').addEventListener('click', () => ActionMenu.close());

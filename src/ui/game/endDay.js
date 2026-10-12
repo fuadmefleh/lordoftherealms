@@ -43,6 +43,7 @@ import { Mints } from '../../systems/mints.js';
 import { Engrossing } from '../../systems/engrossing.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
+import { showDayBanner } from '../dayBanner.js';
 
 export function onPlayerArrived() {
     const tile = this.world.getTile(this.player.q, this.player.r);
@@ -1110,7 +1111,17 @@ export function endDay() {
                 this._innerMapDayEndShown = false;
             }
 
-            this.ui.showNotification('New Day', `Day ${((this.world.day - 1) % 30) + 1} of ${this.world.season}, Year ${this.world.year}`, 'default');
+            // The new day is announced across the map (ui/dayBanner.js); a new season or year gets the larger card
+            const prevSeason = this._bannerSeason, prevYear = this._bannerYear;
+            this._bannerSeason = this.world.season;
+            this._bannerYear = this.world.year;
+            showDayBanner({
+                dayOfSeason: ((this.world.day - 1) % 30) + 1,
+                season: this.world.season,
+                year: this.world.year,
+                kind: prevYear != null && prevYear !== this.world.year ? 'year'
+                    : prevSeason != null && prevSeason !== this.world.season ? 'season' : 'day',
+            });
             // The Steward's morning brief: the top three matters (setting: morningBrief)
             showMorningBrief(this);
             updateCounselBadge(this);

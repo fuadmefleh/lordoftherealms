@@ -1,6 +1,7 @@
 // UI — panels methods.
 import { UI } from './core.js';
 import { applyUiScale } from '../uiScale.js';
+import { icon, titleCrest, glyphLabel } from '../icons.js';
 import { Traits } from '../../systems/traits.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Ledger } from '../../systems/ledger.js';
@@ -413,12 +414,21 @@ Object.assign(UI.prototype, {
         // A tabbed window keeps one title (the market of a town) whichever tab shows
         if (this._panelNav && this._panelNav.title) title = this._panelNav.title;
 
+        // The title's leading emoji becomes the crest beside it (ui/icons.js titleCrest)
+        const crest = titleCrest(title);
+        const crestHtml = crest.glyph ? icon(crest.glyph) : `<span class="cp-crest-emoji">${crest.emoji}</span>`;
+
         const existing = document.getElementById('customPanel');
         if (existing) {
             // If panel exists, just update the content body to prevent "blips"
             const titleEl = existing.querySelector('.custom-panel-title');
-            const changed = titleEl && titleEl.textContent !== title;
-            if (titleEl) titleEl.textContent = title;
+            const changed = titleEl && titleEl.textContent !== crest.text;
+            if (titleEl) titleEl.textContent = crest.text;
+            const crestEl = existing.querySelector('.cp-crest');
+            if (crestEl && crestEl.dataset.crest !== (crest.glyph || crest.emoji)) {
+                crestEl.innerHTML = crestHtml;
+                crestEl.dataset.crest = crest.glyph || crest.emoji;
+            }
             const navEl = existing.querySelector('.custom-panel-nav');
             if (navEl) {
                 navEl.innerHTML = navHtml;
@@ -466,9 +476,10 @@ Object.assign(UI.prototype, {
                 #customPanel .panel-nav-tab:hover { color:rgba(255,255,255,0.9); background:rgba(255,255,255,0.04); }
                 #customPanel .panel-nav-tab.active { color:var(--gold); border-bottom-color:var(--gold); background:rgba(245,197,66,0.08); }
             </style>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); flex: 0 0 auto;">
-                <h3 class="custom-panel-title" style="margin: 0; font-family: var(--font-display); color: var(--gold);">${title}</h3>
-                <button id="closeCustomPanel" style="background: none; border: none; color: var(--text-primary); font-size: 20px; cursor: pointer;">✕</button>
+            <div class="cp-head">
+                <span class="cp-crest" data-crest="${crest.glyph || crest.emoji}">${crestHtml}</span>
+                <h3 class="custom-panel-title">${crest.text}</h3>
+                <button id="closeCustomPanel" class="cp-close" title="Close (Esc)">${icon('close')}</button>
             </div>
             <div class="custom-panel-nav" style="${navHtml ? '' : 'display:none;'}">${navHtml}</div>
             <div class="custom-panel-body" style="padding: 16px; overflow-y: auto; flex: 1 1 auto; min-height: 0;">
@@ -523,7 +534,7 @@ Object.assign(UI.prototype, {
         const nav = this._panelNav;
         if (!nav) return '';
         const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-        return nav.items.map(i => `<button class="panel-nav-tab${i.key === nav.active ? ' active' : ''}" data-ui-act="panelNavGo" data-ui-args='${esc(JSON.stringify([i.key]))}'${i.title ? ` title="${esc(i.title)}"` : ''}>${i.label}</button>`).join('');
+        return nav.items.map(i => `<button class="panel-nav-tab${i.key === nav.active ? ' active' : ''}" data-ui-act="panelNavGo" data-ui-args='${esc(JSON.stringify([i.key]))}'${i.title ? ` title="${esc(i.title)}"` : ''}>${glyphLabel(i.label)}</button>`).join('');
     },
 
     /**
@@ -1120,15 +1131,48 @@ Object.assign(UI.prototype, {
             </div>
             <button class="notif-dismiss" title="Dismiss">✕</button>
         `;
-        area.appendChild(notif);
+        // Newest on top; the overflow chip (if any) stays at the foot of the stack
+        area.insertBefore(notif, area.firstChild);
+
+        const dismiss = () => {
+            if (notif._gone) return;
+            notif._gone = true;
+            notif.style.animation = 'notifOut 0.3s ease forwards';
+            setTimeout(() => notif.remove(), 300);
+        };
 
         // Dismiss button
         const dismissBtn = notif.querySelector('.notif-dismiss');
-        if (dismissBtn) {
-            dismissBtn.addEventListener('click', () => {
-                notif.style.animation = 'notifOut 0.3s ease forwards';
-                setTimeout(() => notif.remove(), 300);
-            });
+        if (dismissBtn) dismissBtn.addEventListener('click', dismiss);
+
+        // A busy day must not bury the screen: keep the newest few cards and fold
+        // the rest into a "+N more" chip that opens the event log.
+        const MAX_CARDS = 3;
+        const live = [...area.querySelectorAll('.notification')].filter(n => !n._gone);
+        if (live.length > MAX_CARDS) {
+            for (const old of live.slice(MAX_CARDS)) {
+                old._gone = true;
+                old.remove();
+                this._notifFolded = (this._notifFolded || 0) + 1;
+            }
+            let chip = document.getElementById('notifOverflow');
+            if (!chip) {
+                chip = document.createElement('button');
+                chip.id = 'notifOverflow';
+                chip.type = 'button';
+                chip.addEventListener('click', () => {
+                    this._notifFolded = 0;
+                    chip.remove();
+                    this.showEventLogPanel();
+                });
+            }
+            chip.textContent = `+${this._notifFolded} more · open the log`;
+            area.appendChild(chip);
+            clearTimeout(this._notifChipTimer);
+            this._notifChipTimer = setTimeout(() => {
+                this._notifFolded = 0;
+                chip.remove();
+            }, (this._notifDuration || 4000) + 3000);
         }
 
         // Play notification SFX based on type
@@ -1155,10 +1199,7 @@ Object.assign(UI.prototype, {
 
         // Auto-remove based on settings duration
         const duration = this._notifDuration || 4000;
-        setTimeout(() => {
-            notif.style.animation = 'notifOut 0.3s ease forwards';
-            setTimeout(() => notif.remove(), 300);
-        }, duration);
+        setTimeout(dismiss, duration);
     },
 
     /**

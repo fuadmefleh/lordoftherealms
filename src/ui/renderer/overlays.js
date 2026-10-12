@@ -1,6 +1,37 @@
 // Renderer — overlays methods.
 import { Renderer } from './core.js';
 import { Hex, Religion, Economy, Infrastructure, WorldUnit, Hinterland } from './_imports.js';
+import { drawGlyph } from '../icons.js';
+
+/** Each unit type's glyph on its map token (ui/icons.js); unknown types keep their emoji. */
+const UNIT_GLYPHS = {
+    caravan: 'wagon', trade_caravan: 'wagon', raider: 'axe', patrol: 'helm', road_patrol: 'helm',
+    settler: 'tent', ship: 'ship', trade_ship: 'ship', war_fleet: 'ship', pirate: 'skull',
+    fishing_boat: 'boat', lord_party: 'crown', mercenary_band: 'swords', war_host: 'swords',
+    lair_expedition: 'swords', pilgrim_group: 'chalice', smuggler: 'moon', refugee: 'sack',
+    beast: 'paw', monster: 'claw', diplomatic_envoy: 'seal',
+};
+
+/** Token metal by allegiance: rim/glyph colour and the enamel behind it. */
+const TOKEN_METALS = {
+    hostile: { rim: '#e8604f', hi: '#4a1414', lo: '#1a0606' },
+    merchant: { rim: '#ecc56e', hi: '#3a2f18', lo: '#140f06' },
+    royal: { rim: '#ffe08a', hi: '#43301a', lo: '#170e05' },
+    watch: { rim: '#8fb8ea', hi: '#1d2c48', lo: '#080e1a' },
+    settler: { rim: '#a9da70', hi: '#203317', lo: '#081106' },
+    common: { rim: '#e6dcc4', hi: '#2a2e3a', lo: '#0c0e14' },
+};
+
+function unitMetal(unit) {
+    if (WorldUnit.HOSTILE_TYPES.includes(unit.type)) return TOKEN_METALS.hostile;
+    switch (unit.type) {
+        case 'caravan': case 'trade_caravan': case 'ship': case 'trade_ship': return TOKEN_METALS.merchant;
+        case 'lord_party': return TOKEN_METALS.royal;
+        case 'patrol': case 'road_patrol': case 'war_fleet': return TOKEN_METALS.watch;
+        case 'settler': return TOKEN_METALS.settler;
+        default: return TOKEN_METALS.common;
+    }
+}
 
 Object.assign(Renderer.prototype, {
     /**
@@ -100,10 +131,12 @@ Object.assign(Renderer.prototype, {
             ctx.lineWidth = 1.5 * this.camera.zoom;
             ctx.stroke();
 
-            ctx.font = `${Math.max(10, r * 1.4)}px serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText('⛵', x, y);
+            if (!drawGlyph(ctx, 'ship', x, y, r * 1.35, '#ffe08a', 2)) {
+                ctx.font = `${Math.max(10, r * 1.4)}px serif`;
+                ctx.fillText('⛵', x, y);
+            }
             if (anchored) {
                 ctx.font = `${Math.max(8, r * 0.8)}px serif`;
                 ctx.fillText('⚓', x + r * 0.8, y + r * 0.7);
@@ -477,13 +510,93 @@ Object.assign(Renderer.prototype, {
             ctx.arc(p.x, p.y, size * 0.85, 0, Math.PI * 2);
             ctx.stroke();
             if (ctx.setLineDash) ctx.setLineDash([]);
-            ctx.font = `${Math.max(10, size * 0.5)}px serif`;
-            ctx.fillText('⚔️', p.x - size * 0.45, p.y - size * 0.45);
+            this.drawMarkerPlate(ctx, p.x - size * 0.45, p.y - size * 0.45, Math.max(8, size * 0.28), '#e8604f');
+            if (!drawGlyph(ctx, 'swords', p.x - size * 0.45, p.y - size * 0.45, Math.max(10, size * 0.36), '#ff8a78', 2.2)) {
+                ctx.font = `${Math.max(10, size * 0.5)}px serif`;
+                ctx.fillText('⚔️', p.x - size * 0.45, p.y - size * 0.45);
+            }
             if (z > 0.5) {
                 ctx.font = `bold ${Math.max(9, 10 * z)}px serif`;
                 ctx.fillStyle = 'rgba(255, 190, 170, 0.95)';
                 ctx.fillText(`Siege · day ${(this.world.day || 0) - s.startDay}`, p.x, p.y - size * 0.95);
             }
+        }
+        ctx.restore();
+    },
+
+    /** A small dark plate with a metal rim: the ground every map marker sits on. */
+    drawMarkerPlate(ctx, x, y, r, rim = 'rgba(232, 192, 112, 0.6)') {
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+        ctx.shadowBlur = r * 0.6;
+        ctx.shadowOffsetY = r * 0.12;
+        const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.1, x, y, r);
+        g.addColorStop(0, 'rgba(46, 54, 74, 0.95)');
+        g.addColorStop(1, 'rgba(10, 13, 22, 0.95)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowColor = 'transparent';
+        ctx.lineWidth = Math.max(1, r * 0.13);
+        ctx.strokeStyle = rim;
+        ctx.stroke();
+        ctx.restore();
+    },
+
+    /**
+     * A unit as a struck token: an enamelled disc rimmed in its allegiance's
+     * metal with the type's glyph engraved on it. Ships ride the swell, hostile
+     * tokens smoulder, a caravan you guard wears a gold halo.
+     */
+    renderUnitToken(ctx, unit, x, y, renderSize) {
+        const glyph = UNIT_GLYPHS[unit.type];
+        const r = Math.max(9, renderSize * 0.34);
+        const metal = unitMetal(unit);
+        const hostile = metal === TOKEN_METALS.hostile;
+        const phase = (unit.q * 7 + unit.r * 13) % 10;
+        if (unit.domain === 'sea' || /ship|boat|fleet|pirate/.test(unit.type)) y += Math.sin(this.time * 1.6 + phase) * r * 0.08;
+
+        ctx.save();
+        // Shadow cast on the land
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.beginPath();
+        ctx.ellipse(x, y + r * 0.95, r * 0.85, r * 0.28, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (hostile || (unit.escort && unit.escort.by === 'player')) {
+            const pulse = 0.5 + 0.5 * Math.sin(this.time * 3 + phase);
+            ctx.shadowColor = metal.rim;
+            ctx.shadowBlur = r * (0.6 + 0.6 * pulse);
+        }
+        // Enamel
+        const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.4, r * 0.1, x, y, r);
+        g.addColorStop(0, metal.hi);
+        g.addColorStop(1, metal.lo);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        // Rim: dark bevel, the metal, an inner hairline
+        ctx.lineWidth = Math.max(1.5, r * 0.16);
+        ctx.strokeStyle = metal.rim;
+        ctx.stroke();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.beginPath();
+        ctx.arc(x, y, r + ctx.lineWidth + r * 0.06, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+        ctx.beginPath();
+        ctx.arc(x, y, r * 0.78, 0, Math.PI * 2);
+        ctx.stroke();
+
+        if (!glyph || !drawGlyph(ctx, glyph, x, y, r * 1.25, metal.rim, 2)) {
+            ctx.font = `${r * 1.2}px serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(unit.icon, x, y + r * 0.05);
         }
         ctx.restore();
     },
@@ -507,20 +620,7 @@ Object.assign(Renderer.prototype, {
             if (screen.x < -100 || screen.x > this.canvas.width + 100) continue;
             if (screen.y < -100 || screen.y > this.canvas.height + 100) continue;
 
-            const iconSize = Math.max(14, renderSize * 0.85);
-            ctx.font = `${iconSize}px serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-
-            // Draw unit icon
-            ctx.save();
-            ctx.globalAlpha = 1.0;
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.fillStyle = '#ffffff';
-            ctx.shadowColor = 'rgba(0,0,0,0.8)';
-            ctx.shadowBlur = 6;
-            ctx.fillText(unit.icon, screen.x, screen.y);
-            ctx.restore();
+            this.renderUnitToken(ctx, unit, screen.x, screen.y, renderSize);
 
             // Unit name label
             if (this.camera.zoom > 0.4) {
@@ -552,101 +652,7 @@ Object.assign(Renderer.prototype, {
         }
     },
 
-    /**
-     * Render weather overlay
-     */
-    renderWeather(ctx) {
-        if (!this.world || !this.world.weather) return;
-
-        const bounds = this.camera.getVisibleBounds();
-        const width = this.world.width;
-        const height = this.world.height;
-        const size = this.hexSize;
-        const zoom = this.camera.zoom;
-
-        const hexWidth = Math.sqrt(3) * size;
-        const rowHeight = hexWidth * 0.75;
-        const padding = 1;
-
-        const startRow = Math.floor((bounds.top) / rowHeight) - padding;
-        const endRow = Math.ceil((bounds.bottom) / rowHeight) + padding;
-        const minR = Math.max(0, startRow);
-        const maxR = Math.min(height - 1, endRow);
-
-        // Batched drawing for performance
-        // Rain
-        ctx.beginPath();
-        ctx.strokeStyle = 'rgba(180, 200, 255, 0.4)';
-        ctx.lineWidth = 1 * zoom;
-
-        // Snow
-        const snowParticles = []; // Store centers
-
-        // Storm
-        let hasStorm = false;
-
-        for (let r = minR; r <= maxR; r++) {
-            const offsetX = (r % 2 === 0) ? hexWidth / 2 : 0;
-            const startCol = Math.floor((bounds.left - offsetX) / hexWidth) - padding;
-            const endCol = Math.ceil((bounds.right - offsetX) / hexWidth) + padding;
-
-            for (let q = startCol; q <= endCol; q++) {
-                const wq = Hex.wrapQ(q, width);
-                const weather = this.world.weather.getWeather(wq, r);
-
-                if (weather.type === 'clear' || weather.type === 'heatwave') continue;
-
-                const pos = this.getHexPixelPos(q, r);
-                const screen = this.camera.worldToScreen(pos.x, pos.y);
-
-                // Random seed for this tile's particles
-                const seed = (Math.sin(q * 12.9898 + r * 78.233) * 43758.5453);
-
-                if (weather.type === 'rain' || weather.type === 'storm') {
-                    // Draw rain lines
-                    for (let i = 0; i < 3; i++) {
-                        const rx = (seed * (i + 1) % 40) - 20;
-                        const ry = (seed * (i + 2) % 40) - 20;
-                        ctx.moveTo(screen.x + rx, screen.y + ry);
-                        ctx.lineTo(screen.x + rx - 5 * zoom, screen.y + ry + 10 * zoom);
-                    }
-                    if (weather.type === 'storm') hasStorm = true;
-                } else if (weather.type === 'snow' || weather.type === 'blizzard') {
-                    // Collect snow
-                    for (let i = 0; i < 3; i++) {
-                        const rx = (seed * (i + 1) % 40) - 20;
-                        const ry = (seed * (i + 2) % 40) - 20;
-                        // Deterministic snow?
-                        if (Math.abs((seed * (i + 3)) % 1) < 0.5) snowParticles.push({ x: screen.x + rx, y: screen.y + ry });
-                    }
-                }
-            }
-        }
-        ctx.stroke(); // Draw all rain
-
-        // Draw Snow
-        if (snowParticles.length > 0) {
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-            ctx.beginPath();
-            for (const p of snowParticles) {
-                ctx.moveTo(p.x, p.y);
-                ctx.arc(p.x, p.y, 1.5 * zoom, 0, Math.PI * 2);
-            }
-            ctx.fill();
-        }
-
-        // Global Storm Overlay (Lightning flash)
-        if (hasStorm) {
-            // Random flash
-            if (Math.random() < 0.01) {
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-                ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            }
-            // Darken
-            ctx.fillStyle = 'rgba(0, 0, 20, 0.15)';
-            ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        }
-    },
+    // renderWeather lives in renderer/atmosphere.js (animated rain, snow, lightning)
 
     // ============================================
     // MAP MODE OVERLAY SYSTEM

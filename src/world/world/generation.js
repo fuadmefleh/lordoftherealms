@@ -18,7 +18,8 @@ Object.assign(World.prototype, {
         Utils.setIdCounter(0);
         Utils.setSeed(typeof seed === 'string' ? Math.abs(Utils.hashStr(seed)) : seed);
         try {
-            this._generateWorld(this.generationParams);
+            if (this.generationParams.customWorld) this._buildCustomWorld(this.generationParams.customWorld);
+            else this._generateWorld(this.generationParams);
             this.getAllSettlements(); // stamps each settlement with its q/r
         } finally {
             Utils.setRng(outerRng);
@@ -168,14 +169,34 @@ Object.assign(World.prototype, {
     },
 
     /**
-     * Load a world from editor data (custom world).
-     * Converts the flat terrain-id array into full game tile objects
-     * and runs kingdom placement + all post-generation init.
+     * Load a world from editor data (custom world). The editor data rides in
+     * `generationParams.customWorld`, so resuming a saved game rebuilds the
+     * same map (World.generate) instead of rolling a random one.
      */
     loadFromEditorData(editorData, kingdomCount = 6) {
         console.log('Loading custom world from editor data...');
+        const rules = editorData.rules || {};
+        const seed = Number(editorData.seed) || Math.abs(Utils.hashStr(String(editorData.name || 'custom'))) || 1;
+        this.generate({
+            seed,
+            kingdomCount: rules.kingdomCount || kingdomCount,
+            independentSettlements: rules.independentSettlements || 'normal',
+            ruinsFreq: rules.ruinsFreq || 'normal',
+            customWorld: editorData,
+        });
+    },
+
+    _buildCustomWorld(editorData) {
         this.width = editorData.width;
         this.height = editorData.height;
+        const rules = editorData.rules || {};
+        const params = this.generationParams || {};
+        const at = (key) => {
+            const [q, r] = String(key).split(',').map(Number);
+            if (!Number.isInteger(q) || !Number.isInteger(r)) return null;
+            if (q < 0 || q >= this.width || r < 0 || r >= this.height) return null;
+            return { q, r, tile: this.tiles[r][q] };
+        };
 
         // Build a lookup: terrain id string → Terrain.TYPES reference
         const typeById = {};
@@ -216,39 +237,132 @@ Object.assign(World.prototype, {
             this.tiles.push(row);
         }
 
+        // Painted rivers. The renderer joins river tiles whose elevations
+        // differ, so each gets a tiny per-hex nudge (a hash, no RNG draw)
+        for (const key of Object.keys(editorData.rivers || {})) {
+            const h = at(key);
+            if (!h || !h.tile.terrain.passable) continue;
+            h.tile.hasRiver = true;
+            h.tile.elevation += (Math.abs(Utils.hashStr(key)) % 997 + 1) * 1e-6;
+        }
+        for (const row of this.tiles) {
+            for (const tile of row) {
+                if (!tile.hasRiver) continue;
+                const near = Hex.neighbors(tile.q, tile.r)
+                    .filter(n => n.r >= 0 && n.r < this.height)
+                    .map(n => this.tiles[n.r][Hex.wrapQ(n.q, this.width)]);
+                tile.riverSource = near.filter(t => t.hasRiver).length <= 1 && near.every(t => t.terrain.passable);
+            }
+        }
+
+        // Connected land/water regions: roads, caravans and routing need them
+        Terrain.identifyRegions(this.tiles, this.width, this.height);
+
         // Assign resources based on terrain type
         this._assignResources();
 
-        // Create and place kingdoms
-        const kCount = Math.min(kingdomCount, 15);
-        let kingdomDefs = Kingdom.DEFAULTS.slice(0, Math.min(kCount, Kingdom.DEFAULTS.length));
-        if (kCount > Kingdom.DEFAULTS.length) {
-            // Generate extras — simplified
-            for (let i = Kingdom.DEFAULTS.length; i < kCount; i++) {
-                kingdomDefs.push({
-                    id: 'gen_kingdom_' + (i + 1),
-                    name: 'Kingdom ' + (i + 1),
-                    ruler: 'Ruler ' + (i + 1),
-                    color: '#' + Math.floor(Utils.random()*16777215).toString(16).padStart(6,'0'),
-                    colorLight: 'rgba(128,128,128,0.2)',
-                    culture: 'Imperial',
-                    description: 'A realm born of custom creation.',
-                    preferredTerrain: ['plains', 'grassland'],
-                    traits: ['orderly'],
-                });
+        // Hand-placed settlements and landmarks go down before the realms, so
+        // a realm takes in the towns the map maker put in its lands
+        const placedTowns = new Set();
+        for (const [key, ovl] of Object.entries(editorData.overlays || {})) {
+            const h = at(key);
+            if (!h || !ovl) continue;
+            const name = typeof ovl.name === 'string' && ovl.name.trim() ? ovl.name.trim() : null;
+            const s = World.EDITOR_SETTLEMENTS[ovl.type];
+            const lm = World.EDITOR_LANDMARKS[ovl.type];
+            if (s && h.tile.terrain.passable) {
+                h.tile.settlement = {
+                    type: s.type,
+                    name: name && name !== s.label ? name : Kingdom.generateCityName('Imperial'),
+                    population: Utils.randInt(s.pop[0], s.pop[1]),
+                    level: s.level,
+                    kingdom: null,
+                    founded: Utils.randInt(400, 820),
+                    ...(ovl.type === 'port' ? { port: true } : {}),
+                };
+                placedTowns.add(`${h.q},${h.r}`);
+            } else if (lm && (h.tile.terrain.passable || lm.water)) {
+                h.tile.improvement = {
+                    type: lm.type,
+                    icon: lm.icon,
+                    name: name || lm.name,
+                    explored: false,
+                    founded: Utils.randInt(100, 600),
+                };
             }
         }
-        this.kingdoms = kingdomDefs.map(def => Kingdom.create(def));
-        Kingdom.placeKingdoms(this.kingdoms, this.tiles, this.width, this.height);
+
+        // Painted roads
+        for (const key of Object.keys(editorData.roadOverlays || {})) {
+            const h = at(key);
+            if (h && h.tile.terrain.passable) h.tile.hasRoad = true;
+        }
+
+        // Realms: the map maker's, seated where they were put; with none,
+        // the usual random placement
+        this.kingdoms = [];
+        const realms = (editorData.realms || []).filter(k => k && k.id && k.capital && at(`${k.capital.q},${k.capital.r}`));
+        if (realms.length) {
+            const lands = {};
+            for (const [key, id] of Object.entries(editorData.territory || {})) {
+                const h = at(key);
+                if (h) (lands[id] = lands[id] || []).push({ q: h.q, r: h.r });
+            }
+            for (const realm of realms) {
+                const site = this._nearestLand(realm.capital.q, realm.capital.r);
+                if (!site) continue;
+                const kingdom = Kingdom.create(World.realmTemplate(realm));
+                const own = lands[realm.id] || [];
+                const capTile = this.tiles[site.r][site.q];
+                Kingdom.foundAt(kingdom, site, this.tiles, this.width, this.height, {
+                    territory: own,
+                    // A realm the map maker gave towns doesn't get random ones too
+                    towns: rules.realmTowns !== false && !own.some(t => placedTowns.has(`${t.q},${t.r}`)),
+                    capitalName: (capTile.settlement && capTile.settlement.name) || realm.capitalName || null,
+                });
+                for (const t of kingdom.territory) {
+                    const s = this.tiles[t.r][t.q].settlement;
+                    if (s && !s.kingdom) s.kingdom = kingdom.id;
+                }
+                Kingdom.initializeKingdomStats(kingdom, this.tiles, this.width, this.height);
+                this.kingdoms.push(kingdom);
+            }
+        }
+        if (!this.kingdoms.length) {
+            const kCount = Math.min(rules.kingdomCount || params.kingdomCount || 6, 15);
+            let kingdomDefs = Kingdom.DEFAULTS.slice(0, Math.min(kCount, Kingdom.DEFAULTS.length));
+            if (kCount > Kingdom.DEFAULTS.length) {
+                // Generate extras — simplified
+                for (let i = Kingdom.DEFAULTS.length; i < kCount; i++) {
+                    kingdomDefs.push({
+                        id: 'gen_kingdom_' + (i + 1),
+                        name: 'Kingdom ' + (i + 1),
+                        ruler: 'Ruler ' + (i + 1),
+                        color: '#' + Math.floor(Utils.random()*16777215).toString(16).padStart(6,'0'),
+                        colorLight: 'rgba(128,128,128,0.2)',
+                        culture: 'Imperial',
+                        description: 'A realm born of custom creation.',
+                        preferredTerrain: ['plains', 'grassland'],
+                        traits: ['orderly'],
+                    });
+                }
+            }
+            this.kingdoms = kingdomDefs.map(def => Kingdom.create(def));
+            Kingdom.placeKingdoms(this.kingdoms, this.tiles, this.width, this.height);
+        }
         Kingdom.initRelations(this.kingdoms);
+
+        // Where the player begins (Player.placeInWorld reads it)
+        const start = editorData.playerStart;
+        this.playerStart = start && at(`${start.q},${start.r}`) ? this._nearestLand(start.q, start.r) : null;
 
         // Run the same post-generation init as generate()
         NPCLords.initializeLords(this);
         if (typeof Characters !== 'undefined') Characters.initialize(this);
-        this.placeIndependentSettlements('normal');
+        this.placeIndependentSettlements(params.independentSettlements || 'normal');
         Kingdom.dedupeSettlementNames(this);
-        this.placePointsOfInterest('normal');
-        this.generateRoads();
+        this.placePointsOfInterest(params.ruinsFreq || 'normal');
+        if (rules.autoRoads !== false) this.generateRoads();
         this.history = WorldEvents.generateHistory(this);
         if (typeof Religion !== 'undefined') Religion.initialize(this);
         if (typeof Culture !== 'undefined') Culture.initialize(this);
@@ -258,6 +372,18 @@ Object.assign(World.prototype, {
         this.spawnInitialUnits();
 
         console.log(`Custom world loaded: ${this.width}x${this.height}, ${this.kingdoms.length} kingdoms`);
+    },
+
+    /** The passable tile nearest (q, r) — itself if it is land — or null. */
+    _nearestLand(q, r) {
+        for (let range = 0; range <= 6; range++) {
+            for (const h of Hex.hexesInRange(q, r, range)) {
+                if (h.r < 0 || h.r >= this.height) continue;
+                const wq = Hex.wrapQ(h.q, this.width);
+                if (this.tiles[h.r][wq].terrain.passable) return { q: wq, r: h.r };
+            }
+        }
+        return null;
     },
 
     /** Estimate elevation from terrain type (for custom worlds) */
@@ -608,3 +734,55 @@ Object.assign(World.prototype, {
         return null; // No path found
     },
 });
+
+// ── Custom-world vocabulary (world_editor.html) ──────────────────────
+
+// Editor overlay type → the settlement it founds in play
+World.EDITOR_SETTLEMENTS = {
+    village: { type: 'village', label: 'Village', level: 0, pop: [50, 500] },
+    outpost: { type: 'village', label: 'Outpost', level: 0, pop: [30, 200] },
+    town: { type: 'town', label: 'Town', level: 1, pop: [500, 3000] },
+    port: { type: 'town', label: 'Port', level: 1, pop: [800, 3000] },
+    city: { type: 'city', label: 'City', level: 2, pop: [3000, 8000] },
+    capital: { type: 'city', label: 'Capital', level: 2, pop: [4000, 9000] },
+};
+
+// Editor landmark → the point of interest it becomes (ruins and caves can be delved)
+World.EDITOR_LANDMARKS = {
+    dungeon: { type: 'ruins', icon: '⚔️', name: 'Forgotten Dungeon' },
+    ruins: { type: 'ruins', icon: '🏚️', name: 'Ancient Ruins' },
+    shrine: { type: 'shrine', icon: '⛩️', name: 'Roadside Shrine' },
+    temple: { type: 'shrine', icon: '🕌', name: 'Old Temple' },
+    tower: { type: 'monument', icon: '🗼', name: 'Lonely Tower' },
+    fortress: { type: 'ruins', icon: '🏰', name: 'Fallen Fortress' },
+    cave: { type: 'cave', icon: '🕳️', name: 'Mysterious Cave' },
+    mine: { type: 'cave', icon: '⛏️', name: 'Abandoned Mine' },
+    oasis: { type: 'oasis', icon: '🌴', name: 'Desert Oasis' },
+    volcano: { type: 'cave', icon: '🌋', name: 'Fire Mountain' },
+    shipwreck: { type: 'shipwreck', icon: '⛵', name: 'Shipwreck', water: true },
+};
+
+/**
+ * A kingdom template for a realm the map maker placed: one of the default
+ * realms (by id) with their renames, or a realm of their own making.
+ */
+World.realmTemplate = function (realm) {
+    const base = Kingdom.DEFAULTS.find(d => d.id === realm.id) || {};
+    const color = /^#[0-9a-f]{6}$/i.test(realm.color || '') ? realm.color : (base.color || '#888888');
+    const rgb = [1, 3, 5].map(i => parseInt(color.slice(i, i + 2), 16));
+    const culture = realm.culture || base.culture || 'Imperial';
+    return {
+        ruler: 'Ruler of ' + (realm.name || base.name || 'the realm'),
+        culture,
+        description: 'A realm born of custom creation.',
+        preferredTerrain: ['plains', 'grassland'],
+        traits: ['orderly'],
+        ...base,
+        id: String(realm.id),
+        name: realm.name || base.name || String(realm.id),
+        color,
+        colorLight: `rgba(${rgb.join(', ')}, 0.2)`,
+        ...(realm.culture ? { culture: realm.culture } : {}),
+        ...(realm.ruler ? { ruler: realm.ruler } : {}),
+    };
+};

@@ -194,8 +194,14 @@ export class Player {
         // Find a good starting location — preferably a village or unclaimed territory
         let bestTile = null;
 
+        // A hand-made map may say where the player begins (world_editor.html)
+        const start = world.playerStart;
+        if (start && world.tiles[start.r] && world.tiles[start.r][start.q] && world.tiles[start.r][start.q].terrain.passable) {
+            bestTile = { q: start.q, r: start.r };
+        }
+
         // Try to start near an independent village
-        for (let r = 0; r < world.height; r++) {
+        for (let r = 0; !bestTile && r < world.height; r++) {
             for (let q = 0; q < world.width; q++) {
                 const tile = world.tiles[r][q];
                 if (tile.settlement && tile.settlement.type === 'village' && !tile.kingdom) {

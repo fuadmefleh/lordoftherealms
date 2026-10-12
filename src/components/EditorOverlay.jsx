@@ -14,7 +14,7 @@ function formatSavedAt(ts) {
 }
 
 export default function EditorOverlay({ type }) {
-  const { setPhase } = useGame();
+  const { setPhase, setGameState } = useGame();
   const frameRef = useRef(null);
   const [saveLabel, setSaveLabel] = useState(null);
 
@@ -51,6 +51,15 @@ export default function EditorOverlay({ type }) {
       flashSave('✕ Error');
     }
   }, [isWorld, flashSave]);
+
+  // Play the map as it stands; the editor remembers it for when you come back
+  const handlePlaytest = useCallback(() => {
+    const win = frameRef.current && frameRef.current.contentWindow;
+    if (!win || typeof win.getExportData !== 'function') { flashSave('⚠ Not ready'); return; }
+    const data = typeof win.prepareForPlaytest === 'function' ? win.prepareForPlaytest() : win.getExportData();
+    if (!data) { flashSave('⚠ No data'); return; }
+    setGameState(prev => ({ ...prev, phase: 'loading', settings: { _customWorldData: data } }));
+  }, [setGameState, flashSave]);
 
   const openPicker = useCallback(async () => {
     setPicker({ loading: true, worlds: [], error: null });
@@ -96,6 +105,7 @@ export default function EditorOverlay({ type }) {
               💾 Save World
             </button>
             <button className="editor-bar-btn" title="Load a saved world" onClick={openPicker}>📂 Load</button>
+            <button className="editor-bar-btn" title="Start a game on this map now" onClick={handlePlaytest}>▶ Playtest</button>
           </>
         )}
         {!isWorld && (

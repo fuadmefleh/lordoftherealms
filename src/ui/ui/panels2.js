@@ -8,6 +8,8 @@ Object.assign(UI.prototype, {
      */
     hideTitleScreen() {
         const titleScreen = document.getElementById('titleScreen');
+        // The React shell has no legacy title screen (custom worlds start from the editor)
+        if (!titleScreen) return;
         titleScreen.style.transition = 'opacity 0.8s ease';
         titleScreen.style.opacity = '0';
         setTimeout(() => {
